@@ -72,7 +72,7 @@ copilot "Implement UC-021: Customer Login with Tenant Selection
 
 Reference:
 - docs/04-USE_CASES.md UC-021
-- USER_TENANT_MODEL.md (customer multi-tenant)
+- 06-TENANT_ISOLATION_STRATEGY.md (customer multi-tenant)
 - docs/02-DOMAIN_MODEL.md (Customer aggregate)
 
 Generate:
@@ -151,8 +151,8 @@ Requirements:
 
 ### Quick Start
 - **1 page overview:** `docs/QUICK_REFERENCE.md`
-- **User auth model:** `USER_TENANT_MODEL.md`
-- **Multi-tenancy:** `MULTI_TENANCY_ARCHITECTURE.md`
+- **User auth model:** `06-TENANT_ISOLATION_STRATEGY.md`
+- **Multi-tenancy:** `06-TENANT_ISOLATION_STRATEGY.md`
 
 ### Core Architecture
 - **Business context:** `docs/01-BUSINESS_CONTEXT.md`
@@ -307,8 +307,8 @@ const staff = await staffRepo.findByEmail("john@example.com");
 ├── .copilot/
 │   └── context.md (my internal instructions)
 ├── README.md (project overview)
-├── USER_TENANT_MODEL.md (auth model)
-├── MULTI_TENANCY_ARCHITECTURE.md (multi-tenant design)
+├── 06-TENANT_ISOLATION_STRATEGY.md (auth model)
+├── 06-TENANT_ISOLATION_STRATEGY.md (multi-tenant design)
 ├── docs/
 │   ├── README.md (index)
 │   ├── 01-BUSINESS_CONTEXT.md
@@ -351,7 +351,7 @@ Me: "Summarizing... Customer login with tenant selection if multiple tenants.
     Need more details: Language preference? Framework? Include tests?"
 
 You: "TypeScript/Node.js, Express.js, include tests"
-Me: "Generating implementation based on USER_TENANT_MODEL.md and UC-014.
+Me: "Generating implementation based on 06-TENANT_ISOLATION_STRATEGY.md and UC-014.
     Using: Express, Google OAuth, Session management.
     Creating: LoginService, route handler, tests."
 
@@ -372,7 +372,7 @@ For questions about:
 - **Architecture:** Reference `docs/05-BOUNDED_CONTEXTS.md`
 - **Use cases:** Reference `docs/04-USE_CASES.md`
 - **Domain:** Reference `docs/02-DOMAIN_MODEL.md`
-- **Auth:** Reference `USER_TENANT_MODEL.md`
+- **Auth/Tenancy:** Reference `docs/06-TENANT_ISOLATION_STRATEGY.md`
 - **Events:** Reference `docs/03-DOMAIN_EVENTS.md`
 
 Or ask me directly: "What's the pattern for [X]?"

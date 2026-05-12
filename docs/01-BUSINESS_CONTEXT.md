@@ -68,9 +68,9 @@ Person: maria@email.com
 
 As Customer:
   - Bookings with AutoWash Pro (Tenant A)
-    • 15 washes, 50 loyalty points, SILVER status
+    • 15 completed washes (lifetime), 50 active loyalty points
   - Bookings with SuperClean (Tenant B)
-    • 2 washes, 8 loyalty points, BRONZE status
+    • 2 completed washes (lifetime), 8 active loyalty points
   
   Login: "Which car wash would you like to use?
           - AutoWash Pro (50 points)
@@ -272,17 +272,30 @@ Small car wash businesses face challenges:
 
 ---
 
+## Target Market & Localization
+
+| Aspect | Value |
+|--------|-------|
+| **Country** | Brazil 🇧🇷 |
+| **Language** | Portuguese (pt-BR) — all customer-facing text, email templates, and UI copy |
+| **Currency** | BRL (R$) — displayed as `R$ 1.234,56` (Brazilian number format) |
+| **Timezone** | One timezone per tenant, stored in `settings.business_hours.timezone`. Default: `America/Sao_Paulo` (UTC-3). All DB timestamps in UTC. |
+| **Compliance** | Brazil — all customer data stored in Brazil or Brazilian-approved regions. |
+
+---
+
 ## Technical Constraints & Decisions
 
-- **Cloud Provider:** GCP primary, but cloud-agnostic via Terraform (multi-cloud ready)
-- **No lock-in:** Standard PostgreSQL, portable code
-- **Architecture:** Hexagonal (ports & adapters) with DDD principles
-- **Stack:** NestJS backend, React frontend, BFF gateway
-- **Authentication:** Google OAuth 2.0 (staff & customers)
-- **Email:** SendGrid or AWS SES (async, reliable)
-- **Storage:** Google Cloud Storage for photos
-- **No cache needed:** Small business, predictable load
-- **IaC:** Terraform for all infrastructure
+- **Architecture:** Hexagonal (ports & adapters) with DDD principles.
+- **Deployment:** **Docker-centric**. The entire platform must be containerized and deployable to any cloud (GCP, AWS, Azure) or on-premise.
+- **No Vendor Lock-in:** 
+  - Strict use of standard PostgreSQL (no proprietary extensions).
+  - Observability using Open-Source standards (**Prometheus, Grafana, OpenTelemetry**).
+  - Infrastructure as Code (Terraform) focused on portable resources.
+- **Stack:** NestJS backend, React frontend, BFF gateway.
+- **Authentication:** Google OAuth 2.0 (standard implementation, not cloud-specific).
+- **Email:** Standard SMTP or API adapters (SendGrid/SES) with easy swapability.
+- **Storage:** Standard S3-compatible or local-disk adapters.
 
 ---
 

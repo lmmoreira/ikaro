@@ -36,27 +36,31 @@ UC-XXX: [Use Case Name]
 - **Preconditions:** Guest is on tenant's hotsite or booking page (e.g., beloauto.com/tenant1). System has available time slots. Guest is requesting for a specific tenant.
 - **Trigger:** Guest clicks "Request Booking"
 - **Main Flow:**
-  1. System identifies tenant from URL path (e.g., /tenant1)
-  2. Guest enters: name, email, phone
-  3. Guest selects service (from that tenant's services only)
-  4. System displays calendar with available slots (that tenant's admin's schedule)
-  5. Guest selects preferred date/time
-  6. Guest optionally uploads one or more car photos (PNG/JPG) - encouraged with text "Help us understand your car's condition"
-  7. System validates: email format, phone format, slot availability, file sizes
-  8. Guest clicks "Submit"
-  9. System creates Booking aggregate with status = PENDING, stores all photos, **scoped to tenant**
-  10. System publishes `BookingRequested` event (with tenantId)
-  11. Guest sees confirmation screen: "Your request is pending. You'll hear from us soon."
+  1. System identifies tenant from URL path (e.g., /tenant1).
+  2. Guest enters: name, email, phone.
+  3. Guest selects **one or more services** from that tenant's catalog (e.g. "Basic Wash" + "Wax", or "Basic Wash" twice for two cars). Each selection adds a line to the booking.
+  4. As the guest adds / removes services, the booking summary updates live:
+     - **Total price** = SUM of each selected service's current price.
+     - **Total duration** = SUM of each selected service's duration.
+  5. System displays calendar with available slots, filtered by **total duration** (a slot must accommodate the full visit, not just one service).
+  6. Guest selects preferred date/time.
+  7. Guest optionally uploads one or more car photos (PNG/JPG) — encouraged with text "Help us understand your car's condition".
+  8. System validates: email format, phone format, slot availability against total duration, at least one service selected, file sizes.
+  9. Guest clicks "Submit".
+  10. System creates the `Booking` aggregate with status = PENDING and one `BookingLine` per selected service. Each line snapshots the service's current `price`, `duration_mins`, and `points_value` — see `docs/02-DOMAIN_MODEL.md`. Photos are stored. All rows are scoped to tenant.
+  11. System publishes `BookingRequested` event (envelope includes `tenantId`; `data.lines[]` carries the snapshotted lines).
+  12. Guest sees confirmation: "Your request is pending. You'll hear from us soon."
 
 - **Alternative Flows:**
-  - **A1: Invalid email** → System shows error, guest corrects
-  - **A2: No available slots** → System shows "No availability, try another date"
-  - **A3: Photo upload fails** → System allows submission without photos (optional)
-  - **A4: Multiple photos** → Guest can add/remove photos before submitting
-  - **A5: Wrong tenant URL** → Guest is requesting booking for Tenant A, sees Tenant A's services/calendar only
+  - **A1: Invalid email** → System shows error, guest corrects.
+  - **A2: No service selected** → "Submit" disabled until ≥ 1 service is in the basket.
+  - **A3: No available slots for the selected duration** → System shows "No slot of [N] minutes is available on that day; pick another day or remove a service".
+  - **A4: Photo upload fails** → System allows submission without photos (optional).
+  - **A5: Multiple photos** → Guest can add/remove photos before submitting.
+  - **A6: Wrong tenant URL** → Guest is requesting booking for Tenant A; sees only Tenant A's services/calendar.
 
-- **Postconditions:** Booking exists in PENDING state, **scoped to tenant**. Admin of that tenant is notified. Guest receives email.
-- **Events Triggered:** `BookingRequested` (includes tenantId)
+- **Postconditions:** Booking exists in PENDING with ≥ 1 lines, scoped to tenant. Admin of that tenant is notified. Guest receives confirmation email listing the services and total price.
+- **Events Triggered:** `BookingRequested` (envelope: `tenantId`; `data.lines[]` ≥ 1).
 
 ---
 
@@ -66,23 +70,23 @@ UC-XXX: [Use Case Name]
 - **Preconditions:** Customer is authenticated. System has available slots. Customer has previous booking history (optional).
 - **Trigger:** Customer clicks "Request Booking"
 - **Main Flow:**
-  1. System pre-fills: name, email, phone (from customer profile)
-  2. Customer selects service
-  3. System displays calendar with available slots
-  4. Customer selects preferred date/time
-  5. Customer optionally uploads car photos
-  6. System validates input
-  7. Customer clicks "Submit"
-  8. System creates Booking with status = PENDING, links customerId
-  9. System publishes `BookingRequested` event
+  1. System pre-fills name, email, phone from the customer's profile.
+  2. Customer selects **one or more services** from the tenant's catalog. Same multi-line model as UC-001 main flow steps 3–4.
+  3. System displays calendar with available slots filtered by total duration.
+  4. Customer selects preferred date/time.
+  5. Customer optionally uploads car photos.
+  6. System validates input (including ≥ 1 service selected and slot fits total duration).
+  7. Customer clicks "Submit".
+  8. System creates `Booking` with status = PENDING and one `BookingLine` per selected service. `customerId` is linked. Snapshots as in UC-001 main flow step 10.
+  9. System publishes `BookingRequested` event (envelope `tenantId`; `data.lines[]` ≥ 1).
   10. System displays: "Request submitted. View your bookings in your profile."
-  11. System displays customer's loyalty status (e.g., "You have 3 completed washes")
+  11. System shows the customer's current active-points total (e.g., "47 active points").
 
 - **Alternative Flows:**
-  - Same as UC-001, plus:
-  - **A4: Customer views past bookings** → System shows completed/cancelled history
+  - Same A1–A6 as UC-001.
+  - **A7: Customer views past bookings** → System shows COMPLETED / CANCELLED history with each booking's line list.
 
-- **Postconditions:** Booking created and linked to customer. Loyalty record updated if not first booking.
+- **Postconditions:** Booking created with ≥ 1 lines and linked to customer. No loyalty effect yet (loyalty accrues on completion).
 - **Events Triggered:** `BookingRequested`
 
 ---
@@ -91,26 +95,29 @@ UC-XXX: [Use Case Name]
 
 - **Actor:** Staff/Admin
 - **Preconditions:** Booking in PENDING state. Admin is authenticated. Admin has access to dashboard.
-- **Trigger:** Admin clicks "Approve" on pending booking
+- **Trigger:** Admin clicks "Approve" on a pending booking
 - **Main Flow:**
-  1. Admin views pending booking request with details:
-     - Customer name, email, phone
-     - Service selected
-     - Preferred date/time
-     - Car photos (if any)
-  2. Admin reviews all information
-  3. Admin clicks "Approve"
-  4. System confirms actual time slot is still available
-  5. System transitions booking: PENDING → APPROVED
-  6. System records approvalTimestamp and approvedBy (staff email)
-  7. System publishes `BookingApproved` event
-  8. Admin sees success message: "Booking approved"
+  1. Admin opens the booking request. The dashboard shows:
+     - Customer name, email, phone (or guest contact details).
+     - **The full line list**: each service with its `priceAtBooking`, `durationMinsAtBooking`, `pointsValueAtBooking`.
+     - **Booking totals**: `totalPrice`, `totalDurationMins`.
+     - Preferred date/time (start of slot).
+     - **The customer's current active-points balance** (so the admin can see at a glance whether to offer a courtesy / gift — gifts are still admin-driven, not in the system).
+     - Car photos (if any).
+  2. Admin reviews all information.
+  3. Admin clicks "Approve".
+  4. System re-checks that the slot `[scheduledAt, scheduledAt + totalDurationMins)` is still free.
+  5. System transitions booking: `PENDING | INFO_REQUESTED` → `APPROVED`. The line collection is now frozen.
+  6. System records `approvedAt`, `approvedBy`.
+  7. System publishes `BookingApproved` (event carries `lineSummary[]` and `totalPrice`).
+  8. Admin sees success: "Booking approved".
 
 - **Alternative Flows:**
-  - **A1: Slot no longer available** → System shows error, suggests alternatives
-  - **A2: Admin adds internal notes** → System stores notes in booking (optional)
+  - **A1: Slot no longer available** → System shows error and suggests adjacent free slots that also fit `totalDurationMins`.
+  - **A2: Admin adds internal notes** → System stores notes on the booking (optional).
+  - **A3: Admin spots an issue with the line list** → For MVP, admin asks the customer to cancel and re-book (no "edit lines on approval" UC yet).
 
-- **Postconditions:** Booking is APPROVED. Customer receives confirmation email with date/time. Calendar slot reserved.
+- **Postconditions:** Booking is APPROVED. Customer receives confirmation email listing every service in the booking plus total price. Calendar slot reserved.
 - **Events Triggered:** `BookingApproved`
 
 ---
@@ -140,7 +147,7 @@ UC-XXX: [Use Case Name]
 
 ### **UC-005: Admin Requests More Information**
 
-- **Actor:** Staff/Admin
+- **Actor:** Staff/Admin (Main Flow); Customer/Guest (Alternative Flow A2 — info submission)
 - **Preconditions:** Booking in PENDING state
 - **Trigger:** Admin clicks "Request More Info"
 - **Main Flow:**
@@ -148,15 +155,25 @@ UC-XXX: [Use Case Name]
   2. Admin clicks "Request More Info"
   3. Admin enters message (e.g., "Please provide car photos")
   4. Admin clicks "Submit"
-  5. System keeps booking in PENDING state
-  6. System publishes `BookingInfoRequested` event
-  7. Admin sees confirmation
+  5. System transitions booking: PENDING → INFO_REQUESTED
+  6. System records `infoRequestedAt`, `infoRequestedBy`, `informationNeeded`
+  7. System publishes `BookingInfoRequested` event
+  8. Admin sees confirmation
 
 - **Alternative Flows:**
-  - None (straightforward request flow)
+  - **A1: Booking not in PENDING** → System rejects ("can only request info on PENDING bookings"). INFO_REQUESTED → second request requires a separate UC if ever needed.
+  - **A2: Customer / guest submits requested info** (this is the inverse flow that returns the booking to PENDING):
+    1. Customer / guest opens the link in the info-request email (or, if authenticated, opens the booking in "My Bookings")
+    2. Customer / guest provides the requested data (photos, notes, corrections)
+    3. System validates input
+    4. System transitions booking: INFO_REQUESTED → PENDING
+    5. System records `infoSubmittedAt`, `infoSubmittedBy` (customerId or guest email), `infoPayload`
+    6. System publishes `BookingInfoSubmitted` event → Notification re-notifies admin: "[name] replied with the requested info"
+    7. Customer / guest sees confirmation: "Thanks — we'll review and confirm shortly."
+  - **A3: Admin acts on the info offline (no return to PENDING needed)** → Admin can directly APPROVE / REJECT / CANCEL from INFO_REQUESTED (UC-003 / UC-004 / UC-008 are valid transitions out of INFO_REQUESTED).
 
-- **Postconditions:** Booking stays PENDING. Guest/customer receives email with request. Guest can submit more info and resubmit.
-- **Events Triggered:** `BookingInfoRequested`
+- **Postconditions:** Booking is in INFO_REQUESTED (after main flow) or PENDING (after A2). Guest/customer was notified; if A2 ran, admin was re-notified.
+- **Events Triggered:** `BookingInfoRequested` (main flow), `BookingInfoSubmitted` (alt flow A2)
 
 ---
 
@@ -170,18 +187,18 @@ UC-XXX: [Use Case Name]
      - **Upcoming:** APPROVED bookings with date ≥ today
      - **Past:** COMPLETED or CANCELLED bookings with date < today
      - **Pending:** PENDING bookings awaiting admin approval
-  2. Each booking shows: service, date, time, status, price
-  3. For APPROVED upcoming bookings: customer can see "Cancel" button
-  4. For PENDING bookings: customer can see "Cancel Request" button
-  5. Clicking booking details shows full info (service description, location, etc.)
-  6. Customer can view loyalty metrics:
-     - Total washes completed: [X]
-     - Total cancellations: [Y]
-     - Loyalty status: [BRONZE/SILVER/GOLD]
+  2. Each booking shows: the list of services in the booking, date, time, status, total price, total duration.
+  3. For APPROVED upcoming bookings: customer can see "Cancel" button.
+  4. For PENDING / INFO_REQUESTED bookings: customer can see "Cancel Request" button.
+  5. Clicking a booking shows the full detail including every line (service name, line price, line duration) and any photos.
+  6. Customer can view loyalty summary (full breakdown lives in UC-016):
+     - Total active points (across all services)
+     - Total washes completed (lifetime)
+     - Most recently completed service
 
 - **Alternative Flows:**
   - **A1: No bookings** → System shows "You haven't booked yet"
-  - **A2: Cancellation not eligible (< 48h)** → Cancel button hidden with note: "Cancellation available 48h before appointment"
+  - **A2: Cancellation not eligible** → Cancel button hidden with note: "Cancellation available up to `tenants.settings.cancellation_window_hours` hours before your appointment"
 
 - **Postconditions:** Customer sees booking history and loyalty status
 - **Events Triggered:** None (read operation)
@@ -191,10 +208,10 @@ UC-XXX: [Use Case Name]
 ### **UC-007: Customer Cancels Approved Booking**
 
 - **Actor:** Authenticated Customer
-- **Preconditions:** Booking is APPROVED. Time to booking ≥ 48 hours.
+- **Preconditions:** Booking is APPROVED. Time to booking ≥ `tenants.settings.cancellation_window_hours`.
 - **Trigger:** Customer clicks "Cancel Booking"
 - **Main Flow:**
-  1. System validates: current time + 48h ≤ booking time
+  1. System validates: current time + `tenants.settings.cancellation_window_hours` ≤ booking time
   2. If validation passes:
      - Customer sees confirmation: "Cancel this booking?"
   3. Customer clicks "Confirm Cancel"
@@ -204,7 +221,7 @@ UC-XXX: [Use Case Name]
   7. System shows success: "Booking cancelled"
 
 - **Alternative Flows:**
-  - **A1: Less than 48h remaining** → System shows error: "Too late to cancel"
+  - **A1: Inside cancellation window** → System shows error: "Too late to cancel — cancellations must be made at least `tenants.settings.cancellation_window_hours` hours before the appointment"
   - **A2: Booking already completed/cancelled** → System shows error: "Cannot cancel this booking"
 
 - **Postconditions:** Booking is CANCELLED. Customer receives cancellation confirmation email. Admin notified. Loyalty system records cancellation.
@@ -228,37 +245,46 @@ UC-XXX: [Use Case Name]
   8. Admin sees success confirmation
 
 - **Alternative Flows:**
-  - **A1: Admin reschedules instead of cancelling** → Admin selects new date/time → republish for customer confirmation
+   - **A1: Admin reschedules instead of cancelling (MVP — Simple Approach):**
+     1. Admin selects booking and clicks "Reschedule"
+     2. Admin selects new date/time from calendar
+     3. System validates the new slot is available (same duration check as original booking)
+     4. System updates `scheduledAt` to the new date/time
+     5. System adds internal note: "Rescheduled by [admin name] on [date]"
+     6. System transitions booking: APPROVED → APPROVED (stays approved, time updated, no status change)
+     7. System sends customer email: "Your booking has been rescheduled to [new date/time]"
+     8. Admin sees success: "Booking rescheduled"
+   - **A2: New slot unavailable** → System shows error and suggests available alternatives
 
-- **Postconditions:** Booking cancelled or rescheduled. Customer receives notification email.
-- **Events Triggered:** `BookingCancelled`
-
+- **Postconditions:** Booking cancelled (status CANCELLED) or rescheduled (status APPROVED with updated time). Customer receives notification email in both cases.
+- **Events Triggered:** `BookingCancelled` (cancel), reschedule email sent (no new event type in MVP — handled by email trigger)
 ---
 
 ### **UC-009: Admin Marks Booking Complete**
 
 - **Actor:** Staff/Admin (after completing wash)
 - **Preconditions:** Booking is APPROVED. Scheduled time has passed (or is current).
-- **Trigger:** Admin/Staff clicks "Mark Complete" or "Wash Done" in dashboard
+- **Trigger:** Admin/Staff clicks "Mark Complete" or "Wash Done" in the dashboard
 - **Main Flow:**
-  1. Staff/Admin navigates to today's bookings or specific booking
-  2. Staff/Admin clicks "Mark as Completed"
-  3. Staff/Admin may add notes (e.g., "Extra shine applied")
-  4. Staff/Admin optionally uploads one or more after-service photos (PNG/JPG) - encouraged with text "Help customer see the result & use for marketing"
-  5. Staff/Admin clicks "Confirm"
-  6. System transitions booking: APPROVED → COMPLETED
-  7. System records completedBy (staff email), completedDate, and all after-service photos
-  8. System publishes `BookingCompleted` event
-  9. System shows success
-  10. If customer is authenticated: System processes loyalty points (calls Loyalty Context), publishes `ServicePointsEarned`
+  1. Staff/Admin opens the booking. The dashboard shows the full line list (all services that were performed).
+  2. Staff/Admin clicks "Mark as Completed".
+  3. Staff/Admin may add notes (e.g., "Extra shine applied").
+  4. Staff/Admin optionally uploads one or more after-service photos (PNG/JPG).
+  5. Staff/Admin clicks "Confirm".
+  6. System transitions booking: `APPROVED → COMPLETED` (all lines complete together — no partial completion in MVP).
+  7. System records `completedBy`, `completedAt`, `afterServicePhotoUrls`, `adminNotes`.
+  8. System publishes `BookingCompleted` event with the full line list.
+  9. If `customerId != null` (authenticated customer): Loyalty Context consumes the event and inserts one `LoyaltyEntry` per line (idempotent on `(tenant_id, booking_line_id)`). Loyalty publishes one `ServicePointsEarned` per insert.
+  10. System shows success.
 
 - **Alternative Flows:**
-  - **A1: No-show** → Admin marks as NO_SHOW instead of COMPLETED (optional state for future)
-  - **A2: Multiple photos** → Staff can add/remove photos before confirming
-  - **A3: Photo upload fails** → System allows completion without photos (optional)
+  - **A1: No-show** → Admin marks as NO_SHOW instead of COMPLETED (future state, not in MVP).
+  - **A2: Multiple photos** → Staff can add/remove photos before confirming.
+  - **A3: Photo upload fails** → System allows completion without photos (optional).
+  - **A4: Guest booking** → Booking is marked COMPLETED but no `LoyaltyEntry` is created (no `customerId`). Notification still sends a "thanks" email to the guest.
 
-- **Postconditions:** Booking is COMPLETED. If authenticated customer: loyalty points added for service, status recalculated. Notification email sent. Photos stored for marketing.
-- **Events Triggered:** `BookingCompleted`, `ServicePointsEarned`
+- **Postconditions:** Booking is COMPLETED. For authenticated customers: N new `LoyaltyEntry` rows (N = number of lines). For guests: nothing in loyalty. A single notification email to the customer summarises every service completed and the total points earned.
+- **Events Triggered:** `BookingCompleted` (once), `ServicePointsEarned` (once per line, only when `customerId != null`).
 
 ---
 
@@ -291,27 +317,71 @@ UC-XXX: [Use Case Name]
 ### **UC-011: Guest Views Real-Time Calendar Availability**
 
 - **Actor:** Guest (any user, authenticated or not)
-- **Preconditions:** User is on booking page
-- **Trigger:** User selects service and "Choose Date/Time"
-- **Main Flow:**
-  1. System fetches:
-     - All ScheduleClosures (closed dates)
-     - All APPROVED bookings in next 90 days
-     - Service duration
-  2. System calculates available time slots:
-     - Exclude closed dates
-     - Exclude booked time slots
-     - Show only business hours (e.g., 8 AM - 6 PM)
-  3. System displays calendar with green (available) and gray (booked) slots
-  4. User clicks available slot → system confirms selection
-  5. User proceeds to booking form
+- **Preconditions:** User has added at least one service to their booking basket.
+- **Trigger:** User clicks "Choose Date/Time" after selecting services.
+
+#### **Scheduling Algorithm (MVP)**
+
+**Slot Structure:**
+- Minimal slot unit: **1 hour** (fixed, non-configurable)
+- Valid start times: 09:00, 10:00, 11:00, ..., 17:00 (hourly intervals)
+- Tenant's business hours determine which slots exist (e.g., 09:00–18:00)
+
+**Booking Duration Calculation:**
+```
+booking_duration_minutes = SUM(service.duration_minutes for each service in basket) + tenant.settings.booking.service_buffer_minutes
+```
+
+Example: If basket has [Basic Wash (30 min), Wax (25 min)] and buffer is 60 min:
+- Total: 30 + 25 + 60 = 115 minutes ≈ 2 hours (rounds up)
+- Required slots: 2 (occupies slots 14:00–15:00 and 15:00–16:00)
+
+**Availability Calculation:**
+1. System computes `bookingDurationMins` from basket + buffer
+2. System rounds up to nearest hour: `requiredSlots = CEIL(bookingDurationMins / 60)`
+3. For each potential start-time slot:
+   - Check if all required consecutive slots are free (no APPROVED bookings, no ScheduleClosures)
+   - Check if all slots fall within business hours
+   - If yes → slot is available (green)
+   - If no → slot is unavailable (grey)
+
+**Example Timeline:**
+```
+14:00–15:00: Free ✓
+15:00–16:00: Free ✓
+16:00–17:00: APPROVED booking ✗
+17:00–18:00: Free ✓
+
+If required slots = 2:
+- Start 14:00: ✓ (14:00 free + 15:00 free = available)
+- Start 15:00: ✗ (15:00 free + 16:00 occupied = unavailable)
+- Start 16:00: ✗ (16:00 occupied + 17:00 free = unavailable)
+- Start 17:00: ✗ (17:00 free + 18:00 closed = unavailable)
+```
+
+#### **Main Flow:**
+1. System computes `totalDurationMins = SUM(selectedServices.durationMins) + tenants.settings.booking.service_buffer_minutes`
+2. System computes `requiredSlots = CEIL(totalDurationMins / 60)`
+3. System fetches:
+   - All `ScheduleClosures` for the tenant (closed dates/ranges)
+   - All APPROVED bookings in the next 90 days for the tenant
+   - The tenant's business hours and timezone
+4. For each day in the next 90 days:
+   - For each potential 1-hour start slot in business hours:
+     - Check if all `requiredSlots` consecutive slots are available
+     - Mark as available (green) or unavailable (grey)
+5. System displays calendar with available and unavailable slots
+6. User picks an available start-time → system confirms
+7. User proceeds to booking form with `scheduledAt = [selected date + time]`
 
 - **Alternative Flows:**
-  - **A1: No slots in next 7 days** → System suggests dates further out
-  - **A2: Service duration > available slots** → System hides those slots
+   - **A1: No slots in the next 7 days** → System suggests dates further out (next 90 days)
+   - **A2: Required duration exceeds business-hours window** → System shows error: "This combination takes [N] minutes ([M] hours) — longer than our working day. Please remove a service or contact us."
+   - **A3: User changes basket after picking a slot** → System invalidates the chosen slot, recalculates `requiredSlots`, and re-runs steps 1–4
 
-- **Postconditions:** User has selected date/time, proceeds to booking
+- **Postconditions:** User has selected a date/time with start slot = available start time, duration = calculated booking duration
 - **Events Triggered:** None (read operation)
+
 
 ---
 
@@ -366,52 +436,8 @@ UC-XXX: [Use Case Name]
 
 ## Authentication & User Management Use Cases
 
-### **UC-014: Customer Logs In (Google OAuth)**
-
-- **Actor:** Customer or Guest
-- **Preconditions:** User is on login page
-- **Trigger:** User clicks "Login with Google"
-- **Main Flow:**
-  1. System redirects to Google OAuth consent screen
-  2. User authenticates with Google
-  3. Google returns access token + user info (sub, email, name)
-  4. System checks: does customer exist with this googleOAuthId?
-  5. **If new:** System creates Customer aggregate with googleOAuthId
-  6. **If existing:** System updates last login
-  7. System sets session/JWT token
-  8. System redirects to customer dashboard or booking page
-  9. User is authenticated
-
-- **Alternative Flows:**
-  - **A1: User denies Google OAuth consent** → Redirect to login page with message: "Authentication cancelled"
-
-- **Postconditions:** User is logged in. Future requests include auth token.
-- **Events Triggered:** None (auth event, not domain event)
-
----
-
-### **UC-015: Staff Logs In (Google OAuth)**
-
-- **Actor:** Staff/Admin
-- **Preconditions:** User is on staff login page. Staff account exists.
-- **Trigger:** Staff clicks "Login with Google"
-- **Main Flow:**
-  1. System redirects to Google OAuth consent screen
-  2. Staff authenticates with Google
-  3. Google returns access token + user info (sub, email, name)
-  4. System checks: does staff exist with this googleOAuthId?
-  5. **If exists and isActive = true:** Grant dashboard access
-  6. **If not exists or isActive = false:** Show error: "Not authorized"
-  7. System sets session/JWT token
-  8. System redirects to admin dashboard
-  9. Staff is authenticated
-
-- **Alternative Flows:**
-  - **A1: Staff deactivated** → System shows: "Your account is inactive"
-  - **A2: New staff member** → Superadmin must create staff account + googleOAuthId first
-
-- **Postconditions:** Staff authenticated. Access to admin dashboard.
-- **Events Triggered:** None
+> **Note:** UC-014 and UC-015 have been consolidated into UC-021 and UC-022 to support multi-tenancy.
+> See UC-021 and UC-022 below for the current, canonical authentication use cases.
 
 ---
 
@@ -419,39 +445,35 @@ UC-XXX: [Use Case Name]
 
 ### **UC-016: View Customer Loyalty Metrics**
 
-- **Actor:** Authenticated Customer or Admin (viewing customer profile)
-- **Preconditions:** Customer has at least one completed booking
-- **Trigger:** Customer clicks "My Loyalty" or Admin views customer profile
+- **Actor:** Authenticated Customer (own metrics) or Admin (viewing any customer in their tenant)
+- **Preconditions:** Customer exists in the tenant. They may or may not have completed bookings yet.
+- **Trigger:** Customer clicks "My Loyalty" or Admin opens a customer's profile
 - **Main Flow:**
-  1. System fetches LoyaltyRecord for customer
-  2. System displays loyalty data **per service type**:
-     - For each service the customer has used:
-       - Service name
-       - Total completions
-       - Accumulated points
-       - Points status (BRONZE/SILVER/GOLD per service)
-       - When points expire (e.g., "+180 days")
-       - Progress to next tier (e.g., "3 points, 2 more to reach SILVER")
-  3. User sees information organized by service
+  1. System queries `loyalty_entries` for the customer (tenant-scoped).
+  2. System computes, all at query time:
+     - **Total active points** = `SUM(points) WHERE expires_at > now()`
+     - **Per-service active points** = same, grouped by `service_id`
+     - **Per-service completions count** = `COUNT(*) GROUP BY service_id` (across all entries — historical activity)
+     - **Next expiration** = the earliest `expires_at` among entries with `expires_at > now()`, so the UI can show "X points expire on [date]"
+  3. UI shows:
+     - Headline: total active points + when the next batch expires.
+     - Per-service breakdown (active points + total completions ever).
   4. Example display:
      ```
-     Basic Wash: 5 points (SILVER) - expires in 120 days
-       5 completions - 1 point each
-       
-     Premium Wash: 3 points (BRONZE) - expires in 150 days
-       1 completion - 2 points
-       + 1 manual point (admin bonus)
-       
-     Wax: 0 points (no history)
+     Total active points: 17  ·  next 3 points expire on 2026-08-12
+
+     Basic Wash    — 5 active pts   · 12 completions ever
+     Premium Wash  — 8 active pts   ·  4 completions ever
+     Wax           — 4 active pts   ·  2 completions ever
      ```
-  5. Optional: Show historical log (when earned, when expired)
 
 - **Alternative Flows:**
-  - **A1: No bookings yet** → System shows: "No loyalty record yet. Book your first service!"
-  - **A2: Points expired** → System shows expired points grayed out, recalculates available
+  - **A1: No completed bookings yet** → System shows: "No loyalty points yet — book your first wash!"
+  - **A2: Admin variant** → Same data, plus the customer's contact info and a list of their most recent `LoyaltyEntry` rows (for verification). No editing — the admin cannot adjust points in MVP.
 
-- **Postconditions:** User views loyalty metrics per service
-- **Events Triggered:** None (read operation)
+- **Postconditions:** User sees current active-points view. No state changes.
+- **Events Triggered:** None (read operation).
+- **Out of scope (MVP):** No tier labels (BRONZE/SILVER/GOLD), no redemption flow, no manual admin point adjustments. Gifts and rewards are offered by the admin outside the system.
 
 ---
 
@@ -574,11 +596,11 @@ UC-XXX: [Use Case Name]
      - Session automatically created for that tenant
      - Customer redirected to dashboard
   6. **Case B: Customer in MULTIPLE tenants**
-     - System shows tenant selection screen:
+     - System shows tenant selection screen with the customer's active-point balance at each tenant:
        ```
        "Which car wash would you like to book with?
-        - AutoWash Pro [50 points, SILVER]
-        - SuperClean [8 points, BRONZE]"
+        - AutoWash Pro  · 50 active points
+        - SuperClean    ·  8 active points"
        ```
      - Customer selects: "AutoWash Pro"
      - Session created: {userId: customer_id, tenantId: "tenant_a"}
@@ -629,7 +651,7 @@ UC-XXX: [Use Case Name]
   3. Current session invalidated
   4. New session created: {userId: customer_id, tenantId: "tenant_b"}
   5. Customer redirected to SuperClean dashboard
-  6. Customer sees: SuperClean's bookings, loyalty (8 points, BRONZE)
+  6. Customer sees: SuperClean's bookings and SuperClean's loyalty (8 active points)
 
 - **Alternative Flows:**
   - **A1: Customer has only one tenant** → "Switch" button hidden/disabled
@@ -639,24 +661,201 @@ UC-XXX: [Use Case Name]
 
 ---
 
+## Platform & Tenant Management
+
+### **UC-024: Developer Provisions New Tenant (CLI)**
+
+- **Actor:** BeloAuto developer / operator
+- **Preconditions:** Developer has database access. No super-admin UI exists in MVP.
+- **Trigger:** A new car-wash company is signed up and needs a tenant provisioned.
+- **Main Flow:**
+   1. Developer runs the provisioning CLI command:
+      ```bash
+      pnpm --filter backend tenant:create \
+        --name "AutoWash Pro" \
+        --slug "autowash-pro" \
+        --admin-email "owner@autowashpro.com.br" \
+        --timezone "America/Sao_Paulo"
+      ```
+   2. System validates: slug is globally unique, email is valid format.
+   3. System creates `tenants` row: `name`, `slug`, `settings` (defaults), `is_active = true`.
+   4. System creates a `staff` row for the admin email: `role = MANAGER`, `is_active = false` (pending first login).
+   5. System sends invitation email to the admin email (triggers `StaffInvited` event → Notification Context sends the email).
+   6. System logs action in audit trail.
+
+- **Alternative Flows:**
+   - **A1: Slug already taken** → CLI exits with error: "Slug 'autowash-pro' is already in use."
+   - **A2: Invalid email format** → CLI exits with validation error.
+
+- **Postconditions:** `tenants` row and first `staff` (MANAGER) row created. Admin receives invitation email with login link.
+- **Events Triggered:** `StaffInvited`
+
+---
+
+### **UC-025: Admin First Login (Accepts Invite)**
+
+- **Actor:** Invited staff member (received invitation email from UC-024 or UC-028)
+- **Preconditions:** Staff row exists for the invited email with `is_active = false`. Tenant is active.
+- **Trigger:** Staff member clicks the invitation link in the email and authenticates with Google OAuth.
+- **Main Flow:**
+   1. System redirects to Google OAuth login.
+   2. Staff member authenticates with Google using the invited email address.
+   3. System receives Google callback with `google_oauth_id` and `email`.
+   4. System finds the `staff` row by `(tenant_id, email)` where `is_active = false`.
+   5. System activates the staff record: sets `google_oauth_id`, `is_active = true`.
+   6. System creates a JWT session (`tenantId`, `tenantSlug`, `role`).
+   7. System redirects to the dashboard.
+   8. Staff member sees: "Bem-vindo(a)! Sua conta está pronta."
+
+- **Alternative Flows:**
+   - **A1: Google email does not match invited email** → System shows error: "Por favor, use o e-mail para o qual você foi convidado(a)."
+   - **A2: Staff already active** → System treats as normal login (UC-022).
+   - **A3: Tenant deactivated** → System shows error: "Este estabelecimento está desativado."
+
+- **Postconditions:** `staff.is_active = true`, `staff.google_oauth_id` set. Staff logged in and on the dashboard.
+- **Events Triggered:** None
+
+---
+
+### **UC-026: Admin Edits Tenant Settings**
+
+- **Actor:** Staff member with `MANAGER` role
+- **Preconditions:** Admin is authenticated with MANAGER role.
+- **Trigger:** Admin clicks "Configurações" → "Geral" in the dashboard.
+- **Main Flow:**
+   1. System loads current `tenants.settings` JSONB and displays form with current values:
+      - **Nome do estabelecimento** (edit allowed)
+      - **Slug** (read-only after creation — shown as info only)
+      - **Janela de cancelamento** (horas) — default 48 h
+      - **Validade dos pontos de fidelidade** (dias) — default 180 d
+      - **Horário de funcionamento** — days of week + open/close times
+      - **Fuso horário** — required; default `America/Sao_Paulo`
+      - **Buffer entre agendamentos** (minutos) — prep time between bookings, default 60
+   2. Admin updates values.
+   3. Admin clicks "Salvar".
+   4. System validates all fields (see `docs/21-TENANTS_SETTINGS_SCHEMA.md` for rules).
+   5. System updates `tenants.settings` JSONB and `tenants.name` if changed.
+   6. System logs audit entry: who changed what and when.
+   7. Admin sees: "Configurações salvas com sucesso."
+
+- **Alternative Flows:**
+   - **A1: Invalid field value** → System highlights the specific field with an error message and prevents save.
+   - **A2: Slug change attempted** → Slug field is read-only; system ignores any manipulation attempt.
+
+- **Postconditions:** `tenants` row updated. New settings apply to all future operations (bookings, loyalty) for this tenant.
+- **Events Triggered:** None (settings are read fresh on each request)
+
+---
+
+### **UC-027: Tenant Admin Manages Hotsite Content & Branding**
+
+- **Actor:** Tenant admin (ADMIN role for that tenant). Super admin can also edit.
+- **Preconditions:** Admin is authenticated. `hotsite_configs` row exists for this tenant (created on tenant onboarding or first access).
+- **Trigger:** Admin clicks "Branding" or "Hotsite" in the dashboard
+- **Main Flow:**
+   1. System loads current `hotsite_configs` for this tenant
+   2. System displays two sections:
+      
+      **Section A: Branding**
+      - Primary color (hex picker)
+      - Logo URL (text input or upload)
+      - Font family (dropdown or text)
+      - Hero image (upload)
+      
+      **Section B: Layout / Modules** (drag-drop list of module types)
+      - [x] HERO (title, subtitle, image) — toggle on/off
+      - [x] SERVICE_LIST (shows services from catalog) — toggle on/off
+      - [x] GALLERY (customer photos) — toggle on/off + limit (6 default)
+      - [x] BOOKING_FORM (integrated form) — toggle on/off
+      - [x] TESTIMONIALS (free-text/structured) — optional for MVP
+      - [x] FAQ (free-text) — optional for MVP
+   
+   3. Admin updates:
+      - Colors, logo, fonts in branding section
+      - Enables/disables modules
+      - Reorders modules (drag-drop) — order preserved in JSONB array
+   
+   4. Admin clicks "Preview" to see hotsite live (optional)
+   5. Admin clicks "Publish Changes"
+   6. System updates `hotsite_configs.branding` and `hotsite_configs.layout`
+   7. System sets `is_published = true`
+   8. System logs: "[admin] published hotsite on [date]"
+   9. Admin sees confirmation: "Hotsite updated and live"
+
+- **Alternative Flows:**
+   - **A1: Invalid color (not hex)** → System shows error and prevents save
+   - **A2: Image upload fails** → System falls back to URL input
+   - **A3: Super admin edits** → Same flow, but with elevated permissions (can force-update any tenant)
+
+- **Postconditions:** `hotsite_configs` updated. Hotsite public page reflects new branding and layout immediately (cached at edge if needed).
+- **Events Triggered:** None
+
+---
+
+---
+
+### **UC-028: Admin Invites New Staff Member**
+
+- **Actor:** Staff member with `MANAGER` role
+- **Preconditions:** Admin is authenticated with MANAGER role.
+- **Trigger:** Admin clicks "Equipe" → "Convidar membro" in the dashboard.
+- **Main Flow:**
+   1. Admin enters: first name, last name, email address, role (`MANAGER` or `STAFF`).
+   2. System validates: email format valid; no existing active `staff` row for this `(tenant_id, email)`.
+   3. System creates `staff` row: `email`, `first_name`, `last_name`, `role`, `tenant_id`, `is_active = false`.
+   4. System publishes `StaffInvited` event.
+   5. Notification Context sends invitation email: "Você foi convidado(a) para gerenciar [Nome do Estabelecimento]. Clique aqui para aceitar."
+   6. Admin sees: "Convite enviado para [email]."
+
+- **Alternative Flows:**
+   - **A1: Email already has active staff record** → System shows: "Este e-mail já está cadastrado na sua equipe."
+   - **A2: Email has inactive staff record** → System reactivates instead (A2-flow: sets `is_active = true`, resends invite).
+
+- **Postconditions:** `staff` row created (`is_active = false`). Invitation email sent. Staff member activates account via UC-025.
+- **Events Triggered:** `StaffInvited`
+
+---
+
+### **UC-029: Admin Deactivates Staff Member**
+
+- **Actor:** Staff member with `MANAGER` role
+- **Preconditions:** Admin is authenticated with MANAGER role. Target staff member is active and belongs to the same tenant.
+- **Trigger:** Admin clicks "Desativar" on a staff member's profile in the dashboard.
+- **Main Flow:**
+   1. Admin selects a staff member from the team list.
+   2. Admin clicks "Desativar membro".
+   3. System shows confirmation: "Tem certeza? [Nome] perderá o acesso imediatamente."
+   4. Admin confirms.
+   5. System sets `staff.is_active = false`.
+   6. System publishes `StaffDeactivated` event.
+   7. Any active JWT for this staff member will be rejected on next API call (JWT still valid until expiry; revocation is eventual via short TTL).
+   8. Admin sees: "[Nome] foi desativado(a) com sucesso."
+
+- **Alternative Flows:**
+   - **A1: Admin tries to deactivate themselves** → System prevents: "Você não pode desativar sua própria conta."
+   - **A2: Last MANAGER** → System prevents: "O estabelecimento precisa de pelo menos um gerente ativo."
+
+- **Postconditions:** `staff.is_active = false`. Staff member can no longer log in. All their past actions remain in the audit log.
+- **Events Triggered:** `StaffDeactivated`
+
+---
+
 | UC | Name | Actor | Domain Impact |
 |----|------|-------|----------------|
-| UC-001 | Guest requests booking | Guest | Creates PENDING booking with photos |
-| UC-002 | Customer requests booking | Customer | Creates PENDING booking (auth'd) |
-| UC-003 | Admin approves booking | Admin | PENDING → APPROVED |
+| UC-001 | Guest requests booking | Guest | Creates PENDING booking with 1..N lines + photos |
+| UC-002 | Customer requests booking | Customer | Creates PENDING booking (auth'd) with 1..N lines |
+| UC-003 | Admin approves booking | Admin | PENDING|INFO_REQUESTED → APPROVED; line list frozen |
 | UC-004 | Admin rejects booking | Admin | PENDING → REJECTED |
 | UC-005 | Admin requests info | Admin | PENDING (awaiting info) |
 | UC-006 | Customer views bookings | Customer | Read operation |
 | UC-007 | Customer cancels booking | Customer | APPROVED → CANCELLED |
 | UC-008 | Admin cancels booking | Admin | APPROVED/PENDING → CANCELLED |
-| UC-009 | Mark booking complete | Staff | APPROVED → COMPLETED + photos + points |
+| UC-009 | Mark booking complete | Staff | APPROVED → COMPLETED + photos + N LoyaltyEntry rows (one per line) |
 | UC-010 | Close schedule | Admin | ScheduleClosure created |
-| UC-011 | View calendar | Any | Read available slots |
+| UC-011 | View calendar | Any | Read available slots filtered by basket's total duration |
 | UC-012 | Create service | Admin | Service created with points value |
 | UC-013 | Edit service | Admin | Service updated |
-| UC-014 | Customer login (OAuth) | Customer | Customer created/updated or tenant selection |
-| UC-015 | Staff login (OAuth) | Staff | Staff authenticated (no selection) |
-| UC-016 | View loyalty metrics | Customer/Admin | LoyaltyRecord per-service read |
+| UC-016 | View loyalty metrics | Customer/Admin | Read-only aggregation of `loyalty_entries` — total active points + per-service breakdown + completions count |
 | UC-017 | View analytics | Admin | Future feature |
 | UC-018 | Admin receives daily schedule | System | Scheduled reminder email at 6 AM |
 | UC-019 | Customer reminder (day before) | System | Scheduled reminder email at 6 AM |
@@ -664,4 +863,10 @@ UC-XXX: [Use Case Name]
 | UC-021 | Customer login with tenant selection | Customer | OAuth + tenant selection if multiple |
 | UC-022 | Staff login (no selection) | Staff | OAuth (direct to single tenant) |
 | UC-023 | Customer switches tenant | Customer | Switch session to different tenant |
+| UC-024 | Developer provisions new tenant (CLI) | Developer | `tenants` row + first MANAGER staff row; invite email sent |
+| UC-025 | Admin first login (accepts invite) | Invited staff | `staff.is_active = true`, `google_oauth_id` set |
+| UC-026 | Admin edits tenant settings | MANAGER staff | `tenants.settings` JSONB updated |
+| UC-027 | Admin manages hotsite content | MANAGER staff | `hotsite_configs` updated + published |
+| UC-028 | Admin invites new staff member | MANAGER staff | `staff` row created (`is_active=false`); `StaffInvited` event |
+| UC-029 | Admin deactivates staff member | MANAGER staff | `staff.is_active = false`; `StaffDeactivated` event |
 

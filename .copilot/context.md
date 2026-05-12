@@ -1,295 +1,365 @@
-# GitHub Copilot CLI - Internal Context
+# BeloAuto — Agent Context (canonical)
 
-**For my use when helping with BeloAuto**
-
----
-
-## Project Summary
-- **Name:** BeloAuto
-- **Type:** Multi-tenant SaaS - Car wash service management
-- **Status:** Phase 1 complete (DDD), Phase 2 starting (technical architecture)
-- **Users:** Multiple car wash companies (tenants) on single platform
+**Symlinked as:** `claude.md`, `gemini.md`  
+**Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
+**Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
+**Last updated:** 2026-05-12
 
 ---
 
-## Architecture (One-Liner Version)
+## 0. Permission Protocol (non-negotiable)
 
-5 bounded contexts (DDD) → PostgreSQL with tenant_id → Event-driven → Hexagonal architecture
+Before writing or editing ANY file (`.md`, `.ts`, `.tf`, `.yml`, configs):
 
----
+1. **Discuss** the change with the user.
+2. **Summarise** what you intend to write.
+3. **Ask:** "May I now create/update `<path>`?"
+4. **Write only after** an explicit yes.
 
-## Bounded Contexts
-
-| Context | Type | Owns | Key Events |
-|---------|------|------|-----------|
-| Booking | Core | Booking, Service, ScheduleClosure | BookingRequested, BookingApproved, BookingCompleted, BookingCancelled |
-| Customer | Supporting | Customer (auth'd users) | None published |
-| Loyalty | Supporting | LoyaltyRecord | ServicePointsEarned, PointsExpired, PointsRedeemed |
-| Notification | Supporting | NotificationTemplate, NotificationLog | EmailSent, EmailFailed |
-| Staff | Supporting | Staff, ScheduleClosure (shared) | None published |
+Exceptions: read-only ops (`Read`, `grep`, `ls`, `git status`, memory files).
 
 ---
 
-## Key Aggregates
+## 1. Project Facts
 
-| Aggregate | Tenant Scope | Fields | Notes |
-|-----------|--------------|--------|-------|
-| Booking | tenant_id | id, status, customerId, serviceId, slots, photos | Guest or auth'd |
-| Service | tenant_id | id, name, price, loyaltyPointsValue | Each tenant has own |
-| Customer | tenant_id | id, googleOAuthId, email | MULTI-tenant (same person multi-tenant) |
-| Staff | tenant_id | id, googleOAuthId, role | SINGLE-tenant only |
-| LoyaltyRecord | tenant_id | id, customerId, serviceLoyal[] | Per-service, per-customer, per-tenant |
-| NotificationTemplate | tenant_id | id, name, subject, htmlBody | Branded per tenant |
-| NotificationLog | tenant_id | id, recipient, status, sentAt | Audit trail |
-| ScheduleClosure | tenant_id | id, staffId, type, dates | Days off, maintenance |
-
----
-
-## Multi-Tenancy Model
-
-```
-Database: Single PostgreSQL
-Isolation: Logical (tenant_id column)
-Query Pattern: WHERE tenant_id = ? AND [other filters]
-
-CUSTOMERS: Multi-tenant allowed
-  ✓ maria@email.com can book at Tenant A and Tenant B
-  ✓ Separate Customer record per tenant
-  ✓ Separate Loyalty record per tenant
-  ✓ Login shows selection if multi-tenant
-
-STAFF: Single-tenant only
-  ✓ john@email.com works for Tenant A only
-  ✓ Cannot work for Tenant B
-  ✓ DB constraint: UNIQUE(googleOAuthId, tenantId)
-  ✓ Login direct (no selection)
-```
+| Fact | Value |
+|---|---|
+| **Product** | BeloAuto |
+| **Type** | Multi-tenant SaaS — car-wash booking & loyalty |
+| **Market** | Brazil 🇧🇷 |
+| **Currency** | BRL (R$) — `Money` value object must carry currency code |
+| **Locale** | pt-BR (email templates, UI copy, date/number formats) |
+| **Default TZ** | `America/Sao_Paulo` (UTC-3); one timezone per tenant via `settings.business_hours.timezone` |
+| **Branch** | `main` · Trunk-Based Development · short-lived `feat/UC-xxx` / `fix/xxx` branches |
+| **Commits** | Conventional Commits (`feat(booking):`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`) |
+| **Languages** | TypeScript strict mode — backend + frontend |
+| **Backend** | NestJS v11 modular monolith |
+| **BFF** | Separate NestJS v11 service (`apps/bff/`) |
+| **Frontend** | Next.js 14 + React 18 |
+| **Monorepo** | pnpm workspaces (`apps/`, `packages/`) |
+| **ORM** | TypeORM v0.3+ |
+| **DB** | PostgreSQL 15 — single shared schema, `tenant_id` everywhere |
+| **DB migrations** | TypeORM migrations; run via **separate CI job** before deploy — app never auto-migrates at startup |
+| **Event bus** | GCP Pub/Sub (prod) · GCP Pub/Sub Emulator (local dev docker-compose) · behind `IEventBus` port |
+| **Auth** | Google OAuth 2.0 · JWT sessions (`tenantId`, `tenantSlug`, `role` in payload) |
+| **Storage** | S3-compatible (GCS/S3) · paths: `tenants/<tenant_id>/bookings/<booking_id>/<file>` |
+| **Observability** | Prometheus + Grafana + OpenTelemetry + Loki + OTel Collector |
+| **Container** | Docker · GCP Cloud Run (MVP) → Kubernetes if needed |
+| **IaC** | Terraform (GCP provider MVP; cloud-agnostic adapters) |
+| **Secrets** | GCP Secret Manager (MVP) → HashiCorp Vault if multi-cloud |
+| **Errors** | RFC 9457 Problem Details on all non-2xx responses |
+| **Coverage gate** | ≥ 80% on **changed code** (differential, not global) |
+| **Rate limiting** | NestJS `@nestjs/throttler` on all public endpoints |
+| **Feature flags** | Environment variables (`FEATURE_FLAG_XYZ=true`) — no external system for MVP |
 
 ---
 
-## User Authentication Model
+## 2. Multi-Tenancy Invariants (NEVER violate)
 
-### Customer Login (UC-021)
-1. Google OAuth
-2. Find: Which tenants does customer belong to?
-3. If 1 tenant → Direct to dashboard
-4. If 2+ tenants → Show selection screen
-5. Create session: {userId, tenantId}
-6. Can switch tenants later
+Any code that breaks these is a defect regardless of test coverage.
 
-### Staff Login (UC-022)
-1. Google OAuth
-2. Find: Which tenant does staff belong to?
-3. Must be exactly 1 tenant (constraint)
-4. Direct to admin dashboard
-5. Create session: {userId, tenantId, role}
-6. Cannot switch tenants
+1. Every table has `tenant_id UUID NOT NULL`, indexed first in every composite index.
+2. Every query filters `WHERE tenant_id = :tenantId`. No exceptions.
+3. Every domain event includes `tenantId`, `eventId` (idempotency key), `occurredAt` (ISO-8601 UTC), `correlationId`.
+4. Composite FKs use `(tenant_id, id)` to block cross-tenant references at DB level.
+5. **Customers are multi-tenant** — same Google `sub` → multiple `Customer` rows (one per tenant). No unique on `google_oauth_id` alone.
+6. **Staff are single-tenant** — `UNIQUE(tenant_id, google_oauth_id)` at DB level.
+7. File paths prefixed by tenant (see §1 Storage).
+8. Logs, metrics, traces include `tenant_id`. OTel span attrs: `tenant.id`, `user.id`, `correlation.id`.
+9. Event consumers are idempotent (at-least-once delivery). Dedup via `eventId`.
+10. JWT contains `tenantId`/`tenantSlug`. BFF rejects mismatches.
 
----
-
-## 23 Use Cases (Quick List)
-
-| UC # | Name | Type |
-|------|------|------|
-| 1 | Guest requests booking | Booking |
-| 2 | Customer requests booking | Booking |
-| 3-5 | Approve/reject/request info | Admin |
-| 6-8 | View/cancel bookings | Customer |
-| 9 | Mark booking complete + photos | Admin |
-| 10-13 | Schedule management | Admin |
-| 14-15 | OUTDATED - see 21-23 | - |
-| 16 | View loyalty metrics | Customer |
-| 17 | View analytics | Admin |
-| 18-20 | Email reminders (6 AM) | System |
-| 21 | Customer login (tenant selection) | Auth |
-| 22 | Staff login (no selection) | Auth |
-| 23 | Switch tenant | Customer |
+Raise a doc bug if a UC appears to violate these — do not "make it work."
 
 ---
 
-## Events Catalog
+## 3. Bounded Contexts (brief — load `docs/05-BOUNDED_CONTEXTS.md` for detail)
 
-**Booking Context:**
-- BookingRequested (guest/customer)
-- BookingApproved
-- BookingRejected
-- BookingInfoRequested
-- BookingCompleted (with photos)
-- BookingCancelled
-- Reminder events (day before, day of, admin daily)
+| Context | Type | Aggregates | Publishes |
+|---|---|---|---|
+| **Booking** | Core | `Booking`, `Service`, `ScheduleClosure` | `BookingRequested/Approved/Rejected/InfoRequested/InfoSubmitted/Completed/Cancelled` + 3 reminder events |
+| **Customer** | Supporting | `Customer` (multi-tenant rows) | — |
+| **Staff** | Supporting | `Staff` (single-tenant) | — |
+| **Loyalty** | Supporting | `LoyaltyEntry` (append-only, earn-only) | `ServicePointsEarned`, `PointsExpiringSoon` |
+| **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` | `EmailSent`, `EmailFailed` |
+| **Platform** | Foundational | `Tenant`, `HotsiteConfig` | `StaffInvited`, `StaffDeactivated` |
 
-**Loyalty Context:**
-- ServicePointsEarned (per-service)
-- PointsExpired
-- PointsRedeemed
-
-**Notification Context:**
-- EmailSent
-- EmailFailed
+**Loyalty MVP rules (strict):** One immutable `LoyaltyEntry` per `BookingLine` completed. Idempotent via `UNIQUE(tenant_id, booking_line_id)`. Active balance = `SUM(points) WHERE expires_at > now()`. No redemption, no tiers, no manual adjustments.
 
 ---
 
-## Patterns to Follow
+## 4. Event Envelope (every event)
 
-### All Queries
-```sql
-WHERE tenant_id = ? AND [other filters]
-```
-
-### All Events
-```
+```json
 {
-  tenantId: "tenant_a",
-  eventData: {...},
-  timestamp: ISO8601
+  "eventId": "uuid-v4",
+  "tenantId": "uuid-v4",
+  "occurredAt": "2026-05-11T14:23:45.123Z",
+  "correlationId": "uuid-v4",
+  "eventName": "BookingCompleted",
+  "eventVersion": 1,
+  "data": { }
 }
 ```
 
-### All Database Rows
-- `tenant_id` NOT NULL
-- `tenant_id` indexed
-- Foreign keys include `tenant_id` if related entity
-
-### All Repositories
-```typescript
-async findByTenant(id: string, tenantId: string): Promise<T>
-async findByTenantAndStatus(tenantId: string, status: string): Promise<T[]>
-```
-
-### All API Endpoints
-```typescript
-GET /api/bookings
-  Header: X-Tenant-ID: "tenant_a"
-  Query: Filtered by tenant_a only
-```
+For full payload definitions → `docs/03-DOMAIN_EVENTS.md`
 
 ---
 
-## Token Optimization Tips
-
-When helping with BeloAuto:
-1. Check if task requires only QUICK_REFERENCE.md
-2. Ask user for specific UC number (not "booking stuff")
-3. Reference specific sections (not whole files)
-4. For code gen: Quick summary + full use case + domain model
-5. For design: QUICK_REFERENCE.md + relevant context
-
----
-
-## Files Reference
-
-**Core Architecture:**
-- `docs/01-BUSINESS_CONTEXT.md` - Business rules, entities
-- `docs/02-DOMAIN_MODEL.md` - Aggregates, value objects (search by name)
-- `docs/03-DOMAIN_EVENTS.md` - Events catalog
-- `docs/04-USE_CASES.md` - 23 workflows
-- `docs/05-BOUNDED_CONTEXTS.md` - Architecture, communication
-
-**Specific Topics:**
-- `USER_TENANT_MODEL.md` - Customer multi-tenant, staff single-tenant
-- `MULTI_TENANCY_ARCHITECTURE.md` - Tenant isolation design
-- `docs/QUICK_REFERENCE.md` - One-page cheat sheet
-
-**Ignore:**
-- `docs/archive/*` - Historical, not current
-
----
-
-## Common Questions & Answers
-
-**Q: Should this have tenant_id?**
-A: Yes, unless it's global config (tenants, superadmin settings)
-
-**Q: Can staff work for multiple tenants?**
-A: NO. Staff has UNIQUE(googleOAuthId, tenantId) constraint.
-
-**Q: Can customer use multiple tenants?**
-A: YES. Different Customer + Loyalty records per tenant.
-
-**Q: Query without tenant_id filter?**
-A: NO. Always filter by tenant_id.
-
-**Q: Create event without tenantId?**
-A: NO. All events include tenantId.
-
-**Q: Email template same for all tenants?**
-A: NO. Each tenant has own templates (branded).
-
-**Q: Same database for all tenants?**
-A: YES. Single PostgreSQL, partitioned by tenant_id.
-
----
-
-## When to Reference Which Doc
-
-| Goal | Reference |
-|------|-----------|
-| Quick overview | QUICK_REFERENCE.md |
-| Specific aggregate | DOMAIN_MODEL.md (search by name) |
-| Specific event | DOMAIN_EVENTS.md (search by name) |
-| Specific workflow | USE_CASES.md (search by UC# or name) |
-| Architecture question | BOUNDED_CONTEXTS.md |
-| Auth question | USER_TENANT_MODEL.md |
-| Tenant question | MULTI_TENANCY_ARCHITECTURE.md |
-
----
-
-## Implementation Guidelines
-
-**Phase 2 starts with:**
-1. API endpoints (based on use cases)
-2. Database schema (based on domain model)
-3. Event bus (based on events catalog)
-4. Bounded context services
-5. Tests (based on use cases)
-
-**Use these for code generation:**
-- Each UC has main flow + alt flows → Use as spec
-- Each aggregate → Use as class structure
-- Each event → Use as event structure
-- Tenant_id → Add to all queries/tables
-
----
-
-## Project Structure (Expected Phase 2)
+## 5. Booking State Machine
 
 ```
-/src
-  /contexts
-    /booking (Booking Context)
-    /customer (Customer Context)
-    /loyalty (Loyalty Context)
-    /notification (Notification Context)
-    /staff (Staff Context)
-  /infrastructure
-    /database (migrations, queries)
-    /events (event bus, handlers)
-    /api (express routes, middleware)
-  /tests
-    /unit
-    /integration
+PENDING        → INFO_REQUESTED | APPROVED | REJECTED | CANCELLED
+INFO_REQUESTED → PENDING (customer responded) | APPROVED | REJECTED | CANCELLED
+APPROVED       → COMPLETED | CANCELLED
+COMPLETED      (terminal)
+REJECTED       (terminal)
+CANCELLED      (terminal)
+```
 
-/migrations
-  (database migrations)
+`NO_SHOW` is **not** in MVP. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
 
-/docs
-  (this architecture docs)
+---
+
+## 6. Use Cases Index (load `docs/04-USE_CASES.md` for detail)
+
+| UC | Title | Status |
+|---|---|---|
+| UC-001 | Guest requests booking | Active |
+| UC-002 | Authenticated customer requests booking | Active |
+| UC-003 | Admin approves booking | Active |
+| UC-004 | Admin rejects booking | Active |
+| UC-005 | Admin requests more info | Active |
+| UC-006 | Customer views & manages bookings | Active |
+| UC-007 | Customer cancels booking (48 h window from `settings`) | Active |
+| UC-008 | Admin cancels / reschedules booking | Active |
+| UC-009 | Admin marks booking complete + after-photos | Active |
+| UC-010 | Admin closes schedule | Active |
+| UC-011 | Guest views calendar availability | Active |
+| UC-012 | Admin creates service | Active |
+| UC-013 | Admin edits / deactivates service | Active |
+| UC-014 | Customer login | **SUPERSEDED by UC-021** |
+| UC-015 | Staff login | **SUPERSEDED by UC-022** |
+| UC-016 | View customer loyalty metrics | Active |
+| UC-017 | Booking analytics | Future — out of MVP |
+| UC-018 | Admin daily schedule reminder (6 AM) | Active |
+| UC-019 | Customer reminder day-before (6 AM) | Active |
+| UC-020 | Customer reminder day-of (6 AM) | Active |
+| UC-021 | Customer login + tenant selection | Active (canonical) |
+| UC-022 | Staff login — single tenant | Active (canonical) |
+| UC-023 | Customer switches tenant | Active |
+| UC-024 | Developer provisions new tenant (CLI) | Active |
+| UC-025 | Admin first login / accepts invite | Active |
+| UC-026 | Admin edits tenant settings | Active |
+| UC-027 | Admin manages hotsite content | Active |
+| UC-028 | Admin invites new staff member | Active |
+| UC-029 | Admin deactivates staff member | Active |
+
+**Missing UCs (do not implement until documented):** Customer profile edit, audit log view, notification template management, failed-notification retry.
+
+---
+
+## 7. Engineering Rules
+
+### Hexagonal layers (per context)
+```
+src/contexts/<context>/
+├── domain/           # entities, value objects, domain events, domain services — zero framework deps
+├── application/      # use cases, ports (interfaces), DTOs
+└── infrastructure/   # adapters: persistence, REST controllers, event publishers, HTTP clients
+```
+Shared cross-cutting code → `src/shared/` (logger, OTel, `IEventBus` port, tenant-context).
+
+### Code standards
+- `strict: true` TypeScript — no `any`, no `@ts-ignore`, no `// eslint-disable`
+- Functions ≤ 20 lines, classes ≤ 200 lines
+- Repository signature: `findByTenant(id, tenantId)`, `findAllByTenant(tenantId, filters)`, `save(entity, tenantId)`
+- No raw SQL outside repository adapters
+- No business logic in controllers — controllers call use cases only
+- No synchronous cross-context calls — use events. BFF is the only allowed orchestrator
+- DI everywhere — no `new SomeRepository()` in services
+- All configurable values (48 h window, 180 d expiry) read from `tenants.settings`, never hardcoded
+- Email templates in pt-BR; Money display as `R$ 1.234,56`
+
+### Testing
+- TDD for domain logic (red-green-refactor)
+- Every UC: ≥1 unit test, ≥1 integration test (real Testcontainers DB + Pub/Sub emulator), ≥1 tenant-isolation test
+- Tenant-isolation test pattern: create data for Tenant A, attempt access as Tenant B → expect 404 or 403
+- E2E (Playwright): happy paths only
+- No `.skip()`, `.only()`, `setTimeout` in tests
+
+### CI gates (block merge)
+- ESLint + Prettier — zero warnings
+- `tsc --noEmit` — zero errors
+- All tests pass — 100%
+- Coverage ≥ 80% on changed code
+- SonarCloud Quality Gate GREEN
+- Snyk SCA — zero high/critical vulns
+- Gitleaks — zero secrets detected
+- Trivy image scan — zero high/critical
+- Checkov/Tfsec IaC scan — zero high
+
+### Definition of Done
+- [ ] Matches cited UC's main + alt flows
+- [ ] Unit + integration + tenant-isolation tests pass
+- [ ] Coverage delta ≥ 80% on changed code
+- [ ] All queries filter by `tenant_id`
+- [ ] All events use standard envelope with `tenantId`, `eventId`, `correlationId`
+- [ ] No hardcoded config values — read from `tenants.settings`
+- [ ] No secrets in code
+- [ ] Migration is backward-compatible (expand/contract)
+- [ ] CI passes locally: `pnpm lint`, `pnpm test`, `pnpm type-check`
+- [ ] API change reflected in `docs/14-API_CONTRACTS.md` (with permission)
+- [ ] Conventional Commit + PR description links the UC
+
+---
+
+## 8. Anti-Patterns (BLOCK MERGE)
+
+| Pattern | Problem | Fix |
+|---|---|---|
+| `WHERE id = ?` without `tenant_id` | Cross-tenant data leak | Add `AND tenant_id = ?` |
+| Event missing `tenantId` in envelope | Can't isolate per tenant | Include in every event |
+| Hardcoded `48`, `180`, `7` for business rules | Breaks per-tenant config | Read from `tenants.settings` |
+| `@ts-ignore`, `any`, `eslint-disable` | Defeats static analysis | Fix the type/lint error |
+| `.skip()` / `.only()` in tests | Hides failures in CI | Remove before commit |
+| Synchronous call from Loyalty → Booking | Tight coupling | Subscribe to `BookingCompleted` event |
+| `new XRepository()` inside a service | Untestable | Inject via DI |
+| Same template body for all tenants | Breaks branding | Templates are per-tenant aggregates |
+| Photo stored at `bookings/<id>/` without tenant prefix | No isolation | Path: `tenants/<tid>/bookings/<bid>/<file>` |
+| Logging without `tenant_id` | Can't slice per-tenant | Add to structured log context |
+| Running migrations at app startup | Unsafe for rolling deploys | Run as separate CI job before deploy |
+| English copy in email templates | Wrong locale | All customer-facing text in pt-BR |
+| Money as plain `number` | Loses currency | Use `Money { amount: Decimal, currency: 'BRL' }` |
+
+---
+
+## 10. Dynamic Context Loading — Load Only What You Need
+
+**Always start with this file.** Then use the table below to load only the docs relevant to your task.
+
+| Task | Docs to load | ~KB |
+|---|---|---|
+| Quick clarification | This file only | 0 |
+| Implement a UC | `docs/04-USE_CASES.md` (that UC's section) + `docs/02-DOMAIN_MODEL.md` (relevant aggregate) + `docs/03-DOMAIN_EVENTS.md` (relevant events) | 4–6 |
+| Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` (relevant aggregate) | 4 |
+| API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC | 3–5 |
+| Event handler | `docs/03-DOMAIN_EVENTS.md` (event) + `docs/05-BOUNDED_CONTEXTS.md` (context) | 3 |
+| Hotsite / public frontend | `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` (tenants section) | 3 |
+| Dashboard / admin frontend | `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` | 3 |
+| Architecture question | `docs/11-ARCHITECTURE.md` + `docs/05-BOUNDED_CONTEXTS.md` | 5 |
+| Multi-tenancy / isolation | `docs/06-TENANT_ISOLATION_STRATEGY.md` | 2 |
+| Testing patterns | `docs/08-TESTING_STRATEGY.md` | 3 |
+| CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` | 4 |
+| Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` | 5 |
+| Observability | `docs/10-OBSERVABILITY_STRATEGY.md` | 2 |
+| Full feature (UC + API + DB + tests) | All of the above relevant rows | 12–18 |
+
+**Never load:** anything under `docs/archive/` — superseded content.
+
+---
+
+## 11. Repository Layout
+
+### Monorepo (pnpm workspaces)
+```
+.
+├── apps/
+│   ├── backend/          # NestJS modular monolith
+│   │   └── src/contexts/ # booking/ customer/ staff/ loyalty/ notification/ platform/
+│   ├── bff/              # NestJS BFF (separate service, own container)
+│   └── web/              # Next.js 14 (hotsite + dashboard)
+├── packages/
+│   ├── types/            # shared TypeScript types / DTOs
+│   └── config/           # shared ESLint, tsconfig, Prettier configs
+├── infrastructure/
+│   └── terraform/        # GCP resources (Cloud Run, Cloud SQL, Pub/Sub, Secret Manager)
+├── .github/workflows/    # CI/CD pipeline YAML files
+├── docker/               # Dockerfiles + docker-compose.yml (local dev)
+├── .copilot/context.md   # THIS FILE
+├── claude.md             # → symlink to .copilot/context.md
+├── CLAUDE.md             # Claude Code project instructions
+└── docs/                 # source of truth documentation (see §10)
+```
+
+### Per-context structure (inside `apps/backend/src/contexts/<context>/`)
+```
+├── domain/           # entities, value objects, events, domain services (no framework)
+├── application/      # use cases, port interfaces, DTOs
+└── infrastructure/   # adapters: TypeORM repos, REST controllers, Pub/Sub publishers, HTTP clients
 ```
 
 ---
 
-## Success Criteria
+## 12. Open Decisions (stop and ask before implementing)
 
-When generating code:
-- ✅ All queries filter by tenant_id
-- ✅ All events include tenantId
-- ✅ All aggregates have tenantId field
-- ✅ Customer multi-tenant, staff single-tenant
-- ✅ Follows bounded context pattern
-- ✅ Event emitted for async operations
-- ✅ Tests verify tenant isolation
+Only truly unresolved items remain here:
+
+1. **Component library (frontend):** Radix UI, shadcn/ui, Mantine, or custom?
+2. **Email service:** SendGrid or AWS SES for MVP?
+3. **Multi-location (post-MVP):** Multiple locations per tenant = separate tenants or sub-tenant model?
 
 ---
 
-**Last Updated:** 2026-05-11
-**Status:** Phase 1 complete, Phase 2 ready to start
+## 13. Doc Contradictions — This File Overrides Until Fixed
+
+| # | Topic | Canonical answer | Fix status |
+|---|---|---|---|
+| 1 | Event bus | GCP Pub/Sub + emulator locally | ✅ Fixed in docs 05, 11, 18 |
+| 2 | DB migrations | Separate CI job (Stage 4.5), never at app startup | ✅ Fixed in doc 09 |
+| 3 | Brazil/BRL/pt-BR | Currency BRL, locale pt-BR | ✅ Fixed in docs 01, 07 |
+| 4 | Coverage threshold | ≥80% on **changed code** | ✅ Fixed in docs 07, 08, 09 |
+| 5 | Cancellation window | Read from `tenants.settings.cancellation_window_hours` | ✅ Fixed in UC-006, UC-007 |
+| 6 | Booking status enum | `PENDING/INFO_REQUESTED/APPROVED/REJECTED/COMPLETED/CANCELLED` | ✅ Resolved Wave 1 |
+| 7 | Event envelope | Standard 7-field envelope (see §4) | ✅ Resolved Wave 1 |
+| 8 | BFF | Separate NestJS service in `apps/bff/` | ⏳ Doc 22 still implies Next.js BFF routes |
+| 9 | Monorepo | pnpm workspaces `apps/` + `packages/` | ⏳ Not in any individual doc yet |
+| 10 | UC-014/UC-015 | Superseded by UC-021/UC-022 — note exists in doc 04 but no `[SUPERSEDED]` header | ⏳ Minor — note is clear enough |
+| 11 | Loyalty expiry | Read from `tenants.settings.loyalty_expiry_days` | ⏳ Doc 02 prose still mentions 180 as "typical value" (acceptable) |
+| 12 | Platform context | 6th context: `Tenant`, `HotsiteConfig`; UC-024 to UC-029 | ✅ Added to docs 02, 03, 04, 05 |
+
+---
+
+## 14. Glossary
+
+| Term | Definition |
+|---|---|
+| **Tenant** | A car-wash company on the platform. Unit of isolation. |
+| **Slug** | URL-safe tenant identifier (e.g. `lavacar-belo`). Globally unique. |
+| **BFF** | Backend-for-Frontend — separate NestJS service, sole entry point for the web layer. |
+| **Hotsite** | Public unauthenticated tenant-branded marketing + booking page. |
+| **Hotsite Manifest** | JSON with branding + module layout served to the frontend per tenant slug. |
+| **Port** | Interface owned by the application layer (e.g. `IBookingRepository`). |
+| **Adapter** | Infrastructure implementation of a port (e.g. `TypeOrmBookingRepository`). |
+| **Tenant Context** | Request-scoped object holding active `tenantId`, injected by `TenantInterceptor`. |
+| **Idempotent consumer** | Event handler whose effect is identical whether the message arrives 1 or N times. |
+| **Composite FK** | Multi-column FK `(tenant_id, id)` blocking cross-tenant DB references. |
+| **Expand/Contract** | Two-phase migration pattern safe for rolling deploys. |
+
+---
+
+## 15. Self-Check Before Submitting
+
+1. Did I read this file at the start of the conversation? ✓
+2. Did I get permission before writing any file? ✓
+3. Does every query / event / log include `tenant_id`? ✓
+4. Is the change scoped to one UC cited in the PR? ✓
+5. Does coverage delta stay ≥ 80% on changed code? ✓
+6. Did I follow Conventional Commits? ✓
+7. Did I check §13 for overrides before trusting individual docs? ✓
+8. For any item in §12 (Open Decisions), did I stop and ask instead of guessing? ✓
+9. Are functions ≤ 20 lines, no `any`, no hardcoded config values? ✓
+10. Is all customer-facing text in pt-BR, money in BRL? ✓
+11. Does the integration test include a tenant-isolation assertion? ✓
+
+---
+
+## 16. Changelog
+
+| Date | Change |
+|---|---|
+| 2026-05-12 (wave 3) | **Platform Context added + LGPD removed.** Added Platform Context (UC-024 to UC-029, aggregates, events `StaffInvited`/`StaffDeactivated`) across docs 02, 03, 04, 05. Removed LGPD scope (localization only: BRL, pt-BR). Fixed UC-024/025/026 for Google OAuth-only auth and BRL currency. Added UC-028 (invite staff) and UC-029 (deactivate staff). CLAUDE.md now symlinks to this file. |
+| 2026-05-12 (wave 2) | **Doc fixes propagated.** Event bus (05, 11, 18) → GCP Pub/Sub; CI/CD (09) → Stage 4.5 migrations, coverage "changed code"; use cases (04) → cancellation window from settings; docs 01/07 → Brazil/BRL/pt-BR. All agent files (CLAUDE.md, claude.md, gemini.md) symlink to this file. |
+| 2026-05-12 (wave 1) | **Full rewrite of this file.** Resolved: event bus → GCP Pub/Sub + emulator; BFF → separate NestJS service; monorepo → pnpm workspaces; DB migrations → separate CI job; feature flags → env vars; rate limiting → NestJS ThrottlerModule. Added: Brazil market, BRL currency, pt-BR locale, LGPD. Archived root-level audit files. Rewrote for dynamic-loading-first structure. |
+| 2026-05-11 (pm) | Wave 1: branch `main`, `INFO_REQUESTED` state, 80% coverage on changed code, event envelope, `LoyaltyEntry` model, photo fields plural. |
+| 2026-05-11 (am) | First CLI-agnostic rewrite. Added permission protocol, invariants, anti-patterns, self-check. |

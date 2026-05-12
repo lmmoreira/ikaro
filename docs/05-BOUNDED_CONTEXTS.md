@@ -78,6 +78,7 @@ Notification Context subscribes:
 │  │  - BookingApproved                                          │ │
 │  │  - BookingRejected                                          │ │
 │  │  - BookingInfoRequested                                     │ │
+│  │  - BookingInfoSubmitted                                     │ │
 │  │  - BookingCompleted                                         │ │
 │  │  - BookingCancelled                                         │ │
 │  └────────────┬────────────────┬───────────────────────────────┘ │
@@ -96,7 +97,8 @@ Notification Context subscribes:
 │  │ (Supporting)     │          │ (Supporting)     │             │
 │  │                  │          │                  │             │
 │  │ Aggregates:      │          │ Aggregates:      │             │
-│  │ - LoyaltyRecord  │          │ - EmailTemplate  │             │
+│  │ - LoyaltyEntry   │          │ - EmailTemplate  │             │
+│  │   (append-only) │          │                  │             │
 │  │   (root)         │          │ - NotificationLog│             │
 │  │                  │          │   (root)         │             │
 │  │ Published:       │          │                  │             │
@@ -148,9 +150,9 @@ Notification Context subscribes:
 **Purpose:** The heart of BeloAuto. Manages the complete booking lifecycle **for a specific tenant**.
 
 **Owned Aggregates:**
-- `Booking` - A service request from guest/customer (tenant-scoped)
-- `Service` - Type of car wash offered (tenant-scoped, e.g., Tenant A has 3 services, Tenant B has 5)
-- `ScheduleClosure` - When schedule is closed (tenant-scoped)
+- `Booking` (root) — a customer visit; parent of 1..N `BookingLine` child entities (tenant-scoped). The Booking aggregate enforces ≥1 line, snapshots line fields at request time, and computes `totalPrice` / `totalDurationMins` from its lines.
+- `Service` — type of car wash offered (tenant-scoped). Edits to a service NEVER retroactively affect past bookings — the `BookingLine` snapshot is the source of truth for an existing booking.
+- `ScheduleClosure` — when the schedule is closed (tenant-scoped).
 
 **Responsibilities:**
 - Accept booking requests (guest & authenticated customers) for a specific tenant
@@ -165,14 +167,15 @@ Notification Context subscribes:
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
 
-**Published Events:**
-- `BookingRequested` (includes tenantId) → consumed by Notification, Loyalty
-- `BookingApproved` (includes tenantId) → consumed by Notification, Loyalty
-- `BookingRejected` (includes tenantId) → consumed by Notification
-- `BookingInfoRequested` (includes tenantId) → consumed by Notification
-- `BookingCompleted` (includes tenantId) → consumed by Loyalty, Notification
-- `BookingCancelled` (includes tenantId) → consumed by Loyalty, Notification
-- Reminder events (includes tenantId)
+**Published Events** (every event carries `tenantId`, `eventId`, `occurredAt`, `correlationId`):
+- `BookingRequested` → consumed by Notification, Loyalty
+- `BookingApproved` → consumed by Notification, Loyalty
+- `BookingRejected` → consumed by Notification
+- `BookingInfoRequested` (PENDING → INFO_REQUESTED) → consumed by Notification
+- `BookingInfoSubmitted` (INFO_REQUESTED → PENDING) → consumed by Notification
+- `BookingCompleted` → consumed by Loyalty, Notification
+- `BookingCancelled` → consumed by Loyalty, Notification
+- Reminder events: `BookingReminderSentCustomer`, `BookingReminderSentCustomerDay`, `AdminDailyScheduleReminder`
 
 **Dependencies:**
 - **Input:** Requires Customer data (optional), Staff data (optional) to validate - all tenant-scoped
@@ -194,65 +197,80 @@ Notification Context subscribes:
 
 ### **2. Loyalty Context (Supporting Domain, Tenant-Scoped)**
 
-**Purpose:** Tracks customer loyalty metrics **per service type, per tenant**, with points-based system and expiration.
+**Purpose:** Track points earned by customers for completed services, with per-tenant expiration. Intentionally minimal — earn-only, no redemption, no tiers.
 
 **Owned Aggregates:**
-- `LoyaltyRecord` - Customer's loyalty profile (per-service points tracking, tenant-scoped)
+- `LoyaltyEntry` — one immutable row per booking completion. Append-only. Expiration is a query-time filter on `expires_at`, not a state change.
 
 **Responsibilities:**
-- Listen to `BookingCompleted` from Booking Context (tenant-scoped events only)
-- Listen to `BookingCancelled` from Booking Context (tenant-scoped events only)
-- Calculate and award points per service (based on service's points value, tenant-scoped)
-- Track point expiration (configurable per tenant: 6 months, 1 year, etc.)
-- Handle point expiration (auto-remove expired points, tenant-scoped)
-- Provide per-service loyalty data for customer views (tenant-scoped)
-- Support point redemption (when customer claims gift, tenant-scoped)
+- Listen to `BookingCompleted` from Booking Context (tenant-scoped). When the booking has a `customerId`, insert a `LoyaltyEntry`.
+- Compute the customer's active balance on demand (total + per-service).
+- Run a daily cron to emit `PointsExpired` notifications for entries that just crossed their expiration window.
 
 **Database:** `beloauto_loyalty` schema
-- Tables: loyalty_records, service_loyalty, loyalty_point_entries
-- Every row has: `tenant_id` (required, indexed)
-- Queries: Always filtered by `WHERE tenant_id = ?`
+- Single table: `loyalty_entries` (see `docs/13-DATABASE_SCHEMA.md`)
+- Every row has `tenant_id` (required, indexed)
+- Queries always filtered by `WHERE tenant_id = ?`
+- `UNIQUE(tenant_id, booking_id)` guarantees idempotent processing of `BookingCompleted`
 
-**Published Events:**
-- `ServicePointsEarned` (includes tenantId) → consumed by Notification
-- `PointsExpired` (includes tenantId) → consumed by Notification
-- `PointsRedeemed` (includes tenantId) → consumed by Notification
+**Published Events** (every event carries `tenantId`, `eventId`, `occurredAt`, `correlationId`):
+- `ServicePointsEarned` → consumed by Notification. **One event per `BookingLine`** — a 3-line booking produces 3 events.
+- `PointsExpiringSoon` → consumed by Notification. Forward-looking weekly warning (NOT a post-fact "points expired" event).
 
 **Consumed Events:**
-- `BookingCompleted` (from Booking, filters by tenantId)
-- `BookingCancelled` (from Booking, filters by tenantId)
+- `BookingCompleted` (from Booking) — for each line in `data.lines[]`, insert one `LoyaltyEntry` when `customerId != null`. **This is the only event Loyalty subscribes to.** Other booking events (`BookingRequested`, `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`, `BookingCancelled`) do not change loyalty state, so Loyalty does not consume them.
 
 **Dependencies:**
-- **Input:** Listens to Booking events (tenant-scoped, event-driven)
-- **Output:** Publishes tenant-scoped events
+- **Input:** Event subscriber (tenant-scoped)
+- **Output:** Read-only API for balance queries; published tenant-scoped events
 
 **Tech Stack:**
-- Event listener/subscriber pattern (tenant-scoped)
-- Repository for persistence (tenant-scoped queries)
-- Domain service for point calculation & expiration
-- Scheduled job for point expiration cleanup (tenant-aware)
+- Event listener / subscriber pattern (tenant-scoped, idempotent via `UNIQUE(tenant_id, booking_line_id)`)
+- Repository for `loyalty_entries` (insert + select only — no update/delete)
+- Domain service for balance calculation
+- **Weekly cron** (Mondays 06:00 tenant-local) for `PointsExpiringSoon` warnings — writes no DB rows
 
 **Tenant Isolation Guarantees:**
-- ✓ Cannot view other tenant's loyalty records
-- ✓ Cannot access other tenant's points
-- ✓ Loyalty status is per-service and per-tenant
-- ✓ Events only processed within tenant boundary
-- ✓ Point expiration calculated per-tenant
+- ✓ Cannot read another tenant's `loyalty_entries`
+- ✓ Cannot insert across tenants — composite FKs `(tenant_id, customer_id)` and `(tenant_id, service_id)` block it at the DB
+- ✓ Events filtered by `tenantId` on consume
+- ✓ Expiration window is per-tenant via `tenants.settings.loyalty_expiry_days`
 
-**Example Flow (Tenant-Scoped):**
+**Example flow (tenant-scoped, multi-line booking):**
 ```
-TENANT A: Customer completes "Basic Wash" (points value = 1)
-→ BookingCompleted event published (tenantId: "tenant_a")
-→ Loyalty Context receives event (filters: tenantId = "tenant_a")
-→ Adds 1 point to customer's "Basic Wash" loyalty (within Tenant A)
-→ Point expires in 180 days (Tenant A's config)
-→ Publishes ServicePointsEarned event (tenantId: "tenant_a")
+TENANT A: customer completes a booking with 3 lines:
+  • Basic Wash    (points_value = 1)
+  • Wax           (points_value = 3)
+  • Interior Vac  (points_value = 1)
+  (tenants.settings.loyalty_expiry_days = 180)
 
-TENANT B: (Completely separate)
-→ Same customer could be member of Tenant B
-→ Has separate loyalty record (different LoyaltyRecord aggregate)
-→ Earns points independently for Tenant B's services
-→ No cross-tenant data
+→ BookingCompleted (envelope.tenantId = "tenant_a") published by Booking,
+  data.lines = [3 entries]
+
+→ Loyalty Context consumes the SINGLE event and inserts 3 rows into loyalty_entries:
+     (entry1, tenant_id="tenant_a", booking_id, booking_line_id=L1, service_id=basic, points=1, expires_at=now+180d)
+     (entry2, tenant_id="tenant_a", booking_id, booking_line_id=L2, service_id=wax,   points=3, expires_at=now+180d)
+     (entry3, tenant_id="tenant_a", booking_id, booking_line_id=L3, service_id=vac,   points=1, expires_at=now+180d)
+  All idempotent on UNIQUE(tenant_id, booking_line_id).
+
+→ Loyalty Context publishes 3 ServicePointsEarned events (one per inserted line).
+
+Notification Context may aggregate the 3 events into ONE email:
+  "You earned 5 points across 3 services. Active total: 47 — expires Nov 8."
+
+~173 days later, the weekly cron runs Monday morning and notices entry1's
+expires_at falls within the next 7 days:
+→ PointsExpiringSoon published (envelope.tenantId = "tenant_a"); NO DB write.
+→ Notification sends: "Heads up — 1 point on Basic Wash will expire on [date].
+                       Book a wash to keep earning."
+
+When the date actually passes, the entry stops contributing to active balance.
+No event, no row write. The customer was already warned.
+
+TENANT B (completely separate):
+→ Same customer can also use Tenant B
+→ Tenant B's loyalty_entries rows are stored under tenant_id="tenant_b"
+→ Earnings, expirations, balances are computed independently per tenant
 ```
 
 ---
@@ -306,11 +324,9 @@ BookingReminderSentCustomerDay → Email: Customer "Reminder: your appointment i
 
 AdminDailyScheduleReminder → Email: Admin "Today's schedule: [X] appointments, see details below"
 
-ServicePointsEarned → Email: Customer "You earned [X] points on [Service]! Total: [Y] points"
+ServicePointsEarned → (Notification may batch per booking) Email: Customer "You earned [total] points across [N] services in your last visit. Active total: [Y] points."
 
-PointsExpired → Email (optional): Customer "[X] points on [Service] have expired"
-
-PointsRedeemed → Email: Customer "Reward claimed! [X] points remaining"
+PointsExpiringSoon → Email (weekly digest): Customer "Heads up — [X] points on [Service] will expire on [date]. Book again to keep earning."
 ```
 
 **Dependencies:**
@@ -445,9 +461,9 @@ Same Person, Multiple Tenants:
 ```
 Booking Context publishes BookingCompleted
        ↓
-Event Bus (RabbitMQ, Google Pub/Sub, or in-memory for MVP)
+Event Bus (GCP Pub/Sub Emulator locally · GCP Pub/Sub in production)
        ↓
-Loyalty Context subscribes, processes, publishes WashCompleted
+Loyalty Context subscribes, inserts LoyaltyEntry, publishes ServicePointsEarned
        ↓
 Event Bus
        ↓
@@ -466,19 +482,12 @@ Notification Context subscribes, composes email, sends
 
 ---
 
-### **2. Direct API Calls (Synchronous, Limited)**
+### **2. Direct API Calls (Synchronous)**
 
-**Only for reads or admin operations:**
-
-```
-Notification Context → GET /bookings?customerId=X (read from Booking)
-Loyalty Context → GET /customer/X (read from Customer)
-```
-
-**Rules:**
-- Never call APIs for business state changes
-- Only for lookup/read operations
-- Prefer event-driven for changes
+**The BFF Gateway as the Orchestrator:**
+- The BFF is the only entry point for the **Web Layer** (Hotsite & Dashboard).
+- When a Hotsite loads, the BFF queries the **Tenant Context** to build the **Hotsite Manifest**.
+- When a Dashboard loads, the BFF validates the JWT and aggregates data from multiple contexts (e.g., Bookings + Loyalty) to provide a unified "Customer Profile" or "Admin Dashboard" response.
 
 ---
 
@@ -505,7 +514,7 @@ For MVP: Keep simple. Only ScheduleClosure is truly "shared."
 | Booking | Bookings, Services, ScheduleClosures | - | - |
 | Customer | Customers | - | - |
 | Staff | Staff members | - | - |
-| Loyalty | LoyaltyRecords, LoyaltyLog | Customer, Booking (via events) | BookingCompleted, BookingCancelled |
+| Loyalty | LoyaltyEntry (append-only) | Customer, Booking (via events) | BookingCompleted (only event Loyalty consumes — inserts one entry per line) |
 | Notification | Templates, Logs | - | All events |
 
 ### **Consistency Model:**
@@ -517,7 +526,7 @@ Example:
 ```
 1. Booking Context: Booking transitions APPROVED → COMPLETED (strong)
 2. Booking publishes: BookingCompleted event
-3. Loyalty Context asynchronously: Receives event, updates LoyaltyRecord
+3. Loyalty Context asynchronously: receives event, inserts one `LoyaltyEntry` per `BookingLine` (idempotent on `(tenant_id, booking_line_id)`)
 4. Notification Context: Sends confirmation email
 
 If Loyalty or Notification fails, event retried. Booking already committed.
@@ -580,6 +589,46 @@ For MVP: All deployed as single service, but code organized as separate modules 
 
 ---
 
+---
+
+### **6. Platform Context (Foundational Domain)**
+
+**Purpose:** Lifecycle management for tenants — configuration, hotsite, and staff.
+
+**Owned Aggregates:**
+- `Tenant` — name, slug, settings JSONB, is_active
+- `HotsiteConfig` — branding, layout modules, publish flag
+
+**Responsibilities:**
+- Provision new tenants (developer CLI in MVP; no super-admin UI)
+- Allow MANAGER-role staff to edit `tenants.settings` (UC-026)
+- Allow MANAGER-role staff to edit and publish the hotsite (UC-027)
+- Allow MANAGER-role staff to invite new staff members (UC-025) and deactivate existing ones (UC-028)
+- Validate that `slug` is globally unique on create
+
+**Database:** `tenants` + `hotsite_configs` tables (see `docs/13-DATABASE_SCHEMA.md`)
+
+**Published Events:**
+- `StaffInvited` → consumed by Notification (sends invitation/welcome email to new staff member's Google email)
+- `StaffDeactivated` → no consumers in MVP
+
+**Consumed Events:** none — Platform is the source for its own data.
+
+**Dependencies:**
+- **Output:** All other contexts read `tenant_id` and `tenants.settings` from here (via repository, not API)
+- **External:** Google OAuth (to validate the invited email belongs to a Google account at login time)
+
+**Tenant Isolation:**
+- `Tenant` itself is NOT scoped by `tenant_id` (it IS the tenant).
+- `HotsiteConfig` is scoped by `tenant_id`.
+- Staff invite/deactivate use cases are scoped to the actor's `tenant_id` — a MANAGER can only manage staff in their own tenant.
+
+**Tech Stack:**
+- Repository pattern for `Tenant` and `HotsiteConfig`
+- Slug uniqueness enforced at DB level (`UNIQUE(slug)`) and validated at application level before insert
+
+---
+
 ## Future Scaling: Microservices
 
 If BeloAuto grows beyond single business:
@@ -593,7 +642,7 @@ Current (MVP Monolith):
 Future (Microservices):
   Database per context (Loyalty DB, Notification DB, etc.)
   Separate Node.js processes per context
-  Event bus: RabbitMQ or Google Pub/Sub
+  Event bus: GCP Pub/Sub (Emulator locally, managed in production)
   API Gateway (BFF) routes to appropriate service
 ```
 
