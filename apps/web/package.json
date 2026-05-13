@@ -1,0 +1,6 @@
+{
+  "name": "@beloauto/web",
+  "version": "0.0.1",
+  "private": true,
+  "description": "BeloAuto Next.js 14 web application (hotsite + dashboard)"
+}

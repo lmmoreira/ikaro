@@ -1,0 +1,6 @@
+{
+  "name": "@beloauto/bff",
+  "version": "0.0.1",
+  "private": true,
+  "description": "BeloAuto NestJS Backend-for-Frontend service"
+}

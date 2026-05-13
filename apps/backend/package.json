@@ -1,0 +1,6 @@
+{
+  "name": "@beloauto/backend",
+  "version": "0.0.1",
+  "private": true,
+  "description": "BeloAuto NestJS modular monolith backend"
+}
