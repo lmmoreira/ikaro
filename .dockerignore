@@ -1,0 +1,15 @@
+node_modules
+.git
+.env*
+!.env.example
+
+apps/*/dist
+apps/web/.next
+coverage
+**/*.tsbuildinfo
+
+.agents
+.copilot
+docs
+plan
+.github

@@ -42,3 +42,31 @@ jobs:
           args: --severity-threshold=high --all-projects
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  trivy-scan:
+    name: Trivy Image Scan (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            dockerfile: apps/backend/Dockerfile
+          - service: bff
+            dockerfile: apps/bff/Dockerfile
+          - service: web
+            dockerfile: apps/web/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.service }} image
+        run: docker build -f ${{ matrix.dockerfile }} -t beloauto-${{ matrix.service }}:scan .
+
+      - name: Trivy scan — ${{ matrix.service }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: beloauto-${{ matrix.service }}:scan
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true

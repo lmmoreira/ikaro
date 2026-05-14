@@ -151,7 +151,7 @@ Integrate SonarCloud to enforce the differential coverage gate (≥80% on change
 
 ---
 
-### M01-S06 — Docker build and Trivy image scan
+### M01-S06 — Docker build and Trivy image scan ✅ Done
 
 **Agent:** `devops`  
 **Complexity:** M  
