@@ -1,0 +1,42 @@
+import 'reflect-metadata';
+import { NestFactory } from '@nestjs/core';
+import { json, urlencoded } from 'express';
+import { AppModule } from './app.module';
+import { AppLogger } from './shared/observability/app-logger';
+import { validateEnv } from './config/env.validation';
+
+// JWT cookie settings — applied in M03-S04 when issuing tokens.
+// Documented here so they are reviewed in the same PR as the auth setup.
+export const JWT_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env['NODE_ENV'] === 'production',
+  sameSite: 'lax' as const, // 'lax' allows OAuth redirect while blocking CSRF
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  path: '/',
+};
+
+async function bootstrap(): Promise<void> {
+  const env = validateEnv();
+
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const logger = new AppLogger('Bootstrap');
+  app.useLogger(logger);
+
+  // Body size limits — 10 MB covers high-quality phone photos
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ limit: '10mb', extended: true }));
+
+  app.enableCors({
+    origin: env.ALLOWED_ORIGINS.split(','),
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Slug', 'X-Correlation-ID'],
+  });
+
+  app.setGlobalPrefix('v1');
+
+  await app.listen(env.PORT);
+  logger.log(`BFF running on port ${env.PORT}`);
+}
+
+void bootstrap();

@@ -1,2 +1,12 @@
-// Shared types barrel export — populated in M00-S11
-export {};
+export * from './enums';
+export * from './money';
+export * from './address';
+export * from './pagination';
+export * from './errors.dto';
+export * from './auth.dto';
+export * from './staff.dto';
+export * from './service.dto';
+export * from './schedule.dto';
+export * from './booking.dto';
+export * from './loyalty.dto';
+export * from './tenant.dto';

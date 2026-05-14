@@ -2,5 +2,35 @@
   "name": "@beloauto/web",
   "version": "0.0.1",
   "private": true,
-  "description": "BeloAuto Next.js 14 web application (hotsite + dashboard)"
+  "description": "BeloAuto Next.js 14 web application (hotsite + dashboard)",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint \"**/*.{ts,tsx}\" --no-error-on-unmatched-pattern",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "test": "echo \"No tests yet\""
+  },
+  "devDependencies": {
+    "@beloauto/config": "workspace:*",
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/node": "^25.7.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^4.3.0"
+  },
+  "dependencies": {
+    "@beloauto/types": "workspace:*",
+    "@radix-ui/react-slot": "^1.2.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.14.0",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^3.6.0"
+  }
 }

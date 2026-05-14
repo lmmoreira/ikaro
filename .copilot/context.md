@@ -3,7 +3,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-13
 
 ---
 
@@ -259,8 +259,10 @@ Shared cross-cutting code → `src/shared/` (logger, OTel, `IEventBus` port, ten
 | Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` | 5 |
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` | 2 |
 | Full feature (UC + API + DB + tests) | All of the above relevant rows | 12–18 |
+| Working on M01+ (any backend/BFF/web task) | `plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` — version gotchas, stubs, CJS/ESM decisions, seed UUIDs, testing setup | 3 |
 
-**Never load:** anything under `docs/archive/` — superseded content.
+**Never load:** anything under `docs/archive/` — superseded content.  
+**Never load:** `plan/*_DEVELOPER.md` files — written for the human developer, not for agents.
 
 ---
 

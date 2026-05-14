@@ -11,10 +11,23 @@
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
-    "type-check": "pnpm -r run type-check"
+    "type-check": "pnpm -r run type-check",
+    "format": "pnpm -r run format",
+    "test:e2e": "pnpm --filter @beloauto/web run test:e2e",
+    "infra:up": "docker compose -f docker/docker-compose.yml up -d",
+    "infra:down": "docker compose -f docker/docker-compose.yml down",
+    "obs:up": "docker compose -f docker/docker-compose.observability.yml up -d",
+    "db:migrate": "pnpm --filter @beloauto/backend migration:run",
+    "db:revert": "pnpm --filter @beloauto/backend migration:revert",
+    "db:seed": "pnpm --filter @beloauto/backend seed"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "devDependencies": {
+    "eslint": "^10.3.0",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3"
+  }
 }

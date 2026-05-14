@@ -39,7 +39,7 @@ Create the root monorepo scaffold. This is the empty skeleton that every subsequ
 
 ---
 
-### M00-S02 — Shared packages: ESLint, TypeScript, Prettier configs
+### M00-S02 — Shared packages: ESLint, TypeScript, Prettier configs ✅ Done
 
 **Agent:** `devops`  
 **Complexity:** S  
@@ -65,7 +65,7 @@ Populate `packages/config` with the shared ESLint, TypeScript base, and Prettier
 
 ---
 
-### M00-S03 — Backend app skeleton (NestJS v11)
+### M00-S03 — Backend app skeleton (NestJS v11) ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
@@ -108,7 +108,7 @@ apps/backend/src/
 
 ---
 
-### M00-S04 — BFF app skeleton (NestJS v11)
+### M00-S04 — BFF app skeleton (NestJS v11) ✅ Done
 
 **Agent:** `bff-ts`  
 **Complexity:** M  
@@ -144,7 +144,7 @@ apps/bff/src/
 
 ---
 
-### M00-S05 — Web app skeleton (Next.js 14 + shadcn/ui)
+### M00-S05 — Web app skeleton (Next.js 14 + shadcn/ui) ✅ Done
 
 **Agent:** `frontend-ts`  
 **Complexity:** M  
@@ -189,7 +189,7 @@ apps/web/
 
 ---
 
-### M00-S06 — Docker Compose local development environment
+### M00-S06 — Docker Compose local development environment ✅ Done
 
 **Agent:** `devops`  
 **Complexity:** M  
@@ -222,7 +222,7 @@ Create the `docker/docker-compose.yml` that launches every external dependency t
 
 ---
 
-### M00-S07 — Database migration infrastructure
+### M00-S07 — Database migration infrastructure ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
@@ -252,7 +252,7 @@ Set up TypeORM DataSource configuration for each bounded context and the migrati
 
 ---
 
-### M00-S08 — Shared domain primitives
+### M00-S08 — Shared domain primitives ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
@@ -282,7 +282,7 @@ Implement the base domain classes that every bounded context's domain layer will
 
 ---
 
-### M00-S09 — AppLogger (structured JSON logging)
+### M00-S09 — AppLogger (structured JSON logging) ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
@@ -307,7 +307,7 @@ Implement the `AppLogger` service used by all backend and BFF code. It wraps Nes
 
 ---
 
-### M00-S10 — Root developer scripts and .env wiring
+### M00-S10 — Root developer scripts and .env wiring ✅ Done
 
 **Agent:** `devops`  
 **Complexity:** S  
@@ -346,7 +346,7 @@ Wire up all root-level developer scripts so a new developer (or AI agent) can op
 
 ---
 
-### M00-S11 — Shared TypeScript types package (`packages/types`)
+### M00-S11 — Shared TypeScript types package (`packages/types`) ✅ Done
 
 **Agent:** `fullstack-ts`  
 **Complexity:** M  
@@ -403,7 +403,7 @@ Request/Response DTOs (one file per domain area, named `*.dto.ts`):
 
 ---
 
-### M00-S12 — Local development seed script
+### M00-S12 — Local development seed script ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
@@ -448,7 +448,7 @@ Create a `pnpm db:seed` script that populates the local database with two comple
 
 ---
 
-### M00-S13 — BFF CORS, cookie config, env validation, and photo upload limits
+### M00-S13 — BFF CORS, cookie config, env validation, and photo upload limits ✅ Done
 
 **Agent:** `bff-ts`  
 **Complexity:** S  
