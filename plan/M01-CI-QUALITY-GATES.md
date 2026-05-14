@@ -120,7 +120,7 @@ Add Snyk software composition analysis (SCA) to the PR pipeline. Snyk scans `pac
 
 ---
 
-### M01-S05 — SonarCloud code quality and differential coverage gate
+### M01-S05 — SonarCloud code quality and differential coverage gate ✅ Done
 
 **Agent:** `devops`  
 **Complexity:** M  
