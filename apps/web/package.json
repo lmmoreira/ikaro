@@ -2,7 +2,7 @@
   "name": "@beloauto/web",
   "version": "0.0.1",
   "private": true,
-  "description": "BeloAuto Next.js 14 web application (hotsite + dashboard)",
+  "description": "BeloAuto Next.js 16 web application (hotsite + dashboard)",
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
@@ -28,9 +28,9 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.14.0",
-    "next": "^14.2.35",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "tailwind-merge": "^3.6.0"
   }
 }

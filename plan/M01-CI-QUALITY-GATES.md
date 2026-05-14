@@ -94,7 +94,7 @@ Add Gitleaks to the PR pipeline to scan the full git history and staged changes 
 
 ---
 
-### M01-S04 — Snyk SCA vulnerability scanning
+### M01-S04 — Snyk SCA vulnerability scanning ✅ Done
 
 **Agent:** `devops`  
 **Complexity:** S  

@@ -35,7 +35,7 @@ Exceptions: read-only ops (`Read`, `grep`, `ls`, `git status`, memory files).
 | **Languages** | TypeScript strict mode — backend + frontend |
 | **Backend** | NestJS v11 modular monolith |
 | **BFF** | Separate NestJS v11 service (`apps/bff/`) |
-| **Frontend** | Next.js 14 + React 18 |
+| **Frontend** | Next.js 16 + React 19 |
 | **Monorepo** | pnpm workspaces (`apps/`, `packages/`) |
 | **ORM** | TypeORM v0.3+ |
 | **DB** | PostgreSQL 15 — single shared schema, `tenant_id` everywhere |

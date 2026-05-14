@@ -16,7 +16,7 @@
 | Shared Prettier | `packages/config/prettier.config.js` | Extended in root `prettier.config.js` |
 | Backend NestJS | `apps/backend/src/` | port 3001, CommonJS, SWC transpilation |
 | BFF NestJS | `apps/bff/src/` | port 3002, global prefix `/v1`, CommonJS, SWC |
-| Web Next.js 14 | `apps/web/` | port 3000, App Router, Tailwind v4, shadcn/ui manual install |
+| Web Next.js 16 | `apps/web/` | port 3000, App Router, Tailwind v4, shadcn/ui manual install |
 | Docker Compose | `docker/docker-compose.yml` | Postgres 15, Pub/Sub emulator, GCS emulator, MailHog |
 | TypeORM DataSource | `apps/backend/src/shared/database/data-source.ts` | `synchronize: false`, reads `DATABASE_URL` from `.env` |
 | Domain primitives | `apps/backend/src/shared/domain/` | AggregateRoot, DomainEvent (UUID v7 native), ValueObject |
@@ -38,7 +38,7 @@ These differ from common tutorials. Getting them wrong causes silent failures.
 | ESLint | 10.3.0 | **Flat config only.** Uses `eslint.config.js` array format. No `.eslintrc.*`. |
 | `@typescript-eslint` | 8.x | Aligned with ESLint 10. Use `tsPlugin.configs['recommended'].rules` (not `extends`) |
 | uuid | 9.0.1 (pinned) | v10+ is ESM-only; Jest (CJS mode) cannot load it. Stay on v9 OR implement UUID v7 natively (we chose native — see `domain-event.ts`) |
-| Next.js | 14.2.x | Does NOT support `next.config.ts` — use `next.config.mjs` |
+| Next.js | 16.x | Does NOT support `next.config.ts` — use `next.config.mjs`. `params` in page components is a `Promise<{...}>` — always `await params`. `sharp` requires native build: `pnpm.onlyBuiltDependencies: [sharp]` in root `package.json` + lockfile `settings`. |
 | Tailwind CSS | 4.x | No `tailwind.config.js`. Config lives in CSS via `@import "tailwindcss"`. Uses `@tailwindcss/postcss` plugin |
 | NestJS | 11.x | `@nestjs/throttler` v6. Named throttlers API (not single object) |
 | TypeORM | 0.3.29 | CLI command: `typeorm-ts-node-commonjs` (not `typeorm`) for ts-node execution |
