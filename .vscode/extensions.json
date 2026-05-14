@@ -1,35 +1,46 @@
 {
   "recommendations": [
     // ─── TypeScript & Language ───────────────────────────────
-    "esbenp.prettier-vscode",
-    "dbaeumer.vscode-eslint",
-    "rbbit.typescript-hero",
-    "usernamehw.errorlens",
+    "esbenp.prettier-vscode", // Prettier formatter — matches CI gate
+    "dbaeumer.vscode-eslint", // ESLint — matches CI gate
+    "rbbit.typescript-hero", // Auto-organise imports on save
+    "usernamehw.errorlens", // Inline error messages (no hover needed)
+    "yoavbls.pretty-ts-errors", // Makes strict-mode TS errors human-readable
 
     // ─── Next.js & NestJS ────────────────────────────────────
-    "pulkitgangwar.nextjs-snippets",
-    "ashinzekene.nestjs",
-    "bradlc.vscode-tailwindcss",
+    "pulkitgangwar.nextjs-snippets", // Next.js page/component snippets
+    "ashinzekene.nestjs", // NestJS module/service/controller snippets
+    "bradlc.vscode-tailwindcss", // Tailwind v4 IntelliSense + CVA class support
 
     // ─── Docker & DevOps ─────────────────────────────────────
-    "ms-azuretools.vscode-docker",
-    "ms-vscode-remote.remote-containers",
-    "mikestead.dotenv",
-    "redhat.vscode-yaml",
+    "ms-azuretools.vscode-docker", // Docker image/container management
+    "ms-vscode-remote.remote-containers", // Dev containers
+    "mikestead.dotenv", // .env file syntax + secrets highlight
+    "redhat.vscode-yaml", // YAML (GitHub Actions, docker-compose)
+    "hashicorp.terraform", // Terraform HCL syntax + autocomplete (M15)
+    "GoogleCloudTools.cloudcode", // GCP Cloud Run + Pub/Sub tooling (M15+)
 
-    // ─── Git & Productivity ──────────────────────────────────
-    "eamodio.gitlens",
-    "mhutchie.git-graph",
-    "christian-kohler.path-intellisense",
-    "formulahendry.auto-rename-tag",
+    // ─── Git & GitHub ────────────────────────────────────────
+    "eamodio.gitlens", // Git blame, history, branch visualisation
+    "mhutchie.git-graph", // Visual git graph
+    "GitHub.vscode-pull-request-github", // Create/review PRs without leaving VS Code
+
+    // ─── Productivity ────────────────────────────────────────
+    "christian-kohler.path-intellisense", // Autocomplete file paths
+    "formulahendry.auto-rename-tag", // Auto-rename paired JSX/HTML tags
+    "pflannery.vscode-versionlens", // Shows latest version in package.json
+    "pkief.material-icon-theme", // File icons — helps navigate monorepo
+    "Gruntfuggly.todo-tree", // Highlights TODO/FIXME across codebase
+    "wix.vscode-import-cost", // Shows bundle size of frontend imports
 
     // ─── Testing & REST ──────────────────────────────────────
-    "firsttris.vscode-jest-runner",
-    "rangav.vscode-thunder-client",
-    "cweijan.vscode-database-client2",
-    "ryanluker.vscode-coverage-gutters",
+    "firsttris.vscode-jest-runner", // Run individual Jest tests from editor
+    "ms-playwright.playwright", // Playwright E2E test runner
+    "rangav.vscode-thunder-client", // REST client (test BFF endpoints locally)
+    "cweijan.vscode-database-client2", // DB explorer (connect to local Postgres)
+    "ryanluker.vscode-coverage-gutters", // lcov coverage shown in gutter
 
-    // ─── Quality (matches CI SonarCloud gate) ────────────────
-    "sonarsource.sonarlint-vscode"
+    // ─── Quality (mirrors CI gates) ──────────────────────────
+    "sonarsource.sonarlint-vscode" // Real-time SonarCloud quality feedback
   ]
 }

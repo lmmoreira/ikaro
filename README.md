@@ -37,6 +37,29 @@ pnpm dev
 | GCS emulator | http://localhost:4443 | GCS storage (local) |
 | PostgreSQL | localhost:5432 | Database (`beloauto` / `beloauto`) |
 
+## VS Code Setup
+
+Open the project — VS Code will prompt **"Do you want to install the recommended extensions?"**. Click **Install All**.
+
+The `.vscode/settings.json` is pre-configured for:
+
+| Setting | Value |
+|---|---|
+| Format on save | Prettier (matches CI gate) |
+| ESLint auto-fix on save | enabled |
+| TypeScript version | workspace v6 (not VS Code's bundled) |
+| Ruler | 100 chars (matches `printWidth`) |
+| Tailwind IntelliSense | CVA + clsx class regex enabled |
+| Jest runner | `pnpm --filter @beloauto/backend test` |
+| Coverage gutters | reads `apps/backend/coverage/lcov.info` |
+
+**SonarLint connected mode** (mirrors the CI SonarCloud gate):
+1. Install the `SonarLint` extension
+2. `F1` → **"SonarLint: Connect to SonarCloud"** → sign in with GitHub
+3. VS Code will automatically bind to the `lmmoreira_beloauto` project
+
+**Database explorer** (`vscode-database-client2`): add a connection to `localhost:5432` with user/pass `beloauto` after running `pnpm infra:up`.
+
 ## Local CI (run before opening a PR)
 
 These commands replicate the CI pipeline locally using only Docker — no tokens required.

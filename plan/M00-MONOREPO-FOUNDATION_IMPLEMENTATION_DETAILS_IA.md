@@ -189,9 +189,28 @@ pnpm -w run db:migrate        # run TypeORM migrations
 pnpm -w run db:seed           # seed local database (idempotent)
 pnpm -r run type-check        # tsc --noEmit all workspaces
 pnpm -r run lint              # ESLint all workspaces
-pnpm --filter @beloauto/backend run test  # Jest unit tests
-pnpm --filter @beloauto/backend run test:cov  # with coverage report
+pnpm --filter @beloauto/backend run test       # Jest unit tests
+pnpm --filter @beloauto/backend run test:unit  # unit tests only (jest --selectProjects unit)
+pnpm --filter @beloauto/backend run test:integration  # integration tests only
+pnpm --filter @beloauto/backend run test:cov   # unit tests + lcov coverage report
+pnpm ci:fast                  # lint + prettier + type-check + unit tests (~15s)
+pnpm ci:local                 # full local CI via Docker — no tokens needed (~5min)
 ```
+
+---
+
+## 13. VS Code Tooling
+
+`.vscode/extensions.json` and `.vscode/settings.json` are committed and shared. They configure:
+- Format on save with Prettier
+- ESLint auto-fix on save
+- Workspace TypeScript v6 (not VS Code bundled)
+- Tailwind IntelliSense with CVA/clsx class regex
+- Jest runner pointing at `apps/backend`
+- Coverage gutters reading `apps/backend/coverage/lcov.info`
+- SonarLint connected mode bound to `lmmoreira_beloauto` (requires user auth once)
+
+These settings are project-scoped — they do not override developer personal VS Code settings outside this workspace.
 
 ---
 
