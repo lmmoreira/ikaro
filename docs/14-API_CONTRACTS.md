@@ -443,6 +443,65 @@ Availability depends on the **total duration** of the customer's basket, not on 
 
 ---
 
+## Internal Platform API (Operator Only)
+
+> These endpoints are **not reachable from the public internet** in production. Three security layers protect them (decided 2026-05-15):
+> 1. **Cloud Armor** (M15-S12) — blocks `/internal/*` at the network level from all IPs except the operator's allowlist
+> 2. **Cloud IAP** (M15-S12) — Google identity gate; only allowlisted Google Workspace accounts can pass
+> 3. **`PLATFORM_ADMIN_KEY`** — static API key in the `Authorization` header, validated application-side with `crypto.timingSafeEqual`
+>
+> All three layers must pass. The `TenantInterceptor` skips `/internal/*` — no `X-Tenant-ID` header is expected.
+
+---
+
+### `POST /internal/tenants` — Provision new tenant (UC-024)
+
+Provisions a new car-wash company on the platform. Creates `Tenant` + default `HotsiteConfig`. First MANAGER staff creation and invitation email happen asynchronously via events (see M04-S06, M11).
+
+**Request headers:**
+```
+Authorization: Bearer <PLATFORM_ADMIN_KEY>
+Content-Type: application/json
+```
+
+**Request body:**
+```json
+{
+  "name":        "AutoWash Pro",
+  "slug":        "autowash-pro",
+  "adminEmail":  "owner@autowashpro.com.br",
+  "timezone":    "America/Sao_Paulo"
+}
+```
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `name` | string | ✓ | Non-empty |
+| `slug` | string | ✓ | `/^[a-z0-9-]+$/`, globally unique |
+| `adminEmail` | string | ✓ | Valid email format |
+| `timezone` | string | — | Valid IANA timezone (default: `America/Sao_Paulo`) |
+
+**Response `201 Created`:**
+```json
+{
+  "tenantId": "uuid-v7",
+  "name":     "AutoWash Pro",
+  "slug":     "autowash-pro"
+}
+```
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `401` | Missing or invalid `Authorization` header |
+| `400` | Validation failure (invalid slug format, invalid email, invalid timezone) |
+| `409` | Slug already in use |
+
+**Rate limit (M16-S07):** 3 requests/hour per API key. Brute-force protection: blocked for 1 hour after 10 consecutive `401` responses.
+
+---
+
 ## Error Handling (RFC 9457)
 
 All non-2xx responses follow the **Problem Details for HTTP APIs** standard.

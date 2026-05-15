@@ -295,10 +295,13 @@ Finalize the rate limiting configuration that was scaffolded in M00-S04. Apply t
 - Authenticated endpoints: **300 requests/minute** per JWT `sub`
 - Cron endpoints (`/cron/*`): bypassed (protected by `CRON_SECRET` only)
 - Health endpoints (`/health/*`): bypassed
+- `POST /internal/tenants`: **3 requests/hour** per IP (provisioning is a rare operation; extremely strict to limit brute-force of `PLATFORM_ADMIN_KEY`)
 
 **NestJS `@nestjs/throttler` configuration:**
 - Two named throttlers: `public` (60/min) and `authenticated` (300/min)
 - Override per-endpoint with `@Throttle({ public: { limit: 10, ttl: 60 } })` for sensitive endpoints like `/auth/token`
+- Override for `/internal/tenants`: `@Throttle({ public: { limit: 3, ttl: 3600 } })`
+- Brute-force lockout on `/internal/tenants`: block IP for 1 hour after 10 consecutive `401` responses (Cloud Armor WAF rule — pair with M15-S12)
 - Response headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 
 **Acceptance criteria:**
@@ -308,8 +311,9 @@ Finalize the rate limiting configuration that was scaffolded in M00-S04. Apply t
 - [ ] Authenticated requests have 300 req/min limit (not 60)
 - [ ] `/health/live` and `/health/ready` are never rate-limited
 - [ ] `POST /auth/token` (JWT issuance) has a stricter limit: 10 req/min per IP
+- [ ] `POST /internal/tenants` blocks after 3 requests/hour per IP
 
-**Dependencies:** M00-S04, M03-S06
+**Dependencies:** M00-S04, M03-S06, M15-S12
 
 ---
 
@@ -403,14 +407,20 @@ Execute the final go-live checklist: configure production secrets, deploy to pro
 
 3. **First production deploy** (via M16-S03 workflow with staging-validated SHA)
 
-4. **Provision first tenant:**
+4. **Provision first tenant** (via `POST /internal/tenants` — M02-S05):
    ```bash
-   pnpm --filter @beloauto/backend cli tenant:create \
-     --name "Lavacar BeloAuto" \
-     --slug "lavacar-beloauto" \
-     --admin-email "admin@lavacar.com.br" \
-     --timezone "America/Sao_Paulo"
+   curl -X POST https://backend.beloauto.com/internal/tenants \
+     -H "Authorization: Bearer $(gcloud secrets versions access latest --secret=platform-admin-key)" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "Lavacar BeloAuto",
+       "slug": "lavacar-beloauto",
+       "adminEmail": "admin@lavacar.com.br",
+       "timezone": "America/Sao_Paulo"
+     }'
    ```
+   Prerequisite: Cloud IAP token must be included (M15-S12). The operator must be in the IAP allowlist.
+   Verify: `TenantProvisioned` event published, first MANAGER staff row created (M04-S06), invitation email in SendGrid logs.
 
 5. **Validate SLOs:**
    - API availability: 100% over first 30 minutes

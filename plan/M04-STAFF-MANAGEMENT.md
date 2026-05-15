@@ -2,7 +2,7 @@
 
 **Phase:** Local Development  
 **Goal:** A manager can invite new staff members, a new staff member can complete their first login to activate their account, and a manager can deactivate staff. Invitation emails are sent via MailHog (local) and validated visually.  
-**Depends on:** M03 (auth guards needed), M02-S05 (CLI provisioning creates the first MANAGER staff row)  
+**Depends on:** M03 (auth guards needed), M02-S05 (`TenantProvisioned` event triggers M04-S06 to create the first MANAGER staff)  
 **Blocks:** M11 (notifications need the full Notification context bootstrap started here)
 
 ---
@@ -168,12 +168,78 @@ Bootstrap the Notification bounded context infrastructure enough to send the sta
   2. Send invitation email with hardcoded pt-BR template (full template system in M11)
   3. Email body (pt-BR): "Você foi convidado para a equipe de [tenant name]. Clique aqui para aceitar."
 
+**Important — two sources of `StaffInvited`:**
+`StaffInvited` events arrive from two flows. The handler must support both:
+1. **UC-028 (normal invite):** `invitedBy` = UUID of the MANAGER who sent the invite — can be shown in the email as "Convidado por [nome]"
+2. **UC-024 provisioning (M04-S06):** `invitedBy` = `SYSTEM_ACTOR_ID ('00000000-0000-0000-0000-000000000000')` — the email must NOT try to look up the inviter; show "BeloAuto Platform" or omit the "invited by" line
+
 **Acceptance criteria:**
 - [ ] After `InviteStaffUseCase` runs, a `StaffInvited` event is consumed by `StaffInvitedHandler`
 - [ ] An invitation email appears in MailHog (`http://localhost:8025`) within 5 seconds
 - [ ] Email subject is in pt-BR
 - [ ] Email body contains the tenant name and an activation link
 - [ ] If the same `StaffInvited` event is delivered twice, the email is sent only once (idempotency)
+- [ ] Handler handles `invitedBy = SYSTEM_ACTOR_ID` without error (provisioning case)
 - [ ] `IEmailSender` is injected via DI — no `new MailhogEmailAdapter()` in the handler
 
 **Dependencies:** M04-S03, M00-S06
+
+---
+
+### M04-S06 — TenantProvisioned handler: create first MANAGER staff + publish StaffInvited
+
+**Agent:** `backend-ts`  
+**Complexity:** M  
+**Docs to load:** `docs/03-DOMAIN_EVENTS.md` § TenantProvisioned + StaffInvited, `docs/02-DOMAIN_MODEL.md` § Staff aggregate, `docs/04-USE_CASES.md` § UC-024, `docs/06-TENANT_ISOLATION_STRATEGY.md`
+
+**Context — why this story exists:**
+When `POST /internal/tenants` (M02-S05) provisions a new tenant, it publishes a `TenantProvisioned` event but does NOT create the first MANAGER staff — the Staff context doesn't exist yet in M02. This story closes that gap: the Staff context subscribes to `TenantProvisioned` and creates the first MANAGER staff row, then publishes `StaffInvited` so M04-S05 / M11 send the invitation email.
+
+**What to create:**
+
+**1. `SYSTEM_ACTOR_ID` constant**
+- Location: `apps/backend/src/shared/domain/system-actor.ts`
+- ```typescript
+  export const SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000';
+  ```
+- Used wherever a platform-initiated action needs an actor identifier (no human actor exists)
+- Export from `src/shared/domain/index.ts`
+
+**2. `Staff.inviteFromProvisioning()` static factory**
+- Add to `Staff` domain aggregate alongside existing `Staff.invite()`
+- Signature: `Staff.inviteFromProvisioning(tenantId: string, email: string): Staff`
+- Sets: `role = MANAGER`, `isActive = false`, `googleOAuthId = null`
+- Distinct from `Staff.invite()` which requires an `invitedBy` human actor
+- Does NOT emit a `StaffInvited` domain event from within the aggregate — the handler publishes the event explicitly (keeps the aggregate clean and testable)
+
+**3. `TenantProvisionedHandler`**
+- Location: `apps/backend/src/contexts/staff/infrastructure/events/tenant-provisioned.handler.ts`
+- Subscribes to `TenantProvisioned` events from `IEventBus`
+- **Idempotency:** before doing anything, check if `eventId` has already been processed (use the `processed_events` table from M11, or a simpler in-memory idempotency guard for now). Skip if already processed.
+- **Flow:**
+  ```
+  1. Check idempotency (eventId already processed → skip)
+  2. Check: does a MANAGER staff already exist for this tenantId? → skip if yes (belt-and-suspenders)
+  3. staffId = uuidv7()
+  4. staff = Staff.inviteFromProvisioning(tenantId, adminEmail)
+  5. await staffRepo.save(staff)
+  6. publish StaffInvited:
+       { staffId, tenantId, email: adminEmail, role: 'MANAGER', invitedBy: SYSTEM_ACTOR_ID }
+  7. mark eventId as processed
+  ```
+- Handler errors must be logged and re-thrown so the event bus retries (Pub/Sub at-least-once delivery)
+
+**4. Wire into `StaffModule`**
+- Register `TenantProvisionedHandler` as a provider
+- Subscribe to `TenantProvisioned` event via `IEventBus`
+
+**Acceptance criteria:**
+- [ ] Publishing a `TenantProvisioned` event results in a `staff.staff` row with `role=MANAGER`, `is_active=false`, `email=adminEmail`
+- [ ] `StaffInvited` event is published with `invitedBy = SYSTEM_ACTOR_ID`
+- [ ] Handler is idempotent: delivering the same `TenantProvisioned` event twice creates exactly one staff row
+- [ ] If a MANAGER staff already exists for the tenant, the handler skips silently (no duplicate)
+- [ ] Staff row has correct `tenant_id` (tenant isolation invariant)
+- [ ] `google_oauth_id` is `null` on the created row
+- [ ] Integration test: publish `TenantProvisioned` → assert staff row created + `StaffInvited` event emitted
+
+**Dependencies:** M04-S03 (Staff domain + repository established), M02-S05 (`TenantProvisioned` event defined)

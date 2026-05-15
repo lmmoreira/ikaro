@@ -46,7 +46,7 @@ Exceptions: read-only ops (`Read`, `grep`, `ls`, `git status`, memory files).
 | **Observability** | Prometheus + Grafana + OpenTelemetry + Loki + OTel Collector |
 | **Container** | Docker · GCP Cloud Run (MVP) → Kubernetes if needed |
 | **IaC** | Terraform (GCP provider MVP; cloud-agnostic adapters) |
-| **Secrets** | GCP Secret Manager (MVP) → HashiCorp Vault if multi-cloud |
+| **Secrets** | GCP Secret Manager (MVP) → HashiCorp Vault if multi-cloud · `PLATFORM_ADMIN_KEY` (min 32 chars) protects `POST /internal/tenants` |
 | **Errors** | RFC 9457 Problem Details on all non-2xx responses |
 | **Coverage gate** | ≥ 80% on **changed code** (differential, not global) |
 | **Rate limiting** | NestJS `@nestjs/throttler` on all public endpoints |
@@ -82,7 +82,7 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 | **Staff** | Supporting | `Staff` (single-tenant) | — |
 | **Loyalty** | Supporting | `LoyaltyEntry` (append-only, earn-only) | `ServicePointsEarned`, `PointsExpiringSoon` |
 | **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` | `EmailSent`, `EmailFailed` |
-| **Platform** | Foundational | `Tenant`, `HotsiteConfig` | `StaffInvited`, `StaffDeactivated` |
+| **Platform** | Foundational | `Tenant`, `HotsiteConfig` | `TenantProvisioned`, `StaffInvited`, `StaffDeactivated` |
 
 **Loyalty MVP rules (strict):** One immutable `LoyaltyEntry` per `BookingLine` completed. Idempotent via `UNIQUE(tenant_id, booking_line_id)`. Active balance = `SUM(points) WHERE expires_at > now()`. No redemption, no tiers, no manual adjustments.
 

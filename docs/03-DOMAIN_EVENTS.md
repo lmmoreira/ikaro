@@ -477,8 +477,27 @@ Customer clicks "Cancel"
 
 ### **Platform Context Events**
 
+#### **TenantProvisioned**
+- **Trigger:** Platform operator calls `POST /internal/tenants` to onboard a new car-wash company (UC-024)
+- **State change:** `Tenant` row + default `HotsiteConfig` row created. First MANAGER staff does NOT exist yet — that is handled by M04-S06 which subscribes to this event.
+- **Data:**
+  ```json
+  {
+    "tenantId":    "uuid-v7",
+    "name":        "string",
+    "slug":        "string",
+    "adminEmail":  "string",
+    "timezone":    "America/Sao_Paulo"
+  }
+  ```
+- **Consumers:**
+  - Staff context (M04-S06) → creates first MANAGER `Staff` row (`isActive=false`) + publishes `StaffInvited`
+- **Design note:** `invitedBy` in the downstream `StaffInvited` event is set to `SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000'` because no human actor exists yet at provisioning time.
+
 #### **StaffInvited**
-- **Trigger:** MANAGER-role staff member invites a new team member (UC-025)
+- **Trigger:** Two sources:
+  1. MANAGER invites a new team member (UC-028)
+  2. M04-S06 `TenantProvisionedHandler` creates the first MANAGER staff during tenant provisioning
 - **State change:** A new `Staff` row is created with `isActive = false` (pending first login via Google OAuth)
 - **Data:**
   ```json
@@ -486,13 +505,14 @@ Customer clicks "Cancel"
     "staffId":      "uuid",
     "tenantId":     "uuid",
     "email":        "invited@example.com",
-    "firstName":    "string",
-    "lastName":     "string",
     "role":         "MANAGER | STAFF",
     "invitedBy":    "uuid"
   }
   ```
-- **Consumers:** Notification Context → sends invitation email with login link
+- **`invitedBy` values:**
+  - Normal invite (UC-028): UUID of the MANAGER who sent the invite
+  - Tenant provisioning (UC-024 → M04-S06): `SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000'`
+- **Consumers:** Notification Context → sends invitation email with login link (email template must handle `invitedBy = SYSTEM_ACTOR_ID` gracefully — omit the "invited by [name]" line or show "BeloAuto Platform")
 
 #### **StaffDeactivated**
 - **Trigger:** MANAGER-role staff member deactivates a team member (UC-029)

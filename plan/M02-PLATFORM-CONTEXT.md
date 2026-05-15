@@ -175,40 +175,124 @@ Implement the request-scoped `TenantContext` and the `TenantInterceptor` that re
 
 ---
 
-### M02-S05 — UC-024: Developer CLI — provision new tenant
+### M02-S05 — UC-024: Platform operator provisions new tenant (REST API)
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-024, `docs/02-DOMAIN_MODEL.md` § Tenant aggregate
+**Docs to load:** `docs/04-USE_CASES.md` § UC-024, `docs/14-API_CONTRACTS.md` § Internal Platform API, `docs/03-DOMAIN_EVENTS.md` § TenantProvisioned, `docs/02-DOMAIN_MODEL.md` § Tenant + HotsiteConfig aggregates
 
-**Description:**  
-Implement the developer CLI command `tenant:create` that provisions a new tenant. This is a NestJS CLI application command — it connects to the database, creates a `Tenant` + a default `HotsiteConfig` (unpublished) + a placeholder MANAGER staff row (`is_active=false`), and emits a `StaffInvited` event (which will trigger an invitation email once Notification context is wired in M11).
+**Background — why REST instead of CLI (decision 2026-05-15):**
+The original plan specified a CLI command. Replaced with a REST endpoint for production readiness: no direct database/server access needed, three-layer security achievable (Cloud Armor + Cloud IAP + API key), HTTP requests are auditable via Cloud Audit Logs. Self-service signup (future) can reuse the same use case without backend changes.
 
-**Main flow (from UC-024):**
-1. Validate `--slug` is unique (fail if taken)
-2. Create `Tenant` aggregate via `Tenant.create(name, slug, timezone)`
-3. Persist via `ITenantRepository.save()`
-4. Create default `HotsiteConfig` (unpublished, empty layout)
-5. Create MANAGER `Staff` row with `is_active=false`, `google_oauth_id=null`, `email=<admin-email>` (Staff context is M03 — use raw SQL or stub for now, revisit in M04)
-6. Print provisioned tenant ID and slug to console
+**What is deferred from this story:**
+- First MANAGER staff creation → **M04-S06** (Staff context doesn't exist yet; triggered asynchronously via `TenantProvisioned` event)
+- Invitation email → **M11** (triggered via `StaffInvited` published by M04-S06)
+- Cloud Armor + Cloud IAP security hardening → **M15-S12**
+- Rate limiting on `/internal/tenants` → **M16-S07**
 
-**CLI command signature:**
-```bash
-pnpm --filter @beloauto/backend cli tenant:create \
-  --name "Lavacar BeloAuto" \
-  --slug "lavacar-beloauto" \
-  --admin-email "admin@lavacar.com.br" \
-  --timezone "America/Sao_Paulo"
-```
+**What to create:**
+
+**1. `PLATFORM_ADMIN_KEY` environment variable**
+- Add to `apps/backend/src/config/env.validation.ts` Zod schema:
+  ```typescript
+  PLATFORM_ADMIN_KEY: z.string().min(32, 'PLATFORM_ADMIN_KEY must be at least 32 characters'),
+  ```
+- Add to `apps/backend/.env.example`:
+  ```
+  PLATFORM_ADMIN_KEY=change-me-generate-with-openssl-rand-hex-32
+  ```
+- Local dev: generate with `openssl rand -hex 32`, add to `apps/backend/.env` (gitignored, never commit)
+
+**2. `PlatformAdminGuard`**
+- Location: `apps/backend/src/shared/guards/platform-admin.guard.ts`
+- `@Injectable()` — applied per-endpoint with `@UseGuards(PlatformAdminGuard)`, no module-level registration
+- Reads `Authorization: Bearer <token>` from request header
+- Compares against `PLATFORM_ADMIN_KEY` using `crypto.timingSafeEqual` from `node:crypto` — **NEVER use `===` for secret comparison** (vulnerable to timing attacks that leak key length/content)
+- Returns `401` Problem Detail if header is absent, not `Bearer` format, or token does not match:
+  ```json
+  { "type": "about:blank", "title": "Unauthorized", "status": 401, "detail": "Invalid or missing platform API key" }
+  ```
+- Buffers must be same length for `timingSafeEqual` — pad/truncate safely before comparison
+
+**3. `TenantProvisioned` domain event**
+- Location: `apps/backend/src/contexts/platform/domain/events/tenant-provisioned.event.ts`
+- Extends `DomainEvent<TenantProvisionedData>`
+- Payload:
+  ```typescript
+  interface TenantProvisionedData {
+    tenantId:   string;
+    name:       string;
+    slug:       string;
+    adminEmail: string;
+    timezone:   string;
+  }
+  ```
+- `eventName: 'TenantProvisioned'`, `eventVersion: 1`
+- Export from `platform/domain/index.ts`
+
+**4. `ProvisionTenantDto`**
+- Location: `apps/backend/src/contexts/platform/application/dtos/provision-tenant.dto.ts`
+- class-validator decorators:
+  ```typescript
+  @IsString() @IsNotEmpty()                                              name: string;
+  @IsString() @Matches(/^[a-z0-9-]+$/)                                  slug: string;
+  @IsEmail()                                                             adminEmail: string;
+  @IsOptional() @IsTimeZone()                                            timezone?: string;
+  ```
+- `timezone` defaults to `'America/Sao_Paulo'` in the use case (not in DTO)
+
+**5. `ProvisionTenantUseCase`**
+- Location: `apps/backend/src/contexts/platform/application/use-cases/provision-tenant.use-case.ts`
+- Injects: `ITenantRepository` (TENANT_REPOSITORY token), `IHotsiteConfigRepository` (HOTSITE_CONFIG_REPOSITORY token), `IEventBus` (EVENT_BUS token)
+- Flow:
+  ```
+  1. timezone = input.timezone ?? 'America/Sao_Paulo'
+  2. slugTaken = await tenantRepo.existsBySlug(slug)
+     → if true: throw HttpException 409 Problem Detail "Slug '{slug}' is already in use"
+  3. tenant = Tenant.create(name, slug, timezone)        ← throws PlatformDomainError on invalid slug/name → caught as 400
+  4. await tenantRepo.save(tenant)
+  5. config = HotsiteConfig.create(tenant.id)
+  6. await hotsiteRepo.save(config)
+  7. publish TenantProvisioned { tenantId, name, slug, adminEmail, timezone }
+  8. return { tenantId: tenant.id, name: tenant.name, slug: tenant.slug }
+  ```
+- No Staff creation — that is handled by M04-S06 which subscribes to the published event
+
+**6. `InternalTenantController`**
+- Location: `apps/backend/src/contexts/platform/infrastructure/controllers/internal-tenant.controller.ts`
+- `@Controller('internal/tenants')`
+- `@UseGuards(PlatformAdminGuard)` at class level
+- `POST /` — body validated with `ValidationPipe` → calls `ProvisionTenantUseCase` → returns `201 { tenantId, name, slug }`
+
+**7. Update `TenantInterceptor`**
+- Extend the health-route bypass to also skip `/internal/*`:
+  ```typescript
+  if (req.path?.startsWith('/health') || req.path?.startsWith('/internal')) {
+    return next.handle();
+  }
+  ```
+
+**8. Wire into `PlatformModule`**
+- Add `InternalTenantController` to `controllers`
+- Add `ProvisionTenantUseCase` to `providers`
 
 **Acceptance criteria:**
-- [ ] Command runs successfully and prints `Tenant created: <id> (slug: <slug>)`
-- [ ] Running with an existing slug prints an error and exits with code 1
-- [ ] Running with an invalid slug format (`UPPER CASE` or special chars) prints validation error and exits 1
-- [ ] `platform.tenants` row exists after command runs
+- [ ] `POST /internal/tenants` without `Authorization` → `401` Problem Detail
+- [ ] `POST /internal/tenants` with wrong key → `401` (response time identical to valid key — timing-safe)
+- [ ] `POST /internal/tenants` with valid key + valid body → `201 { tenantId, name, slug }`
+- [ ] `platform.tenants` row exists after successful call
 - [ ] `platform.hotsite_configs` row exists with `is_published=false`
-- [ ] `--timezone` defaults to `America/Sao_Paulo` if omitted
-- [ ] Command is idempotent-safe: running twice with same slug fails on second run (not silently duplicates)
+- [ ] `TenantProvisioned` event published with `tenantId`, `name`, `slug`, `adminEmail`, `timezone`
+- [ ] Duplicate slug → `409` Problem Detail
+- [ ] Invalid slug format → `400`
+- [ ] Invalid email → `400`
+- [ ] Invalid IANA timezone → `400`
+- [ ] `/internal/*` routes skip `TenantInterceptor` — no `X-Tenant-ID` required
+- [ ] `PlatformAdminGuard` uses `crypto.timingSafeEqual` — verified in unit test
+- [ ] Unit test: `ProvisionTenantUseCase` with `InMemoryTenantRepository` + `InMemoryHotsiteConfigRepository`
+- [ ] Integration test (supertest): missing key → 401, valid request → 201 + DB rows verified
+
+**Security note:** Never log `PLATFORM_ADMIN_KEY` or any token fragment — `AppLogger` must not output it under any circumstance.
 
 **Dependencies:** M02-S03, M02-S04
 

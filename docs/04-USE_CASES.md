@@ -688,32 +688,51 @@ Start 15:30: ✓ (15:30 free + 16:00 free = available — if fits in business ho
 
 ## Platform & Tenant Management
 
-### **UC-024: Developer Provisions New Tenant (CLI)**
+### **UC-024: Platform Operator Provisions New Tenant (REST API)**
 
-- **Actor:** BeloAuto developer / operator
-- **Preconditions:** Developer has database access. No super-admin UI exists in MVP.
-- **Trigger:** A new car-wash company is signed up and needs a tenant provisioned.
+- **Actor:** BeloAuto platform operator (developer / internal ops)
+- **Preconditions:** Operator holds `PLATFORM_ADMIN_KEY`. No self-service signup UI exists in MVP.
+- **Trigger:** A new car-wash company is signed up and needs a tenant provisioned on the platform.
+- **Security:** Three-layer defence-in-depth (decided 2026-05-15):
+  1. **Cloud Armor** (M15-S12) — blocks `/internal/*` from the public internet at the infrastructure level
+  2. **Cloud IAP** (M15-S12) — Google identity gate; only allowlisted Google accounts can reach the endpoint
+  3. **`PLATFORM_ADMIN_KEY`** (M02-S05) — static API key validated by `PlatformAdminGuard` at the application level
+
 - **Main Flow:**
-   1. Developer runs the provisioning CLI command:
-      ```bash
-      pnpm --filter backend tenant:create \
-        --name "AutoWash Pro" \
-        --slug "autowash-pro" \
-        --admin-email "owner@autowashpro.com.br" \
-        --timezone "America/Sao_Paulo"
+   1. Operator calls:
+      ```http
+      POST /internal/tenants
+      Authorization: Bearer <PLATFORM_ADMIN_KEY>
+      Content-Type: application/json
+
+      {
+        "name": "AutoWash Pro",
+        "slug": "autowash-pro",
+        "adminEmail": "owner@autowashpro.com.br",
+        "timezone": "America/Sao_Paulo"
+      }
       ```
-   2. System validates: slug is globally unique, email is valid format.
-   3. System creates `tenants` row: `name`, `slug`, `settings` (defaults), `is_active = true`.
-   4. System creates a `staff` row for the admin email: `role = MANAGER`, `is_active = false` (pending first login).
-   5. System sends invitation email to the admin email (triggers `StaffInvited` event → Notification Context sends the email).
-   6. System logs action in audit trail.
+   2. `PlatformAdminGuard` validates the Bearer token using `crypto.timingSafeEqual` → rejects with `401` if invalid.
+   3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, IANA timezone.
+   4. System creates `platform.tenants` row with default settings.
+   5. System creates `platform.hotsite_configs` row (`is_published = false`).
+   6. System publishes `TenantProvisioned` event.
+   7. Returns `201`:
+      ```json
+      { "tenantId": "uuid-v7", "name": "AutoWash Pro", "slug": "autowash-pro" }
+      ```
+   8. **Asynchronously** — Staff context (M04-S06) handles `TenantProvisioned` → creates first MANAGER `Staff` row (`is_active = false`) → publishes `StaffInvited`.
+   9. **Asynchronously** — Notification context (M11) handles `StaffInvited` → sends invitation email to `adminEmail` in pt-BR.
 
 - **Alternative Flows:**
-   - **A1: Slug already taken** → CLI exits with error: "Slug 'autowash-pro' is already in use."
-   - **A2: Invalid email format** → CLI exits with validation error.
+   - **A1: Missing or invalid `Authorization` header** → `401` Problem Detail
+   - **A2: Slug already taken** → `409` Problem Detail: `"Slug 'autowash-pro' is already in use"`
+   - **A3: Invalid slug format** → `400` Problem Detail
+   - **A4: Invalid email** → `400` Problem Detail
+   - **A5: Invalid IANA timezone** → `400` Problem Detail
 
-- **Postconditions:** `tenants` row and first `staff` (MANAGER) row created. Admin receives invitation email with login link.
-- **Events Triggered:** `StaffInvited`
+- **Postconditions:** `platform.tenants` + `platform.hotsite_configs` rows created. `TenantProvisioned` event published. First MANAGER staff and invitation email handled asynchronously by M04-S06 and M11.
+- **Events Triggered:** `TenantProvisioned` (synchronous) → triggers `StaffInvited` (asynchronous, via M04-S06)
 
 ---
 

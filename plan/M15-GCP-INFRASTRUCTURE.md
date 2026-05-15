@@ -210,6 +210,7 @@ Secret resources (no `secret_data` — values set manually):
 - `google-oauth-client-secret` — from Day-0 bootstrap
 - `sendgrid-api-key` — SendGrid account
 - `cron-secret` — random string for cron endpoint auth
+- `platform-admin-key` — minimum 32-character random hex string (`openssl rand -hex 32`); used by `PlatformAdminGuard` to protect `POST /internal/tenants` (UC-024, M02-S05)
 
 IAM: `beloauto-backend` SA gets `roles/secretmanager.secretAccessor` on all secrets
 
@@ -387,3 +388,58 @@ Apply the complete Terraform configuration to the staging environment and valida
 - [ ] `terraform destroy` plan reviewed and saved for emergency use (but NOT applied)
 
 **Dependencies:** M15-S01 through M15-S10
+
+---
+
+### M15-S12 — Cloud Armor + Cloud IAP: harden `/internal/*` endpoints
+
+**Agent:** `devops`  
+**Complexity:** M  
+**Docs to load:** `docs/14-API_CONTRACTS.md` § Internal Platform API, `docs/12-DEPLOYMENT_STRATEGY.md`
+
+**Context — security decision (2026-05-15):**
+`POST /internal/tenants` (UC-024, M02-S05) is the highest-privilege endpoint in the system — it creates new tenants. In M02 it is protected only by `PLATFORM_ADMIN_KEY` (application layer). This story adds two infrastructure layers, completing the three-layer defence-in-depth:
+
+| Layer | Where | What it does |
+|---|---|---|
+| **1. Cloud Armor** | Network (load balancer) | Blocks all requests to `/internal/*` from IPs not in the operator allowlist — request never reaches Cloud Run |
+| **2. Cloud IAP** | Identity (Google) | Requires a valid Google Workspace identity; only allowlisted accounts can pass |
+| **3. `PLATFORM_ADMIN_KEY`** | Application (NestJS) | Validates the Bearer token using `crypto.timingSafeEqual` (implemented in M02-S05) |
+
+All three must pass. This was the explicit user decision: "I want to go more secure."
+
+**What to create:**
+
+**1. Cloud Armor security policy (`security_policy.tf`)**
+- Security policy attached to the backend Cloud Run service via Load Balancer
+- Rule 1 (priority 1000, action: `deny-403`): path matches `/internal/*` AND source IP NOT in `var.operator_allowed_cidrs` → block
+- Rule 2 (priority 2147483647, action: `allow`): default allow for all other traffic
+- Variable `operator_allowed_cidrs = list(string)` — list of developer/VPN IP CIDR ranges, set in `staging.tfvars` and `prod.tfvars`
+
+**2. Cloud IAP configuration (`iap.tf`)**
+- Enable IAP on the Cloud Run backend's load balancer backend service
+- IAP OAuth client: create via `google_iap_client` resource (requires OAuth consent screen from M15-S01)
+- IAM binding: `roles/iap.httpsResourceAccessor` for members in `var.iap_members`
+- Variable `iap_members = list(string)` — Google accounts/groups allowed, e.g. `["user:dev@beloauto.com.br"]`
+- IAP only applies to the backend service; BFF and web services are NOT behind IAP (they have their own auth)
+
+**3. Terraform variables**
+- `operator_allowed_cidrs`: list of CIDRs for Cloud Armor allowlist (developer home/office/VPN IPs)
+- `iap_members`: list of Google accounts allowed through IAP
+- Both are required in `staging.tfvars` and `prod.tfvars` — no defaults (fail loud if missing)
+
+**4. `platform-admin-key` secret Cloud Run env injection**
+- Update Cloud Run backend service definition to mount `platform-admin-key` from Secret Manager as `PLATFORM_ADMIN_KEY` env var
+- Uses `google_cloud_run_v2_service.backend.template.containers[0].env` with `value_source.secret_key_ref`
+
+**Acceptance criteria:**
+- [ ] HTTP request to `/internal/tenants` from an IP NOT in `operator_allowed_cidrs` → `403` from Cloud Armor (never reaches app)
+- [ ] HTTP request from allowed IP WITHOUT valid IAP token → `401` from IAP
+- [ ] HTTP request from allowed IP + valid IAP token + wrong `PLATFORM_ADMIN_KEY` → `401` from app
+- [ ] HTTP request from allowed IP + valid IAP token + correct `PLATFORM_ADMIN_KEY` + valid body → `201` from app
+- [ ] `/health/live` and `/health/ready` are NOT affected by Cloud Armor rules (health probes must reach the service)
+- [ ] `platform-admin-key` is mounted as env var in Cloud Run backend service
+- [ ] `terraform plan` shows no unintended changes to existing Cloud Run services, Pub/Sub, or Cloud SQL
+- [ ] Checkov: no high/critical findings on new Terraform resources
+
+**Dependencies:** M15-S03 (VPC + network), M15-S06 (Secret Manager), M15-S09 (Cloud Run services), M02-S05 (`PLATFORM_ADMIN_KEY` implemented in app layer)
