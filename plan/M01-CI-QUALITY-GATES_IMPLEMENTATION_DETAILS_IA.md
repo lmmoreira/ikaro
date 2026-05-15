@@ -212,6 +212,47 @@ The hook is not activated automatically — developers must run the git config c
 
 ---
 
+## 13. SonarCloud Rules Encountered in Practice
+
+**Constructor parameter count (S107):** SonarCloud enforces a maximum of **7 constructor parameters**. Exceeding this triggers a code smell that sets the Quality Gate to RED. Fix: group related parameters into a single object parameter.
+
+```typescript
+// ❌ 8 params — SonarCloud S107 violation
+constructor(tenantId, correlationId, staffId, email, firstName, lastName, role, invitedBy)
+
+// ✅ 3 params — params object groups the event-specific fields
+export interface StaffInvitedParams { staffId, email, firstName, lastName, role, invitedBy }
+constructor(tenantId: string, correlationId: string, params: StaffInvitedParams)
+```
+
+This pattern is also better design: the params object is named, self-documenting, and easier to extend.
+
+**Other common rules to watch:**
+- Functions > 10 lines with high cognitive complexity → SonarCloud "Cognitive Complexity" smell
+- Duplicated code blocks across files → SonarCloud "Duplication" metric affects Quality Gate
+- `TODO` / `FIXME` comments in committed code → tracked as tech debt
+
+Check the SonarCloud PR decoration (appears as a check in the PR, not just a comment) for the full list on each PR.
+
+---
+
+## 14. Branch Protection — `main` Is Now Fully Gated
+
+Branch protection was enabled on `main` after M02-S01. All 12 CI checks are required status checks:
+
+```
+ESLint, Prettier, TypeScript, Backend Unit Tests, Backend Integration Tests,
+SonarCloud Code Analysis, Gitleaks Secret Scan, Snyk SCA,
+Trivy Image Scan (backend), Trivy Image Scan (bff), Trivy Image Scan (web),
+Checkov IaC Scan
+```
+
+**Consequence for agents:** `gh pr merge` will fail if any check has not passed. The merge button is disabled at the GitHub level — not just a convention. Always verify with `gh pr checks <N> --repo lmmoreira/beloauto` before attempting to merge.
+
+**`enforce_admins: false`** — the repo owner can bypass protection in emergencies. Agents must not rely on this.
+
+---
+
 ## 12. CLAUDE.md Cross-References
 
 | Topic | CLAUDE.md section |

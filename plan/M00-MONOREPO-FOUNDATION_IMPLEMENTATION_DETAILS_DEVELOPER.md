@@ -276,6 +276,129 @@ These fixed IDs are also useful when writing integration tests — you can refer
 
 ---
 
+## 17. TypeScript Configuration — The Three tsconfig Files
+
+You'll find three `tsconfig` files in `apps/backend/`. Each serves a different purpose and it's important to understand why — getting this wrong caused real VS Code errors during M02 development.
+
+### The problem we ran into
+
+The original setup had:
+- `tsconfig.json` with `"exclude": ["**/*.spec.ts"]` and `"types": ["node"]`
+- `tsconfig.test.json` with `"types": ["node", "jest"]`
+
+The idea was: production code uses `tsconfig.json`, tests use `tsconfig.test.json`. Sounds clean. But VS Code's TypeScript language server uses **one** tsconfig per project, and it picks `tsconfig.json`. Since that config excludes `*.spec.ts` files and has no jest types, VS Code showed `Cannot find name 'describe'` in every spec file. The tests ran fine (ts-jest used `tsconfig.test.json`) but the developer experience was broken.
+
+### The solution and what each file does now
+
+#### `tsconfig.json` — The primary config (VS Code + CI type-check)
+```json
+{
+  "compilerOptions": {
+    "types": ["node", "jest"]   // jest types → describe/it/expect work in VS Code
+  },
+  "include": ["src/**/*"],      // includes spec files
+  "exclude": ["node_modules", "dist"]  // does NOT exclude *.spec.ts anymore
+}
+```
+This is the config VS Code uses when you open any `.ts` file. Because it now includes spec files and jest types, the language server provides full IntelliSense in test files. This config also runs in CI via `tsc --noEmit` — which is actually better because CI now type-checks your tests too.
+
+**Why is it safe to add `jest` to `types` here?**  
+The `types` field in `tsconfig.json` controls which `@types/*` packages are injected **globally** (without an explicit `import`). Adding `jest` means `describe`, `it`, `expect` become available in all `.ts` files, not just spec files. This might sound risky — could a developer accidentally write `describe(...)` in production code? Yes, but ESLint's `no-restricted-syntax` or the plain fact that it would make no sense stops that. In practice, this is the standard NestJS pattern.
+
+#### `tsconfig.build.json` — Build exclusions (for future use)
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "types": ["node"] },  // no jest types in output
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
+}
+```
+If you ever need to generate TypeScript declaration files (`.d.ts`) or use `tsc` to compile (instead of SWC), use this config. It excludes test files from the output. Currently not used — SWC handles compilation — but it's here for completeness and future tooling.
+
+#### `tsconfig.test.json` — ts-jest config
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "types": ["node", "jest"] },
+  "include": ["src/**/*"]
+}
+```
+Jest's transformer (`ts-jest`) references this file via `jest.config.ts`. It extends `tsconfig.json` so it gets all the same settings, and its `include` override removes the exclusions (already removed in the base now). Kept for backward compatibility with ts-jest's explicit reference.
+
+### The general lesson
+
+When a tool says "I use `tsconfig.json`" (VS Code, `tsc --noEmit` in CI), that tool sees exactly what that file describes — including its exclusions. If your spec files are excluded from that config, every tool using it is blind to them. The classic mistake is thinking "I have a separate tsconfig for tests so everything is fine" when VS Code only knows about the main one.
+
+---
+
+## 18. Jest Configuration — Projects, Exclusions, and VS Code Integration
+
+### Two Jest "projects" instead of one config
+
+`jest.config.ts` defines two projects:
+
+```typescript
+projects: [
+  {
+    displayName: 'unit',
+    testRegex: '.*\\.spec\\.ts$',
+    testPathIgnorePatterns: ['\\.integration\\.spec\\.ts$', '/migrations/'],
+  },
+  {
+    displayName: 'integration',
+    testRegex: '.*\\.integration\\.spec\\.ts$',
+    testPathIgnorePatterns: ['/migrations/'],
+    testTimeout: 60000,   // integration tests can take up to 60s
+  },
+]
+```
+
+This lets you run only one kind at a time:
+```bash
+jest --selectProjects unit         # fast, no Docker needed
+jest --selectProjects integration  # slow, needs Testcontainers/Docker
+```
+
+In CI, `pr-quality.yml` runs unit tests and `pr-tests.yml` runs integration tests as separate jobs.
+
+### `testRegex` vs `testPathIgnorePatterns` — what each does
+
+**`testRegex`** — Jest's "discovery" pattern. Jest crawls the `src/` directory and includes only files whose path matches this regex. `.*\\.spec\\.ts$` means "ends in `.spec.ts`". Migration files like `1716500000001-CreatePlatformTenants.ts` don't match.
+
+**`testPathIgnorePatterns`** — an *exclusion* applied after discovery AND when a file path is passed explicitly. This is the key difference:
+
+```bash
+# Discovery mode — testRegex filters this out, so testPathIgnorePatterns doesn't even run
+jest   # migration files are never found
+
+# Explicit path mode — testRegex is BYPASSED, testPathIgnorePatterns still applies
+jest '/path/to/migration.ts'   # ← without testPathIgnorePatterns, Jest tries to run this
+```
+
+When VS Code's `jest-runner` extension clicks "Run" on a file, it passes the absolute path explicitly. `testRegex` is not consulted. This is why we need `testPathIgnorePatterns: ['/migrations/']` — without it, VS Code passing a migration file path explicitly causes "No tests found, exit code 1".
+
+### VS Code jest-runner — `codeLensSelector`
+
+The `jest-runner` extension adds a "Run | Debug" button (called a **code lens**) above test blocks. Without configuration, it can appear on any `.ts` file.
+
+```json
+// .vscode/settings.json
+"jestrunner.codeLensSelector": "**/*.{spec,test}.{js,jsx,ts,tsx}"
+```
+
+This tells the extension: only show the code lens on files matching this glob. Migration files, TypeORM entity files, NestJS modules — they all get no code lens, so there's no way to accidentally trigger a "run" on them.
+
+### Why migrations must not be test files
+
+TypeORM migration files are plain TypeScript classes that implement `MigrationInterface` and contain raw SQL strings. They have no `describe` or `it` blocks. If Jest runs them:
+
+1. It finds no tests → exits with code 1 ("No tests found")
+2. The exit code 1 cascades: VS Code marks the file as "failed", the pre-push hook could fail a push
+
+Additionally, migration files are in `infrastructure/migrations/` — a path that clearly signals "this is infrastructure, not tests". Both `testRegex` and `testPathIgnorePatterns` now properly exclude them at every level.
+
+---
+
 ## Summary of Key Patterns to Internalize
 
 | Pattern | Where you see it | Why |

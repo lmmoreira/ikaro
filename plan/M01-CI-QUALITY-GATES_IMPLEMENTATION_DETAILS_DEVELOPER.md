@@ -265,6 +265,131 @@ Common failures and their fixes:
 
 ---
 
+## 13. SonarCloud Code Quality Rules — What You'll Actually Hit
+
+SonarCloud's static analysis goes beyond "does this code compile". It applies hundreds of rules derived from real-world bug patterns. During M02 development we hit one immediately. This section covers the rules most likely to affect this codebase.
+
+### Rule S107 — Constructor Has Too Many Parameters
+
+**The rule:** A constructor (or any function) with more than **7 parameters** is flagged as a code smell. SonarCloud's default maximum is 7.
+
+**Why the rule exists:** A function with 8+ parameters is a signal that the design needs reconsideration. When you call `new StaffInvited(tenantId, correlationId, staffId, email, firstName, lastName, role, invitedBy)`, it's easy to swap two arguments of the same type (e.g., `email` and `firstName` are both strings) and the compiler won't catch it. Long parameter lists are also hard to read, document, and extend.
+
+**What we hit:** The `StaffInvited` domain event constructor originally had 8 parameters — `tenantId` and `correlationId` from the base class, plus 6 event-specific fields. SonarCloud set the Quality Gate to RED. The PR merged anyway (branch protection wasn't configured yet — that came immediately after), but it showed as a warning.
+
+**The fix — the "params object" pattern:**
+
+```typescript
+// Before: 8 positional parameters — hard to read, easy to mix up
+class StaffInvited extends DomainEvent<StaffInvitedData> {
+  constructor(
+    tenantId: string,
+    correlationId: string,
+    staffId: string,       // ← which goes where?
+    email: string,
+    firstName: string,
+    lastName: string,
+    role: StaffRole,
+    invitedBy: string,
+  ) { ... }
+}
+
+// After: 3 parameters — caller passes a named object
+export interface StaffInvitedParams {
+  staffId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: StaffRole;
+  invitedBy: string;
+}
+
+class StaffInvited extends DomainEvent<StaffInvitedData> {
+  constructor(
+    tenantId: string,
+    correlationId: string,
+    params: StaffInvitedParams,   // ← named, self-documenting
+  ) { ... }
+}
+```
+
+At the call site, you now write:
+```typescript
+new StaffInvited(tenantId, correlationId, {
+  staffId: staff.id,
+  email: staff.email,
+  firstName: staff.firstName,
+  lastName: staff.lastName,
+  role: 'MANAGER',
+  invitedBy: currentUser.id,
+});
+```
+
+The named object makes the call self-documenting — you can't accidentally swap `email` and `firstName` because you're specifying which field is which. This pattern is also easier to extend: adding a new optional field to `StaffInvitedParams` doesn't change the constructor signature at all.
+
+**General rule to follow:** If any constructor or function needs more than 5 parameters, reach for an options object. 5 is a soft limit (SonarCloud allows up to 7), but readability degrades before then.
+
+### Other SonarCloud Rules to Know
+
+**Cognitive Complexity (S3776):** SonarCloud measures how hard a function is to understand by counting branches, loops, and nesting. A deeply nested `if/else if/else` inside a `for` loop scores high. The fix is to extract inner blocks into well-named helper functions.
+
+**Duplicated Blocks:** If the same ~10-line block appears in two places, SonarCloud flags it. This encourages extracting shared logic into utilities. In the domain layer, this often means a shared validation helper.
+
+**Security Hotspots:** Not automatic failures, but SonarCloud marks code like `queryRunner.query(userInput)` as a hotspot requiring human review. These appear in the PR as annotations you must manually mark as "Reviewed" in the SonarCloud UI.
+
+### How to Check SonarCloud Results Before CI
+
+SonarCloud only runs in GitHub Actions (it needs a token and the git history). You can't run it locally. But you can pre-empt most findings:
+
+1. **Constructor params:** count them. More than 7 → extract an interface.
+2. **Code complexity:** if a function is more than ~20 lines and has multiple nested conditions, split it.
+3. **Duplication:** if you're copying a block from another file, extract it.
+4. **No `TODO`/`FIXME` in committed code** — these count as tech debt in SonarCloud's metrics.
+
+---
+
+## 14. GitHub Branch Protection — How Merges Are Now Gated
+
+### What Branch Protection Is
+
+GitHub's branch protection is a repository-level configuration that defines rules for merging into a specific branch (`main` in our case). Before M02, there were no rules — anyone could merge any PR regardless of CI results. The SonarCloud warning in M02-S01 didn't block the merge because nothing required it to.
+
+Branch protection was configured after the M02-S01 incident. Now **12 status checks are required** before any PR can merge:
+
+```
+Code Quality:    ESLint  |  Prettier  |  TypeScript  |  SonarCloud Code Analysis
+Tests:           Backend Unit Tests  |  Backend Integration Tests
+Security:        Gitleaks Secret Scan  |  Snyk SCA
+                 Trivy Image Scan (backend)  |  Trivy Image Scan (bff)  |  Trivy Image Scan (web)
+                 Checkov IaC Scan
+```
+
+### What "Required Status Check" Means in Practice
+
+When you open a PR, GitHub waits for each required check to report a result. The "Merge" button on the PR page is **disabled** (greyed out) until every required check shows a green ✓. If SonarCloud reports a Quality Gate failure, the button stays disabled — even if all other checks pass.
+
+This is enforced at the infrastructure level. It's not a convention or a policy that humans can override. The only exception: `enforce_admins: false` allows the repository owner to bypass in genuine emergencies (a production hotfix where CI is broken for an unrelated reason).
+
+### Why It Wasn't Set Up From the Start
+
+Branch protection requires at least one PR to have run the CI checks so GitHub knows the check names. You can't add "ESLint" as a required check if no workflow has ever produced a check with that name. M01 built the CI workflows. Branch protection was added in M02 once we saw the check names produced by real PR runs.
+
+### How the `gh pr merge` Command Respects Branch Protection
+
+When Claude runs `gh pr merge <N> --repo lmmoreira/beloauto --squash --delete-branch`, GitHub's API enforces the branch protection rules server-side. If any required check hasn't passed, the API returns an error and the merge is rejected. This is why checking `gh pr checks <N>` before merging is important — if you skip that step and all checks haven't passed, the merge will fail anyway, but you'll have wasted the attempt.
+
+### The Incident That Led to This
+
+**What happened:** M02-S01's PR was merged even though SonarCloud reported a constructor-params warning. The merge worked because there was no branch protection — the merge button was never disabled.
+
+**What we changed:**
+1. Enabled branch protection with all 12 required checks
+2. The SonarCloud check that matters is `SonarCloud Code Analysis` (not `SonarCloud Analysis` — that's the GitHub Actions job wrapper; the actual quality gate comes from SonarCloud's own status API as `SonarCloud Code Analysis`)
+
+**Takeaway:** CI without branch protection is advisory, not enforced. The CI results show up in the PR, but nothing stops someone (or an AI agent) from clicking Merge anyway. Branch protection converts those results from "nice to know" to "mandatory".
+
+---
+
 ## Summary
 
 | Tool | Class | Catches |

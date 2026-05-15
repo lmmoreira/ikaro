@@ -99,14 +99,19 @@ Each context has `domain/`, `application/`, `infrastructure/` directories. Cross
 
 ```
 apps/backend/
-  jest.config.ts          ← rootDir: 'src', testRegex: '*.spec.ts'
-  tsconfig.test.json      ← extends tsconfig.json, adds "types": ["node","jest"]
+  jest.config.ts      ← two projects: unit (*.spec.ts) + integration (*.integration.spec.ts)
+  tsconfig.json       ← includes spec files + "types": ["node","jest"] — used by VS Code + tsc --noEmit
+  tsconfig.build.json ← excludes spec files — for build-only tooling that must omit test code
+  tsconfig.test.json  ← extends tsconfig.json, kept for ts-jest backward compat
 ```
 
 **Key facts:**
-- `ts-jest` with `tsconfig: '<rootDir>/../tsconfig.test.json'`
+- `tsconfig.json` now has `"types": ["node", "jest"]` and does NOT exclude spec files — VS Code resolves `describe/it/expect` without errors. Do NOT revert this.
+- `tsconfig.build.json` holds the old exclusions — only needed if something must compile without test code in the output (not our current case; we use SWC, not tsc, for building).
+- Both Jest projects have `testPathIgnorePatterns: ['/migrations/']` — migration files are never matched as tests even when passed explicitly by path.
+- `.vscode/settings.json` has `jestrunner.codeLensSelector: "**/*.{spec,test}.{js,jsx,ts,tsx}"` — VS Code code lens only appears on spec files, not on migration or entity files.
+- `ts-jest` configured with `tsconfig: '<rootDir>/../tsconfig.test.json'`
 - `transformIgnorePatterns` not needed (uuid v9 is CJS-compatible)
-- Test files: `*.spec.ts` (unit), `*.integration-spec.ts` will be added in feature milestones
 - Coverage: `jest --coverage` runs via `pnpm test:cov`
 - **CLAUDE.md §7** requires ≥80% coverage on changed code (differential, not global)
 
