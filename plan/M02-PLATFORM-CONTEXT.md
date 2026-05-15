@@ -58,7 +58,7 @@ Domain events:
 
 ---
 
-### M02-S02 — Platform database migrations
+### M02-S02 — Platform database migrations ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
