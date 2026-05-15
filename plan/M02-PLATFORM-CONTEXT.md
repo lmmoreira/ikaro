@@ -105,7 +105,7 @@ UNIQUE(tenant_id)
 
 ---
 
-### M02-S03 — Platform infrastructure (TypeORM + NestJS module)
+### M02-S03 — Platform infrastructure (TypeORM + NestJS module) ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
