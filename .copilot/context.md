@@ -274,13 +274,13 @@ git push -u origin feat/M0X-SYY-<short-description>
 ```
 If `ci:fast` fails the push is blocked. Fix, re-commit, re-push.
 
-### Step 6 — Run `ci:local` before opening the PR
+### Step 6 — Run `ci:local` (optional — developer decides)
 ```bash
 pnpm ci:local   # ~5 min — Docker must be running (pnpm infra:up)
 # lint → type-check → unit tests → integration tests →
 # gitleaks → docker build ×3 → trivy ×3
 ```
-Fix any failure before proceeding.
+This is **not mandatory**. GitHub CI will catch the same issues. Run it when you want early feedback before the PR (e.g. touching Dockerfiles, infra, or integration-test paths). Skip it for pure domain/unit-test changes.
 
 ### Step 7 — Open the PR
 ```bash
@@ -295,7 +295,6 @@ M0X-SYY — <title>
 ## Test plan
 - [ ] Unit tests pass
 - [ ] Type-check clean
-- [ ] ci:local green
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
   --repo lmmoreira/beloauto
@@ -469,7 +468,7 @@ Only truly unresolved items remain here:
 10. Is all customer-facing text in pt-BR, money in BRL? ✓
 11. Does the integration test include a tenant-isolation assertion? ✓
 12. Did I run `pnpm ci:fast` before pushing? (lint + prettier + type-check + unit tests — auto-runs via pre-push hook if `git config core.hooksPath .githooks` is set) ✓
-13. Did I run `pnpm ci:local` before opening the PR? (adds integration tests + gitleaks + docker builds + trivy — all via Docker, zero tokens needed) ✓
+13. (Optional) Did I run `pnpm ci:local` if the change touches Dockerfiles, infra, or integration-test paths? GitHub CI catches this regardless — skip for pure domain/unit changes. ✓
 14. After opening the PR, did I verify all CI checks passed (`gh pr checks <N> --repo lmmoreira/beloauto`)? If any failed — fix, commit, push, re-verify. Once all checks are green, merge: `gh pr merge <N> --repo lmmoreira/beloauto --squash --delete-branch`. Do not report done until the squash commit is on `main`. ✓
 15. After merging, did I mark the story as `✅ Done` in `plan/<milestone>.md`? (heading: `### MXX-SYY — title ✅ Done`) ✓
 16. Are ALL stories in this milestone now `✅ Done`? If yes — the milestone is complete. Before reporting done, create both wrap-up files:
