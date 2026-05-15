@@ -214,6 +214,94 @@ These settings are project-scoped — they do not override developer personal VS
 
 ---
 
+## 14. Story Implementation Workflow (mandatory for every story)
+
+This is the exact sequence every agent MUST follow for each story. CLAUDE.md §15 lists the checks; this section adds the concrete commands.
+
+### Step 1 — Create feature branch (before writing any code)
+```bash
+git checkout -b feat/M0X-SYY-<short-description>
+# e.g. feat/M02-S01-platform-domain
+```
+
+### Step 2 — Implement the story
+Write all files defined in the story. See CLAUDE.md §0 for permission rules (code files = autonomous once story is approved).
+
+### Step 3 — Verify locally
+```bash
+pnpm --filter @beloauto/backend run type-check   # zero errors
+pnpm --filter @beloauto/backend run lint          # zero warnings
+pnpm --filter @beloauto/backend exec jest --testPathPatterns="<context>" --no-coverage
+```
+
+### Step 4 — Commit with Conventional Commit
+```bash
+git add <specific files — never git add -A>
+git commit -m "feat(<context>): <short description> (M0X-SYY)"
+# Append Co-Authored-By trailer
+```
+
+### Step 5 — Push (pre-push hook runs ci:fast automatically)
+```bash
+git push -u origin feat/M0X-SYY-<short-description>
+# ci:fast = lint + prettier + type-check + unit tests (~15s)
+```
+If ci:fast fails, fix before continuing.
+
+### Step 6 — Run ci:local before opening the PR
+```bash
+pnpm ci:local   # ~5 min — Docker must be running
+# Runs: lint → type-check → unit tests → integration tests →
+#        gitleaks (Docker) → docker build ×3 → trivy ×3
+```
+Fix any failures before opening the PR.
+
+### Step 7 — Open the PR
+```bash
+gh pr create \
+  --title "feat(platform): <description> (M0X-SYY)" \
+  --body "$(cat <<'EOF'
+## Summary
+- <bullet points>
+
+## Story
+M0X-SYY — <title>
+
+## Test plan
+- [ ] Unit tests pass
+- [ ] Type-check clean
+- [ ] ci:local green
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)" \
+  --repo lmmoreira/beloauto
+```
+
+### Step 8 — Monitor CI and self-fix
+```bash
+gh pr checks <PR-number> --repo lmmoreira/beloauto
+# If any check fails:
+gh run view <run-id> --repo lmmoreira/beloauto --log-failed
+# Fix → commit → push → re-check until all green
+```
+
+### Step 9 — Merge once all checks are green
+```bash
+gh pr merge <PR-number> --repo lmmoreira/beloauto --squash --delete-branch
+```
+
+### Step 10 — Mark story done (AFTER merge, not before)
+In `plan/M0X-<NAME>.md`:
+```
+### M0X-SYY — title  →  ### M0X-SYY — title ✅ Done
+```
+
+### Step 11 — If ALL stories in milestone are now Done: create wrap-up docs
+See CLAUDE.md §15 item 16 for the two wrap-up files to create.
+
+---
+
 ## 12. Workspace Dependency Graph
 
 ```
