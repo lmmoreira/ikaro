@@ -260,6 +260,7 @@ Shared cross-cutting code → `src/shared/` (logger, OTel, `IEventBus` port, ten
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` | 2 |
 | Full feature (UC + API + DB + tests) | All of the above relevant rows | 12–18 |
 | Working on M01+ (any backend/BFF/web task) | `plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` — version gotchas, stubs, CJS/ESM decisions, seed UUIDs, testing setup | 3 |
+| Working on M02+ (any task touching CI, Dockerfiles, or deployment) | `plan/M01-CI-QUALITY-GATES_IMPLEMENTATION_DETAILS_IA.md` — workflow job map, Dockerfile gotchas (pnpm deploy, --ignore-scripts, npm removal, .next/.dist copy), Checkov path-filter, local vs CI gate coverage, required GitHub Secrets | 2 |
 
 **Never load:** anything under `docs/archive/` — superseded content.  
 **Never load:** `plan/*_DEVELOPER.md` files — written for the human developer, not for agents.
@@ -380,6 +381,10 @@ Only truly unresolved items remain here:
 13. Did I run `pnpm ci:local` before opening the PR? (adds integration tests + gitleaks + docker builds + trivy — all via Docker, zero tokens needed) ✓
 14. After opening the PR, did I verify all CI checks passed (`gh pr checks <N> --repo lmmoreira/beloauto`)? If any failed — fix, commit, push, re-verify. Once all checks are green, merge: `gh pr merge <N> --repo lmmoreira/beloauto --squash --delete-branch`. Do not report done until the squash commit is on `main`. ✓
 15. After merging, did I mark the story as `✅ Done` in `plan/<milestone>.md`? (heading: `### MXX-SYY — title ✅ Done`) ✓
+16. Are ALL stories in this milestone now `✅ Done`? If yes — the milestone is complete. Before reporting done, create both wrap-up files:
+    - `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` — token-efficient: artifacts table, critical gotchas, version facts, structural decisions, common commands. For AI agents only.
+    - `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_DEVELOPER.md` — detailed: concepts explained with rationale, code examples from the actual codebase. For the human developer only.
+    - Add the IA file to §10 of this file (Dynamic Context Loading table) so future agents know to load it. ✓
 
 ---
 
