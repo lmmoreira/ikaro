@@ -3,7 +3,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-05-13
+**Last updated:** 2026-05-15
 
 ---
 
@@ -238,6 +238,95 @@ Shared cross-cutting code → `src/shared/` (logger, OTel, `IEventBus` port, ten
 
 ---
 
+## 9. Story Implementation Workflow (mandatory — every story, no exceptions)
+
+Every story follows this sequence. Skipping steps — especially branch creation — is a defect in agent behaviour.
+
+### Step 1 — Create feature branch (BEFORE writing any code)
+```bash
+git checkout -b feat/M0X-SYY-<short-description>
+# e.g. feat/M02-S01-platform-domain
+```
+Never write code on `main`. If you are already on `main` with uncommitted changes, stash first.
+
+### Step 2 — Implement the story
+Write all files defined in the story spec. See §0 for permission rules (code files = autonomous once story is approved; `.md` / architecture docs still require explicit approval).
+
+### Step 3 — Verify locally before committing
+```bash
+pnpm --filter @beloauto/backend run type-check   # zero errors
+pnpm --filter @beloauto/backend run lint          # zero warnings
+pnpm --filter @beloauto/backend exec jest --testPathPatterns="<context>" --no-coverage
+```
+
+### Step 4 — Commit with Conventional Commit
+```bash
+git add <specific files — never git add -A or git add .>
+git commit -m "feat(<context>): <description> (M0X-SYY)
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+```
+
+### Step 5 — Push (pre-push hook runs `ci:fast` automatically)
+```bash
+git push -u origin feat/M0X-SYY-<short-description>
+# ci:fast = lint + prettier + type-check + unit tests (~15 s)
+```
+If `ci:fast` fails the push is blocked. Fix, re-commit, re-push.
+
+### Step 6 — Run `ci:local` before opening the PR
+```bash
+pnpm ci:local   # ~5 min — Docker must be running (pnpm infra:up)
+# lint → type-check → unit tests → integration tests →
+# gitleaks → docker build ×3 → trivy ×3
+```
+Fix any failure before proceeding.
+
+### Step 7 — Open the PR
+```bash
+gh pr create \
+  --title "feat(<context>): <description> (M0X-SYY)" \
+  --body "## Summary
+- <bullet>
+
+## Story
+M0X-SYY — <title>
+
+## Test plan
+- [ ] Unit tests pass
+- [ ] Type-check clean
+- [ ] ci:local green
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
+  --repo lmmoreira/beloauto
+```
+
+### Step 8 — Monitor CI; self-fix any failure
+```bash
+gh pr checks <PR-number> --repo lmmoreira/beloauto
+# On failure:
+gh run view <run-id> --repo lmmoreira/beloauto --log-failed
+# Fix → commit → push → re-check. Loop until all checks are green.
+```
+
+### Step 9 — Merge once ALL checks are green
+```bash
+gh pr merge <PR-number> --repo lmmoreira/beloauto --squash --delete-branch
+git checkout main && git pull origin main
+```
+
+### Step 10 — Mark story done (only after the squash commit is on `main`)
+In `plan/M0X-<NAME>.md`:
+```
+### M0X-SYY — title  →  ### M0X-SYY — title ✅ Done
+```
+Commit this change to `main` directly (`chore(plan): mark M0X-SYY done`).
+
+### Step 11 — Milestone complete? Create wrap-up docs
+If every story in the milestone is now `✅ Done`, see §15 item 16 for the two wrap-up files to create.
+
+---
+
 ## 10. Dynamic Context Loading — Load Only What You Need
 
 **Always start with this file.** Then use the table below to load only the docs relevant to your task.
@@ -366,6 +455,8 @@ Only truly unresolved items remain here:
 
 ## 15. Self-Check Before Submitting
 
+> **BEFORE WRITING ANY CODE:** Create a feature branch first — `git checkout -b feat/M0X-SYY-<description>`. Never code directly on `main`. See §9 for the full workflow.
+
 1. Did I read this file at the start of the conversation? ✓
 2. Did I get permission before writing any file? ✓
 3. Does every query / event / log include `tenant_id`? ✓
@@ -392,6 +483,7 @@ Only truly unresolved items remain here:
 
 | Date | Change |
 |---|---|
+| 2026-05-15 | **§9 Story Implementation Workflow added.** Explicit branch-first, commit, push, ci:fast, ci:local, PR, CI monitor, squash-merge, mark-done sequence. §15 updated with branch-creation reminder. M00 IA doc §14 mirrors this. |
 | 2026-05-12 (wave 3) | **Platform Context added + LGPD removed.** Added Platform Context (UC-024 to UC-029, aggregates, events `StaffInvited`/`StaffDeactivated`) across docs 02, 03, 04, 05. Removed LGPD scope (localization only: BRL, pt-BR). Fixed UC-024/025/026 for Google OAuth-only auth and BRL currency. Added UC-028 (invite staff) and UC-029 (deactivate staff). CLAUDE.md now symlinks to this file. |
 | 2026-05-12 (wave 2) | **Doc fixes propagated.** Event bus (05, 11, 18) → GCP Pub/Sub; CI/CD (09) → Stage 4.5 migrations, coverage "changed code"; use cases (04) → cancellation window from settings; docs 01/07 → Brazil/BRL/pt-BR. All agent files (CLAUDE.md, claude.md, gemini.md) symlink to this file. |
 | 2026-05-12 (wave 1) | **Full rewrite of this file.** Resolved: event bus → GCP Pub/Sub + emulator; BFF → separate NestJS service; monorepo → pnpm workspaces; DB migrations → separate CI job; feature flags → env vars; rate limiting → NestJS ThrottlerModule. Added: Brazil market, BRL currency, pt-BR locale, LGPD. Archived root-level audit files. Rewrote for dynamic-loading-first structure. |
