@@ -145,7 +145,7 @@ NestJS module:
 
 ---
 
-### M02-S04 — TenantContext + TenantInterceptor
+### M02-S04 — TenantContext + TenantInterceptor ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
