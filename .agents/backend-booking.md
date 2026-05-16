@@ -169,6 +169,7 @@ All events use the standard 7-field envelope (CLAUDE.md §4).
 □ Config values read from tenants.settings (nothing hardcoded)
 □ No imports from other context paths — only src/shared/
 □ Photos stored at tenants/<tid>/bookings/<bid>/<file>
+□ HTTP file created/updated in apps/backend/http/<context>/ for every new endpoint
 ```
 
 Open PR as **DRAFT**.

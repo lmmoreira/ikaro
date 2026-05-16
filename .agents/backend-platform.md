@@ -176,6 +176,7 @@ All events use the standard 7-field envelope (CLAUDE.md §4).
 □ throw err uses instanceof guard, not 'as Error' cast (S3696)
 □ Events use standard 7-field envelope
 □ No imports from other context paths
+□ HTTP file created/updated in apps/backend/http/<context>/ for every new endpoint
 ```
 
 Open PR as **DRAFT**.

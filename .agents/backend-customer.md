@@ -108,6 +108,7 @@ UC-014 is **superseded by UC-021** — do not implement UC-014.
 □ No imports from other context paths
 □ Functions ≤ 20 lines, classes ≤ 200 lines
 □ No 'any', no @ts-ignore
+□ HTTP file created/updated in apps/backend/http/<context>/ for every new endpoint
 ```
 
 Open PR as **DRAFT**.

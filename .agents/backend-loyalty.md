@@ -129,6 +129,7 @@ export class BookingCompletedHandler implements IEventHandler<BookingCompletedEv
 □ No imports from any other context path
 □ Functions ≤ 20 lines, classes ≤ 200 lines
 □ No 'any', no @ts-ignore
+□ HTTP file created/updated in apps/backend/http/<context>/ for every new endpoint
 ```
 
 Open PR as **DRAFT**.

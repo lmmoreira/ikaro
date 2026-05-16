@@ -53,6 +53,24 @@ The `.vscode/settings.json` is pre-configured for:
 | Jest runner | `pnpm --filter @beloauto/backend test` |
 | Coverage gutters | reads `apps/backend/coverage/lcov.info` |
 
+**REST Client** (`humao.rest-client`) — test backend endpoints directly from VS Code without leaving the editor:
+
+1. Install the extension (included in the recommended list above)
+2. Start the app: `pnpm infra:up && pnpm dev`
+3. Open any `.http` file under `apps/backend/http/`
+4. Select the **`local`** environment from the VS Code status bar (bottom-right corner)
+5. Click **"Send Request"** above any request block — the response appears in a split panel
+
+```
+apps/backend/http/
+└── platform/
+    └── internal-tenants.http   ← UC-024: provision tenant (all scenarios)
+```
+
+Each `.http` file covers the full scenario set for a resource: happy path, 4xx errors, edge cases. The `PLATFORM_ADMIN_KEY` is read automatically from your `apps/backend/.env` — nothing is hard-coded.
+
+> Add a new `.http` file for every new endpoint you implement. Follow the existing file as a template.
+
 **SonarLint connected mode** (mirrors the CI SonarCloud gate):
 1. Install the `SonarLint` extension
 2. `F1` → **"SonarLint: Connect to SonarCloud"** → sign in with GitHub

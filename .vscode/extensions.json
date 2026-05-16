@@ -35,7 +35,8 @@
     // ─── Testing & REST ──────────────────────────────────────
     "firsttris.vscode-jest-runner", // Run individual Jest tests from editor
     "ms-playwright.playwright", // Playwright E2E test runner
-    "rangav.vscode-thunder-client", // REST client (test BFF endpoints locally)
+    "humao.rest-client", // REST Client — runs .http files in apps/backend/http/
+    "rangav.vscode-thunder-client", // Thunder Client — ad-hoc REST requests
     "cweijan.vscode-database-client2", // DB explorer (connect to local Postgres)
     "ryanluker.vscode-coverage-gutters", // lcov coverage shown in gutter
 

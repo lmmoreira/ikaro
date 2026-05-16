@@ -183,6 +183,7 @@ Shared cross-cutting code → `src/shared/` (logger, OTel, `IEventBus` port, ten
 - Email templates in pt-BR; Money display as `R$ 1.234,56`
 - Domain errors → HTTP status mapping belongs in a `mapXxxError(err: unknown): never` helper in `infrastructure/http/` — never multiple `if (err instanceof X)` chains inside a controller method. The controller method should be one line: `return this.useCase.execute(dto).catch(mapXxxError)`
 - Guards that protect a single context's endpoints belong in `src/contexts/<context>/infrastructure/guards/` — only truly cross-cutting guards (used by multiple contexts) go in `src/shared/guards/`
+- Every new REST endpoint must have a corresponding request block in `apps/backend/http/<context>/<resource>.http` — include the happy path, all 4xx error cases, and edge cases. Use the existing files as a template.
 
 ### Transactions (multi-aggregate writes)
 
@@ -396,6 +397,7 @@ git diff main...HEAD
 Go through every changed file and verify **all** of the following:
 - [ ] No framework imports (`HttpException`, NestJS decorators) in domain or application layers — only controllers/guards/pipes may use them. Use domain errors instead; the controller maps them to HTTP status codes.
 - [ ] Every use case that writes to two or more aggregates wraps all writes in `ITransactionManager.run()` — no compensating deletes.
+- [ ] Every new REST endpoint has a corresponding block in `apps/backend/http/<context>/<resource>.http` covering happy path + all error cases.
 - [ ] No redundant or duplicated test assertions — each test call to the system under test has a purpose.
 - [ ] Every public method on a controller/service has an explicit return type annotation.
 - [ ] `@Global()` modules have a comment explaining why they are global and where they are imported.
