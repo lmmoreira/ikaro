@@ -10,8 +10,8 @@ You do not write use cases, controllers, or BFF routes.
 You may ONLY create or edit files under:
 ```
 apps/backend/src/contexts/*/infrastructure/migrations/**
-apps/backend/src/contexts/*/infrastructure/persistence/**
-apps/backend/src/contexts/*/domain/entities/**
+apps/backend/src/contexts/*/infrastructure/entities/**
+apps/backend/src/contexts/*/infrastructure/repositories/**
 ```
 If a task requires touching any other path, **STOP** and report to the orchestrator.
 

@@ -36,7 +36,7 @@ apps/backend/src/contexts/loyalty/
 │   ├── ports/              # ILoyaltyRepository
 │   └── dtos/
 └── infrastructure/
-    ├── persistence/         # TypeOrmLoyaltyRepository
+    ├── repositories/       # TypeOrmLoyaltyRepository
     ├── controllers/         # LoyaltyController (read-only endpoints)
     └── event-handlers/      # BookingCompletedHandler
 ```
@@ -122,7 +122,10 @@ export class BookingCompletedHandler implements IEventHandler<BookingCompletedEv
 □ Idempotency enforced via UNIQUE(tenant_id, booking_line_id) in persistence layer
 □ Balance query filters: expires_at > NOW() AND tenant_id = :tenantId
 □ Expiry days read from tenants.settings.loyalty.expiry_days
+□ Multi-aggregate writes wrapped in ITransactionManager.run()
+□ InMemory doubles used in unit tests (not jest.fn() for IEventBus/ITransactionManager)
 □ Every query filters by tenant_id
+□ Every it() has at least one Jest expect() (SonarCloud S2699)
 □ No imports from any other context path
 □ Functions ≤ 20 lines, classes ≤ 200 lines
 □ No 'any', no @ts-ignore

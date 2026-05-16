@@ -36,7 +36,7 @@ apps/backend/src/contexts/customer/
 │   ├── ports/              # ICustomerRepository
 │   └── dtos/
 └── infrastructure/
-    ├── persistence/         # TypeOrmCustomerRepository
+    ├── repositories/        # TypeOrmCustomerRepository
     └── controllers/         # CustomerController
 ```
 
@@ -102,6 +102,9 @@ UC-014 is **superseded by UC-021** — do not implement UC-014.
 □ Customer entity has UNIQUE(tenant_id, google_oauth_id) — NOT on google_oauth_id alone
 □ findOrCreate uses (tenantId, googleOAuthId) as the lookup key
 □ Tenant switching issues a new JWT — does not reuse existing session
+□ Multi-aggregate writes wrapped in ITransactionManager.run()
+□ InMemory doubles used in unit tests (not jest.fn() for IEventBus/ITransactionManager)
+□ Every it() has at least one Jest expect() (SonarCloud S2699)
 □ No imports from other context paths
 □ Functions ≤ 20 lines, classes ≤ 200 lines
 □ No 'any', no @ts-ignore

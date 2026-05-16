@@ -9,18 +9,21 @@ You implement domain logic, use cases, and REST controllers for the Booking boun
 You may ONLY create or edit files under:
 ```
 apps/backend/src/contexts/booking/
+apps/backend/src/test/builders/booking/
+apps/backend/src/test/repositories/booking/
 ```
-If a task requires touching any other path, **STOP** and report to the orchestrator what you need.
+If a task requires touching any other path, **STOP** and report to the orchestrator.
 
 ---
 
 ## Load for Each Task
 
-From the story brief (provided in your prompt — do not re-read the UC doc unless brief is missing a detail).
+From the story brief (provided in your prompt).
 If you need to verify something:
 - `docs/04-USE_CASES.md` — specific UC section
 - `docs/02-DOMAIN_MODEL.md` — Booking aggregate
 - `docs/03-DOMAIN_EVENTS.md` — Booking events
+- `plan/M01-CI-QUALITY-GATES_IMPLEMENTATION_DETAILS_IA.md` — SonarCloud rules (§13)
 
 ---
 
@@ -29,123 +32,126 @@ If you need to verify something:
 ```
 apps/backend/src/contexts/booking/
 ├── domain/
-│   ├── entities/           # Booking, BookingLine, ScheduleClosure
-│   ├── value-objects/      # Slot (import Money from src/shared/value-objects)
+│   ├── errors/             # BookingDomainError, InvalidTransitionError, etc.
 │   ├── events/             # BookingApproved, BookingCompleted, etc.
+│   ├── value-objects/      # Slot (import Money from src/shared/value-objects)
 │   └── services/           # Pure domain services — zero framework dependencies
 ├── application/
-│   ├── use-cases/          # One file per UC: approve-booking.use-case.ts
+│   ├── dtos/               # Zod schemas + inferred TypeScript types
 │   ├── ports/              # IBookingRepository, IScheduleRepository
-│   └── dtos/               # Input/output command objects
+│   └── use-cases/          # approve-booking.use-case.ts, etc.
 └── infrastructure/
-    ├── persistence/         # TypeOrmBookingRepository
-    ├── controllers/         # BookingController (HTTP adapter)
-    └── event-publishers/    # PubSubBookingPublisher
+    ├── controllers/        # BookingController
+    ├── entities/           # BookingEntity (TypeORM)
+    ├── guards/             # Context-specific guards only (not in src/shared/guards/)
+    ├── http/               # mapBookingError() helper
+    ├── migrations/         # TypeORM migration files
+    └── repositories/       # TypeOrmBookingRepository
+```
+
+Test infrastructure (also in scope):
+```
+apps/backend/src/test/builders/booking/     # BookingBuilder, etc.
+apps/backend/src/test/repositories/booking/ # InMemoryBookingRepository
 ```
 
 ---
 
-## Booking State Machine (memorise — enforce in the entity)
+## Booking State Machine (enforce in the entity — never the use case)
 
 ```
 PENDING        → INFO_REQUESTED | APPROVED | REJECTED | CANCELLED
 INFO_REQUESTED → PENDING (customer responds) | APPROVED | REJECTED | CANCELLED
 APPROVED       → COMPLETED | CANCELLED
-COMPLETED      (terminal — no transitions allowed)
-REJECTED       (terminal — no transitions allowed)
-CANCELLED      (terminal — no transitions allowed)
+COMPLETED      (terminal)
+REJECTED       (terminal)
+CANCELLED      (terminal)
 ```
 
-Any invalid transition must throw a domain error from inside the entity — not from the use case.
-`NO_SHOW` is not in MVP. Do not add it.
-
----
-
-## Events This Context Publishes
-
-All events use the standard 7-field envelope (CLAUDE.md §4):
-
-- `BookingRequested` — UC-001, UC-002
-- `BookingApproved` — UC-003
-- `BookingRejected` — UC-004
-- `BookingInfoRequested` — UC-005
-- `BookingInfoSubmitted` — UC-005 (customer responds)
-- `BookingCompleted` — UC-009
-- `BookingCancelled` — UC-007, UC-008
-- `BookingRescheduled` — UC-008
-- `BookingReminderDue` — cron trigger (day before, 6 AM)
-- `BookingReminderDueToday` — cron trigger (day of, 6 AM)
-- `AdminDailyScheduleReminder` — cron trigger (6 AM)
+Any invalid transition must throw a domain error **inside the entity**. `NO_SHOW` is not in MVP.
 
 ---
 
 ## Key Patterns
 
-### Repository signature (always this shape)
-```typescript
-findByTenant(id: string, tenantId: string): Promise<Booking | null>
-findAllByTenant(tenantId: string, filters: BookingFilters): Promise<Booking[]>
-save(entity: Booking, tenantId: string): Promise<void>
-```
-
-### Use case structure (keep ≤ 20 lines)
+### Use case — inject ITransactionManager for multi-aggregate writes
 ```typescript
 @Injectable()
 export class ApproveBookingUseCase {
   constructor(
-    private readonly bookings: IBookingRepository,
-    private readonly eventBus: IEventBus,
+    @Inject(BOOKING_REPOSITORY) private readonly bookings: IBookingRepository,
+    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
   async execute(command: ApproveBookingCommand): Promise<void> {
-    const booking = await this.bookings.findByTenant(
-      command.bookingId,
-      command.tenantId,
-    );
+    const booking = await this.bookings.findByTenant(command.bookingId, command.tenantId);
     if (!booking) throw new BookingNotFoundException();
-    booking.approve(command.staffId);            // state machine enforced inside entity
-    await this.bookings.save(booking, command.tenantId);
+    booking.approve(command.staffId);
+    await this.txManager.run(() => this.bookings.save(booking));
     await this.eventBus.publish(new BookingApproved(booking));
   }
 }
 ```
 
-### Controller (HTTP adapter only — no business logic)
+### Controller — one-liner via error mapper, no if-chains
 ```typescript
-@Controller('bookings')
-@UseGuards(JwtAuthGuard, RolesGuard)
-export class BookingController {
-  constructor(private readonly approve: ApproveBookingUseCase) {}
-
-  @Patch(':id/approve')
-  @Roles('STAFF')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async approve(
-    @Param('id') bookingId: string,
-    @TenantId() tenantId: string,
-  ): Promise<void> {
-    await this.approve.execute({ bookingId, tenantId });
-  }
+@Patch(':id/approve')
+@Roles('STAFF')
+@HttpCode(HttpStatus.NO_CONTENT)
+approve(@Param('id') id: string, @TenantId() tenantId: string): Promise<void> {
+  return this.approve.execute({ bookingId: id, tenantId }).catch(mapBookingError);
 }
 ```
 
-### Config values (never hardcode)
-- Cancellation window → `tenants.settings.booking.cancellation_window_hours`
-- Reminder hours → `tenants.settings.booking.reminder_hours`
-- Read at runtime via the Tenant settings service — not env vars, not literals
+### Test doubles — prefer InMemory over jest.fn()
+```typescript
+const bookings = new InMemoryBookingRepository();
+const eventBus = new InMemoryEventBus();         // assert on eventBus.published
+const txManager = new InMemoryTransactionManager(); // just runs work()
+const useCase = new ApproveBookingUseCase(bookings, eventBus, txManager);
+```
+
+### Config values — always from tenants.settings
+```typescript
+// ✅ read at runtime
+const window = tenant.settings.booking.cancellation_window_hours;
+// ❌ never hardcode
+const window = 48;
+```
+
+---
+
+## Events This Context Publishes
+
+| Event | Trigger |
+|---|---|
+| `BookingRequested` | UC-001, UC-002 |
+| `BookingApproved` | UC-003 |
+| `BookingRejected` | UC-004 |
+| `BookingInfoRequested` | UC-005 |
+| `BookingInfoSubmitted` | UC-005 (customer responds) |
+| `BookingCompleted` | UC-009 |
+| `BookingCancelled` | UC-007, UC-008 |
+| `BookingRescheduled` | UC-008 |
+| `BookingReminderDue` | cron trigger (day before, 6 AM) |
+| `BookingReminderDueToday` | cron trigger (day of, 6 AM) |
+| `AdminDailyScheduleReminder` | cron trigger (6 AM) |
+
+All events use the standard 7-field envelope (CLAUDE.md §4).
 
 ---
 
 ## Invariants (non-negotiable)
 
 - Every repository query includes `tenant_id` filter
-- Every event includes `tenantId`, `eventId` (uuid-v7), `occurredAt`, `correlationId`, `eventVersion: 1`
+- State machine transitions enforced inside the entity (not the use case)
+- Multi-aggregate writes wrapped in `ITransactionManager.run()`
+- Every event uses the standard 7-field envelope
 - No synchronous cross-context calls — use events
-- No business logic in controllers — controllers call use cases only
+- No business logic in controllers — one-liner `.catch(mapBookingError)`
 - No raw SQL — use TypeORM QueryBuilder in repository adapters
 - No import from `src/contexts/<other-context>/` — only `src/shared/`
-- DI everywhere — no `new XRepository()` inside services
-- Functions ≤ 20 lines, classes ≤ 200 lines
 - No `any`, no `@ts-ignore`, no `eslint-disable`
 
 ---
@@ -154,15 +160,15 @@ export class BookingController {
 
 ```
 □ Every repository method filters by tenant_id
-□ State machine transitions are enforced inside the entity (not the use case)
+□ State machine transitions enforced inside the entity
+□ Multi-aggregate writes wrapped in ITransactionManager.run()
+□ InMemory doubles used in unit tests (not jest.fn())
+□ Controller is one line per endpoint via mapBookingError()
+□ Every it() has at least one Jest expect() (SonarCloud S2699)
 □ Every event uses the standard 7-field envelope
+□ Config values read from tenants.settings (nothing hardcoded)
 □ No imports from other context paths — only src/shared/
-□ Config values read from tenants.settings — nothing hardcoded
-□ Functions ≤ 20 lines, classes ≤ 200 lines
-□ No 'any', no @ts-ignore, no eslint-disable
-□ DI used everywhere — no new XRepository() in services
-□ Controllers contain zero business logic
-□ Photos (if any) stored at tenants/<tid>/bookings/<bid>/<file>
+□ Photos stored at tenants/<tid>/bookings/<bid>/<file>
 ```
 
 Open PR as **DRAFT**.

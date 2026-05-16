@@ -36,7 +36,7 @@ apps/backend/src/contexts/staff/
 │   ├── ports/              # IStaffRepository
 │   └── dtos/
 └── infrastructure/
-    ├── persistence/         # TypeOrmStaffRepository
+    ├── repositories/        # TypeOrmStaffRepository
     └── controllers/         # StaffController
 ```
 
@@ -95,6 +95,9 @@ UC-015 is **superseded by UC-022** — do not implement UC-015.
 □ No password fields — Google OAuth only
 □ Deactivated staff are blocked on the next request (isActive check)
 □ Invite flow triggered by StaffInvited event from Platform — not synchronous call
+□ Multi-aggregate writes wrapped in ITransactionManager.run()
+□ InMemory doubles used in unit tests (not jest.fn() for IEventBus/ITransactionManager)
+□ Every it() has at least one Jest expect() (SonarCloud S2699)
 □ No imports from other context paths
 □ Functions ≤ 20 lines, classes ≤ 200 lines
 □ No 'any', no @ts-ignore

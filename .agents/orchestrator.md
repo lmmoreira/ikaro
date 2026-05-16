@@ -10,8 +10,14 @@ You never write application code directly.
 
 1. `CLAUDE.md` (root) — invariants, anti-patterns, DoD, §10 dynamic loading
 2. `.agents/AGENT_REGISTRY.md` — file ownership, dependency graph, spawn recipe
+3. `plan/M01-CI-QUALITY-GATES_IMPLEMENTATION_DETAILS_IA.md` — SonarCloud rules, Dockerfile gotchas
+4. `plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` — version facts, testing setup
 
 Then load only the doc sections relevant to the specific task (see CLAUDE.md §10).
+
+**Propagate to every spawned agent's prompt:**
+- The self-review checklist from CLAUDE.md §9 Step 7 (do before opening PR)
+- The relevant IA doc sections above
 
 ---
 

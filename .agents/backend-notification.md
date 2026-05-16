@@ -36,7 +36,7 @@ apps/backend/src/contexts/notification/
 │   ├── ports/              # IEmailSender, INotificationTemplateRepository
 │   └── dtos/
 └── infrastructure/
-    ├── persistence/         # TypeOrmNotificationRepository
+    ├── repositories/        # TypeOrmNotificationRepository
     ├── adapters/            # SendGridEmailSender (implements IEmailSender)
     └── event-handlers/      # All event handlers live here
 ```
@@ -136,6 +136,8 @@ If any email template shows a price:
 □ Event handlers deduplicate via eventId
 □ IEmailSender port used — no direct SendGrid calls in application layer
 □ Money displayed as R$ 1.234,56 if shown
+□ InMemory doubles used in unit tests (not jest.fn() for IEventBus)
+□ Every it() has at least one Jest expect() (SonarCloud S2699)
 □ No imports from other context paths
 □ Functions ≤ 20 lines, classes ≤ 200 lines
 □ No 'any', no @ts-ignore
