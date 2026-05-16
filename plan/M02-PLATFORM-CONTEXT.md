@@ -175,7 +175,7 @@ Implement the request-scoped `TenantContext` and the `TenantInterceptor` that re
 
 ---
 
-### M02-S05 — UC-024: Platform operator provisions new tenant (REST API)
+### M02-S05 — UC-024: Platform operator provisions new tenant (REST API) ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
