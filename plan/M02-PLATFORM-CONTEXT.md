@@ -298,7 +298,7 @@ The original plan specified a CLI command. Replaced with a REST endpoint for pro
 
 ---
 
-### M02-S06 — UC-026: Admin edits tenant settings
+### M02-S06 — UC-026: Admin edits tenant settings ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
