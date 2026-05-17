@@ -1,6 +1,6 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
-import { PlatformDomainError } from './errors/platform-domain.error';
+import { PlatformDomainError, TenantInactiveError } from './errors/platform-domain.error';
 import { TenantSettings } from './value-objects/tenant-settings.vo';
 
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
@@ -77,7 +77,17 @@ export class Tenant extends AggregateRoot {
   }
 
   updateSettings(settings: TenantSettings): void {
+    if (!this.props.isActive) throw new TenantInactiveError(this.props.id);
     this.props.settings = settings;
+    this.props.updatedAt = new Date();
+  }
+
+  updateName(name: string): void {
+    if (!this.props.isActive) throw new TenantInactiveError(this.props.id);
+    if (!name || name.trim().length === 0) {
+      throw new PlatformDomainError('Tenant name must not be empty');
+    }
+    this.props.name = name.trim();
     this.props.updatedAt = new Date();
   }
 

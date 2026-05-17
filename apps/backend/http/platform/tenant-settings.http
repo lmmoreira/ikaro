@@ -1,0 +1,180 @@
+# Platform — Tenant Settings
+# UC-026: Admin edits tenant settings
+#
+# Prerequisites:
+#   1. pnpm infra:up           (start PostgreSQL + Pub/Sub emulator)
+#   2. pnpm --filter @beloauto/backend run migration:run
+#   3. pnpm --filter @beloauto/backend run dev
+#   4. Provision a tenant first (see internal-tenants.http) and copy the tenantId below
+#
+# Switch environment (bottom-right VS Code status bar): select "local"
+
+@baseUrl   = {{backendUrl}}
+@tenantId  = REPLACE-WITH-TENANT-ID
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Partial loyalty update (only expiry_days changes; other loyalty fields preserved)
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "loyalty": {
+      "expiry_days": 365
+    }
+  }
+}
+
+###
+
+### Partial booking update (only cancellation window; nothing else changes)
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "booking": {
+      "cancellation_window_hours": 72
+    }
+  }
+}
+
+###
+
+### Update timezone and close Sunday
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "business_hours": {
+      "timezone": "America/Manaus",
+      "sunday": null
+    }
+  }
+}
+
+###
+
+### Update tenant name only
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "name": "Lavacar Novo Nome"
+}
+
+###
+
+### Full settings + name update
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "name": "AutoWash Pro",
+  "settings": {
+    "loyalty": {
+      "expiry_days": 180,
+      "enable_notifications": true,
+      "expiry_warning_days": 7
+    },
+    "booking": {
+      "cancellation_window_hours": 48,
+      "auto_approve_enabled": false,
+      "min_booking_advance_hours": 2,
+      "max_booking_advance_days": 60,
+      "service_buffer_minutes": 30,
+      "slot_granularity_minutes": 30
+    },
+    "business_hours": {
+      "timezone": "America/Sao_Paulo",
+      "monday": { "open": "08:00", "close": "18:00" },
+      "tuesday": { "open": "08:00", "close": "18:00" },
+      "wednesday": { "open": "08:00", "close": "18:00" },
+      "thursday": { "open": "08:00", "close": "18:00" },
+      "friday": { "open": "08:00", "close": "18:00" },
+      "saturday": { "open": "09:00", "close": "14:00" },
+      "sunday": null
+    }
+  }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 400 — Missing X-Tenant-ID header
+PATCH {{baseUrl}}/tenants/settings
+Content-Type: application/json
+
+{
+  "settings": { "loyalty": { "expiry_days": 90 } }
+}
+
+###
+
+### 400 — cancellation_window_hours out of range (negative)
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "booking": { "cancellation_window_hours": -1 }
+  }
+}
+
+###
+
+### 400 — Invalid IANA timezone
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "business_hours": { "timezone": "Not/AZone" }
+  }
+}
+
+###
+
+### 400 — slot_granularity_minutes not in [15, 30, 60]
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "booking": { "slot_granularity_minutes": 45 }
+  }
+}
+
+###
+
+### 400 — Empty body (neither name nor settings provided)
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{}
+
+###
+
+### 409 — Tenant is inactive (deactivated tenants cannot be modified)
+# Replace with the ID of a deactivated tenant to test this case
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: REPLACE-WITH-INACTIVE-TENANT-ID
+Content-Type: application/json
+
+{
+  "settings": { "loyalty": { "expiry_days": 90 } }
+}

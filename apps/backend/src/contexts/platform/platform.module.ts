@@ -1,21 +1,25 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { TenantModule } from '../../shared/tenant/tenant.module';
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
 import { ProvisionTenantUseCase } from './application/use-cases/provision-tenant.use-case';
+import { UpdateTenantSettingsUseCase } from './application/use-cases/update-tenant-settings.use-case';
 import { HotsiteConfigEntity } from './infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { InternalTenantController } from './infrastructure/controllers/internal-tenant.controller';
+import { TenantSettingsController } from './infrastructure/controllers/tenant-settings.controller';
 import { TypeOrmHotsiteConfigRepository } from './infrastructure/repositories/typeorm-hotsite-config.repository';
 import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-tenant.repository';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([TenantEntity, HotsiteConfigEntity])],
-  controllers: [InternalTenantController],
+  imports: [TypeOrmModule.forFeature([TenantEntity, HotsiteConfigEntity]), TenantModule],
+  controllers: [InternalTenantController, TenantSettingsController],
   providers: [
     { provide: TENANT_REPOSITORY, useClass: TypeOrmTenantRepository },
     { provide: HOTSITE_CONFIG_REPOSITORY, useClass: TypeOrmHotsiteConfigRepository },
     ProvisionTenantUseCase,
+    UpdateTenantSettingsUseCase,
   ],
 })
 export class PlatformModule {}

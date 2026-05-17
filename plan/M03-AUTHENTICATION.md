@@ -150,7 +150,7 @@ Implement the `JwtService` in the BFF that signs JWTs containing the tenant and 
 **JWT payload structure:**
 ```json
 {
-  "sub": "<user-uuid-from-backend>",
+  "sub": "<backend-entity-uuid>",
   "tenantId": "<tenant-uuid>",
   "tenantSlug": "<tenant-slug>",
   "role": "CUSTOMER | STAFF | MANAGER",
@@ -159,20 +159,27 @@ Implement the `JwtService` in the BFF that signs JWTs containing the tenant and 
 }
 ```
 
+**Critical — `sub` is always the backend entity UUID, never Google's OAuth `sub`:**
+- Staff/Manager → UUID from the `staff` table (`staffId`)
+- Customer → UUID from the `customers` table (`customerId`, tenant-scoped — the same Google account has a different `customerId` per tenant)
+- This UUID is what the backend uses to identify the actor on every request
+
 **What to create:**
 - `JwtIssuerService` in `apps/bff/src/auth/`:
   - `issueToken(sub, tenantId, tenantSlug, role): string`
+  - `sub` = `staffId` (for STAFF/MANAGER) or `customerId` (for CUSTOMER) — always the backend entity UUID
   - Uses `@nestjs/jwt` with `JWT_SECRET` from env (minimum 64 characters)
   - `expiresIn: '7d'` (read from `JWT_EXPIRES_IN` env var, default `7d`)
 - Register `JwtModule` globally in `AuthModule`
 
 **Acceptance criteria:**
 - [ ] `issueToken()` returns a JWT string that decodes to the correct payload structure
+- [ ] JWT `sub` is the backend entity UUID (staffId or customerId), not the Google OAuth sub
 - [ ] JWT is signed with `JWT_SECRET` from environment (not hardcoded)
 - [ ] JWT expires in 7 days
 - [ ] A JWT with a tampered signature fails validation (returns 401)
 - [ ] `JWT_SECRET` shorter than 64 characters causes a startup error (validated at module init)
-- [ ] Unit test: decode issued token and assert all 5 payload fields are present
+- [ ] Unit test: decode issued token and assert all payload fields are present and `sub` is the backend UUID
 
 **Dependencies:** M03-S03
 
@@ -186,6 +193,8 @@ Implement the `JwtService` in the BFF that signs JWTs containing the tenant and 
 
 **Description:**  
 Implement the three guards that protect every authenticated BFF endpoint. They execute in order: JWT validation → tenant match → role check. A request that fails any guard returns the appropriate HTTP error.
+
+After a request passes all guards, the BFF **must** forward a standard set of identity headers to the backend so the backend knows who is making the request without decoding the JWT itself.
 
 **What to create in `apps/bff/src/shared/guards/`:**
 
@@ -205,13 +214,37 @@ Implement the three guards that protect every authenticated BFF endpoint. They e
 - Checks `role` in JWT payload matches at least one allowed role
 - Mismatch returns `403`
 
+**BFF → Backend identity headers (set by an interceptor after all guards pass):**
+
+After a request passes the guards, a `BackendRequestInterceptor` (or equivalent) forwards these headers to every proxied backend request:
+
+| Header | Value | Always present? |
+|---|---|---|
+| `X-Tenant-ID` | JWT `tenantId` | Yes (all authenticated requests) |
+| `X-Actor-ID` | JWT `sub` (= `staffId` or `customerId`) | Authenticated only |
+| `X-Actor-Type` | `STAFF` (for role STAFF/MANAGER) or `CUSTOMER` | Authenticated only |
+| `X-Actor-Role` | JWT `role` (`CUSTOMER`, `STAFF`, `MANAGER`) | Authenticated only |
+| `X-Correlation-ID` | Request correlation UUID | Yes (all requests) |
+
+**Guest requests** (no JWT — e.g. UC-001 guest booking, UC-011 calendar view): BFF forwards `X-Tenant-ID` (from the slug in the URL) and `X-Correlation-ID` only. No `X-Actor-*` headers.
+
+**Backend extensions required in this story:**
+- Extend `TenantStore` in `apps/backend/src/shared/tenant/tenant-context.ts` to hold `actorId?: string`, `actorType?: 'STAFF' | 'CUSTOMER'`, `actorRole?: string`
+- Extend `TenantInterceptor` to read `X-Actor-ID`, `X-Actor-Type`, `X-Actor-Role` headers (all optional — guest requests omit them)
+- Extend `TenantContext` to expose the new fields
+- `ManagerRoleGuard` stub (`apps/backend/src/contexts/platform/infrastructure/guards/manager-role.guard.ts`) — enforce real MANAGER check: read `X-Actor-Role` from `TenantContext`, throw `403` if not `MANAGER`. Update its unit test and integration spec.
+
 **Acceptance criteria:**
 - [ ] A request with no `Authorization` header to a protected endpoint returns `401`
 - [ ] A request with an expired JWT returns `401`
 - [ ] A request with `X-Tenant-Slug: tenant-a` but a JWT for `tenant-b` returns `403`
 - [ ] A request with `role: STAFF` to a `@Roles('MANAGER')` endpoint returns `403`
 - [ ] A `@Public()` route bypasses all three guards
-- [ ] Unit tests cover all rejection scenarios
+- [ ] Backend receives `X-Actor-ID`, `X-Actor-Type`, `X-Actor-Role` on every authenticated proxied request
+- [ ] Guest proxied requests do not include `X-Actor-*` headers
+- [ ] `TenantContext.actorId` / `.actorType` / `.actorRole` are populated correctly on authenticated backend requests
+- [ ] `ManagerRoleGuard` now returns `403` for non-MANAGER role (no longer a stub)
+- [ ] Unit tests cover all guard rejection scenarios and the new `TenantContext` fields
 
 **Dependencies:** M03-S04
 

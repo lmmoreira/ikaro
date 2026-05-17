@@ -41,7 +41,7 @@ Exceptions: read-only ops (`Read`, `grep`, `ls`, `git status`, memory files).
 | **DB** | PostgreSQL 15 — single shared schema, `tenant_id` everywhere |
 | **DB migrations** | TypeORM migrations; run via **separate CI job** before deploy — app never auto-migrates at startup |
 | **Event bus** | GCP Pub/Sub (prod) · GCP Pub/Sub Emulator (local dev docker-compose) · behind `IEventBus` port |
-| **Auth** | Google OAuth 2.0 · JWT sessions (`tenantId`, `tenantSlug`, `role` in payload) |
+| **Auth** | Google OAuth 2.0 · JWT sessions (`sub` = backend entity UUID, `tenantId`, `tenantSlug`, `role` in payload) · BFF forwards `X-Actor-ID` / `X-Actor-Type` / `X-Actor-Role` headers to backend |
 | **Storage** | S3-compatible (GCS/S3) · paths: `tenants/<tenant_id>/bookings/<booking_id>/<file>` |
 | **Observability** | Prometheus + Grafana + OpenTelemetry + Loki + OTel Collector |
 | **Container** | Docker · GCP Cloud Run (MVP) → Kubernetes if needed |
@@ -68,6 +68,7 @@ Any code that breaks these is a defect regardless of test coverage.
 8. Logs, metrics, traces include `tenant_id`. OTel span attrs: `tenant.id`, `user.id`, `correlation.id`.
 9. Event consumers are idempotent (at-least-once delivery). Dedup via `eventId`.
 10. JWT contains `tenantId`/`tenantSlug`. BFF rejects mismatches.
+11. JWT `sub` is always the **backend entity UUID** — `staffId` for STAFF/MANAGER, `customerId` for CUSTOMER (never Google's OAuth `sub`). BFF forwards it as `X-Actor-ID`, along with `X-Actor-Type` (`STAFF`|`CUSTOMER`) and `X-Actor-Role` (`STAFF`|`MANAGER`|`CUSTOMER`). Guest requests carry none of the `X-Actor-*` headers. Backend reads these from `TenantContext`.
 
 Raise a doc bug if a UC appears to violate these — do not "make it work."
 

@@ -9,7 +9,7 @@
 # REST Client reads PLATFORM_ADMIN_KEY from apps/backend/.env automatically.
 # Switch environment (bottom-right VS Code status bar): select "local"
 
-@baseUrl    = {{$env backendUrl}}
+@baseUrl    = {{backendUrl}}
 @adminKey   = {{$dotenv PLATFORM_ADMIN_KEY}}
 @authHeader = Bearer {{adminKey}}
 
