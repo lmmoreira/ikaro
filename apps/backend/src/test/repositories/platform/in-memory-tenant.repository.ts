@@ -15,6 +15,13 @@ export class InMemoryTenantRepository implements ITenantRepository {
     return this.store.get(id) ?? null;
   }
 
+  async findByIds(ids: string[]): Promise<Tenant[]> {
+    return ids.flatMap((id) => {
+      const tenant = this.store.get(id);
+      return tenant ? [tenant] : [];
+    });
+  }
+
   async save(tenant: Tenant): Promise<void> {
     this.store.set(tenant.id, tenant);
   }

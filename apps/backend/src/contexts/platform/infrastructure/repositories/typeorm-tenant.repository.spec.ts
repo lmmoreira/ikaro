@@ -13,6 +13,7 @@ describe('TypeOrmTenantRepository', () => {
   beforeEach(() => {
     mockRepo = {
       findOne: jest.fn(),
+      findBy: jest.fn(),
       save: jest.fn(),
       existsBy: jest.fn(),
     } as unknown as jest.Mocked<Repository<TenantEntity>>;
@@ -94,6 +95,32 @@ describe('TypeOrmTenantRepository', () => {
         expect.objectContaining({ id: tenant.id, slug: 'tx-tenant' }),
       );
       expect(mockRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findByIds', () => {
+    it('returns an empty array for an empty ids list', async () => {
+      expect(await repo.findByIds([])).toEqual([]);
+      expect(mockRepo.findBy).not.toHaveBeenCalled();
+    });
+
+    it('returns Tenant aggregates for each matching id', async () => {
+      const entityA = new TenantEntityBuilder().withId('id-a').withSlug('slug-a').build();
+      const entityB = new TenantEntityBuilder().withId('id-b').withSlug('slug-b').build();
+      mockRepo.findBy.mockResolvedValue([entityA, entityB]);
+
+      const results = await repo.findByIds(['id-a', 'id-b']);
+
+      expect(results).toHaveLength(2);
+      expect(results.map((t) => t.id)).toEqual(expect.arrayContaining(['id-a', 'id-b']));
+    });
+
+    it('returns an empty array when no ids match', async () => {
+      mockRepo.findBy.mockResolvedValue([]);
+
+      const results = await repo.findByIds(['no-such-id']);
+
+      expect(results).toEqual([]);
     });
   });
 

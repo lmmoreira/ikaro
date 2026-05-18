@@ -121,3 +121,16 @@ Content-Type: application/json
   "slug": "lavacar-bh",
   "adminEmail": "other@lavacar-bh.com.br"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# READ — Tenant lookup by ID (BFF-internal, no auth guard)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Happy path — get tenant info by ID (use a provisioned tenant ID)
+@tenantId = paste-a-tenant-uuid-here
+GET {{baseUrl}}/internal/tenants/{{tenantId}}
+
+###
+
+### 404 — Unknown tenant ID
+GET {{baseUrl}}/internal/tenants/00000000-0000-0000-0000-000000000000

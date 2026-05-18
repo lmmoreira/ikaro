@@ -3,7 +3,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-05-15
+**Last updated:** 2026-05-18
 
 ---
 
@@ -341,6 +341,7 @@ const tenant = Tenant.create('BeloAuto', 'beloauto', 'America/Sao_Paulo');
 - Infrastructure tests (TypeORM entities) have their own **entity builders** in the same folder
 - **Every TypeORM entity used in a test MUST have an `XxxEntityBuilder`** — never construct entity objects inline with `makeXxx()` helpers or plain object literals. Inline helpers couple tests to the DB schema and bypass the builder pattern.
 - Naming: `CustomerEntityBuilder`, `TenantEntityBuilder`, `StaffEntityBuilder`, etc. — always suffix `EntityBuilder` to distinguish from domain aggregate builders.
+- **The `id` field in every `XxxEntityBuilder` MUST default to `uuidv7()`** — never a hardcoded string. Two builder instances sharing a hardcoded default `id` silently upsert over each other; the second `save()` overwrites the first, making row-count and tenant-isolation assertions unreliable.
 
 #### In-memory repository pattern (for use case tests)
 Each port has two implementations: the real TypeORM adapter and a test double:
@@ -362,9 +363,26 @@ expect(await tenantRepo.findBySlug('lavacar-belo')).not.toBeNull();
 
 **Do NOT delete TypeORM adapter unit tests** — they provide coverage that SonarCloud requires (integration test coverage is not merged into the lcov report).
 
+**SonarCloud only ingests lcov from unit tests** (`--selectProjects unit`). Integration tests give you DB-level confidence but are invisible to the coverage gate. Every new controller and use case must have a `.spec.ts` unit test to satisfy the ≥ 80% new-code threshold — integration tests alone are not sufficient.
+
 #### In-memory infrastructure test doubles
 
 Every shared port that produces side effects has an in-memory double in `src/test/infrastructure/`. **Always prefer these over `jest.fn()` mocks** — they capture state, make assertions more readable, and never leak between tests.
+
+**Controller unit tests** should wire the real use case with an `InMemoryXxxRepository` rather than mocking the use case with `jest.fn()`. This tests the actual controller→use-case→repo slice at unit-test speed, without a DB.
+
+```typescript
+// ✅ preferred — real use case, in-memory repo
+beforeEach(() => {
+  const repo = new InMemoryCustomerRepository();
+  controller = new InternalCustomerController(new GetCustomerTenantsUseCase(repo));
+});
+
+// ❌ avoid — jest.fn() on the use case hides real behaviour
+const useCase = { execute: jest.fn() } as unknown as GetCustomerTenantsUseCase;
+```
+
+Exception: when a dependency has no in-memory double (e.g. `BackendHttpService` in BFF controllers), `jest.fn()` is the correct approach.
 
 | Port | In-memory double | Key feature |
 |---|---|---|
@@ -450,6 +468,13 @@ const eventBus = { publish: jest.fn() };
 | Aggregate field typed as `string` when a shared VO exists for it (e.g. `email: string`, `slug: string`) | The type system lies — invalid values can be stored in props; callers must re-validate | Type aggregate props with the VO (`email: Email`, `slug: Slug`); getters return the VO (not `.address` or `.value`) |
 | `makeEntity()` helper or plain object literal used in a test instead of `XxxEntityBuilder` | Couples the test directly to the TypeORM entity's constructor signature; bypasses the builder pattern | Create an `XxxEntityBuilder` (e.g. `CustomerEntityBuilder`) with sensible defaults in `src/test/builders/<context>/` |
 | Seed file calling `CREATE TABLE`, `CREATE SCHEMA`, or `DROP TABLE` | Drift from migrations — seeds and migrations diverge, leading to silent column/constraint mismatches | Seeds are data-only; schema is 100% owned by TypeORM migrations. If `ensureSchemas()` or DDL appears in seed, delete it |
+| `XxxEntityBuilder` with a hardcoded default `id` (e.g. `private id = '00000000-...'`) | Two builder instances in the same test share the same primary key; second `save()` silently upserts over the first — row-count and tenant-isolation assertions produce false positives | Default `id` to `uuidv7()` in every `XxxEntityBuilder` constructor: `private id = uuidv7()` |
+| Controller directly injecting a repository token | Bypasses the use-case layer — domain errors are never thrown, HTTP→error mapping is skipped, persistence is coupled to the HTTP layer | Controllers inject use cases only. The use case throws domain errors; the controller maps them via `mapXxxError` |
+| `jest.fn()` mock for a use case in a controller unit test | Hides real behaviour; only verifies delegation, not the controller→use-case→repo slice | Wire the real use case with `InMemoryXxxRepository` — same test speed, tests the actual integrated slice |
+| Exporting constants or helpers from `main.ts` | `import { X } from '../main'` triggers the bootstrap function, which calls `validateEnv()` / `process.exit(1)` in test environments | Move shared constants to a dedicated module file (e.g. `auth/cookie-options.ts`); `main.ts` may re-export them |
+| Inline `schema.safeParse(body)` inside a controller method | Inconsistent with the `ZodValidationPipe` + DTO pattern used everywhere else; inflates the controller method; loses the typed `@Body()` parameter | Define schema + `z.infer<>` type in `application/dtos/`; apply `@UsePipes(new ZodValidationPipe(schema))` on the method; type `@Body() dto: DtoType` |
+| `z.string().uuid()` / `z.string().url()` | Deprecated in Zod v4 (SonarCloud S1874). Zod v4's `z.uuid()` is also stricter — it enforces RFC 4122 version/variant bits, so test values like `'00000000-0000-0000-0000-000000000001'` fail (segment-3 must start with `[1-8]`) | Use `z.uuid()` and `z.url()` directly; use RFC 4122-compliant test UUIDs: `'10000000-0000-4000-8000-000000000001'` |
+| Declaring a dynamic route (`@Get(':id')`) before a static route (`@Get('by-slug/:slug')`) in the same NestJS controller | NestJS resolves routes in declaration order — the dynamic route matches all requests before the static route is ever reached | Always declare static/prefix routes first, then parameterized ones |
 
 ---
 
@@ -516,6 +541,8 @@ Go through every changed file and verify **all** of the following:
 - [ ] No non-null assertions (`!`) or `any` casts in production code; minimised in test code.
 - [ ] All SonarCloud-prone patterns addressed: `!`, `as unknown`, `as any`, long functions, cognitive complexity.
 - [ ] §8 Anti-Patterns — check the list for anything introduced.
+- [ ] Every controller injects use cases only — no repository tokens, `DataSource`, or `EntityManager` directly.
+- [ ] `@Body()` validation uses `ZodValidationPipe` + a DTO file — no inline `safeParse()` in controller methods.
 - [ ] Ran `/domain-audit <context>` — zero findings in the changed context(s).
 
 **Do not open the PR until every item above is satisfied.** This review is the agent's responsibility, not the user's.
@@ -592,6 +619,7 @@ If every story in the milestone is now `✅ Done`, see §15 item 16 for the two 
 | Working on M01+ (any backend/BFF/web task) | `plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` — version gotchas, stubs, CJS/ESM decisions, seed UUIDs, testing setup | 3 |
 | Working on M02+ (any task touching CI, Dockerfiles, or deployment) | `plan/M01-CI-QUALITY-GATES_IMPLEMENTATION_DETAILS_IA.md` — workflow job map, Dockerfile gotchas (pnpm deploy, --ignore-scripts, npm removal, .next/.dist copy), Checkov path-filter, local vs CI gate coverage, required GitHub Secrets | 2 |
 | Working on M03+ (any task touching Platform context, TenantContext, TypeORM setup, settings, deepMerge, or REST Client HTTP files) | `plan/M02-PLATFORM-CONTEXT_IMPLEMENTATION_DETAILS_IA.md` — DB_* vars, forRootAsync timing, AsyncLocalStorage TenantContext, ManagerRoleGuard stub, deepMerge null/array behaviour, error mapper pattern, test builders | 3 |
+| Working on M04+ (any task touching auth, BFF guards, OAuth flow, customer login, JWT, Zod validation, or BFF→backend internal calls) | `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md` — Zod v4 UUID format, OAuth state pattern, `passReqToCallback` signature, `JWT_COOKIE_OPTIONS` location, `FindOrCreateCustomer` flow, SonarCloud unit-test-only coverage, EntityBuilder `id` default | 3 |
 
 **Never load:** anything under `docs/archive/` — superseded content.  
 **Never load:** `plan/*_DEVELOPER.md` files — written for the human developer, not for agents.
@@ -737,6 +765,7 @@ Commands live in `.claude/commands/`. Claude Code auto-discovers them — type `
 
 | Date | Change |
 |---|---|
+| 2026-05-18 | **M03-S06 lessons captured.** §7 Testing: `XxxEntityBuilder.id` must default to `uuidv7()`; SonarCloud only counts unit test lcov; controller unit tests should wire real use case + InMemoryRepo. §8 Anti-patterns: 8 new rows (hardcoded builder `id`, controller injecting repo, use-case mocking with `jest.fn()`, exporting from `main.ts`, inline `safeParse`, `z.string().uuid()/url()` deprecated in Zod v4, static route after dynamic). §9 Step 7: 2 new checklist items. §10: M03 IA doc added. Created `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md`. |
 | 2026-05-17 | **§17 Slash Commands added; `/domain-audit` skill created.** `.claude/commands/domain-audit.md` scans for VO violations, missing EntityBuilders, seed DDL, duplicated validators. §9 Step 7 checklist and §17 table document the command. Explained per-tool skill conventions (Copilot uses `.github/copilot-instructions.md`; Cursor uses `.cursor/rules/`). |
 | 2026-05-17 | **VO-typed aggregate fields, repository mapper pattern, XxxEntityBuilder rule.** §7 expanded with full VO catalog (Email, PhoneNumber, Address, Money, HexColor, Slug, Timezone, TimeOfDay + file paths), Option A VO-getter rule, repository mapper pattern (toDomain/toEntity), JSONB double-cast pattern. §8 anti-patterns: 3 new rows (aggregate typed as string, makeEntity inline, seed DDL). §9 Step 7 checklist: 2 new VO/builder items. |
 | 2026-05-15 | **§9 Story Implementation Workflow added.** Explicit branch-first, commit, push, ci:fast, ci:local, PR, CI monitor, squash-merge, mark-done sequence. §15 updated with branch-creation reminder. M00 IA doc §14 mirrors this. |

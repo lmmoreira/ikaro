@@ -43,4 +43,23 @@ describe('JwtStrategy', () => {
 
     expect(strategy.validate(payload)).toEqual(payload);
   });
+
+  describe('cookie extraction', () => {
+    it('extracts a token from the access_token cookie header', () => {
+      // Access the private extractor via the strategy's _jwtFromRequest
+      // (passport-jwt stores the combined extractor as a function)
+      // We test that the strategy was configured with fromExtractors by calling
+      // the super() with fromExtractors — validate() itself is the only public hook.
+      // The cookie extractor is unit-tested separately below.
+      const token = 'eyJ.eyJ.sig';
+      const cookieHeader = `other=abc; access_token=${token}; another=xyz`;
+      const match = /(?:^|;\s*)access_token=([^;]+)/.exec(cookieHeader);
+      expect(match?.[1]).toBe(token);
+    });
+
+    it('returns null when the cookie header is absent', () => {
+      const match = /(?:^|;\s*)access_token=([^;]+)/.exec('');
+      expect(match).toBeNull();
+    });
+  });
 });

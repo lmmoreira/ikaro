@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { ITenantRepository } from '../../application/ports/tenant-repository.port';
@@ -33,6 +33,12 @@ export class TypeOrmTenantRepository implements ITenantRepository {
     } else {
       await this.repo.save(entity);
     }
+  }
+
+  async findByIds(ids: string[]): Promise<Tenant[]> {
+    if (ids.length === 0) return [];
+    const entities = await this.repo.findBy({ id: In(ids) });
+    return entities.map((e) => this.toDomain(e));
   }
 
   async existsBySlug(slug: string): Promise<boolean> {

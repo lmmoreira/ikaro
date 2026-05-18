@@ -1,0 +1,31 @@
+# Customer — Internal Endpoints
+# UC-021: BFF resolves which tenants a Google account belongs to
+#
+# Prerequisites:
+#   1. pnpm infra:up           (start PostgreSQL + Pub/Sub emulator)
+#   2. pnpm --filter @beloauto/backend run migration:run
+#   3. pnpm --filter @beloauto/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+@sub = google-sub-example-123
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Get all tenants for a known Google OAuth ID (single tenant → returns 1 entry)
+GET {{baseUrl}}/internal/customers/tenants?googleOAuthId={{sub}}
+
+###
+
+### Get all tenants for an unknown Google OAuth ID (returns empty array)
+GET {{baseUrl}}/internal/customers/tenants?googleOAuthId=unknown-sub-xyz
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 400 — Missing googleOAuthId query parameter
+GET {{baseUrl}}/internal/customers/tenants

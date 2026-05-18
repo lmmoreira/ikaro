@@ -4,16 +4,7 @@ import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { AppLogger } from './shared/observability/app-logger';
 import { validateEnv } from './config/env.validation';
-
-// JWT cookie settings — applied in M03-S04 when issuing tokens.
-// Documented here so they are reviewed in the same PR as the auth setup.
-export const JWT_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env['NODE_ENV'] === 'production',
-  sameSite: 'lax' as const, // 'lax' allows OAuth redirect while blocking CSRF
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  path: '/',
-};
+export { JWT_COOKIE_OPTIONS } from './auth/cookie-options';
 
 async function bootstrap(): Promise<void> {
   const env = validateEnv();

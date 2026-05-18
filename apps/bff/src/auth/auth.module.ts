@@ -4,7 +4,9 @@ import { PassportModule } from '@nestjs/passport';
 import type { StringValue } from 'ms';
 import { BackendHttpModule } from '../shared/http/backend-http.module';
 import { AuthController } from './auth.controller';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtIssuerService } from './jwt-issuer.service';
+import { SelectionTokenService } from './selection-token.service';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
@@ -21,7 +23,13 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     BackendHttpModule,
   ],
   controllers: [AuthController],
-  providers: [GoogleStrategy, JwtStrategy, JwtIssuerService],
+  providers: [
+    GoogleStrategy,
+    JwtStrategy,
+    JwtIssuerService,
+    SelectionTokenService,
+    GoogleAuthGuard,
+  ],
   exports: [JwtIssuerService],
 })
 export class AuthModule {}

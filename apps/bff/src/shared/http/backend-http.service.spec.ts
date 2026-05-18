@@ -233,6 +233,27 @@ describe('BackendHttpService', () => {
       );
     });
 
+    it('does not include X-Actor-* headers when req.user is a GoogleProfile (OAuth callback)', async () => {
+      const http = { get: jest.fn() } as jest.Mocked<Pick<HttpService, 'get'>>;
+      // GoogleProfile has no sub/role — simulates the OAuth callback state
+      const req = {
+        user: { googleOAuthId: 'google-sub-1', email: 'a@b.com', name: 'A' },
+        headers: { 'x-correlation-id': 'corr-1' },
+      } as unknown as Request;
+      process.env['BACKEND_INTERNAL_URL'] = 'http://backend:3001';
+      const service = new BackendHttpService(http as unknown as HttpService, req);
+      http.get.mockReturnValue(axiosOf({}));
+
+      await service.get('/internal/customers/tenants');
+
+      const callArgs = (http.get as jest.Mock).mock.calls[0][1] as {
+        headers: Record<string, string>;
+      };
+      expect(callArgs.headers['X-Actor-ID']).toBeUndefined();
+      expect(callArgs.headers['X-Actor-Type']).toBeUndefined();
+      expect(callArgs.headers['X-Actor-Role']).toBeUndefined();
+    });
+
     it('does not include X-Actor-* headers for guest requests (no user)', async () => {
       const { service, http } = makeService(undefined);
       http.get.mockReturnValue(axiosOf({}));

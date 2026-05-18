@@ -76,7 +76,10 @@ export class BackendHttpService {
       'X-Correlation-ID': correlationId ?? '',
     };
 
-    if (user) {
+    // Only add actor headers when the request carries a verified JWT user.
+    // During the OAuth callback req.user is a GoogleProfile (no sub/role),
+    // so we guard on user.sub to avoid sending undefined actor headers.
+    if (user?.sub) {
       base['X-Actor-ID'] = user.sub;
       base['X-Actor-Type'] = user.role === 'CUSTOMER' ? 'CUSTOMER' : 'STAFF';
       base['X-Actor-Role'] = user.role;
