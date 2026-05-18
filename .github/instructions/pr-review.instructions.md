@@ -83,6 +83,8 @@ Review every PR with high standards. Be precise, actionable, and reference the e
 - Test data that uses production-like sensitive values (real emails, real names, real documents)
 - Integration tests that do not clean up state between runs (flaky tests)
 - Unit tests that mock so heavily they test nothing real
+- Explore if there are any edge cases on unit tests that were missed
+- Explore if there is any integration that tells a story or reflects a user story that can be applied
 
 ### 8. SOLID Principles
 - **S** – Single Responsibility: classes/functions doing more than one thing
