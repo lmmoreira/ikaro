@@ -138,7 +138,7 @@ Implement the Google OAuth 2.0 authentication flow in the BFF using `passport-go
 
 ---
 
-### M03-S04 — JWT issuance service
+### M03-S04 — JWT issuance service ✅ Done
 
 **Agent:** `bff-ts`  
 **Complexity:** S  
