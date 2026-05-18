@@ -109,7 +109,7 @@ INDEX(tenant_id, email)
 
 ---
 
-### M03-S03 — BFF Google OAuth strategy + auth module
+### M03-S03 — BFF Google OAuth strategy + auth module ✅ Done
 
 **Agent:** `bff-ts`  
 **Complexity:** M  
