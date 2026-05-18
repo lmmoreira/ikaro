@@ -63,6 +63,22 @@ Content-Type: application/json
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
+# UC-023: Customer switches tenant — POST /v1/auth/switch-tenant
+# Requires: valid JWT with role=CUSTOMER (access_token cookie or Bearer header)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Switch to a different tenant the customer belongs to
+POST {{bffUrl}}/v1/auth/switch-tenant
+Content-Type: application/json
+Authorization: Bearer paste-customer-jwt-here
+
+{
+  "targetTenantId": "paste-target-tenant-uuid-here"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
 

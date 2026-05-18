@@ -23,9 +23,24 @@ GET {{baseUrl}}/internal/customers/tenants?googleOAuthId={{sub}}
 ### Get all tenants for an unknown Google OAuth ID (returns empty array)
 GET {{baseUrl}}/internal/customers/tenants?googleOAuthId=unknown-sub-xyz
 
+###
+
+### UC-023 — Get all tenants for a customer by customerId + current tenantId (switch-tenant flow)
+GET {{baseUrl}}/internal/customers/{{customerId}}/tenants?tenantId={{tenantId}}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
 
 ### 400 — Missing googleOAuthId query parameter
 GET {{baseUrl}}/internal/customers/tenants
+
+###
+
+### 400 — Missing tenantId query parameter for by-id tenants lookup
+GET {{baseUrl}}/internal/customers/10000000-0000-4000-8000-000000000001/tenants
+
+###
+
+### 404 — Customer not found for given customerId + tenantId
+GET {{baseUrl}}/internal/customers/10000000-0000-4000-8000-000000000099/tenants?tenantId=10000000-0000-4000-8000-000000000001

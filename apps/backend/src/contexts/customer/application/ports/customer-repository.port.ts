@@ -9,6 +9,7 @@ export interface CustomerTenantSummary {
 
 export interface ICustomerRepository {
   findByTenantAndOAuthId(tenantId: string, googleOAuthId: string): Promise<Customer | null>;
+  findById(id: string, tenantId: string): Promise<Customer | null>;
   findAllTenantsByOAuthId(googleOAuthId: string): Promise<CustomerTenantSummary[]>;
   save(customer: Customer): Promise<void>;
 }

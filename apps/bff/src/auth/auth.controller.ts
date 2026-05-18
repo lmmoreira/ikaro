@@ -13,11 +13,14 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
+import { CurrentUser, CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { Public } from '../shared/decorators/public.decorator';
+import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { JWT_COOKIE_OPTIONS } from './cookie-options';
 import { IssueTokenDto, IssueTokenSchema } from './dtos/issue-token.dto';
+import { SwitchTenantDto, SwitchTenantSchema } from './dtos/switch-tenant.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtIssuerService } from './jwt-issuer.service';
 import { SelectionTokenService } from './selection-token.service';
@@ -109,6 +112,40 @@ export class AuthController {
     const accessToken = this.jwtIssuer.issueToken({
       sub: match.customerId,
       tenantId: dto.tenantId,
+      tenantSlug: tenantInfo.slug,
+      role: 'CUSTOMER',
+    });
+
+    return { accessToken, expiresIn: process.env['JWT_EXPIRES_IN'] ?? '7d' };
+  }
+
+  @Post('switch-tenant')
+  @Roles('CUSTOMER')
+  @UsePipes(new ZodValidationPipe(SwitchTenantSchema))
+  async switchTenant(
+    @Body() dto: SwitchTenantDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ): Promise<{ accessToken: string; expiresIn: string }> {
+    const tenants = await this.backendHttp.get<CustomerTenantSummary[]>(
+      `/internal/customers/${user.sub}/tenants`,
+      { tenantId: user.tenantId },
+    );
+    const match = tenants.find((t) => t.tenantId === dto.targetTenantId);
+    if (!match) {
+      throw new ForbiddenException({
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: HttpStatus.FORBIDDEN,
+        detail: 'Customer is not registered in the target tenant',
+      });
+    }
+
+    const tenantInfo = await this.backendHttp.get<TenantInfoResponse>(
+      `/internal/tenants/${dto.targetTenantId}`,
+    );
+    const accessToken = this.jwtIssuer.issueToken({
+      sub: match.customerId,
+      tenantId: dto.targetTenantId,
       tenantSlug: tenantInfo.slug,
       role: 'CUSTOMER',
     });

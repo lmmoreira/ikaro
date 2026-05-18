@@ -4,3 +4,10 @@ export class CustomerDomainError extends Error {
     this.name = 'CustomerDomainError';
   }
 }
+
+export class CustomerNotFoundError extends CustomerDomainError {
+  constructor(customerId: string) {
+    super(`Customer not found: ${customerId}`);
+    this.name = 'CustomerNotFoundError';
+  }
+}

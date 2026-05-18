@@ -1,9 +1,11 @@
 import { ForbiddenException, HttpException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request, Response } from 'express';
+import { CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { AuthController } from './auth.controller';
 import { IssueTokenDto } from './dtos/issue-token.dto';
+import { SwitchTenantDto } from './dtos/switch-tenant.dto';
 import { JwtIssuerService } from './jwt-issuer.service';
 import { SelectionTokenService } from './selection-token.service';
 import { GoogleProfile } from './strategies/google.strategy';
@@ -320,6 +322,76 @@ describe('AuthController', () => {
       expect(res.redirect).toHaveBeenCalledWith(
         `http://localhost:3000/auth/first-login?staffId=${STAFF_ID_A}`,
       );
+    });
+  });
+
+  describe('switchTenant()', () => {
+    const currentUser: CurrentUserPayload = {
+      sub: CUSTOMER_ID_A,
+      tenantId: TENANT_ID_A,
+      tenantSlug: 'lavacar-bh',
+      role: 'CUSTOMER',
+    };
+
+    it('returns a new JWT with the target tenantId and tenantSlug on success', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([
+            { tenantId: TENANT_ID_A, customerId: CUSTOMER_ID_A },
+            { tenantId: TENANT_ID_B, customerId: CUSTOMER_ID_B },
+          ])
+          .mockResolvedValueOnce({
+            id: TENANT_ID_B,
+            slug: 'lavacar-centro',
+            name: 'Lavacar Centro',
+          }),
+      });
+      const controller = new AuthController(jwtIssuer, selectionTokenService, backendHttp);
+      const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_B };
+
+      const result = await controller.switchTenant(dto, currentUser);
+
+      expect(result.accessToken).toBeTruthy();
+      expect(result.expiresIn).toBe('7d');
+      const decoded = jwtService.decode(result.accessToken) as Record<string, unknown>;
+      expect(decoded['tenantId']).toBe(TENANT_ID_B);
+      expect(decoded['tenantSlug']).toBe('lavacar-centro');
+      expect(decoded['sub']).toBe(CUSTOMER_ID_B);
+      expect(decoded['role']).toBe('CUSTOMER');
+    });
+
+    it('returns 403 when customer has no record in the target tenant', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue([{ tenantId: TENANT_ID_A, customerId: CUSTOMER_ID_A }]),
+      });
+      const controller = new AuthController(jwtIssuer, selectionTokenService, backendHttp);
+      const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_OTHER };
+
+      await expect(controller.switchTenant(dto, currentUser)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('calls backend with sub and current tenantId for tenant list lookup', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([{ tenantId: TENANT_ID_B, customerId: CUSTOMER_ID_B }])
+          .mockResolvedValueOnce({
+            id: TENANT_ID_B,
+            slug: 'lavacar-centro',
+            name: 'Lavacar Centro',
+          }),
+      });
+      const controller = new AuthController(jwtIssuer, selectionTokenService, backendHttp);
+      const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_B };
+
+      await controller.switchTenant(dto, currentUser);
+
+      expect(backendHttp.get).toHaveBeenCalledWith(`/internal/customers/${CUSTOMER_ID_A}/tenants`, {
+        tenantId: TENANT_ID_A,
+      });
     });
   });
 

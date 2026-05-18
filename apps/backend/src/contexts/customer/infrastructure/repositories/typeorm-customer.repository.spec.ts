@@ -52,6 +52,33 @@ describe('TypeOrmCustomerRepository', () => {
     expect(result!.defaultAddress).toBeNull();
   });
 
+  it('findById returns null when no row found', async () => {
+    ormRepo.findOne.mockResolvedValue(null);
+    const result = await repo.findById('some-id', 'tenant-1');
+    expect(result).toBeNull();
+  });
+
+  it('findById returns null when row exists but belongs to a different tenant', async () => {
+    ormRepo.findOne.mockResolvedValue(null);
+    const result = await repo.findById('some-id', 'tenant-other');
+    expect(result).toBeNull();
+  });
+
+  it('findById maps entity to domain aggregate', async () => {
+    const entity = new CustomerEntityBuilder()
+      .withTenantId('tenant-1')
+      .withGoogleOAuthId('google-sub-2')
+      .withEmail('bob@example.com')
+      .build();
+    ormRepo.findOne.mockResolvedValue(entity);
+
+    const result = await repo.findById(entity.id, 'tenant-1');
+
+    expect(result).toBeInstanceOf(Customer);
+    expect(result!.tenantId).toBe('tenant-1');
+    expect(result!.googleOAuthId).toBe('google-sub-2');
+  });
+
   it('save maps domain to entity and calls repo.save with string fields', async () => {
     ormRepo.save.mockResolvedValue(new CustomerEntityBuilder().build());
     const customer = Customer.create('tenant-1', 'sub-1', 'a@b.com', 'Maria');
