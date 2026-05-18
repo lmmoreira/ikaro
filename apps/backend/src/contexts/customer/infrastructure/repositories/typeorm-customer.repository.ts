@@ -26,7 +26,7 @@ export class TypeOrmCustomerRepository implements ICustomerRepository {
 
   async findAllTenantsByOAuthId(googleOAuthId: string): Promise<CustomerTenantSummary[]> {
     const rows = await this.repo.find({ where: { googleOAuthId } });
-    return rows.map((r) => ({ tenantId: r.tenantId }));
+    return rows.map((r) => ({ tenantId: r.tenantId, customerId: r.id }));
   }
 
   async save(customer: Customer): Promise<void> {

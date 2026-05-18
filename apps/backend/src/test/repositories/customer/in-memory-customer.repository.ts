@@ -20,7 +20,7 @@ export class InMemoryCustomerRepository implements ICustomerRepository {
     const results: CustomerTenantSummary[] = [];
     for (const customer of this.store.values()) {
       if (customer.googleOAuthId === googleOAuthId) {
-        results.push({ tenantId: customer.tenantId });
+        results.push({ tenantId: customer.tenantId, customerId: customer.id });
       }
     }
     return results;
