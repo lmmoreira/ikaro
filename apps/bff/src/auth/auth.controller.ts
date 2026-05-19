@@ -11,6 +11,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { CurrentUser, CurrentUserPayload } from '../shared/decorators/current-user.decorator';
@@ -40,6 +41,7 @@ export class AuthController {
     private readonly jwtIssuer: JwtIssuerService,
     private readonly selectionToken: SelectionTokenService,
     private readonly backendHttp: BackendHttpService,
+    private readonly config: ConfigService,
   ) {}
 
   @Public()
@@ -54,7 +56,7 @@ export class AuthController {
   @Get('google/callback')
   async handleGoogleCallback(@Req() req: Request, @Res() res: Response): Promise<void> {
     const profile = req.user as GoogleProfile;
-    const frontendUrl = process.env['FRONTEND_URL'] ?? 'http://localhost:3000';
+    const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
 
     if (profile.loginType === 'staff') {
       if (profile.tenantSlug) {
@@ -107,7 +109,7 @@ export class AuthController {
       role: 'CUSTOMER',
     });
 
-    return { accessToken, expiresIn: process.env['JWT_EXPIRES_IN'] ?? '7d' };
+    return { accessToken, expiresIn: this.config.getOrThrow<string>('JWT_EXPIRES_IN') };
   }
 
   @Post('switch-tenant')
@@ -141,7 +143,7 @@ export class AuthController {
       role: 'CUSTOMER',
     });
 
-    return { accessToken, expiresIn: process.env['JWT_EXPIRES_IN'] ?? '7d' };
+    return { accessToken, expiresIn: this.config.getOrThrow<string>('JWT_EXPIRES_IN') };
   }
 
   private async handleStaffFirstLogin(
@@ -182,29 +184,30 @@ export class AuthController {
       return;
     }
 
-    const activated = await this.backendHttp
-      .post<ActivateStaffResponse>(`/internal/staff/${staffByEmail.staffId}/activate`, {
-        tenantId: tenantInfo.id,
-        googleOAuthId: profile.googleOAuthId,
-        email: profile.email,
-        name: profile.name,
-      })
-      .catch(async (err: unknown) => {
-        if (err instanceof HttpException) {
-          if (err.getStatus() === HttpStatus.CONFLICT) {
-            // 409 = already active; fall through to normal login
-            await this.handleStaffLogin(profile, res, frontendUrl);
-            return 'redirected' as const;
-          }
-          if (err.getStatus() === HttpStatus.UNPROCESSABLE_ENTITY) return null;
+    let activated: ActivateStaffResponse;
+    try {
+      activated = await this.backendHttp.post<ActivateStaffResponse>(
+        `/internal/staff/${staffByEmail.staffId}/activate`,
+        {
+          tenantId: tenantInfo.id,
+          googleOAuthId: profile.googleOAuthId,
+          email: profile.email,
+          name: profile.name,
+        },
+      );
+    } catch (err) {
+      if (err instanceof HttpException) {
+        if (err.getStatus() === HttpStatus.CONFLICT) {
+          // 409 = already active; treat as normal login
+          await this.handleStaffLogin(profile, res, frontendUrl);
+          return;
         }
-        throw err;
-      });
-
-    if (activated === 'redirected') return;
-    if (!activated) {
-      res.redirect(`${frontendUrl}/auth/error?reason=email-mismatch`);
-      return;
+        if (err.getStatus() === HttpStatus.UNPROCESSABLE_ENTITY) {
+          res.redirect(`${frontendUrl}/auth/error?reason=email-mismatch`);
+          return;
+        }
+      }
+      throw err;
     }
 
     const token = this.jwtIssuer.issueToken({

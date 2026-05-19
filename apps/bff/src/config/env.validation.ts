@@ -1,7 +1,4 @@
 import { z } from 'zod';
-import { config } from 'dotenv';
-
-config();
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production']).default('development'),
@@ -25,15 +22,16 @@ const schema = z.object({
 
 export type Env = z.infer<typeof schema>;
 
-export function validateEnv(): Env {
-  const result = schema.safeParse(process.env);
+// Called by ConfigModule.forRoot({ validate }) at startup.
+// Throws on invalid config so NestJS refuses to boot.
+export function validateEnv(config: Record<string, unknown>): Env {
+  const result = schema.safeParse(config);
 
   if (!result.success) {
     const errors = result.error.issues
       .map((issue) => `  • ${issue.path.join('.')}: ${issue.message}`)
       .join('\n');
-    process.stderr.write(`\n❌ ENV validation failed:\n${errors}\n\n`);
-    process.exit(1);
+    throw new Error(`ENV validation failed:\n${errors}`);
   }
 
   return result.data;

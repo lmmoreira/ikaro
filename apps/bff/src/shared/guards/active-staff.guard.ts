@@ -6,22 +6,30 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
+import { buildBackendHeaders } from '../http/backend-headers';
 import { StaffActiveResponse } from '../types/backend-responses';
 
 @Injectable()
 export class ActiveStaffGuard implements CanActivate {
-  private readonly backendUrl = process.env['BACKEND_INTERNAL_URL'] ?? '';
+  private readonly backendUrl: string;
 
+  // ActiveStaffGuard is singleton-scoped; BackendHttpService is REQUEST-scoped.
+  // NestJS cannot inject a REQUEST-scoped service into a singleton.
+  // buildBackendHeaders(req) gives us the same header logic without the scope conflict.
   constructor(
     private readonly http: HttpService,
     private readonly reflector: Reflector,
-  ) {}
+    private readonly config: ConfigService,
+  ) {
+    this.backendUrl = this.config.getOrThrow<string>('BACKEND_INTERNAL_URL');
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -35,25 +43,10 @@ export class ActiveStaffGuard implements CanActivate {
 
     if (!user?.sub || user.role === 'CUSTOMER') return true;
 
-    const tenantId = user.tenantId;
-    const staffId = user.sub;
-    // CorrelationInterceptor runs after guards; omit header when not yet set
-    // so the backend generates its own correlation id for this sub-request.
-    const correlationId = req.headers['x-correlation-id'] as string | undefined;
-    const extraHeaders: Record<string, string> = correlationId
-      ? { 'X-Correlation-ID': correlationId }
-      : {};
-
     try {
       const { data } = await firstValueFrom(
-        this.http.get<StaffActiveResponse>(`${this.backendUrl}/staff/${staffId}`, {
-          headers: {
-            'X-Tenant-ID': tenantId,
-            'X-Actor-ID': staffId,
-            'X-Actor-Type': 'STAFF',
-            'X-Actor-Role': user.role,
-            ...extraHeaders,
-          },
+        this.http.get<StaffActiveResponse>(`${this.backendUrl}/staff/${user.sub}`, {
+          headers: buildBackendHeaders(req),
           timeout: 5_000,
         }),
       );

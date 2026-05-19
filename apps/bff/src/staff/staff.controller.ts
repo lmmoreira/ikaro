@@ -32,7 +32,7 @@ const InviteStaffBodySchema = z.object({
 
 type InviteStaffBody = z.infer<typeof InviteStaffBodySchema>;
 
-@Controller('v1/staff')
+@Controller('staff')
 @Roles('MANAGER')
 export class StaffController {
   constructor(private readonly backendHttp: BackendHttpService) {}

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import type { StringValue } from 'ms';
@@ -15,10 +16,11 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     PassportModule.register({ session: false }),
     JwtModule.registerAsync({
       global: true,
-      useFactory: () => ({
-        secret: process.env['JWT_SECRET'],
-        signOptions: { expiresIn: (process.env['JWT_EXPIRES_IN'] ?? '7d') as StringValue },
+      useFactory: (config: ConfigService) => ({
+        secret: config.getOrThrow<string>('JWT_SECRET'),
+        signOptions: { expiresIn: config.getOrThrow<string>('JWT_EXPIRES_IN') as StringValue },
       }),
+      inject: [ConfigService],
     }),
     BackendHttpModule,
   ],

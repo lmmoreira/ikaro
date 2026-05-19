@@ -1,5 +1,6 @@
 import { ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { of, throwError } from 'rxjs';
 import { AxiosError } from 'axios';
@@ -31,10 +32,16 @@ function makeHttp(isActive: boolean): HttpService {
   } as unknown as HttpService;
 }
 
+function makeConfigService(): ConfigService {
+  return {
+    getOrThrow: jest.fn().mockReturnValue('http://backend:3001'),
+  } as unknown as ConfigService;
+}
+
 function makeGuard(http: HttpService, isPublic = false): ActiveStaffGuard {
   const reflector = new Reflector();
   jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(isPublic);
-  return new ActiveStaffGuard(http, reflector);
+  return new ActiveStaffGuard(http, reflector, makeConfigService());
 }
 
 const activeUser = { sub: STAFF_ID, tenantId: TENANT_ID, tenantSlug: 'slug', role: 'MANAGER' };

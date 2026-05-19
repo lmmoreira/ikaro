@@ -1,19 +1,23 @@
 import { HttpService } from '@nestjs/axios';
 import { HttpException, Inject, Injectable, Scope } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { REQUEST } from '@nestjs/core';
 import { AxiosError, AxiosResponse } from 'axios';
 import { Request } from 'express';
 import { Observable, firstValueFrom } from 'rxjs';
-import { CurrentUserPayload } from '../decorators/current-user.decorator';
+import { buildBackendHeaders } from './backend-headers';
 
 @Injectable({ scope: Scope.REQUEST })
 export class BackendHttpService {
-  private readonly baseUrl = process.env['BACKEND_INTERNAL_URL'] ?? '';
+  private readonly baseUrl: string;
 
   constructor(
     private readonly http: HttpService,
+    private readonly config: ConfigService,
     @Inject(REQUEST) private readonly req: Request,
-  ) {}
+  ) {
+    this.baseUrl = this.config.getOrThrow<string>('BACKEND_INTERNAL_URL');
+  }
 
   async get<T>(path: string, params?: Record<string, unknown>): Promise<T> {
     return this.call(
@@ -65,26 +69,6 @@ export class BackendHttpService {
   }
 
   private headers(): Record<string, string> {
-    const user = this.req.user as CurrentUserPayload | undefined;
-    const correlationId = this.req.headers['x-correlation-id'] as string | undefined;
-    // Empty strings are intentional: X-Tenant-ID is '' on guest routes (no JWT),
-    // X-Correlation-ID is always set by CorrelationInterceptor before any controller
-    // runs, so it is never empty in practice. The backend TenantInterceptor handles
-    // the absent-tenant case for public endpoints.
-    const base: Record<string, string> = {
-      'X-Tenant-ID': user?.tenantId ?? '',
-      'X-Correlation-ID': correlationId ?? '',
-    };
-
-    // Only add actor headers when the request carries a verified JWT user.
-    // During the OAuth callback req.user is a GoogleProfile (no sub/role),
-    // so we guard on user.sub to avoid sending undefined actor headers.
-    if (user?.sub) {
-      base['X-Actor-ID'] = user.sub;
-      base['X-Actor-Type'] = user.role === 'CUSTOMER' ? 'CUSTOMER' : 'STAFF';
-      base['X-Actor-Role'] = user.role;
-    }
-
-    return base;
+    return buildBackendHeaders(this.req);
   }
 }

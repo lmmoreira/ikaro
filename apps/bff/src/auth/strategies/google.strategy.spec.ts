@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { GoogleProfile, GoogleStrategy } from './google.strategy';
 
@@ -5,14 +6,22 @@ function makeReq(state?: string): Request {
   return { query: { state } } as unknown as Request;
 }
 
+function makeConfigService(): ConfigService {
+  return {
+    getOrThrow: jest.fn().mockImplementation((key: string) => {
+      if (key === 'GOOGLE_CLIENT_ID') return 'test-client-id';
+      if (key === 'GOOGLE_CLIENT_SECRET') return 'test-client-secret';
+      if (key === 'GOOGLE_CALLBACK_URL') return 'http://localhost:3002/v1/auth/google/callback';
+      return '';
+    }),
+  } as unknown as ConfigService;
+}
+
 describe('GoogleStrategy', () => {
   let strategy: GoogleStrategy;
 
   beforeEach(() => {
-    process.env['GOOGLE_CLIENT_ID'] = 'test-client-id';
-    process.env['GOOGLE_CLIENT_SECRET'] = 'test-client-secret';
-    process.env['GOOGLE_CALLBACK_URL'] = 'http://localhost:3002/v1/auth/google/callback';
-    strategy = new GoogleStrategy();
+    strategy = new GoogleStrategy(makeConfigService());
   });
 
   it('validate() maps Google profile fields correctly', (done) => {

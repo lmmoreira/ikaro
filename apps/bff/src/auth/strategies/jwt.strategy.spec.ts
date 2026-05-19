@@ -1,12 +1,18 @@
+import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
+
+const TEST_SECRET = 'test-secret-64-chars-longggggggggggggggggggggggggggggggggg!!';
+
+function makeConfigService(): ConfigService {
+  return { getOrThrow: jest.fn().mockReturnValue(TEST_SECRET) } as unknown as ConfigService;
+}
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
 
   beforeEach(() => {
-    process.env['JWT_SECRET'] = 'test-secret-64-chars-longggggggggggggggggggggggggggggggggg!!';
-    strategy = new JwtStrategy();
+    strategy = new JwtStrategy(makeConfigService());
   });
 
   it('validate() returns the payload as-is to populate req.user', () => {
