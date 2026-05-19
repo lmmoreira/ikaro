@@ -31,9 +31,18 @@
   ],
 
   // ─── Jest ────────────────────────────────────────────────────────────────
-  // Point jest-runner at the backend workspace
-  "jestrunner.jestCommand": "pnpm --filter @beloauto/backend test",
-  "jestrunner.projectPath": "apps/backend",
+  // Per-project commands — jest-runner picks the entry whose projectPath
+  // is the closest ancestor of the file being run.
+  "jestrunner.projects": [
+    {
+      "jestCommand": "pnpm --filter @beloauto/backend test",
+      "projectPath": "${workspaceFolder}/apps/backend"
+    },
+    {
+      "jestCommand": "pnpm --filter @beloauto/bff test",
+      "projectPath": "${workspaceFolder}/apps/bff"
+    }
+  ],
   // Restrict Run|Debug code lens to spec/test files — keeps migrations clean
   "jestrunner.codeLensSelector": "**/*.{spec,test}.{js,jsx,ts,tsx}",
 
