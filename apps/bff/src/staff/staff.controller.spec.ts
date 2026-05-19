@@ -1,17 +1,7 @@
-import { CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { StaffController } from './staff.controller';
 
-const TENANT_ID = '10000000-0000-4000-8000-000000000001';
 const STAFF_ID = '30000000-0000-4000-8000-000000000001';
-
-const makeUser = (overrides?: Partial<CurrentUserPayload>): CurrentUserPayload => ({
-  sub: STAFF_ID,
-  tenantId: TENANT_ID,
-  tenantSlug: 'lavacar-bh',
-  role: 'MANAGER',
-  ...overrides,
-});
 
 const makeBackendHttp = (overrides?: Partial<BackendHttpService>): BackendHttpService =>
   ({
@@ -24,7 +14,7 @@ const makeBackendHttp = (overrides?: Partial<BackendHttpService>): BackendHttpSe
 
 describe('StaffController', () => {
   describe('list()', () => {
-    it('calls GET /staff with limit and offset (no tenantId — comes from TenantContext via BFF headers)', async () => {
+    it('calls GET /staff with limit and offset (actor context comes from TenantContext via BFF headers)', async () => {
       const expectedResult = {
         items: [],
         pagination: { limit: 10, offset: 5, total: 0, hasMore: false, nextOffset: null },
@@ -32,7 +22,7 @@ describe('StaffController', () => {
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(expectedResult) });
       const controller = new StaffController(backendHttp);
 
-      const result = await controller.list(makeUser(), 10, 5);
+      const result = await controller.list(10, 5);
 
       expect(backendHttp.get).toHaveBeenCalledWith('/staff', { limit: 10, offset: 5 });
       expect(result).toBe(expectedResult);
@@ -40,12 +30,12 @@ describe('StaffController', () => {
   });
 
   describe('getById()', () => {
-    it('calls GET /staff/:id (no tenantId — comes from TenantContext via BFF headers)', async () => {
+    it('calls GET /staff/:id (actor context comes from TenantContext via BFF headers)', async () => {
       const expectedResult = { id: STAFF_ID, email: 'gerente@lavacar.com.br', role: 'MANAGER' };
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(expectedResult) });
       const controller = new StaffController(backendHttp);
 
-      const result = await controller.getById(STAFF_ID, makeUser());
+      const result = await controller.getById(STAFF_ID);
 
       expect(backendHttp.get).toHaveBeenCalledWith(`/staff/${STAFF_ID}`);
       expect(result).toBe(expectedResult);
@@ -55,7 +45,7 @@ describe('StaffController', () => {
       const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('404')) });
       const controller = new StaffController(backendHttp);
 
-      await expect(controller.getById('non-existent', makeUser())).rejects.toThrow('404');
+      await expect(controller.getById('non-existent')).rejects.toThrow('404');
     });
   });
 
@@ -77,7 +67,7 @@ describe('StaffController', () => {
       const backendHttp = makeBackendHttp({ post: jest.fn().mockResolvedValue(expectedResult) });
       const controller = new StaffController(backendHttp);
 
-      const result = await controller.invite(inviteBody, makeUser());
+      const result = await controller.invite(inviteBody);
 
       expect(backendHttp.post).toHaveBeenCalledWith('/staff/invite', {
         email: 'novo@lavacar.com.br',
@@ -94,7 +84,7 @@ describe('StaffController', () => {
       });
       const controller = new StaffController(backendHttp);
 
-      await expect(controller.invite(inviteBody, makeUser())).rejects.toThrow('409');
+      await expect(controller.invite(inviteBody)).rejects.toThrow('409');
     });
   });
 
@@ -104,7 +94,7 @@ describe('StaffController', () => {
       const backendHttp = makeBackendHttp({ patch: jest.fn().mockResolvedValue(expectedResult) });
       const controller = new StaffController(backendHttp);
 
-      const result = await controller.deactivate(STAFF_ID, makeUser());
+      const result = await controller.deactivate(STAFF_ID);
 
       expect(backendHttp.patch).toHaveBeenCalledWith(`/staff/${STAFF_ID}/deactivate`, {});
       expect(result).toBe(expectedResult);
@@ -116,7 +106,7 @@ describe('StaffController', () => {
       });
       const controller = new StaffController(backendHttp);
 
-      await expect(controller.deactivate(STAFF_ID, makeUser())).rejects.toThrow('403');
+      await expect(controller.deactivate(STAFF_ID)).rejects.toThrow('403');
     });
   });
 });

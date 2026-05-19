@@ -25,43 +25,14 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtIssuerService } from './jwt-issuer.service';
 import { SelectionTokenService } from './selection-token.service';
 import { GoogleProfile } from './strategies/google.strategy';
-
-interface CustomerTenantSummary {
-  tenantId: string;
-  customerId: string;
-}
-
-interface TenantInfoResponse {
-  id: string;
-  slug: string;
-  name: string;
-}
-
-interface FindOrCreateCustomerResult {
-  customerId: string;
-  created: boolean;
-}
-
-interface StaffInfoResponse {
-  staffId: string;
-  tenantId: string;
-  role: 'STAFF' | 'MANAGER';
-  isActive: boolean;
-}
-
-interface StaffByEmailResponse {
-  staffId: string;
-  email: string;
-  role: 'STAFF' | 'MANAGER';
-  isActive: boolean;
-}
-
-interface ActivateStaffResponse {
-  staffId: string;
-  tenantId: string;
-  role: 'STAFF' | 'MANAGER';
-  isActive: true;
-}
+import {
+  ActivateStaffResponse,
+  CustomerTenantSummaryResponse,
+  FindOrCreateCustomerResponse,
+  StaffByEmailResponse,
+  StaffInfoResponse,
+} from './auth.types';
+import { TenantInfoResponse } from '../shared/types/backend-responses';
 
 @Controller('auth')
 export class AuthController {
@@ -112,7 +83,7 @@ export class AuthController {
   ): Promise<{ accessToken: string; expiresIn: string }> {
     const { googleOAuthId } = this.selectionToken.verifySelectionToken(dto.selectionToken);
 
-    const tenants = await this.backendHttp.get<CustomerTenantSummary[]>(
+    const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
       '/internal/customers/tenants',
       { googleOAuthId },
     );
@@ -146,7 +117,7 @@ export class AuthController {
     @Body() dto: SwitchTenantDto,
     @CurrentUser() user: CurrentUserPayload,
   ): Promise<{ accessToken: string; expiresIn: string }> {
-    const tenants = await this.backendHttp.get<CustomerTenantSummary[]>(
+    const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
       `/internal/customers/${user.sub}/tenants`,
       { tenantId: user.tenantId },
     );
@@ -299,7 +270,7 @@ export class AuthController {
       return;
     }
 
-    const { customerId } = await this.backendHttp.post<FindOrCreateCustomerResult>(
+    const { customerId } = await this.backendHttp.post<FindOrCreateCustomerResponse>(
       '/internal/customers',
       {
         tenantId: tenantInfo.id,
@@ -324,7 +295,7 @@ export class AuthController {
     res: Response,
     frontendUrl: string,
   ): Promise<void> {
-    const tenants = await this.backendHttp.get<CustomerTenantSummary[]>(
+    const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
       '/internal/customers/tenants',
       { googleOAuthId: profile.googleOAuthId },
     );

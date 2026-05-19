@@ -12,10 +12,7 @@ import { firstValueFrom } from 'rxjs';
 import { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
-
-interface StaffActiveResponse {
-  isActive: boolean;
-}
+import { StaffActiveResponse } from '../types/backend-responses';
 
 @Injectable()
 export class ActiveStaffGuard implements CanActivate {
