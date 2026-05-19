@@ -1,0 +1,152 @@
+# Staff — Management Endpoints
+# UC-028 (invite), UC-029 (deactivate), list, detail
+# TenantContext is populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @beloauto/backend run migration:run
+#   3. pnpm --filter @beloauto/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+@tenantId = 10000000-0000-4000-8000-000000000001
+@actorId  = 20000000-0000-4000-8000-000000000001
+@staffId  = 30000000-0000-4000-8000-000000000001
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — list staff
+# ─────────────────────────────────────────────────────────────────────────────
+
+### List all staff for the tenant (default limit=50, offset=0)
+GET {{baseUrl}}/staff
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### List staff with explicit pagination
+GET {{baseUrl}}/staff?limit=10&offset=0
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — get staff by id
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Get a specific staff member by id
+GET {{baseUrl}}/staff/{{staffId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — invite (UC-028)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Invite a new STAFF member
+POST {{baseUrl}}/staff/invite
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "email": "novo@lavacar.com.br",
+  "firstName": "João",
+  "lastName": "Silva",
+  "role": "STAFF"
+}
+
+###
+
+### Invite a new MANAGER
+POST {{baseUrl}}/staff/invite
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "email": "gerente2@lavacar.com.br",
+  "firstName": "Maria",
+  "lastName": "Costa",
+  "role": "MANAGER"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — deactivate (UC-029)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Deactivate a STAFF member
+PATCH {{baseUrl}}/staff/{{staffId}}/deactivate
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### 400 — Missing X-Tenant-ID header
+GET {{baseUrl}}/staff
+
+###
+
+### 404 — Staff id not found
+GET {{baseUrl}}/staff/10000000-0000-4000-8000-000000000099
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### 409 — Email already active in same tenant
+POST {{baseUrl}}/staff/invite
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "email": "gerente@lavacar.com.br",
+  "firstName": "João",
+  "lastName": "Silva",
+  "role": "STAFF"
+}
+
+###
+
+### 403 — Self-deactivation attempt
+PATCH {{baseUrl}}/staff/{{actorId}}/deactivate
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### 409 — Last active manager
+PATCH {{baseUrl}}/staff/{{actorId}}/deactivate
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: 99999999-0000-4000-8000-000000000001
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER

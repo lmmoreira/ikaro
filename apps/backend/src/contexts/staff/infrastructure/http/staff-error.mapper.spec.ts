@@ -1,10 +1,12 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
+  LastActiveManagerError,
   StaffAlreadyActiveError,
   StaffAlreadyExistsError,
   StaffDomainError,
   StaffEmailMismatchError,
   StaffNotFoundError,
+  StaffSelfDeactivationError,
 } from '../../domain/errors/staff-domain.error';
 import { mapStaffError } from './staff-error.mapper';
 
@@ -31,6 +33,24 @@ describe('mapStaffError', () => {
     expect(() => mapStaffError(new StaffAlreadyExistsError('a@b.com'))).toThrow(HttpException);
     try {
       mapStaffError(new StaffAlreadyExistsError('a@b.com'));
+    } catch (e) {
+      expect((e as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
+    }
+  });
+
+  it('maps StaffSelfDeactivationError to 403', () => {
+    expect(() => mapStaffError(new StaffSelfDeactivationError())).toThrow(HttpException);
+    try {
+      mapStaffError(new StaffSelfDeactivationError());
+    } catch (e) {
+      expect((e as HttpException).getStatus()).toBe(HttpStatus.FORBIDDEN);
+    }
+  });
+
+  it('maps LastActiveManagerError to 409', () => {
+    expect(() => mapStaffError(new LastActiveManagerError())).toThrow(HttpException);
+    try {
+      mapStaffError(new LastActiveManagerError());
     } catch (e) {
       expect((e as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
     }

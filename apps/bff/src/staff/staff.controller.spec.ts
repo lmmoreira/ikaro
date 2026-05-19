@@ -24,7 +24,7 @@ const makeBackendHttp = (overrides?: Partial<BackendHttpService>): BackendHttpSe
 
 describe('StaffController', () => {
   describe('list()', () => {
-    it('calls GET /internal/staff with tenantId, limit, and offset from the JWT', async () => {
+    it('calls GET /staff with limit and offset (no tenantId — comes from TenantContext via BFF headers)', async () => {
       const expectedResult = {
         items: [],
         pagination: { limit: 10, offset: 5, total: 0, hasMore: false, nextOffset: null },
@@ -34,39 +34,20 @@ describe('StaffController', () => {
 
       const result = await controller.list(makeUser(), 10, 5);
 
-      expect(backendHttp.get).toHaveBeenCalledWith('/internal/staff', {
-        tenantId: TENANT_ID,
-        limit: 10,
-        offset: 5,
-      });
+      expect(backendHttp.get).toHaveBeenCalledWith('/staff', { limit: 10, offset: 5 });
       expect(result).toBe(expectedResult);
-    });
-
-    it('uses the tenantId from the current user JWT (not a request param)', async () => {
-      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue({ items: [] }) });
-      const controller = new StaffController(backendHttp);
-      const user = makeUser({ tenantId: '20000000-0000-4000-8000-000000000002' });
-
-      await controller.list(user, 50, 0);
-
-      expect(backendHttp.get).toHaveBeenCalledWith(
-        '/internal/staff',
-        expect.objectContaining({ tenantId: '20000000-0000-4000-8000-000000000002' }),
-      );
     });
   });
 
   describe('getById()', () => {
-    it('calls GET /internal/staff/:id with tenantId from the JWT', async () => {
+    it('calls GET /staff/:id (no tenantId — comes from TenantContext via BFF headers)', async () => {
       const expectedResult = { id: STAFF_ID, email: 'gerente@lavacar.com.br', role: 'MANAGER' };
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(expectedResult) });
       const controller = new StaffController(backendHttp);
 
       const result = await controller.getById(STAFF_ID, makeUser());
 
-      expect(backendHttp.get).toHaveBeenCalledWith(`/internal/staff/${STAFF_ID}`, {
-        tenantId: TENANT_ID,
-      });
+      expect(backendHttp.get).toHaveBeenCalledWith(`/staff/${STAFF_ID}`);
       expect(result).toBe(expectedResult);
     });
 
@@ -86,7 +67,7 @@ describe('StaffController', () => {
       role: 'STAFF' as const,
     };
 
-    it('calls POST /internal/staff/invite with tenantId and invitedBy from the JWT', async () => {
+    it('calls POST /staff/invite with only body fields (tenantId + invitedBy come from TenantContext headers)', async () => {
       const expectedResult = {
         staffId: '40000000-0000-4000-8000-000000000001',
         email: 'novo@lavacar.com.br',
@@ -98,28 +79,13 @@ describe('StaffController', () => {
 
       const result = await controller.invite(inviteBody, makeUser());
 
-      expect(backendHttp.post).toHaveBeenCalledWith('/internal/staff/invite', {
-        tenantId: TENANT_ID,
+      expect(backendHttp.post).toHaveBeenCalledWith('/staff/invite', {
         email: 'novo@lavacar.com.br',
         firstName: 'João',
         lastName: 'Silva',
         role: 'STAFF',
-        invitedBy: STAFF_ID,
       });
       expect(result).toBe(expectedResult);
-    });
-
-    it('uses the sub from the current user JWT as invitedBy', async () => {
-      const backendHttp = makeBackendHttp({ post: jest.fn().mockResolvedValue({}) });
-      const controller = new StaffController(backendHttp);
-      const user = makeUser({ sub: '50000000-0000-4000-8000-000000000001' });
-
-      await controller.invite(inviteBody, user);
-
-      expect(backendHttp.post).toHaveBeenCalledWith(
-        '/internal/staff/invite',
-        expect.objectContaining({ invitedBy: '50000000-0000-4000-8000-000000000001' }),
-      );
     });
 
     it('propagates backend errors', async () => {
@@ -129,6 +95,28 @@ describe('StaffController', () => {
       const controller = new StaffController(backendHttp);
 
       await expect(controller.invite(inviteBody, makeUser())).rejects.toThrow('409');
+    });
+  });
+
+  describe('deactivate()', () => {
+    it('calls PATCH /staff/:id/deactivate with empty body', async () => {
+      const expectedResult = { staffId: STAFF_ID, isActive: false };
+      const backendHttp = makeBackendHttp({ patch: jest.fn().mockResolvedValue(expectedResult) });
+      const controller = new StaffController(backendHttp);
+
+      const result = await controller.deactivate(STAFF_ID, makeUser());
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(`/staff/${STAFF_ID}/deactivate`, {});
+      expect(result).toBe(expectedResult);
+    });
+
+    it('propagates 403 from backend when self-deactivation', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockRejectedValue(new Error('403')),
+      });
+      const controller = new StaffController(backendHttp);
+
+      await expect(controller.deactivate(STAFF_ID, makeUser())).rejects.toThrow('403');
     });
   });
 });

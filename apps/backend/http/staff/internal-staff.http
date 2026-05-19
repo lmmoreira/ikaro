@@ -1,6 +1,8 @@
-# Staff — Internal Endpoints
+# Staff — Internal Auth-Flow Endpoints
 # UC-022: BFF resolves which tenant a Google account belongs to (staff login)
 # UC-025: BFF activates a staff member on first login (accept invite)
+#
+# Management endpoints (list, getById, invite, deactivate) have moved to staff.http
 #
 # Prerequisites:
 #   1. pnpm infra:up           (start PostgreSQL + Pub/Sub emulator)
@@ -13,59 +15,6 @@
 @sub = google-sub-example-staff-123
 @tenantId = 10000000-0000-4000-8000-000000000001
 @staffId = 10000000-0000-4000-8000-000000000099
-
-# ─────────────────────────────────────────────────────────────────────────────
-# HAPPY PATH — invite staff (UC-028 / M04-S03)
-# ─────────────────────────────────────────────────────────────────────────────
-
-### Invite a new STAFF member
-POST {{baseUrl}}/internal/staff/invite
-Content-Type: application/json
-
-{
-  "tenantId": "{{tenantId}}",
-  "email": "novo@lavacar.com.br",
-  "firstName": "João",
-  "lastName": "Silva",
-  "role": "STAFF",
-  "invitedBy": "{{staffId}}"
-}
-
-###
-
-### Invite a new MANAGER
-POST {{baseUrl}}/internal/staff/invite
-Content-Type: application/json
-
-{
-  "tenantId": "{{tenantId}}",
-  "email": "gerente2@lavacar.com.br",
-  "firstName": "Maria",
-  "lastName": "Costa",
-  "role": "MANAGER",
-  "invitedBy": "{{staffId}}"
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# HAPPY PATH — list staff (M04-S02)
-# ─────────────────────────────────────────────────────────────────────────────
-
-### List all staff for a tenant (default limit=50, offset=0)
-GET {{baseUrl}}/internal/staff?tenantId={{tenantId}}
-
-###
-
-### List staff with explicit pagination
-GET {{baseUrl}}/internal/staff?tenantId={{tenantId}}&limit=10&offset=0
-
-# ─────────────────────────────────────────────────────────────────────────────
-# HAPPY PATH — get staff by id (M04-S02)
-# ─────────────────────────────────────────────────────────────────────────────
-
-###
-
-### Get a specific staff member by id
-GET {{baseUrl}}/internal/staff/{{staffId}}?tenantId={{tenantId}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — by-oauth (UC-022)
@@ -96,75 +45,13 @@ Content-Type: application/json
 {
   "tenantId": "{{tenantId}}",
   "googleOAuthId": "{{sub}}",
-  "email": "gerente@lavacar.com.br"
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ERROR CASES
-# ─────────────────────────────────────────────────────────────────────────────
-
-###
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ERROR CASES — invite (UC-028 / M04-S03)
-# ─────────────────────────────────────────────────────────────────────────────
-
-###
-
-### 409 — Email already active in the same tenant
-POST {{baseUrl}}/internal/staff/invite
-Content-Type: application/json
-
-{
-  "tenantId": "{{tenantId}}",
   "email": "gerente@lavacar.com.br",
-  "firstName": "João",
-  "lastName": "Silva",
-  "role": "STAFF",
-  "invitedBy": "{{staffId}}"
-}
-
-###
-
-### 400 — Missing required fields (no firstName/lastName/role)
-POST {{baseUrl}}/internal/staff/invite
-Content-Type: application/json
-
-{
-  "tenantId": "{{tenantId}}",
-  "email": "novo@lavacar.com.br"
-}
-
-###
-
-### 400 — Invalid email format
-POST {{baseUrl}}/internal/staff/invite
-Content-Type: application/json
-
-{
-  "tenantId": "{{tenantId}}",
-  "email": "not-an-email",
-  "firstName": "João",
-  "lastName": "Silva",
-  "role": "STAFF",
-  "invitedBy": "{{staffId}}"
+  "name": "Gerente Silva"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
-
-###
-
-### 400 — Missing tenantId on list endpoint
-GET {{baseUrl}}/internal/staff
-
-###
-
-### 404 — Staff id not found
-GET {{baseUrl}}/internal/staff/10000000-0000-4000-8000-000000000099?tenantId={{tenantId}}
-
-###
 
 ###
 
@@ -195,7 +82,8 @@ Content-Type: application/json
 {
   "tenantId": "{{tenantId}}",
   "googleOAuthId": "{{sub}}",
-  "email": "gerente@lavacar.com.br"
+  "email": "gerente@lavacar.com.br",
+  "name": "Staff User"
 }
 
 ###
@@ -207,5 +95,6 @@ Content-Type: application/json
 {
   "tenantId": "{{tenantId}}",
   "googleOAuthId": "{{sub}}",
-  "email": "wrong@gmail.com"
+  "email": "wrong@gmail.com",
+  "name": "Staff User"
 }

@@ -3,7 +3,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-05-19
+**Last updated:** 2026-05-19 (M04-S04)
 
 ---
 
@@ -213,6 +213,10 @@ Aggregate **props interfaces use VO types**, not plain primitives. **Getters ret
 - **Use case result type naming (mandatory):** Every use case `execute()` method must return a named exported type following the pattern `{UseCaseClassName}Result` — defined and exported in the same `.use-case.ts` file. Never use `*Info`, `*Dto`, raw arrays (`T[]`), or any other ad-hoc name. Example: `GetTenantByIdUseCase` → `GetTenantByIdUseCaseResult`; `FindOrCreateCustomerUseCase` → `FindOrCreateCustomerUseCaseResult`.
 - **Request DTO naming (mandatory):** Input DTOs for use cases and controllers are named `{Action}Dto` — never `{Action}RequestDto`, `{Action}InputDto`, or any other suffix. The Zod schema is named `{Action}Schema`. When a path param must be combined with a request body (e.g. `staffId` from `@Param` + body fields), pass them as **separate arguments** to the use case (`execute(staffId, dto)`) rather than merging into a composite DTO. One DTO per use case — no split `RequestDto` + merged `Dto` pattern.
 - Guards that protect a single context's endpoints belong in `src/contexts/<context>/infrastructure/guards/` — only truly cross-cutting guards (used by multiple contexts) go in `src/shared/guards/`
+- **`/internal` routes skip `TenantInterceptor` — `TenantContext` is never populated for them.** The interceptor calls `next.handle()` early for any path starting with `/internal`. Use `/internal` only for auth-flow lookups (OAuth, email, activate) where the caller passes `tenantId` explicitly. Management endpoints that need `tenantId`/`actorId` from context must live on a non-`/internal` path (e.g. `/staff/*`) so `TenantInterceptor` runs normally. Consequence: management controllers that inject `TenantContext` must have their module import `TenantModule` explicitly (`TenantModule` is NOT `@Global()`).
+- **Domain error messages are English only.** pt-BR copy in UC specs is frontend UI copy — it never goes in domain error constructors. All existing domain errors (`StaffNotFoundError`, etc.) are English; follow the same pattern.
+- **Zod v4 format validators:** use `z.uuid()` and `z.email()` — never `z.string().uuid()` / `z.string().email()`. The chained forms are deprecated in Zod v4 and flagged by SonarCloud as issues.
+- **Domain events belong in the publishing context.** Define `StaffInvited`, `StaffDeactivated` etc. in `staff/domain/events/`, not in `platform/`. Duplicate class definitions across contexts cause SonarCloud duplication failures. When moving an event from the wrong context, verify no imports remain before deleting.
 - Every new REST endpoint must have a corresponding request block in `apps/backend/http/<context>/<resource>.http` — include the happy path, all 4xx error cases, and edge cases. Use the existing files as a template.
 
 ### Cross-context data access (priority order — follow strictly)
@@ -275,6 +279,7 @@ Three layers: **Unit** (`.spec.ts`, Jest) · **Integration** (`.integration.spec
 - **InMemory doubles over `jest.fn()`** — `InMemoryEventBus`, `InMemoryTransactionManager`, `InMemoryXxxRepository` from `src/test/infrastructure/` + `src/test/repositories/`. Controller unit tests wire the real use case with in-memory repos; only use `jest.fn()` when no double exists (e.g. `BackendHttpService` in BFF).
 - **SonarCloud ingests lcov from unit tests only** — every new controller and use case needs a `.spec.ts`; integration tests alone don't count toward coverage.
 - No `.skip()`, `.only()`, `setTimeout` in tests.
+- **Integration test DB isolation (mandatory):** Integration tests share a live DB with no cleanup between tests within the same file. Any `it()` sensitive to aggregate counts (`countActiveManagersByTenant`, `total` in pagination, etc.) **must use a unique tenant UUID** that no other test in the file creates data in. Never reuse suite-level `TENANT_A`/`TENANT_B` constants for count-sensitive assertions — define an inline UUID for that specific test instead.
 
 ### CI gates (block merge)
 - ESLint + Prettier — zero warnings
@@ -315,6 +320,10 @@ Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Highest-severity pa
 | Using `jest.fn()` to stub `IEventBus` or `ITransactionManager` | Misses state assertions; brittle mocks | Use `InMemoryEventBus` / `InMemoryTransactionManager` from `src/test/infrastructure/` |
 | Non-UUID string as path/query param for a PostgreSQL UUID column | `QueryFailedError` → 500 instead of 404 | Add `ParseUUIDPipe`; use RFC 4122-format IDs in tests |
 | Integration test `it()` with only supertest `.expect(status)` and no Jest `expect()` | SonarCloud S6957 BLOCKER | Every `it()` needs at least one `expect()` call |
+| Reusing `TENANT_A` for count-sensitive integration tests | Later tests see data from earlier tests → wrong count → wrong assertion | Use a dedicated inline UUID for any test that asserts on totals or last-X logic |
+| Defining a domain event in the wrong bounded context (e.g. `StaffInvited` in `platform/`) | SonarCloud duplication when the correct context also defines it | Events live in the context that publishes them |
+| Using `z.string().uuid()` or `z.string().email()` in Zod schemas | Deprecated in Zod v4 — SonarCloud MINOR issue blocks `ci:fast` | Use `z.uuid()` / `z.email()` |
+| `TenantModule` missing from a module that injects `TenantContext` | NestJS DI fails to compile — integration tests crash with `TypeError: Cannot read properties of undefined` | Every module with a controller that injects `TenantContext` must import `TenantModule` |
 
 ---
 

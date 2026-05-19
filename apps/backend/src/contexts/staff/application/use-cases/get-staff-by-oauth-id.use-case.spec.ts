@@ -38,7 +38,7 @@ describe('GetStaffByOAuthIdUseCase', () => {
       .withRole('STAFF')
       .withGoogleOAuthId('google-sub-deactivated')
       .build();
-    staff.deactivate();
+    staff.deactivate('other-staff-id');
     await repo.save(staff);
 
     const result = await useCase.execute('google-sub-deactivated');

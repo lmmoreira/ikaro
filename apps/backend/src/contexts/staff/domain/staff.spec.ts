@@ -1,6 +1,6 @@
 import { Email } from '../../../shared/value-objects/email.vo';
 import { Staff } from './staff.aggregate';
-import { StaffDomainError } from './errors/staff-domain.error';
+import { StaffDomainError, StaffSelfDeactivationError } from './errors/staff-domain.error';
 
 describe('Staff', () => {
   describe('invite()', () => {
@@ -79,11 +79,18 @@ describe('Staff', () => {
   });
 
   describe('deactivate()', () => {
-    it('sets isActive=false', () => {
+    it('sets isActive=false when deactivatedBy is a different staff member', () => {
       const staff = Staff.invite('tenant-1', 'ana@lavacar.com.br', 'STAFF');
       staff.activate('google-sub-789', 'Ana Silva');
-      staff.deactivate();
+      staff.deactivate('other-staff-id');
       expect(staff.isActive).toBe(false);
+    });
+
+    it('throws StaffSelfDeactivationError when deactivatedBy equals own id', () => {
+      const staff = Staff.invite('tenant-1', 'ana@lavacar.com.br', 'STAFF');
+      staff.activate('google-sub-789', 'Ana Silva');
+      expect(() => staff.deactivate(staff.id)).toThrow(StaffSelfDeactivationError);
+      expect(staff.isActive).toBe(true);
     });
   });
 

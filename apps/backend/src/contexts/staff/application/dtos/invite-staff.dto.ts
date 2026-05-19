@@ -1,12 +1,21 @@
 import { z } from 'zod';
 
+// HTTP request body — tenantId and invitedBy come from TenantContext in the controller
 export const InviteStaffSchema = z.object({
-  tenantId: z.uuid(),
   email: z.email(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   role: z.enum(['MANAGER', 'STAFF']),
-  invitedBy: z.uuid(),
 });
 
-export type InviteStaffDto = z.infer<typeof InviteStaffSchema>;
+export type InviteStaffBodyDto = z.infer<typeof InviteStaffSchema>;
+
+// Full input type passed to the use case (includes fields from TenantContext)
+export interface InviteStaffDto {
+  tenantId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: 'MANAGER' | 'STAFF';
+  invitedBy: string;
+}

@@ -8,6 +8,7 @@ import {
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -16,15 +17,6 @@ import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { CurrentUser, CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
-
-interface StaffItem {
-  id: string;
-  email: string;
-  name: string | null;
-  role: 'MANAGER' | 'STAFF';
-  isActive: boolean;
-  createdAt: string;
-}
 
 const InviteStaffBodySchema = z.object({
   email: z.email(),
@@ -40,6 +32,20 @@ interface InviteStaffResponse {
   email: string;
   role: 'MANAGER' | 'STAFF';
   isActive: false;
+}
+
+interface DeactivateStaffResponse {
+  staffId: string;
+  isActive: false;
+}
+
+interface StaffItem {
+  id: string;
+  email: string;
+  name: string | null;
+  role: 'MANAGER' | 'STAFF';
+  isActive: boolean;
+  createdAt: string;
 }
 
 interface StaffListResponse {
@@ -62,36 +68,39 @@ export class StaffController {
   @HttpCode(HttpStatus.CREATED)
   invite(
     @Body(new ZodValidationPipe(InviteStaffBodySchema)) body: InviteStaffBody,
-    @CurrentUser() user: CurrentUserPayload,
+    @CurrentUser() _user: CurrentUserPayload,
   ): Promise<InviteStaffResponse> {
-    return this.backendHttp.post<InviteStaffResponse>('/internal/staff/invite', {
-      tenantId: user.tenantId,
+    return this.backendHttp.post<InviteStaffResponse>('/staff/invite', {
       email: body.email,
       firstName: body.firstName,
       lastName: body.lastName,
       role: body.role,
-      invitedBy: user.sub,
     });
   }
 
   @Get()
   list(
-    @CurrentUser() user: CurrentUserPayload,
+    @CurrentUser() _user: CurrentUserPayload,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ): Promise<StaffListResponse> {
-    return this.backendHttp.get<StaffListResponse>('/internal/staff', {
-      tenantId: user.tenantId,
-      limit,
-      offset,
-    });
+    return this.backendHttp.get<StaffListResponse>('/staff', { limit, offset });
   }
 
   @Get(':id')
   getById(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: CurrentUserPayload,
+    @CurrentUser() _user: CurrentUserPayload,
   ): Promise<StaffItem> {
-    return this.backendHttp.get<StaffItem>(`/internal/staff/${id}`, { tenantId: user.tenantId });
+    return this.backendHttp.get<StaffItem>(`/staff/${id}`);
+  }
+
+  @Patch(':id/deactivate')
+  @HttpCode(HttpStatus.OK)
+  deactivate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() _user: CurrentUserPayload,
+  ): Promise<DeactivateStaffResponse> {
+    return this.backendHttp.patch<DeactivateStaffResponse>(`/staff/${id}/deactivate`, {});
   }
 }

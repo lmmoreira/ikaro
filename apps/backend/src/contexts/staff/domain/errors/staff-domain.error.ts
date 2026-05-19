@@ -32,3 +32,17 @@ export class StaffAlreadyExistsError extends StaffDomainError {
     this.name = 'StaffAlreadyExistsError';
   }
 }
+
+export class StaffSelfDeactivationError extends StaffDomainError {
+  constructor() {
+    super('Cannot deactivate your own account');
+    this.name = 'StaffSelfDeactivationError';
+  }
+}
+
+export class LastActiveManagerError extends StaffDomainError {
+  constructor() {
+    super('Cannot remove the last active manager');
+    this.name = 'LastActiveManagerError';
+  }
+}

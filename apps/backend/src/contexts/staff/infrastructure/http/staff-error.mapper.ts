@@ -1,11 +1,13 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ProblemDetail } from '../../../../shared/http/problem-detail';
 import {
+  LastActiveManagerError,
   StaffAlreadyActiveError,
   StaffAlreadyExistsError,
   StaffDomainError,
   StaffEmailMismatchError,
   StaffNotFoundError,
+  StaffSelfDeactivationError,
 } from '../../domain/errors/staff-domain.error';
 
 export function mapStaffError(err: unknown): never {
@@ -28,6 +30,24 @@ export function mapStaffError(err: unknown): never {
     throw new HttpException(body, HttpStatus.CONFLICT);
   }
   if (err instanceof StaffAlreadyExistsError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Conflict',
+      status: HttpStatus.CONFLICT,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.CONFLICT);
+  }
+  if (err instanceof StaffSelfDeactivationError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Forbidden',
+      status: HttpStatus.FORBIDDEN,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.FORBIDDEN);
+  }
+  if (err instanceof LastActiveManagerError) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Conflict',

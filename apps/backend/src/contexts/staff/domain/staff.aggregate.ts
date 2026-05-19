@@ -1,7 +1,7 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Email } from '../../../shared/value-objects/email.vo';
-import { StaffDomainError } from './errors/staff-domain.error';
+import { StaffDomainError, StaffSelfDeactivationError } from './errors/staff-domain.error';
 
 export type StaffRole = 'MANAGER' | 'STAFF';
 
@@ -93,7 +93,8 @@ export class Staff extends AggregateRoot {
     this.props.updatedAt = new Date();
   }
 
-  deactivate(): void {
+  deactivate(deactivatedBy: string): void {
+    if (this.props.id === deactivatedBy) throw new StaffSelfDeactivationError();
     this.props.isActive = false;
     this.props.updatedAt = new Date();
   }
