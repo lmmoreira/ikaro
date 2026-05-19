@@ -44,7 +44,7 @@ When a staff member with `is_active=false` completes Google OAuth for the first 
 
 ---
 
-### M04-S02 — Staff list and detail API endpoints
+### M04-S02 — Staff list and detail API endpoints ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  

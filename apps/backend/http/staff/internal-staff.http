@@ -15,6 +15,38 @@
 @staffId = 10000000-0000-4000-8000-000000000099
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — invite staff (UC-028 / M04-S03)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Invite a new STAFF member
+POST {{baseUrl}}/internal/staff/invite
+Content-Type: application/json
+
+{
+  "tenantId": "{{tenantId}}",
+  "email": "novo@lavacar.com.br",
+  "firstName": "João",
+  "lastName": "Silva",
+  "role": "STAFF",
+  "invitedBy": "{{staffId}}"
+}
+
+###
+
+### Invite a new MANAGER
+POST {{baseUrl}}/internal/staff/invite
+Content-Type: application/json
+
+{
+  "tenantId": "{{tenantId}}",
+  "email": "gerente2@lavacar.com.br",
+  "firstName": "Maria",
+  "lastName": "Costa",
+  "role": "MANAGER",
+  "invitedBy": "{{staffId}}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — list staff (M04-S02)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -65,6 +97,57 @@ Content-Type: application/json
   "tenantId": "{{tenantId}}",
   "googleOAuthId": "{{sub}}",
   "email": "gerente@lavacar.com.br"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES — invite (UC-028 / M04-S03)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### 409 — Email already active in the same tenant
+POST {{baseUrl}}/internal/staff/invite
+Content-Type: application/json
+
+{
+  "tenantId": "{{tenantId}}",
+  "email": "gerente@lavacar.com.br",
+  "firstName": "João",
+  "lastName": "Silva",
+  "role": "STAFF",
+  "invitedBy": "{{staffId}}"
+}
+
+###
+
+### 400 — Missing required fields (no firstName/lastName/role)
+POST {{baseUrl}}/internal/staff/invite
+Content-Type: application/json
+
+{
+  "tenantId": "{{tenantId}}",
+  "email": "novo@lavacar.com.br"
+}
+
+###
+
+### 400 — Invalid email format
+POST {{baseUrl}}/internal/staff/invite
+Content-Type: application/json
+
+{
+  "tenantId": "{{tenantId}}",
+  "email": "not-an-email",
+  "firstName": "João",
+  "lastName": "Silva",
+  "role": "STAFF",
+  "invitedBy": "{{staffId}}"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

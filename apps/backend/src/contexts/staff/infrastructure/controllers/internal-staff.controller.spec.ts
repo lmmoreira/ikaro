@@ -1,29 +1,35 @@
 import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { StaffBuilder } from '../../../../test/builders/staff';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
 import { ActivateStaffUseCase } from '../../application/use-cases/activate-staff.use-case';
 import { GetStaffByEmailUseCase } from '../../application/use-cases/get-staff-by-email.use-case';
 import { GetStaffByIdUseCase } from '../../application/use-cases/get-staff-by-id.use-case';
 import { GetStaffByOAuthIdUseCase } from '../../application/use-cases/get-staff-by-oauth-id.use-case';
+import { InviteStaffUseCase } from '../../application/use-cases/invite-staff.use-case';
 import { ListStaffUseCase } from '../../application/use-cases/list-staff.use-case';
 import { InternalStaffController } from './internal-staff.controller';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
+const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
 
 describe('InternalStaffController', () => {
   let repo: InMemoryStaffRepository;
+  let eventBus: InMemoryEventBus;
   let controller: InternalStaffController;
 
   beforeEach(() => {
     repo = new InMemoryStaffRepository();
+    eventBus = new InMemoryEventBus();
     controller = new InternalStaffController(
       new GetStaffByOAuthIdUseCase(repo),
       new GetStaffByEmailUseCase(repo),
       new ActivateStaffUseCase(repo, new InMemoryTransactionManager()),
       new ListStaffUseCase(repo),
       new GetStaffByIdUseCase(repo),
+      new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
     );
   });
 
@@ -217,6 +223,40 @@ describe('InternalStaffController', () => {
 
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('invite()', () => {
+    const inviteDto = {
+      tenantId: TENANT_A,
+      email: 'novo@lavacar.com.br',
+      firstName: 'João',
+      lastName: 'Silva',
+      role: 'STAFF' as const,
+      invitedBy: MANAGER_ID,
+    };
+
+    it('creates staff and returns 201 result', async () => {
+      const result = await controller.invite(inviteDto);
+
+      expect(result.email).toBe('novo@lavacar.com.br');
+      expect(result.role).toBe('STAFF');
+      expect(result.isActive).toBe(false);
+      expect(result.staffId).toBeDefined();
+    });
+
+    it('maps StaffAlreadyExistsError to 409 when email is already active', async () => {
+      const active = new StaffBuilder()
+        .withTenantId(TENANT_A)
+        .withEmail('novo@lavacar.com.br')
+        .withGoogleOAuthId('google-sub-active')
+        .build();
+      await repo.save(active);
+
+      const err = await controller.invite(inviteDto).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
     });
   });
 });

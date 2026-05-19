@@ -1,6 +1,5 @@
 import { DomainEvent } from '../../../../shared/domain/domain-event';
-
-export type StaffRole = 'MANAGER' | 'STAFF';
+import { StaffRole } from '../staff.aggregate';
 
 interface StaffInvitedData extends Record<string, unknown> {
   staffId: string;

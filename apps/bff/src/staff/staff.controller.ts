@@ -1,12 +1,18 @@
 import {
+  Body,
   Controller,
   DefaultValuePipe,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
+  Post,
   Query,
 } from '@nestjs/common';
+import { z } from 'zod';
+import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { CurrentUser, CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
@@ -18,6 +24,22 @@ interface StaffItem {
   role: 'MANAGER' | 'STAFF';
   isActive: boolean;
   createdAt: string;
+}
+
+const InviteStaffBodySchema = z.object({
+  email: z.email(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  role: z.enum(['MANAGER', 'STAFF']),
+});
+
+type InviteStaffBody = z.infer<typeof InviteStaffBodySchema>;
+
+interface InviteStaffResponse {
+  staffId: string;
+  email: string;
+  role: 'MANAGER' | 'STAFF';
+  isActive: false;
 }
 
 interface StaffListResponse {
@@ -35,6 +57,22 @@ interface StaffListResponse {
 @Roles('MANAGER')
 export class StaffController {
   constructor(private readonly backendHttp: BackendHttpService) {}
+
+  @Post('invite')
+  @HttpCode(HttpStatus.CREATED)
+  invite(
+    @Body(new ZodValidationPipe(InviteStaffBodySchema)) body: InviteStaffBody,
+    @CurrentUser() user: CurrentUserPayload,
+  ): Promise<InviteStaffResponse> {
+    return this.backendHttp.post<InviteStaffResponse>('/internal/staff/invite', {
+      tenantId: user.tenantId,
+      email: body.email,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      role: body.role,
+      invitedBy: user.sub,
+    });
+  }
 
   @Get()
   list(

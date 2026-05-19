@@ -68,6 +68,16 @@ describe('Staff', () => {
     });
   });
 
+  describe('reinvite()', () => {
+    it('updates the role and bumps updatedAt', () => {
+      const staff = Staff.invite('tenant-1', 'ana@lavacar.com.br', 'STAFF');
+      const before = staff.updatedAt;
+      staff.reinvite('MANAGER');
+      expect(staff.role).toBe('MANAGER');
+      expect(staff.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    });
+  });
+
   describe('deactivate()', () => {
     it('sets isActive=false', () => {
       const staff = Staff.invite('tenant-1', 'ana@lavacar.com.br', 'STAFF');

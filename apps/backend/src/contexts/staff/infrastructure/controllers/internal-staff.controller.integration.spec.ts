@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { StaffEntity } from '../entities/staff.entity';
@@ -21,6 +22,7 @@ describe('InternalStaffController (integration)', () => {
           entities: [StaffEntity],
           synchronize: false,
         }),
+        EventBusModule,
         TransactionManagerModule,
         StaffModule,
       ],
@@ -371,6 +373,120 @@ describe('InternalStaffController (integration)', () => {
         .expect(404);
 
       expect(body.status).toBe(404);
+    });
+  });
+
+  describe('POST /internal/staff/invite', () => {
+    const tenantId = '10000000-0000-4000-8000-000000000093';
+    const invitedBy = '20000000-0000-4000-8000-000000000001';
+
+    it('creates an inactive staff row and returns 201', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/internal/staff/invite')
+        .send({
+          tenantId,
+          email: 'invite-m04s03@lavacar.com.br',
+          firstName: 'João',
+          lastName: 'Silva',
+          role: 'STAFF',
+          invitedBy,
+        })
+        .expect(201);
+
+      expect(body.email).toBe('invite-m04s03@lavacar.com.br');
+      expect(body.role).toBe('STAFF');
+      expect(body.isActive).toBe(false);
+      expect(body.staffId).toBeDefined();
+
+      const row = await ds
+        .getRepository(StaffEntity)
+        .findOne({ where: { id: body.staffId, tenantId } });
+      expect(row).not.toBeNull();
+      expect(row!.isActive).toBe(false);
+      expect(row!.googleOAuthId).toBeNull();
+    });
+
+    it('returns 409 when email is already active in the same tenant', async () => {
+      const entity = new StaffEntityBuilder()
+        .withTenantId(tenantId)
+        .withEmail('active-m04s03@lavacar.com.br')
+        .withGoogleOAuthId('google-sub-m04s03-active')
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(StaffEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/internal/staff/invite')
+        .send({
+          tenantId,
+          email: 'active-m04s03@lavacar.com.br',
+          firstName: 'Maria',
+          lastName: 'Costa',
+          role: 'STAFF',
+          invitedBy,
+        })
+        .expect(409);
+
+      expect(body.status).toBe(409);
+    });
+
+    it('resends invite for an inactive staff row without creating a duplicate', async () => {
+      const entity = new StaffEntityBuilder()
+        .withTenantId(tenantId)
+        .withEmail('inactive-m04s03@lavacar.com.br')
+        .withIsActive(false)
+        .build();
+      await ds.getRepository(StaffEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/internal/staff/invite')
+        .send({
+          tenantId,
+          email: 'inactive-m04s03@lavacar.com.br',
+          firstName: 'Ana',
+          lastName: 'Souza',
+          role: 'STAFF',
+          invitedBy,
+        })
+        .expect(201);
+
+      expect(body.staffId).toBe(entity.id);
+
+      const count = await ds
+        .getRepository(StaffEntity)
+        .count({ where: { tenantId, email: 'inactive-m04s03@lavacar.com.br' } });
+      expect(count).toBe(1);
+    });
+
+    it('tenant isolation: invited staff row carries the correct tenantId', async () => {
+      const tenantX = '10000000-0000-4000-8000-000000000094';
+      const tenantY = '10000000-0000-4000-8000-000000000095';
+
+      await request(app.getHttpServer())
+        .post('/internal/staff/invite')
+        .send({
+          tenantId: tenantX,
+          email: 'iso-invite-m04s03@lavacar.com.br',
+          firstName: 'Carlos',
+          lastName: 'Lima',
+          role: 'MANAGER',
+          invitedBy,
+        })
+        .expect(201);
+
+      const rowInY = await ds
+        .getRepository(StaffEntity)
+        .findOne({ where: { tenantId: tenantY, email: 'iso-invite-m04s03@lavacar.com.br' } });
+      expect(rowInY).toBeNull();
+    });
+
+    it('returns 400 when required fields are missing', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/internal/staff/invite')
+        .send({ tenantId, email: 'bad-m04s03@lavacar.com.br' })
+        .expect(400);
+
+      expect(body.status).toBe(400);
     });
   });
 });

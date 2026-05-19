@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { ActivateStaffDto, ActivateStaffSchema } from '../../application/dtos/activate-staff.dto';
+import { InviteStaffDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
 import {
   ActivateStaffUseCaseResult,
   ActivateStaffUseCase,
@@ -31,6 +32,10 @@ import {
   GetStaffByOAuthIdUseCaseResult,
 } from '../../application/use-cases/get-staff-by-oauth-id.use-case';
 import {
+  InviteStaffUseCase,
+  InviteStaffUseCaseResult,
+} from '../../application/use-cases/invite-staff.use-case';
+import {
   ListStaffUseCase,
   ListStaffUseCaseResult,
 } from '../../application/use-cases/list-staff.use-case';
@@ -46,6 +51,7 @@ export class InternalStaffController {
     private readonly activateStaff: ActivateStaffUseCase,
     private readonly listStaff: ListStaffUseCase,
     private readonly getStaffById: GetStaffByIdUseCase,
+    private readonly inviteStaff: InviteStaffUseCase,
   ) {}
 
   // Static routes must be declared before parameterised routes
@@ -98,6 +104,14 @@ export class InternalStaffController {
     tenantId: string,
   ): Promise<GetStaffByIdUseCaseResult> {
     return this.getStaffById.execute(id, tenantId).catch(mapStaffError);
+  }
+
+  @Post('invite')
+  @HttpCode(HttpStatus.CREATED)
+  invite(
+    @Body(new ZodValidationPipe(InviteStaffSchema)) dto: InviteStaffDto,
+  ): Promise<InviteStaffUseCaseResult> {
+    return this.inviteStaff.execute(dto).catch(mapStaffError);
   }
 
   @Post(':staffId/activate')

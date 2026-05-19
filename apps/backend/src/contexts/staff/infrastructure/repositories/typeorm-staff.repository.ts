@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import {
   FindAllByTenantResult,
   IStaffRepository,
 } from '../../application/ports/staff-repository.port';
+import { StaffAlreadyExistsError } from '../../domain/errors/staff-domain.error';
 import { Staff, StaffRole } from '../../domain/staff.aggregate';
 import { StaffEntity } from '../entities/staff.entity';
 
@@ -58,10 +59,20 @@ export class TypeOrmStaffRepository implements IStaffRepository {
   async save(staff: Staff): Promise<void> {
     const entity = this.toEntity(staff);
     const manager = getActiveEntityManager();
-    if (manager) {
-      await manager.save(StaffEntity, entity);
-    } else {
-      await this.repo.save(entity);
+    try {
+      if (manager) {
+        await manager.save(StaffEntity, entity);
+      } else {
+        await this.repo.save(entity);
+      }
+    } catch (err) {
+      if (
+        err instanceof QueryFailedError &&
+        (err as QueryFailedError & { code: string }).code === '23505'
+      ) {
+        throw new StaffAlreadyExistsError(staff.email.address);
+      }
+      throw err;
     }
   }
 

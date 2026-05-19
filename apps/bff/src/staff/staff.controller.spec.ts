@@ -77,4 +77,58 @@ describe('StaffController', () => {
       await expect(controller.getById('non-existent', makeUser())).rejects.toThrow('404');
     });
   });
+
+  describe('invite()', () => {
+    const inviteBody = {
+      email: 'novo@lavacar.com.br',
+      firstName: 'João',
+      lastName: 'Silva',
+      role: 'STAFF' as const,
+    };
+
+    it('calls POST /internal/staff/invite with tenantId and invitedBy from the JWT', async () => {
+      const expectedResult = {
+        staffId: '40000000-0000-4000-8000-000000000001',
+        email: 'novo@lavacar.com.br',
+        role: 'STAFF',
+        isActive: false,
+      };
+      const backendHttp = makeBackendHttp({ post: jest.fn().mockResolvedValue(expectedResult) });
+      const controller = new StaffController(backendHttp);
+
+      const result = await controller.invite(inviteBody, makeUser());
+
+      expect(backendHttp.post).toHaveBeenCalledWith('/internal/staff/invite', {
+        tenantId: TENANT_ID,
+        email: 'novo@lavacar.com.br',
+        firstName: 'João',
+        lastName: 'Silva',
+        role: 'STAFF',
+        invitedBy: STAFF_ID,
+      });
+      expect(result).toBe(expectedResult);
+    });
+
+    it('uses the sub from the current user JWT as invitedBy', async () => {
+      const backendHttp = makeBackendHttp({ post: jest.fn().mockResolvedValue({}) });
+      const controller = new StaffController(backendHttp);
+      const user = makeUser({ sub: '50000000-0000-4000-8000-000000000001' });
+
+      await controller.invite(inviteBody, user);
+
+      expect(backendHttp.post).toHaveBeenCalledWith(
+        '/internal/staff/invite',
+        expect.objectContaining({ invitedBy: '50000000-0000-4000-8000-000000000001' }),
+      );
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({
+        post: jest.fn().mockRejectedValue(new Error('409')),
+      });
+      const controller = new StaffController(backendHttp);
+
+      await expect(controller.invite(inviteBody, makeUser())).rejects.toThrow('409');
+    });
+  });
 });

@@ -88,6 +88,11 @@ export class Staff extends AggregateRoot {
     this.props.updatedAt = new Date();
   }
 
+  reinvite(role: StaffRole): void {
+    this.props.role = role;
+    this.props.updatedAt = new Date();
+  }
+
   deactivate(): void {
     this.props.isActive = false;
     this.props.updatedAt = new Date();
