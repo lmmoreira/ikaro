@@ -11,7 +11,7 @@
 
 ---
 
-### M04-S01 — UC-025: Admin first login / accept invite
+### M04-S01 — UC-025: Admin first login / accept invite ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
