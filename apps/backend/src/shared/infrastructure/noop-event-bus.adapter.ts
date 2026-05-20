@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DomainEvent } from '../domain/domain-event';
-import { IEventBus } from '../ports/event-bus.port';
 import { AppLogger } from '../observability/app-logger';
+import { IEventBus } from '../ports/event-bus.port';
 
 @Injectable()
 export class NoopEventBusAdapter implements IEventBus {
@@ -13,5 +13,13 @@ export class NoopEventBusAdapter implements IEventBus {
       eventId: event.eventId,
       correlationId: event.correlationId,
     });
+  }
+
+  subscribe<T extends DomainEvent>(
+    _eventName: string,
+    _handler: (event: T) => Promise<void>,
+    _consumerName: string,
+  ): void {
+    // no-op
   }
 }

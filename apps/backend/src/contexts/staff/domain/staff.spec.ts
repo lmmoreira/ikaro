@@ -1,8 +1,9 @@
+import { SYSTEM_ACTOR_ID } from '../../../shared/domain/system-actor';
 import { Email } from '../../../shared/value-objects/email.vo';
-import { Staff } from './staff.aggregate';
-import { StaffDomainError, StaffSelfDeactivationError } from './errors/staff-domain.error';
-import { StaffInvited } from './events/staff-invited.event';
 import { StaffDeactivated } from './events/staff-deactivated.event';
+import { StaffInvited } from './events/staff-invited.event';
+import { StaffDomainError, StaffSelfDeactivationError } from './errors/staff-domain.error';
+import { Staff } from './staff.aggregate';
 
 const CORR = 'corr-test';
 
@@ -85,6 +86,39 @@ describe('Staff', () => {
 
     it('throws when name is whitespace-only', () => {
       expect(() => Staff.invite('tenant-1', 'a@b.com', 'STAFF', '   ', null, CORR)).toThrow(
+        StaffDomainError,
+      );
+    });
+  });
+
+  describe('inviteFromProvisioning()', () => {
+    it('creates a MANAGER with isActive=false, null googleOAuthId, null name, invitedBy=SYSTEM_ACTOR_ID', () => {
+      const staff = Staff.inviteFromProvisioning('tenant-1', 'admin@lavacar.com.br');
+      expect(staff.tenantId).toBe('tenant-1');
+      expect(staff.email).toBeInstanceOf(Email);
+      expect(staff.email.address).toBe('admin@lavacar.com.br');
+      expect(staff.role).toBe('MANAGER');
+      expect(staff.isActive).toBe(false);
+      expect(staff.googleOAuthId).toBeNull();
+      expect(staff.name).toBeNull();
+      expect(staff.invitedBy).toBe(SYSTEM_ACTOR_ID);
+      expect(staff.deactivatedBy).toBeNull();
+      expect(staff.id).toBeDefined();
+    });
+
+    it('does not record any domain events', () => {
+      const staff = Staff.inviteFromProvisioning('tenant-1', 'admin@lavacar.com.br');
+      expect(staff.clearDomainEvents()).toHaveLength(0);
+    });
+
+    it('throws when tenantId is empty', () => {
+      expect(() => Staff.inviteFromProvisioning('', 'admin@lavacar.com.br')).toThrow(
+        StaffDomainError,
+      );
+    });
+
+    it('throws when email is invalid', () => {
+      expect(() => Staff.inviteFromProvisioning('tenant-1', 'not-an-email')).toThrow(
         StaffDomainError,
       );
     });

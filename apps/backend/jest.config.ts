@@ -38,7 +38,9 @@ const config: Config = {
       transform: sharedTransform,
       testEnvironment: 'node',
       testTimeout: 60000,
-      // Single PostgreSQL container shared across all integration test files
+      // Single container set shared across all integration test files — must run sequentially
+      // to avoid concurrent Pub/Sub subscription conflicts.
+      maxWorkers: 1,
       globalSetup: '<rootDir>/test/integration-global-setup.ts',
       globalTeardown: '<rootDir>/test/integration-global-teardown.ts',
     },

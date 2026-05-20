@@ -6,8 +6,10 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
+import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { TenantInterceptor } from '../../../../shared/tenant/tenant.interceptor';
 import { TenantModule } from '../../../../shared/tenant/tenant.module';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { StaffEntity } from '../entities/staff.entity';
 import { StaffModule } from '../../staff.module';
@@ -45,7 +47,10 @@ describe('StaffController (integration) — management endpoints', () => {
         StaffModule,
       ],
       providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
-    }).compile();
+    })
+      .overrideProvider(EVENT_BUS)
+      .useValue(new InMemoryEventBus())
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();

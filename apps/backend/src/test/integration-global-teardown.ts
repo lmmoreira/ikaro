@@ -1,11 +1,11 @@
 import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { StartedTestContainer } from 'testcontainers';
 
 export default async function globalTeardown(): Promise<void> {
-  const container = (globalThis as Record<string, unknown>)['__TC_PG_CONTAINER__'] as
-    | StartedPostgreSqlContainer
-    | undefined;
+  const g = globalThis as Record<string, unknown>;
 
-  if (container) {
-    await container.stop();
-  }
+  await Promise.all([
+    (g['__TC_PG_CONTAINER__'] as StartedPostgreSqlContainer | undefined)?.stop(),
+    (g['__TC_PUBSUB_CONTAINER__'] as StartedTestContainer | undefined)?.stop(),
+  ]);
 }

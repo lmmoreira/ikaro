@@ -1,4 +1,5 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
+import { SYSTEM_ACTOR_ID } from '../../../shared/domain/system-actor';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Email } from '../../../shared/value-objects/email.vo';
 import { StaffDeactivated } from './events/staff-deactivated.event';
@@ -97,6 +98,26 @@ export class Staff extends AggregateRoot {
     staff.addDomainEvent(new StaffInvited(tenantId, correlationId, { staffId: staff.id }));
 
     return staff;
+  }
+
+  static inviteFromProvisioning(tenantId: string, email: string): Staff {
+    if (!tenantId) throw new StaffDomainError('tenantId is required');
+    if (!Email.isValid(email)) throw new StaffDomainError('email must be a valid email address');
+
+    const now = new Date();
+    return new Staff({
+      id: uuidv7(),
+      tenantId,
+      googleOAuthId: null,
+      name: null,
+      email: Email.create(email),
+      role: 'MANAGER',
+      isActive: false,
+      invitedBy: SYSTEM_ACTOR_ID,
+      deactivatedBy: null,
+      createdAt: now,
+      updatedAt: now,
+    });
   }
 
   static reconstitute(props: StaffProps): Staff {
