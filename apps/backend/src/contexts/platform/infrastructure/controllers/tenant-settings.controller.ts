@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Patch, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Patch, UseGuards } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import {
@@ -22,8 +22,9 @@ export class TenantSettingsController {
 
   @Patch('settings')
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(UpdateTenantSettingsSchema))
-  updateSettings(@Body() dto: UpdateTenantSettingsDto): Promise<UpdateTenantSettingsUseCaseResult> {
+  updateSettings(
+    @Body(new ZodValidationPipe(UpdateTenantSettingsSchema)) dto: UpdateTenantSettingsDto,
+  ): Promise<UpdateTenantSettingsUseCaseResult> {
     return this.updateTenantSettings
       .execute(this.tenantContext.tenantId, dto)
       .catch(mapPlatformError);

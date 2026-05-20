@@ -17,6 +17,10 @@ interface ActorInfo {
 
 const tenantStorage = new AsyncLocalStorage<TenantStore>();
 
+export function getTenantStore(): TenantStore | undefined {
+  return tenantStorage.getStore();
+}
+
 export function runWithTenantContext<T>(
   tenantId: string,
   correlationId: string,

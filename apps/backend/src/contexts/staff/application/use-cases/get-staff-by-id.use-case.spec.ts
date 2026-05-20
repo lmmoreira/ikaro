@@ -39,16 +39,17 @@ describe('GetStaffByIdUseCase', () => {
     expect(result.createdAt).toBeDefined();
   });
 
-  it('name is null for invited (inactive) staff', async () => {
+  it('name is stored at invite time for inactive staff', async () => {
     const invited = new StaffBuilder()
       .withTenantId(TENANT_A)
       .withEmail('invited@lavacar.com.br')
+      .withName('Test User')
       .build();
     await repo.save(invited);
 
     const result = await useCase.execute(invited.id, TENANT_A);
 
-    expect(result.name).toBeNull();
+    expect(result.name).toBe('Test User');
     expect(result.isActive).toBe(false);
   });
 

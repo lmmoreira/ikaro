@@ -17,5 +17,5 @@ export interface InviteStaffDto {
   firstName: string;
   lastName: string;
   role: 'MANAGER' | 'STAFF';
-  invitedBy: string;
+  invitedBy: string | null;
 }

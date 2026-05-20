@@ -1,4 +1,5 @@
 import { AppLogger } from './app-logger';
+import { runWithTenantContext } from '../tenant/tenant-context';
 
 describe('AppLogger', () => {
   let logger: AppLogger;
@@ -56,5 +57,26 @@ describe('AppLogger', () => {
   it('output is parseable JSON — not a plain string', () => {
     logger.log('test');
     expect(() => JSON.parse(writeSpy.mock.calls[0]![0] as string)).not.toThrow();
+  });
+
+  it('auto-enriches with tenantId and correlationId from AsyncLocalStorage when inside a request', () => {
+    runWithTenantContext('tenant-auto', 'corr-auto', () => {
+      logger.log('inside request');
+    });
+    expect(lastOutput['tenantId']).toBe('tenant-auto');
+    expect(lastOutput['correlationId']).toBe('corr-auto');
+  });
+
+  it('does not include tenantId when called outside a request context', () => {
+    logger.log('outside request');
+    expect(lastOutput['tenantId']).toBeUndefined();
+  });
+
+  it('caller-provided context fields override auto-enriched fields', () => {
+    runWithTenantContext('tenant-auto', 'corr-auto', () => {
+      logger.log('override', { tenantId: 'caller-tenant', correlationId: 'caller-corr' });
+    });
+    expect(lastOutput['tenantId']).toBe('caller-tenant');
+    expect(lastOutput['correlationId']).toBe('caller-corr');
   });
 });

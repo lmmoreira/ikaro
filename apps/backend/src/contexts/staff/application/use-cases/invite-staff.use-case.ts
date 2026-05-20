@@ -1,11 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { StaffInvited } from '../../domain/events/staff-invited.event';
+import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import { StaffAlreadyExistsError } from '../../domain/errors/staff-domain.error';
 import { Staff } from '../../domain/staff.aggregate';
 import { InviteStaffDto } from '../dtos/invite-staff.dto';
@@ -24,11 +23,14 @@ export class InviteStaffUseCase {
     @Inject(STAFF_REPOSITORY) private readonly staffRepo: IStaffRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    private readonly tenantContext: TenantContext,
   ) {}
 
   async execute(dto: InviteStaffDto): Promise<InviteStaffUseCaseResult> {
     const { tenantId, email, firstName, lastName, role, invitedBy } = dto;
     const normalizedEmail = email.toLowerCase().trim();
+    const name = `${firstName} ${lastName}`.trim();
+    const correlationId = this.tenantContext.correlationId;
 
     const existing = await this.staffRepo.findByTenantAndEmail(tenantId, normalizedEmail);
 
@@ -36,24 +38,17 @@ export class InviteStaffUseCase {
       throw new StaffAlreadyExistsError(normalizedEmail);
     }
 
-    // A2: inactive staff exists — reuse the row, update role, resend invite
-    const staff = existing ?? Staff.invite(tenantId, normalizedEmail, role);
-    if (existing) staff.reinvite(role);
+    const staff =
+      existing ?? Staff.invite(tenantId, normalizedEmail, role, name, invitedBy, correlationId);
+    if (existing) staff.reinvite(role, name, invitedBy, correlationId);
 
     await this.txManager.run(async () => {
       await this.staffRepo.save(staff);
     });
 
-    await this.eventBus.publish(
-      new StaffInvited(tenantId, uuidv7(), {
-        staffId: staff.id,
-        email: normalizedEmail,
-        firstName,
-        lastName,
-        role: staff.role,
-        invitedBy,
-      }),
-    );
+    for (const event of staff.clearDomainEvents()) {
+      await this.eventBus.publish(event);
+    }
 
     return { staffId: staff.id, email: normalizedEmail, role: staff.role, isActive: false };
   }

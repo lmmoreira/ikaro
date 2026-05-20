@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import {
   ProvisionTenantDto,
@@ -18,8 +18,9 @@ export class InternalTenantController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(ProvisionTenantSchema))
-  provision(@Body() dto: ProvisionTenantDto): Promise<ProvisionTenantUseCaseResult> {
+  provision(
+    @Body(new ZodValidationPipe(ProvisionTenantSchema)) dto: ProvisionTenantDto,
+  ): Promise<ProvisionTenantUseCaseResult> {
     return this.provisionTenant.execute(dto).catch(mapPlatformError);
   }
 }

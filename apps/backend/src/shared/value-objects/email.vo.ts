@@ -1,5 +1,13 @@
-export class Email {
-  private constructor(private readonly _address: string) {}
+import { ValueObject } from '../domain/value-object';
+
+interface EmailProps {
+  address: string;
+}
+
+export class Email extends ValueObject<EmailProps> {
+  private constructor(props: EmailProps) {
+    super(props);
+  }
 
   static isValid(address: string): boolean {
     const atIdx = address.indexOf('@');
@@ -13,14 +21,14 @@ export class Email {
     if (!Email.isValid(address)) {
       throw new Error(`"${address}" is not a valid email address`);
     }
-    return new Email(address.toLowerCase().trim());
+    return new Email({ address: address.toLowerCase().trim() });
   }
 
   get address(): string {
-    return this._address;
+    return this.props.address;
   }
 
   toString(): string {
-    return this._address;
+    return this.props.address;
   }
 }

@@ -6,7 +6,6 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { HotsiteConfig } from '../../domain/hotsite-config.aggregate';
-import { TenantProvisioned } from '../../domain/events/tenant-provisioned.event';
 import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
 import { Tenant } from '../../domain/tenant.aggregate';
 import {
@@ -33,12 +32,14 @@ export class ProvisionTenantUseCase {
 
   async execute(dto: ProvisionTenantDto): Promise<ProvisionTenantUseCaseResult> {
     const timezone = dto.timezone ?? 'America/Sao_Paulo';
+    // correlationId generated here — /internal routes skip TenantInterceptor
+    const correlationId = uuidv7();
 
     if (await this.tenantRepo.existsBySlug(dto.slug)) {
       throw new SlugAlreadyTakenError(dto.slug);
     }
 
-    const tenant = Tenant.create(dto.name, dto.slug, timezone);
+    const tenant = Tenant.create(dto.name, dto.slug, dto.adminEmail, correlationId, timezone);
     const config = HotsiteConfig.create(tenant.id);
 
     await this.txManager.run(async () => {
@@ -46,14 +47,9 @@ export class ProvisionTenantUseCase {
       await this.hotsiteRepo.save(config);
     });
 
-    await this.eventBus.publish(
-      new TenantProvisioned(tenant.id, uuidv7(), {
-        name: tenant.name,
-        slug: tenant.slug.value,
-        adminEmail: dto.adminEmail,
-        timezone,
-      }),
-    );
+    for (const event of tenant.clearDomainEvents()) {
+      await this.eventBus.publish(event);
+    }
 
     return { tenantId: tenant.id, name: tenant.name, slug: tenant.slug.value };
   }

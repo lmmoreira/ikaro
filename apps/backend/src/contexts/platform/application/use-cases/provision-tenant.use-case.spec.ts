@@ -56,7 +56,7 @@ describe('ProvisionTenantUseCase', () => {
     expect(tenant!.settings.business_hours.timezone).toBe('America/Manaus');
   });
 
-  it('publishes TenantProvisioned event with correct payload', async () => {
+  it('publishes TenantProvisioned event from aggregate with correct payload', async () => {
     await useCase.execute({
       name: 'Lavacar Sul',
       slug: 'lavacar-sul',
@@ -69,7 +69,10 @@ describe('ProvisionTenantUseCase', () => {
     expect(event.data.slug).toBe('lavacar-sul');
     expect(event.data.adminEmail).toBe('sul@lavacar.com.br');
     expect(event.data.timezone).toBe('America/Sao_Paulo');
-    expect(event.tenantId).toBe(event.data.tenantId);
+    expect(event.data.name).toBe('Lavacar Sul');
+    // tenantId is in the envelope, not duplicated in data
+    expect(event.tenantId).toBeDefined();
+    expect((event.data as Record<string, unknown>)['tenantId']).toBeUndefined();
   });
 
   it('throws SlugAlreadyTakenError when slug is already taken', async () => {
@@ -86,8 +89,6 @@ describe('ProvisionTenantUseCase', () => {
     await expect(
       useCase.execute({ name: 'A', slug: 'fail-slug', adminEmail: 'a@a.com' }),
     ).rejects.toThrow('db error');
-    // In production the DB transaction rolls back both saves automatically.
-    // Rollback behaviour is verified by the integration test against a real DB.
   });
 
   it('tenant isolation — two tenants get separate hotsite configs', async () => {
@@ -97,10 +98,8 @@ describe('ProvisionTenantUseCase', () => {
     const configA = await hotsiteRepo.findByTenantId(resA.tenantId);
     const configB = await hotsiteRepo.findByTenantId(resB.tenantId);
 
-    expect(configA).not.toBeNull();
-    expect(configB).not.toBeNull();
-    expect(configA!.id).not.toBe(configB!.id);
     expect(configA!.tenantId).toBe(resA.tenantId);
     expect(configB!.tenantId).toBe(resB.tenantId);
+    expect(configA!.id).not.toBe(configB!.id);
   });
 });

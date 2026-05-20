@@ -1,10 +1,10 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   DefaultValuePipe,
   Get,
   HttpCode,
+  HttpException,
   HttpStatus,
   Param,
   ParseIntPipe,
@@ -12,6 +12,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
@@ -32,9 +33,9 @@ import {
   ListStaffUseCase,
   ListStaffUseCaseResult,
 } from '../../application/use-cases/list-staff.use-case';
+import { ManagerRoleGuard } from '../../../platform/infrastructure/guards/manager-role.guard';
 import { mapStaffError } from '../http/staff-error.mapper';
 
-// Management endpoints — tenantId and actorId come from TenantContext (set by TenantInterceptor).
 @Controller('staff')
 export class StaffController {
   constructor(
@@ -50,7 +51,9 @@ export class StaffController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ): Promise<ListStaffUseCaseResult> {
-    return this.listStaff.execute(this.tenantContext.tenantId, limit, offset).catch(mapStaffError);
+    return this.listStaff
+      .execute(this.tenantContext.tenantId, Math.min(limit, 100), offset)
+      .catch(mapStaffError);
   }
 
   @Get(':id')
@@ -62,11 +65,10 @@ export class StaffController {
 
   @Post('invite')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ManagerRoleGuard)
   invite(
     @Body(new ZodValidationPipe(InviteStaffSchema)) body: InviteStaffBodyDto,
   ): Promise<InviteStaffUseCaseResult> {
-    const actorId = this.tenantContext.actorId;
-    if (!actorId) throw new BadRequestException('X-Actor-ID header is required');
     return this.inviteStaff
       .execute({
         tenantId: this.tenantContext.tenantId,
@@ -74,18 +76,31 @@ export class StaffController {
         firstName: body.firstName,
         lastName: body.lastName,
         role: body.role,
-        invitedBy: actorId,
+        invitedBy: this.tenantContext.actorId ?? null,
       })
       .catch(mapStaffError);
   }
 
   @Patch(':id/deactivate')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ManagerRoleGuard)
   deactivate(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<DeactivateStaffUseCaseResult> {
     const actorId = this.tenantContext.actorId;
-    if (!actorId) throw new BadRequestException('X-Actor-ID header is required');
+    if (!actorId) {
+      return Promise.reject(
+        new HttpException(
+          {
+            type: 'about:blank',
+            title: 'Bad Request',
+            status: 400,
+            detail: 'X-Actor-ID header is required',
+          },
+          HttpStatus.BAD_REQUEST,
+        ),
+      );
+    }
     return this.deactivateStaff
       .execute(id, this.tenantContext.tenantId, actorId)
       .catch(mapStaffError);

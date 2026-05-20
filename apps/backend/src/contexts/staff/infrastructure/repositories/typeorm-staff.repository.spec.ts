@@ -128,7 +128,14 @@ describe('TypeOrmStaffRepository', () => {
 
   it('save maps domain to entity and calls repo.save with string email', async () => {
     ormRepo.save.mockResolvedValue(new StaffEntityBuilder().build());
-    const staff = Staff.invite('tenant-1', 'ana@lavacar.com.br', 'STAFF');
+    const staff = Staff.invite(
+      'tenant-1',
+      'ana@lavacar.com.br',
+      'STAFF',
+      'Ana Silva',
+      null,
+      'corr-test',
+    );
     await repo.save(staff);
     expect(ormRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'ana@lavacar.com.br', tenantId: 'tenant-1' }),

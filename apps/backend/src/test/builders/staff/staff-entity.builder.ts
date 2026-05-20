@@ -5,10 +5,12 @@ export class StaffEntityBuilder {
   private id = uuidv7();
   private tenantId = '00000000-0000-7000-8000-000000000001';
   private googleOAuthId: string | null = null;
-  private name: string | null = null;
+  private name: string | null = 'Test User';
   private email = 'staff@example.com';
   private role = 'STAFF';
   private isActive = false;
+  private invitedBy: string | null = null;
+  private deactivatedBy: string | null = null;
   private readonly createdAt = new Date('2026-01-01T00:00:00Z');
   private readonly updatedAt = new Date('2026-01-01T00:00:00Z');
 
@@ -47,6 +49,16 @@ export class StaffEntityBuilder {
     return this;
   }
 
+  withInvitedBy(invitedBy: string | null): this {
+    this.invitedBy = invitedBy;
+    return this;
+  }
+
+  withDeactivatedBy(deactivatedBy: string | null): this {
+    this.deactivatedBy = deactivatedBy;
+    return this;
+  }
+
   build(): StaffEntity {
     const e = new StaffEntity();
     e.id = this.id;
@@ -56,6 +68,8 @@ export class StaffEntityBuilder {
     e.email = this.email;
     e.role = this.role;
     e.isActive = this.isActive;
+    e.invitedBy = this.invitedBy;
+    e.deactivatedBy = this.deactivatedBy;
     e.createdAt = this.createdAt;
     e.updatedAt = this.updatedAt;
     return e;

@@ -1,6 +1,7 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Slug } from '../../../shared/value-objects/slug.vo';
+import { TenantProvisioned } from './events/tenant-provisioned.event';
 import { PlatformDomainError, TenantInactiveError } from './errors/platform-domain.error';
 import { TenantSettings } from './value-objects/tenant-settings.vo';
 
@@ -50,7 +51,13 @@ export class Tenant extends AggregateRoot {
     return this.props.updatedAt;
   }
 
-  static create(name: string, slug: string, timezone = 'America/Sao_Paulo'): Tenant {
+  static create(
+    name: string,
+    slug: string,
+    adminEmail: string,
+    correlationId: string,
+    timezone = 'America/Sao_Paulo',
+  ): Tenant {
     if (!name || name.trim().length === 0) {
       throw new PlatformDomainError('Tenant name must not be empty');
     }
@@ -60,7 +67,7 @@ export class Tenant extends AggregateRoot {
       );
     }
     const now = new Date();
-    return new Tenant({
+    const tenant = new Tenant({
       id: uuidv7(),
       name: name.trim(),
       slug: Slug.create(slug),
@@ -69,6 +76,17 @@ export class Tenant extends AggregateRoot {
       createdAt: now,
       updatedAt: now,
     });
+
+    tenant.addDomainEvent(
+      new TenantProvisioned(tenant.id, correlationId, {
+        name: tenant.name,
+        slug: tenant.slug.value,
+        adminEmail,
+        timezone,
+      }),
+    );
+
+    return tenant;
   }
 
   static reconstitute(props: TenantProps): Tenant {

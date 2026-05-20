@@ -1,8 +1,8 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
 
 @Entity('customers', { schema: 'customer' })
 @Index(['tenantId'])
-@Index(['tenantId', 'googleOAuthId'])
+@Unique('UQ_customer_customers_tenant_oauth', ['tenantId', 'googleOAuthId'])
 export class CustomerEntity {
   @PrimaryColumn({ type: 'uuid' })
   id!: string;

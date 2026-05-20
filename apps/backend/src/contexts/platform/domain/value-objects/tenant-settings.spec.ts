@@ -77,4 +77,36 @@ describe('TenantSettings', () => {
       expect(() => TenantSettings.create(props)).not.toThrow();
     });
   });
+
+  describe('encapsulation — getters return independent copies', () => {
+    it('mutating loyalty getter result does not affect internal state', () => {
+      const settings = TenantSettings.default();
+      const loyalty = settings.loyalty;
+      loyalty.expiry_days = 9999;
+      expect(settings.loyalty.expiry_days).toBe(180);
+    });
+
+    it('mutating booking getter result does not affect internal state', () => {
+      const settings = TenantSettings.default();
+      const booking = settings.booking;
+      booking.cancellation_window_hours = 9999;
+      expect(settings.booking.cancellation_window_hours).toBe(48);
+    });
+
+    it('mutating business_hours nested day does not affect internal state', () => {
+      const settings = TenantSettings.default();
+      const hours = settings.business_hours;
+      hours.monday!.open = '00:00';
+      expect(settings.business_hours.monday!.open).toBe('09:00');
+    });
+
+    it('toJSON returns a deep clone — mutating it does not affect internal state', () => {
+      const settings = TenantSettings.default();
+      const json = settings.toJSON();
+      json.loyalty.expiry_days = 9999;
+      json.business_hours.monday!.open = '00:00';
+      expect(settings.loyalty.expiry_days).toBe(180);
+      expect(settings.business_hours.monday!.open).toBe('09:00');
+    });
+  });
 });

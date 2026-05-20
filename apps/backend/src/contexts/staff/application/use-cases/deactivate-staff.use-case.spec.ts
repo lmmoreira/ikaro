@@ -2,6 +2,7 @@ import { StaffBuilder } from '../../../../test/builders/staff';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
+import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import { StaffDeactivated } from '../../domain/events/staff-deactivated.event';
 import {
   LastActiveManagerError,
@@ -12,7 +13,14 @@ import { DeactivateStaffUseCase } from './deactivate-staff.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
-const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
+const CORRELATION_ID = 'corr-deactivate-test';
+
+function makeTenantContext(): TenantContext {
+  return {
+    tenantId: TENANT_A,
+    correlationId: CORRELATION_ID,
+  } as unknown as TenantContext;
+}
 
 describe('DeactivateStaffUseCase', () => {
   let repo: InMemoryStaffRepository;
@@ -22,10 +30,15 @@ describe('DeactivateStaffUseCase', () => {
   beforeEach(() => {
     repo = new InMemoryStaffRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus);
+    useCase = new DeactivateStaffUseCase(
+      repo,
+      new InMemoryTransactionManager(),
+      eventBus,
+      makeTenantContext(),
+    );
   });
 
-  it('deactivates a STAFF member and publishes StaffDeactivated', async () => {
+  it('deactivates a STAFF member — stores deactivatedBy and publishes StaffDeactivated', async () => {
     const manager = new StaffBuilder()
       .withTenantId(TENANT_A)
       .withRole('MANAGER')
@@ -48,14 +61,14 @@ describe('DeactivateStaffUseCase', () => {
 
     const saved = await repo.findById(staff.id, TENANT_A);
     expect(saved!.isActive).toBe(false);
+    expect(saved!.deactivatedBy).toBe(manager.id);
 
     expect(eventBus.published).toHaveLength(1);
     const event = eventBus.published[0] as StaffDeactivated;
     expect(event.eventName).toBe('StaffDeactivated');
     expect(event.data.staffId).toBe(staff.id);
-    expect(event.data.tenantId).toBe(TENANT_A);
-    expect(event.data.deactivatedBy).toBe(manager.id);
     expect(event.tenantId).toBe(TENANT_A);
+    expect(event.correlationId).toBe(CORRELATION_ID);
   });
 
   it('deactivates a MANAGER when another active MANAGER remains', async () => {
@@ -81,7 +94,7 @@ describe('DeactivateStaffUseCase', () => {
   });
 
   it('throws StaffNotFoundError when staff does not exist', async () => {
-    await expect(useCase.execute('non-existent-id', TENANT_A, MANAGER_ID)).rejects.toThrow(
+    await expect(useCase.execute('non-existent-id', TENANT_A, 'any-actor')).rejects.toThrow(
       StaffNotFoundError,
     );
     expect(eventBus.published).toHaveLength(0);
@@ -116,12 +129,8 @@ describe('DeactivateStaffUseCase', () => {
       .withGoogleOAuthId('google-other')
       .build();
     await repo.save(manager);
-    // actor is different person but deactivating the last manager
-    // In real flow actor IS a manager who is also the only one — but we test
-    // the case where actor tries to deactivate a different manager who is the last
     await repo.save(actor);
-    // Deactivate actor first so manager is the only one left
-    actor.deactivate(manager.id);
+    actor.deactivate(manager.id, 'corr-setup');
     await repo.save(actor);
 
     await expect(useCase.execute(manager.id, TENANT_A, actor.id)).rejects.toThrow(
@@ -139,7 +148,7 @@ describe('DeactivateStaffUseCase', () => {
       .build();
     await repo.save(staff);
 
-    await expect(useCase.execute(staff.id, TENANT_B, MANAGER_ID)).rejects.toThrow(
+    await expect(useCase.execute(staff.id, TENANT_B, 'any-actor')).rejects.toThrow(
       StaffNotFoundError,
     );
     expect(eventBus.published).toHaveLength(0);

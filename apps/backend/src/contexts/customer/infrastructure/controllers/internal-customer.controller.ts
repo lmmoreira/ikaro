@@ -9,7 +9,6 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
-  UsePipes,
 } from '@nestjs/common';
 import {
   FindOrCreateCustomerDto,
@@ -74,8 +73,9 @@ export class InternalCustomerController {
 
   @Post()
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(FindOrCreateCustomerSchema))
-  findOrCreate(@Body() dto: FindOrCreateCustomerDto): Promise<FindOrCreateCustomerUseCaseResult> {
+  findOrCreate(
+    @Body(new ZodValidationPipe(FindOrCreateCustomerSchema)) dto: FindOrCreateCustomerDto,
+  ): Promise<FindOrCreateCustomerUseCaseResult> {
     return this.findOrCreateCustomer.execute(dto);
   }
 }

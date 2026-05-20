@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, QueryFailedError, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
+import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
 import { ITenantRepository } from '../../application/ports/tenant-repository.port';
 import { Tenant } from '../../domain/tenant.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
@@ -28,10 +29,20 @@ export class TypeOrmTenantRepository implements ITenantRepository {
   async save(tenant: Tenant): Promise<void> {
     const entity = this.toEntity(tenant);
     const manager = getActiveEntityManager();
-    if (manager) {
-      await manager.save(TenantEntity, entity);
-    } else {
-      await this.repo.save(entity);
+    try {
+      if (manager) {
+        await manager.save(TenantEntity, entity);
+      } else {
+        await this.repo.save(entity);
+      }
+    } catch (err) {
+      if (
+        err instanceof QueryFailedError &&
+        (err as QueryFailedError & { code: string }).code === '23505'
+      ) {
+        throw new SlugAlreadyTakenError(tenant.slug.value);
+      }
+      throw err;
     }
   }
 

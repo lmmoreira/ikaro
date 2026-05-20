@@ -52,17 +52,18 @@ describe('ListStaffUseCase', () => {
     expect(managerItem!.isActive).toBe(true);
   });
 
-  it('name is null for invited (inactive) staff', async () => {
+  it('name is stored at invite time even for inactive staff', async () => {
     const invited = new StaffBuilder()
       .withTenantId(TENANT_A)
       .withEmail('invited@lavacar.com.br')
       .withRole('STAFF')
+      .withName('Test User')
       .build();
     await repo.save(invited);
 
     const result = await useCase.execute(TENANT_A, 50, 0);
 
-    expect(result.items[0].name).toBeNull();
+    expect(result.items[0].name).toBe('Test User');
     expect(result.items[0].isActive).toBe(false);
   });
 

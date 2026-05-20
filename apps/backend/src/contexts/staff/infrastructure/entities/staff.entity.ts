@@ -30,6 +30,12 @@ export class StaffEntity {
   @Column({ name: 'is_active', type: 'boolean', default: false })
   isActive!: boolean;
 
+  @Column({ name: 'invited_by', type: 'uuid', nullable: true })
+  invitedBy!: string | null;
+
+  @Column({ name: 'deactivated_by', type: 'uuid', nullable: true })
+  deactivatedBy!: string | null;
+
   @Column({ name: 'created_at', type: 'timestamptz', update: false })
   createdAt!: Date;
 

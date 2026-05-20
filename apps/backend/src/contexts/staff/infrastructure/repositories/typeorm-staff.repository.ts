@@ -53,6 +53,18 @@ export class TypeOrmStaffRepository implements IStaffRepository {
   }
 
   async countActiveManagersByTenant(tenantId: string): Promise<number> {
+    const manager = getActiveEntityManager();
+    if (manager) {
+      // FOR UPDATE cannot be combined with aggregate functions in PostgreSQL.
+      // Select the row IDs to acquire locks, then count the results in application code.
+      const rows = await manager.query(
+        `SELECT id FROM staff.staff
+         WHERE tenant_id = $1 AND role = 'MANAGER' AND is_active = true
+         FOR UPDATE`,
+        [tenantId],
+      );
+      return rows.length;
+    }
     return this.repo.count({ where: { tenantId, role: 'MANAGER', isActive: true } });
   }
 
@@ -85,6 +97,8 @@ export class TypeOrmStaffRepository implements IStaffRepository {
       email: Email.create(entity.email),
       role: entity.role as StaffRole,
       isActive: entity.isActive,
+      invitedBy: entity.invitedBy,
+      deactivatedBy: entity.deactivatedBy,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     });
@@ -99,6 +113,8 @@ export class TypeOrmStaffRepository implements IStaffRepository {
     entity.email = staff.email.address;
     entity.role = staff.role;
     entity.isActive = staff.isActive;
+    entity.invitedBy = staff.invitedBy;
+    entity.deactivatedBy = staff.deactivatedBy;
     entity.createdAt = staff.createdAt;
     entity.updatedAt = staff.updatedAt;
     return entity;

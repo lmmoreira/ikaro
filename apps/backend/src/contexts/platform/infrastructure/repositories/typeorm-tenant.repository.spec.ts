@@ -1,5 +1,6 @@
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
 import { Tenant } from '../../domain/tenant.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { TenantEntity } from '../entities/tenant.entity';
@@ -95,6 +96,24 @@ describe('TypeOrmTenantRepository', () => {
         expect.objectContaining({ id: tenant.id, slug: 'tx-tenant' }),
       );
       expect(mockRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('maps pg 23505 unique violation to SlugAlreadyTakenError', async () => {
+      const pgUniqueViolation = Object.assign(new QueryFailedError('', [], new Error()), {
+        code: '23505',
+      });
+      mockRepo.save.mockRejectedValue(pgUniqueViolation);
+      const tenant = new TenantBuilder().withSlug('dup-slug').build();
+
+      await expect(repo.save(tenant)).rejects.toBeInstanceOf(SlugAlreadyTakenError);
+    });
+
+    it('re-throws non-unique-violation errors unchanged', async () => {
+      const otherError = new Error('connection lost');
+      mockRepo.save.mockRejectedValue(otherError);
+      const tenant = new TenantBuilder().withSlug('any-slug').build();
+
+      await expect(repo.save(tenant)).rejects.toThrow('connection lost');
     });
   });
 

@@ -2,6 +2,7 @@ import { StaffBuilder } from '../../../../test/builders/staff';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
+import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import { StaffInvited } from '../../domain/events/staff-invited.event';
 import { StaffAlreadyExistsError } from '../../domain/errors/staff-domain.error';
 import { InviteStaffUseCase } from './invite-staff.use-case';
@@ -9,6 +10,17 @@ import { InviteStaffUseCase } from './invite-staff.use-case';
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
 const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
+const CORRELATION_ID = 'corr-invite-test';
+
+function makeTenantContext(): TenantContext {
+  return {
+    tenantId: TENANT_A,
+    correlationId: CORRELATION_ID,
+    actorId: MANAGER_ID,
+    actorType: 'STAFF',
+    actorRole: 'MANAGER',
+  } as unknown as TenantContext;
+}
 
 const baseDto = {
   tenantId: TENANT_A,
@@ -27,10 +39,15 @@ describe('InviteStaffUseCase', () => {
   beforeEach(() => {
     repo = new InMemoryStaffRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus);
+    useCase = new InviteStaffUseCase(
+      repo,
+      new InMemoryTransactionManager(),
+      eventBus,
+      makeTenantContext(),
+    );
   });
 
-  it('creates an inactive staff row and publishes StaffInvited', async () => {
+  it('creates an inactive staff row with name stored and publishes StaffInvited', async () => {
     const result = await useCase.execute(baseDto);
 
     expect(result.email).toBe('novo@lavacar.com.br');
@@ -41,17 +58,15 @@ describe('InviteStaffUseCase', () => {
     const saved = await repo.findByTenantAndEmail(TENANT_A, 'novo@lavacar.com.br');
     expect(saved).not.toBeNull();
     expect(saved!.isActive).toBe(false);
+    expect(saved!.name).toBe('João Silva');
+    expect(saved!.invitedBy).toBe(MANAGER_ID);
 
     expect(eventBus.published).toHaveLength(1);
     const event = eventBus.published[0] as StaffInvited;
     expect(event.eventName).toBe('StaffInvited');
     expect(event.data.staffId).toBe(result.staffId);
-    expect(event.data.email).toBe('novo@lavacar.com.br');
-    expect(event.data.firstName).toBe('João');
-    expect(event.data.lastName).toBe('Silva');
-    expect(event.data.role).toBe('STAFF');
-    expect(event.data.invitedBy).toBe(MANAGER_ID);
     expect(event.tenantId).toBe(TENANT_A);
+    expect(event.correlationId).toBe(CORRELATION_ID);
   });
 
   it('normalises email to lowercase before saving', async () => {
@@ -74,7 +89,7 @@ describe('InviteStaffUseCase', () => {
     expect(eventBus.published).toHaveLength(0);
   });
 
-  it('resends invite (A2) when email has an inactive row in the same tenant', async () => {
+  it('resends invite (A2) when email has an inactive row — updates name and role', async () => {
     const inactive = new StaffBuilder()
       .withTenantId(TENANT_A)
       .withEmail('novo@lavacar.com.br')
@@ -82,15 +97,23 @@ describe('InviteStaffUseCase', () => {
       .build();
     await repo.save(inactive);
 
-    const result = await useCase.execute({ ...baseDto, role: 'MANAGER' });
+    const result = await useCase.execute({
+      ...baseDto,
+      role: 'MANAGER',
+      firstName: 'João',
+      lastName: 'Atualizado',
+    });
 
     expect(result.staffId).toBe(inactive.id);
     expect(result.isActive).toBe(false);
     expect(result.role).toBe('MANAGER');
+
+    const saved = await repo.findByTenantAndEmail(TENANT_A, 'novo@lavacar.com.br');
+    expect(saved!.name).toBe('João Atualizado');
+    expect(saved!.invitedBy).toBe(MANAGER_ID);
+
     expect(eventBus.published).toHaveLength(1);
-    expect((eventBus.published[0] as unknown as { data: { role: string } }).data.role).toBe(
-      'MANAGER',
-    );
+    expect((eventBus.published[0] as StaffInvited).eventName).toBe('StaffInvited');
 
     const allStaff = await repo.findAllByTenant(TENANT_A, 100, 0);
     expect(allStaff.total).toBe(1);

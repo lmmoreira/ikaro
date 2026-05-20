@@ -13,15 +13,28 @@ import { StaffController } from './staff.controller';
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
 const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
+const CORRELATION_ID = 'corr-ctrl-test';
 
-function makeTenantContext(tenantId: string, actorId: string): TenantContext {
-  return {
+function makeController(
+  repo: InMemoryStaffRepository,
+  eventBus: InMemoryEventBus,
+  tenantId = TENANT_A,
+  actorId: string | undefined = MANAGER_ID,
+): StaffController {
+  const ctx = {
     tenantId,
     actorId,
-    correlationId: 'corr-test',
+    correlationId: CORRELATION_ID,
     actorType: 'STAFF',
     actorRole: 'MANAGER',
   } as unknown as TenantContext;
+  return new StaffController(
+    ctx,
+    new ListStaffUseCase(repo),
+    new GetStaffByIdUseCase(repo),
+    new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus, ctx),
+    new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus, ctx),
+  );
 }
 
 describe('StaffController', () => {
@@ -32,13 +45,7 @@ describe('StaffController', () => {
   beforeEach(() => {
     repo = new InMemoryStaffRepository();
     eventBus = new InMemoryEventBus();
-    controller = new StaffController(
-      makeTenantContext(TENANT_A, MANAGER_ID),
-      new ListStaffUseCase(repo),
-      new GetStaffByIdUseCase(repo),
-      new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
-      new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
-    );
+    controller = makeController(repo, eventBus);
   });
 
   describe('list()', () => {
@@ -60,13 +67,9 @@ describe('StaffController', () => {
       expect(result.items[0].email).toBe('a@a.com');
     });
 
-    it('pagination fields are correct', async () => {
-      for (let i = 1; i <= 3; i++) {
-        await repo.save(new StaffBuilder().withTenantId(TENANT_A).withEmail(`s${i}@a.com`).build());
-      }
-      const result = await controller.list(2, 0);
-      expect(result.pagination.hasMore).toBe(true);
-      expect(result.pagination.nextOffset).toBe(2);
+    it('caps limit at 100', async () => {
+      const result = await controller.list(999, 0);
+      expect(result.pagination.limit).toBe(100);
     });
   });
 
@@ -117,6 +120,8 @@ describe('StaffController', () => {
       expect(result.isActive).toBe(false);
       const saved = await repo.findByTenantAndEmail(TENANT_A, 'novo@lavacar.com.br');
       expect(saved!.tenantId).toBe(TENANT_A);
+      expect(saved!.name).toBe('João Silva');
+      expect(saved!.invitedBy).toBe(MANAGER_ID);
     });
 
     it('maps StaffAlreadyExistsError to 409', async () => {
@@ -137,6 +142,27 @@ describe('StaffController', () => {
   });
 
   describe('deactivate()', () => {
+    it('returns 400 when X-Actor-ID header is missing', async () => {
+      const ctxNoActor = {
+        tenantId: TENANT_A,
+        correlationId: CORRELATION_ID,
+        actorId: undefined,
+      } as unknown as TenantContext;
+      const txMgr = new InMemoryTransactionManager();
+      const ctrl = new StaffController(
+        ctxNoActor,
+        new ListStaffUseCase(repo),
+        new GetStaffByIdUseCase(repo),
+        new InviteStaffUseCase(repo, txMgr, eventBus, ctxNoActor),
+        new DeactivateStaffUseCase(repo, txMgr, eventBus, ctxNoActor),
+      );
+      const err = await ctrl
+        .deactivate('10000000-0000-4000-8000-000000000001')
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
     it('deactivates a STAFF member using tenantId from TenantContext', async () => {
       const manager = new StaffBuilder()
         .withTenantId(TENANT_A)
@@ -150,25 +176,17 @@ describe('StaffController', () => {
         .withEmail('staff@lavacar.com.br')
         .withGoogleOAuthId('google-staff')
         .build();
-      // MANAGER_ID is the actorId in TenantContext — must match manager.id
-      // so we save manager with a specific id by using reconstitute instead
-      // Simplest: save manager with manager.id === MANAGER_ID requires a rebuild
       await repo.save(manager);
       await repo.save(staff);
 
-      // Use controller with actor = manager.id so self-deactivation doesn't trigger
-      const ctrl = new StaffController(
-        makeTenantContext(TENANT_A, manager.id),
-        new ListStaffUseCase(repo),
-        new GetStaffByIdUseCase(repo),
-        new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
-        new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
-      );
-
+      const ctrl = makeController(repo, eventBus, TENANT_A, manager.id);
       const result = await ctrl.deactivate(staff.id);
 
       expect(result.staffId).toBe(staff.id);
       expect(result.isActive).toBe(false);
+
+      const saved = await repo.findById(staff.id, TENANT_A);
+      expect(saved!.deactivatedBy).toBe(manager.id);
     });
 
     it('maps StaffSelfDeactivationError to 403', async () => {
@@ -180,14 +198,7 @@ describe('StaffController', () => {
         .build();
       await repo.save(manager);
 
-      const ctrl = new StaffController(
-        makeTenantContext(TENANT_A, manager.id),
-        new ListStaffUseCase(repo),
-        new GetStaffByIdUseCase(repo),
-        new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
-        new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
-      );
-
+      const ctrl = makeController(repo, eventBus, TENANT_A, manager.id);
       const err = await ctrl.deactivate(manager.id).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.FORBIDDEN);
@@ -206,18 +217,11 @@ describe('StaffController', () => {
         .withEmail('actor@lavacar.com.br')
         .withGoogleOAuthId('google-actor')
         .build();
-      actor.deactivate(manager.id);
+      actor.deactivate(manager.id, 'corr-setup');
       await repo.save(manager);
       await repo.save(actor);
 
-      const ctrl = new StaffController(
-        makeTenantContext(TENANT_A, actor.id),
-        new ListStaffUseCase(repo),
-        new GetStaffByIdUseCase(repo),
-        new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
-        new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
-      );
-
+      const ctrl = makeController(repo, eventBus, TENANT_A, actor.id);
       const err = await ctrl.deactivate(manager.id).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);

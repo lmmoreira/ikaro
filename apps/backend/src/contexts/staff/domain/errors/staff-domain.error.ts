@@ -1,13 +1,14 @@
 export class StaffDomainError extends Error {
   constructor(message: string) {
     super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
     this.name = 'StaffDomainError';
   }
 }
 
 export class StaffNotFoundError extends StaffDomainError {
-  constructor(googleOAuthId: string) {
-    super(`No staff member found for Google account: ${googleOAuthId}`);
+  constructor(identifier: string) {
+    super(`Staff member not found: ${identifier}`);
     this.name = 'StaffNotFoundError';
   }
 }

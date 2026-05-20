@@ -52,23 +52,23 @@ export class TenantSettings {
   }
 
   get loyalty(): LoyaltySettings {
-    return this.props.loyalty;
+    return { ...this.props.loyalty };
   }
 
   get booking(): BookingSettings {
-    return this.props.booking;
+    return { ...this.props.booking };
   }
 
   get business_hours(): BusinessHours {
-    return this.props.business_hours;
+    return structuredClone(this.props.business_hours);
   }
 
   get localization(): LocalizationSettings {
-    return this.props.localization;
+    return { ...this.props.localization };
   }
 
   toJSON(): TenantSettingsProps {
-    return { ...this.props };
+    return structuredClone(this.props);
   }
 
   static default(timezone = 'America/Sao_Paulo'): TenantSettings {

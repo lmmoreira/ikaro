@@ -1,6 +1,8 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Email } from '../../../shared/value-objects/email.vo';
+import { StaffDeactivated } from './events/staff-deactivated.event';
+import { StaffInvited } from './events/staff-invited.event';
 import { StaffDomainError, StaffSelfDeactivationError } from './errors/staff-domain.error';
 
 export type StaffRole = 'MANAGER' | 'STAFF';
@@ -13,6 +15,8 @@ export interface StaffProps {
   email: Email;
   role: StaffRole;
   isActive: boolean;
+  invitedBy: string | null;
+  deactivatedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,6 +50,12 @@ export class Staff extends AggregateRoot {
   get isActive(): boolean {
     return this.props.isActive;
   }
+  get invitedBy(): string | null {
+    return this.props.invitedBy;
+  }
+  get deactivatedBy(): string | null {
+    return this.props.deactivatedBy;
+  }
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -53,25 +63,40 @@ export class Staff extends AggregateRoot {
     return this.props.updatedAt;
   }
 
-  static invite(tenantId: string, email: string, role: StaffRole): Staff {
+  static invite(
+    tenantId: string,
+    email: string,
+    role: StaffRole,
+    name: string,
+    invitedBy: string | null,
+    correlationId: string,
+  ): Staff {
     if (!tenantId) throw new StaffDomainError('tenantId is required');
     if (!Email.isValid(email)) throw new StaffDomainError('email must be a valid email address');
     if (role !== 'MANAGER' && role !== 'STAFF') {
       throw new StaffDomainError('role must be MANAGER or STAFF');
     }
+    const trimmedName = name?.trim();
+    if (!trimmedName) throw new StaffDomainError('name is required to invite staff');
 
     const now = new Date();
-    return new Staff({
+    const staff = new Staff({
       id: uuidv7(),
       tenantId,
       googleOAuthId: null,
-      name: null,
+      name: trimmedName,
       email: Email.create(email),
       role,
       isActive: false,
+      invitedBy,
+      deactivatedBy: null,
       createdAt: now,
       updatedAt: now,
     });
+
+    staff.addDomainEvent(new StaffInvited(tenantId, correlationId, { staffId: staff.id }));
+
+    return staff;
   }
 
   static reconstitute(props: StaffProps): Staff {
@@ -88,14 +113,25 @@ export class Staff extends AggregateRoot {
     this.props.updatedAt = new Date();
   }
 
-  reinvite(role: StaffRole): void {
+  reinvite(role: StaffRole, name: string, invitedBy: string | null, correlationId: string): void {
+    const trimmedName = name?.trim();
+    if (!trimmedName) throw new StaffDomainError('name is required to reinvite staff');
     this.props.role = role;
+    this.props.name = trimmedName;
+    this.props.invitedBy = invitedBy;
     this.props.updatedAt = new Date();
+    this.addDomainEvent(
+      new StaffInvited(this.props.tenantId, correlationId, { staffId: this.props.id }),
+    );
   }
 
-  deactivate(deactivatedBy: string): void {
+  deactivate(deactivatedBy: string, correlationId: string): void {
     if (this.props.id === deactivatedBy) throw new StaffSelfDeactivationError();
     this.props.isActive = false;
+    this.props.deactivatedBy = deactivatedBy;
     this.props.updatedAt = new Date();
+    this.addDomainEvent(
+      new StaffDeactivated(this.props.tenantId, correlationId, { staffId: this.props.id }),
+    );
   }
 }
