@@ -262,27 +262,38 @@ Define the IAM roles and service account bindings as Terraform resources. This c
 **Complexity:** M  
 **Docs to load:** `docs/03-DOMAIN_EVENTS.md` § event catalog, `docs/23-INFRASTRUCTURE_SETUP.md` § Pub/Sub
 
+> **Note (M04-S06 implemented):** `GcpPubSubEventBusAdapter` is already implemented and working (local emulator + real GCP). This story is **Terraform only** — no application code changes needed. The adapter auto-creates topics/subscriptions on startup; production must have them pre-provisioned so the adapter never needs GCP permissions to create resources at runtime.
+
+> **Architecture decision (M04-S06):** One topic per event type (not a single shared topic). Naming set in code:
+> - Topic: `beloauto-{eventName}` (e.g. `beloauto-TenantProvisioned`, `beloauto-StaffInvited`, `beloauto-BookingCompleted`)
+> - Subscription: `beloauto-{eventName}-{consumerName}` (e.g. `beloauto-StaffInvited-notification`, `beloauto-BookingCompleted-loyalty`)
+> The original single-topic design (`beloauto-events-{environment}`) is superseded. Terraform must match the names the adapter uses exactly.
+
 **Description:**  
-Create all Pub/Sub topics and subscriptions for every domain event in the system. Each subscription has a dead-letter topic and retry policy.
+Pre-provision all Pub/Sub topics and subscriptions for every domain event in the system via Terraform. Each subscription gets a dead-letter topic and retry policy.
 
 **`infrastructure/terraform/pubsub.tf`:**
 
-Main topic: `beloauto-events-{environment}`
+One topic per published event (see `docs/03-DOMAIN_EVENTS.md` for the full catalog). Example entries:
+```
+beloauto-TenantProvisioned          → subscription: beloauto-TenantProvisioned-staff
+beloauto-StaffInvited               → subscription: beloauto-StaffInvited-notification
+beloauto-StaffDeactivated           → subscription: beloauto-StaffDeactivated-notification
+beloauto-BookingCompleted           → subscriptions: beloauto-BookingCompleted-loyalty, beloauto-BookingCompleted-notification
+beloauto-BookingReminderDue         → subscription: beloauto-BookingReminderDue-notification
+... (one resource block per event × consumer pair)
+```
 
-Subscriptions (one per consumer):
-- `beloauto-notification-consumer` → Notification context
-- `beloauto-loyalty-consumer` → Loyalty context (BookingCompleted only via filter)
-
-Dead letter: `beloauto-events-dead-letter-{environment}` topic + `beloauto-events-dlq` subscription
+Dead-letter topic per subscription: `beloauto-{eventName}-{consumerName}-dlq`
 
 Retry policy: `minimum_backoff=10s`, `maximum_backoff=600s`, `max_delivery_attempts=5`
 
 **Acceptance criteria:**
-- [ ] All topics and subscriptions created
-- [ ] Dead-letter topic configured with 5 max delivery attempts
-- [ ] Message retention: 7 days on main topic
-- [ ] `beloauto-loyalty-consumer` subscription has a filter: `attributes.eventName="BookingCompleted"`
+- [ ] All topics and subscriptions created with names matching the adapter's naming pattern exactly
+- [ ] Dead-letter topic configured per subscription with 5 max delivery attempts
+- [ ] Message retention: 7 days per topic
 - [ ] Subscriptions have `ack_deadline_seconds=60`
+- [ ] Backend service account has `roles/pubsub.publisher` on all topics and `roles/pubsub.subscriber` on its subscriptions
 
 **Dependencies:** M15-S02
 

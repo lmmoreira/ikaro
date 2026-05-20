@@ -276,6 +276,35 @@ await this.repo.save(entity);  // TypeORM merge not atomic
 
 **Repository transaction-awareness:** every TypeORM repo write method checks `getActiveEntityManager()` — if a transaction is active it uses that `EntityManager`, otherwise falls back to `this.repo`. Read methods do not need to be transaction-aware.
 
+### Event handlers (Pub/Sub consumers)
+
+Event handlers live in `<context>/infrastructure/events/`. They are **infrastructure**, not application layer.
+
+- **Thin by law:** `handle()` calls exactly one use case and rethrows any error. Zero domain logic inside a handler.
+- **Subscribe in `onModuleInit()`** via `eventBus.subscribe(eventName, handler, consumerName)`. `consumerName` determines the Pub/Sub subscription name — must be unique per consumer (e.g. `'staff'`, `'notification'`).
+- **Rethrow errors** — Pub/Sub nacks the message and retries. Never swallow errors in `handle()`.
+- **Idempotency in the use case** — DB check via `findByXxx`. No in-memory sets (lost on restart, not shared across pods).
+- **`correlationId` propagation** — pass `event.correlationId` into the use case DTO; never generate a new UUID in the handler.
+
+**Pub/Sub naming (mandatory — one topic per event type):**
+
+| Thing | Pattern | Example |
+|---|---|---|
+| Topic | `beloauto-{eventName}` | `beloauto-StaffInvited` |
+| Subscription | `beloauto-{eventName}-{consumerName}` | `beloauto-StaffInvited-notification` |
+
+`GcpPubSubEventBusAdapter` (`src/shared/infrastructure/gcp-pubsub-event-bus.adapter.ts`) auto-creates topics and subscriptions on `onApplicationBootstrap()`. Local dev connects to the emulator via `PUBSUB_EMULATOR_HOST=localhost:8085` (set in `.env`, loaded by `validateEnv()` before NestJS boots). Production topics/subscriptions are pre-provisioned by Terraform (M15-S08).
+
+**Test wiring for event handlers:**
+
+| Test type | Event bus | When to use |
+|---|---|---|
+| Handler unit spec | `InMemoryEventBus` + call `handler.handle(event)` directly | Tests handler → use case logic in isolation |
+| Story integration spec | Real `EventBusModule` (no override) + `waitFor()` | Tests full publish → Pub/Sub → handler → DB chain |
+| Controller integration spec | Override `EVENT_BUS` with `InMemoryEventBus` | Controller tests HTTP layer — no Pub/Sub needed |
+
+`waitFor()` utility lives at `src/test/utils/wait-for.ts`. Use it in story integration specs to poll for async side effects — this is the approved pattern instead of raw `setTimeout` in tests.
+
 ### Testing
 
 Three layers: **Unit** (`.spec.ts`, Jest) · **Integration** (`.integration.spec.ts`, Jest + Testcontainers singleton) · **E2E** (Playwright, happy paths only). Full details → `docs/08-TESTING_STRATEGY.md`.
@@ -332,6 +361,9 @@ Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Highest-severity pa
 | `TenantModule` missing from a module that injects `TenantContext` | NestJS DI fails to compile — integration tests crash with `TypeError: Cannot read properties of undefined` | Every module with a controller that injects `TenantContext` must import `TenantModule` |
 | Publishing events directly from a use case (`await this.eventBus.publish(new XxxEvent(...))`) | Bypasses aggregate encapsulation; `correlationId` ends up as a fresh `uuidv7()` instead of the request's; use case must know event internals | Record in aggregate via `addDomainEvent()`; flush with `clearDomainEvents()` after `txManager.run()` |
 | Missing `Object.setPrototypeOf(this, new.target.prototype)` in domain error base class | `instanceof` checks fail silently in compiled TypeScript — every error mapper falls through to 500 | Add `Object.setPrototypeOf(this, new.target.prototype)` immediately after `super()` in every `XxxDomainError extends Error` base class |
+| Business logic inside an event handler (`handle()` creates aggregates, calls repos, publishes events directly) | Handler is infrastructure — mixing logic bypasses the use case layer, skips transaction management, and makes the handler untestable in isolation | Handler calls exactly one use case; all logic lives there |
+| Using an in-memory set for Pub/Sub handler idempotency (`private processedEventIds = new Set()`) | Set is cleared on process restart and not shared across pods — duplicate messages get processed after any deploy or scale event | Idempotency via DB check in the use case (`findByXxx`) or the `processed_events` table (M11) |
+| Not overriding `EVENT_BUS` with `InMemoryEventBus` in controller integration specs | Controller boots `GcpPubSubEventBusAdapter` which connects to the emulator — gRPC timeouts fail every test if emulator is unreachable | Override `EVENT_BUS` with `new InMemoryEventBus()` in all controller integration specs that don't need end-to-end Pub/Sub routing |
 
 ---
 

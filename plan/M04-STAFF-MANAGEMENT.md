@@ -157,16 +157,20 @@ Implement staff deactivation. A MANAGER can deactivate any staff member except t
 **Complexity:** M  
 **Docs to load:** `docs/05-BOUNDED_CONTEXTS.md` § Notification context, `docs/03-DOMAIN_EVENTS.md` § StaffInvited, `docs/10-OBSERVABILITY_STRATEGY.md` § email adapter
 
+> **Note (M04-S06 implemented):** The GCP Pub/Sub adapter is already built — `GcpPubSubEventBusAdapter` in `src/shared/infrastructure/gcp-pubsub-event-bus.adapter.ts`. Do NOT rebuild or modify `EventBusModule`. Follow the established handler pattern: thin `handle()` → calls use case, subscribes in `onModuleInit()` with `consumerName = 'notification'`. See CLAUDE.md §7 "Event handlers" for the full pattern and test wiring.
+
 **Description:**  
-Bootstrap the Notification bounded context infrastructure enough to send the staff invitation email. This is the first real email flow in the system — it validates that the IEmailSender port, the Pub/Sub subscription, and MailHog (local) are all wired correctly. Full notification system (templates, logging, all events) is M11.
+Bootstrap the Notification bounded context infrastructure enough to send the staff invitation email. This is the first real email flow in the system — it validates that the `IEmailSender` port, the Pub/Sub subscription, and MailHog (local) are all wired correctly. Full notification system (templates, logging, all events) is M11.
 
 **What to create:**
 - `NotificationModule` in `apps/backend/src/contexts/notification/`
 - `MailhogEmailAdapter` (local dev) → implements `IEmailSender`, sends via SMTP to `localhost:1025`
-- `StaffInvitedHandler` — subscribes to `StaffInvited` events from Pub/Sub emulator:
-  1. Idempotency check: has `eventId` been processed? (simple in-memory set for now, full table in M11)
-  2. Send invitation email with hardcoded pt-BR template (full template system in M11)
-  3. Email body (pt-BR): "Você foi convidado para a equipe de [tenant name]. Clique aqui para aceitar."
+- `SendStaffInvitationUseCase` — contains the email-sending logic (idempotency via DB check, email composition)
+- `StaffInvitedHandler` — thin handler, subscribes to `StaffInvited` (topic `beloauto-StaffInvited`, subscription `beloauto-StaffInvited-notification`):
+  1. Calls `SendStaffInvitationUseCase.execute({ staffId, tenantId, correlationId })`
+  2. Rethrows errors for Pub/Sub nack + retry
+  - Idempotency: DB check in the use case (no in-memory set)
+  - Email body (pt-BR): "Você foi convidado para a equipe de [tenant name]. Clique aqui para aceitar."
 
 **Important — two sources of `StaffInvited`:**
 `StaffInvited` events arrive from two flows. The handler must support both:
