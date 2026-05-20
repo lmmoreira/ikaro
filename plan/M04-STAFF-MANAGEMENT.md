@@ -190,7 +190,7 @@ Bootstrap the Notification bounded context infrastructure enough to send the sta
 
 ---
 
-### M04-S06 — TenantProvisioned handler: create first MANAGER staff + publish StaffInvited
+### M04-S06 — TenantProvisioned handler: create first MANAGER staff + publish StaffInvited ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
