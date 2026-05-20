@@ -62,7 +62,7 @@
 
 - `email` prop is typed as `Email` VO — not `string`. Getters return the VO. `staff.email.address` to get the string.
 - `Staff.invite()` requires `name` (non-empty) — throws `StaffDomainError` if blank.
-- `Staff.inviteFromProvisioning()` sets `name = null`, `invitedBy = SYSTEM_ACTOR_ID`. Does **not** record a `StaffInvited` domain event — the use case publishes it directly to keep the provisioning flow simple.
+- `Staff.inviteFromProvisioning(tenantId, email, correlationId)` sets `name = null`, `invitedBy = SYSTEM_ACTOR_ID`, and records `StaffInvited` via `addDomainEvent()` — same aggregate-driven pattern as `Staff.invite()`. The `correlationId` is passed in from the handler (sourced from the outer `TenantProvisioned` event). Use case flushes via `clearDomainEvents()` after the transaction.
 - `Staff.reconstitute()` skips all validation — for DB reads only.
 - `reinvite()` re-issues `StaffInvited` event. Used when re-inviting an existing inactive row.
 - **UNIQUE(tenant_id, email)** at DB level — `InviteStaffUseCase` detects existing rows and calls `reinvite()` instead of creating a duplicate.

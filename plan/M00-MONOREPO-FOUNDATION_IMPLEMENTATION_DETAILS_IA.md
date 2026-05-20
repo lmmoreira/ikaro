@@ -67,9 +67,8 @@ These differ from common tutorials. Getting them wrong causes silent failures.
 Every DI injection token is a `Symbol`, not a string:
 ```typescript
 export const EVENT_BUS = Symbol('IEventBus');    // apps/backend/src/shared/ports/event-bus.port.ts
-export const EMAIL_SENDER = Symbol('IEmailSender'); // apps/backend/src/shared/ports/email-sender.port.ts
 ```
-Future context modules must follow the same pattern.
+Context-specific ports (e.g. `NOTIFICATION_DISPATCHER`, `DELIVERY_CHANNEL`) are defined in their own context's `application/ports/` directory — never in `src/shared/ports/`. Future context modules must follow the same pattern.
 
 ### 4.2 AppLogger — never use console.*
 `no-console: "error"` is enforced by ESLint. Use `AppLogger` everywhere:
@@ -212,15 +211,15 @@ Fixed IDs are in the `IDS` constant at the top of the file. Use these when writi
 
 ## 9. What Is STUBBED — Do Not Implement Until the Right Milestone
 
-| Stub | Location | Implemented in |
+| Stub | Location | Status |
 |---|---|---|
-| `JwtAuthGuard` | `apps/bff/src/shared/guards/` | M03 |
-| `TenantGuard` | `apps/bff/src/shared/guards/` | M03 |
-| `RolesGuard` | `apps/bff/src/shared/guards/` | M03 |
-| `GET /health/ready` DB check | `apps/backend/src/health/` | M07 (DB-connected health) |
-| `NoopEventBusAdapter` | `apps/backend/src/shared/infrastructure/` | Replaced in M11 (GCP Pub/Sub) |
-| Auth module | `apps/bff/src/auth/` | M03 |
-| Signed URL actual GCS | `apps/bff/src/uploads/uploads.controller.ts` | M09 |
+| `JwtAuthGuard` | `apps/bff/src/shared/guards/` | ✅ Implemented M03 |
+| `TenantGuard` | `apps/bff/src/shared/guards/` | ✅ Implemented M03 |
+| `RolesGuard` | `apps/bff/src/shared/guards/` | ✅ Implemented M03 |
+| Auth module | `apps/bff/src/auth/` | ✅ Implemented M03 |
+| `GcpPubSubEventBusAdapter` | `apps/backend/src/shared/infrastructure/` | ✅ Implemented M04 (replaced NoopEventBusAdapter) |
+| `GET /health/ready` DB check | `apps/backend/src/health/` | Pending M07 (DB-connected health) |
+| Signed URL actual GCS | `apps/bff/src/uploads/uploads.controller.ts` | Pending M09 |
 | `app.useLogger()` in BFF | Already wired | — |
 
 ---
@@ -250,7 +249,7 @@ The developer switches environments via the status bar (bottom-right of VS Code)
 
 ---
 
-## 12. CLAUDE.md Cross-References
+## 11. CLAUDE.md Cross-References
 
 | Topic | CLAUDE.md section |
 |---|---|
@@ -265,7 +264,7 @@ The developer switches environments via the status bar (bottom-right of VS Code)
 
 ---
 
-## 13. Common Commands (for agent scripts)
+## 12. Common Commands (for agent scripts)
 
 ```bash
 pnpm -w run infra:up          # start Docker (Postgres, Pub/Sub, GCS, MailHog)
@@ -285,6 +284,7 @@ pnpm ci:local                 # full local CI via Docker — no tokens needed (~
 
 ## 13. VS Code Tooling
 
+
 `.vscode/extensions.json` and `.vscode/settings.json` are committed and shared. They configure:
 - Format on save with Prettier
 - ESLint auto-fix on save
@@ -298,95 +298,13 @@ These settings are project-scoped — they do not override developer personal VS
 
 ---
 
-## 14. Story Implementation Workflow (mandatory for every story)
+## 14. Story Implementation Workflow
 
-This is the exact sequence every agent MUST follow for each story. CLAUDE.md §15 lists the checks; this section adds the concrete commands.
-
-### Step 1 — Create feature branch (before writing any code)
-```bash
-git checkout -b feat/M0X-SYY-<short-description>
-# e.g. feat/M02-S01-platform-domain
-```
-
-### Step 2 — Implement the story
-Write all files defined in the story. See CLAUDE.md §0 for permission rules (code files = autonomous once story is approved).
-
-### Step 3 — Verify locally
-```bash
-pnpm --filter @beloauto/backend run type-check   # zero errors
-pnpm --filter @beloauto/backend run lint          # zero warnings
-pnpm --filter @beloauto/backend exec jest --testPathPatterns="<context>" --no-coverage
-```
-
-### Step 4 — Commit with Conventional Commit
-```bash
-git add <specific files — never git add -A>
-git commit -m "feat(<context>): <short description> (M0X-SYY)"
-# Append Co-Authored-By trailer
-```
-
-### Step 5 — Push (pre-push hook runs ci:fast automatically)
-```bash
-git push -u origin feat/M0X-SYY-<short-description>
-# ci:fast = lint + prettier + type-check + unit tests (~15s)
-```
-If ci:fast fails, fix before continuing.
-
-### Step 6 — Run ci:local before opening the PR
-```bash
-pnpm ci:local   # ~5 min — Docker must be running
-# Runs: lint → type-check → unit tests → integration tests →
-#        gitleaks (Docker) → docker build ×3 → trivy ×3
-```
-Fix any failures before opening the PR.
-
-### Step 7 — Open the PR
-```bash
-gh pr create \
-  --title "feat(platform): <description> (M0X-SYY)" \
-  --body "$(cat <<'EOF'
-## Summary
-- <bullet points>
-
-## Story
-M0X-SYY — <title>
-
-## Test plan
-- [ ] Unit tests pass
-- [ ] Type-check clean
-- [ ] ci:local green
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-EOF
-)" \
-  --repo lmmoreira/beloauto
-```
-
-### Step 8 — Monitor CI and self-fix
-```bash
-gh pr checks <PR-number> --repo lmmoreira/beloauto
-# If any check fails:
-gh run view <run-id> --repo lmmoreira/beloauto --log-failed
-# Fix → commit → push → re-check until all green
-```
-
-### Step 9 — Merge once all checks are green
-```bash
-gh pr merge <PR-number> --repo lmmoreira/beloauto --squash --delete-branch
-```
-
-### Step 10 — Mark story done (AFTER merge, not before)
-In `plan/M0X-<NAME>.md`:
-```
-### M0X-SYY — title  →  ### M0X-SYY — title ✅ Done
-```
-
-### Step 11 — If ALL stories in milestone are now Done: create wrap-up docs
-See CLAUDE.md §15 item 16 for the two wrap-up files to create.
+→ Canonical workflow is in **CLAUDE.md §9** (steps 1–12 with exact commands). Do not duplicate here.
 
 ---
 
-## 12. Workspace Dependency Graph
+## 15. Workspace Dependency Graph
 
 ```
 packages/config  ←  apps/backend (devDep)

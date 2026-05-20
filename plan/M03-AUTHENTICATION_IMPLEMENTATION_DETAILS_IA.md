@@ -90,7 +90,7 @@ Fixed in M03-S07 (was hardcoded). Every second `save()` would silently upsert th
 Only the 404 branch is exercised by controller tests. Create `xxx-error.mapper.spec.ts` to cover all 4 branches: domain-specific error → 4xx, generic domain error → 400, `Error` re-throw, unknown → wrapped `Error`.
 
 **#13 — Inactive staff (isActive=false) flow**
-`findByGoogleOAuthId` finds staff only if `googleOAuthId` is set. Invited-but-not-yet-activated staff have `googleOAuthId=null` → `findByGoogleOAuthId` returns null → BFF redirects to `not-a-staff-member`. Deactivated staff (previously active → googleOAuthId set, isActive=false) → BFF redirects to `/auth/first-login?staffId=<id>` (UC-025, M04).
+`findByGoogleOAuthId` finds staff only if `googleOAuthId` is set. Invited-but-not-yet-activated staff have `googleOAuthId=null` → `findByGoogleOAuthId` returns null → BFF redirects to `not-a-staff-member`. Deactivated staff (previously active → googleOAuthId set, isActive=false) → BFF redirects to `/auth/first-login?staffId=<id>`. Activation flow (UC-025) implemented in M04-S01.
 
 **#14 — `.catch(() => null)` antipattern for backend HTTP calls**
 Only catch 404 specifically. `.catch(err => { if (err instanceof HttpException && err.getStatus() === 404) return null; throw err; })` — avoids swallowing 5xx/timeouts.
@@ -128,7 +128,7 @@ GET /auth/google?type=staff
   → state=__staff__ → Google → callback
   → GET /internal/staff/by-oauth?googleOAuthId=<sub>
   → 404 (not found) → /auth/error?reason=not-a-staff-member
-  → found, isActive=false → /auth/first-login?staffId=<id>  (UC-025, M04)
+  → found, isActive=false → /auth/first-login?staffId=<id>  (UC-025 — implemented M04-S01)
   → found, isActive=true  → GET /internal/tenants/:tenantId → JWT { sub: staffId, role: STAFF|MANAGER }
 ```
 

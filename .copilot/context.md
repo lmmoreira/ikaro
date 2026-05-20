@@ -9,14 +9,16 @@
 
 ## 0. Permission Protocol (non-negotiable)
 
-Before writing or editing ANY file (`.md`, `.ts`, `.tf`, `.yml`, configs):
+Before writing or editing any **documentation or architecture file** (`.md`, `.tf`, `.yml`, configs):
 
 1. **Discuss** the change with the user.
 2. **Summarise** what you intend to write.
 3. **Ask:** "May I now create/update `<path>`?"
 4. **Write only after** an explicit yes.
 
-Exceptions: read-only ops (`Read`, `grep`, `ls`, `git status`, memory files).
+**Exception — code files within an approved story:** Once a story spec has been discussed and agreed, create all its `.ts` source and test files autonomously without asking per-file. The permission gate applies to `.md` docs, architecture docs, Terraform, and CI/CD config — not to code within an approved implementation.
+
+Exceptions always: read-only ops (`Read`, `grep`, `ls`, `git status`, memory files).
 
 ---
 
@@ -80,10 +82,10 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 |---|---|---|---|
 | **Booking** | Core | `Booking`, `Service`, `ScheduleClosure` | `BookingRequested/Approved/Rejected/InfoRequested/InfoSubmitted/Completed/Cancelled/Rescheduled` + `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` |
 | **Customer** | Supporting | `Customer` (multi-tenant rows) | — |
-| **Staff** | Supporting | `Staff` (single-tenant) | — |
+| **Staff** | Supporting | `Staff` (single-tenant) | `StaffInvited`, `StaffDeactivated` |
 | **Loyalty** | Supporting | `LoyaltyEntry` (append-only, earn-only) | `ServicePointsEarned`, `PointsExpiringSoon` |
 | **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` | `EmailSent`, `EmailFailed` |
-| **Platform** | Foundational | `Tenant`, `HotsiteConfig` | `TenantProvisioned`, `StaffInvited`, `StaffDeactivated` |
+| **Platform** | Foundational | `Tenant`, `HotsiteConfig` | `TenantProvisioned` |
 
 **Loyalty MVP rules (strict):** One immutable `LoyaltyEntry` per `BookingLine` completed. Idempotent via `UNIQUE(tenant_id, booking_line_id)`. Active balance = `SUM(points) WHERE expires_at > now()`. No redemption, no tiers, no manual adjustments.
 
@@ -200,7 +202,7 @@ Aggregate **props interfaces use VO types**, not plain primitives. **Getters ret
 ### Code standards
 - `strict: true` TypeScript — no `any`, no `@ts-ignore`, no `// eslint-disable`
 - Functions ≤ 20 lines, classes ≤ 200 lines
-- Repository signature: `findByTenant(id, tenantId)`, `findAllByTenant(tenantId, filters)`, `save(entity, tenantId)`
+- Repository signature: `findById(id, tenantId)`, `findAllByTenant(tenantId, filters)`, `save(entity)`
 - No raw SQL outside repository adapters
 - No business logic in controllers — controllers call use cases only
 - No direct cross-context calls — data flows through the hierarchy described in "Cross-context data access" below
@@ -217,7 +219,7 @@ Aggregate **props interfaces use VO types**, not plain primitives. **Getters ret
 - **Domain error messages are English only.** pt-BR copy in UC specs is frontend UI copy — it never goes in domain error constructors. All existing domain errors (`StaffNotFoundError`, etc.) are English; follow the same pattern.
 - **Zod v4 format validators:** use `z.uuid()` and `z.email()` — never `z.string().uuid()` / `z.string().email()`. The chained forms are deprecated in Zod v4 and flagged by SonarCloud as issues.
 - **Domain events belong in the publishing context.** Define `StaffInvited`, `StaffDeactivated` etc. in `staff/domain/events/`, not in `platform/`. Duplicate class definitions across contexts cause SonarCloud duplication failures. When moving an event from the wrong context, verify no imports remain before deleting.
-- **Aggregate-driven events (mandatory):** Aggregates record domain events via `this.addDomainEvent()` inside their domain methods. Use cases flush via `aggregate.clearDomainEvents()` **after** `txManager.run()` completes — never construct or publish events directly from a use case. The `AggregateRoot` base class provides `addDomainEvent()` and `clearDomainEvents()` — always use them.
+- **Aggregate-driven events (mandatory — no exceptions):** Aggregates record domain events via `this.addDomainEvent()` inside their domain methods — including system-initiated factory methods like `inviteFromProvisioning()`. Use cases flush via `aggregate.clearDomainEvents()` **after** `txManager.run()` completes. **Never** construct or publish events directly from a use case — not even when there is no `TenantContext` (pass `correlationId` as a parameter to the factory method instead). The `AggregateRoot` base class provides `addDomainEvent()` and `clearDomainEvents()` — always use them.
 - **Thin vs fat events:** if the data needed by subscribers is persistently stored on the entity, the event carries only the ID — subscribers query for the rest. If the data is transient (not stored in the entity, or represents state at a specific point in time that may change before the subscriber runs), it must be in the event payload. Example: `StaffInvited` is thin (`staffId` only) because name/email/invitedBy are now stored on the entity. `TenantProvisioned` is fat because `adminEmail` is not stored on `Tenant`.
 - **`correlationId` in domain events must come from `TenantContext.correlationId`**, not from `uuidv7()`. Pass it from the use case into the aggregate method that records the event. For `/internal` routes (no `TenantContext`), generate one `uuidv7()` at the top of the use case and pass it through — never re-generate it per event.
 - **Domain error base classes must include `Object.setPrototypeOf(this, new.target.prototype)`** immediately after `super()`. Without it, `instanceof` checks silently fail in compiled TypeScript — error mappers fall through to 500 instead of the correct 4xx. Every `XxxDomainError extends Error` base class needs this line.
@@ -421,7 +423,7 @@ Once all CI checks are green, ask: *"All checks are green on PR #N. Have you rev
 Run `/mark-done M0X-SYY`. The skill updates the plan file, commits to main, and alerts if all stories in the milestone are now done.
 
 ### Step 12 — Milestone complete? Create wrap-up docs
-If every story in the milestone is now `✅ Done`, see §15 item 15 for the two wrap-up files to create.
+If every story in the milestone is now `✅ Done`, see §15 item 7 for the two wrap-up files to create.
 
 ---
 
@@ -469,7 +471,7 @@ If every story in the milestone is now `✅ Done`, see §15 item 15 for the two 
 │   ├── backend/          # NestJS modular monolith
 │   │   └── src/contexts/ # booking/ customer/ staff/ loyalty/ notification/ platform/
 │   ├── bff/              # NestJS BFF (separate service, own container)
-│   └── web/              # Next.js 14 (hotsite + dashboard)
+│   └── web/              # Next.js 16 (hotsite + dashboard)
 ├── packages/
 │   ├── types/            # shared TypeScript types / DTOs
 │   └── config/           # shared ESLint, tsconfig, Prettier configs
@@ -494,7 +496,7 @@ If every story in the milestone is now `✅ Done`, see §15 item 15 for the two 
 ### Shared folder — cross-cutting concerns ONLY (`apps/backend/src/shared/`)
 ```
 src/shared/
-├── ports/            # IEventBus, IEmailSender, IRepository<T>
+├── ports/            # IEventBus, IRepository<T>
 ├── domain/           # AggregateRoot, DomainEvent, ValueObject (base classes)
 ├── value-objects/    # Money, Address (used by multiple contexts)
 ├── tenant/           # TenantContext (request-scoped), TenantInterceptor
