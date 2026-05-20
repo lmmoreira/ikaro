@@ -4,7 +4,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { StaffInvited } from '../../domain/events/staff-invited.event';
 import { Staff } from '../../domain/staff.aggregate';
 import { IStaffRepository, STAFF_REPOSITORY } from '../ports/staff-repository.port';
 
@@ -32,13 +31,15 @@ export class CreateInitialManagerUseCase {
     const existing = await this.staffRepo.findByTenantAndEmail(tenantId, adminEmail);
     if (existing) return { staffId: existing.id };
 
-    const staff = Staff.inviteFromProvisioning(tenantId, adminEmail);
+    const staff = Staff.inviteFromProvisioning(tenantId, adminEmail, correlationId);
 
     await this.txManager.run(async () => {
       await this.staffRepo.save(staff);
     });
 
-    await this.eventBus.publish(new StaffInvited(tenantId, correlationId, { staffId: staff.id }));
+    for (const event of staff.clearDomainEvents()) {
+      await this.eventBus.publish(event);
+    }
 
     return { staffId: staff.id };
   }

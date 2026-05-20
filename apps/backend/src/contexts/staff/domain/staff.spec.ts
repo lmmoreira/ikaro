@@ -93,7 +93,7 @@ describe('Staff', () => {
 
   describe('inviteFromProvisioning()', () => {
     it('creates a MANAGER with isActive=false, null googleOAuthId, null name, invitedBy=SYSTEM_ACTOR_ID', () => {
-      const staff = Staff.inviteFromProvisioning('tenant-1', 'admin@lavacar.com.br');
+      const staff = Staff.inviteFromProvisioning('tenant-1', 'admin@lavacar.com.br', 'corr-1');
       expect(staff.tenantId).toBe('tenant-1');
       expect(staff.email).toBeInstanceOf(Email);
       expect(staff.email.address).toBe('admin@lavacar.com.br');
@@ -106,19 +106,23 @@ describe('Staff', () => {
       expect(staff.id).toBeDefined();
     });
 
-    it('does not record any domain events', () => {
-      const staff = Staff.inviteFromProvisioning('tenant-1', 'admin@lavacar.com.br');
-      expect(staff.clearDomainEvents()).toHaveLength(0);
+    it('records a StaffInvited domain event with the provided correlationId', () => {
+      const staff = Staff.inviteFromProvisioning('tenant-1', 'admin@lavacar.com.br', 'corr-prov');
+      const events = staff.clearDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0].eventName).toBe('StaffInvited');
+      expect(events[0].tenantId).toBe('tenant-1');
+      expect(events[0].correlationId).toBe('corr-prov');
     });
 
     it('throws when tenantId is empty', () => {
-      expect(() => Staff.inviteFromProvisioning('', 'admin@lavacar.com.br')).toThrow(
+      expect(() => Staff.inviteFromProvisioning('', 'admin@lavacar.com.br', 'corr-1')).toThrow(
         StaffDomainError,
       );
     });
 
     it('throws when email is invalid', () => {
-      expect(() => Staff.inviteFromProvisioning('tenant-1', 'not-an-email')).toThrow(
+      expect(() => Staff.inviteFromProvisioning('tenant-1', 'not-an-email', 'corr-1')).toThrow(
         StaffDomainError,
       );
     });

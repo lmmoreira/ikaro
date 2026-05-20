@@ -100,12 +100,12 @@ export class Staff extends AggregateRoot {
     return staff;
   }
 
-  static inviteFromProvisioning(tenantId: string, email: string): Staff {
+  static inviteFromProvisioning(tenantId: string, email: string, correlationId: string): Staff {
     if (!tenantId) throw new StaffDomainError('tenantId is required');
     if (!Email.isValid(email)) throw new StaffDomainError('email must be a valid email address');
 
     const now = new Date();
-    return new Staff({
+    const staff = new Staff({
       id: uuidv7(),
       tenantId,
       googleOAuthId: null,
@@ -118,6 +118,10 @@ export class Staff extends AggregateRoot {
       createdAt: now,
       updatedAt: now,
     });
+
+    staff.addDomainEvent(new StaffInvited(tenantId, correlationId, { staffId: staff.id }));
+
+    return staff;
   }
 
   static reconstitute(props: StaffProps): Staff {
