@@ -158,7 +158,7 @@ Implement the use case and endpoint for creating a new service. Only MANAGER or 
 
 ---
 
-### M05-S05 — UC-013: Admin edits/deactivates service + public list endpoint
+### M05-S05 — UC-013: Admin edits/deactivates service + public list endpoint ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
