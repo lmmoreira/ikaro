@@ -86,7 +86,7 @@ CHECK (
 
 ---
 
-### M06-S02 — UC-010a/b: Admin manages schedule closures (full-day + partial)
+### M06-S02 — UC-010a/b: Admin manages schedule closures (full-day + partial) ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
