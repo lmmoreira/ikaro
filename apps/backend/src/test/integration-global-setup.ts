@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { GenericContainer, Wait } from 'testcontainers';
 import { DataSource } from 'typeorm';
+import { ServiceEntity } from '../contexts/booking/infrastructure/entities/service.entity';
+import { CreateBookingServices1748000000011 } from '../contexts/booking/infrastructure/migrations/1748000000011-CreateBookingServices';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -49,6 +51,7 @@ export default async function globalSetup(): Promise<void> {
     entities: [
       TenantEntity,
       HotsiteConfigEntity,
+      ServiceEntity,
       CustomerEntity,
       StaffEntity,
       NotificationLogEntity,
@@ -63,6 +66,7 @@ export default async function globalSetup(): Promise<void> {
       AddUniqueEmailPerTenant1716600000004,
       AddInvitedByDeactivatedByToStaff1748000000001,
       CreateNotificationLogs1748000000010,
+      CreateBookingServices1748000000011,
     ],
     synchronize: false,
     migrationsRun: false,

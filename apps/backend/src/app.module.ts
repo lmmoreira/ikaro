@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BookingModule } from './contexts/booking/booking.module';
 import { CustomerModule } from './contexts/customer/customer.module';
 import { NotificationModule } from './contexts/notification/notification.module';
 import { PlatformModule } from './contexts/platform/platform.module';
@@ -30,6 +31,7 @@ import { TenantModule } from './shared/tenant/tenant.module';
     TransactionManagerModule,
     TenantModule,
     PlatformModule,
+    BookingModule,
     CustomerModule,
     StaffModule,
     NotificationModule,

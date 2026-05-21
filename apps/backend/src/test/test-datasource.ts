@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
+import { ServiceEntity } from '../contexts/booking/infrastructure/entities/service.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
@@ -25,6 +26,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     entities: [
       TenantEntity,
       HotsiteConfigEntity,
+      ServiceEntity,
       CustomerEntity,
       StaffEntity,
       NotificationLogEntity,
