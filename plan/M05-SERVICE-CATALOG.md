@@ -111,7 +111,7 @@ Implement the infrastructure adapter for the Service aggregate: TypeORM entity, 
 
 ---
 
-### M05-S04 — UC-012: Admin creates service
+### M05-S04 — UC-012: Admin creates service ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
