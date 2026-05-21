@@ -11,7 +11,7 @@
 
 ---
 
-### M05-S01 — Service aggregate domain layer
+### M05-S01 — Service aggregate domain layer ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
