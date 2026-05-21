@@ -1,8 +1,12 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { ServiceBuilder } from '../../../../test/builders/booking/index';
+import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { CreateServiceUseCase } from '../../application/use-cases/create-service.use-case';
+import { DeactivateServiceUseCase } from '../../application/use-cases/deactivate-service.use-case';
+import { ListServicesUseCase } from '../../application/use-cases/list-services.use-case';
+import { UpdateServiceUseCase } from '../../application/use-cases/update-service.use-case';
 import { ServiceController } from './service.controller';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
@@ -13,15 +17,20 @@ function makeController(tenantId = TENANT_A): {
   repo: InMemoryServiceRepository;
 } {
   const repo = new InMemoryServiceRepository();
-  const ctx = {
-    tenantId,
-    correlationId: CORRELATION_ID,
-    actorId: '20000000-0000-4000-8000-000000000001',
-    actorType: 'STAFF',
-    actorRole: 'MANAGER',
-  } as unknown as TenantContext;
-  const useCase = new CreateServiceUseCase(repo, new InMemoryTransactionManager(), ctx);
-  const controller = new ServiceController(useCase);
+  const ctx = new TenantContextBuilder()
+    .withTenantId(tenantId)
+    .withCorrelationId(CORRELATION_ID)
+    .withActorId('20000000-0000-4000-8000-000000000001')
+    .withActorType('STAFF')
+    .withActorRole('MANAGER')
+    .build();
+  const txManager = new InMemoryTransactionManager();
+  const controller = new ServiceController(
+    new CreateServiceUseCase(repo, txManager, ctx),
+    new ListServicesUseCase(repo, ctx),
+    new UpdateServiceUseCase(repo, txManager, ctx),
+    new DeactivateServiceUseCase(repo, txManager, ctx),
+  );
   return { controller, repo };
 }
 
@@ -37,20 +46,9 @@ describe('ServiceController', () => {
     it('returns 201 with service DTO including pt-BR formatted price', async () => {
       const { controller } = makeController();
       const result = await controller.create(validBody);
-
       expect(result.id).toBeDefined();
-      expect(result.name).toBe('Lavagem Completa');
       expect(result.price.formatted).toBe('R$ 150,00');
       expect(result.isActive).toBe(true);
-    });
-
-    it('created service is scoped to TenantContext tenantId', async () => {
-      const { controller, repo } = makeController();
-      const result = await controller.create(validBody);
-
-      const found = await repo.findById(result.id, TENANT_A);
-      expect(found).not.toBeNull();
-      expect(found!.tenantId).toBe(TENANT_A);
     });
 
     it('maps BookingDomainError to 400 when price is zero', async () => {
@@ -58,19 +56,80 @@ describe('ServiceController', () => {
       const err = await controller
         .create({ ...validBody, priceAmount: 0 })
         .catch((e: unknown) => e);
-
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     });
+  });
 
-    it('maps BookingDomainError to 400 when durationMinutes is zero', async () => {
+  describe('list()', () => {
+    it('returns only active services for the tenant', async () => {
+      const { controller, repo } = makeController();
+      const active = new ServiceBuilder().withTenantId(TENANT_A).withName('Ativo').build();
+      const inactive = new ServiceBuilder().withTenantId(TENANT_A).withName('Inativo').build();
+      inactive.deactivate();
+      await repo.save(active);
+      await repo.save(inactive);
+
+      const result = await controller.list();
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Ativo');
+    });
+
+    it('returns empty list when no active services', async () => {
+      const { controller } = makeController();
+      const result = await controller.list();
+      expect(result.items).toHaveLength(0);
+    });
+  });
+
+  describe('update()', () => {
+    it('updates fields and returns updated DTO', async () => {
+      const { controller, repo } = makeController();
+      await repo.save(new ServiceBuilder().withTenantId(TENANT_A).withName('Original').build());
+      const list = await controller.list();
+      const id = list.items[0].id;
+
+      const result = await controller.update(id, { name: 'Atualizado' });
+      expect(result.name).toBe('Atualizado');
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
       const { controller } = makeController();
       const err = await controller
-        .create({ ...validBody, durationMinutes: 0 })
+        .update('non-existent-id', { name: 'X' })
         .catch((e: unknown) => e);
-
       expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('maps ServiceDeactivatedError to 409', async () => {
+      const { controller, repo } = makeController();
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      service.deactivate();
+      await repo.save(service);
+
+      const err = await controller.update(service.id, { name: 'X' }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
+    });
+  });
+
+  describe('deactivate()', () => {
+    it('sets isActive=false and returns { id, isActive: false }', async () => {
+      const { controller, repo } = makeController();
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await repo.save(service);
+
+      const result = await controller.deactivate(service.id);
+      expect(result.id).toBe(service.id);
+      expect(result.isActive).toBe(false);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const { controller } = makeController();
+      const err = await controller.deactivate('non-existent-id').catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
   });
 });

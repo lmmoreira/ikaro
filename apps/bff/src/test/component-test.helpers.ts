@@ -30,6 +30,7 @@ export type MockBackendHttpService = {
   post: jest.Mock;
   patch: jest.Mock;
   delete: jest.Mock;
+  getForPublic: jest.Mock;
 };
 
 export function makeObservableResponse<T>(data: T): Observable<AxiosResponse<T>> {
@@ -87,6 +88,7 @@ export async function createTestApp(): Promise<{
     post: jest.fn(),
     patch: jest.fn(),
     delete: jest.fn(),
+    getForPublic: jest.fn(),
   };
 
   const module: TestingModule = await Test.createTestingModule({

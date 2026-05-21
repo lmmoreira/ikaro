@@ -15,6 +15,16 @@
 @serviceId = 30000000-0000-4000-8000-000000000001
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — list services (public — no actor required)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### List active services for a tenant (public)
+GET {{baseUrl}}/services
+X-Tenant-ID: {{tenantId}}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — create service (UC-012)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -56,6 +66,52 @@ X-Actor-Role: STAFF
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — update service (UC-013)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Update service name and price (partial update)
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "name": "Lavagem Completa Premium",
+  "priceAmount": 175
+}
+
+###
+
+### Clear description (set to null)
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "description": null
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — deactivate service (UC-013)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Deactivate a service (logical delete — row is preserved)
+DELETE {{baseUrl}}/services/{{serviceId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -95,8 +151,8 @@ X-Actor-Role: MANAGER
 
 ###
 
-### 400 — Zero duration
-POST {{baseUrl}}/services
+### 404 — Service not found
+PATCH {{baseUrl}}/services/00000000-0000-4000-8000-000000000099
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{actorId}}
@@ -104,8 +160,19 @@ X-Actor-Type: STAFF
 X-Actor-Role: MANAGER
 
 {
-  "name": "Lavagem Simples",
-  "priceAmount": 80,
-  "durationMinutes": 0,
-  "loyaltyPointsValue": 5
+  "name": "X"
+}
+
+###
+
+### 409 — Update on deactivated service
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "name": "Tentativa apos desativacao"
 }

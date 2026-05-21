@@ -15,3 +15,7 @@ export interface ServiceResponse {
   isActive: boolean;
   createdAt: string;
 }
+
+export interface ServiceListResponse {
+  items: ServiceResponse[];
+}

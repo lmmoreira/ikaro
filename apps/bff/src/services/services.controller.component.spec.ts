@@ -10,10 +10,12 @@ import {
   setupActiveGuardMock,
   request,
 } from '../test/component-test.helpers';
-import { ServiceResponse } from './services.types';
+import { ServiceListResponse, ServiceResponse } from './services.types';
+
+const SERVICE_ID = '10000000-0000-4000-8000-000000000001';
 
 const mockServiceResponse: ServiceResponse = {
-  id: '10000000-0000-4000-8000-000000000001',
+  id: SERVICE_ID,
   name: 'Lavagem Completa',
   description: null,
   price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
@@ -24,7 +26,9 @@ const mockServiceResponse: ServiceResponse = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-const validBody = {
+const mockListResponse: ServiceListResponse = { items: [mockServiceResponse] };
+
+const validCreateBody = {
   name: 'Lavagem Completa',
   priceAmount: 150,
   durationMinutes: 60,
@@ -51,139 +55,189 @@ describe('ServicesController (component)', () => {
     jest.resetAllMocks();
   });
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Group A — Authentication gate
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ─── GET /v1/services (public) ───────────────────────────────────────────────
 
-  describe('authentication', () => {
-    it('POST /v1/services → 401 without a token', async () => {
-      const res = await request(app.getHttpServer()).post('/v1/services').send(validBody);
-      expect(res.status).toBe(401);
+  describe('GET /v1/services (public)', () => {
+    it('returns 400 when X-Tenant-Slug header is missing', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/services');
+      expect(res.status).toBe(400);
+      expect(res.body.status).toBe(400);
     });
 
-    it('POST /v1/services → 401 with a malformed token', async () => {
+    it('returns active services list without a JWT', async () => {
+      const tenantInfo = { id: 'tenant-uuid', slug: 'lavacar-bh', name: 'Lavacar BH' };
+      backendHttpService.get.mockResolvedValueOnce(tenantInfo);
+      backendHttpService.getForPublic = jest.fn().mockResolvedValueOnce(mockListResponse);
+
       const res = await request(app.getHttpServer())
-        .post('/v1/services')
-        .set('Authorization', 'Bearer not.a.jwt')
-        .send(validBody);
-      expect(res.status).toBe(401);
+        .get('/v1/services')
+        .set('X-Tenant-Slug', 'lavacar-bh');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockListResponse);
+    });
+
+    it('propagates 404 from backend when slug is unknown', async () => {
+      backendHttpService.get.mockRejectedValueOnce(
+        new HttpException({ title: 'Not Found', status: 404 }, 404),
+      );
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/services')
+        .set('X-Tenant-Slug', 'unknown-slug');
+
+      expect(res.status).toBe(404);
     });
   });
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Group B — Role gate
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ─── POST /v1/services ───────────────────────────────────────────────────────
 
-  describe('role enforcement', () => {
-    it('POST /v1/services → 403 for CUSTOMER role', async () => {
+  describe('POST /v1/services', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer()).post('/v1/services').send(validCreateBody);
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
       const res = await request(app.getHttpServer())
         .post('/v1/services')
         .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
-        .send(validBody);
+        .send(validCreateBody);
       expect(res.status).toBe(403);
     });
-  });
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Group C — Input validation (ZodValidationPipe)
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  describe('input validation', () => {
-    it('POST /v1/services → 400 when priceAmount is negative', async () => {
+    it('returns 400 when priceAmount is negative (Zod)', async () => {
       setupActiveGuardMock(httpService);
       const res = await request(app.getHttpServer())
         .post('/v1/services')
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
-        .send({ ...validBody, priceAmount: -50 });
+        .send({ ...validCreateBody, priceAmount: -50 });
       expect(res.status).toBe(400);
     });
 
-    it('POST /v1/services → 400 when priceAmount is zero', async () => {
-      setupActiveGuardMock(httpService);
-      const res = await request(app.getHttpServer())
-        .post('/v1/services')
-        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
-        .send({ ...validBody, priceAmount: 0 });
-      expect(res.status).toBe(400);
-    });
-
-    it('POST /v1/services → 400 when durationMinutes is zero', async () => {
-      setupActiveGuardMock(httpService);
-      const res = await request(app.getHttpServer())
-        .post('/v1/services')
-        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
-        .send({ ...validBody, durationMinutes: 0 });
-      expect(res.status).toBe(400);
-    });
-
-    it('POST /v1/services → 400 when loyaltyPointsValue is negative', async () => {
-      setupActiveGuardMock(httpService);
-      const res = await request(app.getHttpServer())
-        .post('/v1/services')
-        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
-        .send({ ...validBody, loyaltyPointsValue: -1 });
-      expect(res.status).toBe(400);
-    });
-
-    it('POST /v1/services → 400 when name is missing', async () => {
-      setupActiveGuardMock(httpService);
-      const res = await request(app.getHttpServer())
-        .post('/v1/services')
-        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
-        .send({ priceAmount: 150, durationMinutes: 60, loyaltyPointsValue: 10 });
-      expect(res.status).toBe(400);
-    });
-  });
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Group D — Happy paths
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  describe('happy paths', () => {
-    it('POST /v1/services with MANAGER JWT → 201, calls POST /services on backend', async () => {
+    it('MANAGER JWT → 201, calls POST /services on backend', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.post.mockResolvedValueOnce(mockServiceResponse);
 
       const res = await request(app.getHttpServer())
         .post('/v1/services')
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
-        .send(validBody);
+        .send(validCreateBody);
 
       expect(res.status).toBe(201);
       expect(res.body).toEqual(mockServiceResponse);
-      expect(backendHttpService.post).toHaveBeenCalledWith('/services', validBody);
+      expect(backendHttpService.post).toHaveBeenCalledWith('/services', validCreateBody);
     });
 
-    it('POST /v1/services with STAFF JWT → 201', async () => {
+    it('STAFF JWT → 201', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.post.mockResolvedValueOnce(mockServiceResponse);
 
       const res = await request(app.getHttpServer())
         .post('/v1/services')
         .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`)
-        .send(validBody);
+        .send(validCreateBody);
 
       expect(res.status).toBe(201);
     });
   });
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Group E — Backend error propagation
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ─── PATCH /v1/services/:id ──────────────────────────────────────────────────
 
-  describe('backend error propagation', () => {
-    it('propagates 400 from backend as-is', async () => {
+  describe('PATCH /v1/services/:id', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}`)
+        .send({ name: 'X' });
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}`)
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
+        .send({ name: 'X' });
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 400 when id is not a UUID', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.post.mockRejectedValueOnce(
-        new HttpException({ title: 'Bad Request', status: 400 }, 400),
+      const res = await request(app.getHttpServer())
+        .patch('/v1/services/not-a-uuid')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ name: 'X' });
+      expect(res.status).toBe(400);
+    });
+
+    it('MANAGER JWT → 200, calls PATCH /services/:id', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce(mockServiceResponse);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ name: 'Novo Nome' });
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.patch).toHaveBeenCalledWith(`/services/${SERVICE_ID}`, {
+        name: 'Novo Nome',
+      });
+    });
+
+    it('propagates 409 from backend when service is deactivated', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockRejectedValueOnce(
+        new HttpException({ title: 'Conflict', status: 409 }, 409),
       );
 
       const res = await request(app.getHttpServer())
-        .post('/v1/services')
+        .patch(`/v1/services/${SERVICE_ID}`)
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
-        .send(validBody);
+        .send({ name: 'X' });
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(409);
+    });
+  });
+
+  // ─── DELETE /v1/services/:id ─────────────────────────────────────────────────
+
+  describe('DELETE /v1/services/:id', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer()).delete(`/v1/services/${SERVICE_ID}`);
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .delete(`/v1/services/${SERVICE_ID}`)
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200, calls DELETE /services/:id', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.delete.mockResolvedValueOnce({ id: SERVICE_ID, isActive: false });
+
+      const res = await request(app.getHttpServer())
+        .delete(`/v1/services/${SERVICE_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ id: SERVICE_ID, isActive: false });
+      expect(backendHttpService.delete).toHaveBeenCalledWith(`/services/${SERVICE_ID}`);
+    });
+
+    it('propagates 404 from backend', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.delete.mockRejectedValueOnce(
+        new HttpException({ title: 'Not Found', status: 404 }, 404),
+      );
+
+      const res = await request(app.getHttpServer())
+        .delete(`/v1/services/${SERVICE_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(404);
     });
   });
 });

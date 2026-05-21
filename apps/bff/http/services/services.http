@@ -10,6 +10,17 @@
 # REST Client environment: select "local" in VS Code status bar
 
 @bffUrl = {{bffUrl}}
+@serviceId = 10000000-0000-4000-8000-000000000001
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — list active services (public — no JWT required)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### List active services for a tenant by slug (no auth required)
+GET {{bffUrl}}/v1/services
+X-Tenant-Slug: lavacar-bh
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — create service (UC-012)
@@ -47,8 +58,50 @@ Authorization: Bearer {{staffJwt}}
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — update service (UC-013)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Update service name and price (partial update)
+PATCH {{bffUrl}}/v1/services/{{serviceId}}
+Content-Type: application/json
+Authorization: Bearer {{managerJwt}}
+
+{
+  "name": "Lavagem Completa Premium",
+  "priceAmount": 175
+}
+
+###
+
+### Clear description (set to null)
+PATCH {{bffUrl}}/v1/services/{{serviceId}}
+Content-Type: application/json
+Authorization: Bearer {{managerJwt}}
+
+{
+  "description": null
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — deactivate service (UC-013)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Deactivate a service (logical delete)
+DELETE {{bffUrl}}/v1/services/{{serviceId}}
+Authorization: Bearer {{managerJwt}}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### 400 — Missing X-Tenant-Slug on public list
+GET {{bffUrl}}/v1/services
 
 ###
 
@@ -66,20 +119,6 @@ Authorization: Bearer {{managerJwt}}
 
 ###
 
-### 400 — Zero durationMinutes (Zod validation at BFF)
-POST {{bffUrl}}/v1/services
-Content-Type: application/json
-Authorization: Bearer {{managerJwt}}
-
-{
-  "name": "Lavagem Simples",
-  "priceAmount": 80,
-  "durationMinutes": 0,
-  "loyaltyPointsValue": 5
-}
-
-###
-
 ### 403 — CUSTOMER JWT not allowed
 POST {{bffUrl}}/v1/services
 Content-Type: application/json
@@ -90,4 +129,15 @@ Authorization: Bearer {{customerJwt}}
   "priceAmount": 80,
   "durationMinutes": 30,
   "loyaltyPointsValue": 5
+}
+
+###
+
+### 409 — PATCH on deactivated service
+PATCH {{bffUrl}}/v1/services/{{serviceId}}
+Content-Type: application/json
+Authorization: Bearer {{managerJwt}}
+
+{
+  "name": "Tentativa após desativação"
 }

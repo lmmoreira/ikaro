@@ -2,7 +2,7 @@ import { StaffBuilder } from '../../../../test/builders/staff';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { StaffDeactivated } from '../../domain/events/staff-deactivated.event';
 import {
   LastActiveManagerError,
@@ -14,13 +14,6 @@ import { DeactivateStaffUseCase } from './deactivate-staff.use-case';
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
 const CORRELATION_ID = 'corr-deactivate-test';
-
-function makeTenantContext(): TenantContext {
-  return {
-    tenantId: TENANT_A,
-    correlationId: CORRELATION_ID,
-  } as unknown as TenantContext;
-}
 
 describe('DeactivateStaffUseCase', () => {
   let repo: InMemoryStaffRepository;
@@ -34,7 +27,7 @@ describe('DeactivateStaffUseCase', () => {
       repo,
       new InMemoryTransactionManager(),
       eventBus,
-      makeTenantContext(),
+      new TenantContextBuilder().withTenantId(TENANT_A).withCorrelationId(CORRELATION_ID).build(),
     );
   });
 

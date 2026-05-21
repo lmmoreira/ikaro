@@ -1,22 +1,12 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { BookingDomainError } from '../../domain/errors/booking-domain.error';
 import { CreateServiceUseCase } from './create-service.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
 const CORRELATION_ID = 'corr-create-svc-test';
-
-function makeTenantContext(tenantId = TENANT_A): TenantContext {
-  return {
-    tenantId,
-    correlationId: CORRELATION_ID,
-    actorId: '20000000-0000-4000-8000-000000000001',
-    actorType: 'STAFF',
-    actorRole: 'MANAGER',
-  } as unknown as TenantContext;
-}
 
 const baseDto = {
   name: 'Lavagem Completa',
@@ -33,7 +23,17 @@ describe('CreateServiceUseCase', () => {
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    useCase = new CreateServiceUseCase(repo, new InMemoryTransactionManager(), makeTenantContext());
+    useCase = new CreateServiceUseCase(
+      repo,
+      new InMemoryTransactionManager(),
+      new TenantContextBuilder()
+        .withTenantId(TENANT_A)
+        .withCorrelationId(CORRELATION_ID)
+        .withActorId('20000000-0000-4000-8000-000000000001')
+        .withActorType('STAFF')
+        .withActorRole('MANAGER')
+        .build(),
+    );
   });
 
   it('creates a service and returns the full result DTO', async () => {

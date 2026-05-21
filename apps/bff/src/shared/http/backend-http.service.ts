@@ -56,6 +56,20 @@ export class BackendHttpService {
     );
   }
 
+  async getForPublic<T>(
+    path: string,
+    tenantId: string,
+    params?: Record<string, unknown>,
+  ): Promise<T> {
+    return this.call(
+      this.http.get<T>(`${this.baseUrl}${path}`, {
+        headers: { 'X-Tenant-ID': tenantId },
+        params,
+        timeout: 10_000,
+      }),
+    );
+  }
+
   private async call<T>(observable: Observable<AxiosResponse<T>>): Promise<T> {
     try {
       const { data } = await firstValueFrom(observable);

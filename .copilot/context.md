@@ -312,7 +312,11 @@ Event handlers live in `<context>/infrastructure/events/`. They are **infrastruc
 Three layers: **Unit** (`.spec.ts`, Jest) · **Integration** (`.integration.spec.ts`, Jest + Testcontainers singleton) · **E2E** (Playwright, happy paths only). Full details → `docs/08-TESTING_STRATEGY.md`.
 
 - TDD for domain logic. Every UC: ≥1 unit + ≥1 integration + ≥1 tenant-isolation test (Tenant A data, Tenant B access → 404/403).
-- **Builders mandatory** — `XxxEntityBuilder` in `src/test/builders/<context>/` for every TypeORM entity. `id` defaults to `uuidv7()`. Never construct entities inline.
+- **Builders mandatory for ALL test data** — use the builder class pattern for every piece of test data, not just TypeORM entities:
+  - TypeORM entities: `XxxEntityBuilder` in `src/test/builders/<context>/`. `id` defaults to `uuidv7()`. Never construct entities inline.
+  - Domain aggregates: `XxxBuilder` (e.g. `StaffBuilder`, `ServiceBuilder`) in `src/test/builders/<context>/`.
+  - Shared infrastructure stubs (e.g. `TenantContext`): `XxxBuilder` in `src/test/factories/`. Example: `TenantContextBuilder` at `src/test/factories/tenant-context.factory.ts`.
+  - **Never use a plain factory function** (`function makeFoo(...): Foo { return { ... } as Foo }`) — always a class with fluent `withXxx()` methods and a `build()` call. Consistency across the codebase is mandatory.
 - **InMemory doubles over `jest.fn()`** — `InMemoryEventBus`, `InMemoryTransactionManager`, `InMemoryXxxRepository` from `src/test/infrastructure/` + `src/test/repositories/`. Controller unit tests wire the real use case with in-memory repos; only use `jest.fn()` when no double exists (e.g. `BackendHttpService` in BFF).
 - **SonarCloud ingests lcov from unit tests only** — every new controller and use case needs a `.spec.ts`; integration tests alone don't count toward coverage.
 - No `.skip()`, `.only()`, `setTimeout` in tests.
@@ -366,6 +370,7 @@ Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Highest-severity pa
 | Business logic inside an event handler (`handle()` creates aggregates, calls repos, publishes events directly) | Handler is infrastructure — mixing logic bypasses the use case layer, skips transaction management, and makes the handler untestable in isolation | Handler calls exactly one use case; all logic lives there |
 | Using an in-memory set for Pub/Sub handler idempotency (`private processedEventIds = new Set()`) | Set is cleared on process restart and not shared across pods — duplicate messages get processed after any deploy or scale event | Idempotency via DB check in the use case (`findByXxx`) or the `processed_events` table (M11) |
 | Not overriding `EVENT_BUS` with `InMemoryEventBus` in controller integration specs | Controller boots `GcpPubSubEventBusAdapter` which connects to the emulator — gRPC timeouts fail every test if emulator is unreachable | Override `EVENT_BUS` with `new InMemoryEventBus()` in all controller integration specs that don't need end-to-end Pub/Sub routing |
+| Plain factory function for test data (`function makeTenantContext(): TenantContext { return {...} as TenantContext }`) | Inconsistent with the builder class pattern used everywhere else; harder to extend when new fields are added | Use a builder class with fluent `withXxx()` methods and `build()` — see `TenantContextBuilder` in `src/test/factories/` as the canonical example |
 
 ---
 

@@ -2,7 +2,7 @@ import { StaffBuilder } from '../../../../test/builders/staff';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { StaffInvited } from '../../domain/events/staff-invited.event';
 import { StaffAlreadyExistsError } from '../../domain/errors/staff-domain.error';
 import { InviteStaffUseCase } from './invite-staff.use-case';
@@ -11,16 +11,6 @@ const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
 const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
 const CORRELATION_ID = 'corr-invite-test';
-
-function makeTenantContext(): TenantContext {
-  return {
-    tenantId: TENANT_A,
-    correlationId: CORRELATION_ID,
-    actorId: MANAGER_ID,
-    actorType: 'STAFF',
-    actorRole: 'MANAGER',
-  } as unknown as TenantContext;
-}
 
 const baseDto = {
   tenantId: TENANT_A,
@@ -43,7 +33,13 @@ describe('InviteStaffUseCase', () => {
       repo,
       new InMemoryTransactionManager(),
       eventBus,
-      makeTenantContext(),
+      new TenantContextBuilder()
+        .withTenantId(TENANT_A)
+        .withCorrelationId(CORRELATION_ID)
+        .withActorId(MANAGER_ID)
+        .withActorType('STAFF')
+        .withActorRole('MANAGER')
+        .build(),
     );
   });
 
