@@ -84,7 +84,7 @@ INDEX (tenant_id, is_active)    ← for fast "active services for tenant" querie
 
 ---
 
-### M05-S03 — Service infrastructure (TypeORM + NestJS module)
+### M05-S03 — Service infrastructure (TypeORM + NestJS module) ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
