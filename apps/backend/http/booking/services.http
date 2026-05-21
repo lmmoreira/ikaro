@@ -1,0 +1,111 @@
+# Booking — Service endpoints
+# UC-012 (create), UC-013 (update, deactivate), list (public)
+# TenantContext is populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @beloauto/backend run migration:run
+#   3. pnpm --filter @beloauto/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+@tenantId = 10000000-0000-4000-8000-000000000001
+@actorId  = 20000000-0000-4000-8000-000000000001
+@serviceId = 30000000-0000-4000-8000-000000000001
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — create service (UC-012)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Create a new service (MANAGER role)
+POST {{baseUrl}}/services
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "name": "Lavagem Completa",
+  "description": "Lavagem exterior e interior completa",
+  "priceAmount": 150,
+  "durationMinutes": 60,
+  "loyaltyPointsValue": 10,
+  "requiresPickupAddress": false
+}
+
+###
+
+### Create a service with pickup address required (STAFF role)
+POST {{baseUrl}}/services
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+{
+  "name": "Lavagem Domiciliar",
+  "priceAmount": 200,
+  "durationMinutes": 90,
+  "loyaltyPointsValue": 15,
+  "requiresPickupAddress": true
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### 403 — CUSTOMER role not allowed
+POST {{baseUrl}}/services
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+
+{
+  "name": "Lavagem Simples",
+  "priceAmount": 80,
+  "durationMinutes": 30,
+  "loyaltyPointsValue": 5
+}
+
+###
+
+### 400 — Negative price
+POST {{baseUrl}}/services
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "name": "Lavagem Simples",
+  "priceAmount": -50,
+  "durationMinutes": 30,
+  "loyaltyPointsValue": 5
+}
+
+###
+
+### 400 — Zero duration
+POST {{baseUrl}}/services
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "name": "Lavagem Simples",
+  "priceAmount": 80,
+  "durationMinutes": 0,
+  "loyaltyPointsValue": 5
+}

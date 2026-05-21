@@ -1,0 +1,93 @@
+# BFF — Services endpoints
+# UC-012 (create), UC-013 (update, deactivate), public list
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @beloauto/backend run migration:run
+#   3. pnpm --filter @beloauto/backend run dev
+#   4. pnpm --filter @beloauto/bff run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@bffUrl = {{bffUrl}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — create service (UC-012)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Create a new service (MANAGER JWT required)
+POST {{bffUrl}}/v1/services
+Content-Type: application/json
+Authorization: Bearer {{managerJwt}}
+
+{
+  "name": "Lavagem Completa",
+  "description": "Lavagem exterior e interior completa",
+  "priceAmount": 150,
+  "durationMinutes": 60,
+  "loyaltyPointsValue": 10,
+  "requiresPickupAddress": false
+}
+
+###
+
+### Create a service using STAFF role JWT
+POST {{bffUrl}}/v1/services
+Content-Type: application/json
+Authorization: Bearer {{staffJwt}}
+
+{
+  "name": "Lavagem Domiciliar",
+  "priceAmount": 200,
+  "durationMinutes": 90,
+  "loyaltyPointsValue": 15,
+  "requiresPickupAddress": true
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### 400 — Negative priceAmount (Zod validation at BFF)
+POST {{bffUrl}}/v1/services
+Content-Type: application/json
+Authorization: Bearer {{managerJwt}}
+
+{
+  "name": "Lavagem Simples",
+  "priceAmount": -50,
+  "durationMinutes": 30,
+  "loyaltyPointsValue": 5
+}
+
+###
+
+### 400 — Zero durationMinutes (Zod validation at BFF)
+POST {{bffUrl}}/v1/services
+Content-Type: application/json
+Authorization: Bearer {{managerJwt}}
+
+{
+  "name": "Lavagem Simples",
+  "priceAmount": 80,
+  "durationMinutes": 0,
+  "loyaltyPointsValue": 5
+}
+
+###
+
+### 403 — CUSTOMER JWT not allowed
+POST {{bffUrl}}/v1/services
+Content-Type: application/json
+Authorization: Bearer {{customerJwt}}
+
+{
+  "name": "Lavagem Simples",
+  "priceAmount": 80,
+  "durationMinutes": 30,
+  "loyaltyPointsValue": 5
+}
