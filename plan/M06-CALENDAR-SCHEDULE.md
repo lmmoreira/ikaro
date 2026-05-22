@@ -259,7 +259,7 @@ Booking + tenant isolation scenarios:
 
 ---
 
-### M06-S06 — ScheduleOpening aggregate domain + migration
+### M06-S06 — ScheduleOpening aggregate domain + migration ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** S  

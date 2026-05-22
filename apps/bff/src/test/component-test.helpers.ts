@@ -8,6 +8,9 @@ import { JwtService } from '@nestjs/jwt';
 import { AppModule } from '../app.module';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { SelectionTokenService } from '../auth/selection-token.service';
+import { MockBackendHttpService } from './backend-http.mock';
+
+export type { MockBackendHttpService };
 
 export const BACKEND_URL = 'https://backend-test:3001';
 
@@ -23,15 +26,6 @@ export const TEST_JWT_SECRET =
 
 // HttpService mock — used by ActiveStaffGuard (which uses HttpService directly, not BackendHttpService)
 export type MockHttpService = jest.Mocked<Pick<HttpService, 'get' | 'post' | 'patch' | 'delete'>>;
-
-// BackendHttpService mock — used by all controllers via BackendHttpService.get/post/patch/delete
-export type MockBackendHttpService = {
-  get: jest.Mock;
-  post: jest.Mock;
-  patch: jest.Mock;
-  delete: jest.Mock;
-  getForPublic: jest.Mock;
-};
 
 export function makeObservableResponse<T>(data: T): Observable<AxiosResponse<T>> {
   return of({ data, status: 200, statusText: 'OK', headers: {}, config: {} as never });

@@ -11,6 +11,28 @@ const tenantResult: GetTenantByIdUseCaseResult = {
   id: TENANT_ID,
   name: 'Lava Car',
   slug: 'lavacar',
+  settings: {
+    loyalty: { expiry_days: 180, enable_notifications: true, expiry_warning_days: 7 },
+    booking: {
+      cancellation_window_hours: 48,
+      auto_approve_enabled: false,
+      min_booking_advance_hours: 0,
+      max_booking_advance_days: 90,
+      service_buffer_minutes: 0,
+      slot_granularity_minutes: 30,
+    },
+    business_hours: {
+      timezone: 'America/Sao_Paulo',
+      monday: { open: '09:00', close: '18:00' },
+      tuesday: { open: '09:00', close: '18:00' },
+      wednesday: { open: '09:00', close: '18:00' },
+      thursday: { open: '09:00', close: '18:00' },
+      friday: { open: '09:00', close: '18:00' },
+      saturday: { open: '09:00', close: '17:00' },
+      sunday: null,
+    },
+    localization: { currency: 'BRL', currency_symbol: 'R$', language: 'pt-BR', decimal_places: 2 },
+  },
 };
 
 describe('TenantInfoAdapter', () => {

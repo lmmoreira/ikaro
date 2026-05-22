@@ -1,16 +1,7 @@
-import { BackendHttpService } from '../shared/http/backend-http.service';
+import { makeBackendHttp } from '../test/backend-http.mock';
 import { StaffController } from './staff.controller';
 
 const STAFF_ID = '30000000-0000-4000-8000-000000000001';
-
-const makeBackendHttp = (overrides?: Partial<BackendHttpService>): BackendHttpService =>
-  ({
-    get: jest.fn(),
-    post: jest.fn(),
-    patch: jest.fn(),
-    delete: jest.fn(),
-    ...overrides,
-  }) as unknown as BackendHttpService;
 
 describe('StaffController', () => {
   describe('list()', () => {

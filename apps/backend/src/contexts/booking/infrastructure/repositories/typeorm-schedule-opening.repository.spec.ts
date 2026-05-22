@@ -70,6 +70,22 @@ describe('TypeOrmScheduleOpeningRepository', () => {
       expect(result!.endTime.value).toBe('14:00');
       expect(result!.notes).toBe('Special Sunday opening');
     });
+
+    it('maps HH:MM:SS time (as returned by PostgreSQL) to HH:MM via TimeOfDay normalisation', async () => {
+      const entity = new ScheduleOpeningEntityBuilder()
+        .withId(OPENING_ID)
+        .withTenantId(TENANT_ID)
+        .withDate('2026-12-28')
+        .withStartTime('09:00:00')
+        .withEndTime('14:00:00')
+        .build();
+      ormRepo.findOne.mockResolvedValue(entity);
+
+      const result = await repo.findById(OPENING_ID, TENANT_ID);
+
+      expect(result!.startTime.value).toBe('09:00');
+      expect(result!.endTime.value).toBe('14:00');
+    });
   });
 
   describe('findByTenantAndDate', () => {

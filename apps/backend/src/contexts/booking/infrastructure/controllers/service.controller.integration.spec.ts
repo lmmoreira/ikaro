@@ -9,6 +9,9 @@ import { TenantInterceptor } from '../../../../shared/tenant/tenant.interceptor'
 import { TenantModule } from '../../../../shared/tenant/tenant.module';
 import { ServiceEntityBuilder } from '../../../../test/builders/booking/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
+import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.entity';
+import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
+import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingModule } from '../../booking.module';
 
@@ -35,7 +38,7 @@ describe('ServiceController (integration)', () => {
         TypeOrmModule.forRoot({
           type: 'postgres',
           url: process.env['TEST_DATABASE_URL'],
-          entities: [ServiceEntity],
+          entities: [ServiceEntity, ScheduleClosureEntity, ScheduleOpeningEntity, TenantEntity],
           synchronize: false,
         }),
         TransactionManagerModule,

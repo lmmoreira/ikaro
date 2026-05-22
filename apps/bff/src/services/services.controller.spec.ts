@@ -1,17 +1,7 @@
 import { HttpException } from '@nestjs/common';
-import { BackendHttpService } from '../shared/http/backend-http.service';
+import { makeBackendHttp } from '../test/backend-http.mock';
 import { ServicesController } from './services.controller';
 import { ServiceListResponse, ServiceResponse } from './services.types';
-
-const makeBackendHttp = (overrides?: Partial<BackendHttpService>): BackendHttpService =>
-  ({
-    get: jest.fn(),
-    post: jest.fn(),
-    patch: jest.fn(),
-    delete: jest.fn(),
-    getForPublic: jest.fn(),
-    ...overrides,
-  }) as unknown as BackendHttpService;
 
 const validCreateBody = {
   name: 'Lavagem Completa',

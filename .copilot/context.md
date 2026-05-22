@@ -3,7 +3,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-05-20 (post-review refactor)
+**Last updated:** 2026-05-22 (M06-S07 — VO normalisation rule, BFF test isolation, InMemory port doubles)
 
 ---
 
@@ -193,6 +193,8 @@ Examples already there: `deepMerge` (`src/shared/utils/deep-merge.ts`).
 
 Every value object must have a `.spec.ts` unit test covering valid and invalid inputs. Never duplicate a `isValidXxx` function — put it in the VO once.
 
+**VOs are the single normalisation boundary for their input type (mandatory).** When the DB returns a format the VO doesn't expect (e.g. PostgreSQL `time` columns return `HH:MM:SS`; the domain uses `HH:MM`), fix the VO to normalise in `create()` — never add `.slice()` or format-stripping inside repository `toDomain()` mappers. One VO fix propagates to every mapper automatically and is covered by a single spec. Example: `TimeOfDay.create('09:00:00')` normalises to `'09:00'`.
+
 ### Value-object-typed aggregate fields (mandatory — Option A)
 
 Aggregate **props interfaces use VO types**, not plain primitives. **Getters return the VO** — not a derived string. `create()` factory receives raw strings and constructs VOs; `reconstitute()` skips validation for DB reads. JSONB columns require a double cast (`as unknown as XxxProps`).
@@ -322,6 +324,9 @@ Three layers: **Unit** (`.spec.ts`, Jest) · **Integration** (`.integration.spec
 - **InMemory doubles over `jest.fn()`** — `InMemoryEventBus`, `InMemoryTransactionManager`, `InMemoryXxxRepository` from `src/test/infrastructure/` + `src/test/repositories/`. Controller unit tests wire the real use case with in-memory repos; only use `jest.fn()` when no double exists (e.g. `BackendHttpService` in BFF).
 - **SonarCloud ingests lcov from unit tests only** — every new controller and use case needs a `.spec.ts`; integration tests alone don't count toward coverage.
 - **BFF controllers require TWO test files (mandatory):** every new `*.controller.ts` in `apps/bff/src/` must have both a unit spec (`*.controller.spec.ts`) and a component spec (`*.controller.component.spec.ts`). The component spec boots the full `AppModule` via `createTestApp()`, mocks `BackendHttpService`, and must cover: 401 (no token), 403 (wrong role), 400 (Zod validation), happy path for each allowed role, and backend error propagation (4xx/5xx). See `apps/bff/src/services/services.controller.component.spec.ts` and `apps/bff/src/schedule/schedule.controller.component.spec.ts` as canonical examples. Missing a component spec is a coverage gap — do not wait for the user to point it out.
+- **BFF test helper file isolation (mandatory):** `apps/bff/src/test/` contains two distinct helper files with a hard dependency boundary. `component-test.helpers.ts` imports `AppModule` (needed by `createTestApp()`) — **component specs only**. `backend-http.mock.ts` exports `MockBackendHttpService` type and `makeBackendHttp()` factory with no `AppModule` dependency — **unit specs only**. Never import `component-test.helpers.ts` from a unit spec: under `jest --coverage` the import triggers `AppModule` load which calls `validateEnv()` before env vars are set, crashing 5+ test suites.
+- **Backend InMemory port doubles (mandatory):** Every cross-context port used in tests needs an `InMemoryXxxPort` class in `src/test/infrastructure/` — never a `jest.fn()` inline mock. Class doubles are consistent with `InMemoryEventBus` / `InMemoryTransactionManager` and are easier to extend. Provide a sensible default state with setter methods for overrides. Example: `InMemoryScheduleTenantSettingsPort` defaults to Mon–Sat open, Sunday null.
+- **Shared test day-of-week helpers (mandatory — never inline):** `src/test/utils/date-helpers.ts` also exports `nextWeekday(utcDayOfWeek: 0–6, weeksAhead?)` returning the next future date for that UTC day-of-week. Use it instead of defining `nextSunday()` / `nextMonday()` inline. 0 = Sunday, 1 = Monday, … 6 = Saturday.
 - No `.skip()`, `.only()`, `setTimeout` in tests.
 - **Integration test DB isolation (mandatory):** Integration tests share a live DB with no cleanup between tests within the same file. Any `it()` sensitive to aggregate counts (`countActiveManagersByTenant`, `total` in pagination, etc.) **must use a unique tenant UUID** that no other test in the file creates data in. Never reuse suite-level `TENANT_A`/`TENANT_B` constants for count-sensitive assertions — define an inline UUID for that specific test instead.
 
@@ -374,6 +379,8 @@ Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Highest-severity pa
 | Using an in-memory set for Pub/Sub handler idempotency (`private processedEventIds = new Set()`) | Set is cleared on process restart and not shared across pods — duplicate messages get processed after any deploy or scale event | Idempotency via DB check in the use case (`findByXxx`) or the `processed_events` table (M11) |
 | Not overriding `EVENT_BUS` with `InMemoryEventBus` in controller integration specs | Controller boots `GcpPubSubEventBusAdapter` which connects to the emulator — gRPC timeouts fail every test if emulator is unreachable | Override `EVENT_BUS` with `new InMemoryEventBus()` in all controller integration specs that don't need end-to-end Pub/Sub routing |
 | Plain factory function for test data (`function makeTenantContext(): TenantContext { return {...} as TenantContext }`) | Inconsistent with the builder class pattern used everywhere else; harder to extend when new fields are added | Use a builder class with fluent `withXxx()` methods and `build()` — see `TenantContextBuilder` in `src/test/factories/` as the canonical example |
+| Importing `component-test.helpers.ts` from a BFF unit spec | Transitively imports `AppModule` → `validateEnv()` throws under `jest --coverage` because env vars are unset — crashes the entire BFF coverage run | Import `makeBackendHttp` / `MockBackendHttpService` from `backend-http.mock.ts` instead; only component specs may import `component-test.helpers.ts` |
+| Adding format-stripping to a TypeORM `toDomain()` mapper (e.g. `entity.startTime.slice(0, 5)`) instead of fixing the VO | The same workaround must be duplicated in every future mapper that reads the same column type; future mappers will silently repeat the bug | Fix the VO's `create()` to normalise the raw input once — `TimeOfDay` already handles `HH:MM:SS → HH:MM`; follow that pattern for any new VO |
 
 ---
 
@@ -463,6 +470,7 @@ If every story in the milestone is now `✅ Done`, see §15 item 7 for the two w
 | Working on M04+ (any task touching auth, BFF guards, OAuth flow, customer/staff login, JWT, tenant switching, Zod validation, or BFF→backend internal calls) | `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md` — OAuth state encoding (`__staff__` vs slug vs empty), `passReqToCallback` signature, `JWT_COOKIE_OPTIONS` location, `FindOrCreate` flow, switch-tenant 3-call pattern, `mapXxxError` + dedicated mapper spec, optional-chain SonarCloud S6582, `BackendHttpService` jest.fn() pattern, Zod v4 UUID format | 3 |
 | Working on M05+ (any task touching Staff aggregate, Notification context, staff invite/activate/deactivate flows, IDeliveryChannel strategy, notification_logs idempotency, SYSTEM_ACTOR_ID, or cross-context port+adapter pattern) | `plan/M04-STAFF-MANAGEMENT_IMPLEMENTATION_DETAILS_IA.md` — Staff VO-typed props, reinvite upsert, last-manager race fix, thin StaffInvited event, IDeliveryChannel[] strategy pattern, notification_logs DB idempotency, SMTP env vars, Pub/Sub subscription names, migration timestamps | 4 |
 | Working on M06+ (any task touching Service aggregate, booking.services table, Money VO price storage, PATCH partial-update pattern, StaffOrManagerRoleGuard, public BFF endpoints, or TenantContextBuilder) | `plan/M05-SERVICE-CATALOG_IMPLEMENTATION_DETAILS_IA.md` — price NUMERIC storage, booking schema migration, ServiceEntity in global setup, BookingModule no-export rule, guard-before-interceptor 403 behaviour, UpdateService positional merge, logical delete pattern, BFF slug→tenantId two-step, getForPublic(), TenantContextBuilder | 3 |
+| Working on M07+ (any task touching ScheduleClosure, ScheduleOpening, availability algorithm, `time` columns, cross-context PlatformSettingsModule, or BFF test infrastructure) | `plan/M06-CALENDAR-SCHEDULE_IMPLEMENTATION_DETAILS_IA.md` — PostgreSQL `time` → `HH:MM:SS` normalised by `TimeOfDay` VO, PlatformSettingsModule lightweight pattern, integration test `forRoot` entity registration, `nextWeekday()` helper, `InMemoryScheduleTenantSettingsPort`, `backend-http.mock.ts` isolation rule | 3 |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full 48-row table; loaded automatically by `/pre-pr`.
 

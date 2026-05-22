@@ -16,7 +16,7 @@ describe('GetTenantByIdUseCase', () => {
     await expect(useCase.execute('unknown-id')).rejects.toBeInstanceOf(TenantNotFoundError);
   });
 
-  it('returns id, slug, and name for a known tenant', async () => {
+  it('returns id, slug, name, and settings for a known tenant', async () => {
     const tenant = new TenantBuilder().withSlug('lavacar-bh').withName('Lavacar BH').build();
     await repo.save(tenant);
 
@@ -25,5 +25,7 @@ describe('GetTenantByIdUseCase', () => {
     expect(result.id).toBe(tenant.id);
     expect(result.slug).toBe('lavacar-bh');
     expect(result.name).toBe('Lavacar BH');
+    expect(result.settings.business_hours.sunday).toBeNull();
+    expect(result.settings.business_hours.monday).toBeDefined();
   });
 });

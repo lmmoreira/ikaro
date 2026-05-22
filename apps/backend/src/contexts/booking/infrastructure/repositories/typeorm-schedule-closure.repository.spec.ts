@@ -85,6 +85,22 @@ describe('TypeOrmScheduleClosureRepository', () => {
       expect(result!.endTime!.value).toBe('12:00');
       expect(result!.isFullDay()).toBe(false);
     });
+
+    it('maps HH:MM:SS time (as returned by PostgreSQL) to HH:MM via TimeOfDay normalisation', async () => {
+      const entity = new ScheduleClosureEntityBuilder()
+        .withId(CLOSURE_ID)
+        .withTenantId(TENANT_ID)
+        .withDate('2026-12-25')
+        .withStartTime('10:00:00')
+        .withEndTime('12:00:00')
+        .build();
+      ormRepo.findOne.mockResolvedValue(entity);
+
+      const result = await repo.findById(CLOSURE_ID, TENANT_ID);
+
+      expect(result!.startTime!.value).toBe('10:00');
+      expect(result!.endTime!.value).toBe('12:00');
+    });
   });
 
   describe('findByTenantAndDate', () => {

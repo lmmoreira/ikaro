@@ -1,0 +1,124 @@
+# Booking — Schedule Opening endpoints
+# UC-010c (create opening), UC-010d (remove opening), list
+# TenantContext populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @beloauto/backend run migration:run
+#   3. pnpm --filter @beloauto/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl    = {{backendUrl}}
+@tenantId   = 10000000-0000-4000-8000-000000000001
+@actorId    = 20000000-0000-4000-8000-000000000001
+@openingId  = 30000000-0000-4000-8000-000000000002
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — list openings in range
+# ─────────────────────────────────────────────────────────────────────────────
+
+### List openings (2026-12-01 to 2026-12-31)
+GET {{baseUrl}}/schedule/openings?from=2026-12-01&to=2026-12-31
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — create opening on a normally-closed Sunday
+# ─────────────────────────────────────────────────────────────────────────────
+
+### POST /schedule/openings — 201
+POST {{baseUrl}}/schedule/openings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "date": "2026-12-27",
+  "startTime": "09:00",
+  "endTime": "14:00",
+  "notes": "Special Sunday opening for end-of-year event"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — delete opening
+# ─────────────────────────────────────────────────────────────────────────────
+
+### DELETE /schedule/openings/:id — 204
+DELETE {{baseUrl}}/schedule/openings/{{openingId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — past date → 422
+# ─────────────────────────────────────────────────────────────────────────────
+
+### POST on past date — 422
+POST {{baseUrl}}/schedule/openings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "date": "2020-01-01",
+  "startTime": "09:00",
+  "endTime": "14:00"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — day already open in business_hours → 422
+# ─────────────────────────────────────────────────────────────────────────────
+
+### POST on a Monday (already open by default) — 422
+POST {{baseUrl}}/schedule/openings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "date": "2026-12-28",
+  "startTime": "09:00",
+  "endTime": "14:00"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — opening already exists → 409
+# ─────────────────────────────────────────────────────────────────────────────
+
+### POST duplicate opening — 409 (run the 201 request above first)
+POST {{baseUrl}}/schedule/openings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "date": "2026-12-27",
+  "startTime": "10:00",
+  "endTime": "13:00"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — opening not found → 404
+# ─────────────────────────────────────────────────────────────────────────────
+
+### DELETE non-existent opening — 404
+DELETE {{baseUrl}}/schedule/openings/00000000-0000-4000-8000-000000000099
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — invalid UUID → 400
+# ─────────────────────────────────────────────────────────────────────────────
+
+### DELETE with non-UUID id — 400
+DELETE {{baseUrl}}/schedule/openings/not-a-uuid
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{actorId}}
+X-Actor-Role: MANAGER

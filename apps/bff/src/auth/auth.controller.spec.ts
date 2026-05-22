@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Request, Response } from 'express';
 import { CurrentUserPayload } from '../shared/decorators/current-user.decorator';
-import { BackendHttpService } from '../shared/http/backend-http.service';
+import { makeBackendHttp } from '../test/backend-http.mock';
 import { AuthController } from './auth.controller';
 import { IssueTokenDto } from './dtos/issue-token.dto';
 import { SwitchTenantDto } from './dtos/switch-tenant.dto';
@@ -18,15 +18,6 @@ const TENANT_ID_OTHER = '10000000-0000-4000-8000-000000000099';
 const CUSTOMER_ID_A = '20000000-0000-4000-8000-000000000001';
 const CUSTOMER_ID_B = '20000000-0000-4000-8000-000000000002';
 const STAFF_ID_A = '30000000-0000-4000-8000-000000000001';
-
-const makeBackendHttp = (overrides?: Partial<BackendHttpService>): BackendHttpService =>
-  ({
-    get: jest.fn(),
-    post: jest.fn(),
-    patch: jest.fn(),
-    delete: jest.fn(),
-    ...overrides,
-  }) as unknown as BackendHttpService;
 
 const makeRes = (): jest.Mocked<Response> =>
   ({ redirect: jest.fn(), cookie: jest.fn() }) as unknown as jest.Mocked<Response>;

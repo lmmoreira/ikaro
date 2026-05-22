@@ -3,14 +3,22 @@ import { ProblemDetail } from '../../../../shared/http/problem-detail';
 import {
   BookingDomainError,
   ClosureDateInPastError,
+  DayAlreadyOpenInSettingsError,
+  OpeningDateInPastError,
   ScheduleAlreadyClosedError,
   ScheduleClosureNotFoundError,
+  ScheduleOpeningAlreadyExistsError,
+  ScheduleOpeningNotFoundError,
   ServiceDeactivatedError,
   ServiceNotFoundError,
 } from '../../domain/errors/booking-domain.error';
 
 export function mapBookingError(err: unknown): never {
-  if (err instanceof ServiceNotFoundError || err instanceof ScheduleClosureNotFoundError) {
+  if (
+    err instanceof ServiceNotFoundError ||
+    err instanceof ScheduleClosureNotFoundError ||
+    err instanceof ScheduleOpeningNotFoundError
+  ) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Not Found',
@@ -19,7 +27,11 @@ export function mapBookingError(err: unknown): never {
     };
     throw new HttpException(body, HttpStatus.NOT_FOUND);
   }
-  if (err instanceof ServiceDeactivatedError || err instanceof ScheduleAlreadyClosedError) {
+  if (
+    err instanceof ServiceDeactivatedError ||
+    err instanceof ScheduleAlreadyClosedError ||
+    err instanceof ScheduleOpeningAlreadyExistsError
+  ) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Conflict',
@@ -28,7 +40,11 @@ export function mapBookingError(err: unknown): never {
     };
     throw new HttpException(body, HttpStatus.CONFLICT);
   }
-  if (err instanceof ClosureDateInPastError) {
+  if (
+    err instanceof ClosureDateInPastError ||
+    err instanceof OpeningDateInPastError ||
+    err instanceof DayAlreadyOpenInSettingsError
+  ) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Unprocessable Entity',

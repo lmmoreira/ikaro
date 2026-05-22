@@ -1,16 +1,6 @@
-import { BackendHttpService } from '../shared/http/backend-http.service';
+import { makeBackendHttp } from '../test/backend-http.mock';
 import { ScheduleClosureResponse } from './schedule.types';
 import { ScheduleController } from './schedule.controller';
-
-const makeBackendHttp = (overrides?: Partial<BackendHttpService>): BackendHttpService =>
-  ({
-    get: jest.fn(),
-    post: jest.fn(),
-    delete: jest.fn(),
-    patch: jest.fn(),
-    getForPublic: jest.fn(),
-    ...overrides,
-  }) as unknown as BackendHttpService;
 
 const mockClosure: ScheduleClosureResponse = {
   id: '00000000-0000-4000-8000-000000000001',

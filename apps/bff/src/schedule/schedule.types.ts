@@ -12,3 +12,17 @@ export interface ScheduleClosureResponse {
 export interface ScheduleClosureListResponse {
   items: ScheduleClosureResponse[];
 }
+
+export interface ScheduleOpeningResponse {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface ScheduleOpeningListResponse {
+  items: ScheduleOpeningResponse[];
+}
