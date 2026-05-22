@@ -35,4 +35,19 @@ export class TimeOfDay {
   isBefore(other: TimeOfDay): boolean {
     return this._value < other._value;
   }
+
+  toMinutes(): number {
+    const [h, m] = this._value.split(':').map(Number) as [number, number];
+    return h * 60 + m;
+  }
+
+  addMinutes(minutes: number): TimeOfDay {
+    return TimeOfDay.fromMinutes(this.toMinutes() + minutes);
+  }
+
+  static fromMinutes(totalMinutes: number): TimeOfDay {
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return new TimeOfDay(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  }
 }

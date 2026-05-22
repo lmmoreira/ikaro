@@ -18,8 +18,8 @@ import {
   IScheduleTenantSettingsPort,
   SCHEDULE_TENANT_SETTINGS_PORT,
 } from '../ports/schedule-tenant-settings.port';
+import { getUtcWeekDayName } from '../../../../shared/utils/calendar-date';
 import { OpenScheduleDto } from '../dtos/open-schedule.dto';
-import { BusinessHours } from '../../../platform/domain/value-objects/tenant-settings.vo';
 
 export interface OpenScheduleUseCaseResult {
   id: string;
@@ -30,16 +30,6 @@ export interface OpenScheduleUseCaseResult {
   createdBy: string;
   createdAt: string;
 }
-
-const DAY_NAMES: (keyof BusinessHours)[] = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-];
 
 @Injectable()
 export class OpenScheduleUseCase {
@@ -60,8 +50,7 @@ export class OpenScheduleUseCase {
     if (dto.date < today) throw new OpeningDateInPastError();
 
     const businessHours = await this.tenantSettings.getBusinessHours(tenantId);
-    const dayName = DAY_NAMES[new Date(`${dto.date}T00:00:00Z`).getUTCDay()];
-    if (businessHours[dayName] !== null) {
+    if (businessHours[getUtcWeekDayName(dto.date)] !== null) {
       throw new DayAlreadyOpenInSettingsError(dto.date);
     }
 

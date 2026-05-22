@@ -1,7 +1,9 @@
-import { BusinessHours } from '../../contexts/platform/domain/value-objects/tenant-settings.vo';
+import {
+  BookingSettings,
+  BusinessHours,
+} from '../../contexts/platform/domain/value-objects/tenant-settings.vo';
 import { IScheduleTenantSettingsPort } from '../../contexts/booking/application/ports/schedule-tenant-settings.port';
 
-// Default mirrors the seed tenant: Mon–Sat open, Sunday closed.
 const DEFAULT_BUSINESS_HOURS: BusinessHours = {
   timezone: 'America/Sao_Paulo',
   monday: { open: '09:00', close: '18:00' },
@@ -13,19 +15,42 @@ const DEFAULT_BUSINESS_HOURS: BusinessHours = {
   sunday: null,
 };
 
+const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
+  cancellation_window_hours: 48,
+  auto_approve_enabled: false,
+  min_booking_advance_hours: 0,
+  max_booking_advance_days: 90,
+  service_buffer_minutes: 60,
+  slot_granularity_minutes: 30,
+};
+
 export class InMemoryScheduleTenantSettingsPort implements IScheduleTenantSettingsPort {
-  private readonly store = new Map<string, BusinessHours>();
+  private readonly hoursStore = new Map<string, BusinessHours>();
+  private readonly bookingStore = new Map<string, BookingSettings>();
   private defaultHours: BusinessHours = { ...DEFAULT_BUSINESS_HOURS };
+  private defaultBooking: BookingSettings = { ...DEFAULT_BOOKING_SETTINGS };
 
   setBusinessHours(tenantId: string, hours: BusinessHours): void {
-    this.store.set(tenantId, hours);
+    this.hoursStore.set(tenantId, hours);
   }
 
   setDefaultHours(hours: BusinessHours): void {
     this.defaultHours = hours;
   }
 
+  setBookingSettings(tenantId: string, settings: BookingSettings): void {
+    this.bookingStore.set(tenantId, settings);
+  }
+
+  setDefaultBookingSettings(settings: BookingSettings): void {
+    this.defaultBooking = settings;
+  }
+
   async getBusinessHours(tenantId: string): Promise<BusinessHours> {
-    return this.store.get(tenantId) ?? this.defaultHours;
+    return this.hoursStore.get(tenantId) ?? this.defaultHours;
+  }
+
+  async getBookingSettings(tenantId: string): Promise<BookingSettings> {
+    return this.bookingStore.get(tenantId) ?? this.defaultBooking;
   }
 }

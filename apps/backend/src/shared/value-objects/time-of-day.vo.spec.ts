@@ -67,4 +67,58 @@ describe('TimeOfDay', () => {
       expect(t.isBefore(TimeOfDay.create('12:00'))).toBe(false);
     });
   });
+
+  describe('toMinutes', () => {
+    it('converts 00:00 to 0', () => {
+      expect(TimeOfDay.create('00:00').toMinutes()).toBe(0);
+    });
+
+    it('converts 09:00 to 540', () => {
+      expect(TimeOfDay.create('09:00').toMinutes()).toBe(540);
+    });
+
+    it('converts 09:30 to 570', () => {
+      expect(TimeOfDay.create('09:30').toMinutes()).toBe(570);
+    });
+
+    it('converts 23:59 to 1439', () => {
+      expect(TimeOfDay.create('23:59').toMinutes()).toBe(1439);
+    });
+  });
+
+  describe('fromMinutes', () => {
+    it('converts 0 to 00:00', () => {
+      expect(TimeOfDay.fromMinutes(0).value).toBe('00:00');
+    });
+
+    it('converts 540 to 09:00', () => {
+      expect(TimeOfDay.fromMinutes(540).value).toBe('09:00');
+    });
+
+    it('converts 570 to 09:30', () => {
+      expect(TimeOfDay.fromMinutes(570).value).toBe('09:30');
+    });
+
+    it('converts 1439 to 23:59', () => {
+      expect(TimeOfDay.fromMinutes(1439).value).toBe('23:59');
+    });
+  });
+
+  describe('addMinutes', () => {
+    it('adds 30 minutes to 09:00 → 09:30', () => {
+      expect(TimeOfDay.create('09:00').addMinutes(30).value).toBe('09:30');
+    });
+
+    it('adds 120 minutes to 09:00 → 11:00', () => {
+      expect(TimeOfDay.create('09:00').addMinutes(120).value).toBe('11:00');
+    });
+
+    it('adds 0 minutes returns the same time', () => {
+      expect(TimeOfDay.create('14:30').addMinutes(0).value).toBe('14:30');
+    });
+
+    it('adding across the hour boundary works correctly', () => {
+      expect(TimeOfDay.create('09:45').addMinutes(30).value).toBe('10:15');
+    });
+  });
 });
