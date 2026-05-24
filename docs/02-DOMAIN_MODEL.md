@@ -140,23 +140,22 @@ Booking {
   createdAt:        DateTime
 
   -- Audit & state tracking (UC-003, 004, 005, 007, 008, 009)
-  approvedAt:       DateTime | null
-  approvedBy:       StaffId  | null
-  completedAt:      DateTime | null
-  completedBy:      StaffId  | null
-  cancelledAt:      DateTime | null
-  cancelledBy:      UserId   | null  (Staff or Customer id, or guest email for guest cancel)
-  infoRequestedAt:  DateTime | null
-  infoRequestedBy:  StaffId  | null
-  informationNeeded:String   | null   (UC-005 prompt to customer)
-  infoSubmittedAt:  DateTime | null
-  infoPayload:      Object   | null   (customer's reply: notes, additional photos, …)
-
-  rejectionReason:    String | null   (UC-004)
-  cancellationReason: String | null   (UC-008 — admin) or null when customer-cancelled
-  adminNotes:         String | null   (UC-003, UC-009)
-
-  auditLog:        BookingAuditLogEntry[]
+  approvedAt:           DateTime | null
+  approvedBy:           StaffId  | null
+  completedAt:          DateTime | null
+  completedBy:          StaffId  | null
+  cancelledAt:          DateTime | null
+  cancelledBy:          UserId   | null  (staff or customer UUID)
+  cancellationReason:   String   | null
+  rejectedAt:           DateTime | null
+  rejectedBy:           StaffId  | null
+  rejectionReason:      String   | null  (UC-004)
+  infoRequestMessage:   String   | null  (UC-005 admin prompt to customer)
+  infoRequestedAt:      DateTime | null
+  infoRequestedBy:      StaffId  | null
+  infoResponseMessage:  String   | null  (UC-005 customer reply notes)
+  infoSubmittedAt:      DateTime | null
+  adminNotes:           String   | null  (UC-003, UC-009)
 }
 ```
 

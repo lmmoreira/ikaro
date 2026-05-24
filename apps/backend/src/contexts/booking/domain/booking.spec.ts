@@ -192,10 +192,14 @@ describe('Booking.reject()', () => {
 describe('Booking.requestMoreInfo()', () => {
   it('transitions PENDING → INFO_REQUESTED and emits BookingInfoRequested', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.PENDING).build();
+    const before = new Date();
     booking.requestMoreInfo(STAFF_ID, 'Please send car photos', CORRELATION_ID);
 
     expect(booking.status).toBe(BookingStatus.INFO_REQUESTED);
     expect(booking.infoRequestMessage).toBe('Please send car photos');
+    expect(booking.infoRequestedBy).toBe(STAFF_ID);
+    expect(booking.infoRequestedAt).toBeInstanceOf(Date);
+    expect(booking.infoRequestedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
     const events = booking.domainEvents;
     expect(events[0]).toBeInstanceOf(BookingInfoRequested);
   });
@@ -211,9 +215,13 @@ describe('Booking.requestMoreInfo()', () => {
 describe('Booking.submitInformation()', () => {
   it('transitions INFO_REQUESTED → PENDING and emits BookingInfoSubmitted', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.INFO_REQUESTED).build();
+    const before = new Date();
     booking.submitInformation('guest@test.com', { notes: 'Here are the photos' }, CORRELATION_ID);
 
     expect(booking.status).toBe(BookingStatus.PENDING);
+    expect(booking.infoResponseMessage).toBe('Here are the photos');
+    expect(booking.infoSubmittedAt).toBeInstanceOf(Date);
+    expect(booking.infoSubmittedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
     const events = booking.domainEvents;
     expect(events[0]).toBeInstanceOf(BookingInfoSubmitted);
     expect((events[0] as BookingInfoSubmitted).data.photoUrls).toEqual([]);

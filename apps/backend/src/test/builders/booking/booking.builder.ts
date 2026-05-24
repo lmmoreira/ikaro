@@ -32,7 +32,10 @@ export class BookingBuilder {
   private readonly afterServicePhotoUrls: string[] = [];
   private adminNotes: string | null = null;
   private readonly infoRequestMessage: string | null = null;
+  private readonly infoRequestedAt: Date | null = null;
+  private readonly infoRequestedBy: string | null = null;
   private readonly infoResponseMessage: string | null = null;
+  private readonly infoSubmittedAt: Date | null = null;
   private approvedAt: Date | null = null;
   private approvedBy: string | null = null;
   private readonly completedAt: Date | null = null;
@@ -139,7 +142,10 @@ export class BookingBuilder {
       afterServicePhotoUrls: this.afterServicePhotoUrls,
       adminNotes: this.adminNotes,
       infoRequestMessage: this.infoRequestMessage,
+      infoRequestedAt: this.infoRequestedAt,
+      infoRequestedBy: this.infoRequestedBy,
       infoResponseMessage: this.infoResponseMessage,
+      infoSubmittedAt: this.infoSubmittedAt,
       approvedAt: this.approvedAt,
       approvedBy: this.approvedBy,
       completedAt: this.completedAt,

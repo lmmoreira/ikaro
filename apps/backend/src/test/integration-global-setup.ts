@@ -8,6 +8,7 @@ import { ServiceEntity } from '../contexts/booking/infrastructure/entities/servi
 import { CreateBookingScheduleClosures1748000000012 } from '../contexts/booking/infrastructure/migrations/1748000000012-CreateBookingScheduleClosures';
 import { CreateBookingScheduleOpenings1748000000013 } from '../contexts/booking/infrastructure/migrations/1748000000013-CreateBookingScheduleOpenings';
 import { CreateBookingServices1748000000011 } from '../contexts/booking/infrastructure/migrations/1748000000011-CreateBookingServices';
+import { CreateBookingBookings1748000000014 } from '../contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -75,6 +76,7 @@ export default async function globalSetup(): Promise<void> {
       CreateBookingServices1748000000011,
       CreateBookingScheduleClosures1748000000012,
       CreateBookingScheduleOpenings1748000000013,
+      CreateBookingBookings1748000000014,
     ],
     synchronize: false,
     migrationsRun: false,

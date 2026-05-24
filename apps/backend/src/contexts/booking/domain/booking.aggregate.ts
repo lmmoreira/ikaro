@@ -50,7 +50,10 @@ export interface BookingProps {
   afterServicePhotoUrls: string[];
   adminNotes: string | null;
   infoRequestMessage: string | null;
+  infoRequestedAt: Date | null;
+  infoRequestedBy: string | null;
   infoResponseMessage: string | null;
+  infoSubmittedAt: Date | null;
   approvedAt: Date | null;
   approvedBy: string | null;
   completedAt: Date | null;
@@ -144,8 +147,17 @@ export class Booking extends AggregateRoot {
   get infoRequestMessage(): string | null {
     return this.props.infoRequestMessage;
   }
+  get infoRequestedAt(): Date | null {
+    return this.props.infoRequestedAt;
+  }
+  get infoRequestedBy(): string | null {
+    return this.props.infoRequestedBy;
+  }
   get infoResponseMessage(): string | null {
     return this.props.infoResponseMessage;
+  }
+  get infoSubmittedAt(): Date | null {
+    return this.props.infoSubmittedAt;
   }
   get approvedAt(): Date | null {
     return this.props.approvedAt;
@@ -227,7 +239,10 @@ export class Booking extends AggregateRoot {
       afterServicePhotoUrls: [],
       adminNotes: null,
       infoRequestMessage: null,
+      infoRequestedAt: null,
+      infoRequestedBy: null,
       infoResponseMessage: null,
+      infoSubmittedAt: null,
       approvedAt: null,
       approvedBy: null,
       completedAt: null,
@@ -347,6 +362,8 @@ export class Booking extends AggregateRoot {
 
     this.props.status = BookingStatus.INFO_REQUESTED;
     this.props.infoRequestMessage = message;
+    this.props.infoRequestedAt = new Date();
+    this.props.infoRequestedBy = staffId;
 
     this.addDomainEvent(
       new BookingInfoRequested(this.props.tenantId, correlationId, {
@@ -374,6 +391,7 @@ export class Booking extends AggregateRoot {
     this.props.status = BookingStatus.PENDING;
     this.props.infoResponseMessage =
       typeof infoPayload['notes'] === 'string' ? infoPayload['notes'] : null;
+    this.props.infoSubmittedAt = new Date();
 
     if (photoUrls.length) {
       this.props.beforeServicePhotoUrls.push(...photoUrls);

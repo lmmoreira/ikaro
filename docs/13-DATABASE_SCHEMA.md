@@ -156,65 +156,75 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL |
+| status | VARCHAR(30) | NOT NULL DEFAULT 'PENDING' — PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED |
+| type | VARCHAR(20) | NOT NULL CHECK IN ('GUEST','CUSTOMER') |
 | customer_id | UUID | NULLABLE — no FK (cross-context ref to `customer.customers`) |
-| status | VARCHAR(50) | NOT NULL — PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED |
-| scheduled_at | TIMESTAMP WITH TIME ZONE | NOT NULL |
-| total_duration_mins | INT | NOT NULL, CHECK > 0 — denormalised SUM of `booking_lines.duration_mins_at_booking` |
-| total_price | DECIMAL(12,2) | NOT NULL, CHECK >= 0 — denormalised SUM of `booking_lines.price_at_booking` |
-| total_actual_price | DECIMAL(12,2) | NULLABLE — set at COMPLETED = SUM(booking_lines.actual_price_charged) |
-| guest_info | JSONB | NULLABLE — `{ name, email, phone }` — non-null when customer_id IS NULL |
-| pickup_address | JSONB | NULLABLE — `{ street, number, complement, neighborhood, city, state, zipCode }` |
-| before_service_photo_urls | JSONB | `string[]` — before-service photos (UC-001, UC-005 info response) |
-| after_service_photo_urls | JSONB | `string[]` — after-service photos (UC-009) |
-| internal_notes | TEXT | |
-| rejection_reason | TEXT | |
-| cancellation_reason | TEXT | |
-| info_request_text | TEXT | (UC-005 admin prompt) |
-| info_submitted_payload | JSONB | (UC-005 customer reply) |
-| approved_at | TIMESTAMP WITH TIME ZONE | |
-| approved_by | UUID | NULLABLE — no FK (cross-context ref to `staff.staff`) |
-| completed_at | TIMESTAMP WITH TIME ZONE | |
-| completed_by | UUID | NULLABLE — no FK (cross-context ref to `staff.staff`) |
-| cancelled_at | TIMESTAMP WITH TIME ZONE | |
-| cancelled_by | UUID | NULLABLE — no FK (staff id, customer id, or guest email stored as text in audit log) |
-| info_requested_at | TIMESTAMP WITH TIME ZONE | |
+| guest_email | VARCHAR(255) | NOT NULL |
+| guest_name | VARCHAR(255) | NOT NULL |
+| guest_phone | VARCHAR(30) | NOT NULL |
+| guest_address | JSONB | NULLABLE — `{ street, number, complement?, neighborhood, city, state, zipCode }` — optional general address |
+| pickup_address | JSONB | NULLABLE — same shape as `guest_address` — non-null when any line has `requires_pickup_address_at_booking = true` |
+| scheduled_at | TIMESTAMPTZ | NOT NULL |
+| total_duration_mins | INTEGER | NOT NULL — denormalised SUM of `booking_lines.duration_mins_at_booking` |
+| total_price_amount | NUMERIC(10,2) | NOT NULL — denormalised SUM of `booking_lines.price_at_booking_amount` |
+| total_actual_price_amount | NUMERIC(10,2) | NULLABLE — null until COMPLETED; SUM of `booking_lines.actual_price_charged_amount` |
+| before_service_photo_urls | TEXT[] | NOT NULL DEFAULT '{}' — before-service photos |
+| after_service_photo_urls | TEXT[] | NOT NULL DEFAULT '{}' — after-service photos (UC-009) |
+| admin_notes | TEXT | NULLABLE |
+| info_request_message | TEXT | NULLABLE — admin's prompt to customer (UC-005) |
+| info_requested_at | TIMESTAMPTZ | NULLABLE |
 | info_requested_by | UUID | NULLABLE — no FK (cross-context ref to `staff.staff`) |
-| info_submitted_at | TIMESTAMP WITH TIME ZONE | |
-| created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
+| info_response_message | TEXT | NULLABLE — customer's reply notes (UC-005) |
+| info_submitted_at | TIMESTAMPTZ | NULLABLE |
+| approved_at | TIMESTAMPTZ | NULLABLE |
+| approved_by | UUID | NULLABLE — no FK (cross-context ref to `staff.staff`) |
+| completed_at | TIMESTAMPTZ | NULLABLE |
+| completed_by | UUID | NULLABLE — no FK (cross-context ref to `staff.staff`) |
+| cancelled_at | TIMESTAMPTZ | NULLABLE |
+| cancelled_by | UUID | NULLABLE — no FK (staff or customer UUID) |
+| cancellation_reason | TEXT | NULLABLE |
+| rejected_at | TIMESTAMPTZ | NULLABLE |
+| rejected_by | UUID | NULLABLE — no FK (cross-context ref to `staff.staff`) |
+| rejection_reason | TEXT | NULLABLE |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| updated_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| **UNIQUE** | (tenant_id, id) | Composite FK target for `booking_lines` |
+| **INDEX** | (tenant_id) | Tenant-scoped base filter |
 | **INDEX** | (tenant_id, status) | Main dashboard query |
 | **INDEX** | (tenant_id, customer_id) | Customer booking history |
 | **INDEX** | (tenant_id, scheduled_at) | Calendar availability |
 
 **Rules:**
-- `≥ 1 booking_line` required. Application-enforced; verified by a data-quality cron.
-- `total_price`, `total_duration_mins`, `total_actual_price` are denormalised. Integrity checks must confirm they equal the sum of their respective `booking_lines` columns.
-- `pickup_address` must be non-null if any `booking_lines.requires_pickup_address_at_booking = true`.
+- `≥ 1 booking_line` required. Application-enforced by `Booking.requestBooking()`.
+- `total_price_amount`, `total_duration_mins`, `total_actual_price_amount` are denormalised for fast list queries.
+- `pickup_address` must be non-null if any `booking_lines.requires_pickup_address_at_booking = true`. Enforced by the aggregate.
 
 ### `booking.booking_lines`
 One row per service unit. Snapshots from `booking.services` at request time — intra-context FKs apply.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
-| booking_id | UUID | NOT NULL, FK → `booking.bookings(id)` ON DELETE CASCADE |
-| service_id | UUID | NOT NULL, FK → `booking.services(id)` — intra-context |
-| price_at_booking | DECIMAL(12,2) | NOT NULL, CHECK >= 0 |
-| duration_mins_at_booking | INT | NOT NULL, CHECK > 0 |
-| points_value_at_booking | INT | NOT NULL, CHECK >= 0 |
-| requires_pickup_address_at_booking | BOOLEAN | NOT NULL DEFAULT false |
-| actual_price_charged | DECIMAL(12,2) | NULLABLE, CHECK >= 0 — NULL before COMPLETED |
-| created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
+| line_id | UUID | PRIMARY KEY |
+| booking_id | UUID | NOT NULL |
+| tenant_id | UUID | NOT NULL — denormalised for composite FK / tenant isolation |
+| service_id | UUID | NOT NULL — intra-context ref to `booking.services` |
+| service_name_at_booking | VARCHAR(255) | NOT NULL — snapshot of `services.name` at booking time |
+| price_at_booking_amount | NUMERIC(10,2) | NOT NULL CHECK >= 0 — snapshot of `services.price_amount` |
+| duration_mins_at_booking | INTEGER | NOT NULL CHECK > 0 — snapshot of `services.duration_minutes` |
+| points_value_at_booking | INTEGER | NOT NULL DEFAULT 0 CHECK >= 0 — snapshot of `services.loyalty_points_value` |
+| requires_pickup_address_at_booking | BOOLEAN | NOT NULL DEFAULT false — snapshot of `services.requires_pickup_address` |
+| actual_price_charged_amount | NUMERIC(10,2) | NULLABLE CHECK >= 0 — null until COMPLETED; zero = waived |
 | **FK (composite)** | (tenant_id, booking_id) → `booking.bookings(tenant_id, id)` | Tenant-safe |
 | **FK (composite)** | (tenant_id, service_id) → `booking.services(tenant_id, id)` | Intra-context |
+| **INDEX** | (tenant_id) | Tenant-scoped base filter |
 | **INDEX** | (tenant_id, booking_id) | Load all lines for a booking |
 | **INDEX** | (tenant_id, service_id) | All bookings for service X |
 
 **Rules:**
 - Lines are INSERT-only once booking is APPROVED. Application-enforced.
-- All snapshot fields are immutable after insert.
-- `actual_price_charged` defaults to `price_at_booking` if not set by staff at completion.
+- All snapshot fields (`service_name_at_booking`, `price_at_booking_amount`, `duration_mins_at_booking`, `points_value_at_booking`, `requires_pickup_address_at_booking`) are immutable after insert.
+- `actual_price_charged_amount` defaults to `price_at_booking_amount` if staff does not override at completion.
 
 ### `booking.schedule_closures`
 | Column | Type | Constraints |

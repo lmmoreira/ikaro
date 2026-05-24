@@ -75,30 +75,40 @@ Create the TypeORM migrations for `booking.bookings` and `booking.booking_lines`
 
 **Table: `booking.bookings`**
 ```sql
-id                       UUID PRIMARY KEY
-tenant_id                UUID NOT NULL
-status                   VARCHAR(30) NOT NULL DEFAULT 'PENDING'
-type                     VARCHAR(20) NOT NULL CHECK (type IN ('GUEST','CUSTOMER'))
-customer_id              UUID                               ← nullable for guest bookings
-guest_email              VARCHAR(255) NOT NULL
-guest_name               VARCHAR(255) NOT NULL
-guest_phone              VARCHAR(30) NOT NULL
-guest_address            JSONB                              ← optional general address (non-pickup)
-pickup_address           JSONB                              ← null unless a pickup service was selected
-scheduled_at             TIMESTAMPTZ NOT NULL
-total_duration_mins      INTEGER NOT NULL
-total_price_amount       NUMERIC(10,2) NOT NULL
-total_actual_price_amount NUMERIC(10,2)                    ← null until COMPLETED
-before_service_photo_urls TEXT[]  DEFAULT '{}'
-after_service_photo_urls TEXT[]   DEFAULT '{}'
-admin_notes              TEXT
-info_request_message     TEXT
-info_response_message    TEXT
-approved_at              TIMESTAMPTZ
-completed_at             TIMESTAMPTZ
-cancelled_at             TIMESTAMPTZ
-created_at               TIMESTAMPTZ NOT NULL DEFAULT now()
-updated_at               TIMESTAMPTZ NOT NULL DEFAULT now()
+id                         UUID PRIMARY KEY
+tenant_id                  UUID NOT NULL
+status                     VARCHAR(30) NOT NULL DEFAULT 'PENDING'
+type                       VARCHAR(20) NOT NULL CHECK (type IN ('GUEST','CUSTOMER'))
+customer_id                UUID                               ← nullable for guest bookings
+guest_email                VARCHAR(255) NOT NULL
+guest_name                 VARCHAR(255) NOT NULL
+guest_phone                VARCHAR(30) NOT NULL
+guest_address              JSONB                              ← optional general address (non-pickup)
+pickup_address             JSONB                              ← null unless a pickup service was selected
+scheduled_at               TIMESTAMPTZ NOT NULL
+total_duration_mins        INTEGER NOT NULL
+total_price_amount         NUMERIC(10,2) NOT NULL
+total_actual_price_amount  NUMERIC(10,2)                     ← null until COMPLETED
+before_service_photo_urls  TEXT[] NOT NULL DEFAULT '{}'
+after_service_photo_urls   TEXT[] NOT NULL DEFAULT '{}'
+admin_notes                TEXT
+info_request_message       TEXT                               ← admin prompt to customer (UC-005)
+info_requested_at          TIMESTAMPTZ
+info_requested_by          UUID                               ← staffId who requested info
+info_response_message      TEXT                               ← customer reply notes (UC-005)
+info_submitted_at          TIMESTAMPTZ
+approved_at                TIMESTAMPTZ
+approved_by                UUID                               ← staffId who approved
+completed_at               TIMESTAMPTZ
+completed_by               UUID                               ← staffId who completed
+cancelled_at               TIMESTAMPTZ
+cancelled_by               UUID                               ← staff or customer UUID
+cancellation_reason        TEXT
+rejected_at                TIMESTAMPTZ
+rejected_by                UUID                               ← staffId who rejected
+rejection_reason           TEXT
+created_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
+updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
 
 UNIQUE (tenant_id, id)
 INDEX (tenant_id)
@@ -109,20 +119,21 @@ INDEX (tenant_id, scheduled_at)
 
 **Table: `booking.booking_lines`**
 ```sql
-line_id                  UUID PRIMARY KEY
-booking_id               UUID NOT NULL
-tenant_id                UUID NOT NULL               ← denormalized for tenant isolation
+line_id                            UUID PRIMARY KEY
+booking_id                         UUID NOT NULL
+tenant_id                          UUID NOT NULL                ← denormalized for tenant isolation
 FOREIGN KEY (tenant_id, booking_id) REFERENCES booking.bookings(tenant_id, id)
-service_id               UUID NOT NULL
-service_name_at_booking  VARCHAR(255) NOT NULL
-price_at_booking_amount  NUMERIC(10,2) NOT NULL
-duration_mins_at_booking INTEGER NOT NULL
+FOREIGN KEY (tenant_id, service_id) REFERENCES booking.services(tenant_id, id)
+service_id                         UUID NOT NULL
+service_name_at_booking            VARCHAR(255) NOT NULL        ← snapshot of services.name
+price_at_booking_amount            NUMERIC(10,2) NOT NULL
+duration_mins_at_booking           INTEGER NOT NULL
 points_value_at_booking            INTEGER NOT NULL DEFAULT 0
 requires_pickup_address_at_booking BOOLEAN NOT NULL DEFAULT false
-actual_price_charged_amount        NUMERIC(10,2)     ← null until COMPLETED
+actual_price_charged_amount        NUMERIC(10,2)                ← null until COMPLETED
 
 INDEX (tenant_id)
-INDEX (booking_id)
+INDEX (tenant_id, booking_id)
 INDEX (tenant_id, service_id)
 ```
 
