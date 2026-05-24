@@ -171,12 +171,12 @@ Implement the TypeORM entities, repository adapter, and event publishing wiring 
 - `InMemoryBookingRepository` test double (`src/test/repositories/booking/in-memory-booking.repository.ts`) — needed by M07-S04/S05 unit tests
 - Wire `EventBusModule` into `BookingModule` imports — do NOT create a new `IEventBus` adapter; `GcpPubSubEventBusAdapter` already exists in shared infrastructure
 
-**Event publishing (use case responsibility, not repository):**
-- Use case wraps `repo.save()` in `ITransactionManager.run()` — same pattern as every other write use case
+**Transactional approach (use case responsibility, not repository):**
+- Use case wraps `repo.save()` in `ITransactionManager.run()` — transaction is managed by the use case
 - Repository `save()` calls `getActiveEntityManager()` to join the active transaction; persists `BookingEntity` + `BookingLineEntity[]` within it
-- After `txManager.run()` completes, use case flushes: `for (const e of booking.clearDomainEvents()) await eventBus.publish(e)`
+- After `txManager.run()` completes, use case flushes events: `for (const e of booking.clearDomainEvents()) await eventBus.publish(e)`
 - `repo.save()` never publishes events — that is exclusively the use case's responsibility
-- If the process crashes between commit and `publish()`, the event is lost — this is a known, accepted tradeoff for MVP
+- If `IEventBus.publish()` throws after a successful commit, the DB change is NOT rolled back — events are best-effort post-commit
 
 **Acceptance criteria:**
 - [ ] `IBookingRepository` port file and `BOOKING_REPOSITORY` token exist
