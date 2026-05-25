@@ -197,7 +197,7 @@ Implement the TypeORM entities, repository adapter, and event publishing wiring 
 
 ---
 
-### M07-S04 — UC-001: Guest requests booking
+### M07-S04 — UC-001: Guest requests booking ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
