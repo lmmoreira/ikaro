@@ -4,6 +4,7 @@ import { TenantModule } from '../../shared/tenant/tenant.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { PlatformSettingsModule } from '../platform/platform-settings.module';
 import { BOOKING_AVAILABILITY_PORT } from './application/ports/booking-availability.port';
+import { BOOKING_REPOSITORY } from './application/ports/booking-repository.port';
 import { SCHEDULE_CLOSURE_REPOSITORY } from './application/ports/schedule-closure-repository.port';
 import { SCHEDULE_OPENING_REPOSITORY } from './application/ports/schedule-opening-repository.port';
 import { SCHEDULE_TENANT_SETTINGS_PORT } from './application/ports/schedule-tenant-settings.port';
@@ -20,6 +21,8 @@ import { OpenScheduleUseCase } from './application/use-cases/open-schedule.use-c
 import { RemoveClosureUseCase } from './application/use-cases/remove-closure.use-case';
 import { RemoveScheduleOpeningUseCase } from './application/use-cases/remove-schedule-opening.use-case';
 import { UpdateServiceUseCase } from './application/use-cases/update-service.use-case';
+import { BookingEntity } from './infrastructure/entities/booking.entity';
+import { BookingLineEntity } from './infrastructure/entities/booking-line.entity';
 import { ScheduleClosureEntity } from './infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from './infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from './infrastructure/entities/service.entity';
@@ -29,7 +32,8 @@ import { ScheduleClosureController } from './infrastructure/controllers/schedule
 import { ScheduleOpeningController } from './infrastructure/controllers/schedule-opening.controller';
 import { ServiceController } from './infrastructure/controllers/service.controller';
 import { ScheduleTenantSettingsAdapter } from './infrastructure/cross-context/schedule-tenant-settings.adapter';
-import { InMemoryBookingAvailabilityAdapter } from './infrastructure/cross-context/in-memory-booking-availability.adapter';
+import { TypeOrmBookingAvailabilityAdapter } from './infrastructure/cross-context/typeorm-booking-availability.adapter';
+import { TypeOrmBookingRepository } from './infrastructure/repositories/typeorm-booking.repository';
 import { TypeOrmScheduleClosureRepository } from './infrastructure/repositories/typeorm-schedule-closure.repository';
 import { TypeOrmScheduleOpeningRepository } from './infrastructure/repositories/typeorm-schedule-opening.repository';
 import { TypeOrmServiceRepository } from './infrastructure/repositories/typeorm-service.repository';
@@ -37,7 +41,13 @@ import { AvailabilityService } from './domain/services/availability.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ServiceEntity, ScheduleClosureEntity, ScheduleOpeningEntity]),
+    TypeOrmModule.forFeature([
+      ServiceEntity,
+      ScheduleClosureEntity,
+      ScheduleOpeningEntity,
+      BookingEntity,
+      BookingLineEntity,
+    ]),
     TenantModule,
     TransactionManagerModule,
     PlatformSettingsModule,
@@ -54,7 +64,8 @@ import { AvailabilityService } from './domain/services/availability.service';
     { provide: SCHEDULE_CLOSURE_REPOSITORY, useClass: TypeOrmScheduleClosureRepository },
     { provide: SCHEDULE_OPENING_REPOSITORY, useClass: TypeOrmScheduleOpeningRepository },
     { provide: SCHEDULE_TENANT_SETTINGS_PORT, useClass: ScheduleTenantSettingsAdapter },
-    { provide: BOOKING_AVAILABILITY_PORT, useClass: InMemoryBookingAvailabilityAdapter },
+    { provide: BOOKING_AVAILABILITY_PORT, useClass: TypeOrmBookingAvailabilityAdapter },
+    { provide: BOOKING_REPOSITORY, useClass: TypeOrmBookingRepository },
     AvailabilityService,
     CreateServiceUseCase,
     ListServicesUseCase,

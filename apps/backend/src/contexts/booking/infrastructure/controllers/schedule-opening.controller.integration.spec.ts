@@ -1,25 +1,13 @@
 import { INestApplication } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
-import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
-import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
-import { TenantInterceptor } from '../../../../shared/tenant/tenant.interceptor';
-import { TenantModule } from '../../../../shared/tenant/tenant.module';
 import { ScheduleOpeningEntityBuilder } from '../../../../test/builders/booking/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
+import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
-import { HotsiteConfigEntity } from '../../../platform/infrastructure/entities/hotsite-config.entity';
-import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../../platform/platform.module';
-import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
-import { ServiceEntity } from '../entities/service.entity';
-import { BookingModule } from '../../booking.module';
 
 const TEST_KEY = 'opening-integ-test-key-opening-xxxx'; // 36 chars
 
@@ -37,36 +25,10 @@ describe('ScheduleOpeningController (integration)', () => {
 
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = TEST_KEY;
-
-    const moduleRef = await Test.createTestingModule({
-      imports: [
-        TypeOrmModule.forRoot({
-          type: 'postgres',
-          url: process.env['TEST_DATABASE_URL'],
-          entities: [
-            TenantEntity,
-            HotsiteConfigEntity,
-            ServiceEntity,
-            ScheduleClosureEntity,
-            ScheduleOpeningEntity,
-          ],
-          synchronize: false,
-        }),
-        EventBusModule,
-        TransactionManagerModule,
-        TenantModule,
-        PlatformModule,
-        BookingModule,
-      ],
-      providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
-    })
-      .overrideProvider(EVENT_BUS)
-      .useValue(new InMemoryEventBus())
-      .compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
-    ds = moduleRef.get(DataSource);
+    ({ app, ds } = await createBookingIntegrationApp({
+      extraModules: [EventBusModule, PlatformModule],
+      overrideEventBus: true,
+    }));
 
     // Seed tenants via the canonical API — no direct DB access to the platform context.
     const { body: a } = await request(app.getHttpServer())

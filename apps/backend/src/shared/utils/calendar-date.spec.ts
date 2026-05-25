@@ -1,6 +1,8 @@
 import {
+  endOfDayUTC,
   getUtcWeekDayName,
   localDateTimeToUTCIso,
+  startOfDayUTC,
   todayUTC,
   utcDateToLocalDate,
   utcDateToLocalHHMM,
@@ -66,6 +68,18 @@ describe('utcDateToLocalHHMM', () => {
 
   it('converts midnight UTC to 21:00 local the previous day (correct cross-day offset)', () => {
     expect(utcDateToLocalHHMM(new Date('2026-06-02T00:00:00Z'), TZ)).toBe('21:00');
+  });
+});
+
+describe('startOfDayUTC', () => {
+  it('appends T00:00:00.000Z to a YYYY-MM-DD string', () => {
+    expect(startOfDayUTC('2026-06-01')).toBe('2026-06-01T00:00:00.000Z');
+  });
+});
+
+describe('endOfDayUTC', () => {
+  it('appends T23:59:59.999Z to a YYYY-MM-DD string', () => {
+    expect(endOfDayUTC('2026-06-01')).toBe('2026-06-01T23:59:59.999Z');
   });
 });
 

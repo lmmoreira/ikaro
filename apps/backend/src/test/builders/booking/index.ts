@@ -7,3 +7,5 @@ export { ScheduleOpeningEntityBuilder } from './schedule-opening-entity.builder'
 export { BookingBuilder } from './booking.builder';
 export { BookingLineBuilder } from './booking-line.builder';
 export { BookingLineInputBuilder } from './booking-line-input.builder';
+export { BookingEntityBuilder } from './booking-entity.builder';
+export { BookingLineEntityBuilder } from './booking-line-entity.builder';

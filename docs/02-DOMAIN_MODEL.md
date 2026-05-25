@@ -390,7 +390,6 @@ Represents an authenticated user with a profile.
 - `CustomerId` (unique identifier, from Google OAuth sub)
 - `Email`
 - `Phone`
-- `FullName`
 
 **Properties:**
 ```
@@ -400,8 +399,7 @@ Customer {
   googleOAuthId:  String (unique from Google)
   email:          Email
   phone:          Phone
-  firstName:      String
-  lastName:       String
+  name:           String
   defaultAddress: Address | null   -- optional; pre-fills both guestAddress and pickupAddress on the booking form.
                                    -- The booking always stores its own copy — this is convenience only.
   createdAt:      DateTime

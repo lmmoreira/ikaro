@@ -1,20 +1,11 @@
 import { INestApplication } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
-import { TenantInterceptor } from '../../../../shared/tenant/tenant.interceptor';
-import { TenantModule } from '../../../../shared/tenant/tenant.module';
 import { ScheduleClosureEntityBuilder } from '../../../../test/builders/booking/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
+import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
-import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.entity';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
-import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
-import { ServiceEntity } from '../entities/service.entity';
-import { BookingModule } from '../../booking.module';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000300';
 const TENANT_B = '10000000-0000-4000-8000-000000000301';
@@ -25,24 +16,7 @@ describe('ScheduleClosureController (integration)', () => {
   let ds: DataSource;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [
-        TypeOrmModule.forRoot({
-          type: 'postgres',
-          url: process.env['TEST_DATABASE_URL'],
-          entities: [ServiceEntity, ScheduleClosureEntity, ScheduleOpeningEntity, TenantEntity],
-          synchronize: false,
-        }),
-        TransactionManagerModule,
-        TenantModule,
-        BookingModule,
-      ],
-      providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
-    ds = moduleRef.get(DataSource);
+    ({ app, ds } = await createBookingIntegrationApp());
   });
 
   afterAll(async () => {

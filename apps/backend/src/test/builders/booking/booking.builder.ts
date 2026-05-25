@@ -47,6 +47,7 @@ export class BookingBuilder {
   private readonly rejectedBy: string | null = null;
   private readonly rejectionReason: string | null = null;
   private readonly createdAt = new Date();
+  private linesModified = true;
 
   withId(id: string): this {
     this.id = id;
@@ -121,6 +122,11 @@ export class BookingBuilder {
     return this;
   }
 
+  withLinesModified(value: boolean): this {
+    this.linesModified = value;
+    return this;
+  }
+
   build(): Booking {
     const props: BookingProps = {
       id: this.id,
@@ -158,6 +164,6 @@ export class BookingBuilder {
       rejectionReason: this.rejectionReason,
       createdAt: this.createdAt,
     };
-    return Booking.reconstitute(props);
+    return Booking.reconstitute(props, this.linesModified);
   }
 }

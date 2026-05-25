@@ -57,3 +57,13 @@ export function utcDateToLocalHHMM(utcDate: Date, timezone: string): string {
 export function utcDateToLocalDate(utcDate: Date, timezone: string): string {
   return DateTime.fromJSDate(utcDate, { zone: 'utc' }).setZone(timezone).toISODate()!;
 }
+
+/** Returns the ISO-8601 UTC start-of-day boundary for a YYYY-MM-DD string (00:00:00.000Z). */
+export function startOfDayUTC(date: string): string {
+  return `${date}T00:00:00.000Z`;
+}
+
+/** Returns the ISO-8601 UTC end-of-day boundary for a YYYY-MM-DD string (23:59:59.999Z). */
+export function endOfDayUTC(date: string): string {
+  return `${date}T23:59:59.999Z`;
+}

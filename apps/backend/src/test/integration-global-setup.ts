@@ -1,23 +1,26 @@
-import 'reflect-metadata';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import 'reflect-metadata';
 import { GenericContainer, Wait } from 'testcontainers';
 import { DataSource } from 'typeorm';
+import { BookingLineEntity } from '../contexts/booking/infrastructure/entities/booking-line.entity';
+import { BookingEntity } from '../contexts/booking/infrastructure/entities/booking.entity';
 import { ScheduleClosureEntity } from '../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../contexts/booking/infrastructure/entities/service.entity';
+import { CreateBookingServices1748000000011 } from '../contexts/booking/infrastructure/migrations/1748000000011-CreateBookingServices';
 import { CreateBookingScheduleClosures1748000000012 } from '../contexts/booking/infrastructure/migrations/1748000000012-CreateBookingScheduleClosures';
 import { CreateBookingScheduleOpenings1748000000013 } from '../contexts/booking/infrastructure/migrations/1748000000013-CreateBookingScheduleOpenings';
-import { CreateBookingServices1748000000011 } from '../contexts/booking/infrastructure/migrations/1748000000011-CreateBookingServices';
 import { CreateBookingBookings1748000000014 } from '../contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings';
+import { AddBookingVersion1748000000015 } from '../contexts/booking/infrastructure/migrations/1748000000015-AddBookingVersion';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
-import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
-import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
-import { CreatePlatformHotsiteConfigs1716500000002 } from '../contexts/platform/infrastructure/migrations/1716500000002-CreatePlatformHotsiteConfigs';
-import { CreatePlatformTenants1716500000001 } from '../contexts/platform/infrastructure/migrations/1716500000001-CreatePlatformTenants';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { CreateNotificationLogs1748000000010 } from '../contexts/notification/infrastructure/migrations/1748000000010-CreateNotificationLogs';
+import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
+import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
+import { CreatePlatformTenants1716500000001 } from '../contexts/platform/infrastructure/migrations/1716500000001-CreatePlatformTenants';
+import { CreatePlatformHotsiteConfigs1716500000002 } from '../contexts/platform/infrastructure/migrations/1716500000002-CreatePlatformHotsiteConfigs';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff';
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
@@ -59,6 +62,8 @@ export default async function globalSetup(): Promise<void> {
       ServiceEntity,
       ScheduleClosureEntity,
       ScheduleOpeningEntity,
+      BookingEntity,
+      BookingLineEntity,
       CustomerEntity,
       StaffEntity,
       NotificationLogEntity,
@@ -77,6 +82,7 @@ export default async function globalSetup(): Promise<void> {
       CreateBookingScheduleClosures1748000000012,
       CreateBookingScheduleOpenings1748000000013,
       CreateBookingBookings1748000000014,
+      AddBookingVersion1748000000015,
     ],
     synchronize: false,
     migrationsRun: false,

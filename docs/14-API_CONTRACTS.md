@@ -259,7 +259,18 @@ A booking has **1..N service lines**. Order in the `serviceIds` array is preserv
   {
     "serviceIds":   ["uuid-basic-wash", "uuid-pickup"],  // ≥ 1; duplicates OK
     "scheduledAt":  "ISO8601",
-    "guestInfo":    { "name": "...", "email": "...", "phone": "..." },
+    "guestEmail":   "joao@example.com",
+    "guestName":    "João Silva",
+    "guestPhone":   "31999999999",
+    "guestAddress": {
+      "street":       "Rua das Acácias",
+      "number":       "45",
+      "complement":   null,
+      "neighborhood": "Jardim América",
+      "city":         "Belo Horizonte",
+      "state":        "MG",
+      "zipCode":      "30130020"
+    },
     "pickupAddress": {
       "street":       "Rua das Flores",
       "number":       "123",
@@ -273,7 +284,8 @@ A booking has **1..N service lines**. Order in the `serviceIds` array is preserv
   }
   ```
   - `pickupAddress` is **required** when any `serviceId` has `requiresPickupAddress = true`; omit otherwise.
-  - `guestInfo` is omitted for authenticated customers (BFF reads from JWT).
+  - `guestAddress` is optional (general home address for the guest).
+  - `guestEmail`, `guestName`, `guestPhone`, and `guestAddress` are omitted for authenticated customers (BFF reads name/email/phone from the Customer record).
 
 - **Response (`201 Created`):**
   ```json
@@ -311,7 +323,8 @@ A booking has **1..N service lines**. Order in the `serviceIds` array is preserv
 
 - **Errors (RFC 9457 Problem Details):**
   - `400 invalid-services-empty` — `serviceIds` is empty.
-  - `400 invalid-services-not-found` — one or more `serviceId` does not exist in the current tenant.
+  - `404 service-not-found` — one or more `serviceId` does not exist in the tenant's catalog.
+  - `400 service-not-in-tenant` — one or more `serviceId` exists globally but does not belong to this tenant.
   - `400 invalid-services-inactive` — one or more service has `is_active = false`.
   - `400 missing-pickup-address` — one or more selected services require a pickup address but none was provided.
   - `400 invalid-pickup-address` — `pickupAddress` fields fail validation (e.g. `zipCode` not 8 digits, `state` not a valid UF).

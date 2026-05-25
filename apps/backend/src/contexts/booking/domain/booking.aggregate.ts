@@ -65,6 +65,7 @@ export interface BookingProps {
   rejectedBy: string | null;
   rejectionReason: string | null;
   createdAt: Date;
+  version?: number;
 }
 
 export interface RequestBookingInput {
@@ -84,10 +85,19 @@ export interface RequestBookingInput {
 
 export class Booking extends AggregateRoot {
   private readonly props: BookingProps;
+  private _linesModified = false;
 
   private constructor(props: BookingProps) {
     super();
     this.props = props;
+  }
+
+  get linesModified(): boolean {
+    return this._linesModified;
+  }
+
+  get version(): number | undefined {
+    return this.props.version;
   }
 
   get id(): string {
@@ -255,6 +265,8 @@ export class Booking extends AggregateRoot {
       rejectionReason: null,
       createdAt: new Date(),
     });
+
+    booking._linesModified = true;
 
     booking.addDomainEvent(
       new BookingRequested(tenantId, correlationId, {
@@ -429,6 +441,7 @@ export class Booking extends AggregateRoot {
       Money.zero(),
     );
 
+    this._linesModified = true;
     this.props.status = BookingStatus.COMPLETED;
     this.props.completedAt = new Date();
     this.props.completedBy = staffId;
@@ -566,7 +579,9 @@ export class Booking extends AggregateRoot {
     return Date.now() < this.props.scheduledAt.getTime() - windowMs;
   }
 
-  static reconstitute(props: BookingProps): Booking {
-    return new Booking(props);
+  static reconstitute(props: BookingProps, linesModified = false): Booking {
+    const booking = new Booking(props);
+    booking._linesModified = linesModified;
+    return booking;
   }
 }
