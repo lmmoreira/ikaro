@@ -815,3 +815,113 @@ e2e/
 ├── customer-cancel.spec.ts
 └── customer-login-tenant-selection.spec.ts
 ```
+
+---
+
+## Mandatory Patterns (enforced — no exceptions)
+
+### Builder class pattern (all test data)
+
+Always use a **class** with fluent `withXxx()` methods and a `build()` call. Never use a plain factory function (`function makeFoo(...): Foo { return {...} as Foo }`).
+
+| Test data type | Builder location |
+|---|---|
+| TypeORM entities | `src/test/builders/<context>/XxxEntityBuilder` (`id` defaults to `uuidv7()`) |
+| Domain aggregates | `src/test/builders/<context>/XxxBuilder` |
+| Shared infra stubs (e.g. TenantContext) | `src/test/factories/XxxBuilder` — e.g. `TenantContextBuilder` at `src/test/factories/tenant-context.factory.ts` |
+
+### Test setup pattern
+
+**Never** use factory helper functions (`makeUseCase`, `make`, etc.) at describe scope. Always use `let` declarations + `beforeEach` to wire dependencies.
+
+```typescript
+// ✅ CORRECT
+let useCase: ApproveBookingUseCase;
+let repo: InMemoryBookingRepository;
+beforeEach(() => {
+  repo = new InMemoryBookingRepository();
+  useCase = new ApproveBookingUseCase(repo, new InMemoryTransactionManager());
+});
+
+// ❌ WRONG
+const makeUseCase = () => new ApproveBookingUseCase(...);
+```
+
+### InMemory port doubles
+
+Every cross-context port used in tests needs an `InMemoryXxxPort` class in `src/test/infrastructure/` — never a `jest.fn()` inline mock. Provide a sensible default state with setter methods for overrides.
+
+Example: `InMemoryScheduleTenantSettingsPort` defaults to Mon–Sat open, Sunday null.
+
+### BFF: two test files per controller (mandatory)
+
+Every `*.controller.ts` in `apps/bff/src/` must have:
+- `*.controller.spec.ts` — unit spec
+- `*.controller.component.spec.ts` — boots full `AppModule` via `createTestApp()`, mocks `BackendHttpService`; must cover: 401, 403, 400 (Zod), happy path per allowed role, backend error propagation
+
+Canonical examples: `services.controller.component.spec.ts`, `schedule.controller.component.spec.ts`.
+
+### BFF test helper file isolation
+
+`apps/bff/src/test/` has a hard dependency boundary:
+- `component-test.helpers.ts` — **component specs only** (imports `AppModule`)
+- `backend-http.mock.ts` — **unit specs only** (no `AppModule` dependency)
+
+Never import `component-test.helpers.ts` from a unit spec: it triggers `AppModule` load → `validateEnv()` before env vars are set → crashes 5+ test suites under `jest --coverage`.
+
+BFF `test:cov` must exclude component specs from coverage collection for the same reason.
+
+In `afterEach`, use `resetAllMocks()` not `clearAllMocks()` — `clearAllMocks` leaves `mockReturnValueOnce` queues intact, causing cross-test leakage.
+
+### Shared date helpers (mandatory — never inline)
+
+`src/test/utils/date-helpers.ts` exports:
+- `futureDate(daysAhead = 1)` — `YYYY-MM-DD` string, UTC
+- `pastDate(daysAgo = 1)` — `YYYY-MM-DD` string, UTC
+- `nextWeekday(utcDayOfWeek: 0–6, weeksAhead?)` — next future date for that UTC day. 0 = Sunday … 6 = Saturday.
+
+Always import these; never define `futureDate`, `pastDate`, `nextSunday`, `nextMonday`, etc. inline in any spec file.
+
+### Shared address helper (mandatory — never inline)
+
+`src/test/utils/address-helpers.ts` exports `testAddress(overrides?: Partial<AddressProps>): Address` — a valid Brazilian `Address` VO with sensible defaults. Always import it instead of calling `Address.create({...})` inline.
+
+### Integration test DB isolation
+
+Integration tests share a live DB with no cleanup between tests in the same file. Any `it()` sensitive to aggregate counts (`countActiveManagersByTenant`, `total` in pagination, etc.) **must use a unique tenant UUID** that no other test in the file writes to. Never reuse suite-level `TENANT_A`/`TENANT_B` constants for count-sensitive assertions.
+
+### Notification integration spec helper
+
+All notification story integration specs must use `createNotificationIntegrationApp()` from `src/test/utils/notification-integration-app.ts`.
+
+Options: `dispatcher` (required), `configure` (override providers), `extraModules`, `extraEntities`, `withTenantInterceptor`. Returns `{ app, ds, eventBus }`. Never repeat `TypeOrmModule.forRoot` inline.
+
+### Notification cross-handler isolation
+
+`NotificationModule` registers ALL handlers. When a spec runs concurrently with another spec that publishes events those handlers subscribe to, the handler processes foreign events and contaminates idempotency checks. Suppress unrelated handlers with a no-op override:
+
+```typescript
+const noOpXxxHandler = { onModuleInit: () => undefined, handle: async () => undefined };
+configure: (b) => b.overrideProvider(XxxHandler).useValue(noOpXxxHandler)
+```
+
+Canonical example: `booking-requested.handler.integration.spec.ts` suppresses `StaffInvitedHandler`.
+
+### Idempotency baseline drain (mandatory — provisioning noise)
+
+When the provisioning flow also emits the same event type you are testing idempotency for, the provisioning's notification email may arrive after you capture `countBeforeRedeliver`, causing a false-positive failure. Extend the initial `waitFor` to also confirm the provisioning's `NotificationLog` row is written before recording the baseline:
+
+```typescript
+await waitFor(async () => {
+  const aggregate = await ds.getRepository(XxxEntity).findOne({ where: { tenantId, ... } });
+  if (!aggregate) return false;
+  const provisioningLog = await ds.getRepository(NotificationLogEntity)
+    .findOne({ where: { tenantId, notificationType: 'STAFF_INVITED', channel: 'EMAIL' } });
+  return provisioningLog !== null;
+});
+// Only now: publish synthetic event and record countBeforeRedeliver
+```
+
+### Controller integration spec — event bus override
+
+Override `EVENT_BUS` with `new InMemoryEventBus()` in all controller integration specs that don't need end-to-end Pub/Sub routing. Without this override, `GcpPubSubEventBusAdapter` connects to the emulator — gRPC timeouts fail every test if the emulator is unreachable.

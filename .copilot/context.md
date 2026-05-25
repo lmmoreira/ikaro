@@ -1,9 +1,11 @@
 # BeloAuto — Agent Context (canonical)
 
+> **AGENT EDITING NOTICE:** `CLAUDE.md`, `claude.md`, and `gemini.md` are all symlinks to **`.copilot/context.md`**. If you need to edit this file, always write to `.copilot/context.md` directly — never attempt to write through the symlinks.
+
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-05-25 (M07-S06 — notification integration spec isolation, idempotency baseline drain, phone format)
+**Last updated:** 2026-05-25 (M07-S06 — refactored to dynamic-loading model; CODE_STANDARDS.md extracted)
 
 ---
 
@@ -173,12 +175,11 @@ src/contexts/<context>/
 ```
 Shared cross-cutting code → `src/shared/` (logger, OTel, `IEventBus` port, tenant-context).
 
-### Shared utilities and value objects (mandatory rules)
+### Shared utilities and value objects
 
-**Utility functions used in more than one place MUST live in `src/shared/utils/`** — never duplicated inline.
-Examples already there: `deepMerge` (`src/shared/utils/deep-merge.ts`), `startOfDayUTC` / `endOfDayUTC` / `todayUTC` / `localDateTimeToUTCIso` / `utcDateToLocalDate` / `utcDateToLocalHHMM` / `getUtcWeekDayName` (`src/shared/utils/calendar-date.ts`).
+Utility functions used in more than one place → `src/shared/utils/`. Already there: `deepMerge`, `startOfDayUTC` / `endOfDayUTC` / `todayUTC` / `localDateTimeToUTCIso` / `utcDateToLocalDate` / `utcDateToLocalHHMM` / `getUtcWeekDayName`.
 
-**Fields that carry their own validation MUST be value objects in `src/shared/value-objects/`**, not plain primitives.
+Fields with their own validation → `src/shared/value-objects/` (never plain primitives):
 
 | Field | Value Object | File |
 |---|---|---|
@@ -191,86 +192,51 @@ Examples already there: `deepMerge` (`src/shared/utils/deep-merge.ts`), `startOf
 | HH:MM time | `TimeOfDay` | `time-of-day.vo.ts` |
 | URL-safe slug | `Slug` | `slug.vo.ts` |
 
-Every value object must have a `.spec.ts` unit test covering valid and invalid inputs. Never duplicate a `isValidXxx` function — put it in the VO once.
-
-**`PhoneNumber` HTTP format (mandatory):** HTTP request bodies (`guestPhone`, customer `phone`) must send digits only, no country-code prefix — 10–11 digits (`31999999999` ✓, `+5531999999999` ✗). `PhoneNumber.create()` strips non-digits and validates length 10–11. Domain event payloads constructed directly in tests bypass Zod and may carry any format, but HTTP bodies go through `ZodValidationPipe` and will 400 if the prefix is included.
-
-**VOs are the single normalisation boundary for their input type (mandatory).** When the DB returns a format the VO doesn't expect (e.g. PostgreSQL `time` columns return `HH:MM:SS`; the domain uses `HH:MM`), fix the VO to normalise in `create()` — never add `.slice()` or format-stripping inside repository `toDomain()` mappers. One VO fix propagates to every mapper automatically and is covered by a single spec. Example: `TimeOfDay.create('09:00:00')` normalises to `'09:00'`.
+Every VO must have a `.spec.ts` covering valid and invalid inputs. → PhoneNumber format and VO normalisation boundary rules: `docs/CODE_STANDARDS.md`.
 
 ### Value-object-typed aggregate fields (mandatory — Option A)
 
-Aggregate **props interfaces use VO types**, not plain primitives. **Getters return the VO** — not a derived string. `create()` factory receives raw strings and constructs VOs; `reconstitute()` skips validation for DB reads. JSONB columns require a double cast (`as unknown as XxxProps`).
+Aggregate props interfaces use VO types; getters return VOs; `create()` constructs VOs from raw strings; `reconstitute()` skips validation. JSONB columns require a double cast (`as unknown as XxxProps`).
 
-→ For `create()`/`reconstitute()` code patterns, mapper examples, and in-memory repo comparisons see `docs/VALUE_OBJECTS_REFERENCE.md`.
+→ Code patterns, mapper examples, in-memory repo comparisons: `docs/VALUE_OBJECTS_REFERENCE.md`.
 
 ### Code standards
-- `strict: true` TypeScript — no `any`, no `@ts-ignore`, no `// eslint-disable`
-- Functions ≤ 20 lines, classes ≤ 200 lines
-- Repository signature: `findById(id, tenantId)`, `findAllByTenant(tenantId, filters)`, `save(entity)`
-- No raw SQL outside repository adapters
-- No business logic in controllers — controllers call use cases only
-- No direct cross-context calls — data flows through the hierarchy described in "Cross-context data access" below
-- DI everywhere — no `new SomeRepository()` in services
-- No barrel `index.ts` in `ports/` or `shared/domain/` directories — always import from the specific file (e.g. `./ports/tenant-repository.port`). Test builder barrels (`src/test/builders/`) are the only exception. ESLint `no-restricted-imports` enforces this at CI.
-- All configurable values (48 h window, 180 d expiry) read from `tenants.settings`, never hardcoded
-- Email templates in pt-BR; Money display as `R$ 1.234,56`
-- Domain errors → HTTP status mapping belongs in a `mapXxxError(err: unknown): never` helper in `infrastructure/http/` — never multiple `if (err instanceof X)` chains inside a controller method. The controller method should be one line: `return this.useCase.execute(dto).catch(mapXxxError)`
-- **Use case domain error contract (mandatory):** Before writing any use case, define its failure modes as domain errors in `domain/errors/<context>-domain.error.ts` and register them in `infrastructure/http/<context>-error.mapper.ts`. Use cases throw these domain errors for every non-happy-path condition. They **never** return `null`/`undefined` to signal "not found", never throw `HttpException`, and never return a Result/Either type. The controller's `.catch(mapXxxError)` is the sole HTTP translation point — the controller itself contains zero error-checking logic.
-- **Use case result type naming (mandatory):** Every use case `execute()` method must return a named exported type following the pattern `{UseCaseClassName}Result` — defined and exported in the same `.use-case.ts` file. Never use `*Info`, `*Dto`, raw arrays (`T[]`), or any other ad-hoc name. Example: `GetTenantByIdUseCase` → `GetTenantByIdUseCaseResult`; `FindOrCreateCustomerUseCase` → `FindOrCreateCustomerUseCaseResult`.
-- **Request DTO naming (mandatory):** Input DTOs for use cases and controllers are named `{Action}Dto` — never `{Action}RequestDto`, `{Action}InputDto`, or any other suffix. The Zod schema is named `{Action}Schema`. When a path param must be combined with a request body (e.g. `staffId` from `@Param` + body fields), pass them as **separate arguments** to the use case (`execute(staffId, dto)`) rather than merging into a composite DTO. One DTO per use case — no split `RequestDto` + merged `Dto` pattern.
-- Guards that protect a single context's endpoints belong in `src/contexts/<context>/infrastructure/guards/` — only truly cross-cutting guards (used by multiple contexts) go in `src/shared/guards/`
-- **`/internal` routes skip `TenantInterceptor` — `TenantContext` is never populated for them.** The interceptor calls `next.handle()` early for any path starting with `/internal`. Use `/internal` only for auth-flow lookups (OAuth, email, activate) where the caller passes `tenantId` explicitly. Management endpoints that need `tenantId`/`actorId` from context must live on a non-`/internal` path (e.g. `/staff/*`) so `TenantInterceptor` runs normally. Consequence: management controllers that inject `TenantContext` must have their module import `TenantModule` explicitly (`TenantModule` is NOT `@Global()`).
-- **Domain error messages are English only.** pt-BR copy in UC specs is frontend UI copy — it never goes in domain error constructors. All existing domain errors (`StaffNotFoundError`, etc.) are English; follow the same pattern.
-- **Zod v4 format validators:** use `z.uuid()` and `z.email()` — never `z.string().uuid()` / `z.string().email()`. The chained forms are deprecated in Zod v4 and flagged by SonarCloud as issues.
-- **Domain events belong in the publishing context.** Define `StaffInvited`, `StaffDeactivated` etc. in `staff/domain/events/`, not in `platform/`. Duplicate class definitions across contexts cause SonarCloud duplication failures. When moving an event from the wrong context, verify no imports remain before deleting.
-- **Aggregate-driven events (mandatory — no exceptions):** Aggregates record domain events via `this.addDomainEvent()` inside their domain methods — including system-initiated factory methods like `inviteFromProvisioning()`. Use cases flush via `aggregate.clearDomainEvents()` **after** `txManager.run()` completes. **Never** construct or publish events directly from a use case — not even when there is no `TenantContext` (pass `correlationId` as a parameter to the factory method instead). The `AggregateRoot` base class provides `addDomainEvent()` and `clearDomainEvents()` — always use them.
-- **Thin vs fat events:** if the data needed by subscribers is persistently stored on the entity, the event carries only the ID — subscribers query for the rest. If the data is transient (not stored in the entity, or represents state at a specific point in time that may change before the subscriber runs), it must be in the event payload. Example: `StaffInvited` is thin (`staffId` only) because name/email/invitedBy are now stored on the entity. `TenantProvisioned` is fat because `adminEmail` is not stored on `Tenant`.
-- **`correlationId` in domain events must come from `TenantContext.correlationId`**, not from `uuidv7()`. Pass it from the use case into the aggregate method that records the event. For `/internal` routes (no `TenantContext`), generate one `uuidv7()` at the top of the use case and pass it through — never re-generate it per event.
-- **Domain error base classes must include `Object.setPrototypeOf(this, new.target.prototype)`** immediately after `super()`. Without it, `instanceof` checks silently fail in compiled TypeScript — error mappers fall through to 500 instead of the correct 4xx. Every `XxxDomainError extends Error` base class needs this line.
-- **Controller early-exit guards must use `return Promise.reject(...)` not `throw`** when the controller method signature returns `Promise<T>`. A synchronous `throw` does not become a Promise rejection and bypasses the `.catch(mapXxxError)` chain. Use `return Promise.reject(new HttpException({...}, status))` for all early validation checks in controller methods.
-- **Default parameters must come after required parameters** (SonarCloud S1788 MAJOR). Never declare a method/function with a default param followed by a required one: `create(name, slug, timezone = '...', adminEmail)` is invalid — move the default to last position.
-- Every new REST endpoint must have a corresponding request block in `apps/backend/http/<context>/<resource>.http` — include the happy path, all 4xx error cases, and edge cases. Use the existing files as a template.
+
+→ Full mandatory rules: `docs/CODE_STANDARDS.md`. Critical invariants always active:
+
+- `strict: true` — no `any`, no `@ts-ignore`, no `// eslint-disable`. Functions ≤ 20 lines, classes ≤ 200.
+- Controllers call use cases only. No business logic in controllers.
+- Domain errors thrown by use cases; `mapXxxError(err: unknown): never` at HTTP layer; controller = `return this.useCase.execute(dto).catch(mapXxxError)`. Never throw `HttpException` from a use case.
+- Use case result: `{UseCaseClassName}Result`. DTO: `{Action}Dto`. Zod schema: `{Action}Schema`.
+- **Aggregate-driven events:** `this.addDomainEvent()` in aggregate method; flush `clearDomainEvents()` **after** `txManager.run()`. Never publish events directly from a use case.
+- `correlationId` from `TenantContext.correlationId` (not `uuidv7()`). Domain error base class needs `Object.setPrototypeOf(this, new.target.prototype)` after `super()`.
+- Zod v4: `z.uuid()` / `z.email()` — never `z.string().uuid()` / `z.string().email()`.
+- `/internal` routes skip `TenantInterceptor`. `TenantModule` is not `@Global()` — import explicitly in every module whose controller injects `TenantContext`.
+- Domain events belong in the publishing context (`StaffInvited` in `staff/domain/events/`, not `platform/`).
+- Domain error messages are **English only**. Default params must come after required params (SonarCloud S1788).
+- No barrel `index.ts` in `ports/` or `shared/domain/` — ESLint enforces. Every new REST endpoint → `.http` file.
 
 ### Cross-context data access (priority order — follow strictly)
 
-When a use case in Context A needs data owned by Context B, choose the **first** option that applies:
+When Context A needs data owned by Context B, choose the **first** option that applies:
 
-1. **Domain events (preferred — async):** Context B publishes an event; Context A subscribes and projects the data it needs into its own read model. No runtime coupling.
-2. **BFF orchestration (preferred — sync read):** The BFF calls both contexts independently and assembles the response. No context knows about the other.
-3. **Port + adapter (last resort — sync, same process):** Define an interface (port) in Context A's `application/ports/` (e.g. `ILoyaltyPointsPort`). The infrastructure adapter in Context A implements it by injecting Context B's **service** (never its repository token). Context B must export the service — never the repository.
+1. **Domain events (preferred — async):** Context B publishes; Context A subscribes and projects into its own read model.
+2. **BFF orchestration (preferred — sync read):** BFF calls both contexts independently. No context knows the other.
+3. **Port + adapter (last resort — sync, same process):** Interface in Context A's `application/ports/`. Adapter injects Context B's **service** (never its repository token).
 
-**None of the above is ever a direct SQL JOIN across schemas inside a repository.** A repository may only query its own context's schema. Fields that belong to another context are assembled by the use case via the appropriate port.
+**Never** a direct SQL JOIN across contexts inside a repository. A repository queries its own schema only.
 
 ### Transactions (every write — no exceptions)
 
-**Every `save()` call in every use case must be wrapped in `ITransactionManager.run()`**, including single-aggregate writes. TypeORM's `save()` is a merge operation (internal SELECT + UPDATE/INSERT); without a transaction those two DB operations are not atomic.
+Every `save()` in every use case must be wrapped in `ITransactionManager.run()` — including single-aggregate writes. TypeORM's `save()` is a merge (internal SELECT + UPDATE/INSERT); without a transaction those two DB ops are not atomic.
 
-**Scope rule — keep transactions short:** wrap only the `save()` call(s), not the entire use case body. Reads, validations, and domain mutations happen *before* `txManager.run()` opens.
+**Scope rule:** wrap only the `save()` call(s) — reads, validations, and domain mutations happen *before* `txManager.run()` opens.
 
-```typescript
-// ✅ CORRECT — read/validate outside, only the save inside
-const entity = await this.repo.findById(id, tenantId);
-if (!entity) throw new NotFoundError(id);
-entity.doSomething();
-await this.txManager.run(async () => {
-  await this.repo.save(entity);
-});
+**Multi-aggregate writes:** wrap all saves together in a single `txManager.run()`.
 
-// ❌ WRONG — wrapping the entire use case body (long transaction)
-return this.txManager.run(async () => {
-  const entity = await this.repo.findById(id, tenantId);
-  entity.doSomething();
-  await this.repo.save(entity);
-});
+**Test wiring:** inject `new InMemoryTransactionManager()` in every unit/controller spec. For `Test.createTestingModule`: `{ provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() }`. For integration: import `TransactionManagerModule`.
 
-// ❌ WRONG — no transaction at all
-entity.doSomething();
-await this.repo.save(entity);  // TypeORM merge not atomic
-```
-
-**Multi-aggregate writes** (two or more `save()` calls) must wrap all saves together in a single `txManager.run()` to ensure atomicity across aggregates.
-
-**Test wiring (mandatory):** inject `new InMemoryTransactionManager()` as the second constructor argument in every unit spec and controller spec that constructs a write use case directly. For `Test.createTestingModule`, provide `{ provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() }`. For integration specs that bootstrap a full NestJS module, import `TransactionManagerModule`.
+**Repository transaction-awareness:** write methods check `getActiveEntityManager()` — use active `EntityManager` if present, else fall back to `this.repo`. Read methods do not need this.
 
 | Artifact | Location |
 |---|---|
@@ -280,78 +246,47 @@ await this.repo.save(entity);  // TypeORM merge not atomic
 | Test double | `src/test/infrastructure/in-memory-transaction-manager.ts` |
 | Context propagation | `src/shared/infrastructure/transaction-context.ts` |
 
-**Repository transaction-awareness:** every TypeORM repo write method checks `getActiveEntityManager()` — if a transaction is active it uses that `EntityManager`, otherwise falls back to `this.repo`. Read methods do not need to be transaction-aware.
-
 ### Event handlers (Pub/Sub consumers)
 
-Event handlers live in `<context>/infrastructure/events/`. They are **infrastructure**, not application layer.
+Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**, not application layer.
 
 - **Thin by law:** `handle()` calls exactly one use case and rethrows any error. Zero domain logic inside a handler.
-- **Subscribe in `onModuleInit()`** via `eventBus.subscribe(eventName, handler, consumerName)`. `consumerName` determines the Pub/Sub subscription name — must be unique per consumer (e.g. `'staff'`, `'notification'`).
-- **Rethrow errors** — Pub/Sub nacks the message and retries. Never swallow errors in `handle()`.
+- **Subscribe in `onModuleInit()`** via `eventBus.subscribe(eventName, handler, consumerName)`. `consumerName` determines the Pub/Sub subscription name — unique per consumer.
+- **Rethrow errors** — Pub/Sub nacks and retries. Never swallow errors.
 - **Idempotency in the use case** — DB check via `findByXxx`. No in-memory sets (lost on restart, not shared across pods).
 - **`correlationId` propagation** — pass `event.correlationId` into the use case DTO; never generate a new UUID in the handler.
 
-**Pub/Sub naming (mandatory — one topic per event type):**
+**Pub/Sub naming (one topic per event type):**
 
 | Thing | Pattern | Example |
 |---|---|---|
 | Topic | `beloauto-{eventName}` | `beloauto-StaffInvited` |
 | Subscription | `beloauto-{eventName}-{consumerName}` | `beloauto-StaffInvited-notification` |
 
-`GcpPubSubEventBusAdapter` (`src/shared/infrastructure/gcp-pubsub-event-bus.adapter.ts`) auto-creates topics and subscriptions on `onApplicationBootstrap()`. Local dev connects to the emulator via `PUBSUB_EMULATOR_HOST=localhost:8085` (set in `.env`, loaded by `validateEnv()` before NestJS boots). Production topics/subscriptions are pre-provisioned by Terraform (M15-S08).
+`GcpPubSubEventBusAdapter` auto-creates topics/subscriptions on `onApplicationBootstrap()`. Local dev: `PUBSUB_EMULATOR_HOST=localhost:8085`.
 
 **Test wiring for event handlers:**
 
 | Test type | Event bus | When to use |
 |---|---|---|
-| Handler unit spec | `InMemoryEventBus` + call `handler.handle(event)` directly | Tests handler → use case logic in isolation |
-| Story integration spec | Real `EventBusModule` (no override) + `waitFor()` | Tests full publish → Pub/Sub → handler → DB chain |
-| Controller integration spec | Override `EVENT_BUS` with `InMemoryEventBus` | Controller tests HTTP layer — no Pub/Sub needed |
+| Handler unit spec | `InMemoryEventBus` + call `handler.handle(event)` directly | Handler → use case logic in isolation |
+| Story integration spec | Real `EventBusModule` (no override) + `waitFor()` | Full publish → Pub/Sub → handler → DB chain |
+| Controller integration spec | Override `EVENT_BUS` with `InMemoryEventBus` | HTTP layer — no Pub/Sub needed |
 
-`waitFor()` utility lives at `src/test/utils/wait-for.ts`. Use it in story integration specs to poll for async side effects — this is the approved pattern instead of raw `setTimeout` in tests.
-
-**Notification integration spec helper (mandatory):** All notification story integration specs must use `createNotificationIntegrationApp()` from `src/test/utils/notification-integration-app.ts`. Options: `dispatcher` (required), `configure` (override providers), `extraModules` (e.g. `BookingModule`), `extraEntities` (e.g. booking entities), `withTenantInterceptor` (enables `X-Tenant-ID` / `X-Actor-*` header reading). Returns `{ app, ds, eventBus }`. Never repeat `TypeOrmModule.forRoot` inline in notification specs.
-
-**Notification integration spec cross-handler isolation (mandatory):** `NotificationModule` registers ALL handlers (`StaffInvitedHandler`, `BookingRequestedHandler`, etc.). When a notification spec runs concurrently with another spec that publishes events handled by one of those handlers, the handler will process those foreign events and write `notification_logs` rows — this contaminates idempotency checks and log-count assertions. For every handler that subscribes to an event type you are NOT testing in the current spec, suppress it with a no-op override via the `configure` callback:
-```typescript
-const noOpXxxHandler = { onModuleInit: () => undefined, handle: async () => undefined };
-configure: (b) => b.overrideProvider(XxxHandler).useValue(noOpXxxHandler)
-```
-Canonical example: `booking-requested.handler.integration.spec.ts` suppresses `StaffInvitedHandler` because the staff-invited spec runs concurrently and publishes `StaffInvited` events.
-
-**Shared test date helpers (mandatory — never inline):** `src/test/utils/date-helpers.ts` exports `futureDate(daysAhead = 1)` and `pastDate(daysAgo = 1)` — both return `YYYY-MM-DD` strings offset from today in UTC. Always import these; never define `function futureDate()` / `function pastDate()` inline in any spec file. See `schedule-closure.spec.ts` and `schedule-opening.spec.ts` as canonical examples.
+`waitFor()` at `src/test/utils/wait-for.ts`. Use in story integration specs to poll async side effects.
 
 ### Testing
 
-Three layers: **Unit** (`.spec.ts`, Jest) · **Integration** (`.integration.spec.ts`, Jest + Testcontainers singleton) · **E2E** (Playwright, happy paths only). Full details → `docs/08-TESTING_STRATEGY.md`.
+Three layers: **Unit** (`.spec.ts`, Jest) · **Integration** (`.integration.spec.ts`, Jest + Testcontainers) · **E2E** (Playwright, happy paths only). Full mandatory patterns → `docs/08-TESTING_STRATEGY.md §Mandatory Patterns`.
 
 - TDD for domain logic. Every UC: ≥1 unit + ≥1 integration + ≥1 tenant-isolation test (Tenant A data, Tenant B access → 404/403).
-- **Builders mandatory for ALL test data** — use the builder class pattern for every piece of test data, not just TypeORM entities:
-  - TypeORM entities: `XxxEntityBuilder` in `src/test/builders/<context>/`. `id` defaults to `uuidv7()`. Never construct entities inline.
-  - Domain aggregates: `XxxBuilder` (e.g. `StaffBuilder`, `ServiceBuilder`) in `src/test/builders/<context>/`.
-  - Shared infrastructure stubs (e.g. `TenantContext`): `XxxBuilder` in `src/test/factories/`. Example: `TenantContextBuilder` at `src/test/factories/tenant-context.factory.ts`.
-  - **Never use a plain factory function** (`function makeFoo(...): Foo { return { ... } as Foo }`) — always a class with fluent `withXxx()` methods and a `build()` call. Consistency across the codebase is mandatory.
-- **InMemory doubles over `jest.fn()`** — `InMemoryEventBus`, `InMemoryTransactionManager`, `InMemoryXxxRepository` from `src/test/infrastructure/` + `src/test/repositories/`. Controller unit tests wire the real use case with in-memory repos; only use `jest.fn()` when no double exists (e.g. `BackendHttpService` in BFF).
-- **SonarCloud ingests lcov from unit tests only** — every new controller and use case needs a `.spec.ts`; integration tests alone don't count toward coverage.
-- **BFF controllers require TWO test files (mandatory):** every new `*.controller.ts` in `apps/bff/src/` must have both a unit spec (`*.controller.spec.ts`) and a component spec (`*.controller.component.spec.ts`). The component spec boots the full `AppModule` via `createTestApp()`, mocks `BackendHttpService`, and must cover: 401 (no token), 403 (wrong role), 400 (Zod validation), happy path for each allowed role, and backend error propagation (4xx/5xx). See `apps/bff/src/services/services.controller.component.spec.ts` and `apps/bff/src/schedule/schedule.controller.component.spec.ts` as canonical examples. Missing a component spec is a coverage gap — do not wait for the user to point it out.
-- **BFF test helper file isolation (mandatory):** `apps/bff/src/test/` contains two distinct helper files with a hard dependency boundary. `component-test.helpers.ts` imports `AppModule` (needed by `createTestApp()`) — **component specs only**. `backend-http.mock.ts` exports `MockBackendHttpService` type and `makeBackendHttp()` factory with no `AppModule` dependency — **unit specs only**. Never import `component-test.helpers.ts` from a unit spec: under `jest --coverage` the import triggers `AppModule` load which calls `validateEnv()` before env vars are set, crashing 5+ test suites.
-- **Backend InMemory port doubles (mandatory):** Every cross-context port used in tests needs an `InMemoryXxxPort` class in `src/test/infrastructure/` — never a `jest.fn()` inline mock. Class doubles are consistent with `InMemoryEventBus` / `InMemoryTransactionManager` and are easier to extend. Provide a sensible default state with setter methods for overrides. Example: `InMemoryScheduleTenantSettingsPort` defaults to Mon–Sat open, Sunday null.
-- **Shared test day-of-week helpers (mandatory — never inline):** `src/test/utils/date-helpers.ts` also exports `nextWeekday(utcDayOfWeek: 0–6, weeksAhead?)` returning the next future date for that UTC day-of-week. Use it instead of defining `nextSunday()` / `nextMonday()` inline. 0 = Sunday, 1 = Monday, … 6 = Saturday.
-- **Shared test address helper (mandatory — never inline):** `src/test/utils/address-helpers.ts` exports `testAddress(overrides?: Partial<AddressProps>): Address` — a valid Brazilian `Address` VO with sensible defaults. Always import it instead of calling `Address.create({...})` inline in specs. Pass `overrides` to change specific fields only.
+- **Builders mandatory** for ALL test data — class with fluent `withXxx()` / `build()`. Never plain factory functions. `XxxEntityBuilder` (entities), `XxxBuilder` (aggregates), `TenantContextBuilder` (shared stubs).
+- **InMemory doubles over `jest.fn()`** — `InMemoryEventBus`, `InMemoryTransactionManager`, `InMemoryXxxRepository`. Cross-context ports: `InMemoryXxxPort` class in `src/test/infrastructure/`.
+- **BFF:** two test files per controller (`.spec.ts` + `.component.spec.ts`). Strict helper-file isolation: `component-test.helpers.ts` for component specs only; `backend-http.mock.ts` for unit specs only.
+- **SonarCloud ingests unit tests only** — every new controller/use case needs a `.spec.ts`.
 - No `.skip()`, `.only()`, `setTimeout` in tests.
-- **Integration test DB isolation (mandatory):** Integration tests share a live DB with no cleanup between tests within the same file. Any `it()` sensitive to aggregate counts (`countActiveManagersByTenant`, `total` in pagination, etc.) **must use a unique tenant UUID** that no other test in the file creates data in. Never reuse suite-level `TENANT_A`/`TENANT_B` constants for count-sensitive assertions — define an inline UUID for that specific test instead.
-- **Notification handler idempotency test — drain provisioning noise first (mandatory):** When the provisioning flow (`POST /internal/tenants` → `TenantProvisioned` → handler chain) also emits an event of the same type you are testing idempotency for (e.g. `StaffInvited`), the provisioning's notification email may arrive asynchronously and after you have captured `countBeforeRedeliver`. This produces a false-positive "idempotency broken" failure. Fix: extend the initial `waitFor` to also confirm the provisioning's `NotificationLog` row is written before recording the baseline count. Pattern:
-  ```typescript
-  await waitFor(async () => {
-    const aggregate = await ds.getRepository(XxxEntity).findOne({ where: { tenantId, ... } });
-    if (!aggregate) return false;
-    const provisioningLog = await ds.getRepository(NotificationLogEntity)
-      .findOne({ where: { tenantId, notificationType: 'STAFF_INVITED', channel: 'EMAIL' } });
-    return provisioningLog !== null;
-  });
-  ```
-  Only after this `waitFor` returns should you publish the synthetic event and record `countBeforeRedeliver`.
+- **Integration DB isolation:** unique inline tenant UUID for any `it()` sensitive to aggregate counts. Never reuse `TENANT_A`/`TENANT_B` for count assertions.
+- **Notification specs:** use `createNotificationIntegrationApp()`; suppress unrelated handlers; drain provisioning noise before recording idempotency baseline. See `docs/08-TESTING_STRATEGY.md`.
 
 ### CI gates (block merge)
 - ESLint + Prettier — zero warnings
@@ -381,44 +316,30 @@ Three layers: **Unit** (`.spec.ts`, Jest) · **Integration** (`.integration.spec
 
 ## 8. Anti-Patterns (BLOCK MERGE)
 
-Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Highest-severity patterns — memorise these:
+Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Highest-severity patterns:
 
 | Pattern | Problem | Fix |
 |---|---|---|
 | `WHERE id = ?` without `tenant_id` | Cross-tenant data leak | Add `AND tenant_id = ?` |
 | Event missing `tenantId` in envelope | Can't isolate per tenant | Include in every event |
-| SQL JOIN into another context's schema inside a repository | Hardest coupling — defeats schema independence | Repository queries its own schema only; cross-context via events, BFF, or port+adapter |
+| SQL JOIN into another context's schema inside a repository | Defeats schema independence | Repository queries its own schema only |
 | Throwing `HttpException` directly from a use case | Couples app layer to HTTP | Throw domain errors only; `mapXxxError` converts them |
-| Using `jest.fn()` to stub `IEventBus` or `ITransactionManager` | Misses state assertions; brittle mocks | Use `InMemoryEventBus` / `InMemoryTransactionManager` from `src/test/infrastructure/` |
-| Non-UUID string as path/query param for a PostgreSQL UUID column | `QueryFailedError` → 500 instead of 404 | Add `ParseUUIDPipe`; use RFC 4122-format IDs in tests |
-| Integration test `it()` with only supertest `.expect(status)` and no Jest `expect()` | SonarCloud S6957 BLOCKER | Every `it()` needs at least one `expect()` call |
-| Reusing `TENANT_A` for count-sensitive integration tests | Later tests see data from earlier tests → wrong count → wrong assertion | Use a dedicated inline UUID for any test that asserts on totals or last-X logic |
-| Defining a domain event in the wrong bounded context (e.g. `StaffInvited` in `platform/`) | SonarCloud duplication when the correct context also defines it | Events live in the context that publishes them |
-| Using `z.string().uuid()` or `z.string().email()` in Zod schemas | Deprecated in Zod v4 — SonarCloud MINOR issue blocks `ci:fast` | Use `z.uuid()` / `z.email()` |
-| `TenantModule` missing from a module that injects `TenantContext` | NestJS DI fails to compile — integration tests crash with `TypeError: Cannot read properties of undefined` | Every module with a controller that injects `TenantContext` must import `TenantModule` |
-| Publishing events directly from a use case (`await this.eventBus.publish(new XxxEvent(...))`) | Bypasses aggregate encapsulation; `correlationId` ends up as a fresh `uuidv7()` instead of the request's; use case must know event internals | Record in aggregate via `addDomainEvent()`; flush with `clearDomainEvents()` after `txManager.run()` |
-| Missing `Object.setPrototypeOf(this, new.target.prototype)` in domain error base class | `instanceof` checks fail silently in compiled TypeScript — every error mapper falls through to 500 | Add `Object.setPrototypeOf(this, new.target.prototype)` immediately after `super()` in every `XxxDomainError extends Error` base class |
-| Business logic inside an event handler (`handle()` creates aggregates, calls repos, publishes events directly) | Handler is infrastructure — mixing logic bypasses the use case layer, skips transaction management, and makes the handler untestable in isolation | Handler calls exactly one use case; all logic lives there |
-| Using an in-memory set for Pub/Sub handler idempotency (`private processedEventIds = new Set()`) | Set is cleared on process restart and not shared across pods — duplicate messages get processed after any deploy or scale event | Idempotency via DB check in the use case (`findByXxx`) or the `processed_events` table (M11) |
-| Not overriding `EVENT_BUS` with `InMemoryEventBus` in controller integration specs | Controller boots `GcpPubSubEventBusAdapter` which connects to the emulator — gRPC timeouts fail every test if emulator is unreachable | Override `EVENT_BUS` with `new InMemoryEventBus()` in all controller integration specs that don't need end-to-end Pub/Sub routing |
-| Plain factory function for test data (`function makeTenantContext(): TenantContext { return {...} as TenantContext }`) | Inconsistent with the builder class pattern used everywhere else; harder to extend when new fields are added | Use a builder class with fluent `withXxx()` methods and `build()` — see `TenantContextBuilder` in `src/test/factories/` as the canonical example |
-| Importing `component-test.helpers.ts` from a BFF unit spec | Transitively imports `AppModule` → `validateEnv()` throws under `jest --coverage` because env vars are unset — crashes the entire BFF coverage run | Import `makeBackendHttp` / `MockBackendHttpService` from `backend-http.mock.ts` instead; only component specs may import `component-test.helpers.ts` |
-| Adding format-stripping to a TypeORM `toDomain()` mapper (e.g. `entity.startTime.slice(0, 5)`) instead of fixing the VO | The same workaround must be duplicated in every future mapper that reads the same column type; future mappers will silently repeat the bug | Fix the VO's `create()` to normalise the raw input once — `TimeOfDay` already handles `HH:MM:SS → HH:MM`; follow that pattern for any new VO |
-| Mocking `Repository<T>` in a unit spec without a `manager` property when the repo calls `this.repo.manager.transaction(...)` | `TypeError: Cannot read properties of undefined (reading 'transaction')` at runtime — the pre-push hook catches it but wastes a push cycle | Add `manager: { transaction: jest.fn().mockImplementation(async (cb) => cb(mockTx)) }` to the repository mock; expose `mockTx` with `save`/`delete` jest fns at describe scope so assertions can target the transaction-scoped calls |
+| Publishing events directly from a use case | Bypasses aggregate encapsulation; wrong `correlationId` | Record via `addDomainEvent()`; flush after `txManager.run()` |
+| Missing `Object.setPrototypeOf(this, new.target.prototype)` in domain error base class | `instanceof` fails silently — every error mapper falls through to 500 | Add immediately after `super()` in every `XxxDomainError extends Error` base class |
+| `TenantModule` missing from a module that injects `TenantContext` | NestJS DI fails — integration tests crash with `TypeError: Cannot read properties of undefined` | Every module with a controller injecting `TenantContext` must import `TenantModule` |
+| In-memory set for Pub/Sub handler idempotency (`private processedEventIds = new Set()`) | Set cleared on restart; not shared across pods | DB check in the use case (`findByXxx`) |
 
 ---
 
 ## 9. Story Implementation Workflow (mandatory — every story, no exceptions)
 
-Every story follows this sequence. Skipping steps — especially branch creation — is a defect in agent behaviour.
-
 ### Step 1 — Create feature branch (BEFORE writing any code)
 `git checkout -b feat/M0X-SYY-<short-description>`
 
-Never write code on `main`. If you are already on `main` with uncommitted changes, stash first.
+Never write code on `main`. If already on `main` with uncommitted changes, stash first.
 
 ### Step 2 — Implement the story
-Write all files defined in the story spec. See §0 for permission rules (code files = autonomous once story is approved; `.md` / architecture docs still require explicit approval).
+Write all files defined in the story spec. See §0 for permission rules.
 
 ### Step 3 — Verify locally before committing
 Run type-check, lint, and jest for the changed context — zero errors and warnings required.
@@ -440,7 +361,6 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 `pnpm ci:local` (~5 min, Docker required). Run only when touching Dockerfiles, infra, or integration-test paths.
 
 ### Step 7 — Self-review the full diff (MANDATORY — before every PR)
-
 Run `/pre-pr` — must report **zero issues** before the PR is opened.
 
 ### Step 8 — Open the PR
@@ -473,6 +393,7 @@ If every story in the milestone is now `✅ Done`, see §15 item 7 for the two w
 | Task | Docs to load | ~KB |
 |---|---|---|
 | Quick clarification | This file only | 0 |
+| Writing any code | `docs/CODE_STANDARDS.md` | 2 |
 | Implement a UC | `docs/04-USE_CASES.md` (that UC's section) + `docs/02-DOMAIN_MODEL.md` (relevant aggregate) + `docs/03-DOMAIN_EVENTS.md` (relevant events) | 4–6 |
 | Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` (relevant aggregate) | 4 |
 | API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC | 3–5 |
@@ -551,23 +472,7 @@ src/shared/
 
 ## 12. Open Decisions (stop and ask before implementing)
 
-Only truly unresolved items remain here:
-
 1. **Multi-location (post-MVP):** Multiple locations per tenant = separate tenants or sub-tenant model?
-
----
-
-## 14. Glossary
-
-| Term | Definition |
-|---|---|
-| **Tenant** | A car-wash company on the platform. Unit of isolation. |
-| **Hotsite** | Public unauthenticated tenant-branded marketing + booking page. |
-| **Hotsite Manifest** | JSON with branding + module layout served to the frontend per tenant slug. |
-| **Tenant Context** | Request-scoped object holding active `tenantId`, injected by `TenantInterceptor`. |
-| **Idempotent consumer** | Event handler whose effect is identical whether the message arrives 1 or N times. |
-| **Composite FK** | Multi-column FK `(tenant_id, id)` blocking cross-tenant DB references. |
-| **Expand/Contract** | Two-phase migration pattern safe for rolling deploys. |
 
 ---
 
@@ -576,26 +481,23 @@ Only truly unresolved items remain here:
 > **BEFORE WRITING ANY CODE:** Create a feature branch first — `git checkout -b feat/M0X-SYY-<description>`. Never code directly on `main`. See §9 for the full workflow.
 
 1. Did I read this file at the start of the conversation? ✓
-2. Did I get permission before writing any file? ✓
+2. Did I get permission before writing any doc/config file? ✓
 3. Does every query / event / log include `tenant_id`? ✓
 4. Is the change scoped to one UC cited in the PR? ✓
 5. Does the integration test include a tenant-isolation assertion? ✓
 6. Did I follow §9 workflow? (branch → implement → ci:fast → /pre-pr → PR → CI all-green → user approval → merge → /mark-done) ✓
-7. Are ALL stories in this milestone now `✅ Done`? If yes — create both wrap-up files:
-    - `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` — token-efficient reference for AI agents: artifacts table, critical gotchas, version facts, structural decisions. No prose, no tutorials.
-    - `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_DEVELOPER.md` — detailed learning doc for the human developer: every concept explained with rationale, real code examples from this codebase, enough depth that a developer can learn NestJS, DDD, and the engineering patterns used here just by reading it.
-    - Add the IA file to §10 of this file. ✓
+7. Are ALL stories in this milestone now `✅ Done`? If yes — create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10 of this file. ✓
 
 ---
 
 ## 17. Project Slash Commands (Claude Code)
 
-Commands live in `.claude/commands/`. Claude Code auto-discovers them — type `/` to see the list. Other agents (Cursor, Copilot, Gemini) don't execute these, but knowing they exist helps them suggest the right workflow.
+Commands live in `.claude/commands/`. Claude Code auto-discovers them — type `/` to see the list.
 
 | Command | File | When to use |
 |---|---|---|
-| `/pre-pr` | `.claude/commands/pre-pr.md` | **Before every PR** — runs all 14 checks (framework imports, transactions, .http blocks, return types, VO typing, EntityBuilders, ZodValidationPipe, SonarCloud patterns) + domain-audit. Must report zero issues. |
-| `/domain-audit [context-path]` | `.claude/commands/domain-audit.md` | Structural VO/builder scan. Called automatically by `/pre-pr`; run standalone for a quicker focused check. |
-| `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` | **After merge to main** — marks the story `✅ Done` in the plan file, commits, and alerts if the milestone is now complete. |
+| `/pre-pr` | `.claude/commands/pre-pr.md` | **Before every PR** — runs all 14 checks + domain-audit. Must report zero issues. |
+| `/domain-audit [context-path]` | `.claude/commands/domain-audit.md` | Structural VO/builder scan. Called automatically by `/pre-pr`. |
+| `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` | **After merge to main** — marks story done, commits, alerts if milestone complete. |
 
-**Adding new commands:** create `.claude/commands/<name>.md`. Use `$ARGUMENTS` as the placeholder for optional user-typed arguments. Document it in this table.
+**Adding new commands:** create `.claude/commands/<name>.md`. Use `$ARGUMENTS` for optional user-typed arguments. Document it in this table.
