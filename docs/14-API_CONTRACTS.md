@@ -524,17 +524,41 @@ Auth: JWT + `MANAGER|STAFF` on all write endpoints.
 ### **Customer Management (UC-016)**
 - `GET /customers` -> (Admin) List all customers in tenant.
 - `GET /customers/:id` -> (Admin/Self) Detailed profile. Response includes `defaultAddress` (nullable).
-- `GET /me` -> (Self) Current authenticated user profile. Response includes `defaultAddress` (nullable).
-- `PATCH /me` -> (Self) Update own profile. Accepts `defaultAddress` to save a default pickup address:
-  ```json
-  {
-    "defaultAddress": {
-      "street": "Av. Afonso Pena", "number": "1000", "complement": null,
-      "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130921"
+- `GET /customers/me` -> (Self) Current authenticated customer profile.
+  - Requires JWT with `role: CUSTOMER`.
+  - Response:
+    ```json
+    {
+      "customerId": "uuid",
+      "email": "cliente@example.com",
+      "name": "João Silva",
+      "phone": "31999999999",
+      "defaultAddress": {
+        "street": "Av. Afonso Pena", "number": "1000", "complement": null,
+        "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130921"
+      }
     }
-  }
-  ```
-  Set `defaultAddress` to `null` to clear it. Other profile fields (`phone`, `firstName`, `lastName`) may also be updated via `PATCH /me`.
+    ```
+  - `phone` is digits only (10–11 digits, no country prefix). `null` when not set.
+  - `defaultAddress` is `null` when not set.
+- `PATCH /customers/me` -> (Self) Update own profile.
+  - Requires JWT with `role: CUSTOMER`.
+  - All fields optional (partial update — omitted fields are left unchanged).
+  - Body:
+    ```json
+    {
+      "name": "João Silva",
+      "phone": "31999999999",
+      "defaultAddress": {
+        "street": "Av. Afonso Pena", "number": "1000", "complement": null,
+        "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130921"
+      }
+    }
+    ```
+  - Set `defaultAddress` to `null` to clear it. Set `phone` to `null` to clear it.
+  - `phone` must be 10–11 digits (digits only, no country prefix e.g. `31999999999`).
+  - `zipCode` must be 8 digits; hyphen is accepted and normalised (`"30130-921"` → `"30130921"`).
+  - Returns the full updated profile (same shape as `GET /customers/me`).
 
 ### **Loyalty Metrics (UC-016)**
 - `GET /loyalty/balance` — current customer's active points.

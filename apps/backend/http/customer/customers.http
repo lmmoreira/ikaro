@@ -1,0 +1,52 @@
+@baseUrl = http://localhost:3001
+@tenantId = 10000000-0000-4000-8000-000000000001
+@customerId = 20000000-0000-4000-8000-000000000001
+
+### GET /customers/me — get authenticated customer profile
+GET {{baseUrl}}/customers/me
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-id
+
+###
+
+### PATCH /customers/me — update customer profile (partial)
+PATCH {{baseUrl}}/customers/me
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-id
+
+{
+  "name": "João Silva",
+  "phone": "31999999999",
+  "defaultAddress": {
+    "street": "Av. Afonso Pena",
+    "number": "1000",
+    "complement": null,
+    "neighborhood": "Centro",
+    "city": "Belo Horizonte",
+    "state": "MG",
+    "zipCode": "30130921"
+  }
+}
+
+###
+
+### PATCH /customers/me — clear phone and defaultAddress
+PATCH {{baseUrl}}/customers/me
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-id
+
+{
+  "phone": null,
+  "defaultAddress": null
+}

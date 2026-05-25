@@ -116,7 +116,7 @@ describe('Story: POST /internal/tenants → Pub/Sub → invitation email dispatc
     });
 
     const countBeforeRedeliver = dispatcher.dispatched.filter(
-      (m) => m.templateKey === 'staff-invitation',
+      (m) => m.templateKey === 'staff-invitation' && m.to === adminEmail,
     ).length;
 
     await eventBus.publish(event);
@@ -124,7 +124,7 @@ describe('Story: POST /internal/tenants → Pub/Sub → invitation email dispatc
     const redeliveryDeadline = Date.now() + 2000;
     await waitFor(async () => {
       const newCount = dispatcher.dispatched.filter(
-        (m) => m.templateKey === 'staff-invitation',
+        (m) => m.templateKey === 'staff-invitation' && m.to === adminEmail,
       ).length;
       if (newCount > countBeforeRedeliver) {
         throw new Error('Idempotency broken: new email dispatched after re-delivery');
