@@ -5,7 +5,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-05-25 (M07-S06 — refactored to dynamic-loading model; CODE_STANDARDS.md extracted)
+**Last updated:** 2026-05-25 (M07-S07 — AGENT_PATTERNS.md + CI_TRAPS.md added to §10)
 
 ---
 
@@ -393,7 +393,8 @@ If every story in the milestone is now `✅ Done`, see §15 item 7 for the two w
 | Task | Docs to load | ~KB |
 |---|---|---|
 | Quick clarification | This file only | 0 |
-| Writing any code | `docs/CODE_STANDARDS.md` | 2 |
+| Writing any code | `docs/CODE_STANDARDS.md` + `docs/AGENT_PATTERNS.md` | 6 |
+| CI failure / pre-PR debugging | `docs/CI_TRAPS.md` | 1 |
 | Implement a UC | `docs/04-USE_CASES.md` (that UC's section) + `docs/02-DOMAIN_MODEL.md` (relevant aggregate) + `docs/03-DOMAIN_EVENTS.md` (relevant events) | 4–6 |
 | Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` (relevant aggregate) | 4 |
 | API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC | 3–5 |
