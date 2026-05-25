@@ -3,7 +3,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-05-22 (M06-S07 — VO normalisation rule, BFF test isolation, InMemory port doubles)
+**Last updated:** 2026-05-25 (M07-S03 — calendar-date utils, Repository manager mock anti-pattern)
 
 ---
 
@@ -176,7 +176,7 @@ Shared cross-cutting code → `src/shared/` (logger, OTel, `IEventBus` port, ten
 ### Shared utilities and value objects (mandatory rules)
 
 **Utility functions used in more than one place MUST live in `src/shared/utils/`** — never duplicated inline.
-Examples already there: `deepMerge` (`src/shared/utils/deep-merge.ts`).
+Examples already there: `deepMerge` (`src/shared/utils/deep-merge.ts`), `startOfDayUTC` / `endOfDayUTC` / `todayUTC` / `localDateTimeToUTCIso` / `utcDateToLocalDate` / `utcDateToLocalHHMM` / `getUtcWeekDayName` (`src/shared/utils/calendar-date.ts`).
 
 **Fields that carry their own validation MUST be value objects in `src/shared/value-objects/`**, not plain primitives.
 
@@ -382,6 +382,7 @@ Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Highest-severity pa
 | Plain factory function for test data (`function makeTenantContext(): TenantContext { return {...} as TenantContext }`) | Inconsistent with the builder class pattern used everywhere else; harder to extend when new fields are added | Use a builder class with fluent `withXxx()` methods and `build()` — see `TenantContextBuilder` in `src/test/factories/` as the canonical example |
 | Importing `component-test.helpers.ts` from a BFF unit spec | Transitively imports `AppModule` → `validateEnv()` throws under `jest --coverage` because env vars are unset — crashes the entire BFF coverage run | Import `makeBackendHttp` / `MockBackendHttpService` from `backend-http.mock.ts` instead; only component specs may import `component-test.helpers.ts` |
 | Adding format-stripping to a TypeORM `toDomain()` mapper (e.g. `entity.startTime.slice(0, 5)`) instead of fixing the VO | The same workaround must be duplicated in every future mapper that reads the same column type; future mappers will silently repeat the bug | Fix the VO's `create()` to normalise the raw input once — `TimeOfDay` already handles `HH:MM:SS → HH:MM`; follow that pattern for any new VO |
+| Mocking `Repository<T>` in a unit spec without a `manager` property when the repo calls `this.repo.manager.transaction(...)` | `TypeError: Cannot read properties of undefined (reading 'transaction')` at runtime — the pre-push hook catches it but wastes a push cycle | Add `manager: { transaction: jest.fn().mockImplementation(async (cb) => cb(mockTx)) }` to the repository mock; expose `mockTx` with `save`/`delete` jest fns at describe scope so assertions can target the transaction-scoped calls |
 
 ---
 
