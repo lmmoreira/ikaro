@@ -149,7 +149,7 @@ INDEX (tenant_id, service_id)
 
 ---
 
-### M07-S03 — Booking infrastructure (TypeORM entities, repository, event publishing)
+### M07-S03 — Booking infrastructure (TypeORM entities, repository, event publishing) ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
