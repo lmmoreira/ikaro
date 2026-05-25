@@ -2,6 +2,7 @@ import {
   GetStaffByIdUseCase,
   GetStaffByIdUseCaseResult,
 } from '../../../staff/application/use-cases/get-staff-by-id.use-case';
+import { StaffQueryService } from '../../../staff/application/services/staff-query.service';
 import { StaffNotFoundError } from '../../../staff/domain/errors/staff-domain.error';
 import { StaffInfoAdapter } from './staff-info.adapter';
 
@@ -19,11 +20,16 @@ const staffResult: GetStaffByIdUseCaseResult = {
 
 describe('StaffInfoAdapter', () => {
   let getStaffById: jest.Mocked<Pick<GetStaffByIdUseCase, 'execute'>>;
+  let staffQueryService: jest.Mocked<Pick<StaffQueryService, 'findManagersByTenant'>>;
   let adapter: StaffInfoAdapter;
 
   beforeEach(() => {
     getStaffById = { execute: jest.fn() };
-    adapter = new StaffInfoAdapter(getStaffById as unknown as GetStaffByIdUseCase);
+    staffQueryService = { findManagersByTenant: jest.fn() };
+    adapter = new StaffInfoAdapter(
+      getStaffById as unknown as GetStaffByIdUseCase,
+      staffQueryService as unknown as StaffQueryService,
+    );
   });
 
   it('returns staff info when use case succeeds', async () => {
@@ -49,5 +55,17 @@ describe('StaffInfoAdapter', () => {
     const result = await adapter.getStaffInfo(STAFF_ID, TENANT_ID);
 
     expect(result).toBeNull();
+  });
+
+  it('delegates getManagerEmails to staffQueryService', async () => {
+    staffQueryService.findManagersByTenant.mockResolvedValue([
+      'manager@lavacar.com.br',
+      'owner@lavacar.com.br',
+    ]);
+
+    const result = await adapter.getManagerEmails(TENANT_ID);
+
+    expect(result).toEqual(['manager@lavacar.com.br', 'owner@lavacar.com.br']);
+    expect(staffQueryService.findManagersByTenant).toHaveBeenCalledWith(TENANT_ID);
   });
 });

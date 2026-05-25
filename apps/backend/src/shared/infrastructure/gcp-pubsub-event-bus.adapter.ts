@@ -43,9 +43,11 @@ export class GcpPubSubEventBusAdapter
     handler: (event: T) => Promise<void>,
     consumerName: string,
   ): void {
+    // PUBSUB_SUBSCRIPTION_SUFFIX lets integration tests isolate subscriptions per test run
+    const suffix = process.env['PUBSUB_SUBSCRIPTION_SUFFIX'] ?? '';
     this.pending.set(eventName, {
       topicName: `beloauto-${eventName}`,
-      subscriptionName: `beloauto-${eventName}-${consumerName}`,
+      subscriptionName: `beloauto-${eventName}-${consumerName}${suffix}`,
       handler: handler as (event: DomainEvent) => Promise<void>,
     });
   }
@@ -93,8 +95,13 @@ export class GcpPubSubEventBusAdapter
     if (this.ensuredTopics.has(topicName)) return;
     const [exists] = await this.pubsub.topic(topicName).exists();
     if (!exists) {
-      await this.pubsub.createTopic(topicName);
-      this.logger.log(`[pubsub] created topic ${topicName}`);
+      try {
+        await this.pubsub.createTopic(topicName);
+        this.logger.log(`[pubsub] created topic ${topicName}`);
+      } catch (err) {
+        // gRPC ALREADY_EXISTS (code 6): another process beat us to creation — safe to ignore
+        if ((err as { code?: number }).code !== 6) throw err;
+      }
     }
     this.ensuredTopics.add(topicName);
   }
@@ -104,8 +111,13 @@ export class GcpPubSubEventBusAdapter
     const subscription = topic.subscription(subscriptionName);
     const [exists] = await subscription.exists();
     if (!exists) {
-      await topic.createSubscription(subscriptionName);
-      this.logger.log(`[pubsub] created subscription ${subscriptionName}`);
+      try {
+        await topic.createSubscription(subscriptionName);
+        this.logger.log(`[pubsub] created subscription ${subscriptionName}`);
+      } catch (err) {
+        // gRPC ALREADY_EXISTS (code 6): another process beat us to creation — safe to ignore
+        if ((err as { code?: number }).code !== 6) throw err;
+      }
     }
   }
 }

@@ -10,6 +10,7 @@ import { GetStaffByIdUseCase } from './application/use-cases/get-staff-by-id.use
 import { GetStaffByOAuthIdUseCase } from './application/use-cases/get-staff-by-oauth-id.use-case';
 import { InviteStaffUseCase } from './application/use-cases/invite-staff.use-case';
 import { ListStaffUseCase } from './application/use-cases/list-staff.use-case';
+import { StaffQueryService } from './application/services/staff-query.service';
 import { InternalStaffController } from './infrastructure/controllers/internal-staff.controller';
 import { StaffController } from './infrastructure/controllers/staff.controller';
 import { StaffEntity } from './infrastructure/entities/staff.entity';
@@ -30,7 +31,8 @@ import { TypeOrmStaffRepository } from './infrastructure/repositories/typeorm-st
     DeactivateStaffUseCase,
     CreateInitialManagerUseCase,
     TenantProvisionedHandler,
+    StaffQueryService,
   ],
-  exports: [GetStaffByIdUseCase],
+  exports: [GetStaffByIdUseCase, StaffQueryService],
 })
 export class StaffModule {}

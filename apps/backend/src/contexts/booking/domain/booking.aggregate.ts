@@ -285,6 +285,7 @@ export class Booking extends AggregateRoot {
         lines: lines.map((l) => ({
           lineId: l.lineId,
           serviceId: l.serviceId,
+          serviceNameAtBooking: l.serviceNameAtBooking,
           priceAtBooking: {
             amount: l.priceAtBooking.amount.toFixed(2),
             currency: l.priceAtBooking.currency,

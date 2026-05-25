@@ -13,6 +13,7 @@ export interface AddressEventPayload {
 export interface BookingLineEventPayload {
   lineId: string;
   serviceId: string;
+  serviceNameAtBooking: string;
   priceAtBooking: { amount: string; currency: string };
   durationMinsAtBooking: number;
   pointsValueAtBooking: number;

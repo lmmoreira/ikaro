@@ -1,20 +1,13 @@
 import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
-import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
-import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
-import { HotsiteConfigEntity } from '../../../platform/infrastructure/entities/hotsite-config.entity';
-import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.entity';
-import { PlatformModule } from '../../../platform/platform.module';
-import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
-import { StaffModule } from '../../../staff/staff.module';
-import { NOTIFICATION_DISPATCHER } from '../../application/ports/notification-dispatcher.port';
+import { createNotificationIntegrationApp } from '../../../../test/utils/notification-integration-app';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
-import { NotificationModule } from '../../notification.module';
 import { waitFor } from '../../../../test/utils/wait-for';
+import { IEventBus } from '../../../../shared/ports/event-bus.port';
+import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
+import { StaffInvitedEventBuilder } from '../../../../test/builders/staff';
 
 const PLATFORM_KEY = 'notification-story-test-key-xxxxxxxxx';
 
@@ -22,38 +15,19 @@ describe('Story: POST /internal/tenants → Pub/Sub → invitation email dispatc
   let app: INestApplication;
   let ds: DataSource;
   let dispatcher: InMemoryNotificationDispatcher;
+  let eventBus: IEventBus;
 
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = PLATFORM_KEY;
+    process.env['PUBSUB_SUBSCRIPTION_SUFFIX'] = `-si-${Date.now()}`;
     dispatcher = new InMemoryNotificationDispatcher();
-
-    const moduleRef = await Test.createTestingModule({
-      imports: [
-        TypeOrmModule.forRoot({
-          type: 'postgres',
-          url: process.env['TEST_DATABASE_URL'],
-          entities: [TenantEntity, HotsiteConfigEntity, StaffEntity, NotificationLogEntity],
-          synchronize: false,
-        }),
-        EventBusModule,
-        TransactionManagerModule,
-        PlatformModule,
-        StaffModule,
-        NotificationModule,
-      ],
-    })
-      .overrideProvider(NOTIFICATION_DISPATCHER)
-      .useValue(dispatcher)
-      .compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
-    ds = moduleRef.get(DataSource);
+    ({ app, ds, eventBus } = await createNotificationIntegrationApp({ dispatcher }));
   });
 
   afterAll(async () => {
     await app.close();
     delete process.env['PLATFORM_ADMIN_KEY'];
+    delete process.env['PUBSUB_SUBSCRIPTION_SUFFIX'];
   });
 
   afterEach(() => {
@@ -94,7 +68,7 @@ describe('Story: POST /internal/tenants → Pub/Sub → invitation email dispatc
     expect(msg!.data['activationLink']).toContain(slug);
   });
 
-  it('is idempotent: notification log is created only once per event', async () => {
+  it('is idempotent: re-delivery of same eventId produces exactly 1 log row total', async () => {
     const slug = `notif-idem-${Date.now()}`;
     const adminEmail = `admin-idem-${Date.now()}@lavacar.com.br`;
 
@@ -106,14 +80,62 @@ describe('Story: POST /internal/tenants → Pub/Sub → invitation email dispatc
 
     const tenantId: string = body.tenantId;
 
+    // Wait for the manager staff record so we can get its real staffId.
+    // Wait for both the manager staff record AND the provisioning's notification log.
+    // The provisioning flow publishes its own StaffInvited event; if that email arrives
+    // after we capture countBeforeRedeliver, the 2-second wait window would miscount it
+    // as idempotency broken. Waiting for the log here drains that background noise first.
     await waitFor(async () => {
-      const log = await ds.getRepository(NotificationLogEntity).findOne({
-        where: { tenantId, notificationType: 'STAFF_INVITED', channel: 'EMAIL' },
-      });
-      return log !== null;
+      const staff = await ds
+        .getRepository(StaffEntity)
+        .findOne({ where: { tenantId, role: 'MANAGER' } });
+      if (!staff) return false;
+      const provisioningLog = await ds
+        .getRepository(NotificationLogEntity)
+        .findOne({ where: { tenantId, notificationType: 'STAFF_INVITED', channel: 'EMAIL' } });
+      return provisioningLog !== null;
     });
 
-    const logs = await ds.getRepository(NotificationLogEntity).find({ where: { tenantId } });
+    const staff = await ds
+      .getRepository(StaffEntity)
+      .findOne({ where: { tenantId, role: 'MANAGER' } });
+
+    // Publish a synthetic StaffInvited event directly to test handler idempotency
+    // without relying on the provisioning flow's event (whose eventId is not controllable).
+    const event = new StaffInvitedEventBuilder()
+      .withTenantId(tenantId)
+      .withStaffId(staff!.id)
+      .build();
+
+    await eventBus.publish(event);
+    await waitFor(async () => {
+      const logs = await ds
+        .getRepository(NotificationLogEntity)
+        .find({ where: { tenantId, eventId: event.eventId } });
+      return logs.length >= 1;
+    });
+
+    const countBeforeRedeliver = dispatcher.dispatched.filter(
+      (m) => m.templateKey === 'staff-invitation',
+    ).length;
+
+    await eventBus.publish(event);
+
+    const redeliveryDeadline = Date.now() + 2000;
+    await waitFor(async () => {
+      const newCount = dispatcher.dispatched.filter(
+        (m) => m.templateKey === 'staff-invitation',
+      ).length;
+      if (newCount > countBeforeRedeliver) {
+        throw new Error('Idempotency broken: new email dispatched after re-delivery');
+      }
+      return Date.now() >= redeliveryDeadline;
+    });
+
+    const logs = await ds
+      .getRepository(NotificationLogEntity)
+      .find({ where: { tenantId, eventId: event.eventId } });
+
     expect(logs).toHaveLength(1);
   });
 
