@@ -74,7 +74,7 @@ Implement the rejection use case. Rejection is a terminal state — the booking 
 
 ---
 
-### M08-S03 — UC-005a: Admin requests more information
+### M08-S03 — UC-005a: Admin requests more information ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
