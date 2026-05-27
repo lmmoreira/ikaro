@@ -64,6 +64,11 @@ export interface BookingLineDetail {
   actualPriceCharged: { amount: number; currency: string; formatted: string } | null;
 }
 
+export interface CancelBookingResponse {
+  bookingId: string;
+  status: string;
+}
+
 export interface BookingDetailResponse {
   id: string;
   status: string;

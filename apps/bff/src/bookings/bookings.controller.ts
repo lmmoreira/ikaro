@@ -20,7 +20,12 @@ import { Roles } from '../shared/decorators/roles.decorator';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { TenantInfoResponse } from '../shared/types/backend-responses';
-import { BookingResponse, BookingListResponse, BookingDetailResponse } from './bookings.types';
+import {
+  BookingResponse,
+  BookingListResponse,
+  BookingDetailResponse,
+  CancelBookingResponse,
+} from './bookings.types';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -157,6 +162,13 @@ export class BookingsController {
     @Body(new ZodValidationPipe(AuthenticatedBookingBodySchema)) body: AuthenticatedBookingBody,
   ): Promise<BookingResponse> {
     return this.backendHttp.post<BookingResponse>('/bookings/authenticated', body);
+  }
+
+  @Patch(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  @Roles('CUSTOMER')
+  cancelAsCustomer(@Param('id') id: string): Promise<CancelBookingResponse> {
+    return this.backendHttp.patch(`/bookings/${id}/cancel-customer`, {});
   }
 
   @Patch(':id/approve')

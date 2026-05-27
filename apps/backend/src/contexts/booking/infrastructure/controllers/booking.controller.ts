@@ -73,6 +73,10 @@ import {
   GetBookingUseCase,
   GetBookingUseCaseResult,
 } from '../../application/use-cases/get-booking.use-case';
+import {
+  CancelBookingAsCustomerUseCase,
+  CancelBookingAsCustomerUseCaseResult,
+} from '../../application/use-cases/cancel-booking-as-customer.use-case';
 import { StaffOrManagerRoleGuard } from '../guards/staff-or-manager-role.guard';
 import { mapBookingError } from '../http/booking-error.mapper';
 
@@ -88,6 +92,7 @@ export class BookingController {
     private readonly submitGuestBookingInfo: SubmitGuestBookingInfoUseCase,
     private readonly listBookings: ListBookingsUseCase,
     private readonly getBooking: GetBookingUseCase,
+    private readonly cancelBookingAsCustomer: CancelBookingAsCustomerUseCase,
   ) {}
 
   @Get()
@@ -163,6 +168,14 @@ export class BookingController {
     return this.submitBookingInfo
       .execute({ bookingId: id, response: body.response, photoUrls: body.photoUrls })
       .catch(mapBookingError);
+  }
+
+  @Patch(':id/cancel-customer')
+  @HttpCode(HttpStatus.OK)
+  cancelAsCustomer(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+  ): Promise<CancelBookingAsCustomerUseCaseResult> {
+    return this.cancelBookingAsCustomer.execute({ bookingId: id }).catch(mapBookingError);
   }
 
   @Patch(':id/submit-info/guest')

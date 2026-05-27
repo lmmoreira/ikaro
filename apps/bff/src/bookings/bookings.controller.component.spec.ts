@@ -167,6 +167,89 @@ describe('BookingsController (component)', () => {
     });
   });
 
+  describe('PATCH /v1/bookings/:id/cancel', () => {
+    const BOOKING_ID_CANCEL = '40000000-0000-4000-8000-000000000010';
+    const mockCancelResponse = { bookingId: BOOKING_ID_CANCEL, status: 'CANCELLED' };
+
+    it('returns 401 when no JWT is provided', async () => {
+      const res = await request(app.getHttpServer()).patch(
+        `/v1/bookings/${BOOKING_ID_CANCEL}/cancel`,
+      );
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 when JWT role is MANAGER', async () => {
+      const token = makeManagerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('cancels a booking with CUSTOMER JWT', async () => {
+      const token = makeCustomerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce(mockCancelResponse);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('CANCELLED');
+      expect(backendHttpService.patch).toHaveBeenCalledWith(
+        `/bookings/${BOOKING_ID_CANCEL}/cancel-customer`,
+        {},
+      );
+    });
+
+    it('propagates 422 from backend when cancellation window has expired', async () => {
+      const { HttpException: HE } = await import('@nestjs/common');
+      const token = makeCustomerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockRejectedValueOnce(
+        new HE({ status: 422, detail: 'Cancellation window has expired' }, 422),
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(422);
+    });
+
+    it('propagates 403 from backend when caller is not the booking owner', async () => {
+      const { HttpException: HE } = await import('@nestjs/common');
+      const token = makeCustomerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockRejectedValueOnce(
+        new HE({ status: 403, detail: 'forbidden' }, 403),
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(403);
+    });
+
+    it('propagates 404 from backend when booking is not found', async () => {
+      const { HttpException: HE } = await import('@nestjs/common');
+      const token = makeCustomerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockRejectedValueOnce(
+        new HE({ status: 404, detail: 'not found' }, 404),
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(404);
+    });
+  });
+
   describe('PATCH /v1/bookings/:id/approve', () => {
     const BOOKING_ID_APPROVE = '40000000-0000-4000-8000-000000000002';
     const mockApproveResponse = {

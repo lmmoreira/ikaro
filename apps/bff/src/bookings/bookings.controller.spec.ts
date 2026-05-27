@@ -122,6 +122,76 @@ describe('BookingsController', () => {
     });
   });
 
+  describe('cancelAsCustomer()', () => {
+    const mockCancelResponse = { bookingId: BOOKING_ID, status: 'CANCELLED' };
+
+    it('calls patch /bookings/:id/cancel-customer and returns result', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue(mockCancelResponse),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const result = await controller.cancelAsCustomer(BOOKING_ID);
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}/cancel-customer`, {});
+      expect(result).toBe(mockCancelResponse);
+    });
+
+    it('propagates 403 from backend when caller is not the booking owner', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest
+          .fn()
+          .mockRejectedValue(new HttpException({ status: 403, detail: 'forbidden' }, 403)),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const err = await controller.cancelAsCustomer(BOOKING_ID).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(403);
+    });
+
+    it('propagates 422 from backend when cancellation window has expired', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest
+          .fn()
+          .mockRejectedValue(
+            new HttpException({ status: 422, detail: 'Cancellation window has expired' }, 422),
+          ),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const err = await controller.cancelAsCustomer(BOOKING_ID).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(422);
+    });
+
+    it('propagates 422 from backend when booking state is terminal', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest
+          .fn()
+          .mockRejectedValue(new HttpException({ status: 422, detail: 'invalid transition' }, 422)),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const err = await controller.cancelAsCustomer(BOOKING_ID).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(422);
+    });
+
+    it('propagates 404 from backend when booking is not found', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest
+          .fn()
+          .mockRejectedValue(new HttpException({ status: 404, detail: 'not found' }, 404)),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const err = await controller.cancelAsCustomer('unknown-id').catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(404);
+    });
+  });
+
   describe('approve()', () => {
     it('calls patch /bookings/:id/approve and returns the result', async () => {
       const backendHttp = makeBackendHttp({

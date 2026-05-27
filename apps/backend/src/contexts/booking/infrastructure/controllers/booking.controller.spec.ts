@@ -19,6 +19,7 @@ import { SubmitBookingInfoUseCase } from '../../application/use-cases/submit-boo
 import { SubmitGuestBookingInfoUseCase } from '../../application/use-cases/submit-guest-booking-info.use-case';
 import { ListBookingsUseCase } from '../../application/use-cases/list-bookings.use-case';
 import { GetBookingUseCase } from '../../application/use-cases/get-booking.use-case';
+import { CancelBookingAsCustomerUseCase } from '../../application/use-cases/cancel-booking-as-customer.use-case';
 import { BookingSlotConflictService } from '../../application/services/booking-slot-conflict.service';
 import { BookingStatus } from '../../domain/booking.aggregate';
 
@@ -121,6 +122,13 @@ describe('BookingController', () => {
       ),
       new ListBookingsUseCase(bookingRepo, staffCtx),
       new GetBookingUseCase(bookingRepo, staffCtx),
+      new CancelBookingAsCustomerUseCase(
+        customerCtx,
+        bookingRepo,
+        new InMemoryScheduleTenantSettingsPort(),
+        new InMemoryTransactionManager(),
+        new InMemoryEventBus(),
+      ),
     );
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await serviceRepo.save(service);
@@ -220,6 +228,13 @@ describe('BookingController', () => {
         ),
         new ListBookingsUseCase(repoB, ctx),
         new GetBookingUseCase(repoB, ctx),
+        new CancelBookingAsCustomerUseCase(
+          customerCtxB,
+          repoB,
+          new InMemoryScheduleTenantSettingsPort(),
+          new InMemoryTransactionManager(),
+          new InMemoryEventBus(),
+        ),
       );
       const err = await ctrl.create(validBody()).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
@@ -344,6 +359,13 @@ describe('BookingController', () => {
         ),
         new ListBookingsUseCase(bookingRepoB, staffCtx),
         new GetBookingUseCase(bookingRepoB, staffCtx),
+        new CancelBookingAsCustomerUseCase(
+          customerCtxC,
+          bookingRepoB,
+          new InMemoryScheduleTenantSettingsPort(),
+          new InMemoryTransactionManager(),
+          new InMemoryEventBus(),
+        ),
       );
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
@@ -762,6 +784,13 @@ describe('BookingController', () => {
         ),
         new ListBookingsUseCase(repoC, ctx),
         new GetBookingUseCase(repoC, ctx),
+        new CancelBookingAsCustomerUseCase(
+          ctx,
+          repoC,
+          new InMemoryScheduleTenantSettingsPort(),
+          new InMemoryTransactionManager(),
+          new InMemoryEventBus(),
+        ),
       );
       const err = await ctrl.createAuthenticated(authBody()).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);

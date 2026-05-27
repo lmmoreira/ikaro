@@ -217,6 +217,169 @@ describe('BookingController (integration)', () => {
     });
   });
 
+  describe('PATCH /bookings/:id/cancel-customer', () => {
+    let cancelCustomerId: string;
+
+    beforeAll(async () => {
+      const customer = new CustomerEntityBuilder()
+        .withTenantId(tenantAId)
+        .withGoogleOAuthId('google-sub-cancel-customer')
+        .withEmail('cancel-customer@booking.test')
+        .withName('Cancel Customer')
+        .withPhone('31944444444')
+        .build();
+      await ds.getRepository(CustomerEntity).save(customer);
+      cancelCustomerId = customer.id;
+    });
+
+    it('cancels a PENDING booking with no time restriction → CANCELLED', async () => {
+      // scheduled in 30 min — inside any window, but PENDING so no check
+      const nearFuture = new Date(Date.now() + 30 * 60_000).toISOString();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: nearFuture, serviceIds: [serviceId] })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-customer`)
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .expect(200);
+
+      expect(body.status).toBe('CANCELLED');
+      expect(body.bookingId).toBe(created.bookingId);
+
+      const row = await ds
+        .getRepository(BookingEntity)
+        .findOne({ where: { id: created.bookingId, tenantId: tenantAId } });
+      expect(row!.status).toBe('CANCELLED');
+      expect(row!.cancelledBy).toBe(cancelCustomerId);
+    });
+
+    it('cancels an APPROVED booking with scheduledAt > 48h away → CANCELLED', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(10)}T09:00:00.000Z`, serviceIds: [serviceId] })
+        .expect(201);
+
+      // approve it first
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/approve`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-customer`)
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .expect(200);
+
+      expect(body.status).toBe('CANCELLED');
+    });
+
+    it('returns 422 when APPROVED booking is inside the 48h cancellation window', async () => {
+      // scheduled in 1h — inside the default 48h window
+      const nearFuture = new Date(Date.now() + 60 * 60_000).toISOString();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: nearFuture, serviceIds: [serviceId] })
+        .expect(201);
+
+      // approve it — now window check applies
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/approve`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-customer`)
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .expect(422);
+
+      expect(body.status).toBe(422);
+    });
+
+    it('returns 403 when caller is not the booking owner', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(15)}T09:00:00.000Z`, serviceIds: [serviceId] })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-customer`)
+        .set(actorHeaders(tenantAId, ACTOR_ID, 'CUSTOMER'))
+        .expect(403);
+
+      expect(body.status).toBe(403);
+    });
+
+    it('returns 422 when booking is already CANCELLED', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(16)}T09:00:00.000Z`, serviceIds: [serviceId] })
+        .expect(201);
+
+      // cancel once
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-customer`)
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .expect(200);
+
+      // attempt again
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-customer`)
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .expect(422);
+
+      expect(body.status).toBe(422);
+    });
+
+    it('returns 404 when booking does not exist', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/bookings/00000000-0000-4000-8000-000000009999/cancel-customer')
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('tenant isolation: cannot cancel a booking from tenantB', async () => {
+      const svcB = new ServiceEntityBuilder()
+        .withTenantId(tenantBId)
+        .withName('Serviço B Cancel')
+        .withPriceAmount('80.00')
+        .withDurationMinutes(30)
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(ServiceEntity).save(svcB);
+
+      const customerB = new CustomerEntityBuilder()
+        .withTenantId(tenantBId)
+        .withGoogleOAuthId('google-sub-cancel-b')
+        .withEmail('cancel-customer-b@booking.test')
+        .withName('Cancel Customer B')
+        .withPhone('31933333333')
+        .build();
+      await ds.getRepository(CustomerEntity).save(customerB);
+
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantBId, customerB.id, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(17)}T09:00:00.000Z`, serviceIds: [svcB.id] })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-customer`)
+        .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+  });
+
   describe('PATCH /bookings/:id/approve', () => {
     it('approves a PENDING booking → status APPROVED', async () => {
       const { body: created } = await request(app.getHttpServer())
