@@ -144,7 +144,7 @@ Implement the customer-side response to an info request. The booking transitions
 
 ---
 
-### M08-S05 — Notification consumers for approval workflow events
+### M08-S05 — Notification consumers for approval workflow events ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
