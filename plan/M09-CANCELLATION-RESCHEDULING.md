@@ -11,7 +11,7 @@
 
 ---
 
-### M09-S01 — UC-007: Customer cancels booking
+### M09-S01 — UC-007: Customer cancels booking ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
