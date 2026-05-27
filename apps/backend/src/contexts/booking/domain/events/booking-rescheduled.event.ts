@@ -1,5 +1,11 @@
 import { DomainEvent } from '../../../../shared/domain/domain-event';
 
+interface BookingRescheduledLineSummary {
+  serviceId: string;
+  serviceNameAtBooking: string;
+  priceAtBooking: { amount: string; currency: string };
+}
+
 interface BookingRescheduledData extends Record<string, unknown> {
   bookingId: string;
   customerId: string | null;
@@ -9,6 +15,8 @@ interface BookingRescheduledData extends Record<string, unknown> {
   previousSlot: { startTime: string; endTime: string };
   rescheduledBy: string;
   adminNotes: string | null;
+  lineSummary: BookingRescheduledLineSummary[];
+  totalPrice: { amount: string; currency: string };
 }
 
 export class BookingRescheduled extends DomainEvent<BookingRescheduledData> {

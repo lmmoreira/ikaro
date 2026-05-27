@@ -222,11 +222,20 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     cancelledBy:      string          // customer id, guest email, or staff id
     isBusiness:       boolean         // true = admin/business cancelled, false = customer cancelled
     reason:           string | null
+    scheduledAt:      ISO8601         // the appointment time that was cancelled
+    lineSummary: [
+      {
+        serviceId:            string
+        serviceNameAtBooking: string
+        priceAtBooking:       { amount: number, currency: string }
+      }
+    ]
+    totalPrice:       { amount: number, currency: string }
   }
   ```
 - **Consumers:**
-  - **Notification Context** → email to customer: "Your booking has been cancelled"
-  - **Notification Context** → email to admin: "Booking [id] cancelled by [actor]"
+  - **Notification Context** → email to customer: `"Seu agendamento foi cancelado"` — booking details (date/time, services, total)
+  - **Notification Context** → email to admin: `"Agendamento cancelado"` — who cancelled, reason if provided, booking summary
 
 > Loyalty Context does NOT consume this event. A booking cannot reach `COMPLETED` and then be cancelled (the state machine forbids it), so no `LoyaltyEntry` rows are ever affected by a cancellation.
 
@@ -246,10 +255,19 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     previousSlot:      { startTime: ISO8601, endTime: ISO8601 }   // old slot (for the email)
     rescheduledBy:     string    // staff id
     adminNotes:        string | null
+    lineSummary: [
+      {
+        serviceId:            string
+        serviceNameAtBooking: string
+        priceAtBooking:       { amount: number, currency: string }
+      }
+    ]
+    totalPrice:        { amount: number, currency: string }
   }
   ```
 - **Consumers:**
-  - **Notification Context** → email to customer/guest: "Your booking has been rescheduled to [new date/time]"
+  - **Notification Context** → email to customer/guest: `"Seu agendamento foi reagendado"` — old date/time, new date/time, services, total
+  - **Notification Context** → email to admin: `"Agendamento reagendado"` — booking summary with old and new slot
 
 > Loyalty Context does NOT consume this event — loyalty is unaffected by rescheduling.
 

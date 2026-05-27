@@ -528,6 +528,13 @@ export class Booking extends AggregateRoot {
         cancelledBy,
         isBusiness,
         reason: reason ?? null,
+        scheduledAt: this.props.scheduledAt.toISOString(),
+        lineSummary: this.props.lines.map((l) => ({
+          serviceId: l.serviceId,
+          serviceNameAtBooking: l.serviceNameAtBooking,
+          priceAtBooking: { amount: l.priceAtBooking.amount.toFixed(2), currency: l.priceAtBooking.currency },
+        })),
+        totalPrice: { amount: this.props.totalPrice.amount.toFixed(2), currency: this.props.totalPrice.currency },
       }),
     );
   }
@@ -568,6 +575,12 @@ export class Booking extends AggregateRoot {
         previousSlot,
         rescheduledBy: staffId,
         adminNotes: this.props.adminNotes,
+        lineSummary: this.props.lines.map((l) => ({
+          serviceId: l.serviceId,
+          serviceNameAtBooking: l.serviceNameAtBooking,
+          priceAtBooking: { amount: l.priceAtBooking.amount.toFixed(2), currency: l.priceAtBooking.currency },
+        })),
+        totalPrice: { amount: this.props.totalPrice.amount.toFixed(2), currency: this.props.totalPrice.currency },
       }),
     );
   }
