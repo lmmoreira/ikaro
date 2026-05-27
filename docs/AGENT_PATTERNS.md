@@ -110,6 +110,18 @@ export const UpdateXxxSchema = z.object({
 export type UpdateXxxDto = z.infer<typeof UpdateXxxSchema>;
 ```
 
+**When NOT to add a Zod schema:** if the DTO only carries a `bookingId` (or similar) that comes from a `@Param` decorated with `ParseUUIDPipe`, there is no request body to validate — a Zod schema is dead code. Use a plain TypeScript interface instead:
+
+```typescript
+// src/contexts/<ctx>/application/dtos/approve-xxx.dto.ts
+// No Zod — bookingId comes from ParseUUIDPipe on the @Param
+export interface ApproveXxxDto {
+  bookingId: string;
+}
+```
+
+Canonical examples: `approve-booking.dto.ts`, `cancel-booking-as-customer.dto.ts`
+
 ---
 
 ### 5. Use Case — Read (no write)
