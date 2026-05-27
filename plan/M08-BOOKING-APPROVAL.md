@@ -185,7 +185,7 @@ Implement the 4 Notification context event consumers for the approval workflow. 
 
 ---
 
-### M08-S06 — Booking list and detail APIs
+### M08-S06 — Booking list and detail APIs ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
