@@ -77,7 +77,7 @@ Note: The same BFF endpoint `PATCH /v1/bookings/:id/cancel` handles both custome
 
 ---
 
-### M09-S03 — UC-008b: Admin reschedules booking
+### M09-S03 — UC-008b: Admin reschedules booking ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
