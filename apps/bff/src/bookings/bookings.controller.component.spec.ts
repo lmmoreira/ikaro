@@ -694,4 +694,118 @@ describe('BookingsController (component)', () => {
       expect(res.status).toBe(422);
     });
   });
+
+  describe('GET /v1/bookings', () => {
+    const mockListResponse = {
+      items: [],
+      pagination: { limit: 25, offset: 0, total: 0, hasMore: false },
+    };
+
+    it('returns 401 with no JWT', async () => {
+      expect((await request(app.getHttpServer()).get('/v1/bookings')).status).toBe(401);
+    });
+
+    it('returns 200 for CUSTOMER with own bookings', async () => {
+      const token = makeCustomerJwt(jwtService);
+      backendHttpService.get.mockResolvedValueOnce(mockListResponse);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/bookings')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.get).toHaveBeenCalledWith('/bookings', expect.any(Object));
+    });
+
+    it('returns 200 for MANAGER', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(mockListResponse);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/bookings')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+    });
+
+    it('propagates backend error', async () => {
+      const { HttpException: HE } = await import('@nestjs/common');
+      const token = makeCustomerJwt(jwtService);
+      backendHttpService.get.mockRejectedValueOnce(new HE({ status: 500 }, 500));
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/bookings')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe('GET /v1/bookings/:id', () => {
+    const BOOKING_UUID = '40000000-0000-4000-8000-000000000099';
+    const mockDetailResponse = {
+      id: BOOKING_UUID,
+      status: 'PENDING',
+      type: 'CUSTOMER',
+      customerId: null,
+      guestName: 'João',
+      guestEmail: 'joao@example.com',
+      guestPhone: '31999999999',
+      scheduledAt: '2026-06-15T10:00:00.000Z',
+      totalDurationMins: 30,
+      totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+      totalActualPrice: null,
+      pickupAddress: null,
+      lines: [],
+      beforeServicePhotoUrls: [],
+      afterServicePhotoUrls: [],
+      adminNotes: null,
+      infoRequestMessage: null,
+      infoResponseMessage: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    it('returns 401 with no JWT', async () => {
+      expect((await request(app.getHttpServer()).get(`/v1/bookings/${BOOKING_UUID}`)).status).toBe(
+        401,
+      );
+    });
+
+    it('returns 200 for CUSTOMER', async () => {
+      const token = makeCustomerJwt(jwtService);
+      backendHttpService.get.mockResolvedValueOnce(mockDetailResponse);
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/bookings/${BOOKING_UUID}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.get).toHaveBeenCalledWith(`/bookings/${BOOKING_UUID}`);
+    });
+
+    it('returns 200 for MANAGER', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(mockDetailResponse);
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/bookings/${BOOKING_UUID}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+    });
+
+    it('propagates 404 from backend', async () => {
+      const { HttpException: HE } = await import('@nestjs/common');
+      const token = makeCustomerJwt(jwtService);
+      backendHttpService.get.mockRejectedValueOnce(new HE({ status: 404 }, 404));
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/bookings/${BOOKING_UUID}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(404);
+    });
+  });
 });

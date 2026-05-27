@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   BookingEntityBuilder,
   BookingLineEntityBuilder,
@@ -31,6 +31,7 @@ describe('TypeOrmBookingRepository', () => {
           useValue: {
             findOne: jest.fn(),
             find: jest.fn(),
+            findAndCount: jest.fn(),
             save: jest.fn(),
             delete: jest.fn(),
             manager: {
@@ -152,6 +153,136 @@ describe('TypeOrmBookingRepository', () => {
       expect(ormRepo.find).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { tenantId: 'tenant-1', status: BookingStatus.APPROVED },
+        }),
+      );
+    });
+  });
+
+  describe('findAllByTenantPaginated', () => {
+    const tenantId = '00000000-0000-7000-8000-000000000001';
+
+    it('returns empty result without loading lines when no bookings found', async () => {
+      ormRepo.findAndCount.mockResolvedValue([[], 0]);
+
+      const result = await repo.findAllByTenantPaginated(tenantId, { limit: 25, offset: 0 });
+
+      expect(result).toEqual({ items: [], total: 0 });
+      expect(ormLineRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('returns paginated items with total and loads lines in one query', async () => {
+      const bookingId1 = '00000000-0000-7000-8000-000000000031';
+      const bookingId2 = '00000000-0000-7000-8000-000000000032';
+
+      ormRepo.findAndCount.mockResolvedValue([
+        [
+          new BookingEntityBuilder().withId(bookingId1).withTenantId(tenantId).build(),
+          new BookingEntityBuilder().withId(bookingId2).withTenantId(tenantId).build(),
+        ],
+        5,
+      ]);
+      ormLineRepo.find.mockResolvedValue([
+        new BookingLineEntityBuilder().withBookingId(bookingId1).withTenantId(tenantId).build(),
+        new BookingLineEntityBuilder().withBookingId(bookingId2).withTenantId(tenantId).build(),
+      ]);
+
+      const result = await repo.findAllByTenantPaginated(tenantId, { limit: 2, offset: 0 });
+
+      expect(result.total).toBe(5);
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0].lines).toHaveLength(1);
+      expect(ormLineRepo.find).toHaveBeenCalledTimes(1);
+    });
+
+    it('applies take, skip, and order to findAndCount', async () => {
+      ormRepo.findAndCount.mockResolvedValue([[], 0]);
+
+      await repo.findAllByTenantPaginated(tenantId, { limit: 10, offset: 20 });
+
+      expect(ormRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 10, skip: 20, order: { scheduledAt: 'DESC' } }),
+      );
+    });
+
+    it('applies status filter', async () => {
+      ormRepo.findAndCount.mockResolvedValue([[], 0]);
+
+      await repo.findAllByTenantPaginated(tenantId, {
+        limit: 25,
+        offset: 0,
+        status: BookingStatus.APPROVED,
+      });
+
+      expect(ormRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: BookingStatus.APPROVED }),
+        }),
+      );
+    });
+
+    it('applies customerId filter', async () => {
+      ormRepo.findAndCount.mockResolvedValue([[], 0]);
+
+      await repo.findAllByTenantPaginated(tenantId, {
+        limit: 25,
+        offset: 0,
+        customerId: 'cust-123',
+      });
+
+      expect(ormRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ customerId: 'cust-123' }) }),
+      );
+    });
+
+    it('uses Between when both scheduledAfter and scheduledBefore provided', async () => {
+      ormRepo.findAndCount.mockResolvedValue([[], 0]);
+      const after = new Date('2026-06-01T00:00:00Z');
+      const before = new Date('2026-06-30T23:59:59Z');
+
+      await repo.findAllByTenantPaginated(tenantId, {
+        limit: 25,
+        offset: 0,
+        scheduledAfter: after,
+        scheduledBefore: before,
+      });
+
+      expect(ormRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ scheduledAt: Between(after, before) }),
+        }),
+      );
+    });
+
+    it('uses MoreThanOrEqual when only scheduledAfter provided', async () => {
+      ormRepo.findAndCount.mockResolvedValue([[], 0]);
+      const after = new Date('2026-06-01T00:00:00Z');
+
+      await repo.findAllByTenantPaginated(tenantId, {
+        limit: 25,
+        offset: 0,
+        scheduledAfter: after,
+      });
+
+      expect(ormRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ scheduledAt: MoreThanOrEqual(after) }),
+        }),
+      );
+    });
+
+    it('uses LessThanOrEqual when only scheduledBefore provided', async () => {
+      ormRepo.findAndCount.mockResolvedValue([[], 0]);
+      const before = new Date('2026-06-30T23:59:59Z');
+
+      await repo.findAllByTenantPaginated(tenantId, {
+        limit: 25,
+        offset: 0,
+        scheduledBefore: before,
+      });
+
+      expect(ormRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ scheduledAt: LessThanOrEqual(before) }),
         }),
       );
     });

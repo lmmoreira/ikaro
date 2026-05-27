@@ -1,4 +1,4 @@
-# Booking — Guest & Authenticated booking requests
+# Booking — List, detail, guest & authenticated booking requests
 # UC-001 (guest), UC-002 (authenticated customer)
 # TenantContext is populated from X-Tenant-ID header (set by BFF).
 #
@@ -13,6 +13,84 @@
 @customerId = 20000000-0000-4000-8000-000000000001
 @staffId = 20000000-0000-4000-8000-000000000002
 @bookingId = {{bookingId}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — list all bookings for tenant (staff view)
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings?limit=25&offset=0
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-001
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — list with status filter
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings?status=PENDING&limit=25&offset=0
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-list-002
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — customer lists own bookings
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings?limit=25&offset=0
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-list-003
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — get booking detail (staff)
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings/{{bookingId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-detail-001
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — customer gets own booking detail
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings/{{bookingId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-detail-002
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — booking not found → 404
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{baseUrl}}/bookings/00000000-0000-4000-8000-000000009999
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-detail-003
+
+###
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — approve a PENDING booking (UC-003)

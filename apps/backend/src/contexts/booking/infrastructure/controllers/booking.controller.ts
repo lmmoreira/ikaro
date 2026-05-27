@@ -1,11 +1,14 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
@@ -61,6 +64,15 @@ import {
   SubmitGuestBookingInfoUseCase,
   SubmitGuestBookingInfoUseCaseResult,
 } from '../../application/use-cases/submit-guest-booking-info.use-case';
+import { ListBookingsDto, ListBookingsSchema } from '../../application/dtos/list-bookings.dto';
+import {
+  ListBookingsUseCase,
+  ListBookingsUseCaseResult,
+} from '../../application/use-cases/list-bookings.use-case';
+import {
+  GetBookingUseCase,
+  GetBookingUseCaseResult,
+} from '../../application/use-cases/get-booking.use-case';
 import { StaffOrManagerRoleGuard } from '../guards/staff-or-manager-role.guard';
 import { mapBookingError } from '../http/booking-error.mapper';
 
@@ -74,7 +86,23 @@ export class BookingController {
     private readonly requestMoreInfo: RequestMoreInfoUseCase,
     private readonly submitBookingInfo: SubmitBookingInfoUseCase,
     private readonly submitGuestBookingInfo: SubmitGuestBookingInfoUseCase,
+    private readonly listBookings: ListBookingsUseCase,
+    private readonly getBooking: GetBookingUseCase,
   ) {}
+
+  @Get()
+  list(
+    @Query(new ZodValidationPipe(ListBookingsSchema)) query: ListBookingsDto,
+  ): Promise<ListBookingsUseCaseResult> {
+    return this.listBookings.execute(query).catch(mapBookingError);
+  }
+
+  @Get(':id')
+  getOne(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+  ): Promise<GetBookingUseCaseResult> {
+    return this.getBooking.execute({ bookingId: id }).catch(mapBookingError);
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)

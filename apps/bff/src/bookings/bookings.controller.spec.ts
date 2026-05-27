@@ -415,6 +415,92 @@ describe('BookingsController', () => {
     });
   });
 
+  describe('list()', () => {
+    const mockListResponse = {
+      items: [
+        {
+          id: BOOKING_ID,
+          status: 'PENDING',
+          type: 'CUSTOMER',
+          customerId: null,
+          guestName: 'João',
+          guestEmail: 'joao@example.com',
+          scheduledAt: '2026-06-15T10:00:00.000Z',
+          totalDurationMins: 30,
+          totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+          lineSummary: [],
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      pagination: { limit: 25, offset: 0, total: 1, hasMore: false },
+    };
+
+    it('calls GET /bookings with query params and returns result', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockListResponse) });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const result = await controller.list({ limit: 25, offset: 0 });
+
+      expect(backendHttp.get).toHaveBeenCalledWith('/bookings', { limit: 25, offset: 0 });
+      expect(result).toBe(mockListResponse);
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockRejectedValue(new HttpException({ status: 500 }, 500)),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const err = await controller.list({ limit: 25, offset: 0 }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+    });
+  });
+
+  describe('getOne()', () => {
+    const mockDetailResponse = {
+      id: BOOKING_ID,
+      status: 'PENDING',
+      type: 'CUSTOMER',
+      customerId: null,
+      guestName: 'João',
+      guestEmail: 'joao@example.com',
+      guestPhone: '31999999999',
+      scheduledAt: '2026-06-15T10:00:00.000Z',
+      totalDurationMins: 30,
+      totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+      totalActualPrice: null,
+      pickupAddress: null,
+      lines: [],
+      beforeServicePhotoUrls: [],
+      afterServicePhotoUrls: [],
+      adminNotes: null,
+      infoRequestMessage: null,
+      infoResponseMessage: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    it('calls GET /bookings/:id and returns result', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockDetailResponse) });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const result = await controller.getOne(BOOKING_ID);
+
+      expect(backendHttp.get).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}`);
+      expect(result).toBe(mockDetailResponse);
+    });
+
+    it('propagates 404 from backend', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockRejectedValue(new HttpException({ status: 404 }, 404)),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const err = await controller.getOne(BOOKING_ID).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(404);
+    });
+  });
+
   describe('createAuthenticated()', () => {
     const authBody = {
       scheduledAt: '2026-06-15T10:00:00.000Z',

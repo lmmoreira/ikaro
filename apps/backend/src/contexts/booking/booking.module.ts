@@ -31,6 +31,8 @@ import { RejectBookingUseCase } from './application/use-cases/reject-booking.use
 import { RequestMoreInfoUseCase } from './application/use-cases/request-more-info.use-case';
 import { SubmitBookingInfoUseCase } from './application/use-cases/submit-booking-info.use-case';
 import { SubmitGuestBookingInfoUseCase } from './application/use-cases/submit-guest-booking-info.use-case';
+import { ListBookingsUseCase } from './application/use-cases/list-bookings.use-case';
+import { GetBookingUseCase } from './application/use-cases/get-booking.use-case';
 import { BookingSlotConflictService } from './application/services/booking-slot-conflict.service';
 import { BookingEntity } from './infrastructure/entities/booking.entity';
 import { BookingLineEntity } from './infrastructure/entities/booking-line.entity';
@@ -104,6 +106,8 @@ import { AvailabilityService } from './domain/services/availability.service';
     RequestMoreInfoUseCase,
     SubmitBookingInfoUseCase,
     SubmitGuestBookingInfoUseCase,
+    ListBookingsUseCase,
+    GetBookingUseCase,
   ],
 })
 export class BookingModule {}

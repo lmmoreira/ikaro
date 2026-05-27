@@ -8,6 +8,8 @@ import { Money } from '../../../../shared/value-objects/money';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import {
   BookingFilters,
+  BookingListFilters,
+  BookingPaginatedResult,
   IBookingRepository,
 } from '../../application/ports/booking-repository.port';
 import { Booking, BookingProps, BookingStatus, BookingType } from '../../domain/booking.aggregate';
@@ -59,6 +61,48 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     }
 
     return entities.map((e) => this.toDomain(e, linesByBookingId.get(e.id) ?? []));
+  }
+
+  async findAllByTenantPaginated(
+    tenantId: string,
+    filters: BookingListFilters,
+  ): Promise<BookingPaginatedResult> {
+    const where: FindOptionsWhere<BookingEntity> = { tenantId };
+    if (filters.status) where.status = filters.status;
+    if (filters.customerId) where.customerId = filters.customerId;
+    if (filters.scheduledAfter && filters.scheduledBefore) {
+      where.scheduledAt = Between(filters.scheduledAfter, filters.scheduledBefore);
+    } else if (filters.scheduledAfter) {
+      where.scheduledAt = MoreThanOrEqual(filters.scheduledAfter);
+    } else if (filters.scheduledBefore) {
+      where.scheduledAt = LessThanOrEqual(filters.scheduledBefore);
+    }
+
+    const [entities, total] = await this.repo.findAndCount({
+      where,
+      order: { scheduledAt: 'DESC' },
+      take: filters.limit,
+      skip: filters.offset,
+    });
+
+    if (!entities.length) return { items: [], total };
+
+    const bookingIds = entities.map((e) => e.id);
+    const allLines = await this.lineRepo.find({
+      where: bookingIds.map((bookingId) => ({ bookingId, tenantId })),
+    });
+
+    const linesByBookingId = new Map<string, BookingLineEntity[]>();
+    for (const line of allLines) {
+      const list = linesByBookingId.get(line.bookingId) ?? [];
+      list.push(line);
+      linesByBookingId.set(line.bookingId, list);
+    }
+
+    return {
+      items: entities.map((e) => this.toDomain(e, linesByBookingId.get(e.id) ?? [])),
+      total,
+    };
   }
 
   async save(booking: Booking): Promise<void> {

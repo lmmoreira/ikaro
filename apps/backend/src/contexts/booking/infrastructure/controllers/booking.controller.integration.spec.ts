@@ -690,4 +690,227 @@ describe('BookingController (integration)', () => {
       expect(body.status).toBe(404);
     });
   });
+
+  describe('GET /bookings', () => {
+    let listTenantId: string;
+    let listCustomerId: string;
+
+    beforeAll(async () => {
+      const { body: lt } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .send({
+          name: 'List Tenant',
+          slug: 'list-tenant-bookings',
+          adminEmail: 'list@bookings.test',
+        })
+        .expect(201);
+      listTenantId = lt.tenantId as string;
+
+      const svc = new ServiceEntityBuilder()
+        .withTenantId(listTenantId)
+        .withName('Serviço Lista')
+        .withPriceAmount('100.00')
+        .withDurationMinutes(30)
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(ServiceEntity).save(svc);
+
+      const customer = new CustomerEntityBuilder()
+        .withTenantId(listTenantId)
+        .withEmail('list-customer@bookings.test')
+        .withName('Cliente Lista')
+        .withPhone('31911111111')
+        .build();
+      await ds.getRepository(CustomerEntity).save(customer);
+      listCustomerId = customer.id;
+
+      await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(listTenantId, listCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(20)}T09:00:00.000Z`, serviceIds: [svc.id] })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/bookings')
+        .set({ 'x-tenant-id': listTenantId, 'x-correlation-id': 'list-test-guest' })
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(21)}T09:00:00.000Z`,
+          serviceIds: [svc.id],
+        })
+        .expect(201);
+    });
+
+    it('STAFF sees all bookings for tenant', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/bookings')
+        .set(actorHeaders(listTenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      expect(body.items.length).toBeGreaterThanOrEqual(2);
+      expect(body.pagination).toBeDefined();
+      expect(body.pagination.total).toBeGreaterThanOrEqual(2);
+      expect(typeof body.pagination.hasMore).toBe('boolean');
+    });
+
+    it('STAFF filters by status', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/bookings?status=PENDING')
+        .set(actorHeaders(listTenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      for (const item of body.items as { status: string }[]) {
+        expect(item.status).toBe('PENDING');
+      }
+    });
+
+    it('CUSTOMER sees only own bookings', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/bookings')
+        .set(actorHeaders(listTenantId, listCustomerId, 'CUSTOMER'))
+        .expect(200);
+
+      for (const item of body.items as { customerId: string }[]) {
+        expect(item.customerId).toBe(listCustomerId);
+      }
+    });
+
+    it('response includes lineSummary and pagination shape', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/bookings?limit=1&offset=0')
+        .set(actorHeaders(listTenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].lineSummary).toBeDefined();
+      expect(body.items[0].totalPrice.formatted).toMatch(/^R\$/);
+      expect(body.pagination.limit).toBe(1);
+      expect(body.pagination.offset).toBe(0);
+    });
+
+    it('tenant isolation: STAFF from tenantA cannot see listTenant bookings', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/bookings')
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      const ids = (body.items as { id: string }[]).map((i) => i.id);
+      const { body: ltBody } = await request(app.getHttpServer())
+        .get('/bookings')
+        .set(actorHeaders(listTenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+      const ltIds = (ltBody.items as { id: string }[]).map((i) => i.id);
+
+      for (const id of ltIds) {
+        expect(ids).not.toContain(id);
+      }
+    });
+  });
+
+  describe('GET /bookings/:id', () => {
+    let detailTenantId: string;
+    let detailCustomerId: string;
+    let ownBookingId: string;
+    let otherBookingId: string;
+
+    beforeAll(async () => {
+      const { body: dt } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .send({
+          name: 'Detail Tenant',
+          slug: 'detail-tenant-bookings',
+          adminEmail: 'detail@bookings.test',
+        })
+        .expect(201);
+      detailTenantId = dt.tenantId as string;
+
+      const svc = new ServiceEntityBuilder()
+        .withTenantId(detailTenantId)
+        .withName('Serviço Detalhe')
+        .withPriceAmount('150.00')
+        .withDurationMinutes(45)
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(ServiceEntity).save(svc);
+
+      const customer = new CustomerEntityBuilder()
+        .withTenantId(detailTenantId)
+        .withEmail('detail-customer@bookings.test')
+        .withName('Cliente Detalhe')
+        .withPhone('31922222222')
+        .build();
+      await ds.getRepository(CustomerEntity).save(customer);
+      detailCustomerId = customer.id;
+
+      const { body: ownBooking } = await request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(detailTenantId, detailCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: `${futureDate(25)}T09:00:00.000Z`, serviceIds: [svc.id] })
+        .expect(201);
+      ownBookingId = ownBooking.bookingId as string;
+
+      const { body: other } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set({ 'x-tenant-id': detailTenantId, 'x-correlation-id': 'detail-test-other' })
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(26)}T09:00:00.000Z`,
+          serviceIds: [svc.id],
+        })
+        .expect(201);
+      otherBookingId = other.bookingId as string;
+    });
+
+    it('STAFF gets full booking detail', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get(`/bookings/${ownBookingId}`)
+        .set(actorHeaders(detailTenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      expect(body.id).toBe(ownBookingId);
+      expect(body.lines).toBeDefined();
+      expect(body.lines[0].lineId).toBeDefined();
+      expect(body.lines[0].durationMinsAtBooking).toBe(45);
+      expect(body.totalPrice.formatted).toMatch(/^R\$/);
+    });
+
+    it('CUSTOMER gets own booking detail', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get(`/bookings/${ownBookingId}`)
+        .set(actorHeaders(detailTenantId, detailCustomerId, 'CUSTOMER'))
+        .expect(200);
+
+      expect(body.id).toBe(ownBookingId);
+      expect(body.customerId).toBe(detailCustomerId);
+    });
+
+    it("CUSTOMER gets 404 for another customer's booking", async () => {
+      const { body } = await request(app.getHttpServer())
+        .get(`/bookings/${otherBookingId}`)
+        .set(actorHeaders(detailTenantId, detailCustomerId, 'CUSTOMER'))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('returns 404 for non-existent booking', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/bookings/00000000-0000-4000-8000-000000009999')
+        .set(actorHeaders(detailTenantId, STAFF_ID, 'MANAGER'))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('tenant isolation: STAFF from tenantA cannot get booking from detailTenant', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get(`/bookings/${ownBookingId}`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+  });
 });

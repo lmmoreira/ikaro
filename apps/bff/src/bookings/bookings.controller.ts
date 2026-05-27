@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   HttpException,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -18,7 +20,7 @@ import { Roles } from '../shared/decorators/roles.decorator';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { TenantInfoResponse } from '../shared/types/backend-responses';
-import { BookingResponse } from './bookings.types';
+import { BookingResponse, BookingListResponse, BookingDetailResponse } from './bookings.types';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -69,6 +71,25 @@ export const SubmitGuestBookingInfoBodySchema = z.object({
   photoUrls: z.array(z.url()).optional(),
 });
 
+const BookingStatusEnum = z.enum([
+  'PENDING',
+  'INFO_REQUESTED',
+  'APPROVED',
+  'COMPLETED',
+  'REJECTED',
+  'CANCELLED',
+]);
+
+const ListBookingsQuerySchema = z.object({
+  status: BookingStatusEnum.optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+type ListBookingsQuery = z.infer<typeof ListBookingsQuerySchema>;
+
 const GuestTokenPayloadSchema = z.object({
   bookingId: z.string(),
   tenantId: z.string(),
@@ -88,6 +109,20 @@ export class BookingsController {
     private readonly backendHttp: BackendHttpService,
     private readonly config: ConfigService,
   ) {}
+
+  @Get()
+  @Roles('CUSTOMER', 'MANAGER', 'STAFF')
+  list(
+    @Query(new ZodValidationPipe(ListBookingsQuerySchema)) query: ListBookingsQuery,
+  ): Promise<BookingListResponse> {
+    return this.backendHttp.get<BookingListResponse>('/bookings', query);
+  }
+
+  @Get(':id')
+  @Roles('CUSTOMER', 'MANAGER', 'STAFF')
+  getOne(@Param('id', ParseUUIDPipe) id: string): Promise<BookingDetailResponse> {
+    return this.backendHttp.get<BookingDetailResponse>(`/bookings/${id}`);
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)

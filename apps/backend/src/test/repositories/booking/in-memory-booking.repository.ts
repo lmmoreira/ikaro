@@ -1,5 +1,7 @@
 import {
   BookingFilters,
+  BookingListFilters,
+  BookingPaginatedResult,
   IBookingRepository,
 } from '../../../contexts/booking/application/ports/booking-repository.port';
 import { Booking } from '../../../contexts/booking/domain/booking.aggregate';
@@ -22,6 +24,15 @@ export class InMemoryBookingRepository implements IBookingRepository {
     if (filters.scheduledBefore)
       results = results.filter((b) => b.scheduledAt <= filters.scheduledBefore!);
     return results;
+  }
+
+  async findAllByTenantPaginated(
+    tenantId: string,
+    filters: BookingListFilters,
+  ): Promise<BookingPaginatedResult> {
+    const all = await this.findAllByTenant(tenantId, filters);
+    const total = all.length;
+    return { items: all.slice(filters.offset, filters.offset + filters.limit), total };
   }
 
   async save(booking: Booking): Promise<void> {
