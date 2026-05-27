@@ -83,6 +83,18 @@ Check for:
 - `deepMerge` implemented inline (not imported from `src/shared/utils/deep-merge`)
 - Function bodies that re-implement string trimming, digit-stripping, or format conversion already in a shared VO or util
 
+### 19. PATCH body schemas with all-optional fields use `.default({})`
+
+For every new `@Patch` route in changed controller files, find the corresponding Zod body schema. If all fields are optional (or the body itself is optional), verify the schema ends with `.default({})`.
+
+**Why:** `ZodValidationPipe` receives `undefined` when no body is sent. Without `.default({})` the schema rejects it with 400, silently breaking component and integration tests that omit the body — unit tests pass because they call the method directly.
+
+### 20. Integration test setup steps only call implemented endpoints
+
+For every new block in `*.integration.spec.ts`, collect all routes called as **setup steps** (i.e., not the primary subject of the `it()` block — e.g. a `PATCH /approve` called to put a booking in APPROVED state before testing cancel). Verify each one has a corresponding `@Get/@Post/@Patch/@Delete` decorator in the controller. Flag any route used as a setup step that does not exist yet.
+
+**Why:** The pre-push hook runs unit tests only. A missing endpoint returns 404 and silently corrupts the setup chain — the `it()` block then fails for the wrong reason. Only caught in CI.
+
 ---
 
 ## Output format
@@ -109,7 +121,49 @@ Check for:
 Total issues: N
 ```
 
-If all checks pass, output:
+If all Step 1–3 checks pass, output:
 ```
-✅ All pre-PR checks passed. Safe to open the PR.
+✅ Steps 1–3 passed — 0 issues. Proceeding to Step 4.
+```
+
+---
+
+## Step 4 — Integration test gate (MANDATORY — blocks PR open)
+
+Check whether the branch has any new or modified test blocks inside `*.integration.spec.ts` files.
+
+**If yes — STOP. Do not open the PR yet.** Ask the user exactly this:
+
+> ⚠️ **Integration test gate — required before PR**
+>
+> All automated checks passed. The pre-push hook only runs unit tests, so integration tests must be verified manually before opening the PR.
+>
+> Please run:
+> ```bash
+> pnpm --filter @beloauto/backend test:integration 2>&1 | tail -30
+> ```
+> Paste the output here. I will open the PR only after you confirm it passes.
+
+Wait for the user's response. Open the PR **only** if:
+1. The pasted output shows `Test Suites: X passed, X total` with 0 failed suites and 0 failed tests.
+2. The user explicitly says to proceed.
+
+**If no `*.integration.spec.ts` files were touched**, skip this step and proceed directly to opening the PR.
+
+Output when gate triggers:
+```
+### Step 4 — Integration test gate
+⏸ WAITING — paste `pnpm --filter @beloauto/backend test:integration` output to proceed
+```
+
+Output when gate is skipped:
+```
+### Step 4 — Integration test gate
+⏭ SKIP — no integration test files changed
+```
+
+Output when gate clears:
+```
+### Step 4 — Integration test gate
+✅ PASS — integration tests confirmed by user
 ```

@@ -82,6 +82,8 @@ These appear as `Nest can't resolve dependencies of XxxUseCase (?, ...)` in test
 | Aggregate-count assertion flakes | Shared `tenantAId` collects rows from other `it()` blocks | Use an inline unique `tenantId` per `it()` for count-sensitive assertions |
 | `PLATFORM_ADMIN_KEY` rejected | Key < 32 chars | Use a ≥ 32-char string (e.g. a UUID literal `'xxx-integ-key-00000000-0000-4000'`) |
 | `waitFor` timeout on async assertion | Pub/Sub handler not triggered or test app missing subscription | Ensure `EventBusModule` is imported without override in story integration specs |
+| PATCH endpoint returns 400 instead of expected status in component/integration test | Zod body schema has all-optional fields but no `.default({})` — `ZodValidationPipe` receives `undefined` when body is omitted | Add `.default({})` at the end of every `z.object({…})` used on a PATCH endpoint where the body is optional. Pattern: `z.object({ reason: z.string().min(1).optional() }).default({})` |
+| Setup step in integration test returns 404, causing the actual assertion to fail for wrong reason | Integration test chains through a `PATCH/POST` endpoint that is not yet implemented | Before writing integration test blocks, verify every setup-step endpoint exists: `grep -n "@Patch\|@Post\|@Get\|@Delete" <context>.controller.ts` |
 
 ---
 
@@ -114,3 +116,5 @@ Before every `git commit`, verify:
 - [ ] `TenantModule` in context module `imports[]` (not just the test app)
 - [ ] `EventBusModule` in integration app `imports[]`
 - [ ] Domain events listed in the **publishing** context, not duplicated
+- [ ] Every `@Patch` body schema with all-optional fields ends with `.default({})`
+- [ ] Every endpoint called as a setup step in `*.integration.spec.ts` exists in the controller (`grep -n "@Patch\|@Post" controller.ts`)

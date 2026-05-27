@@ -1,7 +1,10 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { ServiceEntityBuilder } from '../../../../test/builders/booking/index';
+import {
+  ServiceEntityBuilder,
+  BookingEntityBuilder,
+} from '../../../../test/builders/booking/index';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { futureDate } from '../../../../test/utils/date-helpers';
@@ -374,6 +377,145 @@ describe('BookingController (integration)', () => {
       const { body } = await request(app.getHttpServer())
         .patch(`/bookings/${created.bookingId}/cancel-customer`)
         .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+  });
+
+  describe('PATCH /bookings/:id/cancel-admin', () => {
+    it('cancels a PENDING booking → CANCELLED, sets cancelledBy and isBusiness=true', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({ ...validBody(), scheduledAt: `${futureDate(20)}T09:00:00.000Z` })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-admin`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({})
+        .expect(200);
+
+      expect(body.status).toBe('CANCELLED');
+      expect(body.bookingId).toBe(created.bookingId);
+
+      const row = await ds
+        .getRepository(BookingEntity)
+        .findOne({ where: { id: created.bookingId, tenantId: tenantAId } });
+      expect(row!.status).toBe('CANCELLED');
+      expect(row!.cancelledBy).toBe(STAFF_ID);
+    });
+
+    it('cancels an APPROVED booking — admin bypasses any cancellation window', async () => {
+      // Use a static far-future date to avoid slot conflicts with other tests
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({ ...validBody(), scheduledAt: `${futureDate(25)}T09:00:00.000Z` })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/approve`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-admin`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({})
+        .expect(200);
+
+      expect(body.status).toBe('CANCELLED');
+    });
+
+    it('cancels with optional reason and persists it', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({ ...validBody(), scheduledAt: `${futureDate(21)}T09:00:00.000Z` })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-admin`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({ reason: 'Staff unavailable' })
+        .expect(200);
+
+      const row = await ds
+        .getRepository(BookingEntity)
+        .findOne({ where: { id: created.bookingId, tenantId: tenantAId } });
+      expect(row!.cancellationReason).toBe('Staff unavailable');
+    });
+
+    it('returns 422 when booking is COMPLETED (terminal state)', async () => {
+      // Insert a COMPLETED booking directly — PATCH /complete is part of UC-009 (not yet implemented)
+      const completedBooking = new BookingEntityBuilder()
+        .withTenantId(tenantAId)
+        .withStatus('COMPLETED')
+        .withScheduledAt(new Date(`${futureDate(22)}T09:00:00.000Z`))
+        .build();
+      await ds.getRepository(BookingEntity).save(completedBooking);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${completedBooking.id}/cancel-admin`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({})
+        .expect(422);
+
+      expect(body.status).toBe(422);
+    });
+
+    it('returns 404 when booking does not exist', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/bookings/00000000-0000-4000-8000-000000009998/cancel-admin')
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({})
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('returns 403 when no staff role headers are provided', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({ ...validBody(), scheduledAt: `${futureDate(23)}T09:00:00.000Z` })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-admin`)
+        .set(guestHeaders(tenantAId))
+        .send({})
+        .expect(403);
+
+      expect(body.status).toBe(403);
+    });
+
+    it('tenant isolation: cannot cancel a booking from tenantB', async () => {
+      const svcB = new ServiceEntityBuilder()
+        .withTenantId(tenantBId)
+        .withName('Serviço B Admin Cancel')
+        .withPriceAmount('80.00')
+        .withDurationMinutes(30)
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(ServiceEntity).save(svcB);
+
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantBId))
+        .send({
+          ...validBody(),
+          scheduledAt: `${futureDate(24)}T09:00:00.000Z`,
+          serviceIds: [svcB.id],
+        })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/cancel-admin`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({})
         .expect(404);
 
       expect(body.status).toBe(404);

@@ -644,3 +644,113 @@ X-Tenant-ID: {{tenantId}}
   "guestEmail": "guest@example.com",
   "response": "Booking is PENDING — should return 422"
 }
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — customer cancels own booking (UC-007)
+# ─────────────────────────────────────────────────────────────────────────────
+
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel-customer
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-cancel-customer-001
+
+###
+
+# ERROR — booking not found → 404
+PATCH {{baseUrl}}/bookings/00000000-0000-4000-8000-000000009999/cancel-customer
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-cancel-customer-002
+
+###
+
+# ERROR — cancellation window expired (APPROVED booking within 48h) → 422
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel-customer
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-cancel-customer-003
+
+###
+
+# ERROR — caller is not the booking owner → 403
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel-customer
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: 00000000-0000-4000-8000-000000009999
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-cancel-customer-004
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — admin cancels booking without reason (UC-008a)
+# ─────────────────────────────────────────────────────────────────────────────
+
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel-admin
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-cancel-admin-001
+
+{}
+
+###
+
+# HAPPY PATH — admin cancels booking with optional reason
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel-admin
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-cancel-admin-002
+
+{
+  "reason": "Staff unavailable for the scheduled time"
+}
+
+###
+
+# ERROR — booking not found → 404
+PATCH {{baseUrl}}/bookings/00000000-0000-4000-8000-000000009999/cancel-admin
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-cancel-admin-003
+
+{}
+
+###
+
+# ERROR — terminal state (COMPLETED) → 422
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel-admin
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-cancel-admin-004
+
+{}
+
+###
+
+# ERROR — no staff role headers → 403
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel-admin
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Correlation-ID: test-corr-cancel-admin-005
+
+{}

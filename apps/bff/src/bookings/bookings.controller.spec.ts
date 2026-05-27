@@ -122,73 +122,151 @@ describe('BookingsController', () => {
     });
   });
 
-  describe('cancelAsCustomer()', () => {
+  describe('cancel()', () => {
     const mockCancelResponse = { bookingId: BOOKING_ID, status: 'CANCELLED' };
+    const customerUser = {
+      sub: '20000000-0000-4000-8000-000000000001',
+      tenantId: TENANT_ID,
+      tenantSlug: 'lavacar-bh',
+      role: 'CUSTOMER',
+    };
+    const managerUser = {
+      sub: '20000000-0000-4000-8000-000000000002',
+      tenantId: TENANT_ID,
+      tenantSlug: 'lavacar-bh',
+      role: 'MANAGER',
+    };
 
-    it('calls patch /bookings/:id/cancel-customer and returns result', async () => {
-      const backendHttp = makeBackendHttp({
-        patch: jest.fn().mockResolvedValue(mockCancelResponse),
+    describe('CUSTOMER role', () => {
+      it('routes to /cancel-customer and returns result', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest.fn().mockResolvedValue(mockCancelResponse),
+        });
+        const controller = new BookingsController(backendHttp, makeConfigService());
+
+        const result = await controller.cancel(BOOKING_ID, {}, customerUser);
+
+        expect(backendHttp.patch).toHaveBeenCalledWith(
+          `/bookings/${BOOKING_ID}/cancel-customer`,
+          {},
+        );
+        expect(result).toBe(mockCancelResponse);
       });
-      const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const result = await controller.cancelAsCustomer(BOOKING_ID);
+      it('propagates 403 from backend when caller is not the booking owner', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(new HttpException({ status: 403, detail: 'forbidden' }, 403)),
+        });
+        const controller = new BookingsController(backendHttp, makeConfigService());
 
-      expect(backendHttp.patch).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}/cancel-customer`, {});
-      expect(result).toBe(mockCancelResponse);
+        const err = await controller.cancel(BOOKING_ID, {}, customerUser).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(403);
+      });
+
+      it('propagates 422 from backend when cancellation window has expired', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(
+              new HttpException({ status: 422, detail: 'Cancellation window has expired' }, 422),
+            ),
+        });
+        const controller = new BookingsController(backendHttp, makeConfigService());
+
+        const err = await controller.cancel(BOOKING_ID, {}, customerUser).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(422);
+      });
+
+      it('propagates 422 from backend when booking state is terminal', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(
+              new HttpException({ status: 422, detail: 'invalid transition' }, 422),
+            ),
+        });
+        const controller = new BookingsController(backendHttp, makeConfigService());
+
+        const err = await controller
+          .cancel('unknown-id', {}, customerUser)
+          .catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(422);
+      });
+
+      it('propagates 404 from backend when booking is not found', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(new HttpException({ status: 404, detail: 'not found' }, 404)),
+        });
+        const controller = new BookingsController(backendHttp, makeConfigService());
+
+        const err = await controller
+          .cancel('unknown-id', {}, customerUser)
+          .catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(404);
+      });
     });
 
-    it('propagates 403 from backend when caller is not the booking owner', async () => {
-      const backendHttp = makeBackendHttp({
-        patch: jest
-          .fn()
-          .mockRejectedValue(new HttpException({ status: 403, detail: 'forbidden' }, 403)),
+    describe('MANAGER/STAFF role', () => {
+      it('routes to /cancel-admin with empty body and returns result', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest.fn().mockResolvedValue(mockCancelResponse),
+        });
+        const controller = new BookingsController(backendHttp, makeConfigService());
+
+        const result = await controller.cancel(BOOKING_ID, {}, managerUser);
+
+        expect(backendHttp.patch).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}/cancel-admin`, {});
+        expect(result).toBe(mockCancelResponse);
       });
-      const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const err = await controller.cancelAsCustomer(BOOKING_ID).catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(403);
-    });
+      it('routes to /cancel-admin with reason body', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest.fn().mockResolvedValue(mockCancelResponse),
+        });
+        const controller = new BookingsController(backendHttp, makeConfigService());
 
-    it('propagates 422 from backend when cancellation window has expired', async () => {
-      const backendHttp = makeBackendHttp({
-        patch: jest
-          .fn()
-          .mockRejectedValue(
-            new HttpException({ status: 422, detail: 'Cancellation window has expired' }, 422),
-          ),
+        await controller.cancel(BOOKING_ID, { reason: 'Staff unavailable' }, managerUser);
+
+        expect(backendHttp.patch).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}/cancel-admin`, {
+          reason: 'Staff unavailable',
+        });
       });
-      const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const err = await controller.cancelAsCustomer(BOOKING_ID).catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(422);
-    });
+      it('propagates 422 from backend when booking is in terminal state', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(
+              new HttpException({ status: 422, detail: 'invalid transition' }, 422),
+            ),
+        });
+        const controller = new BookingsController(backendHttp, makeConfigService());
 
-    it('propagates 422 from backend when booking state is terminal', async () => {
-      const backendHttp = makeBackendHttp({
-        patch: jest
-          .fn()
-          .mockRejectedValue(new HttpException({ status: 422, detail: 'invalid transition' }, 422)),
+        const err = await controller.cancel(BOOKING_ID, {}, managerUser).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(422);
       });
-      const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const err = await controller.cancelAsCustomer(BOOKING_ID).catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(422);
-    });
+      it('propagates 404 from backend when booking is not found', async () => {
+        const backendHttp = makeBackendHttp({
+          patch: jest
+            .fn()
+            .mockRejectedValue(new HttpException({ status: 404, detail: 'not found' }, 404)),
+        });
+        const controller = new BookingsController(backendHttp, makeConfigService());
 
-    it('propagates 404 from backend when booking is not found', async () => {
-      const backendHttp = makeBackendHttp({
-        patch: jest
-          .fn()
-          .mockRejectedValue(new HttpException({ status: 404, detail: 'not found' }, 404)),
+        const err = await controller.cancel('unknown-id', {}, managerUser).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(404);
       });
-      const controller = new BookingsController(backendHttp, makeConfigService());
-
-      const err = await controller.cancelAsCustomer('unknown-id').catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(404);
     });
   });
 

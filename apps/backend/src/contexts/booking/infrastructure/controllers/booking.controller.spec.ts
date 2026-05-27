@@ -20,6 +20,7 @@ import { SubmitGuestBookingInfoUseCase } from '../../application/use-cases/submi
 import { ListBookingsUseCase } from '../../application/use-cases/list-bookings.use-case';
 import { GetBookingUseCase } from '../../application/use-cases/get-booking.use-case';
 import { CancelBookingAsCustomerUseCase } from '../../application/use-cases/cancel-booking-as-customer.use-case';
+import { CancelBookingAsAdminUseCase } from '../../application/use-cases/cancel-booking-as-admin.use-case';
 import { BookingSlotConflictService } from '../../application/services/booking-slot-conflict.service';
 import { BookingStatus } from '../../domain/booking.aggregate';
 
@@ -129,6 +130,12 @@ describe('BookingController', () => {
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
+      new CancelBookingAsAdminUseCase(
+        staffCtx,
+        bookingRepo,
+        new InMemoryTransactionManager(),
+        new InMemoryEventBus(),
+      ),
     );
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await serviceRepo.save(service);
@@ -232,6 +239,12 @@ describe('BookingController', () => {
           customerCtxB,
           repoB,
           new InMemoryScheduleTenantSettingsPort(),
+          new InMemoryTransactionManager(),
+          new InMemoryEventBus(),
+        ),
+        new CancelBookingAsAdminUseCase(
+          staffCtxB,
+          repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -363,6 +376,12 @@ describe('BookingController', () => {
           customerCtxC,
           bookingRepoB,
           new InMemoryScheduleTenantSettingsPort(),
+          new InMemoryTransactionManager(),
+          new InMemoryEventBus(),
+        ),
+        new CancelBookingAsAdminUseCase(
+          staffCtx,
+          bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -791,11 +810,78 @@ describe('BookingController', () => {
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
+        new CancelBookingAsAdminUseCase(
+          staffCtxC,
+          repoC,
+          new InMemoryTransactionManager(),
+          new InMemoryEventBus(),
+        ),
       );
       const err = await ctrl.createAuthenticated(authBody()).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
       expect(err).not.toBeInstanceOf(CustomerPhoneNotSetError);
+    });
+  });
+
+  describe('cancelAsAdmin()', () => {
+    it('cancels a PENDING booking and returns CANCELLED status', async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+      await bookingRepo.save(booking);
+
+      const result = await controller.cancelAsAdmin(booking.id, {});
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+      expect(result.bookingId).toBe(booking.id);
+    });
+
+    it('cancels an APPROVED booking scheduled in 1 hour (no window constraint)', async () => {
+      const nearFuture = new Date(Date.now() + 60 * 60_000);
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(nearFuture)
+        .build();
+      await bookingRepo.save(booking);
+
+      const result = await controller.cancelAsAdmin(booking.id, {});
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+    });
+
+    it('passes optional reason to the use case', async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+      await bookingRepo.save(booking);
+
+      const result = await controller.cancelAsAdmin(booking.id, { reason: 'Staff unavailable' });
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+    });
+
+    it('maps BookingNotFoundError to 404', async () => {
+      const err = await controller
+        .cancelAsAdmin('00000000-0000-4000-8000-000000009999', {})
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('maps InvalidBookingTransitionError to 422 when booking is COMPLETED', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.COMPLETED)
+        .build();
+      await bookingRepo.save(booking);
+
+      const err = await controller.cancelAsAdmin(booking.id, {}).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+
+    it('tenant isolation: cannot cancel a booking from tenantB (returns 404)', async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_B).build();
+      await bookingRepo.save(booking);
+
+      const err = await controller.cancelAsAdmin(booking.id, {}).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
   });
 

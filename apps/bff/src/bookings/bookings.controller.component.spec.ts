@@ -178,75 +178,137 @@ describe('BookingsController (component)', () => {
       expect(res.status).toBe(401);
     });
 
-    it('returns 403 when JWT role is MANAGER', async () => {
-      const token = makeManagerJwt(jwtService);
+    describe('CUSTOMER role', () => {
+      it('routes to cancel-customer and returns 200', async () => {
+        const token = makeCustomerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockResolvedValueOnce(mockCancelResponse);
 
-      const res = await request(app.getHttpServer())
-        .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
-        .set('Authorization', `Bearer ${token}`);
-      expect(res.status).toBe(403);
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe('CANCELLED');
+        expect(backendHttpService.patch).toHaveBeenCalledWith(
+          `/bookings/${BOOKING_ID_CANCEL}/cancel-customer`,
+          {},
+        );
+      });
+
+      it('propagates 422 from backend when cancellation window has expired', async () => {
+        const { HttpException: HE } = await import('@nestjs/common');
+        const token = makeCustomerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockRejectedValueOnce(
+          new HE({ status: 422, detail: 'Cancellation window has expired' }, 422),
+        );
+
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(422);
+      });
+
+      it('propagates 403 from backend when caller is not the booking owner', async () => {
+        const { HttpException: HE } = await import('@nestjs/common');
+        const token = makeCustomerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockRejectedValueOnce(
+          new HE({ status: 403, detail: 'forbidden' }, 403),
+        );
+
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(403);
+      });
+
+      it('propagates 404 from backend when booking is not found', async () => {
+        const { HttpException: HE } = await import('@nestjs/common');
+        const token = makeCustomerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockRejectedValueOnce(
+          new HE({ status: 404, detail: 'not found' }, 404),
+        );
+
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(404);
+      });
     });
 
-    it('cancels a booking with CUSTOMER JWT', async () => {
-      const token = makeCustomerJwt(jwtService);
-      setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockResolvedValueOnce(mockCancelResponse);
+    describe('MANAGER role', () => {
+      it('routes to cancel-admin and returns 200', async () => {
+        const token = makeManagerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockResolvedValueOnce(mockCancelResponse);
 
-      const res = await request(app.getHttpServer())
-        .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
-        .set('Authorization', `Bearer ${token}`);
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({});
 
-      expect(res.status).toBe(200);
-      expect(res.body.status).toBe('CANCELLED');
-      expect(backendHttpService.patch).toHaveBeenCalledWith(
-        `/bookings/${BOOKING_ID_CANCEL}/cancel-customer`,
-        {},
-      );
-    });
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe('CANCELLED');
+        expect(backendHttpService.patch).toHaveBeenCalledWith(
+          `/bookings/${BOOKING_ID_CANCEL}/cancel-admin`,
+          {},
+        );
+      });
 
-    it('propagates 422 from backend when cancellation window has expired', async () => {
-      const { HttpException: HE } = await import('@nestjs/common');
-      const token = makeCustomerJwt(jwtService);
-      setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockRejectedValueOnce(
-        new HE({ status: 422, detail: 'Cancellation window has expired' }, 422),
-      );
+      it('routes to cancel-admin with reason body', async () => {
+        const token = makeManagerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockResolvedValueOnce(mockCancelResponse);
 
-      const res = await request(app.getHttpServer())
-        .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
-        .set('Authorization', `Bearer ${token}`);
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ reason: 'Staff unavailable' });
 
-      expect(res.status).toBe(422);
-    });
+        expect(res.status).toBe(200);
+        expect(backendHttpService.patch).toHaveBeenCalledWith(
+          `/bookings/${BOOKING_ID_CANCEL}/cancel-admin`,
+          { reason: 'Staff unavailable' },
+        );
+      });
 
-    it('propagates 403 from backend when caller is not the booking owner', async () => {
-      const { HttpException: HE } = await import('@nestjs/common');
-      const token = makeCustomerJwt(jwtService);
-      setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockRejectedValueOnce(
-        new HE({ status: 403, detail: 'forbidden' }, 403),
-      );
+      it('propagates 422 from backend when booking is in terminal state', async () => {
+        const { HttpException: HE } = await import('@nestjs/common');
+        const token = makeManagerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockRejectedValueOnce(
+          new HE({ status: 422, detail: 'invalid transition' }, 422),
+        );
 
-      const res = await request(app.getHttpServer())
-        .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
-        .set('Authorization', `Bearer ${token}`);
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({});
 
-      expect(res.status).toBe(403);
-    });
+        expect(res.status).toBe(422);
+      });
 
-    it('propagates 404 from backend when booking is not found', async () => {
-      const { HttpException: HE } = await import('@nestjs/common');
-      const token = makeCustomerJwt(jwtService);
-      setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockRejectedValueOnce(
-        new HE({ status: 404, detail: 'not found' }, 404),
-      );
+      it('propagates 404 from backend when booking is not found', async () => {
+        const { HttpException: HE } = await import('@nestjs/common');
+        const token = makeManagerJwt(jwtService);
+        setupActiveGuardMock(httpService);
+        backendHttpService.patch.mockRejectedValueOnce(
+          new HE({ status: 404, detail: 'not found' }, 404),
+        );
 
-      const res = await request(app.getHttpServer())
-        .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
-        .set('Authorization', `Bearer ${token}`);
+        const res = await request(app.getHttpServer())
+          .patch(`/v1/bookings/${BOOKING_ID_CANCEL}/cancel`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({});
 
-      expect(res.status).toBe(404);
+        expect(res.status).toBe(404);
+      });
     });
   });
 

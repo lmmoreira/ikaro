@@ -202,3 +202,66 @@ Content-Type: application/json
 {
   "response": "Token for different booking — should return 400"
 }
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATCH /v1/bookings/:id/cancel — Customer cancels own booking (UC-007)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# HAPPY PATH — customer cancels a PENDING booking
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/cancel
+Authorization: Bearer {{customerToken}}
+
+###
+
+# ERROR — no JWT → 401
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/cancel
+
+###
+
+# ERROR — cancellation window expired → 422 (propagated from backend)
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/cancel
+Authorization: Bearer {{customerToken}}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATCH /v1/bookings/:id/cancel — Admin cancels booking (UC-008a)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# HAPPY PATH — admin cancels without reason
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/cancel
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{}
+
+###
+
+# HAPPY PATH — admin cancels with optional reason
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/cancel
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "reason": "Staff unavailable for the scheduled time"
+}
+
+###
+
+# ERROR — terminal state (COMPLETED) → 422 (propagated from backend)
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/cancel
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{}
+
+###
+
+# ERROR — booking not found → 404 (propagated from backend)
+PATCH {{bffUrl}}/v1/bookings/00000000-0000-4000-8000-000000009999/cancel
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{}

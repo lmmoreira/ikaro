@@ -77,6 +77,14 @@ import {
   CancelBookingAsCustomerUseCase,
   CancelBookingAsCustomerUseCaseResult,
 } from '../../application/use-cases/cancel-booking-as-customer.use-case';
+import {
+  CancelBookingAsAdminUseCase,
+  CancelBookingAsAdminUseCaseResult,
+} from '../../application/use-cases/cancel-booking-as-admin.use-case';
+import {
+  CancelBookingAsAdminBody,
+  CancelBookingAsAdminBodySchema,
+} from '../../application/dtos/cancel-booking-as-admin.dto';
 import { StaffOrManagerRoleGuard } from '../guards/staff-or-manager-role.guard';
 import { mapBookingError } from '../http/booking-error.mapper';
 
@@ -93,6 +101,7 @@ export class BookingController {
     private readonly listBookings: ListBookingsUseCase,
     private readonly getBooking: GetBookingUseCase,
     private readonly cancelBookingAsCustomer: CancelBookingAsCustomerUseCase,
+    private readonly cancelBookingAsAdmin: CancelBookingAsAdminUseCase,
   ) {}
 
   @Get()
@@ -176,6 +185,18 @@ export class BookingController {
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<CancelBookingAsCustomerUseCaseResult> {
     return this.cancelBookingAsCustomer.execute({ bookingId: id }).catch(mapBookingError);
+  }
+
+  @Patch(':id/cancel-admin')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  cancelAsAdmin(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Body(new ZodValidationPipe(CancelBookingAsAdminBodySchema)) body: CancelBookingAsAdminBody,
+  ): Promise<CancelBookingAsAdminUseCaseResult> {
+    return this.cancelBookingAsAdmin
+      .execute({ bookingId: id, reason: body.reason })
+      .catch(mapBookingError);
   }
 
   @Patch(':id/submit-info/guest')

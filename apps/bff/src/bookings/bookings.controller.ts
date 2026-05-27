@@ -12,6 +12,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { CurrentUser, CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import * as jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { ConfigService } from '@nestjs/config';
@@ -61,6 +62,14 @@ export const AuthenticatedBookingBodySchema = z.object({
 export const RejectBookingBodySchema = z.object({
   reason: z.string().trim().min(10),
 });
+
+export const CancelAsAdminBodySchema = z
+  .object({
+    reason: z.string().min(1).optional(),
+  })
+  .default({});
+
+type CancelAsAdminBody = z.infer<typeof CancelAsAdminBodySchema>;
 
 export const RequestMoreInfoBodySchema = z.object({
   message: z.string().trim().min(20),
@@ -166,9 +175,16 @@ export class BookingsController {
 
   @Patch(':id/cancel')
   @HttpCode(HttpStatus.OK)
-  @Roles('CUSTOMER')
-  cancelAsCustomer(@Param('id') id: string): Promise<CancelBookingResponse> {
-    return this.backendHttp.patch(`/bookings/${id}/cancel-customer`, {});
+  @Roles('CUSTOMER', 'MANAGER', 'STAFF')
+  cancel(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(CancelAsAdminBodySchema)) body: CancelAsAdminBody,
+    @CurrentUser() user: CurrentUserPayload,
+  ): Promise<CancelBookingResponse> {
+    if (user.role === 'CUSTOMER') {
+      return this.backendHttp.patch(`/bookings/${id}/cancel-customer`, {});
+    }
+    return this.backendHttp.patch(`/bookings/${id}/cancel-admin`, body);
   }
 
   @Patch(':id/approve')

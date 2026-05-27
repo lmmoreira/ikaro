@@ -1,0 +1,46 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import {
+  ITransactionManager,
+  TRANSACTION_MANAGER,
+} from '../../../../shared/ports/transaction-manager.port';
+import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
+import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
+import { CancelBookingAsAdminDto } from '../dtos/cancel-booking-as-admin.dto';
+
+export interface CancelBookingAsAdminUseCaseResult {
+  bookingId: string;
+  status: string;
+}
+
+@Injectable()
+export class CancelBookingAsAdminUseCase {
+  constructor(
+    private readonly tenantContext: TenantContext,
+    @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
+    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+  ) {}
+
+  async execute(dto: CancelBookingAsAdminDto): Promise<CancelBookingAsAdminUseCaseResult> {
+    const tenantId = this.tenantContext.tenantId;
+    const staffId = this.tenantContext.actorId!;
+    const correlationId = this.tenantContext.correlationId;
+
+    const booking = await this.bookingRepo.findById(dto.bookingId, tenantId);
+    if (!booking) throw new BookingNotFoundError(dto.bookingId);
+
+    booking.cancel(staffId, true, correlationId, dto.reason);
+
+    await this.txManager.run(async () => {
+      await this.bookingRepo.save(booking);
+    });
+
+    for (const event of booking.clearDomainEvents()) {
+      await this.eventBus.publish(event);
+    }
+
+    return { bookingId: booking.id, status: booking.status };
+  }
+}
