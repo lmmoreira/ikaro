@@ -200,22 +200,68 @@ processed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 **Docs to load:** `docs/05-BOUNDED_CONTEXTS.md` § Loyalty context, `docs/03-DOMAIN_EVENTS.md` § BookingCompleted + ServicePointsEarned
 
 **Description:**  
-Implement the Loyalty context's consumer for `BookingCompleted`. For each line in the booking that has a customer (`customerId != null`), create a `LoyaltyEntry`, increment `LoyaltyBalance`, and emit `ServicePointsEarned`. The consumer is fully idempotent.
+Implement the Loyalty context's consumer for `BookingCompleted`. For each line in the booking that has a customer (`customerId != null`), create a `LoyaltyEntry`, increment `LoyaltyBalance`, and emit `ServicePointsEarned`. The consumer is fully idempotent. Entries and balance are written atomically in a single transaction — they must never be split across two transactions.
 
-**`BookingCompletedHandler`:**
-1. Check idempotency: has this `eventId` been processed? (`processed_events` table) → skip if yes
-2. If `event.data.customerId` is null → skip (guest booking, no loyalty)
-3. Load `expiryDays` from tenant settings
-4. For each line in `event.data.lines[]`:
-   - Call `LoyaltyEntry.record({ tenantId, customerId, bookingId, bookingLineId, serviceId, points, expiryDays, correlationId })`
-   - Persist via `ILoyaltyEntryRepository.save()`
-5. Load `LoyaltyBalance` for customer (create via `LoyaltyBalance.create()` if first time)
-6. Call `balance.increment(totalPointsEarned)` — total across all lines
-7. Persist balance via `ILoyaltyBalanceRepository.upsert()`
-8. Flush domain events from all created entries → publish `ServicePointsEarned` per line
-9. Mark `eventId` as processed in `processed_events`
+**Preparatory fix (before main S04 code):**  
+Add `earnedAt: string` (ISO-8601) to `ServicePointsEarned` event class (`loyalty/domain/events/service-points-earned.event.ts`) and populate it in `LoyaltyEntry.record()`. This field is documented in `docs/03-DOMAIN_EVENTS.md` but missing from the class — S06 (notification email) requires it.
 
-All DB writes (entries + balance) in a single `txManager.run()`.
+---
+
+**New artifacts to create in this story:**
+
+**`IProcessedEventRepository` port** (`loyalty/application/ports/processed-event-repository.port.ts`):
+```ts
+export const PROCESSED_EVENT_REPOSITORY = Symbol('IProcessedEventRepository');
+export interface IProcessedEventRepository {
+  hasBeenProcessed(eventId: string, consumerName: string): Promise<boolean>;
+  markProcessed(eventId: string, consumerName: string): Promise<void>;
+}
+```
+Also create:
+- `ProcessedEventEntity` (`loyalty/infrastructure/entities/processed-event.entity.ts`) — maps `loyalty.processed_events(event_id, consumer_name)`
+- `TypeOrmProcessedEventRepository` (`loyalty/infrastructure/repositories/typeorm-processed-event.repository.ts`)
+- `InMemoryProcessedEventRepository` (`src/test/infrastructure/in-memory-processed-event.repository.ts`)
+
+**`ILoyaltyTenantSettingsPort` port** (`loyalty/application/ports/loyalty-tenant-settings.port.ts`):
+```ts
+export const LOYALTY_TENANT_SETTINGS_PORT = Symbol('ILoyaltyTenantSettingsPort');
+export interface LoyaltyTenantSettings { expiryDays: number; }
+export interface ILoyaltyTenantSettingsPort {
+  getLoyaltySettings(tenantId: string): Promise<LoyaltyTenantSettings>;
+}
+```
+Also create:
+- `TypeOrmLoyaltyTenantSettingsAdapter` (`loyalty/infrastructure/cross-context/loyalty-tenant-settings.adapter.ts`) — queries `tenants.settings->>'loyalty'` directly via TypeORM `DataSource`; falls back to `expiryDays: 180` if the key is absent
+- `InMemoryLoyaltyTenantSettingsPort` (`src/test/infrastructure/in-memory-loyalty-tenant-settings.port.ts`)
+
+> `TenantContext` (AsyncLocalStorage) is NOT available inside Pub/Sub event handlers — they run outside the HTTP request lifecycle. Always load tenant settings via `ILoyaltyTenantSettingsPort`.
+
+**`InMemoryLoyaltyEntryRepository`** (`src/test/infrastructure/in-memory-loyalty-entry.repository.ts`) — missing from prior stories; required for use case unit tests.
+
+---
+
+**`BookingCompletedHandler`** (thin — delegates to use case):
+```
+onModuleInit → eventBus.subscribe('BookingCompleted', handler, RecordLoyaltyEntriesUseCase.CONSUMER_NAME)
+handle(event) → recordLoyaltyEntries.execute(dto) → rethrow on error
+```
+
+**`RecordLoyaltyEntriesUseCase`:**
+```ts
+static readonly CONSUMER_NAME = 'RECORD_LOYALTY_ENTRY'; // used as consumerName in subscribe() and processed_events.consumer_name
+```
+1. Check idempotency: `processedEventRepo.hasBeenProcessed(eventId, CONSUMER_NAME)` → return early if yes
+2. If `customerId` is null → return early (guest booking, no loyalty)
+3. `loyaltySettingsPort.getLoyaltySettings(tenantId)` → `expiryDays`
+4. For each line in `lines[]`:
+   - `LoyaltyEntry.record({ tenantId, customerId, bookingId, bookingLineId, serviceId, points: line.pointsValueAtBooking, expiryDays, correlationId })`
+5. `ILoyaltyBalanceRepository.findByCustomer(tenantId, customerId)` → create via `LoyaltyBalance.create()` if null
+6. `balance.increment(totalPointsEarned)` — sum of `pointsValueAtBooking` across all lines
+7. In a single `txManager.run()`:
+   - `entryRepo.save(entry)` for each new entry
+   - `balanceRepo.upsert(balance)`
+   - `processedEventRepo.markProcessed(eventId, CONSUMER_NAME)`
+8. After `txManager.run()`: flush `entry.clearDomainEvents()` per entry → `eventBus.publish(ServicePointsEarned)` per line
 
 **`ServicePointsEarned` event payload (per line):**
 ```json
@@ -226,17 +272,19 @@ All DB writes (entries + balance) in a single `txManager.run()`.
   "bookingLineId": "uuid",
   "serviceId": "uuid",
   "pointsEarned": 10,
+  "earnedAt": "ISO-8601",
   "expiresAt": "ISO-8601"
 }
 ```
 
 **Acceptance criteria:**
 - [ ] One `LoyaltyEntry` inserted per booking line for authenticated customer bookings
-- [ ] `LoyaltyBalance.current_points` incremented by total points across all lines (atomically with entries)
+- [ ] `LoyaltyBalance.current_points` incremented by total points across all lines (atomically with entries and `processed_events` mark — all in one `txManager.run()`)
 - [ ] Guest bookings (`customerId=null`) produce zero `LoyaltyEntry` rows and zero balance change
-- [ ] Same `BookingCompleted` event replayed twice → still only 1 entry per line and balance unchanged (idempotent)
-- [ ] `ServicePointsEarned` event emitted per line (3 lines = 3 events)
+- [ ] Same `BookingCompleted` event replayed twice → still only 1 entry per line and balance unchanged (idempotent via `processed_events`)
+- [ ] `ServicePointsEarned` event emitted per line (3 lines = 3 events); each payload includes `earnedAt`
 - [ ] Integration test: complete booking with 2 lines → assert 2 loyalty entries + 2 events published + balance = sum of both lines
+- [ ] Tenant isolation: `BookingCompleted` for Tenant A processed by Loyalty handler → Tenant B `findByCustomer` returns null
 
 **Dependencies:** M10-S03, M10-S03.1, M10-S01
 
