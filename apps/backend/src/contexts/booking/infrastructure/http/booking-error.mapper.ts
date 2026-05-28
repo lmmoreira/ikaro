@@ -13,6 +13,7 @@ import {
   BookingSlotUnavailableError,
   CancellationWindowExpiredError,
   ClosureDateInPastError,
+  CompleteBookingLinesIncompleteError,
   CustomerPhoneNotSetError,
   DayAlreadyOpenInSettingsError,
   InvalidBookingTransitionError,
@@ -37,7 +38,8 @@ export function mapBookingError(err: unknown): never {
   }
   if (
     err instanceof BookingInfoMessageTooShortError ||
-    err instanceof BookingRejectionReasonTooShortError
+    err instanceof BookingRejectionReasonTooShortError ||
+    err instanceof CompleteBookingLinesIncompleteError
   ) {
     const body: ProblemDetail = {
       type: 'about:blank',

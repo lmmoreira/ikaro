@@ -335,3 +335,60 @@ Authorization: Bearer {{managerToken}}
 {
   "scheduledAt": "2020-01-01T10:00:00.000Z"
 }
+
+
+###
+# ── Mark Booking Complete (UC-009) ─────────────────────────────────────────────
+
+# SUCCESS — APPROVED → COMPLETED
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/complete
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 80.00 }
+  ],
+  "afterServicePhotoUrls": ["tenants/{{tenantId}}/bookings/{{bookingId}}/after1.jpg"],
+  "adminNotes": "Extra shine applied"
+}
+
+###
+
+# ERROR — booking not APPROVED → 422 (propagated from backend)
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/complete
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 100.00 }
+  ],
+  "afterServicePhotoUrls": []
+}
+
+###
+
+# ERROR — missing line in request → 400 (propagated from backend)
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/complete
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "lines": [],
+  "afterServicePhotoUrls": []
+}
+
+###
+
+# ERROR — no staff role → 403
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/complete
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 100.00 }
+  ],
+  "afterServicePhotoUrls": []
+}

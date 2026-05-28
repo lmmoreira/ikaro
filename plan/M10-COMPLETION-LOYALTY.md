@@ -35,7 +35,8 @@ Implement booking completion. The admin sets the `actualPriceCharged` for each l
   "lines": [
     { "lineId": "uuid", "actualPriceCharged": 150.00 }
   ],
-  "afterServicePhotoUrls": ["https://storage.googleapis.com/..."]
+  "afterServicePhotoUrls": ["https://storage.googleapis.com/..."],
+  "adminNotes": "Extra shine applied"
 }
 ```
 - Returns: `200 { bookingId, status: 'COMPLETED', completedAt, totalActualPrice }`
@@ -45,8 +46,10 @@ Implement booking completion. The admin sets the `actualPriceCharged` for each l
 - [ ] `actualPriceCharged` for each line persisted; `total_actual_price_amount` computed as sum
 - [ ] If `lines` array is missing a `lineId` that exists in the booking, returns `400`
 - [ ] `afterServicePhotoUrls` stored on booking
+- [ ] `adminNotes` (optional) stored on booking when provided
 - [ ] Completing a PENDING or CANCELLED booking returns `422`
-- [ ] `BookingCompleted` event emitted with complete payload: `lines[]` each with `actualPriceCharged`, `pointsValueAtBooking`, `bookingLineId`
+- [ ] `BookingCompleted` event emitted with complete payload: `lines[]` each with `actualPriceCharged`, `pointsValueAtBooking`, `lineId`
+- [ ] Admin from Tenant B calls `PATCH /v1/bookings/:id/complete` on a Tenant A booking → `404`
 - [ ] Integration test: full flow PENDING → APPROVED → COMPLETE; assert event published to Pub/Sub
 
 **Dependencies:** M08-S01

@@ -22,8 +22,11 @@ import { GetBookingUseCase } from '../../application/use-cases/get-booking.use-c
 import { CancelBookingAsCustomerUseCase } from '../../application/use-cases/cancel-booking-as-customer.use-case';
 import { CancelBookingAsAdminUseCase } from '../../application/use-cases/cancel-booking-as-admin.use-case';
 import { RescheduleBookingUseCase } from '../../application/use-cases/reschedule-booking.use-case';
+import { CompleteBookingUseCase } from '../../application/use-cases/complete-booking.use-case';
 import { BookingSlotConflictService } from '../../application/services/booking-slot-conflict.service';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { BookingLineBuilder } from '../../../../test/builders/booking/booking-line.builder';
+import { Money } from '../../../../shared/value-objects/money';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000110';
 const TENANT_B = '10000000-0000-4000-8000-000000000111';
@@ -144,6 +147,12 @@ describe('BookingController', () => {
           new InMemoryBookingAvailabilityPort(),
           new InMemoryScheduleTenantSettingsPort(),
         ),
+        new InMemoryTransactionManager(),
+        new InMemoryEventBus(),
+      ),
+      new CompleteBookingUseCase(
+        staffCtx,
+        bookingRepo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
@@ -270,6 +279,12 @@ describe('BookingController', () => {
             new InMemoryBookingAvailabilityPort(),
             new InMemoryScheduleTenantSettingsPort(),
           ),
+          new InMemoryTransactionManager(),
+          new InMemoryEventBus(),
+        ),
+        new CompleteBookingUseCase(
+          staffCtxB,
+          repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -414,6 +429,12 @@ describe('BookingController', () => {
           staffCtx,
           bookingRepoB,
           new BookingSlotConflictService(conflictPort, new InMemoryScheduleTenantSettingsPort()),
+          new InMemoryTransactionManager(),
+          new InMemoryEventBus(),
+        ),
+        new CompleteBookingUseCase(
+          staffCtx,
+          bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -858,6 +879,12 @@ describe('BookingController', () => {
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
+        new CompleteBookingUseCase(
+          staffCtxC,
+          repoC,
+          new InMemoryTransactionManager(),
+          new InMemoryEventBus(),
+        ),
       );
       const err = await ctrl.createAuthenticated(authBody()).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
@@ -962,6 +989,98 @@ describe('BookingController', () => {
     it('maps BookingNotFoundError to 404', async () => {
       const err = await controller
         .getOne('00000000-0000-4000-8000-000000009999')
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('complete()', () => {
+    const LINE_ID = '30000000-0000-4000-8000-000000000110';
+
+    function approvedBookingWithLine() {
+      const line = new BookingLineBuilder()
+        .withLineId(LINE_ID)
+        .withPriceAtBooking(Money.from(100))
+        .build();
+      return new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withLines([line])
+        .withTotalPrice(Money.from(100))
+        .build();
+    }
+
+    it('completes an APPROVED booking and returns 200 shape', async () => {
+      const booking = approvedBookingWithLine();
+      await bookingRepo.save(booking);
+
+      const result = await controller.complete(booking.id, {
+        lines: [{ lineId: LINE_ID, actualPriceCharged: 80 }],
+        afterServicePhotoUrls: [],
+      });
+
+      expect(result.status).toBe(BookingStatus.COMPLETED);
+      expect(result.bookingId).toBe(booking.id);
+      expect(result.completedAt).toBeDefined();
+      expect(result.totalActualPrice.amount).toBe(80);
+    });
+
+    it('maps BookingNotFoundError to 404', async () => {
+      const err = await controller
+        .complete('00000000-0000-4000-8000-000000009999', {
+          lines: [{ lineId: LINE_ID, actualPriceCharged: 100 }],
+          afterServicePhotoUrls: [],
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('maps InvalidBookingTransitionError to 422 when booking is PENDING', async () => {
+      const line = new BookingLineBuilder().withLineId(LINE_ID).build();
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.PENDING)
+        .withLines([line])
+        .build();
+      await bookingRepo.save(booking);
+
+      const err = await controller
+        .complete(booking.id, {
+          lines: [{ lineId: LINE_ID, actualPriceCharged: 100 }],
+          afterServicePhotoUrls: [],
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
+
+    it('maps CompleteBookingLinesIncompleteError to 400 when a line is missing', async () => {
+      const booking = approvedBookingWithLine();
+      await bookingRepo.save(booking);
+
+      const err = await controller
+        .complete(booking.id, { lines: [], afterServicePhotoUrls: [] })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('tenant isolation: cannot complete a booking from tenantB (returns 404)', async () => {
+      const line = new BookingLineBuilder().withLineId(LINE_ID).build();
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_B)
+        .withStatus(BookingStatus.APPROVED)
+        .withLines([line])
+        .build();
+      await bookingRepo.save(booking);
+
+      const err = await controller
+        .complete(booking.id, {
+          lines: [{ lineId: LINE_ID, actualPriceCharged: 100 }],
+          afterServicePhotoUrls: [],
+        })
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);

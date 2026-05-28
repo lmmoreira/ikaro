@@ -75,6 +75,13 @@ export interface RescheduleBookingResponse {
   scheduledAt: string;
 }
 
+export interface CompleteBookingResponse {
+  bookingId: string;
+  status: string;
+  completedAt: string;
+  totalActualPrice: { amount: number; currency: string };
+}
+
 export interface BookingDetailResponse {
   id: string;
   status: string;

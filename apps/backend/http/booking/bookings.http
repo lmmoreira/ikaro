@@ -860,3 +860,76 @@ X-Correlation-ID: test-corr-reschedule-007
 {
   "scheduledAt": "2026-07-20T14:00:00.000Z"
 }
+
+
+###
+# ── Mark Booking Complete (UC-009) ─────────────────────────────────────────────
+
+# SUCCESS — APPROVED → COMPLETED
+PATCH {{baseUrl}}/bookings/{{bookingId}}/complete
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-complete-001
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 80.00 }
+  ],
+  "afterServicePhotoUrls": ["tenants/{{tenantId}}/bookings/{{bookingId}}/after1.jpg"],
+  "adminNotes": "Extra shine applied"
+}
+
+###
+
+# ERROR — booking not APPROVED → 422
+PATCH {{baseUrl}}/bookings/{{bookingId}}/complete
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-complete-002
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 100.00 }
+  ],
+  "afterServicePhotoUrls": []
+}
+
+###
+
+# ERROR — missing line in request → 400
+PATCH {{baseUrl}}/bookings/{{bookingId}}/complete
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-complete-003
+
+{
+  "lines": [],
+  "afterServicePhotoUrls": []
+}
+
+###
+
+# ERROR — terminal state (COMPLETED) → 422
+PATCH {{baseUrl}}/bookings/{{bookingId}}/complete
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-complete-004
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 100.00 }
+  ],
+  "afterServicePhotoUrls": []
+}

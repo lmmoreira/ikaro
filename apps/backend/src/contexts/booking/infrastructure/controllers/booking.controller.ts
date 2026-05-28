@@ -93,6 +93,14 @@ import {
   RescheduleBookingBody,
   RescheduleBookingBodySchema,
 } from '../../application/dtos/reschedule-booking.dto';
+import {
+  CompleteBookingBody,
+  CompleteBookingBodySchema,
+} from '../../application/dtos/complete-booking.dto';
+import {
+  CompleteBookingUseCase,
+  CompleteBookingUseCaseResult,
+} from '../../application/use-cases/complete-booking.use-case';
 import { StaffOrManagerRoleGuard } from '../guards/staff-or-manager-role.guard';
 import { mapBookingError } from '../http/booking-error.mapper';
 
@@ -111,6 +119,7 @@ export class BookingController {
     private readonly cancelBookingAsCustomer: CancelBookingAsCustomerUseCase,
     private readonly cancelBookingAsAdmin: CancelBookingAsAdminUseCase,
     private readonly rescheduleBooking: RescheduleBookingUseCase,
+    private readonly completeBooking: CompleteBookingUseCase,
   ) {}
 
   @Get()
@@ -217,6 +226,23 @@ export class BookingController {
   ): Promise<RescheduleBookingUseCaseResult> {
     return this.rescheduleBooking
       .execute({ bookingId: id, scheduledAt: body.scheduledAt, adminNotes: body.adminNotes })
+      .catch(mapBookingError);
+  }
+
+  @Patch(':id/complete')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  complete(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Body(new ZodValidationPipe(CompleteBookingBodySchema)) body: CompleteBookingBody,
+  ): Promise<CompleteBookingUseCaseResult> {
+    return this.completeBooking
+      .execute({
+        bookingId: id,
+        lines: body.lines,
+        afterServicePhotoUrls: body.afterServicePhotoUrls,
+        adminNotes: body.adminNotes,
+      })
       .catch(mapBookingError);
   }
 

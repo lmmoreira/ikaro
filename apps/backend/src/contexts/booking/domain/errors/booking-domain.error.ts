@@ -180,3 +180,10 @@ export class BookingScheduledInPastError extends BookingDomainError {
     this.name = 'BookingScheduledInPastError';
   }
 }
+
+export class CompleteBookingLinesIncompleteError extends BookingDomainError {
+  constructor(missingLineIds: string[]) {
+    super(`Completion request is missing entries for line(s): ${missingLineIds.join(', ')}`);
+    this.name = 'CompleteBookingLinesIncompleteError';
+  }
+}

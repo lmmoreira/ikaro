@@ -26,6 +26,7 @@ import {
   BookingListResponse,
   BookingDetailResponse,
   CancelBookingResponse,
+  CompleteBookingResponse,
   RescheduleBookingResponse,
 } from './bookings.types';
 
@@ -75,8 +76,22 @@ export const RescheduleBookingBodySchema = z.object({
   adminNotes: z.string().trim().min(1).max(500).optional(),
 });
 
+export const CompleteBookingBodySchema = z.object({
+  lines: z
+    .array(
+      z.object({
+        lineId: z.uuid(),
+        actualPriceCharged: z.number().nonnegative(),
+      }),
+    )
+    .min(1),
+  afterServicePhotoUrls: z.array(z.string()).optional().default([]),
+  adminNotes: z.string().trim().min(1).max(500).optional(),
+});
+
 type CancelAsAdminBody = z.infer<typeof CancelAsAdminBodySchema>;
 type RescheduleBookingBody = z.infer<typeof RescheduleBookingBodySchema>;
+type CompleteBookingBody = z.infer<typeof CompleteBookingBodySchema>;
 
 export const RequestMoreInfoBodySchema = z.object({
   message: z.string().trim().min(20),
@@ -211,6 +226,16 @@ export class BookingsController {
     @Body(new ZodValidationPipe(RescheduleBookingBodySchema)) body: RescheduleBookingBody,
   ): Promise<RescheduleBookingResponse> {
     return this.backendHttp.patch(`/bookings/${id}/reschedule`, body);
+  }
+
+  @Patch(':id/complete')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER', 'STAFF')
+  complete(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Body(new ZodValidationPipe(CompleteBookingBodySchema)) body: CompleteBookingBody,
+  ): Promise<CompleteBookingResponse> {
+    return this.backendHttp.patch(`/bookings/${id}/complete`, body);
   }
 
   @Patch(':id/reject')

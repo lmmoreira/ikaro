@@ -1391,4 +1391,196 @@ describe('BookingController (integration)', () => {
       expect(body.status).toBe(404);
     });
   });
+
+  describe('PATCH /bookings/:id/complete', () => {
+    const completeSlot = `${futureDate(60)}T09:00:00.000Z`;
+
+    async function createAndApproveBooking(scheduledAt: string) {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({ ...validBody(), scheduledAt })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/approve`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      return created.bookingId as string;
+    }
+
+    async function getLineIds(bookingId: string) {
+      const { body } = await request(app.getHttpServer())
+        .get(`/bookings/${bookingId}`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+      return (body.lines as { lineId: string }[]).map((l) => l.lineId);
+    }
+
+    it('transitions APPROVED → COMPLETED and returns 200 shape', async () => {
+      const bookingId = await createAndApproveBooking(completeSlot);
+      const lineIds = await getLineIds(bookingId);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/complete`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({
+          lines: lineIds.map((lineId) => ({ lineId, actualPriceCharged: 80 })),
+          afterServicePhotoUrls: [],
+        })
+        .expect(200);
+
+      expect(body.bookingId).toBe(bookingId);
+      expect(body.status).toBe('COMPLETED');
+      expect(body.completedAt).toBeDefined();
+      expect(body.totalActualPrice.amount).toBe(80);
+      expect(body.totalActualPrice.currency).toBe('BRL');
+    });
+
+    it('persists actualPriceCharged, completedBy, adminNotes in DB', async () => {
+      const bookingId = await createAndApproveBooking(`${futureDate(61)}T09:00:00.000Z`);
+      const lineIds = await getLineIds(bookingId);
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/complete`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({
+          lines: lineIds.map((lineId) => ({ lineId, actualPriceCharged: 75 })),
+          afterServicePhotoUrls: ['tenants/t/bookings/b/after.jpg'],
+          adminNotes: 'Looks great',
+        })
+        .expect(200);
+
+      const row = await ds
+        .getRepository(BookingEntity)
+        .findOne({ where: { id: bookingId, tenantId: tenantAId } });
+      expect(row!.status).toBe('COMPLETED');
+      expect(row!.completedBy).toBe(STAFF_ID);
+      expect(row!.adminNotes).toBe('Looks great');
+      expect(row!.afterServicePhotoUrls).toEqual(['tenants/t/bookings/b/after.jpg']);
+
+      const lines = await ds
+        .getRepository(BookingLineEntity)
+        .find({ where: { bookingId, tenantId: tenantAId } });
+      expect(lines[0].actualPriceChargedAmount).toBe('75.00');
+    });
+
+    it('returns 422 when booking is PENDING (not APPROVED)', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({ ...validBody(), scheduledAt: `${futureDate(62)}T09:00:00.000Z` })
+        .expect(201);
+      const lineIds = await getLineIds(created.bookingId as string);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/complete`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({
+          lines: lineIds.map((lineId) => ({ lineId, actualPriceCharged: 100 })),
+          afterServicePhotoUrls: [],
+        })
+        .expect(422);
+
+      expect(body.status).toBe(422);
+    });
+
+    it('returns 400 when a booking line is missing from the request', async () => {
+      const bookingId = await createAndApproveBooking(`${futureDate(63)}T09:00:00.000Z`);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/complete`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({ lines: [], afterServicePhotoUrls: [] })
+        .expect(400);
+
+      expect(body.status).toBe(400);
+    });
+
+    it('returns 404 when booking does not exist', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/bookings/00000000-0000-4000-8000-000000009994/complete')
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({
+          lines: [{ lineId: '00000000-0000-4000-8000-000000000001', actualPriceCharged: 100 }],
+          afterServicePhotoUrls: [],
+        })
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('returns 403 when no staff role headers are provided', async () => {
+      const bookingId = await createAndApproveBooking(`${futureDate(64)}T09:00:00.000Z`);
+      const lineIds = await getLineIds(bookingId);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/complete`)
+        .set(guestHeaders(tenantAId))
+        .send({
+          lines: lineIds.map((lineId) => ({ lineId, actualPriceCharged: 100 })),
+          afterServicePhotoUrls: [],
+        })
+        .expect(403);
+
+      expect(body.status).toBe(403);
+    });
+
+    it('tenant isolation: cannot complete a booking from another tenant → 404', async () => {
+      const { body: tenantBody } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .send({
+          name: 'Complete Isolation Tenant',
+          slug: 'complete-isolation',
+          adminEmail: 'complete@isolation.test',
+        })
+        .expect(201);
+      const isolationTenantId = tenantBody.tenantId as string;
+
+      const svcIsolation = new ServiceEntityBuilder()
+        .withTenantId(isolationTenantId)
+        .withName('Serviço Isolation Complete')
+        .withPriceAmount('90.00')
+        .withDurationMinutes(30)
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(ServiceEntity).save(svcIsolation);
+
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(isolationTenantId))
+        .send({
+          ...validBody(),
+          serviceIds: [svcIsolation.id],
+          scheduledAt: `${futureDate(65)}T09:00:00.000Z`,
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/approve`)
+        .set(actorHeaders(isolationTenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      const lineIds = await (async () => {
+        const { body } = await request(app.getHttpServer())
+          .get(`/bookings/${created.bookingId}`)
+          .set(actorHeaders(isolationTenantId, STAFF_ID, 'MANAGER'))
+          .expect(200);
+        return (body.lines as { lineId: string }[]).map((l) => l.lineId);
+      })();
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/complete`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .send({
+          lines: lineIds.map((lineId) => ({ lineId, actualPriceCharged: 90 })),
+          afterServicePhotoUrls: [],
+        })
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+  });
 });
