@@ -6,6 +6,10 @@ import { ScheduleClosureEntity } from '../contexts/booking/infrastructure/entiti
 import { ScheduleOpeningEntity } from '../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../contexts/booking/infrastructure/entities/service.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
+import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
+import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
+import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
+import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
@@ -38,6 +42,10 @@ export async function createTestDataSource(): Promise<DataSource> {
       CustomerEntity,
       StaffEntity,
       NotificationLogEntity,
+      LoyaltyEntryEntity,
+      LoyaltyBalanceEntity,
+      LoyaltyRedemptionEntity,
+      BalanceExpiryLogEntity,
     ],
     synchronize: false,
     migrationsRun: false,

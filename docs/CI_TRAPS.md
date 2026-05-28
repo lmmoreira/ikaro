@@ -16,8 +16,13 @@ These are flagged as bugs/code smells and cause the Quality Gate to fail.
 | **S3358** Nested ternary | `a ? b ? c : d : e` | flat `if / else if / else` block |
 | **S6582** Optional chain | `x && x.y` | `x?.y` |
 | **S1788** Default param order | `fn(required, optional = 1, second: string)` | `fn(required, second: string, optional = 1)` |
+| **S2933** Member never reassigned | `private props: XxxProps` · `private updatedAt = new Date()` | `private readonly props: XxxProps` · `private readonly updatedAt = new Date()` |
 | **Duplicate class** | `StaffInvited` defined in both `staff/` and `platform/` | event lives in the **publishing** context only |
 | **Unused variable** | `const _x = ...` | remove it entirely |
+
+**S2933 appears in two recurring spots:**
+- **Aggregate `props` field** — `private props: XxxProps` set once in the constructor, then its *contents* mutate via `increment()` / `decrement()`. `readonly` applies to the reference, not the object's internals — this is always safe to add.
+- **Builder fields without a `withXxx()` setter** — any field you initialise but never provide a fluent setter for is effectively final. Add `readonly`; if you later need a setter, the compiler will stop you.
 
 ---
 
@@ -161,3 +166,4 @@ Before every `git commit`, verify:
 - [ ] Every endpoint called as a setup step in `*.integration.spec.ts` exists in the controller (`grep -n "@Patch\|@Post" controller.ts`)
 - [ ] No private `sendAdminEmail`-style methods duplicated across notification use cases — use `dispatchAdminEmailToManagers()` utility
 - [ ] Early-return guard added? → add two partial-retry tests (one log pre-seeded each way) to cover the new branch arms
+- [ ] Builder/aggregate fields with no `withXxx()` setter → mark `readonly` (S2933)

@@ -327,6 +327,7 @@ Append-only audit log of every redemption. Never updated or deleted.
 | points_redeemed | INT | NOT NULL, CHECK > 0 |
 | redeemed_by | UUID | NOT NULL — staffId who recorded the redemption |
 | notes | TEXT | NULLABLE — optional admin note |
+| booking_id | UUID | NULLABLE — booking the redemption was applied to |
 | redeemed_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **INDEX** | (tenant_id, customer_id) | History per customer |
 

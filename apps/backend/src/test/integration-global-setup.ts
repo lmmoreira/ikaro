@@ -15,6 +15,12 @@ import { AddBookingVersion1748000000015 } from '../contexts/booking/infrastructu
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
+import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
+import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
+import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
+import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
+import { CreateLoyaltyLoyaltyEntries1748000000016 } from '../contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries';
+import { CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017 } from '../contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { CreateNotificationLogs1748000000010 } from '../contexts/notification/infrastructure/migrations/1748000000010-CreateNotificationLogs';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
@@ -69,6 +75,10 @@ export default async function globalSetup(): Promise<void> {
       CustomerEntity,
       StaffEntity,
       NotificationLogEntity,
+      LoyaltyEntryEntity,
+      LoyaltyBalanceEntity,
+      LoyaltyRedemptionEntity,
+      BalanceExpiryLogEntity,
     ],
     migrations: [
       CreatePlatformTenants1716500000001,
@@ -85,6 +95,8 @@ export default async function globalSetup(): Promise<void> {
       CreateBookingScheduleOpenings1748000000013,
       CreateBookingBookings1748000000014,
       AddBookingVersion1748000000015,
+      CreateLoyaltyLoyaltyEntries1748000000016,
+      CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017,
     ],
     synchronize: false,
     migrationsRun: false,

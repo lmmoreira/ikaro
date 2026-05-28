@@ -489,6 +489,7 @@ LoyaltyRedemption {
   pointsRedeemed:  int                (positive)
   redeemedBy:      StaffId
   notes:           string?            (optional admin note)
+  bookingId:       UUID?              (nullable — the booking the points were applied to)
   redeemedAt:      DateTime
 }
 ```

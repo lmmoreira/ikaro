@@ -19,3 +19,17 @@ export class LoyaltyEntryNotFoundError extends LoyaltyDomainError {
     this.name = 'LoyaltyEntryNotFoundError';
   }
 }
+
+export class LoyaltyInsufficientPointsError extends LoyaltyDomainError {
+  constructor() {
+    super('insufficient points to complete this operation');
+    this.name = 'LoyaltyInsufficientPointsError';
+  }
+}
+
+export class LoyaltyBalanceNotFoundError extends LoyaltyDomainError {
+  constructor() {
+    super('no loyalty balance found for this customer');
+    this.name = 'LoyaltyBalanceNotFoundError';
+  }
+}

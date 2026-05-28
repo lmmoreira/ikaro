@@ -1,8 +1,6 @@
-import { Test } from '@nestjs/testing';
-import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { createTestDataSource } from '../../../../test/test-datasource';
 import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
 import { LoyaltyEntryEntity } from '../entities/loyalty-entry.entity';
@@ -12,53 +10,20 @@ const TENANT_A = '10000000-0000-7000-8000-000000000001';
 const TENANT_B = '20000000-0000-7000-8000-000000000002';
 
 describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
+  let dataSource: DataSource;
   let repo: TypeOrmLoyaltyEntryRepository;
-  let ds: DataSource;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({ isGlobal: true }),
-        TypeOrmModule.forRoot({
-          type: 'postgres',
-          url: process.env['TEST_DATABASE_URL'],
-          entities: [LoyaltyEntryEntity],
-          synchronize: false,
-        }),
-        TypeOrmModule.forFeature([LoyaltyEntryEntity]),
-      ],
-      providers: [TypeOrmLoyaltyEntryRepository],
-    }).compile();
-
-    repo = moduleRef.get(TypeOrmLoyaltyEntryRepository);
-    ds = moduleRef.get(DataSource);
-
-    await ds.query(`CREATE SCHEMA IF NOT EXISTS "loyalty"`);
-    await ds.query(`
-      CREATE TABLE IF NOT EXISTS "loyalty"."loyalty_entries" (
-        "id"               UUID        NOT NULL DEFAULT gen_random_uuid(),
-        "tenant_id"        UUID        NOT NULL,
-        "customer_id"      UUID        NOT NULL,
-        "booking_id"       UUID        NOT NULL,
-        "booking_line_id"  UUID        NOT NULL,
-        "service_id"       UUID        NOT NULL,
-        "points"           INTEGER     NOT NULL CHECK (points > 0),
-        "earned_at"        TIMESTAMPTZ NOT NULL DEFAULT now(),
-        "expires_at"       TIMESTAMPTZ NOT NULL,
-        CONSTRAINT "PK_loyalty_entries_integ" PRIMARY KEY ("id"),
-        CONSTRAINT "UQ_loyalty_entries_tenant_booking_line_integ"
-          UNIQUE ("tenant_id", "booking_line_id")
-      )
-    `);
+    dataSource = await createTestDataSource();
+    repo = new TypeOrmLoyaltyEntryRepository(dataSource.getRepository(LoyaltyEntryEntity));
   });
 
   afterAll(async () => {
-    await ds.query(`DROP TABLE IF EXISTS "loyalty"."loyalty_entries"`);
-    await ds.destroy();
+    await dataSource.destroy();
   });
 
   afterEach(async () => {
-    await ds.query(`DELETE FROM "loyalty"."loyalty_entries"`);
+    await dataSource.query(`DELETE FROM "loyalty"."loyalty_entries"`);
   });
 
   describe('save()', () => {
