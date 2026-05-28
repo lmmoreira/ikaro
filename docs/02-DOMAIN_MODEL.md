@@ -44,21 +44,24 @@ A bounded context is an autonomous domain with clear boundaries and its own mode
 ---
 
 ### **Context 3: Loyalty Context**
-**Purpose:** Track points earned by customers for completed services, **per tenant**, with time-based expiration.
+**Purpose:** Track points earned by customers for completed services, **per tenant**, with time-based expiration, and allow admins to record point redemptions.
 
-**Model (intentionally simple):**
-- One immutable row is inserted each time a booking is completed for an authenticated customer.
-- Each row carries its own `expiresAt`.
-- "Active balance" is always a query (`SUM(points) WHERE expires_at > now()`). No row is written when points expire.
-- Points are **earned only** — there is no redemption, no spending, no manual adjustment in MVP. Rewards / gifts are decided by the admin out-of-band and not modelled here.
+**Model:**
+- One immutable `LoyaltyEntry` is inserted each time a booking is completed for an authenticated customer. Append-only.
+- `LoyaltyBalance` holds the running active point total per `(tenant_id, customer_id)` — O(1) reads, updated atomically on earn/redeem/expiry.
+- `LoyaltyRedemption` records each time an admin redeems points for a customer. Append-only audit log.
+- A daily cron at 02:00 UTC decrements `loyalty_balances.current_points` for entries that expired that day (idempotent via `balance_expiry_log`).
 
 **Responsibilities:**
-- Append a `LoyaltyEntry` when `BookingCompleted` is consumed and the booking has a `customerId`.
-- Compute the customer's active point balance (total + per-service) at query time.
-- Emit a notification when previously-active points cross their expiration threshold.
+- Append a `LoyaltyEntry` and increment `LoyaltyBalance` when `BookingCompleted` is consumed and the booking has a `customerId`.
+- Allow admin to record a redemption — decrement `LoyaltyBalance` atomically with the `LoyaltyRedemption` insert.
+- Run a daily expiry cron to decrement balances for expired entries.
+- Emit a notification when points are about to expire.
 
 **Key Aggregates:**
 - LoyaltyEntry (root, immutable) — scoped to tenant
+- LoyaltyBalance (root, mutable running total) — scoped to tenant
+- LoyaltyRedemption (root, immutable) — scoped to tenant
 
 ---
 
@@ -430,53 +433,75 @@ Example:
 
 #### **Aggregate: LoyaltyEntry** (Root Entity, immutable)
 
-A single record of points earned by a customer for one completed service. Append-only: rows are inserted on `BookingCompleted` and **never updated or deleted**. Points "expire" implicitly — when the entry's `expiresAt` timestamp passes, the row stops contributing to the balance. No row is written to mark expiration.
-
-**Value Objects:**
-- `LoyaltyEntryId` (UUID)
-- `LoyaltyPoints` (positive integer)
+A single record of points earned by a customer for one completed service. Append-only: rows are inserted on `BookingCompleted` and **never updated or deleted**. `expiresAt` marks when the points contributed by this entry stop being valid; the `loyalty_balances` decrement is applied by the daily expiry cron when that date passes.
 
 **Properties:**
 ```
 LoyaltyEntry {
-  entryId:        LoyaltyEntryId
+  entryId:        LoyaltyEntryId      (UUID)
   tenantId:       TenantId
   customerId:     CustomerId
-  bookingId:      BookingId           (parent booking)
-  bookingLineId:  BookingLineId       (specific line — one entry per line, never null)
-  serviceId:      ServiceId           (denormalised from BookingLine for fast per-service queries)
-  points:         LoyaltyPoints       (positive; = BookingLine.pointsValueAtBooking, frozen)
+  bookingId:      BookingId
+  bookingLineId:  BookingLineId       (one entry per line — UNIQUE(tenantId, bookingLineId))
+  serviceId:      ServiceId
+  points:         int                 (positive; = BookingLine.pointsValueAtBooking, frozen)
   earnedAt:       DateTime
-  expiresAt:      DateTime            (= earnedAt + tenants.settings.loyalty_expiry_days; never null)
+  expiresAt:      DateTime            (= earnedAt + tenants.settings.loyalty.expiry_days)
 }
 ```
 
-**One entry per `BookingLine`.** A booking with 3 lines → 3 `LoyaltyEntry` rows on completion. Idempotency is enforced by `UNIQUE(tenantId, bookingLineId)` (see `docs/13-DATABASE_SCHEMA.md`) — replaying `BookingCompleted` is a guaranteed no-op.
+**One entry per `BookingLine`.** A booking with 3 lines → 3 `LoyaltyEntry` rows on completion. Idempotency is enforced by `UNIQUE(tenantId, bookingLineId)` — replaying `BookingCompleted` is a guaranteed no-op.
 
-LoyaltyEntry is immutable — it carries no business methods. All behaviour lives on the domain service:
+---
 
-**Domain Service: `LoyaltyService`**
-- `recordCompletion(booking): LoyaltyEntry[]`
-  - Called when `BookingCompleted` is consumed and `booking.customerId` is not null.
-  - For each line in `booking.lines`: inserts one `LoyaltyEntry` with `points = line.pointsValueAtBooking`, `expiresAt = now() + tenants.settings.loyalty_expiry_days`.
-  - Inserts are idempotent via `UNIQUE(tenantId, bookingLineId)` — a duplicate event is silently ignored at the DB level.
-  - Publishes one `ServicePointsEarned` per inserted row.
-- `balance(customerId, tenantId): { totalActive, byService: Map<ServiceId, int>, completionsByService: Map<ServiceId, int> }`
-  - `totalActive`  = `SUM(points) WHERE expires_at > now()`
-  - `byService`    = same query grouped by `service_id`
-  - `completionsByService` = `COUNT(*) GROUP BY service_id` (across all entries, including expired — historical activity)
-- `notifyExpiringSoon()` — cron, **weekly** (Mondays 06:00 tenant-local)
-  - Finds entries whose `expires_at` falls in `[now, now + 7 days)`.
-  - Aggregates them per `(customer, service)` pair.
-  - Publishes one `PointsExpiringSoon` per pair (forward-looking warning — no DB write).
-  - Points that actually expire are NEVER notified separately; they simply stop counting toward the active balance. The weekly warning was the value-add.
+#### **Aggregate: LoyaltyBalance** (Root Entity, mutable)
+
+Running active point total per `(tenant_id, customer_id)`. Updated atomically whenever points are earned, redeemed, or expire. Provides O(1) balance reads.
+
+**Properties:**
+```
+LoyaltyBalance {
+  tenantId:       TenantId            (composite PK with customerId — no surrogate id)
+  customerId:     CustomerId
+  currentPoints:  int                 (≥ 0; CHECK constraint at DB level)
+  updatedAt:      DateTime
+}
+```
+
+**Methods:**
+- `increment(points: number): void` — called after a `LoyaltyEntry` is persisted.
+- `decrement(points: number): void` — called on redemption or expiry cron; throws `LoyaltyInsufficientPointsError` if `currentPoints < points`.
+
+**Invariant:** `currentPoints >= 0` always. The DB `CHECK (current_points >= 0)` enforces this at persistence level.
+
+---
+
+#### **Aggregate: LoyaltyRedemption** (Root Entity, immutable)
+
+Append-only audit record of a point redemption performed by an admin. Never updated.
+
+**Properties:**
+```
+LoyaltyRedemption {
+  id:              UUID
+  tenantId:        TenantId
+  customerId:      CustomerId
+  pointsRedeemed:  int                (positive)
+  redeemedBy:      StaffId
+  notes:           string?            (optional admin note)
+  redeemedAt:      DateTime
+}
+```
+
+**Rules:** The redemption row and the `LoyaltyBalance` decrement are written in the same transaction. If the customer has insufficient points, `RedeemPointsUseCase` throws `LoyaltyInsufficientPointsError` before touching the DB.
+
+---
 
 **What this model intentionally does NOT support (MVP):**
-- Redemption / spending points (gifts are admin-driven, off-system).
-- Manual point adjustments (no bonus rows by admin in MVP).
-- Tier labels (BRONZE / SILVER / GOLD) — the admin reads raw active-point totals from the dashboard and decides what to offer.
+- Manual point adjustments / bonus rows by admin.
+- Tier labels (BRONZE / SILVER / GOLD) — the admin reads raw active-point totals and decides what to offer.
 
-These are all easy to add later as new event types if the business needs them.
+These are easy to add later as new event types if the business needs them.
 
 ---
 
@@ -657,8 +682,8 @@ CANCELLED       -> (terminal)
 ### **BookingType**
 Enum: `GUEST | CUSTOMER`
 
-### **Expiration window (`loyalty_expiry_days`)**
-Configurable **per tenant** via `tenants.settings.loyalty_expiry_days` (integer, days). Typical values: 180 (6 months) or 365 (1 year). Defaults to 180 if unset.
+### **Expiration window (`loyalty.expiry_days`)**
+Configurable **per tenant** via `tenants.settings.loyalty.expiry_days` (integer, days). Typical values: 180 (6 months) or 365 (1 year). Defaults to 180 if unset.
 
 When a `LoyaltyEntry`'s `expiresAt` passes:
 - The entry stops contributing to active balance (query-time filter — nothing is mutated).

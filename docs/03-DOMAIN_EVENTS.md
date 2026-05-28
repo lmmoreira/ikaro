@@ -205,7 +205,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   ```
 - **Consumers:**
   - **Notification Context** → email to customer summarising all services completed, showing both quoted and actual prices where they differ, plus total points earned.
-  - **Loyalty Context** → if `customerId != null`, iterate `lines`: insert one `LoyaltyEntry` per line using `pointsValueAtBooking` (loyalty is **not** affected by `actualPriceCharged`); publish one `ServicePointsEarned` per inserted line.
+  - **Loyalty Context** → if `customerId != null`, iterate `lines`: insert one `LoyaltyEntry` per line using `pointsValueAtBooking` (loyalty is **not** affected by `actualPriceCharged`); increment `LoyaltyBalance.current_points` by the total points across all lines; publish one `ServicePointsEarned` per inserted line. All writes in a single transaction.
 
 ---
 
@@ -349,7 +349,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 #### **ServicePointsEarned**
 - **Trigger:** Loyalty Context inserted a `LoyaltyEntry` after consuming `BookingCompleted`. One event is published **per inserted entry** — a booking with 3 lines produces 3 `ServicePointsEarned` events.
-- **State change:** new row in `loyalty_entries`. Idempotent against replay via `UNIQUE(tenant_id, booking_line_id)`.
+- **State change:** new row in `loyalty_entries` + `loyalty_balances.current_points` incremented. Both writes are in one transaction. Idempotent against replay via `processed_events` (early-exit) + `UNIQUE(tenant_id, booking_line_id)` (hard guard on the entry insert).
 - **Data:**
   ```
   {
@@ -360,8 +360,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     serviceId:        string
     pointsEarned:     number       // positive
     earnedAt:         ISO8601
-    expiresAt:        ISO8601      // earnedAt + tenants.settings.loyalty_expiry_days
-    totalActiveAfter: number       // customer's total active balance after this insert
+    expiresAt:        ISO8601      // earnedAt + tenants.settings.loyalty.expiry_days
   }
   ```
 - **Consumers:**
@@ -371,9 +370,9 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 #### **PointsExpiringSoon**
 - **Trigger:** Weekly cron (Mondays 06:00 tenant-local) finds customers who have one or more `LoyaltyEntry` rows whose `expires_at` falls within the **next 7 days**.
-- **Direction:** Forward-looking — this is a heads-up, not a post-mortem. Once `expires_at` actually passes, the entry silently stops contributing to the active balance (no event, no row write — see `loyalty_entries` rules).
+- **Direction:** Forward-looking — this is a heads-up, not a post-mortem. Once `expires_at` actually passes, the daily expiry cron decrements `loyalty_balances.current_points` for those entries.
 - **Aggregation:** One event per `(customer, service)` pair so the notification can group neatly per service.
-- **State change:** None — the cron does not write any DB rows. It only computes and publishes.
+- **State change:** None — the weekly cron does not write any DB rows. It only computes and publishes.
 - **Data:**
   ```
   {
@@ -381,15 +380,15 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     serviceId:            string
     pointsExpiringSoon:   number    // sum of `points` from entries with expires_at in [now, now + 7 days)
     earliestExpiresAt:    ISO8601   // the soonest expires_at among those entries
-    activeTotal:          number    // customer's current active total (across all services)
+    activeTotal:          number    // customer's current balance from loyalty_balances.current_points
   }
   ```
 - **Consumers:**
   - **Notification Context** → may aggregate per customer before sending a single weekly email: "Heads up — [X] points on [service] will expire on [earliestExpiresAt]. Book a wash to keep earning."
 
-> **No `PointsExpired` event.** With balance computed at query time, the moment a point actually expires is silent — it simply stops appearing in `SUM(...) WHERE expires_at > now()`. The customer is given advance notice via `PointsExpiringSoon`; once the day passes, no further notification is sent.
+> **No `PointsExpired` event.** When points actually expire, the daily cron at 02:00 UTC decrements `loyalty_balances.current_points` and logs the processed entry IDs in `balance_expiry_log` (idempotent). No domain event is published — the customer was already warned in advance by `PointsExpiringSoon`.
 
-> **No `PointsRedeemed` event.** The MVP loyalty model is earn-only — points can only leave the active balance by expiring. Rewards / gifts are decided by the admin out-of-band and not tracked here.
+> **No `PointsRedeemed` event.** Redemptions are recorded synchronously via `POST /v1/loyalty/redeem` (admin-only REST endpoint). The `loyalty_redemptions` table is the audit trail. No async event is needed — the balance decrement and redemption row are written atomically in the same HTTP transaction.
 
 ---
 

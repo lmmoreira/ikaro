@@ -169,44 +169,44 @@ Notification Context subscribes:
 
 ### **2. Loyalty Context (Supporting Domain, Tenant-Scoped)**
 
-**Purpose:** Track points earned by customers for completed services, with per-tenant expiration. Intentionally minimal — earn-only, no redemption, no tiers.
+**Purpose:** Track points earned by customers for completed services, with per-tenant expiration, and allow admins to record point redemptions.
 
 **Owned Aggregates:**
-- `LoyaltyEntry` — one immutable row per booking completion. Append-only. Expiration is a query-time filter on `expires_at`, not a state change.
+- `LoyaltyEntry` — one immutable row per booking line completion. Append-only. Never updated or deleted.
+- `LoyaltyBalance` — running active point total per `(tenant_id, customer_id)`. O(1) reads. Updated atomically on earn, redeem, and expiry.
+- `LoyaltyRedemption` — append-only audit record of each admin-recorded redemption.
 
 **Responsibilities:**
-- Listen to `BookingCompleted` from Booking Context (tenant-scoped). When the booking has a `customerId`, insert a `LoyaltyEntry`.
-- Compute the customer's active balance on demand (total + per-service).
-- Run a **weekly** cron (Mondays 06:00 tenant-local) to emit `PointsExpiringSoon` warnings for entries expiring within the next 7 days (forward-looking, no DB write).
+- Listen to `BookingCompleted` from Booking Context. When the booking has a `customerId`, insert a `LoyaltyEntry` and increment `LoyaltyBalance` in one transaction.
+- Allow admin to record a redemption via `POST /v1/loyalty/redeem` — insert `LoyaltyRedemption` and decrement `LoyaltyBalance` atomically.
+- Run a **daily expiry cron** at 02:00 UTC: compute points from `loyalty_entries` that expired that day and decrement `loyalty_balances.current_points` accordingly. Idempotent via `balance_expiry_log`.
+- Run a **weekly cron** (Mondays 06:00 tenant-local) to emit `PointsExpiringSoon` warnings for entries expiring within the next 7 days.
 
-**Database:** `beloauto_loyalty` schema
-- Single table: `loyalty_entries` (see `docs/13-DATABASE_SCHEMA.md`)
-- Every row has `tenant_id` (required, indexed)
-- Queries always filtered by `WHERE tenant_id = ?`
-- `UNIQUE(tenant_id, booking_line_id)` guarantees idempotent processing of `BookingCompleted` — a booking with N lines produces N entries, all with different `booking_line_id` values
+**Database:** `loyalty` schema
+- `loyalty_entries` — INSERT-only, UNIQUE(tenant_id, booking_line_id)
+- `loyalty_balances` — UNIQUE(tenant_id, customer_id); current_points CHECK >= 0
+- `loyalty_redemptions` — INSERT-only
+- `balance_expiry_log` — PK(tenant_id, customer_id, expiry_date) — idempotency for cron
+- `processed_events` — event consumer dedup table
+- See `docs/13-DATABASE_SCHEMA.md` for full column definitions.
 
 **Published Events** (every event carries `tenantId`, `eventId`, `occurredAt`, `correlationId`):
 - `ServicePointsEarned` → consumed by Notification. **One event per `BookingLine`** — a 3-line booking produces 3 events.
-- `PointsExpiringSoon` → consumed by Notification. Forward-looking weekly warning (NOT a post-fact "points expired" event).
+- `PointsExpiringSoon` → consumed by Notification. Forward-looking weekly warning.
 
 **Consumed Events:**
-- `BookingCompleted` (from Booking) — for each line in `data.lines[]`, insert one `LoyaltyEntry` when `customerId != null`. **This is the only event Loyalty subscribes to.** Other booking events (`BookingRequested`, `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`, `BookingCancelled`) do not change loyalty state, so Loyalty does not consume them.
-
-**Dependencies:**
-- **Input:** Event subscriber (tenant-scoped)
-- **Output:** Read-only API for balance queries; published tenant-scoped events
+- `BookingCompleted` (from Booking) — **the only event Loyalty subscribes to.** For each line in `data.lines[]`, insert one `LoyaltyEntry` when `customerId != null`.
 
 **Tech Stack:**
-- Event subscriber pattern (GCP Pub/Sub via `IEventBus` port — tenant-scoped, idempotent via `UNIQUE(tenant_id, booking_line_id)`)
-- Repository for `loyalty_entries` (insert + select only — no update/delete)
-- Domain service for balance calculation
-- **Weekly cron** (Mondays 06:00 tenant-local) for `PointsExpiringSoon` warnings — publishes event, writes no DB rows
+- Event subscriber pattern (GCP Pub/Sub via `IEventBus` port — idempotent via `UNIQUE(tenant_id, booking_line_id)`)
+- Repositories for `loyalty_entries`, `loyalty_balances`, `loyalty_redemptions` (insert + select; balances also update)
+- `@Cron('0 2 * * *')` NestJS scheduler for daily expiry
+- **Weekly cron** (Mondays 06:00 tenant-local) for `PointsExpiringSoon` warnings
 
 **Tenant Isolation Guarantees:**
-- ✓ Cannot read another tenant's `loyalty_entries`
-- ✓ Cannot insert across tenants — composite FKs `(tenant_id, customer_id)` and `(tenant_id, service_id)` block it at the DB
+- ✓ Cannot read another tenant's rows — all queries filter `tenant_id`
+- ✓ Expiration window is per-tenant via `tenants.settings.loyalty.expiry_days`
 - ✓ Events filtered by `tenantId` on consume
-- ✓ Expiration window is per-tenant via `tenants.settings.loyalty_expiry_days`
 
 **Example flow (tenant-scoped, multi-line booking):**
 ```
@@ -214,35 +214,31 @@ TENANT A: customer completes a booking with 3 lines:
   • Basic Wash    (points_value = 1)
   • Wax           (points_value = 3)
   • Interior Vac  (points_value = 1)
-  (tenants.settings.loyalty_expiry_days = 180)
+  (tenants.settings.loyalty.expiry_days = 180)
 
-→ BookingCompleted (envelope.tenantId = "tenant_a") published by Booking,
-  data.lines = [3 entries]
+→ BookingCompleted (envelope.tenantId = "tenant_a") published by Booking
 
-→ Loyalty Context consumes the SINGLE event and inserts 3 rows into loyalty_entries:
-     (entry1, tenant_id="tenant_a", booking_id, booking_line_id=L1, service_id=basic, points=1, expires_at=now+180d)
-     (entry2, tenant_id="tenant_a", booking_id, booking_line_id=L2, service_id=wax,   points=3, expires_at=now+180d)
-     (entry3, tenant_id="tenant_a", booking_id, booking_line_id=L3, service_id=vac,   points=1, expires_at=now+180d)
-  All idempotent on UNIQUE(tenant_id, booking_line_id).
+→ Loyalty Context inserts 3 LoyaltyEntry rows and increments LoyaltyBalance by 5 (all in one tx):
+     balance: current_points = 5
 
-→ Loyalty Context publishes 3 ServicePointsEarned events (one per inserted line).
+→ Loyalty Context publishes 3 ServicePointsEarned events (one per line).
 
-Notification Context may aggregate the 3 events into ONE email:
-  "You earned 5 points across 3 services. Active total: 47 — expires Nov 8."
+~173 days later, weekly cron notices entry1 expires within 7 days:
+→ PointsExpiringSoon published; NO DB write.
 
-~173 days later, the weekly cron runs Monday morning and notices entry1's
-expires_at falls within the next 7 days:
-→ PointsExpiringSoon published (envelope.tenantId = "tenant_a"); NO DB write.
-→ Notification sends: "Heads up — 1 point on Basic Wash will expire on [date].
-                       Book a wash to keep earning."
+Day 180 (02:00 UTC), daily expiry cron:
+→ Finds entries with expires_at::date = today for this customer.
+→ Inserts into balance_expiry_log (ON CONFLICT DO NOTHING — idempotent).
+→ Decrements loyalty_balances.current_points by 1 (basic wash point).
+→ Balance: current_points = 4.
 
-When the date actually passes, the entry stops contributing to active balance.
-No event, no row write. The customer was already warned.
+Admin records a redemption (customer exchanges 4 points for a free wash):
+→ POST /v1/loyalty/redeem { customerId, pointsToRedeem: 4, notes: "free wash voucher" }
+→ LoyaltyRedemption inserted + current_points decremented to 0 in one transaction.
 
 TENANT B (completely separate):
 → Same customer can also use Tenant B
-→ Tenant B's loyalty_entries rows are stored under tenant_id="tenant_b"
-→ Earnings, expirations, balances are computed independently per tenant
+→ All tables scoped to tenant_id="tenant_b" — completely independent
 ```
 
 ---
@@ -298,7 +294,7 @@ BookingReminderDueToday → Email: Customer/guest "Reminder: your appointment is
 
 AdminDailyScheduleReminder → Email: Admin "Today's schedule: [X] appointments, see details below"
 
-ServicePointsEarned → (Notification may batch per booking) Email: Customer "You earned [total] points across [N] services in your last visit. Active total: [Y] points."
+ServicePointsEarned → (Notification may batch per booking) Email: Customer "You earned [total] points across [N] services in your last visit."
 
 PointsExpiringSoon → Email (weekly digest): Customer "Heads up — [X] points on [Service] will expire on [date]. Book again to keep earning."
 ```

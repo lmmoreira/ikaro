@@ -293,7 +293,73 @@ One immutable row per `BookingLine` completed for an authenticated customer. App
 
 **Rules:**
 - INSERT only. No UPDATE, no DELETE.
-- Active balance: `SELECT SUM(points) FROM loyalty.loyalty_entries WHERE tenant_id=$1 AND customer_id=$2 AND expires_at > now()`
+- `loyalty_balances.current_points` is the authoritative active balance — read from there, not from a SUM over entries.
+
+---
+
+### `loyalty.loyalty_balances`
+One row per `(tenant_id, customer_id)`. Maintained as a running total: incremented on earn, decremented on redemption and daily expiry cron. O(1) reads.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| customer_id | UUID | NOT NULL |
+| current_points | INT | NOT NULL DEFAULT 0, CHECK >= 0 |
+| updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| **PRIMARY KEY** | (tenant_id, customer_id) | One balance row per customer per tenant |
+
+**Rules:**
+- Upserted on every `LoyaltyEntry` insert: `INSERT … ON CONFLICT (tenant_id, customer_id) DO UPDATE SET current_points = current_points + excluded.current_points`.
+- Decremented atomically in `RedeemPointsUseCase` after inserting the redemption row.
+- Decremented by the daily expiry cron after computing points from entries that just expired.
+- `current_points` can never go below 0 (CHECK constraint + application guard).
+
+---
+
+### `loyalty.loyalty_redemptions`
+Append-only audit log of every redemption. Never updated or deleted.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PRIMARY KEY |
+| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| customer_id | UUID | NOT NULL |
+| points_redeemed | INT | NOT NULL, CHECK > 0 |
+| redeemed_by | UUID | NOT NULL — staffId who recorded the redemption |
+| notes | TEXT | NULLABLE — optional admin note |
+| redeemed_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| **INDEX** | (tenant_id, customer_id) | History per customer |
+
+**Rules:**
+- INSERT only.
+- Written in the same transaction as the `loyalty_balances` decrement.
+
+---
+
+### `loyalty.balance_expiry_log`
+Idempotency guard for the daily expiry cron. One row per `loyalty_entry` whose expiry has been applied to the balance. Prevents double-decrement if the cron runs twice.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| entry_id | UUID | PRIMARY KEY — FK → `loyalty.loyalty_entries(id)` |
+| processed_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+
+**Usage pattern (cron):**
+```sql
+-- Find expired entries not yet processed
+SELECT le.* FROM loyalty.loyalty_entries le
+WHERE le.expires_at < now()
+  AND NOT EXISTS (
+    SELECT 1 FROM loyalty.balance_expiry_log bel WHERE bel.entry_id = le.id
+  );
+
+-- After decrementing balance, mark entries as processed
+INSERT INTO loyalty.balance_expiry_log (entry_id)
+VALUES ($1), ($2), ...
+ON CONFLICT DO NOTHING;
+```
+
+Partial-failure safe: if the cron crashes after processing 5 of 10 entries, the next run only reprocesses the remaining 5.
 
 ---
 

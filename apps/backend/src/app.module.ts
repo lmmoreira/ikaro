@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BookingModule } from './contexts/booking/booking.module';
 import { CustomerModule } from './contexts/customer/customer.module';
+import { LoyaltyModule } from './contexts/loyalty/loyalty.module';
 import { NotificationModule } from './contexts/notification/notification.module';
 import { PlatformModule } from './contexts/platform/platform.module';
 import { StaffModule } from './contexts/staff/staff.module';
@@ -36,6 +37,7 @@ import { TenantModule } from './shared/tenant/tenant.module';
     PlatformModule,
     BookingModule,
     CustomerModule,
+    LoyaltyModule,
     StaffModule,
     NotificationModule,
   ],

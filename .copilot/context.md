@@ -5,7 +5,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-05-28 (M09 complete — cancellation/rescheduling wrap-up docs added to §10)
+**Last updated:** 2026-05-28 (M10-S03 — loyalty balance+redemption design; LoyaltyBalance + LoyaltyRedemption aggregates added; M10 milestone updated with S03.1, S07, S08)
 
 ---
 
@@ -85,11 +85,11 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 | **Booking** | Core | `Booking`, `Service`, `ScheduleClosure` | `BookingRequested/Approved/Rejected/InfoRequested/InfoSubmitted/Completed/Cancelled/Rescheduled` + `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` |
 | **Customer** | Supporting | `Customer` (multi-tenant rows) | — |
 | **Staff** | Supporting | `Staff` (single-tenant) | `StaffInvited`, `StaffDeactivated` |
-| **Loyalty** | Supporting | `LoyaltyEntry` (append-only, earn-only) | `ServicePointsEarned`, `PointsExpiringSoon` |
+| **Loyalty** | Supporting | `LoyaltyEntry` (append-only), `LoyaltyBalance` (running total), `LoyaltyRedemption` (append-only) | `ServicePointsEarned`, `PointsExpiringSoon` |
 | **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` | `EmailSent`, `EmailFailed` |
 | **Platform** | Foundational | `Tenant`, `HotsiteConfig` | `TenantProvisioned` |
 
-**Loyalty MVP rules (strict):** One immutable `LoyaltyEntry` per `BookingLine` completed. Idempotent via `UNIQUE(tenant_id, booking_line_id)`. Active balance = `SUM(points) WHERE expires_at > now()`. No redemption, no tiers, no manual adjustments.
+**Loyalty MVP rules:** One immutable `LoyaltyEntry` per `BookingLine` completed. Idempotent via `UNIQUE(tenant_id, booking_line_id)`. Active balance stored in `loyalty_balances.current_points` (O(1) — not a SUM). Incremented on earn, decremented on redemption or daily expiry cron (idempotent via `balance_expiry_log`). Admins record redemptions via `POST /v1/loyalty/redeem`. No tiers, no manual bonus adjustments.
 
 ---
 
@@ -333,6 +333,16 @@ Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Highest-severity pa
 
 ## 9. Story Implementation Workflow (mandatory — every story, no exceptions)
 
+> ❗ **NON-NEGOTIABLE PR GATE — READ THIS BEFORE TOUCHING `gh pr create`**
+>
+> **`gh pr create` is FORBIDDEN until `/pre-pr` is complete.**
+> The sequence is always:
+> 1. `git push` → ci:fast pre-push hook runs (unit tests only — NOT sufficient alone)
+> 2. `/pre-pr` → all 4 steps in order — Step 4 is a hard stop: ask the user to run integration tests and wait for their pasted output
+> 3. Only after Step 4 clears → `gh pr create`
+>
+> ci:fast passing does NOT mean integration tests passed. SonarCloud issues, missing .http files, VO violations, and cross-tenant leaks are only caught by `/pre-pr`. Skipping it has caused repeated CI failures and user frustration.
+
 ### Step 1 — Create feature branch (BEFORE writing any code)
 `git checkout -b feat/M0X-SYY-<short-description>`
 
@@ -362,6 +372,9 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 
 ### Step 7 — Self-review the full diff (MANDATORY — before every PR)
 Run `/pre-pr` — must report **zero issues** before the PR is opened.
+
+> **AGENT HARD RULE — NO EXCEPTIONS:**
+> You MUST run `/pre-pr` and wait for it to report zero issues AND receive the user's integration test output (Step 4 of the `/pre-pr` skill) before calling `gh pr create`. Skipping or reordering these steps is a critical workflow violation. The pre-push hook only runs unit tests; integration tests are only caught here. Even if ci:fast passes, even if all unit tests pass — **do not open the PR until `/pre-pr` Step 4 is complete and the user has pasted passing integration test output.**
 
 ### Step 8 — Open the PR
 ```bash
@@ -420,6 +433,7 @@ If every story in the milestone is now `✅ Done`, see §15 item 7 for the two w
 | Working on M08+ (any task touching Booking aggregate, BookingLine, booking state machine, RequestBookingUseCase, ICustomerProfilePort, BookingRequested notification, customer profile endpoints, postForPublic(), linesModified flag, or post-commit event flush) | `plan/M07-BOOKING-CREATION_IMPLEMENTATION_DETAILS_IA.md` — linesModified flag & delete-then-insert, post-commit event flush (not outbox), ICustomerProfilePort + CustomerProfileAdapter cross-context pattern, Money NUMERIC(10,2) as string, composite FK (tenant_id, booking_id), serviceNameAtBooking snapshot, postForPublic() headers, BFF phone validation, createBookingIntegrationApp() entities, notification dispatcher scoped to adminEmail, UpdateCustomerProfileUseCase partial-update pattern | 4 |
 | Working on M09+ (any task touching booking approval flow, BookingSlotConflictService, guest info-submission token, notification handlers for approval events, findAllByTenantPaginated, role-based list filtering, or FRONTEND_URL/JWT_SECRET env vars) | `plan/M08-BOOKING-APPROVAL_IMPLEMENTATION_DETAILS_IA.md` — slot conflict half-open interval, linesModified skip in state transitions, 404-not-403 for cross-customer access, N+1 avoidance in paginated repo, guest JWT token flow (sign in notification → verify in BFF → backend receives guestEmail), z.coerce.number() for BFF query params, notification idempotency via notification_logs, FRONTEND_URL + JWT_SECRET vars | 4 |
 | Working on M10+ (any task touching customer cancel, admin cancel, reschedule, cancellation window, BookingCancelled/Rescheduled events, BaseNotificationUseCase, or dual-notification partial-idempotency) | `plan/M09-CANCELLATION-RESCHEDULING_IMPLEMENTATION_DETAILS_IA.md` — single BFF endpoint branches on role, window only for APPROVED status, reschedule self-exclusion in slot conflict, previousSlot captured before mutation, event payload as full snapshot (lineSummaryPayload/totalPricePayload helpers), BaseNotificationUseCase + base DTOs, partial-idempotency pattern for dual-type notifications, getTenantInfo skipped on full-idempotent path | 4 |
+| Working on M115 (GCS signed-URL photo upload, dev-login OAuth bypass, or InternalApiGuard hardening for `/internal/*` routes) | `plan/M115-PRODUCTION-READINESS.md` — 3-step upload contract (signed-URL → PUT → filePath), `dev::` OAuth ID prefix, `ENABLE_DEV_AUTH` guard pattern, `InternalApiGuard` + `X-Internal-Key` header, `BackendHttpService` propagation; note: `afterServicePhotoUrls` in M10-S01 stores plain strings until M115-S01 is live | 2 |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full 48-row table; loaded automatically by `/pre-pr`.
 
@@ -490,7 +504,8 @@ src/shared/
 4. Is the change scoped to one UC cited in the PR? ✓
 5. Does the integration test include a tenant-isolation assertion? ✓
 6. Did I follow §9 workflow? (branch → implement → ci:fast → /pre-pr → PR → CI all-green → user approval → merge → /mark-done) ✓
-7. Are ALL stories in this milestone now `✅ Done`? If yes — create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10 of this file. ✓
+7. **Did I run `/pre-pr` AND wait for the user to paste passing integration test output BEFORE calling `gh pr create`?** If the answer is no — do not open the PR. Go back and run `/pre-pr` first. ✓
+8. Are ALL stories in this milestone now `✅ Done`? If yes — create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10 of this file. ✓
 
 ---
 

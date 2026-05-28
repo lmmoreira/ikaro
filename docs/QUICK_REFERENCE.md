@@ -64,7 +64,7 @@
 |---------|------|----------------|-----------|
 | **Booking** (Core) | Bookings, BookingLines, Services, ScheduleClosures | Booking, Service, ScheduleClosure | BookingRequested, BookingApproved, BookingCompleted, BookingCancelled, BookingRescheduled |
 | **Customer** (Support) | Authenticated users (multi-tenant) | Customer | — |
-| **Loyalty** (Support) | Points earned per service line (append-only) | LoyaltyEntry | ServicePointsEarned, PointsExpiringSoon |
+| **Loyalty** (Support) | Points earned, running balances, redemptions | LoyaltyEntry, LoyaltyBalance, LoyaltyRedemption | ServicePointsEarned, PointsExpiringSoon |
 | **Notification** (Support) | Email sending | NotificationTemplate, NotificationLog | EmailSent, EmailFailed |
 | **Staff** (Support) | Employees (single-tenant) | Staff | — |
 | **Platform** (Foundational) | Tenants, hotsite config | Tenant, HotsiteConfig | StaffInvited, StaffDeactivated |
@@ -171,26 +171,37 @@ LoyaltyEntry {
   bookingId, bookingLineId, serviceId
   points       (positive int — = BookingLine.pointsValueAtBooking, frozen)
   earnedAt
-  expiresAt    (= earnedAt + tenants.settings.loyalty_expiry_days; never null)
+  expiresAt    (= earnedAt + tenants.settings.loyalty.expiry_days; never null)
 }
 ```
 
 **One row per BookingLine.** A 3-line booking → 3 LoyaltyEntry rows on completion. Idempotent on `UNIQUE(tenant_id, booking_line_id)`. Insert-only, never updated, never deleted.
 
-Active balance is computed (not stored):
-
-```sql
-SELECT COALESCE(SUM(points), 0) AS active_points
-FROM   loyalty_entries
-WHERE  tenant_id   = ?
-  AND  customer_id = ?
-  AND  expires_at  > now();
+### LoyaltyBalance Aggregate (O(1) balance)
+```
+LoyaltyBalance {
+  tenantId, customerId  (composite PK — no surrogate id)
+  currentPoints         (int ≥ 0 — running total; CHECK constraint at DB level)
+  updatedAt
+}
 ```
 
-Per-service breakdown: same query plus `GROUP BY service_id`.
-Completions count: `SELECT service_id, COUNT(*) GROUP BY service_id` (no `expires_at` filter — historical).
+PRIMARY KEY (tenant_id, customer_id). Upserted on earn, decremented on redemption or daily expiry cron. Read this for balance — do NOT compute SUM over entries.
 
-**Out of MVP scope:** redemption, manual adjustments, tier labels (BRONZE/SILVER/GOLD). Gifts are admin-driven outside the system.
+### LoyaltyRedemption Aggregate (append-only)
+```
+LoyaltyRedemption {
+  id, tenantId, customerId
+  pointsRedeemed  (positive int)
+  redeemedBy      (staffId)
+  notes?
+  redeemedAt
+}
+```
+
+Insert-only audit log. Written in same transaction as LoyaltyBalance decrement.
+
+**Out of MVP scope:** manual adjustments, tier labels (BRONZE/SILVER/GOLD). Gifts beyond point redemption are admin-driven outside the system.
 
 ---
 
@@ -217,7 +228,7 @@ AdminDailyScheduleReminder { staffEmail, bookingsToday[] }                      
 
 ### Loyalty Events
 ```
-ServicePointsEarned  { tenantId, customerId, bookingLineId, serviceId, pointsEarned, expiresAt, totalActiveAfter }
+ServicePointsEarned  { tenantId, customerId, bookingLineId, serviceId, pointsEarned, expiresAt }
 PointsExpiringSoon   { tenantId, customerId, serviceId, pointsExpiringSoon, earliestExpiresAt }
 ```
 
