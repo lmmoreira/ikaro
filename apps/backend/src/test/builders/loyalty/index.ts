@@ -5,3 +5,4 @@ export { LoyaltyEntryBuilder } from './loyalty-entry.builder';
 export { LoyaltyEntryEntityBuilder } from './loyalty-entry-entity.builder';
 export { LoyaltyRedemptionBuilder } from './loyalty-redemption.builder';
 export { LoyaltyRedemptionEntityBuilder } from './loyalty-redemption-entity.builder';
+export { ProcessedEventEntityBuilder } from './processed-event-entity.builder';

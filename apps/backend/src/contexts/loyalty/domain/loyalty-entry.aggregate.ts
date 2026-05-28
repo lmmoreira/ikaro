@@ -99,6 +99,7 @@ export class LoyaltyEntry extends AggregateRoot {
         bookingLineId,
         serviceId,
         pointsEarned: points,
+        earnedAt: earnedAt.toISOString(),
         expiresAt: expiresAt.toISOString(),
       }),
     );

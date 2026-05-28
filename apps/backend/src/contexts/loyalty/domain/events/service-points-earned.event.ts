@@ -7,6 +7,7 @@ interface ServicePointsEarnedData extends Record<string, unknown> {
   bookingLineId: string;
   serviceId: string;
   pointsEarned: number;
+  earnedAt: string;
   expiresAt: string;
 }
 

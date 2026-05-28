@@ -65,6 +65,7 @@ describe('LoyaltyEntry', () => {
       expect(event.data.entryId).toBe(entry.id);
       expect(event.data.customerId).toBe(CUSTOMER_ID);
       expect(event.data.pointsEarned).toBe(7);
+      expect(event.data.earnedAt).toBe(entry.earnedAt.toISOString());
     });
 
     it('throws LoyaltyInvalidPointsError when points = 0', () => {

@@ -10,6 +10,7 @@ import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entit
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
+import { ProcessedEventEntity } from '../contexts/loyalty/infrastructure/entities/processed-event.entity';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
@@ -46,6 +47,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       LoyaltyBalanceEntity,
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
+      ProcessedEventEntity,
     ],
     synchronize: false,
     migrationsRun: false,

@@ -19,6 +19,7 @@ import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entit
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
+import { ProcessedEventEntity } from '../contexts/loyalty/infrastructure/entities/processed-event.entity';
 import { CreateLoyaltyLoyaltyEntries1748000000016 } from '../contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries';
 import { CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017 } from '../contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
@@ -79,6 +80,7 @@ export default async function globalSetup(): Promise<void> {
       LoyaltyBalanceEntity,
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
+      ProcessedEventEntity,
     ],
     migrations: [
       CreatePlatformTenants1716500000001,
