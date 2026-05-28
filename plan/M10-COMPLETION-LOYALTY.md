@@ -115,7 +115,7 @@ Also creates `loyalty.processed_events` (idempotency table for Loyalty consumers
 
 ---
 
-### M10-S03.1 — LoyaltyBalance + LoyaltyRedemption domain + migration
+### M10-S03.1 — LoyaltyBalance + LoyaltyRedemption domain + migration ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
