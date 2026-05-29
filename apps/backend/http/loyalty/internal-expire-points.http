@@ -1,0 +1,16 @@
+# Loyalty — Internal Points Expiry Trigger
+# M10-S08: GCP Cloud Scheduler calls this endpoint at 02:00 UTC daily.
+# In production this is called by GCP Cloud Scheduler (network-protected).
+# M115-S03 adds X-Internal-Key guard.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @beloauto/backend run migration:run
+#   3. pnpm --filter @beloauto/backend run dev
+
+@baseUrl = http://localhost:3001
+
+### POST /internal/loyalty/expire-points — run daily expiry
+POST {{baseUrl}}/internal/loyalty/expire-points
+
+###

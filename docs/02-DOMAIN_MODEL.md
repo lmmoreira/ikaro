@@ -50,12 +50,12 @@ A bounded context is an autonomous domain with clear boundaries and its own mode
 - One immutable `LoyaltyEntry` is inserted each time a booking is completed for an authenticated customer. Append-only.
 - `LoyaltyBalance` holds the running active point total per `(tenant_id, customer_id)` — O(1) reads, updated atomically on earn/redeem/expiry.
 - `LoyaltyRedemption` records each time an admin redeems points for a customer. Append-only audit log.
-- A daily cron at 02:00 UTC decrements `loyalty_balances.current_points` for entries that expired that day (idempotent via `balance_expiry_log`).
+- A GCP Cloud Scheduler job calls `POST /internal/loyalty/expire-points` at 02:00 UTC daily, which decrements `loyalty_balances.current_points` for entries whose `expires_at` has passed (idempotent via `balance_expiry_log`).
 
 **Responsibilities:**
 - Append a `LoyaltyEntry` and increment `LoyaltyBalance` when `BookingCompleted` is consumed and the booking has a `customerId`.
 - Allow admin to record a redemption — decrement `LoyaltyBalance` atomically with the `LoyaltyRedemption` insert.
-- Run a daily expiry cron to decrement balances for expired entries.
+- Expose `POST /internal/loyalty/expire-points` — triggered by GCP Cloud Scheduler at 02:00 UTC to decrement balances for expired entries.
 - Emit a notification when points are about to expire.
 
 **Key Aggregates:**
@@ -433,7 +433,7 @@ Example:
 
 #### **Aggregate: LoyaltyEntry** (Root Entity, immutable)
 
-A single record of points earned by a customer for one completed service. Append-only: rows are inserted on `BookingCompleted` and **never updated or deleted**. `expiresAt` marks when the points contributed by this entry stop being valid; the `loyalty_balances` decrement is applied by the daily expiry cron when that date passes.
+A single record of points earned by a customer for one completed service. Append-only: rows are inserted on `BookingCompleted` and **never updated or deleted**. `expiresAt` marks when the points contributed by this entry stop being valid; the `loyalty_balances` decrement is applied by `POST /internal/loyalty/expire-points` (triggered by GCP Cloud Scheduler) when that date passes.
 
 **Properties:**
 ```
@@ -470,7 +470,7 @@ LoyaltyBalance {
 
 **Methods:**
 - `increment(points: number): void` — called after a `LoyaltyEntry` is persisted.
-- `decrement(points: number): void` — called on redemption or expiry cron; throws `LoyaltyInsufficientPointsError` if `currentPoints < points`.
+- `decrement(points: number): void` — called on redemption or point expiry; throws `LoyaltyInsufficientPointsError` if `currentPoints < points`.
 
 **Invariant:** `currentPoints >= 0` always. The DB `CHECK (current_points >= 0)` enforces this at persistence level.
 

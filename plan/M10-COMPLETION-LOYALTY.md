@@ -529,33 +529,48 @@ Implement the admin-facing redemption flow. When a customer uses their points (e
 
 ---
 
-### M10-S08 — Points expiry daily cron
+### M10-S08 — Points expiry HTTP trigger
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
 **Docs to load:** `docs/02-DOMAIN_MODEL.md` § Loyalty context
 
 **Description:**  
-Implement the daily cron that decrements `loyalty_balances.current_points` when `loyalty_entries` expire. Runs at 02:00 UTC via NestJS `@nestjs/schedule`. Fully idempotent via `balance_expiry_log` — if the cron runs twice in a day (restart, redeploy), no entry is processed twice.
+Implement the points expiry logic as an internal HTTP endpoint. A GCP Cloud Scheduler job calls `POST /internal/loyalty/expire-points` at 02:00 UTC daily, which decrements `loyalty_balances.current_points` for all `loyalty_entries` whose `expires_at` has passed. Fully idempotent via `balance_expiry_log` — if the scheduler fires twice, no entry is double-processed.
 
-**`ExpiryPointsCron`:**
-```
-@Cron('0 2 * * *')  // 02:00 UTC daily
-```
-1. Find all `loyalty_entries` where `expires_at < now()` AND `id NOT IN (SELECT entry_id FROM balance_expiry_log)`
-2. Group by `(tenant_id, customer_id)` — sum points per customer
-3. For each customer group:
-   a. Load `LoyaltyBalance`
-   b. Call `balance.decrement(expiredPoints)` — if balance somehow already 0 (edge case), skip silently
-   c. In a single `txManager.run()`: `balanceRepo.upsert(balance)` + insert all entry IDs into `balance_expiry_log`
-4. Log summary: `N customers, M total points expired`
+**Why HTTP trigger instead of `@nestjs/schedule` + `@Cron`:**
+- Cloud Run scales to zero — an in-process cron never fires when no instance is running.
+- Multi-pod deployments would execute a `@Cron` on every pod simultaneously.
+- GCP Cloud Scheduler issues one HTTP request; exactly one pod handles it.
+
+**Backend endpoint:** `POST /internal/loyalty/expire-points`  
+- No JWT required — network-protected (backend not publicly reachable from the internet). M115-S03 adds `InternalApiGuard` (`X-Internal-Key` header), consistent with the other `/internal/*` controllers.
+- No request body.
+- Returns: `200 { processedEntries: number, affectedCustomers: number, totalPointsExpired: number }`
+
+**`ExpirePointsUseCase`:**
+1. `entryRepo.findExpiringBefore(new Date())` — all entries whose `expires_at < now()`
+2. For each entry, `balanceExpiryLogRepo.hasBeenProcessed(entry.id)` → skip if already processed
+3. Group remaining entries by `(tenantId, customerId)` — sum points per customer
+4. For each customer group:
+   a. `balanceRepo.findByCustomer(tenantId, customerId)` — if null (edge case), skip silently
+   b. `balance.decrement(expiredPoints)` — if `currentPoints` already 0, skip silently
+   c. In a single `txManager.run()`: `balanceRepo.upsert(balance)` + `balanceExpiryLogRepo.markProcessed(entryId)` for each entry in the group
+5. Return `{ processedEntries, affectedCustomers, totalPointsExpired }`
+
+**GCP Cloud Scheduler (Terraform):**
+- Schedule: `0 2 * * *` (02:00 UTC)
+- HTTP target: `POST <BACKEND_INTERNAL_URL>/internal/loyalty/expire-points`
+- The Terraform resource (`google_cloud_scheduler_job`) is tracked as a separate infra task in M115 or M16. The endpoint must be deployed before the scheduler resource is created.
 
 **Acceptance criteria:**
 - [ ] Balance decremented by exact points of expired entries
-- [ ] Running cron twice (simulated by calling handler twice in test) → no double-decrement
-- [ ] Entry in `balance_expiry_log` after processing
-- [ ] If no entries expired → cron exits cleanly with no DB writes
-- [ ] Integration test: insert entry with `expires_at` in past → run cron → assert balance decremented + expiry log entry
+- [ ] Calling the endpoint twice for the same expired entries → no double-decrement (idempotent via `balance_expiry_log`)
+- [ ] `balance_expiry_log` row inserted per processed entry
+- [ ] If no entries have expired → returns `{ processedEntries: 0, affectedCustomers: 0, totalPointsExpired: 0 }` with no DB writes
+- [ ] No `@nestjs/schedule` or `@Cron` decorator used anywhere in this story
+- [ ] Integration test: insert entry with `expires_at` in past → `POST /internal/loyalty/expire-points` → assert balance decremented + `balance_expiry_log` row exists
+- [ ] Integration test: call endpoint twice → balance decremented only once, one `balance_expiry_log` row
 
 **Dependencies:** M10-S03.1
 

@@ -15,6 +15,7 @@ import { GetLoyaltyEntriesUseCase } from './application/use-cases/get-loyalty-en
 import { GetLoyaltyRedemptionsUseCase } from './application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
 import { RecordLoyaltyEntriesUseCase } from './application/use-cases/record-loyalty-entries/record-loyalty-entries.use-case';
 import { RedeemPointsUseCase } from './application/use-cases/redeem-points/redeem-points.use-case';
+import { ExpirePointsUseCase } from './application/use-cases/expire-points/expire-points.use-case';
 import { BalanceExpiryLogEntity } from './infrastructure/entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from './infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from './infrastructure/entities/loyalty-entry.entity';
@@ -23,6 +24,7 @@ import { ProcessedEventEntity } from './infrastructure/entities/processed-event.
 import { LoyaltyTenantSettingsAdapter } from './infrastructure/cross-context/loyalty-tenant-settings.adapter';
 import { ServiceCatalogAdapter } from './infrastructure/cross-context/service-catalog.adapter';
 import { LoyaltyController } from './infrastructure/controllers/loyalty.controller';
+import { InternalLoyaltyController } from './infrastructure/controllers/internal-loyalty.controller';
 import { CustomerRoleGuard } from '../../shared/guards/customer-role.guard';
 import { BookingCompletedHandler } from './infrastructure/events/booking-completed.handler';
 import { TypeOrmBalanceExpiryLogRepository } from './infrastructure/repositories/typeorm-balance-expiry-log.repository';
@@ -44,7 +46,7 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
     TenantModule,
     PlatformModule,
   ],
-  controllers: [LoyaltyController],
+  controllers: [LoyaltyController, InternalLoyaltyController],
   providers: [
     { provide: LOYALTY_ENTRY_REPOSITORY, useClass: TypeOrmLoyaltyEntryRepository },
     { provide: LOYALTY_BALANCE_REPOSITORY, useClass: TypeOrmLoyaltyBalanceRepository },
@@ -59,6 +61,7 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
     GetLoyaltyEntriesUseCase,
     GetLoyaltyRedemptionsUseCase,
     RedeemPointsUseCase,
+    ExpirePointsUseCase,
     BookingCompletedHandler,
   ],
   exports: [

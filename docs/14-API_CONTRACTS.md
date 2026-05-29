@@ -731,6 +731,44 @@ Content-Type: application/json
 
 ---
 
+### `POST /internal/loyalty/expire-points` — Run daily points expiry (M10-S08)
+
+Decrements `loyalty_balances.current_points` for all `loyalty_entries` whose `expires_at` has passed. Triggered by a GCP Cloud Scheduler job at 02:00 UTC daily. Fully idempotent — safe to call multiple times; already-processed entries are skipped via `balance_expiry_log`.
+
+**Why HTTP trigger (not `@Cron`):** Cloud Run scales to zero and multi-pod deployments would execute a `@Cron` on every pod simultaneously. GCP Cloud Scheduler issues one HTTP request; one pod handles it.
+
+**Request headers:**
+```
+(no Authorization header required in MVP — network-protected; M115-S03 adds X-Internal-Key via InternalApiGuard)
+```
+
+**Request body:** none
+
+**Response `200 OK`:**
+```json
+{
+  "processedEntries": 12,
+  "affectedCustomers": 5,
+  "totalPointsExpired": 87
+}
+```
+Returns `{ processedEntries: 0, affectedCustomers: 0, totalPointsExpired: 0 }` when no entries have expired.
+
+**GCP Cloud Scheduler resource (Terraform — tracked in M115/M16):**
+```hcl
+resource "google_cloud_scheduler_job" "loyalty_expire_points" {
+  name     = "loyalty-expire-points"
+  schedule = "0 2 * * *"
+  time_zone = "UTC"
+  http_target {
+    uri        = "${var.backend_internal_url}/internal/loyalty/expire-points"
+    http_method = "POST"
+  }
+}
+```
+
+---
+
 ## Error Handling (RFC 9457)
 
 All non-2xx responses follow the **Problem Details for HTTP APIs** standard.

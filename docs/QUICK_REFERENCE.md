@@ -186,7 +186,7 @@ LoyaltyBalance {
 }
 ```
 
-PRIMARY KEY (tenant_id, customer_id). Upserted on earn, decremented on redemption or daily expiry cron. Read this for balance — do NOT compute SUM over entries.
+PRIMARY KEY (tenant_id, customer_id). Upserted on earn, decremented on redemption or daily expiry trigger (GCP Cloud Scheduler → POST /internal/loyalty/expire-points). Read this for balance — do NOT compute SUM over entries.
 
 ### LoyaltyRedemption Aggregate (append-only)
 ```
