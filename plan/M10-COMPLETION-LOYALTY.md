@@ -411,7 +411,7 @@ Redemptions: `{ redemptions: [{ redemptionId, pointsRedeemed, redeemedAt, notes 
 
 ---
 
-### M10-S06 — ServicePointsEarned notification consumer
+### M10-S06 — ServicePointsEarned notification consumer ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
