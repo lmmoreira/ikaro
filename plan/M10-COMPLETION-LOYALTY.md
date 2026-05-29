@@ -529,7 +529,7 @@ Implement the admin-facing redemption flow. When a customer uses their points (e
 
 ---
 
-### M10-S08 — Points expiry HTTP trigger
+### M10-S08 — Points expiry HTTP trigger ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
