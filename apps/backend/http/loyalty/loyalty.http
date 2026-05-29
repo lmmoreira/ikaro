@@ -62,3 +62,53 @@ x-actor-id: {{staffId}}
 x-actor-type: STAFF
 x-actor-role: MANAGER
 x-correlation-id: {{correlationId}}
+
+###
+
+### POST /loyalty/redeem — admin records a point redemption (MANAGER or STAFF role)
+POST {{baseUrl}}/loyalty/redeem
+Content-Type: application/json
+x-tenant-id: {{tenantId}}
+x-actor-id: {{staffId}}
+x-actor-type: STAFF
+x-actor-role: MANAGER
+x-correlation-id: {{correlationId}}
+
+{
+  "customerId": "{{customerId}}",
+  "pointsToRedeem": 50,
+  "notes": "Free basic wash applied",
+  "bookingId": null
+}
+
+###
+
+### POST /loyalty/redeem — 422 insufficient points
+POST {{baseUrl}}/loyalty/redeem
+Content-Type: application/json
+x-tenant-id: {{tenantId}}
+x-actor-id: {{staffId}}
+x-actor-type: STAFF
+x-actor-role: MANAGER
+x-correlation-id: {{correlationId}}
+
+{
+  "customerId": "{{customerId}}",
+  "pointsToRedeem": 99999
+}
+
+###
+
+### POST /loyalty/redeem — 403 CUSTOMER role not allowed
+POST {{baseUrl}}/loyalty/redeem
+Content-Type: application/json
+x-tenant-id: {{tenantId}}
+x-actor-id: {{customerId}}
+x-actor-type: CUSTOMER
+x-actor-role: CUSTOMER
+x-correlation-id: {{correlationId}}
+
+{
+  "customerId": "{{customerId}}",
+  "pointsToRedeem": 10
+}

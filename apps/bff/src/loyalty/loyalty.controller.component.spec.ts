@@ -15,6 +15,7 @@ import {
   LoyaltyBalanceResponse,
   LoyaltyEntriesResponse,
   LoyaltyRedemptionsResponse,
+  RedeemPointsResponse,
 } from './loyalty.types';
 
 const OTHER_CUSTOMER_ID = 'cccccccc-0000-4000-8000-000000000099';
@@ -239,6 +240,89 @@ describe('LoyaltyController (component)', () => {
         .set('x-tenant-id', TENANT_ID);
 
       expect(res.status).toBe(200);
+    });
+  });
+
+  // ── Admin: POST /v1/loyalty/redeem ────────────────────────────────────────
+
+  describe('POST /v1/loyalty/redeem', () => {
+    const mockRedeemResponse: RedeemPointsResponse = {
+      redemptionId: 'r3333333-0000-4000-8000-000000000001',
+      customerId: OTHER_CUSTOMER_ID,
+      pointsRedeemed: 50,
+      newBalance: 25,
+      redeemedAt: '2026-05-29T14:00:00.000Z',
+    };
+
+    it('returns 201 for MANAGER JWT', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockResolvedValue(mockRedeemResponse);
+      const token = makeManagerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/loyalty/redeem')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID)
+        .send({ customerId: OTHER_CUSTOMER_ID, pointsToRedeem: 50 });
+
+      expect(res.status).toBe(201);
+      expect(res.body.newBalance).toBe(25);
+      expect(backendHttpService.post).toHaveBeenCalledWith(
+        '/loyalty/redeem',
+        expect.objectContaining({
+          customerId: OTHER_CUSTOMER_ID,
+          pointsToRedeem: 50,
+        }),
+      );
+    });
+
+    it('returns 201 for STAFF JWT', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockResolvedValue(mockRedeemResponse);
+      const token = makeStaffJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/loyalty/redeem')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID)
+        .send({ customerId: OTHER_CUSTOMER_ID, pointsToRedeem: 50 });
+
+      expect(res.status).toBe(201);
+    });
+
+    it('returns 403 for CUSTOMER JWT', async () => {
+      setupActiveGuardMock(httpService);
+      const token = makeCustomerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/loyalty/redeem')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID)
+        .send({ customerId: OTHER_CUSTOMER_ID, pointsToRedeem: 50 });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 401 without JWT', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/v1/loyalty/redeem')
+        .set('x-tenant-id', TENANT_ID)
+        .send({ customerId: OTHER_CUSTOMER_ID, pointsToRedeem: 50 });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 400 for invalid body (missing customerId)', async () => {
+      setupActiveGuardMock(httpService);
+      const token = makeManagerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/loyalty/redeem')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID)
+        .send({ pointsToRedeem: 50 });
+
+      expect(res.status).toBe(400);
     });
   });
 });

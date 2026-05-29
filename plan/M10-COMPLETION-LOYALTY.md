@@ -498,7 +498,7 @@ Implement the admin-facing redemption flow. When a customer uses their points (e
 3. Call `balance.decrement(pointsToRedeem)`
 4. Call `LoyaltyRedemption.record({ tenantId, customerId, pointsRedeemed, redeemedBy: staffId, notes, bookingId })`
 5. In a single `txManager.run()`: `balanceRepo.upsert(balance)` + `redemptionRepo.save(redemption)`
-6. Return `{ redemptionId, newBalance: balance.currentPoints }`
+6. Return `{ redemptionId, customerId, pointsRedeemed, newBalance: balance.currentPoints, redeemedAt: redemption.redeemedAt.toISOString() }`
 
 **Backend endpoint:** `POST /loyalty/redeem`  
 **BFF endpoint:** `POST /v1/loyalty/redeem`
@@ -509,7 +509,7 @@ Implement the admin-facing redemption flow. When a customer uses their points (e
   "customerId": "uuid",
   "pointsToRedeem": 50,
   "notes": "Free basic wash applied",
-  "bookingId": "uuid"
+  "bookingId": "uuid?"
 }
 ```
 - Returns: `201 { redemptionId, customerId, pointsRedeemed, newBalance, redeemedAt }`
@@ -523,6 +523,7 @@ Implement the admin-facing redemption flow. When a customer uses their points (e
 - [ ] `CUSTOMER` role calling this endpoint → `403`
 - [ ] Tenant isolation: staff from Tenant B cannot redeem points for Tenant A customer → `404`
 - [ ] Integration test: earn 30pts → redeem 20pts → assert `current_points = 10` + redemption record exists
+- [ ] `mapLoyaltyError` maps `LoyaltyBalanceNotFoundError → 404` and `LoyaltyInsufficientPointsError → 422`
 
 **Dependencies:** M10-S03.1
 

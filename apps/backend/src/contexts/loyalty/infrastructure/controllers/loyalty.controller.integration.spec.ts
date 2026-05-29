@@ -345,4 +345,136 @@ describe('LoyaltyController (integration)', () => {
       expect(body.redemptions[0].pointsRedeemed).toBe(15);
     });
   });
+
+  // ── POST /loyalty/redeem ─────────────────────────────────────────────────
+
+  describe('POST /loyalty/redeem (admin)', () => {
+    it('decrements balance and inserts redemption record atomically', async () => {
+      const { body: tb } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .send({
+          name: 'Redeem Test Tenant',
+          slug: 'redeem-test-tenant',
+          adminEmail: 'redeem@test.example',
+        })
+        .expect(201);
+      const redeemTenantId = tb.tenantId as string;
+
+      await ds
+        .getRepository(LoyaltyBalanceEntity)
+        .save(
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(redeemTenantId)
+            .withCustomerId(CUSTOMER_ID)
+            .withCurrentPoints(30)
+            .build(),
+        );
+
+      const { body } = await request(app.getHttpServer())
+        .post('/loyalty/redeem')
+        .set(actorHeaders(redeemTenantId, STAFF_ID, 'MANAGER'))
+        .send({ customerId: CUSTOMER_ID, pointsToRedeem: 20, notes: 'Free wash' })
+        .expect(201);
+
+      expect(body.newBalance).toBe(10);
+      expect(body.pointsRedeemed).toBe(20);
+      expect(body.customerId).toBe(CUSTOMER_ID);
+      expect(body.redemptionId).toBeDefined();
+
+      const balance = await ds
+        .getRepository(LoyaltyBalanceEntity)
+        .findOne({ where: { tenantId: redeemTenantId, customerId: CUSTOMER_ID } });
+      expect(balance?.currentPoints).toBe(10);
+
+      const redemptions = await ds
+        .getRepository(LoyaltyRedemptionEntity)
+        .find({ where: { tenantId: redeemTenantId, customerId: CUSTOMER_ID } });
+      expect(redemptions).toHaveLength(1);
+      expect(redemptions[0].notes).toBe('Free wash');
+
+      await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId: redeemTenantId });
+      await ds.getRepository(LoyaltyRedemptionEntity).delete({ tenantId: redeemTenantId });
+    });
+
+    it('returns 404 when customer has no balance row', async () => {
+      const NO_BALANCE_CUSTOMER = 'ffffffff-0000-7000-8000-000000000001';
+      const res = await request(app.getHttpServer())
+        .post('/loyalty/redeem')
+        .set(actorHeaders(tenantId, STAFF_ID, 'MANAGER'))
+        .send({ customerId: NO_BALANCE_CUSTOMER, pointsToRedeem: 10 });
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 422 when redeeming more points than balance', async () => {
+      const { body: tb2 } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .send({
+          name: 'Low Balance Tenant',
+          slug: 'low-balance-tenant',
+          adminEmail: 'low@test.example',
+        })
+        .expect(201);
+      const lowTenantId = tb2.tenantId as string;
+
+      await ds
+        .getRepository(LoyaltyBalanceEntity)
+        .save(
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(lowTenantId)
+            .withCustomerId(CUSTOMER_ID)
+            .withCurrentPoints(5)
+            .build(),
+        );
+
+      const res = await request(app.getHttpServer())
+        .post('/loyalty/redeem')
+        .set(actorHeaders(lowTenantId, STAFF_ID, 'MANAGER'))
+        .send({ customerId: CUSTOMER_ID, pointsToRedeem: 10 });
+      expect(res.status).toBe(422);
+
+      await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId: lowTenantId });
+    });
+
+    it('returns 403 when called with CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/loyalty/redeem')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .send({ customerId: CUSTOMER_ID, pointsToRedeem: 10 });
+      expect(res.status).toBe(403);
+    });
+
+    it('tenant isolation: STAFF from Tenant B cannot redeem Tenant A customer points', async () => {
+      const { body: iso } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .send({
+          name: 'Isolation Tenant D',
+          slug: 'isolation-tenant-d',
+          adminEmail: 'd@isolation.test',
+        })
+        .expect(201);
+      const tenantDId = iso.tenantId as string;
+
+      await ds
+        .getRepository(LoyaltyBalanceEntity)
+        .save(
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(tenantId)
+            .withCustomerId(CUSTOMER_ID)
+            .withCurrentPoints(100)
+            .build(),
+        );
+
+      const res = await request(app.getHttpServer())
+        .post('/loyalty/redeem')
+        .set(actorHeaders(tenantDId, STAFF_ID, 'MANAGER'))
+        .send({ customerId: CUSTOMER_ID, pointsToRedeem: 10 });
+
+      expect(res.status).toBe(404);
+
+      await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId });
+    });
+  });
 });

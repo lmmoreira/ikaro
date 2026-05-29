@@ -30,3 +30,18 @@ export interface LoyaltyRedemptionsResponse {
   redemptions: LoyaltyRedemptionItem[];
   pagination: { page: number; limit: number; total: number };
 }
+
+export interface RedeemPointsRequest {
+  customerId: string;
+  pointsToRedeem: number;
+  notes?: string | null;
+  bookingId?: string | null;
+}
+
+export interface RedeemPointsResponse {
+  redemptionId: string;
+  customerId: string;
+  pointsRedeemed: number;
+  newBalance: number;
+  redeemedAt: string;
+}

@@ -4,6 +4,7 @@ import {
   LoyaltyBalanceResponse,
   LoyaltyEntriesResponse,
   LoyaltyRedemptionsResponse,
+  RedeemPointsResponse,
 } from './loyalty.types';
 
 const CUSTOMER_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -123,6 +124,37 @@ describe('LoyaltyController (BFF)', () => {
         `/customers/${CUSTOMER_ID}/loyalty/redemptions`,
         { page: 1, limit: 20 },
       );
+    });
+  });
+
+  describe('redeemPoints()', () => {
+    it('proxies to POST /loyalty/redeem and returns redemption result', async () => {
+      const mockResponse: RedeemPointsResponse = {
+        redemptionId: 'r2222222-0000-4000-8000-000000000001',
+        customerId: CUSTOMER_ID,
+        pointsRedeemed: 50,
+        newBalance: 25,
+        redeemedAt: '2026-05-29T14:00:00.000Z',
+      };
+      const backendHttp = makeBackendHttp();
+      backendHttp.post.mockResolvedValue(mockResponse);
+      const controller = new LoyaltyController(backendHttp);
+
+      const result = await controller.redeemPoints({
+        customerId: CUSTOMER_ID,
+        pointsToRedeem: 50,
+        notes: 'Free wash',
+        bookingId: null,
+      });
+
+      expect(backendHttp.post).toHaveBeenCalledWith('/loyalty/redeem', {
+        customerId: CUSTOMER_ID,
+        pointsToRedeem: 50,
+        notes: 'Free wash',
+        bookingId: null,
+      });
+      expect(result.newBalance).toBe(25);
+      expect(result.redemptionId).toBe('r2222222-0000-4000-8000-000000000001');
     });
   });
 });

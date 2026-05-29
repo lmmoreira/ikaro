@@ -624,6 +624,42 @@ All endpoints require JWT with `MANAGER|STAFF` role. The `customerId` is taken f
 - `GET /customers/:customerId/loyalty/entries?page=1&limit=20` — same response shape as customer entries endpoint.
 - `GET /customers/:customerId/loyalty/redemptions?page=1&limit=20` — same response shape as customer redemptions endpoint.
 
+### **Loyalty Redemption — Admin (M10-S07)**
+
+Records a point redemption for a customer. Decrements `LoyaltyBalance.current_points` and inserts a `LoyaltyRedemption` audit row atomically.
+
+**Backend:** `POST /loyalty/redeem`  
+**BFF:** `POST /v1/loyalty/redeem`  
+Requires JWT with `MANAGER|STAFF` role.
+
+Request body:
+```json
+{
+  "customerId": "uuid",
+  "pointsToRedeem": 50,
+  "notes": "Free basic wash applied",
+  "bookingId": "uuid"
+}
+```
+- `notes`: optional string
+- `bookingId`: optional UUID — the booking the redemption is tied to
+
+Response `201`:
+```json
+{
+  "redemptionId": "uuid",
+  "customerId": "uuid",
+  "pointsRedeemed": 50,
+  "newBalance": 25,
+  "redeemedAt": "2026-05-29T14:00:00.000Z"
+}
+```
+
+Errors:
+- `404` — customer has no loyalty balance row (has never earned points)
+- `422` — `pointsToRedeem` exceeds `current_points`
+- `403` — caller has `CUSTOMER` role
+
 ---
 
 ## 6. System & Future

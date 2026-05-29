@@ -2,6 +2,7 @@ import { InMemoryLoyaltyBalanceRepository } from '../../../../test/infrastructur
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyRedemptionRepository } from '../../../../test/infrastructure/in-memory-loyalty-redemption.repository';
 import { InMemoryServiceCatalogPort } from '../../../../test/infrastructure/in-memory-service-catalog.port';
+import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import {
   LoyaltyBalanceBuilder,
@@ -11,6 +12,7 @@ import {
 import { GetLoyaltyBalanceUseCase } from '../../application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
 import { GetLoyaltyEntriesUseCase } from '../../application/use-cases/get-loyalty-entries/get-loyalty-entries.use-case';
 import { GetLoyaltyRedemptionsUseCase } from '../../application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
+import { RedeemPointsUseCase } from '../../application/use-cases/redeem-points/redeem-points.use-case';
 import { LoyaltyController } from './loyalty.controller';
 
 const TENANT_ID = '10000000-0000-7000-8000-000000000001';
@@ -23,11 +25,13 @@ describe('LoyaltyController', () => {
   let entryRepo: InMemoryLoyaltyEntryRepository;
   let redemptionRepo: InMemoryLoyaltyRedemptionRepository;
   let serviceCatalog: InMemoryServiceCatalogPort;
+  let txManager: InMemoryTransactionManager;
   let controller: LoyaltyController;
 
   describe('getBalance() — customer route', () => {
     beforeEach(() => {
       balanceRepo = new InMemoryLoyaltyBalanceRepository();
+      txManager = new InMemoryTransactionManager();
       entryRepo = new InMemoryLoyaltyEntryRepository();
       redemptionRepo = new InMemoryLoyaltyRedemptionRepository();
       serviceCatalog = new InMemoryServiceCatalogPort();
@@ -41,6 +45,7 @@ describe('LoyaltyController', () => {
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
     });
@@ -68,6 +73,7 @@ describe('LoyaltyController', () => {
   describe('getEntries() — customer route', () => {
     beforeEach(() => {
       balanceRepo = new InMemoryLoyaltyBalanceRepository();
+      txManager = new InMemoryTransactionManager();
       entryRepo = new InMemoryLoyaltyEntryRepository();
       redemptionRepo = new InMemoryLoyaltyRedemptionRepository();
       serviceCatalog = new InMemoryServiceCatalogPort();
@@ -81,6 +87,7 @@ describe('LoyaltyController', () => {
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
     });
@@ -108,6 +115,7 @@ describe('LoyaltyController', () => {
   describe('getRedemptions() — customer route', () => {
     beforeEach(() => {
       balanceRepo = new InMemoryLoyaltyBalanceRepository();
+      txManager = new InMemoryTransactionManager();
       entryRepo = new InMemoryLoyaltyEntryRepository();
       redemptionRepo = new InMemoryLoyaltyRedemptionRepository();
       serviceCatalog = new InMemoryServiceCatalogPort();
@@ -121,6 +129,7 @@ describe('LoyaltyController', () => {
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
     });
@@ -147,6 +156,7 @@ describe('LoyaltyController', () => {
   describe('getBalanceAdmin() — admin route', () => {
     beforeEach(() => {
       balanceRepo = new InMemoryLoyaltyBalanceRepository();
+      txManager = new InMemoryTransactionManager();
       entryRepo = new InMemoryLoyaltyEntryRepository();
       redemptionRepo = new InMemoryLoyaltyRedemptionRepository();
       serviceCatalog = new InMemoryServiceCatalogPort();
@@ -160,6 +170,7 @@ describe('LoyaltyController', () => {
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
     });
@@ -186,6 +197,7 @@ describe('LoyaltyController', () => {
   describe('getEntriesAdmin() — admin route', () => {
     beforeEach(() => {
       balanceRepo = new InMemoryLoyaltyBalanceRepository();
+      txManager = new InMemoryTransactionManager();
       entryRepo = new InMemoryLoyaltyEntryRepository();
       redemptionRepo = new InMemoryLoyaltyRedemptionRepository();
       serviceCatalog = new InMemoryServiceCatalogPort();
@@ -199,6 +211,7 @@ describe('LoyaltyController', () => {
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
     });
@@ -220,6 +233,7 @@ describe('LoyaltyController', () => {
   describe('getRedemptionsAdmin() — admin route', () => {
     beforeEach(() => {
       balanceRepo = new InMemoryLoyaltyBalanceRepository();
+      txManager = new InMemoryTransactionManager();
       entryRepo = new InMemoryLoyaltyEntryRepository();
       redemptionRepo = new InMemoryLoyaltyRedemptionRepository();
       serviceCatalog = new InMemoryServiceCatalogPort();
@@ -233,6 +247,7 @@ describe('LoyaltyController', () => {
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
     });
@@ -248,6 +263,65 @@ describe('LoyaltyController', () => {
 
       const result = await controller.getRedemptionsAdmin(CUSTOMER_ID, { page: 1, limit: 20 });
       expect(result.redemptions[0].pointsRedeemed).toBe(20);
+    });
+  });
+
+  describe('recordRedemption() — admin route', () => {
+    beforeEach(() => {
+      balanceRepo = new InMemoryLoyaltyBalanceRepository();
+      txManager = new InMemoryTransactionManager();
+      entryRepo = new InMemoryLoyaltyEntryRepository();
+      redemptionRepo = new InMemoryLoyaltyRedemptionRepository();
+      serviceCatalog = new InMemoryServiceCatalogPort();
+      const ctx = new TenantContextBuilder()
+        .withTenantId(TENANT_ID)
+        .withActorId(STAFF_ID)
+        .withActorType('STAFF')
+        .withActorRole('MANAGER')
+        .build();
+      controller = new LoyaltyController(
+        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
+        ctx,
+      );
+    });
+
+    it('decrements balance and returns redemption result', async () => {
+      await balanceRepo.upsert(
+        new LoyaltyBalanceBuilder()
+          .withTenantId(TENANT_ID)
+          .withCustomerId(CUSTOMER_ID)
+          .withCurrentPoints(50)
+          .build(),
+      );
+
+      const result = await controller.recordRedemption({
+        customerId: CUSTOMER_ID,
+        pointsToRedeem: 20,
+        notes: 'Free wash',
+        bookingId: null,
+      });
+
+      expect(result.newBalance).toBe(30);
+      expect(result.pointsRedeemed).toBe(20);
+      expect(result.customerId).toBe(CUSTOMER_ID);
+    });
+
+    it('maps LoyaltyBalanceNotFoundError to 404 HttpException', async () => {
+      let caught: unknown;
+      try {
+        await controller.recordRedemption({
+          customerId: CUSTOMER_ID,
+          pointsToRedeem: 10,
+          notes: null,
+          bookingId: null,
+        });
+      } catch (err) {
+        caught = err;
+      }
+      expect((caught as { status: number }).status).toBe(404);
     });
   });
 });

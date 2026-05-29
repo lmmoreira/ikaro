@@ -1,4 +1,14 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
@@ -7,6 +17,7 @@ import {
   LoyaltyBalanceResponse,
   LoyaltyEntriesResponse,
   LoyaltyRedemptionsResponse,
+  RedeemPointsResponse,
 } from './loyalty.types';
 
 const PaginationSchema = z.object({
@@ -15,6 +26,15 @@ const PaginationSchema = z.object({
 });
 
 type PaginationQuery = z.infer<typeof PaginationSchema>;
+
+const RedeemPointsSchema = z.object({
+  customerId: z.uuid(),
+  pointsToRedeem: z.number().int().min(1),
+  notes: z.string().optional().nullable(),
+  bookingId: z.uuid().optional().nullable(),
+});
+
+type RedeemPointsBody = z.infer<typeof RedeemPointsSchema>;
 
 @Controller()
 export class LoyaltyController {
@@ -45,6 +65,15 @@ export class LoyaltyController {
   }
 
   // ── Admin routes ──────────────────────────────────────────────────────────
+
+  @Post('loyalty/redeem')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles('MANAGER', 'STAFF')
+  redeemPoints(
+    @Body(new ZodValidationPipe(RedeemPointsSchema)) body: RedeemPointsBody,
+  ): Promise<RedeemPointsResponse> {
+    return this.backendHttp.post<RedeemPointsResponse>('/loyalty/redeem', body);
+  }
 
   @Get('customers/:customerId/loyalty/balance')
   @Roles('MANAGER', 'STAFF')
