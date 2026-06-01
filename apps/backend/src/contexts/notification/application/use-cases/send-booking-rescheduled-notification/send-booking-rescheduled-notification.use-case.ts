@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { formatBRL } from '../../../../../shared/utils/money-format';
 import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../../shared/utils/calendar-date';
+import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -24,8 +25,6 @@ import {
 } from '../../ports/notification-tenant.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-const CUSTOMER_NOTIFICATION_TYPE = 'BOOKING_RESCHEDULED_CUSTOMER';
-const ADMIN_NOTIFICATION_TYPE = 'BOOKING_RESCHEDULED_ADMIN';
 const CHANNEL = 'EMAIL';
 
 export interface SendBookingRescheduledNotificationUseCaseResult {
@@ -49,8 +48,18 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
     dto: SendBookingRescheduledNotificationDto,
   ): Promise<SendBookingRescheduledNotificationUseCaseResult> {
     const [customerSent, adminSent] = await Promise.all([
-      this.isAlreadySent(dto.tenantId, dto.eventId, CUSTOMER_NOTIFICATION_TYPE, CHANNEL),
-      this.isAlreadySent(dto.tenantId, dto.eventId, ADMIN_NOTIFICATION_TYPE, CHANNEL),
+      this.isAlreadySent(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER,
+        CHANNEL,
+      ),
+      this.isAlreadySent(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN,
+        CHANNEL,
+      ),
     ]);
 
     if (customerSent && adminSent) {
@@ -79,7 +88,7 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
         tenantId: dto.tenantId,
         to: dto.guestEmail,
         subject: 'Seu agendamento foi reagendado',
-        templateKey: 'booking-rescheduled-customer',
+        templateKey: NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER,
         data: {
           serviceNames,
           totalPrice: formattedTotal,
@@ -90,7 +99,12 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
           newLocalTime,
         },
       });
-      await this.saveLog(dto.tenantId, dto.eventId, CUSTOMER_NOTIFICATION_TYPE, CHANNEL);
+      await this.saveLog(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER,
+        CHANNEL,
+      );
       customerEmailSent = true;
     }
 
@@ -103,7 +117,7 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
               tenantId: dto.tenantId,
               to: email,
               subject: 'Agendamento reagendado',
-              templateKey: 'booking-rescheduled-admin',
+              templateKey: NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN,
               data: {
                 guestName: dto.guestName,
                 previousLocalDate,
@@ -116,7 +130,12 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
             }),
           ),
         );
-        await this.saveLog(dto.tenantId, dto.eventId, ADMIN_NOTIFICATION_TYPE, CHANNEL);
+        await this.saveLog(
+          dto.tenantId,
+          dto.eventId,
+          NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN,
+          CHANNEL,
+        );
         adminEmailSent = true;
       }
     }

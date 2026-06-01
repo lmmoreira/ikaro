@@ -23,7 +23,9 @@ import { ProcessedEventEntity } from '../contexts/loyalty/infrastructure/entitie
 import { CreateLoyaltyLoyaltyEntries1748000000016 } from '../contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries';
 import { CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017 } from '../contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
+import { NotificationTemplateEntity } from '../contexts/notification/infrastructure/entities/notification-template.entity';
 import { CreateNotificationLogs1748000000010 } from '../contexts/notification/infrastructure/migrations/1748000000010-CreateNotificationLogs';
+import { CreateNotificationTemplates1748100000010 } from '../contexts/notification/infrastructure/migrations/1748100000010-CreateNotificationTemplates';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
 import { CreatePlatformTenants1716500000001 } from '../contexts/platform/infrastructure/migrations/1716500000001-CreatePlatformTenants';
@@ -76,6 +78,7 @@ export default async function globalSetup(): Promise<void> {
       CustomerEntity,
       StaffEntity,
       NotificationLogEntity,
+      NotificationTemplateEntity,
       LoyaltyEntryEntity,
       LoyaltyBalanceEntity,
       LoyaltyRedemptionEntity,
@@ -92,6 +95,7 @@ export default async function globalSetup(): Promise<void> {
       AddUniqueEmailPerTenant1716600000004,
       AddInvitedByDeactivatedByToStaff1748000000001,
       CreateNotificationLogs1748000000010,
+      CreateNotificationTemplates1748100000010,
       CreateBookingServices1748000000011,
       CreateBookingScheduleClosures1748000000012,
       CreateBookingScheduleOpenings1748000000013,

@@ -66,7 +66,7 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
     expect(link).not.toContain('/dashboard/');
 
     expect(logRepo.all).toHaveLength(1);
-    expect(logRepo.all[0].notificationType).toBe('BOOKING_INFO_REQUESTED_CUSTOMER');
+    expect(logRepo.all[0].notificationType).toBe('booking-info-requested-customer');
   });
 
   it('dispatches info-request email to authenticated customer with dashboard link', async () => {

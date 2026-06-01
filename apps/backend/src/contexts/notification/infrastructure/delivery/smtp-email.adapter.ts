@@ -7,6 +7,7 @@ import {
   IDeliveryChannel,
 } from '../../application/ports/delivery-channel.port';
 import { OutboundMessage } from '../../application/ports/notification-dispatcher.port';
+import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 
 @Injectable()
 export class SmtpEmailAdapter implements IDeliveryChannel {
@@ -43,7 +44,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
 
   private render(message: OutboundMessage): string {
     switch (message.templateKey) {
-      case 'staff-invitation': {
+      case NotificationTemplateKey.STAFF_INVITATION: {
         const { tenantName, activationLink, staffName } = message.data as {
           tenantName: string;
           activationLink: string;
@@ -56,7 +57,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         <p>Se você não esperava este convite, por favor ignore este e-mail.</p>
       `;
       }
-      case 'booking-requested-admin': {
+      case NotificationTemplateKey.BOOKING_REQUESTED_ADMIN: {
         const { guestName, scheduledAt, serviceNames, totalPrice, pickupAddress } =
           message.data as {
             guestName: string;
@@ -77,7 +78,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         ${pickupLine}
       `;
       }
-      case 'booking-requested-customer': {
+      case NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER: {
         const { guestName, scheduledAt, serviceNames, totalPrice, tenantName } = message.data as {
           guestName: string;
           scheduledAt: string;
@@ -94,7 +95,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         <p>Entraremos em contato para confirmar seu agendamento.</p>
       `;
       }
-      case 'booking-approved-customer': {
+      case NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER: {
         const { guestName, localDate, localTime, serviceNames, lineItems, totalPrice } =
           message.data as {
             guestName: string;
@@ -116,7 +117,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         <p>Aguardamos sua visita!</p>
       `;
       }
-      case 'booking-rejected-customer': {
+      case NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER: {
         const { guestName, reason } = message.data as {
           guestName: string;
           reason: string;
@@ -128,7 +129,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         <p>Se desejar, realize um novo agendamento em nosso site.</p>
       `;
       }
-      case 'booking-info-requested-customer': {
+      case NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER: {
         const { guestName, informationNeeded, respondLink } = message.data as {
           guestName: string;
           informationNeeded: string;
@@ -141,7 +142,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         <p><a href="${respondLink}">Clique aqui para responder</a></p>
       `;
       }
-      case 'booking-info-submitted-admin': {
+      case NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN: {
         const { submittedByEmail, customerResponse, bookingLink } = message.data as {
           submittedByEmail: string;
           customerResponse: string;
@@ -153,7 +154,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         <p><a href="${bookingLink}">Ver agendamento no dashboard</a></p>
       `;
       }
-      case 'booking-cancelled-customer': {
+      case NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER: {
         const { guestName, localDate, localTime, serviceNames, totalPrice } = message.data as {
           guestName: string;
           localDate: string;
@@ -171,7 +172,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         <p>Se desejar, realize um novo agendamento em nosso site.</p>
       `;
       }
-      case 'booking-cancelled-admin': {
+      case NotificationTemplateKey.BOOKING_CANCELLED_ADMIN: {
         const {
           guestName,
           localDate,
@@ -206,7 +207,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         ${reasonLine}
       `;
       }
-      case 'booking-rescheduled-customer': {
+      case NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER: {
         const {
           guestName,
           previousLocalDate,
@@ -234,7 +235,7 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         <p>Aguardamos sua visita!</p>
       `;
       }
-      case 'booking-rescheduled-admin': {
+      case NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN: {
         const {
           guestName,
           previousLocalDate,
@@ -261,6 +262,34 @@ export class SmtpEmailAdapter implements IDeliveryChannel {
         <p><strong>Total:</strong> ${totalPrice}</p>
       `;
       }
+      case NotificationTemplateKey.SERVICE_POINTS_EARNED: {
+        const { customerName, totalPointsEarned, currentBalance } = message.data as {
+          customerName: string;
+          totalPointsEarned: number;
+          currentBalance: number;
+        };
+        return `
+        <p>Olá, ${customerName}!</p>
+        <p>Sua lavagem foi concluída e você ganhou <strong>${totalPointsEarned} pontos</strong> de fidelidade.</p>
+        <p>Seu saldo atual é de <strong>${currentBalance} pontos</strong>.</p>
+        <p>Use seus pontos no próximo agendamento!</p>
+      `;
+      }
+      case NotificationTemplateKey.POINTS_EXPIRING_SOON: {
+        const { customerName, pointsExpiringSoon, earliestExpiresAt } = message.data as {
+          customerName: string;
+          pointsExpiringSoon: number;
+          earliestExpiresAt: string;
+        };
+        return `
+        <p>Olá, ${customerName}!</p>
+        <p>Você tem <strong>${pointsExpiringSoon} pontos</strong> prestes a expirar em ${earliestExpiresAt}.</p>
+        <p>Realize um agendamento para utilizar seus pontos antes que expirem.</p>
+      `;
+      }
+      case NotificationTemplateKey.BOOKING_REMINDER_DUE:
+      case NotificationTemplateKey.BOOKING_REMINDER_DUE_TODAY:
+      case NotificationTemplateKey.ADMIN_DAILY_SCHEDULE_REMINDER:
       default:
         return `<p>${message.subject}</p>`;
     }

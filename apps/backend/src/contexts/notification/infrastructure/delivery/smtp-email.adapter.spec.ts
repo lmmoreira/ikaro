@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { SmtpEmailAdapter } from './smtp-email.adapter';
 import { OutboundMessage } from '../../application/ports/notification-dispatcher.port';
+import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 
 jest.mock('nodemailer');
 
@@ -31,7 +32,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'maria@lavacar.com.br',
       subject: 'Você foi convidado para a equipe Lava Car',
-      templateKey: 'staff-invitation',
+      templateKey: NotificationTemplateKey.STAFF_INVITATION,
       data: {
         staffName: 'Maria',
         tenantName: 'Lava Car',
@@ -62,7 +63,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'admin@lavacar.com.br',
       subject: 'Nova solicitação de agendamento — Lavagem Completa',
-      templateKey: 'booking-requested-admin',
+      templateKey: NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
       data: {
         guestName: 'João Silva',
         scheduledAt: '2026-06-15T13:00:00.000Z',
@@ -115,7 +116,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'joao@example.com',
       subject: 'Seu agendamento foi recebido',
-      templateKey: 'booking-requested-customer',
+      templateKey: NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
       data: {
         guestName: 'João Silva',
         scheduledAt: '2026-06-15T13:00:00.000Z',
@@ -142,7 +143,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'joao@example.com',
       subject: 'Seu agendamento foi confirmado! ✓',
-      templateKey: 'booking-approved-customer',
+      templateKey: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
       data: {
         guestName: 'João Silva',
         localDate: '15/06/2026',
@@ -177,7 +178,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'joao@example.com',
       subject: 'Sobre seu pedido de agendamento',
-      templateKey: 'booking-rejected-customer',
+      templateKey: NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER,
       data: {
         guestName: 'João Silva',
         reason: 'Horário indisponível para os serviços selecionados',
@@ -198,7 +199,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'joao@example.com',
       subject: 'Precisamos de mais informações sobre seu agendamento',
-      templateKey: 'booking-info-requested-customer',
+      templateKey: NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER,
       data: {
         guestName: 'João Silva',
         informationNeeded: 'Por favor envie fotos do veículo',
@@ -221,7 +222,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'admin@lavacar.com.br',
       subject: 'Cliente respondeu à solicitação de informações',
-      templateKey: 'booking-info-submitted-admin',
+      templateKey: NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
       data: {
         submittedByEmail: 'joao@example.com',
         customerResponse: 'Aqui estão as fotos do veículo',
@@ -244,7 +245,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'joao@example.com',
       subject: 'Seu agendamento foi cancelado',
-      templateKey: 'booking-cancelled-customer',
+      templateKey: NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
       data: {
         guestName: 'João Silva',
         localDate: '01/07/2026',
@@ -271,7 +272,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'admin@lavacar.com.br',
       subject: 'Agendamento cancelado',
-      templateKey: 'booking-cancelled-admin',
+      templateKey: NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
       data: {
         guestName: 'João Silva',
         localDate: '01/07/2026',
@@ -331,7 +332,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'joao@example.com',
       subject: 'Seu agendamento foi reagendado',
-      templateKey: 'booking-rescheduled-customer',
+      templateKey: NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER,
       data: {
         guestName: 'João Silva',
         previousLocalDate: '01/07/2026',
@@ -362,7 +363,7 @@ describe('SmtpEmailAdapter', () => {
       tenantId: TENANT_ID,
       to: 'admin@lavacar.com.br',
       subject: 'Agendamento reagendado',
-      templateKey: 'booking-rescheduled-admin',
+      templateKey: NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN,
       data: {
         guestName: 'João Silva',
         previousLocalDate: '01/07/2026',
@@ -388,13 +389,104 @@ describe('SmtpEmailAdapter', () => {
     });
   });
 
+  describe('service-points-earned template', () => {
+    const message: OutboundMessage = {
+      tenantId: TENANT_ID,
+      to: 'joao@example.com',
+      subject: 'Você ganhou 50 pontos',
+      templateKey: NotificationTemplateKey.SERVICE_POINTS_EARNED,
+      data: {
+        customerName: 'João Silva',
+        totalPointsEarned: 50,
+        currentBalance: 150,
+      },
+    };
+
+    it('renders customer name, points earned and current balance', async () => {
+      await adapter.send(message);
+
+      const { html } = mockSendMail.mock.calls[0][0] as { html: string };
+      expect(html).toContain('João Silva');
+      expect(html).toContain('50');
+      expect(html).toContain('150');
+    });
+  });
+
+  describe('points-expiring-soon template', () => {
+    const message: OutboundMessage = {
+      tenantId: TENANT_ID,
+      to: 'joao@example.com',
+      subject: 'Seus pontos estão prestes a expirar',
+      templateKey: NotificationTemplateKey.POINTS_EXPIRING_SOON,
+      data: {
+        customerName: 'João Silva',
+        pointsExpiringSoon: 30,
+        earliestExpiresAt: '30/06/2026',
+      },
+    };
+
+    it('renders customer name, expiring points and expiry date', async () => {
+      await adapter.send(message);
+
+      const { html } = mockSendMail.mock.calls[0][0] as { html: string };
+      expect(html).toContain('João Silva');
+      expect(html).toContain('30');
+      expect(html).toContain('30/06/2026');
+    });
+  });
+
+  describe('booking-reminder-due template', () => {
+    it('falls back to subject-only paragraph', async () => {
+      const message: OutboundMessage = {
+        tenantId: TENANT_ID,
+        to: 'joao@example.com',
+        subject: 'Lembrete: seu agendamento é amanhã!',
+        templateKey: NotificationTemplateKey.BOOKING_REMINDER_DUE,
+        data: {},
+      };
+      await adapter.send(message);
+      const { html } = mockSendMail.mock.calls[0][0] as { html: string };
+      expect(html).toContain('Lembrete: seu agendamento é amanhã!');
+    });
+  });
+
+  describe('booking-reminder-due-today template', () => {
+    it('falls back to subject-only paragraph', async () => {
+      const message: OutboundMessage = {
+        tenantId: TENANT_ID,
+        to: 'joao@example.com',
+        subject: 'Lembrete: seu agendamento é hoje!',
+        templateKey: NotificationTemplateKey.BOOKING_REMINDER_DUE_TODAY,
+        data: {},
+      };
+      await adapter.send(message);
+      const { html } = mockSendMail.mock.calls[0][0] as { html: string };
+      expect(html).toContain('Lembrete: seu agendamento é hoje!');
+    });
+  });
+
+  describe('admin-daily-schedule-reminder template', () => {
+    it('falls back to subject-only paragraph', async () => {
+      const message: OutboundMessage = {
+        tenantId: TENANT_ID,
+        to: 'admin@lavacar.com.br',
+        subject: 'Agenda do dia',
+        templateKey: NotificationTemplateKey.ADMIN_DAILY_SCHEDULE_REMINDER,
+        data: {},
+      };
+      await adapter.send(message);
+      const { html } = mockSendMail.mock.calls[0][0] as { html: string };
+      expect(html).toContain('Agenda do dia');
+    });
+  });
+
   describe('unknown template key', () => {
     it('falls back to subject-only paragraph', async () => {
       const message: OutboundMessage = {
         tenantId: TENANT_ID,
         to: 'test@example.com',
         subject: 'Some notification',
-        templateKey: 'unknown-template',
+        templateKey: 'unknown-template' as unknown as NotificationTemplateKey,
         data: {},
       };
       await adapter.send(message);

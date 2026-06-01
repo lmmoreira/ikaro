@@ -69,7 +69,7 @@ describe('SendStaffInvitationUseCase', () => {
     expect(logs).toHaveLength(1);
     expect(logs[0].tenantId).toBe(TENANT_ID);
     expect(logs[0].eventId).toBe(EVENT_ID);
-    expect(logs[0].notificationType).toBe('STAFF_INVITED');
+    expect(logs[0].notificationType).toBe('staff-invitation');
     expect(logs[0].channel).toBe('EMAIL');
   });
 

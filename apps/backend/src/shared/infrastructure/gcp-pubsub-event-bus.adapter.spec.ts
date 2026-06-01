@@ -113,6 +113,17 @@ describe('GcpPubSubEventBusAdapter', () => {
 
       expect(mockCreateSubscription).toHaveBeenCalledWith('beloauto-StubEvent-test-consumer');
     });
+
+    it('registers separate subscriptions for two consumers on the same event', async () => {
+      adapter.subscribe('StubEvent', noopHandler, 'consumer-a');
+      adapter.subscribe('StubEvent', noopHandler, 'consumer-b');
+      await adapter.onApplicationBootstrap();
+
+      // Each subscription registers 'message' and 'error' handlers (2 × 2 = 4 calls)
+      expect(mockSubOn).toHaveBeenCalledTimes(4);
+      expect(mockSubOn).toHaveBeenCalledWith('message', expect.any(Function));
+      expect(mockSubOn).toHaveBeenCalledWith('error', expect.any(Function));
+    });
   });
 
   describe('onModuleDestroy()', () => {

@@ -92,7 +92,7 @@ describe('Story: full booking lifecycle → Pub/Sub → all notification emails 
       if (!staff) return false;
       const log = await ds
         .getRepository(NotificationLogEntity)
-        .findOne({ where: { tenantId, notificationType: 'STAFF_INVITED' } });
+        .findOne({ where: { tenantId, notificationType: 'staff-invitation' } });
       return log !== null;
     });
 
@@ -303,18 +303,18 @@ describe('Story: full booking lifecycle → Pub/Sub → all notification emails 
     // Assert all notification types present in DB
     const logs = await ds.getRepository(NotificationLogEntity).find({ where: { tenantId } });
     const logTypes = logs.map((l) => l.notificationType);
-    expect(logTypes).toContain('STAFF_INVITED');
-    expect(logTypes).toContain('BOOKING_REQUESTED_ADMIN');
-    expect(logTypes).toContain('BOOKING_REQUESTED_CUSTOMER');
-    expect(logTypes).toContain('BOOKING_INFO_REQUESTED_CUSTOMER');
-    expect(logTypes).toContain('BOOKING_INFO_SUBMITTED_ADMIN');
-    expect(logTypes).toContain('BOOKING_APPROVED_CUSTOMER');
-    expect(logTypes).toContain('BOOKING_REJECTED_CUSTOMER');
-    expect(logTypes).toContain('BOOKING_CANCELLED_CUSTOMER');
-    expect(logTypes).toContain('BOOKING_CANCELLED_ADMIN');
-    expect(logTypes).toContain('BOOKING_RESCHEDULED_CUSTOMER');
-    expect(logTypes).toContain('BOOKING_RESCHEDULED_ADMIN');
-    expect(logTypes).toContain('SERVICE_POINTS_EARNED');
+    expect(logTypes).toContain('staff-invitation');
+    expect(logTypes).toContain('booking-requested-admin');
+    expect(logTypes).toContain('booking-requested-customer');
+    expect(logTypes).toContain('booking-info-requested-customer');
+    expect(logTypes).toContain('booking-info-submitted-admin');
+    expect(logTypes).toContain('booking-approved-customer');
+    expect(logTypes).toContain('booking-rejected-customer');
+    expect(logTypes).toContain('booking-cancelled-customer');
+    expect(logTypes).toContain('booking-cancelled-admin');
+    expect(logTypes).toContain('booking-rescheduled-customer');
+    expect(logTypes).toContain('booking-rescheduled-admin');
+    expect(logTypes).toContain('service-points-earned');
 
     // Assert recipients
     // Filter by adminEmail to guard against StaffInvited events from other parallel test suites.
@@ -414,7 +414,7 @@ describe('Story: full booking lifecycle → Pub/Sub → all notification emails 
     await eventBus.publish(event);
     await waitFor(async () => {
       const log = await ds.getRepository(NotificationLogEntity).findOne({
-        where: { tenantId, eventId: event.eventId, notificationType: 'SERVICE_POINTS_EARNED' },
+        where: { tenantId, eventId: event.eventId, notificationType: 'service-points-earned' },
       });
       return log !== null;
     });
@@ -423,7 +423,7 @@ describe('Story: full booking lifecycle → Pub/Sub → all notification emails 
     await new Promise((r) => setTimeout(r, 400));
 
     const idempotencyLogs = await ds.getRepository(NotificationLogEntity).find({
-      where: { tenantId, eventId: event.eventId, notificationType: 'SERVICE_POINTS_EARNED' },
+      where: { tenantId, eventId: event.eventId, notificationType: 'service-points-earned' },
     });
     expect(idempotencyLogs).toHaveLength(1);
   });

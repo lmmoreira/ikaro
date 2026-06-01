@@ -20,9 +20,9 @@ import {
   INotificationServicePort,
   NOTIFICATION_SERVICE_PORT,
 } from '../../ports/notification-service.port';
+import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-const NOTIFICATION_TYPE = 'SERVICE_POINTS_EARNED';
 const CHANNEL = 'EMAIL';
 
 export interface SendServicePointsEarnedNotificationUseCaseResult {
@@ -44,7 +44,14 @@ export class SendServicePointsEarnedNotificationUseCase extends BaseNotification
   async execute(
     dto: SendServicePointsEarnedNotificationDto,
   ): Promise<SendServicePointsEarnedNotificationUseCaseResult> {
-    if (await this.isAlreadySent(dto.tenantId, dto.eventId, NOTIFICATION_TYPE, CHANNEL)) {
+    if (
+      await this.isAlreadySent(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.SERVICE_POINTS_EARNED,
+        CHANNEL,
+      )
+    ) {
       return { emailSent: false };
     }
 
@@ -65,7 +72,7 @@ export class SendServicePointsEarnedNotificationUseCase extends BaseNotification
       tenantId: dto.tenantId,
       to: customer.email,
       subject: `Lavagem concluída! Você ganhou ${dto.totalPointsEarned} pontos`,
-      templateKey: 'service-points-earned',
+      templateKey: NotificationTemplateKey.SERVICE_POINTS_EARNED,
       data: {
         customerName: customer.name,
         totalPointsEarned: dto.totalPointsEarned,
@@ -74,7 +81,12 @@ export class SendServicePointsEarnedNotificationUseCase extends BaseNotification
       },
     });
 
-    await this.saveLog(dto.tenantId, dto.eventId, NOTIFICATION_TYPE, CHANNEL);
+    await this.saveLog(
+      dto.tenantId,
+      dto.eventId,
+      NotificationTemplateKey.SERVICE_POINTS_EARNED,
+      CHANNEL,
+    );
     return { emailSent: true };
   }
 }

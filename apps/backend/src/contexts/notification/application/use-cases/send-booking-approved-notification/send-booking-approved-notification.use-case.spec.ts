@@ -55,7 +55,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
 
     const logs = logRepo.all;
     expect(logs).toHaveLength(1);
-    expect(logs[0].notificationType).toBe('BOOKING_APPROVED_CUSTOMER');
+    expect(logs[0].notificationType).toBe('booking-approved-customer');
     expect(logs[0].tenantId).toBe(TENANT_ID);
   });
 

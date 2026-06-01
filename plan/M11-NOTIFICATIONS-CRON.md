@@ -18,47 +18,95 @@
 **Docs to load:** `docs/02-DOMAIN_MODEL.md` § Notification context, `docs/13-DATABASE_SCHEMA.md` § notification schema
 
 **Description:**  
-Implement the `NotificationTemplate` aggregate and its database migration. Templates are per-tenant and contain the email subject and body for each event type. All templates must be in pt-BR. A default template set is seeded for every new tenant.
+Implement the `NotificationTemplate` aggregate, its database migration, and the `NotificationTemplateKey` enum. Templates are per-tenant (or global-default when `tenantId` is null) and hold the pt-BR subject and body for one `(triggerEvent, channel)` pair. All pt-BR copy lives in the DB — no hardcoded strings in use cases.
 
-**Domain layer:**
-- `NotificationTemplate` aggregate:
-  - Properties: `id` (UUID v7), `tenantId`, `eventName` (e.g., `'BookingApproved'`), `subject`, `bodyHtml`, `updatedAt`
-  - Methods: `update(subject, bodyHtml)`, `render(variables: Record<string, string>): RenderedEmail`
-  - Template engine: Mustache-style `{{variableName}}` placeholders
-  - Invariants: `subject` must be non-empty, `bodyHtml` must be non-empty
+**`NotificationTemplateKey` enum (created first — other files depend on it):**
+
+```typescript
+// src/contexts/notification/domain/notification-template-key.enum.ts
+export enum NotificationTemplateKey {
+  BOOKING_REQUESTED_ADMIN         = 'booking-requested-admin',
+  BOOKING_REQUESTED_CUSTOMER      = 'booking-requested-customer',
+  BOOKING_APPROVED_CUSTOMER       = 'booking-approved-customer',
+  BOOKING_REJECTED_CUSTOMER       = 'booking-rejected-customer',
+  BOOKING_INFO_REQUESTED_CUSTOMER = 'booking-info-requested-customer',
+  BOOKING_INFO_SUBMITTED_ADMIN    = 'booking-info-submitted-admin',
+  BOOKING_CANCELLED_CUSTOMER      = 'booking-cancelled-customer',
+  BOOKING_CANCELLED_ADMIN         = 'booking-cancelled-admin',
+  BOOKING_RESCHEDULED_CUSTOMER    = 'booking-rescheduled-customer',
+  BOOKING_RESCHEDULED_ADMIN       = 'booking-rescheduled-admin',
+  BOOKING_REMINDER_DUE            = 'booking-reminder-due',
+  BOOKING_REMINDER_DUE_TODAY      = 'booking-reminder-due-today',
+  ADMIN_DAILY_SCHEDULE_REMINDER   = 'admin-daily-schedule-reminder',
+  SERVICE_POINTS_EARNED           = 'service-points-earned',
+  POINTS_EXPIRING_SOON            = 'points-expiring-soon',
+  STAFF_INVITATION                = 'staff-invitation',
+}
+```
+
+**Refactor existing use cases to use the enum:**  
+All existing notification use cases (M04–M10) pass `templateKey` as a plain string to `dispatcher.dispatch()`. Replace every string literal with the matching `NotificationTemplateKey` enum value. Update the `OutboundMessage` interface so `templateKey: string` becomes `templateKey: NotificationTemplateKey`. This is in-scope for this story — it must be done before the migration is run so the enum values match the seeded rows.
+
+**`NotificationTemplate` aggregate:**
+- Properties: `id` (UUID v7), `tenantId` (`string | null` — null = global default), `triggerEvent` (`NotificationTemplateKey`), `channel` (`'EMAIL' | 'SMS' | 'WHATSAPP'`), `subject` (string), `body` (string), `updatedAt`
+- Methods: `update(subject, body)`, `render(variables: Record<string, string>): { subject: string; body: string }`
+- `render()` engine: replace every `{{key}}` with `variables[key] ?? ''` — missing variables become empty string, never an error
+- Invariants: `subject` non-empty, `body` non-empty
 
 **Migration: `notification.notification_templates`**
 ```sql
-id          UUID PRIMARY KEY
-tenant_id   UUID NOT NULL
-event_name  VARCHAR(100) NOT NULL
-subject     VARCHAR(500) NOT NULL
-body_html   TEXT NOT NULL
-created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+id            UUID PRIMARY KEY
+tenant_id     UUID NULLABLE                    -- NULL = global default; FK platform.tenants(id) when set
+trigger_event VARCHAR(100) NOT NULL            -- NotificationTemplateKey enum value
+channel       VARCHAR(20)  NOT NULL DEFAULT 'EMAIL'
+subject       VARCHAR(255) NOT NULL
+body          TEXT NOT NULL
+created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 
-UNIQUE (tenant_id, event_name)
-INDEX (tenant_id)
+-- Two partial unique indexes (PostgreSQL NULLs are distinct in standard UNIQUE)
+UNIQUE INDEX uq_notification_templates_global ON notification_templates (trigger_event, channel) WHERE tenant_id IS NULL
+UNIQUE INDEX uq_notification_templates_tenant ON notification_templates (tenant_id, trigger_event, channel) WHERE tenant_id IS NOT NULL
+INDEX ON notification_templates (tenant_id)
 ```
 
-**Default templates to seed (on new tenant creation via UC-024):**
-- `BookingRequested` — admin + customer variants
-- `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`
-- `BookingCancelled`, `BookingRescheduled`
-- `BookingReminderDue`, `BookingReminderDueToday`
-- `AdminDailyScheduleReminder`
-- `ServicePointsEarned`, `PointsExpiringSoon`
-- `StaffInvited`
+**Global default rows seeded by migration (`tenant_id = NULL`, `channel = 'EMAIL'`):**
 
-All subjects and bodies must be in pt-BR with `{{variableName}}` placeholders.
+| trigger_event | subject (pt-BR) |
+|---|---|
+| `booking-requested-admin` | `Novo agendamento recebido` |
+| `booking-requested-customer` | `Solicitação de agendamento recebida` |
+| `booking-approved-customer` | `Seu agendamento foi confirmado!` |
+| `booking-rejected-customer` | `Agendamento não confirmado` |
+| `booking-info-requested-customer` | `Precisamos de mais informações sobre seu agendamento` |
+| `booking-info-submitted-admin` | `Cliente respondeu à solicitação de informações` |
+| `booking-cancelled-customer` | `Seu agendamento foi cancelado` |
+| `booking-cancelled-admin` | `Agendamento cancelado` |
+| `booking-rescheduled-customer` | `Seu agendamento foi reagendado` |
+| `booking-rescheduled-admin` | `Agendamento reagendado` |
+| `booking-reminder-due` | `Lembrete: seu agendamento é amanhã!` |
+| `booking-reminder-due-today` | `Lembrete: seu agendamento é hoje!` |
+| `admin-daily-schedule-reminder` | `Agenda do dia — {{localDate}}` |
+| `service-points-earned` | `Lavagem concluída! Você ganhou {{totalPointsEarned}} pontos` |
+| `points-expiring-soon` | `Seus pontos de fidelidade estão prestes a expirar!` |
+| `staff-invitation` | `Você foi convidado para a equipe {{tenantName}}` |
+
+All `body` values must be pt-BR with `{{variableName}}` placeholders matching the variables each use case already passes to `dispatcher.dispatch()`.
+
+**Seeding on new tenant creation:**  
+A new `TenantProvisionedNotificationHandler` subscribes to the `TenantProvisioned` event. It runs `SeedDefaultTemplatesUseCase` which copies all rows where `tenant_id IS NULL` into new rows with `tenant_id = event.tenantId`. Every new tenant gets a full editable copy of the defaults.
 
 **Acceptance criteria:**
-- [ ] `UNIQUE (tenant_id, event_name)` constraint exists
+- [ ] `NotificationTemplateKey` enum covers all 16 keys; every existing use case's `templateKey` string literal replaced with enum value; `OutboundMessage.templateKey` typed as `NotificationTemplateKey`
+- [ ] Migration creates table with two partial UNIQUE indexes and seeds 16 global-default rows (`tenant_id = NULL`)
+- [ ] Migration revert drops the table cleanly
 - [ ] `template.render({ customerName: 'João' })` replaces `{{customerName}}` in subject and body
-- [ ] `template.render({})` with a missing variable leaves `{{variableName}}` as empty string (not an error)
-- [ ] Migration and revert run cleanly
-- [ ] Default templates are seeded automatically in `UC-024 tenant:create` command
-- [ ] All default template subjects are in pt-BR
+- [ ] `template.render({})` with a missing variable leaves the placeholder as empty string (not an error)
+- [ ] `TenantProvisionedNotificationHandler` copies all 16 global-default rows to the new tenant on `TenantProvisioned`
+- [ ] After provisioning, new tenant has exactly 16 rows in `notification_templates`
+- [ ] Tenant isolation: querying templates for Tenant B returns only Tenant B's rows — not Tenant A's, not global defaults
+- [ ] All default subjects and bodies are in pt-BR
+- [ ] Unit tests cover `render()` happy path, missing variable, and empty variables map
 
 **Dependencies:** M00-S07, M02-S05
 
@@ -272,20 +320,119 @@ Implement the weekly loyalty expiry warning: every Monday at 06:00 UTC, find cus
 **Docs to load:** `docs/05-BOUNDED_CONTEXTS.md` § Notification context
 
 **Description:**  
-Upgrade all existing notification handlers (from M04-S05, M07-S06, M08-S05, M09-S04, M10-S06) to use the full `NotificationTemplate` system from M11-S01 and the `NotificationLog` from M11-S02. The temporary hardcoded pt-BR strings from earlier milestones must be replaced with rendered templates from the DB.
+Upgrade all existing notification use cases (from M04-S05, M07-S06, M08-S05, M09-S04, M10-S06) to load and render templates from the DB, route dispatches through the correct channel, and log every send attempt. This story wires together the `NotificationTemplate` aggregate (M11-S01), the `NotificationLog` (M11-S02), and the `IEmailSender` adapter (M11-S03) into a complete, database-driven notification pipeline.
 
-**Changes per handler:**
-1. Load `NotificationTemplate` by `(tenantId, eventName)`
-2. Call `template.render(variables)` to get `{ subject, html }`
-3. Call `IEmailSender.send(to, { subject, html })`
-4. Persist `NotificationLog.recordSent()` or `NotificationLog.recordFailed()`
-5. Persist `processed_events` row for idempotency
+**Architecture locked in by M11-S01 design session:**
+
+The current `OutboundMessage` interface carries `templateKey` + `data` and delegates rendering to the `SmtpEmailAdapter`. This is temporary scaffolding. M11-S07 replaces it with a clean separation:
+
+- **Rendering belongs to the use case** (via `NotificationTemplate.render(variables)`) — not the adapter.
+- **The adapter is a pure transport layer** — it receives `{ subject, body, channel }` and sends; no switch/render logic.
+- **The dispatcher routes to the correct channel** (strategy pattern) — not broadcast to all adapters.
+
+**`OutboundMessage` — redesigned (remove `templateKey`/`data`, add `body`/`channel`):**
+```typescript
+export interface OutboundMessage {
+  tenantId: string;
+  to: string;
+  subject: string;           // already rendered
+  body: string;              // already rendered (HTML for EMAIL, plain text for SMS)
+  channel: NotificationChannel;  // EMAIL | SMS | WHATSAPP
+}
+```
+
+**`INotificationTemplateRepository` — add new method:**
+```typescript
+findAllByTriggerEvent(
+  tenantId: string,
+  triggerEvent: NotificationTemplateKey,
+): Promise<NotificationTemplate[]>;
+```
+Returns all channel variants for one event (e.g. both EMAIL and SMS rows). Use case iterates and dispatches one message per template.
+
+**`NotificationDispatcherAdapter` — strategy routing (not broadcast):**
+```typescript
+async dispatch(message: OutboundMessage): Promise<void> {
+  const adapter = this.channels.find(c => c.channelType === message.channel);
+  if (!adapter) {
+    this.logger.warn(`No adapter for channel ${message.channel} — skipping`);
+    return;
+  }
+  await adapter.send(message);
+}
+```
+
+**`SmtpEmailAdapter` — pure transport, no `render()` method:**
+```typescript
+async send(message: OutboundMessage): Promise<void> {
+  await this.transporter.sendMail({
+    from: this.config.get('SMTP_FROM'),
+    to: message.to,
+    subject: message.subject,
+    html: message.body,   // already rendered upstream by the use case
+  });
+}
+```
+The entire `private render(message)` switch block is deleted in this story.
+
+**Use case pattern per handler (replaces all hardcoded subjects + templateKey strings):**
+```typescript
+// 1. Load all templates for this event (one per channel in DB)
+const templates = await this.templateRepo.findAllByTriggerEvent(
+  tenantId,
+  NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
+);
+if (templates.length === 0) {
+  this.logger.warn('No template found — skipping', { tenantId, triggerEvent });
+  return;
+}
+
+// 2. Render and dispatch one message per channel template
+for (const template of templates) {
+  const { subject, body } = template.render({
+    customerName: customer.name,
+    localDate,
+    localTime,
+    // ... event-specific variables
+  });
+  await this.dispatcher.dispatch({
+    tenantId,
+    to: recipient,
+    subject,
+    body,
+    channel: template.channel,  // determined by the DB row, not hardcoded
+  });
+}
+```
+
+Adding a new channel (SMS, WhatsApp) requires only:
+1. A new template row in the DB with `channel = 'SMS'`
+2. A new adapter class implementing `IDeliveryChannel`
+
+No use case changes needed.
+
+**Changes required in this story:**
+1. Redesign `OutboundMessage` — add `body: string`, `channel: NotificationChannel`; remove `templateKey`, `data`
+2. Add `findAllByTriggerEvent()` to `INotificationTemplateRepository` port + `TypeOrmNotificationTemplateRepository` + `InMemoryNotificationTemplateRepository`
+3. Update `NotificationDispatcherAdapter` — route by `message.channel` instead of broadcasting
+4. Delete `SmtpEmailAdapter.render()` private method; `send()` uses `message.subject` + `message.body` directly
+5. Update every use case (9 handlers from M04–M10 + 3 new reminder handlers from M11-S05 + 1 from M11-S06) to:
+   - Inject `INotificationTemplateRepository`
+   - Call `findAllByTriggerEvent()` + `template.render(variables)`
+   - Pass rendered `{ subject, body, channel }` to dispatcher
+6. Update all use case specs that assert `dispatcher.dispatched[x].templateKey` → assert `subject` and `body` instead
+7. Update `SmtpEmailAdapter` spec — remove template-key-based describe blocks; assert only transport behaviour (`sendMail` called with correct `to`, `subject`, `html`)
 
 **Acceptance criteria:**
-- [ ] All notification handlers use `NotificationTemplate` (no hardcoded subject strings)
-- [ ] If a template is not found for a `(tenantId, eventName)` pair → log warning + skip email (do not throw)
-- [ ] Every email attempt (success or failure) produces a `notification_logs` row
+- [ ] `OutboundMessage` has `body: string` and `channel: NotificationChannel`; `templateKey` and `data` are removed
+- [ ] `NotificationDispatcherAdapter` routes to the single adapter matching `message.channel`; skips with log when no adapter found
+- [ ] `SmtpEmailAdapter.send()` uses `message.subject` + `message.body`; no `render()` method exists
+- [ ] All 9 existing use cases load templates from DB via `findAllByTriggerEvent()`; no hardcoded `subject` strings or `templateKey` values remain
+- [ ] If no template found for `(tenantId, triggerEvent)` → log warning + return without throwing
+- [ ] Every email attempt produces a `notification_logs` row (via `NotificationLog` from M11-S02)
 - [ ] `processed_events` prevents duplicate handling across all handlers
+- [ ] All use case specs updated — assert on `subject`/`body` content, not `templateKey`
+- [ ] Adding a second channel template row for an event causes the use case to dispatch a second message — no code change needed
 - [ ] Existing integration tests from M04, M07, M08, M09, M10 still pass after refactor
 
 **Dependencies:** M11-S01, M11-S02, M11-S03

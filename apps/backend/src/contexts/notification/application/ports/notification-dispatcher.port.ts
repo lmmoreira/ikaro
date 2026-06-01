@@ -1,8 +1,10 @@
+import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
+
 export interface OutboundMessage {
   tenantId: string;
   to: string;
   subject: string;
-  templateKey: string;
+  templateKey: NotificationTemplateKey;
   data: Record<string, unknown>;
 }
 

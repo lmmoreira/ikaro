@@ -67,8 +67,8 @@ describe('SendBookingCancelledNotificationUseCase', () => {
     const logs = logRepo.all;
     expect(logs).toHaveLength(2);
     const types = logs.map((l) => l.notificationType);
-    expect(types).toContain('BOOKING_CANCELLED_CUSTOMER');
-    expect(types).toContain('BOOKING_CANCELLED_ADMIN');
+    expect(types).toContain('booking-cancelled-customer');
+    expect(types).toContain('booking-cancelled-admin');
   });
 
   it('passes isBusiness=false for customer-initiated cancellation', async () => {
@@ -101,7 +101,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
       NotificationLog.create({
         tenantId: TENANT_ID,
         eventId: EVENT_ID,
-        notificationType: 'BOOKING_CANCELLED_CUSTOMER',
+        notificationType: 'booking-cancelled-customer',
         channel: 'EMAIL',
       }),
     );
@@ -119,7 +119,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
       NotificationLog.create({
         tenantId: TENANT_ID,
         eventId: EVENT_ID,
-        notificationType: 'BOOKING_CANCELLED_ADMIN',
+        notificationType: 'booking-cancelled-admin',
         channel: 'EMAIL',
       }),
     );

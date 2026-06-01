@@ -37,10 +37,15 @@ import { BookingCancelledHandler } from './infrastructure/events/booking-cancell
 import { BookingRescheduledHandler } from './infrastructure/events/booking-rescheduled.handler';
 import { ServicePointsEarnedHandler } from './infrastructure/events/service-points-earned.handler';
 import { TypeOrmNotificationLogRepository } from './infrastructure/repositories/typeorm-notification-log.repository';
+import { TypeOrmNotificationTemplateRepository } from './infrastructure/repositories/typeorm-notification-template.repository';
+import { NotificationTemplateEntity } from './infrastructure/entities/notification-template.entity';
+import { NOTIFICATION_TEMPLATE_REPOSITORY } from './application/ports/notification-template-repository.port';
+import { SeedDefaultTemplatesUseCase } from './application/use-cases/seed-default-templates/seed-default-templates.use-case';
+import { TenantProvisionedNotificationHandler } from './infrastructure/events/tenant-provisioned.handler';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([NotificationLogEntity]),
+    TypeOrmModule.forFeature([NotificationLogEntity, NotificationTemplateEntity]),
     TransactionManagerModule,
     StaffModule,
     PlatformModule,
@@ -48,6 +53,9 @@ import { TypeOrmNotificationLogRepository } from './infrastructure/repositories/
   ],
   providers: [
     { provide: NOTIFICATION_LOG_REPOSITORY, useClass: TypeOrmNotificationLogRepository },
+    { provide: NOTIFICATION_TEMPLATE_REPOSITORY, useClass: TypeOrmNotificationTemplateRepository },
+    SeedDefaultTemplatesUseCase,
+    TenantProvisionedNotificationHandler,
     SmtpEmailAdapter,
     {
       provide: DELIVERY_CHANNEL,

@@ -41,7 +41,7 @@ describe('SendBookingRejectedNotificationUseCase', () => {
     expect(msg.data['reason']).toBe(dto.reason);
 
     expect(logRepo.all).toHaveLength(1);
-    expect(logRepo.all[0].notificationType).toBe('BOOKING_REJECTED_CUSTOMER');
+    expect(logRepo.all[0].notificationType).toBe('booking-rejected-customer');
     expect(logRepo.all[0].tenantId).toBe(TENANT_ID);
   });
 

@@ -6,6 +6,7 @@ import { AppLogger } from '../observability/app-logger';
 import { IEventBus } from '../ports/event-bus.port';
 
 interface PendingSubscription {
+  eventName: string;
   topicName: string;
   subscriptionName: string;
   handler: (event: DomainEvent) => Promise<void>;
@@ -46,21 +47,24 @@ export class GcpPubSubEventBusAdapter
   ): void {
     // PUBSUB_SUBSCRIPTION_SUFFIX lets integration tests isolate subscriptions per test run
     const suffix = this.config.get<string>('PUBSUB_SUBSCRIPTION_SUFFIX', '');
-    this.pending.set(eventName, {
+    const subscriptionName = `beloauto-${eventName}-${consumerName}${suffix}`;
+    // Key by subscriptionName (not eventName) so multiple consumers per event are all registered
+    this.pending.set(subscriptionName, {
+      eventName,
       topicName: `beloauto-${eventName}`,
-      subscriptionName: `beloauto-${eventName}-${consumerName}${suffix}`,
+      subscriptionName,
       handler: handler as (event: DomainEvent) => Promise<void>,
     });
   }
 
   async onApplicationBootstrap(): Promise<void> {
-    for (const [eventName, config] of this.pending) {
+    for (const config of this.pending.values()) {
       await this.ensureTopicOnce(config.topicName);
       await this.ensureSubscription(config.topicName, config.subscriptionName);
 
       const subscription = this.pubsub.subscription(config.subscriptionName);
       subscription.on('message', (message: Message) => {
-        this.dispatch(message, eventName, config.handler).catch(() => undefined);
+        this.dispatch(message, config.eventName, config.handler).catch(() => undefined);
       });
       subscription.on('error', (err: Error) => {
         this.logger.error(`[pubsub] subscription error on ${config.subscriptionName}`, err.stack);

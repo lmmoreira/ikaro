@@ -3,6 +3,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
+import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import { SendBookingRejectedNotificationDto } from '../../dtos/send-booking-rejected-notification.dto';
 import {
   INotificationDispatcher,
@@ -14,7 +15,6 @@ import {
 } from '../../ports/notification-log-repository.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-const NOTIFICATION_TYPE = 'BOOKING_REJECTED_CUSTOMER';
 const CHANNEL = 'EMAIL';
 
 export interface SendBookingRejectedNotificationUseCaseResult {
@@ -34,7 +34,14 @@ export class SendBookingRejectedNotificationUseCase extends BaseNotificationUseC
   async execute(
     dto: SendBookingRejectedNotificationDto,
   ): Promise<SendBookingRejectedNotificationUseCaseResult> {
-    if (await this.isAlreadySent(dto.tenantId, dto.eventId, NOTIFICATION_TYPE, CHANNEL)) {
+    if (
+      await this.isAlreadySent(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER,
+        CHANNEL,
+      )
+    ) {
       return { emailSent: false };
     }
 
@@ -42,14 +49,19 @@ export class SendBookingRejectedNotificationUseCase extends BaseNotificationUseC
       tenantId: dto.tenantId,
       to: dto.guestEmail,
       subject: 'Sobre seu pedido de agendamento',
-      templateKey: 'booking-rejected-customer',
+      templateKey: NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER,
       data: {
         guestName: dto.guestName,
         reason: dto.reason,
       },
     });
 
-    await this.saveLog(dto.tenantId, dto.eventId, NOTIFICATION_TYPE, CHANNEL);
+    await this.saveLog(
+      dto.tenantId,
+      dto.eventId,
+      NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER,
+      CHANNEL,
+    );
     return { emailSent: true };
   }
 }

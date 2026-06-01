@@ -77,7 +77,7 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
     const log = await logRepo.findByEventAndChannel(
       TENANT_ID,
       EVENT_ID,
-      'SERVICE_POINTS_EARNED',
+      'service-points-earned',
       'EMAIL',
     );
     expect(log).not.toBeNull();

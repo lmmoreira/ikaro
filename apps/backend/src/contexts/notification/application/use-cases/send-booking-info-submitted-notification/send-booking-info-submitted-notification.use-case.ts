@@ -4,6 +4,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../../shared/ports/transaction-manager.port';
+import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import { SendBookingInfoSubmittedNotificationDto } from '../../dtos/send-booking-info-submitted-notification.dto';
 import {
   INotificationDispatcher,
@@ -19,7 +20,6 @@ import {
 } from '../../ports/notification-staff.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-const NOTIFICATION_TYPE = 'BOOKING_INFO_SUBMITTED_ADMIN';
 const CHANNEL = 'EMAIL';
 
 export interface SendBookingInfoSubmittedNotificationUseCaseResult {
@@ -41,7 +41,14 @@ export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificatio
   async execute(
     dto: SendBookingInfoSubmittedNotificationDto,
   ): Promise<SendBookingInfoSubmittedNotificationUseCaseResult> {
-    if (await this.isAlreadySent(dto.tenantId, dto.eventId, NOTIFICATION_TYPE, CHANNEL)) {
+    if (
+      await this.isAlreadySent(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
+        CHANNEL,
+      )
+    ) {
       return { emailSent: false };
     }
 
@@ -59,7 +66,7 @@ export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificatio
           tenantId: dto.tenantId,
           to: email,
           subject: 'Cliente respondeu à solicitação de informações',
-          templateKey: 'booking-info-submitted-admin',
+          templateKey: NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
           data: {
             submittedByEmail: dto.submittedByEmail,
             bookingId: dto.bookingId,
@@ -70,7 +77,12 @@ export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificatio
       ),
     );
 
-    await this.saveLog(dto.tenantId, dto.eventId, NOTIFICATION_TYPE, CHANNEL);
+    await this.saveLog(
+      dto.tenantId,
+      dto.eventId,
+      NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
+      CHANNEL,
+    );
     return { emailSent: true };
   }
 }

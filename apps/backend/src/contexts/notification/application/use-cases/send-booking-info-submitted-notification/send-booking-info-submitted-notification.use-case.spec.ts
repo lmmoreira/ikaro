@@ -57,7 +57,7 @@ describe('SendBookingInfoSubmittedNotificationUseCase', () => {
     expect(msg.data['bookingLink']).toBe(`http://localhost:3000/dashboard/bookings/${BOOKING_ID}`);
 
     expect(logRepo.all).toHaveLength(1);
-    expect(logRepo.all[0].notificationType).toBe('BOOKING_INFO_SUBMITTED_ADMIN');
+    expect(logRepo.all[0].notificationType).toBe('booking-info-submitted-admin');
   });
 
   it('sends to all managers when multiple exist', async () => {

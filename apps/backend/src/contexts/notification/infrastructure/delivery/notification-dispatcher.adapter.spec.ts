@@ -1,12 +1,13 @@
 import { IDeliveryChannel } from '../../application/ports/delivery-channel.port';
 import { OutboundMessage } from '../../application/ports/notification-dispatcher.port';
+import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 import { NotificationDispatcherAdapter } from './notification-dispatcher.adapter';
 
 const message: OutboundMessage = {
   tenantId: 'aaaaaaaa-0000-4000-8000-000000000001',
   to: 'maria@lavacar.com.br',
   subject: 'Convite',
-  templateKey: 'staff-invitation',
+  templateKey: NotificationTemplateKey.STAFF_INVITATION,
   data: {},
 };
 

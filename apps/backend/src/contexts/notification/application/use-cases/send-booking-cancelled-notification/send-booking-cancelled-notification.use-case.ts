@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { formatBRL } from '../../../../../shared/utils/money-format';
 import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../../shared/utils/calendar-date';
+import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -24,8 +25,6 @@ import {
 } from '../../ports/notification-tenant.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-const CUSTOMER_NOTIFICATION_TYPE = 'BOOKING_CANCELLED_CUSTOMER';
-const ADMIN_NOTIFICATION_TYPE = 'BOOKING_CANCELLED_ADMIN';
 const CHANNEL = 'EMAIL';
 
 export interface SendBookingCancelledNotificationUseCaseResult {
@@ -49,8 +48,18 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
     dto: SendBookingCancelledNotificationDto,
   ): Promise<SendBookingCancelledNotificationUseCaseResult> {
     const [customerSent, adminSent] = await Promise.all([
-      this.isAlreadySent(dto.tenantId, dto.eventId, CUSTOMER_NOTIFICATION_TYPE, CHANNEL),
-      this.isAlreadySent(dto.tenantId, dto.eventId, ADMIN_NOTIFICATION_TYPE, CHANNEL),
+      this.isAlreadySent(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
+        CHANNEL,
+      ),
+      this.isAlreadySent(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
+        CHANNEL,
+      ),
     ]);
 
     if (customerSent && adminSent) {
@@ -75,7 +84,7 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
         tenantId: dto.tenantId,
         to: dto.guestEmail,
         subject: 'Seu agendamento foi cancelado',
-        templateKey: 'booking-cancelled-customer',
+        templateKey: NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
         data: {
           serviceNames,
           totalPrice: formattedTotal,
@@ -84,7 +93,12 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
           localTime,
         },
       });
-      await this.saveLog(dto.tenantId, dto.eventId, CUSTOMER_NOTIFICATION_TYPE, CHANNEL);
+      await this.saveLog(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
+        CHANNEL,
+      );
       customerEmailSent = true;
     }
 
@@ -97,7 +111,7 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
               tenantId: dto.tenantId,
               to: email,
               subject: 'Agendamento cancelado',
-              templateKey: 'booking-cancelled-admin',
+              templateKey: NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
               data: {
                 guestName: dto.guestName,
                 localDate,
@@ -111,7 +125,12 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
             }),
           ),
         );
-        await this.saveLog(dto.tenantId, dto.eventId, ADMIN_NOTIFICATION_TYPE, CHANNEL);
+        await this.saveLog(
+          dto.tenantId,
+          dto.eventId,
+          NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
+          CHANNEL,
+        );
         adminEmailSent = true;
       }
     }

@@ -21,9 +21,9 @@ import {
   INotificationTenantPort,
   NOTIFICATION_TENANT_PORT,
 } from '../../ports/notification-tenant.port';
+import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-const NOTIFICATION_TYPE = 'STAFF_INVITED';
 const CHANNEL = 'EMAIL';
 
 export interface SendStaffInvitationUseCaseResult {
@@ -44,7 +44,14 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
   }
 
   async execute(dto: SendStaffInvitationDto): Promise<SendStaffInvitationUseCaseResult> {
-    if (await this.isAlreadySent(dto.tenantId, dto.eventId, NOTIFICATION_TYPE, CHANNEL)) {
+    if (
+      await this.isAlreadySent(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.STAFF_INVITATION,
+        CHANNEL,
+      )
+    ) {
       return { sent: false };
     }
 
@@ -59,7 +66,7 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
       tenantId: dto.tenantId,
       to: staff.email,
       subject: `Você foi convidado para a equipe ${tenant.name}`,
-      templateKey: 'staff-invitation',
+      templateKey: NotificationTemplateKey.STAFF_INVITATION,
       data: {
         staffName: staff.name ?? staff.email,
         tenantName: tenant.name,
@@ -67,7 +74,12 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
       },
     });
 
-    await this.saveLog(dto.tenantId, dto.eventId, NOTIFICATION_TYPE, CHANNEL);
+    await this.saveLog(
+      dto.tenantId,
+      dto.eventId,
+      NotificationTemplateKey.STAFF_INVITATION,
+      CHANNEL,
+    );
     return { sent: true };
   }
 }

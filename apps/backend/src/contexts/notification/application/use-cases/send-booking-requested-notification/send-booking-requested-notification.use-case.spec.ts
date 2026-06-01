@@ -66,8 +66,8 @@ describe('SendBookingRequestedNotificationUseCase', () => {
     const logs = logRepo.all;
     expect(logs).toHaveLength(2);
     const types = logs.map((l) => l.notificationType);
-    expect(types).toContain('BOOKING_REQUESTED_ADMIN');
-    expect(types).toContain('BOOKING_REQUESTED_CUSTOMER');
+    expect(types).toContain('booking-requested-admin');
+    expect(types).toContain('booking-requested-customer');
   });
 
   it('sends admin email to each manager when multiple managers exist', async () => {
@@ -82,7 +82,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
     expect(adminMsgs.map((m) => m.to)).toEqual(
       expect.arrayContaining(['mgr1@lavacar.com.br', 'mgr2@lavacar.com.br']),
     );
-    const adminLog = logRepo.all.filter((l) => l.notificationType === 'BOOKING_REQUESTED_ADMIN');
+    const adminLog = logRepo.all.filter((l) => l.notificationType === 'booking-requested-admin');
     expect(adminLog).toHaveLength(1);
   });
 
@@ -95,7 +95,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
     expect(result.customerEmailSent).toBe(true);
     expect(dispatcher.dispatched).toHaveLength(1);
     expect(dispatcher.dispatched[0].templateKey).toBe('booking-requested-customer');
-    const adminLog = logRepo.all.filter((l) => l.notificationType === 'BOOKING_REQUESTED_ADMIN');
+    const adminLog = logRepo.all.filter((l) => l.notificationType === 'booking-requested-admin');
     expect(adminLog).toHaveLength(0);
   });
 

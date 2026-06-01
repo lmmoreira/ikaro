@@ -71,8 +71,8 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
     const logs = logRepo.all;
     expect(logs).toHaveLength(2);
     const types = logs.map((l) => l.notificationType);
-    expect(types).toContain('BOOKING_RESCHEDULED_CUSTOMER');
-    expect(types).toContain('BOOKING_RESCHEDULED_ADMIN');
+    expect(types).toContain('booking-rescheduled-customer');
+    expect(types).toContain('booking-rescheduled-admin');
   });
 
   it('old and new dates differ in dispatched data', async () => {
@@ -100,7 +100,7 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
       NotificationLog.create({
         tenantId: TENANT_ID,
         eventId: EVENT_ID,
-        notificationType: 'BOOKING_RESCHEDULED_CUSTOMER',
+        notificationType: 'booking-rescheduled-customer',
         channel: 'EMAIL',
       }),
     );
@@ -118,7 +118,7 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
       NotificationLog.create({
         tenantId: TENANT_ID,
         eventId: EVENT_ID,
-        notificationType: 'BOOKING_RESCHEDULED_ADMIN',
+        notificationType: 'booking-rescheduled-admin',
         channel: 'EMAIL',
       }),
     );

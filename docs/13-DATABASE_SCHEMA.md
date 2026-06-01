@@ -369,16 +369,24 @@ Partial-failure safe: if the cron crashes after processing 5 of 10 entries, the 
 Owned by: **Notification Context** (`src/contexts/notification/`)
 
 ### `notification.notification_templates`
+
+Each row is a rendered template for one `(trigger_event, channel)` pair. Rows with `tenant_id IS NULL` are **global defaults** seeded by migration. When a new tenant is provisioned, a `TenantProvisioned` handler copies all global-default rows into tenant-specific rows (`tenant_id = newTenantId`), allowing per-tenant customisation later.
+
+`trigger_event` stores the `NotificationTemplateKey` enum value (kebab-case, e.g. `'booking-approved-customer'`), not the domain event name. Multi-variant events (e.g. `BookingRequested`) use distinct keys: `'booking-requested-admin'` and `'booking-requested-customer'`.
+
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
-| trigger_event | VARCHAR(100) | NOT NULL — e.g., `'BookingApproved'` |
-| subject | VARCHAR(255) | NOT NULL |
-| body_html | TEXT | NOT NULL — pt-BR, branded per tenant |
+| tenant_id | UUID | NULLABLE — NULL = global default; FK → `platform.tenants(id)` when set |
+| trigger_event | VARCHAR(100) | NOT NULL — `NotificationTemplateKey` enum value, e.g. `'booking-approved-customer'` |
+| channel | VARCHAR(20) | NOT NULL DEFAULT `'EMAIL'` — `'EMAIL'` now; `'SMS'`/`'WHATSAPP'` when those channels are built |
+| subject | VARCHAR(255) | NOT NULL — pt-BR |
+| body | TEXT | NOT NULL — pt-BR; plain text for SMS, HTML for EMAIL |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
-| **INDEX** | (tenant_id, trigger_event) | Fast template lookup by event name |
+| **UNIQUE INDEX** | `(trigger_event, channel) WHERE tenant_id IS NULL` | One global default per key+channel |
+| **UNIQUE INDEX** | `(tenant_id, trigger_event, channel) WHERE tenant_id IS NOT NULL` | One tenant template per key+channel |
+| **INDEX** | `(tenant_id)` | Fast lookup of all templates for a tenant |
 
 ### `notification.notification_logs`
 | Column | Type | Constraints |

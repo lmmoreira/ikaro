@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { formatBRL } from '../../../../../shared/utils/money-format';
 import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../../shared/utils/calendar-date';
+import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -20,7 +21,6 @@ import {
 } from '../../ports/notification-tenant.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
-const NOTIFICATION_TYPE = 'BOOKING_APPROVED_CUSTOMER';
 const CHANNEL = 'EMAIL';
 
 export interface SendBookingApprovedNotificationUseCaseResult {
@@ -41,7 +41,14 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
   async execute(
     dto: SendBookingApprovedNotificationDto,
   ): Promise<SendBookingApprovedNotificationUseCaseResult> {
-    if (await this.isAlreadySent(dto.tenantId, dto.eventId, NOTIFICATION_TYPE, CHANNEL)) {
+    if (
+      await this.isAlreadySent(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
+        CHANNEL,
+      )
+    ) {
       return { emailSent: false };
     }
 
@@ -62,7 +69,7 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
       tenantId: dto.tenantId,
       to: dto.guestEmail,
       subject: 'Seu agendamento foi confirmado! ✓',
-      templateKey: 'booking-approved-customer',
+      templateKey: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
       data: {
         guestName: dto.guestName,
         localDate,
@@ -73,7 +80,12 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
       },
     });
 
-    await this.saveLog(dto.tenantId, dto.eventId, NOTIFICATION_TYPE, CHANNEL);
+    await this.saveLog(
+      dto.tenantId,
+      dto.eventId,
+      NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
+      CHANNEL,
+    );
     return { emailSent: true };
   }
 }

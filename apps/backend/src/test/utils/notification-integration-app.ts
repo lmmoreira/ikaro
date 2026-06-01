@@ -16,6 +16,7 @@ import { StaffEntity } from '../../contexts/staff/infrastructure/entities/staff.
 import { StaffModule } from '../../contexts/staff/staff.module';
 import { NOTIFICATION_DISPATCHER } from '../../contexts/notification/application/ports/notification-dispatcher.port';
 import { NotificationLogEntity } from '../../contexts/notification/infrastructure/entities/notification-log.entity';
+import { NotificationTemplateEntity } from '../../contexts/notification/infrastructure/entities/notification-template.entity';
 import { NotificationModule } from '../../contexts/notification/notification.module';
 import { InMemoryNotificationDispatcher } from '../infrastructure/in-memory-notification-dispatcher';
 import { EVENT_BUS, IEventBus } from '../../shared/ports/event-bus.port';
@@ -52,6 +53,7 @@ export async function createNotificationIntegrationApp(
           HotsiteConfigEntity,
           StaffEntity,
           NotificationLogEntity,
+          NotificationTemplateEntity,
           ...extraEntities,
         ],
         synchronize: false,
