@@ -194,7 +194,7 @@ This allows the same domain event to produce notifications across multiple templ
 
 ---
 
-### M11-S03 — SendGrid adapter + MailHog local adapter
+### M11-S03 — SendGrid adapter + MailHog local adapter ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
