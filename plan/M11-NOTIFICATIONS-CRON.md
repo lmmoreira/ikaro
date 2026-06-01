@@ -112,7 +112,7 @@ A new `TenantProvisionedNotificationHandler` subscribes to the `TenantProvisione
 
 ---
 
-### M11-S02 — NotificationLog aggregate domain + migration + idempotency table
+### M11-S02 — NotificationLog aggregate domain + migration + idempotency table ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
