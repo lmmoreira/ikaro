@@ -5,9 +5,19 @@ import {
 
 export class InMemoryNotificationDispatcher implements INotificationDispatcher {
   readonly dispatched: OutboundMessage[] = [];
+  private nextError?: Error;
 
   async dispatch(message: OutboundMessage): Promise<void> {
+    if (this.nextError) {
+      const err = this.nextError;
+      this.nextError = undefined;
+      throw err;
+    }
     this.dispatched.push(message);
+  }
+
+  failNext(error: Error): void {
+    this.nextError = error;
   }
 
   clear(): void {

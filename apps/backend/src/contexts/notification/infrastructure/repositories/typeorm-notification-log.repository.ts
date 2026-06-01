@@ -13,18 +13,6 @@ export class TypeOrmNotificationLogRepository implements INotificationLogReposit
     private readonly repo: Repository<NotificationLogEntity>,
   ) {}
 
-  async findByEventAndChannel(
-    tenantId: string,
-    eventId: string,
-    notificationType: string,
-    channel: string,
-  ): Promise<NotificationLog | null> {
-    const entity = await this.repo.findOne({
-      where: { tenantId, eventId, notificationType, channel },
-    });
-    return entity ? this.toDomain(entity) : null;
-  }
-
   async save(log: NotificationLog): Promise<void> {
     const manager = getActiveEntityManager();
     const entity = this.toEntity(log);
@@ -35,17 +23,6 @@ export class TypeOrmNotificationLogRepository implements INotificationLogReposit
     }
   }
 
-  private toDomain(entity: NotificationLogEntity): NotificationLog {
-    return NotificationLog.reconstitute({
-      id: entity.id,
-      tenantId: entity.tenantId,
-      eventId: entity.eventId,
-      notificationType: entity.notificationType,
-      channel: entity.channel,
-      createdAt: entity.createdAt,
-    });
-  }
-
   private toEntity(log: NotificationLog): NotificationLogEntity {
     const entity = new NotificationLogEntity();
     entity.id = log.id;
@@ -53,6 +30,11 @@ export class TypeOrmNotificationLogRepository implements INotificationLogReposit
     entity.eventId = log.eventId;
     entity.notificationType = log.notificationType;
     entity.channel = log.channel;
+    entity.recipientEmail = log.recipientEmail;
+    entity.status = log.status;
+    entity.retryCount = log.retryCount;
+    entity.errorMessage = log.errorMessage ?? null;
+    entity.sentAt = log.sentAt ?? null;
     entity.createdAt = log.createdAt;
     return entity;
   }

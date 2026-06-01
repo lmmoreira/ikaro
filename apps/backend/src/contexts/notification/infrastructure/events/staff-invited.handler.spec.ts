@@ -3,6 +3,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../test/repositories/notification/in-memory-notification-log.repository';
+import { InMemoryNotificationProcessedEventRepository } from '../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationStaffPort } from '../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationTenantPort } from '../../../../test/infrastructure/in-memory-notification-tenant.port';
 import { StaffInvitedEventBuilder } from '../../../../test/builders/staff/staff-invited-event.builder';
@@ -22,6 +23,7 @@ const STAFF_ID = 'bbbbbbbb-0000-4000-8000-000000000001';
 
 describe('StaffInvitedHandler', () => {
   let logRepo: InMemoryNotificationLogRepository;
+  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let staffPort: InMemoryNotificationStaffPort;
   let tenantPort: InMemoryNotificationTenantPort;
@@ -29,6 +31,7 @@ describe('StaffInvitedHandler', () => {
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
+    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     staffPort = new InMemoryNotificationStaffPort();
     staffPort.setStaff(TENANT_ID, { id: STAFF_ID, email: 'maria@lavacar.com.br', name: 'Maria' });
@@ -41,6 +44,7 @@ describe('StaffInvitedHandler', () => {
     });
     const useCase = new SendStaffInvitationUseCase(
       logRepo,
+      processedEventRepo,
       dispatcher,
       staffPort,
       tenantPort,
@@ -83,6 +87,7 @@ describe('StaffInvitedHandler', () => {
     };
     const failUseCase = new SendStaffInvitationUseCase(
       new InMemoryNotificationLogRepository(),
+      new InMemoryNotificationProcessedEventRepository(),
       failingDispatcher,
       staffPort,
       tenantPort,

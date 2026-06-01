@@ -890,6 +890,20 @@ Always import these; never define `futureDate`, `pastDate`, `nextSunday`, `nextM
 
 Integration tests share a live DB with no cleanup between tests in the same file. Any `it()` sensitive to aggregate counts (`countActiveManagersByTenant`, `total` in pagination, etc.) **must use a unique tenant UUID** that no other test in the file writes to. Never reuse suite-level `TENANT_A`/`TENANT_B` constants for count-sensitive assertions.
 
+### Registering new migrations and entities in the global setup (MANDATORY)
+
+`src/test/integration-global-setup.ts` holds **explicit** import lists — it does not use a glob. Every time you add a new TypeORM entity or migration you **must** update this file or integration tests will fail with `column X does not exist` / `relation X does not exist`.
+
+**Checklist — do this in the same commit as the migration:**
+
+1. **Import the migration class** at the top of `integration-global-setup.ts`.
+2. **Add the migration** to the `migrations: [...]` array, keeping timestamp order.
+3. **Import the TypeORM entity class** if it is new.
+4. **Add the entity** to the `entities: [...]` array.
+5. **If the context has its own integration app helper** (e.g. `notification-integration-app.ts`), add the new entity there too.
+
+Skipping any of these steps is a silent failure: unit tests pass (InMemory doubles never touch the DB), but integration tests will error on the first query that touches the new column/table.
+
 ### Notification integration spec helper
 
 All notification story integration specs must use `createNotificationIntegrationApp()` from `src/test/utils/notification-integration-app.ts`.

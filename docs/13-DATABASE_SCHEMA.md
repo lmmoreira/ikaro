@@ -389,51 +389,49 @@ Each row is a rendered template for one `(trigger_event, channel)` pair. Rows wi
 | **INDEX** | `(tenant_id)` | Fast lookup of all templates for a tenant |
 
 ### `notification.notification_logs`
+
+Audit trail of every notification send attempt. Pure audit — idempotency is handled by `notification.processed_events`, not here.
+
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
-| booking_id | UUID | NULLABLE — no FK (cross-context ref to `booking.bookings`) |
-| recipient | VARCHAR(255) | NOT NULL |
-| template_name | VARCHAR(100) | NOT NULL |
-| subject | VARCHAR(255) | NOT NULL |
-| status | VARCHAR(50) | NOT NULL — 'PENDING', 'SENT', 'FAILED' |
+| event_id | UUID | NOT NULL — source domain event's `eventId` |
+| notification_type | VARCHAR(100) | NOT NULL — `NotificationTemplateKey` value |
+| channel | VARCHAR(32) | NOT NULL — `'EMAIL'` \| `'SMS'` \| `'WHATSAPP'` |
+| recipient_email | VARCHAR(255) | NOT NULL |
+| status | VARCHAR(20) | NOT NULL DEFAULT `'PENDING'` — `'PENDING'`, `'SENT'`, `'FAILED'` |
 | retry_count | SMALLINT | NOT NULL DEFAULT 0 |
 | error_message | TEXT | NULLABLE |
 | sent_at | TIMESTAMP WITH TIME ZONE | NULLABLE |
-| created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
-| **INDEX** | (tenant_id, status) | Retry queue queries |
-| **INDEX** | (tenant_id, booking_id) | All notifications for a booking |
+| created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| **INDEX** | (tenant_id) | Tenant-scoped queries |
+| **INDEX** | (tenant_id, status) | Retry queue / monitoring queries |
+| **INDEX** | (tenant_id, recipient_email) | All notifications sent to a recipient |
 
 ### `notification.processed_events`
 
-Idempotency table for the Notification event consumer. Every incoming Pub/Sub message is checked against this table before processing. Duplicate messages (at-least-once delivery) are silently skipped.
+Idempotency table for Notification event consumers. Checked before processing any Pub/Sub message. The composite PK `(event_id, notification_type, channel)` allows the same domain event to produce multiple independent notifications (e.g. admin email + customer email, or EMAIL + SMS) without blocking each other.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | event_id | UUID | NOT NULL — from the event envelope `eventId` field |
-| consumer_name | VARCHAR(100) | NOT NULL — e.g. `'notification'` |
+| notification_type | VARCHAR(100) | NOT NULL — `NotificationTemplateKey` value |
+| channel | VARCHAR(32) | NOT NULL — `'EMAIL'` \| `'SMS'` \| `'WHATSAPP'` |
 | processed_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
-| **PRIMARY KEY** | (event_id, consumer_name) | |
-| **UNIQUE** | (event_id, consumer_name) | Enforces exactly-once processing per consumer |
+| **PRIMARY KEY** | (event_id, notification_type, channel) | One row per event × template × channel |
 
-**Usage pattern in the consumer handler:**
+**Usage pattern (via `IProcessedEventRepository`):**
 ```typescript
-// Before processing any event:
-try {
-  await db.query(
-    `INSERT INTO notification.processed_events (event_id, consumer_name)
-     VALUES ($1, $2)
-     ON CONFLICT DO NOTHING`,
-    [event.eventId, 'notification'],
-  );
-  // rowCount === 0 means duplicate — skip
-} catch {
-  // skip
-}
+// In BaseNotificationUseCase.isAlreadySent():
+return this.processedEventRepo.isDuplicate(eventId, notificationType, channel);
+
+// After successful dispatch:
+await this.processedEventRepo.markProcessed(eventId, notificationType, channel);
+// INSERT INTO notification.processed_events ... ON CONFLICT DO NOTHING
 ```
 
-**Retention:** Rows older than 30 days can be safely deleted (a weekly cleanup cron is sufficient — Pub/Sub does not re-deliver messages older than 7 days by default).
+**Retention:** Rows older than 30 days can be safely deleted (Pub/Sub does not re-deliver messages older than 7 days by default).
 
 ---
 

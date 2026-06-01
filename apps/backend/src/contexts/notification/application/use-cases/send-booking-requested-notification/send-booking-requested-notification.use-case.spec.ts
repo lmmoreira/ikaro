@@ -1,5 +1,6 @@
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
+import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationTenantPort } from '../../../../../test/infrastructure/in-memory-notification-tenant.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
@@ -16,6 +17,7 @@ const dto = new SendBookingRequestedNotificationDtoBuilder()
 
 describe('SendBookingRequestedNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
+  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let staffPort: InMemoryNotificationStaffPort;
   let tenantPort: InMemoryNotificationTenantPort;
@@ -23,6 +25,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
+    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     staffPort = new InMemoryNotificationStaffPort();
     staffPort.setManagerEmails(TENANT_ID, ['manager@lavacar.com.br']);
@@ -35,6 +38,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
     });
     useCase = new SendBookingRequestedNotificationUseCase(
       logRepo,
+      processedEventRepo,
       dispatcher,
       staffPort,
       tenantPort,

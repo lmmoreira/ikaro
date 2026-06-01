@@ -1,13 +1,21 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as transactionContext from '../../../../shared/infrastructure/transaction-context';
 import { NotificationLog } from '../../domain/notification-log.entity';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
 import { TypeOrmNotificationLogRepository } from './typeorm-notification-log.repository';
-import { NotificationLogEntityBuilder } from '../../../../test/builders/notification/notification-log-entity.builder';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 const EVENT_ID = 'bbbbbbbb-0000-4000-8000-000000000001';
+
+const BASE_CREATE_PROPS = {
+  tenantId: TENANT_ID,
+  eventId: EVENT_ID,
+  notificationType: 'booking-approved-customer',
+  channel: 'EMAIL',
+  recipientEmail: 'joao@example.com',
+};
 
 describe('TypeOrmNotificationLogRepository', () => {
   let repo: TypeOrmNotificationLogRepository;
@@ -20,7 +28,6 @@ describe('TypeOrmNotificationLogRepository', () => {
         {
           provide: getRepositoryToken(NotificationLogEntity),
           useValue: {
-            findOne: jest.fn(),
             save: jest.fn(),
           },
         },
@@ -31,66 +38,15 @@ describe('TypeOrmNotificationLogRepository', () => {
     ormRepo = moduleRef.get(getRepositoryToken(NotificationLogEntity));
   });
 
-  describe('findByEventAndChannel', () => {
-    it('returns null when no row found', async () => {
-      ormRepo.findOne.mockResolvedValue(null);
-
-      const result = await repo.findByEventAndChannel(
-        TENANT_ID,
-        EVENT_ID,
-        'STAFF_INVITED',
-        'EMAIL',
-      );
-
-      expect(result).toBeNull();
-    });
-
-    it('maps entity to NotificationLog domain object', async () => {
-      ormRepo.findOne.mockResolvedValue(
-        new NotificationLogEntityBuilder().withTenantId(TENANT_ID).withEventId(EVENT_ID).build(),
-      );
-
-      const result = await repo.findByEventAndChannel(
-        TENANT_ID,
-        EVENT_ID,
-        'STAFF_INVITED',
-        'EMAIL',
-      );
-
-      expect(result).toBeInstanceOf(NotificationLog);
-      expect(result!.tenantId).toBe(TENANT_ID);
-      expect(result!.eventId).toBe(EVENT_ID);
-      expect(result!.notificationType).toBe('STAFF_INVITED');
-      expect(result!.channel).toBe('EMAIL');
-    });
-
-    it('passes all query params to findOne', async () => {
-      ormRepo.findOne.mockResolvedValue(null);
-
-      await repo.findByEventAndChannel(TENANT_ID, EVENT_ID, 'STAFF_INVITED', 'EMAIL');
-
-      expect(ormRepo.findOne).toHaveBeenCalledWith({
-        where: {
-          tenantId: TENANT_ID,
-          eventId: EVENT_ID,
-          notificationType: 'STAFF_INVITED',
-          channel: 'EMAIL',
-        },
-      });
-    });
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('save', () => {
-    it('persists the notification log via TypeORM save', async () => {
-      ormRepo.save.mockResolvedValue(
-        new NotificationLogEntityBuilder().withTenantId(TENANT_ID).withEventId(EVENT_ID).build(),
-      );
-      const log = NotificationLog.create({
-        tenantId: TENANT_ID,
-        eventId: EVENT_ID,
-        notificationType: 'STAFF_INVITED',
-        channel: 'EMAIL',
-      });
+    it('persists a SENT log via TypeORM save', async () => {
+      ormRepo.save.mockResolvedValue({} as NotificationLogEntity);
+      const log = NotificationLog.create(BASE_CREATE_PROPS);
+      log.markSent();
 
       await repo.save(log);
 
@@ -98,8 +54,39 @@ describe('TypeOrmNotificationLogRepository', () => {
       const saved = ormRepo.save.mock.calls[0][0] as NotificationLogEntity;
       expect(saved.tenantId).toBe(TENANT_ID);
       expect(saved.eventId).toBe(EVENT_ID);
-      expect(saved.notificationType).toBe('STAFF_INVITED');
+      expect(saved.notificationType).toBe('booking-approved-customer');
       expect(saved.channel).toBe('EMAIL');
+      expect(saved.recipientEmail).toBe('joao@example.com');
+      expect(saved.status).toBe('SENT');
+      expect(saved.retryCount).toBe(0);
+    });
+
+    it('persists a FAILED log with errorMessage', async () => {
+      ormRepo.save.mockResolvedValue({} as NotificationLogEntity);
+      const log = NotificationLog.create(BASE_CREATE_PROPS);
+      log.markFailed('SMTP timeout');
+
+      await repo.save(log);
+
+      const saved = ormRepo.save.mock.calls[0][0] as NotificationLogEntity;
+      expect(saved.status).toBe('FAILED');
+      expect(saved.errorMessage).toBe('SMTP timeout');
+      expect(saved.retryCount).toBe(1);
+    });
+
+    it('uses active EntityManager when one is present', async () => {
+      const mockManagerSave = jest.fn().mockResolvedValue({});
+      jest
+        .spyOn(transactionContext, 'getActiveEntityManager')
+        .mockReturnValue({ save: mockManagerSave } as never);
+
+      const log = NotificationLog.create(BASE_CREATE_PROPS);
+      log.markSent();
+
+      await repo.save(log);
+
+      expect(mockManagerSave).toHaveBeenCalledTimes(1);
+      expect(ormRepo.save).not.toHaveBeenCalled();
     });
   });
 });

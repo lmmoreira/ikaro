@@ -1,5 +1,6 @@
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
+import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingRejectedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { SendBookingRejectedNotificationUseCase } from './send-booking-rejected-notification.use-case';
@@ -14,14 +15,17 @@ const dto = new SendBookingRejectedNotificationDtoBuilder()
 
 describe('SendBookingRejectedNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
+  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let useCase: SendBookingRejectedNotificationUseCase;
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
+    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     useCase = new SendBookingRejectedNotificationUseCase(
       logRepo,
+      processedEventRepo,
       dispatcher,
       new InMemoryTransactionManager(),
     );

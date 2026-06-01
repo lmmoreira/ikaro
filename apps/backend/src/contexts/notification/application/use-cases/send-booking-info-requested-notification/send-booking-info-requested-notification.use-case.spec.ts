@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
+import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingInfoRequestedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { SendBookingInfoRequestedNotificationUseCase } from './send-booking-info-requested-notification.use-case';
@@ -35,14 +36,17 @@ const customerDto = new SendBookingInfoRequestedNotificationDtoBuilder()
 
 describe('SendBookingInfoRequestedNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
+  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let useCase: SendBookingInfoRequestedNotificationUseCase;
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
+    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     useCase = new SendBookingInfoRequestedNotificationUseCase(
       logRepo,
+      processedEventRepo,
       dispatcher,
       new InMemoryTransactionManager(),
       configService,

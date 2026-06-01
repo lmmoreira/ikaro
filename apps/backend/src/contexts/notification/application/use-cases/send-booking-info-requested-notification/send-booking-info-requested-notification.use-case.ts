@@ -15,6 +15,10 @@ import {
   INotificationLogRepository,
   NOTIFICATION_LOG_REPOSITORY,
 } from '../../ports/notification-log-repository.port';
+import {
+  INotificationProcessedEventRepository,
+  NOTIFICATION_PROCESSED_EVENT_REPOSITORY,
+} from '../../ports/processed-event-repository.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const CHANNEL = 'EMAIL';
@@ -28,11 +32,13 @@ export interface SendBookingInfoRequestedNotificationUseCaseResult {
 export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificationUseCase {
   constructor(
     @Inject(NOTIFICATION_LOG_REPOSITORY) logRepo: INotificationLogRepository,
+    @Inject(NOTIFICATION_PROCESSED_EVENT_REPOSITORY)
+    processedEventRepo: INotificationProcessedEventRepository,
     @Inject(NOTIFICATION_DISPATCHER) dispatcher: INotificationDispatcher,
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     private readonly config: ConfigService,
   ) {
-    super(logRepo, dispatcher, txManager);
+    super(logRepo, processedEventRepo, dispatcher, txManager);
   }
 
   async execute(
@@ -40,7 +46,6 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
   ): Promise<SendBookingInfoRequestedNotificationUseCaseResult> {
     if (
       await this.isAlreadySent(
-        dto.tenantId,
         dto.eventId,
         NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER,
         CHANNEL,
@@ -51,25 +56,37 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
 
     const respondLink = this.buildRespondLink(dto);
 
-    await this.dispatcher.dispatch({
-      tenantId: dto.tenantId,
-      to: dto.guestEmail,
-      subject: 'Precisamos de mais informações sobre seu agendamento',
-      templateKey: NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER,
-      data: {
-        guestName: dto.guestName,
-        informationNeeded: dto.informationNeeded,
-        respondLink,
-      },
-    });
-
-    await this.saveLog(
-      dto.tenantId,
-      dto.eventId,
-      NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER,
-      CHANNEL,
-    );
-    return { emailSent: true };
+    try {
+      await this.dispatcher.dispatch({
+        tenantId: dto.tenantId,
+        to: dto.guestEmail,
+        subject: 'Precisamos de mais informações sobre seu agendamento',
+        templateKey: NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER,
+        data: {
+          guestName: dto.guestName,
+          informationNeeded: dto.informationNeeded,
+          respondLink,
+        },
+      });
+      await this.saveLog(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER,
+        CHANNEL,
+        dto.guestEmail,
+      );
+      return { emailSent: true };
+    } catch (err: unknown) {
+      await this.saveFailedLog(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER,
+        CHANNEL,
+        dto.guestEmail,
+        String(err),
+      );
+      throw err;
+    }
   }
 
   private buildRespondLink(dto: SendBookingInfoRequestedNotificationDto): string {

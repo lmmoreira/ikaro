@@ -1,6 +1,7 @@
 import { InMemoryNotificationCustomerPort } from '../../../../../test/infrastructure/in-memory-notification-customer.port';
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
+import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationServicePort } from '../../../../../test/infrastructure/in-memory-notification-service.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendServicePointsEarnedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
@@ -22,12 +23,14 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
   let useCase: SendServicePointsEarnedNotificationUseCase;
   let dispatcher: InMemoryNotificationDispatcher;
   let logRepo: InMemoryNotificationLogRepository;
+  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
   let customerPort: InMemoryNotificationCustomerPort;
   let servicePort: InMemoryNotificationServicePort;
 
   beforeEach(() => {
     dispatcher = new InMemoryNotificationDispatcher();
     logRepo = new InMemoryNotificationLogRepository();
+    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
     customerPort = new InMemoryNotificationCustomerPort();
     servicePort = new InMemoryNotificationServicePort();
 
@@ -40,6 +43,7 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
 
     useCase = new SendServicePointsEarnedNotificationUseCase(
       logRepo,
+      processedEventRepo,
       dispatcher,
       customerPort,
       servicePort,
@@ -74,13 +78,9 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
   it('saves a notification log entry', async () => {
     await useCase.execute(dto);
 
-    const log = await logRepo.findByEventAndChannel(
-      TENANT_ID,
-      EVENT_ID,
-      'service-points-earned',
-      'EMAIL',
-    );
-    expect(log).not.toBeNull();
+    expect(logRepo.all).toHaveLength(1);
+    expect(logRepo.all[0].notificationType).toBe('service-points-earned');
+    expect(logRepo.all[0].tenantId).toBe(TENANT_ID);
   });
 
   it('is idempotent — second call returns emailSent=false without re-dispatching', async () => {

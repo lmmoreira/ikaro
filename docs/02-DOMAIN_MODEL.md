@@ -525,22 +525,29 @@ NotificationTemplate {
 ```
 
 #### **Aggregate: NotificationLog** (Root Entity)
-Record of sent notifications (audit trail) **per tenant**.
+Audit trail of every notification send attempt **per tenant**. Not used for idempotency — that is handled by `ProcessedEvent` / `notification.processed_events`.
 
 **Properties:**
 ```
 NotificationLog {
-  logId: NotificationLogId
-  tenantId: TenantId (which company this notification belongs to)
-  templateName: String
-  recipient: Email
-  subject: String
-  sentAt: DateTime
-  status: NotificationStatus (SENT, FAILED, PENDING)
-  retryCount: Integer
-  errorMessage: String (if failed)
+  id: UUID v7
+  tenantId: string
+  eventId: string                    ← source domain event's eventId
+  notificationType: NotificationTemplateKey
+  channel: 'EMAIL' | 'SMS' | 'WHATSAPP'
+  recipientEmail: string
+  status: 'PENDING' | 'SENT' | 'FAILED'
+  retryCount: integer (default 0)
+  errorMessage?: string
+  sentAt?: DateTime
+  createdAt: DateTime
 }
 ```
+
+**Methods:**
+- `static create(props)` — creates with `status='PENDING'`, `retryCount=0`
+- `markSent()` — transitions to `SENT`, sets `sentAt=now()`
+- `markFailed(errorMessage)` — transitions to `FAILED`, increments `retryCount`, stores message
 
 ---
 

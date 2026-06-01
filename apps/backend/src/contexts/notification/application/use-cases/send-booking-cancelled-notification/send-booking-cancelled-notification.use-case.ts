@@ -16,6 +16,10 @@ import {
   NOTIFICATION_LOG_REPOSITORY,
 } from '../../ports/notification-log-repository.port';
 import {
+  INotificationProcessedEventRepository,
+  NOTIFICATION_PROCESSED_EVENT_REPOSITORY,
+} from '../../ports/processed-event-repository.port';
+import {
   INotificationStaffPort,
   NOTIFICATION_STAFF_PORT,
 } from '../../ports/notification-staff.port';
@@ -36,30 +40,22 @@ export interface SendBookingCancelledNotificationUseCaseResult {
 export class SendBookingCancelledNotificationUseCase extends BaseNotificationUseCase {
   constructor(
     @Inject(NOTIFICATION_LOG_REPOSITORY) logRepo: INotificationLogRepository,
+    @Inject(NOTIFICATION_PROCESSED_EVENT_REPOSITORY)
+    processedEventRepo: INotificationProcessedEventRepository,
     @Inject(NOTIFICATION_DISPATCHER) dispatcher: INotificationDispatcher,
     @Inject(NOTIFICATION_STAFF_PORT) private readonly staffPort: INotificationStaffPort,
     @Inject(NOTIFICATION_TENANT_PORT) private readonly tenantPort: INotificationTenantPort,
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
   ) {
-    super(logRepo, dispatcher, txManager);
+    super(logRepo, processedEventRepo, dispatcher, txManager);
   }
 
   async execute(
     dto: SendBookingCancelledNotificationDto,
   ): Promise<SendBookingCancelledNotificationUseCaseResult> {
     const [customerSent, adminSent] = await Promise.all([
-      this.isAlreadySent(
-        dto.tenantId,
-        dto.eventId,
-        NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
-        CHANNEL,
-      ),
-      this.isAlreadySent(
-        dto.tenantId,
-        dto.eventId,
-        NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
-        CHANNEL,
-      ),
+      this.isAlreadySent(dto.eventId, NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER, CHANNEL),
+      this.isAlreadySent(dto.eventId, NotificationTemplateKey.BOOKING_CANCELLED_ADMIN, CHANNEL),
     ]);
 
     if (customerSent && adminSent) {
@@ -80,58 +76,84 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
     let adminEmailSent = false;
 
     if (!customerSent) {
-      await this.dispatcher.dispatch({
-        tenantId: dto.tenantId,
-        to: dto.guestEmail,
-        subject: 'Seu agendamento foi cancelado',
-        templateKey: NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
-        data: {
-          serviceNames,
-          totalPrice: formattedTotal,
-          guestName: dto.guestName,
-          localDate,
-          localTime,
-        },
-      });
-      await this.saveLog(
-        dto.tenantId,
-        dto.eventId,
-        NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
-        CHANNEL,
-      );
-      customerEmailSent = true;
+      try {
+        await this.dispatcher.dispatch({
+          tenantId: dto.tenantId,
+          to: dto.guestEmail,
+          subject: 'Seu agendamento foi cancelado',
+          templateKey: NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
+          data: {
+            serviceNames,
+            totalPrice: formattedTotal,
+            guestName: dto.guestName,
+            localDate,
+            localTime,
+          },
+        });
+        await this.saveLog(
+          dto.tenantId,
+          dto.eventId,
+          NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
+          CHANNEL,
+          dto.guestEmail,
+        );
+        customerEmailSent = true;
+      } catch (err: unknown) {
+        await this.saveFailedLog(
+          dto.tenantId,
+          dto.eventId,
+          NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
+          CHANNEL,
+          dto.guestEmail,
+          String(err),
+        );
+        throw err;
+      }
     }
 
     if (!adminSent) {
       const managerEmails = await this.staffPort.getManagerEmails(dto.tenantId);
       if (managerEmails.length > 0) {
-        await Promise.all(
-          managerEmails.map((email) =>
-            this.dispatcher.dispatch({
-              tenantId: dto.tenantId,
-              to: email,
-              subject: 'Agendamento cancelado',
-              templateKey: NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
-              data: {
-                guestName: dto.guestName,
-                localDate,
-                localTime,
-                serviceNames,
-                totalPrice: formattedTotal,
-                cancelledBy: dto.cancelledBy,
-                isBusiness: dto.isBusiness,
-                reason: dto.reason,
-              },
-            }),
-          ),
-        );
-        await this.saveLog(
-          dto.tenantId,
-          dto.eventId,
-          NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
-          CHANNEL,
-        );
-        adminEmailSent = true;
+        try {
+          await Promise.all(
+            managerEmails.map((email) =>
+              this.dispatcher.dispatch({
+                tenantId: dto.tenantId,
+                to: email,
+                subject: 'Agendamento cancelado',
+                templateKey: NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
+                data: {
+                  guestName: dto.guestName,
+                  localDate,
+                  localTime,
+                  serviceNames,
+                  totalPrice: formattedTotal,
+                  cancelledBy: dto.cancelledBy,
+                  isBusiness: dto.isBusiness,
+                  reason: dto.reason,
+                },
+              }),
+            ),
+          );
+          await this.saveLog(
+            dto.tenantId,
+            dto.eventId,
+            NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
+            CHANNEL,
+            managerEmails[0],
+          );
+          adminEmailSent = true;
+        } catch (err: unknown) {
+          await this.saveFailedLog(
+            dto.tenantId,
+            dto.eventId,
+            NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
+            CHANNEL,
+            managerEmails[0],
+            String(err),
+          );
+          throw err;
+        }
       }
     }
 

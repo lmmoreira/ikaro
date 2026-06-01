@@ -16,6 +16,10 @@ import {
   NOTIFICATION_LOG_REPOSITORY,
 } from '../../ports/notification-log-repository.port';
 import {
+  INotificationProcessedEventRepository,
+  NOTIFICATION_PROCESSED_EVENT_REPOSITORY,
+} from '../../ports/processed-event-repository.port';
+import {
   INotificationTenantPort,
   NOTIFICATION_TENANT_PORT,
 } from '../../ports/notification-tenant.port';
@@ -31,11 +35,13 @@ export interface SendBookingApprovedNotificationUseCaseResult {
 export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseCase {
   constructor(
     @Inject(NOTIFICATION_LOG_REPOSITORY) logRepo: INotificationLogRepository,
+    @Inject(NOTIFICATION_PROCESSED_EVENT_REPOSITORY)
+    processedEventRepo: INotificationProcessedEventRepository,
     @Inject(NOTIFICATION_DISPATCHER) dispatcher: INotificationDispatcher,
     @Inject(NOTIFICATION_TENANT_PORT) private readonly tenantPort: INotificationTenantPort,
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
   ) {
-    super(logRepo, dispatcher, txManager);
+    super(logRepo, processedEventRepo, dispatcher, txManager);
   }
 
   async execute(
@@ -43,7 +49,6 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
   ): Promise<SendBookingApprovedNotificationUseCaseResult> {
     if (
       await this.isAlreadySent(
-        dto.tenantId,
         dto.eventId,
         NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
         CHANNEL,
@@ -65,27 +70,39 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
       (l) => `${l.serviceNameAtBooking}: ${formatBRL(l.priceAtBooking.amount)}`,
     );
 
-    await this.dispatcher.dispatch({
-      tenantId: dto.tenantId,
-      to: dto.guestEmail,
-      subject: 'Seu agendamento foi confirmado! ✓',
-      templateKey: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
-      data: {
-        guestName: dto.guestName,
-        localDate,
-        localTime,
-        serviceNames,
-        lineItems,
-        totalPrice: formattedTotal,
-      },
-    });
-
-    await this.saveLog(
-      dto.tenantId,
-      dto.eventId,
-      NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
-      CHANNEL,
-    );
-    return { emailSent: true };
+    try {
+      await this.dispatcher.dispatch({
+        tenantId: dto.tenantId,
+        to: dto.guestEmail,
+        subject: 'Seu agendamento foi confirmado! ✓',
+        templateKey: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
+        data: {
+          guestName: dto.guestName,
+          localDate,
+          localTime,
+          serviceNames,
+          lineItems,
+          totalPrice: formattedTotal,
+        },
+      });
+      await this.saveLog(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
+        CHANNEL,
+        dto.guestEmail,
+      );
+      return { emailSent: true };
+    } catch (err: unknown) {
+      await this.saveFailedLog(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
+        CHANNEL,
+        dto.guestEmail,
+        String(err),
+      );
+      throw err;
+    }
   }
 }

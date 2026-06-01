@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
+import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingInfoSubmittedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
@@ -24,17 +25,20 @@ const dto = new SendBookingInfoSubmittedNotificationDtoBuilder()
 
 describe('SendBookingInfoSubmittedNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
+  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let staffPort: InMemoryNotificationStaffPort;
   let useCase: SendBookingInfoSubmittedNotificationUseCase;
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
+    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     staffPort = new InMemoryNotificationStaffPort();
     staffPort.setManagerEmails(TENANT_ID, ['manager@lavacar.com.br']);
     useCase = new SendBookingInfoSubmittedNotificationUseCase(
       logRepo,
+      processedEventRepo,
       dispatcher,
       staffPort,
       new InMemoryTransactionManager(),

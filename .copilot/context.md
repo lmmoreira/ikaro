@@ -287,6 +287,7 @@ Three layers: **Unit** (`.spec.ts`, Jest) · **Integration** (`.integration.spec
 - No `.skip()`, `.only()`, `setTimeout` in tests.
 - **Integration DB isolation:** unique inline tenant UUID for any `it()` sensitive to aggregate counts. Never reuse `TENANT_A`/`TENANT_B` for count assertions.
 - **Notification specs:** use `createNotificationIntegrationApp()`; suppress unrelated handlers; drain provisioning noise before recording idempotency baseline. See `docs/08-TESTING_STRATEGY.md`.
+- **New migration/entity → register in global setup:** `src/test/integration-global-setup.ts` uses explicit import lists (no glob). Every new migration class and TypeORM entity must be added there (and to any context-specific helper like `notification-integration-app.ts`) in the **same commit** as the migration file. Skipping this causes silent failures — unit tests pass but integration tests error on the first DB query.
 
 ### CI gates (block merge)
 - ESLint + Prettier — zero warnings

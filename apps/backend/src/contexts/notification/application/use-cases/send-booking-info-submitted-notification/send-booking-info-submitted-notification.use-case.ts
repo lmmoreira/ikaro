@@ -15,6 +15,10 @@ import {
   NOTIFICATION_LOG_REPOSITORY,
 } from '../../ports/notification-log-repository.port';
 import {
+  INotificationProcessedEventRepository,
+  NOTIFICATION_PROCESSED_EVENT_REPOSITORY,
+} from '../../ports/processed-event-repository.port';
+import {
   INotificationStaffPort,
   NOTIFICATION_STAFF_PORT,
 } from '../../ports/notification-staff.port';
@@ -30,12 +34,14 @@ export interface SendBookingInfoSubmittedNotificationUseCaseResult {
 export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificationUseCase {
   constructor(
     @Inject(NOTIFICATION_LOG_REPOSITORY) logRepo: INotificationLogRepository,
+    @Inject(NOTIFICATION_PROCESSED_EVENT_REPOSITORY)
+    processedEventRepo: INotificationProcessedEventRepository,
     @Inject(NOTIFICATION_DISPATCHER) dispatcher: INotificationDispatcher,
     @Inject(NOTIFICATION_STAFF_PORT) private readonly staffPort: INotificationStaffPort,
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     private readonly config: ConfigService,
   ) {
-    super(logRepo, dispatcher, txManager);
+    super(logRepo, processedEventRepo, dispatcher, txManager);
   }
 
   async execute(
@@ -43,7 +49,6 @@ export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificatio
   ): Promise<SendBookingInfoSubmittedNotificationUseCaseResult> {
     if (
       await this.isAlreadySent(
-        dto.tenantId,
         dto.eventId,
         NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
         CHANNEL,
@@ -60,29 +65,41 @@ export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificatio
     const customerResponse =
       typeof dto.infoPayload['notes'] === 'string' ? dto.infoPayload['notes'] : '';
 
-    await Promise.all(
-      managerEmails.map((email) =>
-        this.dispatcher.dispatch({
-          tenantId: dto.tenantId,
-          to: email,
-          subject: 'Cliente respondeu à solicitação de informações',
-          templateKey: NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
-          data: {
-            submittedByEmail: dto.submittedByEmail,
-            bookingId: dto.bookingId,
-            customerResponse,
-            bookingLink,
-          },
-        }),
-      ),
-    );
-
-    await this.saveLog(
-      dto.tenantId,
-      dto.eventId,
-      NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
-      CHANNEL,
-    );
-    return { emailSent: true };
+    try {
+      await Promise.all(
+        managerEmails.map((email) =>
+          this.dispatcher.dispatch({
+            tenantId: dto.tenantId,
+            to: email,
+            subject: 'Cliente respondeu à solicitação de informações',
+            templateKey: NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
+            data: {
+              submittedByEmail: dto.submittedByEmail,
+              bookingId: dto.bookingId,
+              customerResponse,
+              bookingLink,
+            },
+          }),
+        ),
+      );
+      await this.saveLog(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
+        CHANNEL,
+        managerEmails[0],
+      );
+      return { emailSent: true };
+    } catch (err: unknown) {
+      await this.saveFailedLog(
+        dto.tenantId,
+        dto.eventId,
+        NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
+        CHANNEL,
+        managerEmails[0],
+        String(err),
+      );
+      throw err;
+    }
   }
 }

@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
+import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationTenantPort } from '../../../../../test/infrastructure/in-memory-notification-tenant.port';
 import { SendStaffInvitationDtoBuilder } from '../../../../../test/builders/notification/index';
@@ -25,6 +26,7 @@ const dto = new SendStaffInvitationDtoBuilder()
 
 describe('SendStaffInvitationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
+  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let staffPort: InMemoryNotificationStaffPort;
   let tenantPort: InMemoryNotificationTenantPort;
@@ -32,6 +34,7 @@ describe('SendStaffInvitationUseCase', () => {
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
+    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     staffPort = new InMemoryNotificationStaffPort();
     staffPort.setStaff(TENANT_ID, { id: STAFF_ID, email: 'maria@lavacar.com.br', name: 'Maria' });
@@ -44,6 +47,7 @@ describe('SendStaffInvitationUseCase', () => {
     });
     useCase = new SendStaffInvitationUseCase(
       logRepo,
+      processedEventRepo,
       dispatcher,
       staffPort,
       tenantPort,

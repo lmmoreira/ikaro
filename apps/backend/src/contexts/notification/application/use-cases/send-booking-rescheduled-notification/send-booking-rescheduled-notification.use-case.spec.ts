@@ -1,9 +1,9 @@
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
+import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationTenantPort } from '../../../../../test/infrastructure/in-memory-notification-tenant.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
-import { NotificationLog } from '../../../domain/notification-log.entity';
 import { SendBookingRescheduledNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { SendBookingRescheduledNotificationUseCase } from './send-booking-rescheduled-notification.use-case';
 
@@ -17,6 +17,7 @@ const dto = new SendBookingRescheduledNotificationDtoBuilder()
 
 describe('SendBookingRescheduledNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
+  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let staffPort: InMemoryNotificationStaffPort;
   let tenantPort: InMemoryNotificationTenantPort;
@@ -24,6 +25,7 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
+    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     staffPort = new InMemoryNotificationStaffPort();
     staffPort.setManagerEmails(TENANT_ID, ['manager@lavacar.com.br']);
@@ -36,6 +38,7 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
     });
     useCase = new SendBookingRescheduledNotificationUseCase(
       logRepo,
+      processedEventRepo,
       dispatcher,
       staffPort,
       tenantPort,
@@ -95,15 +98,8 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
     expect(dispatcher.dispatched[0].templateKey).toBe('booking-rescheduled-customer');
   });
 
-  it('sends only admin email when customer log already exists (partial retry)', async () => {
-    await logRepo.save(
-      NotificationLog.create({
-        tenantId: TENANT_ID,
-        eventId: EVENT_ID,
-        notificationType: 'booking-rescheduled-customer',
-        channel: 'EMAIL',
-      }),
-    );
+  it('sends only admin email when customer already processed (partial retry)', async () => {
+    await processedEventRepo.markProcessed(EVENT_ID, 'booking-rescheduled-customer', 'EMAIL');
 
     const result = await useCase.execute(dto);
 
@@ -113,15 +109,8 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
     expect(dispatcher.dispatched[0].templateKey).toBe('booking-rescheduled-admin');
   });
 
-  it('sends only customer email when admin log already exists (partial retry)', async () => {
-    await logRepo.save(
-      NotificationLog.create({
-        tenantId: TENANT_ID,
-        eventId: EVENT_ID,
-        notificationType: 'booking-rescheduled-admin',
-        channel: 'EMAIL',
-      }),
-    );
+  it('sends only customer email when admin already processed (partial retry)', async () => {
+    await processedEventRepo.markProcessed(EVENT_ID, 'booking-rescheduled-admin', 'EMAIL');
 
     const result = await useCase.execute(dto);
 

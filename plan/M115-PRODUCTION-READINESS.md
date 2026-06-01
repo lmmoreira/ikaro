@@ -181,3 +181,50 @@ Also update the inline header objects in `BackendHttpService.getForPublic()` and
 - [ ] Key comparison uses `timingSafeEqual` — no direct string comparison
 
 **Dependencies:** M03-S05 (BackendHttpService established), M02-S03 (env validation pattern)
+
+---
+
+### M115-S04 — Rename `guestEmail` → `contactEmail` on Booking aggregate and events (tech debt)
+
+**Agent:** `backend-ts` + `bff-ts`  
+**Complexity:** S  
+**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Booking context, `docs/03-DOMAIN_EVENTS.md` § Booking events
+
+**Description:**  
+The `guestEmail` field on the `Booking` aggregate and all its domain events is a naming artefact from when only anonymous guest bookings existed. When an authenticated customer books (UC-002), `RequestAuthenticatedBookingUseCase` fetches the customer's email via `ICustomerProfilePort` and stores it in `guestEmail` — so the field works correctly for both personas, but the name is misleading. This story renames it to `contactEmail` throughout to reflect that it always holds the primary contact email regardless of booking type.
+
+**No functional change** — pure rename. Behaviour, validation, and notification delivery are identical before and after.
+
+**Scope:**
+
+Backend — `Booking` aggregate:
+- `BookingProps.guestEmail` → `contactEmail` (type `Email` VO stays the same)
+- `Booking.get guestEmail()` → `get contactEmail()`
+- All `addDomainEvent()` calls inside the aggregate that pass `guestEmail: this.props.guestEmail.address`
+- `RequestBookingInput.guestEmail` → `contactEmail`
+- `RequestBookingUseCase` and `RequestAuthenticatedBookingUseCase` DTOs + call sites
+
+Backend — domain events (rename field in `data` payload):
+- `BookingRequested`, `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`, `BookingCancelled`, `BookingRescheduled`, `BookingCompleted`
+- All event `.ts` files: rename `guestEmail` → `contactEmail` in the `Data` interface
+
+Backend — notification event handlers:
+- All 9 handlers that read `event.data.guestEmail` → `event.data.contactEmail`
+
+Backend — TypeORM entity + migration:
+- `bookings.guest_email` column is **not renamed** — DB column name stays `guest_email` to avoid a DDL migration for a cosmetic change. The TypeORM column decorator keeps `{ name: 'guest_email' }` on the `contactEmail` property.
+
+BFF:
+- `bookings.types.ts`: rename `guestEmail` in `BookingDetailResponse` and related types
+- `RequestBookingBodySchema`: rename `guestEmail` → `contactEmail`
+- All `.spec.ts` and `.component.spec.ts` files in bff/src/bookings/
+
+**Acceptance criteria:**
+- [ ] `Booking.contactEmail` getter returns the `Email` VO; `guestEmail` getter no longer exists
+- [ ] All 8 domain events carry `contactEmail` in their `data` payload; `guestEmail` no longer appears in any event interface
+- [ ] All notification handlers read `event.data.contactEmail`; all notification emails still delivered correctly
+- [ ] DB column remains `guest_email` — no new migration required
+- [ ] `pnpm type-check` clean across backend and BFF
+- [ ] All existing unit and integration tests pass with zero functional change
+
+**Dependencies:** M10-S01 (all booking events established), M11-S07 (notification handlers stable)

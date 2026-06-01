@@ -119,46 +119,76 @@ A new `TenantProvisionedNotificationHandler` subscribes to the `TenantProvisione
 **Docs to load:** `docs/02-DOMAIN_MODEL.md` § Notification context, `docs/13-DATABASE_SCHEMA.md` § notification schema
 
 **Description:**  
-Implement the `NotificationLog` aggregate (audit trail) and the `processed_events` idempotency table. Every email send attempt (success or failure) is logged. Event consumers check `processed_events` before processing to prevent duplicate sends on Pub/Sub redelivery.
+Evolve the existing `NotificationLog` entity (bootstrapped in M04-S05 with minimal columns) into a full audit-trail aggregate, and add the `processed_events` idempotency table. Every send attempt (PENDING → SENT or FAILED) is logged. `BaseNotificationUseCase` idempotency check moves from querying `notification_logs` to querying `processed_events`, so `notification_logs` becomes a pure audit trail and the UNIQUE constraint on it is dropped.
 
-**Domain layer:**
-- `NotificationLog` aggregate:
-  - Properties: `id` (UUID v7), `tenantId`, `eventId` (source event), `eventName`, `recipientEmail`, `subject`, `status` (`SENT | FAILED`), `errorMessage?`, `sentAt?`, `createdAt`
-  - Methods: `recordSent(...)`, `recordFailed(..., errorMessage)`
+**Domain layer — evolve existing `NotificationLog` entity:**
+- Properties: `id` (UUID v7), `tenantId`, `eventId` (source domain event), `notificationType` (`NotificationTemplateKey`), `channel` (`'EMAIL' | 'SMS' | 'WHATSAPP'`), `recipientEmail`, `status` (`'PENDING' | 'SENT' | 'FAILED'`), `retryCount` (integer, default 0), `errorMessage?`, `sentAt?`, `createdAt`
+- Methods:
+  - `static create(props)` — creates with `status='PENDING'`, `retryCount=0`
+  - `markSent()` — sets `status='SENT'`, `sentAt=now()`
+  - `markFailed(errorMessage)` — sets `status='FAILED'`, increments `retryCount`, stores message
 
-**Migrations:**
+**Migration 1 — ALTER TABLE `notification.notification_logs`:**
 
-`notification.notification_logs`:
+The table already exists from M04-S05 with columns `(id, tenant_id, event_id, notification_type, channel, created_at)` and `UNIQUE(tenant_id, event_id, notification_type, channel)`. This migration adds the audit columns and drops the constraint (idempotency moves to `processed_events`):
 ```sql
-id               UUID PRIMARY KEY
-tenant_id        UUID NOT NULL
-event_id         UUID NOT NULL      ← the source domain event's eventId
-event_name       VARCHAR(100) NOT NULL
-recipient_email  VARCHAR(255) NOT NULL
-subject          VARCHAR(500) NOT NULL
-status           VARCHAR(20) NOT NULL CHECK (status IN ('SENT','FAILED'))
-error_message    TEXT
-sent_at          TIMESTAMPTZ
-created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+ALTER TABLE "notification"."notification_logs"
+  ADD COLUMN "recipient_email" VARCHAR(255)  NOT NULL DEFAULT '',
+  ADD COLUMN "status"          VARCHAR(20)   NOT NULL DEFAULT 'PENDING'
+                                 CHECK (status IN ('PENDING','SENT','FAILED')),
+  ADD COLUMN "retry_count"     SMALLINT      NOT NULL DEFAULT 0,
+  ADD COLUMN "error_message"   TEXT,
+  ADD COLUMN "sent_at"         TIMESTAMPTZ;
 
-INDEX (tenant_id)
-INDEX (tenant_id, event_id)
-INDEX (tenant_id, recipient_email)
+ALTER TABLE "notification"."notification_logs"
+  DROP CONSTRAINT "UQ_notification_logs_event_channel";
+
+CREATE INDEX "IDX_notification_logs_tenant_status"
+  ON "notification"."notification_logs" ("tenant_id", "status");
+
+CREATE INDEX "IDX_notification_logs_tenant_recipient"
+  ON "notification"."notification_logs" ("tenant_id", "recipient_email");
 ```
 
-`notification.processed_events`:
+Revert removes the added columns, restores the constraint, and drops the new indexes.
+
+**Migration 2 — CREATE TABLE `notification.processed_events`:**
+
 ```sql
-event_id    UUID PRIMARY KEY         ← dedup key
-event_name  VARCHAR(100) NOT NULL
-processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+event_id          UUID         NOT NULL
+notification_type VARCHAR(100) NOT NULL   ← NotificationTemplateKey value
+channel           VARCHAR(32)  NOT NULL   ← 'EMAIL' | 'SMS' | 'WHATSAPP'
+processed_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
+
+PRIMARY KEY (event_id, notification_type, channel)
 ```
+
+This allows the same domain event to produce notifications across multiple template keys (admin + customer) and multiple channels (EMAIL + SMS) without blocking each other.
+
+**Additional scope (required in this story):**
+1. **`IProcessedEventRepository` port** (`application/ports/processed-event-repository.port.ts`):
+   ```typescript
+   isDuplicate(eventId: string, notificationType: string, channel: string): Promise<boolean>;
+   markProcessed(eventId: string, notificationType: string, channel: string): Promise<void>;
+   ```
+2. **`TypeOrmProcessedEventRepository`** adapter implementing the port
+3. **`InMemoryProcessedEventRepository`** test double in `src/test/repositories/notification/`
+4. **Update `BaseNotificationUseCase.isAlreadySent()`** to call `IProcessedEventRepository.isDuplicate()` instead of `INotificationLogRepository.findByEventAndChannel()`; update `saveLog()` to call `markProcessed()` via the new port
+5. **Update `INotificationLogRepository`** — remove `findByEventAndChannel()` (no longer used for idempotency); add `save(log)` variant that upserts status (`markSent` / `markFailed` paths)
+6. **Update `InMemoryNotificationLogRepository`** and **`NotificationLogEntityBuilder`** for the new props (`recipientEmail`, `status`, `retryCount`, `errorMessage`, `sentAt`)
+7. **Update `NotificationLogEntity`** (TypeORM) to add the new columns
 
 **Acceptance criteria:**
-- [ ] Every email attempt (via `IEmailSender`) is followed by a `NotificationLog` insert (SENT or FAILED)
-- [ ] Failed email attempt logs `error_message` from the exception
-- [ ] `processed_events.event_id` PRIMARY KEY prevents duplicate processing across all handlers
-- [ ] Migration and revert run cleanly
-- [ ] Integration test: deliver same event twice → `processed_events` has 1 row → `notification_logs` has 1 row
+- [ ] `NotificationLog.create()` produces status `PENDING`, `retryCount=0`
+- [ ] `markSent()` transitions to `SENT` and sets `sentAt`; `markFailed(msg)` transitions to `FAILED`, increments `retryCount`, stores `errorMessage`
+- [ ] Migration 1 (ALTER TABLE) runs and reverts cleanly without data loss on the existing columns
+- [ ] Migration 2 (CREATE TABLE `processed_events`) runs and reverts cleanly
+- [ ] `BaseNotificationUseCase.isAlreadySent()` checks `processed_events` — not `notification_logs`
+- [ ] `processed_events PRIMARY KEY (event_id, notification_type, channel)` allows the same `eventId` to be processed for `BOOKING_REQUESTED_ADMIN` and `BOOKING_REQUESTED_CUSTOMER` independently
+- [ ] Integration test: deliver same event + same `notificationType` + same `channel` twice → `processed_events` has 1 row → `notification_logs` has 1 row
+- [ ] Tenant isolation: `notification_logs` for Tenant A are not returned when querying for Tenant B
+- [ ] All existing notification use case unit specs still pass after `BaseNotificationUseCase` change
+- [ ] `NotificationLogEntityBuilder` updated — `withStatus()`, `withRetryCount()`, `withRecipientEmail()` fluent methods present
 
 **Dependencies:** M00-S07
 
