@@ -41,6 +41,7 @@ describe('StaffInvitedHandler', () => {
       name: 'Lava Car',
       slug: 'lavacar',
       timezone: 'America/Sao_Paulo',
+      fromEmail: null,
     });
     const useCase = new SendStaffInvitationUseCase(
       logRepo,

@@ -198,44 +198,143 @@ This allows the same domain event to produce notifications across multiple templ
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § email, `docs/05-BOUNDED_CONTEXTS.md` § Notification context
+**Docs to load:** `docs/05-BOUNDED_CONTEXTS.md` § Notification context, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Notification Settings
 
 **Description:**  
-Implement the production `SendGridEmailAdapter` and the local dev `MailhogEmailAdapter`, both implementing the `IEmailSender` port. The active adapter is selected via `NODE_ENV` / `EMAIL_ADAPTER` environment variable — no conditional logic in business code.
+Introduce `IEmailSender` as a thin email-only transport port, distinct from `IDeliveryChannel` (which covers all channels: EMAIL, SMS, WhatsApp). Implement `SendGridEmailAdapter` (production) and `MailhogEmailAdapter` (local dev, renamed from `SmtpEmailAdapter`) as pure-transport `IEmailSender` implementations — no rendering logic. Rename the existing `SmtpEmailAdapter` into `MailhogEmailAdapter` (transport) + a new `EmailDeliveryChannelAdapter` that bridges `IDeliveryChannel` → `IEmailSender`. The `EmailDeliveryChannelAdapter` retains the existing `render()` switch for now; M11-S07 moves rendering to use cases and removes it.
+
+**Delivery chain (anticipating M11-S07 architecture):**
+```
+NotificationDispatcherAdapter (INotificationDispatcher)
+  └── IDeliveryChannel[]
+        └── EmailDeliveryChannelAdapter  (IDeliveryChannel, channelType=EMAIL)
+              │  render() switch ← removed in M11-S07
+              │  from = tenant settings.notification.from_email ?? EMAIL_FROM env
+              └── IEmailSender  ← thin email-only transport
+                    ├── MailhogEmailAdapter  (dev — renamed from SmtpEmailAdapter)
+                    └── SendGridEmailAdapter  (prod)
+```
+
+**`IEmailSender` port** (`application/ports/email-sender.port.ts`):
+```typescript
+export interface EmailSendOptions {
+  to: string;
+  from: string;
+  subject: string;
+  html: string;
+}
+export const EMAIL_SENDER = Symbol('IEmailSender');
+export interface IEmailSender {
+  send(options: EmailSendOptions): Promise<void>;
+}
+```
+
+**`MailhogEmailAdapter`** (rename of `SmtpEmailAdapter`):
+- Implements `IEmailSender` — pure nodemailer SMTP transport, no rendering
+- Reads `SMTP_HOST` (default `localhost`) and `SMTP_PORT` (default `1025`) from config
+- Spec: update existing `smtp-email.adapter.spec.ts` → `mailhog-email.adapter.spec.ts`; tests assert `sendMail` called with correct `to`, `from`, `subject`, `html`
 
 **`SendGridEmailAdapter`:**
-- Uses `@sendgrid/mail` SDK
-- Reads `SENDGRID_API_KEY` from env
-- Reads `EMAIL_FROM` (sender address) from env
-- `send(to, template, data)`:
-  1. Render template via `NotificationTemplate.render(data)`
-  2. Call SendGrid `sgMail.send({ to, from, subject, html })`
-  3. On non-2xx response → throw `EmailDeliveryException`
+- Implements `IEmailSender` — pure `@sendgrid/mail` transport, no rendering
+- Reads `SENDGRID_API_KEY` from env (validated as always-required in `env.validation.ts`)
+- `send(options)`: calls `sgMail.send({ to, from, subject, html: options.html })`; on non-2xx → throw `EmailDeliveryException`
+- `SENDGRID_API_KEY` must never appear in logs or error messages
 
-**`MailhogEmailAdapter`:**
-- Uses `nodemailer` SMTP transport
-- Host: `localhost`, Port: `1025` (MailHog)
-- Same interface as SendGrid adapter
+**`EmailDeliveryChannelAdapter`** (replaces `SmtpEmailAdapter` as the `IDeliveryChannel` adapter):
+- Implements `IDeliveryChannel`, `channelType = 'EMAIL'`
+- Injects `IEmailSender` and `INotificationTenantPort`
+- `send(message: OutboundMessage)`:
+  1. Render HTML via existing `private render(message)` switch (unchanged from current `SmtpEmailAdapter`)
+  2. Resolve `from`: call `tenantPort.getTenantInfo(message.tenantId)` → use `tenantInfo.fromEmail` if set, else fall back to `config.get('EMAIL_FROM')`
+  3. Call `this.emailSender.send({ to: message.to, from, subject: message.subject, html })`
+- Spec: rename `smtp-email.adapter.spec.ts` tests that cover the render switch → `email-delivery-channel.adapter.spec.ts`; mock `IEmailSender` and assert it is called with the resolved `from`, correct `subject`, and rendered `html`
 
-**NestJS DI wiring:**
-- `NotificationModule` uses a factory provider:
-  - `NODE_ENV === 'production'` → `SendGridEmailAdapter`
-  - Otherwise → `MailhogEmailAdapter`
-- `IEmailSender` token is exported — no context imports the concrete class directly
+**`EmailDeliveryException`** (`domain/errors/notification-domain.error.ts`):
+```typescript
+export class NotificationDomainError extends Error {
+  constructor(message: string) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+export class EmailDeliveryException extends NotificationDomainError {
+  constructor(cause: string) {
+    super(`Email delivery failed: ${cause}`);
+    this.name = 'EmailDeliveryException';
+  }
+}
+```
 
-**Pre-requisite before this story can be tested in staging:**
-SendGrid requires the sender email address (`EMAIL_FROM`) to be verified before any email will send. This is a one-time manual step in the SendGrid dashboard (Settings → Sender Authentication → Single Sender Verification). Use the same email as the first tenant's admin email. Without this, all `send()` calls will return `403 Forbidden` from SendGrid even with a valid API key.
+**Per-tenant `from_email`:**
+- `settings.notification.from_email` (nullable string) is defined in `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Notification Settings
+- `NotificationTenantInfo` gains `fromEmail: string | null`
+- `TenantInfoAdapter.getTenantInfo()` reads `tenant.settings?.notification?.from_email ?? null`
+- `EmailDeliveryChannelAdapter` resolves: `tenantInfo.fromEmail ?? config.get('EMAIL_FROM')`
+
+**Environment variables (add to `env.validation.ts` and `.env.example`):**
+
+| Var | Validation | Default | Notes |
+|---|---|---|---|
+| `SENDGRID_API_KEY` | `z.string().min(1)` (required only when `EMAIL_ADAPTER=sendgrid`) | — | Never log; never include in error messages |
+| `EMAIL_FROM` | `z.string().email()` | — | Global sender fallback; per-tenant override via `settings.notification.from_email` |
+| `EMAIL_ADAPTER` | `z.enum(['sendgrid', 'mailhog']).default('mailhog')` | `mailhog` | Selects active `IEmailSender` implementation |
+
+**NestJS DI wiring (`NotificationModule`):**
+```typescript
+// Replace SmtpEmailAdapter provider with:
+MailhogEmailAdapter,
+SendGridEmailAdapter,
+{
+  provide: EMAIL_SENDER,
+  useFactory: (mailhog: MailhogEmailAdapter, sendgrid: SendGridEmailAdapter, config: ConfigService) =>
+    config.get('EMAIL_ADAPTER') === 'sendgrid' ? sendgrid : mailhog,
+  inject: [MailhogEmailAdapter, SendGridEmailAdapter, ConfigService],
+},
+EmailDeliveryChannelAdapter,
+{
+  provide: DELIVERY_CHANNEL,
+  useFactory: (email: EmailDeliveryChannelAdapter) => [email],
+  inject: [EmailDeliveryChannelAdapter],
+},
+```
+
+**Files to create / rename / delete:**
+
+| Action | Path |
+|---|---|
+| NEW | `application/ports/email-sender.port.ts` |
+| NEW | `domain/errors/notification-domain.error.ts` |
+| NEW | `infrastructure/delivery/email-delivery-channel.adapter.ts` |
+| NEW | `infrastructure/delivery/email-delivery-channel.adapter.spec.ts` |
+| RENAME (from `smtp-email.adapter.ts`) | `infrastructure/delivery/mailhog-email.adapter.ts` |
+| RENAME (from `smtp-email.adapter.spec.ts`) | `infrastructure/delivery/mailhog-email.adapter.spec.ts` |
+| NEW | `infrastructure/delivery/sendgrid-email.adapter.ts` |
+| NEW | `infrastructure/delivery/sendgrid-email.adapter.spec.ts` |
+| EDIT | `notification.module.ts` |
+| EDIT | `application/ports/notification-tenant.port.ts` (`fromEmail: string \| null`) |
+| EDIT | `infrastructure/cross-context/tenant-info.adapter.ts` |
+| EDIT | `infrastructure/cross-context/tenant-info.adapter.spec.ts` |
+| EDIT | `apps/backend/src/config/env.validation.ts` |
+| EDIT | `apps/backend/.env.example` |
+
+**Pre-requisite before staging:**
+SendGrid requires the sender email to be verified before any email sends. One-time manual step in the SendGrid dashboard (Settings → Sender Authentication → Single Sender Verification). Without this, all calls return `403 Forbidden` even with a valid API key.
+
+**Integration tests:** No MailHog Testcontainer needed. Unit tests with mocked nodemailer / `@sendgrid/mail` SDK are sufficient. Existing notification integration tests (which override `NOTIFICATION_DISPATCHER` with `InMemoryNotificationDispatcher`) are unchanged.
 
 **Acceptance criteria:**
-- [ ] Local dev: `send()` delivers email to MailHog (visible at `http://localhost:8025`)
-- [ ] `SENDGRID_API_KEY` not set in production → application fails to start with clear error
-- [ ] `SendGridEmailAdapter` throws `EmailDeliveryException` on 4xx/5xx response from SendGrid
-- [ ] Switching `EMAIL_ADAPTER=mailhog` in env uses MailHog adapter without code changes
-- [ ] Unit test: mock `IEmailSender` and assert `send()` is called with correct `to`, `subject`, `html`
-- [ ] `SENDGRID_API_KEY` is never logged or included in error messages
-- [ ] `EMAIL_FROM` value is documented in `apps/backend/.env.example` with a note: "must be verified in SendGrid dashboard before staging emails will work"
+- [ ] `IEmailSender` port exists with `EMAIL_SENDER` symbol; no context outside `notification/` imports the concrete classes directly
+- [ ] `MailhogEmailAdapter` implements `IEmailSender`; unit test asserts `sendMail` called with `{ to, from, subject, html }`; no `render()` method
+- [ ] `SendGridEmailAdapter` implements `IEmailSender`; unit test asserts `sgMail.send` called with correct args; throws `EmailDeliveryException` on non-2xx; `SENDGRID_API_KEY` never appears in logs or error messages
+- [ ] `EmailDeliveryChannelAdapter` implements `IDeliveryChannel` (`channelType = 'EMAIL'`); injects `IEmailSender`; unit test mocks `IEmailSender` and asserts `send()` called with resolved `from`, correct `subject`, rendered `html`
+- [ ] Per-tenant from: when `settings.notification.from_email` is set, `EmailDeliveryChannelAdapter` passes it as `from`; when null, falls back to `EMAIL_FROM` env
+- [ ] `EMAIL_ADAPTER=sendgrid` → `SendGridEmailAdapter` is injected; `EMAIL_ADAPTER=mailhog` (or absent) → `MailhogEmailAdapter`
+- [ ] `SENDGRID_API_KEY` missing with `EMAIL_ADAPTER=sendgrid` → app fails to start with a clear env-validation error; missing with `EMAIL_ADAPTER=mailhog` → app starts normally
+- [ ] `EMAIL_FROM` and `EMAIL_ADAPTER` documented in `.env.example`; `EMAIL_FROM` note: "must be verified in SendGrid dashboard before staging emails will work"
+- [ ] `smtp-email.adapter.ts` and `smtp-email.adapter.spec.ts` deleted; all existing render-switch tests migrated to `email-delivery-channel.adapter.spec.ts`
+- [ ] Local dev: running `docker-compose up` + `EMAIL_ADAPTER=mailhog` delivers email to MailHog (`http://localhost:8025`) — verified manually
 
-**Dependencies:** M11-S01, M04-S05
+**Dependencies:** M11-S01, M11-S02, M04-S05
 
 ---
 

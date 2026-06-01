@@ -1,44 +1,38 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   DeliveryChannelType,
   IDeliveryChannel,
 } from '../../application/ports/delivery-channel.port';
+import { EMAIL_SENDER, IEmailSender } from '../../application/ports/email-sender.port';
 import { OutboundMessage } from '../../application/ports/notification-dispatcher.port';
+import {
+  INotificationTenantPort,
+  NOTIFICATION_TENANT_PORT,
+} from '../../application/ports/notification-tenant.port';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 
 @Injectable()
-export class SmtpEmailAdapter implements IDeliveryChannel {
+export class EmailDeliveryChannelAdapter implements IDeliveryChannel {
   readonly channelType: DeliveryChannelType = 'EMAIL';
 
-  private readonly logger = new AppLogger(SmtpEmailAdapter.name);
-  private readonly transporter: nodemailer.Transporter;
-
-  constructor(private readonly config: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: config.get<string>('SMTP_HOST', 'localhost'),
-      port: config.get<number>('SMTP_PORT', 1025),
-      secure: false,
-      ignoreTLS: true,
-    });
-  }
+  constructor(
+    @Inject(EMAIL_SENDER) private readonly emailSender: IEmailSender,
+    @Inject(NOTIFICATION_TENANT_PORT) private readonly tenantPort: INotificationTenantPort,
+    private readonly config: ConfigService,
+  ) {}
 
   async send(message: OutboundMessage): Promise<void> {
     const html = this.render(message);
+    const tenantInfo = await this.tenantPort.getTenantInfo(message.tenantId);
+    const from =
+      tenantInfo?.fromEmail ?? this.config.get<string>('EMAIL_FROM', 'noreply@beloauto.com.br');
 
-    await this.transporter.sendMail({
-      from: this.config.get<string>('SMTP_FROM', 'noreply@beloauto.com.br'),
+    await this.emailSender.send({
       to: message.to,
+      from,
       subject: message.subject,
       html,
-    });
-
-    this.logger.log('Email sent', {
-      tenantId: message.tenantId,
-      to: message.to,
-      templateKey: message.templateKey,
     });
   }
 

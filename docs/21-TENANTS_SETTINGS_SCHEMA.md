@@ -165,7 +165,38 @@ const isWithinHours = bookingTimeLocal.toFormat("HH:mm") >= dayHours.open &&
 
 ---
 
-### **4. Localization Settings** (`settings.localization`)
+### **4. Notification Settings** (`settings.notification`)
+
+Controls per-tenant email delivery behaviour.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `from_email` | string \| null | null | Custom sender address for this tenant's emails (e.g. `"lavagem@beloauto.com.br"`). When null, the global `EMAIL_FROM` environment variable is used. Must be a valid email address. |
+
+**Example:**
+```json
+{
+  "notification": {
+    "from_email": "lavagem@beloauto.com.br"
+  }
+}
+```
+
+**Validation Rules:**
+- `from_email` must be a valid email address when present
+- If null or absent, falls back to the global `EMAIL_FROM` env var
+- The address must be verified in SendGrid (Sender Authentication → Single Sender Verification) before emails will be delivered in staging/production
+
+**Usage in code:**
+```typescript
+// EmailDeliveryChannelAdapter resolves from address:
+const tenantInfo = await tenantPort.getTenantInfo(message.tenantId);
+const from = tenantInfo?.fromEmail ?? config.get('EMAIL_FROM');
+```
+
+---
+
+### **5. Localization Settings** (`settings.localization`)
 
 Currency, language, and regional preferences.
 
@@ -226,6 +257,9 @@ Currency, language, and regional preferences.
     "saturday": { "open": "09:00", "close": "17:00" },
     "sunday": null
   },
+  "notification": {
+    "from_email": null
+  },
   "localization": {
     "currency": "BRL",
     "currency_symbol": "R$",
@@ -265,6 +299,9 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
     "friday": { "open": "09:00", "close": "18:00" },
     "saturday": { "open": "09:00", "close": "17:00" },
     "sunday": null
+  },
+  "notification": {
+    "from_email": null
   },
   "localization": {
     "currency": "BRL",

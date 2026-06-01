@@ -20,6 +20,7 @@ describe('TenantSettings', () => {
       expect(settings.business_hours.sunday).toBeNull();
       expect(settings.localization.currency).toBe('BRL');
       expect(settings.localization.language).toBe('pt-BR');
+      expect(settings.notification.from_email).toBeNull();
     });
 
     it('accepts a custom timezone', () => {

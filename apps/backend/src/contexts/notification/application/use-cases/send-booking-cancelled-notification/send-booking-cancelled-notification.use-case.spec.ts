@@ -35,6 +35,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
       name: 'Lava Car',
       slug: 'lavacar',
       timezone: 'America/Sao_Paulo',
+      fromEmail: null,
     });
     useCase = new SendBookingCancelledNotificationUseCase(
       logRepo,

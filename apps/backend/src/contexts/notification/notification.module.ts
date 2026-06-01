@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { PlatformModule } from '../platform/platform.module';
@@ -25,7 +26,10 @@ import { ServiceInfoAdapter } from './infrastructure/cross-context/service-info.
 import { StaffInfoAdapter } from './infrastructure/cross-context/staff-info.adapter';
 import { TenantInfoAdapter } from './infrastructure/cross-context/tenant-info.adapter';
 import { DELIVERY_CHANNEL } from './application/ports/delivery-channel.port';
-import { SmtpEmailAdapter } from './infrastructure/delivery/smtp-email.adapter';
+import { EMAIL_SENDER } from './application/ports/email-sender.port';
+import { MailhogEmailAdapter } from './infrastructure/delivery/mailhog-email.adapter';
+import { SendGridEmailAdapter } from './infrastructure/delivery/sendgrid-email.adapter';
+import { EmailDeliveryChannelAdapter } from './infrastructure/delivery/email-delivery-channel.adapter';
 import { NotificationDispatcherAdapter } from './infrastructure/delivery/notification-dispatcher.adapter';
 import { NotificationLogEntity } from './infrastructure/entities/notification-log.entity';
 import { StaffInvitedHandler } from './infrastructure/events/staff-invited.handler';
@@ -67,11 +71,22 @@ import { TenantProvisionedNotificationHandler } from './infrastructure/events/te
     { provide: NOTIFICATION_TEMPLATE_REPOSITORY, useClass: TypeOrmNotificationTemplateRepository },
     SeedDefaultTemplatesUseCase,
     TenantProvisionedNotificationHandler,
-    SmtpEmailAdapter,
+    MailhogEmailAdapter,
+    SendGridEmailAdapter,
+    {
+      provide: EMAIL_SENDER,
+      useFactory: (
+        mailhog: MailhogEmailAdapter,
+        sendgrid: SendGridEmailAdapter,
+        config: ConfigService,
+      ) => (config.get('EMAIL_ADAPTER') === 'sendgrid' ? sendgrid : mailhog),
+      inject: [MailhogEmailAdapter, SendGridEmailAdapter, ConfigService],
+    },
+    EmailDeliveryChannelAdapter,
     {
       provide: DELIVERY_CHANNEL,
-      useFactory: (smtp: SmtpEmailAdapter) => [smtp],
-      inject: [SmtpEmailAdapter],
+      useFactory: (email: EmailDeliveryChannelAdapter) => [email],
+      inject: [EmailDeliveryChannelAdapter],
     },
     { provide: NOTIFICATION_DISPATCHER, useClass: NotificationDispatcherAdapter },
     { provide: NOTIFICATION_STAFF_PORT, useClass: StaffInfoAdapter },

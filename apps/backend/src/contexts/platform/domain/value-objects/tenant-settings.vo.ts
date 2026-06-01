@@ -4,6 +4,10 @@ import { PlatformDomainError } from '../errors/platform-domain.error';
 
 export type DayHours = { open: string; close: string } | null;
 
+export interface NotificationSettings {
+  from_email: string | null;
+}
+
 export interface LoyaltySettings {
   expiry_days: number;
   enable_notifications: boolean;
@@ -42,6 +46,7 @@ export interface TenantSettingsProps {
   booking: BookingSettings;
   business_hours: BusinessHours;
   localization: LocalizationSettings;
+  notification?: NotificationSettings;
 }
 
 export class TenantSettings {
@@ -65,6 +70,10 @@ export class TenantSettings {
 
   get localization(): LocalizationSettings {
     return { ...this.props.localization };
+  }
+
+  get notification(): NotificationSettings {
+    return this.props.notification ?? { from_email: null };
   }
 
   toJSON(): TenantSettingsProps {
@@ -101,6 +110,9 @@ export class TenantSettings {
         currency_symbol: 'R$',
         language: 'pt-BR',
         decimal_places: 2,
+      },
+      notification: {
+        from_email: null,
       },
     });
   }

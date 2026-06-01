@@ -17,6 +17,7 @@ export class TenantInfoAdapter implements INotificationTenantPort {
         name: result.name,
         slug: result.slug,
         timezone: result.settings.business_hours.timezone,
+        fromEmail: result.settings.notification?.from_email ?? null,
       };
     } catch {
       return null;

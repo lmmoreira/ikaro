@@ -2,6 +2,7 @@ import {
   BookingSettings,
   BusinessHours,
   LoyaltySettings,
+  NotificationSettings,
   TenantSettings,
   TenantSettingsProps,
 } from '../../../contexts/platform/domain/value-objects/tenant-settings.vo';
@@ -25,6 +26,11 @@ export class TenantSettingsPropsBuilder {
 
   withBusinessHours(overrides: Partial<BusinessHours>): this {
     this.props.business_hours = { ...this.props.business_hours, ...overrides };
+    return this;
+  }
+
+  withNotification(overrides: Partial<NotificationSettings>): this {
+    this.props.notification = { from_email: null, ...this.props.notification, ...overrides };
     return this;
   }
 

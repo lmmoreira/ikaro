@@ -32,6 +32,7 @@ const tenantResult: GetTenantByIdUseCaseResult = {
       sunday: null,
     },
     localization: { currency: 'BRL', currency_symbol: 'R$', language: 'pt-BR', decimal_places: 2 },
+    notification: { from_email: null },
   },
 };
 
@@ -54,8 +55,24 @@ describe('TenantInfoAdapter', () => {
       name: 'Lava Car',
       slug: 'lavacar',
       timezone: 'America/Sao_Paulo',
+      fromEmail: null,
     });
     expect(getTenantById.execute).toHaveBeenCalledWith(TENANT_ID);
+  });
+
+  it('maps fromEmail when notification.from_email is set', async () => {
+    const resultWithEmail: GetTenantByIdUseCaseResult = {
+      ...tenantResult,
+      settings: {
+        ...tenantResult.settings,
+        notification: { from_email: 'lavagem@beloauto.com.br' },
+      },
+    };
+    getTenantById.execute.mockResolvedValue(resultWithEmail);
+
+    const result = await adapter.getTenantInfo(TENANT_ID);
+
+    expect(result?.fromEmail).toBe('lavagem@beloauto.com.br');
   });
 
   it('returns null when tenant is not found', async () => {

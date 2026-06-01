@@ -63,6 +63,9 @@ const TENANT_SETTINGS = {
     language: 'pt-BR',
     decimal_places: 2,
   },
+  notification: {
+    from_email: null,
+  },
 };
 
 async function seed(): Promise<void> {
