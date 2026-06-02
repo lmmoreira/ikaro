@@ -21,6 +21,9 @@ import { SendBookingInfoSubmittedNotificationUseCase } from './application/use-c
 import { SendBookingCancelledNotificationUseCase } from './application/use-cases/send-booking-cancelled-notification/send-booking-cancelled-notification.use-case';
 import { SendBookingRescheduledNotificationUseCase } from './application/use-cases/send-booking-rescheduled-notification/send-booking-rescheduled-notification.use-case';
 import { SendServicePointsEarnedNotificationUseCase } from './application/use-cases/send-service-points-earned-notification/send-service-points-earned-notification.use-case';
+import { SendBookingReminderDueNotificationUseCase } from './application/use-cases/send-booking-reminder-due-notification/send-booking-reminder-due-notification.use-case';
+import { SendBookingReminderDueTodayNotificationUseCase } from './application/use-cases/send-booking-reminder-due-today-notification/send-booking-reminder-due-today-notification.use-case';
+import { SendAdminDailyScheduleReminderNotificationUseCase } from './application/use-cases/send-admin-daily-schedule-reminder-notification/send-admin-daily-schedule-reminder-notification.use-case';
 import { CustomerInfoAdapter } from './infrastructure/cross-context/customer-info.adapter';
 import { ServiceInfoAdapter } from './infrastructure/cross-context/service-info.adapter';
 import { StaffInfoAdapter } from './infrastructure/cross-context/staff-info.adapter';
@@ -41,6 +44,8 @@ import { BookingInfoSubmittedHandler } from './infrastructure/events/booking-inf
 import { BookingCancelledHandler } from './infrastructure/events/booking-cancelled.handler';
 import { BookingRescheduledHandler } from './infrastructure/events/booking-rescheduled.handler';
 import { ServicePointsEarnedHandler } from './infrastructure/events/service-points-earned.handler';
+import { BookingReminderHandler } from './infrastructure/events/booking-reminder.handler';
+import { AdminDailyScheduleReminderHandler } from './infrastructure/events/admin-daily-schedule-reminder.handler';
 import { TypeOrmNotificationLogRepository } from './infrastructure/repositories/typeorm-notification-log.repository';
 import { TypeOrmNotificationProcessedEventRepository } from './infrastructure/repositories/typeorm-processed-event.repository';
 import { TypeOrmNotificationTemplateRepository } from './infrastructure/repositories/typeorm-notification-template.repository';
@@ -102,6 +107,9 @@ import { TenantProvisionedNotificationHandler } from './infrastructure/events/te
     SendBookingCancelledNotificationUseCase,
     SendBookingRescheduledNotificationUseCase,
     SendServicePointsEarnedNotificationUseCase,
+    SendBookingReminderDueNotificationUseCase,
+    SendBookingReminderDueTodayNotificationUseCase,
+    SendAdminDailyScheduleReminderNotificationUseCase,
     StaffInvitedHandler,
     BookingRequestedHandler,
     BookingApprovedHandler,
@@ -111,6 +119,8 @@ import { TenantProvisionedNotificationHandler } from './infrastructure/events/te
     BookingCancelledHandler,
     BookingRescheduledHandler,
     ServicePointsEarnedHandler,
+    BookingReminderHandler,
+    AdminDailyScheduleReminderHandler,
   ],
 })
 export class NotificationModule {}

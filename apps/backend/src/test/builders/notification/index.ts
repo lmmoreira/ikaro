@@ -10,3 +10,5 @@ export { SendBookingRequestedNotificationDtoBuilder } from './send-booking-reque
 export { SendBookingRescheduledNotificationDtoBuilder } from './send-booking-rescheduled-notification-dto.builder';
 export { SendServicePointsEarnedNotificationDtoBuilder } from './send-service-points-earned-notification-dto.builder';
 export { SendStaffInvitationDtoBuilder } from './send-staff-invitation-dto.builder';
+export { SendBookingReminderDueNotificationDtoBuilder } from './send-booking-reminder-due-notification-dto.builder';
+export { SendAdminDailyScheduleReminderNotificationDtoBuilder } from './send-admin-daily-schedule-reminder-notification-dto.builder';
