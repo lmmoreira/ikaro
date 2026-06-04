@@ -682,7 +682,7 @@ No use case changes needed.
 
 ---
 
-### M11-S08 — Dead letter queue handling for Pub/Sub
+### M11-S08 — Dead letter queue handling for Pub/Sub ✅ Done
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
