@@ -6,8 +6,8 @@ export class SendBookingInfoRequestedNotificationDtoBuilder {
   private readonly correlationId = 'corr-info-req-1';
   private bookingId = 'bbbbbbbb-0003-4000-8000-000000000001';
   private customerId: string | null = null;
-  private readonly guestEmail = 'joao@example.com';
-  private readonly guestName = 'João Silva';
+  private readonly contactEmail = 'joao@example.com';
+  private readonly contactName = 'João Silva';
   private readonly informationNeeded = 'Por favor envie fotos melhores do veículo';
 
   withTenantId(tenantId: string): this {
@@ -37,8 +37,8 @@ export class SendBookingInfoRequestedNotificationDtoBuilder {
       correlationId: this.correlationId,
       bookingId: this.bookingId,
       customerId: this.customerId,
-      guestEmail: this.guestEmail,
-      guestName: this.guestName,
+      contactEmail: this.contactEmail,
+      contactName: this.contactName,
       informationNeeded: this.informationNeeded,
     };
   }

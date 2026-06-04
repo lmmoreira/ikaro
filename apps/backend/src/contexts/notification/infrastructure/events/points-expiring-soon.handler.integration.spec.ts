@@ -9,11 +9,10 @@ import { CustomerEntity } from '../../../customer/infrastructure/entities/custom
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/customer-entity.builder';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { createNotificationIntegrationApp } from '../../../../test/utils/notification-integration-app';
-import { waitFor } from '../../../../test/utils/wait-for';
 
 const PLATFORM_KEY = 'pts-expiring-integration-test-key-xxxxxx';
 
-describe('PointsExpiringSoonHandler (Pub/Sub → handler → use case → real DB) integration', () => {
+describe('PointsExpiringSoonHandler (event bus → handler → use case → real DB) integration', () => {
   let app: INestApplication;
   let ds: DataSource;
   let dispatcher: InMemoryNotificationDispatcher;
@@ -24,7 +23,6 @@ describe('PointsExpiringSoonHandler (Pub/Sub → handler → use case → real D
 
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = PLATFORM_KEY;
-    process.env['PUBSUB_SUBSCRIPTION_SUFFIX'] = `-expiring-soon-${Date.now()}`;
     process.env['JWT_SECRET'] = 'pts-expiring-integration-test-secret-32c';
 
     dispatcher = new InMemoryNotificationDispatcher();
@@ -49,13 +47,7 @@ describe('PointsExpiringSoonHandler (Pub/Sub → handler → use case → real D
       .expect(201);
 
     tenantId = body.tenantId as string;
-
-    await waitFor(async () => {
-      const log = await ds.getRepository(NotificationLogEntity).findOne({
-        where: { tenantId, notificationType: 'staff-invitation' },
-      });
-      return log !== null;
-    });
+    // RoutingInMemoryEventBus is synchronous — full provisioning chain is done when 201 returns.
 
     customerId = uuidv7();
     customerEmail = `customer-pts-${Date.now()}@example.com`;
@@ -73,7 +65,6 @@ describe('PointsExpiringSoonHandler (Pub/Sub → handler → use case → real D
   afterAll(async () => {
     await app.close();
     delete process.env['PLATFORM_ADMIN_KEY'];
-    delete process.env['PUBSUB_SUBSCRIPTION_SUFFIX'];
     delete process.env['JWT_SECRET'];
   });
 
@@ -88,12 +79,10 @@ describe('PointsExpiringSoonHandler (Pub/Sub → handler → use case → real D
 
     await eventBus.publish(event);
 
-    await waitFor(async () => {
-      const log = await ds.getRepository(NotificationLogEntity).findOne({
-        where: { tenantId, eventId: event.eventId, notificationType: 'points-expiring-soon' },
-      });
-      return log !== null;
+    const log = await ds.getRepository(NotificationLogEntity).findOne({
+      where: { tenantId, eventId: event.eventId, notificationType: 'points-expiring-soon' },
     });
+    expect(log).not.toBeNull();
 
     const msg = dispatcher.dispatched.find((m) => m.to === customerEmail);
     expect(msg).toBeDefined();
@@ -108,15 +97,14 @@ describe('PointsExpiringSoonHandler (Pub/Sub → handler → use case → real D
     });
 
     await eventBus.publish(event);
-    await waitFor(async () => {
-      const log = await ds.getRepository(NotificationLogEntity).findOne({
-        where: { tenantId, eventId: event.eventId, notificationType: 'points-expiring-soon' },
-      });
-      return log !== null;
-    });
 
+    const logAfterFirst = await ds.getRepository(NotificationLogEntity).findOne({
+      where: { tenantId, eventId: event.eventId, notificationType: 'points-expiring-soon' },
+    });
+    expect(logAfterFirst).not.toBeNull();
+
+    // Second publish with same eventId — isAlreadySent finds processedEvent → skips.
     await eventBus.publish(event);
-    await new Promise((r) => setTimeout(r, 400));
 
     const logs = await ds.getRepository(NotificationLogEntity).find({
       where: { tenantId, eventId: event.eventId, notificationType: 'points-expiring-soon' },
@@ -124,32 +112,34 @@ describe('PointsExpiringSoonHandler (Pub/Sub → handler → use case → real D
     expect(logs).toHaveLength(1);
   });
 
-  it('dispatch failure + Pub/Sub retry → SENT log with retryCount=1 (upsert preserves failure count)', async () => {
+  it('dispatch failure → FAILED log; explicit retry → SENT log with retryCount=1', async () => {
     const event = new PointsExpiringSoon(tenantId, uuidv7(), {
       customerId,
       pointsExpiringSoon: 99,
       earliestExpiresAt: '2026-06-09T00:00:00.000Z',
     });
 
+    // First delivery: dispatch fails → use case writes FAILED log, processedEvent NOT saved.
+    // RoutingInMemoryEventBus swallows the handler rethrow.
     dispatcher.failNext(new Error('SMTP connection refused'));
     await eventBus.publish(event);
 
-    // The FAILED state is transient (Pub/Sub retries within ~100 ms and updates the row to SENT).
-    // Polling for FAILED would be a race; instead wait for the stable final state.
-    // retryCount=1 is the key proof: orIgnore() would have reset it to 0 on the SENT upsert.
-    await waitFor(async () => {
-      const log = await ds.getRepository(NotificationLogEntity).findOne({
-        where: { tenantId, eventId: event.eventId, notificationType: 'points-expiring-soon' },
-      });
-      return log !== null && log.status === 'SENT' && log.retryCount >= 1;
-    });
-
-    const log = await ds.getRepository(NotificationLogEntity).findOne({
+    const failedLog = await ds.getRepository(NotificationLogEntity).findOne({
       where: { tenantId, eventId: event.eventId, notificationType: 'points-expiring-soon' },
     });
-    expect(log!.status).toBe('SENT');
-    expect(log!.sentAt).toBeTruthy();
-    expect(log!.retryCount).toBe(1);
+    expect(failedLog).not.toBeNull();
+    expect(failedLog!.status).toBe('FAILED');
+
+    // Second delivery (deterministic retry): isAlreadySent → no processedEvent → proceeds.
+    // retryCount=1 proves the upsert incremented rather than reset to 0.
+    await eventBus.publish(event);
+
+    const sentLog = await ds.getRepository(NotificationLogEntity).findOne({
+      where: { tenantId, eventId: event.eventId, notificationType: 'points-expiring-soon' },
+    });
+    expect(sentLog!.status).toBe('SENT');
+    expect(sentLog!.sentAt).toBeTruthy();
+    expect(sentLog!.retryCount).toBe(1);
   });
 
   it('tenant isolation: PointsExpiringSoon for Tenant A does not notify Tenant B customer', async () => {
@@ -166,13 +156,6 @@ describe('PointsExpiringSoonHandler (Pub/Sub → handler → use case → real D
       })
       .expect(201);
     const tenantBId = bodyB.tenantId as string;
-
-    await waitFor(async () => {
-      const log = await ds.getRepository(NotificationLogEntity).findOne({
-        where: { tenantId: tenantBId, notificationType: 'staff-invitation' },
-      });
-      return log !== null;
-    });
 
     const tenantBCustomerEmail = `customer-pts-b-${Date.now()}@example.com`;
     await ds
@@ -194,9 +177,8 @@ describe('PointsExpiringSoonHandler (Pub/Sub → handler → use case → real D
     });
 
     await eventBus.publish(event);
-    await waitFor(async () => dispatcher.dispatched.some((m) => m.to === customerEmail));
 
-    expect(dispatcher.dispatched.some((m) => m.to === tenantBCustomerEmail)).toBe(false);
     expect(dispatcher.dispatched.some((m) => m.to === customerEmail)).toBe(true);
+    expect(dispatcher.dispatched.some((m) => m.to === tenantBCustomerEmail)).toBe(false);
   });
 });

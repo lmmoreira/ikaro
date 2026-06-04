@@ -18,10 +18,10 @@ export class BookingBuilder {
   private status = BookingStatus.PENDING;
   private type: BookingType = 'GUEST';
   private customerId: string | null = null;
-  private guestEmail = Email.create('guest@example.com');
-  private guestName = 'João Silva';
-  private guestPhone = PhoneNumber.create('31999999999');
-  private guestAddress: Address | null = null;
+  private contactEmail = Email.create('guest@example.com');
+  private contactName = 'João Silva';
+  private contactPhone = PhoneNumber.create('31999999999');
+  private contactAddress: Address | null = null;
   private pickupAddress: Address | null = null;
   private scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   private lines: BookingLine[] = [new BookingLineBuilder().build()];
@@ -69,20 +69,20 @@ export class BookingBuilder {
     this.customerId = customerId;
     return this;
   }
-  withGuestEmail(email: string): this {
-    this.guestEmail = Email.create(email);
+  withContactEmail(email: string): this {
+    this.contactEmail = Email.create(email);
     return this;
   }
-  withGuestName(name: string): this {
-    this.guestName = name;
+  withContactName(name: string): this {
+    this.contactName = name;
     return this;
   }
-  withGuestPhone(phone: string): this {
-    this.guestPhone = PhoneNumber.create(phone);
+  withContactPhone(phone: string): this {
+    this.contactPhone = PhoneNumber.create(phone);
     return this;
   }
-  withGuestAddress(address: Address | null): this {
-    this.guestAddress = address;
+  withContactAddress(address: Address | null): this {
+    this.contactAddress = address;
     return this;
   }
   withPickupAddress(address: Address | null): this {
@@ -134,10 +134,10 @@ export class BookingBuilder {
       status: this.status,
       type: this.type,
       customerId: this.customerId,
-      guestEmail: this.guestEmail,
-      guestName: this.guestName,
-      guestPhone: this.guestPhone,
-      guestAddress: this.guestAddress,
+      contactEmail: this.contactEmail,
+      contactName: this.contactName,
+      contactPhone: this.contactPhone,
+      contactAddress: this.contactAddress,
       pickupAddress: this.pickupAddress,
       scheduledAt: this.scheduledAt,
       totalDurationMins: this.totalDurationMins,

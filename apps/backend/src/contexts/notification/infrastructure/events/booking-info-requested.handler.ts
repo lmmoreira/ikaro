@@ -34,8 +34,8 @@ export class BookingInfoRequestedHandler implements OnModuleInit {
         correlationId: event.correlationId,
         bookingId: event.data.bookingId,
         customerId: event.data.customerId,
-        guestEmail: event.data.guestEmail,
-        guestName: event.data.guestName,
+        contactEmail: event.data.contactEmail,
+        contactName: event.data.contactName,
         informationNeeded: event.data.informationNeeded,
       });
     } catch (err) {

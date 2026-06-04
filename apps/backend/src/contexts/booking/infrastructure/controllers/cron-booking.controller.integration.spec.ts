@@ -13,8 +13,7 @@ import {
 import { ServiceEntity } from '../entities/service.entity';
 import { TenantEntityBuilder } from '../../../../test/builders/platform/tenant-entity.builder';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
-import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { BookingReminderJob } from '../../application/jobs/booking-reminder.job';
 import { AdminScheduleReminderJob } from '../../application/jobs/admin-schedule-reminder.job';
 
@@ -34,12 +33,11 @@ const TOMORROW = new Date('2026-06-02T09:00:00.000Z');
 describe('CronBookingController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
-  let eventBus: InMemoryEventBus;
+  let eventBus: RoutingInMemoryEventBus;
 
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = 'test-cron-key-xxxxxxxxxxxxxxxx';
-    ({ app, ds } = await createBookingIntegrationApp({ overrideEventBus: true }));
-    eventBus = app.get(EVENT_BUS);
+    ({ app, ds, eventBus } = await createBookingIntegrationApp());
 
     // Seed tenants directly
     const inWindowTenant = new TenantEntityBuilder()
@@ -96,8 +94,8 @@ describe('CronBookingController (integration)', () => {
       .withTenantId(TENANT_IN)
       .withStatus('APPROVED')
       .withScheduledAt(TOMORROW)
-      .withGuestEmail('cron-test@example.com')
-      .withGuestName('Cron Test User')
+      .withContactEmail('cron-test@example.com')
+      .withContactName('Cron Test User')
       .build();
     await ds.getRepository(BookingEntity).save(bookingEntity);
 

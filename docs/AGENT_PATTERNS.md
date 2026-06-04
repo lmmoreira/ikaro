@@ -815,7 +815,7 @@ For templates with conditional rendering (nullable fields, boolean flags), add o
 ```typescript
 describe('booking-xxx-admin', () => {
   it('renders subject and body', () => {
-    const result = adapter.render('booking-xxx-admin', { guestName: 'Ana', ... });
+    const result = adapter.render('booking-xxx-admin', { contactName: 'Ana', ... });
     expect(result.subject).toContain('...');
     expect(result.html).toContain('Ana');
   });

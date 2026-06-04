@@ -10,7 +10,7 @@ import { TransactionManagerModule } from '../../../../shared/infrastructure/tran
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { TenantInterceptor } from '../../../../shared/tenant/tenant.interceptor';
 import { TenantModule } from '../../../../shared/tenant/tenant.module';
-import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { StaffEntity } from '../entities/staff.entity';
@@ -42,7 +42,7 @@ describe('StaffController (integration) — management endpoints', () => {
       providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
     })
       .overrideProvider(EVENT_BUS)
-      .useValue(new InMemoryEventBus())
+      .useValue(new RoutingInMemoryEventBus())
       .compile();
 
     app = moduleRef.createNestApplication();

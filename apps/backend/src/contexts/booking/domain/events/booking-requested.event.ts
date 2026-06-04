@@ -24,10 +24,10 @@ interface BookingRequestedData extends Record<string, unknown> {
   bookingId: string;
   type: 'GUEST' | 'CUSTOMER';
   customerId: string | null;
-  guestEmail: string;
-  guestName: string;
-  guestPhone: string;
-  guestAddress: AddressEventPayload | null;
+  contactEmail: string;
+  contactName: string;
+  contactPhone: string;
+  contactAddress: AddressEventPayload | null;
   scheduledAt: string;
   totalDurationMins: number;
   totalPrice: { amount: string; currency: string };

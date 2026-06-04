@@ -31,8 +31,8 @@ describe('BookingRescheduledHandler', () => {
     const dto = useCase.execute.mock.calls[0][0];
     expect(dto.tenantId).toBe(TENANT_ID);
     expect(dto.correlationId).toBe('corr-rescheduled-1');
-    expect(dto.guestEmail).toBe('joao@example.com');
-    expect(dto.guestName).toBe('João Silva');
+    expect(dto.contactEmail).toBe('joao@example.com');
+    expect(dto.contactName).toBe('João Silva');
     expect(dto.previousSlot).toEqual({
       startTime: '2026-07-01T10:00:00.000Z',
       endTime: '2026-07-01T11:00:00.000Z',

@@ -1,4 +1,4 @@
-import { BaseGuestNotificationDto } from './base-guest-notification.dto';
+import { BaseContactNotificationDto } from './base-contact-notification.dto';
 
 interface AddressDto {
   street: string;
@@ -10,7 +10,7 @@ interface AddressDto {
   zipCode: string;
 }
 
-export interface SendBookingRequestedNotificationDto extends BaseGuestNotificationDto {
+export interface SendBookingRequestedNotificationDto extends BaseContactNotificationDto {
   scheduledAt: string;
   totalPrice: { amount: string; currency: string };
   lines: Array<{ serviceNameAtBooking: string }>;

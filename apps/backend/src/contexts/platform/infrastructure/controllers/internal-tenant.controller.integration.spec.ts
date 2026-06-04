@@ -4,7 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
@@ -37,7 +37,7 @@ describe('InternalTenantController (integration)', () => {
       ],
     })
       .overrideProvider(EVENT_BUS)
-      .useValue(new InMemoryEventBus())
+      .useValue(new RoutingInMemoryEventBus())
       .compile();
 
     app = moduleRef.createNestApplication();

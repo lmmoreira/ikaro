@@ -308,10 +308,10 @@ X-Tenant-ID: {{tenantId}}
 X-Correlation-ID: test-corr-001
 
 {
-  "guestEmail": "joao@example.com",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
-  "guestAddress": {
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
+  "contactAddress": {
     "street": "Rua das Acácias",
     "number": "45",
     "neighborhood": "Jardim América",
@@ -335,9 +335,9 @@ X-Tenant-ID: {{tenantId}}
 X-Correlation-ID: test-corr-002
 
 {
-  "guestEmail": "joao@example.com",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
   "scheduledAt": "2026-06-15T14:00:00.000Z",
   "serviceIds": ["{{serviceId}}"],
   "pickupAddress": {
@@ -363,9 +363,9 @@ X-Tenant-ID: {{tenantId}}
 X-Correlation-ID: test-corr-003
 
 {
-  "guestEmail": "joao@example.com",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
   "scheduledAt": "2026-06-15T13:00:00.000Z",
   "serviceIds": []
 }
@@ -382,9 +382,9 @@ X-Tenant-ID: {{tenantId}}
 X-Correlation-ID: test-corr-004
 
 {
-  "guestEmail": "not-an-email",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
+  "contactEmail": "not-an-email",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
   "scheduledAt": "2026-06-15T13:00:00.000Z",
   "serviceIds": ["{{serviceId}}"]
 }
@@ -401,9 +401,9 @@ X-Tenant-ID: {{tenantId}}
 X-Correlation-ID: test-corr-005
 
 {
-  "guestEmail": "joao@example.com",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
   "scheduledAt": "2026-06-15T13:00:00.000Z",
   "serviceIds": ["00000000-0000-4000-8000-000000009999"]
 }
@@ -420,9 +420,9 @@ X-Tenant-ID: {{tenantId}}
 X-Correlation-ID: test-corr-006
 
 {
-  "guestEmail": "joao@example.com",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
   "scheduledAt": "2026-06-15T10:00:00.000Z",
   "serviceIds": ["{{serviceId}}"]
 }
@@ -618,19 +618,19 @@ Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 
 {
-  "guestEmail": "guest@example.com",
+  "contactEmail": "guest@example.com",
   "response": "Here are the additional photos you requested"
 }
 
 ###
 
-# ERROR — missing guestEmail → 400
+# ERROR — missing contactEmail → 400
 PATCH {{baseUrl}}/bookings/{{bookingId}}/submit-info/guest
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 
 {
-  "response": "Missing guestEmail — should return 400"
+  "response": "Missing contactEmail — should return 400"
 }
 
 ###
@@ -641,7 +641,7 @@ Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
 
 {
-  "guestEmail": "guest@example.com",
+  "contactEmail": "guest@example.com",
   "response": "Booking is PENDING — should return 422"
 }
 

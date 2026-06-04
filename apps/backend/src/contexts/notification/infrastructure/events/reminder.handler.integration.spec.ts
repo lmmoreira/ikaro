@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { IEventBus } from '../../../../shared/ports/event-bus.port';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { BookingReminderDue } from '../../../booking/domain/events/booking-reminder-due.event';
 import { BookingReminderDueToday } from '../../../booking/domain/events/booking-reminder-due-today.event';
 import { AdminDailyScheduleReminder } from '../../../booking/domain/events/admin-daily-schedule-reminder.event';
@@ -11,11 +11,10 @@ import { InMemoryNotificationLogRepository } from '../../../../test/repositories
 import { InMemoryNotificationProcessedEventRepository } from '../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { createNotificationIntegrationApp } from '../../../../test/utils/notification-integration-app';
-import { waitFor } from '../../../../test/utils/wait-for';
 
 const PLATFORM_KEY = 'reminder-integration-test-key-xxxxxxxxxx';
 
-describe('Reminder handlers (Pub/Sub → handler → use case → real DB templates) integration', () => {
+describe('Reminder handlers (event bus → handler → use case) integration', () => {
   let app: INestApplication;
   let dispatcher: InMemoryNotificationDispatcher;
   let logRepo: InMemoryNotificationLogRepository;
@@ -26,7 +25,6 @@ describe('Reminder handlers (Pub/Sub → handler → use case → real DB templa
 
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = PLATFORM_KEY;
-    process.env['PUBSUB_SUBSCRIPTION_SUFFIX'] = `-reminder-${Date.now()}`;
     process.env['JWT_SECRET'] = 'reminder-integration-test-secret-32chars';
 
     dispatcher = new InMemoryNotificationDispatcher();
@@ -54,16 +52,12 @@ describe('Reminder handlers (Pub/Sub → handler → use case → real DB templa
       .expect(201);
 
     tenantId = body.tenantId as string;
-
-    await waitFor(async () =>
-      logRepo.all.some((l) => l.tenantId === tenantId && l.notificationType === 'staff-invitation'),
-    );
+    // RoutingInMemoryEventBus is synchronous — staff-invitation is already in logRepo when 201 returns.
   });
 
   afterAll(async () => {
     await app.close();
     delete process.env['PLATFORM_ADMIN_KEY'];
-    delete process.env['PUBSUB_SUBSCRIPTION_SUFFIX'];
     delete process.env['JWT_SECRET'];
   });
 
@@ -89,12 +83,11 @@ describe('Reminder handlers (Pub/Sub → handler → use case → real DB templa
 
     await eventBus.publish(event);
 
-    await waitFor(async () =>
+    expect(
       logRepo.all.some(
         (l) => l.eventId === event.eventId && l.notificationType === 'booking-reminder-due',
       ),
-    );
-
+    ).toBe(true);
     expect(
       dispatcher.dispatched.some(
         (m) => m.to === 'joao@example.com' && m.subject.includes('amanhã'),
@@ -118,12 +111,11 @@ describe('Reminder handlers (Pub/Sub → handler → use case → real DB templa
 
     await eventBus.publish(event);
 
-    await waitFor(async () =>
+    expect(
       logRepo.all.some(
         (l) => l.eventId === event.eventId && l.notificationType === 'booking-reminder-due-today',
       ),
-    );
-
+    ).toBe(true);
     expect(
       dispatcher.dispatched.some((m) => m.to === 'maria@example.com' && m.subject.includes('hoje')),
     ).toBe(true);
@@ -150,19 +142,18 @@ describe('Reminder handlers (Pub/Sub → handler → use case → real DB templa
 
     await eventBus.publish(event);
 
-    await waitFor(async () =>
+    expect(
       logRepo.all.some(
         (l) =>
           l.eventId === event.eventId && l.notificationType === 'admin-daily-schedule-reminder',
       ),
-    );
-
+    ).toBe(true);
     expect(
       dispatcher.dispatched.some((m) => m.to === adminEmail && m.subject.includes('Agenda do dia')),
     ).toBe(true);
   });
 
-  it('BookingReminderDue dispatch failure → handler rethrows; retry delivers email', async () => {
+  it('BookingReminderDue dispatch failure → FAILED log written; explicit retry delivers email', async () => {
     const event = new BookingReminderDue(tenantId, uuidv7(), {
       bookingId: uuidv7(),
       customerId: uuidv7(),
@@ -176,15 +167,18 @@ describe('Reminder handlers (Pub/Sub → handler → use case → real DB templa
       lines: [{ serviceId: uuidv7(), serviceName: 'Lavagem' }],
     });
 
+    // First delivery: dispatch fails → use case writes FAILED log, processedEvent NOT saved.
+    // RoutingInMemoryEventBus swallows the handler rethrow (mirrors Pub/Sub fire-and-forget).
     dispatcher.failNext(new Error('SMTP connection refused'));
     await eventBus.publish(event);
 
-    // After the failure the handler nacks, Pub/Sub retries, and the retry dispatches the email.
-    // Waiting for SENT (stable) avoids the race: the FAILED state is transient and
-    // processedEventRepo is cleared by afterEach making failNext vulnerable to re-deliveries.
-    await waitFor(async () =>
-      logRepo.all.some((l) => l.eventId === event.eventId && l.status === 'SENT'),
+    expect(logRepo.all.some((l) => l.eventId === event.eventId && l.status === 'FAILED')).toBe(
+      true,
     );
+
+    // Second delivery (explicit retry, deterministic): no failNext → dispatch succeeds.
+    // isAlreadySent checks processedEvent (not written on failure) → not a duplicate → retries.
+    await eventBus.publish(event);
 
     const sentLog = logRepo.all.find((l) => l.eventId === event.eventId && l.status === 'SENT');
     expect(sentLog).toBeDefined();
@@ -207,12 +201,7 @@ describe('Reminder handlers (Pub/Sub → handler → use case → real DB templa
       .expect(201);
     const tenantBId = bodyB.tenantId as string;
 
-    await waitFor(async () =>
-      logRepo.all.some(
-        (l) => l.tenantId === tenantBId && l.notificationType === 'staff-invitation',
-      ),
-    );
-
+    // Tenant B provisioned synchronously — clear noise before the assertion.
     logRepo.clear();
     processedEventRepo.clear();
     dispatcher.clear();
@@ -232,10 +221,7 @@ describe('Reminder handlers (Pub/Sub → handler → use case → real DB templa
 
     await eventBus.publish(event);
 
-    await waitFor(async () =>
-      dispatcher.dispatched.some((m) => m.to === 'tenant-a-customer@example.com'),
-    );
-
+    expect(dispatcher.dispatched.some((m) => m.to === 'tenant-a-customer@example.com')).toBe(true);
     expect(dispatcher.dispatched.some((m) => m.to === tenantBAdminEmail)).toBe(false);
 
     const tenantBLogs = logRepo.all.filter(

@@ -86,8 +86,8 @@ describe('BookingReminderJob', () => {
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
       .withScheduledAt(TOMORROW)
-      .withGuestEmail('maria@example.com')
-      .withGuestName('Maria Silva')
+      .withContactEmail('maria@example.com')
+      .withContactName('Maria Silva')
       .withLines([new BookingLineBuilder().build()])
       .build();
     await bookingRepo.save(booking);
@@ -130,8 +130,8 @@ describe('BookingReminderJob', () => {
       .withStatus(BookingStatus.APPROVED)
       .withScheduledAt(TOMORROW)
       .withCustomerId(CUSTOMER_ID)
-      .withGuestEmail('guest@fallback.com')
-      .withGuestName('Fallback Name')
+      .withContactEmail('guest@fallback.com')
+      .withContactName('Fallback Name')
       .withLines([new BookingLineBuilder().build()])
       .build();
     await bookingRepo.save(booking);

@@ -28,8 +28,8 @@ describe('BookingRejectedHandler', () => {
     expect(useCase.execute).toHaveBeenCalledTimes(1);
     const dto = useCase.execute.mock.calls[0][0];
     expect(dto.tenantId).toBe(TENANT_ID);
-    expect(dto.guestEmail).toBe('joao@example.com');
-    expect(dto.guestName).toBe('João Silva');
+    expect(dto.contactEmail).toBe('joao@example.com');
+    expect(dto.contactName).toBe('João Silva');
     expect(dto.reason).toBe('Horário indisponível para os serviços selecionados');
   });
 

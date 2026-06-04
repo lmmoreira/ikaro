@@ -21,6 +21,7 @@ import { NotificationTemplateEntity } from '../../contexts/notification/infrastr
 import { NotificationModule } from '../../contexts/notification/notification.module';
 import { InMemoryNotificationDispatcher } from '../infrastructure/in-memory-notification-dispatcher';
 import { EVENT_BUS, IEventBus } from '../../shared/ports/event-bus.port';
+import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
 
 type EntityClass = abstract new (...args: unknown[]) => unknown;
 
@@ -42,6 +43,8 @@ export async function createNotificationIntegrationApp(
     extraEntities = [],
     withTenantInterceptor = false,
   } = options;
+
+  const routingBus = new RoutingInMemoryEventBus();
 
   let builder: TestingModuleBuilder = Test.createTestingModule({
     imports: [
@@ -72,6 +75,8 @@ export async function createNotificationIntegrationApp(
       ? [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }]
       : [],
   })
+    .overrideProvider(EVENT_BUS)
+    .useValue(routingBus)
     .overrideProvider(NOTIFICATION_DISPATCHER)
     .useValue(dispatcher);
 

@@ -34,9 +34,9 @@ const mockBookingResponse: BookingResponse = {
 };
 
 const validBody = {
-  guestEmail: 'joao@example.com',
-  guestName: 'João Silva',
-  guestPhone: '31999999999',
+  contactEmail: 'joao@example.com',
+  contactName: 'João Silva',
+  contactPhone: '31999999999',
   scheduledAt: '2026-06-15T10:00:00.000Z',
   serviceIds: [SERVICE_ID],
 };
@@ -506,7 +506,7 @@ describe('BookingsController', () => {
 
     it('returns 400 when token bookingId does not match route param', async () => {
       const token = jwt.sign(
-        { bookingId: 'other-booking-id', tenantId: TENANT_ID, guestEmail: 'guest@example.com' },
+        { bookingId: 'other-booking-id', tenantId: TENANT_ID, contactEmail: 'guest@example.com' },
         JWT_SECRET,
         { expiresIn: 604800 },
       );
@@ -520,10 +520,10 @@ describe('BookingsController', () => {
       expect((err as HttpException).getStatus()).toBe(400);
     });
 
-    it('calls patchForPublic with guestEmail from token and returns result', async () => {
-      const guestEmail = 'guest@example.com';
+    it('calls patchForPublic with contactEmail from token and returns result', async () => {
+      const contactEmail = 'guest@example.com';
       const token = jwt.sign(
-        { bookingId: BOOKING_ID, tenantId: TENANT_ID, guestEmail },
+        { bookingId: BOOKING_ID, tenantId: TENANT_ID, contactEmail },
         JWT_SECRET,
         { expiresIn: 604800 },
       );
@@ -536,7 +536,7 @@ describe('BookingsController', () => {
 
       expect(backendHttp.patchForPublic).toHaveBeenCalledWith(
         `/bookings/${BOOKING_ID}/submit-info/guest`,
-        { guestEmail, ...validSubmitBody },
+        { contactEmail, ...validSubmitBody },
         TENANT_ID,
       );
       expect(result).toBe(mockSubmitGuestResponse);
@@ -544,7 +544,7 @@ describe('BookingsController', () => {
 
     it('propagates 422 from backend when booking is not INFO_REQUESTED', async () => {
       const token = jwt.sign(
-        { bookingId: BOOKING_ID, tenantId: TENANT_ID, guestEmail: 'guest@example.com' },
+        { bookingId: BOOKING_ID, tenantId: TENANT_ID, contactEmail: 'guest@example.com' },
         JWT_SECRET,
         { expiresIn: 604800 },
       );
@@ -571,8 +571,8 @@ describe('BookingsController', () => {
           status: 'PENDING',
           type: 'CUSTOMER',
           customerId: null,
-          guestName: 'João',
-          guestEmail: 'joao@example.com',
+          contactName: 'João',
+          contactEmail: 'joao@example.com',
           scheduledAt: '2026-06-15T10:00:00.000Z',
           totalDurationMins: 30,
           totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
@@ -610,9 +610,9 @@ describe('BookingsController', () => {
       status: 'PENDING',
       type: 'CUSTOMER',
       customerId: null,
-      guestName: 'João',
-      guestEmail: 'joao@example.com',
-      guestPhone: '31999999999',
+      contactName: 'João',
+      contactEmail: 'joao@example.com',
+      contactPhone: '31999999999',
       scheduledAt: '2026-06-15T10:00:00.000Z',
       totalDurationMins: 30,
       totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },

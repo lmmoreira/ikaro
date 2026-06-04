@@ -263,10 +263,10 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
   {
     "serviceIds":            ["uuid-basic-wash", "uuid-pickup"],
     "scheduledAt":           "ISO8601",
-    "guestEmail":            "joao@example.com",
-    "guestName":             "João Silva",
-    "guestPhone":            "31999999999",
-    "guestAddress": {
+    "contactEmail":            "joao@example.com",
+    "contactName":             "João Silva",
+    "contactPhone":            "31999999999",
+    "contactAddress": {
       "street": "Rua das Acácias", "number": "45", "complement": null,
       "neighborhood": "Jardim América", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130020"
     },
@@ -278,7 +278,7 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
   }
   ```
   - `pickupAddress` **required** when any `serviceId` has `requiresPickupAddress = true`; omit otherwise.
-  - `guestAddress` optional (general home address for the guest).
+  - `contactAddress` optional (general home address for the guest).
   - `beforeServicePhotoUrls` optional, defaults to `[]`.
 
 - **Response (`201 Created`):** see [Shared Response Shape](#shared-booking-201-response-shape) below.
@@ -308,7 +308,7 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
     "beforeServicePhotoUrls": ["https://..."]
   }
   ```
-  - Guest fields (`guestEmail`, `guestName`, `guestPhone`, `guestAddress`) are **not accepted** — the backend reads them from the Customer record identified by the JWT `sub`.
+  - Guest fields (`contactEmail`, `contactName`, `contactPhone`, `contactAddress`) are **not accepted** — the backend reads them from the Customer record identified by the JWT `sub`.
   - `pickupAddress` **required** when any service has `requiresPickupAddress = true`. If omitted, falls back to `Customer.defaultAddress` when set; if that is also absent, returns `400 missing-pickup-address`.
   - `beforeServicePhotoUrls` optional, defaults to `[]`.
 

@@ -40,8 +40,8 @@ describe('GetBookingUseCase', () => {
 
       expect(result.id).toBe(booking.id);
       expect(result.status).toBe(booking.status);
-      expect(result.guestEmail).toBe(booking.guestEmail.address);
-      expect(result.guestPhone).toBe(booking.guestPhone.value);
+      expect(result.contactEmail).toBe(booking.contactEmail.address);
+      expect(result.contactPhone).toBe(booking.contactPhone.value);
       expect(result.totalPrice.formatted).toMatch(/^R\$/);
       expect(result.lines).toHaveLength(1);
       expect(result.lines[0].lineId).toBeDefined();

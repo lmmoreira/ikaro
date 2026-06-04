@@ -1,6 +1,6 @@
-import { BaseGuestNotificationDto } from './base-guest-notification.dto';
+import { BaseContactNotificationDto } from './base-contact-notification.dto';
 
-export interface SendBookingRescheduledNotificationDto extends BaseGuestNotificationDto {
+export interface SendBookingRescheduledNotificationDto extends BaseContactNotificationDto {
   newSlot: { startTime: string; endTime: string };
   previousSlot: { startTime: string; endTime: string };
   rescheduledBy: string;

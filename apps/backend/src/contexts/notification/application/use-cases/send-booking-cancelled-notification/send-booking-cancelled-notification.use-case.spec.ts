@@ -48,7 +48,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
         triggerEvent: NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
         channel: 'EMAIL',
         subject: 'Seu agendamento foi cancelado',
-        body: '<p>Olá, {{guestName}}! Serviços: {{serviceNames}} Data: {{localDate}}</p>',
+        body: '<p>Olá, {{contactName}}! Serviços: {{serviceNames}} Data: {{localDate}}</p>',
       }),
     );
     templateRepo.seed(
@@ -57,7 +57,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
         triggerEvent: NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
         channel: 'EMAIL',
         subject: 'Agendamento cancelado',
-        body: '<p>Cliente: {{guestName}} isBusiness: {{isBusiness}} reason: {{reason}}</p>',
+        body: '<p>Cliente: {{contactName}} isBusiness: {{isBusiness}} reason: {{reason}}</p>',
       }),
     );
     useCase = new SendBookingCancelledNotificationUseCase(

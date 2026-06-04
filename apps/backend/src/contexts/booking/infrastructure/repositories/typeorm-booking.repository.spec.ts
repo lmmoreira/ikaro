@@ -74,8 +74,8 @@ describe('TypeOrmBookingRepository', () => {
       const bookingEntity = new BookingEntityBuilder()
         .withId(bookingId)
         .withTenantId(tenantId)
-        .withGuestEmail('joao@example.com')
-        .withGuestPhone('31999999999')
+        .withContactEmail('joao@example.com')
+        .withContactPhone('31999999999')
         .withTotalPriceAmount('150.00')
         .build();
 
@@ -95,7 +95,7 @@ describe('TypeOrmBookingRepository', () => {
       expect(result).not.toBeNull();
       expect(result!.id).toBe(bookingId);
       expect(result!.tenantId).toBe(tenantId);
-      expect(result!.guestEmail.address).toBe('joao@example.com');
+      expect(result!.contactEmail.address).toBe('joao@example.com');
       expect(result!.totalPrice.amount.toNumber()).toBe(150);
       expect(result!.lines).toHaveLength(1);
       expect(result!.lines[0].serviceNameAtBooking).toBe('Lavagem Completa');

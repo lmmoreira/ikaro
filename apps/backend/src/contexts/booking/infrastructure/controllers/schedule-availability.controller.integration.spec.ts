@@ -1,7 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
 import {
   ScheduleClosureEntityBuilder,
   ScheduleOpeningEntityBuilder,
@@ -34,8 +33,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = TEST_KEY;
     ({ app, ds } = await createBookingIntegrationApp({
-      extraModules: [EventBusModule, PlatformModule],
-      overrideEventBus: true,
+      extraModules: [PlatformModule],
     }));
 
     // Seed base tenants via the canonical API — no direct DB access to the platform context.

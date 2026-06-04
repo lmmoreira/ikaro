@@ -4,8 +4,8 @@ export class SendBookingRequestedNotificationDtoBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000000001';
   private eventId = 'cccccccc-0000-4000-8000-000000000001';
   private readonly correlationId = 'corr-1';
-  private readonly guestEmail = 'joao@example.com';
-  private readonly guestName = 'João Silva';
+  private readonly contactEmail = 'joao@example.com';
+  private readonly contactName = 'João Silva';
   private readonly scheduledAt = '2026-06-15T13:00:00.000Z';
   private readonly totalPrice = { amount: '150.00', currency: 'BRL' };
   private readonly lines = [
@@ -29,8 +29,8 @@ export class SendBookingRequestedNotificationDtoBuilder {
       tenantId: this.tenantId,
       eventId: this.eventId,
       correlationId: this.correlationId,
-      guestEmail: this.guestEmail,
-      guestName: this.guestName,
+      contactEmail: this.contactEmail,
+      contactName: this.contactName,
       scheduledAt: this.scheduledAt,
       totalPrice: this.totalPrice,
       lines: this.lines,

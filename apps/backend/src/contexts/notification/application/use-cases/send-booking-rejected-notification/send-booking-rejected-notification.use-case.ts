@@ -55,8 +55,8 @@ export class SendBookingRejectedNotificationUseCase extends BaseNotificationUseC
       return { emailSent: false };
     }
 
-    const emailSent = await this.dispatchTemplates(templates, dto, dto.guestEmail, {
-      guestName: dto.guestName,
+    const emailSent = await this.dispatchTemplates(templates, dto, dto.contactEmail, {
+      contactName: dto.contactName,
       reason: dto.reason,
     });
     return { emailSent };

@@ -22,10 +22,10 @@ Content-Type: application/json
 X-Tenant-Slug: {{tenantSlug}}
 
 {
-  "guestEmail": "joao@example.com",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
-  "guestAddress": {
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
+  "contactAddress": {
     "street": "Rua das Acácias",
     "number": "45",
     "neighborhood": "Jardim América",
@@ -48,9 +48,9 @@ Content-Type: application/json
 X-Tenant-Slug: {{tenantSlug}}
 
 {
-  "guestEmail": "joao@example.com",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
   "scheduledAt": "2026-06-15T14:00:00.000Z",
   "serviceIds": ["{{serviceId}}"],
   "pickupAddress": {
@@ -74,9 +74,9 @@ POST {{bffUrl}}/v1/bookings
 Content-Type: application/json
 
 {
-  "guestEmail": "joao@example.com",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
   "scheduledAt": "2026-06-15T13:00:00.000Z",
   "serviceIds": ["{{serviceId}}"]
 }
@@ -92,9 +92,9 @@ Content-Type: application/json
 X-Tenant-Slug: {{tenantSlug}}
 
 {
-  "guestEmail": "not-an-email",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
+  "contactEmail": "not-an-email",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
   "scheduledAt": "2026-06-15T13:00:00.000Z",
   "serviceIds": ["{{serviceId}}"]
 }
@@ -110,9 +110,9 @@ Content-Type: application/json
 X-Tenant-Slug: {{tenantSlug}}
 
 {
-  "guestEmail": "joao@example.com",
-  "guestName": "João Silva",
-  "guestPhone": "31999999999",
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "31999999999",
   "scheduledAt": "2026-06-15T10:00:00.000Z",
   "serviceIds": ["{{serviceId}}"]
 }

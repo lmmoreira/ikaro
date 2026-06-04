@@ -5,8 +5,8 @@ export class BookingInfoRequestedEventBuilder {
   private readonly correlationId = 'corr-info-req-1';
   private bookingId = 'dddddddd-0003-4000-8000-000000000001';
   private customerId: string | null = null;
-  private guestEmail = 'joao@example.com';
-  private readonly guestName = 'João Silva';
+  private contactEmail = 'joao@example.com';
+  private readonly contactName = 'João Silva';
   private readonly informationNeeded = 'Por favor envie fotos melhores do veículo';
   private readonly requestedBy = 'staffid-0000-4000-8000-000000000001';
 
@@ -25,8 +25,8 @@ export class BookingInfoRequestedEventBuilder {
     return this;
   }
 
-  withGuestEmail(guestEmail: string): this {
-    this.guestEmail = guestEmail;
+  withContactEmail(contactEmail: string): this {
+    this.contactEmail = contactEmail;
     return this;
   }
 
@@ -34,8 +34,8 @@ export class BookingInfoRequestedEventBuilder {
     return new BookingInfoRequested(this.tenantId, this.correlationId, {
       bookingId: this.bookingId,
       customerId: this.customerId,
-      guestEmail: this.guestEmail,
-      guestName: this.guestName,
+      contactEmail: this.contactEmail,
+      contactName: this.contactName,
       informationNeeded: this.informationNeeded,
       requestedBy: this.requestedBy,
     });

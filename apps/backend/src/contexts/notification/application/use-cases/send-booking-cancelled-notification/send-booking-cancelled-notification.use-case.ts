@@ -77,7 +77,7 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
     ]);
 
     const variables: Record<string, string> = {
-      guestName: dto.guestName,
+      contactName: dto.contactName,
       serviceNames,
       totalPrice: formattedTotal,
       localDate,
@@ -90,7 +90,7 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
     const customerEmailSent = await this.dispatchTemplates(
       customerTemplates,
       dto,
-      dto.guestEmail,
+      dto.contactEmail,
       variables,
     );
 

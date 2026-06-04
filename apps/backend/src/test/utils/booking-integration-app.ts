@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import type { ModuleMetadata } from '@nestjs/common';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
+import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
 import { TenantInterceptor } from '../../shared/tenant/tenant.interceptor';
 import { TenantModule } from '../../shared/tenant/tenant.module';
@@ -18,19 +19,20 @@ import { BookingModule } from '../../contexts/booking/booking.module';
 import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
-import { InMemoryEventBus } from '../infrastructure/in-memory-event-bus';
+import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
 
 export interface BookingIntegrationAppOptions {
   extraModules?: NonNullable<ModuleMetadata['imports']>;
-  overrideEventBus?: boolean;
 }
 
 export async function createBookingIntegrationApp(
   options: BookingIntegrationAppOptions = {},
-): Promise<{ app: INestApplication; ds: DataSource }> {
-  const { extraModules = [], overrideEventBus = false } = options;
+): Promise<{ app: INestApplication; ds: DataSource; eventBus: RoutingInMemoryEventBus }> {
+  const { extraModules = [] } = options;
 
-  let builder: TestingModuleBuilder = Test.createTestingModule({
+  const routingBus = new RoutingInMemoryEventBus();
+
+  const builder: TestingModuleBuilder = Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true }),
       TypeOrmModule.forRoot({
@@ -48,20 +50,19 @@ export async function createBookingIntegrationApp(
         ],
         synchronize: false,
       }),
+      EventBusModule,
       TransactionManagerModule,
       TenantModule,
       BookingModule,
       ...extraModules,
     ],
     providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
-  });
-
-  if (overrideEventBus) {
-    builder = builder.overrideProvider(EVENT_BUS).useValue(new InMemoryEventBus());
-  }
+  })
+    .overrideProvider(EVENT_BUS)
+    .useValue(routingBus);
 
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
   await app.init();
-  return { app, ds: moduleRef.get(DataSource) };
+  return { app, ds: moduleRef.get(DataSource), eventBus: routingBus };
 }

@@ -159,11 +159,11 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 | status | VARCHAR(30) | NOT NULL DEFAULT 'PENDING' — PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED |
 | type | VARCHAR(20) | NOT NULL CHECK IN ('GUEST','CUSTOMER') |
 | customer_id | UUID | NULLABLE — no FK (cross-context ref to `customer.customers`) |
-| guest_email | VARCHAR(255) | NOT NULL |
-| guest_name | VARCHAR(255) | NOT NULL |
-| guest_phone | VARCHAR(30) | NOT NULL |
-| guest_address | JSONB | NULLABLE — `{ street, number, complement?, neighborhood, city, state, zipCode }` — optional general address |
-| pickup_address | JSONB | NULLABLE — same shape as `guest_address` — non-null when any line has `requires_pickup_address_at_booking = true` |
+| contact_email | VARCHAR(255) | NOT NULL |
+| contact_name | VARCHAR(255) | NOT NULL |
+| contact_phone | VARCHAR(30) | NOT NULL |
+| contact_address | JSONB | NULLABLE — `{ street, number, complement?, neighborhood, city, state, zipCode }` — optional general address |
+| pickup_address | JSONB | NULLABLE — same shape as `contact_address` — non-null when any line has `requires_pickup_address_at_booking = true` |
 | scheduled_at | TIMESTAMPTZ | NOT NULL |
 | total_duration_mins | INTEGER | NOT NULL — denormalised SUM of `booking_lines.duration_mins_at_booking` |
 | total_price_amount | NUMERIC(10,2) | NOT NULL — denormalised SUM of `booking_lines.price_at_booking_amount` |

@@ -111,7 +111,7 @@ export class BookingReminderJob {
       const profile = await this.customerProfilePort.findById(booking.customerId, tenantId);
       if (profile) return { email: profile.email, name: profile.name };
     }
-    return { email: booking.guestEmail.address, name: booking.guestName };
+    return { email: booking.contactEmail.address, name: booking.contactName };
   }
 
   private buildSlot(booking: Booking): { startTime: string; endTime: string } {

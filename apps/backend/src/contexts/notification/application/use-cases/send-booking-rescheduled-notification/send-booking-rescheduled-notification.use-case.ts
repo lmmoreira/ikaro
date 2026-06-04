@@ -80,7 +80,7 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
     ]);
 
     const variables: Record<string, string> = {
-      guestName: dto.guestName,
+      contactName: dto.contactName,
       serviceNames,
       totalPrice: formattedTotal,
       previousLocalDate,
@@ -92,7 +92,7 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
     const customerEmailSent = await this.dispatchTemplates(
       customerTemplates,
       dto,
-      dto.guestEmail,
+      dto.contactEmail,
       variables,
     );
 

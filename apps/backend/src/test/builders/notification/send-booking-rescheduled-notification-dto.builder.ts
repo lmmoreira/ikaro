@@ -4,8 +4,8 @@ export class SendBookingRescheduledNotificationDtoBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000000001';
   private eventId = 'cccccccc-0002-4000-8000-000000000001';
   private readonly correlationId = 'corr-rescheduled-1';
-  private readonly guestEmail = 'joao@example.com';
-  private readonly guestName = 'João Silva';
+  private readonly contactEmail = 'joao@example.com';
+  private readonly contactName = 'João Silva';
   private readonly previousSlot = {
     startTime: '2026-07-01T13:00:00.000Z',
     endTime: '2026-07-01T14:00:00.000Z',
@@ -39,8 +39,8 @@ export class SendBookingRescheduledNotificationDtoBuilder {
       tenantId: this.tenantId,
       eventId: this.eventId,
       correlationId: this.correlationId,
-      guestEmail: this.guestEmail,
-      guestName: this.guestName,
+      contactEmail: this.contactEmail,
+      contactName: this.contactName,
       previousSlot: this.previousSlot,
       newSlot: this.newSlot,
       rescheduledBy: this.rescheduledBy,

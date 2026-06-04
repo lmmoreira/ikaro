@@ -41,13 +41,13 @@ const AddressSchema = z.object({
 });
 
 export const RequestBookingBodySchema = z.object({
-  guestEmail: z.email(),
-  guestName: z.string().min(1),
-  guestPhone: z.string().refine((v) => {
+  contactEmail: z.email(),
+  contactName: z.string().min(1),
+  contactPhone: z.string().refine((v) => {
     const d = v.replace(/\D/g, '');
     return d.length === 10 || d.length === 11;
-  }, 'guestPhone must have 10 or 11 digits'),
-  guestAddress: AddressSchema.optional(),
+  }, 'contactPhone must have 10 or 11 digits'),
+  contactAddress: AddressSchema.optional(),
   pickupAddress: AddressSchema.optional(),
   scheduledAt: z.iso.datetime(),
   serviceIds: z.array(z.uuid()).min(1),
@@ -129,7 +129,7 @@ type ListBookingsQuery = z.infer<typeof ListBookingsQuerySchema>;
 const GuestTokenPayloadSchema = z.object({
   bookingId: z.string(),
   tenantId: z.string(),
-  guestEmail: z.email(),
+  contactEmail: z.email(),
 });
 
 type RequestBookingBody = z.infer<typeof RequestBookingBodySchema>;
@@ -334,7 +334,7 @@ export class BookingsController {
 
     return this.backendHttp.patchForPublic(
       `/bookings/${id}/submit-info/guest`,
-      { guestEmail: payload.guestEmail, ...body },
+      { contactEmail: payload.contactEmail, ...body },
       payload.tenantId,
     );
   }

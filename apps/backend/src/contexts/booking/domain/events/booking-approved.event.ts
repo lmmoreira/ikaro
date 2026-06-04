@@ -3,8 +3,8 @@ import { DomainEvent } from '../../../../shared/domain/domain-event';
 interface BookingApprovedData extends Record<string, unknown> {
   bookingId: string;
   customerId: string | null;
-  guestEmail: string;
-  guestName: string;
+  contactEmail: string;
+  contactName: string;
   approvedSlot: { startTime: string; endTime: string };
   totalPrice: { amount: string; currency: string };
   lineSummary: {

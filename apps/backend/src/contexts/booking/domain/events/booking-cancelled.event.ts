@@ -9,8 +9,8 @@ interface BookingCancelledLineSummary {
 interface BookingCancelledData extends Record<string, unknown> {
   bookingId: string;
   customerId: string | null;
-  guestEmail: string;
-  guestName: string;
+  contactEmail: string;
+  contactName: string;
   cancelledBy: string;
   isBusiness: boolean;
   reason: string | null;

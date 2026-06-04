@@ -21,17 +21,17 @@ export class BookingEntity {
   @Column({ name: 'customer_id', type: 'uuid', nullable: true })
   customerId!: string | null;
 
-  @Column({ name: 'guest_email', type: 'varchar', length: 255 })
-  guestEmail!: string;
+  @Column({ name: 'contact_email', type: 'varchar', length: 255 })
+  contactEmail!: string;
 
-  @Column({ name: 'guest_name', type: 'varchar', length: 255 })
-  guestName!: string;
+  @Column({ name: 'contact_name', type: 'varchar', length: 255 })
+  contactName!: string;
 
-  @Column({ name: 'guest_phone', type: 'varchar', length: 30 })
-  guestPhone!: string;
+  @Column({ name: 'contact_phone', type: 'varchar', length: 30 })
+  contactPhone!: string;
 
-  @Column({ name: 'guest_address', type: 'jsonb', nullable: true })
-  guestAddress!: Record<string, unknown> | null;
+  @Column({ name: 'contact_address', type: 'jsonb', nullable: true })
+  contactAddress!: Record<string, unknown> | null;
 
   @Column({ name: 'pickup_address', type: 'jsonb', nullable: true })
   pickupAddress!: Record<string, unknown> | null;

@@ -96,7 +96,7 @@ describe('SubmitBookingInfoUseCase', () => {
     const booking = new BookingBuilder()
       .withTenantId(TENANT_A)
       .withCustomerId(CUSTOMER_ID)
-      .withGuestEmail('customer@example.com')
+      .withContactEmail('customer@example.com')
       .withStatus(BookingStatus.INFO_REQUESTED)
       .withScheduledAt(scheduledAt)
       .build();

@@ -49,10 +49,10 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     bookingId:         string
     type:              "GUEST" | "CUSTOMER"
     customerId:        string | null    // null when type=GUEST
-    guestEmail:        string
-    guestName:         string
-    guestPhone:        string
-    guestAddress: {                                          // non-null if guest provided general address
+    contactEmail:        string
+    contactName:         string
+    contactPhone:        string
+    contactAddress: {                                          // non-null if guest provided general address
       street: string, number: string, complement: string | null,
       neighborhood: string, city: string, state: string, zipCode: string
     } | null
@@ -94,8 +94,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   {
     bookingId:           string
     customerId:          string | null
-    guestEmail:          string
-    guestName:           string
+    contactEmail:          string
+    contactName:           string
     approvedSlot:        { startTime: ISO8601, endTime: ISO8601 }   // = [scheduledAt, scheduledAt + totalDurationMins)
     totalPrice:          { amount: number, currency: string }
     lineSummary: [                                                   // ≥ 1
@@ -123,8 +123,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   {
     bookingId:    string
     customerId:   string | null
-    guestEmail:   string
-    guestName:    string
+    contactEmail:   string
+    contactName:    string
     reason:       string         // why
     rejectedBy:   string         // staff id
   }
@@ -142,8 +142,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   {
     bookingId:           string
     customerId:          string | null
-    guestEmail:          string
-    guestName:           string
+    contactEmail:          string
+    contactName:           string
     informationNeeded:   string     // free-text instructions for the customer
     requestedBy:         string     // staff id
   }
@@ -180,8 +180,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   {
     bookingId:               string
     customerId:              string | null
-    guestEmail:              string
-    guestName:               string
+    contactEmail:              string
+    contactName:               string
     completedSlot:           { startTime: ISO8601, endTime: ISO8601 }
     completedBy:             string         // staff id
     afterServicePhotoUrls:   string[]       // 0..n; tenant-prefixed storage paths
@@ -217,8 +217,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   {
     bookingId:        string
     customerId:       string | null
-    guestEmail:       string
-    guestName:        string
+    contactEmail:       string
+    contactName:        string
     cancelledBy:      string          // customer id, guest email, or staff id
     isBusiness:       boolean         // true = admin/business cancelled, false = customer cancelled
     reason:           string | null
@@ -249,8 +249,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   {
     bookingId:         string
     customerId:        string | null
-    guestEmail:        string
-    guestName:         string
+    contactEmail:        string
+    contactName:         string
     newSlot:           { startTime: ISO8601, endTime: ISO8601 }   // new [scheduledAt, scheduledAt + totalDurationMins)
     previousSlot:      { startTime: ISO8601, endTime: ISO8601 }   // old slot (for the email)
     rescheduledBy:     string    // staff id
@@ -328,7 +328,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
       {
         bookingId:         string
         customerName:      string
-        customerPhone:     string | null   // booking.guestPhone for guests; ICustomerProfilePort.phone for authenticated (null if not set)
+        customerPhone:     string | null   // booking.contactPhone for guests; ICustomerProfilePort.phone for authenticated (null if not set)
         lines: [                           // ≥ 1 — all services in this booking
           { serviceId: string, serviceName: string }
         ]

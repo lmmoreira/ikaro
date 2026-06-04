@@ -73,8 +73,8 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
       .map((l) => `${l.serviceNameAtBooking}: ${formatBRL(l.priceAtBooking.amount)}`)
       .join(', ');
 
-    const emailSent = await this.dispatchTemplates(templates, dto, dto.guestEmail, {
-      guestName: dto.guestName,
+    const emailSent = await this.dispatchTemplates(templates, dto, dto.contactEmail, {
+      contactName: dto.contactName,
       localDate,
       localTime,
       serviceNames,

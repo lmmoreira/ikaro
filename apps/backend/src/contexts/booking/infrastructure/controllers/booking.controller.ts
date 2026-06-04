@@ -256,7 +256,7 @@ export class BookingController {
     return this.submitGuestBookingInfo
       .execute({
         bookingId: id,
-        guestEmail: body.guestEmail,
+        contactEmail: body.contactEmail,
         response: body.response,
         photoUrls: body.photoUrls,
       })

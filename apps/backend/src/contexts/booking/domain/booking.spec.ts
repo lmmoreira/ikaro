@@ -33,9 +33,9 @@ function lineInput(): BookingLineInputBuilder {
 function request(overrides: Partial<RequestBookingInput> = {}): Booking {
   return Booking.requestBooking({
     tenantId: TENANT_ID,
-    guestEmail: 'g@t.com',
-    guestName: 'Test Guest',
-    guestPhone: '31999999999',
+    contactEmail: 'g@t.com',
+    contactName: 'Test Guest',
+    contactPhone: '31999999999',
     scheduledAt: new Date(Date.now() + 3_600_000),
     lineInputs: [lineInput().build()],
     type: 'GUEST',
@@ -56,8 +56,8 @@ describe('Booking.requestBooking()', () => {
       .build();
 
     const booking = request({
-      guestEmail: 'guest@test.com',
-      guestName: 'João',
+      contactEmail: 'guest@test.com',
+      contactName: 'João',
       lineInputs: [line1, line2],
     });
 
@@ -70,7 +70,7 @@ describe('Booking.requestBooking()', () => {
     expect(booking.totalActualPrice).toBeNull();
   });
 
-  it('stores guestAddress and pickupAddress independently', () => {
+  it('stores contactAddress and pickupAddress independently', () => {
     const guestAddr = testAddress({
       street: 'Av. Brasil',
       number: '200',
@@ -79,12 +79,12 @@ describe('Booking.requestBooking()', () => {
     });
 
     const booking = request({
-      guestEmail: 'g@test.com',
-      guestName: 'Maria',
-      guestAddress: guestAddr,
+      contactEmail: 'g@test.com',
+      contactName: 'Maria',
+      contactAddress: guestAddr,
     });
 
-    expect(booking.guestAddress?.city).toBe('BH');
+    expect(booking.contactAddress?.city).toBe('BH');
     expect(booking.pickupAddress).toBeNull();
   });
 
@@ -104,7 +104,7 @@ describe('Booking.requestBooking()', () => {
   });
 
   it('emits BookingRequested domain event', () => {
-    const booking = request({ guestEmail: 'g@test.com', guestName: 'João' });
+    const booking = request({ contactEmail: 'g@test.com', contactName: 'João' });
     const events = booking.domainEvents;
     expect(events).toHaveLength(1);
     expect(events[0]).toBeInstanceOf(BookingRequested);
@@ -115,9 +115,9 @@ describe('Booking.requestBooking()', () => {
   it('sets type=CUSTOMER and customerId when authenticated', () => {
     const customerId = '00000000-0000-7000-8000-000000000099';
     const booking = request({
-      guestEmail: 'c@test.com',
-      guestName: 'Ana',
-      guestPhone: '31888888888',
+      contactEmail: 'c@test.com',
+      contactName: 'Ana',
+      contactPhone: '31888888888',
       type: 'CUSTOMER',
       customerId,
     });

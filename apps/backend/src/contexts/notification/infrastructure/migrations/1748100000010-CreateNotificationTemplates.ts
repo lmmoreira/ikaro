@@ -40,23 +40,23 @@ export class CreateNotificationTemplates1748100000010 implements MigrationInterf
       VALUES
         (gen_random_uuid(), NULL, 'booking-requested-admin', 'EMAIL',
          'Novo agendamento recebido',
-         '<p>Nova solicitação de agendamento recebida.</p><p><strong>Cliente:</strong> {{guestName}}</p><p><strong>Data/Hora:</strong> {{scheduledAt}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>{{pickupAddressLine}}'
+         '<p>Nova solicitação de agendamento recebida.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data/Hora:</strong> {{scheduledAt}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>{{pickupAddressLine}}'
         ),
         (gen_random_uuid(), NULL, 'booking-requested-customer', 'EMAIL',
          'Solicitação de agendamento recebida',
-         '<p>Olá, {{guestName}}!</p><p>Recebemos sua solicitação de agendamento em <strong>{{tenantName}}</strong>.</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Data/Hora:</strong> {{scheduledAt}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Entraremos em contato para confirmar seu agendamento.</p>'
+         '<p>Olá, {{contactName}}!</p><p>Recebemos sua solicitação de agendamento em <strong>{{tenantName}}</strong>.</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Data/Hora:</strong> {{scheduledAt}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Entraremos em contato para confirmar seu agendamento.</p>'
         ),
         (gen_random_uuid(), NULL, 'booking-approved-customer', 'EMAIL',
          'Seu agendamento foi confirmado!',
-         '<p>Olá, {{guestName}}!</p><p>Seu agendamento foi confirmado.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Aguardamos sua visita!</p>'
+         '<p>Olá, {{contactName}}!</p><p>Seu agendamento foi confirmado.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Aguardamos sua visita!</p>'
         ),
         (gen_random_uuid(), NULL, 'booking-rejected-customer', 'EMAIL',
          'Agendamento não confirmado',
-         '<p>Olá, {{guestName}}!</p><p>Infelizmente não foi possível confirmar seu agendamento.</p><p><strong>Motivo:</strong> {{reason}}</p><p>Se desejar, realize um novo agendamento em nosso site.</p>'
+         '<p>Olá, {{contactName}}!</p><p>Infelizmente não foi possível confirmar seu agendamento.</p><p><strong>Motivo:</strong> {{reason}}</p><p>Se desejar, realize um novo agendamento em nosso site.</p>'
         ),
         (gen_random_uuid(), NULL, 'booking-info-requested-customer', 'EMAIL',
          'Precisamos de mais informações sobre seu agendamento',
-         '<p>Olá, {{guestName}}!</p><p>Nossa equipe precisa de mais informações antes de confirmar seu agendamento.</p><p><strong>Informações necessárias:</strong> {{informationNeeded}}</p><p><a href="{{respondLink}}">Clique aqui para responder</a></p>'
+         '<p>Olá, {{contactName}}!</p><p>Nossa equipe precisa de mais informações antes de confirmar seu agendamento.</p><p><strong>Informações necessárias:</strong> {{informationNeeded}}</p><p><a href="{{respondLink}}">Clique aqui para responder</a></p>'
         ),
         (gen_random_uuid(), NULL, 'booking-info-submitted-admin', 'EMAIL',
          'Cliente respondeu à solicitação de informações',
@@ -64,27 +64,27 @@ export class CreateNotificationTemplates1748100000010 implements MigrationInterf
         ),
         (gen_random_uuid(), NULL, 'booking-cancelled-customer', 'EMAIL',
          'Seu agendamento foi cancelado',
-         '<p>Olá, {{guestName}}!</p><p>Seu agendamento foi cancelado.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Se desejar, realize um novo agendamento em nosso site.</p>'
+         '<p>Olá, {{contactName}}!</p><p>Seu agendamento foi cancelado.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Se desejar, realize um novo agendamento em nosso site.</p>'
         ),
         (gen_random_uuid(), NULL, 'booking-cancelled-admin', 'EMAIL',
          'Agendamento cancelado',
-         '<p>Agendamento cancelado.</p><p><strong>Cliente:</strong> {{guestName}}</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{cancelledByLine}}</p>{{reasonLine}}'
+         '<p>Agendamento cancelado.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{cancelledByLine}}</p>{{reasonLine}}'
         ),
         (gen_random_uuid(), NULL, 'booking-rescheduled-customer', 'EMAIL',
          'Seu agendamento foi reagendado',
-         '<p>Olá, {{guestName}}!</p><p>Seu agendamento foi reagendado.</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Aguardamos sua visita!</p>'
+         '<p>Olá, {{contactName}}!</p><p>Seu agendamento foi reagendado.</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Aguardamos sua visita!</p>'
         ),
         (gen_random_uuid(), NULL, 'booking-rescheduled-admin', 'EMAIL',
          'Agendamento reagendado',
-         '<p>Agendamento reagendado.</p><p><strong>Cliente:</strong> {{guestName}}</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>'
+         '<p>Agendamento reagendado.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>'
         ),
         (gen_random_uuid(), NULL, 'booking-reminder-due', 'EMAIL',
          'Lembrete: seu agendamento é amanhã!',
-         '<p>Olá, {{guestName}}!</p><p>Lembramos que seu agendamento é <strong>amanhã</strong>.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p>Até amanhã!</p>'
+         '<p>Olá, {{contactName}}!</p><p>Lembramos que seu agendamento é <strong>amanhã</strong>.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p>Até amanhã!</p>'
         ),
         (gen_random_uuid(), NULL, 'booking-reminder-due-today', 'EMAIL',
          'Lembrete: seu agendamento é hoje!',
-         '<p>Olá, {{guestName}}!</p><p>Lembramos que seu agendamento é <strong>hoje</strong>.</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p>Estamos esperando você!</p>'
+         '<p>Olá, {{contactName}}!</p><p>Lembramos que seu agendamento é <strong>hoje</strong>.</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p>Estamos esperando você!</p>'
         ),
         (gen_random_uuid(), NULL, 'admin-daily-schedule-reminder', 'EMAIL',
          'Agenda do dia — {{localDate}}',

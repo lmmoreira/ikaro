@@ -12,8 +12,8 @@ function makeEvent(customerId: string | null = CUSTOMER_ID): BookingCompleted {
   return new BookingCompleted(TENANT_ID, CORRELATION_ID, {
     bookingId: BOOKING_ID,
     customerId,
-    guestEmail: 'test@example.com',
-    guestName: 'Test User',
+    contactEmail: 'test@example.com',
+    contactName: 'Test User',
     completedSlot: { startTime: '2026-06-01T10:00:00Z', endTime: '2026-06-01T11:00:00Z' },
     completedBy: '00000000-0000-7000-8000-000000000050',
     afterServicePhotoUrls: [],

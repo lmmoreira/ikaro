@@ -20,9 +20,9 @@ export interface GetBookingUseCaseResult {
   status: string;
   type: string;
   customerId: string | null;
-  guestName: string;
-  guestEmail: string;
-  guestPhone: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
   scheduledAt: string;
   totalDurationMins: number;
   totalPrice: { amount: number; currency: string; formatted: string };
@@ -73,9 +73,9 @@ export class GetBookingUseCase {
       status: booking.status,
       type: booking.type,
       customerId: booking.customerId,
-      guestName: booking.guestName,
-      guestEmail: booking.guestEmail.address,
-      guestPhone: booking.guestPhone.value,
+      contactName: booking.contactName,
+      contactEmail: booking.contactEmail.address,
+      contactPhone: booking.contactPhone.value,
       scheduledAt: booking.scheduledAt.toISOString(),
       totalDurationMins: booking.totalDurationMins,
       totalPrice: {

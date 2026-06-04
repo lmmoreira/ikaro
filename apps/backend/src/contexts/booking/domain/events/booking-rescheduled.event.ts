@@ -9,8 +9,8 @@ interface BookingRescheduledLineSummary {
 interface BookingRescheduledData extends Record<string, unknown> {
   bookingId: string;
   customerId: string | null;
-  guestEmail: string;
-  guestName: string;
+  contactEmail: string;
+  contactName: string;
   newSlot: { startTime: string; endTime: string };
   previousSlot: { startTime: string; endTime: string };
   rescheduledBy: string;

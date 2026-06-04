@@ -119,7 +119,7 @@ VOs are the single normalisation boundary for their input type. When the DB retu
 
 ## PhoneNumber HTTP format
 
-HTTP request bodies (`guestPhone`, customer `phone`) must send digits only, no country-code prefix — 10–11 digits (`31999999999` ✓, `+5531999999999` ✗). `PhoneNumber.create()` strips non-digits and validates length 10–11. HTTP bodies go through `ZodValidationPipe` and will 400 if the prefix is included.
+HTTP request bodies (`contactPhone`, customer `phone`) must send digits only, no country-code prefix — 10–11 digits (`31999999999` ✓, `+5531999999999` ✗). `PhoneNumber.create()` strips non-digits and validates length 10–11. HTTP bodies go through `ZodValidationPipe` and will 400 if the prefix is included.
 
 ---
 

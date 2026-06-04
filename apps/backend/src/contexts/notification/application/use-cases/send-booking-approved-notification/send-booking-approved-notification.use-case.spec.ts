@@ -45,7 +45,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
         triggerEvent: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
         channel: 'EMAIL',
         subject: 'Seu agendamento foi confirmado!',
-        body: '<p>Olá, {{guestName}}! Data: {{localDate}} Horário: {{localTime}}</p>',
+        body: '<p>Olá, {{contactName}}! Data: {{localDate}} Horário: {{localTime}}</p>',
       }),
     );
 

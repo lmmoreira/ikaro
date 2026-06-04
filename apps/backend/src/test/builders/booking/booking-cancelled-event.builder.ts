@@ -5,8 +5,8 @@ export class BookingCancelledEventBuilder {
   private correlationId = 'corr-cancelled-1';
   private readonly bookingId = 'dddddddd-0002-4000-8000-000000000001';
   private customerId: string | null = null;
-  private guestEmail = 'joao@example.com';
-  private readonly guestName = 'João Silva';
+  private contactEmail = 'joao@example.com';
+  private readonly contactName = 'João Silva';
   private readonly lineSummary = [
     {
       serviceId: 'ffffffff-0001-4000-8000-000000000001',
@@ -40,8 +40,8 @@ export class BookingCancelledEventBuilder {
     return this;
   }
 
-  withGuestEmail(guestEmail: string): this {
-    this.guestEmail = guestEmail;
+  withContactEmail(contactEmail: string): this {
+    this.contactEmail = contactEmail;
     return this;
   }
 
@@ -59,8 +59,8 @@ export class BookingCancelledEventBuilder {
     return new BookingCancelled(this.tenantId, this.correlationId, {
       bookingId: this.bookingId,
       customerId: this.customerId,
-      guestEmail: this.guestEmail,
-      guestName: this.guestName,
+      contactEmail: this.contactEmail,
+      contactName: this.contactName,
       cancelledBy: this.cancelledBy,
       isBusiness: this.isBusiness,
       reason: this.reason,

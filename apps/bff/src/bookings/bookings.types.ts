@@ -39,8 +39,8 @@ export interface BookingListItem {
   status: string;
   type: string;
   customerId: string | null;
-  guestName: string;
-  guestEmail: string;
+  contactName: string;
+  contactEmail: string;
   scheduledAt: string;
   totalDurationMins: number;
   totalPrice: { amount: number; currency: string; formatted: string };
@@ -87,9 +87,9 @@ export interface BookingDetailResponse {
   status: string;
   type: string;
   customerId: string | null;
-  guestName: string;
-  guestEmail: string;
-  guestPhone: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
   scheduledAt: string;
   totalDurationMins: number;
   totalPrice: { amount: number; currency: string; formatted: string };

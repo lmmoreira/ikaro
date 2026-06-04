@@ -7,7 +7,7 @@ import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
-import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { StaffEntity } from '../entities/staff.entity';
 import { StaffModule } from '../../staff.module';
@@ -32,7 +32,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
       ],
     })
       .overrideProvider(EVENT_BUS)
-      .useValue(new InMemoryEventBus())
+      .useValue(new RoutingInMemoryEventBus())
       .compile();
 
     app = moduleRef.createNestApplication();

@@ -55,7 +55,7 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
         triggerEvent: NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER,
         channel: 'EMAIL',
         subject: 'Precisamos de mais informações sobre seu agendamento',
-        body: '<p>{{guestName}} — {{informationNeeded}} — <a href="{{respondLink}}">Responder</a></p>',
+        body: '<p>{{contactName}} — {{informationNeeded}} — <a href="{{respondLink}}">Responder</a></p>',
       }),
     );
     useCase = new SendBookingInfoRequestedNotificationUseCase(

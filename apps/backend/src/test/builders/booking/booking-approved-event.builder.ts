@@ -5,8 +5,8 @@ export class BookingApprovedEventBuilder {
   private correlationId = 'corr-approved-1';
   private readonly bookingId = 'dddddddd-0001-4000-8000-000000000001';
   private customerId: string | null = null;
-  private guestEmail = 'joao@example.com';
-  private readonly guestName = 'João Silva';
+  private contactEmail = 'joao@example.com';
+  private readonly contactName = 'João Silva';
   private readonly approvedSlot = {
     startTime: '2026-06-15T16:00:00.000Z',
     endTime: '2026-06-15T17:00:00.000Z',
@@ -31,8 +31,8 @@ export class BookingApprovedEventBuilder {
     return this;
   }
 
-  withGuestEmail(guestEmail: string): this {
-    this.guestEmail = guestEmail;
+  withContactEmail(contactEmail: string): this {
+    this.contactEmail = contactEmail;
     return this;
   }
 
@@ -45,8 +45,8 @@ export class BookingApprovedEventBuilder {
     return new BookingApproved(this.tenantId, this.correlationId, {
       bookingId: this.bookingId,
       customerId: this.customerId,
-      guestEmail: this.guestEmail,
-      guestName: this.guestName,
+      contactEmail: this.contactEmail,
+      contactName: this.contactName,
       approvedSlot: this.approvedSlot,
       totalPrice: this.totalPrice,
       lineSummary: this.lineSummary,

@@ -163,9 +163,9 @@ describe('BookingController', () => {
   });
 
   const validBody = () => ({
-    guestEmail: 'guest@example.com',
-    guestName: 'João Silva',
-    guestPhone: '31999999999',
+    contactEmail: 'guest@example.com',
+    contactName: 'João Silva',
+    contactPhone: '31999999999',
     scheduledAt: `${futureDate(1)}T10:00:00.000Z`,
     serviceIds: [serviceId],
   });
@@ -685,7 +685,7 @@ describe('BookingController', () => {
   });
 
   describe('submitInfoGuest()', () => {
-    const guestEmail = 'guest@example.com';
+    const contactEmail = 'guest@example.com';
     const validResponse = 'Here are the photos as requested';
 
     it('transitions INFO_REQUESTED → PENDING for a GUEST booking and returns 200 shape', async () => {
@@ -697,7 +697,7 @@ describe('BookingController', () => {
       await bookingRepo.save(booking);
 
       const result = await controller.submitInfoGuest(booking.id, {
-        guestEmail,
+        contactEmail,
         response: validResponse,
       });
       expect(result.status).toBe(BookingStatus.PENDING);
@@ -715,7 +715,7 @@ describe('BookingController', () => {
       await bookingRepo.save(booking);
 
       const err = await controller
-        .submitInfoGuest(booking.id, { guestEmail, response: validResponse })
+        .submitInfoGuest(booking.id, { contactEmail, response: validResponse })
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.FORBIDDEN);
@@ -724,7 +724,7 @@ describe('BookingController', () => {
     it('maps BookingNotFoundError to 404', async () => {
       const err = await controller
         .submitInfoGuest('00000000-0000-4000-8000-000000009999', {
-          guestEmail,
+          contactEmail,
           response: validResponse,
         })
         .catch((e: unknown) => e);
@@ -741,7 +741,7 @@ describe('BookingController', () => {
       await bookingRepo.save(booking);
 
       const err = await controller
-        .submitInfoGuest(booking.id, { guestEmail, response: validResponse })
+        .submitInfoGuest(booking.id, { contactEmail, response: validResponse })
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
@@ -756,7 +756,7 @@ describe('BookingController', () => {
       await bookingRepo.save(booking);
 
       const err = await controller
-        .submitInfoGuest(booking.id, { guestEmail, response: validResponse })
+        .submitInfoGuest(booking.id, { contactEmail, response: validResponse })
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
@@ -982,7 +982,7 @@ describe('BookingController', () => {
       const result = await controller.getOne(booking.id);
 
       expect(result.id).toBe(booking.id);
-      expect(result.guestEmail).toBe(booking.guestEmail.address);
+      expect(result.contactEmail).toBe(booking.contactEmail.address);
       expect(result.lines).toHaveLength(1);
     });
 

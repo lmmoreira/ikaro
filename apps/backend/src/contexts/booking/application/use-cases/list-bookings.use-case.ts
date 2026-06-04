@@ -15,8 +15,8 @@ export interface BookingListItem {
   status: string;
   type: string;
   customerId: string | null;
-  guestName: string;
-  guestEmail: string;
+  contactName: string;
+  contactEmail: string;
   scheduledAt: string;
   totalDurationMins: number;
   totalPrice: { amount: number; currency: string; formatted: string };
@@ -68,8 +68,8 @@ export class ListBookingsUseCase {
       status: booking.status,
       type: booking.type,
       customerId: booking.customerId,
-      guestName: booking.guestName,
-      guestEmail: booking.guestEmail.address,
+      contactName: booking.contactName,
+      contactEmail: booking.contactEmail.address,
       scheduledAt: booking.scheduledAt.toISOString(),
       totalDurationMins: booking.totalDurationMins,
       totalPrice: {

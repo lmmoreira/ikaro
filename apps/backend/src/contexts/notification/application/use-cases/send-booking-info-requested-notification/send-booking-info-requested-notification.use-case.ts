@@ -61,8 +61,8 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
 
     const respondLink = this.buildRespondLink(dto);
 
-    const emailSent = await this.dispatchTemplates(templates, dto, dto.guestEmail, {
-      guestName: dto.guestName,
+    const emailSent = await this.dispatchTemplates(templates, dto, dto.contactEmail, {
+      contactName: dto.contactName,
       informationNeeded: dto.informationNeeded,
       respondLink,
     });
@@ -78,7 +78,7 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
 
     const secret = this.config.getOrThrow<string>('JWT_SECRET');
     const token = jwt.sign(
-      { bookingId: dto.bookingId, tenantId: dto.tenantId, guestEmail: dto.guestEmail },
+      { bookingId: dto.bookingId, tenantId: dto.tenantId, contactEmail: dto.contactEmail },
       secret,
       { expiresIn: GUEST_TOKEN_TTL_SECONDS },
     );

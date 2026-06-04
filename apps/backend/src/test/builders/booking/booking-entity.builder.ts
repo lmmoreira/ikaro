@@ -7,10 +7,10 @@ export class BookingEntityBuilder {
   private status = 'PENDING';
   private type = 'GUEST';
   private customerId: string | null = null;
-  private guestEmail = 'guest@example.com';
-  private guestName = 'João Silva';
-  private guestPhone = '31999999999';
-  private guestAddress: Record<string, unknown> | null = null;
+  private contactEmail = 'guest@example.com';
+  private contactName = 'João Silva';
+  private contactPhone = '31999999999';
+  private contactAddress: Record<string, unknown> | null = null;
   private pickupAddress: Record<string, unknown> | null = null;
   private scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   private totalDurationMins = 30;
@@ -58,20 +58,20 @@ export class BookingEntityBuilder {
     this.customerId = customerId;
     return this;
   }
-  withGuestEmail(email: string): this {
-    this.guestEmail = email;
+  withContactEmail(email: string): this {
+    this.contactEmail = email;
     return this;
   }
-  withGuestName(name: string): this {
-    this.guestName = name;
+  withContactName(name: string): this {
+    this.contactName = name;
     return this;
   }
-  withGuestPhone(phone: string): this {
-    this.guestPhone = phone;
+  withContactPhone(phone: string): this {
+    this.contactPhone = phone;
     return this;
   }
-  withGuestAddress(address: Record<string, unknown> | null): this {
-    this.guestAddress = address;
+  withContactAddress(address: Record<string, unknown> | null): this {
+    this.contactAddress = address;
     return this;
   }
   withPickupAddress(address: Record<string, unknown> | null): this {
@@ -103,10 +103,10 @@ export class BookingEntityBuilder {
     entity.status = this.status;
     entity.type = this.type;
     entity.customerId = this.customerId;
-    entity.guestEmail = this.guestEmail;
-    entity.guestName = this.guestName;
-    entity.guestPhone = this.guestPhone;
-    entity.guestAddress = this.guestAddress;
+    entity.contactEmail = this.contactEmail;
+    entity.contactName = this.contactName;
+    entity.contactPhone = this.contactPhone;
+    entity.contactAddress = this.contactAddress;
     entity.pickupAddress = this.pickupAddress;
     entity.scheduledAt = this.scheduledAt;
     entity.totalDurationMins = this.totalDurationMins;

@@ -48,7 +48,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
         triggerEvent: NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
         channel: 'EMAIL',
         subject: 'Nova solicitação — {{serviceNames}}',
-        body: '<p>Cliente: {{guestName}}</p>',
+        body: '<p>Cliente: {{contactName}}</p>',
       }),
     );
     templateRepo.seed(
@@ -57,7 +57,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
         triggerEvent: NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
         channel: 'EMAIL',
         subject: 'Agendamento recebido em {{tenantName}}',
-        body: '<p>Olá, {{guestName}}!</p>',
+        body: '<p>Olá, {{contactName}}!</p>',
       }),
     );
 

@@ -38,10 +38,10 @@ export interface BookingProps {
   status: BookingStatus;
   type: BookingType;
   customerId: string | null;
-  guestEmail: Email;
-  guestName: string;
-  guestPhone: PhoneNumber;
-  guestAddress: Address | null;
+  contactEmail: Email;
+  contactName: string;
+  contactPhone: PhoneNumber;
+  contactAddress: Address | null;
   pickupAddress: Address | null;
   scheduledAt: Date;
   totalDurationMins: number;
@@ -72,15 +72,15 @@ export interface BookingProps {
 
 export interface RequestBookingInput {
   tenantId: string;
-  guestEmail: string;
-  guestName: string;
-  guestPhone: string;
+  contactEmail: string;
+  contactName: string;
+  contactPhone: string;
   scheduledAt: Date;
   lineInputs: BookingLineInput[];
   type: BookingType;
   correlationId: string;
   customerId?: string;
-  guestAddress?: Address;
+  contactAddress?: Address;
   pickupAddress?: Address;
   beforeServicePhotoUrls?: string[];
 }
@@ -117,17 +117,17 @@ export class Booking extends AggregateRoot {
   get customerId(): string | null {
     return this.props.customerId;
   }
-  get guestEmail(): Email {
-    return this.props.guestEmail;
+  get contactEmail(): Email {
+    return this.props.contactEmail;
   }
-  get guestName(): string {
-    return this.props.guestName;
+  get contactName(): string {
+    return this.props.contactName;
   }
-  get guestPhone(): PhoneNumber {
-    return this.props.guestPhone;
+  get contactPhone(): PhoneNumber {
+    return this.props.contactPhone;
   }
-  get guestAddress(): Address | null {
-    return this.props.guestAddress;
+  get contactAddress(): Address | null {
+    return this.props.contactAddress;
   }
   get pickupAddress(): Address | null {
     return this.props.pickupAddress;
@@ -208,15 +208,15 @@ export class Booking extends AggregateRoot {
   static requestBooking(input: RequestBookingInput): Booking {
     const {
       tenantId,
-      guestEmail,
-      guestName,
-      guestPhone,
+      contactEmail,
+      contactName,
+      contactPhone,
       scheduledAt,
       lineInputs,
       type,
       correlationId,
       customerId,
-      guestAddress,
+      contactAddress,
       pickupAddress,
       beforeServicePhotoUrls = [],
     } = input;
@@ -237,10 +237,10 @@ export class Booking extends AggregateRoot {
       status: BookingStatus.PENDING,
       type,
       customerId: customerId ?? null,
-      guestEmail: Email.create(guestEmail),
-      guestName: guestName.trim(),
-      guestPhone: PhoneNumber.create(guestPhone),
-      guestAddress: guestAddress ?? null,
+      contactEmail: Email.create(contactEmail),
+      contactName: contactName.trim(),
+      contactPhone: PhoneNumber.create(contactPhone),
+      contactAddress: contactAddress ?? null,
       pickupAddress: pickupAddress ?? null,
       scheduledAt,
       totalDurationMins,
@@ -275,10 +275,10 @@ export class Booking extends AggregateRoot {
         bookingId: id,
         type,
         customerId: customerId ?? null,
-        guestEmail,
-        guestName: guestName.trim(),
-        guestPhone,
-        guestAddress: Booking.toAddressPayload(guestAddress ?? null),
+        contactEmail,
+        contactName: contactName.trim(),
+        contactPhone,
+        contactAddress: Booking.toAddressPayload(contactAddress ?? null),
         scheduledAt: scheduledAt.toISOString(),
         totalDurationMins,
         totalPrice: { amount: totalPrice.amount.toFixed(2), currency: totalPrice.currency },
@@ -323,8 +323,8 @@ export class Booking extends AggregateRoot {
       new BookingApproved(this.props.tenantId, correlationId, {
         bookingId: this.props.id,
         customerId: this.props.customerId,
-        guestEmail: this.props.guestEmail.address,
-        guestName: this.props.guestName,
+        contactEmail: this.props.contactEmail.address,
+        contactName: this.props.contactName,
         approvedSlot: {
           startTime: this.props.scheduledAt.toISOString(),
           endTime: endTime.toISOString(),
@@ -357,8 +357,8 @@ export class Booking extends AggregateRoot {
       new BookingRejected(this.props.tenantId, correlationId, {
         bookingId: this.props.id,
         customerId: this.props.customerId,
-        guestEmail: this.props.guestEmail.address,
-        guestName: this.props.guestName,
+        contactEmail: this.props.contactEmail.address,
+        contactName: this.props.contactName,
         reason: normalizedReason,
         rejectedBy: staffId,
       }),
@@ -383,8 +383,8 @@ export class Booking extends AggregateRoot {
       new BookingInfoRequested(this.props.tenantId, correlationId, {
         bookingId: this.props.id,
         customerId: this.props.customerId,
-        guestEmail: this.props.guestEmail.address,
-        guestName: this.props.guestName,
+        contactEmail: this.props.contactEmail.address,
+        contactName: this.props.contactName,
         informationNeeded: normalizedMessage,
         requestedBy: staffId,
       }),
@@ -459,8 +459,8 @@ export class Booking extends AggregateRoot {
       new BookingCompleted(this.props.tenantId, correlationId, {
         bookingId: this.props.id,
         customerId: this.props.customerId,
-        guestEmail: this.props.guestEmail.address,
-        guestName: this.props.guestName,
+        contactEmail: this.props.contactEmail.address,
+        contactName: this.props.contactName,
         completedSlot: {
           startTime: this.props.scheduledAt.toISOString(),
           endTime: endTime.toISOString(),
@@ -513,8 +513,8 @@ export class Booking extends AggregateRoot {
       new BookingCancelled(this.props.tenantId, correlationId, {
         bookingId: this.props.id,
         customerId: this.props.customerId,
-        guestEmail: this.props.guestEmail.address,
-        guestName: this.props.guestName,
+        contactEmail: this.props.contactEmail.address,
+        contactName: this.props.contactName,
         cancelledBy,
         isBusiness,
         reason: reason ?? null,
@@ -552,8 +552,8 @@ export class Booking extends AggregateRoot {
       new BookingRescheduled(this.props.tenantId, correlationId, {
         bookingId: this.props.id,
         customerId: this.props.customerId,
-        guestEmail: this.props.guestEmail.address,
-        guestName: this.props.guestName,
+        contactEmail: this.props.contactEmail.address,
+        contactName: this.props.contactName,
         newSlot: {
           startTime: newScheduledAt.toISOString(),
           endTime: newEndTime.toISOString(),

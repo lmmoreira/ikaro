@@ -159,11 +159,11 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       status: entity.status as BookingStatus,
       type: entity.type as BookingType,
       customerId: entity.customerId,
-      guestEmail: Email.create(entity.guestEmail),
-      guestName: entity.guestName,
-      guestPhone: PhoneNumber.create(entity.guestPhone),
-      guestAddress: entity.guestAddress
-        ? Address.reconstitute(entity.guestAddress as unknown as AddressProps)
+      contactEmail: Email.create(entity.contactEmail),
+      contactName: entity.contactName,
+      contactPhone: PhoneNumber.create(entity.contactPhone),
+      contactAddress: entity.contactAddress
+        ? Address.reconstitute(entity.contactAddress as unknown as AddressProps)
         : null,
       pickupAddress: entity.pickupAddress
         ? Address.reconstitute(entity.pickupAddress as unknown as AddressProps)
@@ -207,10 +207,10 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     entity.status = booking.status;
     entity.type = booking.type;
     entity.customerId = booking.customerId;
-    entity.guestEmail = booking.guestEmail.address;
-    entity.guestName = booking.guestName;
-    entity.guestPhone = booking.guestPhone.value;
-    entity.guestAddress = (booking.guestAddress?.toJSON() ?? null) as Record<
+    entity.contactEmail = booking.contactEmail.address;
+    entity.contactName = booking.contactName;
+    entity.contactPhone = booking.contactPhone.value;
+    entity.contactAddress = (booking.contactAddress?.toJSON() ?? null) as Record<
       string,
       unknown
     > | null;

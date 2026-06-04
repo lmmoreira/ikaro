@@ -4,8 +4,8 @@ export class SendBookingCancelledNotificationDtoBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000000001';
   private eventId = 'cccccccc-0001-4000-8000-000000000001';
   private readonly correlationId = 'corr-cancelled-1';
-  private guestEmail = 'joao@example.com';
-  private readonly guestName = 'João Silva';
+  private contactEmail = 'joao@example.com';
+  private readonly contactName = 'João Silva';
   private cancelledBy = 'staffid-0000-4000-8000-000000000001';
   private isBusiness = true;
   private readonly reason: string | null = 'Unavailability';
@@ -38,8 +38,8 @@ export class SendBookingCancelledNotificationDtoBuilder {
     return this;
   }
 
-  withGuestEmail(guestEmail: string): this {
-    this.guestEmail = guestEmail;
+  withContactEmail(contactEmail: string): this {
+    this.contactEmail = contactEmail;
     return this;
   }
 
@@ -48,8 +48,8 @@ export class SendBookingCancelledNotificationDtoBuilder {
       tenantId: this.tenantId,
       eventId: this.eventId,
       correlationId: this.correlationId,
-      guestEmail: this.guestEmail,
-      guestName: this.guestName,
+      contactEmail: this.contactEmail,
+      contactName: this.contactName,
       cancelledBy: this.cancelledBy,
       isBusiness: this.isBusiness,
       reason: this.reason,

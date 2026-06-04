@@ -12,8 +12,8 @@ interface BookingCompletedLinePayload {
 interface BookingCompletedData extends Record<string, unknown> {
   bookingId: string;
   customerId: string | null;
-  guestEmail: string;
-  guestName: string;
+  contactEmail: string;
+  contactName: string;
   completedSlot: { startTime: string; endTime: string };
   completedBy: string;
   afterServicePhotoUrls: string[];

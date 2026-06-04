@@ -31,8 +31,8 @@ describe('BookingRequestedHandler', () => {
     const dto = useCase.execute.mock.calls[0][0];
     expect(dto.tenantId).toBe(TENANT_ID);
     expect(dto.correlationId).toBe('corr-1');
-    expect(dto.guestEmail).toBe('joao@example.com');
-    expect(dto.guestName).toBe('João Silva');
+    expect(dto.contactEmail).toBe('joao@example.com');
+    expect(dto.contactName).toBe('João Silva');
     expect(dto.scheduledAt).toBe('2026-06-15T13:00:00.000Z');
     expect(dto.totalPrice).toEqual({ amount: '150.00', currency: 'BRL' });
     expect(dto.lines).toEqual([{ serviceNameAtBooking: 'Lavagem Completa' }]);

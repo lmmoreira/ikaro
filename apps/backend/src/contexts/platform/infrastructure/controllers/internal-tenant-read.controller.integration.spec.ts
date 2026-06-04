@@ -10,7 +10,7 @@ import { TenantEntity } from '../entities/tenant.entity';
 import { PlatformModule } from '../../platform.module';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
-import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 
 describe('InternalTenantReadController (integration)', () => {
@@ -35,7 +35,7 @@ describe('InternalTenantReadController (integration)', () => {
       ],
     })
       .overrideProvider(EVENT_BUS)
-      .useValue(new InMemoryEventBus())
+      .useValue(new RoutingInMemoryEventBus())
       .compile();
 
     app = moduleRef.createNestApplication();

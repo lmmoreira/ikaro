@@ -40,9 +40,9 @@ const mockBookingResponse: BookingResponse = {
 const tenantInfo = { id: TENANT_ID, slug: TENANT_SLUG, name: 'Lavacar BH' };
 
 const validGuestBody = {
-  guestEmail: 'joao@example.com',
-  guestName: 'João Silva',
-  guestPhone: '31999999999',
+  contactEmail: 'joao@example.com',
+  contactName: 'João Silva',
+  contactPhone: '31999999999',
   scheduledAt: '2026-06-15T10:00:00.000Z',
   serviceIds: [SERVICE_ID],
 };
@@ -79,19 +79,19 @@ describe('BookingsController (component)', () => {
       expect(res.body.status).toBe(400);
     });
 
-    it('returns 400 when body fails Zod validation (missing guestEmail)', async () => {
+    it('returns 400 when body fails Zod validation (missing contactEmail)', async () => {
       const res = await request(app.getHttpServer())
         .post('/v1/bookings')
         .set('X-Tenant-Slug', TENANT_SLUG)
-        .send({ ...validGuestBody, guestEmail: 'not-an-email' });
+        .send({ ...validGuestBody, contactEmail: 'not-an-email' });
       expect(res.status).toBe(400);
     });
 
-    it('returns 400 when guestPhone is invalid (too short)', async () => {
+    it('returns 400 when contactPhone is invalid (too short)', async () => {
       const res = await request(app.getHttpServer())
         .post('/v1/bookings')
         .set('X-Tenant-Slug', TENANT_SLUG)
-        .send({ ...validGuestBody, guestPhone: 'abc' });
+        .send({ ...validGuestBody, contactPhone: 'abc' });
       expect(res.status).toBe(400);
     });
 
@@ -117,7 +117,7 @@ describe('BookingsController (component)', () => {
       expect(res.body.status).toBe('PENDING');
       expect(backendHttpService.postForPublic).toHaveBeenCalledWith(
         '/bookings',
-        expect.objectContaining({ guestEmail: validGuestBody.guestEmail }),
+        expect.objectContaining({ contactEmail: validGuestBody.contactEmail }),
         TENANT_ID,
       );
     });
@@ -770,7 +770,12 @@ describe('BookingsController (component)', () => {
     function makeGuestToken(overrides?: Record<string, unknown>): string {
       const secret = app.get(ConfigService).getOrThrow<string>('JWT_SECRET');
       return jwt.sign(
-        { bookingId: BOOKING_ID_GUEST, tenantId: TENANT_ID, guestEmail: GUEST_EMAIL, ...overrides },
+        {
+          bookingId: BOOKING_ID_GUEST,
+          tenantId: TENANT_ID,
+          contactEmail: GUEST_EMAIL,
+          ...overrides,
+        },
         secret,
         { expiresIn: 604800 },
       );
@@ -820,7 +825,7 @@ describe('BookingsController (component)', () => {
       expect(res.body.status).toBe('PENDING');
       expect(backendHttpService.patchForPublic).toHaveBeenCalledWith(
         `/bookings/${BOOKING_ID_GUEST}/submit-info/guest`,
-        { guestEmail: GUEST_EMAIL, ...validGuestSubmitBody },
+        { contactEmail: GUEST_EMAIL, ...validGuestSubmitBody },
         TENANT_ID,
       );
     });
@@ -894,9 +899,9 @@ describe('BookingsController (component)', () => {
       status: 'PENDING',
       type: 'CUSTOMER',
       customerId: null,
-      guestName: 'João',
-      guestEmail: 'joao@example.com',
-      guestPhone: '31999999999',
+      contactName: 'João',
+      contactEmail: 'joao@example.com',
+      contactPhone: '31999999999',
       scheduledAt: '2026-06-15T10:00:00.000Z',
       totalDurationMins: 30,
       totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },

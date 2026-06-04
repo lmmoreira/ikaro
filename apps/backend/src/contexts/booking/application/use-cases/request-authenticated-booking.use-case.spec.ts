@@ -88,8 +88,8 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     expect(saved).not.toBeNull();
     expect(saved!.type).toBe('CUSTOMER');
     expect(saved!.customerId).toBe(CUSTOMER_ID);
-    expect(saved!.guestEmail.address).toBe('cliente@example.com');
-    expect(saved!.guestName).toBe('Maria Silva');
+    expect(saved!.contactEmail.address).toBe('cliente@example.com');
+    expect(saved!.contactName).toBe('Maria Silva');
   });
 
   it('publishes BookingRequested event after commit', async () => {

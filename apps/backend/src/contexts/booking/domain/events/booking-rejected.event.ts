@@ -3,8 +3,8 @@ import { DomainEvent } from '../../../../shared/domain/domain-event';
 interface BookingRejectedData extends Record<string, unknown> {
   bookingId: string;
   customerId: string | null;
-  guestEmail: string;
-  guestName: string;
+  contactEmail: string;
+  contactName: string;
   reason: string;
   rejectedBy: string;
 }

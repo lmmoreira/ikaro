@@ -1,6 +1,6 @@
-import { BaseGuestNotificationDto } from './base-guest-notification.dto';
+import { BaseContactNotificationDto } from './base-contact-notification.dto';
 
-export interface SendBookingInfoRequestedNotificationDto extends BaseGuestNotificationDto {
+export interface SendBookingInfoRequestedNotificationDto extends BaseContactNotificationDto {
   bookingId: string;
   customerId: string | null;
   informationNeeded: string;

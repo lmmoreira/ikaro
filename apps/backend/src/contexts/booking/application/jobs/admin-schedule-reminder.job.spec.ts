@@ -72,8 +72,8 @@ describe('AdminScheduleReminderJob', () => {
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
       .withScheduledAt(TODAY)
-      .withGuestName('Carlos Mendes')
-      .withGuestPhone('31988888888')
+      .withContactName('Carlos Mendes')
+      .withContactPhone('31988888888')
       .withTotalDurationMins(45)
       .withLines([
         new BookingLineBuilder()

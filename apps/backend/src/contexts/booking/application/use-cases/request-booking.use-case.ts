@@ -72,10 +72,10 @@ export class RequestBookingUseCase {
 
     const lineInputs = buildLineInputs(dto.serviceIds, serviceMap);
 
-    const guestAddress = dto.guestAddress
+    const contactAddress = dto.contactAddress
       ? Address.create({
-          ...dto.guestAddress,
-          complement: dto.guestAddress.complement ?? undefined,
+          ...dto.contactAddress,
+          complement: dto.contactAddress.complement ?? undefined,
         })
       : undefined;
     const pickupAddress = dto.pickupAddress
@@ -87,14 +87,14 @@ export class RequestBookingUseCase {
 
     const booking = Booking.requestBooking({
       tenantId,
-      guestEmail: dto.guestEmail,
-      guestName: dto.guestName,
-      guestPhone: dto.guestPhone,
+      contactEmail: dto.contactEmail,
+      contactName: dto.contactName,
+      contactPhone: dto.contactPhone,
       scheduledAt,
       lineInputs,
       type: 'GUEST',
       correlationId,
-      guestAddress,
+      contactAddress,
       pickupAddress,
       beforeServicePhotoUrls: dto.beforeServicePhotoUrls,
     });

@@ -127,10 +127,10 @@ Booking {
   status:        BookingStatus
   type:          BookingType
   customerId:    CustomerId   (null if guest)
-  guestEmail:    Email
-  guestPhone:    Phone
-  guestName:     String
-  guestAddress:  Address | null   -- optional general address provided by the guest/customer
+  contactEmail:    Email
+  contactPhone:    Phone
+  contactName:     String
+  contactAddress:  Address | null   -- optional general address provided by the guest/customer
 
   scheduledAt:        DateTime         -- start of the appointment slot
   totalDurationMins:  Duration         -- = SUM(lines.durationMinsAtBooking); derived & cached
@@ -208,10 +208,10 @@ BookingLine {
 - A line's `tenantId` must equal its parent booking's `tenantId` (composite FK enforces this at the DB).
 
 **Key Methods (on the Booking aggregate root — `BookingLine` itself has no behaviour):**
-- `requestBooking(actor, scheduledAt, serviceIds[], guestAddress?: Address, pickupAddress?: Address)`
+- `requestBooking(actor, scheduledAt, serviceIds[], contactAddress?: Address, pickupAddress?: Address)`
   - Loads each `Service`, snapshots `price`/`durationMinutes`/`loyaltyPointsValue`/`requiresPickupAddress` into a new `BookingLine`.
   - Validates pickup invariant: if any line has `requiresPickupAddressAtBooking = true` and `pickupAddress` is absent → reject.
-  - `guestAddress` is stored as-is (optional informational field; not subject to the pickup requirement).
+  - `contactAddress` is stored as-is (optional informational field; not subject to the pickup requirement).
   - Computes `totalPrice` and `totalDurationMins`.
   - Validates calendar availability against the total duration.
   - Creates booking in `PENDING`.
@@ -408,7 +408,7 @@ Customer {
   email:          Email
   phone:          Phone
   name:           String
-  defaultAddress: Address | null   -- optional; pre-fills both guestAddress and pickupAddress on the booking form.
+  defaultAddress: Address | null   -- optional; pre-fills both contactAddress and pickupAddress on the booking form.
                                    -- The booking always stores its own copy — this is convenience only.
   createdAt:      DateTime
   updatedAt:      DateTime

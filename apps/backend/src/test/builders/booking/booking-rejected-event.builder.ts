@@ -5,8 +5,8 @@ export class BookingRejectedEventBuilder {
   private readonly correlationId = 'corr-rejected-1';
   private readonly bookingId = 'dddddddd-0002-4000-8000-000000000001';
   private customerId: string | null = null;
-  private guestEmail = 'joao@example.com';
-  private readonly guestName = 'João Silva';
+  private contactEmail = 'joao@example.com';
+  private readonly contactName = 'João Silva';
   private reason = 'Horário indisponível para os serviços selecionados';
   private readonly rejectedBy = 'staffid-0000-4000-8000-000000000001';
 
@@ -15,8 +15,8 @@ export class BookingRejectedEventBuilder {
     return this;
   }
 
-  withGuestEmail(guestEmail: string): this {
-    this.guestEmail = guestEmail;
+  withContactEmail(contactEmail: string): this {
+    this.contactEmail = contactEmail;
     return this;
   }
 
@@ -34,8 +34,8 @@ export class BookingRejectedEventBuilder {
     return new BookingRejected(this.tenantId, this.correlationId, {
       bookingId: this.bookingId,
       customerId: this.customerId,
-      guestEmail: this.guestEmail,
-      guestName: this.guestName,
+      contactEmail: this.contactEmail,
+      contactName: this.contactName,
       reason: this.reason,
       rejectedBy: this.rejectedBy,
     });

@@ -575,7 +575,7 @@ async handle(event: BookingApproved) {
 
 // ✅ CORRECT — event carries everything Notification needs
 async handle(event: BookingApproved) {
-  await this.send(event.guestEmail, ...);  // email is in the event payload
+  await this.send(event.contactEmail, ...);  // email is in the event payload
 }
 ```
 
@@ -607,7 +607,7 @@ If two contexts represent the same real-world data, each owns its own copy. Data
 
 ```
 ✅ Correct:
-  booking.bookings.guest_email        VARCHAR  ← Booking owns this copy
+  booking.bookings.contact_email        VARCHAR  ← Booking owns this copy
   notification.notification_logs.recipient  VARCHAR  ← Notification owns its copy
   Both received the email from the BookingRequested event.
 

@@ -29,8 +29,8 @@ describe('BookingApprovedHandler', () => {
     const dto = useCase.execute.mock.calls[0][0];
     expect(dto.tenantId).toBe(TENANT_ID);
     expect(dto.correlationId).toBe('corr-approved-1');
-    expect(dto.guestEmail).toBe('joao@example.com');
-    expect(dto.guestName).toBe('João Silva');
+    expect(dto.contactEmail).toBe('joao@example.com');
+    expect(dto.contactName).toBe('João Silva');
     expect(dto.approvedSlot).toEqual({
       startTime: '2026-06-15T16:00:00.000Z',
       endTime: '2026-06-15T17:00:00.000Z',

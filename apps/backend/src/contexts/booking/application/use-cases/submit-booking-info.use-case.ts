@@ -38,7 +38,7 @@ export class SubmitBookingInfoUseCase {
     if (booking.customerId !== customerId) throw new BookingForbiddenError();
 
     booking.submitInformation(
-      booking.guestEmail.address,
+      booking.contactEmail.address,
       { notes: dto.response },
       correlationId,
       dto.photoUrls ?? [],

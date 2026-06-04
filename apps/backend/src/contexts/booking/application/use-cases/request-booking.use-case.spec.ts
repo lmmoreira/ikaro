@@ -50,13 +50,13 @@ describe('RequestBookingUseCase', () => {
   });
 
   const baseDto = () => ({
-    guestEmail: 'joao@example.com',
-    guestName: 'João Silva',
-    guestPhone: '31999999999',
+    contactEmail: 'joao@example.com',
+    contactName: 'João Silva',
+    contactPhone: '31999999999',
     scheduledAt,
     serviceIds: [serviceId],
     beforeServicePhotoUrls: undefined as string[] | undefined,
-    guestAddress: undefined,
+    contactAddress: undefined,
     pickupAddress: undefined,
   });
 
@@ -91,7 +91,7 @@ describe('RequestBookingUseCase', () => {
     expect(saved!.beforeServicePhotoUrls).toEqual(['https://s3.example.com/photo1.jpg']);
   });
 
-  it('stores optional guestAddress when provided', async () => {
+  it('stores optional contactAddress when provided', async () => {
     const addr = {
       street: 'Rua A',
       number: '1',
@@ -100,10 +100,10 @@ describe('RequestBookingUseCase', () => {
       state: 'MG',
       zipCode: '30100000',
     };
-    const result = await useCase.execute({ ...baseDto(), guestAddress: addr });
+    const result = await useCase.execute({ ...baseDto(), contactAddress: addr });
     const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
-    expect(saved!.guestAddress).not.toBeNull();
-    expect(saved!.guestAddress!.city).toBe('BH');
+    expect(saved!.contactAddress).not.toBeNull();
+    expect(saved!.contactAddress!.city).toBe('BH');
   });
 
   it('stores pickupAddress and returns it in result', async () => {

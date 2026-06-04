@@ -184,47 +184,111 @@ Also update the inline header objects in `BackendHttpService.getForPublic()` and
 
 ---
 
-### M115-S04 — Rename `guestEmail` → `contactEmail` on Booking aggregate and events (tech debt)
+### M115-S04 — Rename `guest*` → `contact*` on Booking aggregate, events, and DB columns (tech debt)
 
 **Agent:** `backend-ts` + `bff-ts`  
-**Complexity:** S  
+**Complexity:** M  
 **Docs to load:** `docs/02-DOMAIN_MODEL.md` § Booking context, `docs/03-DOMAIN_EVENTS.md` § Booking events
 
 **Description:**  
-The `guestEmail` field on the `Booking` aggregate and all its domain events is a naming artefact from when only anonymous guest bookings existed. When an authenticated customer books (UC-002), `RequestAuthenticatedBookingUseCase` fetches the customer's email via `ICustomerProfilePort` and stores it in `guestEmail` — so the field works correctly for both personas, but the name is misleading. This story renames it to `contactEmail` throughout to reflect that it always holds the primary contact email regardless of booking type.
+The four `guest*` fields on the `Booking` aggregate (`guestEmail`, `guestName`, `guestPhone`, `guestAddress`) are naming artefacts from when only anonymous guest bookings existed. When an authenticated customer books (UC-002), `RequestAuthenticatedBookingUseCase` reads the customer's contact details and stores them in these fields — so they work correctly for both personas, but the names are misleading. This story renames all four to `contact*` throughout: aggregate, domain events, notification handlers and DTOs, TypeORM entity, DB columns, BFF types and schemas, shared types package, test builders, and all docs.
 
 **No functional change** — pure rename. Behaviour, validation, and notification delivery are identical before and after.
 
+**DB approach:** The local dev database is disposable. Edit the existing booking migration and notification seed migration directly rather than adding ALTER TABLE migrations. Drop and recreate the DB after the rename.
+
+**Rename map:**
+
+| Old | New | DB column |
+|---|---|---|
+| `guestEmail` | `contactEmail` | `guest_email` → `contact_email` |
+| `guestName` | `contactName` | `guest_name` → `contact_name` |
+| `guestPhone` | `contactPhone` | `guest_phone` → `contact_phone` |
+| `guestAddress` | `contactAddress` | `guest_address` → `contact_address` |
+
+---
+
 **Scope:**
 
-Backend — `Booking` aggregate:
-- `BookingProps.guestEmail` → `contactEmail` (type `Email` VO stays the same)
-- `Booking.get guestEmail()` → `get contactEmail()`
-- All `addDomainEvent()` calls inside the aggregate that pass `guestEmail: this.props.guestEmail.address`
-- `RequestBookingInput.guestEmail` → `contactEmail`
-- `RequestBookingUseCase` and `RequestAuthenticatedBookingUseCase` DTOs + call sites
+**Backend — `Booking` aggregate (`booking.aggregate.ts`):**
+- `BookingProps`: rename all 4 fields
+- `RequestBookingInput`: rename all 4 fields
+- 4 getters: `get guestEmail()` → `get contactEmail()`, etc.
+- `create()` + `reconstitute()`: rename all 4 params
+- All `addDomainEvent()` call sites that pass `guestEmail`, `guestName` (and `guestPhone`, `guestAddress` in BookingRequested)
 
-Backend — domain events (rename field in `data` payload):
-- `BookingRequested`, `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`, `BookingCancelled`, `BookingRescheduled`, `BookingCompleted`
-- All event `.ts` files: rename `guestEmail` → `contactEmail` in the `Data` interface
+**Backend — domain events (`booking/domain/events/`):**
+- `booking-requested.event.ts` — all 4 fields
+- `booking-approved.event.ts`, `booking-cancelled.event.ts`, `booking-completed.event.ts`, `booking-info-requested.event.ts`, `booking-rejected.event.ts`, `booking-rescheduled.event.ts` — `contactEmail`, `contactName` in each
 
-Backend — notification event handlers:
-- All 9 handlers that read `event.data.guestEmail` → `event.data.contactEmail`
+**Backend — application layer:**
+- `request-booking.dto.ts` — all 4 fields
+- `submit-guest-booking-info.dto.ts` — `guestEmail` → `contactEmail` (**filename stays** — "guest" refers to the unauthenticated booking flow, not the contact field)
+- `request-booking.use-case.ts`, `request-authenticated-booking.use-case.ts` — all 4 fields
+- `submit-booking-info.use-case.ts`, `submit-guest-booking-info.use-case.ts` — `contactEmail`
+- `get-booking.use-case.ts` result type — `contactEmail`, `contactName`, `contactPhone`
+- `list-bookings.use-case.ts` result type — `contactEmail`, `contactName`
+- `booking-reminder.job.ts` — `booking.contactEmail`, `booking.contactName`
+- `admin-schedule-reminder.job.ts` — `booking.contactName`, `booking.contactPhone`
 
-Backend — TypeORM entity + migration:
-- `bookings.guest_email` column is **not renamed** — DB column name stays `guest_email` to avoid a DDL migration for a cosmetic change. The TypeORM column decorator keeps `{ name: 'guest_email' }` on the `contactEmail` property.
+**Backend — infrastructure:**
+- `booking.controller.ts` — `body.contactEmail`
+- `booking.entity.ts` — rename all 4 properties; update `@Column` decorators to `{ name: 'contact_*' }`
+- `typeorm-booking.repository.ts` — `toDomain` and `toEntity` mappers (8 references)
+- `1748000000014-CreateBookingBookings.ts` — rename `guest_email/name/phone/address` → `contact_email/name/phone/address` in the DDL
 
-BFF:
-- `bookings.types.ts`: rename `guestEmail` in `BookingDetailResponse` and related types
-- `RequestBookingBodySchema`: rename `guestEmail` → `contactEmail`
-- All `.spec.ts` and `.component.spec.ts` files in bff/src/bookings/
+**Backend — notification context:**
+- `base-guest-notification.dto.ts` → **rename file** to `base-contact-notification.dto.ts`; rename class `BaseGuestNotificationDto` → `BaseContactNotificationDto`; rename fields `guestEmail` → `contactEmail`, `guestName` → `contactName`
+- All 6 notification use-case files — `dto.contactEmail`, `dto.contactName`; update template context keys from `{ guestName: dto.guestName }` → `{ contactName: dto.contactName }`
+- All 6 notification handler files — `event.data.contactEmail`, `event.data.contactName`
+- `1748100000010-CreateNotificationTemplates.ts` — replace `{{guestName}}` → `{{contactName}}` in all seeded template HTML bodies
+
+**Backend — test builders (14 files):**
+- `booking.builder.ts` — all 4 fields; `withGuestEmail()` → `withContactEmail()`, etc.
+- `booking-entity.builder.ts` — same
+- `booking-requested-event.builder.ts` — all 4 fields and methods
+- `booking-approved/cancelled/info-requested/rejected/rescheduled-event.builder.ts` (5 files) — `contactEmail`, `contactName`; `withGuestEmail()` → `withContactEmail()`
+- 6 notification DTO builders — `contactEmail`, `contactName`; `withGuestEmail()` → `withContactEmail()`
+
+**Backend — spec files (~20 files):**
+`booking.spec.ts`, `request-booking.use-case.spec.ts`, `request-authenticated-booking.use-case.spec.ts`, `submit-guest-booking-info.use-case.spec.ts`, `get-booking.use-case.spec.ts`, `booking.controller.spec.ts`, `booking.controller.integration.spec.ts`, `booking.repository.integration.spec.ts`, `typeorm-booking.repository.spec.ts`, all 6 notification use-case spec files, all 6 notification handler spec files, `booking-full-workflow.handler.integration.spec.ts`, `booking-completed.handler.spec.ts` (loyalty)
+
+**BFF:**
+- `bookings.types.ts` — `contactName`, `contactEmail`, `contactPhone` in `BookingDetailResponse` and `BookingListItem`
+- `bookings.controller.ts` — Zod schema fields in `RequestBookingBodySchema` (all 4) and `SubmitGuestInfoSchema` (`contactEmail`); `payload.contactEmail` mapping
+- `bookings.controller.spec.ts` + `bookings.controller.component.spec.ts`
+- `http/bookings/bookings.http` — all JSON request bodies
+
+**Shared packages:**
+- `packages/types/src/booking.dto.ts` — `contactName`, `contactEmail`, `contactPhone`
+
+**HTTP files:**
+- `apps/backend/http/booking/bookings.http` — all JSON request bodies
+
+**Docs (10 files):**
+- `docs/02-DOMAIN_MODEL.md` — `BookingProps` table, `requestBooking()` signature, defaultAddress note
+- `docs/03-DOMAIN_EVENTS.md` — all 7 event payload definitions
+- `docs/04-USE_CASES.md` — UC-001 steps 2, 11; UC-002 steps 1, 7, 8
+- `docs/13-DATABASE_SCHEMA.md` — rename column entries to `contact_*`
+- `docs/14-API_CONTRACTS.md` — request body examples and field descriptions
+- `docs/05-BOUNDED_CONTEXTS.md` — `event.guestEmail` code snippet (line ~578)
+- `docs/AGENT_PATTERNS.md` — `{ guestName: 'Ana', … }` example (line ~818)
+- `docs/CODE_STANDARDS.md` — `guestPhone` validation example (line ~122)
+- `docs/QUICK_REFERENCE.md` — field list (line ~115)
+- `plan/M115-PRODUCTION-READINESS.md` — this file (already updated)
+
+---
 
 **Acceptance criteria:**
-- [ ] `Booking.contactEmail` getter returns the `Email` VO; `guestEmail` getter no longer exists
-- [ ] All 8 domain events carry `contactEmail` in their `data` payload; `guestEmail` no longer appears in any event interface
-- [ ] All notification handlers read `event.data.contactEmail`; all notification emails still delivered correctly
-- [ ] DB column remains `guest_email` — no new migration required
-- [ ] `pnpm type-check` clean across backend and BFF
+- [ ] All 4 `contact*` getters exist on `Booking`; no `guest*` getter or property remains anywhere in `apps/` or `packages/`
+- [ ] All 8 domain events carry `contactEmail` + `contactName` in `data`; `BookingRequested` also carries `contactPhone` + `contactAddress`; no `guest*` field in any event interface
+- [ ] All notification handlers read `event.data.contactEmail` / `event.data.contactName`; all notification use cases pass `contactName:` as the template context key
+- [ ] DB columns are `contact_email`, `contact_name`, `contact_phone`, `contact_address`; `booking.entity.ts` `@Column` decorators reference `contact_*` names
+- [ ] Notification templates use `{{contactName}}`; existing seed migration updated in place
+- [ ] `base-contact-notification.dto.ts` replaces `base-guest-notification.dto.ts`; no import of the old path anywhere
+- [ ] `submit-guest-booking-info.dto.ts` filename unchanged; only the `guestEmail` field inside renamed to `contactEmail`
+- [ ] `pnpm type-check` clean across backend, BFF, and packages
 - [ ] All existing unit and integration tests pass with zero functional change
+- [ ] `grep -r "guestEmail\|guestName\|guestPhone\|guestAddress" apps/ packages/` returns zero matches
 
 **Dependencies:** M10-S01 (all booking events established), M11-S07 (notification handlers stable)

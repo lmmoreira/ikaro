@@ -70,8 +70,8 @@ export class AdminScheduleReminderJob {
     appointmentSlot: { startTime: string; endTime: string };
     adminNotes: string | null;
   }> {
-    let customerName = booking.guestName;
-    let customerPhone: string | null = booking.guestPhone.value;
+    let customerName = booking.contactName;
+    let customerPhone: string | null = booking.contactPhone.value;
 
     if (booking.customerId !== null) {
       const profile = await this.customerProfilePort.findById(booking.customerId, tenantId);

@@ -44,10 +44,10 @@ describe('TypeOrmBookingRepository (integration)', () => {
   it('saves a booking with lines and reads it back — all fields survive the round-trip', async () => {
     const booking = new BookingBuilder()
       .withTenantId(TENANT_A)
-      .withGuestEmail('joao@example.com')
-      .withGuestName('João Silva')
-      .withGuestPhone('31999999999')
-      .withGuestAddress(testAddress())
+      .withContactEmail('joao@example.com')
+      .withContactName('João Silva')
+      .withContactPhone('31999999999')
+      .withContactAddress(testAddress())
       .withPickupAddress(testAddress({ street: 'Rua do Pickup', number: '10' }))
       .withScheduledAt(new Date('2026-07-01T10:00:00.000Z'))
       .withTotalDurationMins(60)
@@ -76,10 +76,10 @@ describe('TypeOrmBookingRepository (integration)', () => {
     expect(found!.tenantId).toBe(TENANT_A);
     expect(found!.status).toBe(BookingStatus.PENDING);
     expect(found!.type).toBe('GUEST');
-    expect(found!.guestEmail.address).toBe('joao@example.com');
-    expect(found!.guestName).toBe('João Silva');
-    expect(found!.guestPhone.value).toBe('31999999999');
-    expect(found!.guestAddress).not.toBeNull();
+    expect(found!.contactEmail.address).toBe('joao@example.com');
+    expect(found!.contactName).toBe('João Silva');
+    expect(found!.contactPhone.value).toBe('31999999999');
+    expect(found!.contactAddress).not.toBeNull();
     expect(found!.pickupAddress).not.toBeNull();
     expect(found!.scheduledAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');
     expect(found!.totalDurationMins).toBe(60);

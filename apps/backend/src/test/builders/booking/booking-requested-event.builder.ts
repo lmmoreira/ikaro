@@ -10,10 +10,10 @@ export class BookingRequestedEventBuilder {
   private readonly bookingId = 'dddddddd-0000-4000-8000-000000000001';
   private readonly type: 'GUEST' | 'CUSTOMER' = 'GUEST';
   private readonly customerId: string | null = null;
-  private guestEmail = 'joao@example.com';
-  private guestName = 'João Silva';
-  private readonly guestPhone = '+5531999999999';
-  private readonly guestAddress: AddressEventPayload | null = null;
+  private contactEmail = 'joao@example.com';
+  private contactName = 'João Silva';
+  private readonly contactPhone = '+5531999999999';
+  private readonly contactAddress: AddressEventPayload | null = null;
   private scheduledAt = '2026-06-15T13:00:00.000Z';
   private readonly totalDurationMins = 60;
   private totalPrice = { amount: '150.00', currency: 'BRL' };
@@ -42,13 +42,13 @@ export class BookingRequestedEventBuilder {
     return this;
   }
 
-  withGuestEmail(guestEmail: string): this {
-    this.guestEmail = guestEmail;
+  withContactEmail(contactEmail: string): this {
+    this.contactEmail = contactEmail;
     return this;
   }
 
-  withGuestName(guestName: string): this {
-    this.guestName = guestName;
+  withContactName(contactName: string): this {
+    this.contactName = contactName;
     return this;
   }
 
@@ -77,10 +77,10 @@ export class BookingRequestedEventBuilder {
       bookingId: this.bookingId,
       type: this.type,
       customerId: this.customerId,
-      guestEmail: this.guestEmail,
-      guestName: this.guestName,
-      guestPhone: this.guestPhone,
-      guestAddress: this.guestAddress,
+      contactEmail: this.contactEmail,
+      contactName: this.contactName,
+      contactPhone: this.contactPhone,
+      contactAddress: this.contactAddress,
       scheduledAt: this.scheduledAt,
       totalDurationMins: this.totalDurationMins,
       totalPrice: this.totalPrice,

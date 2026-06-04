@@ -112,7 +112,7 @@ Booking {
   status: PENDING|INFO_REQUESTED|APPROVED|REJECTED|COMPLETED|CANCELLED
   type: GUEST|CUSTOMER
   customerId (if customer)
-  guestEmail, guestPhone, guestName
+  contactEmail, contactPhone, contactName
   scheduledAt
   totalDurationMins   = SUM(lines.durationMinsAtBooking)   -- denormalised, derived
   totalPrice          = SUM(lines.priceAtBooking)          -- denormalised, derived

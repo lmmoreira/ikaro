@@ -40,7 +40,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
   it('transitions INFO_REQUESTED → PENDING for a guest booking', async () => {
     const result = await useCase.execute({
       bookingId: guestBookingId,
-      guestEmail: 'joao@example.com',
+      contactEmail: 'joao@example.com',
       response: 'Segue a foto do carro',
     });
 
@@ -52,7 +52,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
   it('publishes BookingInfoSubmitted event with null customerId', async () => {
     await useCase.execute({
       bookingId: guestBookingId,
-      guestEmail: 'joao@example.com',
+      contactEmail: 'joao@example.com',
       response: 'Aqui está a foto',
     });
 
@@ -68,7 +68,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
     await expect(
       useCase.execute({
         bookingId: '00000000-0000-4000-8000-999999999999',
-        guestEmail: 'x@example.com',
+        contactEmail: 'x@example.com',
         response: 'ok',
       }),
     ).rejects.toBeInstanceOf(BookingNotFoundError);
@@ -86,7 +86,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
     await expect(
       useCase.execute({
         bookingId: customerBooking.id,
-        guestEmail: 'x@example.com',
+        contactEmail: 'x@example.com',
         response: 'ok',
       }),
     ).rejects.toBeInstanceOf(BookingForbiddenError);
@@ -98,7 +98,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
     const uc = new SubmitGuestBookingInfoUseCase(ctx, repo, txManager, eventBus);
 
     await expect(
-      uc.execute({ bookingId: guestBookingId, guestEmail: 'x@example.com', response: 'ok' }),
+      uc.execute({ bookingId: guestBookingId, contactEmail: 'x@example.com', response: 'ok' }),
     ).rejects.toBeInstanceOf(BookingNotFoundError);
   });
 });

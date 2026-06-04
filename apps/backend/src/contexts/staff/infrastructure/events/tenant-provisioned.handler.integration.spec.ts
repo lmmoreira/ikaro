@@ -6,8 +6,9 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { SYSTEM_ACTOR_ID } from '../../../../shared/domain/system-actor';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
+import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
-import { waitFor } from '../../../../test/utils/wait-for';
+import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { HotsiteConfigEntity } from '../../../platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../../platform/platform.module';
@@ -16,7 +17,7 @@ import { StaffEntity } from '../entities/staff.entity';
 
 const PLATFORM_KEY = 'story-test-key-story-test-key-xx';
 
-describe('Story: POST /internal/tenants → Pub/Sub → staff MANAGER created (integration)', () => {
+describe('Story: POST /internal/tenants → event bus → staff MANAGER created (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
 
@@ -37,7 +38,10 @@ describe('Story: POST /internal/tenants → Pub/Sub → staff MANAGER created (i
         PlatformModule,
         StaffModule,
       ],
-    }).compile();
+    })
+      .overrideProvider(EVENT_BUS)
+      .useValue(new RoutingInMemoryEventBus())
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
@@ -49,31 +53,20 @@ describe('Story: POST /internal/tenants → Pub/Sub → staff MANAGER created (i
     delete process.env['PLATFORM_ADMIN_KEY'];
   });
 
-  it('provisions tenant, publishes TenantProvisioned, and creates first MANAGER staff via Pub/Sub', async () => {
+  it('provisions tenant and creates first MANAGER staff synchronously via event bus', async () => {
     const slug = `story-${Date.now()}`;
     const adminEmail = `admin-${Date.now()}@lavacar.com.br`;
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${PLATFORM_KEY}`)
-      .send({
-        name: 'Lava Car Story',
-        slug,
-        adminEmail,
-        timezone: 'America/Sao_Paulo',
-      })
+      .send({ name: 'Lava Car Story', slug, adminEmail, timezone: 'America/Sao_Paulo' })
       .expect(201);
 
     expect(body.tenantId).toBeDefined();
     const tenantId: string = body.tenantId;
 
-    await waitFor(async () => {
-      const row = await ds
-        .getRepository(StaffEntity)
-        .findOne({ where: { tenantId, email: adminEmail } });
-      return row !== null;
-    });
-
+    // RoutingInMemoryEventBus delivers synchronously — staff is already in DB when 201 returns.
     const staff = await ds
       .getRepository(StaffEntity)
       .findOne({ where: { tenantId, email: adminEmail } });
@@ -90,30 +83,24 @@ describe('Story: POST /internal/tenants → Pub/Sub → staff MANAGER created (i
   it('tenant isolation: staff row is scoped to the provisioned tenant only', async () => {
     const slugA = `iso-a-${Date.now()}`;
     const slugB = `iso-b-${Date.now()}`;
-    const email = `iso-${Date.now()}@lavacar.com.br`;
+    const emailA = `iso-a-${Date.now()}@lavacar.com.br`;
+    const emailB = `iso-b-${Date.now()}@lavacar.com.br`;
 
     const [resA, resB] = await Promise.all([
       request(app.getHttpServer())
         .post('/internal/tenants')
         .set('Authorization', `Bearer ${PLATFORM_KEY}`)
-        .send({ name: 'Iso A', slug: slugA, adminEmail: email }),
+        .send({ name: 'Iso A', slug: slugA, adminEmail: emailA, timezone: 'America/Sao_Paulo' }),
       request(app.getHttpServer())
         .post('/internal/tenants')
         .set('Authorization', `Bearer ${PLATFORM_KEY}`)
-        .send({ name: 'Iso B', slug: slugB, adminEmail: `b-${email}` }),
+        .send({ name: 'Iso B', slug: slugB, adminEmail: emailB, timezone: 'America/Sao_Paulo' }),
     ]);
 
     const tenantAId: string = resA.body.tenantId;
     const tenantBId: string = resB.body.tenantId;
 
-    await waitFor(async () => {
-      const [a, b] = await Promise.all([
-        ds.getRepository(StaffEntity).findOne({ where: { tenantId: tenantAId } }),
-        ds.getRepository(StaffEntity).findOne({ where: { tenantId: tenantBId } }),
-      ]);
-      return a !== null && b !== null;
-    });
-
+    // Both requests complete synchronously — staff rows are already in DB.
     const staffA = await ds.getRepository(StaffEntity).find({ where: { tenantId: tenantAId } });
     const staffB = await ds.getRepository(StaffEntity).find({ where: { tenantId: tenantBId } });
 

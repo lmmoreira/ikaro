@@ -34,7 +34,7 @@ describe('SendBookingRejectedNotificationUseCase', () => {
         triggerEvent: NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER,
         channel: 'EMAIL',
         subject: 'Sobre seu pedido de agendamento',
-        body: '<p>Olá, {{guestName}}! Motivo: {{reason}}</p>',
+        body: '<p>Olá, {{contactName}}! Motivo: {{reason}}</p>',
       }),
     );
     useCase = new SendBookingRejectedNotificationUseCase(

@@ -11,9 +11,9 @@ export interface CreateBookingRequest {
   pickupAddress?: Address;
   notes?: string;
   // For guest bookings
-  guestName?: string;
-  guestEmail?: string;
-  guestPhone?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
 }
 
 export interface BookingLineResponse {
@@ -41,9 +41,9 @@ export interface BookingResponse {
   createdAt: string;
   updatedAt: string;
   // Guest fields
-  guestName?: string;
-  guestEmail?: string;
-  guestPhone?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
 }
 
 export interface CompleteBookingRequest {

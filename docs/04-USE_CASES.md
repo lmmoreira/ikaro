@@ -37,7 +37,7 @@ UC-XXX: [Use Case Name]
 - **Trigger:** Guest clicks "Request Booking"
 - **Main Flow:**
   1. System identifies tenant from URL path (e.g., /tenant1).
-  2. Guest enters: name, email, phone, and optionally a general address (`guestAddress`).
+  2. Guest enters: name, email, phone, and optionally a general address (`contactAddress`).
   3. Guest selects **one or more services** from that tenant's catalog (e.g. "Basic Wash" + "Wax", or "Basic Wash" twice for two cars). Each selection adds a line to the booking.
   4. As the guest adds / removes services, the booking summary updates live:
      - **Total price** = SUM of each selected service's current price.
@@ -49,7 +49,7 @@ UC-XXX: [Use Case Name]
   8. Guest optionally uploads one or more car photos (PNG/JPG).
   9. System validates: email format, phone format, slot availability, ≥ 1 service selected, file sizes, and — if any pickup service selected — pickup address is present and CEP is 8 digits.
   10. Guest clicks "Submit".
-  11. System creates the `Booking` aggregate with status = PENDING and one `BookingLine` per selected service. Each line snapshots `price`, `duration_mins`, `points_value`, and `requiresPickupAddress`. `Booking.guestAddress` stored if provided. `Booking.pickupAddress` is set if any pickup service was selected. Photos stored. All rows scoped to tenant.
+  11. System creates the `Booking` aggregate with status = PENDING and one `BookingLine` per selected service. Each line snapshots `price`, `duration_mins`, `points_value`, and `requiresPickupAddress`. `Booking.contactAddress` stored if provided. `Booking.pickupAddress` is set if any pickup service was selected. Photos stored. All rows scoped to tenant.
   12. System publishes `BookingRequested` event (includes `pickupAddress` when applicable).
   13. Guest sees confirmation: "Your request is pending. You'll hear from us soon."
 
@@ -75,14 +75,14 @@ UC-XXX: [Use Case Name]
 - **Trigger:** Customer clicks "Request Booking"
 - **Endpoint:** `POST /bookings/authenticated` (JWT `role: CUSTOMER` required)
 - **Main Flow:**
-  1. Customer selects **one or more services** from the tenant's catalog. Same multi-line model as UC-001 main flow steps 3–4. Guest fields (`guestEmail`, `guestName`, `guestPhone`, `guestAddress`) are **not shown on the UI form** — they are sourced from the Customer record by the backend.
+  1. Customer selects **one or more services** from the tenant's catalog. Same multi-line model as UC-001 main flow steps 3–4. Guest fields (`contactEmail`, `contactName`, `contactPhone`, `contactAddress`) are **not shown on the UI form** — they are sourced from the Customer record by the backend.
   2. If any selected service has `requiresPickupAddress = true`, the form reveals the **pickup address field**, pre-filled with `Customer.defaultAddress` (if set). Customer can edit it for this booking.
   3. System displays calendar with available slots filtered by total duration.
   4. Customer selects preferred date/time.
   5. Customer optionally uploads car photos.
   6. Customer clicks "Submit". The UI sends only `serviceIds`, `scheduledAt`, `pickupAddress?`, and `beforeServicePhotoUrls?`.
-  7. Backend validates slot (same rules as UC-001). Reads `guestEmail`, `guestName`, `guestPhone` from the Customer record (identified by JWT `sub`). Uses `Customer.defaultAddress` as `guestAddress`. If `pickupAddress` is absent from the request, falls back to `Customer.defaultAddress`; if that is also null and a service requires pickup, returns `400 missing-pickup-address`.
-  8. System creates `Booking` with `status = PENDING`, `type = CUSTOMER`, `customerId` linked. `guestEmail`, `guestName`, `guestPhone` set from Customer record. `Booking.guestAddress` set from `Customer.defaultAddress` (may be null). `Booking.pickupAddress` set from the resolved pickup address (request body takes precedence over profile default).
+  7. Backend validates slot (same rules as UC-001). Reads `contactEmail`, `contactName`, `contactPhone` from the Customer record (identified by JWT `sub`). Uses `Customer.defaultAddress` as `contactAddress`. If `pickupAddress` is absent from the request, falls back to `Customer.defaultAddress`; if that is also null and a service requires pickup, returns `400 missing-pickup-address`.
+  8. System creates `Booking` with `status = PENDING`, `type = CUSTOMER`, `customerId` linked. `contactEmail`, `contactName`, `contactPhone` set from Customer record. `Booking.contactAddress` set from `Customer.defaultAddress` (may be null). `Booking.pickupAddress` set from the resolved pickup address (request body takes precedence over profile default).
   9. System publishes `BookingRequested` event (envelope `tenantId`; `data.lines[]` ≥ 1; `data.pickupAddress` if applicable).
   10. System displays: "Solicitação enviada. Veja seus agendamentos no seu perfil."
   11. System shows the customer's current active-points total (e.g., "47 pontos ativos").

@@ -76,19 +76,19 @@ export class RequestAuthenticatedBookingUseCase {
 
     const lineInputs = buildLineInputs(dto.serviceIds, serviceMap);
 
-    const guestAddress = customer.defaultAddress ?? undefined;
+    const contactAddress = customer.defaultAddress ?? undefined;
 
     const booking = Booking.requestBooking({
       tenantId,
-      guestEmail: customer.email,
-      guestName: customer.name,
-      guestPhone: customer.phone,
+      contactEmail: customer.email,
+      contactName: customer.name,
+      contactPhone: customer.phone,
       scheduledAt,
       lineInputs,
       type: 'CUSTOMER',
       correlationId,
       customerId,
-      guestAddress,
+      contactAddress,
       pickupAddress,
       beforeServicePhotoUrls: dto.beforeServicePhotoUrls,
     });

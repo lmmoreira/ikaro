@@ -32,8 +32,8 @@ export class BookingRejectedHandler implements OnModuleInit {
         tenantId: event.tenantId,
         eventId: event.eventId,
         correlationId: event.correlationId,
-        guestEmail: event.data.guestEmail,
-        guestName: event.data.guestName,
+        contactEmail: event.data.contactEmail,
+        contactName: event.data.contactName,
         reason: event.data.reason,
       });
     } catch (err) {

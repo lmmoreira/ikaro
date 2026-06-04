@@ -48,7 +48,7 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
         triggerEvent: NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER,
         channel: 'EMAIL',
         subject: 'Seu agendamento foi reagendado',
-        body: '<p>Olá, {{guestName}}! Anterior: {{previousLocalDate}} {{previousLocalTime}} Novo: {{newLocalDate}} {{newLocalTime}}</p>',
+        body: '<p>Olá, {{contactName}}! Anterior: {{previousLocalDate}} {{previousLocalTime}} Novo: {{newLocalDate}} {{newLocalTime}}</p>',
       }),
     );
     templateRepo.seed(
@@ -57,7 +57,7 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
         triggerEvent: NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN,
         channel: 'EMAIL',
         subject: 'Agendamento reagendado',
-        body: '<p>Cliente: {{guestName}}</p>',
+        body: '<p>Cliente: {{contactName}}</p>',
       }),
     );
     useCase = new SendBookingRescheduledNotificationUseCase(
