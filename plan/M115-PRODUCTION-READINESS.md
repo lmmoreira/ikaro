@@ -11,7 +11,7 @@
 
 ---
 
-### M115-S01 — GCS Signed URL endpoint for photo uploads
+### M115-S01 — GCS Signed URL endpoint for photo uploads ✅ Done
 
 > Moved from M10-S02. M10-S01 accepts `afterServicePhotoUrls` as plain strings (good enough for backend logic); this story wires the actual upload mechanism the frontend needs.
 
