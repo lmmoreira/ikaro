@@ -210,57 +210,191 @@ Content-Type: application/json
 
 ---
 
-### M115-S03 — InternalApiGuard for unprotected `/internal/*` routes
+### M115-S03 — InternalApiGuard: global BFF↔backend shared-secret gate
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
 **Docs to load:** `docs/14-API_CONTRACTS.md` § internal endpoints
 
 **Description:**  
-Three `/internal/*` controllers rely solely on network topology (backend not publicly exposed). This story adds a shared `InternalApiGuard` that validates an `X-Internal-Key` header on every request, and updates `BackendHttpService` so the BFF automatically includes this key on all backend calls.
+All backend controllers — `/internal/*` and `/v1/*` alike — rely solely on network topology (backend not publicly exposed). This story adds a shared `InternalApiGuard` registered **globally** via `APP_GUARD` in `AppModule`, so every request to the backend must carry an `X-Internal-Key` header matching `INTERNAL_API_KEY`. The BFF propagates this key automatically on all backend calls. Network isolation + shared secret gives us two independent layers of protection, and future controllers are automatically covered without any per-file decoration.
 
-`PlatformAdminGuard` on `internal-tenant.controller.ts` (the developer CLI) is **unaffected** — it already protects write operations via `Authorization: Bearer <PLATFORM_ADMIN_KEY>` and serves a separate trust boundary.
+`PlatformAdminGuard` on `internal-tenant.controller.ts` (the developer CLI) is **unaffected** — it guards `POST /internal/tenants` via `Authorization: Bearer <PLATFORM_ADMIN_KEY>` and serves a different trust boundary (human operator, not BFF machine call). After this story, requests to that endpoint must carry **both** `X-Internal-Key` (global guard first) and `Authorization: Bearer` (controller guard second).
+
+---
 
 **Backend — new guard:**
 ```
 src/shared/guards/internal-api.guard.ts
-```
-- Reads `X-Internal-Key` header from request
-- Compares against `INTERNAL_API_KEY` env var using `crypto.timingSafeEqual` (same pattern as `PlatformAdminGuard`)
-- Returns `401` with RFC 9457 body on mismatch
-
-**Apply `@UseGuards(InternalApiGuard)` to (controller level):**
-- `platform/infrastructure/controllers/internal-tenant-read.controller.ts`
-- `customer/infrastructure/controllers/internal-customer.controller.ts`
-- `staff/infrastructure/controllers/internal-staff.controller.ts`
-
-**New env vars:**
-```
-# backend
-INTERNAL_API_KEY=<min-32-chars>
-
-# bff
-INTERNAL_API_KEY=<same-value>
+src/shared/guards/internal-api.guard.spec.ts
 ```
 
-Added to both `apps/backend/src/config/env.validation.ts` and `apps/bff/src/config/env.validation.ts` as `z.string().min(32)`.
+`InternalApiGuard`:
+- Injects `ConfigService`
+- Reads `X-Internal-Key` request header
+- Hashes both incoming header and stored `INTERNAL_API_KEY` with SHA-256 (same pattern as `PlatformAdminGuard`) then compares with `crypto.timingSafeEqual`
+- Throws `UnauthorizedException` with RFC 9457 body on mismatch or missing header
+
+**Backend — register globally (`app.module.ts`):**
+
+Add to `providers` array — DI resolves `ConfigService` automatically:
+```ts
+import { APP_GUARD } from '@nestjs/core';
+import { InternalApiGuard } from './shared/guards/internal-api.guard';
+
+providers: [
+  { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
+  { provide: APP_GUARD, useClass: InternalApiGuard },
+],
+```
+
+Do **not** use `app.useGlobalGuards(new InternalApiGuard(...))` in `main.ts` — that approach bypasses NestJS DI and requires manual instantiation.
+
+**Backend — env validation (`apps/backend/src/config/env.validation.ts`):**
+```ts
+INTERNAL_API_KEY: z.string().min(32, { message: 'INTERNAL_API_KEY must be at least 32 characters' }),
+```
+
+**Backend — remove TODO comment (`internal-tenant-read.controller.ts`):**
+
+Remove the `// MVP: protected at network level…` comment block — the guard is now wired.
+
+**Backend — `.env.example`:**
+```
+# Internal API key — shared secret between BFF and backend (generate with: openssl rand -hex 32)
+# Must be identical in both apps/backend/.env and apps/bff/.env
+INTERNAL_API_KEY=change-me-generate-with-openssl-rand-hex-32
+```
+
+---
 
 **BFF — propagate key on all backend calls:**
 
-Update `apps/bff/src/shared/http/backend-headers.ts`:
+`buildBackendHeaders()` in `apps/bff/src/shared/http/backend-headers.ts` stays **unchanged** — it is request-scoped and has no access to `ConfigService`. The key is added at the `BackendHttpService` level instead.
+
+Update `apps/bff/src/shared/http/backend-http.service.ts`:
+
 ```ts
-headers['X-Internal-Key'] = process.env.INTERNAL_API_KEY ?? '';
+// headers() — used by get(), post(), patch(), delete()
+private headers(): Record<string, string> {
+  return {
+    ...buildBackendHeaders(this.req),
+    'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
+  };
+}
 ```
 
-Also update the inline header objects in `BackendHttpService.getForPublic()` and `postForPublic()` — they bypass `buildBackendHeaders()` and need the key added explicitly.
+The three public-path methods bypass `headers()` and build inline header objects — each needs the key added explicitly:
+
+```ts
+async getForPublic<T>(path, tenantId, params?): Promise<T> {
+  return this.call(this.http.get(..., {
+    headers: { 'X-Tenant-ID': tenantId, 'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY') },
+    ...
+  }));
+}
+
+async postForPublic<T>(path, body, tenantId): Promise<T> { /* same */ }
+async patchForPublic<T>(path, body, tenantId): Promise<T> { /* same */ }
+```
+
+**BFF — env validation (`apps/bff/src/config/env.validation.ts`):**
+```ts
+INTERNAL_API_KEY: z.string().min(32, 'INTERNAL_API_KEY must be at least 32 characters'),
+```
+
+**BFF — `.env.example`:**
+```
+# Internal API key — must match the value set in apps/backend/.env
+INTERNAL_API_KEY=change-me-generate-with-openssl-rand-hex-32
+```
+
+---
+
+**HTTP files — add `X-Internal-Key` header to all backend internal requests:**
+
+All three backend internal HTTP files currently omit the header (the guard didn't exist). Each needs a shared variable and the header on every request, plus a new 401 error-case block.
+
+`apps/backend/http/platform/internal-tenants.http`:
+- Add `@internalKey = {{$dotenv INTERNAL_API_KEY}}` to the variables block
+- Add `X-Internal-Key: {{internalKey}}` to both `GET /internal/tenants/...` requests
+- Note: the `POST /internal/tenants` requests already have `Authorization: {{authHeader}}` — add `X-Internal-Key` there too (global guard runs before `PlatformAdminGuard`)
+- Add a new error-case block: `GET /internal/tenants/by-slug/lavacar-bh` without `X-Internal-Key` → 401
+
+`apps/backend/http/customer/internal-customers.http`:
+- Add `@internalKey = {{$dotenv INTERNAL_API_KEY}}` to the variables block
+- Add `X-Internal-Key: {{internalKey}}` to every request
+- Add a new error-case block: request without `X-Internal-Key` → 401
+
+`apps/backend/http/staff/internal-staff.http`:
+- Same: add variable + header to every request + 401 error case
+
+---
+
+**Tests:**
+
+**`src/shared/guards/internal-api.guard.spec.ts`** (new — unit test, no module needed):
+- Pattern: same as `platform-admin.guard.spec.ts`
+- `makeContext(headerValue?)` helper that builds an `ExecutionContext` with the `x-internal-key` header
+- `configService` stub returning `TEST_KEY = 'a'.repeat(32)` for `'INTERNAL_API_KEY'`
+- Cases: valid key → `true`; missing header → `UnauthorizedException`; wrong key → `UnauthorizedException`; non-32-char key → `UnauthorizedException`; length-normalisation safety (short and long tokens both throw, not crash)
+
+**`internal-tenant-read.controller.integration.spec.ts`** — update:
+- Add `process.env['INTERNAL_API_KEY'] = 'integ-read-key-integ-read-key-xx'` in `beforeAll` (alongside existing `PLATFORM_ADMIN_KEY`)
+- Add `delete process.env['INTERNAL_API_KEY']` to `afterAll`
+- Add `{ provide: APP_GUARD, useClass: InternalApiGuard }` to the test module's `providers`
+- Add `import { APP_GUARD } from '@nestjs/core'` and `import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard'`
+- Update every `request(app.getHttpServer()).get(...)` call to add `.set('X-Internal-Key', 'integ-read-key-integ-read-key-xx')`
+- Add new `it`: `GET /internal/tenants/... without X-Internal-Key returns 401`
+
+**`internal-customer.controller.integration.spec.ts`** — update:
+- Add `ConfigModule.forRoot({ isGlobal: true })` to the test module imports (currently missing)
+- Add `process.env['INTERNAL_API_KEY'] = 'integ-cust-key-integ-cust-key-xxx'` in `beforeAll`
+- Add `delete process.env['INTERNAL_API_KEY']` to `afterAll`
+- Add `{ provide: APP_GUARD, useClass: InternalApiGuard }` to providers
+- Add `.set('X-Internal-Key', ...)` to every supertest call
+- Add new `it`: `GET /internal/customers/tenants without X-Internal-Key returns 401`
+
+**`internal-staff.controller.integration.spec.ts`** — update (same pattern as above):
+- Add `ConfigModule.forRoot`, `INTERNAL_API_KEY` env, `APP_GUARD` provider
+- Add `.set('X-Internal-Key', ...)` to every supertest call
+- Add new `it`: `GET /internal/staff/by-email without X-Internal-Key returns 401`
+
+**`apps/bff/src/shared/http/backend-http.service.spec.ts`** — update:
+- `makeConfigService()` currently returns `BACKEND_INTERNAL_URL` for every `getOrThrow` call. Update to return the correct value for each key:
+  ```ts
+  function makeConfigService(): ConfigService {
+    return {
+      getOrThrow: jest.fn().mockImplementation((key: string) => {
+        if (key === 'BACKEND_INTERNAL_URL') return BACKEND_URL;
+        if (key === 'INTERNAL_API_KEY') return 'test-internal-key-test-internal-key';
+        throw new Error(`Unknown config key: ${key}`);
+      }),
+    } as unknown as ConfigService;
+  }
+  ```
+- Update all `expect(http.get/post/patch/delete).toHaveBeenCalledWith` assertions that check headers to also assert `'X-Internal-Key': 'test-internal-key-test-internal-key'`
+- Update `patchForPublic()` test: the inline header object now includes `X-Internal-Key` — update the `expect.objectContaining({ headers: { 'X-Tenant-ID': ..., 'X-Internal-Key': ... } })` assertion
+- Add new `it` in the `headers()` describe block: `includes X-Internal-Key on every authenticated and unauthenticated call`
+- Add new `it` in `getForPublic/postForPublic/patchForPublic` blocks: each includes `X-Internal-Key` in the forwarded headers
+
+**`apps/bff/src/shared/http/backend-headers.spec.ts`** — **no changes needed** (`buildBackendHeaders` signature is unchanged; key is added at service level).
+
+---
 
 **Acceptance criteria:**
-- [ ] Request to `GET /internal/tenants/by-slug/:slug` without `X-Internal-Key` returns `401`
-- [ ] Request to `GET /internal/customers` without `X-Internal-Key` returns `401`
-- [ ] Request to `GET /internal/staff/by-email` without `X-Internal-Key` returns `401`
-- [ ] BFF OAuth callback still resolves tenant + staff/customer correctly after the guard is added (integration test passes unchanged)
-- [ ] `INTERNAL_API_KEY` shorter than 32 chars causes backend to refuse to boot
+- [ ] `GET /v1/bookings` without `X-Internal-Key` returns `401` (global guard covers all routes)
+- [ ] `GET /internal/tenants/by-slug/:slug` without `X-Internal-Key` returns `401`
+- [ ] `GET /internal/customers/tenants` without `X-Internal-Key` returns `401`
+- [ ] `GET /internal/staff/by-oauth` without `X-Internal-Key` returns `401`
+- [ ] `POST /internal/tenants` without `X-Internal-Key` returns `401` (global guard runs before `PlatformAdminGuard`)
+- [ ] `POST /internal/tenants` with valid `X-Internal-Key` but wrong `Authorization` still returns `401` (both guards must pass)
+- [ ] BFF OAuth callback still resolves tenant + staff/customer correctly (all `BackendHttpService` methods now propagate the key)
+- [ ] `getForPublic`, `postForPublic`, `patchForPublic` all include `X-Internal-Key` in their headers
+- [ ] `INTERNAL_API_KEY` shorter than 32 chars causes both backend and BFF to refuse to boot
 - [ ] Key comparison uses `timingSafeEqual` — no direct string comparison
+- [ ] New backend controllers added after this story require **zero** extra code to be protected
+- [ ] All three backend internal `.http` files have `X-Internal-Key: {{internalKey}}` on every request
 
 **Dependencies:** M03-S05 (BackendHttpService established), M02-S03 (env validation pattern)
 

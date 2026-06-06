@@ -5,7 +5,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-06-05 (M115-S01 shipped — GCS signed-URL adapter, BFF @Public() anti-pattern, adapter naming convention, overrideProviders in integration helpers; §8 + §10 updated)
+**Last updated:** 2026-06-06 (M115-S03 story extended — InternalApiGuard global via APP_GUARD; APP_GUARD anti-pattern added to §8 + ANTI_PATTERNS.md)
 
 ---
 
@@ -332,6 +332,7 @@ Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Highest-severity pa
 | `@Public()` BFF endpoint calling `backendHttp.post()` or `.patch()` | `JwtAuthGuard` skips `@Public()` routes — `req.user` is `undefined`, `post()` sends `X-Tenant-ID: ''`, backend rejects with 400 | Decode JWT manually with `tryDecodeRawJwt`, then use `postForPublic(path, body, user.tenantId)` which sets the header explicitly |
 | Infrastructure port implementation named `XxxService` | Misleads readers — services hold business logic, adapters implement ports | Name it `XxxAdapter` in `xxx.adapter.ts`; examples: `GcpPubSubEventBusAdapter`, `GcsSignedUrlAdapter` |
 | Tenant-isolation test with only supertest `.expect(404)` and no Jest `expect()` | SonarCloud S2699 — test has zero assertions | Destructure `{ body }` and add `expect(body.status).toBe(404)` |
+| `@UseGuards(InternalApiGuard)` on individual controllers instead of `APP_GUARD` in `AppModule` | New controllers silently skip the guard | Register `{ provide: APP_GUARD, useClass: InternalApiGuard }` in `AppModule.providers` — every controller is automatically protected |
 
 ---
 

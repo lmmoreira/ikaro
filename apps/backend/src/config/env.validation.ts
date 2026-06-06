@@ -15,6 +15,9 @@ const schema = z
     PLATFORM_ADMIN_KEY: z
       .string()
       .min(32, { message: 'PLATFORM_ADMIN_KEY must be at least 32 characters' }),
+    INTERNAL_API_KEY: z
+      .string()
+      .min(32, { message: 'INTERNAL_API_KEY must be at least 32 characters' }),
     PUBSUB_EMULATOR_HOST: z.string().optional(),
     PUBSUB_PROJECT_ID: z.string().default('beloauto-local'),
     PUBSUB_MAX_DELIVERY_ATTEMPTS: z.coerce.number().int().min(1).default(5),

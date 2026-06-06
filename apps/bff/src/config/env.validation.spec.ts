@@ -13,6 +13,7 @@ describe('validateEnv()', () => {
     ALLOWED_ORIGINS: 'http://localhost:3000',
     FRONTEND_URL: 'http://localhost:3000',
     CRON_SECRET: 'b'.repeat(32),
+    INTERNAL_API_KEY: 'c'.repeat(32),
   };
 
   it('returns parsed env when all required vars are present and valid', () => {

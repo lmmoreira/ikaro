@@ -111,3 +111,4 @@ jobs:
           GOOGLE_CALLBACK_URL: 'http://localhost:3002/v1/auth/google/callback'
           ALLOWED_ORIGINS: 'http://localhost:3000'
           CRON_SECRET: 'test-cron-secret-must-be-at-least-32-chars!!'
+          INTERNAL_API_KEY: 'test-internal-key-test-internal-key'

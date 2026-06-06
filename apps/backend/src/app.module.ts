@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BookingModule } from './contexts/booking/booking.module';
@@ -11,6 +11,7 @@ import { StaffModule } from './contexts/staff/staff.module';
 import { HealthController } from './health/health.controller';
 import { EventBusModule } from './shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from './shared/infrastructure/transaction-manager.module';
+import { InternalApiGuard } from './shared/guards/internal-api.guard';
 import { TenantInterceptor } from './shared/tenant/tenant.interceptor';
 import { TenantModule } from './shared/tenant/tenant.module';
 
@@ -42,6 +43,9 @@ import { TenantModule } from './shared/tenant/tenant.module';
     NotificationModule,
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
+  providers: [
+    { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
+    { provide: APP_GUARD, useClass: InternalApiGuard },
+  ],
 })
 export class AppModule {}

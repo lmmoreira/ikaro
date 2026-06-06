@@ -57,6 +57,7 @@ export async function createTestApp(): Promise<{
     'ALLOWED_ORIGINS',
     'CRON_SECRET',
     'ENABLE_DEV_AUTH',
+    'INTERNAL_API_KEY',
   ] as const;
 
   const originalEnv = Object.fromEntries(TEST_ENV_KEYS.map((k) => [k, process.env[k]]));
@@ -71,6 +72,7 @@ export async function createTestApp(): Promise<{
   process.env['ALLOWED_ORIGINS'] = 'http://localhost:3000';
   process.env['CRON_SECRET'] = 'test-cron-secret-must-be-at-least-32-chars!!';
   process.env['ENABLE_DEV_AUTH'] = 'true';
+  process.env['INTERNAL_API_KEY'] = 'test-internal-key-test-internal-key';
 
   const httpService: MockHttpService = {
     get: jest.fn(),

@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
@@ -11,12 +12,17 @@ import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { StaffEntity } from '../entities/staff.entity';
 import { StaffModule } from '../../staff.module';
+import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
+
+const INTERNAL_KEY = 'integ-staff-key-integ-staff-key-x'; // 33 chars (≥32)
 
 describe('InternalStaffController (integration) — auth-flow endpoints', () => {
   let app: INestApplication;
   let ds: DataSource;
 
   beforeAll(async () => {
+    process.env['INTERNAL_API_KEY'] = INTERNAL_KEY;
+
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
@@ -30,6 +36,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
         TransactionManagerModule,
         StaffModule,
       ],
+      providers: [{ provide: APP_GUARD, useClass: InternalApiGuard }],
     })
       .overrideProvider(EVENT_BUS)
       .useValue(new RoutingInMemoryEventBus())
@@ -43,12 +50,23 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
 
   afterAll(async () => {
     await app.close();
+    delete process.env['INTERNAL_API_KEY'];
+  });
+
+  it('returns 401 when X-Internal-Key header is absent', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get('/internal/staff/by-oauth?googleOAuthId=any-sub')
+      .expect(401);
+
+    expect(body.status).toBe(401);
+    expect(body.type).toBe('about:blank');
   });
 
   describe('GET /internal/staff/by-oauth', () => {
     it('returns 400 when googleOAuthId query param is absent', async () => {
       const { body } = await request(app.getHttpServer())
         .get('/internal/staff/by-oauth')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .expect(400);
 
       expect(body.status).toBe(400);
@@ -58,6 +76,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
     it('returns 404 when no staff is found for the given googleOAuthId', async () => {
       const { body } = await request(app.getHttpServer())
         .get('/internal/staff/by-oauth?googleOAuthId=google-sub-m03s07-unknown')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .expect(404);
 
       expect(body.status).toBe(404);
@@ -75,6 +94,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
 
       const { body } = await request(app.getHttpServer())
         .get('/internal/staff/by-oauth?googleOAuthId=google-sub-m03s07-active')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .expect(200);
 
       expect(body.staffId).toBe(entity.id);
@@ -95,6 +115,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
 
       const { body } = await request(app.getHttpServer())
         .get('/internal/staff/by-oauth?googleOAuthId=google-sub-m03s07-inactive')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .expect(200);
 
       expect(body.isActive).toBe(false);
@@ -112,6 +133,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
 
       const { body } = await request(app.getHttpServer())
         .get('/internal/staff/by-oauth?googleOAuthId=google-sub-m03s07-iso-a')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .expect(200);
 
       expect(body.tenantId).toBe('00000000-0000-0000-0000-000000000052');
@@ -120,14 +142,19 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
   });
 
   describe('GET /internal/staff/by-email', () => {
-    it('returns 400 when email or tenantId is absent', async () => {
-      await request(app.getHttpServer())
+    it('returns 400 when email is absent', async () => {
+      const { body } = await request(app.getHttpServer())
         .get('/internal/staff/by-email?tenantId=10000000-0000-4000-8000-000000000060')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .expect(400);
+      expect(body.status).toBe(400);
+    });
 
-      await request(app.getHttpServer())
+    it('returns 400 when tenantId is absent', async () => {
+      const response = await request(app.getHttpServer())
         .get('/internal/staff/by-email?email=staff@lavacar.com.br')
-        .expect(400);
+        .set('X-Internal-Key', INTERNAL_KEY);
+      expect(response.status).toBe(400);
     });
 
     it('returns 404 when no staff found for given email + tenantId', async () => {
@@ -135,6 +162,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
         .get(
           '/internal/staff/by-email?email=nobody-m04s01@lavacar.com.br&tenantId=10000000-0000-4000-8000-000000000060',
         )
+        .set('X-Internal-Key', INTERNAL_KEY)
         .expect(404);
 
       expect(body.status).toBe(404);
@@ -153,6 +181,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
         .get(
           '/internal/staff/by-email?email=invited-m04s01@lavacar.com.br&tenantId=10000000-0000-4000-8000-000000000060',
         )
+        .set('X-Internal-Key', INTERNAL_KEY)
         .expect(200);
 
       expect(body.staffId).toBe(entity.id);
@@ -173,6 +202,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
         .get(
           '/internal/staff/by-email?email=iso-m04s01@lavacar.com.br&tenantId=10000000-0000-4000-8000-000000000099',
         )
+        .set('X-Internal-Key', INTERNAL_KEY)
         .expect(404);
 
       expect(body.status).toBe(404);
@@ -183,6 +213,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
     it('returns 404 when staffId does not exist', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/internal/staff/10000000-0000-4000-8000-000000009999/activate')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           tenantId: '10000000-0000-4000-8000-000000000070',
           googleOAuthId: 'google-sub-m04s01-new',
@@ -204,6 +235,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
 
       const { body } = await request(app.getHttpServer())
         .post(`/internal/staff/${entity.id}/activate`)
+        .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           tenantId: '10000000-0000-4000-8000-000000000070',
           googleOAuthId: 'google-sub-m04s01-act',
@@ -226,6 +258,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
 
       const { body } = await request(app.getHttpServer())
         .post(`/internal/staff/${entity.id}/activate`)
+        .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           tenantId: '10000000-0000-4000-8000-000000000071',
           googleOAuthId: 'google-sub-m04s01-activated',
@@ -249,6 +282,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
 
       const { body } = await request(app.getHttpServer())
         .post(`/internal/staff/${entity.id}/activate`)
+        .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           tenantId: '10000000-0000-4000-8000-000000000099',
           googleOAuthId: 'google-sub-m04s01-iso',

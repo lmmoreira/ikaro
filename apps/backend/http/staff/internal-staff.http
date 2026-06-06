@@ -11,9 +11,10 @@
 #
 # REST Client environment: select "local" in VS Code status bar
 
-@baseUrl = {{backendUrl}}
-@sub     = google-sub-admin-a
-@staffId = {{managerId}}
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+@sub         = google-sub-admin-a
+@staffId     = {{managerId}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — by-oauth (UC-022)
@@ -21,6 +22,7 @@
 
 ### Get staff info for a known active Google OAuth ID
 GET {{baseUrl}}/internal/staff/by-oauth?googleOAuthId={{sub}}
+X-Internal-Key: {{internalKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — by-email (UC-025 first-login lookup)
@@ -30,6 +32,7 @@ GET {{baseUrl}}/internal/staff/by-oauth?googleOAuthId={{sub}}
 
 ### Find invited (inactive) staff by email + tenantId
 GET {{baseUrl}}/internal/staff/by-email?email=gerente@lavacar.com.br&tenantId={{tenantId}}
+X-Internal-Key: {{internalKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — activate (UC-025)
@@ -39,6 +42,7 @@ GET {{baseUrl}}/internal/staff/by-email?email=gerente@lavacar.com.br&tenantId={{
 
 ### Activate staff on first Google login
 POST {{baseUrl}}/internal/staff/{{staffId}}/activate
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -54,28 +58,38 @@ Content-Type: application/json
 
 ###
 
+### 401 — Missing X-Internal-Key (global guard)
+GET {{baseUrl}}/internal/staff/by-oauth?googleOAuthId={{sub}}
+
+###
+
 ### 400 — Missing googleOAuthId query parameter
 GET {{baseUrl}}/internal/staff/by-oauth
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### 400 — Missing email or tenantId for by-email
 GET {{baseUrl}}/internal/staff/by-email?tenantId={{tenantId}}
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### 404 — Google account not registered as staff
 GET {{baseUrl}}/internal/staff/by-oauth?googleOAuthId=unknown-sub-not-staff
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### 404 — No staff with that email in this tenant
 GET {{baseUrl}}/internal/staff/by-email?email=nobody@lavacar.com.br&tenantId={{tenantId}}
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### 404 — staffId not found in tenant
 POST {{baseUrl}}/internal/staff/non-existent-id/activate
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -89,6 +103,7 @@ Content-Type: application/json
 
 ### 422 — Google email does not match invited email
 POST {{baseUrl}}/internal/staff/{{staffId}}/activate
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {

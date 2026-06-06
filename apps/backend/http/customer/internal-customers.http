@@ -8,8 +8,9 @@
 #
 # REST Client environment: select "local" in VS Code status bar
 
-@baseUrl = {{backendUrl}}
-@sub = google-sub-customer-a
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+@sub         = google-sub-customer-a
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH
@@ -17,30 +18,41 @@
 
 ### Get all tenants for a known Google OAuth ID (single tenant → returns 1 entry)
 GET {{baseUrl}}/internal/customers/tenants?googleOAuthId={{sub}}
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### Get all tenants for an unknown Google OAuth ID (returns empty array)
 GET {{baseUrl}}/internal/customers/tenants?googleOAuthId=unknown-sub-xyz
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### UC-023 — Get all tenants for a customer by customerId + current tenantId (switch-tenant flow)
 GET {{baseUrl}}/internal/customers/{{customerId}}/tenants?tenantId={{tenantId}}
+X-Internal-Key: {{internalKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
 
+### 401 — Missing X-Internal-Key (global guard)
+GET {{baseUrl}}/internal/customers/tenants?googleOAuthId={{sub}}
+
+###
+
 ### 400 — Missing googleOAuthId query parameter
 GET {{baseUrl}}/internal/customers/tenants
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### 400 — Missing tenantId query parameter for by-id tenants lookup
 GET {{baseUrl}}/internal/customers/{{customerId}}/tenants
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### 404 — Customer not found for given customerId + tenantId
 GET {{baseUrl}}/internal/customers/00000000-0000-4000-8000-000000009999/tenants?tenantId={{tenantId}}
+X-Internal-Key: {{internalKey}}

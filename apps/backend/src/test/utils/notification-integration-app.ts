@@ -21,7 +21,9 @@ import { NotificationTemplateEntity } from '../../contexts/notification/infrastr
 import { NotificationModule } from '../../contexts/notification/notification.module';
 import { InMemoryNotificationDispatcher } from '../infrastructure/in-memory-notification-dispatcher';
 import { EVENT_BUS, IEventBus } from '../../shared/ports/event-bus.port';
+import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
+import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
 
 type EntityClass = abstract new (...args: unknown[]) => unknown;
 
@@ -78,7 +80,9 @@ export async function createNotificationIntegrationApp(
     .overrideProvider(EVENT_BUS)
     .useValue(routingBus)
     .overrideProvider(NOTIFICATION_DISPATCHER)
-    .useValue(dispatcher);
+    .useValue(dispatcher)
+    .overrideProvider(STORAGE_SERVICE)
+    .useValue(new InMemoryStorageService());
 
   if (configure) {
     builder = configure(builder);

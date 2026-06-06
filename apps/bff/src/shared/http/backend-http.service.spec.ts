@@ -8,9 +8,16 @@ import { BackendHttpService } from './backend-http.service';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
 
 const BACKEND_URL = 'http://backend:3001';
+const INTERNAL_KEY = 'test-internal-key-test-internal-key';
 
 function makeConfigService(): ConfigService {
-  return { getOrThrow: jest.fn().mockReturnValue(BACKEND_URL) } as unknown as ConfigService;
+  return {
+    getOrThrow: jest.fn().mockImplementation((key: string) => {
+      if (key === 'BACKEND_INTERNAL_URL') return BACKEND_URL;
+      if (key === 'INTERNAL_API_KEY') return INTERNAL_KEY;
+      throw new Error(`Unknown config key: ${key}`);
+    }),
+  } as unknown as ConfigService;
 }
 
 function makeService(
@@ -136,7 +143,7 @@ describe('BackendHttpService', () => {
   });
 
   describe('patchForPublic()', () => {
-    it('calls HttpService.patch with only X-Tenant-ID header (no actor headers)', async () => {
+    it('calls HttpService.patch with X-Tenant-ID and X-Internal-Key (no actor headers)', async () => {
       const { service, http } = makeService({ tenantId: 'tid-actor' });
       http.patch.mockReturnValue(axiosOf({ updated: true }));
 
@@ -150,7 +157,7 @@ describe('BackendHttpService', () => {
         'http://backend:3001/bookings/b1/submit-info/guest',
         { response: 'ok' },
         expect.objectContaining({
-          headers: { 'X-Tenant-ID': 'tid-guest' },
+          headers: { 'X-Tenant-ID': 'tid-guest', 'X-Internal-Key': INTERNAL_KEY },
           timeout: 10_000,
         }),
       );
@@ -180,6 +187,20 @@ describe('BackendHttpService', () => {
   });
 
   describe('headers()', () => {
+    it('includes X-Internal-Key on every call regardless of auth state', async () => {
+      const { service, http } = makeService(undefined);
+      http.get.mockReturnValue(axiosOf({}));
+
+      await service.get('/public');
+
+      expect(http.get).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'X-Internal-Key': INTERNAL_KEY }),
+        }),
+      );
+    });
+
     it('uses empty string for X-Tenant-ID when no authenticated user', async () => {
       const { service, http } = makeService(undefined);
       http.get.mockReturnValue(axiosOf({}));

@@ -9,9 +9,10 @@
 # REST Client reads PLATFORM_ADMIN_KEY from apps/backend/.env automatically.
 # Switch environment (bottom-right VS Code status bar): select "local"
 
-@baseUrl    = {{backendUrl}}
-@adminKey   = {{$dotenv PLATFORM_ADMIN_KEY}}
-@authHeader = Bearer {{adminKey}}
+@baseUrl     = {{backendUrl}}
+@adminKey    = {{$dotenv PLATFORM_ADMIN_KEY}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+@authHeader  = Bearer {{adminKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH
@@ -21,6 +22,7 @@
 # @name provisionTenant
 POST {{baseUrl}}/internal/tenants
 Authorization: {{authHeader}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -34,6 +36,7 @@ Content-Type: application/json
 ### Provision a new tenant (explicit timezone)
 POST {{baseUrl}}/internal/tenants
 Authorization: {{authHeader}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -47,8 +50,14 @@ Content-Type: application/json
 # ERROR CASES — useful to verify guard + validation are working
 # ─────────────────────────────────────────────────────────────────────────────
 
-### 401 — Missing Authorization header
+### 401 — Missing X-Internal-Key (global guard)
+GET {{baseUrl}}/internal/tenants/by-slug/lavacar-bh
+
+###
+
+### 401 — Missing Authorization header (PlatformAdminGuard — X-Internal-Key present)
 POST {{baseUrl}}/internal/tenants
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -59,9 +68,10 @@ Content-Type: application/json
 
 ###
 
-### 401 — Wrong API key
+### 401 — Wrong API key (PlatformAdminGuard — X-Internal-Key present)
 POST {{baseUrl}}/internal/tenants
 Authorization: Bearer wrong-key
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -75,6 +85,7 @@ Content-Type: application/json
 ### 400 — Invalid slug format (uppercase + space)
 POST {{baseUrl}}/internal/tenants
 Authorization: {{authHeader}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -88,6 +99,7 @@ Content-Type: application/json
 ### 400 — Invalid email
 POST {{baseUrl}}/internal/tenants
 Authorization: {{authHeader}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -101,6 +113,7 @@ Content-Type: application/json
 ### 400 — Invalid IANA timezone
 POST {{baseUrl}}/internal/tenants
 Authorization: {{authHeader}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -115,6 +128,7 @@ Content-Type: application/json
 ### 409 — Duplicate slug (run the happy-path request first, then this one)
 POST {{baseUrl}}/internal/tenants
 Authorization: {{authHeader}}
+X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
@@ -130,8 +144,10 @@ Content-Type: application/json
 ### Happy path — get tenant info by ID (run provisionTenant above first)
 @tenantId = {{provisionTenant.response.body.tenantId}}
 GET {{baseUrl}}/internal/tenants/{{tenantId}}
+X-Internal-Key: {{internalKey}}
 
 ###
 
 ### 404 — Unknown tenant ID
 GET {{baseUrl}}/internal/tenants/00000000-0000-0000-0000-000000000000
+X-Internal-Key: {{internalKey}}

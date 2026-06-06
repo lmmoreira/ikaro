@@ -9,8 +9,6 @@ import {
 } from '../../application/use-cases/get-tenant-by-slug.use-case';
 import { mapPlatformError } from '../http/platform-error.mapper';
 
-// MVP: protected at network level (backend not exposed publicly — BFF-only access).
-// Future: add InternalApiGuard checking X-Internal-Key header.
 @Controller('internal/tenants')
 export class InternalTenantReadController {
   constructor(

@@ -20,6 +20,8 @@ import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
+import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
+import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 
 export interface BookingIntegrationAppOptions {
   extraModules?: NonNullable<ModuleMetadata['imports']>;
@@ -60,7 +62,9 @@ export async function createBookingIntegrationApp(
     providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
   })
     .overrideProvider(EVENT_BUS)
-    .useValue(routingBus);
+    .useValue(routingBus)
+    .overrideProvider(STORAGE_SERVICE)
+    .useValue(new InMemoryStorageService());
 
   for (const { provide, useValue } of overrideProviders) {
     builder = builder.overrideProvider(provide).useValue(useValue);
