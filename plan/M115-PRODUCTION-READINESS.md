@@ -210,7 +210,7 @@ Content-Type: application/json
 
 ---
 
-### M115-S03 — InternalApiGuard: global BFF↔backend shared-secret gate
+### M115-S03 — InternalApiGuard: global BFF↔backend shared-secret gate ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
