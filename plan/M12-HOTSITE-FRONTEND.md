@@ -11,7 +11,7 @@
 
 ---
 
-### M12-S01 — HotsiteConfig domain update + manifest API
+### M12-S01 — HotsiteConfig domain update + manifest API ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
