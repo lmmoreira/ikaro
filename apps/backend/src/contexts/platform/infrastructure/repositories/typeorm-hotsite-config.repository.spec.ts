@@ -1,6 +1,6 @@
 import { EntityManager, Repository } from 'typeorm';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
-import { HotsiteConfig } from '../../domain/hotsite-config.aggregate';
+import { DEFAULT_HOTSITE_BRANDING, HotsiteConfig } from '../../domain/hotsite-config.aggregate';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TypeOrmHotsiteConfigRepository } from './typeorm-hotsite-config.repository';
 import {
@@ -30,7 +30,7 @@ describe('TypeOrmHotsiteConfigRepository', () => {
       expect(result!.id).toBe('config-id-1');
       expect(result!.tenantId).toBe('tenant-id-1');
       expect(result!.isPublished).toBe(false);
-      expect(result!.branding).toEqual({ primaryColor: '#FFFFFF' });
+      expect(result!.branding).toEqual(DEFAULT_HOTSITE_BRANDING);
       expect(result!.layout).toHaveLength(1);
       expect(mockRepo.findOne).toHaveBeenCalledWith({ where: { tenantId: 'tenant-id-1' } });
     });
@@ -52,9 +52,22 @@ describe('TypeOrmHotsiteConfigRepository', () => {
 
   describe('save', () => {
     it('maps domain aggregate to entity and persists via repo when no transaction is active', async () => {
+      const branding = { ...DEFAULT_HOTSITE_BRANDING, primaryColor: '#112233' };
+      const layout = [
+        {
+          type: 'HERO' as const,
+          enabled: true,
+          data: {
+            variant: 'centered' as const,
+            title: 'Bem-vindo',
+            ctaLabel: 'Agendar',
+            ctaTarget: 'booking' as const,
+          },
+        },
+      ];
       const config = new HotsiteConfigBuilder()
         .withTenantId('tenant-id-2')
-        .buildWithContent({ primaryColor: '#112233' }, [{ type: 'HERO', order: 1 }]);
+        .buildWithContent(branding, layout);
       mockRepo.save.mockResolvedValue({} as HotsiteConfigEntity);
 
       await repo.save(config);
@@ -63,7 +76,7 @@ describe('TypeOrmHotsiteConfigRepository', () => {
       const savedEntity = mockRepo.save.mock.calls[0][0] as HotsiteConfigEntity;
       expect(savedEntity.id).toBe(config.id);
       expect(savedEntity.tenantId).toBe('tenant-id-2');
-      expect(savedEntity.branding).toEqual({ primaryColor: '#112233' });
+      expect(savedEntity.branding).toEqual(branding);
       expect(savedEntity.layout).toHaveLength(1);
       expect(savedEntity.isPublished).toBe(false);
     });

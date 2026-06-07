@@ -1,4 +1,21 @@
+import {
+  DEFAULT_HOTSITE_BRANDING,
+  HotsiteModule,
+} from '../../../contexts/platform/domain/hotsite-config.aggregate';
 import { HotsiteConfigEntity } from '../../../contexts/platform/infrastructure/entities/hotsite-config.entity';
+
+const DEFAULT_LAYOUT: HotsiteModule[] = [
+  {
+    type: 'HERO',
+    enabled: true,
+    data: {
+      variant: 'centered',
+      title: 'Cuidado completo para o seu carro',
+      ctaLabel: 'Agendar agora',
+      ctaTarget: 'booking',
+    },
+  },
+];
 
 export class HotsiteConfigEntityBuilder {
   private id = 'config-id-1';
@@ -25,8 +42,8 @@ export class HotsiteConfigEntityBuilder {
     const e = new HotsiteConfigEntity();
     e.id = this.id;
     e.tenantId = this.tenantId;
-    e.branding = { primaryColor: '#FFFFFF' };
-    e.layout = [{ type: 'HERO', order: 1 }];
+    e.branding = { ...DEFAULT_HOTSITE_BRANDING };
+    e.layout = DEFAULT_LAYOUT;
     e.isPublished = this.isPublished;
     e.updatedAt = this.updatedAt;
     return e;

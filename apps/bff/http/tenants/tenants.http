@@ -1,0 +1,29 @@
+# BFF — Tenants endpoints (public)
+# M12-S01: Hotsite manifest — used by the Next.js hotsite renderer
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @beloauto/backend run migration:run
+#   3. pnpm --filter @beloauto/backend run dev
+#   4. pnpm --filter @beloauto/bff run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Get the hotsite manifest for a tenant by slug (public — no auth required)
+GET {{bffUrl}}/v1/tenants/slug/{{tenantSlug}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 404 — Unknown tenant slug
+GET {{bffUrl}}/v1/tenants/slug/no-such-tenant-slug
+
+###
+
+### 404 — Hotsite exists but is not published
+GET {{bffUrl}}/v1/tenants/slug/unpublished-hotsite-tenant

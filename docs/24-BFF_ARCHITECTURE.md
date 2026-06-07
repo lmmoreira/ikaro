@@ -45,10 +45,10 @@ apps/bff/src/
 │   ├── loyalty.controller.ts     ← /loyalty/balance, /loyalty/entries
 │   └── loyalty.service.ts
 │
-├── tenant/
-│   ├── tenant.module.ts
-│   ├── tenant.controller.ts      ← /tenants/slug/:slug (hotsite manifest — public, no auth required)
-│   └── tenant.service.ts
+├── tenants/
+│   ├── tenants.module.ts
+│   ├── tenants.controller.ts     ← /tenants/slug/:slug (hotsite manifest — public, no auth required)
+│   └── tenants.service.ts
 │
 ├── schedule/
 │   ├── schedule.module.ts
@@ -261,7 +261,7 @@ export class BackendHttpService {
 | `POST /auth/token` | No | No | — |
 | `GET /auth/tenants` | Temporary code | No | — |
 | `POST /auth/switch-tenant` | JWT | No | CUSTOMER |
-| `GET /tenants/slug/:slug` | No | X-Tenant-Slug | — |
+| `GET /tenants/slug/:slug` | No | No (slug is the path param) | — |
 | `GET /services` | No | X-Tenant-Slug | — |
 | `GET /schedule/availability` | No | X-Tenant-Slug | — |
 | `POST /bookings` | No (guest) or JWT | X-Tenant-Slug | — |

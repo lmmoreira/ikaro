@@ -46,6 +46,34 @@ interface HotsiteBranding {
 }
 ```
 
+**Backend endpoint (new — Platform context):**
+- `GET /hotsite` — reached via BFF `getForPublic` (like `services`/`schedule`); resolves `tenantId` from `TenantContext` (populated from `X-Tenant-ID` set by the BFF)
+- Returns `{ branding: HotsiteBranding, layout: HotsiteModule[], isPublished: boolean }`
+- Throws `HotsiteNotPublishedError` when `isPublished === false` → mapped to `404` (kept separate from M12-S02's admin `GET /v1/tenants/hotsite`, which always returns full state regardless of publish status)
+- Throws `HotsiteNotFoundError` if no `hotsite_configs` row exists for the tenant → `404`
+
+**BFF orchestration (`GET /v1/tenants/slug/:slug`):**
+1. `GET /internal/tenants/by-slug/:slug` → `{ id, name, slug }` (404 if tenant not found)
+2. `getForPublic('/hotsite', tenant.id)` → `{ branding, layout, isPublished }` (404 if not published)
+3. Composes `{ tenant, branding, layout, isPublished }`, sets `Cache-Control: public, max-age=300`
+
+**Default branding (set by `HotsiteConfig.create()` on tenant provisioning):**
+```typescript
+{
+  primaryColor: '#2563eb',
+  secondaryColor: '#eff6ff',
+  backgroundColor: '#ffffff',
+  textColor: '#111827',
+  headingFontFamily: 'Inter, sans-serif',
+  bodyFontFamily: 'Inter, sans-serif',
+  logoUrl: '',
+  borderRadius: 'rounded',
+  buttonStyle: 'filled',
+  spacing: 'comfortable',
+  shadowStyle: 'subtle',
+}
+```
+
 **BFF endpoint:** `GET /v1/tenants/slug/:slug`
 - **Public** — no auth required
 - Returns full manifest:
@@ -84,6 +112,7 @@ interface HotsiteBranding {
 - [ ] Non-existent slug returns `404`
 - [ ] Response is cacheable: `Cache-Control: public, max-age=300` header set
 - [ ] BFF adds `Cache-Control` header — Next.js ISR will respect it
+- [ ] Tenant isolation: `GET /v1/tenants/slug/slug-b` does not return tenant A's hotsite data
 
 **Dependencies:** M02-S03, M03-S05
 

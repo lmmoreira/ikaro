@@ -26,3 +26,17 @@ export class TenantInactiveError extends PlatformDomainError {
     this.name = 'TenantInactiveError';
   }
 }
+
+export class HotsiteNotFoundError extends PlatformDomainError {
+  constructor(tenantId: string) {
+    super(`Hotsite config for tenant '${tenantId}' not found`);
+    this.name = 'HotsiteNotFoundError';
+  }
+}
+
+export class HotsiteNotPublishedError extends PlatformDomainError {
+  constructor(tenantId: string) {
+    super(`Hotsite for tenant '${tenantId}' is not published`);
+    this.name = 'HotsiteNotPublishedError';
+  }
+}

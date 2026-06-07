@@ -5,6 +5,7 @@ import { TypeOrmHotsiteConfigRepository } from './typeorm-hotsite-config.reposit
 import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { TenantBuilder, HotsiteConfigBuilder } from '../../../../test/builders/platform';
+import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate';
 
 describe('Platform repositories (integration)', () => {
   let dataSource: DataSource;
@@ -72,11 +73,35 @@ describe('Platform repositories (integration)', () => {
     expect(initial!.layout).toHaveLength(0);
 
     // Admin sets branding and layout modules
-    config.updateContent({ primaryColor: '#FF5733', logoUrl: 'https://cdn.example.com/logo.png' }, [
-      { type: 'HERO', order: 1 },
-      { type: 'SERVICE_LIST', order: 2 },
-      { type: 'BOOKING_CTA', order: 3 },
-    ]);
+    config.updateContent(
+      {
+        ...DEFAULT_HOTSITE_BRANDING,
+        primaryColor: '#FF5733',
+        logoUrl: 'https://cdn.example.com/logo.png',
+      },
+      [
+        {
+          type: 'HERO',
+          enabled: true,
+          data: {
+            variant: 'centered',
+            title: 'Bem-vindo',
+            ctaLabel: 'Agendar',
+            ctaTarget: 'booking',
+          },
+        },
+        {
+          type: 'SERVICE_LIST',
+          enabled: true,
+          data: { showPrices: true, showPoints: true, layout: 'grid' },
+        },
+        {
+          type: 'BOOKING_CTA',
+          enabled: true,
+          data: { title: 'Agende já', ctaLabel: 'Agendar agora' },
+        },
+      ],
+    );
     await hotsiteRepo.save(config);
 
     const branded = await hotsiteRepo.findByTenantId(tenant.id);

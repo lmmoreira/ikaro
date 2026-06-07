@@ -155,22 +155,40 @@ For even better performance with large datasets (Phase 2), consider cursor-based
 
 ## 2. Tenant & Service Discovery
 
-### **Tenant Details (Hotsite - UC-001, UC-011)**
-Used by the React app to fetch branding and layout for a slug.
+### **Tenant Hotsite Manifest (Public — UC-001, UC-011, M12-S01)**
+Used by the Next.js hotsite renderer to fetch full branding and layout for a tenant slug.
 - `GET /tenants/slug/:slug`
+- **Public** — no auth required; no `X-Tenant-Slug` header needed (slug is the path param)
+- **Response headers:** `Cache-Control: public, max-age=300` (Next.js ISR respects this)
 - **Response:** `200 OK` with **Hotsite Manifest**:
   ```json
   {
-    "tenant": { "name": "...", "slug": "..." },
-    "branding": { "primaryColor": "...", "logoUrl": "..." },
+    "tenant": { "id": "uuid-v7", "name": "Lavacar BeloAuto", "slug": "lavacar-beloauto" },
+    "branding": {
+      "primaryColor": "#f97316",
+      "secondaryColor": "#fff7ed",
+      "backgroundColor": "#ffffff",
+      "textColor": "#111827",
+      "headingFontFamily": "Inter, sans-serif",
+      "bodyFontFamily": "Inter, sans-serif",
+      "logoUrl": "https://storage.googleapis.com/tenants/.../logo.png",
+      "borderRadius": "rounded",
+      "buttonStyle": "filled",
+      "spacing": "comfortable",
+      "shadowStyle": "subtle"
+    },
     "layout": [
-      { "type": "HERO", "data": { "title": "...", "image": "..." } },
-      { "type": "SERVICE_LIST", "data": { "showPrices": true } },
-      { "type": "GALLERY", "data": { "limit": 6 } },
-      { "type": "BOOKING_FORM", "data": { "simplified": false } }
-    ]
+      { "type": "HERO",         "enabled": true,  "data": { "variant": "centered", "title": "Bem-vindo", "ctaLabel": "Agendar agora", "ctaTarget": "booking" } },
+      { "type": "SERVICE_LIST", "enabled": true,  "data": { "showPrices": true, "showPoints": true, "layout": "grid" } },
+      { "type": "GALLERY",      "enabled": false, "data": { "images": [], "layout": "grid", "maxVisible": 6 } }
+    ],
+    "isPublished": true
   }
   ```
+- **Module types:** `HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTACT`
+- **`enabled: false`** modules are included in the response; the frontend decides to skip them
+- `404` — tenant slug not found
+- `404` — hotsite exists but `isPublished: false` (public cannot see unpublished hotsites)
 
 ### **Service Management (Admin - UC-012, UC-013)**
 - `GET /services` -> List all services (Public/Admin). Each item includes:

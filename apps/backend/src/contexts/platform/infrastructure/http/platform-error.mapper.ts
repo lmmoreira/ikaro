@@ -1,6 +1,8 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ProblemDetail } from '../../../../shared/http/problem-detail';
 import {
+  HotsiteNotFoundError,
+  HotsiteNotPublishedError,
   PlatformDomainError,
   SlugAlreadyTakenError,
   TenantInactiveError,
@@ -26,7 +28,16 @@ export function mapPlatformError(err: unknown): never {
     };
     throw new HttpException(body, HttpStatus.CONFLICT);
   }
-  if (err instanceof TenantNotFoundError) {
+  if (err instanceof TenantNotFoundError || err instanceof HotsiteNotFoundError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Not Found',
+      status: HttpStatus.NOT_FOUND,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.NOT_FOUND);
+  }
+  if (err instanceof HotsiteNotPublishedError) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Not Found',

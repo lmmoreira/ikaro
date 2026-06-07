@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
-import { HotsiteBranding, LayoutModule } from '../../domain/hotsite-config.aggregate';
+import { HotsiteBranding, HotsiteModule } from '../../domain/hotsite-config.aggregate';
 
 @Entity('hotsite_configs', { schema: 'platform' })
 export class HotsiteConfigEntity {
@@ -13,7 +13,7 @@ export class HotsiteConfigEntity {
   branding!: HotsiteBranding;
 
   @Column({ type: 'jsonb' })
-  layout!: LayoutModule[];
+  layout!: HotsiteModule[];
 
   @Column({ name: 'is_published', type: 'boolean', default: false })
   isPublished!: boolean;

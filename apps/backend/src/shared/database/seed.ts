@@ -140,16 +140,58 @@ async function seedTenants(q: ReturnType<DataSource['createQueryRunner']>): Prom
 }
 
 async function seedHotsites(q: ReturnType<DataSource['createQueryRunner']>): Promise<void> {
-  const brandingA = JSON.stringify({ primaryColor: '#0055A4', logoUrl: null });
-  const brandingB = JSON.stringify({ primaryColor: '#C8102E', logoUrl: null });
+  const baseBranding = {
+    secondaryColor: '#eff6ff',
+    backgroundColor: '#ffffff',
+    textColor: '#111827',
+    headingFontFamily: 'Inter, sans-serif',
+    bodyFontFamily: 'Inter, sans-serif',
+    logoUrl: '',
+    borderRadius: 'rounded',
+    buttonStyle: 'filled',
+    spacing: 'comfortable',
+    shadowStyle: 'subtle',
+  };
+  const brandingA = JSON.stringify({ ...baseBranding, primaryColor: '#0055A4' });
+  const brandingB = JSON.stringify({ ...baseBranding, primaryColor: '#C8102E' });
   const layoutA = JSON.stringify([
-    { type: 'HERO', order: 1 },
-    { type: 'SERVICE_LIST', order: 2 },
-    { type: 'BOOKING_CTA', order: 3 },
+    {
+      type: 'HERO',
+      enabled: true,
+      data: {
+        variant: 'centered',
+        title: 'Cuidado completo para o seu carro',
+        ctaLabel: 'Agendar agora',
+        ctaTarget: 'booking',
+      },
+    },
+    {
+      type: 'SERVICE_LIST',
+      enabled: true,
+      data: { showPrices: true, showPoints: true, layout: 'grid' },
+    },
+    {
+      type: 'BOOKING_CTA',
+      enabled: true,
+      data: { title: 'Agende seu horário', ctaLabel: 'Agendar agora' },
+    },
   ]);
   const layoutB = JSON.stringify([
-    { type: 'HERO', order: 1 },
-    { type: 'SERVICE_LIST', order: 2 },
+    {
+      type: 'HERO',
+      enabled: true,
+      data: {
+        variant: 'centered',
+        title: 'Seu carro impecável',
+        ctaLabel: 'Agendar agora',
+        ctaTarget: 'booking',
+      },
+    },
+    {
+      type: 'SERVICE_LIST',
+      enabled: true,
+      data: { showPrices: true, showPoints: true, layout: 'grid' },
+    },
   ]);
   await q.query(
     `INSERT INTO platform.hotsite_configs (id, tenant_id, branding, layout, is_published) VALUES

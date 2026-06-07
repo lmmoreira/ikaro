@@ -1,5 +1,3 @@
-import type { HotsiteModuleType } from './enums';
-
 export interface BusinessHours {
   open: string; // "HH:MM"
   close: string; // "HH:MM"
@@ -28,40 +26,4 @@ export interface TenantSettings {
 
 export interface UpdateTenantSettingsRequest {
   settings: Partial<TenantSettings>;
-}
-
-export interface HotsiteModule {
-  type: HotsiteModuleType;
-  order: number;
-  visible: boolean;
-  config?: Record<string, unknown>;
-}
-
-export interface HotsiteConfigResponse {
-  id: string;
-  tenantId: string;
-  tenantSlug: string;
-  tenantName: string;
-  logoUrl?: string;
-  primaryColor?: string;
-  modules: HotsiteModule[];
-  isPublished: boolean;
-  updatedAt: string;
-}
-
-export interface UpdateHotsiteRequest {
-  tenantName?: string;
-  logoUrl?: string;
-  primaryColor?: string;
-  modules?: HotsiteModule[];
-  isPublished?: boolean;
-}
-
-export interface TenantManifestResponse {
-  tenantId: string;
-  tenantSlug: string;
-  tenantName: string;
-  logoUrl?: string;
-  primaryColor?: string;
-  modules: HotsiteModule[];
 }

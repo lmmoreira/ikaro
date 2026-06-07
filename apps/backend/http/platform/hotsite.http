@@ -1,0 +1,34 @@
+# Platform — Hotsite Manifest (public)
+# M12-S01: HotsiteConfig domain + manifest API
+# Reached via BFF GET /v1/tenants/slug/:slug → getForPublic('/hotsite', tenantId)
+# TenantContext is populated from X-Tenant-ID (set by the BFF). No actor required.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @beloauto/backend run migration:run
+#   3. pnpm --filter @beloauto/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Get the published hotsite manifest for a tenant
+GET {{baseUrl}}/hotsite
+X-Tenant-ID: {{tenantId}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 400 — Missing X-Tenant-ID header
+GET {{baseUrl}}/hotsite
+
+###
+
+### 404 — Hotsite is not published (or no config exists yet for the tenant)
+GET {{baseUrl}}/hotsite
+X-Tenant-ID: 00000000-0000-4000-8000-000000009999
