@@ -568,7 +568,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
 
 ---
 
-### M12-S10 — Hotsite public image storage: bucket separation + booking-photo featuring + publish revalidation
+### M12-S10 — Hotsite public image storage: bucket separation + booking-photo featuring + publish revalidation ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
