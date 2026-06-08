@@ -25,9 +25,7 @@ export class HotsiteImagePathsService {
 
     if (module.type === 'GALLERY') {
       const images = (data.images as GalleryImage[] | undefined) ?? [];
-      for (const image of images) {
-        if (image.source === 'upload') this.pushIfPath(paths, image.url);
-      }
+      for (const image of images) this.pushIfPath(paths, image.url);
     }
   }
 

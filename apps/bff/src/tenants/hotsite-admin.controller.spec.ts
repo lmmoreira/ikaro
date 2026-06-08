@@ -1,6 +1,7 @@
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { HotsiteAdminController } from './hotsite-admin.controller';
 import {
+  FeatureBookingPhotoResponse,
   GenerateHotsiteImageSignedUrlResponse,
   HotsiteAdminContentResponse,
   PublishHotsiteResponse,
@@ -44,6 +45,12 @@ const signedUrlResponse: GenerateHotsiteImageSignedUrlResponse = {
   signedUrl: 'https://storage.example.com/signed?token=abc',
   filePath: 'tenants/10000000-0000-4000-8000-000000000001/hotsite/branding/u1/logo.png',
   expiresAt: '2026-06-01T10:15:00.000Z',
+};
+
+const featureBookingPhotoResponse: FeatureBookingPhotoResponse = {
+  filePath: 'tenants/10000000-0000-4000-8000-000000000001/hotsite/gallery/g1/after-1.jpg',
+  url: 'https://public.storage.example.com/tenants/10000000-0000-4000-8000-000000000001/hotsite/gallery/g1/after-1.jpg',
+  photoType: 'after',
 };
 
 describe('HotsiteAdminController', () => {
@@ -161,6 +168,36 @@ describe('HotsiteAdminController', () => {
           purpose: 'branding',
         }),
       ).rejects.toThrow('400');
+    });
+  });
+
+  describe('featureBookingPhoto()', () => {
+    const body = {
+      bookingId: '20000000-0000-4000-8000-000000000001',
+      photoUrl:
+        'tenants/10000000-0000-4000-8000-000000000001/bookings/20000000-0000-4000-8000-000000000001/after-1.jpg',
+    };
+
+    it('calls POST /tenants/hotsite/gallery/feature-booking-photo with the parsed body and returns the featured photo', async () => {
+      const backendHttp = makeBackendHttp({
+        post: jest.fn().mockResolvedValue(featureBookingPhotoResponse),
+      });
+      const controller = new HotsiteAdminController(backendHttp);
+
+      const result = await controller.featureBookingPhoto(body);
+
+      expect(backendHttp.post).toHaveBeenCalledWith(
+        '/tenants/hotsite/gallery/feature-booking-photo',
+        body,
+      );
+      expect(result).toEqual(featureBookingPhotoResponse);
+    });
+
+    it('propagates errors from the backend', async () => {
+      const backendHttp = makeBackendHttp({ post: jest.fn().mockRejectedValue(new Error('404')) });
+      const controller = new HotsiteAdminController(backendHttp);
+
+      await expect(controller.featureBookingPhoto(body)).rejects.toThrow('404');
     });
   });
 });

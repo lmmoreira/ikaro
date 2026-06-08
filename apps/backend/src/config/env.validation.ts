@@ -24,6 +24,8 @@ const schema = z
     PUBSUB_AUTO_CREATE: z.coerce.boolean().default(true),
     GCS_EMULATOR_HOST: z.string().optional(),
     GCS_BUCKET_NAME: z.string().default('beloauto-local'),
+    GCS_PUBLIC_BUCKET_NAME: z.string().default('beloauto-local-public'),
+    GCS_PUBLIC_BASE_URL: z.string().default('https://storage.googleapis.com'),
     GCS_KEY_FILE: z.string().optional(),
     GCS_MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(10_485_760),
     SMTP_HOST: z.string().default('localhost'),
@@ -35,6 +37,9 @@ const schema = z
     SENDGRID_API_KEY: z.string().min(1).optional(),
     FRONTEND_URL: z.string().default('http://localhost:3000'),
     JWT_SECRET: z.string().min(32, { message: 'JWT_SECRET must be at least 32 characters' }),
+    HOTSITE_REVALIDATE_SECRET: z
+      .string()
+      .min(32, { message: 'HOTSITE_REVALIDATE_SECRET must be at least 32 characters' }),
   })
   .superRefine((data, ctx) => {
     if (data.EMAIL_ADAPTER === 'sendgrid' && !data.SENDGRID_API_KEY) {

@@ -56,3 +56,9 @@ export interface GenerateHotsiteImageSignedUrlResponse {
   filePath: string;
   expiresAt: string;
 }
+
+export interface FeatureBookingPhotoResponse {
+  filePath: string;
+  url: string;
+  photoType: 'before' | 'after';
+}

@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ProblemDetail } from '../../../../shared/http/problem-detail';
 import {
+  FeaturedBookingNotFoundError,
   HotsiteNotFoundError,
   HotsiteNotPublishedError,
   PlatformDomainError,
@@ -28,7 +29,11 @@ export function mapPlatformError(err: unknown): never {
     };
     throw new HttpException(body, HttpStatus.CONFLICT);
   }
-  if (err instanceof TenantNotFoundError || err instanceof HotsiteNotFoundError) {
+  if (
+    err instanceof TenantNotFoundError ||
+    err instanceof HotsiteNotFoundError ||
+    err instanceof FeaturedBookingNotFoundError
+  ) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Not Found',

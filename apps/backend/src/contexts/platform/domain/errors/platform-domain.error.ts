@@ -47,3 +47,17 @@ export class HotsiteImageNotUploadedError extends PlatformDomainError {
     this.name = 'HotsiteImageNotUploadedError';
   }
 }
+
+export class FeaturedBookingNotFoundError extends PlatformDomainError {
+  constructor(bookingId: string) {
+    super(`Booking '${bookingId}' not found`);
+    this.name = 'FeaturedBookingNotFoundError';
+  }
+}
+
+export class PhotoNotOnBookingError extends PlatformDomainError {
+  constructor(photoUrl: string) {
+    super(`Photo '${photoUrl}' was not found on the booking's before/after photo lists`);
+    this.name = 'PhotoNotOnBookingError';
+  }
+}

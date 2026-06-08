@@ -40,6 +40,16 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
     expect(result.expiresAt).toBe('2099-01-01T00:00:00.000Z');
   });
 
+  it('targets the public bucket — hotsite images are permanent public marketing assets', async () => {
+    const result = await useCase.execute({
+      fileName: 'hero.jpg',
+      contentType: 'image/jpeg',
+      purpose: 'hero',
+    });
+
+    expect(result.signedUrl).toContain('beloauto-local-public');
+  });
+
   it('scopes the generated path to the requesting tenant', async () => {
     const useCaseB = new GenerateHotsiteImageSignedUrlUseCase(
       new TenantContextBuilder().withTenantId(TENANT_B).build(),

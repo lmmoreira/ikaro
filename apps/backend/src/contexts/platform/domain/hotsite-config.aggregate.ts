@@ -33,6 +33,8 @@ export interface GalleryImage {
   caption?: string;
   source: 'booking' | 'upload';
   bookingId?: string;
+  /** Present when source === 'booking' — derived server-side, lets the frontend label "Antes"/"Depois" */
+  photoType?: 'before' | 'after';
 }
 
 export interface GalleryModuleData {

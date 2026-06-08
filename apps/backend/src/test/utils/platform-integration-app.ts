@@ -11,11 +11,15 @@ import { EVENT_BUS } from '../../shared/ports/event-bus.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { TenantInterceptor } from '../../shared/tenant/tenant.interceptor';
 import { TenantModule } from '../../shared/tenant/tenant.module';
+import { BOOKING_LOOKUP_PORT } from '../../contexts/platform/application/ports/booking-lookup.port';
+import { FRONTEND_REVALIDATION_PORT } from '../../contexts/platform/application/ports/frontend-revalidation.port';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../contexts/platform/platform.module';
 import { InMemoryEventBus } from '../infrastructure/in-memory-event-bus';
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
+import { InMemoryBookingLookupPort } from '../infrastructure/in-memory-booking-lookup.port';
+import { InMemoryFrontendRevalidationPort } from '../infrastructure/in-memory-frontend-revalidation.port';
 
 export interface PlatformIntegrationAppOptions {
   extraProviders?: Provider[];
@@ -46,7 +50,11 @@ export async function createPlatformIntegrationApp(
     .overrideProvider(EVENT_BUS)
     .useValue(new InMemoryEventBus())
     .overrideProvider(STORAGE_SERVICE)
-    .useValue(new InMemoryStorageService());
+    .useValue(new InMemoryStorageService())
+    .overrideProvider(BOOKING_LOOKUP_PORT)
+    .useValue(new InMemoryBookingLookupPort())
+    .overrideProvider(FRONTEND_REVALIDATION_PORT)
+    .useValue(new InMemoryFrontendRevalidationPort());
 
   for (const { provide, useValue } of overrideProviders) {
     builder = builder.overrideProvider(provide).useValue(useValue);

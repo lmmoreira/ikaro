@@ -43,6 +43,7 @@ import { RescheduleBookingUseCase } from './application/use-cases/reschedule-boo
 import { CompleteBookingUseCase } from './application/use-cases/complete-booking.use-case';
 import { GenerateAttachmentSignedUrlUseCase } from './application/use-cases/generate-attachment-signed-url.use-case';
 import { BookingAttachmentsController } from './infrastructure/controllers/booking-attachments.controller';
+import { BookingQueryService } from './application/services/booking-query.service';
 import { BookingSlotConflictService } from './application/services/booking-slot-conflict.service';
 import { PhotoExistenceService } from './application/services/photo-existence.service';
 import { BookingEntity } from './infrastructure/entities/booking.entity';
@@ -105,6 +106,7 @@ import { AvailabilityService } from './domain/services/availability.service';
     AvailabilityService,
     BookingReminderJob,
     AdminScheduleReminderJob,
+    BookingQueryService,
     BookingSlotConflictService,
     PhotoExistenceService,
     CreateServiceUseCase,
@@ -134,5 +136,6 @@ import { AvailabilityService } from './domain/services/availability.service';
     CompleteBookingUseCase,
     GenerateAttachmentSignedUrlUseCase,
   ],
+  exports: [BookingQueryService],
 })
 export class BookingModule {}

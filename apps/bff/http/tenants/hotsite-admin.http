@@ -1,0 +1,110 @@
+# BFF — Hotsite Admin (M12-S02 / M12-S10)
+# UC-027: Admin manages hotsite content
+# Guarded by @Roles('MANAGER') — requires a manager JWT (Authorization: Bearer <token>).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @beloauto/backend run migration:run
+#   3. pnpm --filter @beloauto/backend run seed
+#   4. pnpm --filter @beloauto/backend run dev  (port 3001)
+#   5. pnpm --filter @beloauto/bff run dev      (port 3002)
+#   6. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+# ── File-level response captures (updated automatically when login request runs) ──
+@managerToken = {{managerLogin.response.body.accessToken}}
+@staffToken   = {{staffLogin.response.body.accessToken}}
+
+###
+# @name managerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "funcionario@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Get full hotsite content (includes unpublished state)
+GET {{bffUrl}}/v1/tenants/hotsite
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Generate signed URL for a branding logo upload
+POST {{bffUrl}}/v1/tenants/hotsite/images/signed-url
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "fileName": "logo.png",
+  "contentType": "image/png",
+  "purpose": "branding"
+}
+
+###
+
+### Partial branding update (only colors changed)
+PATCH {{bffUrl}}/v1/tenants/hotsite
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "branding": {
+    "primaryColor": "#f97316",
+    "secondaryColor": "#fff7ed"
+  }
+}
+
+###
+
+### Publish the hotsite
+POST {{bffUrl}}/v1/tenants/hotsite/publish
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Unpublish the hotsite
+POST {{bffUrl}}/v1/tenants/hotsite/unpublish
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Feature a completed booking's after-service photo on the hotsite gallery
+POST {{bffUrl}}/v1/tenants/hotsite/gallery/feature-booking-photo
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "bookingId": "{{bookingId}}",
+  "photoUrl": "tenants/{{tenantId}}/bookings/{{bookingId}}/after-1.jpg"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 403 — staff (non-manager) cannot manage the hotsite
+POST {{bffUrl}}/v1/tenants/hotsite/publish
+Authorization: Bearer {{staffToken}}
+
+###
+
+### 400 — feature-booking-photo with a photoUrl that doesn't match the booking-photo path shape
+POST {{bffUrl}}/v1/tenants/hotsite/gallery/feature-booking-photo
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "bookingId": "{{bookingId}}",
+  "photoUrl": "not-a-valid-booking-photo-path.jpg"
+}

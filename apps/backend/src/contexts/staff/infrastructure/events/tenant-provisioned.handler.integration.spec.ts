@@ -7,8 +7,10 @@ import { DataSource } from 'typeorm';
 import { SYSTEM_ACTOR_ID } from '../../../../shared/domain/system-actor';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { HotsiteConfigEntity } from '../../../platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../../platform/platform.module';
@@ -41,6 +43,8 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
     })
       .overrideProvider(EVENT_BUS)
       .useValue(new RoutingInMemoryEventBus())
+      .overrideProvider(STORAGE_SERVICE)
+      .useValue(new InMemoryStorageService())
       .compile();
 
     app = moduleRef.createNestApplication();

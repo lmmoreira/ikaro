@@ -201,8 +201,10 @@ Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors
 - `POST /v1/tenants/hotsite/unpublish` → `200 { isPublished: false }`
 - All four require JWT + `MANAGER` role — `STAFF` gets `403`
 
-### **Hotsite Image Upload (Admin — UC-027, M12-S02)**
-Generates a GCS signed upload URL for hotsite images (logo, hero/CTA backgrounds, gallery, about photos). Reuses the same `IStorageService`/`GcsSignedUrlAdapter` and constraints introduced for booking attachments in M115-S01 (15-minute expiry, content-type lock, 10 MB cap) — no new storage adapter.
+### **Hotsite Image Upload (Admin — UC-027, M12-S02 + M12-S10)**
+Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgrounds, gallery, about photos). Reuses the same `IStorageService`/`GcsSignedUrlAdapter` and upload constraints introduced for booking attachments in M115-S01 (15-minute *upload*-URL expiry, content-type lock, 10 MB cap) — no new upload mechanics.
+
+> **Destination differs from booking attachments (M12-S10):** the signed URL targets a separate **public** GCS bucket — hotsite images are public marketing assets with no privacy requirement, unlike booking photos. This is the single point where the destination is decided: a signed URL is cryptographically bound to a specific bucket+path, so once the browser `PUT`s the file there, its location — and therefore its final public address — is fixed. See "Reading hotsite images back" below; this is a deliberate departure from the booking-attachment pattern, not an oversight.
 
 **BFF:** `POST /v1/tenants/hotsite/images/signed-url`
 - Requires JWT + `MANAGER` role
@@ -226,11 +228,45 @@ Generates a GCS signed upload URL for hotsite images (logo, hero/CTA backgrounds
   }
   ```
 
-**Storage path rule:** `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>`
+**Storage path rule:** `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` (in the **public** hotsite bucket — see note above)
 
-`filePath` is what gets stored in `branding.logoUrl` / module `data.*Url` fields and returned by the admin/public hotsite endpoints. Fresh read-signed URLs are generated at display time — `signedUrl` is never stored.
+`filePath` is what gets persisted internally (`branding.logoUrl` / module `data.*Url` / `GalleryImage.url`). **Reading hotsite images back works differently from booking attachments:** because the object lives in a public bucket, `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` resolve `filePath` to a **permanent public URL** via `IStorageService.getPublicUrl()` — a pure string template, no signed URL, no expiry, nothing to regenerate. The admin endpoint (`GET /v1/tenants/hotsite`) and the public manifest (`GET /v1/tenants/slug/:slug`) both return this same resolved address. This is what makes the manifest safely cacheable (`Cache-Control: public, max-age=300`, ISR, future CDN) — an expiring signed URL embedded in cached content would eventually serve a broken image.
+
+(Contrast with booking attachments below, where the bucket is private and a fresh *read*-signed URL genuinely must be minted per display.)
 
 **Error responses:** same constraint set as booking attachments (`400 invalid-file-name`, `400 unsupported-media-type`, plus `400` for an unknown `purpose`) — see §3 Media Upload below for the shared validation table.
+
+### **Hotsite Gallery — Feature a Booking Photo (Admin — UC-027, M12-S02 + M12-S10)**
+Lets the admin curate the GALLERY module's "before/after" showcase by selecting a photo straight from one of the tenant's own bookings — guest or authenticated-customer, it makes no difference; `tenantId` is the only check that matters.
+
+**BFF:** `POST /v1/tenants/hotsite/gallery/feature-booking-photo`
+- Requires JWT + `MANAGER` role
+
+- **Request body:**
+  ```json
+  { "bookingId": "uuid", "photoUrl": "tenants/<tenantId>/bookings/<bookingId>/car-front.jpg" }
+  ```
+
+- **Response (201 Created):**
+  ```json
+  {
+    "filePath":  "tenants/<tenantId>/hotsite/gallery/<uuid>/car-front.jpg",
+    "url":       "https://storage.googleapis.com/beloauto-hotsite-public-prod/tenants/.../car-front.jpg",
+    "photoType": "before"
+  }
+  ```
+
+**What happens server-side:**
+1. Loads the `Booking` by `(tenantId, bookingId)` — `404` if it doesn't belong to the caller's tenant
+2. Derives `photoType` by checking whether `photoUrl` is present in `booking.beforeServicePhotoUrls` (→ `"before"`) or `booking.afterServicePhotoUrls` (→ `"after"`) — **never** trusts a client-supplied type. A `photoUrl` absent from both → `400` (this is also the integrity check confirming the photo genuinely belongs to that booking)
+3. Copies the object from the private booking-photos path to `tenants/<tenantId>/hotsite/gallery/<uuid>/<fileName>` in the **public** hotsite bucket via `IStorageService.copy()` — a copy, not a live reference, so the featured image survives independently of whatever later happens to the source booking (archival, an LGPD erasure request, a dispute, etc.)
+
+The frontend then includes the returned `{ url, photoType }` (plus `bookingId` and an optional `caption`) as a `GalleryImage` entry in the next `PATCH /v1/tenants/hotsite` call — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4.
+
+**Error responses:**
+- `400` — `photoUrl` not found in either of the booking's photo lists
+- `404` — booking not found for the caller's tenant
+- `403` — caller is `STAFF`, not `MANAGER`
 
 ### **Service Management (Admin - UC-012, UC-013)**
 - `GET /services` -> List all services (Public/Admin). Each item includes:
@@ -290,7 +326,7 @@ Single endpoint covering four authentication scenarios:
 - `bookingId` present → `tenants/<tenantId>/bookings/<bookingId>/<fileName>`
 - `bookingId` absent  → `tenants/<tenantId>/uploads/<uuid>/<fileName>`
 
-`filePath` is what the backend stores and returns. Fresh read-signed URLs are generated at display time — `signedUrl` is never stored.
+`filePath` is what the backend stores and returns. Booking photos are genuinely private — only the customer and the tenant's staff should ever see a customer's car — so the bucket stays private and **fresh read-signed URLs are generated at display time; `signedUrl` is never stored.** (This is the opposite of how hotsite images now work post-M12-S10 — see "Hotsite Image Upload" above. Hotsite images are public marketing assets with no privacy requirement, so they live in a separate public bucket with permanent addresses instead. Don't generalize this section's pattern to hotsite media.)
 
 **Signed URL expiration:** 15 minutes.
 

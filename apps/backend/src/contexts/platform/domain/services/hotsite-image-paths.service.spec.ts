@@ -84,7 +84,7 @@ describe('HotsiteImagePathsService', () => {
     ]);
   });
 
-  it('collects only upload-sourced GALLERY image urls, skipping booking-sourced ones', () => {
+  it('collects GALLERY image urls uniformly regardless of source — upload and booking alike', () => {
     const layout: HotsiteModule[] = [
       {
         type: 'GALLERY',
@@ -92,7 +92,12 @@ describe('HotsiteImagePathsService', () => {
         data: {
           images: [
             { url: 'tenants/t1/hotsite/gallery/u1/photo.jpg', source: 'upload' },
-            { url: 'tenants/t1/bookings/b1/from-booking.jpg', source: 'booking', bookingId: 'b1' },
+            {
+              url: 'tenants/t1/hotsite/gallery/u2/featured.jpg',
+              source: 'booking',
+              bookingId: 'b1',
+              photoType: 'after',
+            },
           ],
           layout: 'grid',
           maxVisible: 6,
@@ -102,6 +107,7 @@ describe('HotsiteImagePathsService', () => {
 
     expect(svc.collect(DEFAULT_HOTSITE_BRANDING, layout)).toEqual([
       'tenants/t1/hotsite/gallery/u1/photo.jpg',
+      'tenants/t1/hotsite/gallery/u2/featured.jpg',
     ]);
   });
 });

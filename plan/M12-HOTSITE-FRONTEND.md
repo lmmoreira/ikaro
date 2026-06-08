@@ -241,8 +241,11 @@ export function applyBranding(branding: HotsiteBranding): React.CSSProperties {
 - [ ] `GET /nonexistent-slug` returns Next.js 404 page
 - [ ] Second request within 5 minutes served from Next.js cache (no BFF call)
 - [ ] TypeScript compiles with zero errors
+- [ ] Secured `/api/revalidate?secret=&slug=` route implemented — verifies `secret` against `HOTSITE_REVALIDATE_SECRET` (env var shared with M12-S10's `IFrontendRevalidationPort`; same name, same value in both services); on match calls `revalidatePath('/[slug]')`, on mismatch/missing returns `401`. Called by the backend (M12-S10) on publish/unpublish so changes go live without waiting for ISR
+- [ ] `next.config.js` `images.remotePatterns` configured for the public hotsite bucket / CDN domain (M12-S10) — required before any module can render `next/image` against manifest URLs
+- [ ] `headingFontFamily`/`bodyFontFamily` load via `next/font/google` from a curated allow-list (not a runtime `<link>` to Google's CDN) — avoids render-blocking requests and third-party visitor-data exposure (LGPD)
 
-**Dependencies:** M12-S01, M00-S05
+**Dependencies:** M12-S01, M12-S10, M00-S05
 
 ---
 
@@ -282,6 +285,7 @@ interface HeroModuleData {
 - [ ] Primary color button uses `var(--ba-primary)` (not hardcoded)
 - [ ] If `backgroundImageUrl` is null, renders with solid `var(--ba-primary)` background
 - [ ] CTA scrolls to `#booking-form` or `#service-list` depending on `ctaTarget`
+- [ ] `backgroundImageUrl` rendered via `next/image` with `priority` (it's typically the page's LCP element) — never `loading="lazy"`
 - [ ] Vitest component test: renders both variants, title, subtitle, and CTA button correctly
 
 **Dependencies:** M12-S03
@@ -413,7 +417,8 @@ interface ContactModuleData {
 - [ ] All 4 components render correctly when their module type is present in `layout` with `enabled: true`
 - [ ] `GalleryModule` with empty `images[]` renders nothing (section fully hidden)
 - [ ] `GalleryModule` with 8 images and `maxVisible: 6` shows 6 images + "Ver mais" button
-- [ ] `GalleryModule` lazy-loads images
+- [ ] `GalleryModule` renders images via `next/image` with breakpoint-matched `sizes`, `loading="lazy"` (below-the-fold)
+- [ ] `GalleryModule` images with `photoType` present render a localized badge (`"Antes"` for `before`, `"Depois"` for `after`) — see `GalleryImage.photoType` (M12-S10)
 - [ ] `AboutModule` with `imagePosition: 'left'` renders image on left, text on right on desktop
 - [ ] `AboutModule` markdown body is sanitised (no raw `<script>` tags rendered)
 - [ ] `ContactModule` `showMap: false` renders no iframe
@@ -556,5 +561,66 @@ export async function generateMetadata({ params }): Promise<Metadata> {
 - [ ] Unpublished hotsites have `<meta name="robots" content="noindex, nofollow">`
 - [ ] `generateMetadata` reuses the ISR-cached manifest fetch — no extra network call
 - [ ] `canonical` URL set to `https://beloauto.com/[slug]`
+- [ ] `app/sitemap.ts` lists every **published** tenant slug with `lastmod` — needed for Google to discover hotsites that nobody has linked to yet
+- [ ] `app/robots.ts` references the sitemap and disallows `/dashboard`, `/auth`
 
 **Dependencies:** M12-S03
+
+---
+
+### M12-S10 — Hotsite public image storage: bucket separation + booking-photo featuring + publish revalidation
+
+**Agent:** `backend-ts` + `bff-ts`  
+**Complexity:** M  
+**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § branding, § GALLERY, § manifest caching; `docs/14-API_CONTRACTS.md` § hotsite media
+
+**Description:**  
+Corrects a gap identified before M12-S03 starts consuming the manifest contract. M12-S01/S02 routed hotsite branding/layout images through the same "private bucket + freshly-regenerated read-signed URL at display time" pattern documented for booking attachments (`docs/14-API_CONTRACTS.md`). That pattern is correct for booking photos — they're genuinely private — but wrong for hotsite images, which are public marketing assets by definition. Worse, it actively conflicts with the manifest's caching strategy (`Cache-Control: public, max-age=300`, Next.js ISR, future CDN per `docs/15` §10): a cached manifest would embed signed URLs that can expire before the cache revalidates, serving broken images to visitors. (As of this story, `GetHotsiteManifestUseCase` doesn't yet resolve `filePath` → any URL at all — it returns the raw stored path — so this is a "settle the contract before the frontend builds on it" fix, not a behavioral regression.)
+
+This story:
+1. Gives hotsite images a separate **public** bucket with fixed, permanently-cacheable addresses (no signed-URL regeneration, no expiry) — booking photos keep the existing private/signed-read pattern untouched.
+2. Implements the backend mechanism for `GalleryImage.source: 'booking'` (speced in `docs/15` §4 but never given an implementation path): admin selects a completed booking's before **or** after photo to feature, and the backend copies it into the public bucket at the moment of selection — not a live reference (which would reintroduce the same caching conflict and couple the gallery's lifecycle to the booking's).
+3. Wires hotsite publish/unpublish to trigger on-demand Next.js revalidation, so changes go live immediately rather than waiting up to 5 minutes for ISR.
+
+**Backend changes:**
+- New public GCS bucket (e.g. `beloauto-hotsite-public-${var.environment}` / `GCS_PUBLIC_BUCKET_NAME`), `allUsers: roles/storage.objectViewer`, fronted by Cloud CDN per the existing scaling plan (`docs/22-TECH_STACK_DECISIONS.md`). New env var `GCS_PUBLIC_BASE_URL` (default `https://storage.googleapis.com`; local `.env` sets `http://localhost:4443` to match the `fake-gcs-server` `-external-url` in `docker/docker-compose.yml`) — see `getPublicUrl()` below
+- `IStorageService` (shared port, `storage.service.port.ts`) gains:
+  - `getPublicUrl(storagePath: string): string` — pure one-line template `${GCS_PUBLIC_BASE_URL}/${GCS_PUBLIC_BUCKET_NAME}/${storagePath}`; no GCS API round-trip, no expiry, **no environment branching**: the emulator's `-external-url` gives it the same `<base>/<bucket>/<path>` serving shape as real public GCS buckets, so only the configured base differs between dev and prod — exactly like `DB_HOST`/`FRONTEND_URL`/`GCS_BUCKET_NAME` already do
+  - `copy(sourcePath: string, destinationPath: string): Promise<void>` — server-side object copy, private bucket → public bucket (`file.copy()`)
+- `GenerateHotsiteImageSignedUrlUseCase` generates the upload signed URL **against the public bucket** — this is the single point where the image's destination is decided, since a signed URL is cryptographically bound to a specific bucket+path; everything downstream (storing `filePath`, resolving to a public URL) only needs the static fact "hotsite images live in the public bucket," not a per-request decision
+- `GetHotsiteManifestUseCase` / `GetHotsiteContentUseCase` resolve every stored `filePath` (`branding.logoUrl`, module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GalleryImage.url`) to a permanent public URL via `getPublicUrl()` before returning — both the public manifest and the admin endpoint use the same resolution, one code path regardless of `GalleryImage.source`
+- New use case `FeatureBookingPhotoUseCase` + BFF endpoint `POST /v1/tenants/hotsite/gallery/feature-booking-photo` — `{ bookingId, photoUrl }`:
+  - Loads the `Booking` by `(tenantId, bookingId)` via a new platform-side port `IBookingLookupPort` (`application/ports/booking-lookup.port.ts`), implemented by `BookingLookupAdapter` (`infrastructure/cross-context/`) — which injects a new `BookingQueryService` exported from `booking.module.ts`. This is the documented cross-context pattern (`docs/AGENT_PATTERNS.md` §8 — "`XxxQueryService` — export only when another context's adapter injects it"; canonical example `customer.module.ts` → `CustomerQueryService`/`CustomerInfoAdapter`), **not** the older direct-`DataSource` precedent in `ServiceCatalogAdapter`/`ServiceInfoAdapter`. The port returns a minimal summary `{ id, customerId, beforeServicePhotoUrls, afterServicePhotoUrls } | null` — works identically for guest-originated (`customerId: null`) and authenticated-customer bookings; `tenantId` is the only isolation boundary
+  - Derives `photoType` **server-side** by checking whether `photoUrl` is present in `booking.beforeServicePhotoUrls` or `booking.afterServicePhotoUrls` — never trusts a client-supplied label. A `photoUrl` found in neither list → `400` (this doubles as the "does this photo actually belong to this booking" integrity check)
+  - Copies the file to `tenants/<tenantId>/hotsite/gallery/<uuid>/<fileName>` in the public bucket via `IStorageService.copy()`
+  - Returns `{ filePath, url, photoType }`
+- `UpdateHotsiteContentUseCase`'s `exists()` check now validates every gallery image — `source: 'upload'` and `source: 'booking'` alike — against the public bucket uniformly (no branching by origin)
+- `PublishHotsiteUseCase` / `UnpublishHotsiteUseCase` call a new internal port `IFrontendRevalidationPort` after persisting, hitting `${FRONTEND_URL}/api/revalidate?secret=${HOTSITE_REVALIDATE_SECRET}&slug=<tenant.slug>` for that tenant. New env var `HOTSITE_REVALIDATE_SECRET` (≥32 chars — same convention as `PLATFORM_ADMIN_KEY`/`INTERNAL_API_KEY`) is the shared secret verified by the route built in M12-S03 — **both stories must use this exact name**. The adapter **catches and logs** any failure (network error, 404, secret mismatch) — publish/unpublish always succeed regardless, both because ISR's 5-minute fallback already covers the gap and because M12-S10 ships *before* M12-S03's route exists (see `Blocks` below), so the call is expected to 404 until that story lands
+
+**`GalleryImage` contract addition** (`packages/types/src/hotsite.ts`, `docs/15` §4 — JSONB `data` field, no migration required):
+```typescript
+interface GalleryImage {
+  url: string;
+  caption?: string;
+  source: 'booking' | 'upload';
+  bookingId?: string;                 // present when source === 'booking'
+  photoType?: 'before' | 'after';     // present when source === 'booking' — derived server-side, lets the frontend label "Antes"/"Depois"
+}
+```
+
+**Acceptance criteria:**
+- [ ] `POST /v1/tenants/hotsite/images/signed-url` issues an upload URL targeting the public bucket; the resulting object resolves to a permanent public address (no expiry, no regeneration)
+- [ ] `GET /v1/tenants/slug/:slug` (public manifest) returns `branding.logoUrl` / module `*Url` / `GalleryImage.url` as resolved public URLs — not raw `filePath` strings
+- [ ] `GET /v1/tenants/hotsite` (admin) returns the same resolved public URLs — one resolution code path for both endpoints
+- [ ] `POST /v1/tenants/hotsite/gallery/feature-booking-photo` copies the selected photo into the public bucket and returns `{ filePath, url, photoType }`; only `MANAGER` role — `STAFF` returns `403`
+- [ ] `photoType` is correctly derived as `'before'` or `'after'` depending on which list (`beforeServicePhotoUrls` / `afterServicePhotoUrls`) the submitted `photoUrl` is found in
+- [ ] A `photoUrl` not present in either list on the target booking → `400`
+- [ ] Featuring works identically for a guest-originated booking (`customerId: null`) and an authenticated-customer booking — only `tenantId` gates access
+- [ ] Tenant isolation: a `MANAGER` JWT scoped to Tenant A cannot feature a photo from Tenant B's booking — `404`/`400`, and Tenant B's data is unaffected
+- [ ] A featured gallery image persists independently of the source booking — archiving/deleting the booking does not break the gallery entry
+- [ ] `UpdateHotsiteContentUseCase` `exists()` validates all gallery images (both `source` values) against the public bucket uniformly
+- [ ] Publishing or unpublishing a hotsite triggers revalidation of `/<slug>` — the change is visible immediately, without waiting for ISR's 5-minute window
+- [ ] Booking-photo signed-URL flow (private bucket, regenerate-at-display, 15-minute expiry, `IStorageService.exists()` checks from M12-S02) is unchanged — this story touches hotsite-owned paths only
+
+**Dependencies:** M12-S01, M12-S02, M115-S01  
+**Blocks:** M12-S03 — changes the manifest's `*Url` field contract (resolved public URL vs. raw `filePath`); must land first

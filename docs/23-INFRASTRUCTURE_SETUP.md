@@ -682,6 +682,34 @@ resource "google_storage_bucket" "media" {
     condition { age = 365 }   # delete files older than 1 year (adjust per business need)
   }
 }
+
+# Public bucket for hotsite marketing assets (logo, hero/CTA backgrounds, gallery,
+# about photos — M12-S10). Deliberately separate from `media`: hotsite images are
+# public by definition (no privacy requirement, unlike booking photos), so they get
+# fixed, permanently-cacheable addresses instead of expiring read-signed URLs — this
+# is what makes the hotsite manifest (`Cache-Control: public, max-age=300`, ISR,
+# future Cloud CDN) safe to cache without risking broken images mid-window.
+resource "google_storage_bucket" "hotsite_public" {
+  name          = "beloauto-hotsite-public-${var.environment}"
+  location      = "US"
+  storage_class = "STANDARD"
+
+  uniform_bucket_level_access = true
+
+  cors {
+    origin          = ["https://beloauto.com", "https://staging.beloauto.com"]
+    method          = ["GET", "PUT", "POST"]
+    response_header = ["Content-Type", "Content-Length"]
+    max_age_seconds = 3600
+  }
+}
+
+# Public read access — these are marketing assets meant to be visible to anyone
+resource "google_storage_bucket_iam_member" "hotsite_public_viewer" {
+  bucket = google_storage_bucket.hotsite_public.name
+  role   = "roles/storage.objectViewer"
+  member = "allUsers"
+}
 ```
 
 ### `secrets.tf`
@@ -753,6 +781,15 @@ resource "google_pubsub_subscription_iam_member" "backend_subscriber_notificatio
 # Allow backend SA to write to GCS media bucket
 resource "google_storage_bucket_iam_member" "backend_media_writer" {
   bucket = google_storage_bucket.media.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
+}
+
+# Allow backend SA to write to the public hotsite bucket (uploads + booking-photo
+# copies — M12-S10). Public *read* access is granted separately to allUsers above;
+# this grant is for the backend's write/copy path only.
+resource "google_storage_bucket_iam_member" "backend_hotsite_public_writer" {
+  bucket = google_storage_bucket.hotsite_public.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
 }
@@ -988,6 +1025,7 @@ output "bff_url"         { value = google_cloud_run_v2_service.bff.uri }
 output "web_url"         { value = google_cloud_run_v2_service.web.uri }
 output "db_private_ip"   { value = google_sql_database_instance.postgres.private_ip_address }
 output "media_bucket"    { value = google_storage_bucket.media.name }
+output "hotsite_public_bucket" { value = google_storage_bucket.hotsite_public.name }
 output "artifact_repo"   { value = google_artifact_registry_repository.images.name }
 output "domain_events_topic" { value = google_pubsub_topic.domain_events.name }
 

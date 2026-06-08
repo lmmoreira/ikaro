@@ -1,32 +1,58 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
+import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
+import { InMemoryBookingLookupPort } from '../../../../test/infrastructure/in-memory-booking-lookup.port';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
+import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
+import { FeatureBookingPhotoUseCase } from '../../application/use-cases/feature-booking-photo.use-case';
 import { GetHotsiteContentUseCase } from '../../application/use-cases/get-hotsite-content.use-case';
 import { UpdateHotsiteContentUseCase } from '../../application/use-cases/update-hotsite-content.use-case';
 import { PublishHotsiteUseCase } from '../../application/use-cases/publish-hotsite.use-case';
 import { UnpublishHotsiteUseCase } from '../../application/use-cases/unpublish-hotsite.use-case';
 import { GenerateHotsiteImageSignedUrlUseCase } from '../../application/use-cases/generate-hotsite-image-signed-url.use-case';
+import { Tenant } from '../../domain/tenant.aggregate';
+import { Slug } from '../../../../shared/value-objects/slug.vo';
+import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { HotsiteAdminController } from './hotsite-admin.controller';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 
 describe('HotsiteAdminController', () => {
   let repo: InMemoryHotsiteConfigRepository;
+  let tenantRepo: InMemoryTenantRepository;
   let storageService: InMemoryStorageService;
+  let bookingLookup: InMemoryBookingLookupPort;
+  let frontendRevalidation: InMemoryFrontendRevalidationPort;
   let controller: HotsiteAdminController;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     repo = new InMemoryHotsiteConfigRepository();
+    tenantRepo = new InMemoryTenantRepository();
     storageService = new InMemoryStorageService();
+    bookingLookup = new InMemoryBookingLookupPort();
+    frontendRevalidation = new InMemoryFrontendRevalidationPort();
+    const now = new Date();
+    await tenantRepo.save(
+      Tenant.reconstitute({
+        id: TENANT_A,
+        name: 'Tenant A',
+        slug: Slug.create('tenant-a'),
+        settings: TenantSettings.default(),
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    );
     const ctx = new TenantContextBuilder().withTenantId(TENANT_A).build();
     const txManager = new InMemoryTransactionManager();
 
     controller = new HotsiteAdminController(
-      new GetHotsiteContentUseCase(repo, ctx),
+      new GetHotsiteContentUseCase(repo, storageService, ctx, new HotsiteImageUrlResolver()),
       new UpdateHotsiteContentUseCase(
         repo,
         storageService,
@@ -34,9 +60,10 @@ describe('HotsiteAdminController', () => {
         ctx,
         new HotsiteImagePathsService(),
       ),
-      new PublishHotsiteUseCase(repo, txManager, ctx),
-      new UnpublishHotsiteUseCase(repo, txManager, ctx),
+      new PublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager, ctx),
+      new UnpublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager, ctx),
       new GenerateHotsiteImageSignedUrlUseCase(ctx, storageService),
+      new FeatureBookingPhotoUseCase(ctx, bookingLookup, storageService),
     );
   });
 
@@ -162,6 +189,57 @@ describe('HotsiteAdminController', () => {
       expect(result.filePath.startsWith(`tenants/${TENANT_A}/hotsite/branding/`)).toBe(true);
       expect(result.signedUrl).toContain(result.filePath);
       expect(result.expiresAt).toBe('2099-01-01T00:00:00.000Z');
+    });
+  });
+
+  describe('featureBookingPhoto', () => {
+    const BOOKING_ID = '20000000-0000-4000-8000-000000000001';
+    const AFTER_PHOTO = `tenants/${TENANT_A}/bookings/${BOOKING_ID}/after-1.jpg`;
+
+    it('copies the booking photo into the public bucket and returns filePath, url, photoType', async () => {
+      bookingLookup.setBooking(TENANT_A, {
+        id: BOOKING_ID,
+        customerId: 'customer-1',
+        beforeServicePhotoUrls: [],
+        afterServicePhotoUrls: [AFTER_PHOTO],
+      });
+
+      const result = await controller.featureBookingPhoto({
+        bookingId: BOOKING_ID,
+        photoUrl: AFTER_PHOTO,
+      });
+
+      expect(result.photoType).toBe('after');
+      expect(result.filePath.startsWith(`tenants/${TENANT_A}/hotsite/gallery/`)).toBe(true);
+      expect(result.url).toBe(storageService.getPublicUrl(result.filePath));
+    });
+
+    it('maps FeaturedBookingNotFoundError to 404 when the booking does not exist', async () => {
+      const err = await controller
+        .featureBookingPhoto({ bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('maps PhotoNotOnBookingError to 400 when the photoUrl is on neither photo list', async () => {
+      bookingLookup.setBooking(TENANT_A, {
+        id: BOOKING_ID,
+        customerId: 'customer-1',
+        beforeServicePhotoUrls: [],
+        afterServicePhotoUrls: [AFTER_PHOTO],
+      });
+
+      const err = await controller
+        .featureBookingPhoto({
+          bookingId: BOOKING_ID,
+          photoUrl: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/not-on-booking.jpg`,
+        })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     });
   });
 });

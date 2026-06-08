@@ -4,6 +4,7 @@ import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import {
+  FeatureBookingPhotoResponse,
   GenerateHotsiteImageSignedUrlResponse,
   HotsiteAdminContentResponse,
   PublishHotsiteResponse,
@@ -71,6 +72,13 @@ export const GenerateHotsiteImageSignedUrlBodySchema = z.object({
 
 type GenerateHotsiteImageSignedUrlBody = z.infer<typeof GenerateHotsiteImageSignedUrlBodySchema>;
 
+export const FeatureBookingPhotoBodySchema = z.object({
+  bookingId: z.uuid(),
+  photoUrl: z.string().regex(/^tenants\/[^/]+\/bookings\/[^/]+\/.+$/),
+});
+
+type FeatureBookingPhotoBody = z.infer<typeof FeatureBookingPhotoBodySchema>;
+
 @Controller('tenants/hotsite')
 @Roles('MANAGER')
 export class HotsiteAdminController {
@@ -109,6 +117,17 @@ export class HotsiteAdminController {
   ): Promise<GenerateHotsiteImageSignedUrlResponse> {
     return this.backendHttp.post<GenerateHotsiteImageSignedUrlResponse>(
       '/tenants/hotsite/images/signed-url',
+      body,
+    );
+  }
+
+  @Post('gallery/feature-booking-photo')
+  @HttpCode(HttpStatus.CREATED)
+  featureBookingPhoto(
+    @Body(new ZodValidationPipe(FeatureBookingPhotoBodySchema)) body: FeatureBookingPhotoBody,
+  ): Promise<FeatureBookingPhotoResponse> {
+    return this.backendHttp.post<FeatureBookingPhotoResponse>(
+      '/tenants/hotsite/gallery/feature-booking-photo',
       body,
     );
   }

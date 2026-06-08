@@ -11,6 +11,10 @@ import {
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import {
+  FeatureBookingPhotoDto,
+  FeatureBookingPhotoSchema,
+} from '../../application/dtos/feature-booking-photo.dto';
+import {
   GenerateHotsiteImageSignedUrlDto,
   GenerateHotsiteImageSignedUrlSchema,
 } from '../../application/dtos/generate-hotsite-image-signed-url.dto';
@@ -18,6 +22,10 @@ import {
   UpdateHotsiteContentDto,
   UpdateHotsiteContentSchema,
 } from '../../application/dtos/update-hotsite-content.dto';
+import {
+  FeatureBookingPhotoUseCase,
+  FeatureBookingPhotoUseCaseResult,
+} from '../../application/use-cases/feature-booking-photo.use-case';
 import {
   GenerateHotsiteImageSignedUrlUseCase,
   GenerateHotsiteImageSignedUrlUseCaseResult,
@@ -49,6 +57,7 @@ export class HotsiteAdminController {
     private readonly publishHotsite: PublishHotsiteUseCase,
     private readonly unpublishHotsite: UnpublishHotsiteUseCase,
     private readonly generateHotsiteImageSignedUrl: GenerateHotsiteImageSignedUrlUseCase,
+    private readonly featureHotsiteBookingPhoto: FeatureBookingPhotoUseCase,
   ) {}
 
   @Get()
@@ -83,5 +92,13 @@ export class HotsiteAdminController {
     dto: GenerateHotsiteImageSignedUrlDto,
   ): Promise<GenerateHotsiteImageSignedUrlUseCaseResult> {
     return this.generateHotsiteImageSignedUrl.execute(dto).catch(mapPlatformError);
+  }
+
+  @Post('gallery/feature-booking-photo')
+  @HttpCode(HttpStatus.CREATED)
+  featureBookingPhoto(
+    @Body(new ZodValidationPipe(FeatureBookingPhotoSchema)) dto: FeatureBookingPhotoDto,
+  ): Promise<FeatureBookingPhotoUseCaseResult> {
+    return this.featureHotsiteBookingPhoto.execute(dto).catch(mapPlatformError);
   }
 }

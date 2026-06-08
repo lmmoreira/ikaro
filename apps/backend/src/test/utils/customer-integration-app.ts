@@ -8,6 +8,7 @@ import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
+import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { TenantInterceptor } from '../../shared/tenant/tenant.interceptor';
 import { TenantModule } from '../../shared/tenant/tenant.module';
 import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
@@ -16,6 +17,7 @@ import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/enti
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../contexts/platform/platform.module';
 import { InMemoryEventBus } from '../infrastructure/in-memory-event-bus';
+import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
 
 export interface CustomerIntegrationAppOptions {
   extraProviders?: Provider[];
@@ -45,6 +47,8 @@ export async function createCustomerIntegrationApp(
   })
     .overrideProvider(EVENT_BUS)
     .useValue(new InMemoryEventBus())
+    .overrideProvider(STORAGE_SERVICE)
+    .useValue(new InMemoryStorageService())
     .compile();
 
   const app = moduleRef.createNestApplication();

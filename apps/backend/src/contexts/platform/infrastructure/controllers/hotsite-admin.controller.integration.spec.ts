@@ -7,6 +7,10 @@ import {
 } from '../../../../test/builders/platform';
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { InMemoryBookingLookupPort } from '../../../../test/infrastructure/in-memory-booking-lookup.port';
+import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
+import { BOOKING_LOOKUP_PORT } from '../../application/ports/booking-lookup.port';
+import { FRONTEND_REVALIDATION_PORT } from '../../application/ports/frontend-revalidation.port';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
@@ -14,6 +18,8 @@ import { createPlatformIntegrationApp } from '../../../../test/utils/platform-in
 const TENANT_A = 'c2d3e4f5-0000-0000-0000-000000000001';
 const TENANT_B = 'c2d3e4f5-0000-0000-0000-000000000002';
 const TENANT_NO_HOTSITE = 'c2d3e4f5-0000-0000-0000-000000000003';
+const BOOKING_ID = 'c2d3e4f5-0000-4000-8000-000000000001';
+const AFTER_PHOTO = `tenants/${TENANT_A}/bookings/${BOOKING_ID}/after-1.jpg`;
 
 async function saveHotsiteConfig(
   ds: DataSource,
@@ -33,10 +39,14 @@ describe('HotsiteAdminController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
   let storageService: InMemoryStorageService;
+  let bookingLookup: InMemoryBookingLookupPort;
+  let frontendRevalidation: InMemoryFrontendRevalidationPort;
 
   beforeAll(async () => {
     ({ app, ds } = await createPlatformIntegrationApp());
     storageService = app.get(STORAGE_SERVICE);
+    bookingLookup = app.get(BOOKING_LOOKUP_PORT);
+    frontendRevalidation = app.get(FRONTEND_REVALIDATION_PORT);
 
     await ds
       .getRepository(TenantEntity)
@@ -164,7 +174,9 @@ describe('HotsiteAdminController (integration)', () => {
       expect(body.status).toBe(404);
     });
 
-    it('publishes the hotsite for the tenant without affecting other tenants', async () => {
+    it('publishes the hotsite for the tenant, triggers revalidation, and does not affect other tenants', async () => {
+      frontendRevalidation.revalidatedSlugs.length = 0;
+
       const { body } = await request(app.getHttpServer())
         .post('/tenants/hotsite/publish')
         .set('X-Tenant-ID', TENANT_A)
@@ -172,6 +184,7 @@ describe('HotsiteAdminController (integration)', () => {
         .expect(200);
 
       expect(body.isPublished).toBe(true);
+      expect(frontendRevalidation.revalidatedSlugs).toEqual(['hotsite-admin-tenant-a']);
 
       const savedB = await ds.getRepository(HotsiteConfigEntity).findOne({
         where: { tenantId: TENANT_B },
@@ -181,7 +194,9 @@ describe('HotsiteAdminController (integration)', () => {
   });
 
   describe('POST /tenants/hotsite/unpublish', () => {
-    it('unpublishes the hotsite for the tenant', async () => {
+    it('unpublishes the hotsite for the tenant and triggers revalidation', async () => {
+      frontendRevalidation.revalidatedSlugs.length = 0;
+
       const { body } = await request(app.getHttpServer())
         .post('/tenants/hotsite/unpublish')
         .set('X-Tenant-ID', TENANT_A)
@@ -189,6 +204,7 @@ describe('HotsiteAdminController (integration)', () => {
         .expect(200);
 
       expect(body.isPublished).toBe(false);
+      expect(frontendRevalidation.revalidatedSlugs).toEqual(['hotsite-admin-tenant-a']);
     });
   });
 
@@ -212,6 +228,75 @@ describe('HotsiteAdminController (integration)', () => {
         .set('X-Tenant-ID', TENANT_A)
         .set('X-Actor-Role', 'MANAGER')
         .send({ fileName: 'logo.gif', contentType: 'image/gif', purpose: 'branding' })
+        .expect(400);
+
+      expect(body.status).toBe(400);
+    });
+  });
+
+  describe('POST /tenants/hotsite/gallery/feature-booking-photo', () => {
+    it('returns 403 when X-Actor-Role is not MANAGER', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/tenants/hotsite/gallery/feature-booking-photo')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'STAFF')
+        .send({ bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO })
+        .expect(403);
+
+      expect(body.status).toBe(403);
+    });
+
+    it('copies the booking photo into the public bucket and returns filePath, url, photoType', async () => {
+      bookingLookup.setBooking(TENANT_A, {
+        id: BOOKING_ID,
+        customerId: 'customer-1',
+        beforeServicePhotoUrls: [],
+        afterServicePhotoUrls: [AFTER_PHOTO],
+      });
+
+      const { body } = await request(app.getHttpServer())
+        .post('/tenants/hotsite/gallery/feature-booking-photo')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO })
+        .expect(201);
+
+      expect(body.photoType).toBe('after');
+      expect(body.filePath.startsWith(`tenants/${TENANT_A}/hotsite/gallery/`)).toBe(true);
+      expect(body.url).toBe(storageService.getPublicUrl(body.filePath));
+      expect(storageService.copiedPaths).toContainEqual({
+        sourcePath: AFTER_PHOTO,
+        destinationPath: body.filePath,
+      });
+    });
+
+    it('returns 404 when the booking does not exist for the tenant', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/tenants/hotsite/gallery/feature-booking-photo')
+        .set('X-Tenant-ID', TENANT_B)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO })
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('returns 400 when the photoUrl is on neither the before nor after photo lists', async () => {
+      bookingLookup.setBooking(TENANT_A, {
+        id: BOOKING_ID,
+        customerId: 'customer-1',
+        beforeServicePhotoUrls: [],
+        afterServicePhotoUrls: [AFTER_PHOTO],
+      });
+
+      const { body } = await request(app.getHttpServer())
+        .post('/tenants/hotsite/gallery/feature-booking-photo')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({
+          bookingId: BOOKING_ID,
+          photoUrl: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/not-on-booking.jpg`,
+        })
         .expect(400);
 
       expect(body.status).toBe(400);

@@ -9,11 +9,16 @@ const SIGNED_URL_TTL_MS = 15 * 60 * 1000;
 export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootstrap {
   private readonly storage: Storage;
   private readonly bucketName: string;
+  private readonly publicBucketName: string;
+  private readonly publicBaseUrl: string;
   private readonly emulatorHost: string | undefined;
 
   constructor(config: ConfigService) {
     this.emulatorHost = config.get<string>('GCS_EMULATOR_HOST');
     this.bucketName = config.get<string>('GCS_BUCKET_NAME') ?? 'beloauto-local';
+    this.publicBucketName = config.get<string>('GCS_PUBLIC_BUCKET_NAME') ?? 'beloauto-local-public';
+    this.publicBaseUrl =
+      config.get<string>('GCS_PUBLIC_BASE_URL') ?? 'https://storage.googleapis.com';
 
     const storageOptions: Record<string, unknown> = {};
     if (this.emulatorHost) {
@@ -30,10 +35,15 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
 
   async onApplicationBootstrap(): Promise<void> {
     if (!this.emulatorHost) return;
-    const bucket = this.storage.bucket(this.bucketName);
+    await this.ensureBucketExists(this.bucketName);
+    await this.ensureBucketExists(this.publicBucketName);
+  }
+
+  private async ensureBucketExists(bucketName: string): Promise<void> {
+    const bucket = this.storage.bucket(bucketName);
     const [exists] = await bucket.exists();
     if (!exists) {
-      await this.storage.createBucket(this.bucketName);
+      await this.storage.createBucket(bucketName);
     }
   }
 
@@ -41,9 +51,11 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
     storagePath: string,
     contentType: string,
     _operation: 'write',
+    bucket: 'private' | 'public' = 'private',
   ): Promise<GenerateSignedUrlResult> {
     const expiresAt = new Date(Date.now() + SIGNED_URL_TTL_MS);
-    const file = this.storage.bucket(this.bucketName).file(storagePath);
+    const bucketName = bucket === 'public' ? this.publicBucketName : this.bucketName;
+    const file = this.storage.bucket(bucketName).file(storagePath);
 
     const [signedUrl] = await file.getSignedUrl({
       version: 'v4',
@@ -55,8 +67,19 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
     return { signedUrl, expiresAt };
   }
 
-  async exists(storagePath: string): Promise<boolean> {
-    const [fileExists] = await this.storage.bucket(this.bucketName).file(storagePath).exists();
+  async exists(storagePath: string, bucket: 'private' | 'public' = 'private'): Promise<boolean> {
+    const bucketName = bucket === 'public' ? this.publicBucketName : this.bucketName;
+    const [fileExists] = await this.storage.bucket(bucketName).file(storagePath).exists();
     return fileExists;
+  }
+
+  getPublicUrl(storagePath: string): string {
+    return `${this.publicBaseUrl}/${this.publicBucketName}/${storagePath}`;
+  }
+
+  async copy(sourcePath: string, destinationPath: string): Promise<void> {
+    const source = this.storage.bucket(this.bucketName).file(sourcePath);
+    const destination = this.storage.bucket(this.publicBucketName).file(destinationPath);
+    await source.copy(destination);
   }
 }

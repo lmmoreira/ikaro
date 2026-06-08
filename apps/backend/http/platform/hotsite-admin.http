@@ -76,6 +76,21 @@ Content-Type: application/json
 
 ###
 
+### Feature a booking's after-service photo on the hotsite gallery
+POST {{baseUrl}}/tenants/hotsite/gallery/feature-booking-photo
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "bookingId": "00000000-0000-7000-8000-000000000001",
+  "photoUrl": "tenants/00000000-0000-4000-8000-000000000001/bookings/00000000-0000-7000-8000-000000000001/after-1.jpg"
+}
+
+###
+
 ### Publish hotsite (requires at least one enabled module)
 POST {{baseUrl}}/tenants/hotsite/publish
 X-Tenant-ID: {{tenantId}}
@@ -172,6 +187,36 @@ Content-Type: application/json
 
 ###
 
+### 404 — feature-booking-photo with unknown bookingId
+POST {{baseUrl}}/tenants/hotsite/gallery/feature-booking-photo
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "bookingId": "00000000-0000-7000-8000-000000000099",
+  "photoUrl": "tenants/00000000-0000-4000-8000-000000000001/bookings/00000000-0000-7000-8000-000000000099/after-1.jpg"
+}
+
+###
+
+### 400 — feature-booking-photo with photoUrl not on the booking's before/after lists
+POST {{baseUrl}}/tenants/hotsite/gallery/feature-booking-photo
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "bookingId": "00000000-0000-7000-8000-000000000001",
+  "photoUrl": "tenants/00000000-0000-4000-8000-000000000001/bookings/00000000-0000-7000-8000-000000000001/not-on-booking.jpg"
+}
+
+###
+
 ### 400 — Publish with no enabled modules
 POST {{baseUrl}}/tenants/hotsite/publish
 X-Tenant-ID: {{tenantId}}
@@ -187,3 +232,18 @@ X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
 X-Actor-Type: STAFF
 X-Actor-Role: STAFF
+
+###
+
+### 403 — STAFF cannot feature a booking photo (ManagerRoleGuard rejects)
+POST {{baseUrl}}/tenants/hotsite/gallery/feature-booking-photo
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+Content-Type: application/json
+
+{
+  "bookingId": "00000000-0000-7000-8000-000000000001",
+  "photoUrl": "tenants/00000000-0000-4000-8000-000000000001/bookings/00000000-0000-7000-8000-000000000001/after-1.jpg"
+}

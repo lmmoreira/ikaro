@@ -27,6 +27,7 @@ export class GenerateHotsiteImageSignedUrlUseCase {
       filePath,
       dto.contentType,
       'write',
+      'public',
     );
 
     return { signedUrl, filePath, expiresAt: expiresAt.toISOString() };

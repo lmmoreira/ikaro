@@ -158,10 +158,11 @@ describe('UpdateHotsiteContentUseCase', () => {
     await expect(useCase.execute({ layout })).resolves.toBeDefined();
   });
 
-  it('verifies each GALLERY uploaded image url exists in storage but skips booking-sourced images', async () => {
+  it('verifies every GALLERY image exists in storage uniformly — upload and booking sources alike', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
     const uploadedPath = `tenants/${TENANT_A}/hotsite/gallery/u1/photo.jpg`;
+    const featuredPath = `tenants/${TENANT_A}/hotsite/gallery/u2/featured.jpg`;
 
     const layout = [
       {
@@ -170,11 +171,7 @@ describe('UpdateHotsiteContentUseCase', () => {
         data: {
           images: [
             { url: uploadedPath, source: 'upload' },
-            {
-              url: 'tenants/other/bookings/b1/from-booking.jpg',
-              source: 'booking',
-              bookingId: 'b1',
-            },
+            { url: featuredPath, source: 'booking', bookingId: 'b1', photoType: 'after' },
           ],
           layout: 'grid',
           maxVisible: 6,
@@ -185,6 +182,9 @@ describe('UpdateHotsiteContentUseCase', () => {
     await expect(useCase.execute({ layout })).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
 
     storageService.markAsUploaded(uploadedPath);
+    await expect(useCase.execute({ layout })).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+
+    storageService.markAsUploaded(featuredPath);
     await expect(useCase.execute({ layout })).resolves.toBeDefined();
   });
 

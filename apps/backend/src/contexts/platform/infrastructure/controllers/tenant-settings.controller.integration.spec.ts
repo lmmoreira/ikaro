@@ -6,10 +6,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { TenantInterceptor } from '../../../../shared/tenant/tenant.interceptor';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { TenantEntityBuilder } from '../../../../test/builders/platform/index';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
@@ -42,6 +44,8 @@ describe('TenantSettingsController (integration)', () => {
     })
       .overrideProvider(EVENT_BUS)
       .useValue(new RoutingInMemoryEventBus())
+      .overrideProvider(STORAGE_SERVICE)
+      .useValue(new InMemoryStorageService())
       .compile();
 
     app = moduleRef.createNestApplication();
