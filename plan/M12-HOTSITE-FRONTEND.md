@@ -182,7 +182,7 @@ Implement the admin endpoint for updating hotsite content (full branding token s
 
 ---
 
-### M12-S03 — Next.js [slug] routing + manifest fetching + CSS branding
+### M12-S03 — Next.js [slug] routing + manifest fetching + CSS branding ✅ Done
 
 **Agent:** `frontend-ts`  
 **Complexity:** M  
