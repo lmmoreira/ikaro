@@ -773,7 +773,7 @@ Add two optional hex tokens, `buttonBackgroundColor` and `buttonTextColor`, so a
 
 ---
 
-### M12-S12 — ESLint: react-hooks + jsx-a11y rules for apps/web
+### M12-S12 — ESLint: react-hooks + jsx-a11y rules for apps/web ✅ Done
 
 **Agent:** `frontend-ts`  
 **Complexity:** S  
