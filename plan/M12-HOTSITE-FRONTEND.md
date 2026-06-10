@@ -710,7 +710,7 @@ interface GalleryImage {
 
 ---
 
-### M12-S11 — Hotsite branding: button color overrides
+### M12-S11 — Hotsite branding: button color overrides ✅ Done
 
 > **Implementation note:** folded into the current `feat/M12-S04-hero-module` branch (PR #98) — this story modifies `HeroModule.tsx`, which that branch introduces, so it ships as part of the same PR rather than a separate `feat/M12-S11-*` branch.
 
