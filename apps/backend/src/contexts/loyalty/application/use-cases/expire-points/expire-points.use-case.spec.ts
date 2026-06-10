@@ -189,6 +189,33 @@ describe('ExpirePointsUseCase', () => {
     expect(await expiryLogRepo.hasBeenProcessed(entry.id)).toBe(true);
   });
 
+  it('skips an entry deleted between findExpiringBefore and processing', async () => {
+    const entry = new LoyaltyEntryBuilder()
+      .withTenantId(TENANT_ID)
+      .withCustomerId(CUSTOMER_ID)
+      .withPoints(10)
+      .withExpiresAt(PAST)
+      .build();
+    await entryRepo.save(entry);
+    entryRepo.markDeleted(entry.id);
+    await balanceRepo.upsert(
+      new LoyaltyBalanceBuilder()
+        .withTenantId(TENANT_ID)
+        .withCustomerId(CUSTOMER_ID)
+        .withCurrentPoints(50)
+        .build(),
+    );
+
+    const result = await useCase.execute();
+
+    expect(result.processedEntries).toBe(0);
+    expect(result.affectedCustomers).toBe(0);
+    expect(result.totalPointsExpired).toBe(0);
+    expect(await expiryLogRepo.hasBeenProcessed(entry.id)).toBe(false);
+    const balance = await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID);
+    expect(balance?.currentPoints).toBe(50);
+  });
+
   it('handles multiple customers independently', async () => {
     const CUSTOMER_B = 'bbbbbbbb-0000-7000-8000-000000000010';
 

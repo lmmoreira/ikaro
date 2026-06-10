@@ -38,9 +38,11 @@ export class ExpirePointsUseCase {
 
     const unprocessed: LoyaltyEntry[] = [];
     for (const entry of expired) {
-      if (!(await this.expiryLogRepo.hasBeenProcessed(entry.id))) {
-        unprocessed.push(entry);
-      }
+      if (await this.expiryLogRepo.hasBeenProcessed(entry.id)) continue;
+      // Entry could have been deleted after findExpiringBefore read it (e.g. data
+      // erasure race) — skip it rather than failing the whole batch on a FK violation.
+      if (!(await this.entryRepo.existsById(entry.id))) continue;
+      unprocessed.push(entry);
     }
 
     if (unprocessed.length === 0) {

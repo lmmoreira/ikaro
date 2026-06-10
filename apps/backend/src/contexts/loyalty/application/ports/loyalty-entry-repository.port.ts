@@ -14,6 +14,7 @@ export interface NextExpiry {
 
 export interface ILoyaltyEntryRepository {
   save(entry: LoyaltyEntry): Promise<void>;
+  existsById(id: string): Promise<boolean>;
   findExpiringBefore(date: Date): Promise<LoyaltyEntry[]>;
   findExpiringSoon(from: Date, to: Date): Promise<LoyaltyEntry[]>;
   findByCustomerPaginated(

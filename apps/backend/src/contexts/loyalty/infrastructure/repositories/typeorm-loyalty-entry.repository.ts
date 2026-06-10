@@ -27,6 +27,10 @@ export class TypeOrmLoyaltyEntryRepository implements ILoyaltyEntryRepository {
     }
   }
 
+  async existsById(id: string): Promise<boolean> {
+    return this.repo.exists({ where: { id } });
+  }
+
   async findExpiringBefore(date: Date): Promise<LoyaltyEntry[]> {
     const entities = await this.repo.find({
       where: { expiresAt: LessThan(date) },

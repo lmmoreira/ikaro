@@ -7,9 +7,19 @@ import { LoyaltyEntry } from '../../contexts/loyalty/domain/loyalty-entry.aggreg
 
 export class InMemoryLoyaltyEntryRepository implements ILoyaltyEntryRepository {
   readonly entries: LoyaltyEntry[] = [];
+  private readonly deletedIds = new Set<string>();
 
   async save(entry: LoyaltyEntry): Promise<void> {
     this.entries.push(entry);
+  }
+
+  async existsById(id: string): Promise<boolean> {
+    return !this.deletedIds.has(id) && this.entries.some((e) => e.id === id);
+  }
+
+  /** Simulates an entry being deleted after `findExpiringBefore` already returned it. */
+  markDeleted(id: string): void {
+    this.deletedIds.add(id);
   }
 
   async findExpiringBefore(date: Date): Promise<LoyaltyEntry[]> {
@@ -51,5 +61,6 @@ export class InMemoryLoyaltyEntryRepository implements ILoyaltyEntryRepository {
 
   clear(): void {
     this.entries.length = 0;
+    this.deletedIds.clear();
   }
 }
