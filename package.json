@@ -23,7 +23,7 @@
     "db:seed": "pnpm --filter @beloauto/backend seed",
     "fix": "pnpm prettier --write . && pnpm -r run lint --fix",
     "pre-pr": "bash scripts/pre-pr.sh",
-    "ci:fast": "pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @beloauto/backend test:unit && pnpm --filter @beloauto/bff test",
+    "ci:fast": "pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @beloauto/backend test:unit && pnpm --filter @beloauto/bff test && pnpm --filter @beloauto/web test",
     "ci:integration": "pnpm --filter @beloauto/backend test:integration && pnpm --filter @beloauto/bff test:component",
     "ci:local": "bash scripts/ci-local.sh"
   },

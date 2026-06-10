@@ -20,6 +20,8 @@ const HotsiteBrandingSchema = z
     buttonStyle: z.enum(['filled', 'outline', 'ghost']),
     spacing: z.enum(['compact', 'comfortable', 'spacious']),
     shadowStyle: z.enum(['none', 'subtle', 'strong']),
+    buttonBackgroundColor: z.string().refine(HexColor.isValid, HEX_COLOR_MESSAGE),
+    buttonTextColor: z.string().refine(HexColor.isValid, HEX_COLOR_MESSAGE),
   })
   .partial();
 

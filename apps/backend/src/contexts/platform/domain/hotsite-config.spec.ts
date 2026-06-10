@@ -94,6 +94,30 @@ describe('HotsiteConfig', () => {
       },
     );
 
+    it.each(['buttonBackgroundColor', 'buttonTextColor'] as const)(
+      'throws for an invalid %s hex value when present',
+      (field) => {
+        const config = new HotsiteConfigBuilder().build();
+        const branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING, [field]: 'red' };
+        expect(() => config.updateContent(branding, VALID_LAYOUT)).toThrow(PlatformDomainError);
+      },
+    );
+
+    it.each(['buttonBackgroundColor', 'buttonTextColor'] as const)(
+      'accepts a valid %s hex value',
+      (field) => {
+        const config = new HotsiteConfigBuilder().build();
+        const branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING, [field]: '#FBBF24' };
+        config.updateContent(branding, VALID_LAYOUT);
+        expect(config.branding[field]).toBe('#FBBF24');
+      },
+    );
+
+    it('does not require buttonBackgroundColor/buttonTextColor to be present', () => {
+      const config = new HotsiteConfigBuilder().build();
+      expect(() => config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT)).not.toThrow();
+    });
+
     it('throws for an unknown module type', () => {
       const config = new HotsiteConfigBuilder().build();
       const layout = [{ ...VALID_LAYOUT[0], type: 'UNKNOWN' }] as unknown as HotsiteModule[];

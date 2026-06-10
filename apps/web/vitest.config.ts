@@ -11,6 +11,9 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     include: ['**/*.spec.{ts,tsx}'],
     exclude: ['**/node_modules/**', '**/.next/**'],
+    // components/hotsite specs run in jsdom — each spec file declares:
+    //   // @vitest-environment jsdom
+    // lib/** stays in the default node environment with no change.
     coverage: {
       provider: 'v8',
       reporter: ['lcov', 'text-summary'],
@@ -21,8 +24,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // next/font/google calls the font-loading infra at module-eval time — always swap it out
+      // Module-level side effects: both modules run infra code at import time — always swap globally
       'next/font/google': path.resolve(__dirname, '__mocks__/next-font-google.ts'),
+      'next/image': path.resolve(__dirname, '__mocks__/next-image.ts'),
     },
   },
 });

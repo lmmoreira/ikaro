@@ -141,6 +141,38 @@ describe('HotsiteAdminController (integration)', () => {
       expect(body.branding.logoUrl).toBe(logoPath);
     });
 
+    it('returns 400 for an invalid buttonBackgroundColor hex value', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ branding: { buttonBackgroundColor: 'notacolor' } })
+        .expect(400);
+
+      expect(body.status).toBe(400);
+    });
+
+    it('persists buttonBackgroundColor/buttonTextColor and round-trips via GET', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ branding: { buttonBackgroundColor: '#fbbf24', buttonTextColor: '#0f172a' } })
+        .expect(200);
+
+      expect(body.branding.buttonBackgroundColor).toBe('#fbbf24');
+      expect(body.branding.buttonTextColor).toBe('#0f172a');
+
+      const { body: getBody } = await request(app.getHttpServer())
+        .get('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+
+      expect(getBody.branding.buttonBackgroundColor).toBe('#fbbf24');
+      expect(getBody.branding.buttonTextColor).toBe('#0f172a');
+    });
+
     it('merges and persists branding without affecting other tenants', async () => {
       const { body } = await request(app.getHttpServer())
         .patch('/tenants/hotsite')

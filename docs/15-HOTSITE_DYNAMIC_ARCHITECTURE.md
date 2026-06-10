@@ -55,6 +55,10 @@ interface HotsiteBranding {
   buttonStyle:  'filled' | 'outline' | 'ghost';
   spacing:      'compact' | 'comfortable' | 'spacious';
   shadowStyle:  'none' | 'subtle' | 'strong';
+
+  // — Optional button color overrides (M12-S11) — see "Button Color Tokens" below —
+  buttonBackgroundColor?: string; // hex
+  buttonTextColor?: string;       // hex
 }
 ```
 
@@ -105,6 +109,22 @@ export function applyBranding(branding: HotsiteBrandingResponse): React.CSSPrope
   } as React.CSSProperties;
 }
 ```
+
+### Button Color Tokens
+
+`applyBranding()` also derives four button tokens — `--ba-btn-bg`, `--ba-btn-text`, `--ba-btn-border`, `--ba-btn-hover-bg` — from `buttonStyle`, plus two **optional** overrides, `buttonBackgroundColor` and `buttonTextColor` (both hex). When both are unset, the output is exactly the `buttonStyle`-only derivation below.
+
+| `buttonStyle` | `--ba-btn-bg` | `--ba-btn-text` | `--ba-btn-border` | `--ba-btn-hover-bg` |
+|---|---|---|---|---|
+| `filled`  | `var(--ba-primary)` | `#ffffff` | `var(--ba-primary)` | = `--ba-btn-bg` |
+| `outline` | `transparent` | `var(--ba-primary)` | `var(--ba-primary)` | `transparent` |
+| `ghost`   | `transparent` | `var(--ba-primary)` | `transparent` | `transparent` |
+
+Overrides:
+- `buttonBackgroundColor` — for `filled`, replaces `--ba-btn-bg` **and** `--ba-btn-border` (a permanent fill); for `outline`/`ghost`, it instead sets `--ba-btn-hover-bg` — the resting `bg` stays `transparent`, and the button fills with this color **on hover only**.
+- `buttonTextColor` — replaces `--ba-btn-text` for all three styles, and `--ba-btn-border` for `outline` only. Text color does not change on hover.
+
+Module components consume these via inline `style` (e.g. `backgroundColor: 'var(--ba-btn-bg)'`) plus a Tailwind arbitrary-value hover class, `hover:bg-[var(--ba-btn-hover-bg)]`.
 
 **Rule for module authors:** Every module must use only `var(--ba-*)` variables for colors, fonts, radius, spacing, and shadows. Never hardcode visual values. This guarantees every tenant's branding is applied consistently across all modules with zero extra work.
 

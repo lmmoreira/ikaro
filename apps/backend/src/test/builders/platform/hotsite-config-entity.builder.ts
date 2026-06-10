@@ -1,5 +1,6 @@
 import {
   DEFAULT_HOTSITE_BRANDING,
+  HotsiteBranding,
   HotsiteModule,
 } from '../../../contexts/platform/domain/hotsite-config.aggregate';
 import { HotsiteConfigEntity } from '../../../contexts/platform/infrastructure/entities/hotsite-config.entity';
@@ -21,6 +22,7 @@ export class HotsiteConfigEntityBuilder {
   private id = 'config-id-1';
   private tenantId = 'tenant-id-1';
   private isPublished = false;
+  private branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING };
   private readonly updatedAt = new Date('2026-01-01T00:00:00Z');
 
   withId(id: string): this {
@@ -38,11 +40,16 @@ export class HotsiteConfigEntityBuilder {
     return this;
   }
 
+  withBranding(branding: Partial<HotsiteBranding>): this {
+    this.branding = { ...this.branding, ...branding };
+    return this;
+  }
+
   build(): HotsiteConfigEntity {
     const e = new HotsiteConfigEntity();
     e.id = this.id;
     e.tenantId = this.tenantId;
-    e.branding = { ...DEFAULT_HOTSITE_BRANDING };
+    e.branding = this.branding;
     e.layout = DEFAULT_LAYOUT;
     e.isPublished = this.isPublished;
     e.updatedAt = this.updatedAt;

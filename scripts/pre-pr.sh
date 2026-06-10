@@ -3,7 +3,7 @@
 # Mechanical pre-PR checks — all grep and file-existence based.
 # Run from repo root. Exits with issue count (0 = all clear).
 #
-# Covers: pre-pr checks 1,5,6,7,11,12,14,15,16,17,18 and domain-audit DA-2,DA-3,DA-4,DA-5,DA-7.
+# Covers: pre-pr checks 1,5,6,7,11,12,14,15,16,17,18, W1 (web vitest setup) and domain-audit DA-2,DA-3,DA-4,DA-5,DA-7.
 # The remaining checks require agent reasoning and are listed at the end.
 
 set -uo pipefail
@@ -122,6 +122,16 @@ while IFS= read -r f; do
 done <<< "$ts_new_prod"
 run_check "15. All new @Injectable() classes registered in module"
 
+# ── Web checks ───────────────────────────────────────────────────────────────
+printf "\n### Web checks\n"
+
+# W1: vitest.setup.ts must import /vitest entrypoint, not bare jest-dom
+> "$TMP"
+if [ -f "apps/web/vitest.setup.ts" ]; then
+  grep -n "jest-dom'" apps/web/vitest.setup.ts | grep -v "jest-dom/vitest" >> "$TMP" || true
+fi
+run_check "W1. vitest.setup.ts uses @testing-library/jest-dom/vitest (not bare)"
+
 # ── Domain Audit — grep-based ─────────────────────────────────────────────────
 printf "\n### Domain Audit (grep)\n"
 
@@ -191,6 +201,7 @@ if [ "$ISSUES" -eq 0 ]; then
   printf "   8  @Global() modules have explanatory comment\n"
   printf "   10 aggregate fields use VO types; getters return the VO\n"
   printf "   13 static routes declared before dynamic routes\n"
+  printf "   21 all new <Image fill> in changed .tsx files have a sizes prop\n"
   printf "   DA-1 aggregate props not typed as plain primitives\n"
   printf "   DA-6 no utility functions duplicated outside src/shared/utils/\n"
   printf "   (DA-7 builder readonly check already automated above)\n"

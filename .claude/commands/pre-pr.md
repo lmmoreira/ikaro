@@ -9,7 +9,7 @@ Run:
 bash scripts/pre-pr.sh
 ```
 
-This single call covers checks 1, 5, 6, 7, 11, 12, 14, 15, 16, 17, 18 and domain-audit checks DA-2, DA-3, DA-4, DA-5, DA-7.
+This single call covers checks 1, 5, 6, 7, 11, 12, 14, 15, 16, 17, 18, W1 (web vitest setup entrypoint) and domain-audit checks DA-2, DA-3, DA-4, DA-5, DA-7.
 
 If the script exits with issues, fix them and re-run before continuing. Do not proceed to Step 2 with script failures outstanding.
 
@@ -43,7 +43,7 @@ Every numbered check below belongs to this project's master checklist (#1–#20;
 
 | # | Check | Covered in |
 |---|---|---|
-| 1, 5, 6, 7, 11, 12, 14–18 | grep/file-existence checks (HTTP imports, infra tokens, `any`, Zod v3, `.spec.ts`, DI registration, `.skip`/`.only`, `console.*`, barrels) | Step 1 (script) |
+| 1, 5, 6, 7, 11, 12, 14–18, W1 | grep/file-existence checks (HTTP imports, infra tokens, `any`, Zod v3, `.spec.ts`, DI registration, `.skip`/`.only`, `console.*`, barrels, vitest setup entrypoint) | Step 1 (script) |
 | 2 | Multi-aggregate writes wrapped in `ITransactionManager.run()` | Step 3 below |
 | 3 | Every new REST endpoint has a `.http` request block | Step 3 below |
 | 4 | Every public controller/service method has an explicit return type | Step 3 below |
@@ -53,6 +53,7 @@ Every numbered check below belongs to this project's master checklist (#1–#20;
 | 13 | Static routes declared before dynamic routes | Step 3 below |
 | 19 | PATCH body schemas with all-optional fields use `.default({})` | Step 3 below |
 | 20 | Integration test setup steps only call implemented endpoints | Step 3 below |
+| 21 | All new `<Image fill>` in changed `.tsx` files have a `sizes` prop | Step 3 below |
 
 Domain-audit checks `DA-2`–`DA-5` and `DA-7` run mechanically in Step 1; `DA-6` requires agent reasoning and is listed below. `DA-1` is covered by #10 (see that entry) — not repeated as its own item.
 
@@ -109,6 +110,15 @@ For every new `@Patch` route in changed controller files, find the corresponding
 For every new block in `*.integration.spec.ts`, collect all routes called as **setup steps** (i.e., not the primary subject of the `it()` block — e.g. a `PATCH /approve` called to put a booking in APPROVED state before testing cancel). Verify each one has a corresponding `@Get/@Post/@Patch/@Delete` decorator in the controller. Flag any route used as a setup step that does not exist yet.
 
 **Why:** The pre-push hook runs unit tests only. A missing endpoint returns 404 and silently corrupts the setup chain — the `it()` block then fails for the wrong reason. Only caught in CI.
+
+### 21. All new `<Image fill>` components have a `sizes` prop (web only)
+
+For every changed `.tsx` file in `apps/web/`, read the file and verify that every `<Image` with the `fill` prop also specifies a `sizes` prop. A missing `sizes` causes Next.js to omit responsive srcsets, forces the browser to always download the full-resolution image, and emits a runtime warning.
+
+Common values:
+- Full-width background/hero: `sizes="100vw"`
+- Half-column (two-column layout): `sizes="(min-width: 640px) 50vw, 100vw"`
+- Card thumbnail / third-column: `sizes="(min-width: 768px) 33vw, 100vw"`
 
 ---
 

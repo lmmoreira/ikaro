@@ -97,6 +97,8 @@ export interface HotsiteBrandingResponse {
   buttonStyle: 'filled' | 'outline' | 'ghost';
   spacing: 'compact' | 'comfortable' | 'spacious';
   shadowStyle: 'none' | 'subtle' | 'strong';
+  buttonBackgroundColor?: string;
+  buttonTextColor?: string;
 }
 
 export interface HotsiteResponse {

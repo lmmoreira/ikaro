@@ -5,7 +5,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-06-09 (§7 web testing block added; `docs/ANTI_PATTERNS.md` extended with `@beloauto/types` boundary and CSS custom property return type)
+**Last updated:** 2026-06-09 (§7 web testing block expanded — module component testing infrastructure and per-component test table added in M12-S04; `docs/ANTI_PATTERNS.md` extended with `@beloauto/types` boundary, CSS custom property return type, `<Image fill>` sizes, and jest-dom/vitest entrypoint; pre-pr.sh check W1 added)
 
 ---
 
@@ -231,14 +231,87 @@ Three layers: **Unit** (`.spec.ts`) · **Integration** (`.integration.spec.ts`) 
 ### Testing (apps/web)
 Test runner: **Vitest** (not Jest) — config at `apps/web/vitest.config.ts`. Scripts: `test`, `test:cov`, `test:watch`.
 
-**Unit-test:** pure utility functions (`lib/**`), API route handlers (`app/api/*/route.ts`), async data fetchers (`lib/api/**`).  
-**Do NOT unit-test:** Server Component pages/layouts (require full Next.js runtime — Playwright E2E only), interactive client components (Playwright).
+#### What to test and how
 
+**`lib/**` — pure functions, fetchers, route handlers:** Vitest in `node` environment. This is the original scope.
+
+**`components/hotsite/**` — module components:** Vitest + `@testing-library/react` in `jsdom` environment. See infrastructure and per-component test table below.
+
+**`app/**/page.tsx`, `app/**/layout.tsx` — server component pages/layouts:** **Do NOT unit-test.** These require the full Next.js runtime (`notFound()`, `generateMetadata`, ISR, `cookies()`, `headers()`). Tested by Playwright E2E only.
+
+**Interactive client components with complex stateful flows** (e.g. multi-step booking form): Playwright E2E. Simple `'use client'` leaf components with no async Next.js API calls are testable with `@testing-library/react`.
+
+#### Why module components are different from pages/layouts
+
+Hotsite module components (`HeroModule`, `ServiceListModule`, etc.) are **synchronous functions that receive fully-resolved props and return JSX** — no Next.js runtime APIs, no `async`, no `fetch`. The "do not test" rule applies to pages and layouts specifically because they call Next.js functions unavailable in jsdom. Module components carry none of those dependencies; they are as testable as any pure React component.
+
+#### Module component testing infrastructure (established in M12-S04)
+
+**Dependencies (`apps/web` devDependencies):**
+- `@testing-library/react` — component rendering in jsdom
+- `@testing-library/jest-dom` — DOM matchers (`toBeInTheDocument`, `toHaveAttribute`, etc.)
+- `@testing-library/user-event` — user interaction simulation (required for M12-S07 booking form)
+
+**`vitest.config.ts` additions:**
+```ts
+// resolve.alias — module-level side effects that must be globally swapped
+resolve: {
+  alias: {
+    'next/font/google': path.resolve(__dirname, '__mocks__/next-font-google.ts'),
+    'next/image':       path.resolve(__dirname, '__mocks__/next-image.ts'),  // LCP images; has same module-eval problem
+  },
+},
+```
+
+**Per-file environment declaration:** `environmentMatchGlobs` is not available in Vitest v4's TypeScript types (and did not function in testing). Each component spec file must declare its environment explicitly at line 1:
+```ts
+// @vitest-environment jsdom
+```
+`lib/**` stays in the default `node` environment — no change, no annotation needed.
+
+**`apps/web/__mocks__/next-image.ts`** (same pattern as `next-font-google.ts` — global alias, not per-file mock):
+```ts
+import React from 'react';
+const MockImage = ({
+  src, alt, fill: _, priority: __, sizes: ___, ...rest
+}: React.ImgHTMLAttributes<HTMLImageElement> & {
+  src: string; alt: string; fill?: boolean; priority?: boolean; sizes?: string;
+}) => React.createElement('img', { src, alt, ...rest });
+export default MockImage;
+```
+
+**`vitest.setup.ts`:**
+```ts
+import '@testing-library/jest-dom/vitest';
+// Global test setup — /vitest entrypoint registers types for Vitest's expect();
+// bare @testing-library/jest-dom leaves toBeInTheDocument() etc. untyped in strict mode.
+```
+
+**`next/navigation`** (`useRouter`, `usePathname`, etc.) and **`next/cache`** (`revalidatePath`) still use per-file `vi.mock()` when needed — they do not have the module-eval side-effect that requires a global alias.
+
+#### Per-component test focus (S04–S07)
+
+Every hotsite module component requires a `*.spec.tsx` alongside it. Minimum coverage per component:
+
+| Component | Key test cases |
+|---|---|
+| `HeroModule` | `variant: 'centered'` and `'left-aligned'` both render; title and optional subtitle present; `ctaTarget: 'booking'` → `href="#booking-form"`; `ctaTarget: 'service-list'` → `href="#service-list"`; no `backgroundImageUrl` → no `<img>`, primary bg applied; with `backgroundImageUrl` → `<img>` with correct `src`; `subtitle` absent → no subtitle element |
+| `ServiceListModule` | Cards rendered from mocked data; `showPrices: false` → price badge absent; `showPoints: false` → points badge absent; zero services → pt-BR empty-state message; section has `id="service-list"` |
+| `GalleryModule` | 8 images + `maxVisible: 6` → 6 images + "Ver mais" button; `images: []` → section not rendered; `source: 'booking'` + `photoType: 'before'` → "Antes" badge; `source: 'booking'` + `photoType: 'after'` → "Depois" badge; images rendered with `loading="lazy"` |
+| `TestimonialsModule` | Items render with author name and text; `rating: 4` → 4 filled stars; no `rating` → no star elements; `layout: 'carousel'` → carousel structure present |
+| `AboutModule` | `imagePosition: 'left'` → image before text in DOM; `imagePosition: 'right'` → image after text in DOM; `imageUrl` absent → no `<img>`; markdown `body` rendered as HTML; `<script>` tag in `body` stripped (XSS) |
+| `ContactModule` | `showMap: false` → no `<iframe>`; `showWhatsapp: false` → no WhatsApp link; `showAddress: false` → no address block; WhatsApp link opens `wa.me/` with correct number |
+| `BookingCtaModule` | CTA links to `/<slug>/booking`; section has `id="booking-form"` |
+
+#### SonarCloud configuration
+- `sonar.coverage.exclusions`: `apps/web/app/**/page.tsx`, `apps/web/app/**/layout.tsx` — **`apps/web/components/**` is NOT excluded** because module components now have Vitest tests and must contribute to the coverage gate.
+- `sonar.exclusions`: `**/vitest.config.ts`, `**/__mocks__/**`, `**/vitest.setup.ts`.
+
+#### Other standards
 - `next/font/google` calls font-loader functions at module-evaluation time — a module-level side effect. Per-file `vi.mock()` is too late. Use a **global `resolve.alias`** in `vitest.config.ts` pointing to `apps/web/__mocks__/next-font-google.ts`. Modules with runtime-only deps (`next/cache`, `next/navigation`) can use per-file `vi.mock()` normally.
 - React component props interfaces: every field must be **`readonly`** (SonarCloud S6759 — fires on every new component).
 - Import Node.js built-ins with the `node:` prefix (`node:path`, `node:fs`) — bare names are flagged by SonarCloud.
 - Functions returning CSS custom properties: declare return type as `React.CSSProperties & Record<\`--ba-${string}\`, string>` — never use `as React.CSSProperties` assertion (SonarCloud smell).
-- SonarCloud coverage gate: `sonar.coverage.exclusions` must include `apps/web/app/**/page.tsx`, `apps/web/app/**/layout.tsx`, `apps/web/components/**`. Test infrastructure (`**/vitest.config.ts`, `**/__mocks__/**`) must be in `sonar.exclusions`.
 
 ### CI gates (block merge)
 - ESLint + Prettier — zero warnings

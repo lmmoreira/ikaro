@@ -205,8 +205,11 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
         new LoyaltyEntryBuilder().withTenantId(TENANT_A).withExpiresAt(futureExpiry).build(),
       );
 
+      // findExpiringBefore() is a global, non-tenant-scoped query (used by the daily expiry cron
+      // across all tenants), so other suites' leftover/in-flight rows can appear here. Scope the
+      // assertion to this test's own tenant to avoid cross-suite pollution.
       const expiring = await repo.findExpiringBefore(new Date());
-      expect(expiring).toHaveLength(0);
+      expect(expiring.filter((e) => e.tenantId === TENANT_A)).toHaveLength(0);
     });
   });
 });

@@ -30,6 +30,8 @@ const HotsiteBrandingBodySchema = z
     buttonStyle: z.enum(['filled', 'outline', 'ghost']),
     spacing: z.enum(['compact', 'comfortable', 'spacious']),
     shadowStyle: z.enum(['none', 'subtle', 'strong']),
+    buttonBackgroundColor: z.string().regex(HEX_COLOR_REGEX),
+    buttonTextColor: z.string().regex(HEX_COLOR_REGEX),
   })
   .partial();
 

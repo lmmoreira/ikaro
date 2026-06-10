@@ -6,6 +6,7 @@ import {
   HotsiteConfigEntityBuilder,
   TenantEntityBuilder,
 } from '../../../../test/builders/platform';
+import { HotsiteBranding } from '../../domain/hotsite-config.aggregate';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
@@ -14,20 +15,25 @@ import { createPlatformIntegrationApp } from '../../../../test/utils/platform-in
 const TENANT_A = 'b1c2d3e4-0000-0000-0000-000000000001';
 const TENANT_B = 'b1c2d3e4-0000-0000-0000-000000000002';
 const TENANT_NO_HOTSITE = 'b1c2d3e4-0000-0000-0000-000000000003';
+const TENANT_BUTTON_BRANDING = 'b1c2d3e4-0000-0000-0000-000000000004';
 const INTERNAL_KEY = 'integ-hotsite-key-hotsite-key-xx'; // exactly 32 chars
 
 async function saveHotsiteConfig(
   ds: DataSource,
   tenantId: string,
   published: boolean,
+  branding?: Partial<HotsiteBranding>,
 ): Promise<void> {
-  const entity = new HotsiteConfigEntityBuilder()
+  const builder = new HotsiteConfigEntityBuilder()
     .withId(`c${tenantId.slice(1)}`)
     .withTenantId(tenantId)
-    .withIsPublished(published)
-    .build();
+    .withIsPublished(published);
 
-  await ds.getRepository(HotsiteConfigEntity).save(entity);
+  if (branding) {
+    builder.withBranding(branding);
+  }
+
+  await ds.getRepository(HotsiteConfigEntity).save(builder.build());
 }
 
 describe('HotsiteController (integration)', () => {
@@ -54,9 +60,21 @@ describe('HotsiteController (integration)', () => {
           .withSlug('hotsite-integ-tenant-c')
           .build(),
       );
+    await ds
+      .getRepository(TenantEntity)
+      .save(
+        new TenantEntityBuilder()
+          .withId(TENANT_BUTTON_BRANDING)
+          .withSlug('hotsite-integ-tenant-d')
+          .build(),
+      );
 
     await saveHotsiteConfig(ds, TENANT_A, true);
     await saveHotsiteConfig(ds, TENANT_B, false);
+    await saveHotsiteConfig(ds, TENANT_BUTTON_BRANDING, true, {
+      buttonBackgroundColor: '#fbbf24',
+      buttonTextColor: '#0f172a',
+    });
   });
 
   afterAll(async () => {
@@ -113,6 +131,17 @@ describe('HotsiteController (integration)', () => {
     expect(body.branding.primaryColor).toBe('#2563eb');
     expect(body.layout).toHaveLength(1);
     expect(body.layout[0].type).toBe('HERO');
+  });
+
+  it('returns buttonBackgroundColor/buttonTextColor in the manifest branding when set', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get('/hotsite')
+      .set('X-Internal-Key', INTERNAL_KEY)
+      .set('X-Tenant-ID', TENANT_BUTTON_BRANDING)
+      .expect(200);
+
+    expect(body.branding.buttonBackgroundColor).toBe('#fbbf24');
+    expect(body.branding.buttonTextColor).toBe('#0f172a');
   });
 
   it('tenant isolation: tenant B caller never receives tenant A published data', async () => {

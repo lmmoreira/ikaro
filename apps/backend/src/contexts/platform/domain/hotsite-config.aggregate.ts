@@ -114,6 +114,10 @@ export interface HotsiteBranding {
   buttonStyle: 'filled' | 'outline' | 'ghost';
   spacing: 'compact' | 'comfortable' | 'spacious';
   shadowStyle: 'none' | 'subtle' | 'strong';
+  /** Optional override of the button fill (filled) / hover-fill (outline, ghost) color. */
+  buttonBackgroundColor?: string;
+  /** Optional override of the button text (and outline border) color. */
+  buttonTextColor?: string;
 }
 
 export interface HotsiteConfigProps {
@@ -131,6 +135,7 @@ const HEX_COLOR_FIELDS = [
   'backgroundColor',
   'textColor',
 ] as const;
+const OPTIONAL_HEX_COLOR_FIELDS = ['buttonBackgroundColor', 'buttonTextColor'] as const;
 const BORDER_RADIUS_VALUES = ['sharp', 'rounded', 'pill'] as const;
 const BUTTON_STYLE_VALUES = ['filled', 'outline', 'ghost'] as const;
 const SPACING_VALUES = ['compact', 'comfortable', 'spacious'] as const;
@@ -231,6 +236,12 @@ export class HotsiteConfig extends AggregateRoot {
   private validateBranding(branding: HotsiteBranding): void {
     for (const field of HEX_COLOR_FIELDS) {
       if (!HexColor.isValid(branding[field])) {
+        throw new PlatformDomainError(`${field} must be a valid hex color (e.g. #FF5733)`);
+      }
+    }
+    for (const field of OPTIONAL_HEX_COLOR_FIELDS) {
+      const value = branding[field];
+      if (value !== undefined && !HexColor.isValid(value)) {
         throw new PlatformDomainError(`${field} must be a valid hex color (e.g. #FF5733)`);
       }
     }

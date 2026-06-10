@@ -1,11 +1,18 @@
 const imageBaseUrl = process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL ?? 'http://localhost:4443';
-const imageHostname = new URL(imageBaseUrl).hostname;
+const parsedImageUrl = new URL(imageBaseUrl);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    remotePatterns: [{ hostname: imageHostname }],
+    remotePatterns: [
+      {
+        protocol: parsedImageUrl.protocol.replace(':', ''),
+        hostname: parsedImageUrl.hostname,
+        port: parsedImageUrl.port,
+      },
+    ],
+    dangerouslyAllowLocalIP: process.env.NODE_ENV !== 'production',
   },
 };
 

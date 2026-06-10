@@ -1,5 +1,5 @@
 import { makeBackendHttp } from '../test/backend-http.mock';
-import { HotsiteAdminController } from './hotsite-admin.controller';
+import { HotsiteAdminController, UpdateHotsiteContentBodySchema } from './hotsite-admin.controller';
 import {
   FeatureBookingPhotoResponse,
   GenerateHotsiteImageSignedUrlResponse,
@@ -98,6 +98,35 @@ describe('HotsiteAdminController', () => {
       await expect(
         controller.updateContent({ branding: { primaryColor: '#FF5733' } }),
       ).rejects.toThrow('400');
+    });
+  });
+
+  describe('UpdateHotsiteContentBodySchema', () => {
+    it('retains buttonBackgroundColor and buttonTextColor (not stripped)', () => {
+      const result = UpdateHotsiteContentBodySchema.parse({
+        branding: { buttonBackgroundColor: '#fbbf24', buttonTextColor: '#0f172a' },
+      });
+
+      expect(result.branding).toEqual({
+        buttonBackgroundColor: '#fbbf24',
+        buttonTextColor: '#0f172a',
+      });
+    });
+
+    it('rejects an invalid buttonBackgroundColor hex value', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({
+        branding: { buttonBackgroundColor: 'notacolor' },
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects an invalid buttonTextColor hex value', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({
+        branding: { buttonTextColor: 'notacolor' },
+      });
+
+      expect(result.success).toBe(false);
     });
   });
 

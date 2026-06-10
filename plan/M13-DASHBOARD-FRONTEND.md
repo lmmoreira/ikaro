@@ -20,6 +20,8 @@
 **Description:**  
 Set up TanStack Query (React Query) as the global data-fetching layer and create typed client functions for every BFF endpoint. This is the foundation all dashboard pages build on — pages import typed hooks, not raw `fetch` calls.
 
+> **Note (M12 follow-up):** `apps/web/lib/api/tenant.ts` (M12-S03) already exists — it's a `fetch()`-based, unauthenticated, ISR-cached client (`next: { revalidate: 300 }`) for the **public hotsite manifest**. The `bff-client.ts` Axios instance planned here is for the **authenticated dashboard** (JWT cookie + `X-Tenant-Slug` headers, client-side, TanStack Query). Keep these separate — don't route the public hotsite fetch through `bff-client.ts` (it would attach auth headers unnecessarily to a cacheable public request), and don't try to unify them under one abstraction.
+
 **What to create:**
 - `apps/web/lib/api/bff-client.ts` — Axios instance with base URL (`NEXT_PUBLIC_BFF_URL`), JWT cookie interceptor (attach `Authorization` header), `X-Tenant-Slug` interceptor, error handling (RFC 9457 Problem Detail → typed `ApiError`)
 - `apps/web/lib/api/` — typed function per endpoint group: `bookings.ts`, `services.ts`, `schedule.ts`, `loyalty.ts`, `staff.ts`, `tenants.ts`, `auth.ts`
@@ -96,6 +98,8 @@ Implement the three authentication pages in Next.js. These are the user-facing e
 
 **Description:**  
 Implement the dashboard shell: the outer layout with navigation sidebar, header with user info, and role-based menu items. CUSTOMER sees their portal; STAFF/MANAGER see the admin console.
+
+> **Note (M12 follow-up):** `apps/web/app/globals.css` still has `create-next-app` boilerplate — `--font-geist-sans`/`--font-geist-mono` (Geist fonts were removed from `app/layout.tsx` in M12-S03 in favor of the 8-font allow-list in `font-config.ts`; these vars are now dead) and generic `--background`/`--foreground` tokens unrelated to the hotsite's `--ba-*` token system. When this story defines the dashboard shell's base styles, clean up `globals.css`: remove the dead Geist references and decide what (if anything) `--background`/`--foreground` should mean for the dashboard's own (non-tenant-branded) UI.
 
 **What to create:**
 - `app/dashboard/layout.tsx` — authenticated layout; reads JWT from cookie; passes decoded JWT to `DashboardShell`
@@ -390,6 +394,8 @@ Implement the tenant settings form page for MANAGER role. Allows editing all con
 
 **Description:**  
 Implement the hotsite content manager page. Admins can edit branding, toggle modules on/off and reorder them, and publish/unpublish the hotsite. A live preview link lets them see changes before publishing.
+
+> **Note (M12-S04 follow-up):** `apps/web/lib/hotsite/apply-branding.ts` now computes WCAG 2.1 contrast ratios (`relativeLuminance`/`contrastRatio`, added for `--ba-hero-text`) but keeps them as private helpers. If useful for this story, export them and add a live contrast warning to the branding editor (e.g. "Atenção: contraste baixo entre as cores escolhidas pode dificultar a leitura") when `primaryColor` vs `backgroundColor`/`textColor` falls below WCAG AA (4.5:1). Not an acceptance criterion — optional UX polish given the math already exists.
 
 **Page:** `app/dashboard/hotsite/page.tsx`
 - Two panels: left = editor, right = preview link

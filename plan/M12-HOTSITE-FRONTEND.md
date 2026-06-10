@@ -307,15 +307,67 @@ interface HeroModuleData {
 - Button uses `var(--ba-btn-variant)` and `var(--ba-primary)` — never hardcoded colors
 - Responsive: full-height on mobile, 60vh on desktop
 
+**Component testing infrastructure (one-time setup — do first, benefits S04–S07):**
+
+Module components (`components/hotsite/`) are synchronous prop-driven functions that return JSX with no Next.js runtime API calls. They are fully testable with `@testing-library/react` in jsdom. This story sets up the infrastructure so every subsequent module story (S05, S06, S07) can add its `*.spec.tsx` without further setup.
+
+1. Install devDependencies in `apps/web`: `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`
+2. Create `apps/web/__mocks__/next-image.ts` — renders `<img src alt ...rest>` (same global-alias pattern as `next-font-google.ts`; `next/image` has the same module-evaluation side-effect and must be globally swapped, not per-file mocked)
+3. Update `apps/web/vitest.config.ts`:
+   - Add `'next/image': path.resolve(__dirname, '__mocks__/next-image.ts')` to `resolve.alias`
+   - Each component spec file declares `// @vitest-environment jsdom` at line 1 — `environmentMatchGlobs` is not available in Vitest v4's TypeScript types; per-file declaration is the correct mechanism. `lib/**` stays in `node` with no annotation.
+4. Update `apps/web/vitest.setup.ts`: add `import '@testing-library/jest-dom'`
+5. Update `sonar-project.properties` (or equivalent): remove `apps/web/components/**` from `sonar.coverage.exclusions` — module components now have Vitest tests and must contribute to coverage
+
+**Component typing convention (established here for all module stories):**
+
+`HeroModule` declares its own fully-typed props interface. The `ModuleComponent` registry type in `page.tsx` uses `data: Record<string, unknown>` for heterogeneity — the cast is isolated to the registration site only, never inside the component:
+
+```ts
+// HeroModule.tsx — fully typed, readable contract
+interface HeroModuleProps {
+  readonly data: HeroModuleData;
+  readonly slug: string;
+}
+
+// page.tsx — single cast at the boundary
+MODULE_MAP['HERO'] = HeroModule as ModuleComponent;
+```
+
+All subsequent module components (S05–S07) follow this same pattern.
+
 **Acceptance criteria:**
-- [ ] `variant: 'centered'` renders title and CTA centered
-- [ ] `variant: 'left-aligned'` renders content left-aligned with image right on desktop
-- [ ] Both variants are mobile-responsive (stack to single column on `< sm`)
-- [ ] Primary color button uses `var(--ba-primary)` (not hardcoded)
-- [ ] If `backgroundImageUrl` is null, renders with solid `var(--ba-primary)` background
-- [ ] CTA scrolls to `#booking-form` or `#service-list` depending on `ctaTarget`
-- [ ] `backgroundImageUrl` rendered via `next/image` with `priority` (it's typically the page's LCP element) — never `loading="lazy"`
-- [ ] Vitest component test: renders both variants, title, subtitle, and CTA button correctly
+
+*Component:*
+- [ ] `variant: 'centered'` — title, optional subtitle, and CTA button rendered and horizontally centred
+- [ ] `variant: 'left-aligned'` — content left-aligned; on desktop: two-column layout (content left, image right); on mobile: single-column stacked
+- [ ] Both variants are responsive — stack to single column on `< sm` breakpoint
+- [ ] CTA button uses `var(--ba-primary)` for colour — no hardcoded hex or Tailwind colour class
+- [ ] CTA button style respects `var(--ba-btn-variant)` — `filled`, `outline`, `ghost` produce distinct visual styles without hardcoded values
+- [ ] `backgroundImageUrl` absent → no `<img>` rendered; section background is solid `var(--ba-primary)`
+- [ ] `backgroundImageUrl` present → rendered via `next/image` with `priority` prop set (LCP element — never `loading="lazy"`)
+- [ ] `ctaTarget: 'booking'` → CTA `href="#booking-form"`
+- [ ] `ctaTarget: 'service-list'` → CTA `href="#service-list"`
+- [ ] `subtitle` present → subtitle text rendered; `subtitle` absent → no subtitle element in DOM
+- [ ] Section height: full-height on mobile, `60vh` on desktop
+- [ ] `HeroModule` registered as `MODULE_MAP['HERO']` in `apps/web/app/[slug]/page.tsx`; cast to `ModuleComponent` at the registration site only
+
+*Infrastructure:*
+- [ ] `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event` present in `apps/web` devDependencies
+- [ ] `apps/web/__mocks__/next-image.ts` created and wired into `vitest.config.ts` `resolve.alias`
+- [ ] Each component spec file declares `// @vitest-environment jsdom` at line 1; existing `lib/**` tests continue to pass with `environment: 'node'` (no annotation needed)
+- [ ] `vitest.setup.ts` imports `@testing-library/jest-dom`
+- [ ] `sonar.coverage.exclusions` no longer includes `apps/web/components/**`
+
+*`HeroModule.spec.tsx` (via `@testing-library/react` in jsdom):*
+- [ ] `variant: 'centered'` — title text, CTA button with correct label rendered; centred layout class/structure applied
+- [ ] `variant: 'left-aligned'` — title text rendered; left-aligned layout class/structure applied
+- [ ] `ctaTarget: 'booking'` → CTA anchor `href` is `#booking-form`
+- [ ] `ctaTarget: 'service-list'` → CTA anchor `href` is `#service-list`
+- [ ] `backgroundImageUrl` absent → no `<img>` in DOM
+- [ ] `backgroundImageUrl: 'https://example.com/hero.jpg'` → `<img>` rendered with `src` matching the URL
+- [ ] `subtitle: 'Texto'` → subtitle text in DOM; no `subtitle` prop → subtitle element absent
+- [ ] `tsc --noEmit` passes across monorepo after all changes
 
 **Dependencies:** M12-S03
 
@@ -329,6 +381,8 @@ interface HeroModuleData {
 
 **Description:**  
 Implement the SERVICE_LIST hotsite module. Fetches active services from the BFF and renders them as cards with name, description, price, and duration.
+
+> **Note (M12-S04 follow-up):** `HeroModule.tsx` defines local `btnStyle`/`headingStyle` constants referencing `var(--ba-btn-bg)`, `var(--ba-btn-text)`, `var(--ba-radius)`, `var(--ba-heading-font)`, etc. If `ServiceListModule` (and S06's modules) need the same button/heading styling, don't redefine these inline — extract a shared `apps/web/lib/hotsite/module-styles.ts` once the pattern repeats in a second component. Not done in S04 since there was only one consumer.
 
 **Component:** `apps/web/components/hotsite/ServiceListModule.tsx`
 
@@ -653,3 +707,92 @@ interface GalleryImage {
 
 **Dependencies:** M12-S01, M12-S02, M115-S01  
 **Blocks:** M12-S03 — changes the manifest's `*Url` field contract (resolved public URL vs. raw `filePath`); must land first
+
+---
+
+### M12-S11 — Hotsite branding: button color overrides
+
+> **Implementation note:** folded into the current `feat/M12-S04-hero-module` branch (PR #98) — this story modifies `HeroModule.tsx`, which that branch introduces, so it ships as part of the same PR rather than a separate `feat/M12-S11-*` branch.
+
+**Agent:** `backend-ts` + `frontend-ts`  
+**Complexity:** M  
+**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § Branding & Design Token System · `docs/14-API_CONTRACTS.md` § Tenant Hotsite Manifest / Hotsite Admin Management
+
+**Description:**  
+Add two optional hex tokens, `buttonBackgroundColor` and `buttonTextColor`, so a tenant's CTA button color can be set independently of `primaryColor`. Today every button color is derived from `primaryColor` + `buttonStyle` via `BTN_STYLES` in `apply-branding.ts`. When a section's background is also `var(--ba-primary)` (e.g. the `left-aligned` HERO variant, or `centered` without a background image), a `filled` button's fill and border become identical to the section behind it — the button is effectively invisible. These two fields are optional overrides: when unset, `applyBranding()` produces output identical to today (zero impact on existing tenants); when set, they take precedence. For `outline`/`ghost` styles — which have no permanent fill to recolor — `buttonBackgroundColor` instead drives a **hover-fill** effect via a new `--ba-btn-hover-bg` token.
+
+**Field semantics:**
+- `buttonBackgroundColor?: string` (hex):
+  - `buttonStyle: 'filled'` — overrides `--ba-btn-bg` **and** `--ba-btn-border` (the button's permanent fill/border color)
+  - `buttonStyle: 'outline' | 'ghost'` — sets the new `--ba-btn-hover-bg` token: the button's background fills with this color **on hover only**; the resting state stays `transparent` (unchanged)
+  - Unset → `--ba-btn-hover-bg` defaults to `--ba-btn-bg` for `filled` (hover is a visual no-op, since the background doesn't change) and to `transparent` for `outline`/`ghost` (today's behavior — `hover:opacity-90` remains the only hover effect, byte-identical output)
+- `buttonTextColor?: string` (hex) — overrides `--ba-btn-text` for all three styles, and additionally `--ba-btn-border` for `outline` (border mirrors text in the outline style, same as today's `var(--ba-primary)` derivation). Text color does **not** change on hover — same trust-the-palette assumption as `filled`'s white-on-`primaryColor` default; the admin picks a `buttonBackgroundColor` hover-fill that contrasts with their chosen `buttonTextColor`.
+
+**New CSS token:** `--ba-btn-hover-bg`, consumed by `HeroModule.tsx`'s CTA via a Tailwind arbitrary-value hover class.
+
+**Backend (`apps/backend/src/contexts/platform/`):**
+- `HotsiteBranding` (`domain/hotsite-config.aggregate.ts`) — add `buttonBackgroundColor?: string; buttonTextColor?: string;`
+- `validateBranding()` — if either field is present, validate via `HexColor.isValid` (same `PlatformDomainError` message pattern as the 4 existing hex fields: `primaryColor`, `secondaryColor`, `backgroundColor`, `textColor`); absent values are not validated
+- **Not** added to `DEFAULT_HOTSITE_BRANDING` — purely additive; existing tenant rows (jsonb without these keys) remain valid, no migration required
+- `HotsiteBrandingSchema` (`application/dtos/update-hotsite-content.dto.ts`) — add both fields as `.optional()` hex-validated strings (schema is already `.partial()`)
+
+**BFF (`apps/bff/src/tenants/hotsite-admin.controller.ts`):**
+- `HotsiteBrandingBodySchema` is a separate `.partial()` Zod object (default "strip" mode) that re-validates the branding payload before forwarding it to the backend. Add `buttonBackgroundColor`/`buttonTextColor` as `z.string().regex(HEX_COLOR_REGEX)` here too — without this, `PATCH /v1/tenants/hotsite` silently drops both fields (Zod strips unrecognized keys by default), so the "persists and round-trips" AC would fail end-to-end despite backend/frontend tests passing.
+- `hotsite-admin.controller.spec.ts` — add a `describe('UpdateHotsiteContentBodySchema', ...)` block asserting both fields round-trip through `.parse()` unstripped, and that invalid hex values fail `.safeParse()`.
+
+**Shared types (`packages/types/src/hotsite.ts`):**
+- `HotsiteBrandingResponse` — add `buttonBackgroundColor?: string; buttonTextColor?: string;`
+
+**Frontend (`apps/web/lib/hotsite/apply-branding.ts`):**
+- `--ba-btn-bg`, `--ba-btn-text`, `--ba-btn-border`, and the new `--ba-btn-hover-bg` derive from the override fields when present, falling back to the current `BTN_STYLES`-derived values / defaults otherwise (per the field semantics above)
+
+**Frontend (`apps/web/components/hotsite/HeroModule.tsx`):**
+- CTA `<a>` className gains `hover:bg-[var(--ba-btn-hover-bg)]` (Tailwind arbitrary value referencing the new token); `transition-opacity` becomes `transition-colors` (or is extended) so the hover background-color change animates smoothly
+- `HeroModule.spec.tsx` — assert the CTA className includes `hover:bg-[var(--ba-btn-hover-bg)]`
+
+**Docs:**
+- Update `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 — add the 2 new fields and `--ba-btn-hover-bg` to the `HotsiteBranding` token definition snippet and the `applyBranding()` CSS variable mapping snippet, with a one-line note on the filled-fill / outline-ghost-hover-fill semantics
+- Update `docs/14-API_CONTRACTS.md` — add `buttonBackgroundColor`/`buttonTextColor` (both optional) to the canonical `branding` JSON example shared by the public manifest and `GET/PATCH /v1/tenants/hotsite`, with a one-line validation note
+
+**Acceptance criteria:**
+- [ ] `buttonBackgroundColor`/`buttonTextColor` both unset → `applyBranding()` output identical to current behavior for all 3 `buttonStyle` values, including `--ba-btn-hover-bg` (regression — existing `apply-branding.spec.ts` cases unchanged)
+- [ ] `buttonStyle: 'filled'`, `buttonBackgroundColor: '#fbbf24'` → `--ba-btn-bg` = `--ba-btn-border` = `--ba-btn-hover-bg` = `#fbbf24`
+- [ ] `buttonStyle: 'filled'`, `buttonTextColor: '#0f172a'` → `--ba-btn-text` = `#0f172a`
+- [ ] `buttonStyle: 'outline'`, `buttonTextColor: '#0f172a'` → `--ba-btn-text` = `--ba-btn-border` = `#0f172a`
+- [ ] `buttonStyle: 'outline'`, `buttonBackgroundColor: '#fbbf24'` → `--ba-btn-bg` remains `transparent`; `--ba-btn-hover-bg` = `#fbbf24`
+- [ ] `buttonStyle: 'outline'`, `buttonBackgroundColor` unset → `--ba-btn-hover-bg` = `transparent` (current hover behavior preserved)
+- [ ] `buttonStyle: 'ghost'`, `buttonTextColor: '#0f172a'` → `--ba-btn-text` = `#0f172a`; `--ba-btn-border` remains `transparent`
+- [ ] `buttonStyle: 'ghost'`, `buttonBackgroundColor: '#fbbf24'` → `--ba-btn-hover-bg` = `#fbbf24`
+- [ ] `PATCH /v1/tenants/hotsite` with `branding: { buttonBackgroundColor: "#fbbf24" }` persists and round-trips via `GET /v1/tenants/hotsite` and the public manifest
+- [ ] `buttonBackgroundColor: "notacolor"` → `400` (invalid hex)
+- [ ] Existing tenant rows (no `buttonBackgroundColor`/`buttonTextColor` in stored jsonb) — a PATCH that doesn't touch these fields continues to succeed (no `validateBranding()` regression for missing optional fields)
+- [ ] `HeroModule.spec.tsx` — CTA `<a>` className includes `hover:bg-[var(--ba-btn-hover-bg)]`
+- [ ] `tsc --noEmit` passes across the monorepo (`apps/backend`, `packages/types`, `apps/web`)
+
+**Dependencies:** M12-S02, M12-S03, M12-S04
+
+---
+
+### M12-S12 — ESLint: react-hooks + jsx-a11y rules for apps/web
+
+**Agent:** `frontend-ts`  
+**Complexity:** S  
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` § linting, `docs/CODE_STANDARDS.md`
+
+**Description:**  
+`docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §3 mandates `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y` for `apps/web`, but neither is installed anywhere in the monorepo. Without `react-hooks`, Rules-of-Hooks violations (conditional hooks, stale closures from missing `useEffect`/`useMemo`/`useCallback` deps) go undetected until runtime — a real risk once M12-S07 (booking form state) and M13 (TanStack Query hooks throughout the dashboard) land. Without `jsx-a11y`, accessibility issues (missing `alt`, invalid ARIA attributes, non-interactive elements with click handlers, etc.) aren't caught in CI — relevant since BeloAuto hotsites are public-facing for small businesses unlikely to run their own a11y audits.
+
+**What to do:**
+- Add `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y` to `apps/web` devDependencies
+- Apply both plugins' recommended flat-config presets in `apps/web/eslint.config.js`, scoped to `apps/web` only — do **not** touch `packages/config/eslint-base.js` (backend/BFF have no JSX or hooks)
+- Fix any violations the new rules surface in existing code (`HeroModule.tsx`, `[slug]/page.tsx`, `[slug]/layout.tsx`, `Footer.tsx`, etc.) — mechanical fixes only (e.g. `alt` text, hook dependency arrays); no behavioral changes
+- No `// eslint-disable` comments — if a rule produces a false positive, narrow the rule's config instead
+
+**Acceptance criteria:**
+- [ ] `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y` present in `apps/web` devDependencies
+- [ ] Recommended rule sets from both plugins applied in `apps/web/eslint.config.js`, scoped to `apps/web`'s `.tsx`/`.ts` files
+- [ ] `pnpm lint` (apps/web) passes with zero errors/warnings
+- [ ] Any pre-existing violations surfaced by the new rules are fixed, not suppressed
+- [ ] `pnpm type-check` and `pnpm test` (apps/web) continue to pass
+
+**Dependencies:** None — tooling-only, independent of other M12 stories
