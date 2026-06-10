@@ -278,7 +278,7 @@ export function applyBranding(branding: HotsiteBrandingResponse): React.CSSPrope
 
 ---
 
-### M12-S04 — HERO module component
+### M12-S04 — HERO module component ✅ Done
 
 **Agent:** `frontend-ts`  
 **Complexity:** S  
