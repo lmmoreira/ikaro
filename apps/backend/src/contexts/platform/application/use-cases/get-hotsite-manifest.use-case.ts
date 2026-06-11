@@ -3,7 +3,6 @@ import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/stora
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import {
   HotsiteNotFoundError,
-  HotsiteNotPublishedError,
   TenantNotFoundError,
 } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule } from '../../domain/hotsite-config.aggregate';
@@ -45,6 +44,15 @@ export interface GetHotsiteManifestUseCaseResult {
   business: HotsiteBusinessInfo;
 }
 
+function emptyBusinessInfo(): HotsiteBusinessInfo {
+  return {
+    phone: null,
+    email: null,
+    address: null,
+    socialLinks: null,
+  };
+}
+
 @Injectable()
 export class GetHotsiteManifestUseCase {
   constructor(
@@ -60,7 +68,13 @@ export class GetHotsiteManifestUseCase {
     const tenantId = this.tenantContext.tenantId;
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
-    if (!config.isPublished) throw new HotsiteNotPublishedError(tenantId);
+
+    if (!config.isPublished) {
+      const { branding } = this.imageUrlResolver.resolve(config.branding, [], (storagePath) =>
+        this.storageService.getPublicUrl(storagePath),
+      );
+      return { branding, layout: [], isPublished: false, business: emptyBusinessInfo() };
+    }
 
     const tenant = await this.tenantRepo.findById(tenantId);
     if (!tenant) throw new TenantNotFoundError(tenantId);

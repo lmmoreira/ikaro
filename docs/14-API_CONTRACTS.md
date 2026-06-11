@@ -198,11 +198,11 @@ Used by the Next.js hotsite renderer to fetch full branding and layout for a ten
 - **Module types:** `HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTACT`
 - **`enabled: false`** modules are included in the response; the frontend decides to skip them
 - **`business`** (M12-S06) — resolved from `tenants.settings.business_info` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6), camelCased. Always present; any of `phone`/`email`/`address` may be `null` if the admin hasn't filled them in. Consumed by the `CONTACT` module — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT.
-- `404` — tenant slug not found
-- `404` — hotsite exists but `isPublished: false` (public cannot see unpublished hotsites)
+- **`isPublished: false`** — still a `200`, not a `404`. Minimal payload: `branding` reflects the admin's configured (but unpublished) branding — needed so the "Em breve" placeholder (M12-S08) can render with the tenant's `var(--ba-*)` tokens. `layout: []` and `business` (all fields `null`) are stubbed — this public, unauthenticated endpoint never exposes a tenant's draft layout/services/gallery/contact info before they publish. (The admin's full draft state remains available via the authenticated `GET /v1/tenants/hotsite` below.)
+- `404` — tenant slug not found (no `HotsiteConfig` reachable for this slug at all)
 
 ### **Hotsite Admin Management (Admin — UC-027, M12-S02)**
-Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors the public manifest's `branding`/`layout`/`isPublished` shape, but `GET` always returns the full state regardless of publish status (unlike the public endpoint, which `404`s when unpublished).
+Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors the public manifest's `branding`/`layout`/`isPublished` shape, but `GET` always returns the full draft state regardless of publish status — unlike the public endpoint, which stubs `layout: []` and `business` (all fields `null`) when `isPublished: false` (see §1 above).
 
 - `GET /v1/tenants/hotsite` → `200 { branding, layout, isPublished, updatedAt }` — `MANAGER` only
 - `PATCH /v1/tenants/hotsite` → body `{ branding?, layout? }` (partial update — unspecified fields unchanged); `200` returns updated state

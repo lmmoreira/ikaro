@@ -3,7 +3,6 @@ import { ProblemDetail } from '../../../../shared/http/problem-detail';
 import {
   FeaturedBookingNotFoundError,
   HotsiteNotFoundError,
-  HotsiteNotPublishedError,
   PlatformDomainError,
   SlugAlreadyTakenError,
   TenantInactiveError,
@@ -34,15 +33,6 @@ export function mapPlatformError(err: unknown): never {
     err instanceof HotsiteNotFoundError ||
     err instanceof FeaturedBookingNotFoundError
   ) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Not Found',
-      status: HttpStatus.NOT_FOUND,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.NOT_FOUND);
-  }
-  if (err instanceof HotsiteNotPublishedError) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Not Found',

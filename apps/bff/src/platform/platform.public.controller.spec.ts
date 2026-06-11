@@ -48,6 +48,13 @@ const hotsiteResponse: HotsiteResponse & { business: HotsiteBusinessInfoResponse
   business: businessInfo,
 };
 
+const unpublishedHotsiteResponse: HotsiteResponse & { business: HotsiteBusinessInfoResponse } = {
+  branding: hotsiteResponse.branding,
+  layout: [],
+  isPublished: false,
+  business: { phone: null, email: null, address: null, socialLinks: null },
+};
+
 describe('PlatformPublicController', () => {
   afterEach(() => jest.resetAllMocks());
 
@@ -73,14 +80,16 @@ describe('PlatformPublicController', () => {
       await expect(controller.getManifest('unknown-slug')).rejects.toThrow('404');
     });
 
-    it('propagates 404 when the hotsite is not published', async () => {
+    it('returns the minimal payload (isPublished: false, empty layout) when the hotsite is not published', async () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValue(tenantInfo),
-        getForPublic: jest.fn().mockRejectedValue(new Error('404')),
+        getForPublic: jest.fn().mockResolvedValue(unpublishedHotsiteResponse),
       });
       const controller = new PlatformPublicController(backendHttp);
 
-      await expect(controller.getManifest('lavacar-bh')).rejects.toThrow('404');
+      const result = await controller.getManifest('lavacar-bh');
+
+      expect(result).toEqual({ tenant: tenantInfo, ...unpublishedHotsiteResponse });
     });
   });
 });

@@ -409,6 +409,12 @@ export default async function HotsitePage({
 }
 ```
 
+### Unpublished state (M12-S08)
+
+When `manifest.isPublished === false`, `page.tsx` renders `<Unavailable />` (`apps/web/components/hotsite/Unavailable.tsx`) instead of the module list — a generic "Em breve" placeholder. Because `app/[slug]/layout.tsx` has already applied `applyBranding(manifest.branding)`, `<Unavailable />` inherits the tenant's `var(--ba-*)` tokens automatically — for a freshly-provisioned tenant these resolve to `DEFAULT_HOTSITE_BRANDING`, so no special-casing is needed.
+
+This differs from the **unknown-slug** case (`app/not-found.tsx`, root-level, M12-S08): there, `fetchManifest()` calls `notFound()` inside `app/[slug]/layout.tsx` before it ever renders, so no manifest/branding is available and the 404 page uses static BeloAuto styling instead of `var(--ba-*)` tokens. The page must live at the `app/` root rather than `app/[slug]/` because Next.js does not let a segment's own `not-found.tsx` catch a `notFound()` thrown by that segment's own `layout.tsx`.
+
 ---
 
 ## 6. Manifest Caching

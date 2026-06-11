@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import type { ContactModuleData, HotsiteModuleType, ServiceListModuleData } from '@beloauto/types';
 import { fetchManifest } from '@/lib/api/platform';
 import { fetchServices } from '@/lib/api/services';
@@ -8,6 +9,7 @@ import { GalleryModule } from '@/components/hotsite/GalleryModule';
 import { HeroModule } from '@/components/hotsite/HeroModule';
 import { ServiceListModule } from '@/components/hotsite/ServiceListModule';
 import { TestimonialsModule } from '@/components/hotsite/TestimonialsModule';
+import { Unavailable } from '@/components/hotsite/Unavailable';
 import { isValidModuleData } from '@/lib/hotsite/module-schemas';
 
 // Next.js statically analyses segment config exports — imported variables are not resolved.
@@ -31,9 +33,24 @@ interface HotsitePageProps {
   params: Promise<{ slug: string }>;
 }
 
+export async function generateMetadata({ params }: HotsitePageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const manifest = await fetchManifest(slug);
+
+  if (!manifest.isPublished) {
+    return { title: 'Em breve — BeloAuto' };
+  }
+
+  return {};
+}
+
 export default async function HotsitePage({ params }: HotsitePageProps) {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
+
+  if (!manifest.isPublished) {
+    return <Unavailable />;
+  }
 
   const hasServiceList = manifest.layout.some((m) => m.enabled && m.type === 'SERVICE_LIST');
   const services = hasServiceList ? await fetchServices(slug) : [];

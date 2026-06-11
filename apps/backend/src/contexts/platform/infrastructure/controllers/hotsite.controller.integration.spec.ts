@@ -153,14 +153,16 @@ describe('HotsiteController (integration)', () => {
     expect(body.status).toBe(404);
   });
 
-  it('returns 404 when the hotsite is not published', async () => {
+  it('returns 200 with isPublished: false, empty layout, and null business for an unpublished hotsite', async () => {
     const { body } = await request(app.getHttpServer())
       .get('/hotsite')
       .set('X-Internal-Key', INTERNAL_KEY)
       .set('X-Tenant-ID', TENANT_B)
-      .expect(404);
+      .expect(200);
 
-    expect(body.status).toBe(404);
+    expect(body.isPublished).toBe(false);
+    expect(body.layout).toEqual([]);
+    expect(body.business).toEqual({ phone: null, email: null, address: null, socialLinks: null });
   });
 
   it('returns the manifest for a published hotsite', async () => {
@@ -231,16 +233,5 @@ describe('HotsiteController (integration)', () => {
 
     expect(body.branding.buttonBackgroundColor).toBe('#fbbf24');
     expect(body.branding.buttonTextColor).toBe('#0f172a');
-  });
-
-  it('tenant isolation: tenant B caller never receives tenant A published data', async () => {
-    const { body } = await request(app.getHttpServer())
-      .get('/hotsite')
-      .set('X-Internal-Key', INTERNAL_KEY)
-      .set('X-Tenant-ID', TENANT_B)
-      .expect(404);
-
-    expect(body.status).toBe(404);
-    expect(body.detail).not.toContain(TENANT_A);
   });
 });

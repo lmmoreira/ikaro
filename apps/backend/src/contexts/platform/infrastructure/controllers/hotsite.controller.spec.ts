@@ -36,14 +36,20 @@ describe('HotsiteController', () => {
     expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
   });
 
-  it('maps HotsiteNotPublishedError to 404 when the config is not published', async () => {
+  it('returns 200 with isPublished: false and an empty layout when the config is not published', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
 
-    const err = await controller.getManifest().catch((e: unknown) => e);
+    const result = await controller.getManifest();
 
-    expect(err).toBeInstanceOf(HttpException);
-    expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(result.isPublished).toBe(false);
+    expect(result.layout).toEqual([]);
+    expect(result.business).toEqual({
+      phone: null,
+      email: null,
+      address: null,
+      socialLinks: null,
+    });
   });
 
   it('returns branding, layout, and isPublished for a published hotsite', async () => {

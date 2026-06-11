@@ -34,13 +34,6 @@ export class HotsiteNotFoundError extends PlatformDomainError {
   }
 }
 
-export class HotsiteNotPublishedError extends PlatformDomainError {
-  constructor(tenantId: string) {
-    super(`Hotsite for tenant '${tenantId}' is not published`);
-    this.name = 'HotsiteNotPublishedError';
-  }
-}
-
 export class HotsiteImageNotUploadedError extends PlatformDomainError {
   constructor(storagePath: string) {
     super(`Image was not found in storage: ${storagePath}`);

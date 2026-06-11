@@ -48,6 +48,13 @@ const hotsiteResponse: HotsiteResponse & { business: HotsiteBusinessInfoResponse
   business: businessInfo,
 };
 
+const unpublishedHotsiteResponse: HotsiteResponse & { business: HotsiteBusinessInfoResponse } = {
+  branding: hotsiteResponse.branding,
+  layout: [],
+  isPublished: false,
+  business: { phone: null, email: null, address: null, socialLinks: null },
+};
+
 describe('PlatformPublicController (component)', () => {
   let app: INestApplication;
   let backendHttpService: MockBackendHttpService;
@@ -90,15 +97,14 @@ describe('PlatformPublicController (component)', () => {
       expect(res.status).toBe(404);
     });
 
-    it('returns 404 when the hotsite is not published', async () => {
+    it('returns 200 with isPublished: false and an empty layout when the hotsite is not published', async () => {
       backendHttpService.get.mockResolvedValueOnce(tenantInfo);
-      backendHttpService.getForPublic = jest
-        .fn()
-        .mockRejectedValueOnce(new HttpException({ title: 'Not Found', status: 404 }, 404));
+      backendHttpService.getForPublic = jest.fn().mockResolvedValueOnce(unpublishedHotsiteResponse);
 
       const res = await request(app.getHttpServer()).get('/v1/platform/manifest/lavacar-bh');
 
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ tenant: tenantInfo, ...unpublishedHotsiteResponse });
     });
   });
 });
