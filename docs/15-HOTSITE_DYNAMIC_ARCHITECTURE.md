@@ -288,15 +288,12 @@ interface ContactModuleData {
   showWhatsapp: boolean;
   showEmail: boolean;
   showMap: boolean;        // Google Maps embed using address from tenants.settings.business_info
-  socialLinks?: {
-    instagram?: string;
-    facebook?: string;
-    whatsapp?: string;     // full number with country code
-  };
 }
 ```
 
-`ContactModuleData` (manifest `layout[].data`) only carries **display preferences** — which sections to show and the social links. The actual **values** (address, phone, email) live in `tenants.settings.business_info` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6) — the admin edits them once on the tenant settings page (UC-026), not per-module.
+Social links (whatsapp, instagram, facebook) are **not stored in `ContactModuleData`**. They come from `tenants.settings.business_info.social_links`, resolved into `manifest.business.socialLinks` by `GetHotsiteManifestUseCase`. The admin edits them once on the tenant settings page — `ContactModule` renders them based on `business.socialLinks`.
+
+`ContactModuleData` (manifest `layout[].data`) only carries **display preferences** — which sections to show. The actual **values** (address, phone, email, social links) live in `tenants.settings.business_info` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6) — the admin edits them once on the tenant settings page (UC-026), not per-module.
 
 `GetHotsiteManifestUseCase` resolves `tenants.settings.business_info` into a top-level `business` field on the manifest (camelCased, sibling of `tenant`/`branding`/`layout`):
 
@@ -314,6 +311,11 @@ interface HotsiteBusinessInfoResponse {
     state: string;
     zipCode: string;
   } | null;
+  socialLinks: {
+    whatsapp: string | null;   // validated phone number — used in wa.me/ links
+    instagram: string | null;  // free-form URL / handle
+    facebook: string | null;   // free-form URL / handle
+  } | null;
 }
 
 interface HotsiteManifestResponse extends HotsiteResponse {
@@ -328,8 +330,8 @@ interface HotsiteManifestResponse extends HotsiteResponse {
 - `showAddress` → render `business.address` (formatted as "Rua, Número - Bairro, Cidade - UF, CEP"); section omitted if `business.address` is `null`, even when `showAddress: true`
 - `showPhone` → render `business.phone` (formatted); omitted if `null`
 - `showEmail` → render `business.email` as a `mailto:` link; omitted if `null`
-- `showWhatsapp` → render a `https://wa.me/<digits>` link from `data.socialLinks.whatsapp`; omitted if absent
-- `socialLinks.instagram` / `socialLinks.facebook` → rendered as links when present, independent of the `showXxx` flags above
+- `showWhatsapp` → render a `https://wa.me/<digits>` link using `business.socialLinks.whatsapp`; omitted if `null`
+- `business.socialLinks.instagram` / `business.socialLinks.facebook` → rendered as links when present, independent of the `showXxx` flags above
 - `showMap` → embeds `https://maps.google.com/maps?q=<urlencoded address>&output=embed` (keyless query-based embed, no Google Maps API key needed) using `business.address`; omitted if `business.address` is `null`, even when `showMap: true`
 
 ---
@@ -411,12 +413,34 @@ export default async function HotsitePage({
 
 ## 6. Manifest Caching
 
+Next.js has **two independent caches** for hotsite requests:
+
+- **Full Route Cache** (`export const revalidate` on the page/layout) — caches the final rendered HTML
+- **Data Cache** (`next: { revalidate: N }` on individual `fetch()` calls) — caches individual API responses
+
+Both must use the **same TTL** or they diverge. Use the shared constant from `apps/web/lib/hotsite/revalidate.ts`:
+
 ```typescript
-// lib/api/platform.ts
+// apps/web/lib/hotsite/revalidate.ts
+export const HOTSITE_REVALIDATE_SECONDS = 300;
+```
+
+```typescript
+// apps/web/app/[slug]/page.tsx  (and layout.tsx)
+// Next.js statically analyses segment config exports — imported variables are not resolved.
+// Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in lib/hotsite/revalidate.ts.
+export const revalidate = 300;
+```
+
+```typescript
+// apps/web/lib/api/platform.ts
+import { HOTSITE_REVALIDATE_SECONDS } from '@/lib/hotsite/revalidate';
+
 export async function fetchManifest(slug: string): Promise<HotsiteManifestResponse> {
+  const isDev = process.env.NODE_ENV === 'development';
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_BFF_URL}/platform/manifest/${slug}`,
-    { next: { revalidate: 300 } },  // ISR: revalidate every 5 minutes
+    { next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS } },
   );
 
   if (res.status === 404) notFound();
@@ -426,12 +450,16 @@ export async function fetchManifest(slug: string): Promise<HotsiteManifestRespon
 }
 ```
 
+The `isDev ? 0` guard disables caching in `NODE_ENV=development` so local edits are reflected immediately without cache busting.
+
 **Cache behaviour:**
 - First request → fetched from BFF, cached for 300 s
 - Subsequent requests within 5 min → served from Next.js cache (no BFF call)
 - After 5 min → revalidated in the background, stale served in the meantime
 - Admin publishes/unpublishes (UC-027) → triggers on-demand revalidation (`revalidatePath('/[slug]')` via a secured `/api/revalidate` route, M12-S10) — changes go live immediately rather than waiting for the 5-minute ISR window
 - Image URLs embedded in the manifest (`branding.logoUrl`, module `*Url`, `GalleryImage.url`) are **permanent public addresses** (M12-S10 — see §4 "Image hosting & URL resolution"), not expiring signed URLs — this is what makes caching the manifest payload itself safe; nothing inside it can go stale mid-window
+
+**Rule:** Never hardcode `300` or any revalidation number in a `fetch()` call or page export — always import from `lib/hotsite/revalidate.ts` so all TTLs move together.
 
 ---
 
@@ -450,17 +478,31 @@ Create `apps/web/components/hotsite/XxxModule.tsx`. Rules:
 - Mobile-first responsive layout (Tailwind breakpoints: `sm`, `md`, `lg`)
 - Accessible (WCAG 2.1 AA) — semantic HTML, `aria-label` where needed, sufficient color contrast
 - Accept props: `data: XxxModuleData` and `slug: string`
-- Write a Vitest unit test and a React Testing Library component test
+- **Default to a server component** (no `'use client'`). Before marking the whole component client-side, identify the smallest interactive piece (e.g. a reveal button, carousel nav) and extract only that into a small `'use client'` child component, passed pre-rendered server content as `children` (the "islands" pattern) — keeps data fetching, image rendering (`next/image`), and markup server-rendered for SEO/LCP, and ships minimal client JS. Exception: when the entire module is interactive by nature (forms, real-time data, heavy animation), mark the whole module `'use client'` — forced splitting adds complexity without benefit.
+- Write a Vitest unit test and a React Testing Library component test (`// @vitest-environment jsdom` at line 1)
 
-**3. Register in MODULE_MAP**
+**Islands pattern — concrete reference (`GalleryModule`/`GalleryGrid`):**
+
+`GalleryModule` (server) renders all `<img>` elements and passes them as `children` to `GalleryGrid` (client). Key decisions:
+- All images are in the SSR HTML; extras get `data-gallery-extra` attribute
+- CSS rule `[data-gallery-expanded='false'] [data-gallery-extra] { display: none }` hides them — browser skips downloading hidden images (no LCP cost), but they're discoverable by crawlers
+- Client component toggles `data-gallery-expanded` on the wrapper `<div>` — no React re-render removes images from the DOM
+- Clicks use **event delegation** — single `onClick` on the wrapper div, reads `data-gallery-url`/`data-gallery-caption` from `e.target.closest('[data-gallery-url]')` — works across server-rendered children because React's event system is rooted at the document
+- The `<dialog>` lightbox uses `open:flex` (**not** `flex`) — see ANTI_PATTERNS.md `<dialog className="flex">` entry
+
+**3. Add a Zod schema to `module-schemas.ts`**
+
+Add a `XxxModuleDataSchema` to `apps/web/lib/hotsite/module-schemas.ts` and register it in `MODULE_DATA_SCHEMAS`. Without this, `isValidModuleData('XXX', data)` returns `true` for any data including structurally invalid payloads — a malformed module will reach the component and may crash the page. Every `HotsiteModuleType` must have a schema registered before its story ships.
+
+**4. Register in MODULE_MAP**
 
 Add the entry to `MODULE_MAP` in `apps/web/app/[slug]/page.tsx`.
 
-**4. Add the admin configuration form**
+**5. Add the admin configuration form**
 
 Add a form panel for the new module inside the hotsite editor (UC-027, `apps/web/app/dashboard/settings/hotsite/`). The form must allow the admin to fill in all `data` fields and toggle `enabled`.
 
-**5. Update this document**
+**6. Update this document**
 
 Add the module to the table in §3 and add its `data` interface to §4.
 

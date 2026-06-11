@@ -167,6 +167,112 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.status).toBe(400);
   });
 
+  it('returns 200 and persists a business_info update with address', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({
+        settings: {
+          business_info: {
+            phone: '11987654321',
+            email: 'contato@beloauto.com.br',
+            address: {
+              street: 'Av. Paulista',
+              number: '1000',
+              neighborhood: 'Bela Vista',
+              city: 'São Paulo',
+              state: 'SP',
+              zip_code: '01310100',
+            },
+          },
+        },
+      })
+      .expect(200);
+
+    expect(body.settings.business_info.phone).toBe('11987654321');
+    expect(body.settings.business_info.address.zip_code).toBe('01310100');
+
+    const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
+    expect(row!.settings.business_info?.email).toBe('contato@beloauto.com.br');
+  });
+
+  it('returns 400 for an invalid business_info.address.zip_code', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({
+        settings: {
+          business_info: {
+            address: {
+              street: 'Av. Paulista',
+              number: '1000',
+              neighborhood: 'Bela Vista',
+              city: 'São Paulo',
+              state: 'SP',
+              zip_code: '123',
+            },
+          },
+        },
+      })
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
+  it('returns 400 for an invalid business_info.phone', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: { business_info: { phone: '123' } } })
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
+  it('returns 200 and persists social_links in business_info', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({
+        settings: {
+          business_info: {
+            social_links: {
+              whatsapp: '11987654321',
+              instagram: 'https://instagram.com/lavacar',
+              facebook: 'https://facebook.com/lavacar',
+            },
+          },
+        },
+      })
+      .expect(200);
+
+    expect(body.settings.business_info.social_links).toEqual({
+      whatsapp: '11987654321',
+      instagram: 'https://instagram.com/lavacar',
+      facebook: 'https://facebook.com/lavacar',
+    });
+
+    const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
+    expect(row!.settings.business_info?.social_links?.whatsapp).toBe('11987654321');
+  });
+
+  it('returns 400 for an invalid social_links.whatsapp (not a phone number)', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({
+        settings: { business_info: { social_links: { whatsapp: '123' } } },
+      })
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
   it('returns 409 when the tenant is inactive', async () => {
     const inactiveTenant = new TenantEntityBuilder()
       .withId('00000000-0000-0000-0000-000000000001')

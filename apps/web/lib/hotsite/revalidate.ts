@@ -1,0 +1,1 @@
+export const HOTSITE_REVALIDATE_SECONDS = 300;

@@ -51,6 +51,41 @@ const LocalizationSchema = z
   })
   .partial();
 
+const BusinessInfoAddressSchema = z
+  .object({
+    street: z.string().nullable(),
+    number: z.string().nullable(),
+    complement: z.string().optional(),
+    neighborhood: z.string().nullable(),
+    city: z.string().nullable(),
+    state: z
+      .string()
+      .regex(/^[A-Z]{2}$/, 'must be a 2-letter uppercase UF')
+      .nullable(),
+    zip_code: z
+      .string()
+      .regex(/^\d{8}$/, 'must be exactly 8 digits')
+      .nullable(),
+  })
+  .partial();
+
+const SocialLinksSchema = z
+  .object({
+    whatsapp: z.string().nullable().optional(),
+    instagram: z.string().nullable().optional(),
+    facebook: z.string().nullable().optional(),
+  })
+  .optional();
+
+const BusinessInfoSchema = z
+  .object({
+    phone: z.string().nullable(),
+    email: z.string().nullable(),
+    address: BusinessInfoAddressSchema.nullable(),
+    social_links: SocialLinksSchema,
+  })
+  .partial();
+
 export const UpdateTenantSettingsSchema = z
   .object({
     name: z.string().min(1, 'name must not be empty').optional(),
@@ -60,6 +95,7 @@ export const UpdateTenantSettingsSchema = z
         booking: BookingSchema.optional(),
         business_hours: BusinessHoursSchema.optional(),
         localization: LocalizationSchema.optional(),
+        business_info: BusinessInfoSchema.optional(),
       })
       .optional(),
   })

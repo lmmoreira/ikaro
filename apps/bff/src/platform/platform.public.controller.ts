@@ -2,7 +2,11 @@ import { Controller, Get, Header, Param } from '@nestjs/common';
 import { Public } from '../shared/decorators/public.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { TenantInfoResponse } from '../shared/types/backend-responses';
-import { HotsiteManifestResponse, HotsiteResponse } from '@beloauto/types';
+import {
+  HotsiteBusinessInfoResponse,
+  HotsiteManifestResponse,
+  HotsiteResponse,
+} from '@beloauto/types';
 
 @Controller('platform')
 export class PlatformPublicController {
@@ -15,7 +19,9 @@ export class PlatformPublicController {
     const tenant = await this.backendHttp.get<TenantInfoResponse>(
       `/internal/tenants/by-slug/${slug}`,
     );
-    const hotsite = await this.backendHttp.getForPublic<HotsiteResponse>('/hotsite', tenant.id);
+    const hotsite = await this.backendHttp.getForPublic<
+      HotsiteResponse & { business: HotsiteBusinessInfoResponse }
+    >('/hotsite', tenant.id);
     return { tenant, ...hotsite };
   }
 }

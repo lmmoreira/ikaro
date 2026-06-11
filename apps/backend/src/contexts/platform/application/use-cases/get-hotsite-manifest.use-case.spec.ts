@@ -1,10 +1,16 @@
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
-import { HotsiteConfigBuilder } from '../../../../test/builders/platform';
+import {
+  HotsiteConfigBuilder,
+  TenantBuilder,
+  TenantSettingsPropsBuilder,
+} from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
+import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import {
   HotsiteNotFoundError,
   HotsiteNotPublishedError,
+  TenantNotFoundError,
 } from '../../domain/errors/platform-domain.error';
 import {
   DEFAULT_HOTSITE_BRANDING,
@@ -12,6 +18,7 @@ import {
   HotsiteModule,
 } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
+import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { GetHotsiteManifestUseCase } from './get-hotsite-manifest.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
@@ -19,18 +26,22 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
 describe('GetHotsiteManifestUseCase', () => {
   let repo: InMemoryHotsiteConfigRepository;
+  let tenantRepo: InMemoryTenantRepository;
   let storageService: InMemoryStorageService;
   let useCase: GetHotsiteManifestUseCase;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     repo = new InMemoryHotsiteConfigRepository();
+    tenantRepo = new InMemoryTenantRepository();
     storageService = new InMemoryStorageService();
     useCase = new GetHotsiteManifestUseCase(
       repo,
+      tenantRepo,
       storageService,
       new TenantContextBuilder().withTenantId(TENANT_A).build(),
       new HotsiteImageUrlResolver(),
     );
+    await tenantRepo.save(new TenantBuilder().withId(TENANT_A).build());
   });
 
   it('throws HotsiteNotFoundError when no config exists for the tenant', async () => {
@@ -53,6 +64,77 @@ describe('GetHotsiteManifestUseCase', () => {
     expect(result.isPublished).toBe(true);
     expect(result.branding).toEqual(config.branding);
     expect(result.layout).toEqual(config.layout);
+  });
+
+  it('throws TenantNotFoundError when the tenant aggregate does not exist', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished();
+    await repo.save(config);
+    const useCaseForB = new GetHotsiteManifestUseCase(
+      repo,
+      tenantRepo,
+      storageService,
+      new TenantContextBuilder().withTenantId(TENANT_B).build(),
+      new HotsiteImageUrlResolver(),
+    );
+
+    await expect(useCaseForB.execute()).rejects.toBeInstanceOf(TenantNotFoundError);
+  });
+
+  it('returns business resolved from tenant.settings.business_info', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished();
+    await repo.save(config);
+    const settings = TenantSettings.create(
+      new TenantSettingsPropsBuilder()
+        .withBusinessInfo({
+          phone: '11987654321',
+          email: 'contato@beloauto.com.br',
+          address: {
+            street: 'Av. Paulista',
+            number: '1000',
+            neighborhood: 'Bela Vista',
+            city: 'São Paulo',
+            state: 'SP',
+            zip_code: '01310100',
+          },
+        })
+        .withSocialLinks({
+          whatsapp: '11987654321',
+          instagram: 'https://instagram.com/lavacar',
+          facebook: null,
+        })
+        .build(),
+    );
+    await tenantRepo.save(new TenantBuilder().withId(TENANT_A).withSettings(settings).build());
+
+    const result = await useCase.execute();
+
+    expect(result.business).toEqual({
+      phone: '11987654321',
+      email: 'contato@beloauto.com.br',
+      address: {
+        street: 'Av. Paulista',
+        number: '1000',
+        complement: undefined,
+        neighborhood: 'Bela Vista',
+        city: 'São Paulo',
+        state: 'SP',
+        zipCode: '01310100',
+      },
+      socialLinks: {
+        whatsapp: '11987654321',
+        instagram: 'https://instagram.com/lavacar',
+        facebook: null,
+      },
+    });
+  });
+
+  it('returns null business fields when tenant.settings.business_info is unset', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished();
+    await repo.save(config);
+
+    const result = await useCase.execute();
+
+    expect(result.business).toEqual({ phone: null, email: null, address: null, socialLinks: null });
   });
 
   it('resolves stored filePaths to permanent public URLs — branding.logoUrl and GalleryImage.url', async () => {

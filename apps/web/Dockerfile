@@ -15,9 +15,8 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY packages/ packages/
 COPY apps/web/ apps/web/
 
-RUN pnpm --filter @beloauto/web build
-
-RUN pnpm --filter @beloauto/web deploy --prod /standalone
+RUN pnpm --filter @beloauto/web build \
+    && pnpm --filter @beloauto/web deploy --prod /standalone
 
 
 # ─── Stage 2: Run ────────────────────────────────────────────────────────────
@@ -25,7 +24,11 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+# Temporary mitigation for CVE-2026-45447 (OpenSSL heap UAF): node:20-alpine
+# still ships libcrypto3/libssl3 3.5.6-r0; Alpine repos already have 3.5.7-r0.
+# Remove once the base image is rebuilt with the patch baked in — see CLAUDE.md §18.
+RUN apk upgrade --no-cache libcrypto3 libssl3 \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # Copy prod node_modules + config files from pnpm deploy
 COPY --from=builder /standalone .

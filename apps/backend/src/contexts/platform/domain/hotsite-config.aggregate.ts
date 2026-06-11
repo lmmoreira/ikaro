@@ -71,12 +71,6 @@ export interface AboutModuleData {
   imagePosition: 'left' | 'right';
 }
 
-export interface ContactSocialLinks {
-  instagram?: string;
-  facebook?: string;
-  whatsapp?: string;
-}
-
 export interface ContactModuleData {
   title?: string;
   showAddress: boolean;
@@ -84,7 +78,6 @@ export interface ContactModuleData {
   showWhatsapp: boolean;
   showEmail: boolean;
   showMap: boolean;
-  socialLinks?: ContactSocialLinks;
 }
 
 export type HotsiteModuleData =

@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import {
   HotsiteConfigEntityBuilder,
   TenantEntityBuilder,
+  TenantSettingsPropsBuilder,
 } from '../../../../test/builders/platform';
 import { HotsiteBranding } from '../../domain/hotsite-config.aggregate';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
@@ -16,6 +17,8 @@ const TENANT_A = 'b1c2d3e4-0000-0000-0000-000000000001';
 const TENANT_B = 'b1c2d3e4-0000-0000-0000-000000000002';
 const TENANT_NO_HOTSITE = 'b1c2d3e4-0000-0000-0000-000000000003';
 const TENANT_BUTTON_BRANDING = 'b1c2d3e4-0000-0000-0000-000000000004';
+const TENANT_BUSINESS_INFO = 'b1c2d3e4-0000-0000-0000-000000000005';
+const TENANT_SOCIAL_LINKS = 'b1c2d3e4-0000-0000-0000-000000000006';
 const INTERNAL_KEY = 'integ-hotsite-key-hotsite-key-xx'; // exactly 32 chars
 
 async function saveHotsiteConfig(
@@ -68,6 +71,44 @@ describe('HotsiteController (integration)', () => {
           .withSlug('hotsite-integ-tenant-d')
           .build(),
       );
+    await ds.getRepository(TenantEntity).save(
+      new TenantEntityBuilder()
+        .withId(TENANT_BUSINESS_INFO)
+        .withSlug('hotsite-integ-tenant-e')
+        .withSettings(
+          new TenantSettingsPropsBuilder()
+            .withBusinessInfo({
+              phone: '11987654321',
+              email: 'contato@beloauto.com.br',
+              address: {
+                street: 'Av. Paulista',
+                number: '1000',
+                neighborhood: 'Bela Vista',
+                city: 'São Paulo',
+                state: 'SP',
+                zip_code: '01310100',
+              },
+            })
+            .build(),
+        )
+        .build(),
+    );
+    await ds.getRepository(TenantEntity).save(
+      new TenantEntityBuilder()
+        .withId(TENANT_SOCIAL_LINKS)
+        .withSlug('hotsite-integ-tenant-f')
+        .withSettings(
+          new TenantSettingsPropsBuilder()
+            .withBusinessInfo({ phone: '11987654321' })
+            .withSocialLinks({
+              whatsapp: '11987654321',
+              instagram: 'https://instagram.com/lavacar',
+              facebook: null,
+            })
+            .build(),
+        )
+        .build(),
+    );
 
     await saveHotsiteConfig(ds, TENANT_A, true);
     await saveHotsiteConfig(ds, TENANT_B, false);
@@ -75,6 +116,8 @@ describe('HotsiteController (integration)', () => {
       buttonBackgroundColor: '#fbbf24',
       buttonTextColor: '#0f172a',
     });
+    await saveHotsiteConfig(ds, TENANT_BUSINESS_INFO, true);
+    await saveHotsiteConfig(ds, TENANT_SOCIAL_LINKS, true);
   });
 
   afterAll(async () => {
@@ -131,6 +174,52 @@ describe('HotsiteController (integration)', () => {
     expect(body.branding.primaryColor).toBe('#2563eb');
     expect(body.layout).toHaveLength(1);
     expect(body.layout[0].type).toBe('HERO');
+  });
+
+  it('returns null business fields when tenant.settings.business_info is unset', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get('/hotsite')
+      .set('X-Internal-Key', INTERNAL_KEY)
+      .set('X-Tenant-ID', TENANT_A)
+      .expect(200);
+
+    expect(body.business).toEqual({ phone: null, email: null, address: null, socialLinks: null });
+  });
+
+  it('returns business resolved from tenant.settings.business_info when set', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get('/hotsite')
+      .set('X-Internal-Key', INTERNAL_KEY)
+      .set('X-Tenant-ID', TENANT_BUSINESS_INFO)
+      .expect(200);
+
+    expect(body.business).toEqual({
+      phone: '11987654321',
+      email: 'contato@beloauto.com.br',
+      address: {
+        street: 'Av. Paulista',
+        number: '1000',
+        neighborhood: 'Bela Vista',
+        city: 'São Paulo',
+        state: 'SP',
+        zipCode: '01310100',
+      },
+      socialLinks: null,
+    });
+  });
+
+  it('returns socialLinks from tenant.settings.business_info.social_links when set', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get('/hotsite')
+      .set('X-Internal-Key', INTERNAL_KEY)
+      .set('X-Tenant-ID', TENANT_SOCIAL_LINKS)
+      .expect(200);
+
+    expect(body.business.socialLinks).toEqual({
+      whatsapp: '11987654321',
+      instagram: 'https://instagram.com/lavacar',
+      facebook: null,
+    });
   });
 
   it('returns buttonBackgroundColor/buttonTextColor in the manifest branding when set', async () => {

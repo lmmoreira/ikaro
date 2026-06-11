@@ -17,3 +17,8 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Gallery: extra images are server-rendered in HTML (SEO) but hidden until expanded */
+[data-gallery-expanded='false'] [data-gallery-extra] {
+  display: none;
+}

@@ -301,7 +301,7 @@ Every hotsite module component requires a `*.spec.tsx` alongside it. Minimum cov
 |---|---|
 | `HeroModule` | `variant: 'centered'` and `'left-aligned'` both render; title and optional subtitle present; `ctaTarget: 'booking'` → `href="#booking-form"`; `ctaTarget: 'service-list'` → `href="#service-list"`; no `backgroundImageUrl` → no `<img>`, primary bg applied; with `backgroundImageUrl` → `<img>` with correct `src`; `subtitle` absent → no subtitle element |
 | `ServiceListModule` | Cards rendered from mocked data; `showPrices: false` → price badge absent; `showPoints: false` → points badge absent; zero services → pt-BR empty-state message; section has `id="service-list"` |
-| `GalleryModule` | 8 images + `maxVisible: 6` → 6 images + "Ver mais" button; `images: []` → section not rendered; `source: 'booking'` + `photoType: 'before'` → "Antes" badge; `source: 'booking'` + `photoType: 'after'` → "Depois" badge; images rendered with `loading="lazy"` |
+| `GalleryModule` | 8 images + `maxVisible: 6` → all 8 images in DOM (extras marked `data-gallery-extra`), "Ver mais" button present; clicking "Ver mais" sets `data-gallery-expanded="true"` on wrapper; `images: []` → section not rendered; `source: 'booking'` + `photoType: 'before'` → "Antes" badge; `source: 'booking'` + `photoType: 'after'` → "Depois" badge; images rendered with `loading="lazy"` |
 | `TestimonialsModule` | Items render with author name and text; `rating: 4` → 4 filled stars; no `rating` → no star elements; `layout: 'carousel'` → carousel structure present |
 | `AboutModule` | `imagePosition: 'left'` → image before text in DOM; `imagePosition: 'right'` → image after text in DOM; `imageUrl` absent → no `<img>`; markdown `body` rendered as HTML; `<script>` tag in `body` stripped (XSS) |
 | `ContactModule` | `showMap: false` → no `<iframe>`; `showWhatsapp: false` → no WhatsApp link; `showAddress: false` → no address block; WhatsApp link opens `wa.me/` with correct number |
@@ -524,3 +524,31 @@ Commands live in `.claude/commands/`. Claude Code auto-discovers them — type `
 | `/story-discovery M0X-SYY` | `.claude/commands/story-discovery.md` | **Before starting a story** — checks doc clarity, dep symbols, and consistency; asks targeted questions; proposes doc patches; emits READY / NOT READY verdict. |
 
 **Adding new commands:** create `.claude/commands/<name>.md`. Use `$ARGUMENTS` for optional user-typed arguments. Document it in this table.
+
+---
+
+## 18. Pending Cleanup — Check Periodically
+
+> **AGENT INSTRUCTION:** At the start of any conversation that touches Dockerfiles or CI, proactively check the items below and remind the user if they are still pending.
+
+### CVE-2026-45447 OpenSSL workaround (added 2026-06-11, check after ~2026-06-18)
+
+All three Dockerfiles have a temporary `apk upgrade` line in their runner stage:
+
+```
+# apps/backend/Dockerfile  (line ~31)
+# apps/bff/Dockerfile      (line ~28)
+# apps/web/Dockerfile      (line ~28)
+RUN apk upgrade --no-cache libcrypto3 libssl3
+```
+
+**Why it's there:** `node:20-alpine` shipped `libcrypto3/libssl3 3.5.6-r0` (CVE-2026-45447 — OpenSSL heap use-after-free). The Alpine repos already have `3.5.7-r0`; the Node Docker team just hasn't rebuilt the base image yet.
+
+**When to remove:** Once `node:20-alpine` is rebuilt with the patch baked in, those lines become a no-op and should be deleted.
+
+**How to verify (run this before removing):**
+```bash
+docker pull node:20-alpine
+docker run --rm node:20-alpine apk list --installed 2>/dev/null | grep libcrypto3
+# Should show: libcrypto3-3.5.7-r0 or higher — then remove the apk upgrade lines
+```

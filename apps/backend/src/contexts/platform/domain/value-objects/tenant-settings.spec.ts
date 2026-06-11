@@ -22,6 +22,12 @@ describe('TenantSettings', () => {
       expect(settings.localization.currency).toBe('BRL');
       expect(settings.localization.language).toBe('pt-BR');
       expect(settings.notification.from_email).toBeNull();
+      expect(settings.business_info).toEqual({
+        phone: null,
+        email: null,
+        address: null,
+        social_links: null,
+      });
     });
 
     it('accepts a custom timezone', () => {
@@ -91,6 +97,115 @@ describe('TenantSettings', () => {
     it('accepts null day (closed)', () => {
       const props = new TenantSettingsPropsBuilder().withBusinessHours({ saturday: null }).build();
       expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+  });
+
+  describe('create() — business_info validation', () => {
+    const validAddress = {
+      street: 'Av. Paulista',
+      number: '1000',
+      neighborhood: 'Bela Vista',
+      city: 'São Paulo',
+      state: 'SP',
+      zip_code: '01310100',
+    };
+
+    it('accepts the default all-null business_info', () => {
+      const props = new TenantSettingsPropsBuilder().build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+
+    it('accepts a partial business_info with only phone set', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBusinessInfo({ phone: '11987654321' })
+        .build();
+      const settings = TenantSettings.create(props);
+      expect(settings.business_info).toEqual({
+        phone: '11987654321',
+        email: null,
+        address: null,
+        social_links: null,
+      });
+    });
+
+    it('accepts a full business_info with a valid address', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBusinessInfo({
+          phone: '11987654321',
+          email: 'contato@beloauto.com.br',
+          address: validAddress,
+        })
+        .build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+
+    it('throws for an invalid phone', () => {
+      const props = new TenantSettingsPropsBuilder().withBusinessInfo({ phone: '123' }).build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('throws for an invalid email', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBusinessInfo({ email: 'not-an-email' })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('throws for a zip_code that is not 8 digits', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBusinessInfo({ address: { ...validAddress, zip_code: '123' } })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('throws for a state that is not a 2-letter uppercase UF', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBusinessInfo({ address: { ...validAddress, state: 'sp' } })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('throws when the address is missing a required field', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBusinessInfo({ address: { ...validAddress, street: '' } })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('accepts business_info with social_links set and exposes them via getter', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBusinessInfo({ phone: '11987654321' })
+        .withSocialLinks({
+          whatsapp: '11987654321',
+          instagram: 'https://instagram.com/lavacar',
+          facebook: null,
+        })
+        .build();
+      const settings = TenantSettings.create(props);
+      expect(settings.business_info.social_links).toEqual({
+        whatsapp: '11987654321',
+        instagram: 'https://instagram.com/lavacar',
+        facebook: null,
+      });
+    });
+
+    it('toJSON() serialises social_links from business_info', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withSocialLinks({ whatsapp: '11987654321', instagram: null, facebook: null })
+        .build();
+      const settings = TenantSettings.create(props);
+      expect(settings.toJSON().business_info!.social_links).toEqual({
+        whatsapp: '11987654321',
+        instagram: null,
+        facebook: null,
+      });
+    });
+
+    it('throws for an invalid social_links.whatsapp (not a phone number)', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withSocialLinks({ whatsapp: '123', instagram: null, facebook: null })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
     });
   });
 

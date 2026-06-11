@@ -11,6 +11,7 @@
 # REST Client environment: select "local" in VS Code status bar
 
 @baseUrl = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH
@@ -19,6 +20,7 @@
 ### Get the published hotsite manifest for a tenant
 GET {{baseUrl}}/hotsite
 X-Tenant-ID: {{tenantId}}
+X-Internal-Key: {{internalKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES

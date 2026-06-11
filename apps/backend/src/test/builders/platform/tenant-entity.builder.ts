@@ -1,4 +1,7 @@
-import { TenantSettings } from '../../../contexts/platform/domain/value-objects/tenant-settings.vo';
+import {
+  TenantSettings,
+  TenantSettingsProps,
+} from '../../../contexts/platform/domain/value-objects/tenant-settings.vo';
 import { TenantEntity } from '../../../contexts/platform/infrastructure/entities/tenant.entity';
 
 export class TenantEntityBuilder {
@@ -6,6 +9,7 @@ export class TenantEntityBuilder {
   private readonly name = 'BeloAuto';
   private slug = 'beloauto';
   private isActive = true;
+  private settings: TenantSettingsProps = TenantSettings.default().toJSON();
   private readonly createdAt = new Date('2026-01-01T00:00:00Z');
   private readonly updatedAt = new Date('2026-01-01T00:00:00Z');
 
@@ -24,12 +28,17 @@ export class TenantEntityBuilder {
     return this;
   }
 
+  withSettings(settings: TenantSettingsProps): this {
+    this.settings = settings;
+    return this;
+  }
+
   build(): TenantEntity {
     const e = new TenantEntity();
     e.id = this.id;
     e.name = this.name;
     e.slug = this.slug;
-    e.settings = TenantSettings.default().toJSON();
+    e.settings = this.settings;
     e.isActive = this.isActive;
     e.createdAt = this.createdAt;
     e.updatedAt = this.updatedAt;

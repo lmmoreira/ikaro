@@ -433,14 +433,15 @@ Implement the 4 remaining hotsite modules. All render data from the manifest `da
 > **Note (story-discovery, M12-S06):** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` documented CONTACT's address/phone/email as "pulled from `tenants.settings`", but no such field existed anywhere — `TenantSettings`, the `tenants` table, and the manifest's `tenant` object only ever carried `{ id, name, slug }`. This story adds a `business_info` block to `tenants.settings` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6, added 2026-06-10) and resolves it into a new `business` field on the public manifest — bumping this story from S to M and adding `apps/backend`/`apps/bff`/`packages/types` to its scope, on top of the 3 frontend-only modules (GALLERY, TESTIMONIALS, ABOUT).
 
 **Part A — `tenants.settings.business_info` (backend domain):**
-1. `apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts` — add `BusinessInfoAddress` (`street, number, complement?, neighborhood, city, state, zip_code`) and `BusinessInfo` (`phone: string | null`, `email: string | null`, `address: BusinessInfoAddress | null`); add optional `business_info?: BusinessInfo` to `TenantSettingsProps`; getter returns `{ phone: null, email: null, address: null }` when absent (same pattern as `notification`); `TenantSettings.default()` includes the all-null shape; `validateBusinessInfo()` checks `phone` via `PhoneNumber.isValid`, `email` via `Email.isValid`, `address.zip_code` is exactly 8 digits, `address.state` is a 2-letter uppercase UF, and required address sub-fields (`street/number/neighborhood/city/state/zip_code`) are present when `address` is non-null
-2. `apps/backend/src/contexts/platform/application/dtos/update-tenant-settings.dto.ts` — add a `BusinessInfoSchema` (`.partial()`, all fields nullable) to `UpdateTenantSettingsSchema.settings`, mirroring `LoyaltySchema`/`BookingSchema`
+1. `apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts` — add `BusinessInfoAddress` (`street, number, complement?, neighborhood, city, state, zip_code`) and `BusinessInfo` (`phone: string | null`, `email: string | null`, `address: BusinessInfoAddress | null`); add optional `business_info?: BusinessInfo` to `TenantSettingsProps`. **Unlike `notification` (single-field, whole-object fallback), the `business_info` getter must default per-field** — `{ phone: this.props.business_info?.phone ?? null, email: this.props.business_info?.email ?? null, address: this.props.business_info?.address ?? null }` — because a partial PATCH (e.g. `{ phone: "..." }` only) survives `deepMerge` as a partial object, and a whole-object fallback would silently drop the other fields. `TenantSettings.default()` includes the all-null shape. Split validation into `validateBusinessInfo()` (checks `phone` via `PhoneNumber.isValid`, `email` via `Email.isValid`, delegates `address` to `validateBusinessAddress()`) and `validateBusinessAddress()` (checks `zip_code` is exactly 8 digits, `state` is a 2-letter uppercase UF, and required sub-fields `street/number/neighborhood/city/state/zip_code` are present) — both ≤20 lines (CLAUDE.md §7); both called from `validate()` alongside `validateLoyalty`/`validateBooking`/`validateBusinessHours`
+   - Test builders: `apps/backend/src/test/builders/platform/tenant-settings-props.builder.ts` — add `withBusinessInfo(overrides: Partial<BusinessInfo>)` (same merge pattern as `withNotification`); `apps/backend/src/test/builders/platform/tenant-entity.builder.ts` — add `withSettings(settings: TenantSettingsProps)` (currently missing — needed for the tenant-isolation integration test where Tenant A has `business_info` set and Tenant B doesn't)
+2. `apps/backend/src/contexts/platform/application/dtos/update-tenant-settings.dto.ts` — add `BusinessInfoAddressSchema` (`.partial()`, all fields `z.string().nullable().optional()`: `street, number, complement, neighborhood, city, state, zip_code`) and `BusinessInfoSchema` (`.partial()`: `phone`/`email` as `z.string().nullable().optional()`, `address: BusinessInfoAddressSchema.nullable().optional()`) to `UpdateTenantSettingsSchema.settings`. Mirror `BookingSchema`'s pattern of duplicating cheap format checks in zod (`zip_code: z.string().regex(/^\d{8}$/)`, `state: z.string().regex(/^[A-Z]{2}$/)`); defer `phone`/`email` validity to the domain VO (item 1) — not simple regexes
 3. `apps/backend/http/platform/tenant-settings.http` — add example `PATCH /tenants/settings` requests that set/clear `business_info` (happy path + `400` invalid `zip_code`/`phone`/`email`)
 
 **Part B — manifest exposure (backend + shared types):**
-4. `apps/backend/src/contexts/platform/application/use-cases/get-hotsite-manifest.use-case.ts` — inject `ITenantRepository` (`TENANT_REPOSITORY` — same Platform context as `HotsiteConfig`, no cross-context port needed), `findById(tenantContext.tenantId)`, and map `tenant.settings.business_info` (snake_case `zip_code`) → `business: { phone, email, address: { ...zipCode } | null }` (camelCase) on `GetHotsiteManifestUseCaseResult`
-5. `packages/types/src/hotsite.ts` — add `HotsiteBusinessInfoResponse` (`phone: string | null; email: string | null; address: { street, number, complement?, neighborhood, city, state, zipCode } | null`); add `business: HotsiteBusinessInfoResponse` to `HotsiteManifestResponse`
-6. `apps/bff/src/platform/platform.public.controller.ts` (+ `.spec`/`.component.spec`) — the existing `return { tenant, ...hotsite }` already carries `business` through once the backend response includes it; update the `HotsiteResponse`-typed local type / fixtures so `business` type-checks and is asserted in tests
+4. `apps/backend/src/contexts/platform/application/use-cases/get-hotsite-manifest.use-case.ts` — inject `ITenantRepository` (`TENANT_REPOSITORY` — same Platform context as `HotsiteConfig`, no cross-context port needed). After the existing `HotsiteNotFoundError`/`HotsiteNotPublishedError` checks, call `const tenant = await this.tenantRepo.findById(tenantContext.tenantId); if (!tenant) throw new TenantNotFoundError(tenantContext.tenantId);` — mirrors the identical lookup in `publish-hotsite.use-case.ts` (already mapped to 404 by `platform-error.mapper.ts`, no new mapping needed). Map `tenant.settings.business_info` (snake_case `zip_code`, `BusinessInfoAddress | null`) → `business: HotsiteBusinessInfoResponse` (camelCase `zipCode`; `address` fields spread when non-null else `address: null`) on `GetHotsiteManifestUseCaseResult`
+5. `packages/types/src/hotsite.ts` — add `HotsiteBusinessInfoResponse` (`phone: string | null; email: string | null; address: { street, number, complement?, neighborhood, city, state, zipCode } | null`); add `business: HotsiteBusinessInfoResponse` to `HotsiteManifestResponse` **only** — not the base `HotsiteResponse`, since `HotsiteAdminContentResponse extends HotsiteResponse` serves `/tenants/hotsite` (admin content has no `business`)
+6. `apps/bff/src/platform/platform.public.controller.ts` (+ `.spec`/`.component.spec`) — `business` lives on `HotsiteManifestResponse` only (item 5), so the existing `return { tenant, ...hotsite }` needs `hotsite`'s type widened: change `getForPublic<HotsiteResponse>('/hotsite', tenant.id)` to `getForPublic<HotsiteResponse & { business: HotsiteBusinessInfoResponse }>('/hotsite', tenant.id)` — body unchanged, only the type parameter. Update both spec fixtures: add a `business: HotsiteBusinessInfoResponse` object to the `hotsiteResponse` fixture and assert `result.business` / `res.body.business` equals it
 
 **Part C — frontend module components (`apps/web/components/hotsite/`):**
 
@@ -462,11 +463,13 @@ interface GalleryModuleData {
   maxVisible: number;                // default 6
 }
 ```
-- Renders up to `maxVisible` images; "Ver mais" button (`'use client'`, local state) reveals the rest if `images.length > maxVisible`
+- **Islands split:** `GalleryModule.tsx` (server) renders the heading and maps `images` to server-rendered `GalleryItem` (`next/image`, `loading="lazy"`, badge) elements, passed as `children` to `GalleryGrid.tsx` (`'use client'`, the only island) — `GalleryGrid` holds `expanded` state (`useState`), slices `children` to `maxVisible` until "Ver mais" is clicked, then renders all. No image data crosses the server/client boundary, only pre-rendered nodes plus `maxVisible`/`children.length`
+- "Ver mais" button renders only if `images.length > maxVisible`
 - Lazy-loads images (`loading="lazy"`)
 - If `images` is empty, renders nothing (entire section hidden)
 - `layout: 'masonry'` uses CSS columns for a Pinterest-style layout
 - Images with `photoType` render a localized badge ("Antes" / "Depois")
+- No section `id` — no `HeroModuleData.ctaTarget` value references GALLERY
 
 **`TestimonialsModule.tsx`**
 ```typescript
@@ -484,7 +487,7 @@ interface TestimonialsModuleData {
 }
 ```
 - Star rating rendered when `rating` is present
-- `layout: 'carousel'` — `'use client'`, horizontal scroll with prev/next navigation arrows
+- **Islands split:** `TestimonialsModule.tsx` (server) maps `items` to server-rendered `TestimonialCard` elements; `layout: 'grid'` renders them in a plain `<ul>` (no client code); `layout: 'carousel'` passes the same cards as `children` to `TestimonialsCarousel.tsx` (`'use client'`, the only island) — holds `activeIndex` state and renders prev/next navigation buttons
 
 **`AboutModule.tsx`**
 ```typescript
@@ -521,8 +524,9 @@ interface ContactModuleData {
 - `showMap: true` → keyless `https://maps.google.com/maps?q=<urlencoded address>&output=embed` iframe built from `business.address`; omitted if `business.address` is `null`
 
 **Wiring (`app/[slug]/page.tsx` + `lib/hotsite/module-schemas.ts`):**
-- Register `GALLERY`, `TESTIMONIALS`, `ABOUT` in `MODULE_MAP` and add their Zod schemas to `MODULE_DATA_SCHEMAS`
+- Register `GALLERY`, `TESTIMONIALS`, `ABOUT` in `MODULE_MAP` and add `GalleryModuleDataSchema`/`TestimonialsModuleDataSchema`/`AboutModuleDataSchema` to `MODULE_DATA_SCHEMAS`; update `module-schemas.spec.ts`'s "module types without a registered schema" test accordingly
 - `CONTACT` follows the `SERVICE_LIST` pattern (special-cased in `page.tsx`, not in `MODULE_MAP`) since it needs the extra `business` prop from `manifest.business`
+- New files live flat in `apps/web/components/hotsite/` alongside existing modules: `GalleryItem.tsx`, `GalleryGrid.tsx`, `TestimonialCard.tsx`, `TestimonialsCarousel.tsx` — each island (`GalleryGrid`, `TestimonialsCarousel`) gets its own `*.spec.tsx` testing the interactive behavior (`@testing-library/user-event`)
 
 **Acceptance criteria:**
 - [ ] All 4 components render correctly when their module type is present in `layout` with `enabled: true`
@@ -538,6 +542,8 @@ interface ContactModuleData {
 - [ ] `ContactModule` `showWhatsapp: true` + `data.socialLinks.whatsapp` present renders a `wa.me/<digits>` link
 - [ ] `tenant-settings.vo.ts`: `business_info` validation rejects invalid `phone`/`email`/`zip_code`/`state`, accepts `null`/partial values — unit tests
 - [ ] `GetHotsiteManifestUseCase`: manifest includes `business` resolved from `tenant.settings.business_info`; integration test asserts tenant isolation (Tenant A's `business_info` never appears in Tenant B's manifest)
+- [ ] `GalleryGrid` reveals remaining images when "Ver mais" is clicked (RTL + `user-event`); `TestimonialsCarousel` advances `activeIndex` on next/prev click
+- [ ] `TenantSettingsPropsBuilder.withBusinessInfo()` and `TenantEntityBuilder.withSettings()` exist and are used by the new tests
 - [ ] All text in example/default content is pt-BR
 
 **Dependencies:** M12-S03

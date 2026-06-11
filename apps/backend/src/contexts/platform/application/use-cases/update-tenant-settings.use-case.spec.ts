@@ -74,6 +74,85 @@ describe('UpdateTenantSettingsUseCase', () => {
     expect(result.settings.business_hours.monday).toEqual({ open: '09:00', close: '18:00' });
   });
 
+  it('merges partial business_info without wiping other settings', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    const result = await useCase.execute(tenant.id, {
+      settings: { business_info: { phone: '11987654321' } },
+    });
+
+    expect(result.settings.business_info).toEqual({
+      phone: '11987654321',
+      email: null,
+      address: null,
+      social_links: null,
+    });
+    expect(result.settings.loyalty.expiry_days).toBe(180);
+  });
+
+  it('sets social_links in business_info', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    const result = await useCase.execute(tenant.id, {
+      settings: {
+        business_info: {
+          social_links: {
+            whatsapp: '11987654321',
+            instagram: 'https://instagram.com/lavacar',
+            facebook: 'https://facebook.com/lavacar',
+          },
+        },
+      },
+    });
+
+    expect(result.settings.business_info!.social_links).toEqual({
+      whatsapp: '11987654321',
+      instagram: 'https://instagram.com/lavacar',
+      facebook: 'https://facebook.com/lavacar',
+    });
+    expect(result.settings.business_info!.phone).toBeNull();
+  });
+
+  it('partial social_links update preserves untouched fields', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    await useCase.execute(tenant.id, {
+      settings: {
+        business_info: {
+          social_links: {
+            whatsapp: '11987654321',
+            instagram: 'https://instagram.com/lavacar',
+            facebook: 'https://facebook.com/lavacar',
+          },
+        },
+      },
+    });
+
+    const result = await useCase.execute(tenant.id, {
+      settings: { business_info: { social_links: { whatsapp: '11999999999' } } },
+    });
+
+    expect(result.settings.business_info!.social_links).toEqual({
+      whatsapp: '11999999999',
+      instagram: 'https://instagram.com/lavacar',
+      facebook: 'https://facebook.com/lavacar',
+    });
+  });
+
+  it('throws PlatformDomainError for an invalid business_info.phone', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    await expect(
+      useCase.execute(tenant.id, {
+        settings: { business_info: { phone: '123' } },
+      }),
+    ).rejects.toThrow(PlatformDomainError);
+  });
+
   it('updates the tenant name', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AboutModuleDataSchema,
+  ContactModuleDataSchema,
+  GalleryModuleDataSchema,
   HeroModuleDataSchema,
   ServiceListModuleDataSchema,
+  TestimonialsModuleDataSchema,
   isValidModuleData,
 } from './module-schemas';
 
@@ -16,6 +20,23 @@ const validServiceListData = {
   showPrices: true,
   showPoints: true,
   layout: 'grid',
+};
+
+const validGalleryData = {
+  images: [{ url: 'https://storage.example.com/gallery/photo.jpg', source: 'upload' }],
+  layout: 'grid',
+  maxVisible: 6,
+};
+
+const validTestimonialsData = {
+  items: [{ authorName: 'Maria Silva', text: 'Ótimo serviço!' }],
+  layout: 'grid',
+};
+
+const validAboutData = {
+  title: 'Sobre nós',
+  body: 'Texto sobre a empresa.',
+  imagePosition: 'right',
 };
 
 describe('HeroModuleDataSchema', () => {
@@ -82,6 +103,163 @@ describe('ServiceListModuleDataSchema', () => {
   });
 });
 
+describe('GalleryModuleDataSchema', () => {
+  it('accepts the required fields', () => {
+    expect(GalleryModuleDataSchema.safeParse(validGalleryData).success).toBe(true);
+  });
+
+  it('accepts optional title and image fields', () => {
+    const result = GalleryModuleDataSchema.safeParse({
+      ...validGalleryData,
+      title: 'Nossos Resultados',
+      images: [
+        {
+          url: 'https://storage.example.com/gallery/photo.jpg',
+          caption: 'Antes e depois',
+          source: 'booking',
+          bookingId: 'booking-123',
+          photoType: 'after',
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an invalid layout', () => {
+    const result = GalleryModuleDataSchema.safeParse({ ...validGalleryData, layout: 'invalid' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an invalid photoType', () => {
+    const result = GalleryModuleDataSchema.safeParse({
+      ...validGalleryData,
+      images: [
+        {
+          url: 'https://storage.example.com/gallery/photo.jpg',
+          source: 'upload',
+          photoType: 'during',
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing required fields', () => {
+    const result = GalleryModuleDataSchema.safeParse({ images: [], layout: 'grid' });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('TestimonialsModuleDataSchema', () => {
+  it('accepts the required fields', () => {
+    expect(TestimonialsModuleDataSchema.safeParse(validTestimonialsData).success).toBe(true);
+  });
+
+  it('accepts optional title, rating and avatarUrl', () => {
+    const result = TestimonialsModuleDataSchema.safeParse({
+      ...validTestimonialsData,
+      title: 'Avaliações',
+      items: [
+        {
+          authorName: 'Maria Silva',
+          text: 'Ótimo serviço!',
+          rating: 5,
+          avatarUrl: 'https://storage.example.com/avatars/maria.jpg',
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an invalid layout', () => {
+    const result = TestimonialsModuleDataSchema.safeParse({
+      ...validTestimonialsData,
+      layout: 'invalid',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an out-of-range rating', () => {
+    const result = TestimonialsModuleDataSchema.safeParse({
+      ...validTestimonialsData,
+      items: [{ authorName: 'Maria Silva', text: 'Ótimo serviço!', rating: 6 }],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing required fields', () => {
+    const result = TestimonialsModuleDataSchema.safeParse({ items: [] });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('AboutModuleDataSchema', () => {
+  it('accepts the required fields', () => {
+    expect(AboutModuleDataSchema.safeParse(validAboutData).success).toBe(true);
+  });
+
+  it('accepts an optional imageUrl', () => {
+    const result = AboutModuleDataSchema.safeParse({
+      ...validAboutData,
+      imageUrl: 'https://storage.example.com/about.jpg',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an invalid imagePosition', () => {
+    const result = AboutModuleDataSchema.safeParse({ ...validAboutData, imagePosition: 'top' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing required fields', () => {
+    const result = AboutModuleDataSchema.safeParse({ title: 'Sobre nós', imagePosition: 'right' });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+const validContactData = {
+  showAddress: true,
+  showPhone: true,
+  showWhatsapp: true,
+  showEmail: false,
+  showMap: false,
+};
+
+describe('ContactModuleDataSchema', () => {
+  it('accepts the required fields', () => {
+    expect(ContactModuleDataSchema.safeParse(validContactData).success).toBe(true);
+  });
+
+  it('accepts an optional title', () => {
+    const result = ContactModuleDataSchema.safeParse({ ...validContactData, title: 'Contato' });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects missing required boolean fields', () => {
+    const result = ContactModuleDataSchema.safeParse({ showAddress: true, showPhone: true });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a non-boolean value for a show flag', () => {
+    const result = ContactModuleDataSchema.safeParse({ ...validContactData, showMap: 'yes' });
+
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('isValidModuleData', () => {
   it('returns true for valid HERO data', () => {
     expect(isValidModuleData('HERO', validHeroData)).toBe(true);
@@ -99,7 +277,43 @@ describe('isValidModuleData', () => {
     expect(isValidModuleData('SERVICE_LIST', { layout: 'grid' })).toBe(false);
   });
 
-  it('returns true for module types without a registered schema', () => {
-    expect(isValidModuleData('GALLERY', { anything: 'goes' })).toBe(true);
+  it('returns true for valid GALLERY data', () => {
+    expect(isValidModuleData('GALLERY', validGalleryData)).toBe(true);
+  });
+
+  it('returns false for invalid GALLERY data', () => {
+    expect(isValidModuleData('GALLERY', { images: [], layout: 'grid' })).toBe(false);
+  });
+
+  it('returns true for valid TESTIMONIALS data', () => {
+    expect(isValidModuleData('TESTIMONIALS', validTestimonialsData)).toBe(true);
+  });
+
+  it('returns false for invalid TESTIMONIALS data', () => {
+    expect(isValidModuleData('TESTIMONIALS', { items: [] })).toBe(false);
+  });
+
+  it('returns true for valid ABOUT data', () => {
+    expect(isValidModuleData('ABOUT', validAboutData)).toBe(true);
+  });
+
+  it('returns false for invalid ABOUT data', () => {
+    expect(isValidModuleData('ABOUT', { title: 'Sobre nós', imagePosition: 'right' })).toBe(false);
+  });
+
+  it('returns true for valid CONTACT data', () => {
+    expect(
+      isValidModuleData('CONTACT', {
+        showAddress: true,
+        showPhone: true,
+        showWhatsapp: true,
+        showEmail: false,
+        showMap: false,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for invalid CONTACT data', () => {
+    expect(isValidModuleData('CONTACT', { showAddress: true })).toBe(false);
   });
 });

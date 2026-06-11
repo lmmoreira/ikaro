@@ -1,3 +1,5 @@
+import { Email } from '../../../../shared/value-objects/email.vo';
+import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
 import { PlatformDomainError } from '../errors/platform-domain.error';
@@ -42,12 +44,36 @@ export interface LocalizationSettings {
   decimal_places: number;
 }
 
+export interface BusinessInfoAddress {
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zip_code: string;
+}
+
+export interface SocialLinks {
+  whatsapp: string | null;
+  instagram: string | null;
+  facebook: string | null;
+}
+
+export interface BusinessInfo {
+  phone: string | null;
+  email: string | null;
+  address: BusinessInfoAddress | null;
+  social_links: SocialLinks | null;
+}
+
 export interface TenantSettingsProps {
   loyalty: LoyaltySettings;
   booking: BookingSettings;
   business_hours: BusinessHours;
   localization: LocalizationSettings;
   notification?: NotificationSettings;
+  business_info?: BusinessInfo;
 }
 
 export class TenantSettings {
@@ -77,8 +103,26 @@ export class TenantSettings {
     return this.props.notification ?? { from_email: null };
   }
 
+  get business_info(): BusinessInfo {
+    return {
+      phone: this.props.business_info?.phone ?? null,
+      email: this.props.business_info?.email ?? null,
+      address: this.props.business_info?.address ?? null,
+      social_links: this.props.business_info?.social_links ?? null,
+    };
+  }
+
   toJSON(): TenantSettingsProps {
-    return structuredClone(this.props);
+    const clone = structuredClone(this.props);
+    return {
+      ...clone,
+      business_info: {
+        phone: clone.business_info?.phone ?? null,
+        email: clone.business_info?.email ?? null,
+        address: clone.business_info?.address ?? null,
+        social_links: clone.business_info?.social_links ?? null,
+      },
+    };
   }
 
   static default(timezone = 'America/Sao_Paulo'): TenantSettings {
@@ -116,6 +160,12 @@ export class TenantSettings {
       notification: {
         from_email: null,
       },
+      business_info: {
+        phone: null,
+        email: null,
+        address: null,
+        social_links: null,
+      },
     });
   }
 
@@ -132,6 +182,7 @@ export class TenantSettings {
     TenantSettings.validateLoyalty(props.loyalty);
     TenantSettings.validateBooking(props.booking);
     TenantSettings.validateBusinessHours(props.business_hours);
+    TenantSettings.validateBusinessInfo(props.business_info);
   }
 
   private static validateLoyalty(loyalty: LoyaltySettings): void {
@@ -192,6 +243,43 @@ export class TenantSettings {
     }
     if (hours.close <= hours.open) {
       throw new PlatformDomainError(`business_hours.${day}: close must be after open`);
+    }
+  }
+
+  private static validateBusinessInfo(businessInfo?: BusinessInfo): void {
+    if (!businessInfo) return;
+    if (businessInfo.phone != null && !PhoneNumber.isValid(businessInfo.phone)) {
+      throw new PlatformDomainError('business_info.phone must be a valid phone number');
+    }
+    if (businessInfo.email != null && !Email.isValid(businessInfo.email)) {
+      throw new PlatformDomainError('business_info.email must be a valid email address');
+    }
+    TenantSettings.validateBusinessAddress(businessInfo.address);
+    TenantSettings.validateSocialLinks(businessInfo.social_links);
+  }
+
+  private static validateSocialLinks(socialLinks: SocialLinks | null): void {
+    if (socialLinks == null) return;
+    if (socialLinks.whatsapp != null && !PhoneNumber.isValid(socialLinks.whatsapp)) {
+      throw new PlatformDomainError(
+        'business_info.social_links.whatsapp must be a valid phone number',
+      );
+    }
+  }
+
+  private static validateBusinessAddress(address: BusinessInfoAddress | null): void {
+    if (address == null) return;
+    if (!/^\d{8}$/.test(address.zip_code)) {
+      throw new PlatformDomainError('business_info.address.zip_code must be exactly 8 digits');
+    }
+    if (!/^[A-Z]{2}$/.test(address.state)) {
+      throw new PlatformDomainError('business_info.address.state must be a 2-letter uppercase UF');
+    }
+    const required = ['street', 'number', 'neighborhood', 'city', 'state', 'zip_code'] as const;
+    for (const field of required) {
+      if (!address[field]) {
+        throw new PlatformDomainError(`business_info.address.${field} is required`);
+      }
     }
   }
 }
