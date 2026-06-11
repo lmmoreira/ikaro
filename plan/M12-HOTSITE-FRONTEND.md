@@ -606,7 +606,7 @@ interface BookingCtaModuleData {
 
 ---
 
-### M12-S08 — Hotsite 404 and unpublished states
+### M12-S08 — Hotsite 404 and unpublished states ✅ Done
 
 **Agent:** `frontend-ts` + `backend-ts` (small)  
 **Complexity:** S  
