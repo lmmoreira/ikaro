@@ -34,6 +34,7 @@ const hotsiteContentResponse: HotsiteAdminContentResponse = {
       },
     },
   ],
+  seo: { title: null, description: null },
   isPublished: false,
   updatedAt: '2026-06-01T10:00:00.000Z',
 };
@@ -125,6 +126,31 @@ describe('HotsiteAdminController', () => {
       const result = UpdateHotsiteContentBodySchema.safeParse({
         branding: { buttonTextColor: 'notacolor' },
       });
+
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts seo title and description', () => {
+      const result = UpdateHotsiteContentBodySchema.parse({
+        seo: { title: 'Lavacar Estrela — Agendamento Online', description: 'Agende já.' },
+      });
+
+      expect(result.seo).toEqual({
+        title: 'Lavacar Estrela — Agendamento Online',
+        description: 'Agende já.',
+      });
+    });
+
+    it('rejects seo.title exceeding 70 characters', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({
+        seo: { title: 'a'.repeat(71) },
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects an empty body (neither branding, layout, nor seo provided)', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({});
 
       expect(result.success).toBe(false);
     });

@@ -8,6 +8,13 @@ export class InMemoryHotsiteConfigRepository implements IHotsiteConfigRepository
     return this.store.get(tenantId) ?? null;
   }
 
+  async findByTenantIds(tenantIds: string[]): Promise<HotsiteConfig[]> {
+    return tenantIds.flatMap((tenantId) => {
+      const config = this.store.get(tenantId);
+      return config ? [config] : [];
+    });
+  }
+
   async save(config: HotsiteConfig): Promise<void> {
     this.store.set(config.tenantId, config);
   }

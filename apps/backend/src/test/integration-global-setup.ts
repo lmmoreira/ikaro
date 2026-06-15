@@ -36,6 +36,7 @@ import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenan
 import { BootstrapSchemas1700000000000 } from '../contexts/platform/infrastructure/migrations/1700000000000-BootstrapSchemas';
 import { CreatePlatformTenants1716500000001 } from '../contexts/platform/infrastructure/migrations/1716500000001-CreatePlatformTenants';
 import { CreatePlatformHotsiteConfigs1716500000002 } from '../contexts/platform/infrastructure/migrations/1716500000002-CreatePlatformHotsiteConfigs';
+import { AddSeoToHotsiteConfigs1748400000001 } from '../contexts/platform/infrastructure/migrations/1748400000001-AddSeoToHotsiteConfigs';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
 import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff';
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
@@ -95,6 +96,7 @@ export default async function globalSetup(): Promise<void> {
       AddBookingVersion1748000000015,
       CreateLoyaltyLoyaltyEntries1748000000016,
       CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017,
+      AddSeoToHotsiteConfigs1748400000001,
     ],
     synchronize: false,
     migrationsRun: false,

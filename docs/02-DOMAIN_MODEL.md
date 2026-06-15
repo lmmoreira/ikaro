@@ -782,6 +782,7 @@ HotsiteConfig {
   tenantId:      TenantId
   branding:      Branding        -- { primaryColor, logoUrl, font }
   layout:        LayoutModule[]  -- ordered list of UI modules to render
+  seo:           SeoMetadata     -- { title, description } — tenant SEO overrides, both nullable
   isPublished:   Boolean         -- false = draft; true = visible at /<slug>
   updatedAt:     DateTime
 }
@@ -790,7 +791,7 @@ HotsiteConfig {
 **Layout modules (types):** `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTACT`.
 
 **Key methods:**
-- `updateContent(branding, layout)` → replaces branding and layout; stays in draft until published.
+- `updateContent(branding, layout, seo)` → replaces branding, layout, and seo; stays in draft until published.
 - `publish()` → sets `isPublished = true`; hotsite becomes publicly visible.
 - `unpublish()` → reverts to draft.
 

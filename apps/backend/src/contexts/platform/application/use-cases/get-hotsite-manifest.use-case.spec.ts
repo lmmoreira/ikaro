@@ -68,6 +68,8 @@ describe('GetHotsiteManifestUseCase', () => {
       address: null,
       socialLinks: null,
     });
+    expect(result.localization).toEqual({ language: 'pt-BR' });
+    expect(result.seo).toEqual({ title: null, description: null });
   });
 
   it('returns branding, layout, and isPublished for a published hotsite', async () => {
@@ -79,6 +81,21 @@ describe('GetHotsiteManifestUseCase', () => {
     expect(result.isPublished).toBe(true);
     expect(result.branding).toEqual(config.branding);
     expect(result.layout).toEqual(config.layout);
+  });
+
+  it('returns the tenant-configured seo title and description for a published hotsite', async () => {
+    const config = new HotsiteConfigBuilder()
+      .withTenantId(TENANT_A)
+      .withSeo({ title: 'Lavacar Estrela — Agendamento Online', description: 'Agende já.' })
+      .buildPublished();
+    await repo.save(config);
+
+    const result = await useCase.execute();
+
+    expect(result.seo).toEqual({
+      title: 'Lavacar Estrela — Agendamento Online',
+      description: 'Agende já.',
+    });
   });
 
   it('throws TenantNotFoundError when the tenant aggregate does not exist', async () => {
@@ -150,6 +167,19 @@ describe('GetHotsiteManifestUseCase', () => {
     const result = await useCase.execute();
 
     expect(result.business).toEqual({ phone: null, email: null, address: null, socialLinks: null });
+  });
+
+  it('returns localization.language from tenant.settings.localization', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished();
+    await repo.save(config);
+    const settings = TenantSettings.create(
+      new TenantSettingsPropsBuilder().withLocalization({ language: 'en-US' }).build(),
+    );
+    await tenantRepo.save(new TenantBuilder().withId(TENANT_A).withSettings(settings).build());
+
+    const result = await useCase.execute();
+
+    expect(result.localization).toEqual({ language: 'en-US' });
   });
 
   it('resolves stored filePaths to permanent public URLs — branding.logoUrl and GalleryImage.url', async () => {

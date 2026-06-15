@@ -92,7 +92,7 @@ describe('HotsiteAdminController (integration)', () => {
       expect(body.status).toBe(404);
     });
 
-    it('returns branding, layout, and isPublished for the tenant', async () => {
+    it('returns branding, layout, seo, and isPublished for the tenant', async () => {
       const { body } = await request(app.getHttpServer())
         .get('/tenants/hotsite')
         .set('X-Tenant-ID', TENANT_A)
@@ -103,6 +103,7 @@ describe('HotsiteAdminController (integration)', () => {
       expect(body.branding.primaryColor).toBe('#2563eb');
       expect(body.layout).toHaveLength(1);
       expect(body.layout[0].type).toBe('HERO');
+      expect(body.seo).toEqual({ title: null, description: null });
     });
   });
 
@@ -192,6 +193,42 @@ describe('HotsiteAdminController (integration)', () => {
         where: { tenantId: TENANT_B },
       });
       expect(savedB!.branding.primaryColor).toBe('#2563eb');
+    });
+
+    it('persists seo title and description and round-trips via GET', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ seo: { title: 'Lavacar Estrela — Agendamento Online', description: 'Agende já.' } })
+        .expect(200);
+
+      expect(body.seo).toEqual({
+        title: 'Lavacar Estrela — Agendamento Online',
+        description: 'Agende já.',
+      });
+
+      const { body: getBody } = await request(app.getHttpServer())
+        .get('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+
+      expect(getBody.seo).toEqual({
+        title: 'Lavacar Estrela — Agendamento Online',
+        description: 'Agende já.',
+      });
+    });
+
+    it('returns 400 when seo.title exceeds 70 characters', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ seo: { title: 'a'.repeat(71) } })
+        .expect(400);
+
+      expect(body.status).toBe(400);
     });
   });
 

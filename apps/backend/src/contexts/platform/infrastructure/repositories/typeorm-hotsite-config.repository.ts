@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IHotsiteConfigRepository } from '../../application/ports/hotsite-config-repository.port';
 import { HotsiteConfig } from '../../domain/hotsite-config.aggregate';
@@ -16,6 +16,12 @@ export class TypeOrmHotsiteConfigRepository implements IHotsiteConfigRepository 
   async findByTenantId(tenantId: string): Promise<HotsiteConfig | null> {
     const entity = await this.repo.findOne({ where: { tenantId } });
     return entity ? this.toDomain(entity) : null;
+  }
+
+  async findByTenantIds(tenantIds: string[]): Promise<HotsiteConfig[]> {
+    if (tenantIds.length === 0) return [];
+    const entities = await this.repo.findBy({ tenantId: In(tenantIds) });
+    return entities.map((e) => this.toDomain(e));
   }
 
   async save(config: HotsiteConfig): Promise<void> {
@@ -34,6 +40,7 @@ export class TypeOrmHotsiteConfigRepository implements IHotsiteConfigRepository 
       tenantId: entity.tenantId,
       branding: entity.branding,
       layout: entity.layout,
+      seo: entity.seo,
       isPublished: entity.isPublished,
       updatedAt: entity.updatedAt,
     });
@@ -45,6 +52,7 @@ export class TypeOrmHotsiteConfigRepository implements IHotsiteConfigRepository 
     entity.tenantId = config.tenantId;
     entity.branding = config.branding;
     entity.layout = config.layout;
+    entity.seo = config.seo;
     entity.isPublished = config.isPublished;
     entity.updatedAt = config.updatedAt;
     return entity;

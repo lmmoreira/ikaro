@@ -210,4 +210,49 @@ describe('UpdateHotsiteContentUseCase', () => {
       useCase.execute({ branding: { logoUrl: otherTenantPath } }),
     ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
   });
+
+  it('sets seo title and description from null defaults', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+    await repo.save(config);
+
+    const result = await useCase.execute({
+      seo: { title: 'Lavacar Estrela — Agendamento Online', description: 'Agende sua lavagem.' },
+    });
+
+    expect(result.seo).toEqual({
+      title: 'Lavacar Estrela — Agendamento Online',
+      description: 'Agende sua lavagem.',
+    });
+  });
+
+  it('merges a partial seo update without wiping the other field', async () => {
+    const config = new HotsiteConfigBuilder()
+      .withTenantId(TENANT_A)
+      .withSeo({ title: 'Título Original', description: 'Descrição original' })
+      .buildWithContent();
+    await repo.save(config);
+
+    const result = await useCase.execute({ seo: { title: 'Novo título' } });
+
+    expect(result.seo.title).toBe('Novo título');
+    expect(result.seo.description).toBe('Descrição original');
+  });
+
+  it('throws PlatformDomainError when seo.title exceeds 70 characters', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+    await repo.save(config);
+
+    await expect(useCase.execute({ seo: { title: 'a'.repeat(71) } })).rejects.toBeInstanceOf(
+      PlatformDomainError,
+    );
+  });
+
+  it('throws PlatformDomainError when seo.description exceeds 160 characters', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+    await repo.save(config);
+
+    await expect(useCase.execute({ seo: { description: 'a'.repeat(161) } })).rejects.toBeInstanceOf(
+      PlatformDomainError,
+    );
+  });
 });

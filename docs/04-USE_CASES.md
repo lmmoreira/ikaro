@@ -968,11 +968,17 @@ Returns:
       - [x] BOOKING_FORM (integrated form) — toggle on/off
       - [x] TESTIMONIALS (free-text/structured) — optional for MVP
       - [x] FAQ (free-text) — optional for MVP
+
+      **Section C: SEO** (M12-S09)
+      - Title (text input, max 70 chars) — overrides the generated `<title>` for search results and social sharing
+      - Description (textarea, max 160 chars) — overrides the generated meta description
+      - Both optional; left blank (`null`) → hotsite falls back to a generated title/description based on the tenant's name and city/state
    
    3. Admin updates:
       - Colors, logo, fonts in branding section
       - Enables/disables modules
       - Reorders modules (drag-drop) — order preserved in JSONB array
+      - SEO title/description overrides
    
    4. Admin clicks "Preview" to see hotsite live (optional)
    5. Admin clicks "Publish Changes"

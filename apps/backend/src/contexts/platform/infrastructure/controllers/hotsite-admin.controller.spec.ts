@@ -68,7 +68,7 @@ describe('HotsiteAdminController', () => {
   });
 
   describe('getContent', () => {
-    it('returns branding, layout, and isPublished for the tenant', async () => {
+    it('returns branding, layout, seo, and isPublished for the tenant', async () => {
       const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
       await repo.save(config);
 
@@ -76,6 +76,7 @@ describe('HotsiteAdminController', () => {
 
       expect(result.branding).toEqual(config.branding);
       expect(result.layout).toEqual(config.layout);
+      expect(result.seo).toEqual(config.seo);
       expect(result.isPublished).toBe(config.isPublished);
     });
 
@@ -125,6 +126,32 @@ describe('HotsiteAdminController', () => {
 
       const err = await controller
         .updateContent({ branding: { logoUrl: logoPath } })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('merges and persists seo title and description changes', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+
+      const result = await controller.updateContent({
+        seo: { title: 'Lavacar Estrela — Agendamento Online', description: 'Agende já.' },
+      });
+
+      expect(result.seo).toEqual({
+        title: 'Lavacar Estrela — Agendamento Online',
+        description: 'Agende já.',
+      });
+    });
+
+    it('maps PlatformDomainError to 400 when seo.title exceeds 70 characters', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+
+      const err = await controller
+        .updateContent({ seo: { title: 'a'.repeat(71) } })
         .catch((e: unknown) => e);
 
       expect(err).toBeInstanceOf(HttpException);

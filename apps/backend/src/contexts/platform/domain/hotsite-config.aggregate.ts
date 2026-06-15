@@ -114,11 +114,17 @@ export interface HotsiteBranding {
   buttonTextColor?: string;
 }
 
+export interface HotsiteSeo {
+  title: string | null;
+  description: string | null;
+}
+
 export interface HotsiteConfigProps {
   id: string;
   tenantId: string;
   branding: HotsiteBranding;
   layout: HotsiteModule[];
+  seo: HotsiteSeo;
   isPublished: boolean;
   updatedAt: Date;
 }
@@ -159,6 +165,14 @@ export const DEFAULT_HOTSITE_BRANDING: HotsiteBranding = {
   shadowStyle: 'subtle',
 };
 
+export const DEFAULT_HOTSITE_SEO: HotsiteSeo = {
+  title: null,
+  description: null,
+};
+
+const SEO_TITLE_MAX_LENGTH = 70;
+const SEO_DESCRIPTION_MAX_LENGTH = 160;
+
 export class HotsiteConfig extends AggregateRoot {
   private readonly props: HotsiteConfigProps;
 
@@ -183,6 +197,10 @@ export class HotsiteConfig extends AggregateRoot {
     return [...this.props.layout];
   }
 
+  get seo(): HotsiteSeo {
+    return { ...this.props.seo };
+  }
+
   get isPublished(): boolean {
     return this.props.isPublished;
   }
@@ -197,6 +215,7 @@ export class HotsiteConfig extends AggregateRoot {
       tenantId,
       branding: { ...DEFAULT_HOTSITE_BRANDING },
       layout: [],
+      seo: { ...DEFAULT_HOTSITE_SEO },
       isPublished: false,
       updatedAt: new Date(),
     });
@@ -206,11 +225,17 @@ export class HotsiteConfig extends AggregateRoot {
     return new HotsiteConfig(props);
   }
 
-  updateContent(branding: HotsiteBranding, layout: HotsiteModule[]): void {
+  updateContent(
+    branding: HotsiteBranding,
+    layout: HotsiteModule[],
+    seo: HotsiteSeo = DEFAULT_HOTSITE_SEO,
+  ): void {
     this.validateBranding(branding);
     this.validateLayout(layout);
+    this.validateSeo(seo);
     this.props.branding = branding;
     this.props.layout = layout;
+    this.props.seo = seo;
     this.props.updatedAt = new Date();
   }
 
@@ -256,6 +281,17 @@ export class HotsiteConfig extends AggregateRoot {
       if (!MODULE_TYPES.has(module.type)) {
         throw new PlatformDomainError(`Unknown hotsite module type: '${module.type}'`);
       }
+    }
+  }
+
+  private validateSeo(seo: HotsiteSeo): void {
+    if (seo.title !== null && seo.title.length > SEO_TITLE_MAX_LENGTH) {
+      throw new PlatformDomainError(`seo.title must be at most ${SEO_TITLE_MAX_LENGTH} characters`);
+    }
+    if (seo.description !== null && seo.description.length > SEO_DESCRIPTION_MAX_LENGTH) {
+      throw new PlatformDomainError(
+        `seo.description must be at most ${SEO_DESCRIPTION_MAX_LENGTH} characters`,
+      );
     }
   }
 }

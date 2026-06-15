@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import type { HotsiteManifestResponse } from '@beloauto/types';
+import type { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@beloauto/types';
 import { HOTSITE_REVALIDATE_SECONDS } from '@/lib/hotsite/revalidate';
 
 export async function fetchManifest(slug: string): Promise<HotsiteManifestResponse> {
@@ -12,4 +12,15 @@ export async function fetchManifest(slug: string): Promise<HotsiteManifestRespon
   if (!res.ok) throw new Error(`Failed to fetch manifest for slug "${slug}"`);
 
   return res.json() as Promise<HotsiteManifestResponse>;
+}
+
+export async function fetchPublishedHotsiteSlugs(): Promise<HotsiteSitemapEntryListResponse> {
+  const isDev = process.env.NODE_ENV === 'development';
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/platform/published-hotsites`, {
+    next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS },
+  });
+
+  if (!res.ok) throw new Error('Failed to fetch published hotsites');
+
+  return res.json() as Promise<HotsiteSitemapEntryListResponse>;
 }

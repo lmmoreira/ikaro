@@ -822,25 +822,43 @@ Implement the hotsite edge cases: a 404 page for unknown slugs, and an "Em breve
 
 ### M12-S09 — Hotsite SEO: meta tags, Open Graph, structured data
 
-**Agent:** `frontend-ts`  
-**Complexity:** S  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § manifest schema
+**Agent:** `backend-ts` + `bff-ts` + `frontend-ts`  
+**Complexity:** M  
+**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § Manifest Schema + § SEO & Discoverability, `docs/14-API_CONTRACTS.md` § Tenant & Service Discovery, `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions
 
 **Description:**  
-Implement per-tenant SEO metadata. Brazilian businesses depend on Google search and WhatsApp link previews. Without this, every tenant shows the same generic `<title>BeloAuto</title>` in search results.
+Implement per-tenant SEO metadata. Brazilian businesses depend on Google search and WhatsApp link previews. Without this, every tenant shows the same generic `<title>BeloAuto</title>` in search results. Also adds a small Platform-context "published hotsites" listing endpoint so `app/sitemap.ts` can enumerate every published tenant for search-engine discovery.
 
-**What to add to `apps/web/app/[slug]/layout.tsx`:**
+**New env var:** `NEXT_PUBLIC_SITE_URL` (`apps/web/.env.example` / `.env.local`) — `https://beloauto.com` in production, `http://localhost:3000` in local dev. All absolute URLs (canonical, OG, JSON-LD, sitemap) are built from this — never hardcode `https://beloauto.com`.
+
+**1. SEO metadata helper — `apps/web/lib/hotsite/seo.ts`:**
 
 ```typescript
-export async function generateMetadata({ params }): Promise<Metadata> {
-  const manifest = await fetchManifest(params.slug);
+import type { Metadata } from 'next';
+import type { HotsiteManifestResponse } from '@beloauto/types';
+
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+
+interface BuildHotsiteMetadataOptions {
+  manifest: HotsiteManifestResponse;
+  slug: string;
+  path?: string; // e.g. '/booking' — appended after the slug
+}
+
+export function buildHotsiteMetadata({
+  manifest,
+  slug,
+  path = '',
+}: BuildHotsiteMetadataOptions): Metadata {
+  const url = `${SITE_URL}/${slug}${path}`;
+  const title = `${manifest.tenant.name} — Agendamento Online`;
 
   return {
-    title: `${manifest.tenant.name} — Agendamento Online`,
+    title,
     description: `Agende seu serviço na ${manifest.tenant.name}. Rápido, fácil e online.`,
     openGraph: {
-      title: `${manifest.tenant.name} — Agendamento Online`,
-      url: `https://beloauto.com/${params.slug}`,
+      title,
+      url,
       siteName: 'BeloAuto',
       images: manifest.branding.logoUrl
         ? [{ url: manifest.branding.logoUrl, width: 1200, height: 630 }]
@@ -851,33 +869,103 @@ export async function generateMetadata({ params }): Promise<Metadata> {
     robots: manifest.isPublished
       ? { index: true, follow: true }
       : { index: false, follow: false },
-    alternates: { canonical: `https://beloauto.com/${params.slug}` },
+    alternates: { canonical: url },
   };
 }
 ```
 
-**Also add JSON-LD structured data** (`LocalBusiness` schema) in `page.tsx`:
+**2. Wire into `app/[slug]/page.tsx` (extends the existing `generateMetadata`):**
+
+```typescript
+export async function generateMetadata({ params }: HotsitePageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const manifest = await fetchManifest(slug);
+  return buildHotsiteMetadata({ manifest, slug });
+}
+```
+
+Also add JSON-LD structured data (`LocalBusiness` schema) to the rendered output of `page.tsx` (home page only):
 ```json
 {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
-  "name": "[tenant.name]",
-  "url": "https://beloauto.com/[slug]"
+  "name": "[manifest.tenant.name]",
+  "url": "[SITE_URL]/[slug]"
+}
+```
+
+**3. Wire into `app/[slug]/booking/page.tsx` (extends the existing `generateMetadata`) — always `noindex`:**
+
+```typescript
+export async function generateMetadata({ params }: BookingPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const manifest = await fetchManifest(slug);
+  return {
+    ...buildHotsiteMetadata({ manifest, slug, path: '/booking' }),
+    title: manifest.isPublished ? 'Agendar serviço' : 'Em breve — BeloAuto',
+    robots: { index: false, follow: false },
+  };
+}
+```
+
+**4. Published hotsites listing endpoint (new — Platform context):**
+
+- **Backend:** `GET /internal/tenants/published-hotsites` — new use case (e.g. `ListPublishedHotsitesUseCase`) joining `platform.tenants` and `platform.hotsite_configs` (same context, same schema — not a cross-context join). Returns one entry per tenant where `tenants.is_active = true AND hotsite_configs.is_published = true`:
+  ```json
+  { "items": [ { "slug": "lavacar-beloauto", "updatedAt": "2026-06-10T12:00:00.000Z" } ] }
+  ```
+  `updatedAt` = `hotsite_configs.updated_at` (ISO-8601 UTC). Gated by the global `InternalApiGuard` (`X-Internal-Key`) like all `/internal/*` routes.
+- **BFF:** `GET /platform/published-hotsites` on `PlatformPublicController`, `@Public()`, calls the internal endpoint via `BackendHttpService`. New response type `HotsiteSitemapEntryListResponse` (`@beloauto/types`).
+- **Frontend fetcher:** `fetchPublishedHotsiteSlugs()` in `apps/web/lib/api/platform.ts`.
+- Both new endpoints need `.http` files per CLAUDE.md §7.
+
+**5. `app/sitemap.ts`:**
+
+```typescript
+import type { MetadataRoute } from 'next';
+import { fetchPublishedHotsiteSlugs } from '@/lib/api/platform';
+import { SITE_URL } from '@/lib/hotsite/seo';
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const { items } = await fetchPublishedHotsiteSlugs();
+  return items.map(({ slug, updatedAt }) => ({
+    url: `${SITE_URL}/${slug}`,
+    lastModified: updatedAt,
+  }));
+}
+```
+
+**6. `app/robots.ts`:**
+
+```typescript
+import type { MetadataRoute } from 'next';
+import { SITE_URL } from '@/lib/hotsite/seo';
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: { userAgent: '*', allow: '/', disallow: ['/dashboard', '/auth'] },
+    sitemap: `${SITE_URL}/sitemap.xml`,
+  };
 }
 ```
 
 **Acceptance criteria:**
-- [ ] `<title>` is `"[Tenant Name] — Agendamento Online"` — not generic `"BeloAuto"`
-- [ ] `og:image` uses `manifest.branding.logoUrl` when available
-- [ ] `og:locale` is `pt_BR`
-- [ ] JSON-LD `<script type="application/ld+json">` present in `<head>`
-- [ ] Unpublished hotsites have `<meta name="robots" content="noindex, nofollow">`
-- [ ] `generateMetadata` reuses the ISR-cached manifest fetch — no extra network call
-- [ ] `canonical` URL set to `https://beloauto.com/[slug]`
-- [ ] `app/sitemap.ts` lists every **published** tenant slug with `lastmod` — needed for Google to discover hotsites that nobody has linked to yet
+- [ ] `/[slug]` `<title>` is `"[Tenant Name] — Agendamento Online"` — not generic `"BeloAuto"`
+- [ ] `/[slug]` `og:image` uses `manifest.branding.logoUrl` when available
+- [ ] `/[slug]` `og:locale` is `pt_BR`
+- [ ] `/[slug]` has JSON-LD `<script type="application/ld+json">` with `LocalBusiness` schema in the rendered document
+- [ ] `/[slug]` unpublished → `<meta name="robots" content="noindex, nofollow">`
+- [ ] `/[slug]` `canonical` URL is `${SITE_URL}/[slug]`
+- [ ] `/[slug]/booking` always has `<meta name="robots" content="noindex, nofollow">`, regardless of `isPublished`
+- [ ] Both `generateMetadata` implementations reuse the ISR-cached manifest fetch — no extra network call
+- [ ] `GET /internal/tenants/published-hotsites` returns only tenants with `is_active = true AND hotsite_configs.is_published = true`; excludes inactive tenants and unpublished/draft hotsites
+- [ ] `GET /platform/published-hotsites` (BFF, public) mirrors the same filtered list, `{ items: [{ slug, updatedAt }] }`
+- [ ] Tenant-isolation: a tenant with `is_active = false` or `hotsite_configs.is_published = false` does NOT appear in `/platform/published-hotsites`
+- [ ] `app/sitemap.ts` lists every published tenant slug with `lastmod` from `hotsite_configs.updated_at`
 - [ ] `app/robots.ts` references the sitemap and disallows `/dashboard`, `/auth`
+- [ ] `NEXT_PUBLIC_SITE_URL` added to `apps/web/.env.example` and `.env.local`; `SITE_URL` constant used everywhere instead of a hardcoded domain
 
-**Dependencies:** M12-S03
+**Dependencies:** M12-S01 (HotsiteConfig repository/use-case patterns), M12-S03
 
 ---
 

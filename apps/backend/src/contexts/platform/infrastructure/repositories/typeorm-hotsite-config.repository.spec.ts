@@ -15,6 +15,7 @@ describe('TypeOrmHotsiteConfigRepository', () => {
   beforeEach(() => {
     mockRepo = {
       findOne: jest.fn(),
+      findBy: jest.fn(),
       save: jest.fn(),
     } as unknown as jest.Mocked<Repository<HotsiteConfigEntity>>;
     repo = new TypeOrmHotsiteConfigRepository(mockRepo);
@@ -47,6 +48,38 @@ describe('TypeOrmHotsiteConfigRepository', () => {
 
       const result = await repo.findByTenantId('tenant-id-1');
       expect(result!.isPublished).toBe(true);
+    });
+  });
+
+  describe('findByTenantIds', () => {
+    it('returns an empty array for an empty tenant id list', async () => {
+      expect(await repo.findByTenantIds([])).toEqual([]);
+      expect(mockRepo.findBy).not.toHaveBeenCalled();
+    });
+
+    it('returns HotsiteConfig aggregates for each matching tenant id', async () => {
+      const entityA = new HotsiteConfigEntityBuilder()
+        .withId('config-a')
+        .withTenantId('tenant-a')
+        .build();
+      const entityB = new HotsiteConfigEntityBuilder()
+        .withId('config-b')
+        .withTenantId('tenant-b')
+        .build();
+      mockRepo.findBy.mockResolvedValue([entityA, entityB]);
+
+      const results = await repo.findByTenantIds(['tenant-a', 'tenant-b']);
+
+      expect(results).toHaveLength(2);
+      expect(results.map((c) => c.tenantId)).toEqual(
+        expect.arrayContaining(['tenant-a', 'tenant-b']),
+      );
+    });
+
+    it('returns an empty array when no tenant ids match', async () => {
+      mockRepo.findBy.mockResolvedValue([]);
+
+      expect(await repo.findByTenantIds(['no-such-tenant'])).toEqual([]);
     });
   });
 

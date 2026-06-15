@@ -192,23 +192,44 @@ Used by the Next.js hotsite renderer to fetch full branding and layout for a ten
         "street": "Rua das Flores", "number": "123", "complement": "Loja 2",
         "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130000"
       }
-    }
+    },
+    "localization": { "language": "pt-BR" },
+    "seo": { "title": null, "description": null }
   }
   ```
 - **Module types:** `HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTACT`
 - **`enabled: false`** modules are included in the response; the frontend decides to skip them
 - **`business`** (M12-S06) — resolved from `tenants.settings.business_info` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6), camelCased. Always present; any of `phone`/`email`/`address` may be `null` if the admin hasn't filled them in. Consumed by the `CONTACT` module — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT.
+- **`localization`** (M12-S09) — `language` resolved from `tenants.settings.localization.language` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §5), e.g. `"pt-BR"`. Always present, falling back to `"pt-BR"` when `isPublished: false`. Drives the hotsite's `og:locale` (converted to `pt_BR` format).
+- **`seo`** (M12-S09) — tenant-configured `title`/`description` overrides, edited via `PATCH /v1/tenants/hotsite` (see "Hotsite Admin Management" below). Both fields are `string | null`; `null` means the admin hasn't set an override. When `null`, the frontend (`buildHotsiteMetadata()`) falls back to a generated `<title>`/meta description derived from `tenant.name` and `business.address` (city/state).
 - **`isPublished: false`** — still a `200`, not a `404`. Minimal payload: `branding` reflects the admin's configured (but unpublished) branding — needed so the "Em breve" placeholder (M12-S08) can render with the tenant's `var(--ba-*)` tokens. `layout: []` and `business` (all fields `null`) are stubbed — this public, unauthenticated endpoint never exposes a tenant's draft layout/services/gallery/contact info before they publish. (The admin's full draft state remains available via the authenticated `GET /v1/tenants/hotsite` below.)
 - `404` — tenant slug not found (no `HotsiteConfig` reachable for this slug at all)
+
+### **Published Hotsites Listing (Public — M12-S09)**
+Used by `app/sitemap.ts` to enumerate every published tenant hotsite for search-engine discovery.
+- `GET /platform/published-hotsites`
+- **Public** — no auth required
+- **Response:** `200 OK`
+  ```json
+  {
+    "items": [
+      { "slug": "lavacar-beloauto", "updatedAt": "2026-06-10T12:00:00.000Z" }
+    ]
+  }
+  ```
+- Only includes tenants where `tenants.is_active = true` AND `hotsite_configs.is_published = true`
+- `updatedAt` is `hotsite_configs.updated_at` (ISO-8601 UTC) — used as `lastmod` in the sitemap
+- Backed by `GET /internal/tenants/published-hotsites` (Platform context, gated by the global `InternalApiGuard`)
 
 ### **Hotsite Admin Management (Admin — UC-027, M12-S02)**
 Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors the public manifest's `branding`/`layout`/`isPublished` shape, but `GET` always returns the full draft state regardless of publish status — unlike the public endpoint, which stubs `layout: []` and `business` (all fields `null`) when `isPublished: false` (see §1 above).
 
-- `GET /v1/tenants/hotsite` → `200 { branding, layout, isPublished, updatedAt }` — `MANAGER` only
-- `PATCH /v1/tenants/hotsite` → body `{ branding?, layout? }` (partial update — unspecified fields unchanged); `200` returns updated state
+- `GET /v1/tenants/hotsite` → `200 { branding, layout, seo, isPublished, updatedAt }` — `MANAGER` only
+- `PATCH /v1/tenants/hotsite` → body `{ branding?, layout?, seo? }` (partial update — unspecified fields unchanged); `200` returns updated state
   - Validation: hex colors must be `#rrggbb` · `borderRadius/buttonStyle/spacing/shadowStyle` must be known enum values · layout module `type` must be a known `HotsiteModuleType` — any violation → `400`
   - `branding.buttonBackgroundColor`/`branding.buttonTextColor` (M12-S11) are optional hex overrides for CTA button colors — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 "Button Color Tokens" for `filled`/`outline`/`ghost` semantics
   - Image existence check: every non-empty image path submitted (`branding.logoUrl`, module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GALLERY` images with `source: 'upload'`) must resolve to a real object in GCS — verified via `IStorageService.exists()` before persisting; an unresolvable path returns `400 hotsite-image-not-uploaded`
+  - `seo.title`/`seo.description` (M12-S09) are optional `string | null` overrides for the public hotsite's `<title>`/meta description — `title` max 70 chars, `description` max 160 chars; exceeding either → `400`
 - `POST /v1/tenants/hotsite/publish` → `200 { isPublished: true }`; `400 publish-requires-enabled-module` if the layout has no `enabled: true` modules
 - `POST /v1/tenants/hotsite/unpublish` → `200 { isPublished: false }`
 - All four require JWT + `MANAGER` role — `STAFF` gets `403`

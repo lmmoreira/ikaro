@@ -151,3 +151,16 @@ X-Internal-Key: {{internalKey}}
 ### 404 — Unknown tenant ID
 GET {{baseUrl}}/internal/tenants/00000000-0000-0000-0000-000000000000
 X-Internal-Key: {{internalKey}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# READ — Published hotsites listing (M12-S09 — backs apps/web sitemap.xml)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### List active tenants with a published hotsite — { items: [{ slug, updatedAt }] }
+GET {{baseUrl}}/internal/tenants/published-hotsites
+X-Internal-Key: {{internalKey}}
+
+###
+
+### 401 — Missing X-Internal-Key (global guard)
+GET {{baseUrl}}/internal/tenants/published-hotsites

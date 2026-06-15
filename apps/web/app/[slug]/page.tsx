@@ -12,6 +12,7 @@ import { ServiceListModule } from '@/components/hotsite/ServiceListModule';
 import { TestimonialsModule } from '@/components/hotsite/TestimonialsModule';
 import { Unavailable } from '@/components/hotsite/Unavailable';
 import { isValidModuleData } from '@/lib/hotsite/module-schemas';
+import { buildHotsiteMetadata, buildLocalBusinessJsonLd, toJsonLdScript } from '@/lib/hotsite/seo';
 
 // Next.js statically analyses segment config exports — imported variables are not resolved.
 // Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in lib/hotsite/revalidate.ts.
@@ -40,10 +41,10 @@ export async function generateMetadata({ params }: HotsitePageProps): Promise<Me
   const manifest = await fetchManifest(slug);
 
   if (!manifest.isPublished) {
-    return { title: 'Em breve — BeloAuto' };
+    return { title: 'Em breve — BeloAuto', robots: { index: false, follow: false } };
   }
 
-  return {};
+  return buildHotsiteMetadata({ manifest, slug });
 }
 
 export default async function HotsitePage({ params }: HotsitePageProps) {
@@ -56,9 +57,14 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
 
   const hasServiceList = manifest.layout.some((m) => m.enabled && m.type === 'SERVICE_LIST');
   const services = hasServiceList ? await fetchServices(slug) : [];
+  const localBusinessJsonLd = buildLocalBusinessJsonLd({ manifest, slug });
 
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: toJsonLdScript(localBusinessJsonLd) }}
+      />
       {manifest.layout
         .filter((m) => m.enabled)
         .map((m, index) => {

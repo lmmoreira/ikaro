@@ -6,9 +6,9 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-import type { HotsiteManifestResponse } from '@beloauto/types';
+import type { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@beloauto/types';
 import { notFound } from 'next/navigation';
-import { fetchManifest } from './platform';
+import { fetchManifest, fetchPublishedHotsiteSlugs } from './platform';
 
 const mockNotFound = vi.mocked(notFound);
 
@@ -35,12 +35,16 @@ function makeManifest(): HotsiteManifestResponse {
       buttonStyle: 'filled',
     },
     layout: [],
+    seo: { title: null, description: null },
     isPublished: true,
     business: {
       phone: null,
       email: null,
       address: null,
       socialLinks: null,
+    },
+    localization: {
+      language: 'pt-BR',
     },
   };
 }
@@ -82,5 +86,41 @@ describe('fetchManifest', () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
 
     await expect(fetchManifest('tenant-a')).rejects.toThrow(/Failed to fetch manifest/);
+  });
+});
+
+describe('fetchPublishedHotsiteSlugs', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_BFF_URL = BFF_URL;
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('returns the list of published hotsites on a successful BFF response', async () => {
+    const response: HotsiteSitemapEntryListResponse = {
+      items: [{ slug: 'tenant-a', updatedAt: '2026-06-10T12:00:00.000Z' }],
+    };
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify(response), { status: 200 }));
+
+    const result = await fetchPublishedHotsiteSlugs();
+
+    expect(result).toEqual(response);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${BFF_URL}/platform/published-hotsites`,
+      expect.objectContaining({ next: { revalidate: 300 } }),
+    );
+  });
+
+  it('throws when the BFF returns an error', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
+
+    await expect(fetchPublishedHotsiteSlugs()).rejects.toThrow(
+      /Failed to fetch published hotsites/,
+    );
   });
 });

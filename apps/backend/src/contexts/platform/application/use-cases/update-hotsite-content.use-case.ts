@@ -13,6 +13,7 @@ import {
   HotsiteBranding,
   HotsiteModule,
   HotsiteModuleData,
+  HotsiteSeo,
 } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import {
@@ -24,6 +25,7 @@ import { UpdateHotsiteContentDto } from '../dtos/update-hotsite-content.dto';
 export interface UpdateHotsiteContentUseCaseResult {
   branding: HotsiteBranding;
   layout: HotsiteModule[];
+  seo: HotsiteSeo;
   isPublished: boolean;
 }
 
@@ -47,16 +49,22 @@ export class UpdateHotsiteContentUseCase {
       ? { ...config.branding, ...dto.branding }
       : config.branding;
     const layout: HotsiteModule[] = dto.layout ? this.toDomainLayout(dto.layout) : config.layout;
+    const seo: HotsiteSeo = dto.seo ? { ...config.seo, ...dto.seo } : config.seo;
 
     await this.verifyImagesExist(branding, layout);
 
-    config.updateContent(branding, layout);
+    config.updateContent(branding, layout, seo);
 
     await this.txManager.run(async () => {
       await this.hotsiteConfigRepo.save(config);
     });
 
-    return { branding: config.branding, layout: config.layout, isPublished: config.isPublished };
+    return {
+      branding: config.branding,
+      layout: config.layout,
+      seo: config.seo,
+      isPublished: config.isPublished,
+    };
   }
 
   private async verifyImagesExist(

@@ -39,13 +39,22 @@ const HotsiteModuleSchema = z.object({
   data: z.record(z.string(), z.unknown()),
 });
 
+const HotsiteSeoSchema = z
+  .object({
+    title: z.string().max(70).nullable(),
+    description: z.string().max(160).nullable(),
+  })
+  .partial();
+
 export const UpdateHotsiteContentSchema = z
   .object({
     branding: HotsiteBrandingSchema.optional(),
     layout: z.array(HotsiteModuleSchema).optional(),
+    seo: HotsiteSeoSchema.optional(),
   })
-  .refine((data) => data.branding !== undefined || data.layout !== undefined, {
-    message: 'at least one of branding or layout must be provided',
-  });
+  .refine(
+    (data) => data.branding !== undefined || data.layout !== undefined || data.seo !== undefined,
+    { message: 'at least one of branding, layout, or seo must be provided' },
+  );
 
 export type UpdateHotsiteContentDto = z.infer<typeof UpdateHotsiteContentSchema>;

@@ -79,6 +79,7 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 | tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)`, UNIQUE |
 | branding | JSONB | `{ primary_color, logo_url, font }` |
 | layout | JSONB | Array of modules: `[{ type, data }]` |
+| seo | JSONB | NOT NULL DEFAULT `'{"title": null, "description": null}'::jsonb` — `{ title, description }`, both nullable; tenant-configured SEO overrides |
 | is_published | BOOLEAN | NOT NULL DEFAULT false |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | **INDEX** | (tenant_id) | |

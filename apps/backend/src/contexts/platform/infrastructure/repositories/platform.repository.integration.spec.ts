@@ -71,8 +71,9 @@ describe('Platform repositories (integration)', () => {
     expect(initial!.id).toBe(config.id);
     expect(initial!.isPublished).toBe(false);
     expect(initial!.layout).toHaveLength(0);
+    expect(initial!.seo).toEqual({ title: null, description: null });
 
-    // Admin sets branding and layout modules
+    // Admin sets branding, layout modules, and seo title/description
     config.updateContent(
       {
         ...DEFAULT_HOTSITE_BRANDING,
@@ -101,6 +102,10 @@ describe('Platform repositories (integration)', () => {
           data: { title: 'Agende já', ctaLabel: 'Agendar agora' },
         },
       ],
+      {
+        title: 'Lavacar Brilho — Agendamento Online',
+        description: 'Agende sua lavagem rápido e fácil.',
+      },
     );
     await hotsiteRepo.save(config);
 
@@ -109,6 +114,10 @@ describe('Platform repositories (integration)', () => {
     expect(branded!.branding.logoUrl).toBe('https://cdn.example.com/logo.png');
     expect(branded!.layout).toHaveLength(3);
     expect(branded!.layout[0].type).toBe('HERO');
+    expect(branded!.seo).toEqual({
+      title: 'Lavacar Brilho — Agendamento Online',
+      description: 'Agende sua lavagem rápido e fácil.',
+    });
   });
 
   it('multi-tenant isolation — Tenant B cannot access Tenant A hotsite config', async () => {

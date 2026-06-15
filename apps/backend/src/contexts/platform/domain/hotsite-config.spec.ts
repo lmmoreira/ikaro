@@ -2,6 +2,7 @@ import { HotsiteConfigBuilder } from '../../../test/builders/platform';
 import { PlatformDomainError } from './errors/platform-domain.error';
 import {
   DEFAULT_HOTSITE_BRANDING,
+  DEFAULT_HOTSITE_SEO,
   HotsiteBranding,
   HotsiteModule,
 } from './hotsite-config.aggregate';
@@ -33,6 +34,7 @@ describe('HotsiteConfig', () => {
       expect(config.layout).toHaveLength(0);
       expect(config.id).toMatch(/^[0-9a-f-]{36}$/);
       expect(config.branding).toEqual(DEFAULT_HOTSITE_BRANDING);
+      expect(config.seo).toEqual(DEFAULT_HOTSITE_SEO);
     });
   });
 
@@ -124,6 +126,57 @@ describe('HotsiteConfig', () => {
       expect(() => config.updateContent(DEFAULT_HOTSITE_BRANDING, layout)).toThrow(
         PlatformDomainError,
       );
+    });
+
+    it('defaults seo to null title and description when not provided', () => {
+      const config = new HotsiteConfigBuilder().build();
+      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT);
+      expect(config.seo).toEqual(DEFAULT_HOTSITE_SEO);
+    });
+
+    it('sets seo title and description', () => {
+      const config = new HotsiteConfigBuilder().build();
+      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, {
+        title: 'Lavacar Estrela — Agendamento Online',
+        description: 'Agende sua lavagem rápido e fácil.',
+      });
+      expect(config.seo).toEqual({
+        title: 'Lavacar Estrela — Agendamento Online',
+        description: 'Agende sua lavagem rápido e fácil.',
+      });
+    });
+
+    it('throws when seo.title exceeds 70 characters', () => {
+      const config = new HotsiteConfigBuilder().build();
+      const title = 'a'.repeat(71);
+      expect(() =>
+        config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, { title, description: null }),
+      ).toThrow(PlatformDomainError);
+    });
+
+    it('throws when seo.description exceeds 160 characters', () => {
+      const config = new HotsiteConfigBuilder().build();
+      const description = 'a'.repeat(161);
+      expect(() =>
+        config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, {
+          title: null,
+          description,
+        }),
+      ).toThrow(PlatformDomainError);
+    });
+
+    it('accepts seo.title at exactly 70 characters', () => {
+      const config = new HotsiteConfigBuilder().build();
+      const title = 'a'.repeat(70);
+      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, { title, description: null });
+      expect(config.seo.title).toBe(title);
+    });
+
+    it('accepts seo.description at exactly 160 characters', () => {
+      const config = new HotsiteConfigBuilder().build();
+      const description = 'a'.repeat(160);
+      config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, { title: null, description });
+      expect(config.seo.description).toBe(description);
     });
   });
 });

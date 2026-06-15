@@ -98,9 +98,15 @@ export interface HotsiteBrandingResponse {
   buttonTextColor?: string;
 }
 
+export interface HotsiteSeoResponse {
+  title: string | null;
+  description: string | null;
+}
+
 export interface HotsiteResponse {
   branding: HotsiteBrandingResponse;
   layout: HotsiteModuleResponse[];
+  seo: HotsiteSeoResponse;
   isPublished: boolean;
 }
 
@@ -127,9 +133,14 @@ export interface HotsiteBusinessInfoResponse {
   socialLinks: HotsiteBusinessInfoSocialLinks | null;
 }
 
+export interface HotsiteLocalizationResponse {
+  language: string;
+}
+
 export interface HotsiteManifestResponse extends HotsiteResponse {
   tenant: TenantInfoResponse;
   business: HotsiteBusinessInfoResponse;
+  localization: HotsiteLocalizationResponse;
 }
 
 export interface HotsiteAdminContentResponse extends HotsiteResponse {
@@ -172,4 +183,15 @@ export interface HotsiteServiceResponse {
 
 export interface HotsiteServiceListResponse {
   items: HotsiteServiceResponse[];
+}
+
+// ─── Published hotsites listing (sitemap.xml — M12-S09) ───────────────────────
+
+export interface HotsiteSitemapEntryResponse {
+  slug: string;
+  updatedAt: string;
+}
+
+export interface HotsiteSitemapEntryListResponse {
+  items: HotsiteSitemapEntryResponse[];
 }

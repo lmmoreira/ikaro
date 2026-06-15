@@ -1,8 +1,10 @@
 import {
   DEFAULT_HOTSITE_BRANDING,
+  DEFAULT_HOTSITE_SEO,
   HotsiteBranding,
   HotsiteConfig,
   HotsiteModule,
+  HotsiteSeo,
 } from '../../../contexts/platform/domain/hotsite-config.aggregate';
 
 const DEFAULT_TENANT_ID = '01234567-0000-7000-8000-000000000001';
@@ -22,9 +24,15 @@ const DEFAULT_LAYOUT: HotsiteModule[] = [
 
 export class HotsiteConfigBuilder {
   private tenantId = DEFAULT_TENANT_ID;
+  private seo: HotsiteSeo = DEFAULT_HOTSITE_SEO;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
+    return this;
+  }
+
+  withSeo(seo: HotsiteSeo): this {
+    this.seo = seo;
     return this;
   }
 
@@ -37,7 +45,7 @@ export class HotsiteConfigBuilder {
     layout: HotsiteModule[] = DEFAULT_LAYOUT,
   ): HotsiteConfig {
     const config = HotsiteConfig.create(this.tenantId);
-    config.updateContent(branding, layout);
+    config.updateContent(branding, layout, this.seo);
     return config;
   }
 

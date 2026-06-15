@@ -2,6 +2,7 @@ import {
   BookingSettings,
   BusinessHours,
   BusinessInfo,
+  LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
   SocialLinks,
@@ -28,6 +29,11 @@ export class TenantSettingsPropsBuilder {
 
   withBusinessHours(overrides: Partial<BusinessHours>): this {
     this.props.business_hours = { ...this.props.business_hours, ...overrides };
+    return this;
+  }
+
+  withLocalization(overrides: Partial<LocalizationSettings>): this {
+    this.props.localization = { ...this.props.localization, ...overrides };
     return this;
   }
 

@@ -30,7 +30,7 @@ describe('GetHotsiteContentUseCase', () => {
     await expect(useCase.execute()).rejects.toBeInstanceOf(HotsiteNotFoundError);
   });
 
-  it('returns branding, layout, isPublished, and updatedAt regardless of publish status', async () => {
+  it('returns branding, layout, seo, isPublished, and updatedAt regardless of publish status', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
 
@@ -39,6 +39,7 @@ describe('GetHotsiteContentUseCase', () => {
     expect(result.isPublished).toBe(false);
     expect(result.branding).toEqual(config.branding);
     expect(result.layout).toEqual(config.layout);
+    expect(result.seo).toEqual(config.seo);
     expect(result.updatedAt).toEqual(config.updatedAt);
   });
 

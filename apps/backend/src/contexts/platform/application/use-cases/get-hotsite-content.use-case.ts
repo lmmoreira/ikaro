@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import { HotsiteNotFoundError } from '../../domain/errors/platform-domain.error';
-import { HotsiteBranding, HotsiteModule } from '../../domain/hotsite-config.aggregate';
+import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import {
   HOTSITE_CONFIG_REPOSITORY,
@@ -12,6 +12,7 @@ import {
 export interface GetHotsiteContentUseCaseResult {
   branding: HotsiteBranding;
   layout: HotsiteModule[];
+  seo: HotsiteSeo;
   isPublished: boolean;
   updatedAt: Date;
 }
@@ -39,6 +40,7 @@ export class GetHotsiteContentUseCase {
     return {
       branding,
       layout,
+      seo: config.seo,
       isPublished: config.isPublished,
       updatedAt: config.updatedAt,
     };

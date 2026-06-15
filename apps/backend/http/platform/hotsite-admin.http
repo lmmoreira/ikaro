@@ -76,6 +76,23 @@ Content-Type: application/json
 
 ###
 
+### SEO update — tenant-configured title and description for search results / social sharing
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "seo": {
+    "title": "Lavacar Estrela — Agendamento Online em São Paulo",
+    "description": "Agende sua lavagem na Lavacar Estrela. Rápido, fácil e online."
+  }
+}
+
+###
+
 ### Feature a booking's after-service photo on the hotsite gallery
 POST {{baseUrl}}/tenants/hotsite/gallery/feature-booking-photo
 X-Tenant-ID: {{tenantId}}
@@ -159,7 +176,7 @@ Content-Type: application/json
 
 ###
 
-### 400 — Empty body (neither branding nor layout provided)
+### 400 — Empty body (neither branding, layout, nor seo provided)
 PATCH {{baseUrl}}/tenants/hotsite
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -168,6 +185,22 @@ X-Actor-Role: MANAGER
 Content-Type: application/json
 
 {}
+
+###
+
+### 400 — seo.title exceeds 70 characters
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "seo": {
+    "title": "Esse título é proposital e absurdamente longo para violar o limite máximo de setenta caracteres permitidos"
+  }
+}
 
 ###
 

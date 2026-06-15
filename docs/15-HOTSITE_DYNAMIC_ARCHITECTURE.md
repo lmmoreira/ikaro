@@ -556,5 +556,33 @@ The manifest pattern is designed to grow without rework:
 
 ---
 
+## 11. SEO & Discoverability (M12-S09)
+
+### Site URL
+
+`apps/web/lib/hotsite/seo.ts` exports `SITE_URL`, read from `NEXT_PUBLIC_SITE_URL` (`https://beloauto.com` in production, `http://localhost:3000` in local dev). Every absolute URL used for canonical links, Open Graph, JSON-LD, and the sitemap is built from this constant — never hardcode `https://beloauto.com`.
+
+### Per-page metadata
+
+`buildHotsiteMetadata({ manifest, slug, path? })` (also in `lib/hotsite/seo.ts`) builds a `Metadata` object (title, description, Open Graph, `robots`, `alternates.canonical`) from the manifest. Each route calls it from its own `generateMetadata` — **not** `app/[slug]/layout.tsx`. The layout is shared by `/[slug]` and `/[slug]/booking`, and Next.js does not deep-merge nested `openGraph`/`alternates` fields between a layout's and a page's `generateMetadata` — a layout-level canonical/OG `url` would leak into the booking page unchanged.
+
+- `app/[slug]/page.tsx` — `buildHotsiteMetadata({ manifest, slug })`; canonical = `${SITE_URL}/${slug}`; `robots` follows `manifest.isPublished`
+- `app/[slug]/booking/page.tsx` — `buildHotsiteMetadata({ manifest, slug, path: '/booking' })`, with `title` overridden (`'Agendar serviço'` / `'Em breve — BeloAuto'`) and `robots: { index: false, follow: false }` **always** — the booking flow is never indexed, regardless of publish status
+
+### Structured data
+
+`app/[slug]/page.tsx` renders a `<script type="application/ld+json">` `LocalBusiness` block (`name: manifest.tenant.name`, `url: ${SITE_URL}/${slug}`) — home page only, not the booking page.
+
+### Sitemap & robots
+
+- `app/sitemap.ts` calls `fetchPublishedHotsiteSlugs()` (`lib/api/platform.ts`) and emits one entry per published tenant: `{ url: ${SITE_URL}/${slug}, lastModified: updatedAt }`
+- `app/robots.ts` allows `/`, disallows `/dashboard` and `/auth`, and references `${SITE_URL}/sitemap.xml`
+
+### Published hotsites listing endpoint
+
+`GET /platform/published-hotsites` (BFF, `@Public()`, `PlatformPublicController`) → `{ items: Array<{ slug: string; updatedAt: string }> }`. Backed by `GET /internal/tenants/published-hotsites` (Platform context backend), returning one entry per tenant where `tenants.is_active = true AND hotsite_configs.is_published = true`, `updatedAt` = `hotsite_configs.updated_at` (ISO-8601 UTC). Full contract: `docs/14-API_CONTRACTS.md` § Published Hotsites Listing.
+
+---
+
 **Status:** Phase 2 - Technical Architecture — updated with full token system, typed module contracts, and developer extensibility guide.
 **Validated:** Matches Multi-Tenancy Strategy, GCS photo upload flow (M115-S01), and UC-027 (admin manages hotsite).
