@@ -15,7 +15,7 @@
   --ba-radius:        8px;           /* borderRadius: 'rounded' */
   --ba-section-py:    5rem;          /* spacing: 'comfortable' */
   --ba-shadow:        0 1px 3px rgba(0,0,0,0.10); /* shadowStyle: 'subtle' */
-  --ba-btn-bg:        #2563eb;       /* buttonStyle: 'filled' → bg = primary */
+  --ba-btn-bg:        #2563eb;       /* buttonStyle: 'filled' -> bg = primary */
   --ba-btn-text:      #ffffff;
   --ba-btn-border:    #2563eb;
   --ba-btn-hover-bg:  #2563eb;
@@ -33,7 +33,7 @@ body {
 
 h1, h2, h3 { font-family: var(--ba-heading-font); }
 
-/* ── Buttons ── */
+/* -- Buttons -- */
 .btn-primary {
   background-color: var(--ba-btn-bg);
   color: var(--ba-btn-text);
@@ -62,7 +62,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   display: inline-block;
 }
 
-/* ── Cards ── */
+/* -- Cards -- */
 .card {
   border: 1px solid var(--ba-secondary);
   border-radius: var(--ba-radius);
@@ -71,7 +71,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
 }
 .card.selected { border-color: var(--ba-primary); border-width: 2px; }
 
-/* ── Layout ── */
+/* -- Layout -- */
 .step-container {
   max-width: 42rem;
   margin: 0 auto;
@@ -84,7 +84,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   margin-bottom: 1.5rem;
 }
 
-/* ── Forms ── */
+/* -- Forms -- */
 .form-label {
   display: block;
   font-size: 0.875rem;
@@ -108,7 +108,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   border-color: var(--ba-primary);
 }
 
-/* ── Navigation buttons row ── */
+/* -- Navigation buttons row -- */
 .nav-buttons {
   display: flex;
   gap: 0.75rem;
@@ -116,7 +116,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   align-items: center;
 }
 
-/* ── Slot pills ── */
+/* -- Slot pills -- */
 .slot-btn {
   padding: 0.5rem 1rem;
   border: 1px solid var(--ba-secondary);
@@ -134,7 +134,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   font-weight: 600;
 }
 
-/* ── Day pills ── */
+/* -- Day pills -- */
 .day-pill {
   min-width: 3.5rem;
   padding: 0.5rem;
@@ -159,7 +159,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
 }
 .day-pill.unavailable { opacity: 0.4; }
 
-/* ── Upload area ── */
+/* -- Upload area -- */
 .upload-area {
   border: 2px dashed var(--ba-secondary);
   border-radius: var(--ba-radius);
@@ -169,9 +169,7 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
 }
 .upload-area:hover { border-color: var(--ba-primary); }
 
-/* ── Auth header bar (shared by all prototype screens) ── */
-/* Unauthenticated state: wrap content in <a href="./login.html"> with "Entrar" text  */
-/* Authenticated state:   wrap content in <a href="./login.html"> with avatar + name  */
+/* -- Auth header bar (hotsite / booking screens) -- */
 .auth-bar {
   background: var(--ba-secondary);
   padding: 0.5rem 1.5rem;
@@ -193,4 +191,277 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   justify-content: center;
   font-weight: 700;
   font-size: 0.75rem;
+}
+
+/* ================================================================
+   Dashboard shell — MOBILE-FIRST
+   Mobile  (<1024px): bottom nav + full-width stacked content
+   Desktop (>=1024px): left sidebar + main, bottom nav hidden
+   Step files copy the full HTML structure, swap .active item,
+   and replace the main-content body.
+   CSS path from a step file: ../../../shared/tokens.css
+   ================================================================ */
+
+/* Layout */
+.dashboard-layout { display: block; min-height: 100vh; }
+
+.main-content {
+  background: #f9fafb;
+  min-height: 100vh;
+  padding-bottom: 5rem;
+}
+
+/* Top bar */
+.dashboard-topbar {
+  background: white;
+  border-bottom: 1px solid var(--ba-secondary);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Mobile topbar elements */
+.topbar-brand     { display: flex; align-items: center; gap: 0.625rem; }
+.topbar-logo-mark {
+  width: 1.75rem; height: 1.75rem; flex-shrink: 0;
+  background: var(--ba-primary); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.8125rem; color: white;
+}
+.topbar-tenant-name { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); }
+.topbar-avatar {
+  width: 2rem; height: 2rem; border-radius: 9999px;
+  background: var(--ba-primary); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.75rem; cursor: pointer; flex-shrink: 0;
+}
+
+/* Desktop topbar elements (hidden on mobile) */
+.topbar-page-title { display: none; font-size: 1.0625rem; font-weight: 700; color: var(--ba-text); }
+.topbar-date       { display: none; font-size: 0.8125rem; color: var(--ba-text); opacity: 0.5; }
+
+.dashboard-body { padding: 1rem; }
+
+/* Bottom navigation — mobile only */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: white;
+  border-top: 1px solid var(--ba-secondary);
+  display: flex;
+  z-index: 20;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.bottom-nav-item {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 0.5rem 0.25rem 0.375rem;
+  text-decoration: none;
+  color: rgba(17,24,39,0.4);
+  font-size: 0.625rem; font-weight: 600;
+  letter-spacing: 0.02em;
+  gap: 0.25rem;
+  border: none; background: none; cursor: pointer;
+  transition: color 0.12s;
+  font-family: var(--ba-body-font);
+}
+.bottom-nav-item.active { color: var(--ba-primary); }
+.bottom-nav-icon { width: 1.375rem; height: 1.375rem; flex-shrink: 0; }
+
+/* Bottom sheet (manager overflow) */
+.sheet-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 30;
+}
+.sheet-backdrop.open { display: block; }
+
+.bottom-sheet {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: white;
+  border-radius: 1rem 1rem 0 0;
+  z-index: 40;
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+  padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+}
+.bottom-sheet.open { transform: translateY(0); }
+.bottom-sheet-handle {
+  width: 2.5rem; height: 0.25rem;
+  background: rgba(17,24,39,0.15); border-radius: 9999px;
+  margin: 0.75rem auto 0.25rem;
+}
+.bottom-sheet-label {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: rgba(17,24,39,0.4);
+  padding: 0.75rem 1.25rem 0.25rem;
+}
+.bottom-sheet-item {
+  display: flex; align-items: center; gap: 0.875rem;
+  padding: 0.875rem 1.25rem;
+  text-decoration: none; color: var(--ba-text);
+  font-size: 0.9375rem; font-weight: 500;
+  border: none; background: none; width: 100%; cursor: pointer;
+  font-family: var(--ba-body-font); text-align: left;
+  transition: background 0.1s;
+}
+.bottom-sheet-item:active { background: var(--ba-secondary); }
+.bottom-sheet-item.active { color: var(--ba-primary); }
+.bottom-sheet-item svg { width: 1.25rem; height: 1.25rem; opacity: 0.6; flex-shrink: 0; }
+
+/* Sidebar — hidden on mobile, shown on desktop */
+.sidebar {
+  display: none;
+  width: 15rem; flex-shrink: 0;
+  background: #111827;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.sidebar-header {
+  padding: 1.125rem 1rem;
+  display: flex; align-items: center; gap: 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.sidebar-logo {
+  width: 1.875rem; height: 1.875rem; flex-shrink: 0;
+  background: var(--ba-primary); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.8125rem; color: white;
+}
+.sidebar-tenant-name { font-weight: 700; font-size: 0.875rem; color: white; line-height: 1.2; }
+.sidebar-tenant-slug { font-size: 0.6875rem; opacity: 0.4; color: white; margin-top: 0.125rem; }
+.sidebar-section-label {
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.09em;
+  text-transform: uppercase; color: rgba(255,255,255,0.35);
+  padding: 0.875rem 1rem 0.25rem;
+}
+.sidebar-nav { padding: 0.375rem 0.5rem; display: flex; flex-direction: column; gap: 0.125rem; }
+.sidebar-nav-item {
+  display: flex; align-items: center; gap: 0.625rem;
+  padding: 0.5rem 0.625rem; border-radius: 6px;
+  color: rgba(255,255,255,0.6); text-decoration: none;
+  font-size: 0.875rem; font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+}
+.sidebar-nav-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.9); }
+.sidebar-nav-item.active { background: var(--ba-primary); color: white; }
+.sidebar-nav-icon { width: 1rem; height: 1rem; flex-shrink: 0; }
+.sidebar-footer {
+  margin-top: auto; padding: 0.875rem 1rem;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  display: flex; align-items: center; gap: 0.625rem;
+}
+.sidebar-user-name { font-size: 0.8125rem; font-weight: 600; color: white; line-height: 1.2; }
+.sidebar-logout {
+  font-size: 0.75rem; color: rgba(255,255,255,0.35);
+  text-decoration: none; margin-left: auto;
+}
+.sidebar-logout:hover { color: rgba(255,255,255,0.75); }
+
+/* Role badge */
+.role-badge {
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; padding: 0.1875rem 0.4375rem; border-radius: 4px;
+}
+.role-badge-manager { background: rgba(37,99,235,0.25); color: #93c5fd; }
+.role-badge-staff   { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.6); }
+
+/* Status badges */
+.status-badge {
+  font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; padding: 0.1875rem 0.5rem;
+  border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+}
+.status-pending  { background: #fef3c7; color: #92400e; }
+.status-info     { background: #dbeafe; color: #1d4ed8; }
+.status-approved { background: #dcfce7; color: #15803d; }
+.status-cancelled{ background: #fee2e2; color: #dc2626; }
+
+/* Filter tabs — horizontally scrollable on mobile */
+.filter-tabs {
+  display: flex; gap: 0.5rem;
+  overflow-x: auto; padding-bottom: 0.25rem; margin-bottom: 1rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.filter-tabs::-webkit-scrollbar { display: none; }
+.filter-tab {
+  padding: 0.375rem 0.875rem; border-radius: var(--ba-radius);
+  background: white; color: var(--ba-text);
+  border: 1px solid var(--ba-secondary); font-size: 0.875rem;
+  cursor: pointer; white-space: nowrap;
+  font-family: var(--ba-body-font);
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.filter-tab.active {
+  background: var(--ba-primary); color: white;
+  border-color: var(--ba-primary); font-weight: 600;
+}
+
+/* Booking cards — mobile-first full-width stacked */
+.booking-card {
+  background: white;
+  border: 1px solid var(--ba-secondary);
+  border-radius: var(--ba-radius);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--ba-shadow);
+}
+.booking-card-header {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+.booking-card-info { flex: 1; min-width: 0; }
+.booking-card-name { font-weight: 600; color: var(--ba-text); line-height: 1.3; }
+.booking-card-meta { font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); margin-top: 0.125rem; }
+.booking-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+/* Primary action: full-width on its own row on mobile */
+.booking-card-actions .btn-primary {
+  width: 100%;
+  text-align: center;
+  padding: 0.625rem 0.5rem;
+  font-size: 0.875rem;
+}
+/* Secondary actions: share the second row equally on mobile */
+.booking-card-actions .btn-secondary {
+  flex: 1;
+  text-align: center;
+  padding: 0.625rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Desktop breakpoint >=1024px */
+@media (min-width: 1024px) {
+  .dashboard-layout  { display: flex; }
+  .sidebar           { display: flex; }
+  .bottom-nav        { display: none; }
+  .main-content      { flex: 1; min-width: 0; padding-bottom: 0; min-height: auto; }
+  .dashboard-body    { padding: 1.5rem; }
+  .dashboard-topbar  { padding: 0.875rem 1.5rem; }
+  .topbar-brand      { display: none; }
+  .topbar-avatar     { display: none; }
+  .topbar-page-title { display: block; }
+  .topbar-date       { display: block; }
+
+  /* Booking cards — single horizontal row on desktop */
+  .booking-card                  { display: flex; align-items: center; gap: 1rem; }
+  .booking-card-header           { flex: 1; margin-bottom: 0; }
+  .booking-card-actions          { flex-shrink: 0; flex-wrap: nowrap; }
+  .booking-card-actions .btn-primary,
+  .booking-card-actions .btn-secondary {
+    flex: none;
+    width: auto;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.875rem;
+  }
 }

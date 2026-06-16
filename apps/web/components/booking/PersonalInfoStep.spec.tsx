@@ -3,12 +3,30 @@ import { useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import type { AvailableSlot, HotsiteServiceResponse } from '@beloauto/types';
 import { emptyPersonalInfo, type PersonalInfoValue } from '@/lib/booking/personal-info';
 import { PersonalInfoStep } from './PersonalInfoStep';
 
 vi.mock('@/lib/api/bookings', () => ({
   createAttachmentSignedUrl: vi.fn(),
 }));
+
+const service: HotsiteServiceResponse = {
+  id: '00000000-0000-0000-0000-000000000001',
+  name: 'Lavagem Simples',
+  description: '',
+  price: { amount: 60, currency: 'BRL', formatted: 'R$ 60,00' },
+  durationMinutes: 30,
+  loyaltyPointsValue: 5,
+  requiresPickupAddress: false,
+  isActive: true,
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+
+const slot: AvailableSlot = {
+  startsAt: '2026-06-18T13:00:00.000Z',
+  endsAt: '2026-06-18T14:00:00.000Z',
+};
 
 function Wrapper({
   onNext = vi.fn(),
@@ -23,6 +41,10 @@ function Wrapper({
       slug="lavacar-beloauto"
       value={value}
       onChange={setValue}
+      services={[service]}
+      selectedServiceIds={[service.id]}
+      selectedDate="2026-06-18"
+      selectedSlot={slot}
       onNext={onNext}
       onBack={onBack}
     />
@@ -101,5 +123,14 @@ describe('PersonalInfoStep', () => {
     render(<Wrapper />);
 
     expect(screen.getByLabelText('Fotos do veículo (opcional)')).toBeInTheDocument();
+  });
+
+  it('renders the order review card with the selected service and date/time', () => {
+    render(<Wrapper />);
+
+    expect(screen.getByText('Revisar pedido')).toBeInTheDocument();
+    expect(screen.getByText('Lavagem Simples')).toBeInTheDocument();
+    expect(screen.getByText('R$ 60,00 — 30 min')).toBeInTheDocument();
+    expect(screen.getByText('Quinta-feira, 18 de junho às 10:00')).toBeInTheDocument();
   });
 });

@@ -56,6 +56,7 @@ export interface BookingCtaModuleData {
   subtitle?: string;
   ctaLabel: string;
   backgroundImageUrl?: string;
+  carouselDays?: number;
 }
 
 export interface AboutModuleData {

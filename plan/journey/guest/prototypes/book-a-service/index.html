@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Protótipo — GUEST: Agendar Serviço</title>
-  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     body { padding: 2rem; }
     h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
@@ -58,6 +58,60 @@
 
   <hr>
 
+  <h2 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">
+    Estados alternativos (unhappy paths)
+  </h2>
+  <p>
+    Cada tela abaixo é uma <strong>variante</strong> de um dos 4 passos acima, mostrando um
+    estado de erro, vazio, carregamento ou sucesso. Nenhuma é uma rota nova — todas usam os
+    mesmos componentes (já existentes), apenas em outro estado.
+  </p>
+
+  <ul>
+    <li>
+      <a href="01b-pickup-address-error.html">Passo 1b — Erro: endereço de coleta obrigatório</a>
+      <span class="tag tag-green">EXISTS: ServiceSelectionStep + AddressFields</span>
+    </li>
+    <li>
+      <a href="02b-loading.html">Passo 2b — Carregando disponibilidade</a>
+      <span class="tag tag-green">EXISTS: AvailabilityCarousel (loading)</span>
+    </li>
+    <li>
+      <a href="02c-availability-error.html">Passo 2c — Erro ao carregar disponibilidade</a>
+      <span class="tag tag-red">⚠ sem botão de retry</span>
+    </li>
+    <li>
+      <a href="02d-fully-booked.html">Passo 2d — Sem horários disponíveis (totalmente lotado)</a>
+      <span class="tag tag-red">⚠ sem mensagem explicativa</span>
+    </li>
+    <li>
+      <a href="02e-slot-conflict.html">Passo 2e — Horário indisponível (409 ao confirmar)</a>
+      <span class="tag tag-green">EXISTS: SlotPicker (step2-error)</span>
+    </li>
+    <li>
+      <a href="03b-validation-error.html">Passo 3b — Erro de validação (e-mail inválido)</a>
+      <span class="tag tag-green">EXISTS: PersonalInfoStep (personal-info-error)</span>
+    </li>
+    <li>
+      <a href="03c-photo-states.html">Passo 3c — Estados do upload de fotos (enviando / enviada / erro)</a>
+      <span class="tag tag-red">⚠ item com erro não tem "Remover"</span>
+    </li>
+    <li>
+      <a href="04b-submitting.html">Passo 4b — Enviando agendamento</a>
+      <span class="tag tag-green">EXISTS: ConfirmationStep (submitting)</span>
+    </li>
+    <li>
+      <a href="04c-submission-error.html">Passo 4c — Erro ao enviar agendamento</a>
+      <span class="tag tag-green">EXISTS: ConfirmationStep (confirmation-error)</span>
+    </li>
+    <li>
+      <a href="04d-success.html">Passo 4d — Solicitação enviada (sucesso)</a>
+      <span class="tag tag-green">EXISTS: ConfirmationStep (confirmation-success)</span>
+    </li>
+  </ul>
+
+  <hr>
+
   <div class="note">
     <strong>O que este protótipo valida:</strong><br>
     ✅ Sequência de 4 passos faz sentido para o guest?<br>
@@ -65,6 +119,9 @@
     ✅ Formulário de dados pessoais no passo 3 está claro e completo?<br>
     ✅ Resumo do passo 4 contém todas as informações necessárias para confirmar?<br>
     ✅ Tokens de branding (<code>--ba-*</code>) são os mesmos que o hotsite usa?<br>
+    ✅ Passo 2d (sem horários) — aceitável sem mensagem, ou precisa de copy explicativo?<br>
+    ✅ Passo 2c (erro ao carregar) — precisa de um botão de retry?<br>
+    ✅ Passo 3c (erro no upload) — precisa de "Remover"/tentar novamente no item com erro?<br>
     <br>
     <strong>Ver também:</strong> caminho do cliente autenticado →
     <a href="../../customer/prototypes/book-a-service/index.html">customer/prototypes/book-a-service/</a><br>

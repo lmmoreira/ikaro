@@ -16,3 +16,12 @@ if (typeof HTMLDialogElement !== 'undefined') {
     this.removeAttribute('open');
   });
 }
+
+// jsdom does not implement URL.createObjectURL / revokeObjectURL (used for local
+// image previews). Node's environment already provides these for Blob, so only
+// patch when missing.
+if (typeof URL.createObjectURL === 'undefined') {
+  let objectUrlCount = 0;
+  URL.createObjectURL = vi.fn(() => `blob:mock-${++objectUrlCount}`);
+  URL.revokeObjectURL = vi.fn();
+}

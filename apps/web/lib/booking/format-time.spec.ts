@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateBR, formatTimeBR } from './format-time';
+import { formatDateBR, formatDateLongBR, formatTimeBR } from './format-time';
 
 describe('formatTimeBR', () => {
   it('formats an ISO datetime as HH:mm in the America/Sao_Paulo timezone', () => {
@@ -14,5 +14,12 @@ describe('formatTimeBR', () => {
 describe('formatDateBR', () => {
   it('formats an ISO date as DD/MM/YYYY', () => {
     expect(formatDateBR('2026-06-15')).toBe('15/06/2026');
+  });
+});
+
+describe('formatDateLongBR', () => {
+  it('formats an ISO date as "Weekday, day de month" in pt-BR, capitalized', () => {
+    expect(formatDateLongBR('2026-06-15')).toBe('Segunda-feira, 15 de junho');
+    expect(formatDateLongBR('2026-06-18')).toBe('Quinta-feira, 18 de junho');
   });
 });

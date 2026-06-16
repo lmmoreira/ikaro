@@ -18,6 +18,7 @@ import { SlotPicker } from './SlotPicker';
 interface BookingFormProps {
   readonly slug: string;
   readonly services: readonly HotsiteServiceResponse[];
+  readonly carouselDays: number;
 }
 
 type Step = 1 | 2 | 3 | 4;
@@ -48,7 +49,7 @@ function buildPayload(
   };
 }
 
-export function BookingForm({ slug, services }: BookingFormProps) {
+export function BookingForm({ slug, services, carouselDays }: BookingFormProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
@@ -141,6 +142,7 @@ export function BookingForm({ slug, services }: BookingFormProps) {
             serviceIds={selectedServiceIds}
             selectedDate={selectedDate}
             onSelectDate={handleSelectDate}
+            carouselDays={carouselDays}
           />
 
           {selectedDate && (
@@ -192,11 +194,15 @@ export function BookingForm({ slug, services }: BookingFormProps) {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 3 && selectedDate && selectedSlot && (
         <PersonalInfoStep
           slug={slug}
           value={personalInfo}
           onChange={setPersonalInfo}
+          services={services}
+          selectedServiceIds={selectedServiceIds}
+          selectedDate={selectedDate}
+          selectedSlot={selectedSlot}
           onNext={() => setStep(4)}
           onBack={() => setStep(2)}
         />

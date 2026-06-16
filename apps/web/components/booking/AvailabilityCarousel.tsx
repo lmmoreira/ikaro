@@ -11,10 +11,10 @@ interface AvailabilityCarouselProps {
   readonly serviceIds: readonly string[];
   readonly selectedDate: string | null;
   readonly onSelectDate: (date: string) => void;
+  readonly carouselDays: number;
 }
 
 const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const CAROUSEL_DAYS = 14;
 const SCROLL_AMOUNT_PX = 240;
 
 function dayLabel(date: string, index: number): string {
@@ -31,6 +31,7 @@ export function AvailabilityCarousel({
   serviceIds,
   selectedDate,
   onSelectDate,
+  carouselDays,
 }: AvailabilityCarouselProps) {
   const [days, setDays] = useState<DaySummary[] | null>(null);
   const [error, setError] = useState(false);
@@ -40,7 +41,7 @@ export function AvailabilityCarousel({
     let cancelled = false;
     const today = new Date();
     const from = toISODate(today);
-    const to = toISODate(addDays(today, CAROUSEL_DAYS - 1));
+    const to = toISODate(addDays(today, carouselDays - 1));
 
     fetchAvailabilitySummary(slug, from, to, serviceIds)
       .then((result) => {
@@ -53,61 +54,75 @@ export function AvailabilityCarousel({
     return () => {
       cancelled = true;
     };
-  }, [slug, serviceIds]);
+  }, [slug, serviceIds, carouselDays]);
 
   function scrollBy(amount: number) {
     scrollRef.current?.scrollBy({ left: amount, behavior: 'smooth' });
   }
 
   if (error) {
-    return <p>Não foi possível carregar a disponibilidade. Tente novamente.</p>;
+    return (
+      <p className="text-sm text-red-600">
+        Não foi possível carregar a disponibilidade. Tente novamente.
+      </p>
+    );
   }
 
   if (!days) {
     return <p>Carregando disponibilidade...</p>;
   }
 
-  return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        aria-label="Dias anteriores"
-        onClick={() => scrollBy(-SCROLL_AMOUNT_PX)}
-        className="hidden shrink-0 sm:block"
-      >
-        <ChevronLeft />
-      </button>
+  const fullyBooked = days.every((d) => !d.available);
 
-      <div ref={scrollRef} className="flex gap-2 overflow-x-auto scroll-smooth py-1">
-        {days.map((day, index) => (
-          <button
-            key={day.date}
-            type="button"
-            disabled={!day.available}
-            onClick={() => onSelectDate(day.date)}
-            data-testid={`day-card-${day.date}`}
-            aria-pressed={day.date === selectedDate}
-            className="flex shrink-0 flex-col items-center border px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40"
-            style={{
-              borderRadius: 'var(--ba-radius)',
-              backgroundColor: day.date === selectedDate ? 'var(--ba-primary)' : undefined,
-              color: day.date === selectedDate ? 'var(--ba-btn-text)' : 'var(--ba-text)',
-            }}
-          >
-            <span className="text-xs">{dayLabel(day.date, index)}</span>
-            <span className="text-lg font-semibold">{dayNumber(day.date)}</span>
-          </button>
-        ))}
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-label="Dias anteriores"
+          onClick={() => scrollBy(-SCROLL_AMOUNT_PX)}
+          className="hidden shrink-0 sm:block"
+        >
+          <ChevronLeft />
+        </button>
+
+        <div ref={scrollRef} className="flex gap-2 overflow-x-auto scroll-smooth py-1">
+          {days.map((day, index) => (
+            <button
+              key={day.date}
+              type="button"
+              disabled={!day.available}
+              onClick={() => onSelectDate(day.date)}
+              data-testid={`day-card-${day.date}`}
+              aria-pressed={day.date === selectedDate}
+              className="flex shrink-0 flex-col items-center border px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{
+                borderRadius: 'var(--ba-radius)',
+                backgroundColor: day.date === selectedDate ? 'var(--ba-primary)' : undefined,
+                color: day.date === selectedDate ? 'var(--ba-btn-text)' : 'var(--ba-text)',
+              }}
+            >
+              <span className="text-xs">{dayLabel(day.date, index)}</span>
+              <span className="text-lg font-semibold">{dayNumber(day.date)}</span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          aria-label="Próximos dias"
+          onClick={() => scrollBy(SCROLL_AMOUNT_PX)}
+          className="hidden shrink-0 sm:block"
+        >
+          <ChevronRight />
+        </button>
       </div>
 
-      <button
-        type="button"
-        aria-label="Próximos dias"
-        onClick={() => scrollBy(SCROLL_AMOUNT_PX)}
-        className="hidden shrink-0 sm:block"
-      >
-        <ChevronRight />
-      </button>
+      {fullyBooked && (
+        <p className="mt-3 text-sm text-red-600" data-testid="fully-booked-message">
+          Nenhum horário disponível nos próximos {carouselDays} dias.
+        </p>
+      )}
     </div>
   );
 }

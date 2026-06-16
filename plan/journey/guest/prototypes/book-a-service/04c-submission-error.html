@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Passo 4 — Erro ao enviar</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+</head>
+<body>
+  <!--
+    VARIANT OF: 04-confirmation.html
+    SCENARIO:   POST /bookings returned a non-409 4xx/5xx (e.g. 500, network error).
+                status = 'error'. Per the dev-notes status table, the primary button
+                returns to enabled "Confirmar agendamento" so the guest can retry.
+    COMPONENT:  ConfirmationStep  apps/web/components/booking/ConfirmationStep.tsx  (EXISTS)
+    ERROR:      "Não foi possível enviar sua solicitação. Tente novamente."
+                (data-testid="confirmation-error")
+  -->
+  <!-- GUEST LOGIN BAR -->
+  <div style="
+    background: var(--ba-secondary); padding: 0.5rem 1.5rem;
+    display: flex; align-items: center; justify-content: flex-end;
+  ">
+    <a href="../../../shared/login.html" style="
+      display: flex; align-items: center; gap: 0.375rem;
+      font-size: 0.875rem; font-weight: 500;
+      color: var(--ba-primary); text-decoration: none;
+    ">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      Entrar
+    </a>
+  </div>
+
+  <div class="step-container">
+    <p class="step-indicator">Passo 4 de 4</p>
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Confirme seu agendamento</h2>
+
+    <ul style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.25rem; list-style: none; padding: 0;">
+      <li style="display: flex; justify-content: space-between; font-size: 0.875rem; color: var(--ba-text);">
+        <span>Lavagem Simples</span>
+        <span>R$ 60,00</span>
+      </li>
+    </ul>
+
+    <p style="font-weight: 600; color: var(--ba-text); margin-bottom: 0.5rem;">Total: R$ 60,00 — 30 min</p>
+    <p style="color: var(--ba-text);">Quarta-feira, 18 de junho às 10:00</p>
+
+    <!-- See dev-notes.md "Accessibility notes" — add role="alert" so this is announced on appearance -->
+    <p style="margin-top: 1rem; color: #dc2626;" data-testid="confirmation-error">
+      Não foi possível enviar sua solicitação. Tente novamente.
+    </p>
+
+    <div class="nav-buttons">
+      <a class="btn-secondary" href="03-personal-info.html">Voltar</a>
+      <button class="btn-primary">Confirmar agendamento</button>
+    </div>
+  </div>
+</body>
+</html>

@@ -123,6 +123,21 @@ flowchart TD
   ```
 - Edges labeled with the triggering UC: `A -->|UC-003 Approve| B`
 
+### What goes in the flowchart vs. the prototype
+
+The flowchart documents **navigation** — screens the actor moves between and decisions that change which screen comes next. It does not model UI states within a single screen.
+
+**Always include in the flowchart:**
+- Decision nodes that change the actor's next screen (e.g., slot conflict → forced back to step 2)
+- Terminal outcomes — both success and significant failure (booking rejected, unrecoverable error)
+- IA gaps: routes that do not exist yet — dashed red `classDef gap`, label prefixed `❓ GAP:`
+
+**Leave out of the flowchart:**
+- Loading, fetch-error, empty, and validation states *within* the same screen — these are UI states for one route, not navigation events; document them in the prototype instead
+- Per-field validation errors (too granular for a flow diagram)
+
+Every journey must show at minimum: **(1)** the happy-path terminal state, **(2)** any business-rule branch that forces the actor to a different screen, **(3)** any significant rejection or failure that ends the journey outside the success path.
+
 ### Journey workflow
 
 0. **Validate source docs**: run `/uc-audit` scoped to the relevant UCs. Resolve findings before proceeding — journeys built on stale UC text cause rework.
@@ -306,7 +321,7 @@ Each screen file must follow this structure:
 **HTML comment rules:**
 - Always open a block comment naming the React component, its file path, and `(EXISTS)` or `(GAP — <story>)`.
 - For BFF calls: include `METHOD /endpoint`, headers, and brief response shape.
-- For error/loading states: include them as commented-out HTML blocks (`<!-- uncomment to preview -->`).
+- For **minor conditional content** within a screen (e.g. a field that appears only when a condition is met): keep it commented-out so reviewers can toggle it inline. For **complete alternate states** (loading, fetch-error, empty, validation-error, submission, success): create a separate variant screen — see "Unhappy path variant screens (mandatory)" below.
 - For conditional sections (e.g. pickup address): keep them commented-out so the reviewer can toggle them.
 
 ### Summary card ("Revisar pedido")
@@ -331,6 +346,64 @@ Any step that asks the user to take a consequential action (fill personal info, 
 
 - The title ("Revisar pedido") is **always a heading element** (`<h2>` or `<h3>`) **outside** the card — never a `<p>` inside the card.
 - Apply consistently across all actor paths (guest and customer step 3 show the same card).
+
+### Unhappy path variant screens (mandatory)
+
+> **Non-negotiable rule:** Every prototype must include clickable variant screens for every meaningful non-happy-path state. Commented-out HTML blocks are only for minor inline conditional content — a reviewer clicking through `index.html` must be able to *see* every important state without reading HTML source. This applies to **every journey, every actor, every prototype**, with no exceptions.
+
+#### Naming convention
+
+Variant screens use a letter suffix after the step number, in the same folder as the happy-path screens:
+
+```
+01-<screen>.html       ← happy-path baseline
+01b-<variant>.html     ← first alternate state for step 1
+01c-<variant>.html     ← second alternate state for step 1
+02b-<variant>.html     ← first alternate state for step 2
+```
+
+They are listed in `index.html` under a dedicated **"Estados alternativos (unhappy paths)"** section, separate from the happy-path list, each tagged:
+- `tag-green` — component handles this state correctly today
+- `tag-red ⚠` — component has a gap or limitation in this state (still create the screen — it makes the gap tangible)
+
+#### State checklist — apply to every screen before declaring a prototype done
+
+For each step/screen, answer these questions and create a variant for every "yes":
+
+| Question | States to prototype |
+|---|---|
+| Does it fetch async data on mount? | `b-loading` + `c-fetch-error` |
+| Can the fetched data be empty or all-unavailable? | `d-empty` or `d-fully-unavailable` |
+| Is it a form with client-side validation? | one `b-validation-error` variant per distinct error type (or one combined showing the worst case) |
+| Does it submit to an API? | `b-submitting` + `c-submission-error` + `d-success` |
+| Does any component have a stuck or partially-broken state? | a gap variant tagged ⚠ in `index.html`, documented in `dev-notes.md` Known limitations |
+
+#### IA gaps vs. known limitations
+
+- **IA gap** — a route/page does not yet exist: show as a dashed-red `classDef gap` node in the journey `.md` flowchart. Do not create a prototype screen until the story is approved.
+- **Known limitation** — a route/page exists but a component behaves incompletely in a given state (e.g. no retry button, no empty-state copy): create the variant screen anyway, tag it ⚠, and add a bullet in `dev-notes.md` "Known limitations" with a proposed fix and a reference to the screen file.
+
+#### `index.html` unhappy-paths section template
+
+```html
+<hr>
+<h2 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--ba-text)">
+  Estados alternativos (unhappy paths)
+</h2>
+<p>One sentence describing what these screens show.</p>
+<ul>
+  <li>
+    <a href="01b-<variant>.html">Passo 1b — <Scenario description></a>
+    <span class="tag tag-green">EXISTS: ComponentName (state)</span>
+  </li>
+  <li>
+    <a href="02c-<variant>.html">Passo 2c — <Scenario description></a>
+    <span class="tag tag-red">⚠ <short gap description> — ver dev-notes.md</span>
+  </li>
+</ul>
+```
+
+Also update the "what this prototype validates" checklist in `index.html` to include yes/no questions about the unhappy-path variants — e.g., "Does the empty-availability state need an explanatory message?"
 
 ### `dev-notes.md` template
 
@@ -436,6 +509,12 @@ The `index.html` "what this prototype validates" block is not cosmetic — it fo
 
 ### ❌ Duplicating shared files across actor folders
 Creating a separate `tokens.css`, `hotsite.html`, or `login.html` in each actor's prototype folder means that any copy tweak or token update must be applied N times. Before creating any prototype file, ask: "is this identical — or nearly identical — across all actor flows?" If yes, put it in `plan/journey/shared/` and reference it via `../../../shared/<file>`. Use the redirect pattern for `00-hotsite.html` and `00-login.html` stubs so that `index.html` links keep working.
+
+### ❌ Only prototyping the happy path
+
+Leaving all error/loading/empty/submission states as commented-out HTML blocks inside the numbered step files, with no clickable variant screens. A reviewer who opens `index.html` and clicks through sees only the happy path — they cannot validate how errors or edge cases look without reading HTML source. Worse, gaps in component behaviour (no retry button, no empty-state copy) stay invisible to product stakeholders until a developer hits them in production.
+
+**Fix:** Apply the "Unhappy path variant screens (mandatory)" checklist above before declaring any prototype done. For each step: does it fetch? does it validate? does it submit? can data be empty? is any state stuck/incomplete? Create a variant screen for each "yes", tag it in `index.html`, and document it in `dev-notes.md`. Even when fixing the underlying behaviour is deferred, always visualise the gap state — making it tangible is what turns a known issue into a tracked decision.
 
 ---
 

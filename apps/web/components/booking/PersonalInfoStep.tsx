@@ -3,15 +3,21 @@
 import { useState } from 'react';
 import type React from 'react';
 import { z } from 'zod';
+import type { AvailableSlot, HotsiteServiceResponse } from '@beloauto/types';
 import type { PersonalInfoValue } from '@/lib/booking/personal-info';
 import { formatPhoneBR } from '@/lib/utils';
 import { AddressFields } from './AddressFields';
+import { BookingSummaryCard } from './BookingSummaryCard';
 import { PhotoUpload } from './PhotoUpload';
 
 interface PersonalInfoStepProps {
   readonly slug: string;
   readonly value: PersonalInfoValue;
   readonly onChange: (value: PersonalInfoValue) => void;
+  readonly services: readonly HotsiteServiceResponse[];
+  readonly selectedServiceIds: readonly string[];
+  readonly selectedDate: string;
+  readonly selectedSlot: AvailableSlot;
   readonly onNext: () => void;
   readonly onBack: () => void;
 }
@@ -34,7 +40,17 @@ function validate(value: PersonalInfoValue): string | null {
   return null;
 }
 
-export function PersonalInfoStep({ slug, value, onChange, onNext, onBack }: PersonalInfoStepProps) {
+export function PersonalInfoStep({
+  slug,
+  value,
+  onChange,
+  services,
+  selectedServiceIds,
+  selectedDate,
+  selectedSlot,
+  onNext,
+  onBack,
+}: PersonalInfoStepProps) {
   const [showContactAddress, setShowContactAddress] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -152,6 +168,13 @@ export function PersonalInfoStep({ slug, value, onChange, onNext, onBack }: Pers
           </div>
         )}
       </div>
+
+      <BookingSummaryCard
+        services={services}
+        selectedServiceIds={selectedServiceIds}
+        selectedDate={selectedDate}
+        selectedSlot={selectedSlot}
+      />
 
       <div className="mt-6">
         <PhotoUpload

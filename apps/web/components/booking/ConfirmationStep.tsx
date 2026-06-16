@@ -1,6 +1,6 @@
 import type React from 'react';
 import type { AvailableSlot, HotsiteServiceResponse } from '@beloauto/types';
-import { formatDateBR, formatTimeBR } from '@/lib/booking/format-time';
+import { formatDateLongBR, formatTimeBR } from '@/lib/booking/format-time';
 import { formatDuration } from '@/lib/hotsite/format-duration';
 import { formatBRL } from '@/lib/hotsite/format-money';
 
@@ -88,7 +88,7 @@ export function ConfirmationStep({
       </p>
 
       <p style={{ color: 'var(--ba-text)' }}>
-        {formatDateBR(selectedDate)} às {formatTimeBR(selectedSlot.startsAt)}
+        {formatDateLongBR(selectedDate)} às {formatTimeBR(selectedSlot.startsAt)}
       </p>
 
       {status === 'error' && errorMessage && (

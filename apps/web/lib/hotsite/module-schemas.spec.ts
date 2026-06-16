@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AboutModuleDataSchema,
+  BookingCtaModuleDataSchema,
   ContactModuleDataSchema,
   GalleryModuleDataSchema,
   HeroModuleDataSchema,
@@ -231,6 +232,51 @@ describe('AboutModuleDataSchema', () => {
   });
 });
 
+const validBookingCtaData = {
+  title: 'Agende seu serviço',
+  ctaLabel: 'Agendar agora',
+};
+
+describe('BookingCtaModuleDataSchema', () => {
+  it('accepts the minimal required fields without carouselDays', () => {
+    expect(BookingCtaModuleDataSchema.safeParse(validBookingCtaData).success).toBe(true);
+  });
+
+  it('accepts a valid carouselDays value', () => {
+    const result = BookingCtaModuleDataSchema.safeParse({
+      ...validBookingCtaData,
+      carouselDays: 30,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.carouselDays).toBe(30);
+  });
+
+  it('rejects carouselDays below 1', () => {
+    const result = BookingCtaModuleDataSchema.safeParse({
+      ...validBookingCtaData,
+      carouselDays: 0,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects carouselDays above 90', () => {
+    const result = BookingCtaModuleDataSchema.safeParse({
+      ...validBookingCtaData,
+      carouselDays: 91,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing required fields', () => {
+    const result = BookingCtaModuleDataSchema.safeParse({ ctaLabel: 'Agendar' });
+
+    expect(result.success).toBe(false);
+  });
+});
+
 const validContactData = {
   showAddress: true,
   showPhone: true,
@@ -318,5 +364,13 @@ describe('isValidModuleData', () => {
 
   it('returns false for invalid CONTACT data', () => {
     expect(isValidModuleData('CONTACT', { showAddress: true })).toBe(false);
+  });
+
+  it('returns true for valid BOOKING_CTA data', () => {
+    expect(isValidModuleData('BOOKING_CTA', validBookingCtaData)).toBe(true);
+  });
+
+  it('returns false for invalid BOOKING_CTA data', () => {
+    expect(isValidModuleData('BOOKING_CTA', { ctaLabel: 'Agendar' })).toBe(false);
   });
 });

@@ -28,6 +28,27 @@ The guest booking flow is a 4-step React form orchestrated by `BookingForm`. All
 
 ---
 
+## Prototype variants — alternate states
+
+In addition to the 4 happy-path screens (`01`–`04`), this prototype includes clickable
+variants for every error/loading/empty/success state referenced in the sections below.
+None of these are new routes — each is the same component in a different state.
+
+| Screen | Step | Scenario | `data-testid` | Notes |
+|---|---|---|---|---|
+| `01b-pickup-address-error.html` | 1 | Pickup address required, fields empty, "Próximo" clicked | `step1-error` | |
+| `02b-loading.html` | 2 | `fetchAvailabilitySummary()` pending | — | |
+| `02c-availability-error.html` | 2 | `fetchAvailabilitySummary()` rejected | — | No retry button — see Known limitations |
+| `02d-fully-booked.html` | 2 | All days `available: false` | — | No explanatory copy — see Known limitations |
+| `02e-slot-conflict.html` | 2 | 409 on submit → back to step 2 | `step2-error` | |
+| `03b-validation-error.html` | 3 | Invalid e-mail, "Próximo" clicked | `personal-info-error` | |
+| `03c-photo-states.html` | 3 | Photo items: done / uploading / error | — | Error item has no "Remover" — see Known limitations |
+| `04b-submitting.html` | 4 | `status = 'submitting'` | — | |
+| `04c-submission-error.html` | 4 | `status = 'error'` (non-409) | `confirmation-error` | |
+| `04d-success.html` | 4 | `status = 'success'` | `confirmation-success` | Terminal state |
+
+---
+
 ## Step 1 — Service Selection (`ServiceSelectionStep`)
 
 **Data source:** `HotsiteServiceResponse[]` — fetched server-side in `page.tsx` via `lib/api/services.ts`, passed as props. No client-side fetch on step 1.
@@ -156,6 +177,22 @@ All steps use `max-w-2xl mx-auto px-6` (from `BookingForm` wrapper).
 | Step 4 | Single column; summary list + button stack vertically |
 
 ---
+
+## Accessibility notes
+
+- **Inline validation errors** (`step1-error`, `step2-error`, `personal-info-error`, `confirmation-error`) are plain `<p>` elements with no `role="alert"` / `aria-live`. Screen reader users get no announcement when these appear after clicking "Próximo" / "Confirmar agendamento". Add `role="alert"` (or `aria-live="assertive"`) to each.
+- **Focus management on validation failure** is unspecified — clicking "Próximo" with invalid input doesn't currently move focus to the error message or the first invalid field, leaving keyboard/screen-reader users on the button with no indication anything happened. Recommend moving focus to the error `<p>` (`tabindex="-1"` + `.focus()`) or the first invalid input.
+- **Color contrast — error red `#dc2626`:**
+  - On `--ba-background` (`#ffffff`): 4.83:1 — passes WCAG AA (4.5:1) for normal text, fails AAA (7:1).
+  - On `--ba-secondary` (`#eff6ff`) — e.g. if an error appears inside a card/section using the secondary background: ~4.44:1 — **fails WCAG AA** for normal-size text by a small margin. Avoid placing `#dc2626` error text directly on `--ba-secondary`; use `--ba-background`, or a darker red such as `#b91c1c` (~5.9:1 on `#eff6ff`).
+
+## Known limitations (flagged, deferred — not addressed in this prototype)
+
+These are real component-behavior gaps found while building this prototype. They are **not fixed here** — flagged for a separate product/engineering decision.
+
+- **`AvailabilityCarousel` has no "fully booked" empty state.** When every day in the 14-day window has `available: false`, the carousel renders 14 disabled pills with no explanatory copy — a guest can't tell "fully booked" from "broken page". Possible fix: a message such as "Nenhum horário disponível nos próximos dias. Entre em contato connosco." when `days.every(d => !d.available)`. See `02d-fully-booked.html`.
+- **`AvailabilityCarousel` fetch-error has no retry action.** The error message ends with "Tente novamente" but there is no button — the `useEffect` fetch runs once on mount (deps `[slug, serviceIds]`); only a full page reload re-triggers it. See `02c-availability-error.html`.
+- **`PhotoUpload` errored items are a dead end.** An item with `status === 'error'` shows "Erro ao enviar" but only `status === 'done'` items render the "Remover" button — there's no way to retry or remove a failed upload. Low risk for MVP since photos are optional (`beforeServicePhotoUrls?`), but worth fixing before any flow makes photos required. See `03c-photo-states.html`.
 
 ## No new files needed
 

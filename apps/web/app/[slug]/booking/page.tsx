@@ -4,6 +4,7 @@ import { fetchServices } from '@/lib/api/services';
 import { BookingForm } from '@/components/booking/BookingForm';
 import { Unavailable } from '@/components/hotsite/Unavailable';
 import { buildHotsiteMetadata } from '@/lib/hotsite/seo';
+import { BookingCtaModuleDataSchema } from '@/lib/hotsite/module-schemas';
 
 export const revalidate = 300;
 
@@ -32,5 +33,9 @@ export default async function BookingPage({ params }: BookingPageProps) {
 
   const services = await fetchServices(slug);
 
-  return <BookingForm slug={slug} services={services} />;
+  const bookingCtaModule = manifest.layout.find((m) => m.type === 'BOOKING_CTA');
+  const parsed = BookingCtaModuleDataSchema.safeParse(bookingCtaModule?.data);
+  const carouselDays = parsed.success ? (parsed.data.carouselDays ?? 14) : 14;
+
+  return <BookingForm slug={slug} services={services} carouselDays={carouselDays} />;
 }

@@ -78,6 +78,7 @@ export const BookingCtaModuleDataSchema = z.object({
   subtitle: z.string().optional(),
   ctaLabel: z.string(),
   backgroundImageUrl: z.string().optional(),
+  carouselDays: z.number().int().min(1).max(90).optional(),
 }) satisfies z.ZodType<BookingCtaModuleData>;
 
 // Mirrors AboutModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.

@@ -45,7 +45,7 @@ describe('ConfirmationStep', () => {
 
     expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
     expect(screen.getByText('Total: R$ 150,00 — 1h')).toBeInTheDocument();
-    expect(screen.getByText('15/06/2026 às 09:00')).toBeInTheDocument();
+    expect(screen.getByText('Segunda-feira, 15 de junho às 09:00')).toBeInTheDocument();
   });
 
   it('calls onBack when the "Voltar" button is clicked', async () => {

@@ -15,12 +15,18 @@ type UploadStatus = 'uploading' | 'done' | 'error';
 interface UploadItem {
   readonly id: string;
   readonly fileName: string;
+  readonly previewUrl: string;
   readonly status: UploadStatus;
   readonly filePath?: string;
 }
 
 const ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png']);
 const INPUT_ID = 'photo-upload-input';
+
+const uploadAreaStyle: React.CSSProperties = {
+  border: '2px dashed var(--ba-secondary)',
+  borderRadius: 'var(--ba-radius)',
+};
 
 async function uploadFile(slug: string, file: File): Promise<string> {
   if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
@@ -56,7 +62,8 @@ export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps) {
     let filePaths = [...value];
     for (const file of files) {
       const id = `${file.name}-${crypto.randomUUID()}`;
-      setItems((prev) => [...prev, { id, fileName: file.name, status: 'uploading' }]);
+      const previewUrl = URL.createObjectURL(file);
+      setItems((prev) => [...prev, { id, fileName: file.name, previewUrl, status: 'uploading' }]);
 
       try {
         const filePath = await uploadFile(slug, file);
@@ -76,7 +83,10 @@ export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps) {
   function handleRemove(id: string) {
     const item = items.find((i) => i.id === id);
     setItems((prev) => prev.filter((i) => i.id !== id));
-    if (item?.filePath) {
+    if (!item) return;
+
+    URL.revokeObjectURL(item.previewUrl);
+    if (item.filePath) {
       onChange(value.filter((filePath) => filePath !== item.filePath));
     }
   }
@@ -90,21 +100,47 @@ export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps) {
       >
         Fotos do veículo (opcional)
       </label>
-      <input
-        id={INPUT_ID}
-        type="file"
-        multiple
-        onChange={handleFilesSelected}
-        className="block w-full text-sm"
-      />
+
+      <label
+        htmlFor={INPUT_ID}
+        className="block cursor-pointer p-8 text-center"
+        style={uploadAreaStyle}
+      >
+        <p className="text-sm opacity-75" style={{ color: 'var(--ba-text)' }}>
+          Clique para adicionar fotos
+        </p>
+        <p className="mt-1 text-xs opacity-50" style={{ color: 'var(--ba-text)' }}>
+          JPG ou PNG
+        </p>
+        <input
+          id={INPUT_ID}
+          type="file"
+          multiple
+          onChange={handleFilesSelected}
+          className="sr-only"
+        />
+      </label>
+
       {items.length > 0 && (
-        <ul className="mt-2 space-y-1 text-sm">
+        <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {items.map((item) => (
-            <li key={item.id} className="flex items-center justify-between gap-2">
-              <span>{item.fileName}</span>
-              <span>{statusLabel(item.status)}</span>
-              {item.status === 'done' && (
-                <button type="button" onClick={() => handleRemove(item.id)}>
+            <li key={item.id}>
+              <img
+                src={item.previewUrl}
+                alt={item.fileName}
+                className="aspect-square w-full object-cover"
+                style={{ borderRadius: 'var(--ba-radius)' }}
+              />
+              <p className="mt-1 truncate text-xs" style={{ color: 'var(--ba-text)' }}>
+                {statusLabel(item.status)}
+              </p>
+              {(item.status === 'done' || item.status === 'error') && (
+                <button
+                  type="button"
+                  onClick={() => handleRemove(item.id)}
+                  className="text-xs underline"
+                  style={{ color: 'var(--ba-primary)' }}
+                >
                   Remover
                 </button>
               )}

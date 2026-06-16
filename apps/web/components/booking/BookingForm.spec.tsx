@@ -51,7 +51,7 @@ async function advanceToStep3(
   vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
   vi.mocked(fetchAvailability).mockResolvedValue(availability);
 
-  render(<BookingForm slug="lavacar-beloauto" services={services} />);
+  render(<BookingForm slug="lavacar-beloauto" services={services} carouselDays={14} />);
 
   await user.click(screen.getByRole('checkbox'));
   await user.click(screen.getByRole('button', { name: 'Próximo' }));
@@ -78,7 +78,7 @@ describe('BookingForm', () => {
   });
 
   it('renders Step 1 with the service list', () => {
-    render(<BookingForm slug="lavacar-beloauto" services={[makeService()]} />);
+    render(<BookingForm slug="lavacar-beloauto" services={[makeService()]} carouselDays={14} />);
 
     expect(screen.getByText('Escolha os serviços')).toBeInTheDocument();
     expect(screen.getByText('Passo 1 de 4')).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe('BookingForm', () => {
     const user = userEvent.setup();
     vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
 
-    render(<BookingForm slug="lavacar-beloauto" services={[makeService()]} />);
+    render(<BookingForm slug="lavacar-beloauto" services={[makeService()]} carouselDays={14} />);
 
     await user.click(screen.getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Próximo' }));
@@ -106,6 +106,16 @@ describe('BookingForm', () => {
     expect(screen.getByText('Passo 3 de 4')).toBeInTheDocument();
   });
 
+  it('shows the order review card with the selected service and date/time on Step 3', async () => {
+    const user = userEvent.setup();
+
+    await advanceToStep3(user, [makeService()]);
+
+    expect(screen.getByText('Revisar pedido')).toBeInTheDocument();
+    expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
+    expect(screen.getByText('Segunda-feira, 15 de junho às 09:00')).toBeInTheDocument();
+  });
+
   it('moves to Step 4 with a booking summary after filling personal info', async () => {
     const user = userEvent.setup();
 
@@ -114,14 +124,14 @@ describe('BookingForm', () => {
 
     expect(screen.getByText('Confirme seu agendamento')).toBeInTheDocument();
     expect(screen.getByText('Passo 4 de 4')).toBeInTheDocument();
-    expect(screen.getByText('15/06/2026 às 09:00')).toBeInTheDocument();
+    expect(screen.getByText('Segunda-feira, 15 de junho às 09:00')).toBeInTheDocument();
   });
 
   it('shows the pickup address section in Step 1 when a selected service requires it', async () => {
     const user = userEvent.setup();
     const service = makeService({ requiresPickupAddress: true });
 
-    render(<BookingForm slug="lavacar-beloauto" services={[service]} />);
+    render(<BookingForm slug="lavacar-beloauto" services={[service]} carouselDays={14} />);
     await user.click(screen.getByRole('checkbox'));
 
     expect(screen.getByText('Endereço de coleta')).toBeInTheDocument();

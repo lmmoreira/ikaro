@@ -3,22 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Passo 3 — Seus dados</title>
+  <title>Passo 3 — Estados do upload de fotos</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
 </head>
 <body>
   <!--
-    COMPONENT: PersonalInfoStep
-    FILE:      apps/web/components/booking/PersonalInfoStep.tsx  (EXISTS — no changes needed)
-    PROPS:     slug, value: PersonalInfoValue, onChange, onNext, onBack
-    TYPE:      PersonalInfoValue — lib/booking/personal-info.ts
+    VARIANT OF: 03-personal-info.html
+    SCENARIO:   Guest selected 3 files. One finished uploading ('done'), one is still
+                uploading ('uploading'), one failed ('error').
+    COMPONENT:  PhotoUpload  apps/web/components/booking/PhotoUpload.tsx  (EXISTS)
 
-    VALIDATION (client-side, runs on "Próximo" click):
-      contactName:  required, min 1 char        → error: "Informe seu nome."
-      contactEmail: required, z.email()          → error: "Informe um e-mail válido."
-      contactPhone: required, 10–11 BR digits    → error: "Informe seu telefone."
-      formatted by formatPhoneBR() from lib/utils.ts
-    ERROR: data-testid="personal-info-error"
+    KNOWN LIMITATION (see dev-notes.md "Known limitations"): the 'error' item shows
+    "Erro ao enviar" but — unlike 'done' items — has NO "Remover" button. There is no
+    way to retry or dismiss it from the UI. This screen makes that gap visible.
   -->
   <!-- GUEST LOGIN BAR -->
   <div style="
@@ -41,28 +38,17 @@
     <p class="step-indicator">Passo 3 de 4</p>
     <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Seus dados</h2>
 
-    <!-- GRID: 2-col on sm+, 1-col on mobile -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-
       <div>
         <label class="form-label" for="name">Nome</label>
-        <!-- required; validation: min 1 char -->
         <input id="name" class="form-input" type="text" value="João Silva" required>
       </div>
-
       <div>
         <label class="form-label" for="email">E-mail</label>
-        <!-- required; validation: z.email() -->
         <input id="email" class="form-input" type="email" value="joao@email.com" required>
       </div>
-
       <div style="grid-column: span 1;">
         <label class="form-label" for="phone">Telefone</label>
-        <!--
-          Phone input with +55 prefix span.
-          formatPhoneBR() formats as (11) 91234-5678 on every change.
-          validation: 10–11 digits after stripping non-numeric chars.
-        -->
         <div style="display: flex;">
           <span style="
             display: flex; align-items: center; padding: 0 0.75rem;
@@ -83,54 +69,21 @@
           >
         </div>
       </div>
-
     </div>
 
-    <!--
-      OPTIONAL CONTACT ADDRESS — toggle, aria-expanded tracks state
-      COMPONENT: AddressFields  (apps/web/components/booking/AddressFields.tsx)
-      When visible: same ZIP/street/number/complement/neighborhood/city/state grid as pickup.
-      Sent as contactAddress in payload if filled (isAddressFilled() check in buildPayload).
-    -->
-    <div style="margin-top: 1.5rem;">
-      <button
-        style="font-size: 0.875rem; font-weight: 500; text-decoration: underline; background: none; border: none; cursor: pointer; color: var(--ba-primary);"
-        aria-expanded="false"
-      >
-        Endereço de contato (opcional)
-      </button>
-      <!-- AddressFields rendered here when aria-expanded="true" -->
-    </div>
-
-    <!--
-      READ-ONLY SUMMARY CARD — service + date/time selected in steps 1 and 2
-      Passed as props from BookingForm: services, selectedServiceIds, selectedDate, selectedSlot
-      Same card used in customer's AuthenticatedBookingReviewStep.
-      To add to PersonalInfoStep: accept selectedDate + selectedSlot as new props and render this above PhotoUpload.
-    -->
     <h3 style="font-size: 1.5rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 1rem; color: var(--ba-text)">Revisar pedido</h3>
     <div class="card">
       <p style="font-size: 0.75rem; font-weight: 600; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Serviço</p>
       <p style="font-weight: 600; color: var(--ba-text)">Lavagem Simples</p>
       <p style="font-size: 0.875rem; color: var(--ba-primary); margin-top: 0.125rem;">R$ 60,00 — 30 min</p>
-
       <hr style="border: none; border-top: 1px solid var(--ba-secondary); margin: 0.875rem 0;">
-
       <p style="font-size: 0.75rem; font-weight: 600; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Data e horário</p>
       <p style="font-weight: 600; color: var(--ba-text)">Quarta-feira, 18 de junho às 10:00</p>
     </div>
 
     <!--
-      PHOTO UPLOAD
-      COMPONENT: PhotoUpload  (apps/web/components/booking/PhotoUpload.tsx)
-      FLOW:
-        1. User picks file → POST /bookings/attachments/signed-url
-           body: { fileName, contentType: 'image/jpeg'|'image/png', tenantSlug: slug }
-        2. Receive { signedUrl: string; key: string }
-        3. PUT file to signedUrl (direct GCS upload, no CORS issues)
-        4. Push key (e.g. "tenants/{id}/uploads/{id}/photo.jpg") to photoFilePaths[]
-        5. photoFilePaths sent as beforeServicePhotoUrls[] in POST /bookings payload
-      ACCEPT: image/jpeg, image/png
+      PHOTO UPLOAD — upload area + populated grid (items.length > 0)
+      COMPONENT: PhotoUpload  apps/web/components/booking/PhotoUpload.tsx  (EXISTS)
     -->
     <div style="margin-top: 1.5rem;">
       <p class="form-label">Fotos do veículo (opcional)</p>
@@ -139,14 +92,6 @@
         <p style="font-size: 0.75rem; opacity: 0.5; margin-top: 0.25rem;">JPG ou PNG</p>
       </div>
 
-      <!--
-        UPLOADED PHOTOS GRID — shown when items.length > 0, below the upload area.
-        One <li> per selected file; status: 'uploading' | 'done' | 'error'.
-        Only 'done' items show "Remover" — an 'error' item has no retry/remove action today
-        (see Known limitations in dev-notes.md).
-        Uncomment to preview:
-      -->
-      <!--
       <ul style="margin-top: 0.75rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
         <li>
           <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23e5e7eb'/%3E%3C/svg%3E"
@@ -163,17 +108,10 @@
           <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23e5e7eb'/%3E%3C/svg%3E"
                alt="foto3.jpg" style="aspect-ratio: 1; width: 100%; object-fit: cover; border-radius: var(--ba-radius);">
           <p style="margin-top: 0.25rem; font-size: 0.75rem; color: #dc2626;">Erro ao enviar</p>
+          <!-- NO Remover button here — KNOWN LIMITATION, see dev-notes.md -->
         </li>
       </ul>
-      -->
     </div>
-
-    <!-- ERROR STATE — data-testid="personal-info-error" — uncomment to preview -->
-    <!--
-    <p style="margin-top: 1rem; font-size: 0.875rem; color: #dc2626;" data-testid="personal-info-error">
-      Informe um e-mail válido.
-    </p>
-    -->
 
     <div class="nav-buttons">
       <a class="btn-secondary" href="02-calendar-slot.html">Voltar</a>
