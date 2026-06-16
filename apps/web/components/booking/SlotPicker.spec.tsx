@@ -70,7 +70,9 @@ describe('SlotPicker', () => {
       />,
     );
 
-    expect(await screen.findByText('Nenhum horário disponível')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Nenhum horário disponível para este dia. Escolha outra data.'),
+    ).toBeInTheDocument();
   });
 
   it('calls onSelectSlot when a slot button is clicked', async () => {
@@ -119,7 +121,7 @@ describe('SlotPicker', () => {
     expect(await screen.findByText('09:00–10:00')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('shows an error message when the fetch fails', async () => {
+  it('shows an error message with a retry button when the fetch fails', async () => {
     vi.mocked(fetchAvailability).mockRejectedValue(new Error('network error'));
 
     render(
@@ -133,7 +135,8 @@ describe('SlotPicker', () => {
     );
 
     expect(
-      await screen.findByText('Não foi possível carregar os horários. Tente novamente.'),
+      await screen.findByText('Não foi possível carregar os horários para este dia.'),
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
   });
 });

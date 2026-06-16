@@ -1,5 +1,6 @@
 import type React from 'react';
 import type { AvailableSlot, HotsiteServiceResponse } from '@beloauto/types';
+import { ErrorAlert } from './ErrorAlert';
 import { formatDateLongBR, formatTimeBR } from '@/lib/booking/format-time';
 import { formatDuration } from '@/lib/hotsite/format-duration';
 import { formatBRL } from '@/lib/hotsite/format-money';
@@ -92,9 +93,9 @@ export function ConfirmationStep({
       </p>
 
       {status === 'error' && errorMessage && (
-        <p className="mt-4" data-testid="confirmation-error">
-          {errorMessage}
-        </p>
+        <div className="mt-4" data-testid="confirmation-error">
+          <ErrorAlert>{errorMessage}</ErrorAlert>
+        </div>
       )}
 
       <div className="mt-6 flex gap-3">

@@ -7,6 +7,7 @@ import { formatDuration } from '@/lib/hotsite/format-duration';
 import { formatBRL } from '@/lib/hotsite/format-money';
 import { isAddressFilled } from '@/lib/booking/personal-info';
 import { AddressFields } from './AddressFields';
+import { ErrorAlert } from './ErrorAlert';
 
 interface ServiceSelectionStepProps {
   readonly services: readonly HotsiteServiceResponse[];
@@ -123,14 +124,15 @@ export function ServiceSelectionStep({
               setError(null);
             }}
             idPrefix="pickup-address"
+            hasError={!!error}
           />
         </div>
       )}
 
       {error && (
-        <p className="mt-4 text-sm" data-testid="step1-error" style={{ color: 'var(--ba-text)' }}>
-          {error}
-        </p>
+        <div className="mt-4" data-testid="step1-error">
+          <ErrorAlert>{error}</ErrorAlert>
+        </div>
       )}
 
       <div className="mt-6 flex gap-3">

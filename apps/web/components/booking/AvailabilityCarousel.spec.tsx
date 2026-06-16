@@ -90,14 +90,15 @@ describe('AvailabilityCarousel', () => {
     );
   });
 
-  it('shows an error message when the fetch fails', async () => {
+  it('shows an error message with a retry button when the fetch fails', async () => {
     vi.mocked(fetchAvailabilitySummary).mockRejectedValue(new Error('network error'));
 
     renderCarousel();
 
     expect(
-      await screen.findByText('Não foi possível carregar a disponibilidade. Tente novamente.'),
+      await screen.findByText('Não foi possível carregar a disponibilidade.'),
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
   });
 
   it('shows a fully booked message when all days in the window are unavailable', async () => {

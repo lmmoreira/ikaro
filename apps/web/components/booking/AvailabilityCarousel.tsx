@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ErrorAlert } from './ErrorAlert';
 import type { DaySummary } from '@beloauto/types';
 import { fetchAvailabilitySummary } from '@/lib/api/schedule';
 import { addDays, toISODate } from '@/lib/booking/date-range';
@@ -35,10 +36,12 @@ export function AvailabilityCarousel({
 }: AvailabilityCarouselProps) {
   const [days, setDays] = useState<DaySummary[] | null>(null);
   const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
+
     const today = new Date();
     const from = toISODate(today);
     const to = toISODate(addDays(today, carouselDays - 1));
@@ -54,7 +57,13 @@ export function AvailabilityCarousel({
     return () => {
       cancelled = true;
     };
-  }, [slug, serviceIds, carouselDays]);
+  }, [slug, serviceIds, carouselDays, retryCount]);
+
+  const handleRetry = useCallback(() => {
+    setError(false);
+    setDays(null);
+    setRetryCount((c) => c + 1);
+  }, []);
 
   function scrollBy(amount: number) {
     scrollRef.current?.scrollBy({ left: amount, behavior: 'smooth' });
@@ -62,9 +71,7 @@ export function AvailabilityCarousel({
 
   if (error) {
     return (
-      <p className="text-sm text-red-600">
-        Não foi possível carregar a disponibilidade. Tente novamente.
-      </p>
+      <ErrorAlert onRetry={handleRetry}>Não foi possível carregar a disponibilidade.</ErrorAlert>
     );
   }
 
@@ -119,9 +126,12 @@ export function AvailabilityCarousel({
       </div>
 
       {fullyBooked && (
-        <p className="mt-3 text-sm text-red-600" data-testid="fully-booked-message">
-          Nenhum horário disponível nos próximos {carouselDays} dias.
-        </p>
+        <div className="mt-3" data-testid="fully-booked-message">
+          <ErrorAlert>
+            Nenhum horário disponível nos próximos {carouselDays} dias. Entre em contato conosco
+            para agendar.
+          </ErrorAlert>
+        </div>
       )}
     </div>
   );

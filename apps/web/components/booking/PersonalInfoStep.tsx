@@ -8,6 +8,7 @@ import type { PersonalInfoValue } from '@/lib/booking/personal-info';
 import { formatPhoneBR } from '@/lib/utils';
 import { AddressFields } from './AddressFields';
 import { BookingSummaryCard } from './BookingSummaryCard';
+import { ErrorAlert } from './ErrorAlert';
 import { PhotoUpload } from './PhotoUpload';
 
 interface PersonalInfoStepProps {
@@ -22,8 +23,6 @@ interface PersonalInfoStepProps {
   readonly onBack: () => void;
 }
 
-const inputStyle = { borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' };
-
 const EMAIL_SCHEMA = z.email();
 
 const btnStyle: React.CSSProperties = {
@@ -33,11 +32,25 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 'var(--ba-radius)',
 };
 
-function validate(value: PersonalInfoValue): string | null {
-  if (!value.contactName.trim()) return 'Informe seu nome.';
-  if (!EMAIL_SCHEMA.safeParse(value.contactEmail).success) return 'Informe um e-mail válido.';
-  if (!value.contactPhone.trim()) return 'Informe seu telefone.';
+type ErrorField = 'name' | 'email' | 'phone';
+interface FieldError {
+  readonly field: ErrorField;
+  readonly message: string;
+}
+
+function validate(value: PersonalInfoValue): FieldError | null {
+  if (!value.contactName.trim()) return { field: 'name', message: 'Informe seu nome.' };
+  if (!EMAIL_SCHEMA.safeParse(value.contactEmail).success)
+    return { field: 'email', message: 'Informe um e-mail válido.' };
+  if (!value.contactPhone.trim()) return { field: 'phone', message: 'Informe seu telefone.' };
   return null;
+}
+
+function errorBorderStyle(isInvalid: boolean): React.CSSProperties {
+  return {
+    borderRadius: 'var(--ba-radius)',
+    borderColor: isInvalid ? '#dc2626' : 'var(--ba-secondary)',
+  };
 }
 
 export function PersonalInfoStep({
@@ -52,16 +65,20 @@ export function PersonalInfoStep({
   onBack,
 }: PersonalInfoStepProps) {
   const [showContactAddress, setShowContactAddress] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
 
   function handleNext() {
-    const validationError = validate(value);
-    if (validationError) {
-      setError(validationError);
+    const result = validate(value);
+    if (result) {
+      setFieldError(result);
       return;
     }
-    setError(null);
+    setFieldError(null);
     onNext();
+  }
+
+  function clearErrorFor(field: ErrorField) {
+    if (fieldError?.field === field) setFieldError(null);
   }
 
   return (
@@ -84,9 +101,13 @@ export function PersonalInfoStep({
             type="text"
             required
             value={value.contactName}
-            onChange={(e) => onChange({ ...value, contactName: e.target.value })}
+            onChange={(e) => {
+              onChange({ ...value, contactName: e.target.value });
+              clearErrorFor('name');
+            }}
             className="w-full border px-3 py-2"
-            style={inputStyle}
+            style={errorBorderStyle(fieldError?.field === 'name')}
+            aria-invalid={fieldError?.field === 'name' ? true : undefined}
           />
         </div>
 
@@ -103,9 +124,13 @@ export function PersonalInfoStep({
             type="email"
             required
             value={value.contactEmail}
-            onChange={(e) => onChange({ ...value, contactEmail: e.target.value })}
+            onChange={(e) => {
+              onChange({ ...value, contactEmail: e.target.value });
+              clearErrorFor('email');
+            }}
             className="w-full border px-3 py-2"
-            style={inputStyle}
+            style={errorBorderStyle(fieldError?.field === 'email')}
+            aria-invalid={fieldError?.field === 'email' ? true : undefined}
           />
         </div>
 
@@ -122,7 +147,7 @@ export function PersonalInfoStep({
               className="flex items-center border border-r-0 bg-gray-50 px-3 text-sm font-medium"
               style={{
                 borderRadius: 'var(--ba-radius) 0 0 var(--ba-radius)',
-                borderColor: 'var(--ba-secondary)',
+                borderColor: fieldError?.field === 'phone' ? '#dc2626' : 'var(--ba-secondary)',
                 color: 'var(--ba-text)',
               }}
             >
@@ -136,16 +161,26 @@ export function PersonalInfoStep({
               maxLength={15}
               placeholder="(11) 91234-5678"
               value={formatPhoneBR(value.contactPhone)}
-              onChange={(e) => onChange({ ...value, contactPhone: formatPhoneBR(e.target.value) })}
+              onChange={(e) => {
+                onChange({ ...value, contactPhone: formatPhoneBR(e.target.value) });
+                clearErrorFor('phone');
+              }}
               className="min-w-0 flex-1 border px-3 py-2"
               style={{
                 borderRadius: '0 var(--ba-radius) var(--ba-radius) 0',
-                borderColor: 'var(--ba-secondary)',
+                borderColor: fieldError?.field === 'phone' ? '#dc2626' : 'var(--ba-secondary)',
               }}
+              aria-invalid={fieldError?.field === 'phone' ? true : undefined}
             />
           </div>
         </div>
       </div>
+
+      {fieldError && (
+        <div className="mt-4" data-testid="personal-info-error">
+          <ErrorAlert>{fieldError.message}</ErrorAlert>
+        </div>
+      )}
 
       <div className="mt-6">
         <button
@@ -183,12 +218,6 @@ export function PersonalInfoStep({
           onChange={(photoFilePaths) => onChange({ ...value, photoFilePaths })}
         />
       </div>
-
-      {error && (
-        <p className="mt-4" data-testid="personal-info-error" style={{ color: 'var(--ba-text)' }}>
-          {error}
-        </p>
-      )}
 
       <div className="mt-6 flex gap-3">
         <button

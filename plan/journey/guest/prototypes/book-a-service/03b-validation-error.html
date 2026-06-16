@@ -74,10 +74,17 @@
 
     </div>
 
-    <!-- See dev-notes.md "Accessibility notes" — add role="alert" + aria-describedby on #email -->
-    <p id="email-error" style="margin-top: 0.75rem; font-size: 0.875rem; color: #dc2626;" data-testid="personal-info-error">
-      Informe um e-mail válido.
-    </p>
+    <div id="email-error" role="alert" style="
+      display: flex; align-items: flex-start; gap: 0.625rem;
+      background: #fef2f2; border: 1.5px solid #fca5a5;
+      border-radius: var(--ba-radius); padding: 0.75rem 1rem;
+      margin-top: 0.75rem;
+    " data-testid="personal-info-error">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span style="font-size: 0.875rem; color: #dc2626; font-weight: 500;">Informe um e-mail válido.</span>
+    </div>
 
     <div style="margin-top: 1.5rem;">
       <button

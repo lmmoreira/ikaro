@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { AvailableSlot } from '@beloauto/types';
 import { fetchAvailability } from '@/lib/api/schedule';
+import { ErrorAlert } from './ErrorAlert';
 import { formatTimeBR } from '@/lib/booking/format-time';
 
 interface SlotPickerProps {
@@ -22,6 +23,7 @@ export function SlotPicker({
 }: SlotPickerProps) {
   const [result, setResult] = useState<{ date: string; slots: AvailableSlot[] } | null>(null);
   const [errorDate, setErrorDate] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,10 +39,20 @@ export function SlotPicker({
     return () => {
       cancelled = true;
     };
-  }, [slug, date, serviceIds]);
+  }, [slug, date, serviceIds, retryCount]);
+
+  const handleRetry = useCallback(() => {
+    setErrorDate(null);
+    setResult(null);
+    setRetryCount((c) => c + 1);
+  }, []);
 
   if (errorDate === date) {
-    return <p>Não foi possível carregar os horários. Tente novamente.</p>;
+    return (
+      <ErrorAlert onRetry={handleRetry}>
+        Não foi possível carregar os horários para este dia.
+      </ErrorAlert>
+    );
   }
 
   if (result?.date !== date) {
@@ -50,7 +62,32 @@ export function SlotPicker({
   const { slots } = result;
 
   if (slots.length === 0) {
-    return <p>Nenhum horário disponível</p>;
+    return (
+      <output
+        className="flex items-start gap-2.5 border border-amber-300 bg-amber-50 p-3"
+        style={{ borderRadius: 'var(--ba-radius)' }}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="mt-0.5 shrink-0 text-amber-600"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span className="text-sm font-medium text-amber-700">
+          Nenhum horário disponível para este dia. Escolha outra data.
+        </span>
+      </output>
+    );
   }
 
   return (

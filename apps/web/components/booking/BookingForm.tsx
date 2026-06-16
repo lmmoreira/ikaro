@@ -10,6 +10,7 @@ import {
   type PersonalInfoValue,
 } from '@/lib/booking/personal-info';
 import { AvailabilityCarousel } from './AvailabilityCarousel';
+import { ErrorAlert } from './ErrorAlert';
 import { ConfirmationStep, type BookingSubmissionStatus } from './ConfirmationStep';
 import { PersonalInfoStep } from './PersonalInfoStep';
 import { ServiceSelectionStep } from './ServiceSelectionStep';
@@ -158,9 +159,9 @@ export function BookingForm({ slug, services, carouselDays }: BookingFormProps) 
           )}
 
           {step2Error && (
-            <p className="mt-4" data-testid="step2-error" style={{ color: 'var(--ba-text)' }}>
-              {step2Error}
-            </p>
+            <div className="mt-4" data-testid="step2-error">
+              <ErrorAlert>{step2Error}</ErrorAlert>
+            </div>
           )}
 
           <div className="mt-6 flex gap-3">

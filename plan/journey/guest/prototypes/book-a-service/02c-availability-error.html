@@ -38,7 +38,35 @@
     <p class="step-indicator">Passo 2 de 4</p>
     <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Escolha data e horário</h2>
 
-    <p style="font-size: 0.875rem; color: #dc2626;">Não foi possível carregar a disponibilidade. Tente novamente.</p>
+    <!--
+      RETRY PATTERN: clicking "Tentar novamente" resets error=false and increments retryCount
+      in AvailabilityCarousel state, which re-triggers the useEffect fetch.
+      In this static prototype, onclick reloads the page to simulate the retry.
+    -->
+    <div role="alert" style="
+      background: #fef2f2; border: 1.5px solid #fca5a5;
+      border-radius: var(--ba-radius); padding: 0.75rem 1rem;
+      margin-top: 0.5rem;
+    ">
+      <div style="display: flex; align-items: flex-start; gap: 0.625rem;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span style="font-size: 0.875rem; color: #dc2626; font-weight: 500;">Não foi possível carregar a disponibilidade.</span>
+      </div>
+      <button
+        onclick="location.reload()"
+        style="
+          margin-top: 0.625rem; margin-left: 1.625rem;
+          font-size: 0.875rem; font-weight: 600; color: #dc2626;
+          background: none; border: 1.5px solid #fca5a5;
+          border-radius: var(--ba-radius); padding: 0.375rem 0.875rem;
+          cursor: pointer;
+        "
+      >
+        Tentar novamente
+      </button>
+    </div>
 
     <div class="nav-buttons">
       <a class="btn-secondary" href="01-service-selection.html">Voltar</a>

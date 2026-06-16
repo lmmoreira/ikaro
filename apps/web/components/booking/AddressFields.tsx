@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import type React from 'react';
 import type { Address } from '@beloauto/types';
 import type { AddressLookup } from '@/lib/address/address-lookup.port';
 import { viaCepAddressLookup } from '@/lib/address/viacep-address-lookup.adapter';
@@ -12,6 +13,7 @@ interface AddressFieldsProps {
   readonly idPrefix: string;
   readonly addressLookup?: AddressLookup;
   readonly required?: boolean;
+  readonly hasError?: boolean;
 }
 
 interface TextFieldProps {
@@ -23,9 +25,15 @@ interface TextFieldProps {
   readonly maxLength?: number;
   readonly inputMode?: 'text' | 'numeric';
   readonly placeholder?: string;
+  readonly hasError?: boolean;
 }
 
-const inputStyle = { borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' };
+function fieldBorderStyle(hasError: boolean): React.CSSProperties {
+  return {
+    borderRadius: 'var(--ba-radius)',
+    borderColor: hasError ? '#dc2626' : 'var(--ba-secondary)',
+  };
+}
 
 function TextField({
   id,
@@ -36,6 +44,7 @@ function TextField({
   maxLength,
   inputMode,
   placeholder,
+  hasError,
 }: TextFieldProps) {
   return (
     <div>
@@ -56,7 +65,8 @@ function TextField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full border px-3 py-2"
-        style={inputStyle}
+        style={fieldBorderStyle(!!hasError)}
+        aria-invalid={hasError ? true : undefined}
       />
     </div>
   );
@@ -68,6 +78,7 @@ export function AddressFields({
   idPrefix,
   addressLookup = viaCepAddressLookup,
   required = true,
+  hasError = false,
 }: AddressFieldsProps) {
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupFailed, setLookupFailed] = useState(false);
@@ -112,6 +123,7 @@ export function AddressFields({
           maxLength={9}
           placeholder="00000-000"
           required={required}
+          hasError={required && hasError}
         />
         {isLookingUp && (
           <p className="mt-1 text-sm opacity-75" data-testid={`${idPrefix}-lookup-loading`}>
@@ -132,6 +144,7 @@ export function AddressFields({
           value={value.street}
           onChange={(street) => onChange({ ...value, street })}
           required={required}
+          hasError={required && hasError}
         />
       </div>
 
@@ -142,6 +155,7 @@ export function AddressFields({
           value={value.number}
           onChange={(number) => onChange({ ...value, number })}
           required={required}
+          hasError={required && hasError}
         />
       </div>
 
@@ -161,6 +175,7 @@ export function AddressFields({
           value={value.neighborhood}
           onChange={(neighborhood) => onChange({ ...value, neighborhood })}
           required={required}
+          hasError={required && hasError}
         />
       </div>
 
@@ -171,6 +186,7 @@ export function AddressFields({
           value={value.city}
           onChange={(city) => onChange({ ...value, city })}
           required={required}
+          hasError={required && hasError}
         />
       </div>
 
@@ -182,6 +198,7 @@ export function AddressFields({
           onChange={(state) => onChange({ ...value, state })}
           maxLength={2}
           required={required}
+          hasError={required && hasError}
         />
       </div>
     </div>
