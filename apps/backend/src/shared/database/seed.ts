@@ -5,10 +5,14 @@ import { DataSource } from 'typeorm';
 config();
 
 // ── Fixed UUIDs ensure idempotency across multiple runs ──────────────────────
+// tenantA/tenantB keep their original ids/meaning (Lavacar BeloAuto / AutoSpa Premium) —
+// tenantIkaro is purely additive so nothing referencing the existing two breaks.
 const IDS = {
+  tenantIkaro: '00000000-0000-7000-8000-000000000003',
   tenantA: '00000000-0000-7000-8000-000000000001',
   tenantB: '00000000-0000-7000-8000-000000000002',
 
+  staffAdminIkaro: '00000000-0000-7000-8001-000000000004',
   staffAdminA: '00000000-0000-7000-8001-000000000001',
   staffWorkerA: '00000000-0000-7000-8001-000000000002',
   staffAdminB: '00000000-0000-7000-8001-000000000003',
@@ -16,11 +20,14 @@ const IDS = {
   customerA1: '00000000-0000-7000-8002-000000000001', // cliente@ in tenant A
   customerA2: '00000000-0000-7000-8002-000000000002', // cliente@ in tenant B
 
+  serviceIkaroBasica: '00000000-0000-7000-8003-000000000005',
+  serviceIkaroPremium: '00000000-0000-7000-8003-000000000006',
   serviceSimples: '00000000-0000-7000-8003-000000000001',
   serviceCompleta: '00000000-0000-7000-8003-000000000002',
   servicePolimento: '00000000-0000-7000-8003-000000000003',
   serviceHigienizacao: '00000000-0000-7000-8003-000000000004',
 
+  hotsiteIkaro: '00000000-0000-7000-8004-000000000003',
   hotsiteA: '00000000-0000-7000-8004-000000000001',
   hotsiteB: '00000000-0000-7000-8004-000000000002',
 
@@ -132,10 +139,11 @@ async function seedTenants(q: ReturnType<DataSource['createQueryRunner']>): Prom
   const settings = JSON.stringify(TENANT_SETTINGS);
   await q.query(
     `INSERT INTO platform.tenants (id, name, slug, settings, is_active) VALUES
-      ($1, 'Lavacar BeloAuto', 'lavacar-beloauto', $3, true),
-      ($2, 'AutoSpa Premium',  'autospa-premium',  $3, true)
+      ($1, 'Ikaro',           'ikaro',            $4, true),
+      ($2, 'Lavacar BeloAuto', 'lavacar-beloauto', $4, true),
+      ($3, 'AutoSpa Premium',  'autospa-premium',  $4, true)
     ON CONFLICT (id) DO NOTHING`,
-    [IDS.tenantA, IDS.tenantB, settings],
+    [IDS.tenantIkaro, IDS.tenantA, IDS.tenantB, settings],
   );
 }
 
@@ -152,8 +160,31 @@ async function seedHotsites(q: ReturnType<DataSource['createQueryRunner']>): Pro
     spacing: 'comfortable',
     shadowStyle: 'subtle',
   };
+  const brandingIkaro = JSON.stringify({ ...baseBranding, primaryColor: '#6366F1' });
   const brandingA = JSON.stringify({ ...baseBranding, primaryColor: '#0055A4' });
   const brandingB = JSON.stringify({ ...baseBranding, primaryColor: '#C8102E' });
+  const layoutIkaro = JSON.stringify([
+    {
+      type: 'HERO',
+      enabled: true,
+      data: {
+        variant: 'centered',
+        title: 'Agende com poucos cliques',
+        ctaLabel: 'Agendar agora',
+        ctaTarget: 'booking-form',
+      },
+    },
+    {
+      type: 'SERVICE_LIST',
+      enabled: true,
+      data: { showPrices: true, showPoints: true, layout: 'grid' },
+    },
+    {
+      type: 'BOOKING_CTA',
+      enabled: true,
+      data: { title: 'Agende seu horário', ctaLabel: 'Agendar agora' },
+    },
+  ]);
   const layoutA = JSON.stringify([
     {
       type: 'HERO',
@@ -195,21 +226,44 @@ async function seedHotsites(q: ReturnType<DataSource['createQueryRunner']>): Pro
   ]);
   await q.query(
     `INSERT INTO platform.hotsite_configs (id, tenant_id, branding, layout, is_published) VALUES
-      ($1, $3, $5, $7, true),
-      ($2, $4, $6, $8, true)
+      ($1, $4, $7, $10, true),
+      ($2, $5, $8, $11, true),
+      ($3, $6, $9, $12, true)
     ON CONFLICT (id) DO NOTHING`,
-    [IDS.hotsiteA, IDS.hotsiteB, IDS.tenantA, IDS.tenantB, brandingA, brandingB, layoutA, layoutB],
+    [
+      IDS.hotsiteIkaro,
+      IDS.hotsiteA,
+      IDS.hotsiteB,
+      IDS.tenantIkaro,
+      IDS.tenantA,
+      IDS.tenantB,
+      brandingIkaro,
+      brandingA,
+      brandingB,
+      layoutIkaro,
+      layoutA,
+      layoutB,
+    ],
   );
 }
 
 async function seedStaff(q: ReturnType<DataSource['createQueryRunner']>): Promise<void> {
   await q.query(
     `INSERT INTO staff.staff (id, tenant_id, email, role, google_oauth_id, is_active) VALUES
-      ($1, $4, 'admin@lavacar.com.br',       'MANAGER', 'google-sub-admin-a',  true),
-      ($2, $4, 'funcionario@lavacar.com.br', 'STAFF',   'google-sub-worker-a', true),
-      ($3, $5, 'admin@autospa.com.br',       'MANAGER', 'google-sub-admin-b',  true)
+      ($1, $5, 'admin@ikaro.com.br',         'MANAGER', 'google-sub-admin-ikaro', true),
+      ($2, $6, 'admin@lavacar.com.br',       'MANAGER', 'google-sub-admin-a',     true),
+      ($3, $6, 'funcionario@lavacar.com.br', 'STAFF',   'google-sub-worker-a',    true),
+      ($4, $7, 'admin@autospa.com.br',       'MANAGER', 'google-sub-admin-b',     true)
     ON CONFLICT (id) DO NOTHING`,
-    [IDS.staffAdminA, IDS.staffWorkerA, IDS.staffAdminB, IDS.tenantA, IDS.tenantB],
+    [
+      IDS.staffAdminIkaro,
+      IDS.staffAdminA,
+      IDS.staffWorkerA,
+      IDS.staffAdminB,
+      IDS.tenantIkaro,
+      IDS.tenantA,
+      IDS.tenantB,
+    ],
   );
 }
 
@@ -228,16 +282,21 @@ async function seedServices(q: ReturnType<DataSource['createQueryRunner']>): Pro
   await q.query(
     `INSERT INTO booking.services
       (id, tenant_id, name, price_amount, duration_minutes, loyalty_points_value, requires_pickup_address) VALUES
-      ($1, $5, 'Lavagem Simples',       80.00,  30,  5,  false),
-      ($2, $5, 'Lavagem Completa',     150.00,  60,  10, false),
-      ($3, $5, 'Polimento',            350.00, 120,  25, true),
-      ($4, $6, 'Higienização Interna', 200.00,  90,  15, false)
+      ($1, $7, 'Lavagem Básica',       70.00,  30,  5,  false),
+      ($2, $7, 'Lavagem Premium',     180.00,  75,  12, false),
+      ($3, $8, 'Lavagem Simples',      80.00,  30,  5,  false),
+      ($4, $8, 'Lavagem Completa',    150.00,  60,  10, false),
+      ($5, $8, 'Polimento',           350.00, 120,  25, true),
+      ($6, $9, 'Higienização Interna', 200.00,  90,  15, false)
     ON CONFLICT (id) DO NOTHING`,
     [
+      IDS.serviceIkaroBasica,
+      IDS.serviceIkaroPremium,
       IDS.serviceSimples,
       IDS.serviceCompleta,
       IDS.servicePolimento,
       IDS.serviceHigienizacao,
+      IDS.tenantIkaro,
       IDS.tenantA,
       IDS.tenantB,
     ],
@@ -311,7 +370,7 @@ async function seedNotificationTemplates(
 ): Promise<void> {
   // Mirrors TenantProvisionedHandler → copyGlobalDefaultsForTenant
   // Copies all global templates (tenant_id IS NULL) to each seed tenant.
-  for (const tenantId of [IDS.tenantA, IDS.tenantB]) {
+  for (const tenantId of [IDS.tenantIkaro, IDS.tenantA, IDS.tenantB]) {
     await q.query(
       `INSERT INTO notification.notification_templates
          (id, tenant_id, trigger_event, channel, subject, body, created_at, updated_at)
@@ -332,24 +391,27 @@ function printSummary(): void {
     '╔══════════════════════════════════════════════════════════════╗',
     '║                    Ikaro Seed — Done                      ║',
     '╠══════════════════════════════════════════════════════════════╣',
-    '║  Tenant A  │ Lavacar BeloAuto   │ lavacar-beloauto           ║',
-    '║  Tenant B  │ AutoSpa Premium    │ autospa-premium            ║',
+    '║  Tenant 1  │ Ikaro               │ ikaro                     ║',
+    '║  Tenant 2  │ Lavacar BeloAuto    │ lavacar-beloauto           ║',
+    '║  Tenant 3  │ AutoSpa Premium     │ autospa-premium            ║',
     '╠══════════════════════════════════════════════════════════════╣',
-    '║  Staff     │ admin@lavacar.com.br       (MANAGER, Tenant A)  ║',
-    '║            │ funcionario@lavacar.com.br (STAFF,   Tenant A)  ║',
-    '║            │ admin@autospa.com.br       (MANAGER, Tenant B)  ║',
+    '║  Staff     │ admin@ikaro.com.br         (MANAGER, Ikaro)      ║',
+    '║            │ admin@lavacar.com.br       (MANAGER, BeloAuto)   ║',
+    '║            │ funcionario@lavacar.com.br (STAFF,   BeloAuto)   ║',
+    '║            │ admin@autospa.com.br       (MANAGER, AutoSpa)    ║',
     '╠══════════════════════════════════════════════════════════════╣',
-    '║  Customer  │ cliente@email.com.br (exists in both tenants)   ║',
+    '║  Customer  │ cliente@email.com.br (BeloAuto + AutoSpa)        ║',
     '╠══════════════════════════════════════════════════════════════╣',
-    '║  OAuth IDs │ google-sub-admin-a    (MANAGER, Tenant A)       ║',
-    '║            │ google-sub-worker-a   (STAFF,   Tenant A)       ║',
-    '║            │ google-sub-admin-b    (MANAGER, Tenant B)       ║',
-    '║            │ google-sub-customer-a (CUSTOMER, both tenants)  ║',
+    '║  OAuth IDs │ google-sub-admin-ikaro (MANAGER, Ikaro)          ║',
+    '║            │ google-sub-admin-a     (MANAGER, BeloAuto)       ║',
+    '║            │ google-sub-worker-a    (STAFF,   BeloAuto)       ║',
+    '║            │ google-sub-admin-b     (MANAGER, AutoSpa)        ║',
+    '║            │ google-sub-customer-a  (CUSTOMER, both)           ║',
     '╠══════════════════════════════════════════════════════════════╣',
-    '║  Bookings  │ 1 PENDING, 1 APPROVED (tomorrow), 1 COMPLETED   ║',
+    '║  Bookings  │ BeloAuto: 1 PENDING, 1 APPROVED, 1 COMPLETED     ║',
     '║            │ Loyalty: 10 pts earned on COMPLETED booking      ║',
     '╠══════════════════════════════════════════════════════════════╣',
-    '║  Notifs    │ Global templates copied to both tenants          ║',
+    '║  Notifs    │ Global templates copied to all 3 tenants         ║',
     '╚══════════════════════════════════════════════════════════════╝',
     '',
   ];

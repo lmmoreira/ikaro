@@ -137,7 +137,7 @@ pnpm db:revert     # Revert last migration
 
 ## Seed Data (local dev)
 
-After running migrations, seed the database with two tenants and realistic test data:
+After running migrations, seed the database with three tenants and realistic test data:
 
 ```bash
 pnpm db:seed
@@ -145,15 +145,16 @@ pnpm db:seed
 
 | Tenant | Slug | Admin email | `google_oauth_id` |
 |--------|------|-------------|-------------------|
+| Ikaro | `ikaro` | admin@ikaro.com.br | `google-sub-admin-ikaro` |
 | Lavacar BeloAuto | `lavacar-beloauto` | admin@lavacar.com.br | `google-sub-admin-a` |
 | AutoSpa Premium | `autospa-premium` | admin@autospa.com.br | `google-sub-admin-b` |
 
-Staff (Tenant A): `funcionario@lavacar.com.br` — `google-sub-worker-a`
+Staff (Lavacar BeloAuto): `funcionario@lavacar.com.br` — `google-sub-worker-a`
 
 Test customer: `cliente@email.com.br` — `google-sub-customer-a`
-(exists in **both tenants** as separate rows — multi-tenancy invariant test)
+(exists in **Lavacar BeloAuto and AutoSpa Premium** as separate rows — multi-tenancy invariant test)
 
-Bookings seeded for Tenant A: 1 PENDING, 1 APPROVED (tomorrow), 1 COMPLETED (last week)
+Bookings seeded for Lavacar BeloAuto: 1 PENDING, 1 APPROVED (tomorrow), 1 COMPLETED (last week)
 Loyalty: 10 pts earned on the completed booking (balance > 0 on first login)
 
 ## Architecture

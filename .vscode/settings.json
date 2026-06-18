@@ -104,6 +104,8 @@
   //      Tokens last 7 days — refresh weekly.
   //
   // SEED DATA REFERENCE (src/shared/database/seed.ts — all idempotent UUIDs):
+  //   Also seeded: a third tenant "ikaro" (admin@ikaro.com.br) — no fixture vars below yet,
+  //   not used by the booking/staff flows these tokens exercise.
   //   Tenant A  →  lavacar-beloauto   (tenantId)
   //   Tenant B  →  autospa-premium    (tenantBId)
   //   Manager   →  admin@lavacar.com.br        (managerId)
