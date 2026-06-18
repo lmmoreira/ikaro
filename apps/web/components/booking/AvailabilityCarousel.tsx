@@ -100,7 +100,8 @@ export function AvailabilityCarousel({
               type="button"
               disabled={!day.available}
               onClick={() => onSelectDate(day.date)}
-              data-testid={`day-card-${day.date}`}
+              data-testid="day-option"
+              data-date={day.date}
               aria-pressed={day.date === selectedDate}
               className="flex shrink-0 flex-col items-center border px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40"
               style={{

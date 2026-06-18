@@ -24,6 +24,13 @@ function renderCarousel(overrides?: Partial<Parameters<typeof AvailabilityCarous
   );
 }
 
+function getDayOption(date: string): HTMLElement {
+  const all = screen.getAllByTestId('day-option');
+  const found = all.find((el) => el.getAttribute('data-date') === date);
+  if (!found) throw new Error(`day-option with data-date="${date}" not found`);
+  return found;
+}
+
 describe('AvailabilityCarousel', () => {
   afterEach(() => {
     vi.mocked(fetchAvailabilitySummary).mockReset();
@@ -47,7 +54,8 @@ describe('AvailabilityCarousel', () => {
 
     renderCarousel();
 
-    expect(await screen.findByTestId('day-card-2026-06-15')).toBeInTheDocument();
+    await screen.findAllByTestId('day-option');
+    expect(getDayOption('2026-06-15')).toBeInTheDocument();
     expect(screen.getByText('Hoje')).toBeInTheDocument();
     expect(screen.getByText('Ter')).toBeInTheDocument();
   });
@@ -61,8 +69,9 @@ describe('AvailabilityCarousel', () => {
 
     renderCarousel();
 
-    expect(await screen.findByTestId('day-card-2026-06-17')).toBeDisabled();
-    expect(screen.getByTestId('day-card-2026-06-15')).not.toBeDisabled();
+    await screen.findAllByTestId('day-option');
+    expect(getDayOption('2026-06-17')).toBeDisabled();
+    expect(getDayOption('2026-06-15')).not.toBeDisabled();
   });
 
   it('calls onSelectDate when an available day card is clicked', async () => {
@@ -73,7 +82,7 @@ describe('AvailabilityCarousel', () => {
 
     renderCarousel({ onSelectDate });
 
-    await user.click(await screen.findByTestId('day-card-2026-06-15'));
+    await user.click(await screen.findAllByTestId('day-option').then((els) => els[0]));
 
     expect(onSelectDate).toHaveBeenCalledWith('2026-06-15');
   });
@@ -84,10 +93,8 @@ describe('AvailabilityCarousel', () => {
 
     renderCarousel({ selectedDate: '2026-06-15' });
 
-    expect(await screen.findByTestId('day-card-2026-06-15')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    await screen.findAllByTestId('day-option');
+    expect(getDayOption('2026-06-15')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('shows an error message with a retry button when the fetch fails', async () => {
@@ -113,7 +120,8 @@ describe('AvailabilityCarousel', () => {
     expect(await screen.findByTestId('fully-booked-message')).toHaveTextContent(
       'Nenhum horário disponível nos próximos 14 dias.',
     );
-    expect(screen.getByTestId('day-card-2026-06-15')).toBeDisabled();
+    await screen.findAllByTestId('day-option');
+    expect(getDayOption('2026-06-15')).toBeDisabled();
   });
 
   it('uses the configured carouselDays value in the fully booked message', async () => {

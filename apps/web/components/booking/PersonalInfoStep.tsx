@@ -102,6 +102,7 @@ export function PersonalInfoStep({
             id="contact-name"
             type="text"
             required
+            data-testid="input-name"
             value={value.contactName}
             onChange={(e) => {
               onChange({ ...value, contactName: e.target.value });
@@ -125,6 +126,7 @@ export function PersonalInfoStep({
             id="contact-email"
             type="email"
             required
+            data-testid="input-email"
             value={value.contactEmail}
             onChange={(e) => {
               onChange({ ...value, contactEmail: e.target.value });
@@ -161,6 +163,7 @@ export function PersonalInfoStep({
               type="tel"
               inputMode="numeric"
               required
+              data-testid="input-phone"
               maxLength={15}
               placeholder="(11) 91234-5678"
               value={formatPhoneBR(value.contactPhone)}
@@ -240,6 +243,7 @@ export function PersonalInfoStep({
         <button
           type="button"
           onClick={handleNext}
+          data-testid="step-next"
           style={btnStyle}
           className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90"
         >

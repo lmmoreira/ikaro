@@ -185,6 +185,7 @@ export function BookingForm({ slug, services, carouselDays }: BookingFormProps) 
                 type="button"
                 disabled={!selectedSlot}
                 onClick={() => setStep(3)}
+                data-testid="step-next"
                 style={{
                   backgroundColor: 'var(--ba-btn-bg)',
                   color: 'var(--ba-btn-text)',

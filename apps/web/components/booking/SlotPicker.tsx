@@ -100,6 +100,7 @@ export function SlotPicker({
             type="button"
             onClick={() => onSelectSlot(slot)}
             aria-pressed={isSelected}
+            data-testid="time-slot"
             className="w-full border py-2 text-center text-sm font-medium transition-colors"
             style={{
               borderRadius: 'var(--ba-radius)',

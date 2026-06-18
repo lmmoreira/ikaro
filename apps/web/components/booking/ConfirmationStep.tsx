@@ -47,9 +47,7 @@ export function ConfirmationStep({
         <h2 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
           Solicitação enviada!
         </h2>
-        <p data-testid="confirmation-success">
-          Solicitação enviada! Aguarde a confirmação por email.
-        </p>
+        <p data-testid="booking-success">Solicitação enviada! Aguarde a confirmação por email.</p>
         <a
           href={`/${slug}`}
           className="mt-6 inline-block border px-6 py-3"
@@ -116,6 +114,7 @@ export function ConfirmationStep({
           type="button"
           onClick={onSubmit}
           disabled={status === 'submitting'}
+          data-testid="step-confirm"
           style={btnStyle}
           className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >

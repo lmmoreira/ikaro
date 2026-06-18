@@ -156,7 +156,7 @@ describe('ConfirmationStep', () => {
       />,
     );
 
-    expect(screen.getByTestId('confirmation-success')).toHaveTextContent(
+    expect(screen.getByTestId('booking-success')).toHaveTextContent(
       'Solicitação enviada! Aguarde a confirmação por email.',
     );
     expect(screen.queryByRole('button', { name: 'Confirmar agendamento' })).not.toBeInTheDocument();

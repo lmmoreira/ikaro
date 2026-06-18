@@ -419,8 +419,11 @@ npx @stoplight/spectral-cli lint docs/api/openapi.yaml --fail-severity warn
 
 **Rules:**
 - Happy path only — edge cases belong to unit and integration layers.
-- Run against a **staging environment** (real containers, seeded DB), not against localhost.
+- **Local dev:** run against the local docker-compose stack (`pnpm up` + `pnpm dev`). Use `pnpm test:e2e` from the repo root.
+- **CI/staging:** run against a real staging environment (real containers, seeded DB). CI wiring is M16-S06's scope — until then, E2E is a local-only gate.
 - Maximum 5–8 E2E scenarios for MVP. Each one maps to a core UC journey.
+- **Assert on user-visible outcomes only.** External side effects (emails, events, webhooks) belong in integration tests — not in Playwright tests — unless the side effect *is* the primary user-visible result of the action being tested. Example: UC-001 (guest submits → PENDING) has no immediate user-facing email, so no MailHog assertion. UC-003 (admin approves → customer email) does — that assertion belongs in the UC-003 E2E test, not here.
+- **MailHog is available via `page.request`** (`GET http://localhost:8025/api/v2/messages`) when email verification is appropriate, but only add it when the email is synchronous to the tested action and directly confirms the user journey succeeded.
 
 **MVP E2E scenarios:**
 1. Guest submits a booking request → admin receives notification → booking in PENDING (UC-001 + UC-018)
@@ -433,18 +436,122 @@ npx @stoplight/spectral-cli lint docs/api/openapi.yaml --fail-severity warn
 ```typescript
 // e2e/guest-booking.spec.ts
 test('UC-001: guest can submit a booking request and see pending confirmation', async ({ page }) => {
-  await page.goto('/autowash-pro');
-  await page.click('[data-testid="book-now"]');
-  await page.fill('[data-testid="guest-name"]', 'João Silva');
-  await page.fill('[data-testid="guest-email"]', 'joao@test.com.br');
-  await page.fill('[data-testid="guest-phone"]', '+5531999990000');
-  await page.click('[data-testid="service-basic-wash"]');
-  await page.click('[data-testid="slot-2026-06-01-09-00"]');
-  await page.click('[data-testid="submit-booking"]');
+  await page.goto('/ikaro');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-  await expect(page.locator('[data-testid="booking-confirmation"]'))
-    .toContainText('Seu pedido está pendente');
+  await page.goto('/ikaro/booking');
+  await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
+
+  await page.locator('[data-testid="service-card"]').first().click();
+  await page.locator('[data-testid="step-next"]').click();
+
+  await page.locator('[data-testid="day-option"]:not([disabled])').first().click();
+  await page.locator('[data-testid="time-slot"]').first().click();
+  await page.locator('[data-testid="step-next"]').click();
+
+  await page.locator('[data-testid="input-name"]').fill('João Silva');
+  await page.locator('[data-testid="input-email"]').fill('joao@test.com.br');
+  await page.locator('[data-testid="input-phone"]').fill('31999990000');
+  await page.locator('[data-testid="step-next"]').click();
+
+  await page.locator('[data-testid="step-confirm"]').click();
+  await expect(page.locator('[data-testid="booking-success"]')).toBeVisible();
 });
+```
+
+### Translated strings — unit tests vs E2E (mandatory distinction)
+
+| Layer | Asserting translated strings | Rule |
+|---|---|---|
+| **Unit test** | ✅ Acceptable | Locale IS component behaviour — `getByText('Hoje')` proves `dayLabel()` returns the correct pt-BR string. When i18n ships, inject locale context and update the assertion. |
+| **E2E test** | ❌ Never | Locale is an external variable across the whole system. Use `data-testid` exclusively so tests survive any locale change without modification. |
+
+Example of what is correct in a unit test:
+```ts
+// AvailabilityCarousel.spec.tsx — ✅ testing component behaviour
+expect(screen.getByText('Hoje')).toBeInTheDocument(); // dayLabel() for index 0
+expect(screen.getByText('Ter')).toBeInTheDocument();  // dayLabel() for Tuesday
+```
+
+Example of what is wrong in an E2E test:
+```ts
+// guest-booking.spec.ts — ❌ breaks when locale changes
+await page.getByLabel(/nome/i).fill('E2E Teste');
+// ✅ correct
+await page.locator('[data-testid="input-name"]').fill('E2E Teste');
+```
+
+---
+
+### E2E Selector Strategy (mandatory — all Playwright tests)
+
+**Priority order — use the first that applies:**
+
+**1. Accessibility selectors first**
+
+Use `getByRole`, `getByLabel`, `getByText` for elements users interact with directly. These survive component refactors and test what the user actually sees.
+
+```ts
+// ✅ heading confirms the right page rendered
+page.getByRole('heading', { level: 1 })
+
+// ✅ label-based — survives HTML restructuring
+page.getByLabel(/e-mail/i)
+```
+
+**2. `data-testid` for structural anchors**
+
+Good candidates: complex widgets, dynamic content, action buttons, success/error states — anything without a stable accessible name.
+
+```ts
+page.locator('[data-testid="booking-success"]')
+page.locator('[data-testid="day-option"]')
+page.locator('[data-testid="step-next"]')   // action button
+page.locator('[data-testid="step-confirm"]') // action button
+```
+
+**3. Never encode data into `data-testid`**
+
+Embed the data value in a separate `data-*` attribute. The testid is an identity, not a record key.
+
+```ts
+// ✅
+<button data-testid="day-option" data-date={date} />
+page.locator('[data-testid="day-option"]:not([disabled])').first()
+
+// ❌ — breaks when dates change; couples tests to seed data
+<button data-testid={`day-card-${date}`} />
+page.locator('[data-testid="day-card-2026-06-01"]')
+```
+
+**4. One attribute, one responsibility**
+
+| Attribute | Purpose |
+|---|---|
+| `data-testid` | Element identity |
+| `data-date`, `data-user-id` | Data value |
+| `data-status` | Runtime state |
+
+Never mix concerns in a single attribute.
+
+**5. Never assert translated strings**
+
+Hardcoding UI copy in E2E tests breaks under i18n. Use `data-testid` on action buttons instead.
+
+```ts
+// ✅ — survives translation to any language
+page.locator('[data-testid="step-next"]').click()
+
+// ❌ — breaks the day localization ships
+page.getByRole('button', { name: 'Próximo' }).click()
+```
+
+When a heading or label is the right locator (rule 1), use a **case-insensitive regex** so capitalisation changes don't break the test:
+
+```ts
+// ✅
+page.getByLabel(/e-mail/i)
+page.getByRole('heading', { name: /escolha os serviços/i })
 ```
 
 ---

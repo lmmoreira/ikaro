@@ -5,7 +5,8 @@
 #
 # Covers: pre-pr checks 1,5,6,7,11,12,14,15,16,17,18, W1 (web vitest setup),
 #         bad-smell-audit backend checks BE-2,BE-3,BE-4,BE-5,BE-7,
-#         and web checks WEB-1,WEB-4,WEB-6.
+#         web checks WEB-1,WEB-4,WEB-6,
+#         and E2E quality checks E2E-1,E2E-2,E2E-3.
 # The remaining checks require agent reasoning and are listed at the end.
 
 set -uo pipefail
@@ -157,6 +158,35 @@ run_check "WEB-4. New component spec files have // @vitest-environment jsdom on 
 grep_into_tmp "$web_tsx_prod" \
   "from '(path|fs|os|crypto|stream|util|url|events)'"
 run_check "WEB-6. No bare Node.js built-in imports in web (use node: prefix)"
+
+# ── E2E test quality checks ───────────────────────────────────────────────────
+# These only apply when e2e/ files are present/changed.
+e2e_specs=$(echo "$changed" | grep '^apps/web/e2e/' | grep -E '\.spec\.ts$' || true)
+web_tsx_all=$(echo "$ts_all" | grep '^apps/web/' | grep -E '\.tsx$' || true)
+
+if [ -d "apps/web/e2e" ]; then
+
+# E2E-1: no translated/locale strings in e2e/ specs
+# getByLabel / getByText couple tests to UI copy and break under i18n
+> "$TMP"
+if find apps/web/e2e -name "*.spec.ts" | xargs grep -lnE \
+    "getByLabel\(|getByText\(" 2>/dev/null | grep -q .; then
+  find apps/web/e2e -name "*.spec.ts" \
+    | xargs grep -nE "getByLabel\(|getByText\(" 2>/dev/null >> "$TMP" || true
+fi
+run_check "E2E-1. No getByLabel/getByText in e2e/ — use data-testid (breaks under i18n)"
+
+# E2E-2: no date/id/number embedded in data-testid values in components
+grep_into_tmp "$web_tsx_all" \
+  'data-testid="[^"]*[0-9]{4}-[0-9]{2}-[0-9]{2}[^"]*"'
+run_check "E2E-2. No ISO date embedded in data-testid value — use data-date attribute"
+
+# E2E-3: no template-literal data-testid (data-testid={\`...-${var}\`})
+grep_into_tmp "$web_tsx_all" \
+  'data-testid=\{`'
+run_check "E2E-3. No template-literal data-testid — encode data in separate data-* attribute"
+
+fi
 
 # ── Bad-Smell Audit — Backend grep-based checks ───────────────────────────────
 printf "\n### Bad-Smell Audit — Backend (grep)\n"
