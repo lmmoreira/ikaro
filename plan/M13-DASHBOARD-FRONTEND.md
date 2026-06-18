@@ -39,10 +39,11 @@ This file replaces six previously separate draft milestone files — `M124-LOGIN
 
 ---
 
-## Build order (40 stories, 10 phases)
+## Build order (41 stories, 11 phases)
 
 | Phase | Stories | Theme |
 |---|---|---|
+| Pre-0 | M13-S41 | **Playwright E2E infrastructure — implement this first** |
 | 0 | M13-S01 | Frontend foundation (TanStack Query + typed client) |
 | 1 | M13-S02–M13-S12 | Backend & BFF readiness (zero frontend dependency) |
 | 2 | M13-S13–M13-S14 | Auth frontend |
@@ -3379,6 +3380,147 @@ Use `vi.mock` for `fetch`. Do NOT test `page.tsx` — server component, Playwrig
 
 ---
 
+## Phase Pre-0 — Playwright E2E infrastructure
+
+---
+
+### M13-S41 — Playwright E2E infrastructure + guest booking golden path
+
+> **Implement this story first** — before M13-S01. Every other M13 story that builds a `page.tsx` route must add an E2E test file alongside it (`apps/web/e2e/<feature>.spec.ts`). This scaffolding must exist before those stories start.
+
+**Goal:** Install Playwright in `apps/web`; write the first E2E test for the UC-001 guest booking golden path (M12-S07 already built the code — this adds the test). Establish the convention: every `app/**/page.tsx` route added in M13 ships with a Playwright test in the same story.
+
+**Convention for the rest of M13:**
+Server component pages (`app/**/page.tsx`) cannot be Vitest-tested. From this story forward, every M13 story that ships a page must include a corresponding `apps/web/e2e/<feature>.spec.ts` covering the happy path. The guest booking test below is the template.
+
+---
+
+**Files to create/modify:**
+- `apps/web/package.json` — add `@playwright/test` devDep + `e2e` / `e2e:ui` / `e2e:ci` scripts
+- `apps/web/playwright.config.ts`
+- `apps/web/e2e/guest-booking.spec.ts`
+- Booking form components (M12-S07) — add `data-testid` attributes where missing (see below)
+- `sonar-project.properties` — add `apps/web/e2e/**` to `sonar.exclusions`
+- `.gitignore` — add `apps/web/playwright-report/` and `apps/web/test-results/`
+
+---
+
+**`apps/web/playwright.config.ts`:**
+```ts
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: 'html',
+  use: {
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
+    trace: 'on-first-retry',
+  },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+  ],
+  // webServer intentionally omitted — tests run against the already-running dev stack
+  // (docker-compose up + pnpm dev). CI startup is M16-S06's scope.
+});
+```
+
+---
+
+**`data-testid` attributes** — add to M12-S07 booking form components if not already present:
+
+| Element | Locator strategy |
+|---|---|
+| Service card (Step 1) | `data-testid="service-card"` |
+| Day button in availability carousel | `data-testid="day-option"` + native `disabled` attr when unavailable |
+| Time slot button | `data-testid="time-slot"` |
+| Name input | `getByLabel(/nome/i)` — label already exists, no testid needed |
+| Phone input | `getByLabel(/telefone/i)` — label already exists, no testid needed |
+| Submit button (Step 4) | `getByRole('button', { name: /confirmar/i })` |
+| Success message container | `data-testid="booking-success"` |
+
+---
+
+**`apps/web/e2e/guest-booking.spec.ts`:**
+```ts
+import { test, expect } from '@playwright/test';
+
+test.describe('UC-001 — Guest booking golden path', () => {
+  test('guest navigates from hotsite to booking form and submits successfully', async ({ page }) => {
+    // Hotsite renders
+    await page.goto('/ikaro');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.locator('#service-list')).toBeVisible();
+
+    // Navigate to booking form
+    await page.goto('/ikaro/booking');
+    await expect(page.locator('#booking-form')).toBeVisible();
+
+    // Step 1 — select first available service
+    await page.locator('[data-testid="service-card"]').first().click();
+    await page.getByRole('button', { name: /próximo/i }).click();
+
+    // Step 2 — pick first available day then first slot
+    await page.locator('[data-testid="day-option"]:not([disabled])').first().click();
+    await page.locator('[data-testid="time-slot"]').first().click();
+    await page.getByRole('button', { name: /próximo/i }).click();
+
+    // Step 3 — personal info
+    await page.getByLabel(/nome/i).fill('E2E Teste');
+    await page.getByLabel(/telefone/i).fill('11999999999');
+    await page.getByRole('button', { name: /próximo/i }).click();
+
+    // Step 4 — submit
+    await page.getByRole('button', { name: /confirmar/i }).click();
+    await expect(page.locator('[data-testid="booking-success"]')).toBeVisible();
+  });
+});
+```
+
+**Precondition (dev only):** `docker-compose up` + `pnpm dev` in `apps/web`. The seeded `ikaro` tenant must have at least one active service and available slots on future dates. If seeds don't cover this, add the missing rows in `seed.ts`.
+
+---
+
+**`pnpm` scripts to add to `apps/web/package.json`:**
+```json
+"e2e": "playwright test",
+"e2e:ui": "playwright test --ui",
+"e2e:ci": "playwright test --reporter=list"
+```
+
+---
+
+**SonarCloud — `sonar-project.properties`:**
+Add `apps/web/e2e/**` to the existing `sonar.exclusions` line.
+
+**`.gitignore` additions:**
+```
+apps/web/playwright-report/
+apps/web/test-results/
+```
+
+---
+
+**Acceptance criteria:**
+- [ ] `@playwright/test` added to `apps/web` devDependencies; `npx playwright install chromium` run once locally
+- [ ] `apps/web/playwright.config.ts` created as above
+- [ ] `apps/web/e2e/guest-booking.spec.ts` created; test passes locally against running dev stack and seeded `ikaro` tenant
+- [ ] Booking form components have `data-testid` attributes as listed above
+- [ ] `pnpm e2e` from `apps/web/` executes and the guest booking test passes
+- [ ] `sonar-project.properties` updated: `apps/web/e2e/**` added to `sonar.exclusions`
+- [ ] `.gitignore` updated with Playwright artifact paths
+- [ ] `tsc --noEmit` zero errors (Playwright types resolve correctly)
+- [ ] Seeded `ikaro` tenant has an active service with available future slots (verify or patch `seed.ts`)
+
+**Dependencies:** M12-S07 (guest booking form already built), M06-S04 (public services endpoint), M07-S04 (availability endpoint)
+
+**Estimated size:** S
+
+---
+
 ## Open questions & future discovery
 
 > Consolidated from all 7 source files' "Open questions" and "Future discovery" sections. Items already resolved by a decision made during this consolidation (or that turned out to already be in scope) are marked `[x]` with a one-line resolution; genuinely open items are marked `[ ]` and reference the story they block.
@@ -3392,7 +3534,7 @@ Use `vi.mock` for `fetch`. Do NOT test `page.tsx` — server component, Playwrig
 - [ ] **Staff login Google button href prefix:** `/api/auth/google` (Next.js proxy) or `/v1/auth/google` (direct BFF)? Must match what the BFF OAuth callback `redirectUri` expects. Resolve before `M13-S13` AC sign-off.
 - [ ] **Staff logout:** no logout endpoint designed yet. Current MVP behavior: JWT expiry → redirect to `/dashboard/login`. An explicit logout button is post-MVP — not scoped in any story above.
 - [ ] **"Bem-vindo(a)!" first-login banner (UC-025 step 8):** would need the BFF to append `?welcome=1` to the `/dashboard` redirect, and the dashboard to render a one-time dismissible banner. Not scoped in any story above — fold into `M13-S15` or a follow-up patch if product wants it.
-- [ ] **Playwright E2E suite:** login flows need full E2E coverage (M16, out of this milestone's scope).
+- [ ] **Playwright E2E suite for auth flows:** login flows need full E2E coverage (M16-S06). Playwright infrastructure is set up in M13-S41; the Google OAuth test-bypass endpoint required for automated auth testing is M16's scope.
 
 ### Staff booking core (Phase 4, M13-S17–M13-S20)
 
