@@ -24,6 +24,8 @@ Exceptions always: read-only ops (`Read`, `grep`, `ls`, `git status`, memory fil
 
 **Commit & push gate (non-negotiable):** Before every `git commit` and every `git push`, stop and ask the user: *"Ready to commit [files]. Anything else to do first, or shall I commit and push?"* The pre-push hook runs `ci:fast` (~15 s) on every push — unnecessary pushes are expensive. Batch all changes, then ask once. Never commit or push autonomously.
 
+**The same gate applies before `/pre-pr` and before `gh pr create` — never chain them automatically.** Both are expensive (`/pre-pr` re-runs full verification + integration tests; opening a PR is a visible, shared action). When an implementation/edit phase is finished, say so explicitly and ask: *"Implementation finished — anything else to commit, or shall I run `/pre-pr` and open the PR?"* Wait for explicit yes before running `/pre-pr`, and again before `gh pr create`, even if the underlying work was already approved earlier in the conversation.
+
 ---
 
 ## 1. Project Facts
@@ -408,6 +410,8 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 `pnpm ci:local` (~5 min, Docker required). Run only when touching Dockerfiles, infra, or integration-test paths.
 
 ### Step 7 — Self-review the full diff (MANDATORY — before every PR)
+**Stop and ask before starting this step** — per §0's commit & push gate, `/pre-pr` never runs automatically after a push. Confirm with the user first.
+
 Run `/pre-pr` — must report **zero issues** before the PR is opened.
 
 > **AGENT HARD RULE — NO EXCEPTIONS:**

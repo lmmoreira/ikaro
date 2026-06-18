@@ -131,6 +131,37 @@ curl -s -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/duplications/show?key=<pro
 |---------|-----------|-----|
 | Scanner exits with code 3 on a **branch push** (not a PR); the native "SonarCloud Code Analysis" GitHub check shows "Quality Gate not computed" | A branch-mode scan (no PR context) analyzed against `sonar.newCode.referenceBranch=main` while running **on** `main` itself — "new code" can't be defined relative to itself, so the gate returns `status: "NONE"` and the scanner treats that as a failure | If the workflow's only job is refreshing the analysis baseline for future PR differential comparisons (not gating anything), disable the wait for that job only: add `args: -Dsonar.qualitygate.wait=false` to the scanner action's `with:` block. See `main-sonar.yml`. |
 | A one-line, obviously-safe fix (e.g. adding `readonly`) fails `new_coverage` or `new_duplicated_lines_density` | The touched file already had 0% coverage, or the touched line sits inside a large pre-existing duplicate block (common between near-identical parallel implementations, e.g. backend/bff having their own copy of the same small class) — the gate only "sees" the problem once that line becomes part of the diff | Use the API calls above to find the exact file/line before changing anything else. If it's a real coverage hole, add a test for the touched code path (check branch coverage too — `new_uncovered_conditions`, not just line coverage). If it's pre-existing duplication between files that shouldn't be merged into this PR's scope, revert that specific edit and track the duplication as its own TD instead of forcing a refactor into an unrelated PR. |
+| `new_coverage` fails on a new file, but every line is verifiably covered locally — confirmed via a from-scratch `git worktree` + `pnpm install --frozen-lockfile` reproduction matching CI exactly | The new/changed code lives in a directory excluded from `sonar.sources` and/or not fed into `sonar.javascript.lcov.reportPaths` — its real coverage is invisible to the gate entirely. `packages/*` is excluded by default in this repo (only `apps/backend/src`, `apps/bff/src`, `apps/web` are wired in) since `packages/types`/`packages/config` never needed coverage tracking (type-only/config-only) | If the new code is a `packages/*` package with real runtime logic and its own test suite, add it to `sonar.sources` + `sonar.tests`, add its `coverage/lcov.info` to `sonar.javascript.lcov.reportPaths`, and add a `pnpm --filter <pkg> test:cov` step to every coverage-generating workflow (`pr-quality.yml`, `main-sonar.yml`) — see the `packages/observability` PR for the exact diff |
+
+---
+
+## Docker build/Trivy passing does not mean the container boots
+
+Nothing in this project's CI ever runs `docker run` on a built image — `Trivy Image Scan` only does **static filesystem vulnerability scanning**; it never starts the container. A backend/bff Dockerfile change can build cleanly, pass Trivy, and still crash immediately on `node dist/main.js` in actual production. This already happened for real: bff's production image had apparently never successfully booted, undetected, until a manual `docker run` smoke test caught it (see TD06).
+
+To verify a Dockerfile change actually works, build and boot it manually before trusting CI:
+
+```bash
+docker build -f apps/<service>/Dockerfile -t <service>-smoke .
+docker run --name <service>-smoke-test -d -p <port>:<port> -e <required env vars> <service>-smoke
+sleep 5 && docker logs <service>-smoke-test   # look for "successfully started", not a stack trace
+docker inspect <service>-smoke-test --format='{{.State.Status}} exitCode={{.State.ExitCode}}'
+docker rm -f <service>-smoke-test && docker rmi <service>-smoke
+```
+
+To isolate whether a boot failure is caused by your current change or already exists on `main`, reproduce it in an isolated worktree rather than guessing:
+
+```bash
+git worktree add /tmp/<name>-main-test main
+cd /tmp/<name>-main-test && docker build -f apps/<service>/Dockerfile -t <service>-main-test .
+# ...run/inspect as above...
+cd - && git worktree remove /tmp/<name>-main-test --force
+```
+
+| Symptom | Root cause | Fix |
+|---------|-----------|-----|
+| `Error [ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING]` on container start, referencing a `packages/*` dependency's `.ts` source | See the matching `ANTI_PATTERNS.md` entry — a workspace package shipped raw TS as `main` | Ship compiled JS for that package; see `ANTI_PATTERNS.md` |
+| `Error: Cannot find module 'x'` on container start, where `x` works fine in every dev/test run | See the matching `ANTI_PATTERNS.md` entry — `x` is misclassified under `devDependencies` or only available transitively | Add `x` to the failing app's `dependencies`; sweep all production imports the same way to catch siblings of the same bug |
 
 ---
 
