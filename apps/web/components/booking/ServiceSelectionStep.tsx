@@ -75,6 +75,7 @@ export function ServiceSelectionStep({
               <label
                 className="flex cursor-pointer items-center gap-3 border p-4"
                 style={cardStyle(isSelected)}
+                data-testid="service-card"
               >
                 <input
                   type="checkbox"
@@ -152,6 +153,7 @@ export function ServiceSelectionStep({
           type="button"
           disabled={selected.length === 0}
           onClick={handleNext}
+          data-testid="step-next"
           style={btnStyle}
           className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >

@@ -56,7 +56,7 @@ async function advanceToStep3(
   await user.click(screen.getByRole('checkbox'));
   await user.click(screen.getByRole('button', { name: 'Próximo' }));
 
-  await user.click(await screen.findByTestId('day-card-2026-06-15'));
+  await user.click(await screen.findByRole('button', { name: /15/ }));
   await user.click(await screen.findByText('09:00–10:00'));
   await user.click(screen.getByRole('button', { name: 'Próximo' }));
 
@@ -155,7 +155,7 @@ describe('BookingForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
 
-    expect(await screen.findByTestId('confirmation-success')).toBeInTheDocument();
+    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
     expect(createBooking).toHaveBeenCalledWith(
       'lavacar-beloauto',
       expect.objectContaining({

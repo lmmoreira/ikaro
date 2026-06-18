@@ -240,6 +240,7 @@ export function PersonalInfoStep({
         <button
           type="button"
           onClick={handleNext}
+          data-testid="step-next"
           style={btnStyle}
           className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90"
         >

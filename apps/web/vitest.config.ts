@@ -10,7 +10,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     include: ['**/*.spec.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/.next/**'],
+    exclude: ['**/node_modules/**', '**/.next/**', '**/e2e/**'],
     // components/hotsite specs run in jsdom — each spec file declares:
     //   // @vitest-environment jsdom
     // lib/** stays in the default node environment with no change.
