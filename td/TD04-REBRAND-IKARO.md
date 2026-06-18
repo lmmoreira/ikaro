@@ -6,7 +6,7 @@
 - **Context**: Repo-wide — package identity, CI/CD, docs, frontend, GitHub, SonarCloud
 - **Created**: 2026-06-18
 - **Updated**: 2026-06-18
-- **Resolved**: Open
+- **Resolved**: 2026-06-18 — PR #2 merged to main (GitHub/SonarCloud migration, package/infra/CI rename, and docs/prototype rename all complete; Phase D seed-data restructuring tracked as a separate follow-up story, not blocking this TD)
 
 ---
 
