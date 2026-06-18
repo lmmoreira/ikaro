@@ -57,14 +57,19 @@ export abstract class BaseAppLogger implements LoggerService {
   ): void {
     const ctx = typeof context === 'string' ? { context } : context;
     const entry = {
+      // Caller/enrichment fields spread first so they can supply extras (tenantId,
+      // correlationId, ...) — but never override the core fields declared below them,
+      // since later keys in an object literal always win over earlier spreads.
+      ...this.enrich(),
+      ...(ctx && typeof ctx === 'object' ? ctx : {}),
       timestamp: new Date().toISOString(),
       level,
       service: this.service,
       context: (typeof context === 'string' ? context : undefined) ?? this.context,
       message,
-      ...this.enrich(),
-      ...(ctx && typeof ctx === 'object' ? ctx : {}),
-      ...(trace ? { trace } : {}),
+      // JSON.stringify drops undefined-valued keys, so this both protects `trace`
+      // from being spoofed via ctx and keeps it absent from output when not provided.
+      trace,
     };
     process.stdout.write(JSON.stringify(entry) + '\n');
   }

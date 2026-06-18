@@ -97,4 +97,22 @@ describe('BaseAppLogger', () => {
     });
     expect(lastOutput['tenantId']).toBe('caller-tenant');
   });
+
+  it('caller context cannot spoof core fields (level/service/message/context/trace)', () => {
+    new TestLogger('RealContext').log('real message', {
+      level: 'HACKED',
+      service: 'evil',
+      message: 'fake message',
+      context: 'fake context',
+      trace: 'fake trace',
+    });
+
+    expect(lastOutput).toMatchObject({
+      level: 'INFO',
+      service: 'test-service',
+      message: 'real message',
+      context: 'RealContext',
+    });
+    expect(lastOutput['trace']).toBeUndefined();
+  });
 });
