@@ -1,4 +1,4 @@
-# BeloAuto
+## BeloAuto
 
 Multi-tenant SaaS for car-wash booking and loyalty — Brazilian market (pt-BR / BRL).
 
