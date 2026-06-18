@@ -76,6 +76,7 @@ export function ServiceSelectionStep({
                 className="flex cursor-pointer items-center gap-3 border p-4"
                 style={cardStyle(isSelected)}
                 data-testid="service-card"
+                data-requires-pickup={service.requiresPickupAddress ? 'true' : 'false'}
               >
                 <input
                   type="checkbox"

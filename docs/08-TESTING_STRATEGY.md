@@ -419,7 +419,8 @@ npx @stoplight/spectral-cli lint docs/api/openapi.yaml --fail-severity warn
 
 **Rules:**
 - Happy path only — edge cases belong to unit and integration layers.
-- Run against a **staging environment** (real containers, seeded DB), not against localhost.
+- **Local dev:** run against the local docker-compose stack (`pnpm up` + `pnpm dev`). Use `pnpm test:e2e` from the repo root.
+- **CI/staging:** run against a real staging environment (real containers, seeded DB). CI wiring is M16-S06's scope — until then, E2E is a local-only gate.
 - Maximum 5–8 E2E scenarios for MVP. Each one maps to a core UC journey.
 - **Assert on user-visible outcomes only.** External side effects (emails, events, webhooks) belong in integration tests — not in Playwright tests — unless the side effect *is* the primary user-visible result of the action being tested. Example: UC-001 (guest submits → PENDING) has no immediate user-facing email, so no MailHog assertion. UC-003 (admin approves → customer email) does — that assertion belongs in the UC-003 E2E test, not here.
 - **MailHog is available via `page.request`** (`GET http://localhost:8025/api/v2/messages`) when email verification is appropriate, but only add it when the email is synchronous to the tested action and directly confirms the user journey succeeded.

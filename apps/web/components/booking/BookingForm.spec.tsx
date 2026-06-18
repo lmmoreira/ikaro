@@ -56,7 +56,10 @@ async function advanceToStep3(
   await user.click(screen.getByRole('checkbox'));
   await user.click(screen.getByRole('button', { name: 'Próximo' }));
 
-  await user.click(await screen.findByRole('button', { name: /15/ }));
+  const dayOptions = await screen.findAllByTestId('day-option');
+  const dayBtn = dayOptions.find((el) => el.getAttribute('data-date') === day.date);
+  expect(dayBtn).toBeTruthy();
+  await user.click(dayBtn!);
   await user.click(await screen.findByText('09:00–10:00'));
   await user.click(screen.getByRole('button', { name: 'Próximo' }));
 
