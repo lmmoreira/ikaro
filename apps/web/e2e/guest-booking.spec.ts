@@ -13,7 +13,10 @@ test.describe('UC-001 — Guest booking golden path', () => {
     await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
 
     // Step 1 — select first service that does not require pickup address
-    await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
+    await page
+      .locator('[data-testid="service-card"][data-requires-pickup="false"]')
+      .first()
+      .click();
     await page.locator('[data-testid="step-next"]').click();
 
     // Step 2 — pick first available day then first slot
