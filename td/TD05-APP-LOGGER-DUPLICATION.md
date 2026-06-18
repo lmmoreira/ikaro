@@ -6,6 +6,7 @@
 - **Context**: `apps/backend/src/shared/observability/app-logger.ts` and `apps/bff/src/shared/observability/app-logger.ts`
 - **Created**: 2026-06-18
 - **Updated**: 2026-06-18
+- **Resolved**: 2026-06-18 — extracted `BaseAppLogger` to a new `packages/observability` workspace package (option 1). Both apps now hold a 9-line subclass each: `super('backend'|'bff', context)` plus backend's `enrich()` override for tenant-context auto-enrichment. `packages/` is outside `sonar.sources` (same as `packages/types`/`packages/config` today), so the shared implementation is no longer subject to the duplication gate at all.
 
 ---
 
@@ -33,14 +34,17 @@ Extract a shared base implementation that both apps can depend on. Candidate app
 
 Recommendation: option 1, since `packages/config` already establishes the precedent of sharing cross-app infra via a workspace package, and the two loggers are conceptually one thing (a structured JSON logger emitting `{timestamp, level, service, context, message, ...}`) with a tiny per-service parameter, not two genuinely different implementations.
 
-## Acceptance criteria (when this is picked up)
+## Acceptance criteria
 
-- [ ] Single `AppLogger` implementation shared by both apps (exact package/location TBD by whoever scopes the story)
-- [ ] Backend's tenant-context auto-enrichment behavior preserved exactly (verify via existing `app-logger.spec.ts` assertions)
-- [ ] `service: 'backend'` / `service: 'bff'` still appears correctly per app
-- [ ] SonarCloud duplication for these two files drops to 0%
-- [ ] No other call sites broken (`AppLogger` is constructed via plain `new AppLogger(context)` in both apps — check DI wiring in both `*.module.ts` trees)
+- [x] Single `BaseAppLogger` implementation shared by both apps — `packages/observability/src/app-logger.ts`
+- [x] Backend's tenant-context auto-enrichment behavior preserved exactly — `BaseAppLogger.enrich()` hook, overridden in `apps/backend/.../app-logger.ts`; all 4 backend-specific assertions kept passing in `app-logger.spec.ts`
+- [x] `service: 'backend'` / `service: 'bff'` still appears correctly per app — passed via `super(service, context)` from each subclass's constructor
+- [x] SonarCloud duplication for these two files drops to 0% — the duplicated logic no longer exists in two `apps/` files; it lives once in `packages/observability`, outside `sonar.sources`
+- [x] No other call sites broken — confirmed `AppLogger` is constructed via plain `new AppLogger(context)` everywhere in both apps (20+ backend call sites, 1 bff call site in `main.ts`); none use NestJS DI injection, so no module wiring needed updating
 
-## Open Questions
+## Resolution notes
 
-1. Is a brand-new `packages/observability` package worth it for ~70 lines, or should this live inside `packages/config` (currently ESLint/TS/Prettier config only — would be a scope change for that package) or `packages/types` (currently DTOs only — also a scope mismatch)? Resolve at story-discovery time.
+- `packages/observability` mirrors `packages/types`'s minimal package.json/tsconfig shape, plus its own `jest.config.ts` (ts-jest, same pattern as `apps/backend`) since this package needed real unit tests, unlike the DTO-only `packages/types`.
+- The shared package's own spec (`packages/observability/src/app-logger.spec.ts`) covers all generic behavior (log levels, JSON shape, context-field merge, the `enrich()` hook default and override) via a local `TestLogger`/`EnrichingTestLogger`. Each app's spec now only asserts its app-specific piece: backend's tenant enrichment (4 tests), bff's `service: 'bff'` tag and lack of enrichment (2 tests, file didn't exist before).
+- `@nestjs/common` is a `peerDependency` of the new package (not a bundled dependency) so it resolves to whichever copy the consuming app already installed, rather than risking two NestJS instances in the tree.
+- Did not touch `docs/10-OBSERVABILITY_STRATEGY.md`'s `AppLogger` code sketch (around line 336) — it already described a `withContext()` API that never matched the real implementation, pre-dating this change. Out of scope here; flagged for a future `/docs-audit` pass, not fixed as a drive-by.

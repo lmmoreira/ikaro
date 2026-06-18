@@ -39,6 +39,7 @@
     "tsconfig-paths": "^4.2.0"
   },
   "dependencies": {
+    "@ikaro/observability": "workspace:*",
     "@ikaro/types": "workspace:*",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.1.19",
