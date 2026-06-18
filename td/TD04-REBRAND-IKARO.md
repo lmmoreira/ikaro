@@ -6,7 +6,7 @@
 - **Context**: Repo-wide — package identity, CI/CD, docs, frontend, GitHub, SonarCloud
 - **Created**: 2026-06-18
 - **Updated**: 2026-06-18
-- **Resolved**: 2026-06-18 — PR #2 merged to main (GitHub/SonarCloud migration, package/infra/CI rename, and docs/prototype rename all complete; Phase D seed-data restructuring tracked as a separate follow-up story, not blocking this TD)
+- **Resolved**: 2026-06-18 — PR #2 (GitHub/SonarCloud migration, package/infra/CI rename, docs/prototype rename) and PR #3 (Phase D — Ikaro seed tenant) both merged to main. Fully complete.
 
 ---
 
@@ -282,19 +282,19 @@ Overall: **Medium-Large** — bigger in file count than TD01/TD03 but lower in p
 
 ## Acceptance Criteria
 
-- [ ] No `@beloauto/*` package references remain; `pnpm -r run build`, `type-check`, `lint`, `test` all pass under `@ikaro/*`
-- [ ] `pnpm-lock.yaml` regenerated and committed
-- [ ] All Docker container names, DB name/roles, local GCS/Pub-Sub project ids use `ikaro` naming
-- [ ] `sonar-project.properties`, `.gitleaks.toml` title, `.vscode/settings.json` SonarLint block, and `.github/workflows/*` hardcoded names/tags use `ikaro` naming
-- [ ] `CLAUDE.md`/`.copilot/context.md` updated (with explicit sign-off per its own permission gate), including the `--repo lmmoreira/beloauto` references in §9
-- [ ] `docs/**` (excl. `docs/archive/**`) and `plan/**` and `.agents/**` no longer reference "BeloAuto" as the product/company
-- [ ] Frontend platform-level fallback branding (`layout.tsx`, `not-found.tsx` + spec, `[slug]/page.tsx`, `booking/page.tsx`, `seo.ts`) shows "Ikaro"
-- [ ] `StaffInvited` email body no longer says "plataforma BeloAuto" (via a new migration updating the existing template row, not an edit to the historical migration file)
-- [ ] `lmmoreira/ikaro` holds the full migrated git history; `origin` on local clones points there; `lmmoreira/beloauto` is archived
-- [ ] SonarCloud project re-imported under `ikaro`; CI green using the new project key and a freshly-scoped `SONAR_TOKEN`
-- [ ] Verification grep (see above) shows only the explicit keep-list as survivors
-- [ ] (Optional) CI guard added to prevent regression of the old name
-- [ ] Seed-data restructuring (Ikaro as a tenant alongside BeloAuto) tracked as a follow-up story, not bundled here
+- [x] No `@beloauto/*` package references remain; `pnpm -r run build`, `type-check`, `lint`, `test` all pass under `@ikaro/*`
+- [x] `pnpm-lock.yaml` regenerated and committed
+- [x] All Docker container names, DB name/roles, local GCS/Pub-Sub project ids use `ikaro` naming
+- [x] `sonar-project.properties`, `.gitleaks.toml` title, `.vscode/settings.json` SonarLint block, and `.github/workflows/*` hardcoded names/tags use `ikaro` naming
+- [x] `CLAUDE.md`/`.copilot/context.md` updated (with explicit sign-off per its own permission gate), including the `--repo lmmoreira/beloauto` references in §9
+- [x] `docs/**` (excl. `docs/archive/**`) and `plan/**` and `.agents/**` no longer reference "BeloAuto" as the product/company
+- [x] Frontend platform-level fallback branding (`layout.tsx`, `not-found.tsx` + spec, `[slug]/page.tsx`, `booking/page.tsx`, `seo.ts`) shows "Ikaro"
+- [x] `StaffInvited` email body no longer says "plataforma BeloAuto" (via a new migration updating the existing template row, not an edit to the historical migration file)
+- [x] `lmmoreira/ikaro` holds the full migrated git history; `origin` on local clones points there; `lmmoreira/beloauto` is archived
+- [x] SonarCloud project re-imported under `ikaro`; CI green using the new project key and a freshly-scoped `SONAR_TOKEN`
+- [x] Verification grep (see above) shows only the explicit keep-list as survivors
+- [ ] (Optional) CI guard added to prevent regression of the old name — not implemented, left as optional
+- [x] Seed-data restructuring (Ikaro as a tenant alongside BeloAuto) — done as a follow-up story (PR #3), not bundled with the rename
 
 ---
 
@@ -302,4 +302,4 @@ Overall: **Medium-Large** — bigger in file count than TD01/TD03 but lower in p
 
 1. **Production domain.** Not decided. All domain references in this TD use a literal `<ikaro-domain>` placeholder — resolve before Phase C's Cloud Run/DNS work in a future M15, and before finalizing `EMAIL_FROM` / `alerts@` addresses.
 2. **`--ba-` CSS prefix.** Recommendation is to leave it; revisit only if full naming consistency becomes a stated goal.
-3. **Seed-data shape.** Exact tenant ordering/slugs for "Ikaro as a tenant alongside BeloAuto" needs its own story-discovery pass (Phase D) — this TD only records the requirement, not the final fixture design.
+3. **Seed-data shape.** Resolved — PR #3 added Ikaro as a new, additive third tenant (own hotsite/branding, manager, services), presented first; `Lavacar BeloAuto`/`AutoSpa Premium` kept their exact existing tenant ids and meaning untouched.
