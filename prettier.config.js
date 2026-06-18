@@ -1,1 +1,1 @@
-module.exports = require('@beloauto/config/prettier.config');
+module.exports = require('@ikaro/config/prettier.config');

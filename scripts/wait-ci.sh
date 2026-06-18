@@ -8,7 +8,7 @@
 
 set -uo pipefail
 
-REPO="lmmoreira/beloauto"
+REPO="lmmoreira/ikaro"
 INITIAL_WAIT=60
 POLL_INTERVAL=30
 

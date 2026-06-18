@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { HotsiteServiceResponse, ServiceListModuleData } from '@beloauto/types';
+import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
 import { formatDuration } from '@/lib/hotsite/format-duration';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
 import { SectionEyebrow } from './SectionEyebrow';

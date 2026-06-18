@@ -1,5 +1,5 @@
 {
-  "name": "beloauto",
+  "name": "ikaro",
   "private": true,
   "version": "0.0.1",
   "engines": {
@@ -14,17 +14,17 @@
     "lint": "pnpm -r run lint",
     "type-check": "pnpm -r run type-check",
     "format": "pnpm -r run format",
-    "test:e2e": "pnpm --filter @beloauto/web run test:e2e",
+    "test:e2e": "pnpm --filter @ikaro/web run test:e2e",
     "infra:up": "docker compose -f docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f docker/docker-compose.yml down",
     "obs:up": "docker compose -f docker/docker-compose.observability.yml up -d",
-    "db:migrate": "pnpm --filter @beloauto/backend migration:run",
-    "db:revert": "pnpm --filter @beloauto/backend migration:revert",
-    "db:seed": "pnpm --filter @beloauto/backend seed",
+    "db:migrate": "pnpm --filter @ikaro/backend migration:run",
+    "db:revert": "pnpm --filter @ikaro/backend migration:revert",
+    "db:seed": "pnpm --filter @ikaro/backend seed",
     "fix": "pnpm prettier --write . && pnpm -r run lint --fix",
     "pre-pr": "bash scripts/pre-pr.sh",
-    "ci:fast": "pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @beloauto/backend test:unit && pnpm --filter @beloauto/bff test && pnpm --filter @beloauto/web test",
-    "ci:integration": "pnpm --filter @beloauto/backend test:integration && pnpm --filter @beloauto/bff test:component",
+    "ci:fast": "pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @ikaro/backend test:unit && pnpm --filter @ikaro/bff test && pnpm --filter @ikaro/web test",
+    "ci:integration": "pnpm --filter @ikaro/backend test:integration && pnpm --filter @ikaro/bff test:component",
     "ci:local": "bash scripts/ci-local.sh"
   },
   "workspaces": [

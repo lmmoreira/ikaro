@@ -330,7 +330,7 @@ function printSummary(): void {
   const lines = [
     '',
     '╔══════════════════════════════════════════════════════════════╗',
-    '║                    BeloAuto Seed — Done                      ║',
+    '║                    Ikaro Seed — Done                      ║',
     '╠══════════════════════════════════════════════════════════════╣',
     '║  Tenant A  │ Lavacar BeloAuto   │ lavacar-beloauto           ║',
     '║  Tenant B  │ AutoSpa Premium    │ autospa-premium            ║',

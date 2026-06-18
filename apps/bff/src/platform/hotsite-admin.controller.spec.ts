@@ -6,7 +6,7 @@ import {
   HotsiteAdminContentResponse,
   PublishHotsiteResponse,
   UnpublishHotsiteResponse,
-} from '@beloauto/types';
+} from '@ikaro/types';
 
 const hotsiteContentResponse: HotsiteAdminContentResponse = {
   branding: {

@@ -1,3 +1,3 @@
-const baseConfig = require('@beloauto/config/eslint-base');
+const baseConfig = require('@ikaro/config/eslint-base');
 
 module.exports = [...baseConfig];

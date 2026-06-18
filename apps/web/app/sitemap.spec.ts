@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { HotsiteSitemapEntryListResponse } from '@beloauto/types';
+import type { HotsiteSitemapEntryListResponse } from '@ikaro/types';
 
 vi.mock('@/lib/api/platform', () => ({
   fetchPublishedHotsiteSlugs: vi.fn(),

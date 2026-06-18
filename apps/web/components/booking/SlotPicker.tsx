@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { AvailableSlot } from '@beloauto/types';
+import type { AvailableSlot } from '@ikaro/types';
 import { fetchAvailability } from '@/lib/api/schedule';
 import { ErrorAlert } from './ErrorAlert';
 import { formatTimeBR } from '@/lib/booking/format-time';

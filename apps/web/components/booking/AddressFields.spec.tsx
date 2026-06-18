@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { Address } from '@beloauto/types';
+import type { Address } from '@ikaro/types';
 import type { AddressLookup } from '@/lib/address/address-lookup.port';
 import { InMemoryAddressLookup } from '@/lib/address/in-memory-address-lookup';
 import { AddressFields } from './AddressFields';

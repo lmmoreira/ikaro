@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { BookingCtaModuleData } from '@beloauto/types';
+import type { BookingCtaModuleData } from '@ikaro/types';
 import { BookingCtaModule } from './BookingCtaModule';
 
 function makeData(overrides?: Partial<BookingCtaModuleData>): BookingCtaModuleData {

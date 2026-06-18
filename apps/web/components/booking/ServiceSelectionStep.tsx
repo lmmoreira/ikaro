@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type React from 'react';
-import type { Address, HotsiteServiceResponse } from '@beloauto/types';
+import type { Address, HotsiteServiceResponse } from '@ikaro/types';
 import { formatDuration } from '@/lib/hotsite/format-duration';
 import { formatBRL } from '@/lib/hotsite/format-money';
 import { isAddressFilled } from '@/lib/booking/personal-info';

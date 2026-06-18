@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { HotsiteServiceResponse, ServiceListModuleData } from '@beloauto/types';
+import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
 import { ServiceListModule } from './ServiceListModule';
 
 function makeData(overrides?: Partial<ServiceListModuleData>): ServiceListModuleData {

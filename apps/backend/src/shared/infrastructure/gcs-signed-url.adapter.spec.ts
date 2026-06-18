@@ -55,7 +55,7 @@ describe('GcsSignedUrlAdapter', () => {
       expect(MockStorage).toHaveBeenCalledWith(
         expect.objectContaining({
           apiEndpoint: 'http://localhost:4443',
-          projectId: 'beloauto-local',
+          projectId: 'ikaro-local',
         }),
       );
     });
@@ -84,7 +84,7 @@ describe('GcsSignedUrlAdapter', () => {
       mockBucketExists.mockResolvedValue([false]);
       const service = makeService({ GCS_EMULATOR_HOST: 'http://localhost:4443' });
       await service.onApplicationBootstrap();
-      expect(mockCreateBucket).toHaveBeenCalledWith('beloauto-local');
+      expect(mockCreateBucket).toHaveBeenCalledWith('ikaro-local');
     });
 
     it('does not create bucket when emulator is set and bucket already exists', async () => {
@@ -130,10 +130,10 @@ describe('GcsSignedUrlAdapter', () => {
       expect(mockBucket).toHaveBeenCalledWith('my-prod-bucket');
     });
 
-    it('defaults to beloauto-local bucket when GCS_BUCKET_NAME is not set', async () => {
+    it('defaults to ikaro-local bucket when GCS_BUCKET_NAME is not set', async () => {
       const service = makeService({});
       await service.generateSignedUrl('path/file.jpg', 'image/jpeg', 'write');
-      expect(mockBucket).toHaveBeenCalledWith('beloauto-local');
+      expect(mockBucket).toHaveBeenCalledWith('ikaro-local');
     });
 
     it('sets expiresAt approximately 15 minutes in the future', async () => {

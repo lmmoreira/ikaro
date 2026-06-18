@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { GalleryModuleData } from '@beloauto/types';
+import type { GalleryModuleData } from '@ikaro/types';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
 import { GalleryGrid } from './GalleryGrid';
 import { GalleryItem } from './GalleryItem';

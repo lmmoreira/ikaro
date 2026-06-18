@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { HotsiteManifestResponse } from '@beloauto/types';
+import type { HotsiteManifestResponse } from '@ikaro/types';
 import { SITE_URL, buildHotsiteMetadata, buildLocalBusinessJsonLd, toJsonLdScript } from './seo';
 
 function makeManifest(overrides: Partial<HotsiteManifestResponse> = {}): HotsiteManifestResponse {
@@ -88,7 +88,7 @@ describe('buildHotsiteMetadata', () => {
       title: 'Lavacar BH — Agendamento Online',
       description: 'Agende seu serviço na Lavacar BH. Rápido, fácil e online.',
       url: `${SITE_URL}/lavacar-bh`,
-      siteName: 'BeloAuto',
+      siteName: 'Ikaro',
       locale: 'pt_BR',
       type: 'website',
     });

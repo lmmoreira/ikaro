@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: BookingPageProps): Promise<Me
 
   return {
     ...buildHotsiteMetadata({ manifest, slug, path: '/booking' }),
-    title: manifest.isPublished ? 'Agendar serviço' : 'Em breve — BeloAuto',
+    title: manifest.isPublished ? 'Agendar serviço' : 'Em breve — Ikaro',
     robots: { index: false, follow: false },
   };
 }

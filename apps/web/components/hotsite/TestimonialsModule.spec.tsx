@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { Testimonial, TestimonialsModuleData } from '@beloauto/types';
+import type { Testimonial, TestimonialsModuleData } from '@ikaro/types';
 import { TestimonialsModule } from './TestimonialsModule';
 
 function makeTestimonial(overrides?: Partial<Testimonial>): Testimonial {

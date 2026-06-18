@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { TestimonialsModuleData } from '@beloauto/types';
+import type { TestimonialsModuleData } from '@ikaro/types';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
 import { SectionEyebrow } from './SectionEyebrow';
 import { TestimonialCard } from './TestimonialCard';

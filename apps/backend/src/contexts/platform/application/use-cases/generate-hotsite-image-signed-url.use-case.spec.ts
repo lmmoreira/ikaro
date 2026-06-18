@@ -47,7 +47,7 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
       purpose: 'hero',
     });
 
-    expect(result.signedUrl).toContain('beloauto-local-public');
+    expect(result.signedUrl).toContain('ikaro-local-public');
   });
 
   it('scopes the generated path to the requesting tenant', async () => {

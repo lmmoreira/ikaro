@@ -10,7 +10,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { z } from 'zod';
-import { HotsiteServiceResponse } from '@beloauto/types';
+import { HotsiteServiceResponse } from '@ikaro/types';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../shared/http/backend-http.service';

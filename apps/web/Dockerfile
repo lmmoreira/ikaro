@@ -15,8 +15,8 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY packages/ packages/
 COPY apps/web/ apps/web/
 
-RUN pnpm --filter @beloauto/web build \
-    && pnpm --filter @beloauto/web deploy --prod /standalone --legacy
+RUN pnpm --filter @ikaro/web build \
+    && pnpm --filter @ikaro/web deploy --prod /standalone --legacy
 
 
 # ─── Stage 2: Run ────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ export class InMemoryStorageService implements IStorageService {
     bucket: 'private' | 'public' = 'private',
   ): Promise<GenerateSignedUrlResult> {
     this.uploadedPaths.push(storagePath);
-    const bucketName = bucket === 'public' ? 'beloauto-local-public' : 'bucket';
+    const bucketName = bucket === 'public' ? 'ikaro-local-public' : 'bucket';
     return {
       signedUrl: `http://fake-gcs/${bucketName}/${storagePath}?sig=test&contentType=${encodeURIComponent(contentType)}`,
       expiresAt: new Date('2099-01-01T00:00:00Z'),
@@ -24,7 +24,7 @@ export class InMemoryStorageService implements IStorageService {
   }
 
   getPublicUrl(storagePath: string): string {
-    return `http://fake-public-gcs/beloauto-local-public/${storagePath}`;
+    return `http://fake-public-gcs/ikaro-local-public/${storagePath}`;
   }
 
   async copy(sourcePath: string, destinationPath: string): Promise<void> {

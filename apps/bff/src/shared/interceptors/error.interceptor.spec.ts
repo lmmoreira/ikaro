@@ -39,7 +39,7 @@ describe('ErrorInterceptor', () => {
     await expect(lastValueFrom(result$)).rejects.toMatchObject({
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       response: expect.objectContaining({
-        type: 'https://beloauto.com/errors/internal',
+        type: 'https://<ikaro-domain>/errors/internal',
         title: 'Internal Server Error',
         status: 500,
         instance: '/v1/staff',

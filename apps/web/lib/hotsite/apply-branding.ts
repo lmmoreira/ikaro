@@ -1,4 +1,4 @@
-import type { HotsiteBrandingResponse } from '@beloauto/types';
+import type { HotsiteBrandingResponse } from '@ikaro/types';
 import type React from 'react';
 
 import { FONT_MAP } from './font-config';

@@ -27,7 +27,7 @@ export class GcpPubSubEventBusAdapter
   }
 
   async publish(event: DomainEvent): Promise<void> {
-    const topicName = `beloauto-${event.eventName}`;
+    const topicName = `ikaro-${event.eventName}`;
     await this.ensureTopicOnce(topicName);
     await this.pubsub.topic(topicName).publishMessage({
       data: Buffer.from(JSON.stringify(event)),
@@ -47,11 +47,11 @@ export class GcpPubSubEventBusAdapter
   ): void {
     // PUBSUB_SUBSCRIPTION_SUFFIX lets integration tests isolate subscriptions per test run
     const suffix = this.config.get<string>('PUBSUB_SUBSCRIPTION_SUFFIX', '');
-    const subscriptionName = `beloauto-${eventName}-${consumerName}${suffix}`;
+    const subscriptionName = `ikaro-${eventName}-${consumerName}${suffix}`;
     // Key by subscriptionName (not eventName) so multiple consumers per event are all registered
     this.pending.set(subscriptionName, {
       eventName,
-      topicName: `beloauto-${eventName}`,
+      topicName: `ikaro-${eventName}`,
       subscriptionName,
       handler: handler as (event: DomainEvent) => Promise<void>,
     });
@@ -120,7 +120,7 @@ export class GcpPubSubEventBusAdapter
     eventName: string,
     err: unknown,
   ): Promise<void> {
-    const dlqTopic = 'beloauto-dead-letter';
+    const dlqTopic = 'ikaro-dead-letter';
     await this.ensureTopicOnce(dlqTopic);
     const serialized = structuredClone(event) as unknown as Record<string, unknown>;
     const enrichedData = {

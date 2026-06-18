@@ -1,30 +1,30 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: beloauto-postgres
+    container_name: ikaro-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: beloauto
+      POSTGRES_DB: ikaro
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d beloauto']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d ikaro']
       interval: 5s
       timeout: 5s
       retries: 10
 
   pubsub-emulator:
     image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
-    container_name: beloauto-pubsub
-    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=beloauto-local
+    container_name: ikaro-pubsub
+    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=ikaro-local
     ports:
       - '8085:8085'
     environment:
-      CLOUDSDK_CORE_PROJECT: beloauto-local
+      CLOUDSDK_CORE_PROJECT: ikaro-local
     healthcheck:
       test: ['CMD-SHELL', 'curl -sf http://localhost:8085 || exit 1']
       interval: 10s
@@ -34,7 +34,7 @@ services:
 
   gcs-emulator:
     image: fsouza/fake-gcs-server:latest
-    container_name: beloauto-gcs
+    container_name: ikaro-gcs
     command: -scheme http -port 4443 -backend memory -external-url http://localhost:4443 -public-host localhost:4443
     ports:
       - '4443:4443'
@@ -46,7 +46,7 @@ services:
 
   mailhog:
     image: mailhog/mailhog:latest
-    container_name: beloauto-mailhog
+    container_name: ikaro-mailhog
     ports:
       - '1025:1025'
       - '8025:8025'

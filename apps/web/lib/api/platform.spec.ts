@@ -6,7 +6,7 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-import type { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@beloauto/types';
+import type { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@ikaro/types';
 import { notFound } from 'next/navigation';
 import { fetchManifest, fetchPublishedHotsiteSlugs } from './platform';
 

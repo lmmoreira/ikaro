@@ -49,7 +49,7 @@ const noopHandler = async (_e: DomainEvent): Promise<void> => {
 function makeConfigService(overrides: Record<string, unknown> = {}): ConfigService {
   return {
     getOrThrow: (key: string): string => {
-      if (key === 'PUBSUB_PROJECT_ID') return 'beloauto-local';
+      if (key === 'PUBSUB_PROJECT_ID') return 'ikaro-local';
       throw new Error(`Unknown config key: ${key}`);
     },
     get: (key: string, defaultValue?: unknown): unknown => {
@@ -97,7 +97,7 @@ describe('GcpPubSubEventBusAdapter', () => {
     it('creates the topic when it does not exist', async () => {
       mockTopicExists.mockResolvedValueOnce([false]);
       await adapter.publish(new StubEvent({ value: 'x' }));
-      expect(mockCreateTopic).toHaveBeenCalledWith('beloauto-StubEvent');
+      expect(mockCreateTopic).toHaveBeenCalledWith('ikaro-StubEvent');
     });
   });
 
@@ -115,7 +115,7 @@ describe('GcpPubSubEventBusAdapter', () => {
       adapter.subscribe('StubEvent', noopHandler, 'test-consumer');
       await adapter.onApplicationBootstrap();
 
-      expect(mockCreateSubscription).toHaveBeenCalledWith('beloauto-StubEvent-test-consumer');
+      expect(mockCreateSubscription).toHaveBeenCalledWith('ikaro-StubEvent-test-consumer');
     });
 
     it('registers separate subscriptions for two consumers on the same event', async () => {

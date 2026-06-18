@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HotsiteServiceResponse } from '@beloauto/types';
+import type { HotsiteServiceResponse } from '@ikaro/types';
 import { fetchServices } from './services';
 
 const BFF_URL = 'http://bff-test:3002';
