@@ -458,6 +458,30 @@ test('UC-001: guest can submit a booking request and see pending confirmation', 
 });
 ```
 
+### Translated strings — unit tests vs E2E (mandatory distinction)
+
+| Layer | Asserting translated strings | Rule |
+|---|---|---|
+| **Unit test** | ✅ Acceptable | Locale IS component behaviour — `getByText('Hoje')` proves `dayLabel()` returns the correct pt-BR string. When i18n ships, inject locale context and update the assertion. |
+| **E2E test** | ❌ Never | Locale is an external variable across the whole system. Use `data-testid` exclusively so tests survive any locale change without modification. |
+
+Example of what is correct in a unit test:
+```ts
+// AvailabilityCarousel.spec.tsx — ✅ testing component behaviour
+expect(screen.getByText('Hoje')).toBeInTheDocument(); // dayLabel() for index 0
+expect(screen.getByText('Ter')).toBeInTheDocument();  // dayLabel() for Tuesday
+```
+
+Example of what is wrong in an E2E test:
+```ts
+// guest-booking.spec.ts — ❌ breaks when locale changes
+await page.getByLabel(/nome/i).fill('E2E Teste');
+// ✅ correct
+await page.locator('[data-testid="input-name"]').fill('E2E Teste');
+```
+
+---
+
 ### E2E Selector Strategy (mandatory — all Playwright tests)
 
 **Priority order — use the first that applies:**
