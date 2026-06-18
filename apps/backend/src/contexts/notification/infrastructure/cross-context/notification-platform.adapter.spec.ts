@@ -31,7 +31,7 @@ describe('NotificationPlatformAdapter', () => {
   afterEach(() => jest.resetAllMocks());
 
   it('returns tenant info when tenant exists', async () => {
-    const tenantResult = makeTenantResult('hello@beloauto.com');
+    const tenantResult = makeTenantResult('hello@ikaro.example');
     getTenantById.execute.mockResolvedValue(tenantResult);
 
     const result = await adapter.getTenantInfo(TENANT_ID);
@@ -41,7 +41,7 @@ describe('NotificationPlatformAdapter', () => {
       name: tenantResult.name,
       slug: tenantResult.slug,
       timezone: tenantResult.settings.business_hours.timezone,
-      fromEmail: 'hello@beloauto.com',
+      fromEmail: 'hello@ikaro.example',
     });
     expect(getTenantById.execute).toHaveBeenCalledWith(TENANT_ID);
   });

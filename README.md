@@ -1,6 +1,6 @@
 # Ikaro
 
-Multi-tenant SaaS for car-wash booking and loyalty — Brazilian market (pt-BR / BRL).
+Vertical SaaS for local service businesses — booking, loyalty, and branded microsites. Car wash is the flagship example vertical (see seed data below). Brazilian market (pt-BR / BRL).
 
 ## Quick Start
 

@@ -532,7 +532,7 @@ export class ErrorInterceptor implements NestInterceptor {
 
         const status = HttpStatus.INTERNAL_SERVER_ERROR;
         const problem = {
-          type: 'https://beloauto.com/errors/internal',
+          type: 'https://ikaro.example/errors/internal',
           title: 'Internal Server Error',
           status,
           instance: req.path,
@@ -581,7 +581,7 @@ Component tests use `Test.createTestingModule({ imports: [AppModule] })` + super
 #### 5a — Install nock
 
 ```bash
-pnpm add -D nock @types/nock --filter @beloauto/bff
+pnpm add -D nock @types/nock --filter @ikaro/bff
 ```
 
 #### 5b — Create `apps/bff/src/test/component-test.helpers.ts`

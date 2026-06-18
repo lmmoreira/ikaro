@@ -5,7 +5,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-06-18 (rebranded the SaaS/product/repo from BeloAuto to Ikaro — see td/TD04-REBRAND-IKARO.md; BeloAuto remains a valid sample tenant. Also removed the resolved CVE-2026-45447 §18 Dockerfile workaround — node:22-alpine now ships the patched libcrypto3/libssl3.)
+**Last updated:** 2026-06-18 (rebranded the SaaS/product/repo from BeloAuto to Ikaro — see td/TD04-REBRAND-IKARO.md; BeloAuto remains a valid sample tenant. Also removed the resolved CVE-2026-45447 §18 Dockerfile workaround — node:22-alpine now ships the patched libcrypto3/libssl3. Also corrected the product framing from car-wash-specific to vertical-agnostic, and added a Business Context note to §1.)
 
 ---
 
@@ -31,7 +31,7 @@ Exceptions always: read-only ops (`Read`, `grep`, `ls`, `git status`, memory fil
 | Fact | Value |
 |---|---|
 | **Product** | Ikaro |
-| **Type** | Multi-tenant SaaS — car-wash booking & loyalty |
+| **Type** | Multi-tenant SaaS — booking & loyalty platform for local service businesses (car wash is the flagship example vertical) |
 | **Market** | Brazil 🇧🇷 |
 | **Currency** | BRL (R$) — `Money` value object must carry currency code |
 | **Locale** | pt-BR (email templates, UI copy, date/number formats) |
@@ -57,6 +57,8 @@ Exceptions always: read-only ops (`Read`, `grep`, `ls`, `git status`, memory fil
 | **Coverage gate** | ≥ 80% on **changed code** (differential, not global) |
 | **Rate limiting** | NestJS `@nestjs/throttler` on all public endpoints |
 | **Feature flags** | Environment variables (`FEATURE_FLAG_XYZ=true`) — no external system for MVP |
+
+**Business context:** Ikaro is the SaaS half of a two-part business — a sister **Ikaro Consulting** offering (coaching, content, growth strategy) serves the same local-service-business customer at a higher tier; this repo only implements the Platform. Long-term, the platform is meant to grow into a business-intelligence layer over the data it collects (bookings, loyalty, customer activity) — keep that direction in mind when shaping schemas/events, rather than assuming today's MVP scope is final. (See `UC-017 | Booking analytics | Future — out of MVP` in §6.)
 
 ---
 

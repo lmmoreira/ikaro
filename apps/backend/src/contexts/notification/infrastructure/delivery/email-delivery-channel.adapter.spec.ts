@@ -22,7 +22,7 @@ function makeAdapter(fromEmail: string | null = null): {
     }),
   };
   const configService = {
-    get: jest.fn().mockReturnValue('noreply@beloauto.com.br'),
+    get: jest.fn().mockReturnValue('noreply@ikaro.example'),
   } as unknown as ConfigService;
   const adapter = new EmailDeliveryChannelAdapter(emailSender, tenantPort, configService);
   return { adapter, emailSender, configService };
@@ -44,12 +44,12 @@ describe('EmailDeliveryChannelAdapter', () => {
 
   describe('from address resolution', () => {
     it('uses tenantInfo.fromEmail when set', async () => {
-      const { adapter, emailSender } = makeAdapter('lavagem@beloauto.com.br');
+      const { adapter, emailSender } = makeAdapter('lavagem@ikaro.example');
 
       await adapter.send(baseMessage);
 
       const call = emailSender.send.mock.calls[0][0];
-      expect(call.from).toBe('lavagem@beloauto.com.br');
+      expect(call.from).toBe('lavagem@ikaro.example');
     });
 
     it('falls back to EMAIL_FROM config when fromEmail is null', async () => {
@@ -58,7 +58,7 @@ describe('EmailDeliveryChannelAdapter', () => {
       await adapter.send(baseMessage);
 
       const call = emailSender.send.mock.calls[0][0];
-      expect(call.from).toBe('noreply@beloauto.com.br');
+      expect(call.from).toBe('noreply@ikaro.example');
     });
   });
 

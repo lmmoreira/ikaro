@@ -22,13 +22,13 @@ describe('MailhogEmailAdapter', () => {
   it('calls sendMail with correct to, from, subject, html', async () => {
     await adapter.send({
       to: 'joao@example.com',
-      from: 'noreply@beloauto.com.br',
+      from: 'noreply@ikaro.example',
       subject: 'Teste',
       html: '<p>Olá</p>',
     });
 
     expect(mockSendMail).toHaveBeenCalledWith({
-      from: 'noreply@beloauto.com.br',
+      from: 'noreply@ikaro.example',
       to: 'joao@example.com',
       subject: 'Teste',
       html: '<p>Olá</p>',
