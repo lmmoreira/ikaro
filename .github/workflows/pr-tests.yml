@@ -126,16 +126,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # No env: block here — apps/bff/src/test/component-test.helpers.ts's
+      # createTestApp() sets every required var itself before booting the
+      # real AppModule; anything set here would just be shadowed. See CI_TRAPS.md.
       - name: Run component tests
         run: pnpm --filter @ikaro/bff test:component
-        env:
-          JWT_SECRET: 'test-secret-must-be-at-least-64-chars-long-xxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-          BACKEND_INTERNAL_URL: 'https://backend-test:3001'
-          FRONTEND_URL: 'http://localhost:3000'
-          JWT_EXPIRES_IN: '7d'
-          GOOGLE_CLIENT_ID: 'test-client-id'
-          GOOGLE_CLIENT_SECRET: 'test-client-secret'
-          GOOGLE_CALLBACK_URL: 'http://localhost:3002/v1/auth/google/callback'
-          ALLOWED_ORIGINS: 'http://localhost:3000'
-          CRON_SECRET: 'test-cron-secret-must-be-at-least-32-chars!!'
-          INTERNAL_API_KEY: 'test-internal-key-test-internal-key'

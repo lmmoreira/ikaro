@@ -6,6 +6,7 @@
 - **Context**: `.github/workflows/pr-security.yml` (Trivy Image Scan jobs), `apps/backend/Dockerfile`, `apps/bff/Dockerfile`
 - **Created**: 2026-06-18
 - **Updated**: 2026-06-18
+- **Resolved**: 2026-06-18 — added a "Boot smoke test" step after each service's Trivy scan in `pr-security.yml` (same job, reuses the already-built `ikaro-<service>:scan` image). Hard-fails the job (`exit 1`) if the container exits within 5s of `docker run`. No live Postgres/Pub/Sub needed: confirmed locally that backend/bff/web all report `running` after 5s with zero reachable DB/Pub/Sub, since TypeORM's default retry window (~30s) keeps the process alive well past the checkpoint, and the require()-resolution crash this TD targets happens synchronously before any network call. Regression-proofed by checking out the pre-fix commit (`02b3f04`, before `4279f96`) in an isolated worktree and confirming the new step's exact logic fails it with `Error: Cannot find module 'express'` / `STATUS=exited`. Also fixed a related gap found in the same pass: `pr-tests.yml`'s `bff-component` job had a hardcoded `env:` block that was dead code (always shadowed by `apps/bff/src/test/component-test.helpers.ts`'s `createTestApp()`) — removed it and corrected the misleading `docs/CI_TRAPS.md` entry that pointed at it.
 
 ---
 
@@ -50,10 +51,10 @@ Open questions to resolve at story-discovery time:
 
 ## Acceptance criteria (when this is picked up)
 
-- [ ] Every service image (backend, bff, web) has a CI step that runs the built image and verifies it stays up for at least a few seconds without exiting
-- [ ] The step fails the job (or is explicitly marked advisory, per the open question above) on a non-zero exit / crash
-- [ ] Re-run against `apps/bff/Dockerfile` as it exists today to confirm the smoke test would have caught the `express`/`jsonwebtoken`/`ms` bugs before TD05 fixed them (regression-proof the gate itself)
+- [x] Every service image (backend, bff, web) has a CI step that runs the built image and verifies it stays up for at least a few seconds without exiting
+- [x] The step fails the job (or is explicitly marked advisory, per the open question above) on a non-zero exit / crash — hard-fail, decided up front (see Open Questions)
+- [x] Re-run against `apps/bff/Dockerfile` as it exists today to confirm the smoke test would have caught the `express`/`jsonwebtoken`/`ms` bugs before TD05 fixed them (regression-proof the gate itself) — confirmed against the pre-fix commit in an isolated worktree
 
 ## Open Questions
 
-1. Hard-fail vs. advisory for the initial rollout — resolve at story-discovery time based on how noisy the first few runs are.
+1. ~~Hard-fail vs. advisory for the initial rollout~~ — resolved: hard-fail from the start. The false-positive surface is low because the gate doesn't depend on any live infra (DB/Pub/Sub reachability) — only on the exact required env vars per service, which are now fully enumerated from each app's `env.validation.ts`.
