@@ -42,7 +42,7 @@ All 12 default templates have their `subject` and `body` hardcoded inline in the
 | `AdminDailyScheduleReminder` | `'Agenda do dia'` |
 | `ServicePointsEarned` | `'Você ganhou pontos de fidelidade!'` |
 | `PointsExpiringSoon` | `'Seus pontos estão prestes a expirar'` |
-| `StaffInvited` | `'Convite para equipe BeloAuto'` |
+| `StaffInvited` | `'Convite para equipe Ikaro'` |
 
 HTML bodies contain inline pt-BR copy (`Olá,`, `Aguardamos sua visita!`, `Clique aqui para responder`, etc.).
 
@@ -93,7 +93,7 @@ All notification use-case specs assert literal subjects. Representative files:
 | `send-booking-reminder-due-notification.use-case.spec.ts` | `'Lembrete: seu agendamento é amanhã!'` |
 | `send-booking-reminder-due-today-notification.use-case.spec.ts` | `'Lembrete: seu agendamento é hoje!'` |
 | `send-admin-daily-schedule-reminder-notification.use-case.spec.ts` | `'Agenda do dia'`, `'Horário'`, `'Cliente'` |
-| `send-staff-invitation.use-case.spec.ts` | `'Convite para equipe BeloAuto'` |
+| `send-staff-invitation.use-case.spec.ts` | `'Convite para equipe Ikaro'` |
 | `seed-default-templates.use-case.spec.ts` | All subjects above |
 
 ### 6. Integration spec — partial subject matching

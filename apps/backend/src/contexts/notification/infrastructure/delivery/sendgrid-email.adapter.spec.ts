@@ -45,14 +45,14 @@ describe('SendGridEmailAdapter', () => {
 
     await adapter.send({
       to: 'joao@example.com',
-      from: 'noreply@beloauto.com.br',
+      from: 'noreply@ikaro.example',
       subject: 'Teste',
       html: '<p>Olá</p>',
     });
 
     expect(mockSend).toHaveBeenCalledWith({
       to: 'joao@example.com',
-      from: 'noreply@beloauto.com.br',
+      from: 'noreply@ikaro.example',
       subject: 'Teste',
       html: '<p>Olá</p>',
     });
@@ -64,7 +64,7 @@ describe('SendGridEmailAdapter', () => {
     await expect(
       adapter.send({
         to: 'joao@example.com',
-        from: 'noreply@beloauto.com.br',
+        from: 'noreply@ikaro.example',
         subject: 'Teste',
         html: '<p>Olá</p>',
       }),
@@ -77,7 +77,7 @@ describe('SendGridEmailAdapter', () => {
     try {
       await adapter.send({
         to: 'joao@example.com',
-        from: 'noreply@beloauto.com.br',
+        from: 'noreply@ikaro.example',
         subject: 'Teste',
         html: '<p>Olá</p>',
       });
