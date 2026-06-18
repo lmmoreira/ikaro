@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('UC-001 — Guest booking golden path', () => {
-  test('guest navigates from hotsite to booking form and submits successfully', async ({ page }) => {
+  test('guest navigates from hotsite to booking form and submits successfully', async ({
+    page,
+  }) => {
     // Hotsite renders
     await page.goto('/ikaro');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

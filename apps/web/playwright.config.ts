@@ -11,9 +11,7 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
     trace: 'on-first-retry',
   },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  ],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   // webServer intentionally omitted — tests run against the already-running dev stack
   // (docker-compose up + pnpm dev). CI startup is M16-S06's scope.
 });

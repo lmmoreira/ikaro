@@ -47,9 +47,7 @@ export function ConfirmationStep({
         <h2 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
           Solicitação enviada!
         </h2>
-        <p data-testid="booking-success">
-          Solicitação enviada! Aguarde a confirmação por email.
-        </p>
+        <p data-testid="booking-success">Solicitação enviada! Aguarde a confirmação por email.</p>
         <a
           href={`/${slug}`}
           className="mt-6 inline-block border px-6 py-3"
