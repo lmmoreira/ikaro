@@ -5,7 +5,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-06-18 (rebranded the SaaS/product/repo from BeloAuto to Ikaro — see td/TD04-REBRAND-IKARO.md; BeloAuto remains a valid sample tenant)
+**Last updated:** 2026-06-18 (rebranded the SaaS/product/repo from BeloAuto to Ikaro — see td/TD04-REBRAND-IKARO.md; BeloAuto remains a valid sample tenant. Also removed the resolved CVE-2026-45447 §18 Dockerfile workaround — node:22-alpine now ships the patched libcrypto3/libssl3.)
 
 ---
 
@@ -582,31 +582,3 @@ Prototype files **always** reference `../../../shared/tokens.css` — never a lo
 | `.bottom-sheet` on desktop | Slides up full-width from bottom — broken on wide screens | Already handled globally in `shared/tokens.css` (auto-converts to centered modal ≥1024px). Do NOT add per-file overrides. |
 | `padding-bottom` on `main-content` with bottom nav | Content scrolls behind fixed bottom nav — last form field/button hidden | Pages with bottom nav only: `padding-bottom: 5.5rem`. Pages with bottom nav **and** a fixed action bar: `padding-bottom: 9rem` (nav ~3.75rem + bar ~4.5rem). |
 | Floating toast for success states | `position: fixed; top: 1rem` overlaps the prototype banner; not the system pattern | Use the inline green banner (`background:#f0fdf4; border:1px solid #86efac`) in the page flow — same pattern used by all booking detail success states. Never use a floating toast. |
-
----
-
-## 18. Pending Cleanup — Check Periodically
-
-> **AGENT INSTRUCTION:** At the start of any conversation that touches Dockerfiles or CI, proactively check the items below and remind the user if they are still pending.
-
-### CVE-2026-45447 OpenSSL workaround (added 2026-06-11, check after ~2026-06-18)
-
-All three Dockerfiles have a temporary `apk upgrade` line in their runner stage:
-
-```
-# apps/backend/Dockerfile  (line ~31)
-# apps/bff/Dockerfile      (line ~28)
-# apps/web/Dockerfile      (line ~28)
-RUN apk upgrade --no-cache libcrypto3 libssl3
-```
-
-**Why it's there:** `node:20-alpine` shipped `libcrypto3/libssl3 3.5.6-r0` (CVE-2026-45447 — OpenSSL heap use-after-free). The Alpine repos already have `3.5.7-r0`; the Node Docker team just hasn't rebuilt the base image yet.
-
-**When to remove:** Once `node:20-alpine` is rebuilt with the patch baked in, those lines become a no-op and should be deleted.
-
-**How to verify (run this before removing):**
-```bash
-docker pull node:20-alpine
-docker run --rm node:20-alpine apk list --installed 2>/dev/null | grep libcrypto3
-# Should show: libcrypto3-3.5.7-r0 or higher — then remove the apk upgrade lines
-```
