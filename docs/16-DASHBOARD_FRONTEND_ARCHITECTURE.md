@@ -1,8 +1,8 @@
-# Dashboard Frontend Architecture (Backoffice) - BeloAuto
+# Dashboard Frontend Architecture (Backoffice) - Ikaro
 
 ## Overview
 
-The Dashboard is the authenticated area of BeloAuto where **Customers** manage their bookings/loyalty and **Staff** manage the business operations. It is a single React application that dynamically adapts its layout and capabilities based on the user's **Role** and **Tenant Context**.
+The Dashboard is the authenticated area of Ikaro where **Customers** manage their bookings/loyalty and **Staff** manage the business operations. It is a single React application that dynamically adapts its layout and capabilities based on the user's **Role** and **Tenant Context**.
 
 ---
 
@@ -25,7 +25,7 @@ The Dashboard is the authenticated area of BeloAuto where **Customers** manage t
 - **Route protection:** `apps/web/middleware.ts` extends the same file with a check for `/{slug}/minha-conta/**` — redirects to `/{slug}/login` if the JWT is missing/expired, if the role is not `CUSTOMER` (staff must not reach the customer area), or if the JWT's `tenantSlug` does not match the `[slug]` path segment.
 - **Layout:** `apps/web/app/[slug]/minha-conta/layout.tsx` (server component) reads the JWT via `cookies()`, extracts `{ tenantName, userName, role }`, and renders `<CustomerShell>`.
 - **Key component (`apps/web/components/customer/`):**
-  - `CustomerShell.tsx` — `'use client'`: topbar (tenant brand + "+ Novo agendamento" desktop shortcut + avatar dropdown with "Sair"/"Site BeloAuto"), a desktop-only horizontal tab nav (Início | Agendamentos | Fidelidade, `≥1024px`), a `main-content` slot, and a mobile-only bottom nav with the same three tabs (`<1024px`).
+  - `CustomerShell.tsx` — `'use client'`: topbar (tenant brand + "+ Novo agendamento" desktop shortcut + avatar dropdown with "Sair"/"Site Ikaro"), a desktop-only horizontal tab nav (Início | Agendamentos | Fidelidade, `≥1024px`), a `main-content` slot, and a mobile-only bottom nav with the same three tabs (`<1024px`).
 
 ---
 
@@ -187,7 +187,7 @@ CMD ["node_modules/.bin/next", "start"]
 
 | Variable | Value (prod) | Notes |
 |---|---|---|
-| `NEXT_PUBLIC_BFF_URL` | `https://bff.beloauto.com` | Injected at build time via Cloud Run `--set-env-vars` |
+| `NEXT_PUBLIC_BFF_URL` | `https://bff.<ikaro-domain>` | Injected at build time via Cloud Run `--set-env-vars` |
 | `NODE_ENV` | `production` | |
 | `PORT` | `3000` | Cloud Run sets this automatically |
 

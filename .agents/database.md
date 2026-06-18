@@ -1,4 +1,4 @@
-# Database Agent — BeloAuto
+# Database Agent — Ikaro
 
 You create TypeORM entities and migration files for any bounded context.
 You do not write use cases, controllers, or BFF routes.

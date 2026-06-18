@@ -195,9 +195,9 @@ Implement the Next.js App Router foundation for the hotsite: the `[slug]/layout.
 > - **No ManifestContext** — `layout.tsx` and `page.tsx` are both server components; React context is client-only. Both independently call `fetchManifest(slug)`; Next.js deduplicates the `fetch()` into a single BFF call per render. CSS variables (`var(--ba-*)`) injected on `<body>` are globally available to all client components — no JS data-passing needed for styling.
 > - **ISR unchanged** — `next: { revalidate: 300 }` in `fetchManifest()` is the caching strategy. On-demand revalidation via `/api/revalidate` clears the cache immediately on publish/unpublish.
 > - **Font allow-list** — `headingFontFamily`/`bodyFontFamily` resolved via `apps/web/lib/hotsite/font-config.ts` which pre-loads 8 fonts at build time using `next/font/google`. Manifest stores the font key (e.g. `"Playfair Display"`); `applyBranding()` maps it to `var(--font-<key>)`. No runtime CDN link, no LGPD exposure.
-> - **Shared types migration** — `packages/types/src/hotsite.ts` created in this branch; `apps/bff/src/tenants/tenants.types.ts` deleted; 5 BFF files updated to import from `@beloauto/types`. Backend domain types (`HotsiteBranding`, `HotsiteModule` in `hotsite-config.aggregate.ts`) are NOT touched — they are domain-layer types, not API contract types.
+> - **Shared types migration** — `packages/types/src/hotsite.ts` created in this branch; `apps/bff/src/tenants/tenants.types.ts` deleted; 5 BFF files updated to import from `@ikaro/types`. Backend domain types (`HotsiteBranding`, `HotsiteModule` in `hotsite-config.aggregate.ts`) are NOT touched — they are domain-layer types, not API contract types.
 > - **async params** — Next.js 16: `params: Promise<{ slug: string }>; const { slug } = await params` throughout.
-> - **Env vars** — `HOTSITE_REVALIDATE_SECRET` and `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` added to `apps/web/.env.example` and `.env.local`. `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` defaults to `http://localhost:4443/beloauto-hotsite-public-dev` locally; set to CDN/bucket URL in prod via environment config.
+> - **Env vars** — `HOTSITE_REVALIDATE_SECRET` and `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` added to `apps/web/.env.example` and `.env.local`. `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` defaults to `http://localhost:4443/ikaro-hotsite-public-dev` locally; set to CDN/bucket URL in prod via environment config.
 
 **Font allow-list (`apps/web/lib/hotsite/font-config.ts`):**
 
@@ -215,10 +215,10 @@ Implement the Next.js App Router foundation for the hotsite: the `[slug]/layout.
 Each font is loaded once at build time with a CSS variable (`variable` option in `next/font/google`). `applyBranding()` resolves the manifest font key to the matching CSS variable; unknown keys fall back to `"Inter"`.
 
 **Shared types migration (same branch — do first):**
-1. Create `packages/types/src/hotsite.ts` — move `HotsiteManifestResponse`, `HotsiteBrandingResponse`, `HotsiteModuleResponse`, `HotsiteAdminContentResponse`, `PublishHotsiteResponse`, `UnpublishHotsiteResponse`, `GenerateHotsiteImageSignedUrlResponse`, `FeatureBookingPhotoResponse` from `apps/bff/src/tenants/tenants.types.ts`; **also define all 7 module data interfaces** (`HeroModuleData`, `ServiceListModuleData`, `GalleryModuleData`, `TestimonialsModuleData`, `BookingCtaModuleData`, `AboutModuleData`, `ContactModuleData`) from `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 — so S04–S09 module components import from `@beloauto/types` rather than defining local interfaces that can drift from the BFF
+1. Create `packages/types/src/hotsite.ts` — move `HotsiteManifestResponse`, `HotsiteBrandingResponse`, `HotsiteModuleResponse`, `HotsiteAdminContentResponse`, `PublishHotsiteResponse`, `UnpublishHotsiteResponse`, `GenerateHotsiteImageSignedUrlResponse`, `FeatureBookingPhotoResponse` from `apps/bff/src/tenants/tenants.types.ts`; **also define all 7 module data interfaces** (`HeroModuleData`, `ServiceListModuleData`, `GalleryModuleData`, `TestimonialsModuleData`, `BookingCtaModuleData`, `AboutModuleData`, `ContactModuleData`) from `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 — so S04–S09 module components import from `@ikaro/types` rather than defining local interfaces that can drift from the BFF
 2. Add `export * from './hotsite'` to `packages/types/src/index.ts`
 3. Delete `apps/bff/src/tenants/tenants.types.ts`
-4. Update 5 BFF files to import from `@beloauto/types`: `tenants.controller.ts`, `hotsite-admin.controller.ts`, `tenants.controller.spec.ts`, `tenants.controller.component.spec.ts`, `hotsite-admin.controller.spec.ts`
+4. Update 5 BFF files to import from `@ikaro/types`: `tenants.controller.ts`, `hotsite-admin.controller.ts`, `tenants.controller.spec.ts`, `tenants.controller.component.spec.ts`, `hotsite-admin.controller.spec.ts`
 
 **What to create/update in `apps/web/`:**
 - `apps/web/lib/hotsite/font-config.ts` — loads 8 fonts via `next/font/google`, exports `FONT_VARIABLES` array (for `<body className>`) and `FONT_MAP` (key → CSS variable string)
@@ -271,7 +271,7 @@ export function applyBranding(branding: HotsiteBrandingResponse): React.CSSPrope
 - [ ] Secured `GET /api/revalidate?secret=&slug=` route implemented — `HOTSITE_REVALIDATE_SECRET` match → `revalidatePath`, mismatch/missing → `401`
 - [ ] `next.config.mjs` `images.remotePatterns` hostname derived from `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` env var
 - [ ] `HOTSITE_REVALIDATE_SECRET` and `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` present in `apps/web/.env.example` and `.env.local`
-- [ ] Shared types migration complete: `packages/types/src/hotsite.ts` exists, `apps/bff/src/tenants/tenants.types.ts` deleted, BFF imports from `@beloauto/types`, `tsc --noEmit` passes in both `apps/bff` and `apps/web`
+- [ ] Shared types migration complete: `packages/types/src/hotsite.ts` exists, `apps/bff/src/tenants/tenants.types.ts` deleted, BFF imports from `@ikaro/types`, `tsc --noEmit` passes in both `apps/bff` and `apps/web`
 - [ ] TypeScript compiles with zero errors across the monorepo
 
 **Dependencies:** M12-S01, M12-S10, M00-S05
@@ -386,7 +386,7 @@ Implement the SERVICE_LIST hotsite module. Fetches active services from the BFF 
 
 > **Note (story-discovery resolution, M12-S05):** Data fetching happens at **page level**, not inside the component — `app/[slug]/page.tsx` calls a new `fetchServices(slug)` (`apps/web/lib/api/services.ts`, same `next: { revalidate: 300 }` ISR pattern as `fetchManifest`) when a `SERVICE_LIST` module is enabled, and passes the resolved array as a `services` prop. `ServiceListModule` itself stays a synchronous, fully-prop-driven component — consistent with `HeroModule` and the "rendered from mocked data" component-test expectation.
 >
-> **Note (refactor during M12-S05):** the public service-list contract was promoted to `@beloauto/types` as `HotsiteServiceResponse`/`HotsiteServiceListResponse` (`id, name, description, price: Money, durationMinutes, loyaltyPointsValue, requiresPickupAddress, isActive, createdAt`) — `apps/web/lib/api/services.ts` imports these directly rather than defining a local `ServiceListItem`. The BFF's `apps/bff/src/services/services.types.ts` was deleted; admin CRUD lives in `ServicesController` and the public list in the new `ServicesPublicController` (`GET /services`), both `@Controller('services')` and both returning `@beloauto/types` shapes. The existing `@beloauto/types` `ServiceResponse` (`service.dto.ts`) remains a different, unused dashboard-shaped placeholder — not touched by this story.
+> **Note (refactor during M12-S05):** the public service-list contract was promoted to `@ikaro/types` as `HotsiteServiceResponse`/`HotsiteServiceListResponse` (`id, name, description, price: Money, durationMinutes, loyaltyPointsValue, requiresPickupAddress, isActive, createdAt`) — `apps/web/lib/api/services.ts` imports these directly rather than defining a local `ServiceListItem`. The BFF's `apps/bff/src/services/services.types.ts` was deleted; admin CRUD lives in `ServicesController` and the public list in the new `ServicesPublicController` (`GET /services`), both `@Controller('services')` and both returning `@ikaro/types` shapes. The existing `@ikaro/types` `ServiceResponse` (`service.dto.ts`) remains a different, unused dashboard-shaped placeholder — not touched by this story.
 >
 > Duration format: `< 60` → `"${m} min"`; `>= 60` and `m % 60 === 0` → `"${h}h"`; otherwise `"${h}h ${m}min"` (e.g. 45→"45 min", 60→"1h", 90→"1h 30min").
 
@@ -559,11 +559,11 @@ interface ContactModuleData {
 **Description:**  
 Implement the BOOKING_CTA module and the full booking form page — the most interactive part of the hotsite. The form is a 4-step flow: (1) select services, (2) pick a day from a horizontal availability carousel then a time slot, (3) fill personal info (contact + optional contact address + conditional pickup address + optional before-service photos), (4) submit. Calls UC-001 (guest booking) and UC-011 (availability, two-phase).
 
-This story also retires the stale, unused `@beloauto/types` booking/schedule contracts (replacing them with shapes that mirror the BFF's `bookings.types.ts` / `schedule.types.ts`) and introduces a ports-and-adapters address-lookup abstraction (ViaCEP today, swappable for Google or another provider later without touching callers).
+This story also retires the stale, unused `@ikaro/types` booking/schedule contracts (replacing them with shapes that mirror the BFF's `bookings.types.ts` / `schedule.types.ts`) and introduces a ports-and-adapters address-lookup abstraction (ViaCEP today, swappable for Google or another provider later without touching callers).
 
 ---
 
-**1. `@beloauto/types` — replace stale contracts**
+**1. `@ikaro/types` — replace stale contracts**
 
 All current exports of `booking.dto.ts` and `schedule.dto.ts` have zero usages in `apps/` — safe full replacement.
 
@@ -766,7 +766,7 @@ Each component (except `page.tsx`) gets a `*.spec.tsx` (Vitest + RTL, `// @vites
 - Other error → generic pt-BR message
 
 **Acceptance criteria:**
-- [ ] `@beloauto/types`: `booking.dto.ts` / `schedule.dto.ts` / `money.ts` updated as above; monorepo `pnpm type-check` passes
+- [ ] `@ikaro/types`: `booking.dto.ts` / `schedule.dto.ts` / `money.ts` updated as above; monorepo `pnpm type-check` passes
 - [ ] `BookingCtaModule` section has `id="booking-form"` anchor; CTA links to `/<slug>/booking`; `BookingCtaModuleDataSchema` registered
 - [ ] Full 4-step flow works end-to-end against local backend
 - [ ] Carousel: `available: false` days are disabled/unselectable; selecting an `available: true` day fetches and renders its slots
@@ -792,7 +792,7 @@ Each component (except `page.tsx`) gets a `*.spec.tsx` (Vitest + RTL, `// @vites
 **Description:**  
 Implement the hotsite edge cases: a 404 page for unknown slugs, and an "Em breve" placeholder for unpublished hotsites. These are two distinct cases with two distinct UIs:
 
-- **Unknown slug** → `TenantNotFoundError`/`HotsiteNotFoundError` → `404` → `fetchManifest()` calls `notFound()` → `app/not-found.tsx` (root-level, BeloAuto-branded, no manifest available).
+- **Unknown slug** → `TenantNotFoundError`/`HotsiteNotFoundError` → `404` → `fetchManifest()` calls `notFound()` → `app/not-found.tsx` (root-level, Ikaro-branded, no manifest available).
 - **Hotsite not published** → tenant + hotsite config exist, but `isPublished: false`. Today `GetHotsiteManifestUseCase` throws `HotsiteNotPublishedError`, mapped to the *same* `404` as "unknown slug" — making the two cases indistinguishable, and discarding the `branding`/`layout`/`business` data needed to render anything tenant-specific.
 
 **Backend change (small — `apps/backend`):**
@@ -801,17 +801,17 @@ Implement the hotsite edge cases: a 404 page for unknown slugs, and an "Em breve
 - No change to `packages/types` (`HotsiteManifestResponse.isPublished` already exists) or the BFF controller (already passes the field through).
 
 **Frontend changes (`apps/web`):**
-- `apps/web/app/not-found.tsx` (root-level, **not** `app/[slug]/not-found.tsx`) — BeloAuto-branded 404: `"Lavacar não encontrada"` + link to `beloauto.com`. Static styling only — no manifest/branding available. Must live at the root: `fetchManifest()`'s `notFound()` fires inside `app/[slug]/layout.tsx`, and Next.js does not let a segment's own `not-found.tsx` catch a `notFound()` thrown by that segment's own `layout.tsx` — only an ancestor segment's `not-found.tsx` can.
+- `apps/web/app/not-found.tsx` (root-level, **not** `app/[slug]/not-found.tsx`) — Ikaro-branded 404: `"Lavacar não encontrada"` + link to `<ikaro-domain>`. Static styling only — no manifest/branding available. Must live at the root: `fetchManifest()`'s `notFound()` fires inside `app/[slug]/layout.tsx`, and Next.js does not let a segment's own `not-found.tsx` catch a `notFound()` thrown by that segment's own `layout.tsx` — only an ancestor segment's `not-found.tsx` can.
 - `apps/web/components/hotsite/Unavailable.tsx` — "Em breve" placeholder. Uses `var(--ba-*)` tokens (inherits the tenant's branding via `[slug]/layout.tsx`'s `applyBranding()`; defaults to `DEFAULT_HOTSITE_BRANDING` for unconfigured tenants — no special-casing needed).
 - `apps/web/app/[slug]/page.tsx` — if `!manifest.isPublished`, render `<Unavailable />` instead of the module list (Footer omitted).
 
 **Acceptance criteria:**
 - [ ] `GET /unknown-slug` renders `not-found.tsx`
-- [ ] 404 page has human-readable pt-BR message (`"Lavacar não encontrada"`) + link to `beloauto.com`
-- [ ] `<title>Não encontrado — BeloAuto</title>`
+- [ ] 404 page has human-readable pt-BR message (`"Lavacar não encontrada"`) + link to `<ikaro-domain>`
+- [ ] `<title>Não encontrado — Ikaro</title>`
 - [ ] No JavaScript errors on 404 page
 - [ ] Tenant with `isPublished: false` → `GET /<slug>` returns `200` and renders `<Unavailable />` ("Em breve"), not the module layout
-- [ ] `<title>Em breve — BeloAuto</title>` when unpublished
+- [ ] `<title>Em breve — Ikaro</title>` when unpublished
 - [ ] `Unavailable` component test — renders pt-BR copy using only `isPublished`/branding tokens, no other manifest data required
 - [ ] `GetHotsiteManifestUseCase` returns `200 { isPublished: false, branding, layout: [], business: <all-null stub> }` for an unpublished tenant — unit test updated
 - [ ] `HotsiteNotPublishedError` removed; `platform-error.mapper.ts` and related specs updated accordingly
@@ -827,15 +827,15 @@ Implement the hotsite edge cases: a 404 page for unknown slugs, and an "Em breve
 **Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § Manifest Schema + § SEO & Discoverability, `docs/14-API_CONTRACTS.md` § Tenant & Service Discovery, `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions
 
 **Description:**  
-Implement per-tenant SEO metadata. Brazilian businesses depend on Google search and WhatsApp link previews. Without this, every tenant shows the same generic `<title>BeloAuto</title>` in search results. Also adds a small Platform-context "published hotsites" listing endpoint so `app/sitemap.ts` can enumerate every published tenant for search-engine discovery.
+Implement per-tenant SEO metadata. Brazilian businesses depend on Google search and WhatsApp link previews. Without this, every tenant shows the same generic `<title>Ikaro</title>` in search results. Also adds a small Platform-context "published hotsites" listing endpoint so `app/sitemap.ts` can enumerate every published tenant for search-engine discovery.
 
-**New env var:** `NEXT_PUBLIC_SITE_URL` (`apps/web/.env.example` / `.env.local`) — `https://beloauto.com` in production, `http://localhost:3000` in local dev. All absolute URLs (canonical, OG, JSON-LD, sitemap) are built from this — never hardcode `https://beloauto.com`.
+**New env var:** `NEXT_PUBLIC_SITE_URL` (`apps/web/.env.example` / `.env.local`) — `https://<ikaro-domain>` in production, `http://localhost:3000` in local dev. All absolute URLs (canonical, OG, JSON-LD, sitemap) are built from this — never hardcode `https://<ikaro-domain>`.
 
 **1. SEO metadata helper — `apps/web/lib/hotsite/seo.ts`:**
 
 ```typescript
 import type { Metadata } from 'next';
-import type { HotsiteManifestResponse } from '@beloauto/types';
+import type { HotsiteManifestResponse } from '@ikaro/types';
 
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
@@ -859,7 +859,7 @@ export function buildHotsiteMetadata({
     openGraph: {
       title,
       url,
-      siteName: 'BeloAuto',
+      siteName: 'Ikaro',
       images: manifest.branding.logoUrl
         ? [{ url: manifest.branding.logoUrl, width: 1200, height: 630 }]
         : [],
@@ -902,7 +902,7 @@ export async function generateMetadata({ params }: BookingPageProps): Promise<Me
   const manifest = await fetchManifest(slug);
   return {
     ...buildHotsiteMetadata({ manifest, slug, path: '/booking' }),
-    title: manifest.isPublished ? 'Agendar serviço' : 'Em breve — BeloAuto',
+    title: manifest.isPublished ? 'Agendar serviço' : 'Em breve — Ikaro',
     robots: { index: false, follow: false },
   };
 }
@@ -915,7 +915,7 @@ export async function generateMetadata({ params }: BookingPageProps): Promise<Me
   { "items": [ { "slug": "lavacar-beloauto", "updatedAt": "2026-06-10T12:00:00.000Z" } ] }
   ```
   `updatedAt` = `hotsite_configs.updated_at` (ISO-8601 UTC). Gated by the global `InternalApiGuard` (`X-Internal-Key`) like all `/internal/*` routes.
-- **BFF:** `GET /platform/published-hotsites` on `PlatformPublicController`, `@Public()`, calls the internal endpoint via `BackendHttpService`. New response type `HotsiteSitemapEntryListResponse` (`@beloauto/types`).
+- **BFF:** `GET /platform/published-hotsites` on `PlatformPublicController`, `@Public()`, calls the internal endpoint via `BackendHttpService`. New response type `HotsiteSitemapEntryListResponse` (`@ikaro/types`).
 - **Frontend fetcher:** `fetchPublishedHotsiteSlugs()` in `apps/web/lib/api/platform.ts`.
 - Both new endpoints need `.http` files per CLAUDE.md §7.
 
@@ -950,7 +950,7 @@ export default function robots(): MetadataRoute.Robots {
 ```
 
 **Acceptance criteria:**
-- [ ] `/[slug]` `<title>` is `"[Tenant Name] — Agendamento Online"` — not generic `"BeloAuto"`
+- [ ] `/[slug]` `<title>` is `"[Tenant Name] — Agendamento Online"` — not generic `"Ikaro"`
 - [ ] `/[slug]` `og:image` uses `manifest.branding.logoUrl` when available
 - [ ] `/[slug]` `og:locale` is `pt_BR`
 - [ ] `/[slug]` has JSON-LD `<script type="application/ld+json">` with `LocalBusiness` schema in the rendered document
@@ -984,7 +984,7 @@ This story:
 3. Wires hotsite publish/unpublish to trigger on-demand Next.js revalidation, so changes go live immediately rather than waiting up to 5 minutes for ISR.
 
 **Backend changes:**
-- New public GCS bucket (e.g. `beloauto-hotsite-public-${var.environment}` / `GCS_PUBLIC_BUCKET_NAME`), `allUsers: roles/storage.objectViewer`, fronted by Cloud CDN per the existing scaling plan (`docs/22-TECH_STACK_DECISIONS.md`). New env var `GCS_PUBLIC_BASE_URL` (default `https://storage.googleapis.com`; local `.env` sets `http://localhost:4443` to match the `fake-gcs-server` `-external-url` in `docker/docker-compose.yml`) — see `getPublicUrl()` below
+- New public GCS bucket (e.g. `ikaro-hotsite-public-${var.environment}` / `GCS_PUBLIC_BUCKET_NAME`), `allUsers: roles/storage.objectViewer`, fronted by Cloud CDN per the existing scaling plan (`docs/22-TECH_STACK_DECISIONS.md`). New env var `GCS_PUBLIC_BASE_URL` (default `https://storage.googleapis.com`; local `.env` sets `http://localhost:4443` to match the `fake-gcs-server` `-external-url` in `docker/docker-compose.yml`) — see `getPublicUrl()` below
 - `IStorageService` (shared port, `storage.service.port.ts`) gains:
   - `getPublicUrl(storagePath: string): string` — pure one-line template `${GCS_PUBLIC_BASE_URL}/${GCS_PUBLIC_BUCKET_NAME}/${storagePath}`; no GCS API round-trip, no expiry, **no environment branching**: the emulator's `-external-url` gives it the same `<base>/<bucket>/<path>` serving shape as real public GCS buckets, so only the configured base differs between dev and prod — exactly like `DB_HOST`/`FRONTEND_URL`/`GCS_BUCKET_NAME` already do
   - `copy(sourcePath: string, destinationPath: string): Promise<void>` — server-side object copy, private bucket → public bucket (`file.copy()`)
@@ -1098,7 +1098,7 @@ Add two optional hex tokens, `buttonBackgroundColor` and `buttonTextColor`, so a
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` § linting, `docs/CODE_STANDARDS.md`
 
 **Description:**  
-`docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §3 mandates `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y` for `apps/web`, but neither is installed anywhere in the monorepo. Without `react-hooks`, Rules-of-Hooks violations (conditional hooks, stale closures from missing `useEffect`/`useMemo`/`useCallback` deps) go undetected until runtime — a real risk once M12-S07 (booking form state) and M13 (TanStack Query hooks throughout the dashboard) land. Without `jsx-a11y`, accessibility issues (missing `alt`, invalid ARIA attributes, non-interactive elements with click handlers, etc.) aren't caught in CI — relevant since BeloAuto hotsites are public-facing for small businesses unlikely to run their own a11y audits.
+`docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §3 mandates `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y` for `apps/web`, but neither is installed anywhere in the monorepo. Without `react-hooks`, Rules-of-Hooks violations (conditional hooks, stale closures from missing `useEffect`/`useMemo`/`useCallback` deps) go undetected until runtime — a real risk once M12-S07 (booking form state) and M13 (TanStack Query hooks throughout the dashboard) land. Without `jsx-a11y`, accessibility issues (missing `alt`, invalid ARIA attributes, non-interactive elements with click handlers, etc.) aren't caught in CI — relevant since Ikaro hotsites are public-facing for small businesses unlikely to run their own a11y audits.
 
 **What to do:**
 - Add `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y` to `apps/web` devDependencies

@@ -376,7 +376,7 @@ Branch protection requires at least one PR to have run the CI checks so GitHub k
 
 ### How the `gh pr merge` Command Respects Branch Protection
 
-When Claude runs `gh pr merge <N> --repo lmmoreira/beloauto --squash --delete-branch`, GitHub's API enforces the branch protection rules server-side. If any required check hasn't passed, the API returns an error and the merge is rejected. This is why checking `gh pr checks <N>` before merging is important — if you skip that step and all checks haven't passed, the merge will fail anyway, but you'll have wasted the attempt.
+When Claude runs `gh pr merge <N> --repo lmmoreira/ikaro --squash --delete-branch`, GitHub's API enforces the branch protection rules server-side. If any required check hasn't passed, the API returns an error and the merge is rejected. This is why checking `gh pr checks <N>` before merging is important — if you skip that step and all checks haven't passed, the merge will fail anyway, but you'll have wasted the attempt.
 
 ### The Incident That Led to This
 

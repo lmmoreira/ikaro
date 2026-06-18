@@ -20,7 +20,7 @@ All backend and BFF auth endpoints for staff login are already implemented (M03)
 **Prototype:** `shared/staff-login.html`
 
 **What it renders:**
-- BeloAuto logo mark
+- Ikaro logo mark
 - Heading: "Área da Equipe"
 - Subtext: "Acesso exclusivo para funcionários e gerentes"
 - Google Sign-In button → `GET /v1/auth/google?state=__staff__`

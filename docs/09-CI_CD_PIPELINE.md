@@ -1,4 +1,4 @@
-# CI/CD Pipeline - BeloAuto
+# CI/CD Pipeline - Ikaro
 
 ## Guiding Principles
 
@@ -45,12 +45,12 @@ Each service has **two GitHub Environments**: one for staging (auto-deploy) and 
 
 | GitHub Environment | Service | Protection |
 |---|---|---|
-| `backend-staging` | beloauto-backend | None — auto |
-| `backend-production` | beloauto-backend | 1 reviewer required |
-| `bff-staging` | beloauto-bff | None — auto |
-| `bff-production` | beloauto-bff | 1 reviewer required |
-| `frontend-staging` | beloauto-web | None — auto |
-| `frontend-production` | beloauto-web | 1 reviewer required |
+| `backend-staging` | ikaro-backend | None — auto |
+| `backend-production` | ikaro-backend | 1 reviewer required |
+| `bff-staging` | ikaro-bff | None — auto |
+| `bff-production` | ikaro-bff | 1 reviewer required |
+| `frontend-staging` | ikaro-web | None — auto |
+| `frontend-production` | ikaro-web | 1 reviewer required |
 | `migrations-staging` | DB migrations | None — auto |
 | `migrations-production` | DB migrations | 1 reviewer required |
 | `infra-staging` | Terraform | None — auto |
@@ -71,8 +71,8 @@ Configure at: `GitHub repo → Settings → Environments`
 | `GCP_SA_KEY_STAGING` | Env: `*-staging` | GCP service account JSON — staging project (deploy steps only) |
 | `DB_HOST_STAGING` | Env: `migrations-staging` | Cloud SQL private IP (staging) |
 | `DB_HOST_PROD` | Env: `migrations-production` | Cloud SQL private IP (prod) |
-| `DB_NAME` | Repository | Database name (`beloauto`) — same for all envs |
-| `DB_MIGRATOR_USER` | Repository | Migration role username (`beloauto_migrator`) |
+| `DB_NAME` | Repository | Database name (`ikaro`) — same for all envs |
+| `DB_MIGRATOR_USER` | Repository | Migration role username (`ikaro_migrator`) |
 | `DB_MIGRATOR_PASSWORD_STAGING` | Env: `migrations-staging` | Migration role password (staging) — from Secret Manager `db-migrator-password` |
 | `DB_MIGRATOR_PASSWORD_PROD` | Env: `migrations-production` | Migration role password (prod) — from Secret Manager `db-migrator-password` |
 | `DB_APP_PASSWORD_STAGING` | Env: `migrations-staging` | App runtime role password (staging) — injected into Cloud Run `DB_PASSWORD` |
@@ -81,7 +81,7 @@ Configure at: `GitHub repo → Settings → Environments`
 | `OBSERVABILITY_SSH_KEY` | Env: `observability` | SSH private key for GCE VM access |
 | `TF_STATE_BUCKET` | Repository | GCS bucket name for Terraform state |
 
-> **Single image registry:** All Docker images are pushed to **Google Artifact Registry** in the prod project (`us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/`). Both staging and production deployments pull from this registry. The staging deployer SA has `roles/artifactregistry.reader` on the prod registry (see `docs/23-INFRASTRUCTURE_SETUP.md`).
+> **Single image registry:** All Docker images are pushed to **Google Artifact Registry** in the prod project (`us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/`). Both staging and production deployments pull from this registry. The staging deployer SA has `roles/artifactregistry.reader` on the prod registry (see `docs/23-INFRASTRUCTURE_SETUP.md`).
 
 > **Runtime secrets** (JWT secret, OAuth client, email API key) live in GCP Secret Manager and are injected into Cloud Run via `--set-secrets`. They never appear in GitHub Secrets.
 
@@ -112,13 +112,13 @@ Before any Terraform can run, the GCS state bucket must exist. This is a **one-t
 
 ```bash
 # Run once by a developer with GCP project owner role
-gcloud storage buckets create gs://beloauto-tfstate \
-  --project=beloauto-prod \
+gcloud storage buckets create gs://ikaro-tfstate \
+  --project=ikaro-prod \
   --location=us-central1 \
   --uniform-bucket-level-access
 
 # Enable versioning so state history is preserved
-gcloud storage buckets update gs://beloauto-tfstate \
+gcloud storage buckets update gs://ikaro-tfstate \
   --versioning
 ```
 
@@ -126,7 +126,7 @@ gcloud storage buckets update gs://beloauto-tfstate \
 # infrastructure/terraform/backend.tf
 terraform {
   backend "gcs" {
-    bucket = "beloauto-tfstate"
+    bucket = "ikaro-tfstate"
     prefix = "env"   # set per workspace: staging/ or prod/
   }
 }
@@ -165,7 +165,7 @@ infrastructure/
     │       │   └── loki.yml
     │       └── dashboards/
     │           ├── dashboards.yml  # auto-provision config
-    │           └── beloauto-overview.json
+    │           └── ikaro-overview.json
     ├── loki/
     │   └── loki.yml
     └── otel/
@@ -188,7 +188,7 @@ on:
     inputs:
       service:
         required: true
-        type: string        # beloauto-backend | beloauto-bff | beloauto-web
+        type: string        # ikaro-backend | ikaro-bff | ikaro-web
       dockerfile:
         required: true
         type: string        # docker/backend/Dockerfile
@@ -231,15 +231,15 @@ jobs:
           file: ${{ inputs.dockerfile }}
           push: true
           tags: |
-            us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/${{ inputs.service }}:sha-${{ github.sha }}
-            us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/${{ inputs.service }}:latest
+            us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/${{ inputs.service }}:sha-${{ github.sha }}
+            us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/${{ inputs.service }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/${{ inputs.service }}:sha-${{ github.sha }}
+          image-ref: us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/${{ inputs.service }}:sha-${{ github.sha }}
           format: sarif
           exit-code: 1
           severity: HIGH,CRITICAL
@@ -744,7 +744,7 @@ jobs:
   build:
     uses: ./.github/workflows/shared/build-push-scan.yml
     with:
-      service: beloauto-backend
+      service: ikaro-backend
       dockerfile: docker/backend/Dockerfile
       build-context: .
     permissions:
@@ -777,19 +777,19 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Deploy to Cloud Run — staging
         run: |
-          gcloud run deploy beloauto-backend-staging \
-            --image us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/beloauto-backend:${{ env.IMAGE_TAG }} \
+          gcloud run deploy ikaro-backend-staging \
+            --image us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/ikaro-backend:${{ env.IMAGE_TAG }} \
             --region ${{ env.REGION }} \
-            --project beloauto-staging \
+            --project ikaro-staging \
             --memory 512Mi --cpu 1 \
             --min-instances 0 --max-instances 10 \
             --set-secrets DATABASE_URL=database-url:latest,JWT_SECRET=jwt-secret:latest \
             --traffic 100
       - name: Smoke test
         run: |
-          URL=$(gcloud run services describe beloauto-backend-staging \
+          URL=$(gcloud run services describe ikaro-backend-staging \
             --region ${{ env.REGION }} \
-            --project beloauto-staging \
+            --project ikaro-staging \
             --format 'value(status.url)')
           curl --fail --retry 5 --retry-delay 5 "$URL/health/ready"
 
@@ -818,19 +818,19 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Deploy to Cloud Run — production
         run: |
-          gcloud run deploy beloauto-backend \
-            --image us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/beloauto-backend:${{ env.IMAGE_TAG }} \
+          gcloud run deploy ikaro-backend \
+            --image us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/ikaro-backend:${{ env.IMAGE_TAG }} \
             --region ${{ env.REGION }} \
-            --project beloauto-prod \
+            --project ikaro-prod \
             --memory 512Mi --cpu 1 \
             --min-instances 1 --max-instances 100 \
             --set-secrets DATABASE_URL=database-url:latest,JWT_SECRET=jwt-secret:latest \
             --traffic 100
       - name: Smoke test — production
         run: |
-          URL=$(gcloud run services describe beloauto-backend \
+          URL=$(gcloud run services describe ikaro-backend \
             --region ${{ env.REGION }} \
-            --project beloauto-prod \
+            --project ikaro-prod \
             --format 'value(status.url)')
           curl --fail --retry 5 --retry-delay 10 "$URL/health/ready"
 ```
@@ -856,7 +856,7 @@ jobs:
   build:
     uses: ./.github/workflows/shared/build-push-scan.yml
     with:
-      service: beloauto-bff
+      service: ikaro-bff
       dockerfile: docker/bff/Dockerfile
       build-context: .
     permissions:
@@ -877,19 +877,19 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Deploy BFF — staging
         run: |
-          gcloud run deploy beloauto-bff-staging \
-            --image us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/beloauto-bff:${{ env.IMAGE_TAG }} \
+          gcloud run deploy ikaro-bff-staging \
+            --image us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/ikaro-bff:${{ env.IMAGE_TAG }} \
             --region ${{ env.REGION }} \
-            --project beloauto-staging \
+            --project ikaro-staging \
             --allow-unauthenticated \
             --memory 256Mi --cpu 1 \
             --min-instances 0 --max-instances 10 \
             --traffic 100
       - name: Smoke test
         run: |
-          URL=$(gcloud run services describe beloauto-bff-staging \
+          URL=$(gcloud run services describe ikaro-bff-staging \
             --region ${{ env.REGION }} \
-            --project beloauto-staging \
+            --project ikaro-staging \
             --format 'value(status.url)')
           curl --fail --retry 5 --retry-delay 5 "$URL/health/ready"
 
@@ -906,18 +906,18 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Deploy BFF — production
         run: |
-          gcloud run deploy beloauto-bff \
-            --image us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/beloauto-bff:${{ env.IMAGE_TAG }} \
+          gcloud run deploy ikaro-bff \
+            --image us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/ikaro-bff:${{ env.IMAGE_TAG }} \
             --region ${{ env.REGION }} \
-            --project beloauto-prod \
+            --project ikaro-prod \
             --allow-unauthenticated \
             --min-instances 1 --max-instances 100 \
             --traffic 100
       - name: Smoke test — production
         run: |
-          URL=$(gcloud run services describe beloauto-bff \
+          URL=$(gcloud run services describe ikaro-bff \
             --region ${{ env.REGION }} \
-            --project beloauto-prod \
+            --project ikaro-prod \
             --format 'value(status.url)')
           curl --fail --retry 5 --retry-delay 10 "$URL/health/ready"
 ```
@@ -941,7 +941,7 @@ jobs:
   build:
     uses: ./.github/workflows/shared/build-push-scan.yml
     with:
-      service: beloauto-web
+      service: ikaro-web
       dockerfile: docker/web/Dockerfile
       build-context: .
     permissions:
@@ -961,18 +961,18 @@ jobs:
         with: { credentials_json: '${{ secrets.GCP_SA_KEY_STAGING }}' }
       - uses: google-github-actions/setup-gcloud@v2
       - run: |
-          gcloud run deploy beloauto-web-staging \
-            --image us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/beloauto-web:${{ env.IMAGE_TAG }} \
+          gcloud run deploy ikaro-web-staging \
+            --image us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/ikaro-web:${{ env.IMAGE_TAG }} \
             --region ${{ env.REGION }} \
-            --project beloauto-staging \
+            --project ikaro-staging \
             --allow-unauthenticated \
             --memory 256Mi --cpu 1 \
             --min-instances 0 --max-instances 20 \
             --traffic 100
       - run: |
-          URL=$(gcloud run services describe beloauto-web-staging \
+          URL=$(gcloud run services describe ikaro-web-staging \
             --region ${{ env.REGION }} \
-            --project beloauto-staging \
+            --project ikaro-staging \
             --format 'value(status.url)')
           curl --fail --retry 5 --retry-delay 5 "$URL"
 
@@ -988,18 +988,18 @@ jobs:
         with: { credentials_json: '${{ secrets.GCP_SA_KEY_PROD }}' }
       - uses: google-github-actions/setup-gcloud@v2
       - run: |
-          gcloud run deploy beloauto-web \
-            --image us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/beloauto-web:${{ env.IMAGE_TAG }} \
+          gcloud run deploy ikaro-web \
+            --image us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/ikaro-web:${{ env.IMAGE_TAG }} \
             --region ${{ env.REGION }} \
-            --project beloauto-prod \
+            --project ikaro-prod \
             --allow-unauthenticated \
             --min-instances 1 --max-instances 50 \
             --traffic 100
       - name: Smoke test — production
         run: |
-          URL=$(gcloud run services describe beloauto-web \
+          URL=$(gcloud run services describe ikaro-web \
             --region ${{ env.REGION }} \
-            --project beloauto-prod \
+            --project ikaro-prod \
             --format 'value(status.url)')
           curl --fail --retry 5 --retry-delay 10 "$URL"
 ```
@@ -1145,16 +1145,16 @@ global:
     environment: production
 
 scrape_configs:
-  - job_name: 'beloauto-backend'
+  - job_name: 'ikaro-backend'
     scheme: https
     static_configs:
-      - targets: ['beloauto-backend-prod.run.app']
+      - targets: ['ikaro-backend-prod.run.app']
     metrics_path: /metrics
 
-  - job_name: 'beloauto-bff'
+  - job_name: 'ikaro-bff'
     scheme: https
     static_configs:
-      - targets: ['beloauto-bff-prod.run.app']
+      - targets: ['ikaro-bff-prod.run.app']
     metrics_path: /metrics
 
   - job_name: 'otel-collector'
@@ -1218,7 +1218,7 @@ service:
 ```hcl
 # GCE VM for the observability stack
 resource "google_compute_instance" "observability" {
-  name         = "beloauto-observability"
+  name         = "ikaro-observability"
   machine_type = "e2-small"        # 2 vCPU, 2 GB RAM — ~$13/month
   zone         = "${var.region}-a"
   project      = var.gcp_project_prod   # lives in prod project, monitors both envs
@@ -1360,19 +1360,19 @@ Handlers signal failure by **throwing**. The adapter translates that into a nack
 
 ### Dead-letter queue (DLQ)
 
-**Topic:** `beloauto-dead-letter`  
-**Subscription:** `beloauto-dead-letter-monitor`  
+**Topic:** `ikaro-dead-letter`  
+**Subscription:** `ikaro-dead-letter-monitor`  
 **Threshold:** `PUBSUB_MAX_DELIVERY_ATTEMPTS` env var (default `5`)
 
 **Routing is programmatic, not infrastructure-native.**  
-`GcpPubSubEventBusAdapter.dispatch()` tracks `message.deliveryAttempt`. When it reaches the threshold it publishes the original message bytes to `beloauto-dead-letter` (preserving all original attributes plus `originalEventName`, `deadLetterReason`, `deliveryAttempt`) and ACKs the original message. This works identically on the local emulator and in production.
+`GcpPubSubEventBusAdapter.dispatch()` tracks `message.deliveryAttempt`. When it reaches the threshold it publishes the original message bytes to `ikaro-dead-letter` (preserving all original attributes plus `originalEventName`, `deadLetterReason`, `deliveryAttempt`) and ACKs the original message. This works identically on the local emulator and in production.
 
 ```
 Handler nacks (attempt 1–4)
   → Pub/Sub redelivers with exponential backoff
 
 Handler nacks (attempt 5 = PUBSUB_MAX_DELIVERY_ATTEMPTS)
-  → Adapter publishes to beloauto-dead-letter
+  → Adapter publishes to ikaro-dead-letter
   → Adapter ACKs original message
   → DeadLetterHandler receives it, logs at ERROR, ACKs
 ```
@@ -1398,13 +1398,13 @@ Set `PUBSUB_AUTO_CREATE=false` in staging and production. With this flag the ada
 **Terraform resources (`infrastructure/terraform/pubsub.tf`):**
 
 ```
-google_pubsub_topic.dead_letter          → beloauto-dead-letter
-google_pubsub_subscription.loyalty_consumer      → beloauto-loyalty-consumer (filter: BookingCompleted)
-google_pubsub_subscription.notification_consumer → beloauto-notification-consumer (all events)
-google_pubsub_subscription.dead_letter_monitor   → beloauto-dead-letter-monitor
+google_pubsub_topic.dead_letter          → ikaro-dead-letter
+google_pubsub_subscription.loyalty_consumer      → ikaro-loyalty-consumer (filter: BookingCompleted)
+google_pubsub_subscription.notification_consumer → ikaro-notification-consumer (all events)
+google_pubsub_subscription.dead_letter_monitor   → ikaro-dead-letter-monitor
 ```
 
-All subscriptions in staging/prod have `dead_letter_policy { max_delivery_attempts = 5 }` pointing to `beloauto-dead-letter`. In practice the app's programmatic routing fires first (same threshold), so native Pub/Sub dead-lettering acts as a safety net for cases where the adapter itself crashes before routing.
+All subscriptions in staging/prod have `dead_letter_policy { max_delivery_attempts = 5 }` pointing to `ikaro-dead-letter`. In practice the app's programmatic routing fires first (same threshold), so native Pub/Sub dead-lettering acts as a safety net for cases where the adapter itself crashes before routing.
 
 ---
 
@@ -1449,19 +1449,19 @@ PR opened / pushed
 Merge to main (all gates green, 1 reviewer approved)
        │
        ├── backend changed?
-       │     ├── build-push-scan (beloauto-backend → GHCR)
+       │     ├── build-push-scan (ikaro-backend → GHCR)
        │     ├── deploy-migrations staging  ← hard prerequisite
        │     ├── deploy-backend staging (auto)
        │     ├── deploy-migrations production  ← hard prerequisite
        │     └── deploy-backend production  🔴 requires 1 reviewer
        │
        ├── bff changed?
-       │     ├── build-push-scan (beloauto-bff → GHCR)
+       │     ├── build-push-scan (ikaro-bff → GHCR)
        │     ├── deploy-bff staging (auto)
        │     └── deploy-bff production  🔴 requires 1 reviewer
        │
        ├── frontend changed?
-       │     ├── build-push-scan (beloauto-web → GHCR)
+       │     ├── build-push-scan (ikaro-web → GHCR)
        │     ├── deploy-frontend staging (auto)
        │     └── deploy-frontend production  🔴 requires 1 reviewer
        │

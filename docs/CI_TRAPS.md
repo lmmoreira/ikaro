@@ -1,4 +1,4 @@
-# CI Traps — BeloAuto
+# CI Traps — Ikaro
 
 > Failures this project repeatedly produces in CI and SonarCloud.
 > Check your code against this list before the first commit — fixing pre-push is much cheaper than fixing post-push.
@@ -102,7 +102,7 @@ These appear as `Nest can't resolve dependencies of XxxUseCase (?, ...)` in test
 
 ## Pre-push hook failures (`ci:fast`)
 
-`ci:fast` = `pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @beloauto/backend test:unit`
+`ci:fast` = `pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @ikaro/backend test:unit`
 
 Runs automatically on `git push`. Fix these before re-pushing.
 

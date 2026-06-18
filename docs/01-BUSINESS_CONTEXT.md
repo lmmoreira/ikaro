@@ -1,10 +1,10 @@
-# Business Context - BeloAuto
+# Business Context - Ikaro
 
 ## Executive Summary
 
-**BeloAuto** is a multi-tenant car wash service management platform enabling multiple autonomous car wash companies (tenants) to each manage customer bookings, service scheduling, and customer loyalty tracking through a modern, cloud-native web application. Each tenant is completely isolated with their own services, customers, staff, and loyalty programs.
+**Ikaro** is a multi-tenant car wash service management platform enabling multiple autonomous car wash companies (tenants) to each manage customer bookings, service scheduling, and customer loyalty tracking through a modern, cloud-native web application. Each tenant is completely isolated with their own services, customers, staff, and loyalty programs.
 
-**Key:** Single BeloAuto platform, multiple independent companies.
+**Key:** Single Ikaro platform, multiple independent companies.
 
 ---
 
@@ -13,13 +13,13 @@
 ### **Tenant Structure**
 
 - **Tenant = Company** (e.g., "AutoWash Pro", "SuperClean", "QuickWash")
-- **Single Platform, Multiple Companies:** All tenants share one BeloAuto instance
+- **Single Platform, Multiple Companies:** All tenants share one Ikaro instance
 - **Complete Isolation:** Each tenant's data is completely isolated from others
 - **User Constraint:** One user can belong to only ONE tenant (no cross-tenant access)
 
 ### **Data Isolation**
 
-Every entity in BeloAuto belongs to a tenant:
+Every entity in Ikaro belongs to a tenant:
 - ✓ Services (each tenant defines own services)
 - ✓ Customers (each tenant has own customer base)
 - ✓ Staff (each tenant has own employees)
@@ -44,10 +44,10 @@ System ensures:
 ### **Hotsite Strategy**
 
 Each tenant has dedicated hotsite accessible via path:
-- `beloauto.com/tenant1` → "AutoWash Pro" hotsite
-- `beloauto.com/tenant2` → "SuperClean" hotsite
+- `<ikaro-domain>/tenant1` → "AutoWash Pro" hotsite
+- `<ikaro-domain>/tenant2` → "SuperClean" hotsite
 - Dynamic content (services, testimonials, branding) per tenant
-- Future: Custom domains (autowashpro.com → beloauto.com/tenant1)
+- Future: Custom domains (autowashpro.com → <ikaro-domain>/tenant1)
 
 ### **User Roles & Tenants**
 
@@ -92,7 +92,7 @@ Small car wash businesses face challenges:
 - Limited customer reach (no online presence)
 - No audit trail for service delivery and cancellations
 
-**BeloAuto solves this** by providing:
+**Ikaro solves this** by providing:
 - Self-service online booking with staff approval workflow
 - Real-time schedule availability
 - Customer loyalty tracking (wash counts, cancellations)
@@ -105,7 +105,7 @@ Small car wash businesses face challenges:
 
 ### 1. **Public Visitor** (Unauthenticated)
 - Browse services, testimonials, before/after photos
-- Discover BeloAuto through marketing hotsite
+- Discover Ikaro through marketing hotsite
 - Learn about services and pricing
 - **Cannot book** (must authenticate first)
 

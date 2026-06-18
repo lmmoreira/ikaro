@@ -1,7 +1,7 @@
-# Engineering Principles - BeloAuto Development Standards
+# Engineering Principles - Ikaro Development Standards
 
 **Status:** Phase 1 Complete - AI Agent Guidance  
-**Audience:** All developers and AI agents working on BeloAuto  
+**Audience:** All developers and AI agents working on Ikaro  
 **Last Updated:** 2026-05-11
 
 ---
@@ -92,7 +92,7 @@ Follow clean code fundamentals:
 
 **Every change must include tests.** No exceptions.
 
-### Test Pyramid (BeloAuto Model):
+### Test Pyramid (Ikaro Model):
 
 ```
          /\
@@ -303,7 +303,7 @@ A feature or fix is **only done** when:
 
 ## 🎓 Learning Resources
 
-For developers new to BeloAuto:
+For developers new to Ikaro:
 
 1. **Quick Start:**
    - Read `QUICK_REFERENCE.md` (one page)

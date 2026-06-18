@@ -1,8 +1,8 @@
-# Testing Strategy - BeloAuto
+# Testing Strategy - Ikaro
 
 ## Philosophy
 
-Tests in BeloAuto are **executable specifications**. Each test proves that a specific piece of behaviour from `docs/04-USE_CASES.md` works — not just that code runs. An AI agent implementing any UC must write tests first (TDD) and must be able to run them locally before pushing.
+Tests in Ikaro are **executable specifications**. Each test proves that a specific piece of behaviour from `docs/04-USE_CASES.md` works — not just that code runs. An AI agent implementing any UC must write tests first (TDD) and must be able to run them locally before pushing.
 
 **Three non-negotiable rules:**
 1. Every UC must have a unit test, an integration test, and a tenant-isolation test.
@@ -283,7 +283,7 @@ let container: StartedPostgreSqlContainer;
 
 beforeAll(async () => {
   container = await new PostgreSqlContainer('postgres:15')
-    .withDatabase('beloauto_test')
+    .withDatabase('ikaro_test')
     .start();
 
   dataSource = new DataSource({

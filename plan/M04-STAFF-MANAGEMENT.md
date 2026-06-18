@@ -166,7 +166,7 @@ Bootstrap the Notification bounded context infrastructure enough to send the sta
 - `NotificationModule` in `apps/backend/src/contexts/notification/`
 - `MailhogEmailAdapter` (local dev) → implements `IEmailSender`, sends via SMTP to `localhost:1025`
 - `SendStaffInvitationUseCase` — contains the email-sending logic (idempotency via DB check, email composition)
-- `StaffInvitedHandler` — thin handler, subscribes to `StaffInvited` (topic `beloauto-StaffInvited`, subscription `beloauto-StaffInvited-notification`):
+- `StaffInvitedHandler` — thin handler, subscribes to `StaffInvited` (topic `ikaro-StaffInvited`, subscription `ikaro-StaffInvited-notification`):
   1. Calls `SendStaffInvitationUseCase.execute({ staffId, tenantId, correlationId })`
   2. Rethrows errors for Pub/Sub nack + retry
   - Idempotency: DB check in the use case (no in-memory set)
@@ -175,7 +175,7 @@ Bootstrap the Notification bounded context infrastructure enough to send the sta
 **Important — two sources of `StaffInvited`:**
 `StaffInvited` events arrive from two flows. The handler must support both:
 1. **UC-028 (normal invite):** `invitedBy` = UUID of the MANAGER who sent the invite — can be shown in the email as "Convidado por [nome]"
-2. **UC-024 provisioning (M04-S06):** `invitedBy` = `SYSTEM_ACTOR_ID ('00000000-0000-0000-0000-000000000000')` — the email must NOT try to look up the inviter; show "BeloAuto Platform" or omit the "invited by" line
+2. **UC-024 provisioning (M04-S06):** `invitedBy` = `SYSTEM_ACTOR_ID ('00000000-0000-0000-0000-000000000000')` — the email must NOT try to look up the inviter; show "Ikaro Platform" or omit the "invited by" line
 
 **Acceptance criteria:**
 - [ ] After `InviteStaffUseCase` runs, a `StaffInvited` event is consumed by `StaffInvitedHandler`

@@ -1,6 +1,6 @@
 # M06 — Calendar & Schedule Availability — Developer Learning Guide
 
-Detailed explanation of every concept implemented in M06. Use this to understand NestJS patterns, DDD structures, and design decisions. Written for a developer who may be new to hexagonal architecture or the BeloAuto codebase.
+Detailed explanation of every concept implemented in M06. Use this to understand NestJS patterns, DDD structures, and design decisions. Written for a developer who may be new to hexagonal architecture or the Ikaro codebase.
 
 ---
 

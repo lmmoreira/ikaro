@@ -1,8 +1,8 @@
-# GitHub Workflows & Collaboration Guidelines - BeloAuto
+# GitHub Workflows & Collaboration Guidelines - Ikaro
 
 ## Overview
 
-BeloAuto follows **Trunk-Based Development (TBD)** to ensure high velocity and professional code quality. This document defines the rules for branching, commits, and Pull Requests.
+Ikaro follows **Trunk-Based Development (TBD)** to ensure high velocity and professional code quality. This document defines the rules for branching, commits, and Pull Requests.
 
 ---
 

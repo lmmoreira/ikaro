@@ -19,7 +19,7 @@ M02 built three things:
 
 ## 2. Hexagonal Architecture — Why Three Layers?
 
-Every bounded context in BeloAuto follows the same folder structure:
+Every bounded context in Ikaro follows the same folder structure:
 
 ```
 src/contexts/platform/
@@ -183,7 +183,7 @@ After merging, the result is passed through `TenantSettings.create(merged)` — 
 
 ## 9. Error Mapping — The mapPlatformError Pattern
 
-Controllers in BeloAuto have one job: call a use case and return the result. Error mapping belongs in a dedicated helper, not in the controller method itself.
+Controllers in Ikaro have one job: call a use case and return the result. Error mapping belongs in a dedicated helper, not in the controller method itself.
 
 ```typescript
 // ✅ Clean controller method — one line

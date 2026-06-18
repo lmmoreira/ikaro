@@ -1,6 +1,6 @@
-# Bounded Contexts & Communication - BeloAuto
+# Bounded Contexts & Communication - Ikaro
 
-This document describes how the independent bounded contexts in BeloAuto interact and communicate, ensuring loose coupling and high cohesion, **while maintaining complete tenant isolation**.
+This document describes how the independent bounded contexts in Ikaro interact and communicate, ensuring loose coupling and high cohesion, **while maintaining complete tenant isolation**.
 
 ---
 
@@ -61,7 +61,7 @@ Notification Context subscribes:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                           BeloAuto System                               │
+│                           Ikaro System                               │
 ├────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌───────────────────────────────────────────────────────────────────┐ │
@@ -115,7 +115,7 @@ Notification Context subscribes:
 
 ### **1. Booking Context (Core Domain, Tenant-Scoped)**
 
-**Purpose:** The heart of BeloAuto. Manages the complete booking lifecycle **for a specific tenant**.
+**Purpose:** The heart of Ikaro. Manages the complete booking lifecycle **for a specific tenant**.
 
 **Owned Aggregates:**
 - `Booking` (root) — a customer visit; parent of 1..N `BookingLine` child entities (tenant-scoped). The Booking aggregate enforces ≥1 line, snapshots line fields at request time, and computes `totalPrice` / `totalDurationMins` from its lines.
@@ -131,7 +131,7 @@ Notification Context subscribes:
 - Support cancellations with business rules (48h, tenant-scoped)
 - Trigger workflow changes
 
-**Database:** `beloauto_booking` schema
+**Database:** `ikaro_booking` schema
 - Tables: bookings, services, schedule_closures, schedule_openings, booking_audit_logs
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
@@ -258,7 +258,7 @@ TENANT B (completely separate):
 - Retry failed emails
 - Log all notifications
 
-**Database:** `beloauto_notification` schema
+**Database:** `ikaro_notification` schema
 - Tables: notification_templates, notification_logs
 
 **Published Events:**
@@ -324,7 +324,7 @@ PointsExpiringSoon → Email (weekly digest): Customer "Heads up — [X] points 
 - Provide customer profile lookup per tenant
 - Reference for other contexts
 
-**Database:** `beloauto_customer` schema
+**Database:** `ikaro_customer` schema
 - Tables: customers
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
@@ -391,7 +391,7 @@ Same Person, Multiple Tenants:
 - Manage staff status (active/inactive) per-tenant
 - Foundation for future role-based access control per-tenant
 
-**Database:** `beloauto_staff` schema
+**Database:** `ikaro_staff` schema
 - Tables: staff_members, (schedule_closures in shared reference)
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
@@ -744,7 +744,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 
 ## Future Scaling: Microservices
 
-If BeloAuto grows beyond single business:
+If Ikaro grows beyond single business:
 
 ```
 Current (MVP Modular Monolith):

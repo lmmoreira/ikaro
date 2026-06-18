@@ -1,8 +1,8 @@
-# Deployment Strategy - BeloAuto
+# Deployment Strategy - Ikaro
 
 ## Philosophy
 
-**Simple, robust, cost-conscious.** BeloAuto starts on fully-managed GCP services that require zero operational overhead, scale automatically with traffic, and cost ~$50/month at MVP. The same Docker images and the same code run from day 1 through 1 M users — only the infrastructure tier changes.
+**Simple, robust, cost-conscious.** Ikaro starts on fully-managed GCP services that require zero operational overhead, scale automatically with traffic, and cost ~$50/month at MVP. The same Docker images and the same code run from day 1 through 1 M users — only the infrastructure tier changes.
 
 ---
 
@@ -10,9 +10,9 @@
 
 | Layer | Service | Notes |
 |---|---|---|
-| **Frontend** | GCP Cloud Run (`beloauto-web`) | Next.js 14 SSR container; public HTTPS |
-| **BFF** | GCP Cloud Run (`beloauto-bff`) | NestJS BFF; public HTTPS; sole entry point for the web layer |
-| **Backend** | GCP Cloud Run (`beloauto-backend`) | NestJS modular monolith; internal only (not public) |
+| **Frontend** | GCP Cloud Run (`ikaro-web`) | Next.js 14 SSR container; public HTTPS |
+| **BFF** | GCP Cloud Run (`ikaro-bff`) | NestJS BFF; public HTTPS; sole entry point for the web layer |
+| **Backend** | GCP Cloud Run (`ikaro-backend`) | NestJS modular monolith; internal only (not public) |
 | **Database** | GCP Cloud SQL PostgreSQL 15 | Private IP inside VPC; automated backups; no public exposure |
 | **Event bus** | GCP Pub/Sub | Managed, serverless; local dev uses the Pub/Sub emulator |
 | **Storage** | GCP Cloud Storage | Tenant photo uploads; paths: `tenants/<tid>/bookings/<bid>/<file>` |

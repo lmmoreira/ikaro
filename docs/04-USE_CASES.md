@@ -1,4 +1,4 @@
-# Use Cases - BeloAuto
+# Use Cases - Ikaro
 
 Use cases represent the business operations (user actions) that the system must support. Each use case describes the sequence of steps to achieve a business goal.
 
@@ -33,7 +33,7 @@ UC-XXX: [Use Case Name]
 
 - **Actor:** Guest (unauthenticated user)
 - **Tenant Scope:** Specific company/tenant
-- **Preconditions:** Guest is on tenant's hotsite or booking page (e.g., beloauto.com/tenant1). System has available time slots. Guest is requesting for a specific tenant.
+- **Preconditions:** Guest is on tenant's hotsite or booking page (e.g., <ikaro-domain>/tenant1). System has available time slots. Guest is requesting for a specific tenant.
 - **Trigger:** Guest clicks "Request Booking"
 - **Main Flow:**
   1. System identifies tenant from URL path (e.g., /tenant1).
@@ -871,7 +871,7 @@ Returns:
 
 ### **UC-024: Platform Operator Provisions New Tenant (REST API)**
 
-- **Actor:** BeloAuto platform operator (developer / internal ops)
+- **Actor:** Ikaro platform operator (developer / internal ops)
 - **Preconditions:** Operator holds `PLATFORM_ADMIN_KEY`. No self-service signup UI exists in MVP.
 - **Trigger:** A new car-wash company is signed up and needs a tenant provisioned on the platform.
 - **Security:** Three-layer defence-in-depth (decided 2026-05-15):

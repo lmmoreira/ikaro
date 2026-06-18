@@ -153,8 +153,8 @@ If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redempti
 
 | Event | Consumer name | Subscription |
 |---|---|---|
-| `BookingCompleted` | `RECORD_LOYALTY_ENTRY` | `beloauto-BookingCompleted-RECORD_LOYALTY_ENTRY` |
-| `ServicePointsEarned` | `notification` | `beloauto-ServicePointsEarned-notification` |
+| `BookingCompleted` | `RECORD_LOYALTY_ENTRY` | `ikaro-BookingCompleted-RECORD_LOYALTY_ENTRY` |
+| `ServicePointsEarned` | `notification` | `ikaro-ServicePointsEarned-notification` |
 
 ---
 

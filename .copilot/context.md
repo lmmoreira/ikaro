@@ -1,11 +1,11 @@
-# BeloAuto — Agent Context (canonical)
+# Ikaro — Agent Context (canonical)
 
 > **AGENT EDITING NOTICE:** `CLAUDE.md`, `claude.md`, and `gemini.md` are all symlinks to **`.copilot/context.md`**. If you need to edit this file, always write to `.copilot/context.md` directly — never attempt to write through the symlinks.
 
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-06-16 (added §19 — Journey & Prototype Workflow rules; session-2 pitfalls added to `plan/journey/README.md` Part 4)
+**Last updated:** 2026-06-18 (rebranded the SaaS/product/repo from BeloAuto to Ikaro — see td/TD04-REBRAND-IKARO.md; BeloAuto remains a valid sample tenant)
 
 ---
 
@@ -30,7 +30,7 @@ Exceptions always: read-only ops (`Read`, `grep`, `ls`, `git status`, memory fil
 
 | Fact | Value |
 |---|---|
-| **Product** | BeloAuto |
+| **Product** | Ikaro |
 | **Type** | Multi-tenant SaaS — car-wash booking & loyalty |
 | **Market** | Brazil 🇧🇷 |
 | **Currency** | BRL (R$) — `Money` value object must carry currency code |
@@ -211,7 +211,7 @@ When Context A needs data owned by Context B, choose the **first** option that a
 **Never** a direct SQL JOIN across contexts inside a repository. A repository queries its own schema only.
 
 ### BFF module & controller naming
-BFF modules are named after their **bounded context** (§3), never an aggregate (`platform/`, not `tenants/` — `Tenant` is one aggregate inside the Platform context). Within a module: `<context>.controller.ts` = authenticated/role-guarded (dashboard); `<context>.public.controller.ts` = `@Public()` unauthenticated (hotsite) — both may share `@Controller('<path>')` if method+path combos don't collide, and one `.public.controller.ts` may serve multiple hotsite module types. Public response types live in `@beloauto/types` as `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse`. Frontend fetchers `apps/web/lib/api/<name>.ts` mirror the BFF module name they call.
+BFF modules are named after their **bounded context** (§3), never an aggregate (`platform/`, not `tenants/` — `Tenant` is one aggregate inside the Platform context). Within a module: `<context>.controller.ts` = authenticated/role-guarded (dashboard); `<context>.public.controller.ts` = `@Public()` unauthenticated (hotsite) — both may share `@Controller('<path>')` if method+path combos don't collide, and one `.public.controller.ts` may serve multiple hotsite module types. Public response types live in `@ikaro/types` as `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse`. Frontend fetchers `apps/web/lib/api/<name>.ts` mirror the BFF module name they call.
 → Full detail: `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions.
 
 ### Transactions
@@ -415,16 +415,16 @@ Run `/pre-pr` — must report **zero issues** before the PR is opened.
 ```bash
 gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
   --body "## Summary\n- <bullet>\n\n## Story\nM0X-SYY — <title>\n\n## Test plan\n- [ ] Unit tests pass\n- [ ] Type-check clean\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
-  --repo lmmoreira/beloauto
+  --repo lmmoreira/ikaro
 ```
 
 ### Step 9 — Monitor CI; self-fix any failure
-`gh pr checks <PR-number> --repo lmmoreira/beloauto` — fix → commit → push → re-check until all green.
+`gh pr checks <PR-number> --repo lmmoreira/ikaro` — fix → commit → push → re-check until all green.
 
 ### Step 10 — Ask user before merging (MANDATORY)
 Once all CI checks are green, ask: *"All checks are green on PR #N. Have you reviewed it and are you happy to merge?"*
 
-**Never merge without explicit user confirmation.** Then: `gh pr merge <PR-number> --repo lmmoreira/beloauto --squash --delete-branch && git checkout main && git pull origin main`
+**Never merge without explicit user confirmation.** Then: `gh pr merge <PR-number> --repo lmmoreira/ikaro --squash --delete-branch && git checkout main && git pull origin main`
 
 ### Step 11 — Mark story done (only after the squash commit is on `main`)
 Run `/mark-done M0X-SYY`. The skill updates the plan file, commits to main, and alerts if all stories in the milestone are now done.

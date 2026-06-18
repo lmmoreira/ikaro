@@ -1,4 +1,4 @@
-# API Error Catalog - BeloAuto
+# API Error Catalog - Ikaro
 
 **Status:** Phase 2 - Technical Architecture  
 **Audience:** Frontend developers, API consumers, AI agents  
@@ -9,7 +9,7 @@
 
 ## Overview
 
-This document defines all error responses in the BeloAuto API using RFC 9457 (Problem Details) standard. Each error includes a machine-readable `type` URI, HTTP status code, and developer-friendly message.
+This document defines all error responses in the Ikaro API using RFC 9457 (Problem Details) standard. Each error includes a machine-readable `type` URI, HTTP status code, and developer-friendly message.
 
 ---
 
@@ -19,7 +19,7 @@ All errors follow RFC 9457 Problem Details structure:
 
 ```json
 {
-  "type": "https://api.beloauto.com/errors#error-code",
+  "type": "https://api.<ikaro-domain>/errors#error-code",
   "status": 400,
   "title": "Invalid Services",
   "detail": "The serviceIds array is empty. Please select at least one service.",
@@ -48,7 +48,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `401 Unauthorized`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#unauthorized",
+  "type": "https://api.<ikaro-domain>/errors#unauthorized",
   "status": 401,
   "title": "Unauthorized",
   "detail": "Missing or invalid Authorization header. Please provide a valid JWT token."
@@ -61,7 +61,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `403 Forbidden`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#forbidden",
+  "type": "https://api.<ikaro-domain>/errors#forbidden",
   "status": 403,
   "title": "Forbidden",
   "detail": "You do not have permission to access this resource. Required role: ADMIN."
@@ -74,7 +74,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `403 Tenant Mismatch`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#tenant-mismatch",
+  "type": "https://api.<ikaro-domain>/errors#tenant-mismatch",
   "status": 403,
   "title": "Tenant Mismatch",
   "detail": "The X-Tenant-Slug header does not match your assigned tenant. Your tenant is 'autowash-pro'."
@@ -89,7 +89,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 invalid-services-empty`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#invalid-services-empty",
+  "type": "https://api.<ikaro-domain>/errors#invalid-services-empty",
   "status": 400,
   "title": "Invalid Services",
   "detail": "At least one service must be selected. The serviceIds array is empty."
@@ -102,7 +102,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 invalid-services-not-found`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#invalid-services-not-found",
+  "type": "https://api.<ikaro-domain>/errors#invalid-services-not-found",
   "status": 400,
   "title": "Services Not Found",
   "detail": "One or more services do not exist: ['uuid-nonexistent-1', 'uuid-nonexistent-2']. Check your serviceIds."
@@ -115,7 +115,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 invalid-services-inactive`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#invalid-services-inactive",
+  "type": "https://api.<ikaro-domain>/errors#invalid-services-inactive",
   "status": 400,
   "title": "Services Inactive",
   "detail": "One or more services are inactive (archived): ['Basic Wash']. Only active services can be booked."
@@ -128,7 +128,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 missing-pickup-address`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#missing-pickup-address",
+  "type": "https://api.<ikaro-domain>/errors#missing-pickup-address",
   "status": 400,
   "title": "Pickup Address Required",
   "detail": "The selected service 'Coleta e Entrega' requires a pickup address. Please provide pickupAddress in the request."
@@ -141,7 +141,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 invalid-pickup-address`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#invalid-pickup-address",
+  "type": "https://api.<ikaro-domain>/errors#invalid-pickup-address",
   "status": 400,
   "title": "Invalid Pickup Address",
   "detail": "pickupAddress.zipCode must be exactly 8 digits (CEP). Provided: '301309-21'."
@@ -154,7 +154,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 invalid-scheduled-time`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#invalid-scheduled-time",
+  "type": "https://api.<ikaro-domain>/errors#invalid-scheduled-time",
   "status": 400,
   "title": "Invalid Scheduled Time",
   "detail": "scheduledAt must be ISO 8601 format and in the future. Provided: 'not-a-date'."
@@ -167,7 +167,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 invalid-guest-info`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#invalid-guest-info",
+  "type": "https://api.<ikaro-domain>/errors#invalid-guest-info",
   "status": 400,
   "title": "Invalid Guest Info",
   "detail": "Guest booking requires name, email, and phone. Missing: 'email'."
@@ -182,7 +182,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `409 slot-unavailable`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#slot-unavailable",
+  "type": "https://api.<ikaro-domain>/errors#slot-unavailable",
   "status": 409,
   "title": "Slot Unavailable",
   "detail": "The requested time slot [2026-05-12 14:00–15:30] overlaps an existing APPROVED booking or system closure. Available alternatives: [14:30, 15:00, 15:30]."
@@ -197,7 +197,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 invalid-file-name`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#invalid-file-name",
+  "type": "https://api.<ikaro-domain>/errors#invalid-file-name",
   "status": 400,
   "title": "Invalid File Name",
   "detail": "fileName must be 1–255 characters and contain no path separators. Provided: '/etc/passwd' (257 chars)."
@@ -210,7 +210,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 unsupported-media-type`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#unsupported-media-type",
+  "type": "https://api.<ikaro-domain>/errors#unsupported-media-type",
   "status": 400,
   "title": "Unsupported Media Type",
   "detail": "Only image/jpeg and image/png are supported. Provided: 'image/gif'."
@@ -223,7 +223,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `413 file-too-large`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#file-too-large",
+  "type": "https://api.<ikaro-domain>/errors#file-too-large",
   "status": 413,
   "title": "File Too Large",
   "detail": "File size (15 MB) exceeds maximum 10 MB. Please compress your image."
@@ -236,7 +236,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `429 too-many-files`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#too-many-files",
+  "type": "https://api.<ikaro-domain>/errors#too-many-files",
   "status": 429,
   "title": "Too Many Files",
   "detail": "Maximum 5 files can be uploaded per session. You've already requested URLs for 5 files."
@@ -249,7 +249,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `410 upload-url-expired`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#upload-url-expired",
+  "type": "https://api.<ikaro-domain>/errors#upload-url-expired",
   "status": 410,
   "title": "Upload URL Expired",
   "detail": "The signed URL expired at 2026-05-12T00:08:44Z (1 hour after issuance). Please request a new URL."
@@ -264,7 +264,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 invalid-limit`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#invalid-limit",
+  "type": "https://api.<ikaro-domain>/errors#invalid-limit",
   "status": 400,
   "title": "Invalid Limit",
   "detail": "limit must be between 1 and 100. Provided: '500'. (Will be capped at 100.)"
@@ -277,7 +277,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 invalid-offset`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#invalid-offset",
+  "type": "https://api.<ikaro-domain>/errors#invalid-offset",
   "status": 400,
   "title": "Invalid Offset",
   "detail": "offset must be >= 0. Provided: '-10'."
@@ -292,7 +292,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `404 not-found`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#not-found",
+  "type": "https://api.<ikaro-domain>/errors#not-found",
   "status": 404,
   "title": "Not Found",
   "detail": "Booking with ID 'uuid-xyz' does not exist in tenant 'autowash-pro'."
@@ -305,7 +305,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `404 service-not-found`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#service-not-found",
+  "type": "https://api.<ikaro-domain>/errors#service-not-found",
   "status": 404,
   "title": "Service Not Found",
   "detail": "Service with ID 'uuid-abc' does not exist in this tenant."
@@ -320,7 +320,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `400 cancellation-ineligible`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#cancellation-ineligible",
+  "type": "https://api.<ikaro-domain>/errors#cancellation-ineligible",
   "status": 400,
   "title": "Cancellation Ineligible",
   "detail": "Booking cannot be cancelled less than 48 hours before appointment. Your appointment is in 24 hours."
@@ -333,7 +333,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `409 booking-locked`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#booking-locked",
+  "type": "https://api.<ikaro-domain>/errors#booking-locked",
   "status": 409,
   "title": "Booking Locked",
   "detail": "Booking is already COMPLETED and cannot be modified or cancelled."
@@ -348,7 +348,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `409 booking-lines-frozen`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#booking-lines-frozen",
+  "type": "https://api.<ikaro-domain>/errors#booking-lines-frozen",
   "status": 409,
   "title": "Booking Lines Frozen",
   "detail": "Cannot modify services once booking is APPROVED. Please cancel and re-book if you need different services."
@@ -361,7 +361,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `409 invalid-state-transition`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#invalid-state-transition",
+  "type": "https://api.<ikaro-domain>/errors#invalid-state-transition",
   "status": 409,
   "title": "Invalid State Transition",
   "detail": "Cannot transition from REJECTED to APPROVED. Valid transitions from REJECTED: none (terminal state)."
@@ -376,7 +376,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `500 internal-server-error`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#internal-server-error",
+  "type": "https://api.<ikaro-domain>/errors#internal-server-error",
   "status": 500,
   "title": "Internal Server Error",
   "detail": "An unexpected error occurred. Please contact support with correlationId: 'uuid-v7'."
@@ -389,7 +389,7 @@ All errors follow RFC 9457 Problem Details structure:
 #### `503 service-unavailable`
 ```json
 {
-  "type": "https://api.beloauto.com/errors#service-unavailable",
+  "type": "https://api.<ikaro-domain>/errors#service-unavailable",
   "status": 503,
   "title": "Service Unavailable",
   "detail": "The service is temporarily unavailable. Please retry in a few moments."
@@ -405,7 +405,7 @@ All errors follow RFC 9457 Problem Details structure:
 
 1. **Always check `type` URI, not status code alone**
    ```typescript
-   if (error.type === 'https://api.beloauto.com/errors#slot-unavailable') {
+   if (error.type === 'https://api.<ikaro-domain>/errors#slot-unavailable') {
      // Offer alternative slots from error.detail
    }
    ```
@@ -429,7 +429,7 @@ All errors follow RFC 9457 Problem Details structure:
 1. **Always throw specific error type**
    ```typescript
    throw new BadRequestException({
-     type: 'https://api.beloauto.com/errors#invalid-services-empty',
+     type: 'https://api.<ikaro-domain>/errors#invalid-services-empty',
      title: 'Invalid Services',
      detail: 'At least one service must be selected.'
    });
@@ -454,7 +454,7 @@ All errors follow RFC 9457 Problem Details structure:
 When adding new error types:
 
 1. Assign unique `error-code` in kebab-case
-2. Create RFC 9457 type URI: `https://api.beloauto.com/errors#error-code`
+2. Create RFC 9457 type URI: `https://api.<ikaro-domain>/errors#error-code`
 3. Assign appropriate HTTP status
 4. Add entry to this catalog
 5. Update client-side error handling
@@ -462,7 +462,7 @@ When adding new error types:
 Example:
 ```json
 {
-  "type": "https://api.beloauto.com/errors#custom-validation-failed",
+  "type": "https://api.<ikaro-domain>/errors#custom-validation-failed",
   "status": 400,
   "title": "Custom Validation Failed",
   "detail": "..."

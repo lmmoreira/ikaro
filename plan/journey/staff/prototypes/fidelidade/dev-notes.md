@@ -86,7 +86,7 @@ fetchCustomerLoyaltyRedemptions(customerId: string, page?: number): Promise<Pagi
 // GET /v1/customers/:customerId/loyalty/redemptions?page=:page&limit=20
 ```
 
-## @beloauto/types — stale shape (fix required before implementing)
+## @ikaro/types — stale shape (fix required before implementing)
 
 `packages/types/src/loyalty.dto.ts` exports `LoyaltyBalanceResponse` with shape `{ tenantId, customerId, activePoints, entries[] }` — this is **stale**. The actual BFF response is `{ currentPoints, nextExpiryDate, nextExpiryPoints }`. The BFF currently defines its own `LoyaltyBalanceResponse` in `apps/bff/src/loyalty/loyalty.types.ts`. Before building the frontend:
 1. Update `packages/types/src/loyalty.dto.ts` to match the actual BFF shape

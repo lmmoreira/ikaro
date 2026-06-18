@@ -1,4 +1,4 @@
-# Domain Events - BeloAuto
+# Domain Events - Ikaro
 
 Domain events represent things that happened in the business. Other bounded contexts subscribe asynchronously through the event bus and react.
 
@@ -526,7 +526,7 @@ Customer clicks "Cancel"
 - **`invitedBy` values:**
   - Normal invite (UC-028): UUID of the MANAGER who sent the invite
   - Tenant provisioning (UC-024 → M04-S06): `SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000'`
-- **Consumers:** Notification Context → sends invitation email with login link (email template must handle `invitedBy = SYSTEM_ACTOR_ID` gracefully — omit the "invited by [name]" line or show "BeloAuto Platform")
+- **Consumers:** Notification Context → sends invitation email with login link (email template must handle `invitedBy = SYSTEM_ACTOR_ID` gracefully — omit the "invited by [name]" line or show "Ikaro Platform")
 
 #### **StaffDeactivated**
 - **Trigger:** MANAGER-role staff member deactivates a team member (UC-029)

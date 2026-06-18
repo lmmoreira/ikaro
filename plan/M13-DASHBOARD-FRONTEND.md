@@ -116,7 +116,7 @@ Set up TanStack Query (React Query) as the global data-fetching layer and create
 **Description:**
 Three targeted fixes to `apps/bff/src/auth/auth.controller.ts`. No new endpoints, no schema changes — only behavioural corrections to existing methods. The BFF already has `JWT_COOKIE_OPTIONS` and `res.cookie(...)` usage in other handlers; replicate the same pattern.
 
-> 🔍 **Discover before starting:** Read `apps/bff/src/auth/auth.controller.ts` in full. Confirm the exact signature of `issueToken` and `switchTenant` (no `@Res()` param yet — must add `@Res({ passthrough: true })`). Read `apps/bff/src/auth/cookie-options.ts` to confirm the constant name. Check whether `@beloauto/types` currently exports a type for the `POST /auth/token` response — if yes, that type must be updated here. Run `grep -r "IssueToken\|issueToken" packages/types/` to check.
+> 🔍 **Discover before starting:** Read `apps/bff/src/auth/auth.controller.ts` in full. Confirm the exact signature of `issueToken` and `switchTenant` (no `@Res()` param yet — must add `@Res({ passthrough: true })`). Read `apps/bff/src/auth/cookie-options.ts` to confirm the constant name. Check whether `@ikaro/types` currently exports a type for the `POST /auth/token` response — if yes, that type must be updated here. Run `grep -r "IssueToken\|issueToken" packages/types/` to check.
 
 **Fix 1 — `POST /auth/token` (multi-tenant selection):**
 
@@ -153,7 +153,7 @@ to:
 res.redirect(`${frontendUrl}/${tenantInfo.slug}`);
 ```
 
-**`@beloauto/types` changes:**
+**`@ikaro/types` changes:**
 
 Add or update `packages/types/src/auth.dto.ts` (create if absent):
 ```typescript
@@ -190,7 +190,7 @@ export interface TenantOption {
 - [ ] `GET /auth/google/callback` for a tenant-scoped customer login redirects to `${frontendUrl}/${tenantSlug}`, not `/dashboard`
 - [ ] `GET /auth/google/callback` for multi-tenant customer (auto-selected 1 tenant) redirects to `${frontendUrl}/${tenantSlug}`
 - [ ] Staff login redirect unchanged: still redirects to `${frontendUrl}/dashboard`
-- [ ] `IssueTokenResponse`, `SwitchTenantResponse`, `TenantOption` exported from `@beloauto/types`
+- [ ] `IssueTokenResponse`, `SwitchTenantResponse`, `TenantOption` exported from `@ikaro/types`
 - [ ] `.http` block in `apps/bff/http/auth/auth.http` reflects updated response shape
 - [ ] All existing auth controller tests pass; no new TypeScript errors
 
@@ -228,7 +228,7 @@ Query params:
 
 `date` and `from` are mutually exclusive — "Precisa de ação" sends neither (no date filter at all, sorted by `scheduledAt ASC` regardless of day).
 
-Response shape (new type `StaffBookingCardResponse` in `@beloauto/types`):
+Response shape (new type `StaffBookingCardResponse` in `@ikaro/types`):
 ```typescript
 interface StaffBookingCardResponse {
   bookingId: string;
@@ -383,7 +383,7 @@ PATCH  /v1/services/:id      X-Actor-Role: STAFF|MANAGER   → StaffServiceRespo
 DELETE /v1/services/:id      X-Actor-Role: STAFF|MANAGER   → 204                    (likely already exists)
 ```
 
-**`@beloauto/types` additions (new file `packages/types/src/service.dto.ts` or extend existing):**
+**`@ikaro/types` additions (new file `packages/types/src/service.dto.ts` or extend existing):**
 
 ```typescript
 export interface StaffServiceResponse {
@@ -431,7 +431,7 @@ export interface UpdateServiceRequest {
 - [ ] `DELETE /v1/services/:id` → `204`; subsequent `GET /v1/services/:id` returns `isActive: false`
 - [ ] Tenant isolation: MANAGER of Tenant A cannot read/modify Tenant B's services
 - [ ] `.http` blocks present in `apps/bff/http/services/` for all 5 operations
-- [ ] All types added to `@beloauto/types` and re-exported from `packages/types/src/index.ts`
+- [ ] All types added to `@ikaro/types` and re-exported from `packages/types/src/index.ts`
 - [ ] `tsc --noEmit` passes across monorepo
 
 **Dependencies:** M05 (Service aggregate + backend endpoints)
@@ -453,7 +453,7 @@ Provide the two data endpoints needed for the Minha Conta list page: a customer-
 > - Open `apps/bff/src/bookings/bookings.controller.ts`. Look for `GET /v1/bookings`. Check: (a) does it already allow `CUSTOMER` role via `@Roles`? (b) when called with a CUSTOMER JWT, does it filter to `customerId === JWT.sub`? (c) does its response shape include `status`, `scheduledAt`, `lines[].serviceName`, `lines[].priceAtBooking`, `totalPrice`, and `booking.notes`? If yes to all three, this story reduces to adding `CustomerBookingListResponse` to `packages/types/` only.
 > - Open `apps/bff/src/loyalty/loyalty.controller.ts` (or similar). Check if `GET /v1/loyalty/balance` exists and is accessible to CUSTOMER role. Response should include `currentPoints`, `nextExpiryDate`, `nextExpiryPoints`.
 
-**`@beloauto/types` additions** (`packages/types/src/booking.dto.ts`):
+**`@ikaro/types` additions** (`packages/types/src/booking.dto.ts`):
 ```typescript
 export interface CustomerBookingLineItem {
   lineId: string;
@@ -477,7 +477,7 @@ export interface CustomerBookingListResponse {
 }
 ```
 
-**`@beloauto/types` additions** (`packages/types/src/loyalty.dto.ts` — extend if exists):
+**`@ikaro/types` additions** (`packages/types/src/loyalty.dto.ts` — extend if exists):
 ```typescript
 export interface CustomerLoyaltyBalanceResponse {
   currentPoints: number;
@@ -517,7 +517,7 @@ Provide the full booking detail for a customer viewing their own booking. Owners
 
 > 🔍 **Discover before starting:** Open `apps/bff/src/bookings/bookings.controller.ts`. Find `GET /v1/bookings/:id`. Check: (a) does it allow `CUSTOMER` role? (b) does it enforce `customerId === X-Actor-ID`, returning `403` otherwise? (c) does its response shape include `status`, `scheduledAt`, `lines`, `totalPrice`, `notes`, `infoRequestMessage`, `infoResponseMessage`? If yes to all three, this story is types-only.
 
-**`@beloauto/types` additions** (`packages/types/src/booking.dto.ts`):
+**`@ikaro/types` additions** (`packages/types/src/booking.dto.ts`):
 ```typescript
 export interface CustomerBookingDetailResponse {
   bookingId: string;
@@ -571,7 +571,7 @@ Provide the two paginated endpoints needed for the customer's full loyalty histo
 > - If both exist and are CUSTOMER-scoped, this story is types-only.
 > - Check `packages/types/src/loyalty.dto.ts` for existing `LoyaltyEntryResponse` and `LoyaltyRedemptionResponse` types. If present, verify shape matches what the BFF actually returns.
 
-**`@beloauto/types` additions** (`packages/types/src/loyalty.dto.ts`):
+**`@ikaro/types` additions** (`packages/types/src/loyalty.dto.ts`):
 ```typescript
 export interface CustomerLoyaltyEntryResponse {
   entryId: string;
@@ -871,7 +871,7 @@ Update the `PATCH /bookings/:id/complete` request block to include an example wi
 **Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md`
 
 **Description:**
-Three additions to the BFF: a new staff-facing customer search endpoint, enriching the loyalty balance response with the conversion rate, and forwarding `discountByPoints` through the booking completion body. Also fixes the stale `@beloauto/types` loyalty shapes.
+Three additions to the BFF: a new staff-facing customer search endpoint, enriching the loyalty balance response with the conversion rate, and forwarding `discountByPoints` through the booking completion body. Also fixes the stale `@ikaro/types` loyalty shapes.
 
 > 🔍 **Discover before starting:**
 > - Read `apps/bff/src/customers/customers.controller.ts` — confirm there is no `STAFF|MANAGER`-accessible GET route yet. The only routes are `GET /me` and `PATCH /me` (CUSTOMER-only).
@@ -905,7 +905,7 @@ If the backend `GET /customers` endpoint does not exist, add it in the same comm
 - Query: `ILIKE %search%` on `name` + `email`, scoped to `tenantId`, returns `{ customerId, name, email, currentPoints }`
 - `currentPoints` requires joining `loyalty_balances` — or calling `ILoyaltyBalanceRepository.findByCustomer()` per result (N+1 acceptable at limit=20 for MVP). Use port, not direct join.
 
-`@beloauto/types` additions (`packages/types/src/customer.dto.ts` or new file):
+`@ikaro/types` additions (`packages/types/src/customer.dto.ts` or new file):
 ```typescript
 export interface CustomerSearchResult {
   readonly customerId: string;
@@ -946,7 +946,7 @@ async getBalanceAdmin(
 
 Similarly enrich `getBalance()` (customer-own route) — `M13-S06`'s loyalty strip and `M13-S29`'s Fidelidade page both need `conversionRate` there too.
 
-`@beloauto/types` — fix and extend (`packages/types/src/loyalty.dto.ts`):
+`@ikaro/types` — fix and extend (`packages/types/src/loyalty.dto.ts`):
 ```typescript
 // Replace the stale LoyaltyBalanceResponse:
 export interface LoyaltyBalanceResponse {
@@ -1020,7 +1020,7 @@ const CompleteBookingBodySchema = z.object({
 
 Forward `discountByPoints` to backend in the request body. No BFF-side validation — backend is authoritative.
 
-`@beloauto/types` addition:
+`@ikaro/types` addition:
 ```typescript
 export interface CompleteBookingRequest {
   readonly lines: CompleteBookingLineInput[];
@@ -1085,7 +1085,7 @@ Three static server-component pages covering the complete staff authentication s
 ```
 
 Renders (per `shared/staff-login.html`):
-- BeloAuto logomark (SVG or `<img>`)
+- Ikaro logomark (SVG or `<img>`)
 - Heading: `"Área da Equipe"`
 - Subtext: `"Acesso exclusivo para funcionários e gerentes"`
 - If `searchParams.error === 'not-a-staff-member'`: inline red alert box above the button — `"Sua conta Google não está cadastrada como funcionário neste estabelecimento."` + retry button
@@ -1158,7 +1158,7 @@ Three customer-facing auth pages: the tenant-branded login screen, the multi-ten
 > - Read `apps/web/app/[slug]/layout.tsx` — phone prompt goes here
 > - Read `apps/web/lib/api/` to understand existing fetcher conventions before adding new ones
 > - Verify the BFF route prefix for auth: is it `/api/auth/...` or `/v1/auth/...`? Check `apps/web/` next.config or API route proxying to confirm
-> - Confirm `TenantOption` is in `@beloauto/types` (added in `M13-S02`)
+> - Confirm `TenantOption` is in `@ikaro/types` (added in `M13-S02`)
 
 **Prototype references:**
 - `plan/journey/shared/login.html` (customer login screen)
@@ -1218,7 +1218,7 @@ Renders (per `01-select-tenant.html`):
 
 On `POST /api/auth/token` success: `{ tenantSlug }` → `router.push(`/${tenantSlug}`)`.
 
-`@beloauto/types` addition (if not already in `M13-S02`): `TenantOption` must include `primaryColor?: string` if the BFF selection token carries it — verify and add the field if present.
+`@ikaro/types` addition (if not already in `M13-S02`): `TenantOption` must include `primaryColor?: string` if the BFF selection token carries it — verify and add the field if present.
 
 ---
 
@@ -1426,7 +1426,7 @@ Extend `apps/web/middleware.ts` — add protection for `/{slug}/minha-conta/**`:
 - Renders `<CustomerShell tenantName={...} userName={...} />`
 
 `apps/web/components/customer/CustomerShell.tsx` — `'use client'`:
-- `dashboard-topbar` (brand: tenant logo/name + "+ Novo agendamento" desktop shortcut + avatar dropdown with "Sair" and "Site BeloAuto" links)
+- `dashboard-topbar` (brand: tenant logo/name + "+ Novo agendamento" desktop shortcut + avatar dropdown with "Sair" and "Site Ikaro" links)
 - Customer tab nav — **desktop only (`≥1024px`)**: Início | Agendamentos | Fidelidade (horizontal tab bar below topbar, same `.customer-nav` pattern from prototype)
 - `<main class="main-content">` content slot
 - `bottom-nav` — **mobile only (`<1024px`)**: 3 tabs — Início | Agendamentos | Fidelidade
@@ -1457,7 +1457,7 @@ Extend `apps/web/middleware.ts` — add protection for `/{slug}/minha-conta/**`:
 
 ## Phase 4 — Staff booking core
 
-> **Discovery note (applies to this entire phase):** Several details will only be resolved when implementation begins — particularly what BFF endpoints already exist vs. what needs adding, and which `@beloauto/types` booking types survived M12. Explicit "🔍 Discover before starting" callouts mark every assumption that must be verified before writing code. Do not skip these — acting on a wrong assumption here caused two CI failures in M12. For `M13-S19`/`M13-S20` specifically: the UC-008/UC-009 audit already confirmed `cancel-admin`, `reschedule`, and `complete` backend+BFF endpoints are fully implemented (not just planned) — these two stories are frontend-only.
+> **Discovery note (applies to this entire phase):** Several details will only be resolved when implementation begins — particularly what BFF endpoints already exist vs. what needs adding, and which `@ikaro/types` booking types survived M12. Explicit "🔍 Discover before starting" callouts mark every assumption that must be verified before writing code. Do not skip these — acting on a wrong assumption here caused two CI failures in M12. For `M13-S19`/`M13-S20` specifically: the UC-008/UC-009 audit already confirmed `cancel-admin`, `reschedule`, and `complete` backend+BFF endpoints are fully implemented (not just planned) — these two stories are frontend-only.
 
 ---
 
@@ -1535,7 +1535,7 @@ fetchStaffBookings(params: { status: string; date?: string; from?: string; page?
 **Description:**
 The core of this milestone: the booking detail page where staff take action on each request. Three actions (approve / reject / request info) each have their own flow, and approval has an error branch (slot conflict). All success and error states are inline — no navigation to a separate page.
 
-> 🔍 **Discover before starting:** Confirm the BFF action endpoints are wired correctly: `PATCH /v1/bookings/:id/approve`, `PATCH /v1/bookings/:id/reject`, `PATCH /v1/bookings/:id/request-info`. These were built in M08/M09 and should exist. Verify their exact request bodies and error codes (409 for slot conflict, 422 for validation). Also check whether `@beloauto/types` has `ApproveBookingRequest`, `RejectBookingRequest`, `RequestMoreInfoRequest` — M12-S07 explicitly dropped these ("re-added when the dashboard story is built"). They need to be re-added here.
+> 🔍 **Discover before starting:** Confirm the BFF action endpoints are wired correctly: `PATCH /v1/bookings/:id/approve`, `PATCH /v1/bookings/:id/reject`, `PATCH /v1/bookings/:id/request-info`. These were built in M08/M09 and should exist. Verify their exact request bodies and error codes (409 for slot conflict, 422 for validation). Also check whether `@ikaro/types` has `ApproveBookingRequest`, `RejectBookingRequest`, `RequestMoreInfoRequest` — M12-S07 explicitly dropped these ("re-added when the dashboard story is built"). They need to be re-added here.
 
 **Prototype references:**
 - `plan/journey/staff/prototypes/agenda/01-booking-detail.html` — main detail + action panel + bottom sheets
@@ -1545,7 +1545,7 @@ The core of this milestone: the booking detail page where staff take action on e
 
 **Route:** `/dashboard/bookings/[id]`
 
-**`@beloauto/types` additions (do first, blocks component work):**
+**`@ikaro/types` additions (do first, blocks component work):**
 ```typescript
 // packages/types/src/booking.dto.ts
 export interface ApproveBookingRequest { }  // empty body
@@ -1687,7 +1687,7 @@ Extends `BookingDetailPage` (`M13-S18`) with a second action panel — `BookingL
 
 **Route:** `/dashboard/bookings/[id]` (same route as `M13-S18`, branched by status) + reschedule sub-route (TBD — see discovery)
 
-**`@beloauto/types` additions (`packages/types/src/booking.dto.ts`):**
+**`@ikaro/types` additions (`packages/types/src/booking.dto.ts`):**
 ```typescript
 export interface CancelBookingAsAdminRequest { bookingId: string; reason?: string; }
 export interface CancelBookingAsAdminResponse { id: string; status: 'CANCELLED'; cancelledAt: string; }
@@ -1758,7 +1758,7 @@ The "Marcar concluído" action from `BookingLifecyclePanel` (`M13-S19`) — staf
 
 **Route:** `/dashboard/bookings/[id]/complete` (TBD — see `M13-S19` discovery)
 
-**`@beloauto/types` additions (`packages/types/src/booking.dto.ts`):**
+**`@ikaro/types` additions (`packages/types/src/booking.dto.ts`):**
 ```typescript
 export interface CompleteBookingLineInput { lineId: string; actualPriceCharged: number; }
 export interface CompleteBookingRequest {
@@ -1911,7 +1911,7 @@ Approved bookings for the schedule grid reuse `fetchStaffBookings({ status: 'APP
 - `apps/bff/http/schedule/schedule-openings.http` — `POST` and `DELETE /v1/schedule/openings` request blocks
 - `apps/bff/http/schedule/availability.http` — `GET /v1/schedule/availability/summary` request block
 
-**`@beloauto/types` additions (new file or extend existing):**
+**`@ikaro/types` additions (new file or extend existing):**
 ```typescript
 export interface ScheduleClosure {
   id: string;
@@ -2303,7 +2303,7 @@ Extends the `MarkCompleteSheet` component (built in `M13-S20`) with the loyalty 
 > 🔍 **Discover before starting:**
 > - Confirm `M13-S20` shipped `MarkCompleteSheet`. Read it in full before adding anything.
 > - Confirm `StaffBookingDetailResponse` (from `M13-S04`) includes `loyaltyBalance: number | null` and `loyaltyConversionRate: number` (added per `M13-S04`'s note, sourced from `M13-S12`).
-> - Read `apps/web/lib/api/dashboard/bookings.ts` `completeBooking()` fetcher — confirm it accepts `CompleteBookingRequest` from `@beloauto/types` and that `discountByPoints` is now in the type (added in `M13-S12`).
+> - Read `apps/web/lib/api/dashboard/bookings.ts` `completeBooking()` fetcher — confirm it accepts `CompleteBookingRequest` from `@ikaro/types` and that `discountByPoints` is now in the type (added in `M13-S12`).
 
 **Prototype reference:** `plan/journey/staff/prototypes/agenda/04-mark-complete.html` (loyalty strip section)
 
@@ -2678,9 +2678,9 @@ getCustomerTenants(
 }
 ```
 
-`TenantOption` is already in `@beloauto/types` (added in `M13-S02`). Confirm it contains: `{ id, name, slug, loyaltyPoints }`. If `loyaltyPoints` is not available from the internal tenant endpoint, call `GET /internal/customers/{customerId}/loyalty-balance?tenantId={id}` per tenant or set to `0` for now (note the limitation in dev-notes).
+`TenantOption` is already in `@ikaro/types` (added in `M13-S02`). Confirm it contains: `{ id, name, slug, loyaltyPoints }`. If `loyaltyPoints` is not available from the internal tenant endpoint, call `GET /internal/customers/{customerId}/loyalty-balance?tenantId={id}` per tenant or set to `0` for now (note the limitation in dev-notes).
 
-**`@beloauto/types` addition** (if not already in `M13-S02`):
+**`@ikaro/types` addition** (if not already in `M13-S02`):
 ```typescript
 // packages/types/src/auth.dto.ts
 export interface SwitchTenantRequest {
@@ -2702,7 +2702,7 @@ switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>
 ```
 
 `apps/web/app/switch-tenant/page.tsx` — `'use client'`:
-- Same visual layout as `plan/journey/customer/prototypes/login/01-select-tenant.html` (centered, full height, BeloAuto logo, tenant cards)
+- Same visual layout as `plan/journey/customer/prototypes/login/01-select-tenant.html` (centered, full height, Ikaro logo, tenant cards)
 - On mount: calls `fetchCustomerTenants()`
   - Loading: skeleton cards
   - Empty (customer has only 1 tenant): redirect to `/{currentSlug}/minha-conta` (should not reach this page)
@@ -2712,7 +2712,7 @@ switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>
 - Error (network failure on switch): inline alert "Não foi possível trocar de empresa. Tente novamente." + retry button
 
 `CustomerShell` update (in `apps/web/components/customer/CustomerShell.tsx`):
-- Avatar dropdown: add "Trocar empresa" item between "← Site BeloAuto" and "Sair" links
+- Avatar dropdown: add "Trocar empresa" item between "← Site Ikaro" and "Sair" links
 - **Only render this item when customer has 2+ tenants.** Detection: call `fetchCustomerTenants()` on mount of CustomerShell (or include tenant count in JWT payload if available). If the call returns an empty list → do not render the "Trocar empresa" item.
 - "Trocar empresa" links to `/switch-tenant`
 
@@ -2803,7 +2803,7 @@ updateTenantSettings(body: UpdateTenantSettingsRequest): Promise<TenantSettingsR
 **Description:**
 The team list with Ativo / Convite pendente / Inativo filter tabs. The data model has no dedicated "pending invite" status — both a never-activated invitee and a deactivated former member have `isActive: false`. The list must derive the displayed status client-side.
 
-> 🔍 **Discover before starting:** `GET /staff` (BFF) already exists and returns a `StaffListResponse` (`apps/bff/src/staff/staff.controller.ts`) — confirm via `apps/bff/src/staff/staff.types.ts` whether each list item exposes `googleOAuthId` or `deactivatedBy`. If neither is exposed, this story must add one of them to the BFF response (a small addition here, not a new story) — without it, "Convite pendente" vs. "Inativo" cannot be computed. Also reconcile: `packages/types/src/staff.dto.ts`'s `StaffResponse` differs slightly from the BFF's local `staff.types.ts` shapes — per CLAUDE.md's `@beloauto/types` scope rule (BFF→Frontend contract only), confirm `apps/web` should import from `@beloauto/types`, and align the BFF's local type with it if they've drifted.
+> 🔍 **Discover before starting:** `GET /staff` (BFF) already exists and returns a `StaffListResponse` (`apps/bff/src/staff/staff.controller.ts`) — confirm via `apps/bff/src/staff/staff.types.ts` whether each list item exposes `googleOAuthId` or `deactivatedBy`. If neither is exposed, this story must add one of them to the BFF response (a small addition here, not a new story) — without it, "Convite pendente" vs. "Inativo" cannot be computed. Also reconcile: `packages/types/src/staff.dto.ts`'s `StaffResponse` differs slightly from the BFF's local `staff.types.ts` shapes — per CLAUDE.md's `@ikaro/types` scope rule (BFF→Frontend contract only), confirm `apps/web` should import from `@ikaro/types`, and align the BFF's local type with it if they've drifted.
 
 **Prototype reference:** `plan/journey/manager/prototypes/equipe/01-team-list.html`
 **Route:** `/dashboard/team`
@@ -2953,7 +2953,7 @@ deactivateStaff(staffId: string): Promise<DeactivateStaffResponse>
 **Docs to load:** `docs/04-USE_CASES.md` § UC-027, `plan/journey/manager/hotsite.md`, `plan/journey/manager/prototypes/hotsite/dev-notes.md`
 
 **Description:**
-The Hotsite editor page itself — tabbed shell (Branding / Layout / SEO, client-side tab state, no separate routes, matching the prototype) — plus the Branding tab's full field set. `GET`/`PATCH /tenants/hotsite` and the image signed-URL endpoint already exist and are fully typed in `@beloauto/types` (`packages/types/src/hotsite.ts`) — frontend-only story. Branding scope is the 13-field set agreed during the audit (2026-06-16), not the original 4-field UC-027 text.
+The Hotsite editor page itself — tabbed shell (Branding / Layout / SEO, client-side tab state, no separate routes, matching the prototype) — plus the Branding tab's full field set. `GET`/`PATCH /tenants/hotsite` and the image signed-URL endpoint already exist and are fully typed in `@ikaro/types` (`packages/types/src/hotsite.ts`) — frontend-only story. Branding scope is the 13-field set agreed during the audit (2026-06-16), not the original 4-field UC-027 text.
 
 > 🔍 **Discover before starting:** Confirm `HotsiteAdminContentResponse`'s exact branding field names in `packages/types/src/hotsite.ts` before building the form. Confirm whether an `UpdateHotsiteContentRequest` TS interface already exists alongside the BFF's `UpdateHotsiteContentBodySchema` Zod schema, or only the Zod schema exists on the BFF side — if the frontend has nothing to import, add the missing TS interface to `packages/types/src/hotsite.ts` as part of this story (small addition, not a new story). Also check `POST /tenants/hotsite/images/signed-url`'s exact request/response shape (`GenerateHotsiteImageSignedUrlResponse`) before wiring the logo upload.
 

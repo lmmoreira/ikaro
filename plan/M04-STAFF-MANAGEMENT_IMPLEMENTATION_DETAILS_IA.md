@@ -110,9 +110,9 @@ Adding a new channel: create `XxxDeliveryAdapter implements IDeliveryChannel`, a
 
 | Event | Topic | Subscription |
 |---|---|---|
-| `TenantProvisioned` | `beloauto-TenantProvisioned` | `beloauto-TenantProvisioned-staff` |
-| `StaffInvited` | `beloauto-StaffInvited` | `beloauto-StaffInvited-notification` |
-| `StaffDeactivated` | `beloauto-StaffDeactivated` | _(no consumer yet — M11)_ |
+| `TenantProvisioned` | `ikaro-TenantProvisioned` | `ikaro-TenantProvisioned-staff` |
+| `StaffInvited` | `ikaro-StaffInvited` | `ikaro-StaffInvited-notification` |
+| `StaffDeactivated` | `ikaro-StaffDeactivated` | _(no consumer yet — M11)_ |
 
 ### Migration timestamps
 
@@ -174,5 +174,5 @@ CREATE TABLE notification.notification_logs (
 |---|---|---|
 | `SMTP_HOST` | `localhost` | MailHog host |
 | `SMTP_PORT` | `1025` | MailHog SMTP port |
-| `SMTP_FROM` | `noreply@beloauto.com.br` | Sender address |
+| `SMTP_FROM` | `noreply@<ikaro-domain>` | Sender address |
 | `FRONTEND_URL` | `http://localhost:3000` | Activation link base URL |

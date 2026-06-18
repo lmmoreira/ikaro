@@ -68,7 +68,7 @@
 | `AddressLookup` port, `viaCepAddressLookup` adapter, `InMemoryAddressLookup` test double | `lib/address/*.ts` |
 | `fetchManifest`/`fetchServices`/`fetchAvailability*`/`createBooking`/`createAttachmentSignedUrl`/`fetchPublishedHotsiteSlugs` | `lib/api/{platform,services,schedule,bookings}.ts` |
 
-### `@beloauto/types` (`packages/types/src/`)
+### `@ikaro/types` (`packages/types/src/`)
 
 | Artifact | Path | Notes |
 |---|---|---|
@@ -205,7 +205,7 @@ export const viaCepAddressLookup: AddressLookup = { /* GET viacep.com.br, null o
 - `SITE_URL = stripTrailingSlashes(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000')` (`lib/hotsite/seo.ts`) — single source for all absolute URLs.
 - `buildHotsiteMetadata({ manifest, slug, path? })` — title/description default to `"<Tenant> — Agendamento Online [em <City>, <State>]"` (location appended only if `manifest.business.address` present), **overridden by `manifest.seo.title`/`manifest.seo.description`** when set (tenant-configurable, M12-S09 `seo jsonb` column); `openGraph.locale` from `manifest.localization.language.replaceAll('-', '_')`; `og:image` from `branding.logoUrl` when present; `robots` = `index/follow` iff `isPublished`; `alternates.canonical = ${SITE_URL}/${slug}${path}`.
 - `[slug]/page.tsx` `generateMetadata` → `buildHotsiteMetadata({ manifest, slug })`; also renders `<script type="application/ld+json">${toJsonLdScript(buildLocalBusinessJsonLd({manifest, slug}))}</script>` (home page only).
-- `[slug]/booking/page.tsx` `generateMetadata` → `buildHotsiteMetadata({ manifest, slug, path: '/booking' })` with `robots: {index:false, follow:false}` **always**, and `title` overridden to `'Agendar serviço'` / `'Em breve — BeloAuto'`.
+- `[slug]/booking/page.tsx` `generateMetadata` → `buildHotsiteMetadata({ manifest, slug, path: '/booking' })` with `robots: {index:false, follow:false}` **always**, and `title` overridden to `'Agendar serviço'` / `'Em breve — Ikaro'`.
 - `toJsonLdScript(data)` — `JSON.stringify(data).replaceAll('<', '\\u003c')` — prevents `</script>` breakout.
 - `ListPublishedHotsitesUseCase` (`GET /internal/tenants/published-hotsites`, `InternalApiGuard`) — `platform.tenants ⋈ platform.hotsite_configs` where `tenants.is_active = true AND hotsite_configs.is_published = true` → `{ items: [{ slug, updatedAt }] }`. BFF: `GET /platform/published-hotsites` (`@Public()`) → `HotsiteSitemapEntryListResponse`. Frontend: `fetchPublishedHotsiteSlugs()` (`lib/api/platform.ts`) → `app/sitemap.ts` maps to `{ url: \`${SITE_URL}/${slug}\`, lastModified: updatedAt }`.
 - `app/robots.ts` — `allow: '/'`, `disallow: ['/dashboard', '/auth']`, `sitemap: ${SITE_URL}/sitemap.xml`.
@@ -216,8 +216,8 @@ export const viaCepAddressLookup: AddressLookup = { /* GET viacep.com.br, null o
 
 | Case | Trigger | Result |
 |---|---|---|
-| Unknown slug | `TenantNotFoundError`/`HotsiteNotFoundError` | `fetchManifest()` → `notFound()` in `[slug]/layout.tsx` → **root** `app/not-found.tsx` (`"Lavacar não encontrada"`, `<title>Não encontrado — BeloAuto</title>`) |
-| `isPublished: false` | `GetHotsiteManifestUseCase` early-return stub: `{ branding: config.branding, layout: [], isPublished: false, business: <all-null> }` (skips image resolution + tenant/business lookup) | `200`; `[slug]/page.tsx` renders `<Unavailable />` ("Em breve") instead of module list; `<title>Em breve — BeloAuto</title>` |
+| Unknown slug | `TenantNotFoundError`/`HotsiteNotFoundError` | `fetchManifest()` → `notFound()` in `[slug]/layout.tsx` → **root** `app/not-found.tsx` (`"Lavacar não encontrada"`, `<title>Não encontrado — Ikaro</title>`) |
+| `isPublished: false` | `GetHotsiteManifestUseCase` early-return stub: `{ branding: config.branding, layout: [], isPublished: false, business: <all-null> }` (skips image resolution + tenant/business lookup) | `200`; `[slug]/page.tsx` renders `<Unavailable />` ("Em breve") instead of module list; `<title>Em breve — Ikaro</title>` |
 
 `app/not-found.tsx` **must be root-level** — `[slug]/not-found.tsx` cannot catch a `notFound()` thrown by `[slug]/layout.tsx` itself (only an ancestor segment's `not-found.tsx` can). `HotsiteNotPublishedError` and its mapper branch were **removed** — unpublished is a `200` + stub, not a `404`.
 
@@ -227,10 +227,10 @@ export const viaCepAddressLookup: AddressLookup = { /* GET viacep.com.br, null o
 
 | Var | Where | Default | Notes |
 |---|---|---|---|
-| `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` | `apps/web` | `http://localhost:4443/beloauto-local-public` | S03 |
+| `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` | `apps/web` | `http://localhost:4443/ikaro-local-public` | S03 |
 | `HOTSITE_REVALIDATE_SECRET` | `apps/web` + `apps/backend` | — (≥32 chars) | S03 (route) + S10 (caller); same value both sides |
 | `NEXT_PUBLIC_SITE_URL` | `apps/web` | `http://localhost:3000` | S09 — all absolute URLs derive from this |
-| `GCS_PUBLIC_BUCKET_NAME` | `apps/backend` | `beloauto-local-public` | S10 |
+| `GCS_PUBLIC_BUCKET_NAME` | `apps/backend` | `ikaro-local-public` | S10 |
 | `GCS_PUBLIC_BASE_URL` | `apps/backend` | `https://storage.googleapis.com` (`http://localhost:4443` local) | S10 — `getPublicUrl()` template base |
 
 ---
@@ -308,7 +308,7 @@ This is computed at module level and passed down to sub-components (`cardBg` pro
 6. **Hotsite images are permanent public URLs** (`getPublicUrl()`, no expiry) — booking attachment photos remain on the private bucket with signed, regenerated, ~15-min-expiry URLs. Don't conflate the two paths.
 7. **`FrontendRevalidationAdapter` always swallows errors** — publish/unpublish must succeed even if `/api/revalidate` 404s or times out (5s `AbortSignal.timeout`). ISR's 5-minute fallback is the safety net.
 8. **JSON-LD must go through `toJsonLdScript()`** — raw `JSON.stringify` allows a `</script>` sequence inside string data to break out of the `<script type="application/ld+json">` tag (XSS). The helper escapes `<` → `<`.
-9. **`SITE_URL` is the only source for absolute URLs** — never hardcode `https://beloauto.com` in canonical/OG/JSON-LD/sitemap code; `stripTrailingSlashes()` guards against a trailing-`/` env value producing `//slug`.
+9. **`SITE_URL` is the only source for absolute URLs** — never hardcode `https://<ikaro-domain>` in canonical/OG/JSON-LD/sitemap code; `stripTrailingSlashes()` guards against a trailing-`/` env value producing `//slug`.
 10. **`booking.dto.ts`/`schedule.dto.ts` were fully replaced in M12-S07** — `CompleteBookingRequest`/`RescheduleBookingRequest`/`RequestMoreInfoRequest`/`SubmitInfoRequest` were dropped as unused; they'll be re-added (mirroring the BFF's actual shapes) when the dashboard booking-management story is built (M13+).
 11. **`eslint-plugin-react-hooks`/`eslint-plugin-jsx-a11y` are scoped to `apps/web/eslint.config.js`** only (M12-S12) — `packages/config/eslint-base.js` is shared with backend/BFF, which have no JSX/hooks.
 12. **Client-side booking fetchers never use `next: { revalidate }`** — `schedule.ts`/`bookings.ts` must return live data; only server-rendered manifest/service fetches are ISR-cached.

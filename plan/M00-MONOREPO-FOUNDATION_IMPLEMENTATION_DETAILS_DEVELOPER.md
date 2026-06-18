@@ -15,15 +15,15 @@ A **monorepo** keeps `backend`, `bff`, and `web` in the same Git repository. The
 ```
 root/
   apps/
-    backend/   ← @beloauto/backend
-    bff/       ← @beloauto/bff
-    web/       ← @beloauto/web
+    backend/   ← @ikaro/backend
+    bff/       ← @ikaro/bff
+    web/       ← @ikaro/web
   packages/
-    types/     ← @beloauto/types    (shared DTOs)
-    config/    ← @beloauto/config   (shared lint/ts/prettier)
+    types/     ← @ikaro/types    (shared DTOs)
+    config/    ← @ikaro/config   (shared lint/ts/prettier)
 ```
 
-When `apps/bff/package.json` says `"@beloauto/types": "workspace:*"`, pnpm creates a symlink — importing from `@beloauto/types` in BFF code resolves directly to `packages/types/src/index.ts`. No build step needed during development.
+When `apps/bff/package.json` says `"@ikaro/types": "workspace:*"`, pnpm creates a symlink — importing from `@ikaro/types` in BFF code resolves directly to `packages/types/src/index.ts`. No build step needed during development.
 
 ---
 
@@ -222,7 +222,7 @@ gcs-emulator:    # Fake GCS — replaces Google Cloud Storage for photos locally
 mailhog:         # Catches all outgoing emails — view them at localhost:8025
 ```
 
-`docker/init-db.sql` creates 6 PostgreSQL **schemas** (not databases) inside the single `beloauto` database. A schema is like a namespace — `booking.bookings` is a different table from `loyalty.loyalty_entries`, even though they're in the same database. This maps to our bounded contexts and prevents accidental cross-context queries.
+`docker/init-db.sql` creates 6 PostgreSQL **schemas** (not databases) inside the single `ikaro` database. A schema is like a namespace — `booking.bookings` is a different table from `loyalty.loyalty_entries`, even though they're in the same database. This maps to our bounded contexts and prevents accidental cross-context queries.
 
 ---
 

@@ -1,8 +1,8 @@
-# Release Lifecycle & Operations - BeloAuto
+# Release Lifecycle & Operations - Ikaro
 
 ## Overview
 
-This document provides a step-by-step operational guide for the entire lifecycle of a change in BeloAuto, from the first line of code on a local machine to the final deployment in Production.
+This document provides a step-by-step operational guide for the entire lifecycle of a change in Ikaro, from the first line of code on a local machine to the final deployment in Production.
 
 ---
 

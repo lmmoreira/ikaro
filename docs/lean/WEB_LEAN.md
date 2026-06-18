@@ -1,4 +1,4 @@
-# BeloAuto — Frontend Learning Journal
+# Ikaro — Frontend Learning Journal
 
 > **Who this is for:** A backend specialist (NestJS, TypeORM, PostgreSQL) building a production Next.js frontend for the first time.
 > **Format:** Concepts explained via backend analogies, followed by the real decision made in this codebase and why.
@@ -117,7 +117,7 @@ export function BookingForm() {
 
 **Rule of thumb:** Start everything as a server component (the default). Only add `'use client'` when you need interactivity (buttons, forms, state). This gives you the best performance — less JavaScript sent to the browser.
 
-**In BeloAuto:**
+**In Ikaro:**
 - `[slug]/layout.tsx` — server component (fetches manifest)
 - `[slug]/page.tsx` — server component (renders module list)
 - Future `BookingForm` — client component (multi-step form with state)
@@ -138,7 +138,7 @@ Admin publishes → POST /api/revalidate → cache cleared immediately
 
 **Backend analogy:** This is exactly like a Redis cache with TTL, but built into Next.js's `fetch`. The `revalidate: 300` is the TTL. The `/api/revalidate` endpoint is the cache invalidation hook.
 
-**Why this matters for BeloAuto:** The hotsite manifest doesn't change unless the admin edits it. Caching it for 5 minutes means 99% of visitor requests never hit the BFF at all. When the admin publishes a change, the backend calls our `/api/revalidate` endpoint (M12-S10 already wires this), which clears the cache immediately.
+**Why this matters for Ikaro:** The hotsite manifest doesn't change unless the admin edits it. Caching it for 5 minutes means 99% of visitor requests never hit the BFF at all. When the admin publishes a change, the backend calls our `/api/revalidate` endpoint (M12-S10 already wires this), which clears the cache immediately.
 
 **Why we can cache it safely (and why M12-S10 was important):** The manifest contains image URLs. If those were expiring signed URLs (like S3 pre-signed URLs), they'd expire inside the cache window and serve broken images to visitors. M12-S10 changed hotsite images to permanent public bucket URLs — no expiry, safe to cache forever. Booking photos are still signed URLs (they're private), just never cached in the manifest.
 
@@ -196,7 +196,7 @@ Tailwind replaces writing CSS files with applying pre-defined classes directly i
 </div>
 ```
 
-**BeloAuto rule:** Use Tailwind for layout and spacing. Use `var(--ba-*)` for anything brandable (colors, fonts, radius, shadows). Never hardcode colors like `bg-orange-500` — that would ignore the tenant's branding.
+**Ikaro rule:** Use Tailwind for layout and spacing. Use `var(--ba-*)` for anything brandable (colors, fonts, radius, shadows). Never hardcode colors like `bg-orange-500` — that would ignore the tenant's branding.
 
 ```tsx
 // ✓ correct
@@ -512,7 +512,7 @@ it('calls revalidatePath with the correct path', async () => {
 When you run `pnpm test:cov`, Vitest instruments every line of your source files and tracks which lines execute during tests. At the end it generates `coverage/lcov.info` — a standard format that SonarCloud, Codecov, and most CI tools understand.
 
 ```
-pnpm --filter @beloauto/web test:cov
+pnpm --filter @ikaro/web test:cov
 → apps/web/coverage/lcov.info  (222 lines, records which lines were hit)
 ```
 
@@ -527,9 +527,9 @@ In CI (`pr-quality.yml`), the SonarCloud job runs all three `test:cov` commands 
 ```yaml
 - name: Generate coverage reports
   run: |
-    pnpm --filter @beloauto/backend test:cov
-    pnpm --filter @beloauto/bff test:cov
-    pnpm --filter @beloauto/web test:cov   # added
+    pnpm --filter @ikaro/backend test:cov
+    pnpm --filter @ikaro/bff test:cov
+    pnpm --filter @ikaro/web test:cov   # added
 ```
 
 **Why the quality gate was failing before this PR:**
@@ -1099,7 +1099,7 @@ const MODULE_DATA_SCHEMAS: Partial<Record<HotsiteModuleType, z.ZodType>> = {
 };
 ```
 
-**The `satisfies z.ZodType<XxxModuleData>` pattern:** Each schema uses TypeScript's `satisfies` operator to ensure the Zod schema is compatible with the TypeScript interface. If you add a field to `HeroModuleData` in `@beloauto/types` and forget to add it to `HeroModuleDataSchema`, TypeScript gives you a compile error at the schema definition — not a runtime crash at the user.
+**The `satisfies z.ZodType<XxxModuleData>` pattern:** Each schema uses TypeScript's `satisfies` operator to ensure the Zod schema is compatible with the TypeScript interface. If you add a field to `HeroModuleData` in `@ikaro/types` and forget to add it to `HeroModuleDataSchema`, TypeScript gives you a compile error at the schema definition — not a runtime crash at the user.
 
 **Backend analogy:** This is your `ZodValidationPipe`. Instead of validating incoming HTTP request bodies, you're validating database-stored JSON that's about to be rendered. Same principle — validate at the boundary, skip/reject rather than crash.
 
@@ -1229,7 +1229,7 @@ Every `<input>` in `PersonalInfoStep`/`AddressFields` looks like this:
 
 This is a **controlled input**. The displayed value (`value={value.contactEmail}`) always comes from React state — never from the DOM itself. Every keystroke fires `onChange`, which produces a *new* `PersonalInfoValue` object and hands it to `setPersonalInfo` (via the `onChange` prop chain back to `BookingForm`). React re-renders, the input's `value` prop is the new string, and the loop continues.
 
-The opposite — an **uncontrolled input** — lets the DOM hold the value (you'd read it later via a `ref`). BeloAuto's forms are controlled throughout, because controlled state is what lets `BookingForm` answer questions like "is Step 3 valid yet?" or "does any selected service require a pickup address?" by just *looking at state* — no querying the DOM.
+The opposite — an **uncontrolled input** — lets the DOM hold the value (you'd read it later via a `ref`). Ikaro's forms are controlled throughout, because controlled state is what lets `BookingForm` answer questions like "is Step 3 valid yet?" or "does any selected service require a pickup address?" by just *looking at state* — no querying the DOM.
 
 `PersonalInfoValue` (`lib/booking/personal-info.ts`) is the shape of that state:
 
@@ -1293,7 +1293,7 @@ export function AddressFields({ addressLookup = viaCepAddressLookup, ...rest }: 
 }
 ```
 
-**Backend analogy:** This is exactly `IStorageService` / `GcsSignedUrlAdapter` — an interface plus a concrete implementation, swappable without touching the consumer. The difference is *how* the swap happens. On the backend, NestJS's DI container resolves a token (`STORAGE_SERVICE`) to a class at module-wiring time. The frontend has **no DI container** — so the "wiring" is just a default-valued function parameter. Production code calls `<AddressFields />` and gets `viaCepAddressLookup` for free; tests call `<AddressFields addressLookup={new InMemoryAddressLookup({...})} />` and get deterministic, network-free results. If BeloAuto later adds a paid/Google-based lookup, only the adapter file and the default change — `AddressFields` and every caller stay untouched.
+**Backend analogy:** This is exactly `IStorageService` / `GcsSignedUrlAdapter` — an interface plus a concrete implementation, swappable without touching the consumer. The difference is *how* the swap happens. On the backend, NestJS's DI container resolves a token (`STORAGE_SERVICE`) to a class at module-wiring time. The frontend has **no DI container** — so the "wiring" is just a default-valued function parameter. Production code calls `<AddressFields />` and gets `viaCepAddressLookup` for free; tests call `<AddressFields addressLookup={new InMemoryAddressLookup({...})} />` and get deterministic, network-free results. If Ikaro later adds a paid/Google-based lookup, only the adapter file and the default change — `AddressFields` and every caller stay untouched.
 
 Notice the **error contract**: every failure mode (network error, CEP not found, malformed response) collapses to `null`. The caller's rule is simple — `null` means "couldn't autofill, the user types it manually." CEP lookup is a convenience, never a blocker.
 
@@ -1303,7 +1303,7 @@ Notice the **error contract**: every failure mode (network error, CEP not found,
 
 `PhotoUpload` lets a customer attach "before" photos of their vehicle. The naive approach — `<input type="file">` → send the file bytes to your own backend → backend forwards to cloud storage — works, but doubles the data transfer (browser → your server → GCS) and ties up a backend request for however long the upload takes.
 
-Instead, BeloAuto reuses the **signed-URL upload pattern** already established for booking attachments (`docs/14-API_CONTRACTS.md`) — three requests for one file:
+Instead, Ikaro reuses the **signed-URL upload pattern** already established for booking attachments (`docs/14-API_CONTRACTS.md`) — three requests for one file:
 
 ```ts
 // 1. Ask the backend for a place to put the file (no file bytes sent yet)
@@ -1393,7 +1393,7 @@ app/
     └── page.tsx
 ```
 
-`app/not-found.tsx` has no access to any tenant's branding (the manifest fetch is what failed) — it's a static, BeloAuto-branded page: `"Lavacar não encontrada"` + a link back to `beloauto.com`.
+`app/not-found.tsx` has no access to any tenant's branding (the manifest fetch is what failed) — it's a static, Ikaro-branded page: `"Lavacar não encontrada"` + a link back to `<ikaro-domain>`.
 
 **Backend analogy:** Picture a NestJS exception filter that's registered on a *parent module* but not the child module where the exception is thrown — and the rule is "only the parent's filter catches it, never a filter on the exact same module." The fix is the same instinct as exception filter placement: put the handler where it can actually intercept the signal, which sometimes means *up* a level, not at the same level.
 
@@ -1444,7 +1444,7 @@ if (!config.isPublished) {
 Every Next.js page can export metadata two ways. A **static** object:
 
 ```ts
-export const metadata: Metadata = { title: 'Não encontrado — BeloAuto' };
+export const metadata: Metadata = { title: 'Não encontrado — Ikaro' };
 ```
 
 ...or an **async function**, when the title/description depend on data that has to be fetched:
@@ -1477,7 +1477,7 @@ openGraph: {
   title,
   description,
   url,
-  siteName: 'BeloAuto',
+  siteName: 'Ikaro',
   locale: 'pt_BR',
   type: 'website',
   images: manifest.branding.logoUrl ? [{ url: manifest.branding.logoUrl, width: 1200, height: 630 }] : [],
@@ -1536,7 +1536,7 @@ export default function robots(): MetadataRoute.Robots {
 
 Next.js takes the returned JS object/array and serializes it into the XML/text format search engines expect. `fetchPublishedHotsiteSlugs()` calls a **new endpoint built for exactly this**, `GET /platform/published-hotsites` — backed by `ListPublishedHotsitesUseCase`, which joins `tenants` and `hotsite_configs` *within* the Platform context (same schema, not a cross-context join — see CLAUDE.md §7 "Cross-context data access") and filters to `is_active && is_published`.
 
-**The rule that ties this all together:** every absolute URL anywhere in this system — `canonical`, `og:url`, JSON-LD `url`, sitemap entries — is built from one constant, `SITE_URL` (`lib/hotsite/seo.ts`), itself derived from `NEXT_PUBLIC_SITE_URL` with trailing slashes stripped. One env var, one constant, every URL consistent — change `NEXT_PUBLIC_SITE_URL` once when moving from `localhost:3000` to `beloauto.com` and every generated URL updates.
+**The rule that ties this all together:** every absolute URL anywhere in this system — `canonical`, `og:url`, JSON-LD `url`, sitemap entries — is built from one constant, `SITE_URL` (`lib/hotsite/seo.ts`), itself derived from `NEXT_PUBLIC_SITE_URL` with trailing slashes stripped. One env var, one constant, every URL consistent — change `NEXT_PUBLIC_SITE_URL` once when moving from `localhost:3000` to `<ikaro-domain>` and every generated URL updates.
 
 ---
 
@@ -1655,7 +1655,7 @@ Read the `bg` line as: "if this is a `filled` button **and** the admin set an ov
 
 This "optional field + explicit fallback that reproduces the old default" pattern is the general-purpose way to add a feature to a shared, persisted, schema-less (JSONB) structure without a migration and without a feature flag — the *absence of the field* **is** the feature flag.
 
-**One sharp edge this story hit:** the value travels Frontend ⇄ **BFF** ⇄ Backend, and the BFF has its **own** `.partial()` Zod schema (`HotsiteBrandingBodySchema`) that re-validates the `PATCH` body before forwarding it on. Zod objects silently **strip unrecognized keys** by default. Add a field to the backend's schema and to `@beloauto/types`, but forget the BFF's separate schema, and `buttonBackgroundColor` vanishes at the BFF hop — backend tests pass (never see the field), frontend tests pass (it sends the field), and only an end-to-end "round trips through `PATCH` → `GET`" test catches the gap. **Whenever a shape crosses the BFF, there are usually two schemas describing it — both need updating together.**
+**One sharp edge this story hit:** the value travels Frontend ⇄ **BFF** ⇄ Backend, and the BFF has its **own** `.partial()` Zod schema (`HotsiteBrandingBodySchema`) that re-validates the `PATCH` body before forwarding it on. Zod objects silently **strip unrecognized keys** by default. Add a field to the backend's schema and to `@ikaro/types`, but forget the BFF's separate schema, and `buttonBackgroundColor` vanishes at the BFF hop — backend tests pass (never see the field), frontend tests pass (it sends the field), and only an end-to-end "round trips through `PATCH` → `GET`" test catches the gap. **Whenever a shape crosses the BFF, there are usually two schemas describing it — both need updating together.**
 
 ---
 
@@ -1678,7 +1678,7 @@ useEffect(() => {
 
 Without this rule, `serviceIds` could change (the user goes back and toggles a service) without re-triggering the effect — `SlotPicker` would silently show slots for the *old* service selection. This is exactly the class of bug that's likely once `BookingForm`'s state (M12-S07) and M13's TanStack Query hooks get more complex — the rule catches it at lint time instead of "it works on my machine, breaks after the third click."
 
-**`eslint-plugin-jsx-a11y`** checks accessibility: missing `alt` on images, buttons/links with no accessible text, invalid `aria-*` attributes, click handlers on non-interactive elements (`<div onClick>`  instead of `<button>`). BeloAuto hotsites are public-facing pages for small businesses who will never run their own accessibility audit — catching these issues in CI is the only safety net they get.
+**`eslint-plugin-jsx-a11y`** checks accessibility: missing `alt` on images, buttons/links with no accessible text, invalid `aria-*` attributes, click handlers on non-interactive elements (`<div onClick>`  instead of `<button>`). Ikaro hotsites are public-facing pages for small businesses who will never run their own accessibility audit — catching these issues in CI is the only safety net they get.
 
 ```js
 // apps/web/eslint.config.js

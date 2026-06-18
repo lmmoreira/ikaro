@@ -1,8 +1,8 @@
-# Database Schema - BeloAuto
+# Database Schema - Ikaro
 
 ## Overview
 
-BeloAuto uses a **Single PostgreSQL instance, Schema-per-Context** pattern. Each bounded context owns its own PostgreSQL schema. This enforces physical data isolation between contexts and makes context boundaries visible at the database level.
+Ikaro uses a **Single PostgreSQL instance, Schema-per-Context** pattern. Each bounded context owns its own PostgreSQL schema. This enforces physical data isolation between contexts and makes context boundaries visible at the database level.
 
 ```
 Single PostgreSQL instance
@@ -456,7 +456,7 @@ Same idempotency pattern for the Loyalty event consumer. The `UNIQUE(tenant_id, 
 
 ## Event Publishing — MVP Approach
 
-> **Context:** `docs/03-DOMAIN_EVENTS.md` states that event publication must be transactional with the state change that produced it. A full transactional outbox (separate table + polling relay) is the enterprise-grade solution. For MVP, BeloAuto uses the simpler approach below with a clear understanding of its trade-off.
+> **Context:** `docs/03-DOMAIN_EVENTS.md` states that event publication must be transactional with the state change that produced it. A full transactional outbox (separate table + polling relay) is the enterprise-grade solution. For MVP, Ikaro uses the simpler approach below with a clear understanding of its trade-off.
 
 ### MVP pattern: synchronous publish after commit
 

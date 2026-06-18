@@ -1,4 +1,4 @@
-# Infrastructure & Tooling Map - BeloAuto
+# Infrastructure & Tooling Map - Ikaro
 
 ## Purpose
 
@@ -8,7 +8,7 @@ This document answers one question per tool: **where does it run, what does it c
 
 ## 1. CI/CD & Quality Tools (SaaS — hosted by third parties)
 
-These tools run on their providers' infrastructure. BeloAuto does not manage any servers for them.
+These tools run on their providers' infrastructure. Ikaro does not manage any servers for them.
 
 ---
 
@@ -23,7 +23,7 @@ These tools run on their providers' infrastructure. BeloAuto does not manage any
 
 **Account setup:**
 1. Create organisation at github.com (free).
-2. Push the monorepo to `github.com/<org>/beloauto`.
+2. Push the monorepo to `github.com/<org>/ikaro`.
 3. Under repo → Settings → Environments, create the 11 environments listed in `docs/09-CI_CD_PIPELINE.md` (backend-staging, backend-production, etc.).
 4. Add the secrets listed in the GitHub Secrets Catalog in `docs/09-CI_CD_PIPELINE.md` to each environment.
 
@@ -37,22 +37,22 @@ These tools run on their providers' infrastructure. BeloAuto does not manage any
 |---|---|
 | **Hosted by** | SonarSource (sonarcloud.io) |
 | **Purpose** | Static code analysis: bugs, code smells, security hotspots, differential coverage gate (≥ 80% on changed code) |
-| **Pricing** | **Free for public repositories.** Private repos: up to 100 k lines of code → **$10/month**. BeloAuto will stay well under 100 k LOC for the first year. Expected cost: **$10/month** once the repo is private. |
+| **Pricing** | **Free for public repositories.** Private repos: up to 100 k lines of code → **$10/month**. Ikaro will stay well under 100 k LOC for the first year. Expected cost: **$10/month** once the repo is private. |
 | **Secret required** | `SONAR_TOKEN` — repository-scoped GitHub Secret |
 
 **Account setup (one-time, ~10 minutes):**
 1. Go to [sonarcloud.io](https://sonarcloud.io) → "Log in with GitHub".
 2. Grant access to the `<org>` GitHub organisation.
-3. Click "+" → "Analyze new project" → select `beloauto` repo → set up manually.
-4. Note the **Organisation key** (e.g. `my-org`) and **Project key** (e.g. `my-org_beloauto`).
-5. Go to My Account (top-right avatar) → Security → Generate Token → name it `beloauto-ci` → copy the token.
+3. Click "+" → "Analyze new project" → select `ikaro` repo → set up manually.
+4. Note the **Organisation key** (e.g. `my-org`) and **Project key** (e.g. `my-org_ikaro`).
+5. Go to My Account (top-right avatar) → Security → Generate Token → name it `ikaro-ci` → copy the token.
 6. In GitHub: repo → Settings → Secrets → Actions → New secret → name `SONAR_TOKEN`, paste the token.
 
 **Repository configuration file** (commit to root of repo):
 
 ```properties
 # sonar-project.properties
-sonar.projectKey=<org>_beloauto
+sonar.projectKey=<org>_ikaro
 sonar.organization=<org>
 
 sonar.sources=apps/backend/src,apps/bff/src,apps/web/src
@@ -212,13 +212,13 @@ All resources are provisioned by Terraform. Full HCL, Day 0 bootstrap commands, 
 
 | GCP Service | What it hosts | Region |
 |---|---|---|
-| **Cloud Run** | `beloauto-web`, `beloauto-bff`, `beloauto-backend` containers | `us-central1` |
+| **Cloud Run** | `ikaro-web`, `ikaro-bff`, `ikaro-backend` containers | `us-central1` |
 | **Cloud SQL PostgreSQL 15** | Single instance, 6 schemas (platform, customer, staff, booking, loyalty, notification); private IP only | `us-central1` |
-| **Pub/Sub** | `beloauto-domain-events` topic; `beloauto-loyalty-consumer` + `beloauto-notification-consumer` subscriptions; `beloauto-dead-letter` topic | global |
-| **Cloud Storage** | `beloauto-media-<env>` bucket for tenant photo uploads | `US` multi-region |
+| **Pub/Sub** | `ikaro-domain-events` topic; `ikaro-loyalty-consumer` + `ikaro-notification-consumer` subscriptions; `ikaro-dead-letter` topic | global |
+| **Cloud Storage** | `ikaro-media-<env>` bucket for tenant photo uploads | `US` multi-region |
 | **Secret Manager** | `database-url`, `jwt-secret`, `google-oauth-client-id`, `google-oauth-client-secret`, `email-api-key` | `us-central1` |
-| **Artifact Registry** | `beloauto-images` Docker repository — single source of truth for all container images | `us-central1` |
-| **VPC + Serverless Connector** | `beloauto-vpc` private network; connector bridges Cloud Run to Cloud SQL private IP | `us-central1` |
+| **Artifact Registry** | `ikaro-images` Docker repository — single source of truth for all container images | `us-central1` |
+| **VPC + Serverless Connector** | `ikaro-vpc` private network; connector bridges Cloud Run to Cloud SQL private IP | `us-central1` |
 | **GCE e2-small VM** (prod only) | Self-hosted observability stack (Prometheus, Grafana, Loki, OTel Collector) via Docker Compose | `us-central1-a` |
 
 **Cost reference:** See `docs/22-TECH_STACK_DECISIONS.md` — cost summary tables for MVP, growth, and scale phases.
@@ -251,7 +251,7 @@ All infrastructure dependencies run locally via Docker Compose — PostgreSQL, G
 | **Secrets in CI** | GitHub Environment Secrets — scoped per environment (staging / production). Runtime secrets (JWT, OAuth, DB) are in Secret Manager, not GitHub Secrets. |
 | **Traffic: browser → BFF** | Public HTTPS via Cloud Run's managed TLS. Custom domain via Cloud Run domain mapping (no Load Balancer required for MVP). |
 | **Traffic: BFF → backend** | Internal Cloud Run URL (`INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`). Backend is not reachable from the public internet. |
-| **Traffic: Cloud Run → Cloud SQL** | Private IP inside `beloauto-vpc` via VPC Serverless Connector. Port 5432 never exposed publicly. |
+| **Traffic: Cloud Run → Cloud SQL** | Private IP inside `ikaro-vpc` via VPC Serverless Connector. Port 5432 never exposed publicly. |
 | **Traffic: Cloud Run → Pub/Sub / Secret Manager** | Google's internal network via service account credentials. No public endpoint. |
 | **Image security** | Trivy scans every image before push. Images tagged by Git SHA — mutable `:latest` tag is also pushed for convenience but deployments always reference the SHA tag. |
 | **IaC security** | Checkov scans all Terraform on every PR targeting `main`. |

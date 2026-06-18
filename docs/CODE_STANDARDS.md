@@ -1,4 +1,4 @@
-# Code Standards — BeloAuto
+# Code Standards — Ikaro
 
 Detailed mandatory rules for all TypeScript code. CLAUDE.md §7 holds the condensed summary; this file is the authoritative reference. Load when writing new code or reviewing standards.
 
@@ -64,7 +64,7 @@ export class XxxDomainError extends Error {
 | Use case result type | `{UseCaseClassName}Result` | `ApproveBookingUseCaseResult` |
 | Input DTO | `{Action}Dto` | `ApproveBookingDto` |
 | Zod schema | `{Action}Schema` | `ApproveBookingSchema` |
-| Public hotsite response type (`@beloauto/types`) | `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` | `HotsiteManifestResponse`, `HotsiteServiceResponse` / `HotsiteServiceListResponse` |
+| Public hotsite response type (`@ikaro/types`) | `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` | `HotsiteManifestResponse`, `HotsiteServiceResponse` / `HotsiteServiceListResponse` |
 
 - Never `*RequestDto`, `*InputDto`, `*Info`.
 - When a path param must be combined with a request body, pass them as **separate arguments**: `execute(staffId, dto)` — never merge into a composite DTO.

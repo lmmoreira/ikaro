@@ -8,11 +8,11 @@
 
 - **M12-S01** — `HotsiteConfig` aggregate (Platform context) + public manifest endpoint `GET /v1/tenants/slug/:slug`: 10-token `branding` object, ordered `layout` of typed modules, `isPublished` flag. `DEFAULT_HOTSITE_BRANDING` covers tenants that haven't configured a hotsite yet.
 - **M12-S02** — UC-027 admin hotsite management: `UpdateHotsiteContentUseCase`, `PublishHotsiteUseCase`/`UnpublishHotsiteUseCase`, `GenerateHotsiteImageSignedUrlUseCase`. Publish is gated by `IStorageService.exists()` checks on every referenced image (`HotsiteImageNotUploadedError`/`BookingPhotoNotUploadedError`).
-- **M12-S03** — The Next.js foundation: `app/[slug]/layout.tsx` + `page.tsx`, ISR (`revalidate: 300`), `applyBranding()` → CSS custom properties, 8-font allow-list via `next/font/google`, shared `@beloauto/types` package, on-demand revalidation route (`/api/revalidate`).
+- **M12-S03** — The Next.js foundation: `app/[slug]/layout.tsx` + `page.tsx`, ISR (`revalidate: 300`), `applyBranding()` → CSS custom properties, 8-font allow-list via `next/font/google`, shared `@ikaro/types` package, on-demand revalidation route (`/api/revalidate`).
 - **M12-S04** — First module component, `HeroModule`, plus the component-testing infrastructure every later module reuses: Vitest + jsdom + `@testing-library/react`, global `next/image`/`next/font/google` aliases.
-- **M12-S05** — `ServiceListModule`; `fetchServices(slug)`; `HotsiteServiceResponse`/`HotsiteServiceListResponse` promoted to `@beloauto/types`; new `ServicesPublicController`.
+- **M12-S05** — `ServiceListModule`; `fetchServices(slug)`; `HotsiteServiceResponse`/`HotsiteServiceListResponse` promoted to `@ikaro/types`; new `ServicesPublicController`.
 - **M12-S06** — `GalleryModule`, `TestimonialsModule`, `AboutModule`, `ContactModule`; `BusinessInfo`/`BusinessInfoAddress` VOs on `tenants.settings`; the Islands Pattern (`GalleryGrid`, `TestimonialsCarousel`); Markdown rendering via `react-markdown` + `rehype-sanitize`.
-- **M12-S07** — `BookingCtaModule` + the full 4-step booking form (`components/booking/*`); `AddressLookup` port with a ViaCEP adapter; 3-step signed-URL photo upload; `@beloauto/types` booking/schedule/money contracts replaced wholesale.
+- **M12-S07** — `BookingCtaModule` + the full 4-step booking form (`components/booking/*`); `AddressLookup` port with a ViaCEP adapter; 3-step signed-URL photo upload; `@ikaro/types` booking/schedule/money contracts replaced wholesale.
 - **M12-S08** — Root `app/not-found.tsx` (404 for unknown slugs) and `Unavailable` component ("Em breve" for unpublished hotsites) — two distinct `200`/`404` outcomes that were previously conflated.
 - **M12-S09** — Per-tenant SEO: `seo jsonb` column on `hotsite_configs`, `buildHotsiteMetadata`/`buildLocalBusinessJsonLd`/`toJsonLdScript`, `app/sitemap.ts`/`app/robots.ts`, `ListPublishedHotsitesUseCase`.
 - **M12-S10** — Separate public GCS bucket for hotsite images (permanent URLs, no signed-URL expiry); `FeatureBookingPhotoUseCase` (promote a completed booking's photo into the gallery); publish/unpublish trigger on-demand revalidation.
@@ -64,7 +64,7 @@ const MODULE_DATA_SCHEMAS: Partial<Record<HotsiteModuleType, z.ZodType>> = {
 
 For each layout entry, `isValidModuleData(type, data)` runs the matching Zod schema. **Valid → render. Invalid or unrecognized type → skip that module, render the rest of the page.** This mirrors `ZodValidationPipe` on an HTTP boundary, except the "untrusted input" is JSONB the *admin* wrote via the dashboard (M13), not an HTTP client — a typo in a module's `data` shouldn't take down the whole public hotsite.
 
-**The `satisfies z.ZodType<XxxModuleData>` pattern** keeps the Zod schema and the TypeScript interface from drifting: if `HeroModuleData` in `@beloauto/types` gains a field but `HeroModuleDataSchema` doesn't, `satisfies` produces a **compile-time** error at the schema definition — caught by `tsc`, not discovered when a tenant's hero section silently stops rendering a field.
+**The `satisfies z.ZodType<XxxModuleData>` pattern** keeps the Zod schema and the TypeScript interface from drifting: if `HeroModuleData` in `@ikaro/types` gains a field but `HeroModuleDataSchema` doesn't, `satisfies` produces a **compile-time** error at the schema definition — caught by `tsc`, not discovered when a tenant's hero section silently stops rendering a field.
 
 **Adding a new module type** is a 4-step checklist: (1) add `XxxModuleData` to `packages/types/src/hotsite.ts`, (2) add `XxxModuleDataSchema satisfies z.ZodType<XxxModuleData>` to `MODULE_DATA_SCHEMAS`, (3) add the component to `MODULE_MAP`, (4) write `XxxModule.spec.tsx`. Skipping step 2 means `isValidModuleData` returns `true` for *anything* (including `null`), and the component receives garbage props.
 
@@ -191,7 +191,7 @@ export const viaCepAddressLookup: AddressLookup = {
 };
 ```
 
-`AddressFields` takes `addressLookup: AddressLookup = viaCepAddressLookup` as a **prop with a default**. There's no DI container in Next.js (unlike NestJS, where you'd register a provider token) — a default-valued constructor parameter is the idiomatic frontend equivalent. Production code never passes the prop and gets ViaCEP; tests pass `new InMemoryAddressLookup({ '01001000': {...} })` and get deterministic, network-free results. If BeloAuto ever switches to a paid/Google-based address API, only the adapter file and the default change — `AddressFields` and every caller are untouched.
+`AddressFields` takes `addressLookup: AddressLookup = viaCepAddressLookup` as a **prop with a default**. There's no DI container in Next.js (unlike NestJS, where you'd register a provider token) — a default-valued constructor parameter is the idiomatic frontend equivalent. Production code never passes the prop and gets ViaCEP; tests pass `new InMemoryAddressLookup({ '01001000': {...} })` and get deterministic, network-free results. If Ikaro ever switches to a paid/Google-based address API, only the adapter file and the default change — `AddressFields` and every caller are untouched.
 
 Every failure mode — network error, CEP not found (`{ erro: true }`), malformed response — collapses to `null`. The caller's contract is simple: `null` means "couldn't autofill, let the user type it manually." No error ever blocks form progress; CEP lookup is a convenience, not a validation gate.
 
@@ -199,7 +199,7 @@ Every failure mode — network error, CEP not found (`{ erro: true }`), malforme
 
 ## SEO: Making Each Tenant Discoverable
 
-Before M12-S09, every tenant's hotsite rendered `<title>BeloAuto</title>` — useless for Google search or WhatsApp link previews, both critical for small Brazilian businesses. The fix has three layers:
+Before M12-S09, every tenant's hotsite rendered `<title>Ikaro</title>` — useless for Google search or WhatsApp link previews, both critical for small Brazilian businesses. The fix has three layers:
 
 **1. Per-page metadata via `generateMetadata`.** Next.js calls this *server-side function* (not a static export) before rendering, letting metadata depend on fetched data:
 
@@ -227,7 +227,7 @@ The booking page (`[slug]/booking/page.tsx`) is **always** `noindex, nofollow` r
 M12-S08 fixed a conflation that existed since M12-S01: both "this slug doesn't exist" and "this tenant exists but hasn't published yet" returned the same `404`, discarding the branding data needed to render anything tenant-specific for the second case.
 
 ```
-Unknown slug          → TenantNotFoundError → notFound() in [slug]/layout.tsx → root app/not-found.tsx (generic, BeloAuto-branded)
+Unknown slug          → TenantNotFoundError → notFound() in [slug]/layout.tsx → root app/not-found.tsx (generic, Ikaro-branded)
 isPublished: false     → 200, minimal stub  → [slug]/page.tsx renders <Unavailable /> ("Em breve", tenant-branded)
 ```
 

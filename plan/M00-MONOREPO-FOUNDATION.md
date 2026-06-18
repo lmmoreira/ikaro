@@ -25,13 +25,13 @@ Create the root monorepo scaffold. This is the empty skeleton that every subsequ
 - `pnpm-workspace.yaml` — declares `apps/*` and `packages/*`
 - `.npmrc` — `shamefully-hoist=false`, `strict-peer-dependencies=false`
 - `.gitignore` — node_modules, dist, .env*, coverage, .next, *.tsbuildinfo
-- `packages/config/` — empty directory with `package.json` (name: `@beloauto/config`)
-- `packages/types/` — empty directory with `package.json` (name: `@beloauto/types`) and `src/index.ts` (empty barrel export)
+- `packages/config/` — empty directory with `package.json` (name: `@ikaro/config`)
+- `packages/types/` — empty directory with `package.json` (name: `@ikaro/types`) and `src/index.ts` (empty barrel export)
 - `apps/backend/`, `apps/bff/`, `apps/web/` — empty directories each with a stub `package.json`
 
 **Acceptance criteria:**
 - [ ] `pnpm install` runs from root with zero errors
-- [ ] `pnpm -r list` shows all workspaces: `@beloauto/config`, `@beloauto/types`, `@beloauto/backend`, `@beloauto/bff`, `@beloauto/web`
+- [ ] `pnpm -r list` shows all workspaces: `@ikaro/config`, `@ikaro/types`, `@ikaro/backend`, `@ikaro/bff`, `@ikaro/web`
 - [ ] No `node_modules` committed (`.gitignore` covers it)
 - [ ] Root `package.json` has `"engines": { "node": ">=20", "pnpm": ">=9" }`
 
@@ -97,7 +97,7 @@ apps/backend/src/
 ```
 
 **Acceptance criteria:**
-- [ ] `pnpm --filter @beloauto/backend dev` starts on port 3001 with no errors
+- [ ] `pnpm --filter @ikaro/backend dev` starts on port 3001 with no errors
 - [ ] `GET /health/live` returns `200 { status: 'ok' }`
 - [ ] `GET /health/ready` returns `200 { status: 'ok' }` (DB check stubbed as always-true for now)
 - [ ] Each `src/contexts/<name>/` directory has `domain/`, `application/`, `infrastructure/` subdirectories
@@ -134,7 +134,7 @@ apps/bff/src/
 ```
 
 **Acceptance criteria:**
-- [ ] `pnpm --filter @beloauto/bff dev` starts on port 3002 with no errors
+- [ ] `pnpm --filter @ikaro/bff dev` starts on port 3002 with no errors
 - [ ] `GET /v1/health/live` returns `200 { status: 'ok' }`
 - [ ] Every response includes `X-Correlation-ID` header (generated UUID v4 if not in request)
 - [ ] `@nestjs/throttler` is installed and configured: 60 req/min for public, 300 req/min for authenticated (using named throttlers)
@@ -177,7 +177,7 @@ apps/web/
 ```
 
 **Acceptance criteria:**
-- [ ] `pnpm --filter @beloauto/web dev` starts on port 3000 with no errors
+- [ ] `pnpm --filter @ikaro/web dev` starts on port 3000 with no errors
 - [ ] `GET /` returns 200
 - [ ] `GET /[any-slug]` renders the hotsite stub page
 - [ ] `GET /dashboard` renders the dashboard stub page (no redirect yet — auth is M03)
@@ -211,7 +211,7 @@ Create the `docker/docker-compose.yml` that launches every external dependency t
 
 **Acceptance criteria:**
 - [ ] `pnpm infra:up` starts all 4 containers with zero errors
-- [ ] `psql -U beloauto -d beloauto` can connect on port 5432
+- [ ] `psql -U ikaro -d ikaro` can connect on port 5432
 - [ ] All 6 schemas exist: `\dn` lists platform, customer, staff, booking, loyalty, notification
 - [ ] Pub/Sub emulator responds on `http://localhost:8085`
 - [ ] MailHog web UI is accessible at `http://localhost:8025`
@@ -238,8 +238,8 @@ Set up TypeORM DataSource configuration for each bounded context and the migrati
   - `"migration:generate": "typeorm migration:generate"`
   - `"migration:run": "typeorm migration:run -d src/shared/database/data-source.ts"`
   - `"migration:revert": "typeorm migration:revert -d src/shared/database/data-source.ts"`
-- Root `package.json` script: `"db:migrate": "pnpm --filter @beloauto/backend migration:run"`
-- `apps/backend/.env.example` — `DATABASE_URL=postgresql://beloauto:beloauto@localhost:5432/beloauto`
+- Root `package.json` script: `"db:migrate": "pnpm --filter @ikaro/backend migration:run"`
+- `apps/backend/.env.example` — `DATABASE_URL=postgresql://ikaro:ikaro@localhost:5432/ikaro`
 
 **Acceptance criteria:**
 - [ ] `pnpm db:migrate` runs (with no migrations to run) without errors when Docker Compose is up
@@ -321,14 +321,14 @@ Wire up all root-level developer scripts so a new developer (or AI agent) can op
 "dev":          "pnpm -r --parallel run dev",
 "build":        "pnpm -r run build",
 "test":         "pnpm -r run test",
-"test:e2e":     "pnpm --filter @beloauto/web run test:e2e",
+"test:e2e":     "pnpm --filter @ikaro/web run test:e2e",
 "lint":         "pnpm -r run lint",
 "type-check":   "pnpm -r run type-check",
 "infra:up":     "docker compose -f docker/docker-compose.yml up -d",
 "infra:down":   "docker compose -f docker/docker-compose.yml down",
 "obs:up":       "docker compose -f docker/docker-compose.observability.yml up -d",
-"db:migrate":   "pnpm --filter @beloauto/backend migration:run",
-"db:revert":    "pnpm --filter @beloauto/backend migration:revert"
+"db:migrate":   "pnpm --filter @ikaro/backend migration:run",
+"db:revert":    "pnpm --filter @ikaro/backend migration:revert"
 ```
 
 **Also create:**
@@ -353,7 +353,7 @@ Wire up all root-level developer scripts so a new developer (or AI agent) can op
 **Docs to load:** `docs/14-API_CONTRACTS.md` (full), `docs/02-DOMAIN_MODEL.md` § value objects
 
 **Description:**  
-Populate `packages/types` with the canonical TypeScript DTO and response types shared between the BFF and the frontend. Without this, backend agents and frontend agents define their own types independently — they will drift and integration will break. Every BFF response type and every request body type lives here. Neither the backend nor the frontend owns these types; the `@beloauto/types` package does.
+Populate `packages/types` with the canonical TypeScript DTO and response types shared between the BFF and the frontend. Without this, backend agents and frontend agents define their own types independently — they will drift and integration will break. Every BFF response type and every request body type lives here. Neither the backend nor the frontend owns these types; the `@ikaro/types` package does.
 
 **What to create in `packages/types/src/`:**
 
@@ -392,10 +392,10 @@ Request/Response DTOs (one file per domain area, named `*.dto.ts`):
 **Barrel export:** `packages/types/src/index.ts` re-exports everything.
 
 **Acceptance criteria:**
-- [ ] `import { BookingResponse } from '@beloauto/types'` works in both `apps/bff` and `apps/web`
-- [ ] Every BFF controller's response type annotation uses a type from `@beloauto/types` (not a locally-defined interface)
-- [ ] Every frontend hook's return type uses a type from `@beloauto/types`
-- [ ] `BookingStatus` enum in `@beloauto/types` matches the backend domain enum exactly — any mismatch is a TypeScript error
+- [ ] `import { BookingResponse } from '@ikaro/types'` works in both `apps/bff` and `apps/web`
+- [ ] Every BFF controller's response type annotation uses a type from `@ikaro/types` (not a locally-defined interface)
+- [ ] Every frontend hook's return type uses a type from `@ikaro/types`
+- [ ] `BookingStatus` enum in `@ikaro/types` matches the backend domain enum exactly — any mismatch is a TypeScript error
 - [ ] `Money.formatted` is always `"R$ 1.234,56"` — the shape contract prevents agents from displaying `"150.00"` in the UI
 - [ ] `pnpm type-check` passes after types are imported in both BFF and web
 
@@ -430,8 +430,8 @@ Create a `pnpm db:seed` script that populates the local database with two comple
 - HotsiteConfig: published
 
 **Script location:** `apps/backend/src/shared/database/seed.ts`
-- Runs via: `pnpm --filter @beloauto/backend seed`
-- Root script: `"db:seed": "pnpm --filter @beloauto/backend seed"`
+- Runs via: `pnpm --filter @ikaro/backend seed`
+- Root script: `"db:seed": "pnpm --filter @ikaro/backend seed"`
 - Idempotent: detects if tenants already exist by slug, skips if already seeded
 - Prints a summary table of what was created
 
@@ -466,7 +466,7 @@ app.enableCors({
   allowedHeaders: ['Content-Type','Authorization','X-Tenant-Slug','X-Correlation-ID'],
 });
 ```
-- `ALLOWED_ORIGINS` env var — comma-separated list; in production: `https://beloauto.com`
+- `ALLOWED_ORIGINS` env var — comma-separated list; in production: `https://<ikaro-domain>`
 
 **2. JWT cookie configuration (applied when issuing JWT in M03-S04):**
 ```typescript

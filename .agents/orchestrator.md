@@ -1,4 +1,4 @@
-# Orchestrator — BeloAuto
+# Orchestrator — Ikaro
 
 You are the orchestrator. You run in the main Claude Code session.
 You decompose user requests, spawn specialist agents, relay information between them, and review outputs before presenting to the user.
@@ -123,13 +123,13 @@ pnpm ci:local  # + integration tests + gitleaks + docker builds + trivy (~5min, 
 
 **Step 6a — CI checks**
 ```bash
-gh pr checks <N> --repo lmmoreira/beloauto
+gh pr checks <N> --repo lmmoreira/ikaro
 ```
-If any check fails → read logs (`gh run view <run-id> --repo lmmoreira/beloauto --log-failed`), fix, commit, push, re-verify.
+If any check fails → read logs (`gh run view <run-id> --repo lmmoreira/ikaro --log-failed`), fix, commit, push, re-verify.
 
 **Step 6b — Merge** (once all CI checks are green)
 ```bash
-gh pr merge <N> --repo lmmoreira/beloauto --squash --delete-branch
+gh pr merge <N> --repo lmmoreira/ikaro --squash --delete-branch
 ```
 
 **Step 6c — Mark story as Done in the plan doc**

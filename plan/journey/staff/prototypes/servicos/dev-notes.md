@@ -29,7 +29,7 @@
 | Update service | `PATCH /v1/services/:id` | STAFF \| MANAGER | `UpdateServiceDto` | `200 ServiceDetailResponse` |
 | Deactivate service | `DELETE /v1/services/:id` | STAFF \| MANAGER | — | `200` |
 
-`POST`/`PATCH`/`DELETE` are likely already existing (built in M05). `GET /v1/services` (staff list including inactive) and `GET /v1/services/:id` are endpoints to verify-or-add, not confirmed-existing — `M13-S05` treats discovering/filling these as its explicit scope. Verify shapes match `@beloauto/types` before using.
+`POST`/`PATCH`/`DELETE` are likely already existing (built in M05). `GET /v1/services` (staff list including inactive) and `GET /v1/services/:id` are endpoints to verify-or-add, not confirmed-existing — `M13-S05` treats discovering/filling these as its explicit scope. Verify shapes match `@ikaro/types` before using.
 
 ---
 
@@ -145,4 +145,4 @@ The `PATCH /v1/services/:id` endpoint accepts `{ isActive: true }` so reactivati
 
 ## Missing types
 
-- `ServiceListResponse`, `ServiceListItem` may not exist in `@beloauto/types` (only added during M05 for public hotsite use). Audit `packages/types/src/service.dto.ts` and add staff-facing shapes if needed.
+- `ServiceListResponse`, `ServiceListItem` may not exist in `@ikaro/types` (only added during M05 for public hotsite use). Audit `packages/types/src/service.dto.ts` and add staff-facing shapes if needed.

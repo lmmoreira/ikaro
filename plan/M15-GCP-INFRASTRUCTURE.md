@@ -26,16 +26,16 @@ Staging resources cost approximately **$50/month**. Production resources cost ap
 Document and execute the one-time manual GCP setup steps that cannot be automated via Terraform (chicken-and-egg: Terraform needs a service account and state bucket to run, which must be created manually first). This story produces a runbook + a record of what was done.
 
 **Manual steps to execute and document:**
-1. Create GCP projects: `beloauto-staging`, `beloauto-prod`
+1. Create GCP projects: `ikaro-staging`, `ikaro-prod`
 2. Enable required APIs on each project:
    - `cloudrun.googleapis.com`, `sqladmin.googleapis.com`, `pubsub.googleapis.com`
    - `secretmanager.googleapis.com`, `artifactregistry.googleapis.com`
    - `cloudscheduler.googleapis.com`, `vpcaccess.googleapis.com`
-3. Create Terraform state bucket: `gs://beloauto-tfstate` with versioning enabled
+3. Create Terraform state bucket: `gs://ikaro-tfstate` with versioning enabled
 4. Create service accounts:
-   - `beloauto-deployer@beloauto-staging.iam.gserviceaccount.com` (CI/CD)
-   - `beloauto-backend@beloauto-staging.iam.gserviceaccount.com` (runtime)
-   - `beloauto-web@beloauto-staging.iam.gserviceaccount.com` (runtime)
+   - `ikaro-deployer@ikaro-staging.iam.gserviceaccount.com` (CI/CD)
+   - `ikaro-backend@ikaro-staging.iam.gserviceaccount.com` (runtime)
+   - `ikaro-web@ikaro-staging.iam.gserviceaccount.com` (runtime)
 5. Grant IAM roles as documented in `docs/23-INFRASTRUCTURE_SETUP.md`
 6. Configure Google OAuth consent screen + create OAuth 2.0 Client IDs (staging + production)
 7. Create initial secrets in Secret Manager (placeholders — values added in M16)
@@ -48,7 +48,7 @@ While the OAuth consent screen is in "Testing" mode (before Google verification)
 **Acceptance criteria:**
 - [ ] Both GCP projects created and accessible
 - [ ] All 7 APIs enabled in both projects
-- [ ] Terraform state bucket exists: `gsutil ls gs://beloauto-tfstate` succeeds
+- [ ] Terraform state bucket exists: `gsutil ls gs://ikaro-tfstate` succeeds
 - [ ] All 3 service accounts created with correct IAM bindings
 - [ ] Google OAuth credentials created and stored securely (NOT committed to git)
 - [ ] At least 1 test user added to the OAuth consent screen test user list
@@ -74,7 +74,7 @@ Create the Terraform project structure with remote state configuration, variable
 ```hcl
 terraform {
   backend "gcs" {
-    bucket = "beloauto-tfstate"
+    bucket = "ikaro-tfstate"
     prefix = "terraform/state"
   }
   required_providers {
@@ -88,7 +88,7 @@ terraform {
 
 `staging.tfvars`:
 ```hcl
-gcp_project          = "beloauto-staging"
+gcp_project          = "ikaro-staging"
 environment          = "staging"
 db_tier              = "db-f1-micro"
 backend_min_instances = 0
@@ -98,7 +98,7 @@ create_observability_vm = false
 
 `prod.tfvars`:
 ```hcl
-gcp_project          = "beloauto-prod"
+gcp_project          = "ikaro-prod"
 environment          = "production"
 db_tier              = "db-n1-standard-1"
 backend_min_instances = 1
@@ -127,9 +127,9 @@ create_observability_vm = true
 Create the VPC network infrastructure. Cloud Run services connect to Cloud SQL via the VPC connector (private IP — never public internet for DB traffic).
 
 **`infrastructure/terraform/network.tf`:**
-- VPC network: `beloauto-vpc-{environment}`
-- Subnet: `beloauto-subnet-{environment}` (`10.0.0.0/24` in `southamerica-east1`)
-- VPC connector: `beloauto-connector-{environment}` for Cloud Run → Cloud SQL connectivity
+- VPC network: `ikaro-vpc-{environment}`
+- Subnet: `ikaro-subnet-{environment}` (`10.0.0.0/24` in `southamerica-east1`)
+- VPC connector: `ikaro-connector-{environment}` for Cloud Run → Cloud SQL connectivity
 - Firewall rules: deny all ingress except internal; allow egress to internet for Cloud Run
 
 **Acceptance criteria:**
@@ -152,10 +152,10 @@ Create the VPC network infrastructure. Cloud Run services connect to Cloud SQL v
 Provision the Cloud SQL PostgreSQL 15 instance. Staging uses `db-f1-micro` (minimal cost). Production uses `db-n1-standard-1`. Private IP only — no public IP.
 
 **`infrastructure/terraform/database.tf`:**
-- Cloud SQL instance: `beloauto-db-{environment}`, PostgreSQL 15, `var.db_tier`
+- Cloud SQL instance: `ikaro-db-{environment}`, PostgreSQL 15, `var.db_tier`
 - Private IP: `ipv4_enabled = false`, connected to VPC via private services access
-- Database: `beloauto`
-- User: `beloauto` (password from Secret Manager reference)
+- Database: `ikaro`
+- User: `ikaro` (password from Secret Manager reference)
 - Backup: enabled, daily at 02:00, retention 7 days
 - Point-in-time recovery: enabled for production
 
@@ -180,13 +180,13 @@ Provision the Cloud SQL PostgreSQL 15 instance. Staging uses `db-f1-micro` (mini
 Create the Google Artifact Registry repository for Docker images. All 3 app images (`backend`, `bff`, `web`) are stored here, tagged by Git SHA.
 
 **`infrastructure/terraform/registry.tf`:**
-- Registry: `beloauto-registry` in `southamerica-east1`, format: `DOCKER`
+- Registry: `ikaro-registry` in `southamerica-east1`, format: `DOCKER`
 - Cleanup policy: keep last 10 versions per image, delete untagged after 7 days
 
 **Acceptance criteria:**
-- [ ] Artifact Registry created: `southamerica-east1-docker.pkg.dev/<project>/beloauto-registry`
-- [ ] `beloauto-deployer` service account has `roles/artifactregistry.writer` on this registry
-- [ ] `beloauto-backend` runtime service account has `roles/artifactregistry.reader`
+- [ ] Artifact Registry created: `southamerica-east1-docker.pkg.dev/<project>/ikaro-registry`
+- [ ] `ikaro-deployer` service account has `roles/artifactregistry.writer` on this registry
+- [ ] `ikaro-backend` runtime service account has `roles/artifactregistry.reader`
 - [ ] Cleanup policy configured to avoid unbounded storage costs
 
 **Dependencies:** M15-S02
@@ -212,7 +212,7 @@ Secret resources (no `secret_data` — values set manually):
 - `cron-secret` — random string for cron endpoint auth
 - `platform-admin-key` — minimum 32-character random hex string (`openssl rand -hex 32`); used by `PlatformAdminGuard` to protect `POST /internal/tenants` (UC-024, M02-S05)
 
-IAM: `beloauto-backend` SA gets `roles/secretmanager.secretAccessor` on all secrets
+IAM: `ikaro-backend` SA gets `roles/secretmanager.secretAccessor` on all secrets
 
 **Acceptance criteria:**
 - [ ] Secret Manager resources created in Terraform
@@ -235,16 +235,16 @@ Define the IAM roles and service account bindings as Terraform resources. This c
 
 **`infrastructure/terraform/iam.tf`:**
 
-`beloauto-deployer` SA roles:
+`ikaro-deployer` SA roles:
 - `roles/run.admin`, `roles/cloudsql.client`, `roles/secretmanager.secretAccessor`
 - `roles/artifactregistry.writer`, `roles/pubsub.admin`
 
-`beloauto-backend` SA roles:
+`ikaro-backend` SA roles:
 - `roles/pubsub.publisher`, `roles/pubsub.subscriber`
 - `roles/storage.objectAdmin`, `roles/secretmanager.secretAccessor`
 - `roles/cloudsql.client`
 
-`beloauto-web` SA roles:
+`ikaro-web` SA roles:
 - `roles/run.invoker` (to call backend Cloud Run URL)
 
 **Acceptance criteria:**
@@ -265,9 +265,9 @@ Define the IAM roles and service account bindings as Terraform resources. This c
 > **Note (M04-S06 implemented):** `GcpPubSubEventBusAdapter` is already implemented and working (local emulator + real GCP). This story is **Terraform only** — no application code changes needed. The adapter auto-creates topics/subscriptions on startup; production must have them pre-provisioned so the adapter never needs GCP permissions to create resources at runtime.
 
 > **Architecture decision (M04-S06):** One topic per event type (not a single shared topic). Naming set in code:
-> - Topic: `beloauto-{eventName}` (e.g. `beloauto-TenantProvisioned`, `beloauto-StaffInvited`, `beloauto-BookingCompleted`)
-> - Subscription: `beloauto-{eventName}-{consumerName}` (e.g. `beloauto-StaffInvited-notification`, `beloauto-BookingCompleted-loyalty`)
-> The original single-topic design (`beloauto-events-{environment}`) is superseded. Terraform must match the names the adapter uses exactly.
+> - Topic: `ikaro-{eventName}` (e.g. `ikaro-TenantProvisioned`, `ikaro-StaffInvited`, `ikaro-BookingCompleted`)
+> - Subscription: `ikaro-{eventName}-{consumerName}` (e.g. `ikaro-StaffInvited-notification`, `ikaro-BookingCompleted-loyalty`)
+> The original single-topic design (`ikaro-events-{environment}`) is superseded. Terraform must match the names the adapter uses exactly.
 
 **Description:**  
 Pre-provision all Pub/Sub topics and subscriptions for every domain event in the system via Terraform. Each subscription gets a dead-letter topic and retry policy.
@@ -276,15 +276,15 @@ Pre-provision all Pub/Sub topics and subscriptions for every domain event in the
 
 One topic per published event (see `docs/03-DOMAIN_EVENTS.md` for the full catalog). Example entries:
 ```
-beloauto-TenantProvisioned          → subscription: beloauto-TenantProvisioned-staff
-beloauto-StaffInvited               → subscription: beloauto-StaffInvited-notification
-beloauto-StaffDeactivated           → subscription: beloauto-StaffDeactivated-notification
-beloauto-BookingCompleted           → subscriptions: beloauto-BookingCompleted-loyalty, beloauto-BookingCompleted-notification
-beloauto-BookingReminderDue         → subscription: beloauto-BookingReminderDue-notification
+ikaro-TenantProvisioned          → subscription: ikaro-TenantProvisioned-staff
+ikaro-StaffInvited               → subscription: ikaro-StaffInvited-notification
+ikaro-StaffDeactivated           → subscription: ikaro-StaffDeactivated-notification
+ikaro-BookingCompleted           → subscriptions: ikaro-BookingCompleted-loyalty, ikaro-BookingCompleted-notification
+ikaro-BookingReminderDue         → subscription: ikaro-BookingReminderDue-notification
 ... (one resource block per event × consumer pair)
 ```
 
-Dead-letter topic per subscription: `beloauto-{eventName}-{consumerName}-dlq`
+Dead-letter topic per subscription: `ikaro-{eventName}-{consumerName}-dlq`
 
 Retry policy: `minimum_backoff=10s`, `maximum_backoff=600s`, `max_delivery_attempts=5`
 
@@ -310,16 +310,16 @@ Define the 3 Cloud Run services in Terraform. At this point the images don't exi
 
 **`infrastructure/terraform/cloudrun.tf`:**
 
-For each service (`beloauto-backend`, `beloauto-bff`, `beloauto-web`):
+For each service (`ikaro-backend`, `ikaro-bff`, `ikaro-web`):
 - Region: `southamerica-east1`
 - CPU: 1 vCPU; Memory: 512Mi (backend/BFF), 256Mi (web)
 - Min instances: `var.backend_min_instances`; Max instances: `var.backend_max_instances`
 - Service account: appropriate SA per service
-- VPC connector: `beloauto-connector-{environment}`
+- VPC connector: `ikaro-connector-{environment}`
 - Env vars read from Secret Manager (version reference, not value)
 - Liveness probe: `GET /health/live`; Readiness probe: `GET /health/ready`
 
-IAM: `beloauto-web` can invoke `beloauto-bff`; BFF can invoke `beloauto-backend` (internal-only)
+IAM: `ikaro-web` can invoke `ikaro-bff`; BFF can invoke `ikaro-backend` (internal-only)
 
 **Acceptance criteria:**
 - [ ] 3 Cloud Run services defined in Terraform
@@ -431,7 +431,7 @@ All three must pass. This was the explicit user decision: "I want to go more sec
 - Enable IAP on the Cloud Run backend's load balancer backend service
 - IAP OAuth client: create via `google_iap_client` resource (requires OAuth consent screen from M15-S01)
 - IAM binding: `roles/iap.httpsResourceAccessor` for members in `var.iap_members`
-- Variable `iap_members = list(string)` — Google accounts/groups allowed, e.g. `["user:dev@beloauto.com.br"]`
+- Variable `iap_members = list(string)` — Google accounts/groups allowed, e.g. `["user:dev@<ikaro-domain>"]`
 - IAP only applies to the backend service; BFF and web services are NOT behind IAP (they have their own auth)
 
 **3. Terraform variables**

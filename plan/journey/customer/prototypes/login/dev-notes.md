@@ -41,7 +41,7 @@ All backend and BFF auth endpoints for customer login are already implemented (M
 
 **Query param:** `?token=<selectionToken>` (opaque base64 token from BFF containing `{ tenants: TenantOption[], sub: string }`)
 
-**TenantOption shape** (add to `@beloauto/types` in M124-S02):
+**TenantOption shape** (add to `@ikaro/types` in M124-S02):
 ```ts
 interface TenantOption {
   readonly id: string;

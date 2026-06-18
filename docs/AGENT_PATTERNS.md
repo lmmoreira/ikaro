@@ -1,4 +1,4 @@
-# Agent Patterns — BeloAuto
+# Agent Patterns — Ikaro
 
 > Token-efficient code templates. Load this whenever writing any code (§10 maps it to "Writing any code").
 > Each skeleton is distilled from a real file in the repo — copy and substitute `Xxx`/`xxx`/`XXX` with your context name.

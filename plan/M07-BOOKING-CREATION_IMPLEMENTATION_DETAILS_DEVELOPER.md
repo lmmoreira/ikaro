@@ -6,7 +6,7 @@
 
 ## What M07 builds
 
-M07 implements the first real business feature of BeloAuto: a guest or authenticated customer can submit a booking request. The booking is persisted, a `BookingRequested` event is emitted to Pub/Sub, and two emails are sent: an admin confirmation and a customer acknowledgement.
+M07 implements the first real business feature of Ikaro: a guest or authenticated customer can submit a booking request. The booking is persisted, a `BookingRequested` event is emitted to Pub/Sub, and two emails are sent: an admin confirmation and a customer acknowledgement.
 
 M07 also adds the customer profile GET/PATCH endpoints (which were needed by the authenticated booking flow and the customer dashboard).
 
@@ -323,7 +323,7 @@ export class BookingRequestedHandler implements OnModuleInit {
     this.eventBus.subscribe<BookingRequested>(
       'BookingRequested',     // event name
       (event) => this.handle(event),
-      'notification',         // consumer name → subscription: beloauto-BookingRequested-notification
+      'notification',         // consumer name → subscription: ikaro-BookingRequested-notification
     );
   }
 

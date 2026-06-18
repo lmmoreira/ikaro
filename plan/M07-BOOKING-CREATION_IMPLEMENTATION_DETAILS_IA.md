@@ -193,7 +193,7 @@ Imports `PlatformModule` + `CustomerModule` + `EventBusModule`.
 
 | Handler | Topic | Subscription |
 |---|---|---|
-| `BookingRequestedHandler` in notification | `beloauto-BookingRequested` | `beloauto-BookingRequested-notification` |
+| `BookingRequestedHandler` in notification | `ikaro-BookingRequested` | `ikaro-BookingRequested-notification` |
 
 ---
 

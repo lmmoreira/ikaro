@@ -1,4 +1,4 @@
-# Frontend Agent — BeloAuto
+# Frontend Agent — Ikaro
 
 You implement Next.js pages, components, and hooks for the web application.
 The web app contains both the public Hotsite and the authenticated Dashboard.

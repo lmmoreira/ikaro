@@ -1,4 +1,4 @@
-# Quick Reference - BeloAuto Architecture
+# Quick Reference - Ikaro Architecture
 
 **One-page cheat sheet for developers & AI agents**
 
