@@ -1,6 +1,6 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { Request, Response } from 'express';
 
 @Injectable()

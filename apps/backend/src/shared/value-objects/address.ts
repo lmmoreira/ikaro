@@ -54,9 +54,11 @@ export class Address extends ValueObject<AddressProps> {
   format(): string {
     const parts = [`${this.props.street}, ${this.props.number}`];
     if (this.props.complement) parts.push(this.props.complement);
-    parts.push(this.props.neighborhood);
-    parts.push(`${this.props.city} - ${this.props.state}`);
-    parts.push(this.props.zipCode.replace(/(\d{5})(\d{3})/, '$1-$2'));
+    parts.push(
+      this.props.neighborhood,
+      `${this.props.city} - ${this.props.state}`,
+      this.props.zipCode.replace(/(\d{5})(\d{3})/, '$1-$2'),
+    );
     return parts.join(', ');
   }
 }

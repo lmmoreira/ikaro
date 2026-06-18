@@ -50,7 +50,7 @@ export class HotsiteImageUrlResolver {
       resolved.images = this.resolveGalleryImageUrls(data, resolveUrl);
     }
 
-    return { ...module, data: resolved as unknown as HotsiteModuleData };
+    return { ...module, data: resolved as HotsiteModuleData };
   }
 
   private resolveTestimonialAvatars(

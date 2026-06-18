@@ -85,7 +85,7 @@ export class UpdateHotsiteContentUseCase {
       enabled: module.enabled,
       // Zod validates `data` generically as a record — per-module-type shape
       // (HeroModuleData, GalleryModuleData, ...) is not statically derivable from it.
-      data: module.data as unknown as HotsiteModuleData,
+      data: module.data as HotsiteModuleData,
     }));
   }
 }

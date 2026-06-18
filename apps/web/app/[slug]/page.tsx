@@ -37,7 +37,7 @@ const NON_ALTERNATING_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
 ]);
 
 interface HotsitePageProps {
-  params: Promise<{ slug: string }>;
+  readonly params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({ params }: HotsitePageProps): Promise<Metadata> {

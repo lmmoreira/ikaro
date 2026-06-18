@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: 'Agendamento de lavagem automotiva',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { readonly children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
       <body className="font-sans antialiased">{children}</body>

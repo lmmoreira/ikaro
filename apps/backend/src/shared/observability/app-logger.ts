@@ -12,7 +12,7 @@ interface LogContext {
 
 @Injectable()
 export class AppLogger implements LoggerService {
-  private context?: string;
+  private readonly context?: string;
 
   constructor(context?: string) {
     this.context = context;
