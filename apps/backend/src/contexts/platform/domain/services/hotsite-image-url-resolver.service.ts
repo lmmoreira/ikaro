@@ -32,7 +32,7 @@ export class HotsiteImageUrlResolver {
   }
 
   private resolveModule(module: HotsiteModule, resolveUrl: ResolveImageUrl): HotsiteModule {
-    const data = module.data as unknown as Record<string, unknown>;
+    const data = module.data as Record<string, unknown>;
     const resolved: Record<string, unknown> = {
       ...data,
       backgroundImageUrl: this.resolveIfPath(
@@ -50,7 +50,7 @@ export class HotsiteImageUrlResolver {
       resolved.images = this.resolveGalleryImageUrls(data, resolveUrl);
     }
 
-    return { ...module, data: resolved as unknown as HotsiteModuleData };
+    return { ...module, data: resolved as HotsiteModuleData };
   }
 
   private resolveTestimonialAvatars(

@@ -17,6 +17,14 @@ describe('Money', () => {
     it('formats millions correctly', () => {
       expect(Money.from(1234567.89).format()).toBe('R$ 1.234.567,89');
     });
+
+    it('formats negative amounts with the sign before the thousands separator', () => {
+      expect(Money.from(-1234.56).format()).toBe('R$ -1.234,56');
+    });
+
+    it('formats small negative amounts without a thousands separator', () => {
+      expect(Money.from(-80).format()).toBe('R$ -80,00');
+    });
   });
 
   describe('add()', () => {

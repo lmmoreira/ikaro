@@ -100,6 +100,18 @@ These appear as `Nest can't resolve dependencies of XxxUseCase (?, ...)` in test
 
 ---
 
+## Snyk SCA failures (dependency vulnerabilities)
+
+Snyk scans the **whole** dependency tree on every PR — a freshly-disclosed CVE in an untouched transitive dependency can fail a PR that never touched that package.
+
+| Symptom | Root cause | Fix |
+|---------|-----------|-----|
+| Snyk flags a transitive dependency as vulnerable, but `package.json`'s `pnpm.overrides` already pins a fixed version | pnpm 11 silently ignores `pnpm.overrides` / `pnpm.patchedDependencies` declared in `package.json` — no warning, no error. Overrides must live in `pnpm-workspace.yaml` since the v10→v11 migration. | Move the `overrides:` block to `pnpm-workspace.yaml` (same key/value syntax, root-level key). Verify with `pnpm why <package> -r` — more than one resolved version means the override isn't applying. |
+| An override "fixes" a CVE today but the same package gets re-flagged later for a different CVE | The override pins to one version forever; if that exact version is later found vulnerable, the override now blocks a newer, already-safe version from resolving naturally | Before bumping an override, check what resolves **without** it (`pnpm why <pkg> -r` after temporarily removing it) — if natural resolution is already ≥ the fix version, delete the override instead of bumping it |
+| `pnpm install` doesn't pick up an override or version bump | A plain install does not re-resolve packages already settled in the lockfile | `pnpm update <package> -r` to force re-resolution; re-verify with `pnpm why <package> -r` |
+
+---
+
 ## Pre-push hook failures (`ci:fast`)
 
 `ci:fast` = `pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @ikaro/backend test:unit`
@@ -178,3 +190,4 @@ Before every `git commit`, verify:
 - [ ] Integration test 403/404 assertions use `expect(res.status).toBe(403)` — not bare supertest `.expect(403)` (S2699)
 - [ ] Unused method parameters suppressed with `_param` prefix — not `void param;`
 - [ ] Global (non-tenant-scoped) cron use cases that read-then-write (e.g. `findExpiringBefore` → `markProcessed`) re-verify each row's existence before the write — a SELECT result can go stale across an `await` boundary
+- [ ] New/changed dependency override goes in `pnpm-workspace.yaml` — never `package.json`'s `pnpm` field (silently ignored on pnpm 11)
