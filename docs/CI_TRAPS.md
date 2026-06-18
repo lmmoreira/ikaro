@@ -112,6 +112,28 @@ Snyk scans the **whole** dependency tree on every PR — a freshly-disclosed CVE
 
 ---
 
+## SonarCloud Quality Gate failures with no useful detail in the scanner log
+
+The scanner CLI only ever prints `QUALITY GATE STATUS: FAILED` with a dashboard link — no condition breakdown. Query the API directly instead of guessing:
+
+```bash
+# Gate conditions (need SONAR_TOKEN — ask the user for one if you don't have it; never write it to a file or commit)
+curl -s -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/qualitygates/project_status?projectKey=lmmoreira_ikaro&pullRequest=<PR#>" | python3 -m json.tool
+
+# Per-file new-code coverage/duplication breakdown
+curl -s -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/measures/component_tree?component=lmmoreira_ikaro&pullRequest=<PR#>&qualifiers=FIL&metricKeys=new_duplicated_lines,new_uncovered_lines,new_uncovered_conditions" | python3 -m json.tool
+
+# Exact duplicated block (file + line range) once you know which file
+curl -s -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/duplications/show?key=<project>:<path/to/file.ts>&pullRequest=<PR#>" | python3 -m json.tool
+```
+
+| Symptom | Root cause | Fix |
+|---------|-----------|-----|
+| Scanner exits with code 3 on a **branch push** (not a PR); the native "SonarCloud Code Analysis" GitHub check shows "Quality Gate not computed" | A branch-mode scan (no PR context) analyzed against `sonar.newCode.referenceBranch=main` while running **on** `main` itself — "new code" can't be defined relative to itself, so the gate returns `status: "NONE"` and the scanner treats that as a failure | If the workflow's only job is refreshing the analysis baseline for future PR differential comparisons (not gating anything), disable the wait for that job only: add `args: -Dsonar.qualitygate.wait=false` to the scanner action's `with:` block. See `main-sonar.yml`. |
+| A one-line, obviously-safe fix (e.g. adding `readonly`) fails `new_coverage` or `new_duplicated_lines_density` | The touched file already had 0% coverage, or the touched line sits inside a large pre-existing duplicate block (common between near-identical parallel implementations, e.g. backend/bff having their own copy of the same small class) — the gate only "sees" the problem once that line becomes part of the diff | Use the API calls above to find the exact file/line before changing anything else. If it's a real coverage hole, add a test for the touched code path (check branch coverage too — `new_uncovered_conditions`, not just line coverage). If it's pre-existing duplication between files that shouldn't be merged into this PR's scope, revert that specific edit and track the duplication as its own TD instead of forcing a refactor into an unrelated PR. |
+
+---
+
 ## Pre-push hook failures (`ci:fast`)
 
 `ci:fast` = `pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @ikaro/backend test:unit`

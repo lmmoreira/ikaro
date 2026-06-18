@@ -9,6 +9,7 @@ WORKDIR /app
 COPY .npmrc pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/config/package.json packages/config/
 COPY packages/types/package.json packages/types/
+COPY packages/observability/package.json packages/observability/
 COPY apps/backend/package.json apps/backend/
 
 # --ignore-scripts avoids native builds from other workspace packages (e.g. sharp via next/web)
@@ -17,7 +18,13 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY packages/ packages/
 COPY apps/backend/ apps/backend/
 
-RUN pnpm --filter @ikaro/backend build \
+# @ikaro/observability ships compiled JS (main/types -> dist/) -- unlike packages/types
+# and packages/config, it's an actual runtime dependency, not type-only, so it must be
+# built before deploy packages it up. Node's native TS type-stripping explicitly refuses
+# files under node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), so shipping raw
+# .ts source here would crash `node dist/main.js` at container startup.
+RUN pnpm --filter @ikaro/observability build \
+    && pnpm --filter @ikaro/backend build \
     && pnpm --filter @ikaro/backend deploy --prod /standalone --legacy \
     && rm -rf /standalone/node_modules/.pnpm/multer@2.1.1
 

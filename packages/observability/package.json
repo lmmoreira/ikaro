@@ -1,0 +1,25 @@
+{
+  "name": "@ikaro/observability",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared structured JSON logger base for backend and bff",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:cov": "jest --coverage"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.1.19"
+  },
+  "devDependencies": {
+    "@ikaro/config": "workspace:*",
+    "@nestjs/common": "^11.1.19",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.7.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.9"
+  }
+}
