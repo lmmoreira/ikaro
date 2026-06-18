@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import type { HotsiteModuleType } from '@beloauto/types';
+import type { HotsiteModuleType } from '@ikaro/types';
 import { fetchManifest } from '@/lib/api/platform';
 import { fetchServices } from '@/lib/api/services';
 import { AboutModule } from '@/components/hotsite/AboutModule';
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: HotsitePageProps): Promise<Me
   const manifest = await fetchManifest(slug);
 
   if (!manifest.isPublished) {
-    return { title: 'Em breve — BeloAuto', robots: { index: false, follow: false } };
+    return { title: 'Em breve — Ikaro', robots: { index: false, follow: false } };
   }
 
   return buildHotsiteMetadata({ manifest, slug });

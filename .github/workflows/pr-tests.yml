@@ -24,7 +24,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Run unit tests with coverage
-        run: pnpm --filter @beloauto/backend test:cov
+        run: pnpm --filter @ikaro/backend test:cov
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -51,7 +51,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Run integration tests
-        run: pnpm --filter @beloauto/backend test:integration
+        run: pnpm --filter @ikaro/backend test:integration
         env:
           TESTCONTAINERS_REUSE_ENABLE: 'true'
 
@@ -73,7 +73,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Run unit tests with coverage
-        run: pnpm --filter @beloauto/bff test:cov
+        run: pnpm --filter @ikaro/bff test:cov
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -100,7 +100,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Run unit tests with coverage
-        run: pnpm --filter @beloauto/web test:cov
+        run: pnpm --filter @ikaro/web test:cov
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -127,7 +127,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Run component tests
-        run: pnpm --filter @beloauto/bff test:component
+        run: pnpm --filter @ikaro/bff test:component
         env:
           JWT_SECRET: 'test-secret-must-be-at-least-64-chars-long-xxxxxxxxxxxxxxxxxxxxxxxxxxxx'
           BACKEND_INTERNAL_URL: 'https://backend-test:3001'

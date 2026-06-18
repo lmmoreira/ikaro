@@ -28,7 +28,7 @@ export class ErrorInterceptor implements NestInterceptor {
 
         const status = HttpStatus.INTERNAL_SERVER_ERROR;
         const problem = {
-          type: 'https://beloauto.com/errors/internal',
+          type: 'https://<ikaro-domain>/errors/internal',
           title: 'Internal Server Error',
           status,
           instance: req.path,

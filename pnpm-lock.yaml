@@ -87,7 +87,7 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
-      '@beloauto/config':
+      '@ikaro/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@nestjs/cli':
@@ -156,7 +156,7 @@ importers:
 
   apps/bff:
     dependencies:
-      '@beloauto/types':
+      '@ikaro/types':
         specifier: workspace:*
         version: link:../../packages/types
       '@nestjs/axios':
@@ -208,7 +208,7 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
-      '@beloauto/config':
+      '@ikaro/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@nestjs/cli':
@@ -274,7 +274,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@beloauto/types':
+      '@ikaro/types':
         specifier: workspace:*
         version: link:../../packages/types
       '@radix-ui/react-slot':
@@ -311,7 +311,7 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
-      '@beloauto/config':
+      '@ikaro/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@tailwindcss/postcss':
@@ -395,7 +395,7 @@ importers:
 
   packages/types:
     devDependencies:
-      '@beloauto/config':
+      '@ikaro/config':
         specifier: workspace:*
         version: link:../config
 

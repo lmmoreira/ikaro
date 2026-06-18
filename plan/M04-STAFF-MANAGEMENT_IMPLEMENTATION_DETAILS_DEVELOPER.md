@@ -240,12 +240,12 @@ Every path param that feeds a PostgreSQL UUID column uses `new ParseUUIDPipe({ e
 ```
 POST /internal/tenants (M02-S05)
   → ProvisionTenantUseCase publishes TenantProvisioned
-  → [Pub/Sub: beloauto-TenantProvisioned]
+  → [Pub/Sub: ikaro-TenantProvisioned]
   → TenantProvisionedHandler (staff context)
   → CreateInitialManagerUseCase
     → saves Staff row (MANAGER, is_active=false)
     → publishes StaffInvited directly (no aggregate event)
-  → [Pub/Sub: beloauto-StaffInvited]
+  → [Pub/Sub: ikaro-StaffInvited]
   → StaffInvitedHandler (notification context)
   → SendStaffInvitationUseCase
     → checks notification_logs (idempotency)

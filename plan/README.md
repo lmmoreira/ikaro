@@ -1,4 +1,4 @@
-# BeloAuto — Project Plan
+# Ikaro — Project Plan
 
 **Total milestones:** 17 (M00 – M16)  
 **Total stories:** ~105  

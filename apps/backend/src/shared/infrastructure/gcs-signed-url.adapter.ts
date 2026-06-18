@@ -15,15 +15,15 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
 
   constructor(config: ConfigService) {
     this.emulatorHost = config.get<string>('GCS_EMULATOR_HOST');
-    this.bucketName = config.get<string>('GCS_BUCKET_NAME') ?? 'beloauto-local';
-    this.publicBucketName = config.get<string>('GCS_PUBLIC_BUCKET_NAME') ?? 'beloauto-local-public';
+    this.bucketName = config.get<string>('GCS_BUCKET_NAME') ?? 'ikaro-local';
+    this.publicBucketName = config.get<string>('GCS_PUBLIC_BUCKET_NAME') ?? 'ikaro-local-public';
     this.publicBaseUrl =
       config.get<string>('GCS_PUBLIC_BASE_URL') ?? 'https://storage.googleapis.com';
 
     const storageOptions: Record<string, unknown> = {};
     if (this.emulatorHost) {
       storageOptions['apiEndpoint'] = this.emulatorHost;
-      storageOptions['projectId'] = 'beloauto-local';
+      storageOptions['projectId'] = 'ikaro-local';
     }
     const keyFile = config.get<string>('GCS_KEY_FILE');
     if (keyFile) {

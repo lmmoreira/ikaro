@@ -141,7 +141,7 @@ Header: X-Tenant-ID: {tenantId}
 GET /v1/bookings?status=APPROVED&from=YYYY-MM-DD&page=1&limit=20
 Header: X-Tenant-ID: {tenantId}
 
-Response: StaffBookingListResponse  (@beloauto/types — add in M125-S02)
+Response: StaffBookingListResponse  (@ikaro/types — add in M125-S02)
 {
   items: StaffBookingCardResponse[]
   total: number
@@ -157,7 +157,7 @@ Sort order: "Precisa de ação" by `scheduledAt ASC` (oldest request first, rega
 GET /v1/bookings/:id
 Header: X-Tenant-ID: {tenantId}
 
-Response: StaffBookingDetailResponse  (@beloauto/types — add in M125-S04)
+Response: StaffBookingDetailResponse  (@ikaro/types — add in M125-S04)
 {
   id, status, scheduledAt, durationMinutes,
   customer: { id, name, email, phone },
@@ -344,7 +344,7 @@ These `tokens.css` classes do not exist in production — map them as follows:
 
 ---
 
-## @beloauto/types additions (M125-S02 + S04)
+## @ikaro/types additions (M125-S02 + S04)
 
 Add these types to `packages/types/src/index.ts` in the same commit as the BFF endpoints that produce them:
 

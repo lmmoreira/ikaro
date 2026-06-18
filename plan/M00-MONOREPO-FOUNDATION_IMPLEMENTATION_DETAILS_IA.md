@@ -87,7 +87,7 @@ this.logger.log('message', { tenantId, correlationId });
 See **CLAUDE.md §4** for the required 7-field envelope.
 
 ### 4.4 Money
-`Money.from(amount, 'BRL').format()` → `"R$ 1.234,56"`. Always use `Money` value object for prices — never `number`. The `@beloauto/types` `Money` interface (for BFF responses) uses `{ amount: number, currency: 'BRL', formatted: string }`.
+`Money.from(amount, 'BRL').format()` → `"R$ 1.234,56"`. Always use `Money` value object for prices — never `number`. The `@ikaro/types` `Money` interface (for BFF responses) uses `{ amount: number, currency: 'BRL', formatted: string }`.
 
 ### 4.5 Context isolation
 Each context has `domain/`, `application/`, `infrastructure/` directories. Cross-context imports are blocked by the ESLint rule `no-restricted-imports` (to be added in M02). For now, enforced by convention: **only import from `src/shared/` across contexts**.
@@ -163,9 +163,9 @@ Never use a single `DATABASE_URL` string. Use explicit fields so passwords with 
 ```
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=beloauto
-DB_PASSWORD=beloauto
-DB_NAME=beloauto
+DB_USER=ikaro
+DB_PASSWORD=ikaro
+DB_NAME=ikaro
 ```
 Both `app.module.ts` (TypeOrmModule) and `data-source.ts` (TypeORM CLI) read these five vars.
 
@@ -272,10 +272,10 @@ pnpm -w run db:migrate        # run TypeORM migrations
 pnpm -w run db:seed           # seed local database (idempotent)
 pnpm -r run type-check        # tsc --noEmit all workspaces
 pnpm -r run lint              # ESLint all workspaces
-pnpm --filter @beloauto/backend run test       # Jest unit tests
-pnpm --filter @beloauto/backend run test:unit  # unit tests only (jest --selectProjects unit)
-pnpm --filter @beloauto/backend run test:integration  # integration tests only
-pnpm --filter @beloauto/backend run test:cov   # unit tests + lcov coverage report
+pnpm --filter @ikaro/backend run test       # Jest unit tests
+pnpm --filter @ikaro/backend run test:unit  # unit tests only (jest --selectProjects unit)
+pnpm --filter @ikaro/backend run test:integration  # integration tests only
+pnpm --filter @ikaro/backend run test:cov   # unit tests + lcov coverage report
 pnpm ci:fast                  # lint + prettier + type-check + unit tests (~15s)
 pnpm ci:local                 # full local CI via Docker — no tokens needed (~5min)
 ```
@@ -292,7 +292,7 @@ pnpm ci:local                 # full local CI via Docker — no tokens needed (~
 - Tailwind IntelliSense with CVA/clsx class regex
 - Jest runner pointing at `apps/backend`
 - Coverage gutters reading `apps/backend/coverage/lcov.info`
-- SonarLint connected mode bound to `lmmoreira_beloauto` (requires user auth once)
+- SonarLint connected mode bound to `lmmoreira_ikaro` (requires user auth once)
 
 These settings are project-scoped — they do not override developer personal VS Code settings outside this workspace.
 
@@ -317,4 +317,4 @@ packages/types   ←  apps/bff     (dep)
                  (NOT imported by apps/backend — backend has its own domain types)
 ```
 
-`apps/backend` does NOT depend on `@beloauto/types`. The backend owns its domain model. Types are for BFF↔frontend contracts only.
+`apps/backend` does NOT depend on `@ikaro/types`. The backend owns its domain model. Types are for BFF↔frontend contracts only.

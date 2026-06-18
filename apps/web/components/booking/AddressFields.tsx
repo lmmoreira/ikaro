@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import type React from 'react';
-import type { Address } from '@beloauto/types';
+import type { Address } from '@ikaro/types';
 import type { AddressLookup } from '@/lib/address/address-lookup.port';
 import { viaCepAddressLookup } from '@/lib/address/viacep-address-lookup.adapter';
 import { digitsOnly } from '@/lib/utils';

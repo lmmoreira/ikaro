@@ -604,7 +604,7 @@ async dispatch(message: OutboundMessage): Promise<void> {
 ```typescript
 async send(message: OutboundMessage): Promise<void> {
   const tenantInfo = await this.tenantPort.getTenantInfo(message.tenantId);
-  const from = tenantInfo?.fromEmail ?? this.config.get<string>('EMAIL_FROM', 'noreply@beloauto.com.br');
+  const from = tenantInfo?.fromEmail ?? this.config.get<string>('EMAIL_FROM', 'noreply@<ikaro-domain>');
   await this.emailSender.send({
     to: message.to,
     from,
@@ -689,10 +689,10 @@ No use case changes needed.
 **Docs to load:** `docs/05-BOUNDED_CONTEXTS.md` § Communication Patterns, `docs/09-CI_CD_PIPELINE.md` § Event Reliability
 
 **Description:**  
-Implement dead-letter queue (DLQ) handling for Pub/Sub. After `PUBSUB_MAX_DELIVERY_ATTEMPTS` failed nacks (default 5), the `GcpPubSubEventBusAdapter` programmatically routes the original message to the `beloauto-dead-letter` topic and ACKs it, preventing Pub/Sub from retrying indefinitely. `DeadLetterHandler` subscribes to that topic and logs the event at ERROR level so ops can investigate without silent data loss.
+Implement dead-letter queue (DLQ) handling for Pub/Sub. After `PUBSUB_MAX_DELIVERY_ATTEMPTS` failed nacks (default 5), the `GcpPubSubEventBusAdapter` programmatically routes the original message to the `ikaro-dead-letter` topic and ACKs it, preventing Pub/Sub from retrying indefinitely. `DeadLetterHandler` subscribes to that topic and logs the event at ERROR level so ops can investigate without silent data loss.
 
 **Why programmatic routing (not native Pub/Sub dead-letter policy):**  
-The Pub/Sub emulator does not support native dead-letter policies, so integration tests cannot trigger DLQ routing via infrastructure config. Routing in the adapter (`GcpPubSubEventBusAdapter.dispatch()`) works identically in local dev, CI, and production. In staging/production Terraform (`infrastructure/terraform/pubsub.tf`) creates the `beloauto-dead-letter` topic and the `beloauto-dead-letter-monitor` subscription — the adapter creates them on the emulator only (auto-creation is suppressed in staging/prod via the `PUBSUB_AUTO_CREATE` guard introduced in this story).
+The Pub/Sub emulator does not support native dead-letter policies, so integration tests cannot trigger DLQ routing via infrastructure config. Routing in the adapter (`GcpPubSubEventBusAdapter.dispatch()`) works identically in local dev, CI, and production. In staging/production Terraform (`infrastructure/terraform/pubsub.tf`) creates the `ikaro-dead-letter` topic and the `ikaro-dead-letter-monitor` subscription — the adapter creates them on the emulator only (auto-creation is suppressed in staging/prod via the `PUBSUB_AUTO_CREATE` guard introduced in this story).
 
 **Why no new `NotificationLog` row for DLQ:**  
 Each failed delivery attempt already creates a `NotificationLog` row with `status=FAILED` via `BaseNotificationUseCase.saveFailedLog()`. By the time a message reaches the DLQ, 5 FAILED rows are already present for that `eventId`. Adding a 6th DLQ row with `channel='UNKNOWN'` adds noise without actionable data. DLQ detection is an observability concern — ERROR-level structured logs routed to Loki/Grafana are the correct signal.
@@ -720,7 +720,7 @@ private async dispatch(message, eventName, handler): Promise<void> {
 }
 
 private async publishToDlq(message: Message, eventName: string, err: unknown): Promise<void> {
-  const dlqTopic = 'beloauto-dead-letter';
+  const dlqTopic = 'ikaro-dead-letter';
   await this.ensureTopicOnce(dlqTopic);
   const enrichedData = {
     ...(JSON.parse(message.data.toString()) as Record<string, unknown>),
@@ -776,7 +776,7 @@ export class DeadLetterHandler implements OnModuleInit {
 }
 ```
 
-Subscription created by the adapter: `beloauto-dead-letter-monitor` (matches `pubsub.tf`).
+Subscription created by the adapter: `ikaro-dead-letter-monitor` (matches `pubsub.tf`).
 
 **Unparseable messages (JSON.parse fails in `dispatch()`):**  
 Catch the parse error separately, log raw bytes at ERROR level, and ACK. No handler invoked. A malformed payload cannot be retried meaningfully.
@@ -816,11 +816,11 @@ try {
 | EDIT | `apps/backend/.env.example` |
 
 **Acceptance criteria:**
-- [ ] `GcpPubSubEventBusAdapter.dispatch()` routes to `beloauto-dead-letter` topic and ACKs after `PUBSUB_MAX_DELIVERY_ATTEMPTS` failed nacks; unit test asserts `publishToDlq` called and `message.ack()` called (not `nack()`) on the Nth failure
+- [ ] `GcpPubSubEventBusAdapter.dispatch()` routes to `ikaro-dead-letter` topic and ACKs after `PUBSUB_MAX_DELIVERY_ATTEMPTS` failed nacks; unit test asserts `publishToDlq` called and `message.ack()` called (not `nack()`) on the Nth failure
 - [ ] `GcpPubSubEventBusAdapter.dispatch()` calls `message.nack()` (not ACK) on attempts below the threshold; unit test asserts retry behaviour
 - [ ] Unparseable message (invalid JSON): adapter logs at ERROR with raw bytes (truncated to 200 chars), calls `message.ack()`, does not invoke handler; unit test asserts this path
 - [ ] `PUBSUB_AUTO_CREATE=false`: `ensureTopicOnce()` and `ensureSubscription()` are no-ops — topics/subscriptions are not created; unit test asserts
-- [ ] `DeadLetterHandler` subscribes to `'dead-letter'` with consumer name `'monitor'` → subscription `beloauto-dead-letter-monitor`
+- [ ] `DeadLetterHandler` subscribes to `'dead-letter'` with consumer name `'monitor'` → subscription `ikaro-dead-letter-monitor`
 - [ ] `DeadLetterHandler.handle()` logs at ERROR level with `eventId`, `eventName`, `tenantId`, `deliveryAttempt`, `deadLetterReason`
 - [ ] `DeadLetterHandler.handle()` does NOT throw — adapter always ACKs DLQ messages
 - [ ] `DeadLetterHandler` registered in `NotificationModule`

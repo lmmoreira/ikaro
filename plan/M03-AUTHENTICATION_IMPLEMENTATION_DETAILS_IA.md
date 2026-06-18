@@ -204,14 +204,14 @@ const STAFF_ID_A   = '30000000-0000-4000-8000-000000000001';
 
 ```bash
 # Customer context unit tests
-pnpm --filter @beloauto/backend exec jest --testPathPatterns="contexts/customer" --no-coverage --selectProjects unit
+pnpm --filter @ikaro/backend exec jest --testPathPatterns="contexts/customer" --no-coverage --selectProjects unit
 
 # Staff context unit tests
-pnpm --filter @beloauto/backend exec jest --testPathPatterns="contexts/staff" --no-coverage --selectProjects unit
+pnpm --filter @ikaro/backend exec jest --testPathPatterns="contexts/staff" --no-coverage --selectProjects unit
 
 # All BFF tests
-pnpm --filter @beloauto/bff exec jest --no-coverage
+pnpm --filter @ikaro/bff exec jest --no-coverage
 
 # Full type-check
-pnpm --filter @beloauto/backend run type-check && pnpm --filter @beloauto/bff run type-check
+pnpm --filter @ikaro/backend run type-check && pnpm --filter @ikaro/bff run type-check
 ```

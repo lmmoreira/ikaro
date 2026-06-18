@@ -97,8 +97,8 @@ Both `CancellationWindowExpiredError` and `BookingScheduledInPastError` map to 4
 
 | Event | Consumer name | Subscription |
 |---|---|---|
-| `BookingCancelled` | `notification` | `beloauto-BookingCancelled-notification` |
-| `BookingRescheduled` | `notification` | `beloauto-BookingRescheduled-notification` |
+| `BookingCancelled` | `notification` | `ikaro-BookingCancelled-notification` |
+| `BookingRescheduled` | `notification` | `ikaro-BookingRescheduled-notification` |
 
 ---
 

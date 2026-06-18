@@ -1,4 +1,4 @@
-import type { AvailabilityResponse, AvailabilitySummaryResponse } from '@beloauto/types';
+import type { AvailabilityResponse, AvailabilitySummaryResponse } from '@ikaro/types';
 
 export async function fetchAvailabilitySummary(
   slug: string,

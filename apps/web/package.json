@@ -1,8 +1,8 @@
 {
-  "name": "@beloauto/web",
+  "name": "@ikaro/web",
   "version": "0.0.1",
   "private": true,
-  "description": "BeloAuto Next.js 16 web application (hotsite + dashboard)",
+  "description": "Ikaro Next.js 16 web application (hotsite + dashboard)",
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
@@ -15,7 +15,7 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@beloauto/config": "workspace:*",
+    "@ikaro/config": "workspace:*",
     "@tailwindcss/postcss": "^4.3.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -36,7 +36,7 @@
     "vitest": "^4.1.8"
   },
   "dependencies": {
-    "@beloauto/types": "workspace:*",
+    "@ikaro/types": "workspace:*",
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

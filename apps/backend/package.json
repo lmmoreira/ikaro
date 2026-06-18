@@ -1,8 +1,8 @@
 {
-  "name": "@beloauto/backend",
+  "name": "@ikaro/backend",
   "version": "0.0.1",
   "private": true,
-  "description": "BeloAuto NestJS modular monolith backend",
+  "description": "Ikaro NestJS modular monolith backend",
   "scripts": {
     "dev": "ts-node --swc -r tsconfig-paths/register src/main.ts",
     "build": "swc src -d dist --strip-leading-paths",
@@ -20,7 +20,7 @@
     "seed": "ts-node --swc -r tsconfig-paths/register src/shared/database/seed.ts"
   },
   "devDependencies": {
-    "@beloauto/config": "workspace:*",
+    "@ikaro/config": "workspace:*",
     "@nestjs/cli": "^11.0.21",
     "@nestjs/schematics": "^11.1.0",
     "@nestjs/testing": "^11.1.20",

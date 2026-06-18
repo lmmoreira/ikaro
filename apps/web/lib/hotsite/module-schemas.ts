@@ -11,7 +11,7 @@ import type {
   ServiceListModuleData,
   Testimonial,
   TestimonialsModuleData,
-} from '@beloauto/types';
+} from '@ikaro/types';
 
 const CTA_TARGET = z.enum([
   'booking-form',

@@ -1,4 +1,4 @@
-import type { Address } from '@beloauto/types';
+import type { Address } from '@ikaro/types';
 
 export interface PersonalInfoValue {
   contactName: string;

@@ -1,6 +1,6 @@
-# BeloAuto Documentation
+# Ikaro Documentation
 
-This folder contains the foundational documentation for BeloAuto, built on **Domain-Driven Design (DDD)** principles and **Hexagonal Architecture**.
+This folder contains the foundational documentation for Ikaro, built on **Domain-Driven Design (DDD)** principles and **Hexagonal Architecture**.
 
 **Quick start:** Read `CLAUDE.md` (root) first — it is the canonical agent context and links everything else. Use `QUICK_REFERENCE.md` for a one-page cheat sheet.
 

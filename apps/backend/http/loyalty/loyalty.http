@@ -2,9 +2,9 @@
 #
 # Prerequisites:
 #   1. pnpm infra:up
-#   2. pnpm --filter @beloauto/backend run migration:run
-#   3. pnpm --filter @beloauto/backend run seed   ← populates the fixed UUIDs below
-#   4. pnpm --filter @beloauto/backend run dev
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed   ← populates the fixed UUIDs below
+#   4. pnpm --filter @ikaro/backend run dev
 #
 # IDs come from .vscode/settings.json "local" env (src/shared/database/seed.ts).
 # REST Client environment: select "local" in VS Code status bar

@@ -1,8 +1,8 @@
-# Tenant Isolation Strategy - BeloAuto
+# Tenant Isolation Strategy - Ikaro
 
 ## Overview
 
-BeloAuto is a **multi-tenant SaaS platform** designed for absolute data isolation and professional scalability. This document defines how we separate car wash companies (tenants) at both the **Business Logic** level (User-Tenant Model) and the **Infrastructure** level (Data Isolation).
+Ikaro is a **multi-tenant SaaS platform** designed for absolute data isolation and professional scalability. This document defines how we separate car wash companies (tenants) at both the **Business Logic** level (User-Tenant Model) and the **Infrastructure** level (Data Isolation).
 
 ---
 
@@ -26,7 +26,7 @@ We distinguish between two types of users to balance flexibility for customers a
 
 ## 2. Data Isolation Strategy
 
-BeloAuto uses the **"Shared Database, Shared Schema"** pattern for simplicity and cost-effectiveness, but enforces isolation through strict software patterns.
+Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and cost-effectiveness, but enforces isolation through strict software patterns.
 
 ### **Logical Isolation (tenant_id)**
 - **Every Table:** Every single table in the database includes a `tenant_id` column.

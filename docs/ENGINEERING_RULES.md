@@ -1,4 +1,4 @@
-# BeloAuto — Engineering Rules (detail)
+# Ikaro — Engineering Rules (detail)
 
 > **When to load:** writing any code, implementing event handlers, adding transactions, writing or reviewing tests, or working with value objects.
 > Summary rules are in `CLAUDE.md §7`. This file has the full reference tables, patterns, and gotchas.
@@ -66,8 +66,8 @@ Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**
 
 | Thing | Pattern | Example |
 |---|---|---|
-| Topic | `beloauto-{eventName}` | `beloauto-StaffInvited` |
-| Subscription | `beloauto-{eventName}-{consumerName}` | `beloauto-StaffInvited-notification` |
+| Topic | `ikaro-{eventName}` | `ikaro-StaffInvited` |
+| Subscription | `ikaro-{eventName}-{consumerName}` | `ikaro-StaffInvited-notification` |
 
 `GcpPubSubEventBusAdapter` auto-creates topics/subscriptions on `onApplicationBootstrap()`. Local dev: `PUBSUB_EMULATOR_HOST=localhost:8085`.
 

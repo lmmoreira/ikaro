@@ -102,9 +102,9 @@ NotificationDispatcherAdapter (INotificationDispatcher)
 
 ## DLQ Routing
 
-- `PUBSUB_MAX_DELIVERY_ATTEMPTS` (default 5): after N nacks, `GcpPubSubEventBusAdapter` publishes to `beloauto-dead-letter` topic + ACKs (stops retrying).
+- `PUBSUB_MAX_DELIVERY_ATTEMPTS` (default 5): after N nacks, `GcpPubSubEventBusAdapter` publishes to `ikaro-dead-letter` topic + ACKs (stops retrying).
 - `PUBSUB_AUTO_CREATE` (default `true`): set `false` in staging/prod — Terraform owns all topics/subscriptions there.
-- `DeadLetterHandler`: subscribes to `'dead-letter'` with consumer `'monitor'` → subscription `beloauto-dead-letter-monitor`. Does NOT throw (adapter always ACKs DLQ messages).
+- `DeadLetterHandler`: subscribes to `'dead-letter'` with consumer `'monitor'` → subscription `ikaro-dead-letter-monitor`. Does NOT throw (adapter always ACKs DLQ messages).
 - Programmatic routing (not native Pub/Sub DLQ policy) because the Pub/Sub emulator does not support native dead-letter policies.
 - Unparseable JSON messages: ACKed immediately with ERROR log; no handler invoked.
 

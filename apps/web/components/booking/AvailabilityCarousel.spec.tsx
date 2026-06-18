@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DaySummary } from '@beloauto/types';
+import type { DaySummary } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/lib/api/schedule';
 import { AvailabilityCarousel } from './AvailabilityCarousel';
 

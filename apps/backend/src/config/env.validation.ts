@@ -19,12 +19,12 @@ const schema = z
       .string()
       .min(32, { message: 'INTERNAL_API_KEY must be at least 32 characters' }),
     PUBSUB_EMULATOR_HOST: z.string().optional(),
-    PUBSUB_PROJECT_ID: z.string().default('beloauto-local'),
+    PUBSUB_PROJECT_ID: z.string().default('ikaro-local'),
     PUBSUB_MAX_DELIVERY_ATTEMPTS: z.coerce.number().int().min(1).default(5),
     PUBSUB_AUTO_CREATE: z.coerce.boolean().default(true),
     GCS_EMULATOR_HOST: z.string().optional(),
-    GCS_BUCKET_NAME: z.string().default('beloauto-local'),
-    GCS_PUBLIC_BUCKET_NAME: z.string().default('beloauto-local-public'),
+    GCS_BUCKET_NAME: z.string().default('ikaro-local'),
+    GCS_PUBLIC_BUCKET_NAME: z.string().default('ikaro-local-public'),
     GCS_PUBLIC_BASE_URL: z.string().default('https://storage.googleapis.com'),
     GCS_KEY_FILE: z.string().optional(),
     GCS_MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(10_485_760),
@@ -33,7 +33,7 @@ const schema = z
     EMAIL_ADAPTER: z.enum(['sendgrid', 'mailhog']).default('mailhog'),
     EMAIL_FROM: z
       .email({ message: 'EMAIL_FROM must be a valid email address' })
-      .default('noreply@beloauto.com.br'),
+      .default('noreply@<ikaro-domain>'),
     SENDGRID_API_KEY: z.string().min(1).optional(),
     FRONTEND_URL: z.string().default('http://localhost:3000'),
     JWT_SECRET: z.string().min(32, { message: 'JWT_SECRET must be at least 32 characters' }),

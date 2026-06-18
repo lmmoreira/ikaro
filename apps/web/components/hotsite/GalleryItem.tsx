@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import type { GalleryImage } from '@beloauto/types';
+import type { GalleryImage } from '@ikaro/types';
 
 interface GalleryItemProps {
   readonly image: GalleryImage;

@@ -29,16 +29,16 @@ ok "TypeScript"
 
 # ─── Tests ───────────────────────────────────────────────────────────────────
 step "Unit tests"
-pnpm --filter @beloauto/backend test:unit
-pnpm --filter @beloauto/bff test:unit
+pnpm --filter @ikaro/backend test:unit
+pnpm --filter @ikaro/bff test:unit
 ok "Unit tests"
 
 step "Integration tests"
-pnpm --filter @beloauto/backend test:integration
+pnpm --filter @ikaro/backend test:integration
 ok "Integration tests"
 
 step "BFF Component tests"
-pnpm --filter @beloauto/bff test:component
+pnpm --filter @ikaro/bff test:component
 ok "BFF Component tests"
 
 # ─── Secret scan (gitleaks via Docker — no token needed) ─────────────────────
@@ -51,30 +51,30 @@ ok "Gitleaks"
 
 # ─── Docker builds ───────────────────────────────────────────────────────────
 step "Docker build — backend"
-docker build -f apps/backend/Dockerfile -t beloauto-backend:scan . -q
+docker build -f apps/backend/Dockerfile -t ikaro-backend:scan . -q
 ok "Docker build — backend"
 
 step "Docker build — bff"
-docker build -f apps/bff/Dockerfile -t beloauto-bff:scan . -q
+docker build -f apps/bff/Dockerfile -t ikaro-bff:scan . -q
 ok "Docker build — bff"
 
 step "Docker build — web"
-docker build -f apps/web/Dockerfile -t beloauto-web:scan . -q
+docker build -f apps/web/Dockerfile -t ikaro-web:scan . -q
 ok "Docker build — web"
 
 # ─── Trivy image scans (via Docker — no install needed) ──────────────────────
 TRIVY="docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest"
 
 step "Trivy — backend"
-$TRIVY image --severity HIGH,CRITICAL --ignore-unfixed beloauto-backend:scan
+$TRIVY image --severity HIGH,CRITICAL --ignore-unfixed ikaro-backend:scan
 ok "Trivy — backend"
 
 step "Trivy — bff"
-$TRIVY image --severity HIGH,CRITICAL --ignore-unfixed beloauto-bff:scan
+$TRIVY image --severity HIGH,CRITICAL --ignore-unfixed ikaro-bff:scan
 ok "Trivy — bff"
 
 step "Trivy — web"
-$TRIVY image --severity HIGH,CRITICAL --ignore-unfixed beloauto-web:scan
+$TRIVY image --severity HIGH,CRITICAL --ignore-unfixed ikaro-web:scan
 ok "Trivy — web"
 
 echo -e "\n\033[1;32m✔ All local checks passed — safe to open a PR.\033[0m\n"

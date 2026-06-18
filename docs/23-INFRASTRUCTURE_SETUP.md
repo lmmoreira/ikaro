@@ -1,4 +1,4 @@
-# Infrastructure Setup - BeloAuto
+# Infrastructure Setup - Ikaro
 
 ## Overview
 
@@ -15,15 +15,15 @@ This document is the single source of truth for infrastructure: from a blank lap
 │                        GCP Project (staging or prod)                     │
 │                                                                           │
 │  Google Artifact Registry                                                │
-│  └── beloauto-images/          ← all Docker images                      │
+│  └── ikaro-images/          ← all Docker images                      │
 │                                                                           │
-│  ┌────────────── beloauto-vpc (10.0.0.0/16) ─────────────────────────┐  │
+│  ┌────────────── ikaro-vpc (10.0.0.0/16) ─────────────────────────┐  │
 │  │                                                                     │  │
 │  │  VPC Serverless Connector (10.8.0.0/28)                           │  │
 │  │      ▲ Cloud Run → VPC                                             │  │
 │  │                                                                     │  │
 │  │  Cloud SQL (private IP 10.0.1.x)                                  │  │
-│  │  └── beloauto-postgres (PostgreSQL 15)                             │  │
+│  │  └── ikaro-postgres (PostgreSQL 15)                             │  │
 │  │      ├── schema: platform                                          │  │
 │  │      ├── schema: customer                                          │  │
 │  │      ├── schema: staff                                             │  │
@@ -34,18 +34,18 @@ This document is the single source of truth for infrastructure: from a blank lap
 │  └─────────────────────────────────────────────────────────────────────  │
 │                                                                           │
 │  Cloud Run (public HTTPS, connected to VPC via connector)                │
-│  ├── beloauto-web      → https://beloauto.com                            │
-│  ├── beloauto-bff      → https://bff.beloauto.com                        │
-│  └── beloauto-backend  → (internal, only called by BFF)                  │
+│  ├── ikaro-web      → https://<ikaro-domain>                            │
+│  ├── ikaro-bff      → https://bff.<ikaro-domain>                        │
+│  └── ikaro-backend  → (internal, only called by BFF)                  │
 │                                                                           │
 │  Pub/Sub                                                                 │
-│  ├── topic: beloauto-domain-events                                       │
-│  ├── subscription: beloauto-loyalty-consumer                             │
-│  ├── subscription: beloauto-notification-consumer                        │
-│  └── topic: beloauto-dead-letter                                         │
+│  ├── topic: ikaro-domain-events                                       │
+│  ├── subscription: ikaro-loyalty-consumer                             │
+│  ├── subscription: ikaro-notification-consumer                        │
+│  └── topic: ikaro-dead-letter                                         │
 │                                                                           │
 │  Cloud Storage                                                           │
-│  └── beloauto-media-<env>/     ← tenant photos (tenants/<tid>/...)       │
+│  └── ikaro-media-<env>/     ← tenant photos (tenants/<tid>/...)       │
 │                                                                           │
 │  Secret Manager                                                          │
 │  ├── database-url                                                        │
@@ -55,11 +55,11 @@ This document is the single source of truth for infrastructure: from a blank lap
 │  └── email-api-key                                                       │
 │                                                                           │
 │  Service Accounts                                                        │
-│  ├── beloauto-deployer@    ← used by CI/CD (GitHub Actions)              │
-│  └── beloauto-backend@     ← used by Cloud Run services at runtime       │
+│  ├── ikaro-deployer@    ← used by CI/CD (GitHub Actions)              │
+│  └── ikaro-backend@     ← used by Cloud Run services at runtime       │
 └─────────────────────────────────────────────────────────────────────────┘
 
-  GCE VM (beloauto-observability) — prod project only
+  GCE VM (ikaro-observability) — prod project only
   └── Docker Compose: Prometheus + Grafana + Loki + OTel Collector
 ```
 
@@ -89,20 +89,20 @@ pnpm --version            # >= 9
 BILLING_ACCOUNT=XXXXXX-XXXXXX-XXXXXX
 
 # Create projects
-gcloud projects create beloauto-staging --name="BeloAuto Staging"
-gcloud projects create beloauto-prod    --name="BeloAuto Production"
+gcloud projects create ikaro-staging --name="Ikaro Staging"
+gcloud projects create ikaro-prod    --name="Ikaro Production"
 
 # Link billing
-gcloud billing projects link beloauto-staging --billing-account=$BILLING_ACCOUNT
-gcloud billing projects link beloauto-prod    --billing-account=$BILLING_ACCOUNT
+gcloud billing projects link ikaro-staging --billing-account=$BILLING_ACCOUNT
+gcloud billing projects link ikaro-prod    --billing-account=$BILLING_ACCOUNT
 ```
 
 ### 3. Enable Required APIs
 
-Run for **each** project (`beloauto-staging` and `beloauto-prod`):
+Run for **each** project (`ikaro-staging` and `ikaro-prod`):
 
 ```bash
-for PROJECT in beloauto-staging beloauto-prod; do
+for PROJECT in ikaro-staging ikaro-prod; do
   echo "Enabling APIs for $PROJECT..."
   gcloud services enable \
     run.googleapis.com \
@@ -124,20 +124,20 @@ done
 ### 4. Create Service Accounts
 
 ```bash
-for PROJECT in beloauto-staging beloauto-prod; do
+for PROJECT in ikaro-staging ikaro-prod; do
   # CI/CD deployer (used by GitHub Actions)
-  gcloud iam service-accounts create beloauto-deployer \
-    --display-name="BeloAuto CI/CD Deployer" \
+  gcloud iam service-accounts create ikaro-deployer \
+    --display-name="Ikaro CI/CD Deployer" \
     --project=$PROJECT
 
   # Backend + BFF runtime (Cloud SQL, Pub/Sub, Secret Manager, GCS)
-  gcloud iam service-accounts create beloauto-backend \
-    --display-name="BeloAuto Backend + BFF Runtime" \
+  gcloud iam service-accounts create ikaro-backend \
+    --display-name="Ikaro Backend + BFF Runtime" \
     --project=$PROJECT
 
   # Web (Next.js) runtime — no GCP permissions needed at runtime
-  gcloud iam service-accounts create beloauto-web \
-    --display-name="BeloAuto Web Runtime" \
+  gcloud iam service-accounts create ikaro-web \
+    --display-name="Ikaro Web Runtime" \
     --project=$PROJECT
 done
 ```
@@ -145,10 +145,10 @@ done
 ### 5. Grant IAM Roles
 
 ```bash
-for PROJECT in beloauto-staging beloauto-prod; do
-  DEPLOYER="serviceAccount:beloauto-deployer@${PROJECT}.iam.gserviceaccount.com"
-  BACKEND="serviceAccount:beloauto-backend@${PROJECT}.iam.gserviceaccount.com"
-  WEB="serviceAccount:beloauto-web@${PROJECT}.iam.gserviceaccount.com"
+for PROJECT in ikaro-staging ikaro-prod; do
+  DEPLOYER="serviceAccount:ikaro-deployer@${PROJECT}.iam.gserviceaccount.com"
+  BACKEND="serviceAccount:ikaro-backend@${PROJECT}.iam.gserviceaccount.com"
+  WEB="serviceAccount:ikaro-web@${PROJECT}.iam.gserviceaccount.com"
 
   # Deployer: deploy Cloud Run, run migrations, read secrets, manage infra
   gcloud projects add-iam-policy-binding $PROJECT --member=$DEPLOYER --role=roles/run.admin
@@ -170,31 +170,31 @@ for PROJECT in beloauto-staging beloauto-prod; do
 done
 
 # ── Cross-project: staging deployer + runtime SAs must read from PROD GAR ──────
-# All Docker images are stored in beloauto-prod GAR only.
+# All Docker images are stored in ikaro-prod GAR only.
 # Both staging and prod deployments pull from the same registry.
 for SA in \
-  "serviceAccount:beloauto-deployer@beloauto-staging.iam.gserviceaccount.com" \
-  "serviceAccount:beloauto-backend@beloauto-staging.iam.gserviceaccount.com"; do
-  gcloud artifacts repositories add-iam-policy-binding beloauto-images \
+  "serviceAccount:ikaro-deployer@ikaro-staging.iam.gserviceaccount.com" \
+  "serviceAccount:ikaro-backend@ikaro-staging.iam.gserviceaccount.com"; do
+  gcloud artifacts repositories add-iam-policy-binding ikaro-images \
     --location=us-central1 \
-    --project=beloauto-prod \
+    --project=ikaro-prod \
     --member="$SA" \
     --role="roles/artifactregistry.reader"
 done
 
 # ── Prod deployer: writer access to prod GAR (pushes images from CI) ────────────
-gcloud projects add-iam-policy-binding beloauto-prod \
-  --member="serviceAccount:beloauto-deployer@beloauto-prod.iam.gserviceaccount.com" \
+gcloud projects add-iam-policy-binding ikaro-prod \
+  --member="serviceAccount:ikaro-deployer@ikaro-prod.iam.gserviceaccount.com" \
   --role=roles/artifactregistry.writer
 ```
 
 ### 6. Create Service Account Keys (for GitHub Actions)
 
 ```bash
-for PROJECT in beloauto-staging beloauto-prod; do
-  SUFFIX=$(echo $PROJECT | sed 's/beloauto-//')
+for PROJECT in ikaro-staging ikaro-prod; do
+  SUFFIX=$(echo $PROJECT | sed 's/ikaro-//')
   gcloud iam service-accounts keys create /tmp/sa-key-${SUFFIX}.json \
-    --iam-account=beloauto-deployer@${PROJECT}.iam.gserviceaccount.com \
+    --iam-account=ikaro-deployer@${PROJECT}.iam.gserviceaccount.com \
     --project=$PROJECT
   echo "Key saved: /tmp/sa-key-${SUFFIX}.json"
   echo "Add this to GitHub Secrets as GCP_SA_KEY_$(echo $SUFFIX | tr a-z A-Z)"
@@ -206,18 +206,18 @@ done
 
 ```bash
 # State bucket lives in the prod project (manages state for both envs)
-gcloud storage buckets create gs://beloauto-tfstate \
-  --project=beloauto-prod \
+gcloud storage buckets create gs://ikaro-tfstate \
+  --project=ikaro-prod \
   --location=us-central1 \
   --uniform-bucket-level-access
 
-gcloud storage buckets update gs://beloauto-tfstate --versioning
+gcloud storage buckets update gs://ikaro-tfstate --versioning
 
 # Grant deployer access to the state bucket (both projects)
-for PROJECT in beloauto-staging beloauto-prod; do
+for PROJECT in ikaro-staging ikaro-prod; do
   gsutil iam ch \
-    serviceAccount:beloauto-deployer@${PROJECT}.iam.gserviceaccount.com:objectAdmin \
-    gs://beloauto-tfstate
+    serviceAccount:ikaro-deployer@${PROJECT}.iam.gserviceaccount.com:objectAdmin \
+    gs://ikaro-tfstate
 done
 ```
 
@@ -227,30 +227,30 @@ done
 cd infrastructure/terraform
 
 # Staging workspace
-terraform init -backend-config="bucket=beloauto-tfstate" -backend-config="prefix=staging"
+terraform init -backend-config="bucket=ikaro-tfstate" -backend-config="prefix=staging"
 terraform workspace new staging
 
 # Production workspace
-terraform init -backend-config="bucket=beloauto-tfstate" -backend-config="prefix=prod"
+terraform init -backend-config="bucket=ikaro-tfstate" -backend-config="prefix=prod"
 terraform workspace new prod
 ```
 
 ### 9. Set Up Google OAuth 2.0 Credentials
 
-BeloAuto uses Google OAuth 2.0 for both customer login (UC-021) and staff login (UC-022). You need **one OAuth client per environment** (staging and production).
+Ikaro uses Google OAuth 2.0 for both customer login (UC-021) and staff login (UC-022). You need **one OAuth client per environment** (staging and production).
 
 > **One-time setup per environment — takes ~10 minutes.** You need a Google account that has access to a Google Cloud project (any project — OAuth credentials are not tied to a specific GCP project).
 
 #### Step-by-step
 
 **1. Open the Google Cloud Console**
-Go to [console.cloud.google.com](https://console.cloud.google.com) → select any GCP project (use `beloauto-prod` for production credentials and `beloauto-staging` for staging credentials) → navigate to **APIs & Services → Credentials**.
+Go to [console.cloud.google.com](https://console.cloud.google.com) → select any GCP project (use `ikaro-prod` for production credentials and `ikaro-staging` for staging credentials) → navigate to **APIs & Services → Credentials**.
 
 **2. Configure the OAuth consent screen (one-time per project)**
 - Click **OAuth consent screen** (left sidebar).
 - User type: **External** (allows any Google account, not just your org).
 - Fill in:
-  - App name: `BeloAuto` (staging: `BeloAuto Staging`)
+  - App name: `Ikaro` (staging: `Ikaro Staging`)
   - User support email: your email
   - Developer contact email: your email
 - Scopes: click **Add or remove scopes** → add:
@@ -265,14 +265,14 @@ Go to [console.cloud.google.com](https://console.cloud.google.com) → select an
 **3. Create the OAuth 2.0 Client ID**
 - Click **Create Credentials → OAuth client ID**.
 - Application type: **Web application**.
-- Name: `BeloAuto Web` (staging: `BeloAuto Web Staging`).
+- Name: `Ikaro Web` (staging: `Ikaro Web Staging`).
 - **Authorised JavaScript origins** — add:
   ```
   # Staging
-  https://beloauto-web-staging-<hash>-uc.a.run.app   ← Cloud Run staging URL (from terraform output web_url)
+  https://ikaro-web-staging-<hash>-uc.a.run.app   ← Cloud Run staging URL (from terraform output web_url)
 
   # Production
-  https://beloauto.com
+  https://<ikaro-domain>
   ```
 - **Authorised redirect URIs** — add all of the following:
   ```
@@ -280,10 +280,10 @@ Go to [console.cloud.google.com](https://console.cloud.google.com) → select an
   http://localhost:3002/auth/google/callback
 
   # Staging (BFF Cloud Run URL — from terraform output bff_url)
-  https://beloauto-bff-staging-<hash>-uc.a.run.app/auth/google/callback
+  https://ikaro-bff-staging-<hash>-uc.a.run.app/auth/google/callback
 
   # Production
-  https://bff.beloauto.com/auth/google/callback
+  https://bff.<ikaro-domain>/auth/google/callback
   ```
 - Click **Create**.
 
@@ -295,17 +295,17 @@ Google shows a popup with your **Client ID** and **Client Secret**. Copy both �
 ```bash
 # ── Staging credentials ───────────────────────────────────────────────────────
 gcloud secrets versions add google-oauth-client-id \
-  --data-file=- --project=beloauto-staging <<< "<staging-client-id>"
+  --data-file=- --project=ikaro-staging <<< "<staging-client-id>"
 
 gcloud secrets versions add google-oauth-client-secret \
-  --data-file=- --project=beloauto-staging <<< "<staging-client-secret>"
+  --data-file=- --project=ikaro-staging <<< "<staging-client-secret>"
 
 # ── Production credentials ────────────────────────────────────────────────────
 gcloud secrets versions add google-oauth-client-id \
-  --data-file=- --project=beloauto-prod <<< "<prod-client-id>"
+  --data-file=- --project=ikaro-prod <<< "<prod-client-id>"
 
 gcloud secrets versions add google-oauth-client-secret \
-  --data-file=- --project=beloauto-prod <<< "<prod-client-secret>"
+  --data-file=- --project=ikaro-prod <<< "<prod-client-secret>"
 ```
 
 **6. Add the callback URL to `.env.local` for local development**
@@ -327,18 +327,18 @@ Run **after** Terraform has created the Secret Manager resources (first `terrafo
 ```bash
 # Staging
 # DB passwords for the two provisioned roles (used by init-db.sh in the migration pipeline)
-gcloud secrets versions add db-migrator-password --data-file=- --project=beloauto-staging <<< \
+gcloud secrets versions add db-migrator-password --data-file=- --project=ikaro-staging <<< \
   "$(openssl rand -hex 16)"
-gcloud secrets versions add db-app-password --data-file=- --project=beloauto-staging <<< \
+gcloud secrets versions add db-app-password --data-file=- --project=ikaro-staging <<< \
   "$(openssl rand -hex 16)"
 
-gcloud secrets versions add jwt-secret --data-file=- --project=beloauto-staging <<< \
+gcloud secrets versions add jwt-secret --data-file=- --project=ikaro-staging <<< \
   "$(openssl rand -base64 64)"
 # google-oauth-client-id and google-oauth-client-secret were added in Step 9
-gcloud secrets versions add email-api-key --data-file=- --project=beloauto-staging <<< \
+gcloud secrets versions add email-api-key --data-file=- --project=ikaro-staging <<< \
   "<your-sendgrid-api-key>"
 
-# Repeat for beloauto-prod with production values
+# Repeat for ikaro-prod with production values
 ```
 
 **JWT secret requirements:** Must be at least 64 characters of random data. The `openssl rand -base64 64` command above generates a cryptographically secure value. Store it nowhere else — Secret Manager is the single source of truth.
@@ -385,7 +385,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "beloauto-tfstate"
+    bucket = "ikaro-tfstate"
     # prefix is set via -backend-config in CI and locally
   }
 }
@@ -437,7 +437,7 @@ variable "observability_vm_ip" {
 ### `staging.tfvars`
 
 ```hcl
-gcp_project             = "beloauto-staging"
+gcp_project             = "ikaro-staging"
 environment             = "staging"
 db_tier                 = "db-f1-micro"
 backend_min_instances   = 0
@@ -456,7 +456,7 @@ observability_vm_ip     = ""
 ### `prod.tfvars`
 
 ```hcl
-gcp_project             = "beloauto-prod"
+gcp_project             = "ikaro-prod"
 environment             = "prod"
 db_tier                 = "db-n1-standard-1"
 backend_min_instances   = 1
@@ -475,12 +475,12 @@ observability_vm_ip     = ""
 
 ```hcl
 resource "google_compute_network" "vpc" {
-  name                    = "beloauto-vpc"
+  name                    = "ikaro-vpc"
   auto_create_subnetworks = false
 }
 
 resource "google_compute_subnetwork" "subnet" {
-  name          = "beloauto-subnet"
+  name          = "ikaro-subnet"
   ip_cidr_range = "10.0.1.0/24"
   region        = var.region
   network       = google_compute_network.vpc.id
@@ -488,7 +488,7 @@ resource "google_compute_subnetwork" "subnet" {
 
 # Required for Cloud SQL private IP
 resource "google_compute_global_address" "private_ip_range" {
-  name          = "beloauto-private-ip-range"
+  name          = "ikaro-private-ip-range"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16
@@ -503,7 +503,7 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 
 # VPC Serverless Connector — allows Cloud Run to reach private VPC resources
 resource "google_vpc_access_connector" "connector" {
-  name          = "beloauto-connector"
+  name          = "ikaro-connector"
   region        = var.region
   ip_cidr_range = "10.8.0.0/28"    # must not overlap other ranges
   network       = google_compute_network.vpc.name
@@ -531,9 +531,9 @@ resource "google_compute_firewall" "allow_cloudrun_to_cloudsql" {
 ```hcl
 resource "google_artifact_registry_repository" "images" {
   location      = var.region
-  repository_id = "beloauto-images"
+  repository_id = "ikaro-images"
   format        = "DOCKER"
-  description   = "BeloAuto Docker images"
+  description   = "Ikaro Docker images"
 }
 ```
 
@@ -541,7 +541,7 @@ resource "google_artifact_registry_repository" "images" {
 
 ```hcl
 resource "google_sql_database_instance" "postgres" {
-  name             = "beloauto-postgres"
+  name             = "ikaro-postgres"
   database_version = "POSTGRES_15"
   region           = var.region
 
@@ -574,13 +574,13 @@ resource "google_sql_database_instance" "postgres" {
   deletion_protection = var.environment == "prod"
 }
 
-resource "google_sql_database" "beloauto" {
-  name     = "beloauto"
+resource "google_sql_database" "ikaro" {
+  name     = "ikaro"
   instance = google_sql_database_instance.postgres.name
 }
 
 resource "google_sql_user" "backend" {
-  name     = "beloauto-backend"
+  name     = "ikaro-backend"
   instance = google_sql_database_instance.postgres.name
   password = random_password.db_password.result
 }
@@ -596,19 +596,19 @@ resource "random_password" "db_password" {
 ```hcl
 # Dead letter topic — receives messages that failed after max retries
 resource "google_pubsub_topic" "dead_letter" {
-  name = "beloauto-dead-letter"
+  name = "ikaro-dead-letter"
 }
 
 # Main domain events topic
 resource "google_pubsub_topic" "domain_events" {
-  name = "beloauto-domain-events"
+  name = "ikaro-domain-events"
 
   message_retention_duration = "604800s"  # 7 days
 }
 
 # Loyalty consumer — only receives BookingCompleted
 resource "google_pubsub_subscription" "loyalty_consumer" {
-  name  = "beloauto-loyalty-consumer"
+  name  = "ikaro-loyalty-consumer"
   topic = google_pubsub_topic.domain_events.name
 
   filter = "attributes.eventName = \"BookingCompleted\""
@@ -632,7 +632,7 @@ resource "google_pubsub_subscription" "loyalty_consumer" {
 
 # Notification consumer — receives all events
 resource "google_pubsub_subscription" "notification_consumer" {
-  name  = "beloauto-notification-consumer"
+  name  = "ikaro-notification-consumer"
   topic = google_pubsub_topic.domain_events.name
 
   ack_deadline_seconds = 30
@@ -654,7 +654,7 @@ resource "google_pubsub_subscription" "notification_consumer" {
 
 # Dead letter subscription — for ops monitoring
 resource "google_pubsub_subscription" "dead_letter_monitor" {
-  name  = "beloauto-dead-letter-monitor"
+  name  = "ikaro-dead-letter-monitor"
   topic = google_pubsub_topic.dead_letter.name
   ack_deadline_seconds = 60
 }
@@ -664,14 +664,14 @@ resource "google_pubsub_subscription" "dead_letter_monitor" {
 
 ```hcl
 resource "google_storage_bucket" "media" {
-  name          = "beloauto-media-${var.environment}"
+  name          = "ikaro-media-${var.environment}"
   location      = "US"
   storage_class = "STANDARD"
 
   uniform_bucket_level_access = true
 
   cors {
-    origin          = ["https://beloauto.com", "https://staging.beloauto.com"]
+    origin          = ["https://<ikaro-domain>", "https://staging.<ikaro-domain>"]
     method          = ["GET", "PUT", "POST"]
     response_header = ["Content-Type", "Content-Length"]
     max_age_seconds = 3600
@@ -690,14 +690,14 @@ resource "google_storage_bucket" "media" {
 # is what makes the hotsite manifest (`Cache-Control: public, max-age=300`, ISR,
 # future Cloud CDN) safe to cache without risking broken images mid-window.
 resource "google_storage_bucket" "hotsite_public" {
-  name          = "beloauto-hotsite-public-${var.environment}"
+  name          = "ikaro-hotsite-public-${var.environment}"
   location      = "US"
   storage_class = "STANDARD"
 
   uniform_bucket_level_access = true
 
   cors {
-    origin          = ["https://beloauto.com", "https://staging.beloauto.com"]
+    origin          = ["https://<ikaro-domain>", "https://staging.<ikaro-domain>"]
     method          = ["GET", "PUT", "POST"]
     response_header = ["Content-Type", "Content-Length"]
     max_age_seconds = 3600
@@ -748,7 +748,7 @@ resource "google_secret_manager_secret_iam_member" "backend_secret_access" {
   for_each  = toset(local.secret_names)
   secret_id = google_secret_manager_secret.secrets[each.key].secret_id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
+  member    = "serviceAccount:ikaro-backend@${var.gcp_project}.iam.gserviceaccount.com"
 }
 
 # Allow backend SA to pull from Artifact Registry
@@ -756,33 +756,33 @@ resource "google_artifact_registry_repository_iam_member" "backend_ar_reader" {
   location   = var.region
   repository = google_artifact_registry_repository.images.name
   role       = "roles/artifactregistry.reader"
-  member     = "serviceAccount:beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
+  member     = "serviceAccount:ikaro-backend@${var.gcp_project}.iam.gserviceaccount.com"
 }
 
 # Allow backend SA to publish/subscribe to Pub/Sub
 resource "google_pubsub_topic_iam_member" "backend_publisher" {
   topic  = google_pubsub_topic.domain_events.name
   role   = "roles/pubsub.publisher"
-  member = "serviceAccount:beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
+  member = "serviceAccount:ikaro-backend@${var.gcp_project}.iam.gserviceaccount.com"
 }
 
 resource "google_pubsub_subscription_iam_member" "backend_subscriber_loyalty" {
   subscription = google_pubsub_subscription.loyalty_consumer.name
   role         = "roles/pubsub.subscriber"
-  member       = "serviceAccount:beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
+  member       = "serviceAccount:ikaro-backend@${var.gcp_project}.iam.gserviceaccount.com"
 }
 
 resource "google_pubsub_subscription_iam_member" "backend_subscriber_notification" {
   subscription = google_pubsub_subscription.notification_consumer.name
   role         = "roles/pubsub.subscriber"
-  member       = "serviceAccount:beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
+  member       = "serviceAccount:ikaro-backend@${var.gcp_project}.iam.gserviceaccount.com"
 }
 
 # Allow backend SA to write to GCS media bucket
 resource "google_storage_bucket_iam_member" "backend_media_writer" {
   bucket = google_storage_bucket.media.name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
+  member = "serviceAccount:ikaro-backend@${var.gcp_project}.iam.gserviceaccount.com"
 }
 
 # Allow backend SA to write to the public hotsite bucket (uploads + booking-photo
@@ -791,15 +791,15 @@ resource "google_storage_bucket_iam_member" "backend_media_writer" {
 resource "google_storage_bucket_iam_member" "backend_hotsite_public_writer" {
   bucket = google_storage_bucket.hotsite_public.name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
+  member = "serviceAccount:ikaro-backend@${var.gcp_project}.iam.gserviceaccount.com"
 }
 
 # ── Web SA — Next.js container has no GCP dependencies at runtime ─────────────
 # No Pub/Sub, no Cloud SQL, no Secret Manager, no GCS needed.
 # The SA is created so Cloud Run has a non-default identity; no roles are granted.
 resource "google_service_account" "web" {
-  account_id   = "beloauto-web"
-  display_name = "BeloAuto Web (Next.js) Runtime"
+  account_id   = "ikaro-web"
+  display_name = "Ikaro Web (Next.js) Runtime"
   project      = var.gcp_project
 }
 
@@ -807,10 +807,10 @@ resource "google_service_account" "web" {
 resource "google_artifact_registry_repository_iam_member" "web_ar_reader" {
   provider   = google
   location   = "us-central1"
-  repository = "beloauto-images"
+  repository = "ikaro-images"
   # Images always live in the prod project — grant reader from whichever project this is
   role   = "roles/artifactregistry.reader"
-  member = "serviceAccount:beloauto-web@${var.gcp_project}.iam.gserviceaccount.com"
+  member = "serviceAccount:ikaro-web@${var.gcp_project}.iam.gserviceaccount.com"
 }
 ```
 
@@ -820,17 +820,17 @@ resource "google_artifact_registry_repository_iam_member" "web_ar_reader" {
 locals {
   # Images always live in the PROD GAR — both staging and prod Cloud Run pull from here.
   # The prod deployer SA pushes; staging deployer SA has cross-project reader access (see Day 0 §5).
-  image_base        = "us-central1-docker.pkg.dev/beloauto-prod/beloauto-images"
+  image_base        = "us-central1-docker.pkg.dev/ikaro-prod/ikaro-images"
   placeholder_image = "us-docker.pkg.dev/cloudrun-samples/hello:latest"
 }
 
 resource "google_cloud_run_v2_service" "backend" {
-  name     = "beloauto-backend"
+  name     = "ikaro-backend"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"  # not public — only BFF calls it
 
   template {
-    service_account = "beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
+    service_account = "ikaro-backend@${var.gcp_project}.iam.gserviceaccount.com"
 
     scaling {
       min_instance_count = var.backend_min_instances
@@ -856,7 +856,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "SERVICE_NAME"
-        value = "beloauto-backend"
+        value = "ikaro-backend"
       }
 
       # OTel: send traces/metrics to the observability VM (both staging and prod)
@@ -887,12 +887,12 @@ resource "google_cloud_run_v2_service" "backend" {
 }
 
 resource "google_cloud_run_v2_service" "bff" {
-  name     = "beloauto-bff"
+  name     = "ikaro-bff"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"   # public — receives frontend requests
 
   template {
-    service_account = "beloauto-backend@${var.gcp_project}.iam.gserviceaccount.com"
+    service_account = "ikaro-backend@${var.gcp_project}.iam.gserviceaccount.com"
 
     scaling {
       min_instance_count = var.bff_min_instances
@@ -941,7 +941,7 @@ resource "google_cloud_run_v2_service_iam_member" "bff_public" {
 }
 
 resource "google_cloud_run_v2_service" "web" {
-  name     = "beloauto-web"
+  name     = "ikaro-web"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
@@ -983,8 +983,8 @@ resource "google_cloud_run_v2_service_iam_member" "web_public" {
 Cloud Run provides built-in TLS and custom domain mapping — no Load Balancer needed for MVP (~$18/month saved). Domain ownership must be verified in [Google Search Console](https://search.google.com/search-console) before `terraform apply` will succeed.
 
 **Pre-requisite (one-time, manual):**
-1. Go to [search.google.com/search-console](https://search.google.com/search-console) → Add property → enter `beloauto.com` → verify via DNS TXT record.
-2. Repeat for `bff.beloauto.com` (add as a URL-prefix property or verify the root domain).
+1. Go to [search.google.com/search-console](https://search.google.com/search-console) → Add property → enter `<ikaro-domain>` → verify via DNS TXT record.
+2. Repeat for `bff.<ikaro-domain>` (add as a URL-prefix property or verify the root domain).
 3. After verification, run `terraform apply` — Google will provision a managed SSL certificate automatically.
 
 ```hcl
@@ -993,7 +993,7 @@ Cloud Run provides built-in TLS and custom domain mapping — no Load Balancer n
 resource "google_cloud_run_domain_mapping" "web" {
   count    = var.environment == "prod" ? 1 : 0
   location = var.region
-  name     = "beloauto.com"
+  name     = "<ikaro-domain>"
 
   metadata { namespace = var.gcp_project }
   spec     { route_name = google_cloud_run_v2_service.web.name }
@@ -1002,7 +1002,7 @@ resource "google_cloud_run_domain_mapping" "web" {
 resource "google_cloud_run_domain_mapping" "bff" {
   count    = var.environment == "prod" ? 1 : 0
   location = var.region
-  name     = "bff.beloauto.com"
+  name     = "bff.<ikaro-domain>"
 
   metadata { namespace = var.gcp_project }
   spec     { route_name = google_cloud_run_v2_service.bff.name }
@@ -1012,8 +1012,8 @@ resource "google_cloud_run_domain_mapping" "bff" {
 After `terraform apply`, run:
 ```bash
 # Get the DNS records to configure in your domain registrar
-gcloud run domain-mappings describe --domain=beloauto.com --region=us-central1 --project=beloauto-prod
-gcloud run domain-mappings describe --domain=bff.beloauto.com --region=us-central1 --project=beloauto-prod
+gcloud run domain-mappings describe --domain=<ikaro-domain> --region=us-central1 --project=ikaro-prod
+gcloud run domain-mappings describe --domain=bff.<ikaro-domain> --region=us-central1 --project=ikaro-prod
 ```
 Point the CNAME/A records at your registrar to the values returned. SSL certificate provisioning takes 10–20 minutes after DNS propagates.
 
@@ -1057,7 +1057,7 @@ Cloud Scheduler
     │  POST /cron/reminders   (every 30 min)
     │  Authorization: Bearer <OIDC token signed by scheduler-invoker SA>
     ▼
-Cloud Run (beloauto-backend)
+Cloud Run (ikaro-backend)
     │  CronAuthGuard validates: token issuer = Google, audience = backend URL
     │  If valid → execute cron handler
     │  If invalid → 401 Unauthorized
@@ -1075,11 +1075,11 @@ export class CronAuthGuard implements CanActivate {
     // Verify the OIDC token issued by Google for this service's URL
     const ticket = await new OAuth2Client().verifyIdToken({
       idToken: token,
-      audience: process.env.BACKEND_SELF_URL, // e.g. https://beloauto-backend-xyz-uc.a.run.app
+      audience: process.env.BACKEND_SELF_URL, // e.g. https://ikaro-backend-xyz-uc.a.run.app
     });
     const payload = ticket.getPayload();
     // Verify the scheduler SA email is the expected invoker
-    return payload?.email === `beloauto-scheduler@${process.env.GCP_PROJECT}.iam.gserviceaccount.com`;
+    return payload?.email === `ikaro-scheduler@${process.env.GCP_PROJECT}.iam.gserviceaccount.com`;
   }
 }
 ```
@@ -1119,8 +1119,8 @@ export class CronController {
 ```hcl
 # Service account used by Cloud Scheduler to invoke Cloud Run
 resource "google_service_account" "scheduler" {
-  account_id   = "beloauto-scheduler"
-  display_name = "BeloAuto Cloud Scheduler Invoker"
+  account_id   = "ikaro-scheduler"
+  display_name = "Ikaro Cloud Scheduler Invoker"
   project      = var.gcp_project
 }
 
@@ -1134,7 +1134,7 @@ resource "google_cloud_run_v2_service_iam_member" "scheduler_backend_invoker" {
 
 # ── Job 1: Booking & admin reminders — every 30 min ─────────────────────────
 resource "google_cloud_scheduler_job" "reminders" {
-  name      = "beloauto-reminders"
+  name      = "ikaro-reminders"
   region    = var.region
   project   = var.gcp_project
   schedule  = "*/30 * * * *"   # every 30 minutes, all day
@@ -1159,7 +1159,7 @@ resource "google_cloud_scheduler_job" "reminders" {
 
 # ── Job 2: Loyalty expiry warnings — every Monday at 06:00 UTC ──────────────
 resource "google_cloud_scheduler_job" "loyalty_expiry" {
-  name      = "beloauto-loyalty-expiry"
+  name      = "ikaro-loyalty-expiry"
   region    = var.region
   project   = var.gcp_project
   schedule  = "0 6 * * 1"   # Monday 06:00 UTC
@@ -1233,8 +1233,8 @@ pnpm --version            # >= 9
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/<org>/beloauto.git
-cd beloauto
+git clone https://github.com/<org>/ikaro.git
+cd ikaro
 
 # 2. Install dependencies
 pnpm install
@@ -1247,10 +1247,10 @@ cp apps/bff/.env.example apps/bff/.env
 # All other values work as-is for local dev
 
 # 5. Start infrastructure services (DB + Pub/Sub + storage + email)
-# On first start, docker creates beloauto_migrator + beloauto_app via init-db.sh
+# On first start, docker creates ikaro_migrator + ikaro_app via init-db.sh
 pnpm infra:up
 
-# 6. Run all migrations (creates schemas + tables, grants DML to beloauto_app)
+# 6. Run all migrations (creates schemas + tables, grants DML to ikaro_app)
 pnpm db:migrate
 
 # 7. Start all services in development mode
@@ -1273,7 +1273,7 @@ pnpm dev
     "obs:logs":           "docker-compose -f docker/docker-compose.observability.yml logs -f",
     "db:migrate":         "pnpm --filter backend migration:run",
     "db:revert":          "pnpm --filter backend migration:revert",
-    "db:reset":           "pnpm infra:down && docker volume rm beloauto_postgres_data && pnpm infra:up && pnpm db:migrate",
+    "db:reset":           "pnpm infra:down && docker volume rm ikaro_postgres_data && pnpm infra:up && pnpm db:migrate",
     "test":               "pnpm -r run test",
     "lint":               "pnpm -r run lint",
     "type-check":         "pnpm -r run type-check"
@@ -1289,37 +1289,37 @@ pnpm dev
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: beloauto-postgres
+    container_name: ikaro-postgres
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: beloauto
+      POSTGRES_DB: ikaro
       POSTGRES_USER: postgres       # superuser used only to run initdb.d scripts
       POSTGRES_PASSWORD: postgres
-      DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD:-beloauto_migrator}
-      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-beloauto_app}
+      DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD:-ikaro_migrator}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-ikaro_app}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro  # creates beloauto_migrator + beloauto_app
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro  # creates ikaro_migrator + ikaro_app
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d beloauto"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ikaro"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   pubsub-emulator:
     image: gcr.io/google.com/cloudsdktool/cloud-sdk:latest
-    container_name: beloauto-pubsub
+    container_name: ikaro-pubsub
     command: >
       gcloud beta emulators pubsub start
       --host-port=0.0.0.0:8085
-      --project=beloauto-local
+      --project=ikaro-local
     ports:
       - "8085:8085"
 
   storage-emulator:
     image: fsouza/fake-gcs-server:latest
-    container_name: beloauto-gcs
+    container_name: ikaro-gcs
     ports:
       - "4443:4443"
     command: -scheme http -port 4443 -backend memory -external-url http://localhost:4443
@@ -1328,7 +1328,7 @@ services:
 
   mailhog:
     image: mailhog/mailhog:v1.0.1
-    container_name: beloauto-mail
+    container_name: ikaro-mail
     ports:
       - "1025:1025"    # SMTP — app sends emails here
       - "8025:8025"    # Web UI — view sent emails at http://localhost:8025
@@ -1340,12 +1340,12 @@ volumes:
 
 ### Database Users
 
-BeloAuto uses two PostgreSQL roles with different privilege levels:
+Ikaro uses two PostgreSQL roles with different privilege levels:
 
 | Role | Privileges | Used by |
 |---|---|---|
-| `beloauto_migrator` | `CREATE`/`ALTER`/`DROP` (DDL) | `pnpm db:migrate` · CI pipeline · `docker/init-db.sh` |
-| `beloauto_app` | `SELECT`/`INSERT`/`UPDATE`/`DELETE` (DML) | Running backend service |
+| `ikaro_migrator` | `CREATE`/`ALTER`/`DROP` (DDL) | `pnpm db:migrate` · CI pipeline · `docker/init-db.sh` |
+| `ikaro_app` | `SELECT`/`INSERT`/`UPDATE`/`DELETE` (DML) | Running backend service |
 
 This separation ensures a compromised app process cannot alter or drop the schema.
 
@@ -1357,11 +1357,11 @@ This separation ensures a compromised app process cannot alter or drop the schem
 
 ```bash
 # docker/init-db.sh — reads DB_MIGRATOR_PASSWORD / DB_APP_PASSWORD from the environment.
-# Falls back to 'beloauto_migrator' / 'beloauto_app' when not set (always the case locally).
+# Falls back to 'ikaro_migrator' / 'ikaro_app' when not set (always the case locally).
 # Production CI passes real secrets as env vars before running the script.
 ```
 
-**Schema creation and DML grants** are handled by the first TypeORM migration (`BootstrapSchemas1700000000000`), which runs as `beloauto_migrator`. It creates all 6 schemas and sets up `ALTER DEFAULT PRIVILEGES` so every future table automatically grants DML to `beloauto_app`.
+**Schema creation and DML grants** are handled by the first TypeORM migration (`BootstrapSchemas1700000000000`), which runs as `ikaro_migrator`. It creates all 6 schemas and sets up `ALTER DEFAULT PRIVILEGES` so every future table automatically grants DML to `ikaro_app`.
 
 ---
 
@@ -1379,7 +1379,7 @@ The GCP Pub/Sub emulator starts with no topics or subscriptions. The app expects
 set -euo pipefail
 
 EMULATOR="localhost:8085"
-PROJECT="beloauto-local"
+PROJECT="ikaro-local"
 BASE="http://${EMULATOR}/v1/projects/${PROJECT}"
 
 # Wait for the emulator to be ready
@@ -1390,49 +1390,49 @@ done
 echo "Emulator ready."
 
 # Create topic
-curl -sf -X PUT "${BASE}/topics/beloauto-domain-events" \
+curl -sf -X PUT "${BASE}/topics/ikaro-domain-events" \
   -H "Content-Type: application/json" -d '{}' > /dev/null
-echo "  topic: beloauto-domain-events"
+echo "  topic: ikaro-domain-events"
 
 # Dead-letter topic
-curl -sf -X PUT "${BASE}/topics/beloauto-dead-letter" \
+curl -sf -X PUT "${BASE}/topics/ikaro-dead-letter" \
   -H "Content-Type: application/json" -d '{}' > /dev/null
-echo "  topic: beloauto-dead-letter"
+echo "  topic: ikaro-dead-letter"
 
 # Loyalty subscription — filtered to BookingCompleted only
-curl -sf -X PUT "${BASE}/subscriptions/beloauto-loyalty-consumer" \
+curl -sf -X PUT "${BASE}/subscriptions/ikaro-loyalty-consumer" \
   -H "Content-Type: application/json" \
   -d '{
-    "topic": "projects/beloauto-local/topics/beloauto-domain-events",
+    "topic": "projects/ikaro-local/topics/ikaro-domain-events",
     "ackDeadlineSeconds": 30
   }' > /dev/null
-echo "  subscription: beloauto-loyalty-consumer"
+echo "  subscription: ikaro-loyalty-consumer"
 
 # Note: the emulator does not support Pub/Sub attribute filters.
 # The loyalty consumer handler filters by eventName in application code locally.
 
 # Notification subscription — all events
-curl -sf -X PUT "${BASE}/subscriptions/beloauto-notification-consumer" \
+curl -sf -X PUT "${BASE}/subscriptions/ikaro-notification-consumer" \
   -H "Content-Type: application/json" \
   -d '{
-    "topic": "projects/beloauto-local/topics/beloauto-domain-events",
+    "topic": "projects/ikaro-local/topics/ikaro-domain-events",
     "ackDeadlineSeconds": 30
   }' > /dev/null
-echo "  subscription: beloauto-notification-consumer"
+echo "  subscription: ikaro-notification-consumer"
 
 # Dead-letter monitor subscription
-curl -sf -X PUT "${BASE}/subscriptions/beloauto-dead-letter-monitor" \
+curl -sf -X PUT "${BASE}/subscriptions/ikaro-dead-letter-monitor" \
   -H "Content-Type: application/json" \
   -d '{
-    "topic": "projects/beloauto-local/topics/beloauto-dead-letter",
+    "topic": "projects/ikaro-local/topics/ikaro-dead-letter",
     "ackDeadlineSeconds": 60
   }' > /dev/null
-echo "  subscription: beloauto-dead-letter-monitor"
+echo "  subscription: ikaro-dead-letter-monitor"
 
 echo "Pub/Sub emulator initialised."
 ```
 
-> **Emulator filter note:** The GCP Pub/Sub emulator does not support subscription-level attribute filters (`filter` field). In production, the `beloauto-loyalty-consumer` subscription filters to `eventName = "BookingCompleted"` at the infrastructure level. Locally, the Loyalty event consumer handler checks `event.eventName === 'BookingCompleted'` in code and ignores all other events. The production behaviour is identical — the filter just moves from infrastructure to application layer for local dev.
+> **Emulator filter note:** The GCP Pub/Sub emulator does not support subscription-level attribute filters (`filter` field). In production, the `ikaro-loyalty-consumer` subscription filters to `eventName = "BookingCompleted"` at the infrastructure level. Locally, the Loyalty event consumer handler checks `event.eventName === 'BookingCompleted'` in code and ignores all other events. The production behaviour is identical — the filter just moves from infrastructure to application layer for local dev.
 
 ---
 
@@ -1447,13 +1447,13 @@ PORT=3001
 # PostgreSQL — app runtime user (DML only: SELECT/INSERT/UPDATE/DELETE)
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=beloauto_app
-DB_PASSWORD=beloauto_app
-DB_NAME=beloauto
+DB_USER=ikaro_app
+DB_PASSWORD=ikaro_app
+DB_NAME=ikaro
 
 # PostgreSQL — migration user (DDL; used only by pnpm db:migrate, not app startup)
-DB_MIGRATOR_USER=beloauto_migrator
-DB_MIGRATOR_PASSWORD=beloauto_migrator
+DB_MIGRATOR_USER=ikaro_migrator
+DB_MIGRATOR_PASSWORD=ikaro_migrator
 
 # JWT — must be at least 32 characters
 JWT_SECRET=change-me-to-a-random-64-char-string-in-production-environments
@@ -1470,7 +1470,7 @@ JWT_SECRET=change-me-to-a-random-64-char-string-in-production-environments
 | Backend (NestJS) | 3001 | http://localhost:3001 |
 | BFF (NestJS) | 3002 | http://localhost:3002 |
 | Web (Next.js) | 3000 | http://localhost:3000 |
-| PostgreSQL | 5432 | postgresql://beloauto:password@localhost:5432/beloauto |
+| PostgreSQL | 5432 | postgresql://ikaro:password@localhost:5432/ikaro |
 | Pub/Sub Emulator | 8085 | localhost:8085 |
 | Storage Emulator | 4443 | http://localhost:4443 |
 | MailHog SMTP | 1025 | localhost:1025 |
@@ -1490,13 +1490,13 @@ cd infrastructure/terraform
 
 # Staging
 terraform workspace select staging
-terraform init -backend-config="bucket=beloauto-tfstate" -backend-config="prefix=staging"
+terraform init -backend-config="bucket=ikaro-tfstate" -backend-config="prefix=staging"
 terraform plan -var-file="staging.tfvars" -out=tfplan
 terraform apply tfplan
 
 # Production
 terraform workspace select prod
-terraform init -backend-config="bucket=beloauto-tfstate" -backend-config="prefix=prod"
+terraform init -backend-config="bucket=ikaro-tfstate" -backend-config="prefix=prod"
 terraform plan -var-file="prod.tfvars" -out=tfplan
 terraform apply tfplan
 ```
@@ -1510,7 +1510,7 @@ After the first apply, complete **Day 0 §9** (populate secrets).
 The `deploy-infra.yml` workflow (see `docs/09-CI_CD_PIPELINE.md`) handles Terraform in CI. The image push step pushes to **Google Artifact Registry** (not GHCR):
 
 ```
-Image path: us-central1-docker.pkg.dev/<gcp-project>/beloauto-images/beloauto-backend:sha-<commit>
+Image path: us-central1-docker.pkg.dev/<gcp-project>/ikaro-images/ikaro-backend:sha-<commit>
 ```
 
 Cloud Run deploys reference this GAR path. No GHCR authentication needed at runtime.
@@ -1526,7 +1526,7 @@ Cloud Run deploys reference this GAR path. No GHCR authentication needed at runt
 [ ] Get Google OAuth credentials (see Day 0 §9 — reuse staging client for local dev)
 [ ] Fill in apps/bff/.env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (from Google Console), JWT_SECRET (any 64-char random string locally)
 [ ] Start infra: pnpm infra:up   (starts PostgreSQL, Pub/Sub emulator, GCS emulator, MailHog)
-      → On first start, postgres auto-runs docker/init-db.sh which creates beloauto_migrator + beloauto_app roles
+      → On first start, postgres auto-runs docker/init-db.sh which creates ikaro_migrator + ikaro_app roles
 [ ] Run migrations: pnpm db:migrate   (creates all schemas, tables, and DML grants)
 [ ] Start apps: pnpm dev
 [ ] Open browser: http://localhost:3000 (hotsite / dashboard)

@@ -64,20 +64,20 @@ Create the GitHub Actions workflow that automatically builds, scans, and deploys
 **Stage 1 — Build + scan (parallel):**
 - Build Docker images for backend, BFF, web (tagged with `$GITHUB_SHA`)
 - Trivy scan each image (fail on HIGH/CRITICAL)
-- Push to GAR: `southamerica-east1-docker.pkg.dev/<project>/beloauto-registry/<service>:<sha>`
+- Push to GAR: `southamerica-east1-docker.pkg.dev/<project>/ikaro-registry/<service>:<sha>`
 
 **Stage 2 — Migrations (environment: `staging-migrations`):**
-- Pull `beloauto-backend:<sha>` image
+- Pull `ikaro-backend:<sha>` image
 - Run: `docker run ... migration:run`
 - Must succeed before ANY service deploys
 
 **Stage 3 — Deploy services (sequential: backend → BFF → frontend):**
-- Each: `gcloud run deploy beloauto-<service> --image=<sha-tagged-image> --region=southamerica-east1`
+- Each: `gcloud run deploy ikaro-<service> --image=<sha-tagged-image> --region=southamerica-east1`
 - Each uses its GitHub Environment (`staging-backend`, `staging-bff`, `staging-frontend`)
 
 **Stage 4 — Smoke test:**
-- `curl -f https://bff-staging.beloauto.com/v1/health/ready` → must return 200
-- `curl -f https://staging.beloauto.com/health/live` → must return 200
+- `curl -f https://bff-staging.<ikaro-domain>/v1/health/ready` → must return 200
+- `curl -f https://staging.<ikaro-domain>/health/live` → must return 200
 
 **Acceptance criteria:**
 - [ ] Push to `main` triggers the workflow automatically
@@ -186,8 +186,8 @@ Implement the migration runner as a dedicated CI step that runs BEFORE app deplo
 
 **`.github/workflows/run-migrations.yml`** (reusable workflow):
 - Inputs: `environment` (staging | production), `image_sha`
-- Pulls `beloauto-backend:<sha>` image from GAR
-- Runs: `docker run --env DATABASE_URL=<from secret> beloauto-backend migration:run`
+- Pulls `ikaro-backend:<sha>` image from GAR
+- Runs: `docker run --env DATABASE_URL=<from secret> ikaro-backend migration:run`
 - On success: outputs `migrations_applied` count
 - On failure: exits with code 1 — caller workflow cannot proceed
 
@@ -329,7 +329,7 @@ Implement the complete error catalog from `docs/25-ERROR_CATALOG.md`. Every non-
 **RFC 9457 Problem Detail structure:**
 ```json
 {
-  "type": "https://beloauto.com/errors/booking-slot-unavailable",
+  "type": "https://<ikaro-domain>/errors/booking-slot-unavailable",
   "title": "Horário indisponível",
   "status": 409,
   "detail": "O horário selecionado não está mais disponível. Por favor, escolha outro horário.",
@@ -347,7 +347,7 @@ Implement the complete error catalog from `docs/25-ERROR_CATALOG.md`. Every non-
 **Acceptance criteria:**
 - [ ] Every `4xx` and `5xx` response has `Content-Type: application/problem+json`
 - [ ] Every error response includes `correlationId` matching the request's `X-Correlation-ID`
-- [ ] `type` URI is consistent: `https://beloauto.com/errors/<kebab-case-name>`
+- [ ] `type` URI is consistent: `https://<ikaro-domain>/errors/<kebab-case-name>`
 - [ ] Validation errors (`400`) include a `violations` array: `[{ field: "email", message: "E-mail inválido" }]`
 - [ ] Unhandled exceptions return `500` with generic pt-BR message (never exposes stack traces in production)
 - [ ] Unit test: throw each custom exception → assert Problem Detail shape
@@ -409,7 +409,7 @@ Execute the final go-live checklist: configure production secrets, deploy to pro
 
 4. **Provision first tenant** (via `POST /internal/tenants` — M02-S05):
    ```bash
-   curl -X POST https://backend.beloauto.com/internal/tenants \
+   curl -X POST https://backend.<ikaro-domain>/internal/tenants \
      -H "Authorization: Bearer $(gcloud secrets versions access latest --secret=platform-admin-key)" \
      -H "Content-Type: application/json" \
      -d '{
@@ -429,11 +429,11 @@ Execute the final go-live checklist: configure production secrets, deploy to pro
 
 6. **Configure Grafana alerting channels** (email/Slack for on-call)
 
-7. **DNS + domain mapping** (if custom domain ready): configure Cloud Run domain mapping for `beloauto.com`
+7. **DNS + domain mapping** (if custom domain ready): configure Cloud Run domain mapping for `<ikaro-domain>`
 
 **Acceptance criteria:**
 - [ ] Production deployment completes with zero errors
-- [ ] `GET https://bff.beloauto.com/v1/health/ready` returns `200`
+- [ ] `GET https://bff.<ikaro-domain>/v1/health/ready` returns `200`
 - [ ] First tenant exists in production database
 - [ ] All 5 Playwright E2E journeys (M16-S06) pass against production URLs
 - [ ] Grafana dashboards show live data from production

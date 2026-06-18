@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { AvailableSlot, HotsiteServiceResponse } from '@beloauto/types';
+import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import { ErrorAlert } from './ErrorAlert';
 import { formatDateLongBR, formatTimeBR } from '@/lib/booking/format-time';
 import { formatDuration } from '@/lib/hotsite/format-duration';

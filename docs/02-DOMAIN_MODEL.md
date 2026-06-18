@@ -1,4 +1,4 @@
-# Domain Model - BeloAuto (DDD)
+# Domain Model - Ikaro (DDD)
 
 This document defines the domain model using Domain-Driven Design (DDD) principles: bounded contexts, aggregates, entities, value objects, and domain events.
 
@@ -679,7 +679,7 @@ Address {
 ### **Money**
 Lives in `src/shared/value-objects/money.ts`.
 - Amount (Decimal — never float)
-- Currency (always `'BRL'` — BeloAuto is Brazil-only)
+- Currency (always `'BRL'` — Ikaro is Brazil-only)
 - Display format: `R$ 1.234,56` (Brazilian locale)
 - Supports operations: add, subtract, multiply
 - Immutable

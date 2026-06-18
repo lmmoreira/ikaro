@@ -1,4 +1,4 @@
-title = "BeloAuto Gitleaks Config"
+title = "Ikaro Gitleaks Config"
 
 [allowlist]
   description = "Safe placeholder and test-fixture values — not real secrets"

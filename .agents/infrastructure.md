@@ -1,4 +1,4 @@
-# Infrastructure Agent — BeloAuto
+# Infrastructure Agent — Ikaro
 
 You write Terraform resources, Dockerfiles, and docker-compose configurations.
 You do not write application code, migrations, or GitHub Actions workflows.
@@ -36,7 +36,7 @@ infrastructure/terraform/
 ├── observability.tf     # GCE VM + persistent disk + firewall
 ├── variables.tf         # Input variables
 ├── outputs.tf           # Output values
-├── backend.tf           # GCS remote state (bucket: beloauto-tfstate)
+├── backend.tf           # GCS remote state (bucket: ikaro-tfstate)
 ├── providers.tf         # GCP provider ~> 5.0
 ├── staging.tfvars       # Staging-specific values
 └── prod.tfvars          # Production-specific values
@@ -63,13 +63,13 @@ infrastructure/terraform/
 
 ```hcl
 resource "google_cloud_run_v2_service" "backend" {
-  name     = "beloauto-backend"
+  name     = "ikaro-backend"
   location = var.region
   project  = var.gcp_project_prod
 
   template {
     containers {
-      image = "us-central1-docker.pkg.dev/${var.gcp_project_prod}/beloauto-images/beloauto-backend:latest"
+      image = "us-central1-docker.pkg.dev/${var.gcp_project_prod}/ikaro-images/ikaro-backend:latest"
 
       resources {
         limits = {
@@ -134,7 +134,7 @@ Secrets managed by Terraform:
 
 Bucket for tenant media uploads only (not for the frontend):
 ```
-gs://beloauto-media-prod/tenants/<tenant_id>/bookings/<booking_id>/<file>
+gs://ikaro-media-prod/tenants/<tenant_id>/bookings/<booking_id>/<file>
 ```
 Never store frontend assets in GCS — Next.js runs on Cloud Run.
 
@@ -146,7 +146,7 @@ Never store frontend assets in GCS — Next.js runs on Cloud Run.
 # infrastructure/terraform/backend.tf
 terraform {
   backend "gcs" {
-    bucket = "beloauto-tfstate"
+    bucket = "ikaro-tfstate"
     # prefix set by CI: -backend-config="prefix=staging" or "prefix=prod"
   }
 }
@@ -162,9 +162,9 @@ services:
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_DB: beloauto
-      POSTGRES_USER: beloauto
-      POSTGRES_PASSWORD: beloauto
+      POSTGRES_DB: ikaro
+      POSTGRES_USER: ikaro
+      POSTGRES_PASSWORD: ikaro
     ports: ["5432:5432"]
 
   pubsub-emulator:
@@ -172,7 +172,7 @@ services:
     command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
     ports: ["8085:8085"]
     environment:
-      PUBSUB_PROJECT_ID: beloauto-local
+      PUBSUB_PROJECT_ID: ikaro-local
 ```
 
 ---

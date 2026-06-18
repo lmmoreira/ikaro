@@ -1,4 +1,4 @@
-import type { HotsiteBrandingResponse } from '@beloauto/types';
+import type { HotsiteBrandingResponse } from '@ikaro/types';
 import { describe, expect, it } from 'vitest';
 
 // next/font/google is aliased to __mocks__/next-font-google.ts in vitest.config.ts

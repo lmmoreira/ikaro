@@ -7,7 +7,7 @@
 
 ## 1. What M03 Built and Why
 
-M03 implements the full authentication layer for BeloAuto. The goal is: any user (customer or staff) can sign in with their Google account, and the system issues a JWT that identifies who they are, which tenant they belong to, and what role they have.
+M03 implements the full authentication layer for Ikaro. The goal is: any user (customer or staff) can sign in with their Google account, and the system issues a JWT that identifies who they are, which tenant they belong to, and what role they have.
 
 The key challenge is **multi-tenancy**: the same Google account (`google_oauth_id`) can exist as different entities in different tenants. A customer named João who washes his car at both "Lavacar BH" and "Lavacar Centro" has TWO `Customer` rows in the database — one per tenant. Each row has a different UUID (`customerId`). The JWT's `sub` field carries the `customerId` for the **active tenant session**, not João's Google ID.
 
@@ -114,7 +114,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
 
 ## 4. JWT Design — Why `sub` is the Backend Entity UUID
 
-A common mistake: putting Google's `sub` (the OAuth user ID) in the JWT's `sub` field. BeloAuto does NOT do this.
+A common mistake: putting Google's `sub` (the OAuth user ID) in the JWT's `sub` field. Ikaro does NOT do this.
 
 Instead:
 - `sub` = `customerId` for customers (the UUID in the `customer.customers` table, **for that specific tenant**)
@@ -257,7 +257,7 @@ The problem: the BFF has the `customerId` in Tenant A, but needs the `customerId
 3. `GET /internal/tenants/:targetTenantId` → gets slug
 4. Issues new JWT with `sub: targetCustomerId, tenantId: targetTenantId, tenantSlug, role: CUSTOMER`
 
-Why not just store `googleOAuthId` in the JWT? Because `googleOAuthId` is an implementation detail of the Google OAuth integration. The JWT should carry only domain-meaningful fields. If BeloAuto later adds Apple Sign-In, the field name would be wrong. Using `customerId` keeps the JWT clean.
+Why not just store `googleOAuthId` in the JWT? Because `googleOAuthId` is an implementation detail of the Google OAuth integration. The JWT should carry only domain-meaningful fields. If Ikaro later adds Apple Sign-In, the field name would be wrong. Using `customerId` keeps the JWT clean.
 
 ---
 

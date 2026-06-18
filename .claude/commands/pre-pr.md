@@ -21,16 +21,16 @@ Identify which apps have changed files (`apps/backend/`, `apps/bff/`, `apps/web/
 
 ```bash
 # backend
-pnpm --filter @beloauto/backend run type-check 2>&1 | grep -E 'error TS' | head -20
-pnpm --filter @beloauto/backend run lint 2>&1 | grep -E ' error ' | head -20
+pnpm --filter @ikaro/backend run type-check 2>&1 | grep -E 'error TS' | head -20
+pnpm --filter @ikaro/backend run lint 2>&1 | grep -E ' error ' | head -20
 
 # bff (if changed)
-pnpm --filter @beloauto/bff run type-check 2>&1 | grep -E 'error TS' | head -20
-pnpm --filter @beloauto/bff run lint 2>&1 | grep -E ' error ' | head -20
+pnpm --filter @ikaro/bff run type-check 2>&1 | grep -E 'error TS' | head -20
+pnpm --filter @ikaro/bff run lint 2>&1 | grep -E ' error ' | head -20
 
 # web (if changed)
-pnpm --filter @beloauto/web run type-check 2>&1 | grep -E 'error TS' | head -20
-pnpm --filter @beloauto/web run lint 2>&1 | grep -E ' error ' | head -20
+pnpm --filter @ikaro/web run type-check 2>&1 | grep -E 'error TS' | head -20
+pnpm --filter @ikaro/web run lint 2>&1 | grep -E ' error ' | head -20
 ```
 
 Empty output = clean. Any `error TS` line = failure; report it and stop.
@@ -157,7 +157,7 @@ If all Step 1–3 checks pass, output:
 The user has authorized autonomous execution of this step. Run the tests directly — do not ask for permission or request the user to paste output.
 
 ```bash
-{ pnpm --filter @beloauto/backend test:integration && pnpm --filter @beloauto/bff test:component; } 2>&1 | tail -50
+{ pnpm --filter @ikaro/backend test:integration && pnpm --filter @ikaro/bff test:component; } 2>&1 | tail -50
 ```
 
 Use a 600 000 ms timeout (10 min). Integration tests are slow.

@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import type { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@beloauto/types';
+import type { HotsiteManifestResponse, HotsiteSitemapEntryListResponse } from '@ikaro/types';
 import { HOTSITE_REVALIDATE_SECONDS } from '@/lib/hotsite/revalidate';
 
 export async function fetchManifest(slug: string): Promise<HotsiteManifestResponse> {

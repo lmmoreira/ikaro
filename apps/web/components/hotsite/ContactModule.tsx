@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { ContactModuleData, HotsiteBusinessInfoResponse } from '@beloauto/types';
+import type { ContactModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
 import { SectionEyebrow } from './SectionEyebrow';
 

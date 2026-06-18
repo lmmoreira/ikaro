@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AvailabilityResponse } from '@beloauto/types';
+import type { AvailabilityResponse } from '@ikaro/types';
 import { fetchAvailability } from '@/lib/api/schedule';
 import { SlotPicker } from './SlotPicker';
 

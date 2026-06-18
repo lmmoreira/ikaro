@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { ContactModuleData, HotsiteBusinessInfoResponse } from '@beloauto/types';
+import type { ContactModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { ContactModule } from './ContactModule';
 
 function makeBusiness(

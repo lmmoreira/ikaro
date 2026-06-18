@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { AvailableSlot, HotsiteServiceResponse } from '@beloauto/types';
+import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import { BookingSummaryCard } from './BookingSummaryCard';
 
 function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServiceResponse {

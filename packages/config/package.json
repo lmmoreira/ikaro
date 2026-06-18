@@ -1,5 +1,5 @@
 {
-  "name": "@beloauto/config",
+  "name": "@ikaro/config",
   "version": "0.0.1",
   "private": true,
   "description": "Shared ESLint, TypeScript, and Prettier configurations",

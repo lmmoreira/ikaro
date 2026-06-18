@@ -1,4 +1,4 @@
-# BFF Architecture - BeloAuto
+# BFF Architecture - Ikaro
 
 ## Purpose
 
@@ -123,7 +123,7 @@ apps/bff/src/
 - `@Public()` is binary — a public route never receives `req.user`. A route that must behave differently for guests vs. authenticated callers needs a new optional-auth guard; treat that as an open decision, not something to improvise per-endpoint.
 - Public route paths describe the **resource/action returned** (`/platform/manifest/:slug`, `/services`), independent of the module folder name.
 
-**Response types for `.public.controller.ts` endpoints** live in `@beloauto/types` (`packages/types/src/hotsite.ts`), named `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` (e.g. `HotsiteManifestResponse`, `HotsiteServiceResponse` / `HotsiteServiceListResponse`). Authenticated/admin response types may use plainer names (e.g. `ServiceResponse` in `service.dto.ts`) since they aren't part of the public hotsite contract.
+**Response types for `.public.controller.ts` endpoints** live in `@ikaro/types` (`packages/types/src/hotsite.ts`), named `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` (e.g. `HotsiteManifestResponse`, `HotsiteServiceResponse` / `HotsiteServiceListResponse`). Authenticated/admin response types may use plainer names (e.g. `ServiceResponse` in `service.dto.ts`) since they aren't part of the public hotsite contract.
 
 **Frontend fetchers (`apps/web/lib/api/<name>.ts`) mirror the BFF module name** they call — e.g. `lib/api/platform.ts` ↔ `platform.public.controller.ts`, `lib/api/services.ts` ↔ `services.public.controller.ts`.
 
@@ -362,14 +362,14 @@ The `@Throttle({ public: { ... } })` decorator is applied at the controller leve
 |---|---|---|
 | `NODE_ENV` | Cloud Run env | `development` \| `staging` \| `production` |
 | `PORT` | Cloud Run env | `3002` (local) — Cloud Run sets this automatically |
-| `BACKEND_INTERNAL_URL` | Cloud Run env | Internal Cloud Run URL of the backend service (e.g. `https://beloauto-backend-xyz-uc.a.run.app`) |
+| `BACKEND_INTERNAL_URL` | Cloud Run env | Internal Cloud Run URL of the backend service (e.g. `https://ikaro-backend-xyz-uc.a.run.app`) |
 | `JWT_SECRET` | Secret Manager | Signing secret for JWTs — must be ≥ 64 chars |
 | `JWT_EXPIRES_IN` | Cloud Run env | `7d` |
 | `GOOGLE_CLIENT_ID` | Secret Manager | OAuth client ID from Google Console |
 | `GOOGLE_CLIENT_SECRET` | Secret Manager | OAuth client secret from Google Console |
-| `GOOGLE_CALLBACK_URL` | Cloud Run env | `https://bff.beloauto.com/auth/google/callback` (prod) |
+| `GOOGLE_CALLBACK_URL` | Cloud Run env | `https://bff.<ikaro-domain>/auth/google/callback` (prod) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Cloud Run env | OTel Collector URL (from `observability_vm_ip`) |
-| `SERVICE_NAME` | Cloud Run env | `beloauto-bff` |
+| `SERVICE_NAME` | Cloud Run env | `ikaro-bff` |
 
 **Local `.env.local` values:**
 ```bash
@@ -389,19 +389,19 @@ GOOGLE_CALLBACK_URL=http://localhost:3002/auth/google/callback
 
 | Property | Staging | Production |
 |---|---|---|
-| **Service name** | `beloauto-bff-staging` | `beloauto-bff` |
-| **Cloud Run project** | `beloauto-staging` | `beloauto-prod` |
+| **Service name** | `ikaro-bff-staging` | `ikaro-bff` |
+| **Cloud Run project** | `ikaro-staging` | `ikaro-prod` |
 | **Ingress** | `INGRESS_TRAFFIC_ALL` (public HTTPS) | `INGRESS_TRAFFIC_ALL` (public HTTPS) |
-| **Domain** | `beloauto-bff-staging-<hash>-uc.a.run.app` | `bff.beloauto.com` (Cloud Run domain mapping) |
+| **Domain** | `ikaro-bff-staging-<hash>-uc.a.run.app` | `bff.<ikaro-domain>` (Cloud Run domain mapping) |
 | **Memory** | 256 Mi | 256 Mi |
 | **CPU** | 1 | 1 |
 | **Min instances** | 0 | 1 |
 | **Max instances** | 10 | 100 |
-| **Service account** | `beloauto-backend@beloauto-staging` | `beloauto-backend@beloauto-prod` |
+| **Service account** | `ikaro-backend@ikaro-staging` | `ikaro-backend@ikaro-prod` |
 
 **Secrets injected at runtime via `--set-secrets`:**
 ```bash
-gcloud run deploy beloauto-bff \
+gcloud run deploy ikaro-bff \
   --set-secrets JWT_SECRET=jwt-secret:latest,\
 GOOGLE_CLIENT_ID=google-oauth-client-id:latest,\
 GOOGLE_CLIENT_SECRET=google-oauth-client-secret:latest
@@ -409,15 +409,15 @@ GOOGLE_CLIENT_SECRET=google-oauth-client-secret:latest
 
 **BACKEND_INTERNAL_URL** is set as a plain environment variable (not a secret) because it is the Cloud Run service URL — not sensitive:
 ```bash
-gcloud run deploy beloauto-bff \
-  --set-env-vars BACKEND_INTERNAL_URL=https://beloauto-backend-<hash>-uc.a.run.app
+gcloud run deploy ikaro-bff \
+  --set-env-vars BACKEND_INTERNAL_URL=https://ikaro-backend-<hash>-uc.a.run.app
 ```
 
 > **How to get `BACKEND_INTERNAL_URL`:** after deploying the backend, run:
 > ```bash
 > terraform -chdir=infrastructure/terraform output backend_url
 > ```
-> Or: `gcloud run services describe beloauto-backend --region us-central1 --project beloauto-prod --format 'value(status.url)'`
+> Or: `gcloud run services describe ikaro-backend --region us-central1 --project ikaro-prod --format 'value(status.url)'`
 
 ---
 

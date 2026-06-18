@@ -1,4 +1,4 @@
-# Tenants Settings Schema - BeloAuto
+# Tenants Settings Schema - Ikaro
 
 **Status:** Phase 2 - Technical Architecture  
 **Audience:** Backend developers, AI agents, database teams  
@@ -180,13 +180,13 @@ Controls per-tenant email delivery behaviour.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `from_email` | string \| null | null | Custom sender address for this tenant's emails (e.g. `"lavagem@beloauto.com.br"`). When null, the global `EMAIL_FROM` environment variable is used. Must be a valid email address. |
+| `from_email` | string \| null | null | Custom sender address for this tenant's emails (e.g. `"lavagem@<ikaro-domain>"`). When null, the global `EMAIL_FROM` environment variable is used. Must be a valid email address. |
 
 **Example:**
 ```json
 {
   "notification": {
-    "from_email": "lavagem@beloauto.com.br"
+    "from_email": "lavagem@<ikaro-domain>"
   }
 }
 ```
@@ -211,7 +211,7 @@ Currency, language, and regional preferences.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `currency` | string | "BRL" | ISO 4217 currency code. BeloAuto is Brazil-only — always BRL. |
+| `currency` | string | "BRL" | ISO 4217 currency code. Ikaro is Brazil-only — always BRL. |
 | `currency_symbol` | string | "R$" | Display symbol (used in UI). Brazilian Real symbol. |
 | `language` | string | "pt-BR" | BCP-47 language tag. All customer-facing text in Brazilian Portuguese. |
 | `decimal_places` | integer | 2 | Decimal precision for money display |
@@ -228,7 +228,7 @@ Currency, language, and regional preferences.
 }
 ```
 
-> BeloAuto is a Brazil-only product. All tenants use BRL and pt-BR. The `currency` and `language` fields are stored for completeness but should not be changed in MVP.
+> Ikaro is a Brazil-only product. All tenants use BRL and pt-BR. The `currency` and `language` fields are stored for completeness but should not be changed in MVP.
 ```
 
 **Validation Rules:**

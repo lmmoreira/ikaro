@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Não encontrado — BeloAuto',
+  title: 'Não encontrado — Ikaro',
 };
 
 export default function HotsiteNotFound() {
@@ -11,8 +11,8 @@ export default function HotsiteNotFound() {
       <p className="mb-8 text-gray-600">
         A lavacar que você está procurando não existe ou não está mais disponível.
       </p>
-      <a href="https://beloauto.com" className="text-blue-600 underline">
-        Voltar para o BeloAuto
+      <a href="https://<ikaro-domain>" className="text-blue-600 underline">
+        Voltar para o Ikaro
       </a>
     </main>
   );

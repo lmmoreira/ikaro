@@ -1,4 +1,4 @@
-const baseConfig = require('@beloauto/config/eslint-base');
+const baseConfig = require('@ikaro/config/eslint-base');
 const reactHooks = require('eslint-plugin-react-hooks');
 const jsxA11y = require('eslint-plugin-jsx-a11y');
 

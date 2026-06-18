@@ -1,4 +1,4 @@
-import { HotsiteServiceResponse } from '@beloauto/types';
+import { HotsiteServiceResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { ServicesController } from './services.controller';
 

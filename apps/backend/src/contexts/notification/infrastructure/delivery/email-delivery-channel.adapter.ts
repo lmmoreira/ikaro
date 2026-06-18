@@ -24,7 +24,7 @@ export class EmailDeliveryChannelAdapter implements IDeliveryChannel {
   async send(message: OutboundMessage): Promise<void> {
     const tenantInfo = await this.tenantPort.getTenantInfo(message.tenantId);
     const from =
-      tenantInfo?.fromEmail ?? this.config.get<string>('EMAIL_FROM', 'noreply@beloauto.com.br');
+      tenantInfo?.fromEmail ?? this.config.get<string>('EMAIL_FROM', 'noreply@<ikaro-domain>');
 
     await this.emailSender.send({
       to: message.to,

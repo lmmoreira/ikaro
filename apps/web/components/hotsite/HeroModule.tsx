@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import type React from 'react';
-import type { HeroModuleData } from '@beloauto/types';
+import type { HeroModuleData } from '@ikaro/types';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
 import { SectionEyebrow } from './SectionEyebrow';
 

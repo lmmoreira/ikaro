@@ -1,6 +1,6 @@
 import { HttpException, INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { HotsiteServiceResponse } from '@beloauto/types';
+import { HotsiteServiceResponse } from '@ikaro/types';
 import {
   MockHttpService,
   MockBackendHttpService,

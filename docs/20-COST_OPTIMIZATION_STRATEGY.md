@@ -1,4 +1,4 @@
-# Cost Optimization Strategy (Lean Startup) - BeloAuto
+# Cost Optimization Strategy (Lean Startup) - Ikaro
 
 ## Overview
 

@@ -1,4 +1,4 @@
-# BFF Agent — BeloAuto
+# BFF Agent — Ikaro
 
 You implement routes, guards, and DTOs in the BFF NestJS service.
 The BFF is the sole entry point for the web layer. It validates JWTs,

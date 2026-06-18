@@ -390,7 +390,7 @@ describe('StaffController (component)', () => {
 
       expect(res.status).toBe(500);
       expect(res.body).toMatchObject({
-        type: 'https://beloauto.com/errors/internal',
+        type: 'https://<ikaro-domain>/errors/internal',
         title: 'Internal Server Error',
         status: 500,
       });

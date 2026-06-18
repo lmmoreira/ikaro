@@ -1,4 +1,4 @@
-# BeloAuto
+# Ikaro
 
 Multi-tenant SaaS for car-wash booking and loyalty — Brazilian market (pt-BR / BRL).
 
@@ -35,7 +35,7 @@ pnpm dev
 | MailHog | http://localhost:8025 | Email preview UI |
 | Pub/Sub emulator | http://localhost:8085 | GCP Pub/Sub (local) |
 | GCS emulator | http://localhost:4443 | GCS storage (local) |
-| PostgreSQL | localhost:5432 | Database (`beloauto` / `beloauto`) |
+| PostgreSQL | localhost:5432 | Database (`ikaro` / `ikaro`) |
 
 ## VS Code Setup
 
@@ -50,7 +50,7 @@ The `.vscode/settings.json` is pre-configured for:
 | TypeScript version | workspace v6 (not VS Code's bundled) |
 | Ruler | 100 chars (matches `printWidth`) |
 | Tailwind IntelliSense | CVA + clsx class regex enabled |
-| Jest runner | `pnpm --filter @beloauto/backend test` |
+| Jest runner | `pnpm --filter @ikaro/backend test` |
 | Coverage gutters | reads `apps/backend/coverage/lcov.info` |
 
 **REST Client** (`humao.rest-client`) — test backend endpoints directly from VS Code without leaving the editor:
@@ -74,9 +74,9 @@ Each `.http` file covers the full scenario set for a resource: happy path, 4xx e
 **SonarLint connected mode** (mirrors the CI SonarCloud gate):
 1. Install the `SonarLint` extension
 2. `F1` → **"SonarLint: Connect to SonarCloud"** → sign in with GitHub
-3. VS Code will automatically bind to the `lmmoreira_beloauto` project
+3. VS Code will automatically bind to the `lmmoreira_ikaro` project
 
-**Database explorer** (`vscode-database-client2`): add a connection to `localhost:5432` with user/pass `beloauto` after running `pnpm infra:up`.
+**Database explorer** (`vscode-database-client2`): add a connection to `localhost:5432` with user/pass `ikaro` after running `pnpm infra:up`.
 
 ## Local CI (run before opening a PR)
 

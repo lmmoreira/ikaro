@@ -15,8 +15,8 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY packages/ packages/
 COPY apps/bff/ apps/bff/
 
-RUN pnpm --filter @beloauto/bff build \
-    && pnpm --filter @beloauto/bff deploy --prod /standalone --legacy \
+RUN pnpm --filter @ikaro/bff build \
+    && pnpm --filter @ikaro/bff deploy --prod /standalone --legacy \
     && rm -rf /standalone/node_modules/.pnpm/multer@2.1.1
 
 

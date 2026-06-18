@@ -246,7 +246,7 @@ Every non-dashboard prototype screen (guest booking flow, customer booking flow,
     <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
                 color:white;display:flex;align-items:center;justify-content:center;
                 font-weight:700;font-size:0.8125rem;">B</div>
-    <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">BeloAuto Demo</span>
+    <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Ikaro Demo</span>
   </div>
   <a href="../../../shared/login.html" style="display:flex;align-items:center;gap:0.375rem;
      font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">
@@ -264,7 +264,7 @@ Every non-dashboard prototype screen (guest booking flow, customer booking flow,
     <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);
                 color:white;display:flex;align-items:center;justify-content:center;
                 font-weight:700;font-size:0.8125rem;">B</div>
-    <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">BeloAuto Demo</span>
+    <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">Ikaro Demo</span>
   </div>
   <!-- existing auth-bar avatar dropdown -->
   <div style="position:relative;"><details>...avatar + dropdown...</details></div>

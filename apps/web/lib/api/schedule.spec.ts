@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AvailabilityResponse, AvailabilitySummaryResponse } from '@beloauto/types';
+import type { AvailabilityResponse, AvailabilitySummaryResponse } from '@ikaro/types';
 import { fetchAvailability, fetchAvailabilitySummary } from './schedule';
 
 const BFF_URL = 'http://bff-test:3002';

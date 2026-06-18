@@ -3,7 +3,7 @@ import type {
   AttachmentSignedUrlResponse,
   BookingResponse,
   CreateBookingRequest,
-} from '@beloauto/types';
+} from '@ikaro/types';
 import { createAttachmentSignedUrl, createBooking, CreateBookingError } from './bookings';
 
 const BFF_URL = 'http://bff-test:3002';

@@ -2,7 +2,7 @@ import type {
   AttachmentSignedUrlResponse,
   BookingResponse,
   CreateBookingRequest,
-} from '@beloauto/types';
+} from '@ikaro/types';
 
 export class CreateBookingError extends Error {
   constructor(

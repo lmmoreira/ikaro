@@ -1,8 +1,8 @@
-# Hotsite Dynamic Architecture - BeloAuto
+# Hotsite Dynamic Architecture - Ikaro
 
 ## Overview
 
-BeloAuto provides each tenant with a professional, high-conversion hotsite. To support unique visual identities and varied content needs while maintaining a single codebase, we use a **Server-Driven Hotsite Manifest** strategy.
+Ikaro provides each tenant with a professional, high-conversion hotsite. To support unique visual identities and varied content needs while maintaining a single codebase, we use a **Server-Driven Hotsite Manifest** strategy.
 
 The frontend is a **Rendering Engine** — it reads a manifest from the BFF describing what to show, in what order, and how it should look. No code deployment is needed when a tenant changes their site.
 
@@ -81,7 +81,7 @@ Fonts are pre-loaded at build time via `next/font/google` in `apps/web/lib/hotsi
 
 ### CSS Variable Mapping
 
-The `applyBranding(branding)` helper (called in `app/[slug]/layout.tsx`) resolves semantic choices to CSS variables. Takes `HotsiteBrandingResponse` from `@beloauto/types`.
+The `applyBranding(branding)` helper (called in `app/[slug]/layout.tsx`) resolves semantic choices to CSS variables. Takes `HotsiteBrandingResponse` from `@ikaro/types`.
 
 ```typescript
 // apps/web/lib/hotsite/apply-branding.ts
@@ -343,9 +343,9 @@ The hotsite lives inside the same `apps/web/` Next.js app as the dashboard, sepa
 **Route:** `app/[slug]/` (Next.js App Router dynamic segment)
 
 ```
-https://beloauto.com/autowash-pro          → app/[slug]/page.tsx
-https://beloauto.com/autowash-pro/booking  → app/[slug]/booking/page.tsx
-https://beloauto.com/dashboard             → app/dashboard/ (requires auth)
+https://<ikaro-domain>/autowash-pro          → app/[slug]/page.tsx
+https://<ikaro-domain>/autowash-pro/booking  → app/[slug]/booking/page.tsx
+https://<ikaro-domain>/dashboard             → app/dashboard/ (requires auth)
 ```
 
 **`app/[slug]/layout.tsx`** — fetches manifest and applies full branding token set:
@@ -382,7 +382,7 @@ export default async function HotsiteLayout({
 
 ```typescript
 import { Footer } from '@/components/hotsite/Footer';
-import { HotsiteModuleType } from '@beloauto/types';
+import { HotsiteModuleType } from '@ikaro/types';
 
 // Each module story registers its component here
 const MODULE_MAP: Partial<Record<HotsiteModuleType, React.ComponentType<{ data: any; slug: string }>>> = {};
@@ -413,7 +413,7 @@ export default async function HotsitePage({
 
 When `manifest.isPublished === false`, `page.tsx` renders `<Unavailable />` (`apps/web/components/hotsite/Unavailable.tsx`) instead of the module list — a generic "Em breve" placeholder. Because `app/[slug]/layout.tsx` has already applied `applyBranding(manifest.branding)`, `<Unavailable />` inherits the tenant's `var(--ba-*)` tokens automatically — for a freshly-provisioned tenant these resolve to `DEFAULT_HOTSITE_BRANDING`, so no special-casing is needed.
 
-This differs from the **unknown-slug** case (`app/not-found.tsx`, root-level, M12-S08): there, `fetchManifest()` calls `notFound()` inside `app/[slug]/layout.tsx` before it ever renders, so no manifest/branding is available and the 404 page uses static BeloAuto styling instead of `var(--ba-*)` tokens. The page must live at the `app/` root rather than `app/[slug]/` because Next.js does not let a segment's own `not-found.tsx` catch a `notFound()` thrown by that segment's own `layout.tsx`.
+This differs from the **unknown-slug** case (`app/not-found.tsx`, root-level, M12-S08): there, `fetchManifest()` calls `notFound()` inside `app/[slug]/layout.tsx` before it ever renders, so no manifest/branding is available and the 404 page uses static Ikaro styling instead of `var(--ba-*)` tokens. The page must live at the `app/` root rather than `app/[slug]/` because Next.js does not let a segment's own `not-found.tsx` catch a `notFound()` thrown by that segment's own `layout.tsx`.
 
 ---
 
@@ -531,7 +531,7 @@ Visit `http://localhost:3000/<tenant-slug>` to see any tenant's hotsite.
 
 ## 9. Deployment
 
-**Runtime:** GCP Cloud Run (`beloauto-web`) — same service as the dashboard. One container handles all tenant slugs.
+**Runtime:** GCP Cloud Run (`ikaro-web`) — same service as the dashboard. One container handles all tenant slugs.
 
 **Custom domains (post-MVP):** Cloud Run domain mapping allows `autowashpro.com.br` to point to the same service. Next.js middleware reads the `Host` header and uses it as the slug lookup key — no code changes needed.
 
@@ -560,14 +560,14 @@ The manifest pattern is designed to grow without rework:
 
 ### Site URL
 
-`apps/web/lib/hotsite/seo.ts` exports `SITE_URL`, read from `NEXT_PUBLIC_SITE_URL` (`https://beloauto.com` in production, `http://localhost:3000` in local dev). Every absolute URL used for canonical links, Open Graph, JSON-LD, and the sitemap is built from this constant — never hardcode `https://beloauto.com`.
+`apps/web/lib/hotsite/seo.ts` exports `SITE_URL`, read from `NEXT_PUBLIC_SITE_URL` (`https://<ikaro-domain>` in production, `http://localhost:3000` in local dev). Every absolute URL used for canonical links, Open Graph, JSON-LD, and the sitemap is built from this constant — never hardcode `https://<ikaro-domain>`.
 
 ### Per-page metadata
 
 `buildHotsiteMetadata({ manifest, slug, path? })` (also in `lib/hotsite/seo.ts`) builds a `Metadata` object (title, description, Open Graph, `robots`, `alternates.canonical`) from the manifest. Each route calls it from its own `generateMetadata` — **not** `app/[slug]/layout.tsx`. The layout is shared by `/[slug]` and `/[slug]/booking`, and Next.js does not deep-merge nested `openGraph`/`alternates` fields between a layout's and a page's `generateMetadata` — a layout-level canonical/OG `url` would leak into the booking page unchanged.
 
 - `app/[slug]/page.tsx` — `buildHotsiteMetadata({ manifest, slug })`; canonical = `${SITE_URL}/${slug}`; `robots` follows `manifest.isPublished`
-- `app/[slug]/booking/page.tsx` — `buildHotsiteMetadata({ manifest, slug, path: '/booking' })`, with `title` overridden (`'Agendar serviço'` / `'Em breve — BeloAuto'`) and `robots: { index: false, follow: false }` **always** — the booking flow is never indexed, regardless of publish status
+- `app/[slug]/booking/page.tsx` — `buildHotsiteMetadata({ manifest, slug, path: '/booking' })`, with `title` overridden (`'Agendar serviço'` / `'Em breve — Ikaro'`) and `robots: { index: false, follow: false }` **always** — the booking flow is never indexed, regardless of publish status
 
 ### Structured data
 

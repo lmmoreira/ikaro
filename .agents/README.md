@@ -1,6 +1,6 @@
-# BeloAuto — AI Agent Workspace
+# Ikaro — AI Agent Workspace
 
-This folder contains context files for AI coding agents working on BeloAuto.
+This folder contains context files for AI coding agents working on Ikaro.
 Each file is a self-contained briefing for one specialist agent role.
 
 ---

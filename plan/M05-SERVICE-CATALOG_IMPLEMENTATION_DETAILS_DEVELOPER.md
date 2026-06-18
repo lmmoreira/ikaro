@@ -57,7 +57,7 @@ Unlike `Staff`, the `Service` aggregate publishes no domain events. Changes to s
 
 ### Why price is stored as NUMERIC, not as a JSON column
 
-`Money` holds `amount: string` internally (using `decimal.js` for precision). We could store the whole VO as JSONB `{ "amount": "150.00", "currency": "BRL" }`, but since BeloAuto is BRL-only, there's no reason to store the currency per row. Instead, `price_amount NUMERIC(10,2)` stores just the number. The currency (`'BRL'`) is hard-coded in the mapper.
+`Money` holds `amount: string` internally (using `decimal.js` for precision). We could store the whole VO as JSONB `{ "amount": "150.00", "currency": "BRL" }`, but since Ikaro is BRL-only, there's no reason to store the currency per row. Instead, `price_amount NUMERIC(10,2)` stores just the number. The currency (`'BRL'`) is hard-coded in the mapper.
 
 ```typescript
 // TypeORM entity → domain aggregate

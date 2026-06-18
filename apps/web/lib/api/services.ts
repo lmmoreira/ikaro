@@ -1,4 +1,4 @@
-import type { HotsiteServiceListResponse, HotsiteServiceResponse } from '@beloauto/types';
+import type { HotsiteServiceListResponse, HotsiteServiceResponse } from '@ikaro/types';
 import { HOTSITE_REVALIDATE_SECONDS } from '@/lib/hotsite/revalidate';
 
 export async function fetchServices(slug: string): Promise<HotsiteServiceResponse[]> {

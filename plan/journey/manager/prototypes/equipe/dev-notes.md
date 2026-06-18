@@ -32,7 +32,7 @@ Both backend and BFF are fully implemented and `MANAGER`-guarded (confirmed via 
 | Invite staff | `POST /staff/invite` | MANAGER | `InviteStaffDto` | `201` |
 | Deactivate staff | `PATCH /staff/:id/deactivate` | MANAGER | — | `200` |
 
-All endpoints exist (`apps/bff/src/staff/staff.controller.ts`). Verify exact response shape against `@beloauto/types` before using.
+All endpoints exist (`apps/bff/src/staff/staff.controller.ts`). Verify exact response shape against `@ikaro/types` before using.
 
 ```typescript
 interface InviteStaffDto {
@@ -91,4 +91,4 @@ The "Desativar" action must not render on the logged-in admin's own row (compare
 
 ## Missing types
 
-`StaffListItem`/`StaffListResponse` shape not yet verified in `@beloauto/types` — audit before implementing and add the `googleOAuthId` (or precomputed `status`) field discussed above.
+`StaffListItem`/`StaffListResponse` shape not yet verified in `@ikaro/types` — audit before implementing and add the `googleOAuthId` (or precomputed `status`) field discussed above.

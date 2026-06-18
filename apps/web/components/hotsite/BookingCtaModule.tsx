@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type React from 'react';
-import type { BookingCtaModuleData } from '@beloauto/types';
+import type { BookingCtaModuleData } from '@ikaro/types';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
 import { SectionEyebrow } from './SectionEyebrow';
 

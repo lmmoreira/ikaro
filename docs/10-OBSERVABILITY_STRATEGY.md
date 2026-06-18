@@ -1,4 +1,4 @@
-# Observability Strategy - BeloAuto
+# Observability Strategy - Ikaro
 
 ## Overview
 
@@ -60,7 +60,7 @@ version: '3.9'
 services:
   prometheus:
     image: prom/prometheus:v2.51.0
-    container_name: beloauto-prometheus
+    container_name: ikaro-prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -75,7 +75,7 @@ services:
 
   grafana:
     image: grafana/grafana:10.4.0
-    container_name: beloauto-grafana
+    container_name: ikaro-grafana
     ports:
       - "3010:3000"
     volumes:
@@ -91,7 +91,7 @@ services:
 
   loki:
     image: grafana/loki:2.9.0
-    container_name: beloauto-loki
+    container_name: ikaro-loki
     ports:
       - "3100:3100"
     volumes:
@@ -102,7 +102,7 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.98.0
-    container_name: beloauto-otel
+    container_name: ikaro-otel
     ports:
       - "4317:4317"    # gRPC receiver
       - "4318:4318"    # HTTP receiver
@@ -134,12 +134,12 @@ global:
   scrape_interval: 5s   # faster feedback locally
 
 scrape_configs:
-  - job_name: 'beloauto-backend-local'
+  - job_name: 'ikaro-backend-local'
     static_configs:
       - targets: ['host.docker.internal:3001']   # backend dev server
     metrics_path: /metrics
 
-  - job_name: 'beloauto-bff-local'
+  - job_name: 'ikaro-bff-local'
     static_configs:
       - targets: ['host.docker.internal:3002']   # BFF dev server
     metrics_path: /metrics
@@ -189,7 +189,7 @@ const samplingRate = process.env.NODE_ENV === 'production' ? 0.1 : 1.0;
 
 const sdk = new NodeSDK({
   resource: new Resource({
-    [SEMRESATTRS_SERVICE_NAME]: process.env.SERVICE_NAME ?? 'beloauto-backend',
+    [SEMRESATTRS_SERVICE_NAME]: process.env.SERVICE_NAME ?? 'ikaro-backend',
     [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV ?? 'development',
   }),
   sampler: new ParentBasedSampler({
@@ -236,7 +236,7 @@ Environment variables (set in Cloud Run via `--set-env-vars` / `.env.local` loca
 ```bash
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317   # local
 OTEL_EXPORTER_OTLP_ENDPOINT=http://<obs-vm-ip>:4317  # staging/prod
-SERVICE_NAME=beloauto-backend
+SERVICE_NAME=ikaro-backend
 NODE_ENV=development
 ```
 
@@ -247,7 +247,7 @@ For use cases, wrap the main logic in a span:
 ```typescript
 // src/shared/observability/tracer.ts
 import { trace } from '@opentelemetry/api';
-export const tracer = trace.getTracer('beloauto');
+export const tracer = trace.getTracer('ikaro');
 
 // Usage in a use case
 import { tracer } from '../../../shared/observability/tracer';
@@ -301,7 +301,7 @@ Every log line is a single JSON object written to `stdout`. The Logger service i
 {
   "timestamp":     "2026-05-12T14:23:45.123Z",
   "level":         "INFO",
-  "service":       "beloauto-backend",
+  "service":       "ikaro-backend",
   "context":       "booking",
   "tenantId":      "uuid-or-null",
   "userId":        "uuid-or-null",
@@ -348,7 +348,7 @@ export class AppLogger implements LoggerService {
     process.stdout.write(JSON.stringify({
       timestamp: new Date().toISOString(),
       level,
-      service: process.env.SERVICE_NAME ?? 'beloauto-backend',
+      service: process.env.SERVICE_NAME ?? 'ikaro-backend',
       ...this.ctx,
       traceId: spanContext?.traceId ?? null,
       spanId: spanContext?.spanId ?? null,
@@ -448,10 +448,10 @@ export class CorrelationInterceptor implements NestInterceptor {
 ### Naming Convention
 
 ```
-beloauto_<noun>_<verb>_<unit>
+ikaro_<noun>_<verb>_<unit>
 ```
 
-All custom metrics are prefixed `beloauto_`. Labels use snake_case.
+All custom metrics are prefixed `ikaro_`. Labels use snake_case.
 
 ### Metric Catalog
 
@@ -465,43 +465,43 @@ import { Counter, Histogram, register } from 'prom-client';
 
 // ── Business metrics ─────────────────────────────────────────────────────────
 export const bookingsCreated = new Counter({
-  name: 'beloauto_bookings_created_total',
+  name: 'ikaro_bookings_created_total',
   help: 'Number of booking requests created',
   labelNames: ['tenant_id', 'booking_type'],   // booking_type: GUEST | CUSTOMER
 });
 
 export const bookingStatusTransitions = new Counter({
-  name: 'beloauto_booking_transitions_total',
+  name: 'ikaro_booking_transitions_total',
   help: 'Number of booking state transitions',
   labelNames: ['tenant_id', 'from_status', 'to_status'],
 });
 
 export const loyaltyEntriesCreated = new Counter({
-  name: 'beloauto_loyalty_entries_created_total',
+  name: 'ikaro_loyalty_entries_created_total',
   help: 'Number of loyalty entries inserted',
   labelNames: ['tenant_id'],
 });
 
 export const emailsSent = new Counter({
-  name: 'beloauto_emails_sent_total',
+  name: 'ikaro_emails_sent_total',
   help: 'Number of emails sent',
   labelNames: ['tenant_id', 'template_name', 'status'],  // status: SENT | FAILED
 });
 
 export const eventBusPublished = new Counter({
-  name: 'beloauto_event_bus_published_total',
+  name: 'ikaro_event_bus_published_total',
   help: 'Number of domain events published',
   labelNames: ['event_name', 'tenant_id'],
 });
 
 export const eventBusConsumed = new Counter({
-  name: 'beloauto_event_bus_consumed_total',
+  name: 'ikaro_event_bus_consumed_total',
   help: 'Number of domain events consumed',
   labelNames: ['event_name', 'consumer', 'status'],  // status: SUCCESS | FAILED
 });
 
 export const loyaltySyncDuration = new Histogram({
-  name: 'beloauto_loyalty_sync_duration_seconds',
+  name: 'ikaro_loyalty_sync_duration_seconds',
   help: 'Time between BookingCompleted event and LoyaltyEntry insert',
   labelNames: ['tenant_id'],
   buckets: [0.1, 0.5, 1, 5, 15, 30, 60],
@@ -532,13 +532,13 @@ Loki uses **labels** for stream identification and **log line fields** for filte
 ### Labels (low-cardinality, on every stream)
 
 ```
-{service="beloauto-backend", env="production", context="booking"}
-{service="beloauto-bff", env="staging"}
+{service="ikaro-backend", env="production", context="booking"}
+{service="ikaro-bff", env="staging"}
 ```
 
 | Label | Values |
 |---|---|
-| `service` | `beloauto-backend`, `beloauto-bff`, `beloauto-web` |
+| `service` | `ikaro-backend`, `ikaro-bff`, `ikaro-web` |
 | `env` | `production`, `staging`, `development` |
 | `context` | `booking`, `customer`, `staff`, `loyalty`, `notification`, `platform` (backend only) |
 
@@ -557,23 +557,23 @@ exporters:
       resource:
         service.name: service       # resource attr → Loki label
         deployment.environment: env
-        beloauto.context: context
+        ikaro.context: context
 ```
 
 ### Example LogQL queries
 
 ```logql
 # All ERROR logs for production backend
-{service="beloauto-backend", env="production"} | json | level="ERROR"
+{service="ikaro-backend", env="production"} | json | level="ERROR"
 
 # All logs for a specific correlationId
-{service=~"beloauto-.*"} | json | correlationId="uuid-abc123"
+{service=~"ikaro-.*"} | json | correlationId="uuid-abc123"
 
 # Email failures in last 1h
-{service="beloauto-backend", context="notification"} | json | level="ERROR" | __error__="" | line_format "{{.message}}"
+{service="ikaro-backend", context="notification"} | json | level="ERROR" | __error__="" | line_format "{{.message}}"
 
 # All logs for a specific tenant in the last 15 min
-{service="beloauto-backend"} | json | tenantId="tenant-uuid"
+{service="ikaro-backend"} | json | tenantId="tenant-uuid"
 ```
 
 ---
@@ -586,12 +586,12 @@ Dashboards are **version-controlled as JSON** in the repo and auto-provisioned b
 
 | File | Dashboard | Panels |
 |---|---|---|
-| `beloauto-overview.json` | **System Overview** | Request rate, error rate, P99 latency, active tenants |
-| `beloauto-bookings.json` | **Booking Operations** | Bookings created/hour, status transitions, cancellation rate by tenant |
-| `beloauto-events.json` | **Event Bus** | Events published/consumed, consumer lag, failed events |
-| `beloauto-loyalty.json` | **Loyalty** | Entries created/hour, sync latency histogram, expiry warnings sent |
-| `beloauto-notifications.json` | **Notifications** | Emails sent/failed, retry rate, failure reasons |
-| `beloauto-tenant-detail.json` | **Tenant Drill-down** | All metrics for a single `tenant_id` — parametrised dashboard |
+| `ikaro-overview.json` | **System Overview** | Request rate, error rate, P99 latency, active tenants |
+| `ikaro-bookings.json` | **Booking Operations** | Bookings created/hour, status transitions, cancellation rate by tenant |
+| `ikaro-events.json` | **Event Bus** | Events published/consumed, consumer lag, failed events |
+| `ikaro-loyalty.json` | **Loyalty** | Entries created/hour, sync latency histogram, expiry warnings sent |
+| `ikaro-notifications.json` | **Notifications** | Emails sent/failed, retry rate, failure reasons |
+| `ikaro-tenant-detail.json` | **Tenant Drill-down** | All metrics for a single `tenant_id` — parametrised dashboard |
 
 **File location:** `infrastructure/observability/grafana/provisioning/dashboards/`
 
@@ -600,7 +600,7 @@ Dashboards are **version-controlled as JSON** in the repo and auto-provisioned b
 # infrastructure/observability/grafana/provisioning/dashboards/dashboards.yml
 apiVersion: 1
 providers:
-  - name: BeloAuto
+  - name: Ikaro
     type: file
     disableDeletion: true     # prevent UI deletes overwriting git versions
     updateIntervalSeconds: 30  # reload from disk every 30s (picks up CI deploys)
@@ -616,8 +616,8 @@ providers:
 |---|---|---|
 | **API availability** | ≥ 99.5% over 30 days | `sum(rate(http_requests_total{status_code!~"5.."}[30d])) / sum(rate(http_requests_total[30d]))` |
 | **Booking P99 latency** | < 2s | `histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{route="/bookings",method="POST"}[5m]))` |
-| **Event processing** | 95% of BookingCompleted → LoyaltyEntry within 30s | `histogram_quantile(0.95, rate(beloauto_loyalty_sync_duration_seconds_bucket[1h]))` |
-| **Email delivery** | ≥ 98% sent within 60s | `sum(rate(beloauto_emails_sent_total{status="SENT"}[1h])) / sum(rate(beloauto_emails_sent_total[1h]))` |
+| **Event processing** | 95% of BookingCompleted → LoyaltyEntry within 30s | `histogram_quantile(0.95, rate(ikaro_loyalty_sync_duration_seconds_bucket[1h]))` |
+| **Email delivery** | ≥ 98% sent within 60s | `sum(rate(ikaro_emails_sent_total{status="SENT"}[1h])) / sum(rate(ikaro_emails_sent_total[1h]))` |
 
 ---
 
@@ -629,8 +629,8 @@ All alerting rules are **provisioned as code** — never create alerts manually 
 # infrastructure/observability/grafana/provisioning/alerting/rules.yml
 apiVersion: 1
 groups:
-  - name: beloauto-critical
-    folder: BeloAuto
+  - name: ikaro-critical
+    folder: Ikaro
     interval: 1m
     rules:
       - title: High P99 Latency
@@ -666,7 +666,7 @@ groups:
         data:
           - refId: A
             model:
-              expr: rate(beloauto_emails_sent_total{status="FAILED"}[15m]) > 0.1
+              expr: rate(ikaro_emails_sent_total{status="FAILED"}[15m]) > 0.1
         for: 15m
         annotations:
           summary: "Email failure rate exceeding 0.1/s — check IEmailSender adapter"
@@ -696,7 +696,7 @@ contactPoints:
       - uid: email-default
         type: email
         settings:
-          addresses: alerts@beloauto.com
+          addresses: alerts@<ikaro-domain>
           singleEmail: false
 
 # infrastructure/observability/grafana/provisioning/alerting/notification-policies.yml
@@ -719,10 +719,10 @@ policies:
 [smtp]
 enabled = true
 host = smtp.gmail.com:587
-user = alerts@beloauto.com
+user = alerts@<ikaro-domain>
 password = ${SMTP_ALERT_PASSWORD}
-from_address = alerts@beloauto.com
-from_name = BeloAuto Alerts
+from_address = alerts@<ikaro-domain>
+from_name = Ikaro Alerts
 ```
 
 ---
@@ -859,5 +859,5 @@ OTel Collector
 
 Grafana
     ├── Dashboards query Prometheus (metrics) + Loki (logs)
-    └── Alerts → email → alerts@beloauto.com
+    └── Alerts → email → alerts@<ikaro-domain>
 ```

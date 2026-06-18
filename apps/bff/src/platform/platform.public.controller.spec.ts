@@ -5,7 +5,7 @@ import {
   HotsiteLocalizationResponse,
   HotsiteResponse,
   HotsiteSitemapEntryListResponse,
-} from '@beloauto/types';
+} from '@ikaro/types';
 
 const tenantInfo = { id: 'tenant-uuid', slug: 'lavacar-bh', name: 'Lavacar BH' };
 

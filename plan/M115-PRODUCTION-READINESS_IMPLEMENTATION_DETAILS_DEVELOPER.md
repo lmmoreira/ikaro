@@ -112,7 +112,7 @@ This guard (`if (!this.emulatorHost) return`) is crucial. In production and CI, 
 
 Before M115, any booking integration test that ran without Docker would fail with:
 ```
-FetchError: request to http://localhost:4443/storage/v1/b/beloauto-local?
+FetchError: request to http://localhost:4443/storage/v1/b/ikaro-local?
 ```
 
 The root fix was already in `StorageModule` (useClass). But even with that, if the token is not overridden, the real adapter is used. `createBookingIntegrationApp()` and `createNotificationIntegrationApp()` now apply a default override:
@@ -315,8 +315,8 @@ New bookings on an existing production schema would require `ALTER TABLE` migrat
 
 ```bash
 # Reset local DB after editing migrations in place
-pnpm --filter @beloauto/backend migration:drop
-pnpm --filter @beloauto/backend migration:run
+pnpm --filter @ikaro/backend migration:drop
+pnpm --filter @ikaro/backend migration:run
 ```
 
 This pattern is only valid for local development databases and explicitly documented in the story spec. Any schema change in a milestone that targets staging or production must use proper expand/contract migrations.

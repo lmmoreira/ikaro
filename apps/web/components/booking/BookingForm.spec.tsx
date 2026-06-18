@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AvailabilityResponse, DaySummary, HotsiteServiceResponse } from '@beloauto/types';
+import type { AvailabilityResponse, DaySummary, HotsiteServiceResponse } from '@ikaro/types';
 import { CreateBookingError, createBooking } from '@/lib/api/bookings';
 import { fetchAvailability, fetchAvailabilitySummary } from '@/lib/api/schedule';
 import { BookingForm } from './BookingForm';

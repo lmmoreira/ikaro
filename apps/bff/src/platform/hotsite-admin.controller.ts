@@ -9,7 +9,7 @@ import {
   HotsiteAdminContentResponse,
   PublishHotsiteResponse,
   UnpublishHotsiteResponse,
-} from '@beloauto/types';
+} from '@ikaro/types';
 
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 const LOGO_URL_REGEX = /^$|^tenants\/[^/]+\/hotsite\/.+$/;

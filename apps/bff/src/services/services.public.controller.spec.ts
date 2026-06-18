@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import { HotsiteServiceListResponse, HotsiteServiceResponse } from '@beloauto/types';
+import { HotsiteServiceListResponse, HotsiteServiceResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { ServicesPublicController } from './services.public.controller';
 

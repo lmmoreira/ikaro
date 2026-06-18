@@ -62,7 +62,7 @@ Both `createBookingIntegrationApp()` and `createNotificationIntegrationApp()` de
 ### Env vars (backend)
 ```
 GCS_EMULATOR_HOST=http://localhost:4443   # optional; enables emulator path
-GCS_BUCKET_NAME=beloauto-local           # optional; defaults to 'beloauto-local'
+GCS_BUCKET_NAME=ikaro-local           # optional; defaults to 'ikaro-local'
 GCS_KEY_FILE=docker/fake-service-account.json  # optional; fake key for emulator
 ```
 

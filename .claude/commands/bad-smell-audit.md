@@ -94,7 +94,7 @@ BFF module folders must be named after bounded contexts (CLAUDE.md §3), not ind
 
 ### BFF-3. Hotsite public controller response types
 
-For `.public.controller.ts` files serving hotsite content, verify that methods returning resource objects or lists are typed with `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` (from `@beloauto/types`). Flag methods whose return type is `any`, an anonymous object literal type, or a raw TypeORM entity type.
+For `.public.controller.ts` files serving hotsite content, verify that methods returning resource objects or lists are typed with `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` (from `@ikaro/types`). Flag methods whose return type is `any`, an anonymous object literal type, or a raw TypeORM entity type.
 
 Note: only applies to existing public controllers serving hotsite content — not every public endpoint is hotsite-related.
 

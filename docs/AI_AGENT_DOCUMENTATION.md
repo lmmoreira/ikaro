@@ -1,7 +1,7 @@
 # AI Agent Documentation - Dynamic Token-Optimized Context Loading
 
 **Status:** Phase 2 - AI Agent Strategy  
-**For:** Claude, GitHub Copilot CLI, ChatGPT, and other AI agents working on BeloAuto
+**For:** Claude, GitHub Copilot CLI, ChatGPT, and other AI agents working on Ikaro
 
 ---
 
@@ -9,7 +9,7 @@
 
 **Authority Document:** `docs/07-ENGINEERING_PRINCIPLES.md`
 
-This is the **north star** for all AI agent work on BeloAuto. It contains:
+This is the **north star** for all AI agent work on Ikaro. It contains:
 - ✅ 5 Mandatory Principles you must follow
 - ✅ AI Agent Code of Conduct (checklist before any coding)
 - ✅ Definition of "Done" (when is work actually complete)
@@ -54,7 +54,7 @@ This is the **north star** for all AI agent work on BeloAuto. It contains:
 
 ### Phase 1: Agent Initialization
 
-When starting work on BeloAuto, load **minimal startup context**:
+When starting work on Ikaro, load **minimal startup context**:
 
 ```markdown
 ## Startup Context (3-5 KB)

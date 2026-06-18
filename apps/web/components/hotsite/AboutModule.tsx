@@ -2,7 +2,7 @@ import type React from 'react';
 import Image from 'next/image';
 import Markdown, { type Components } from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import type { AboutModuleData } from '@beloauto/types';
+import type { AboutModuleData } from '@ikaro/types';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
 import { SectionEyebrow } from './SectionEyebrow';
 

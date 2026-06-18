@@ -60,12 +60,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build ${{ matrix.service }} image
-        run: docker build -f ${{ matrix.dockerfile }} -t beloauto-${{ matrix.service }}:scan .
+        run: docker build -f ${{ matrix.dockerfile }} -t ikaro-${{ matrix.service }}:scan .
 
       - name: Trivy scan — ${{ matrix.service }}
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: beloauto-${{ matrix.service }}:scan
+          image-ref: ikaro-${{ matrix.service }}:scan
           format: table
           exit-code: '1'
           severity: HIGH,CRITICAL

@@ -138,7 +138,7 @@ POST /bookings
   Header: X-Tenant-Slug: {slug}
   Header: Content-Type: application/json
 
-Body (CreateBookingRequest from @beloauto/types):
+Body (CreateBookingRequest from @ikaro/types):
 {
   contactName:             string
   contactEmail:            string

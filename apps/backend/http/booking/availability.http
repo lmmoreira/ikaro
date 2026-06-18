@@ -4,8 +4,8 @@
 #
 # Prerequisites:
 #   1. pnpm infra:up
-#   2. pnpm --filter @beloauto/backend run migration:run
-#   3. pnpm --filter @beloauto/backend run dev
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
 #
 # REST Client environment: select "local" in VS Code status bar
 

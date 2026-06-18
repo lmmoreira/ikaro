@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { GalleryImage, GalleryModuleData } from '@beloauto/types';
+import type { GalleryImage, GalleryModuleData } from '@ikaro/types';
 import { GalleryModule } from './GalleryModule';
 
 function makeImage(overrides?: Partial<GalleryImage>): GalleryImage {

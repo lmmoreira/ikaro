@@ -1,6 +1,6 @@
 import type React from 'react';
 import Image from 'next/image';
-import type { Testimonial } from '@beloauto/types';
+import type { Testimonial } from '@ikaro/types';
 
 interface TestimonialCardProps {
   readonly testimonial: Testimonial;

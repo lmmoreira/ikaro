@@ -4,9 +4,9 @@
 #
 # Prerequisites:
 #   1. pnpm infra:up        (starts GCS emulator at http://localhost:4443)
-#   2. pnpm --filter @beloauto/backend run migration:run
-#   3. pnpm --filter @beloauto/backend run seed
-#   4. pnpm --filter @beloauto/backend run dev
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
 
 @backendUrl = http://localhost:3001
 @tenantId = {{$dotenv SEED_TENANT_ID}}

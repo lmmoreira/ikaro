@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AvailableSlot, CreateBookingRequest, HotsiteServiceResponse } from '@beloauto/types';
+import type { AvailableSlot, CreateBookingRequest, HotsiteServiceResponse } from '@ikaro/types';
 import { CreateBookingError, createBooking } from '@/lib/api/bookings';
 import {
   emptyPersonalInfo,

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import type { HotsiteManifestResponse } from '@beloauto/types';
+import type { HotsiteManifestResponse } from '@ikaro/types';
 
 function stripTrailingSlashes(value: string): string {
   let result = value;
@@ -46,7 +46,7 @@ export function buildHotsiteMetadata({
       title,
       description,
       url,
-      siteName: 'BeloAuto',
+      siteName: 'Ikaro',
       locale,
       type: 'website',
       images: manifest.branding.logoUrl

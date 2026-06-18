@@ -1,8 +1,8 @@
-# API Contracts - BeloAuto
+# API Contracts - Ikaro
 
 ## Overview
 
-BeloAuto follows a **RESTful API** standard using **JSON** for all payloads. All communication must be encrypted over **HTTPS**.
+Ikaro follows a **RESTful API** standard using **JSON** for all payloads. All communication must be encrypted over **HTTPS**.
 
 **Error Response Standard:** [RFC 9457 Problem Details](https://tools.ietf.org/html/rfc9457) — see [25-ERROR_CATALOG.md](25-ERROR_CATALOG.md) for complete error reference.
 
@@ -13,8 +13,8 @@ BeloAuto follows a **RESTful API** standard using **JSON** for all payloads. All
 ### 1. **Base URL**
 All endpoints are served by the **BFF** (`apps/bff/`) — the frontend never calls the backend directly.
 
-- **Production:** `https://bff.beloauto.com/v1`
-- **Staging:** `https://beloauto-bff-staging-<hash>-uc.a.run.app/v1` (get URL from `terraform output bff_url`)
+- **Production:** `https://bff.<ikaro-domain>/v1`
+- **Staging:** `https://ikaro-bff-staging-<hash>-uc.a.run.app/v1` (get URL from `terraform output bff_url`)
 - **Local:** `http://localhost:3002/v1`
 
 > The backend (`apps/backend/`) is an internal Cloud Run service. It is not publicly reachable. Only the BFF calls it, via `BACKEND_INTERNAL_URL`.
@@ -246,7 +246,7 @@ Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgro
 - **Response (201 Created):**
   ```json
   {
-    "signedUrl": "http://localhost:4443/beloauto-local/tenants/.../logo.png?X-Goog-Signature=...",
+    "signedUrl": "http://localhost:4443/ikaro-local/tenants/.../logo.png?X-Goog-Signature=...",
     "filePath":  "tenants/<tenantId>/hotsite/<purpose>/<uuid>/logo.png",
     "expiresAt": "2026-05-12T00:08:44Z"
   }
@@ -275,7 +275,7 @@ Lets the admin curate the GALLERY module's "before/after" showcase by selecting 
   ```json
   {
     "filePath":  "tenants/<tenantId>/hotsite/gallery/<uuid>/car-front.jpg",
-    "url":       "https://storage.googleapis.com/beloauto-hotsite-public-prod/tenants/.../car-front.jpg",
+    "url":       "https://storage.googleapis.com/ikaro-hotsite-public-prod/tenants/.../car-front.jpg",
     "photoType": "before"
   }
   ```
@@ -340,7 +340,7 @@ Single endpoint covering four authentication scenarios:
 - **Response (201 Created):**
   ```json
   {
-    "signedUrl": "http://localhost:4443/beloauto-local/tenants/.../car-front.jpg?X-Goog-Signature=...",
+    "signedUrl": "http://localhost:4443/ikaro-local/tenants/.../car-front.jpg?X-Goog-Signature=...",
     "filePath":  "tenants/<tenantId>/bookings/<bookingId>/car-front.jpg",
     "expiresAt": "2026-05-12T00:08:44Z"
   }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type React from 'react';
 import { z } from 'zod';
-import type { AvailableSlot, HotsiteServiceResponse } from '@beloauto/types';
+import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import type { PersonalInfoValue } from '@/lib/booking/personal-info';
 import { formatPhoneBR } from '@/lib/utils';
 import { AddressFields } from './AddressFields';

@@ -3,10 +3,10 @@
 #
 # Prerequisites:
 #   1. pnpm infra:up
-#   2. pnpm --filter @beloauto/backend run migration:run
-#   3. pnpm --filter @beloauto/backend run seed     ← creates tenant + staff + customer
-#   4. pnpm --filter @beloauto/backend run dev      (port 3001)
-#   5. pnpm --filter @beloauto/bff run dev          (port 3002)
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed     ← creates tenant + staff + customer
+#   4. pnpm --filter @ikaro/backend run dev      (port 3001)
+#   5. pnpm --filter @ikaro/bff run dev          (port 3002)
 #   6. ENABLE_DEV_AUTH=true in apps/bff/.env.local
 #
 # ── WORKFLOW ─────────────────────────────────────────────────────────────────

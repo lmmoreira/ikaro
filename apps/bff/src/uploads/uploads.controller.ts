@@ -26,7 +26,7 @@ export class UploadsController {
     // Stub — real GCS signed URL logic implemented in M09 (photo upload)
     const key = `uploads/${Date.now()}-${body.filename}`;
     return {
-      uploadUrl: `http://localhost:4443/beloauto-local/${key}`,
+      uploadUrl: `http://localhost:4443/ikaro-local/${key}`,
       key,
       expiresIn: 900,
     };

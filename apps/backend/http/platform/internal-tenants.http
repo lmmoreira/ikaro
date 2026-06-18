@@ -3,8 +3,8 @@
 #
 # Prerequisites:
 #   1. pnpm infra:up           (start PostgreSQL + Pub/Sub emulator)
-#   2. pnpm --filter @beloauto/backend run migration:run
-#   3. pnpm --filter @beloauto/backend run dev
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
 #
 # REST Client reads PLATFORM_ADMIN_KEY from apps/backend/.env automatically.
 # Switch environment (bottom-right VS Code status bar): select "local"

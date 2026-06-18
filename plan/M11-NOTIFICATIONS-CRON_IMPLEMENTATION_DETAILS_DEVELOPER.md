@@ -253,7 +253,7 @@ The job is **idempotent by design**: re-running within the window emits duplicat
 
 Native Pub/Sub dead-letter policies are configured in Terraform (`infrastructure/terraform/pubsub.tf`). They work in staging and production. But the **Pub/Sub emulator does not support native DLQ policies**. This means integration tests running against the emulator cannot trigger DLQ routing via infrastructure config.
 
-Solution: handle DLQ routing in the adapter code (`GcpPubSubEventBusAdapter.dispatch()`). This works identically in local dev, CI, and production. Terraform still creates the `beloauto-dead-letter` topic and `beloauto-dead-letter-monitor` subscription in staging/prod; the adapter uses auto-creation only on the emulator.
+Solution: handle DLQ routing in the adapter code (`GcpPubSubEventBusAdapter.dispatch()`). This works identically in local dev, CI, and production. Terraform still creates the `ikaro-dead-letter` topic and `ikaro-dead-letter-monitor` subscription in staging/prod; the adapter uses auto-creation only on the emulator.
 
 ### Retry → DLQ flow
 
@@ -265,7 +265,7 @@ Message arrives
               ├── attempt < PUBSUB_MAX_DELIVERY_ATTEMPTS (default 5)
               │     └── message.nack() → Pub/Sub redelivers with backoff
               └── attempt >= max
-                    └── publishToDlq() → publish to "beloauto-dead-letter"
+                    └── publishToDlq() → publish to "ikaro-dead-letter"
                         message.ack()  → Pub/Sub stops retrying this message
 ```
 

@@ -34,8 +34,8 @@ pr-quality.yml
   └── sonarcloud    (fetch-depth: 0 required — SonarSource/sonarcloud-github-action@master)
 
 pr-tests.yml
-  ├── backend-unit          (pnpm --filter @beloauto/backend test:cov → uploads lcov.info artifact)
-  └── backend-integration   (pnpm --filter @beloauto/backend test:integration + TESTCONTAINERS_REUSE_ENABLE=true)
+  ├── backend-unit          (pnpm --filter @ikaro/backend test:cov → uploads lcov.info artifact)
+  └── backend-integration   (pnpm --filter @ikaro/backend test:integration + TESTCONTAINERS_REUSE_ENABLE=true)
 
 pr-security.yml
   ├── gitleaks      (gitleaks/gitleaks-action@v2 — fetch-depth: 0 required)
@@ -59,8 +59,8 @@ COPY apps/<app>/package.json apps/<app>/
 RUN pnpm install --frozen-lockfile --ignore-scripts   # ← see gotcha #1
 COPY packages/ packages/
 COPY apps/<app>/ apps/<app>/
-RUN pnpm --filter @beloauto/<app> build
-RUN pnpm --filter @beloauto/<app> deploy --prod /standalone  # ← see gotcha #2
+RUN pnpm --filter @ikaro/<app> build
+RUN pnpm --filter @ikaro/<app> deploy --prod /standalone  # ← see gotcha #2
 ```
 
 ### Runner stage
@@ -128,7 +128,7 @@ The SARIF upload uses `&& always()` so it runs even when Checkov fails — GitHu
 ## 6. SonarCloud — Key Config Facts
 
 **`sonar-project.properties` values:**
-- `sonar.projectKey=lmmoreira_beloauto`
+- `sonar.projectKey=lmmoreira_ikaro`
 - `sonar.organization=lmmoreira`
 - `sonar.javascript.lcov.reportPaths=apps/backend/coverage/lcov.info`
 - `sonar.newCode.referenceBranch=main` ← differential coverage on changed code only
@@ -156,7 +156,7 @@ matrix:
 
 `fail-fast: false` — all three scans run even if one fails. `ignore-unfixed: true` — CVEs with no available fix are not reported (reduces noise from Alpine base image findings).
 
-Build command from repo root: `docker build -f ${{ matrix.dockerfile }} -t beloauto-${{ matrix.service }}:scan .`
+Build command from repo root: `docker build -f ${{ matrix.dockerfile }} -t ikaro-${{ matrix.service }}:scan .`
 
 ---
 
@@ -318,7 +318,7 @@ Trivy Image Scan (backend), Trivy Image Scan (bff), Trivy Image Scan (web),
 Checkov IaC Scan
 ```
 
-**Consequence for agents:** `gh pr merge` will fail if any check has not passed. The merge button is disabled at the GitHub level — not just a convention. Always verify with `gh pr checks <N> --repo lmmoreira/beloauto` before attempting to merge.
+**Consequence for agents:** `gh pr merge` will fail if any check has not passed. The merge button is disabled at the GitHub level — not just a convention. Always verify with `gh pr checks <N> --repo lmmoreira/ikaro` before attempting to merge.
 
 **`enforce_admins: false`** — the repo owner can bypass protection in emergencies. Agents must not rely on this.
 

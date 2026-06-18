@@ -1,5 +1,5 @@
 import { Controller, Get, Headers, HttpException, HttpStatus } from '@nestjs/common';
-import { HotsiteServiceListResponse } from '@beloauto/types';
+import { HotsiteServiceListResponse } from '@ikaro/types';
 import { Public } from '../shared/decorators/public.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { TenantInfoResponse } from '../shared/types/backend-responses';

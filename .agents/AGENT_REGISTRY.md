@@ -1,4 +1,4 @@
-# Agent Registry — BeloAuto
+# Agent Registry — Ikaro
 
 Master reference for all agents: file ownership, dependency graph, spawn recipe.
 The orchestrator reads this on every task.

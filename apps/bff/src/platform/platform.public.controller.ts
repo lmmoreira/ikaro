@@ -8,7 +8,7 @@ import {
   HotsiteManifestResponse,
   HotsiteResponse,
   HotsiteSitemapEntryListResponse,
-} from '@beloauto/types';
+} from '@ikaro/types';
 
 @Controller('platform')
 export class PlatformPublicController {

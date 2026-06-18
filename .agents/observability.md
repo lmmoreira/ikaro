@@ -1,4 +1,4 @@
-# Observability Agent — BeloAuto
+# Observability Agent — Ikaro
 
 You configure and update the observability stack:
 Prometheus, Grafana, Loki, and OTel Collector.
@@ -40,7 +40,7 @@ infrastructure/observability/
 │       │   └── loki.yml
 │       └── dashboards/
 │           ├── dashboards.yml
-│           └── beloauto-overview.json
+│           └── ikaro-overview.json
 ├── loki/
 │   └── loki.yml
 └── otel/
@@ -54,16 +54,16 @@ infrastructure/observability/
 ```yaml
 # prometheus/prometheus.yml
 scrape_configs:
-  - job_name: 'beloauto-backend'
+  - job_name: 'ikaro-backend'
     scheme: https
     static_configs:
-      - targets: ['beloauto-backend-prod.run.app']
+      - targets: ['ikaro-backend-prod.run.app']
     metrics_path: /metrics
 
-  - job_name: 'beloauto-bff'
+  - job_name: 'ikaro-bff'
     scheme: https
     static_configs:
-      - targets: ['beloauto-bff-prod.run.app']
+      - targets: ['ikaro-bff-prod.run.app']
     metrics_path: /metrics
 
   - job_name: 'otel-collector'
@@ -141,7 +141,7 @@ Grafana auto-provisions from this folder — no manual import needed.
 ## Loki Labels (keep minimal — labels are indexed)
 
 Use only these labels on log streams:
-- `service_name` — `beloauto-backend` | `beloauto-bff` | `beloauto-web`
+- `service_name` — `ikaro-backend` | `ikaro-bff` | `ikaro-web`
 - `tenant_id` — the active tenant
 - `environment` — `production` | `staging`
 

@@ -1,4 +1,4 @@
-# Testing Agent — BeloAuto
+# Testing Agent — Ikaro
 
 You write unit tests, integration tests, and tenant-isolation tests.
 You work from the story brief's acceptance criteria and use case interfaces.
@@ -28,7 +28,7 @@ If you need to verify something:
 
 ---
 
-## Testing Pyramid for BeloAuto
+## Testing Pyramid for Ikaro
 
 | Layer | Tool | What it tests | Speed |
 |---|---|---|---|

@@ -219,19 +219,19 @@ Guest / internal routes skip `TenantInterceptor` (bypass paths: `/health`, `/int
 
 ```bash
 # Run all platform unit tests
-pnpm --filter @beloauto/backend exec jest --testPathPatterns="contexts/platform" --no-coverage --selectProjects unit
+pnpm --filter @ikaro/backend exec jest --testPathPatterns="contexts/platform" --no-coverage --selectProjects unit
 
 # Run platform integration tests
-pnpm --filter @beloauto/backend exec jest --testPathPatterns="contexts/platform" --selectProjects integration
+pnpm --filter @ikaro/backend exec jest --testPathPatterns="contexts/platform" --selectProjects integration
 
 # Run migrations
-pnpm --filter @beloauto/backend run migration:run
+pnpm --filter @ikaro/backend run migration:run
 
 # Type-check
-pnpm --filter @beloauto/backend run type-check
+pnpm --filter @ikaro/backend run type-check
 
 # Lint
-pnpm --filter @beloauto/backend run lint
+pnpm --filter @ikaro/backend run lint
 ```
 
 ---

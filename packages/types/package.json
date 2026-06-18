@@ -1,5 +1,5 @@
 {
-  "name": "@beloauto/types",
+  "name": "@ikaro/types",
   "version": "0.0.1",
   "private": true,
   "description": "Shared TypeScript types and DTOs",
@@ -9,6 +9,6 @@
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@beloauto/config": "workspace:*"
+    "@ikaro/config": "workspace:*"
   }
 }

@@ -15,16 +15,16 @@ describe('HotsiteNotFound', () => {
     ).toBeInTheDocument();
   });
 
-  it('links back to the BeloAuto homepage', () => {
+  it('links back to the Ikaro homepage', () => {
     render(<HotsiteNotFound />);
 
-    expect(screen.getByRole('link', { name: 'Voltar para o BeloAuto' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Voltar para o Ikaro' })).toHaveAttribute(
       'href',
-      'https://beloauto.com',
+      'https://<ikaro-domain>',
     );
   });
 
   it('exports a pt-BR metadata title', () => {
-    expect(metadata.title).toBe('Não encontrado — BeloAuto');
+    expect(metadata.title).toBe('Não encontrado — Ikaro');
   });
 });

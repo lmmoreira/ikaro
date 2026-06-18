@@ -84,9 +84,9 @@ jobs:
 
       - name: Generate coverage reports
         run: |
-          pnpm --filter @beloauto/backend test:cov
-          pnpm --filter @beloauto/bff test:cov
-          pnpm --filter @beloauto/web test:cov
+          pnpm --filter @ikaro/backend test:cov
+          pnpm --filter @ikaro/bff test:cov
+          pnpm --filter @ikaro/web test:cov
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -100,7 +100,7 @@ jobs:
         run: |
           PR=${{ github.event.pull_request.number }}
           RESULT=$(curl -sf -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/issues/search?componentKeys=lmmoreira_beloauto&pullRequest=${PR}&statuses=OPEN,CONFIRMED&ps=50")
+            "https://sonarcloud.io/api/issues/search?componentKeys=lmmoreira_ikaro&pullRequest=${PR}&statuses=OPEN,CONFIRMED&ps=50")
           COUNT=$(echo "$RESULT" | jq '.total')
           if [ "$COUNT" -gt 0 ]; then
             echo "❌ ${COUNT} new SonarCloud issue(s) — fix before merging:"

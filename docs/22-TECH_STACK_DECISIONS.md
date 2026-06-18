@@ -1,4 +1,4 @@
-# Tech Stack Architecture & Decisions - BeloAuto
+# Tech Stack Architecture & Decisions - Ikaro
 **Date:** 2026-05-12  
 **Status:** Final Pre-Development Decision Record  
 **Audience:** Development team, stakeholders, AI agents  
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document defines the technology stack for BeloAuto, a multi-tenant SaaS platform for car wash booking and loyalty management. The stack is designed to be **production-grade from day 1**, **cost-efficient for MVP**, and **scalable without refactoring**.
+This document defines the technology stack for Ikaro, a multi-tenant SaaS platform for car wash booking and loyalty management. The stack is designed to be **production-grade from day 1**, **cost-efficient for MVP**, and **scalable without refactoring**.
 
 **Philosophy:**
 - ✅ Robust: Every component proven at enterprise scale
@@ -40,7 +40,7 @@ This document defines the technology stack for BeloAuto, a multi-tenant SaaS pla
 | **Cloud Agnostic** | ⭐⭐⭐⭐⭐ Works identically on PostgreSQL everywhere |
 | **Cost** | ⭐⭐⭐⭐⭐ Open source, $0 |
 
-### Key Capabilities for BeloAuto
+### Key Capabilities for Ikaro
 
 #### Multi-Tenant Query Patterns
 
@@ -402,7 +402,7 @@ export async function getBooking(id: string, jwt: string, tenantSlug: string) {
 
 ### Deployment Strategy
 
-BeloAuto's Next.js app requires **server-side rendering** — GCS static export is not viable because:
+Ikaro's Next.js app requires **server-side rendering** — GCS static export is not viable because:
 
 - `/[slug]` hotsite routing must resolve tenant branding dynamically per request
 - Google OAuth callbacks and session redirects (UC-021, UC-022) require server-side handling
@@ -548,7 +548,7 @@ const subscriptionName = `projects/${projectId}/subscriptions/${tenantId}-bookin
 
 await subscriber.createSubscription({
   subscription: subscriptionName,
-  topic: 'projects/beloauto/topics/booking-completed',
+  topic: 'projects/ikaro/topics/booking-completed',
   filter: `attributes.tenantId="${tenantId}"`, // Tenant-scoped
 });
 ```
@@ -612,7 +612,7 @@ pubsub-emulator:
   ports:
     - "8085:8085"
   environment:
-    PUBSUB_PROJECT_ID: beloauto-local
+    PUBSUB_PROJECT_ID: ikaro-local
 ```
 
 ### Cost Impact
@@ -651,11 +651,11 @@ pubsub-emulator:
 
 ```bash
 # Build Docker image
-docker build -t gcr.io/project/beloauto-backend:latest .
+docker build -t gcr.io/project/ikaro-backend:latest .
 
 # Deploy to Cloud Run
-gcloud run deploy beloauto-backend \
-  --image gcr.io/project/beloauto-backend:latest \
+gcloud run deploy ikaro-backend \
+  --image gcr.io/project/ikaro-backend:latest \
   --region us-central1 \
   --memory 512Mi \
   --cpu 1 \
@@ -705,7 +705,7 @@ If Kubernetes becomes necessary later (multi-region orchestration), same Docker 
 
 ```bash
 # Year 2: Add Kubernetes
-gcloud container clusters create beloauto-gke \
+gcloud container clusters create ikaro-gke \
   --num-nodes 3 \
   --zone us-central1-a
 
@@ -720,7 +720,7 @@ kubectl apply -f kubernetes/deployment.yaml
 Cloud Run integrates with secrets (See `docs/21-TENANTS_SETTINGS_SCHEMA.md`):
 
 ```bash
-gcloud run deploy beloauto-backend \
+gcloud run deploy ikaro-backend \
   --set-env-vars-from-file=.env.prod
 ```
 
@@ -751,8 +751,8 @@ backend:
   ports:
     - "3000:3000"
   environment:
-    DATABASE_URL: postgres://db:5432/beloauto
-    PUBSUB_PROJECT_ID: beloauto-local
+    DATABASE_URL: postgres://db:5432/ikaro
+    PUBSUB_PROJECT_ID: ikaro-local
 ```
 
 ### Cost Impact
@@ -824,8 +824,8 @@ const bookingRepository = bookingDataSource.getRepository(Booking);
 
 // Day 365: Add read replica for reporting
 const readReplica = createReadOnlyDataSource({
-  host: 'beloauto-read-replica.postgres.googleapis.com',
-  database: 'beloauto',
+  host: 'ikaro-read-replica.postgres.googleapis.com',
+  database: 'ikaro',
 });
 
 // Reporting queries use read replica (same queries, different connection)
@@ -867,8 +867,8 @@ Per `docs/06-TENANT_ISOLATION_STRATEGY.md`, this is the primary isolation mechan
 ### Cloud SQL Terraform
 
 ```hcl
-resource "google_sql_database_instance" "beloauto" {
-  name             = "beloauto-postgres"
+resource "google_sql_database_instance" "ikaro" {
+  name             = "ikaro-postgres"
   database_version = "POSTGRES_15"
   region           = "us-central1"
 
@@ -1069,28 +1069,28 @@ terraform/
 
 # Cloud SQL Database
 resource "google_sql_database_instance" "postgres" {
-  name             = "beloauto-postgres"
+  name             = "ikaro-postgres"
   database_version = "POSTGRES_15"
   # ... (see section 6)
 }
 
 # Cloud Run — backend, BFF, and web (Next.js SSR) all run as containers
 resource "google_cloud_run_v2_service" "backend" {
-  name     = "beloauto-backend"
+  name     = "ikaro-backend"
   location = "us-central1"
   # ... (see docs/23-INFRASTRUCTURE_SETUP.md — cloudrun.tf)
 }
 
 # Cloud Storage — media uploads only (tenant photos), NOT for the frontend
 resource "google_storage_bucket" "media" {
-  name     = "beloauto-media-prod"
+  name     = "ikaro-media-prod"
   location = "US"
   # ... (see docs/23-INFRASTRUCTURE_SETUP.md — storage.tf)
 }
 
 # Cloud Pub/Sub
 resource "google_pubsub_topic" "domain_events" {
-  name = "beloauto-domain-events"
+  name = "ikaro-domain-events"
   # ... (see docs/23-INFRASTRUCTURE_SETUP.md — pubsub.tf)
 }
 
@@ -1178,8 +1178,8 @@ resource "google_sql_database_instance" "postgres" {
 docker-compose up -d
 
 # Local environment variables
-export DATABASE_URL=postgres://localhost/beloauto
-export PUBSUB_PROJECT_ID=beloauto-local
+export DATABASE_URL=postgres://localhost/ikaro
+export PUBSUB_PROJECT_ID=ikaro-local
 
 # Same code works everywhere
 pnpm start

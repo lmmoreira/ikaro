@@ -1,5 +1,5 @@
 import { HttpException, INestApplication } from '@nestjs/common';
-import { HotsiteServiceListResponse, HotsiteServiceResponse } from '@beloauto/types';
+import { HotsiteServiceListResponse, HotsiteServiceResponse } from '@ikaro/types';
 import { MockBackendHttpService, createTestApp, request } from '../test/component-test.helpers';
 
 const mockServiceResponse: HotsiteServiceResponse = {

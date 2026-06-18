@@ -46,7 +46,7 @@ Domain events:
 - `StaffDeactivated { tenantId, staffId, deactivatedBy }`
 
 **Acceptance criteria:**
-- [ ] `Tenant.create('BeloAuto', 'beloauto', 'America/Sao_Paulo')` returns a valid `Tenant` aggregate
+- [ ] `Tenant.create('Ikaro', 'ikaro', 'America/Sao_Paulo')` returns a valid `Tenant` aggregate
 - [ ] `Tenant.create('', 'slug')` throws a domain error (empty name invalid)
 - [ ] `Tenant.create('name', 'INVALID SLUG!')` throws a domain error (slug format invalid)
 - [ ] `TenantSettings.default()` returns settings with all default values as specified in `docs/21-TENANTS_SETTINGS_SCHEMA.md`
@@ -134,7 +134,7 @@ NestJS module:
 - `PlatformModule` — no `exports`; repository tokens are only injected within the same module's use cases (never exported to other bounded contexts)
 
 **Acceptance criteria:**
-- [ ] `TypeOrmTenantRepository.findBySlug('beloauto')` returns a `Tenant` aggregate (not a raw TypeORM entity)
+- [ ] `TypeOrmTenantRepository.findBySlug('ikaro')` returns a `Tenant` aggregate (not a raw TypeORM entity)
 - [ ] `TypeOrmTenantRepository.findBySlug('nonexistent')` returns `null`
 - [ ] No raw SQL outside repository adapters — TypeORM QueryBuilder only
 - [ ] Repository methods never return TypeORM entity objects directly — always map to domain aggregates

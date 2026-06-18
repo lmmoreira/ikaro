@@ -30,7 +30,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 
 const sdk = new NodeSDK({
-  serviceName: process.env.OTEL_SERVICE_NAME || 'beloauto-backend',
+  serviceName: process.env.OTEL_SERVICE_NAME || 'ikaro-backend',
   traceExporter: new OTLPTraceExporter({ url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT }),
   instrumentations: [getNodeAutoInstrumentations()],
   sampler: /* 100% for dev, 10% for prod (from env) */
@@ -109,23 +109,23 @@ Implement the full Prometheus metrics catalog for the backend. Metrics are expos
 **Metrics to implement (from `docs/10-OBSERVABILITY_STRATEGY.md`):**
 
 Counters:
-- `beloauto_bookings_created_total{tenant_id, booking_type}` — increment on BookingRequested
-- `beloauto_booking_transitions_total{tenant_id, from_status, to_status}` — increment on each state change
-- `beloauto_loyalty_entries_created_total{tenant_id}` — increment on LoyaltyEntry insert
-- `beloauto_emails_sent_total{tenant_id, template_name, status}` — increment on email send/fail
-- `beloauto_event_bus_published_total{event_name, tenant_id}` — increment on publish
-- `beloauto_event_bus_consumed_total{event_name, tenant_id, status}` — increment on consume
+- `ikaro_bookings_created_total{tenant_id, booking_type}` — increment on BookingRequested
+- `ikaro_booking_transitions_total{tenant_id, from_status, to_status}` — increment on each state change
+- `ikaro_loyalty_entries_created_total{tenant_id}` — increment on LoyaltyEntry insert
+- `ikaro_emails_sent_total{tenant_id, template_name, status}` — increment on email send/fail
+- `ikaro_event_bus_published_total{event_name, tenant_id}` — increment on publish
+- `ikaro_event_bus_consumed_total{event_name, tenant_id, status}` — increment on consume
 
 Histograms:
-- `beloauto_http_request_duration_seconds{method, route, status_code}` — HTTP latency
-- `beloauto_availability_calculation_duration_seconds{tenant_id}` — availability algorithm latency
-- `beloauto_loyalty_sync_duration_seconds{tenant_id}` — time to process BookingCompleted → LoyaltyEntry
+- `ikaro_http_request_duration_seconds{method, route, status_code}` — HTTP latency
+- `ikaro_availability_calculation_duration_seconds{tenant_id}` — availability algorithm latency
+- `ikaro_loyalty_sync_duration_seconds{tenant_id}` — time to process BookingCompleted → LoyaltyEntry
 
 **Acceptance criteria:**
 - [ ] `GET /metrics` returns Prometheus text format with all 9 metric families
-- [ ] Making a booking increments `beloauto_bookings_created_total` with correct labels
+- [ ] Making a booking increments `ikaro_bookings_created_total` with correct labels
 - [ ] Metric cardinality is controlled: `tenant_id` label uses tenant UUID (bounded set), not slug
-- [ ] `beloauto_http_request_duration_seconds` has histogram buckets: `[0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5]`
+- [ ] `ikaro_http_request_duration_seconds` has histogram buckets: `[0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5]`
 - [ ] Metrics endpoint is NOT proxied through BFF (internal only, scraped by Prometheus)
 - [ ] No PII in metric labels (email addresses, customer names must never appear as label values)
 
@@ -180,18 +180,18 @@ Create the 6 Grafana dashboard JSON files (version-controlled) as specified in t
 
 **Dashboards to create (`docker/grafana/dashboards/`):**
 
-1. `beloauto-overview.json` — Platform overview: request rate, error rate P99 latency, active tenants count
-2. `beloauto-bookings.json` — Bookings: bookings/hour by tenant, status transition heatmap, cancellation rate
-3. `beloauto-events.json` — Event bus: events published/consumed per minute, consumer lag, DLQ count
-4. `beloauto-loyalty.json` — Loyalty: entries/hour, sync latency histogram, expiry warnings sent
-5. `beloauto-notifications.json` — Notifications: emails sent/failed by template, retry rate, SendGrid latency
-6. `beloauto-tenant-detail.json` — Parametrized: `$tenant_id` variable; all metrics filtered by tenant
+1. `ikaro-overview.json` — Platform overview: request rate, error rate P99 latency, active tenants count
+2. `ikaro-bookings.json` — Bookings: bookings/hour by tenant, status transition heatmap, cancellation rate
+3. `ikaro-events.json` — Event bus: events published/consumed per minute, consumer lag, DLQ count
+4. `ikaro-loyalty.json` — Loyalty: entries/hour, sync latency histogram, expiry warnings sent
+5. `ikaro-notifications.json` — Notifications: emails sent/failed by template, retry rate, SendGrid latency
+6. `ikaro-tenant-detail.json` — Parametrized: `$tenant_id` variable; all metrics filtered by tenant
 
 **Acceptance criteria:**
 - [ ] All 6 dashboard JSON files are valid Grafana JSON (importable without errors)
 - [ ] Dashboards load automatically when Grafana starts (`pnpm obs:up`)
-- [ ] `beloauto-overview.json` shows request rate graph populated with live data after making API calls
-- [ ] `beloauto-tenant-detail.json` has a `$tenant_id` template variable that filters all panels
+- [ ] `ikaro-overview.json` shows request rate graph populated with live data after making API calls
+- [ ] `ikaro-tenant-detail.json` has a `$tenant_id` template variable that filters all panels
 - [ ] Each dashboard has a meaningful title and panel descriptions
 
 **Dependencies:** M14-S04
@@ -211,19 +211,19 @@ Define the 4 Prometheus alerting rules as code (rules YAML file). These fire ale
 
 ```yaml
 - alert: HighP99Latency
-  expr: histogram_quantile(0.99, rate(beloauto_http_request_duration_seconds_bucket[5m])) > 2
+  expr: histogram_quantile(0.99, rate(ikaro_http_request_duration_seconds_bucket[5m])) > 2
   for: 5m
   labels: { severity: warning }
   annotations:
     summary: "P99 latency exceeds 2s for 5 minutes"
 
 - alert: LowSuccessRate
-  expr: rate(beloauto_http_request_duration_seconds_count{status_code!~"5.."}[5m]) / rate(beloauto_http_request_duration_seconds_count[5m]) < 0.95
+  expr: rate(ikaro_http_request_duration_seconds_count{status_code!~"5.."}[5m]) / rate(ikaro_http_request_duration_seconds_count[5m]) < 0.95
   for: 10m
   labels: { severity: critical }
 
 - alert: EmailDeliveryFailures
-  expr: rate(beloauto_emails_sent_total{status="FAILED"}[15m]) > 0.1
+  expr: rate(ikaro_emails_sent_total{status="FAILED"}[15m]) > 0.1
   for: 15m
   labels: { severity: warning }
 
@@ -287,7 +287,7 @@ Ensure `AppLogger` is used consistently across all services with the mandatory s
 {
   "timestamp": "ISO-8601",
   "level": "INFO|WARN|ERROR|DEBUG",
-  "service": "beloauto-backend",
+  "service": "ikaro-backend",
   "context": "booking|customer|...",
   "tenantId": "uuid or null",
   "userId": "uuid or null",

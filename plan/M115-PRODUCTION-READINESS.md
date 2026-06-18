@@ -129,7 +129,7 @@ JWT (STAFF|MANAGER role) present, bookingId in body
 - [ ] Scenario 4 (STAFF/MANAGER + bookingId): path is `tenants/<tenantId>/bookings/<bookingId>/<fileName>`; bookingId belonging to a different tenant returns `404`
 - [ ] Integration test: call endpoint (scenario 4) → `PUT` file to signed URL on GCS emulator → assert upload succeeds (HTTP 200 from emulator)
 - [ ] `afterServicePhotoUrls` on `CompleteBookingUseCase` rejects values not matching the `tenants/.../bookings/.../` format with `400`
-- [ ] GCS emulator bucket `beloauto-local` is auto-created on `onApplicationBootstrap()` when `GCS_EMULATOR_HOST` is set
+- [ ] GCS emulator bucket `ikaro-local` is auto-created on `onApplicationBootstrap()` when `GCS_EMULATOR_HOST` is set
 - [ ] `docker-compose` signed URLs point to `http://localhost:4443` (not `storage.googleapis.com`)
 - [ ] Rate limit: 11th request within 60 s from same IP returns `429`
 - [ ] Signed URL embeds `content-length-range` (0–10 MB) — GCS emulator rejects a `PUT` with body exceeding 10 MB

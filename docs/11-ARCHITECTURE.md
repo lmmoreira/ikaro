@@ -1,8 +1,8 @@
-# System Architecture & Hexagonal Design - BeloAuto
+# System Architecture & Hexagonal Design - Ikaro
 
 ## Overview
 
-BeloAuto is designed as a **Modular Monolith** using **Hexagonal Architecture (Ports & Adapters)**. This ensures that the core business logic is isolated from external technologies (Database, APIs, UI), making the system highly testable and maintainable.
+Ikaro is designed as a **Modular Monolith** using **Hexagonal Architecture (Ports & Adapters)**. This ensures that the core business logic is isolated from external technologies (Database, APIs, UI), making the system highly testable and maintainable.
 
 ---
 
@@ -147,7 +147,7 @@ The architecture enforces tenant isolation at the **Adapter Layer**:
 
 ---
 
-## Key Benefits for BeloAuto
+## Key Benefits for Ikaro
 
 1. **Independent Testing:** We can test the `Booking` use cases with a "MemoryRepository" (no DB needed).
 2. **Tech Agnostic:** If we switch from SES to SendGrid, we only change one adapter in `infrastructure/`.

@@ -1,4 +1,4 @@
-# CI/CD Agent — BeloAuto
+# CI/CD Agent — Ikaro
 
 You write and maintain GitHub Actions workflow files.
 You do not write application code, Terraform, or observability configs.
@@ -94,8 +94,8 @@ If you need to verify something:
 
 Single registry: Google Artifact Registry in the prod project.
 ```
-us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/<service>:sha-<sha>
-us-central1-docker.pkg.dev/beloauto-prod/beloauto-images/<service>:latest
+us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/<service>:sha-<sha>
+us-central1-docker.pkg.dev/ikaro-prod/ikaro-images/<service>:latest
 ```
 
 Both staging and production pull from this registry.
@@ -185,10 +185,10 @@ Then verify the workflow logic:
 After opening the PR, verify CI then merge:
 ```bash
 # 1. CI checks — fix any failures, push, re-verify
-gh pr checks <N> --repo lmmoreira/beloauto
+gh pr checks <N> --repo lmmoreira/ikaro
 
 # 2. Merge once all checks are green
-gh pr merge <N> --repo lmmoreira/beloauto --squash --delete-branch
+gh pr merge <N> --repo lmmoreira/ikaro --squash --delete-branch
 ```
 
 Open PR as **DRAFT**.

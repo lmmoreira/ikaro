@@ -1,4 +1,4 @@
-import type { FooterModuleData, HotsiteBusinessInfoResponse } from '@beloauto/types';
+import type { FooterModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 
 interface FooterProps {
   readonly slug: string;
