@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { SITE_URL } from '@/lib/hotsite/seo';
 
 export const metadata: Metadata = {
   title: 'Não encontrado — Ikaro',
@@ -11,7 +12,7 @@ export default function HotsiteNotFound() {
       <p className="mb-8 text-gray-600">
         A lavacar que você está procurando não existe ou não está mais disponível.
       </p>
-      <a href="https://<ikaro-domain>" className="text-blue-600 underline">
+      <a href={SITE_URL} className="text-blue-600 underline">
         Voltar para o Ikaro
       </a>
     </main>

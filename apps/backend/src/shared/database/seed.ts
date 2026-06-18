@@ -406,7 +406,7 @@ function printSummary(): void {
     '║            │ google-sub-admin-a     (MANAGER, BeloAuto)       ║',
     '║            │ google-sub-worker-a    (STAFF,   BeloAuto)       ║',
     '║            │ google-sub-admin-b     (MANAGER, AutoSpa)        ║',
-    '║            │ google-sub-customer-a  (CUSTOMER, both)           ║',
+    '║            │ google-sub-customer-a  (CUSTOMER, BeloAuto+AutoSpa) ║',
     '╠══════════════════════════════════════════════════════════════╣',
     '║  Bookings  │ BeloAuto: 1 PENDING, 1 APPROVED, 1 COMPLETED     ║',
     '║            │ Loyalty: 10 pts earned on COMPLETED booking      ║',

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { SITE_URL } from '@/lib/hotsite/seo';
 import HotsiteNotFound, { metadata } from './not-found';
 
 describe('HotsiteNotFound', () => {
@@ -20,7 +21,7 @@ describe('HotsiteNotFound', () => {
 
     expect(screen.getByRole('link', { name: 'Voltar para o Ikaro' })).toHaveAttribute(
       'href',
-      'https://<ikaro-domain>',
+      SITE_URL,
     );
   });
 

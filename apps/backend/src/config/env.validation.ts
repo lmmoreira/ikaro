@@ -33,7 +33,7 @@ const schema = z
     EMAIL_ADAPTER: z.enum(['sendgrid', 'mailhog']).default('mailhog'),
     EMAIL_FROM: z
       .email({ message: 'EMAIL_FROM must be a valid email address' })
-      .default('noreply@<ikaro-domain>'),
+      .default('noreply@ikaro.example'),
     SENDGRID_API_KEY: z.string().min(1).optional(),
     FRONTEND_URL: z.string().default('http://localhost:3000'),
     JWT_SECRET: z.string().min(32, { message: 'JWT_SECRET must be at least 32 characters' }),

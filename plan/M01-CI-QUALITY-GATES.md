@@ -133,7 +133,7 @@ Integrate SonarCloud to enforce the differential coverage gate (≥80% on change
 - Job `sonarcloud` in `.github/workflows/pr-quality.yml`
 - Uses `SonarSource/sonarcloud-github-action@master`
 - `sonar-project.properties` at repo root:
-  - `sonar.projectKey=ikaro`
+  - `sonar.projectKey=<org>_ikaro`
   - `sonar.coverage.exclusions=**/*.spec.ts,**/*.e2e.ts,**/migrations/**`
   - `sonar.javascript.lcov.reportPaths=coverage/lcov.info`
   - `sonar.newCode.referenceBranch=main` (differential coverage on changed code)
