@@ -32,7 +32,7 @@ export class HotsiteImageUrlResolver {
   }
 
   private resolveModule(module: HotsiteModule, resolveUrl: ResolveImageUrl): HotsiteModule {
-    const data = module.data as unknown as Record<string, unknown>;
+    const data = module.data as Record<string, unknown>;
     const resolved: Record<string, unknown> = {
       ...data,
       backgroundImageUrl: this.resolveIfPath(
