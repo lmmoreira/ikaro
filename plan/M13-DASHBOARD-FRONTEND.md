@@ -3384,7 +3384,7 @@ Use `vi.mock` for `fetch`. Do NOT test `page.tsx` — server component, Playwrig
 
 ---
 
-### M13-S41 — Playwright E2E infrastructure + guest booking golden path
+### M13-S41 — Playwright E2E infrastructure + guest booking golden path ✅ Done
 
 > **Implement this story first** — before M13-S01. Every other M13 story that builds a `page.tsx` route must add an E2E test file alongside it (`apps/web/e2e/<feature>.spec.ts`). This scaffolding must exist before those stories start.
 
