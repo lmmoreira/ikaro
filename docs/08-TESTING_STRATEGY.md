@@ -439,7 +439,7 @@ test('UC-001: guest can submit a booking request and see pending confirmation', 
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
   await page.goto('/ikaro/booking');
-  await expect(page.getByRole('heading', { name: /escolha os serviços/i })).toBeVisible();
+  await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
 
   await page.locator('[data-testid="service-card"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
@@ -448,9 +448,9 @@ test('UC-001: guest can submit a booking request and see pending confirmation', 
   await page.locator('[data-testid="time-slot"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 
-  await page.getByLabel(/nome/i).fill('João Silva');
-  await page.getByLabel(/e-mail/i).fill('joao@test.com.br');
-  await page.getByLabel(/telefone/i).fill('31999990000');
+  await page.locator('[data-testid="input-name"]').fill('João Silva');
+  await page.locator('[data-testid="input-email"]').fill('joao@test.com.br');
+  await page.locator('[data-testid="input-phone"]').fill('31999990000');
   await page.locator('[data-testid="step-next"]').click();
 
   await page.locator('[data-testid="step-confirm"]').click();

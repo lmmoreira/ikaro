@@ -62,7 +62,7 @@ export function ServiceSelectionStep({
   }
 
   return (
-    <div>
+    <div data-testid="step-service-selection">
       <h2 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
         Escolha os serviços
       </h2>

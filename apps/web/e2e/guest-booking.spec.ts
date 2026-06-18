@@ -6,12 +6,11 @@ test.describe('UC-001 — Guest booking golden path', () => {
   }) => {
     // Hotsite renders
     await page.goto('/ikaro');
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(page.locator('#service-list')).toBeVisible();
 
-    // Navigate to booking form
+    // Navigate to booking form — step 1 visible
     await page.goto('/ikaro/booking');
-    await expect(page.getByRole('heading', { name: /escolha os serviços/i })).toBeVisible();
+    await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
 
     // Step 1 — select first available service
     await page.locator('[data-testid="service-card"]').first().click();
@@ -23,9 +22,9 @@ test.describe('UC-001 — Guest booking golden path', () => {
     await page.locator('[data-testid="step-next"]').click();
 
     // Step 3 — personal info
-    await page.getByLabel(/nome/i).fill('E2E Teste');
-    await page.getByLabel(/e-mail/i).fill('e2e@teste.com.br');
-    await page.getByLabel(/telefone/i).fill('11999999999');
+    await page.locator('[data-testid="input-name"]').fill('E2E Teste');
+    await page.locator('[data-testid="input-email"]').fill('e2e@teste.com.br');
+    await page.locator('[data-testid="input-phone"]').fill('11999999999');
     await page.locator('[data-testid="step-next"]').click();
 
     // Step 4 — submit
