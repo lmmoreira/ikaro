@@ -57,6 +57,16 @@
 #   → Email mismatch → /auth/error?reason=email-mismatch
 #   → Not invited → /auth/error?reason=invite-not-found
 
+# ── Logout (hotsite auth bar "Sair" — M13-S42) ──
+# Browser URL (copy and paste):
+# http://localhost:3002/v1/auth/logout?tenantSlug=lavacar-beloauto
+#
+# Flow:
+#   → BFF clears the access_token cookie
+#   → Redirects to FRONTEND_URL/lavacar-beloauto
+#
+# Omitting ?tenantSlug (or passing an invalid slug) redirects to bare FRONTEND_URL instead.
+
 # ─────────────────────────────────────────────────────────────────────────────
 # MULTI-TENANT SELECTION — POST /v1/auth/token
 # UC-021 (2+ tenants): after browser redirects to /select-tenant?token=<...>,

@@ -8,6 +8,7 @@ import { ContactModule } from '@/components/hotsite/ContactModule';
 import { Footer } from '@/components/hotsite/Footer';
 import { GalleryModule } from '@/components/hotsite/GalleryModule';
 import { HeroModule } from '@/components/hotsite/HeroModule';
+import { HotsiteAuthBar } from '@/components/hotsite/HotsiteAuthBar';
 import { ServiceListModule } from '@/components/hotsite/ServiceListModule';
 import { TestimonialsModule } from '@/components/hotsite/TestimonialsModule';
 import { Unavailable } from '@/components/hotsite/Unavailable';
@@ -99,6 +100,7 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
 
   return (
     <main>
+      <HotsiteAuthBar slug={slug} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: toJsonLdScript(localBusinessJsonLd) }}

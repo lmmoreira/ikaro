@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { fetchManifest } from '@/lib/api/platform';
 import { fetchServices } from '@/lib/api/services';
 import { BookingForm } from '@/components/booking/BookingForm';
+import { HotsiteAuthBar } from '@/components/hotsite/HotsiteAuthBar';
 import { Unavailable } from '@/components/hotsite/Unavailable';
 import { buildHotsiteMetadata } from '@/lib/hotsite/seo';
 import { BookingCtaModuleDataSchema } from '@/lib/hotsite/module-schemas';
@@ -37,5 +38,10 @@ export default async function BookingPage({ params }: BookingPageProps) {
   const parsed = BookingCtaModuleDataSchema.safeParse(bookingCtaModule?.data);
   const carouselDays = parsed.success ? (parsed.data.carouselDays ?? 14) : 14;
 
-  return <BookingForm slug={slug} services={services} carouselDays={carouselDays} />;
+  return (
+    <>
+      <HotsiteAuthBar slug={slug} />
+      <BookingForm slug={slug} services={services} carouselDays={carouselDays} />
+    </>
+  );
 }
