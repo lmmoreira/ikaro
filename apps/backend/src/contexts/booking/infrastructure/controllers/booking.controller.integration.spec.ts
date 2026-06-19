@@ -47,16 +47,24 @@ describe('BookingController (integration)', () => {
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${TEST_KEY}`)
-      .send({ name: 'Booking Tenant A', slug: 'booking-tenant-a', adminEmail: 'a@booking.test',
-      country_code: 'BR' })
+      .send({
+        name: 'Booking Tenant A',
+        slug: 'booking-tenant-a',
+        adminEmail: 'a@booking.test',
+        country_code: 'BR',
+      })
       .expect(201);
     tenantAId = a.tenantId as string;
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${TEST_KEY}`)
-      .send({ name: 'Booking Tenant B', slug: 'booking-tenant-b', adminEmail: 'b@booking.test',
-      country_code: 'BR' })
+      .send({
+        name: 'Booking Tenant B',
+        slug: 'booking-tenant-b',
+        adminEmail: 'b@booking.test',
+        country_code: 'BR',
+      })
       .expect(201);
     tenantBId = b.tenantId as string;
 
@@ -1020,7 +1028,7 @@ describe('BookingController (integration)', () => {
           name: 'List Tenant',
           slug: 'list-tenant-bookings',
           adminEmail: 'list@bookings.test',
-      country_code: 'BR',
+          country_code: 'BR',
         })
         .expect(201);
       listTenantId = lt.tenantId as string;
@@ -1140,7 +1148,7 @@ describe('BookingController (integration)', () => {
           name: 'Detail Tenant',
           slug: 'detail-tenant-bookings',
           adminEmail: 'detail@bookings.test',
-      country_code: 'BR',
+          country_code: 'BR',
         })
         .expect(201);
       detailTenantId = dt.tenantId as string;
@@ -1368,7 +1376,7 @@ describe('BookingController (integration)', () => {
           name: 'Reschedule Isolation Tenant',
           slug: 'reschedule-isolation',
           adminEmail: 'reschedule@isolation.test',
-      country_code: 'BR',
+          country_code: 'BR',
         })
         .expect(201);
       const isolationTenantId = tenantBody.tenantId as string;
@@ -1552,7 +1560,7 @@ describe('BookingController (integration)', () => {
           name: 'Complete Isolation Tenant',
           slug: 'complete-isolation',
           adminEmail: 'complete@isolation.test',
-      country_code: 'BR',
+          country_code: 'BR',
         })
         .expect(201);
       const isolationTenantId = tenantBody.tenantId as string;

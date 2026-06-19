@@ -64,8 +64,7 @@ describe('InternalTenantController (integration)', () => {
   it('returns 401 when X-Internal-Key header is absent (global guard)', async () => {
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
-      .send({ name: 'Test', slug: 'test', adminEmail: 'test@test.com',
-      country_code: 'BR' })
+      .send({ name: 'Test', slug: 'test', adminEmail: 'test@test.com', country_code: 'BR' })
       .expect(401);
 
     expect(body.type).toBe('about:blank');
@@ -76,8 +75,7 @@ describe('InternalTenantController (integration)', () => {
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
-      .send({ name: 'Test', slug: 'test', adminEmail: 'test@test.com',
-      country_code: 'BR' })
+      .send({ name: 'Test', slug: 'test', adminEmail: 'test@test.com', country_code: 'BR' })
       .expect(401);
 
     expect(body.type).toBe('about:blank');
@@ -89,8 +87,7 @@ describe('InternalTenantController (integration)', () => {
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
       .set('Authorization', 'Bearer wrong-key-wrong-key-wrong-key')
-      .send({ name: 'Test', slug: 'test', adminEmail: 'test@test.com',
-      country_code: 'BR' })
+      .send({ name: 'Test', slug: 'test', adminEmail: 'test@test.com', country_code: 'BR' })
       .expect(401);
 
     expect(body.status).toBe(401);
@@ -101,8 +98,7 @@ describe('InternalTenantController (integration)', () => {
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
       .set('Authorization', AUTH)
-      .send({ name: 'Test', slug: 'valid-slug-01', adminEmail: 'not-an-email',
-      country_code: 'BR' })
+      .send({ name: 'Test', slug: 'valid-slug-01', adminEmail: 'not-an-email', country_code: 'BR' })
       .expect(400);
 
     expect(body.status).toBe(400);
@@ -113,8 +109,12 @@ describe('InternalTenantController (integration)', () => {
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
       .set('Authorization', AUTH)
-      .send({ name: 'Test', slug: 'Invalid Slug!', adminEmail: 'test@test.com',
-      country_code: 'BR' })
+      .send({
+        name: 'Test',
+        slug: 'Invalid Slug!',
+        adminEmail: 'test@test.com',
+        country_code: 'BR',
+      })
       .expect(400);
 
     expect(body.status).toBe(400);
@@ -129,7 +129,7 @@ describe('InternalTenantController (integration)', () => {
         name: 'Test',
         slug: 'valid-slug-02',
         adminEmail: 'test@test.com',
-      country_code: 'BR',
+        country_code: 'BR',
         timezone: 'Not/AZone',
       })
       .expect(400);
@@ -144,8 +144,12 @@ describe('InternalTenantController (integration)', () => {
       .post('/internal/tenants')
       .set('X-Internal-Key', INTERNAL_KEY)
       .set('Authorization', AUTH)
-      .send({ name: 'Lavacar Integração', slug, adminEmail: 'admin@lavacar.com.br',
-      country_code: 'BR' })
+      .send({
+        name: 'Lavacar Integração',
+        slug,
+        adminEmail: 'admin@lavacar.com.br',
+        country_code: 'BR',
+      })
       .expect(201);
 
     expect(body.tenantId).toBeDefined();

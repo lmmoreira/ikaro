@@ -35,7 +35,7 @@ describe('LoyaltyController (integration)', () => {
         name: 'Loyalty Test Tenant',
         slug: 'loyalty-test-tenant',
         adminEmail: 'admin@loyalty.test',
-      country_code: 'BR',
+        country_code: 'BR',
       })
       .expect(201);
     tenantId = body.tenantId as string;
@@ -132,7 +132,7 @@ describe('LoyaltyController (integration)', () => {
           name: 'Loyalty Tenant B',
           slug: 'loyalty-tenant-b',
           adminEmail: 'b@loyalty.test',
-      country_code: 'BR',
+          country_code: 'BR',
         })
         .expect(201);
       const tenantBId = b.tenantId as string;
@@ -283,7 +283,7 @@ describe('LoyaltyController (integration)', () => {
           name: 'Loyalty Tenant C',
           slug: 'loyalty-tenant-c',
           adminEmail: 'c@loyalty.test',
-      country_code: 'BR',
+          country_code: 'BR',
         })
         .expect(201);
       const tenantCId = b.tenantId as string;
@@ -360,7 +360,7 @@ describe('LoyaltyController (integration)', () => {
           name: 'Redeem Test Tenant',
           slug: 'redeem-test-tenant',
           adminEmail: 'redeem@test.example',
-      country_code: 'BR',
+          country_code: 'BR',
         })
         .expect(201);
       const redeemTenantId = tb.tenantId as string;
@@ -418,7 +418,7 @@ describe('LoyaltyController (integration)', () => {
           name: 'Low Balance Tenant',
           slug: 'low-balance-tenant',
           adminEmail: 'low@test.example',
-      country_code: 'BR',
+          country_code: 'BR',
         })
         .expect(201);
       const lowTenantId = tb2.tenantId as string;
@@ -458,7 +458,7 @@ describe('LoyaltyController (integration)', () => {
           name: 'Isolation Tenant D',
           slug: 'isolation-tenant-d',
           adminEmail: 'd@isolation.test',
-      country_code: 'BR',
+          country_code: 'BR',
         })
         .expect(201);
       const tenantDId = iso.tenantId as string;
