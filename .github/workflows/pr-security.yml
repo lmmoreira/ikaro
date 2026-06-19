@@ -71,6 +71,47 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
 
+      # Catches a class of bug Trivy can't see: docker build succeeding and the
+      # filesystem scanning clean doesn't mean `node dist/main.js` resolves its own
+      # require() graph — see TD06. No DB/Pub/Sub emulator needed: the crash this
+      # targets happens at module-resolution time, synchronously, before any network
+      # call backend/bff would attempt at boot.
+      - name: Boot smoke test — ${{ matrix.service }}
+        run: |
+          ARGS=(--name "smoke-${{ matrix.service }}" -d)
+          case "${{ matrix.service }}" in
+            backend)
+              ARGS+=(
+                -e JWT_SECRET="$(openssl rand -hex 32)"
+                -e PLATFORM_ADMIN_KEY="$(openssl rand -hex 32)"
+                -e INTERNAL_API_KEY="$(openssl rand -hex 32)"
+                -e HOTSITE_REVALIDATE_SECRET="$(openssl rand -hex 32)"
+                -e DB_HOST=localhost -e DB_USER=ikaro_app -e DB_PASSWORD=ikaro_app -e DB_NAME=ikaro
+              )
+              ;;
+            bff)
+              ARGS+=(
+                -e JWT_SECRET="$(openssl rand -hex 32)"
+                -e CRON_SECRET="$(openssl rand -hex 32)"
+                -e INTERNAL_API_KEY="$(openssl rand -hex 32)"
+                -e BACKEND_INTERNAL_URL=http://localhost:3001
+                -e GOOGLE_CLIENT_ID=smoke-test
+                -e GOOGLE_CLIENT_SECRET=smoke-test
+                -e GOOGLE_CALLBACK_URL=http://localhost:3002/v1/auth/google/callback
+              )
+              ;;
+          esac
+          docker run "${ARGS[@]}" "ikaro-${{ matrix.service }}:scan"
+          sleep 5
+          docker logs "smoke-${{ matrix.service }}"
+          STATUS=$(docker inspect "smoke-${{ matrix.service }}" --format='{{.State.Status}}')
+          docker rm -f "smoke-${{ matrix.service }}"
+          if [ "$STATUS" != "running" ]; then
+            echo "❌ Container exited instead of staying up — see logs above"
+            exit 1
+          fi
+          echo "✅ Container booted and is still running"
+
   checkov:
     name: Checkov IaC Scan
     runs-on: ubuntu-latest

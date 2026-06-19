@@ -126,6 +126,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # ConfigModule.forRoot({ validate: validateEnv }) runs synchronously the moment
+      # app.module.ts is imported (transitively, at the top of every *.component.spec.ts
+      # file) — before component-test.helpers.ts's createTestApp() body ever executes.
+      # Its later process.env[...] assignments are too late for this validation; these
+      # vars must already be present in the real process env. See CI_TRAPS.md.
       - name: Run component tests
         run: pnpm --filter @ikaro/bff test:component
         env:

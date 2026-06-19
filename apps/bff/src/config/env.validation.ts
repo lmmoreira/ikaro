@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { validateEnvWithSchema } from '@ikaro/env-validation';
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),
@@ -24,17 +25,6 @@ const schema = z.object({
 
 export type Env = z.infer<typeof schema>;
 
-// Called by ConfigModule.forRoot({ validate }) at startup.
-// Throws on invalid config so NestJS refuses to boot.
 export function validateEnv(config: Record<string, unknown>): Env {
-  const result = schema.safeParse(config);
-
-  if (!result.success) {
-    const errors = result.error.issues
-      .map((issue) => `  • ${issue.path.join('.')}: ${issue.message}`)
-      .join('\n');
-    throw new Error(`ENV validation failed:\n${errors}`);
-  }
-
-  return result.data;
+  return validateEnvWithSchema(schema, config);
 }

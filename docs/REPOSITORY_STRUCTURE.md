@@ -16,7 +16,8 @@
 ├── packages/
 │   ├── types/            # shared TypeScript types / DTOs
 │   ├── config/           # shared ESLint, tsconfig, Prettier configs
-│   └── observability/    # shared BaseAppLogger (backend + bff each subclass it)
+│   ├── observability/    # shared BaseAppLogger (backend + bff each subclass it)
+│   └── env-validation/   # shared validateEnvWithSchema() (backend + bff env.validation.ts)
 ├── infrastructure/
 │   └── terraform/        # ← planned, not yet created — GCP resources (Cloud Run, Cloud SQL, Pub/Sub, Secret Manager)
 ├── .github/workflows/    # CI/CD pipeline YAML files

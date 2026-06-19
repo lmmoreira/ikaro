@@ -1,7 +1,5 @@
 import { z } from 'zod';
-import { config } from 'dotenv';
-
-config();
+import { validateEnvWithSchema } from '@ikaro/env-validation';
 
 const schema = z
   .object({
@@ -53,16 +51,6 @@ const schema = z
 
 export type Env = z.infer<typeof schema>;
 
-export function validateEnv(): Env {
-  const result = schema.safeParse(process.env);
-
-  if (!result.success) {
-    const errors = result.error.issues
-      .map((issue) => `  • ${issue.path.join('.')}: ${issue.message}`)
-      .join('\n');
-    process.stderr.write(`\n❌ ENV validation failed:\n${errors}\n\n`);
-    process.exit(1);
-  }
-
-  return result.data;
+export function validateEnv(config: Record<string, unknown>): Env {
+  return validateEnvWithSchema(schema, config);
 }
