@@ -128,6 +128,8 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 
 **Rule for module authors:** Every module must use only `var(--ba-*)` variables for colors, fonts, radius, spacing, and shadows. Never hardcode visual values. This guarantees every tenant's branding is applied consistently across all modules with zero extra work.
 
+**Common mistake — partial pairing (caught in M13-S42 review):** setting `color: var(--ba-text)` on an element without *also* setting `backgroundColor: var(--ba-background)` (or `--ba-secondary` for a card/surface) on that same element silently falls back to the page's unbranded white default — `--ba-text` is calibrated against the **tenant's own** background, not against white. A dark-themed tenant (e.g. BeloAuto: `textColor: #FFFFFF`, `backgroundColor: #0A0A0A`) renders invisible white-on-white text wherever this pairing is missed. Symmetrically, any element with `backgroundColor: var(--ba-primary)` must pair it with `color: var(--ba-btn-text)` — never a hardcoded `#fff`/`text-white` — since `buttonTextColor` exists specifically so a tenant can fix poor contrast on their own primary color (BeloAuto's `#F5A800` orange needs dark text, not white, hence their explicit `buttonTextColor: #0A0A0A` override). Copying markup from the static prototypes (`plan/journey/shared/*.html`) is the most common way this slips in — those mockups are deliberately non-branding-aware and hardcode literal `white`/`black`.
+
 ### What different token combinations produce
 
 | Business | primaryColor | borderRadius | buttonStyle | spacing | shadowStyle |
@@ -466,6 +468,8 @@ The `isDev ? 0` guard disables caching in `NODE_ENV=development` so local edits 
 - Image URLs embedded in the manifest (`branding.logoUrl`, module `*Url`, `GalleryImage.url`) are **permanent public addresses** (M12-S10 — see §4 "Image hosting & URL resolution"), not expiring signed URLs — this is what makes caching the manifest payload itself safe; nothing inside it can go stale mid-window
 
 **Rule:** Never hardcode `300` or any revalidation number in a `fetch()` call or page export — always import from `lib/hotsite/revalidate.ts` so all TTLs move together.
+
+**Session-aware widgets must not break this cache (M13-S42).** Any UI that needs to know whether the current visitor is logged in (e.g. `HotsiteAuthBar`) must be a `'use client'` component that fetches its own auth state *after* hydration — via a same-origin proxy route, see `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §4 — and must **never** call `cookies()` from `next/headers` anywhere in the `[slug]` page/layout server-render tree. Calling `cookies()` there forces Next.js to treat the whole route as dynamic per-request, silently disabling the ISR cache above for every visitor, not just logged-in ones.
 
 ---
 

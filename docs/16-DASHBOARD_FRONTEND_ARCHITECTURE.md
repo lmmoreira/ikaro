@@ -66,6 +66,12 @@ Since we are following **Trunk-Based Development**, the frontend must have a "Bu
   - **Multi-Tenancy:** The `tenant_id` is automatically injected into every query key to prevent cross-tenant data leaks in the local cache.
 - **API Client:** Specialized Axios wrapper that automatically attaches the `Authorization: Bearer <JWT>` and `X-Tenant-Slug` headers.
 
+**Two auth-transport patterns exist — pick by context, not by habit (clarified in M13-S42):**
+- **Inside an authenticated shell** (dashboard or `/{slug}/my-account`, once it exists): use the Bearer-token `bffClient` (`apps/web/lib/api/bff-client.ts`), configured once via `configureBffClient({ token, tenantSlug, tenantId })` after login. This is what `apps/web/lib/api/dashboard/*.ts` and the `useXxx` hooks use.
+- **On the public hotsite, or any client component mounted outside a shell** (e.g. `HotsiteAuthBar`): there is no in-memory token to configure, and the JWT lives in an `httpOnly` cookie that client JS can never read — and even if it could, `SameSite: 'lax'` (`apps/bff/src/auth/cookie-options.ts`) blocks the browser from attaching it to a cross-origin `fetch()`/XHR anyway (only top-level navigations are allowed). The only way to use the session here is a **same-origin Next.js route handler** that reads the cookie server-side and forwards it manually as a `Cookie` header to the BFF (see `apps/web/app/api/customers/me/route.ts`). Client components then call that same-origin route (`fetch('/api/customers/me')`), never the BFF directly.
+
+Don't reach for `bffClient` outside a shell context, and don't try to add `credentials: 'include'` to a direct BFF call from the public hotsite expecting it to carry the cookie — it won't.
+
 ---
 
 ## 5. Folder Structure (`apps/web/`)
