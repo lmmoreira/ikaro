@@ -10,8 +10,15 @@ vi.mock('@/lib/api/customers', () => ({
 }));
 
 describe('HotsiteAuthBar', () => {
+  const originalBffUrl = process.env.NEXT_PUBLIC_BFF_URL;
+
   afterEach(() => {
     vi.mocked(getHotsiteCustomerProfile).mockReset();
+    if (originalBffUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_BFF_URL;
+    } else {
+      process.env.NEXT_PUBLIC_BFF_URL = originalBffUrl;
+    }
   });
 
   it('renders nothing visible while the profile request is pending', () => {

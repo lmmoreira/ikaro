@@ -38,4 +38,12 @@ describe('getHotsiteCustomerProfile', () => {
 
     expect(result).toBeNull();
   });
+
+  it('returns null when fetch rejects (network error)', async () => {
+    fetchSpy.mockRejectedValue(new Error('network error'));
+
+    const result = await getHotsiteCustomerProfile();
+
+    expect(result).toBeNull();
+  });
 });

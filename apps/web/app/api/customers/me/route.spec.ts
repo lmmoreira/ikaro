@@ -35,7 +35,12 @@ describe('GET /api/customers/me', () => {
   it('forwards the access_token cookie to the BFF and passes through a successful response', async () => {
     mockCookieGet.mockReturnValue({ value: 'signed-jwt' });
     const profile = { customerId: 'c-1', email: 'joao@example.com', name: 'João Silva' };
-    fetchSpy.mockResolvedValue(new Response(JSON.stringify(profile), { status: 200 }));
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify(profile), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
 
     const response = await GET();
     const body = await response.json();
@@ -51,11 +56,41 @@ describe('GET /api/customers/me', () => {
   it('passes through the BFF status code when the token is rejected', async () => {
     mockCookieGet.mockReturnValue({ value: 'expired-jwt' });
     fetchSpy.mockResolvedValue(
-      new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 }),
+      new Response(JSON.stringify({ message: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' },
+      }),
     );
 
     const response = await GET();
 
     expect(response.status).toBe(401);
+  });
+
+  it('returns a sanitized 502 when the BFF fetch throws', async () => {
+    mockCookieGet.mockReturnValue({ value: 'signed-jwt' });
+    fetchSpy.mockRejectedValue(new Error('connection refused'));
+
+    const response = await GET();
+    const body = (await response.json()) as { message: string };
+
+    expect(response.status).toBe(502);
+    expect(body.message).not.toMatch(/connection refused/);
+  });
+
+  it('returns a generic error body when the BFF responds with a non-JSON content type', async () => {
+    mockCookieGet.mockReturnValue({ value: 'signed-jwt' });
+    fetchSpy.mockResolvedValue(
+      new Response('<html>Bad Gateway</html>', {
+        status: 502,
+        headers: { 'content-type': 'text/html' },
+      }),
+    );
+
+    const response = await GET();
+    const body = (await response.json()) as { message: string };
+
+    expect(response.status).toBe(502);
+    expect(body.message).toBe('Upstream error');
   });
 });

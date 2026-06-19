@@ -3592,26 +3592,18 @@ Unit tests in `auth.controller.spec.ts`:
 #### `packages/types/src/customer.dto.ts` (new file)
 
 ```typescript
-export interface AddressResponse {
-  street: string;
-  number: string;
-  complement?: string | null;
-  neighborhood: string;
-  city: string;
-  state: string;
-  zipCode: string;
-}
+import type { Address } from './address';
 
 export interface CustomerProfileResponse {
   customerId: string;
   email: string;
   name: string;
   phone: string | null;
-  defaultAddress: AddressResponse | null;
+  defaultAddress: Address | null;
 }
 ```
 
-Export from `packages/types/src/index.ts`. This mirrors the BFF's existing local `CustomerProfileResponse` (`apps/bff/src/customers/customers.types.ts`) — the BFF keeps its own local type; this shared one is for `apps/web` consumers only.
+Reuses the existing shared `Address` type (`packages/types/src/address.ts`) rather than duplicating it — its `complement` field was widened to `string | null` to match the BFF's `AddressResponse` exactly (`apps/bff/src/customers/customers.types.ts`). Export `CustomerProfileResponse` from `packages/types/src/index.ts`. This mirrors the BFF's existing local `CustomerProfileResponse` — the BFF keeps its own local type; this shared one is for `apps/web` consumers only.
 
 ---
 

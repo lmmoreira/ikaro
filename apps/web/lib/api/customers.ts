@@ -5,7 +5,11 @@ import type { CustomerProfileResponse } from '@ikaro/types';
 // reads the httpOnly cookie server-side via the /api/customers/me proxy — for contexts like the
 // public hotsite where no dashboard shell (and no in-memory token) exists yet.
 export async function getHotsiteCustomerProfile(): Promise<CustomerProfileResponse | null> {
-  const res = await fetch('/api/customers/me');
-  if (!res.ok) return null;
-  return (await res.json()) as CustomerProfileResponse;
+  try {
+    const res = await fetch('/api/customers/me');
+    if (!res.ok) return null;
+    return (await res.json()) as CustomerProfileResponse;
+  } catch {
+    return null;
+  }
 }
