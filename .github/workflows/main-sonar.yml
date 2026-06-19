@@ -30,6 +30,7 @@ jobs:
           pnpm --filter @ikaro/bff test:cov
           pnpm --filter @ikaro/web test:cov
           pnpm --filter @ikaro/observability test:cov
+          pnpm --filter @ikaro/env-validation test:cov
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master

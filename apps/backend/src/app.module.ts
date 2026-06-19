@@ -14,10 +14,11 @@ import { TransactionManagerModule } from './shared/infrastructure/transaction-ma
 import { InternalApiGuard } from './shared/guards/internal-api.guard';
 import { TenantInterceptor } from './shared/tenant/tenant.interceptor';
 import { TenantModule } from './shared/tenant/tenant.module';
+import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     TypeOrmModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
