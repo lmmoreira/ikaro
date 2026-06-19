@@ -20,12 +20,13 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY packages/ packages/
 COPY apps/backend/ apps/backend/
 
-# @ikaro/observability and @ikaro/env-validation ship compiled JS (main/types -> dist/) --
-# unlike packages/types and packages/config, they're actual runtime dependencies, not
-# type-only, so they must be built before deploy packages them up. Node's native TS
-# type-stripping explicitly refuses files under node_modules
+# @ikaro/i18n, @ikaro/observability, and @ikaro/env-validation ship compiled JS
+# (main/types -> dist/) — unlike packages/types and packages/config, they are actual
+# runtime dependencies, not type-only, so they must be built before deploy packages them
+# up. Node's native TS type-stripping explicitly refuses files under node_modules
 # (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), so shipping raw .ts source here would
-# crash `node dist/main.js` at container startup.
+# crash `node dist/main.js` at container startup. The root postinstall handles this in
+# dev/CI; here we build explicitly because pnpm install uses --ignore-scripts.
 RUN pnpm --filter @ikaro/i18n build \
     && pnpm --filter @ikaro/observability build \
     && pnpm --filter @ikaro/env-validation build \

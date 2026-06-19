@@ -7,7 +7,7 @@
     "pnpm": ">=9"
   },
   "scripts": {
-    "postinstall": "pnpm --filter @ikaro/observability build && pnpm --filter @ikaro/env-validation build",
+    "postinstall": "pnpm --filter @ikaro/i18n build && pnpm --filter @ikaro/observability build && pnpm --filter @ikaro/env-validation build",
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
     "up": "pnpm infra:up && pnpm dev",
