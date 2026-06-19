@@ -118,9 +118,9 @@ For even better performance with large datasets (Phase 2), consider cursor-based
 ### **Auth Flow (UC-014, UC-015, UC-021, UC-022, UC-023)**
 - `GET /auth/google` -> Redirects to Google OAuth.
 - `GET /auth/google/callback` -> Returns temporary code.
-- `POST /auth/token` -> Returns JWT.
+- `POST /auth/token` -> Sets `access_token` httpOnly cookie; returns `{ tenantSlug: string; expiresIn: string }`. No JWT in response body.
 - `GET /auth/tenants` -> (UC-021) Returns list of tenants the user belongs to (for selection screen).
-- `POST /auth/switch-tenant` -> (UC-023) Returns a new JWT for the selected tenant.
+- `POST /auth/switch-tenant` -> (UC-023) Sets `access_token` httpOnly cookie with new tenant scope; returns `{ tenantSlug: string; expiresIn: string }`. No JWT in response body.
 
 ### **JWT Structure**
 ```json

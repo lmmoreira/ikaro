@@ -1,8 +1,8 @@
-import { SwitchTenantResponse } from '@ikaro/types';
+import type { SwitchTenantResponse } from '@ikaro/types';
 import { bffClient } from '../bff-client';
 
 export interface SwitchTenantRequest {
-  readonly tenantId: string;
+  readonly targetTenantId: string;
 }
 
 export type { SwitchTenantResponse };
