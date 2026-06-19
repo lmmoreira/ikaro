@@ -41,7 +41,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
       .send({
         name: 'Points Expiring Integration',
         slug,
-        adminEmail,
+        adminEmail, country_code: 'BR',
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);
@@ -151,7 +151,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
       .send({
         name: 'Points Expiring B',
         slug: tenantBSlug,
-        adminEmail: tenantBAdminEmail,
+        adminEmail: tenantBAdminEmail, country_code: 'BR',
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

@@ -29,6 +29,7 @@ describe('CronLoyaltyController (integration)', () => {
         name: 'Expiry Test Tenant',
         slug: 'expiry-test-tenant',
         adminEmail: 'expiry@test.example',
+      country_code: 'BR',
       })
       .expect(201);
     tenantId = body.tenantId as string;

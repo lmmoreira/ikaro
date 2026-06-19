@@ -64,7 +64,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${PLATFORM_KEY}`)
-      .send({ name: 'Lava Car Story', slug, adminEmail, timezone: 'America/Sao_Paulo' })
+      .send({ name: 'Lava Car Story', slug, adminEmail, country_code: 'BR', timezone: 'America/Sao_Paulo' })
       .expect(201);
 
     expect(body.tenantId).toBeDefined();
@@ -94,11 +94,11 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
       request(app.getHttpServer())
         .post('/internal/tenants')
         .set('Authorization', `Bearer ${PLATFORM_KEY}`)
-        .send({ name: 'Iso A', slug: slugA, adminEmail: emailA, timezone: 'America/Sao_Paulo' }),
+        .send({ name: 'Iso A', slug: slugA, adminEmail: emailA, country_code: 'BR', timezone: 'America/Sao_Paulo' }),
       request(app.getHttpServer())
         .post('/internal/tenants')
         .set('Authorization', `Bearer ${PLATFORM_KEY}`)
-        .send({ name: 'Iso B', slug: slugB, adminEmail: emailB, timezone: 'America/Sao_Paulo' }),
+        .send({ name: 'Iso B', slug: slugB, adminEmail: emailB, country_code: 'BR', timezone: 'America/Sao_Paulo' }),
     ]);
 
     const tenantAId: string = resA.body.tenantId;

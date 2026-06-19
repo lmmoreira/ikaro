@@ -60,6 +60,7 @@ describe('TenantSettingsController (integration)', () => {
         name: 'Lavacar Settings Test',
         slug: 'lavacar-settings-integ-01',
         adminEmail: 'settings@test.com.br',
+      country_code: 'BR',
       })
       .expect(201);
 

@@ -75,7 +75,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${PLATFORM_KEY}`)
-      .send({ name: 'Full Workflow Notif', slug, adminEmail, timezone: 'America/Sao_Paulo' })
+      .send({ name: 'Full Workflow Notif', slug, adminEmail, country_code: 'BR', timezone: 'America/Sao_Paulo' })
       .expect(201);
 
     tenantId = body.tenantId as string;

@@ -32,14 +32,16 @@ describe('ScheduleOpeningController (integration)', () => {
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${TEST_KEY}`)
-      .send({ name: 'Opening Tenant A', slug: 'opening-tenant-a', adminEmail: 'a@opening.test' })
+      .send({ name: 'Opening Tenant A', slug: 'opening-tenant-a', adminEmail: 'a@opening.test',
+      country_code: 'BR' })
       .expect(201);
     tenantAId = a.tenantId as string;
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${TEST_KEY}`)
-      .send({ name: 'Opening Tenant B', slug: 'opening-tenant-b', adminEmail: 'b@opening.test' })
+      .send({ name: 'Opening Tenant B', slug: 'opening-tenant-b', adminEmail: 'b@opening.test',
+      country_code: 'BR' })
       .expect(201);
     tenantBId = b.tenantId as string;
   });
@@ -172,6 +174,7 @@ describe('ScheduleOpeningController (integration)', () => {
           name: 'Opening List Tenant',
           slug: 'opening-tenant-list',
           adminEmail: 'list@opening.test',
+      country_code: 'BR',
         })
         .expect(201);
       listTenantId = body.tenantId as string;

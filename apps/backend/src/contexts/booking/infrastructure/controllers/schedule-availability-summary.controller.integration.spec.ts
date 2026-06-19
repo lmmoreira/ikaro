@@ -39,14 +39,16 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${TEST_KEY}`)
-      .send({ name: 'Summary Tenant A', slug: 'summary-tenant-a', adminEmail: 'a@summary.test' })
+      .send({ name: 'Summary Tenant A', slug: 'summary-tenant-a', adminEmail: 'a@summary.test',
+      country_code: 'BR' })
       .expect(201);
     tenantAId = a.tenantId as string;
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${TEST_KEY}`)
-      .send({ name: 'Summary Tenant B', slug: 'summary-tenant-b', adminEmail: 'b@summary.test' })
+      .send({ name: 'Summary Tenant B', slug: 'summary-tenant-b', adminEmail: 'b@summary.test',
+      country_code: 'BR' })
       .expect(201);
     tenantBId = b.tenantId as string;
 
@@ -112,6 +114,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
           name: 'Summary Closure Tenant',
           slug: 'summary-closure',
           adminEmail: 'closure@summary.test',
+      country_code: 'BR',
         })
         .expect(201);
       const closureTenantId = tenantBody.tenantId as string;
@@ -155,6 +158,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
           name: 'Summary Opening Tenant',
           slug: 'summary-opening',
           adminEmail: 'opening@summary.test',
+      country_code: 'BR',
         })
         .expect(201);
       const openingTenantId = tenantBody.tenantId as string;
