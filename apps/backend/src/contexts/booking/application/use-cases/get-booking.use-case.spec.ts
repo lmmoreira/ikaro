@@ -1,4 +1,5 @@
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
@@ -26,7 +27,7 @@ describe('GetBookingUseCase', () => {
         .withActorId(STAFF_ID)
         .withActorRole('MANAGER')
         .build();
-      useCase = new GetBookingUseCase(repo, ctx);
+      useCase = new GetBookingUseCase(repo, new InMemoryTenantLocalizationPort(), ctx);
     });
 
     it('returns booking detail for any booking in the tenant', async () => {
@@ -74,7 +75,7 @@ describe('GetBookingUseCase', () => {
         .withActorType('CUSTOMER')
         .withActorRole('CUSTOMER')
         .build();
-      useCase = new GetBookingUseCase(repo, ctx);
+      useCase = new GetBookingUseCase(repo, new InMemoryTenantLocalizationPort(), ctx);
     });
 
     it('returns own booking', async () => {

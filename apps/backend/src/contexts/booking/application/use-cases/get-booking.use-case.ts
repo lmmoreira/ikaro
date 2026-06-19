@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { formatMoney } from '../../../../shared/utils/money-format';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
+import {
+  ITenantLocalizationPort,
+  TENANT_LOCALIZATION_PORT,
+} from '../ports/tenant-localization.port';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { Booking } from '../../domain/booking.aggregate';
 
@@ -49,6 +54,8 @@ export interface GetBookingUseCaseResult {
 export class GetBookingUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
+    @Inject(TENANT_LOCALIZATION_PORT)
+    private readonly localizationPort: ITenantLocalizationPort,
     private readonly tenantContext: TenantContext,
   ) {}
 
@@ -63,10 +70,11 @@ export class GetBookingUseCase {
       throw new BookingNotFoundError(dto.bookingId);
     }
 
-    return this.toResult(booking);
+    const { locale } = await this.localizationPort.getLocalization(tenantId);
+    return this.toResult(booking, locale);
   }
 
-  private toResult(booking: Booking): GetBookingUseCaseResult {
+  private toResult(booking: Booking, locale: string): GetBookingUseCaseResult {
     const addr = booking.pickupAddress?.toJSON() ?? null;
     return {
       id: booking.id,
@@ -81,13 +89,21 @@ export class GetBookingUseCase {
       totalPrice: {
         amount: booking.totalPrice.amount.toNumber(),
         currency: booking.totalPrice.currency,
-        formatted: booking.totalPrice.format(),
+        formatted: formatMoney(
+          booking.totalPrice.amount.toFixed(2),
+          locale,
+          booking.totalPrice.currency,
+        ),
       },
       totalActualPrice: booking.totalActualPrice
         ? {
             amount: booking.totalActualPrice.amount.toNumber(),
             currency: booking.totalActualPrice.currency,
-            formatted: booking.totalActualPrice.format(),
+            formatted: formatMoney(
+              booking.totalActualPrice.amount.toFixed(2),
+              locale,
+              booking.totalActualPrice.currency,
+            ),
           }
         : null,
       pickupAddress: addr
@@ -108,7 +124,11 @@ export class GetBookingUseCase {
         priceAtBooking: {
           amount: l.priceAtBooking.amount.toNumber(),
           currency: l.priceAtBooking.currency,
-          formatted: l.priceAtBooking.format(),
+          formatted: formatMoney(
+            l.priceAtBooking.amount.toFixed(2),
+            locale,
+            l.priceAtBooking.currency,
+          ),
         },
         durationMinsAtBooking: l.durationMinsAtBooking,
         pointsValueAtBooking: l.pointsValueAtBooking,
@@ -117,7 +137,11 @@ export class GetBookingUseCase {
           ? {
               amount: l.actualPriceCharged.amount.toNumber(),
               currency: l.actualPriceCharged.currency,
-              formatted: l.actualPriceCharged.format(),
+              formatted: formatMoney(
+                l.actualPriceCharged.amount.toFixed(2),
+                locale,
+                l.actualPriceCharged.currency,
+              ),
             }
           : null,
       })),

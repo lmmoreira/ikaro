@@ -1,5 +1,6 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import {
@@ -21,6 +22,7 @@ describe('UpdateServiceUseCase', () => {
     useCase = new UpdateServiceUseCase(
       repo,
       new InMemoryTransactionManager(),
+      new InMemoryTenantLocalizationPort(),
       new TenantContextBuilder().withTenantId(TENANT_A).build(),
     );
   });

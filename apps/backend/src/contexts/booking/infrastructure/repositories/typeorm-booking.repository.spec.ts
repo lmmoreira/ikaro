@@ -5,7 +5,9 @@ import {
   BookingEntityBuilder,
   BookingLineEntityBuilder,
 } from '../../../../test/builders/booking/index';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { Money } from '../../../../shared/value-objects/money';
+import { TENANT_LOCALIZATION_PORT } from '../../application/ports/tenant-localization.port';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
@@ -45,6 +47,7 @@ describe('TypeOrmBookingRepository', () => {
           provide: getRepositoryToken(BookingLineEntity),
           useValue: { find: jest.fn(), save: jest.fn(), delete: jest.fn() },
         },
+        { provide: TENANT_LOCALIZATION_PORT, useClass: InMemoryTenantLocalizationPort },
       ],
     }).compile();
 

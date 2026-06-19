@@ -541,7 +541,7 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 
 ---
 
-#### TD02-S01 — `LocalizationSettings` expansion + `CountrySpec` registry
+#### TD02-S01 — `LocalizationSettings` expansion + `CountrySpec` registry ✅ Done
 
 **Scope:**
 - Create `packages/i18n/` package (`package.json`, `tsconfig.json`, `src/country-defaults.ts`, `src/index.ts`)

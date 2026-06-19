@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { ServiceEntity } from '../entities/service.entity';
 import { TypeOrmServiceRepository } from './typeorm-service.repository';
@@ -11,7 +12,10 @@ describe('TypeOrmServiceRepository (integration)', () => {
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
-    repo = new TypeOrmServiceRepository(dataSource.getRepository(ServiceEntity));
+    repo = new TypeOrmServiceRepository(
+      dataSource.getRepository(ServiceEntity),
+      new InMemoryTenantLocalizationPort(),
+    );
   });
 
   afterAll(async () => {
@@ -35,7 +39,7 @@ describe('TypeOrmServiceRepository (integration)', () => {
     expect(found!.name).toBe('Lavagem Completa');
     expect(found!.price.amount.toNumber()).toBe(150);
     expect(found!.price.currency).toBe('BRL');
-    expect(found!.price.format()).toBe('R$ 150,00');
+    expect(found!.price.format('pt-BR', 'BRL')).toBe('R$ 150,00');
     expect(found!.durationMinutes).toBe(60);
     expect(found!.loyaltyPointsValue).toBe(10);
     expect(found!.isActive).toBe(true);

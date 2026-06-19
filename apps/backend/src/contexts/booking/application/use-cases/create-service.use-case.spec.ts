@@ -1,5 +1,6 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { BookingDomainError } from '../../domain/errors/booking-domain.error';
 import { CreateServiceUseCase } from './create-service.use-case';
@@ -26,6 +27,7 @@ describe('CreateServiceUseCase', () => {
     useCase = new CreateServiceUseCase(
       repo,
       new InMemoryTransactionManager(),
+      new InMemoryTenantLocalizationPort(),
       new TenantContextBuilder()
         .withTenantId(TENANT_A)
         .withCorrelationId(CORRELATION_ID)
@@ -44,7 +46,7 @@ describe('CreateServiceUseCase', () => {
     expect(result.description).toBe('Lavagem exterior e interior');
     expect(result.price.amount).toBe(150);
     expect(result.price.currency).toBe('BRL');
-    expect(result.price.formatted).toBe('R$ 150,00');
+    expect(result.price.formatted).toBe('R$ 150,00');
     expect(result.durationMinutes).toBe(60);
     expect(result.loyaltyPointsValue).toBe(10);
     expect(result.requiresPickupAddress).toBe(false);

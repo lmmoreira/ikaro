@@ -1,4 +1,5 @@
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -27,7 +28,7 @@ describe('ListBookingsUseCase', () => {
         .withActorId(STAFF_ID)
         .withActorRole('MANAGER')
         .build();
-      useCase = new ListBookingsUseCase(repo, ctx);
+      useCase = new ListBookingsUseCase(repo, new InMemoryTenantLocalizationPort(), ctx);
     });
 
     it('returns all tenant bookings when no filters applied', async () => {
@@ -127,7 +128,7 @@ describe('ListBookingsUseCase', () => {
         .withActorType('CUSTOMER')
         .withActorRole('CUSTOMER')
         .build();
-      useCase = new ListBookingsUseCase(repo, ctx);
+      useCase = new ListBookingsUseCase(repo, new InMemoryTenantLocalizationPort(), ctx);
     });
 
     it('returns only own bookings', async () => {

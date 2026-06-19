@@ -5,7 +5,12 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import { Money } from '../../../../shared/value-objects/money';
+import { formatMoney } from '../../../../shared/utils/money-format';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import {
+  ITenantLocalizationPort,
+  TENANT_LOCALIZATION_PORT,
+} from '../ports/tenant-localization.port';
 import { CreateServiceDto } from '../dtos/create-service.dto';
 import { Service } from '../../domain/service.aggregate';
 
@@ -26,12 +31,15 @@ export class CreateServiceUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(TENANT_LOCALIZATION_PORT)
+    private readonly localizationPort: ITenantLocalizationPort,
     private readonly tenantContext: TenantContext,
   ) {}
 
   async execute(dto: CreateServiceDto): Promise<CreateServiceUseCaseResult> {
     const tenantId = this.tenantContext.tenantId;
-    const price = Money.from(dto.priceAmount, 'BRL');
+    const { currency, locale } = await this.localizationPort.getLocalization(tenantId);
+    const price = Money.from(dto.priceAmount, currency);
 
     const service = Service.create(
       tenantId,
@@ -47,10 +55,10 @@ export class CreateServiceUseCase {
       await this.serviceRepo.save(service);
     });
 
-    return this.toResult(service);
+    return this.toResult(service, locale);
   }
 
-  private toResult(service: Service): CreateServiceUseCaseResult {
+  private toResult(service: Service, locale: string): CreateServiceUseCaseResult {
     return {
       id: service.id,
       name: service.name,
@@ -58,7 +66,7 @@ export class CreateServiceUseCase {
       price: {
         amount: service.price.amount.toNumber(),
         currency: service.price.currency,
-        formatted: service.price.format(),
+        formatted: formatMoney(service.price.amount.toFixed(2), locale, service.price.currency),
       },
       durationMinutes: service.durationMinutes,
       loyaltyPointsValue: service.loyaltyPointsValue,

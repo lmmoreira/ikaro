@@ -2,7 +2,9 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ServiceEntityBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { Money } from '../../../../shared/value-objects/money';
+import { TENANT_LOCALIZATION_PORT } from '../../application/ports/tenant-localization.port';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceEntity } from '../entities/service.entity';
 import { TypeOrmServiceRepository } from './typeorm-service.repository';
@@ -23,6 +25,7 @@ describe('TypeOrmServiceRepository', () => {
             save: jest.fn(),
           },
         },
+        { provide: TENANT_LOCALIZATION_PORT, useClass: InMemoryTenantLocalizationPort },
       ],
     }).compile();
 
@@ -115,6 +118,6 @@ describe('TypeOrmServiceRepository', () => {
 
     const result = await repo.findById(entity.id, entity.tenantId);
 
-    expect(result!.price.format()).toBe('R$ 150,00');
+    expect(result!.price.format('pt-BR', 'BRL')).toBe('R$ 150,00');
   });
 });
