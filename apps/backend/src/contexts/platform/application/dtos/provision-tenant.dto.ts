@@ -11,7 +11,7 @@ export const ProvisionTenantSchema = z.object({
   adminEmail: z.string().refine(Email.isValid, { message: 'adminEmail must be a valid email' }),
   country_code: z
     .string()
-    .length(2, { message: 'country_code must be a 2-letter ISO 3166-1 alpha-2 code' })
+    .regex(/^[A-Za-z]{2}$/, { message: 'country_code must be a 2-letter ISO 3166-1 alpha-2 code' })
     .toUpperCase(),
   timezone: z
     .string()

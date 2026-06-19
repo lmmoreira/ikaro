@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { countrySpec } from '@ikaro/i18n';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import {
@@ -76,28 +75,6 @@ function emptyBusinessInfo(): HotsiteBusinessInfo {
   };
 }
 
-// Used only for the unpublished payload where the tenant aggregate is not loaded.
-function defaultLocalization(): HotsiteLocalization {
-  const spec = countrySpec('BR');
-  return {
-    language: spec.language,
-    currency: spec.currency,
-    phonePrefix: spec.phonePrefix,
-    dateFormat: spec.dateFormat,
-    timeFormat: spec.timeFormat,
-    numberFormat: spec.numberFormat,
-    firstDayOfWeek: spec.firstDayOfWeek,
-    address: {
-      postalLabel: spec.address.postalLabel,
-      postalPlaceholder: spec.address.postalPlaceholder,
-      stateLabel: spec.address.stateLabel,
-      requireNeighborhood: spec.address.requireNeighborhood,
-      neighborhoodLabel: spec.address.neighborhoodLabel,
-      lookupService: spec.address.lookupService,
-    },
-  };
-}
-
 @Injectable()
 export class GetHotsiteManifestUseCase {
   constructor(
@@ -114,6 +91,9 @@ export class GetHotsiteManifestUseCase {
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
 
+    const tenant = await this.tenantRepo.findById(tenantId);
+    if (!tenant) throw new TenantNotFoundError(tenantId);
+
     if (!config.isPublished) {
       const { branding } = this.imageUrlResolver.resolve(config.branding, [], (storagePath) =>
         this.storageService.getPublicUrl(storagePath),
@@ -124,12 +104,9 @@ export class GetHotsiteManifestUseCase {
         seo: config.seo,
         isPublished: false,
         business: emptyBusinessInfo(),
-        localization: defaultLocalization(),
+        localization: this.mapLocalization(tenant.settings.resolveLocalization()),
       };
     }
-
-    const tenant = await this.tenantRepo.findById(tenantId);
-    if (!tenant) throw new TenantNotFoundError(tenantId);
 
     const { branding, layout } = this.imageUrlResolver.resolve(
       config.branding,

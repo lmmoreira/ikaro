@@ -53,7 +53,7 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
     address: {
       postalLabel: 'CEP',
       postalPlaceholder: '00000-000',
-      postalRegex: /^\d{8}$/,
+      postalRegex: /^\d{5}-?\d{3}$/,
       stateLabel: 'UF',
       stateMaxLen: 2,
       statePattern: /^[A-Z]{2}$/,

@@ -24,10 +24,25 @@ export class AddCountryCodeToLocalization1750000000001 implements MigrationInter
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // Only remove country_code entries that this migration set (value = 'BR').
+    // Tenants that updated their country_code after migration keep their value intact.
     await queryRunner.query(`
       UPDATE "platform"."tenants"
       SET "settings" = "settings" #- '{localization,country_code}'
-      WHERE "settings" -> 'localization' ->> 'country_code' IS NOT NULL
+      WHERE "settings" -> 'localization' ->> 'country_code' = 'BR'
+    `);
+
+    // Restore the default currency_symbol for tenants that had it removed
+    await queryRunner.query(`
+      UPDATE "platform"."tenants"
+      SET "settings" = jsonb_set(
+        "settings",
+        '{localization,currency_symbol}',
+        '"R$"',
+        true
+      )
+      WHERE "settings" -> 'localization' ->> 'currency_symbol' IS NULL
+        AND "settings" -> 'localization' ->> 'currency' = 'BRL'
     `);
   }
 }

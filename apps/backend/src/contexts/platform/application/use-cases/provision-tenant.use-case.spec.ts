@@ -45,6 +45,21 @@ describe('ProvisionTenantUseCase', () => {
     expect(savedConfig!.isPublished).toBe(false);
   });
 
+  it('uses the country default timezone when timezone is omitted for a non-BR country', async () => {
+    await useCase.execute({
+      name: 'Lavacar US',
+      slug: 'lavacar-us',
+      adminEmail: 'admin@lavacar.us',
+      country_code: 'US',
+    });
+
+    const tenant = await tenantRepo.findBySlug('lavacar-us');
+    expect(tenant!.settings.business_hours.timezone).toBe('America/New_York');
+    expect(tenant!.settings.localization.country_code).toBe('US');
+    expect(tenant!.settings.localization.currency).toBe('USD');
+    expect(tenant!.settings.localization.language).toBe('en');
+  });
+
   it('uses the provided timezone instead of the default', async () => {
     await useCase.execute({
       name: 'Lavacar Norte',
