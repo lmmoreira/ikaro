@@ -1,7 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { configureBffClient } from '@/lib/api/bff-client';
 
 interface QueryProviderProps {
@@ -17,6 +17,8 @@ export function QueryProvider({
   tenantSlug = '',
   tenantId = '',
 }: QueryProviderProps) {
+  configureBffClient({ token, tenantSlug, tenantId });
+
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -25,10 +27,6 @@ export function QueryProvider({
         },
       }),
   );
-
-  useEffect(() => {
-    configureBffClient({ token, tenantSlug, tenantId });
-  }, [token, tenantSlug, tenantId]);
 
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }

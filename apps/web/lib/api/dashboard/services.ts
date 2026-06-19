@@ -1,5 +1,10 @@
-import type { HotsiteServiceResponse } from '@ikaro/types';
+import type { HotsiteServiceListResponse, HotsiteServiceResponse } from '@ikaro/types';
 import { bffClient } from '../bff-client';
+
+export async function listServices(): Promise<HotsiteServiceListResponse> {
+  const res = await bffClient.get<HotsiteServiceListResponse>('/services');
+  return res.data;
+}
 
 export interface CreateServiceRequest {
   readonly name: string;

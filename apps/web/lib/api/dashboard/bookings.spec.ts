@@ -1,0 +1,128 @@
+import MockAdapter from 'axios-mock-adapter';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { bffClient } from '../bff-client';
+import {
+  approveBooking,
+  cancelBooking,
+  completeBooking,
+  createAuthenticatedBooking,
+  getBooking,
+  listBookings,
+  rejectBooking,
+  requestMoreInfo,
+  rescheduleBooking,
+  submitBookingInfo,
+} from './bookings';
+
+const mock = new MockAdapter(bffClient);
+
+beforeEach(() => mock.reset());
+afterEach(() => mock.reset());
+
+const booking = { id: 'b-1', status: 'PENDING' };
+
+describe('listBookings', () => {
+  it('calls GET /bookings and returns the list', async () => {
+    mock.onGet('/bookings').reply(200, { items: [booking], pagination: { total: 1 } });
+    const res = await listBookings();
+    expect(res.items).toHaveLength(1);
+  });
+
+  it('passes filters as query params', async () => {
+    mock.onGet('/bookings').reply(200, { items: [], pagination: { total: 0 } });
+    await listBookings({ status: 'PENDING', limit: 10 });
+    expect(mock.history['get']?.[0]?.params).toMatchObject({ status: 'PENDING', limit: 10 });
+  });
+});
+
+describe('getBooking', () => {
+  it('calls GET /bookings/:id', async () => {
+    mock.onGet('/bookings/b-1').reply(200, booking);
+    const res = await getBooking('b-1');
+    expect(res).toMatchObject(booking);
+  });
+});
+
+describe('approveBooking', () => {
+  it('calls PATCH /bookings/:id/approve', async () => {
+    mock
+      .onPatch('/bookings/b-1/approve')
+      .reply(200, { bookingId: 'b-1', status: 'APPROVED', approvedAt: '' });
+    const res = await approveBooking('b-1');
+    expect(res.status).toBe('APPROVED');
+  });
+});
+
+describe('rejectBooking', () => {
+  it('calls PATCH /bookings/:id/reject with reason', async () => {
+    mock
+      .onPatch('/bookings/b-1/reject')
+      .reply(200, { bookingId: 'b-1', status: 'REJECTED', rejectedAt: '' });
+    const res = await rejectBooking('b-1', { reason: 'No availability' });
+    expect(res.status).toBe('REJECTED');
+  });
+});
+
+describe('cancelBooking', () => {
+  it('calls PATCH /bookings/:id/cancel', async () => {
+    mock.onPatch('/bookings/b-1/cancel').reply(200, { bookingId: 'b-1', status: 'CANCELLED' });
+    const res = await cancelBooking('b-1');
+    expect(res.status).toBe('CANCELLED');
+  });
+});
+
+describe('rescheduleBooking', () => {
+  it('calls PATCH /bookings/:id/reschedule', async () => {
+    mock
+      .onPatch('/bookings/b-1/reschedule')
+      .reply(200, { bookingId: 'b-1', status: 'APPROVED', scheduledAt: '2026-07-01T09:00:00Z' });
+    const res = await rescheduleBooking('b-1', { scheduledAt: '2026-07-01T09:00:00Z' });
+    expect(res.scheduledAt).toBe('2026-07-01T09:00:00Z');
+  });
+});
+
+describe('completeBooking', () => {
+  it('calls PATCH /bookings/:id/complete', async () => {
+    mock.onPatch('/bookings/b-1/complete').reply(200, {
+      bookingId: 'b-1',
+      status: 'COMPLETED',
+      completedAt: '',
+      totalActualPrice: { amount: 100, currency: 'BRL' },
+    });
+    const res = await completeBooking('b-1', {
+      lines: [{ lineId: 'l-1', actualPriceCharged: 100 }],
+    });
+    expect(res.status).toBe('COMPLETED');
+  });
+});
+
+describe('requestMoreInfo', () => {
+  it('calls PATCH /bookings/:id/request-info', async () => {
+    mock
+      .onPatch('/bookings/b-1/request-info')
+      .reply(200, { bookingId: 'b-1', status: 'INFO_REQUESTED', infoRequestedAt: '' });
+    const res = await requestMoreInfo('b-1', { message: 'Please send vehicle photo' });
+    expect(res.status).toBe('INFO_REQUESTED');
+  });
+});
+
+describe('submitBookingInfo', () => {
+  it('calls PATCH /bookings/:id/submit-info', async () => {
+    mock
+      .onPatch('/bookings/b-1/submit-info')
+      .reply(200, { bookingId: 'b-1', status: 'PENDING', infoSubmittedAt: '' });
+    const res = await submitBookingInfo('b-1', { response: 'Here is the photo' });
+    expect(res.status).toBe('PENDING');
+  });
+});
+
+describe('createAuthenticatedBooking', () => {
+  it('calls POST /bookings/authenticated', async () => {
+    mock.onPost('/bookings/authenticated').reply(201, { bookingId: 'b-new', status: 'PENDING' });
+    const res = await createAuthenticatedBooking({
+      scheduledAt: '2026-07-01T09:00:00Z',
+      serviceIds: ['svc-1'],
+    });
+    expect(res.bookingId).toBe('b-new');
+  });
+});
