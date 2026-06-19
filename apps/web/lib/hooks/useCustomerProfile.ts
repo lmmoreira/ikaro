@@ -1,0 +1,24 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  getCustomerProfile,
+  updateCustomerProfile,
+  type UpdateCustomerProfileRequest,
+} from '@/lib/api/dashboard/customers';
+import { getTenantId } from '@/lib/api/bff-client';
+
+export function useCustomerProfile() {
+  const tenantId = getTenantId();
+  return useQuery({
+    queryKey: ['customer', 'profile', tenantId],
+    queryFn: getCustomerProfile,
+  });
+}
+
+export function useUpdateCustomerProfile() {
+  const queryClient = useQueryClient();
+  const tenantId = getTenantId();
+  return useMutation({
+    mutationFn: (body: UpdateCustomerProfileRequest) => updateCustomerProfile(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customer', 'profile', tenantId] }),
+  });
+}
