@@ -43,7 +43,7 @@ export abstract class BaseBookingReminderNotificationUseCase extends BaseNotific
     }
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
-    const timezone = tenantInfo?.timezone ?? 'America/Sao_Paulo';
+    const timezone = tenantInfo?.timezone ?? 'UTC';
     const start = new Date(dto.scheduledAt);
     const localDate = utcDateToLocalDate(start, timezone);
     const localTime = utcDateToLocalHHMM(start, timezone);

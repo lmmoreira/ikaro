@@ -1,3 +1,4 @@
+import { AddressSpec, countrySpec } from '@ikaro/i18n';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
@@ -38,10 +39,24 @@ export interface BusinessHours {
 }
 
 export interface LocalizationSettings {
+  country_code: string;
   currency: string;
-  currency_symbol: string;
+  currency_symbol?: string;
   language: string;
   decimal_places: number;
+}
+
+export interface ResolvedLocalization {
+  countryCode: string;
+  language: string;
+  currency: string;
+  decimalPlaces: number;
+  phonePrefix: string;
+  dateFormat: string;
+  timeFormat: '24h' | '12h';
+  numberFormat: string;
+  firstDayOfWeek: 0 | 1;
+  address: AddressSpec;
 }
 
 export interface BusinessInfoAddress {
@@ -103,6 +118,22 @@ export class TenantSettings {
     return this.props.notification ?? { from_email: null };
   }
 
+  resolveLocalization(): ResolvedLocalization {
+    const spec = countrySpec(this.props.localization.country_code);
+    return {
+      countryCode: this.props.localization.country_code,
+      language: this.props.localization.language,
+      currency: this.props.localization.currency,
+      decimalPlaces: this.props.localization.decimal_places,
+      phonePrefix: spec.phonePrefix,
+      dateFormat: spec.dateFormat,
+      timeFormat: spec.timeFormat,
+      numberFormat: spec.numberFormat,
+      firstDayOfWeek: spec.firstDayOfWeek,
+      address: spec.address,
+    };
+  }
+
   get business_info(): BusinessInfo {
     return {
       phone: this.props.business_info?.phone ?? null,
@@ -125,7 +156,8 @@ export class TenantSettings {
     };
   }
 
-  static default(timezone = 'America/Sao_Paulo'): TenantSettings {
+  static default(timezone = 'America/Sao_Paulo', country_code = 'BR'): TenantSettings {
+    const spec = countrySpec(country_code);
     return new TenantSettings({
       loyalty: {
         expiry_days: 180,
@@ -152,9 +184,9 @@ export class TenantSettings {
         sunday: null,
       },
       localization: {
-        currency: 'BRL',
-        currency_symbol: 'R$',
-        language: 'pt-BR',
+        country_code,
+        currency: spec.currency,
+        language: spec.language,
         decimal_places: 2,
       },
       notification: {
@@ -182,7 +214,7 @@ export class TenantSettings {
     TenantSettings.validateLoyalty(props.loyalty);
     TenantSettings.validateBooking(props.booking);
     TenantSettings.validateBusinessHours(props.business_hours);
-    TenantSettings.validateBusinessInfo(props.business_info);
+    TenantSettings.validateBusinessInfo(props.business_info, props.localization.country_code);
   }
 
   private static validateLoyalty(loyalty: LoyaltySettings): void {
@@ -246,7 +278,10 @@ export class TenantSettings {
     }
   }
 
-  private static validateBusinessInfo(businessInfo?: BusinessInfo): void {
+  private static validateBusinessInfo(
+    businessInfo: BusinessInfo | undefined,
+    country_code: string,
+  ): void {
     if (!businessInfo) return;
     if (businessInfo.phone != null && !PhoneNumber.isValid(businessInfo.phone)) {
       throw new PlatformDomainError('business_info.phone must be a valid phone number');
@@ -254,7 +289,7 @@ export class TenantSettings {
     if (businessInfo.email != null && !Email.isValid(businessInfo.email)) {
       throw new PlatformDomainError('business_info.email must be a valid email address');
     }
-    TenantSettings.validateBusinessAddress(businessInfo.address);
+    TenantSettings.validateBusinessAddress(businessInfo.address, country_code);
     TenantSettings.validateSocialLinks(businessInfo.social_links);
   }
 
@@ -267,19 +302,30 @@ export class TenantSettings {
     }
   }
 
-  private static validateBusinessAddress(address: BusinessInfoAddress | null): void {
+  private static validateBusinessAddress(
+    address: BusinessInfoAddress | null,
+    country_code: string,
+  ): void {
     if (address == null) return;
-    if (!/^\d{8}$/.test(address.zip_code)) {
-      throw new PlatformDomainError('business_info.address.zip_code must be exactly 8 digits');
+    const spec = countrySpec(country_code).address;
+    if (spec.postalRegex !== null && !spec.postalRegex.test(address.zip_code)) {
+      throw new PlatformDomainError(
+        `business_info.address.zip_code is not a valid ${spec.postalLabel}`,
+      );
     }
-    if (!/^[A-Z]{2}$/.test(address.state)) {
-      throw new PlatformDomainError('business_info.address.state must be a 2-letter uppercase UF');
+    if (spec.statePattern !== null && !spec.statePattern.test(address.state)) {
+      throw new PlatformDomainError(
+        `business_info.address.state is not a valid ${spec.stateLabel}`,
+      );
     }
-    const required = ['street', 'number', 'neighborhood', 'city', 'state', 'zip_code'] as const;
-    for (const field of required) {
+    const alwaysRequired = ['street', 'number', 'city', 'state', 'zip_code'] as const;
+    for (const field of alwaysRequired) {
       if (!address[field]) {
         throw new PlatformDomainError(`business_info.address.${field} is required`);
       }
+    }
+    if (spec.requireNeighborhood && !address.neighborhood) {
+      throw new PlatformDomainError('business_info.address.neighborhood is required');
     }
   }
 }

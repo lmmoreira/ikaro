@@ -58,7 +58,7 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
     dto: SendBookingRescheduledNotificationDto,
   ): Promise<SendBookingRescheduledNotificationUseCaseResult> {
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
-    const timezone = tenantInfo?.timezone ?? 'America/Sao_Paulo';
+    const timezone = tenantInfo?.timezone ?? 'UTC';
     const previousStart = new Date(dto.previousSlot.startTime);
     const newStart = new Date(dto.newSlot.startTime);
     const previousLocalDate = utcDateToLocalDate(previousStart, timezone);

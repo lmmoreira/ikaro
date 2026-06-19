@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { countrySpec } from '@ikaro/i18n';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
 import {
@@ -31,7 +32,7 @@ export class ProvisionTenantUseCase {
   ) {}
 
   async execute(dto: ProvisionTenantDto): Promise<ProvisionTenantUseCaseResult> {
-    const timezone = dto.timezone ?? 'America/Sao_Paulo';
+    const timezone = dto.timezone ?? countrySpec(dto.country_code).defaultTimezone;
     // correlationId generated here — /internal routes skip TenantInterceptor
     const correlationId = uuidv7();
 
@@ -39,7 +40,14 @@ export class ProvisionTenantUseCase {
       throw new SlugAlreadyTakenError(dto.slug);
     }
 
-    const tenant = Tenant.create(dto.name, dto.slug, dto.adminEmail, correlationId, timezone);
+    const tenant = Tenant.create(
+      dto.name,
+      dto.slug,
+      dto.adminEmail,
+      correlationId,
+      timezone,
+      dto.country_code,
+    );
     const config = HotsiteConfig.create(tenant.id);
 
     await this.txManager.run(async () => {

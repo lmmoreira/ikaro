@@ -65,8 +65,8 @@ const TENANT_SETTINGS = {
     sunday: null,
   },
   localization: {
+    country_code: 'BR',
     currency: 'BRL',
-    currency_symbol: 'R$',
     language: 'pt-BR',
     decimal_places: 2,
   },

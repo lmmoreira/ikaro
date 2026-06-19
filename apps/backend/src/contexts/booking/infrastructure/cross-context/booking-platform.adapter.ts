@@ -22,7 +22,7 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
     const tenants = await this.tenantQueryService.findAllActive();
     return tenants.map((t) => ({
       id: t.id,
-      timezone: t.settings.business_hours?.timezone ?? 'America/Sao_Paulo',
+      timezone: t.settings.business_hours?.timezone ?? 'UTC',
     }));
   }
 

@@ -19,6 +19,7 @@ describe('TenantSettings', () => {
       expect(settings.business_hours.timezone).toBe('America/Sao_Paulo');
       expect(settings.business_hours.monday).toEqual({ open: '09:00', close: '18:00' });
       expect(settings.business_hours.sunday).toBeNull();
+      expect(settings.localization.country_code).toBe('BR');
       expect(settings.localization.currency).toBe('BRL');
       expect(settings.localization.language).toBe('pt-BR');
       expect(settings.notification.from_email).toBeNull();

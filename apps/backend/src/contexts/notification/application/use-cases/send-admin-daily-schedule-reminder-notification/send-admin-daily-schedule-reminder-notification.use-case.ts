@@ -74,7 +74,7 @@ export class SendAdminDailyScheduleReminderNotificationUseCase extends BaseNotif
     }
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
-    const timezone = tenantInfo?.timezone ?? 'America/Sao_Paulo';
+    const timezone = tenantInfo?.timezone ?? 'UTC';
     const bookingsHtml = this.buildBookingsHtml(dto.bookingsToday, timezone);
 
     const emailSent = await this.dispatchTemplatesToMany(templates, dto, managerEmails, {

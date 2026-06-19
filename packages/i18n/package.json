@@ -1,0 +1,14 @@
+{
+  "name": "@ikaro/i18n",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Country specs, locale defaults, and i18n locale files",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@ikaro/config": "workspace:*"
+  }
+}

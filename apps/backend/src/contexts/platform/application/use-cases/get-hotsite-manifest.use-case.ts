@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { countrySpec } from '@ikaro/i18n';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import {
@@ -18,7 +19,7 @@ export interface HotsiteBusinessInfoAddress {
   street: string;
   number: string;
   complement?: string;
-  neighborhood: string;
+  neighborhood?: string;
   city: string;
   state: string;
   zipCode: string;
@@ -37,8 +38,24 @@ export interface HotsiteBusinessInfo {
   socialLinks: HotsiteBusinessInfoSocialLinks | null;
 }
 
+export interface HotsiteAddressSpec {
+  postalLabel: string;
+  postalPlaceholder: string;
+  stateLabel: string;
+  requireNeighborhood: boolean;
+  neighborhoodLabel: string | null;
+  lookupService: 'viacep' | 'none';
+}
+
 export interface HotsiteLocalization {
   language: string;
+  currency: string;
+  phonePrefix: string;
+  dateFormat: string;
+  timeFormat: '24h' | '12h';
+  numberFormat: string;
+  firstDayOfWeek: 0 | 1;
+  address: HotsiteAddressSpec;
 }
 
 export interface GetHotsiteManifestUseCaseResult {
@@ -59,10 +76,26 @@ function emptyBusinessInfo(): HotsiteBusinessInfo {
   };
 }
 
-// Matches TenantSettings.default().localization.language — used only for the
-// unpublished/minimal payload, where the tenant aggregate is not loaded.
+// Used only for the unpublished payload where the tenant aggregate is not loaded.
 function defaultLocalization(): HotsiteLocalization {
-  return { language: 'pt-BR' };
+  const spec = countrySpec('BR');
+  return {
+    language: spec.language,
+    currency: spec.currency,
+    phonePrefix: spec.phonePrefix,
+    dateFormat: spec.dateFormat,
+    timeFormat: spec.timeFormat,
+    numberFormat: spec.numberFormat,
+    firstDayOfWeek: spec.firstDayOfWeek,
+    address: {
+      postalLabel: spec.address.postalLabel,
+      postalPlaceholder: spec.address.postalPlaceholder,
+      stateLabel: spec.address.stateLabel,
+      requireNeighborhood: spec.address.requireNeighborhood,
+      neighborhoodLabel: spec.address.neighborhoodLabel,
+      lookupService: spec.address.lookupService,
+    },
+  };
 }
 
 @Injectable()
@@ -110,7 +143,29 @@ export class GetHotsiteManifestUseCase {
       seo: config.seo,
       isPublished: config.isPublished,
       business: this.mapBusinessInfo(tenant.settings.business_info),
-      localization: { language: tenant.settings.localization.language },
+      localization: this.mapLocalization(tenant.settings.resolveLocalization()),
+    };
+  }
+
+  private mapLocalization(
+    resolved: import('../../domain/value-objects/tenant-settings.vo').ResolvedLocalization,
+  ): HotsiteLocalization {
+    return {
+      language: resolved.language,
+      currency: resolved.currency,
+      phonePrefix: resolved.phonePrefix,
+      dateFormat: resolved.dateFormat,
+      timeFormat: resolved.timeFormat,
+      numberFormat: resolved.numberFormat,
+      firstDayOfWeek: resolved.firstDayOfWeek,
+      address: {
+        postalLabel: resolved.address.postalLabel,
+        postalPlaceholder: resolved.address.postalPlaceholder,
+        stateLabel: resolved.address.stateLabel,
+        requireNeighborhood: resolved.address.requireNeighborhood,
+        neighborhoodLabel: resolved.address.neighborhoodLabel,
+        lookupService: resolved.address.lookupService,
+      },
     };
   }
 
@@ -123,7 +178,7 @@ export class GetHotsiteManifestUseCase {
             street: businessInfo.address.street,
             number: businessInfo.address.number,
             complement: businessInfo.address.complement ?? undefined,
-            neighborhood: businessInfo.address.neighborhood,
+            neighborhood: businessInfo.address.neighborhood ?? undefined,
             city: businessInfo.address.city,
             state: businessInfo.address.state,
             zipCode: businessInfo.address.zip_code,

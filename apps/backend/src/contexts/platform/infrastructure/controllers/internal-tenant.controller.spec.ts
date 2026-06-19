@@ -41,6 +41,7 @@ describe('InternalTenantController', () => {
       name: 'Lavacar Belo',
       slug: 'lavacar-belo',
       adminEmail: 'admin@lavacar.com.br',
+      country_code: 'BR',
     });
 
     expect(result.slug).toBe('lavacar-belo');
@@ -51,11 +52,21 @@ describe('InternalTenantController', () => {
   });
 
   it('maps SlugAlreadyTakenError to 409 HttpException', async () => {
-    await controller.provision({ name: 'A', slug: 'taken', adminEmail: 'a@a.com' });
+    await controller.provision({
+      name: 'A',
+      slug: 'taken',
+      adminEmail: 'a@a.com',
+      country_code: 'BR',
+    });
 
     expect.assertions(2);
     try {
-      await controller.provision({ name: 'B', slug: 'taken', adminEmail: 'b@b.com' });
+      await controller.provision({
+        name: 'B',
+        slug: 'taken',
+        adminEmail: 'b@b.com',
+        country_code: 'BR',
+      });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
@@ -65,7 +76,12 @@ describe('InternalTenantController', () => {
   it('maps PlatformDomainError to 400 HttpException for invalid domain input', async () => {
     expect.assertions(2);
     try {
-      await controller.provision({ name: '', slug: 'valid', adminEmail: 'a@a.com' });
+      await controller.provision({
+        name: '',
+        slug: 'valid',
+        adminEmail: 'a@a.com',
+        country_code: 'BR',
+      });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);

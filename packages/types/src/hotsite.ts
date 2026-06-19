@@ -150,7 +150,7 @@ export interface HotsiteBusinessInfoAddress {
   street: string;
   number: string;
   complement?: string;
-  neighborhood: string;
+  neighborhood?: string;
   city: string;
   state: string;
   zipCode: string;
@@ -169,8 +169,24 @@ export interface HotsiteBusinessInfoResponse {
   socialLinks: HotsiteBusinessInfoSocialLinks | null;
 }
 
+export interface HotsiteAddressSpec {
+  postalLabel: string;
+  postalPlaceholder: string;
+  stateLabel: string;
+  requireNeighborhood: boolean;
+  neighborhoodLabel: string | null;
+  lookupService: 'viacep' | 'none';
+}
+
 export interface HotsiteLocalizationResponse {
   language: string;
+  currency: string;
+  phonePrefix: string;
+  dateFormat: string;
+  timeFormat: '24h' | '12h';
+  numberFormat: string;
+  firstDayOfWeek: 0 | 1;
+  address: HotsiteAddressSpec;
 }
 
 export interface HotsiteManifestResponse extends HotsiteResponse {
