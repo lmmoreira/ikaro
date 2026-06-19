@@ -3536,7 +3536,7 @@ apps/web/test-results/
 
 ---
 
-### M13-S42 — Hotsite auth bar (logged-out "Entrar" / logged-in avatar dropdown)
+### M13-S42 — Hotsite auth bar (logged-out "Entrar" / logged-in avatar dropdown) ✅ Done
 
 > **Implemented out of build order** — pulled forward of `S13`/`S14`/`S15`/`S16`/`S27` because the public hotsite currently has no way for a returning customer to log in or see their session state at all (confirmed gap — `[slug]/layout.tsx` and `[slug]/page.tsx` have zero auth logic today). This story is deliberately self-contained: it does not wait for the full customer-login flow (`S14`) or the Minha Conta area (`S27`) to exist.
 
