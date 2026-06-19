@@ -30,8 +30,11 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
   const googleHref = `${process.env.NEXT_PUBLIC_BFF_URL}/auth/google?tenantSlug=${slug}`;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm text-center">
+    <main
+      className="flex min-h-screen flex-col items-center justify-center px-6 py-16 text-center"
+      style={{ backgroundColor: 'var(--ba-background)', color: 'var(--ba-text)' }}
+    >
+      <div className="w-full max-w-sm">
         {manifest.branding.logoUrl ? (
           <Image
             src={manifest.branding.logoUrl}
@@ -49,12 +52,8 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
           </div>
         )}
 
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
-          Entrar na {displayName}
-        </h1>
-        <p className="mt-2 text-sm opacity-70" style={{ color: 'var(--ba-text)' }}>
-          Entre com sua conta Google para agendar
-        </p>
+        <h1 className="text-2xl font-bold">Entrar na {displayName}</h1>
+        <p className="mt-2 text-sm opacity-70">Entre com sua conta Google para agendar</p>
 
         {error && (
           <div
@@ -79,7 +78,7 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
           Entrar com Google
         </a>
 
-        <p className="mt-6 text-xs opacity-50" style={{ color: 'var(--ba-text)' }}>
+        <p className="mt-6 text-xs opacity-50">
           Ao continuar, você concorda com os termos de uso do Ikaro.
         </p>
       </div>
