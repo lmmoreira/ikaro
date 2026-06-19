@@ -66,3 +66,15 @@ export function validateEnv(): Env {
 
   return result.data;
 }
+
+// ConfigService reads process.env directly and never sees Zod's .default() values —
+// those only exist on the object validateEnv() returns. Without this, any field with
+// a schema default (e.g. PUBSUB_PROJECT_ID) throws "Configuration key does not exist"
+// from ConfigService.getOrThrow() the moment something constructs against it, even
+// though validateEnv() itself reported success.
+export function applyEnvDefaults(env: Env): void {
+  for (const [key, value] of Object.entries(env)) {
+    if (key in process.env) continue;
+    process.env[key] = String(value);
+  }
+}
