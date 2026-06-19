@@ -17,7 +17,6 @@ const config: Config = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   testRegex: '.*\\.spec\\.ts$',
   testEnvironment: 'node',
-  setupFiles: ['<rootDir>/test/jest-env-setup.ts'],
 };
 
 export default config;

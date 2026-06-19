@@ -1,5 +1,7 @@
 import { Observable, of, throwError } from 'rxjs';
 import { AxiosResponse } from 'axios';
+import * as dotenv from 'dotenv';
+import * as path from 'node:path';
 import supertest from 'supertest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
@@ -21,9 +23,6 @@ export const STAFF_ID_2 = '30000000-0000-4000-8000-000000000002';
 export const CUSTOMER_ID = '20000000-0000-4000-8000-000000000001';
 export const GOOGLE_OAUTH_ID = 'google-sub-test-123';
 
-export const TEST_JWT_SECRET =
-  'test-secret-must-be-at-least-64-chars-long-xxxxxxxxxxxxxxxxxxxxxxxxxxxx';
-
 // HttpService mock — used by ActiveStaffGuard (which uses HttpService directly, not BackendHttpService)
 export type MockHttpService = jest.Mocked<Pick<HttpService, 'get' | 'post' | 'patch' | 'delete'>>;
 
@@ -43,37 +42,9 @@ export async function createTestApp(): Promise<{
   httpService: MockHttpService;
   // backendHttpService is used by controllers via BackendHttpService — returns Promises
   backendHttpService: MockBackendHttpService;
-  // Call in afterAll to restore process.env to its pre-test state
+  // Call in afterAll to re-apply .env values (single source of truth)
   restoreEnv: () => void;
 }> {
-  const TEST_ENV_KEYS = [
-    'JWT_SECRET',
-    'BACKEND_INTERNAL_URL',
-    'FRONTEND_URL',
-    'JWT_EXPIRES_IN',
-    'GOOGLE_CLIENT_ID',
-    'GOOGLE_CLIENT_SECRET',
-    'GOOGLE_CALLBACK_URL',
-    'ALLOWED_ORIGINS',
-    'CRON_SECRET',
-    'ENABLE_DEV_AUTH',
-    'INTERNAL_API_KEY',
-  ] as const;
-
-  const originalEnv = Object.fromEntries(TEST_ENV_KEYS.map((k) => [k, process.env[k]]));
-
-  process.env['JWT_SECRET'] = TEST_JWT_SECRET;
-  process.env['BACKEND_INTERNAL_URL'] = BACKEND_URL;
-  process.env['FRONTEND_URL'] = 'http://localhost:3000';
-  process.env['JWT_EXPIRES_IN'] = '7d';
-  process.env['GOOGLE_CLIENT_ID'] = 'test-client-id';
-  process.env['GOOGLE_CLIENT_SECRET'] = 'test-client-secret';
-  process.env['GOOGLE_CALLBACK_URL'] = 'http://localhost:3002/v1/auth/google/callback';
-  process.env['ALLOWED_ORIGINS'] = 'http://localhost:3000';
-  process.env['CRON_SECRET'] = 'test-cron-secret-must-be-at-least-32-chars!!';
-  process.env['ENABLE_DEV_AUTH'] = 'true';
-  process.env['INTERNAL_API_KEY'] = 'test-internal-key-test-internal-key';
-
   const httpService: MockHttpService = {
     get: jest.fn(),
     post: jest.fn(),
@@ -111,13 +82,7 @@ export async function createTestApp(): Promise<{
   await app.init();
 
   const restoreEnv = (): void => {
-    for (const [key, value] of Object.entries(originalEnv)) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
+    dotenv.config({ path: path.join(process.cwd(), '.env'), override: true });
   };
 
   return {
