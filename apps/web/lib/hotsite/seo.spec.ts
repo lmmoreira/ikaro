@@ -33,6 +33,20 @@ function makeManifest(overrides: Partial<HotsiteManifestResponse> = {}): Hotsite
     },
     localization: {
       language: 'pt-BR',
+      currency: 'BRL',
+      phonePrefix: '+55',
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
+      numberFormat: '1.234,56',
+      firstDayOfWeek: 0,
+      address: {
+        postalLabel: 'CEP',
+        postalPlaceholder: '00000-000',
+        stateLabel: 'UF',
+        requireNeighborhood: true,
+        neighborhoodLabel: 'Bairro',
+        lookupService: 'viacep',
+      },
     },
     ...overrides,
   };
@@ -165,7 +179,25 @@ describe('buildHotsiteMetadata', () => {
   });
 
   it('derives the Open Graph locale from settings.localization.language', () => {
-    const manifest = makeManifest({ localization: { language: 'en-US' } });
+    const manifest = makeManifest({
+      localization: {
+        language: 'en-US',
+        currency: 'USD',
+        phonePrefix: '+1',
+        dateFormat: 'MM/DD/YYYY',
+        timeFormat: '12h',
+        numberFormat: '1,234.56',
+        firstDayOfWeek: 0,
+        address: {
+          postalLabel: 'ZIP Code',
+          postalPlaceholder: '90210',
+          stateLabel: 'State',
+          requireNeighborhood: false,
+          neighborhoodLabel: null,
+          lookupService: 'none',
+        },
+      },
+    });
 
     const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
