@@ -105,7 +105,7 @@ Set up TanStack Query (React Query) as the global data-fetching layer and create
 
 ---
 
-### M13-S02 — BFF: fix auth cookie on `POST /auth/token` + `POST /auth/switch-tenant`; fix customer redirect
+### M13-S02 — BFF: fix auth cookie on `POST /auth/token` + `POST /auth/switch-tenant`; fix customer redirect ✅ Done
 
 *(formerly M124-S01)*
 

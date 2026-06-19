@@ -1,15 +1,16 @@
-export interface TokenResponse {
-  accessToken: string;
-  expiresIn: number;
+export interface IssueTokenResponse {
+  readonly tenantSlug: string;
+  readonly expiresIn: string;
 }
 
-export interface TenantSelectionItem {
-  tenantId: string;
-  tenantSlug: string;
-  tenantName: string;
-  logoUrl?: string;
+export interface SwitchTenantResponse {
+  readonly tenantSlug: string;
+  readonly expiresIn: string;
 }
 
-export interface SwitchTenantRequest {
-  tenantId: string;
+export interface TenantOption {
+  readonly id: string;
+  readonly name: string;
+  readonly slug: string;
+  readonly loyaltyPoints: number;
 }

@@ -27,7 +27,7 @@
 #   → BFF redirects to Google with state=lavacar-beloauto
 #   → Google authenticates → redirects back to /v1/auth/google/callback
 #   → BFF resolves tenant, finds or creates Customer, issues JWT
-#   → Cookie access_token is set; browser redirects to FRONTEND_URL/dashboard
+#   → Cookie access_token is set; browser redirects to FRONTEND_URL/{tenantSlug}
 #
 # First login creates the Customer record automatically (FindOrCreateCustomerUseCase).
 # Subsequent logins return the same Customer (idempotent).

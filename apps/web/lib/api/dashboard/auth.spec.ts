@@ -18,7 +18,7 @@ describe('logout', () => {
 describe('switchTenant', () => {
   it('calls POST /auth/switch-tenant and returns tenantSlug', async () => {
     mock.onPost('/auth/switch-tenant').reply(200, { tenantSlug: 'new-slug', expiresIn: '7d' });
-    const res = await switchTenant({ tenantId: 'tid-2' });
+    const res = await switchTenant({ targetTenantId: 'tid-2' });
     expect(res.tenantSlug).toBe('new-slug');
   });
 });
