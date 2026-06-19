@@ -49,8 +49,8 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps) {
             style={{ color: 'var(--ba-text)' }}
           >
             <span
-              className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white"
-              style={{ backgroundColor: 'var(--ba-primary)' }}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+              style={{ backgroundColor: 'var(--ba-primary)', color: 'var(--ba-btn-text)' }}
             >
               {getInitials(state.name)}
             </span>
@@ -58,8 +58,12 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps) {
             <ChevronDown size={14} />
           </summary>
           <div
-            className="absolute right-0 top-full z-50 mt-2 min-w-44 overflow-hidden border bg-white shadow-lg"
-            style={{ borderColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
+            className="absolute right-0 top-full z-50 mt-2 min-w-44 overflow-hidden border shadow-lg"
+            style={{
+              backgroundColor: 'var(--ba-secondary)',
+              borderColor: 'var(--ba-background)',
+              borderRadius: 'var(--ba-radius)',
+            }}
           >
             <a
               href={`/${slug}/my-account`}
@@ -68,7 +72,7 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps) {
             >
               Minha conta
             </a>
-            <hr style={{ borderColor: 'var(--ba-secondary)' }} />
+            <hr style={{ borderColor: 'var(--ba-background)' }} />
             <a
               href={`${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${slug}`}
               className="block px-4 py-2.5 text-sm opacity-60"

@@ -45,8 +45,8 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
           />
         ) : (
           <div
-            className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold text-white"
-            style={{ backgroundColor: 'var(--ba-primary)' }}
+            className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold"
+            style={{ backgroundColor: 'var(--ba-primary)', color: 'var(--ba-btn-text)' }}
           >
             {displayName.charAt(0).toUpperCase()}
           </div>
