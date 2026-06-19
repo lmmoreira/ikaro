@@ -84,7 +84,8 @@ export class AuthController {
   @UsePipes(new ZodValidationPipe(IssueTokenSchema))
   async issueToken(
     @Body() dto: IssueTokenDto,
-  ): Promise<{ accessToken: string; expiresIn: string }> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ tenantSlug: string; expiresIn: string }> {
     const { googleOAuthId } = this.selectionToken.verifySelectionToken(dto.selectionToken);
 
     const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
@@ -111,7 +112,11 @@ export class AuthController {
       role: 'CUSTOMER',
     });
 
-    return { accessToken, expiresIn: this.config.getOrThrow<string>('JWT_EXPIRES_IN') };
+    res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
+    return {
+      tenantSlug: tenantInfo.slug,
+      expiresIn: this.config.getOrThrow<string>('JWT_EXPIRES_IN'),
+    };
   }
 
   @Post('switch-tenant')
@@ -119,7 +124,8 @@ export class AuthController {
   async switchTenant(
     @Body(new ZodValidationPipe(SwitchTenantSchema)) dto: SwitchTenantDto,
     @CurrentUser() user: CurrentUserPayload,
-  ): Promise<{ accessToken: string; expiresIn: string }> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ tenantSlug: string; expiresIn: string }> {
     const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
       `/internal/customers/${user.sub}/tenants`,
       { tenantId: user.tenantId },
@@ -144,7 +150,11 @@ export class AuthController {
       role: 'CUSTOMER',
     });
 
-    return { accessToken, expiresIn: this.config.getOrThrow<string>('JWT_EXPIRES_IN') };
+    res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
+    return {
+      tenantSlug: tenantInfo.slug,
+      expiresIn: this.config.getOrThrow<string>('JWT_EXPIRES_IN'),
+    };
   }
 
   @Public()
@@ -369,7 +379,7 @@ export class AuthController {
       role: 'CUSTOMER',
     });
     res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
-    res.redirect(`${frontendUrl}/dashboard`);
+    res.redirect(`${frontendUrl}/${tenantInfo.slug}`);
   }
 
   private async handleMultiTenantLogin(
@@ -399,7 +409,7 @@ export class AuthController {
         role: 'CUSTOMER',
       });
       res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
-      res.redirect(`${frontendUrl}/dashboard`);
+      res.redirect(`${frontendUrl}/${tenantInfo.slug}`);
       return;
     }
 

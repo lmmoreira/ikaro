@@ -84,7 +84,7 @@ describe('AuthController (component) — non-OAuth routes', () => {
       });
     });
 
-    it('201 — issues JWT with correct sub, tenantId and role=CUSTOMER', async () => {
+    it('201 — sets access_token cookie and returns { tenantSlug, expiresIn }', async () => {
       const selectionToken = selectionTokenService.issueSelectionToken(GOOGLE_OAUTH_ID);
       backendHttpService.get
         .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
@@ -95,13 +95,10 @@ describe('AuthController (component) — non-OAuth routes', () => {
         .send({ selectionToken, tenantId: TENANT_ID });
 
       expect(res.status).toBe(201);
-      expect(res.body.accessToken).toBeDefined();
+      expect(res.headers['set-cookie']).toBeDefined();
+      expect(res.body.tenantSlug).toBe('lavacar-bh');
       expect(res.body.expiresIn).toBe('7d');
-
-      const decoded = jwtService.verify(res.body.accessToken as string) as Record<string, unknown>;
-      expect(decoded['sub']).toBe(CUSTOMER_ID);
-      expect(decoded['tenantId']).toBe(TENANT_ID);
-      expect(decoded['role']).toBe('CUSTOMER');
+      expect(res.body.accessToken).toBeUndefined();
     });
   });
 
@@ -158,7 +155,7 @@ describe('AuthController (component) — non-OAuth routes', () => {
       });
     });
 
-    it('201 — issues a new JWT scoped to the target tenant', async () => {
+    it('201 — sets access_token cookie and returns { tenantSlug, expiresIn }', async () => {
       const targetCustomerId = '20000000-0000-4000-8000-000000000002';
       backendHttpService.get
         .mockResolvedValueOnce([
@@ -173,13 +170,10 @@ describe('AuthController (component) — non-OAuth routes', () => {
         .send({ targetTenantId: TENANT_ID_2 });
 
       expect(res.status).toBe(201);
-      expect(res.body.accessToken).toBeDefined();
-
-      const decoded = jwtService.verify(res.body.accessToken as string) as Record<string, unknown>;
-      expect(decoded['sub']).toBe(targetCustomerId);
-      expect(decoded['tenantId']).toBe(TENANT_ID_2);
-      expect(decoded['tenantSlug']).toBe('lavacar-sp');
-      expect(decoded['role']).toBe('CUSTOMER');
+      expect(res.headers['set-cookie']).toBeDefined();
+      expect(res.body.tenantSlug).toBe('lavacar-sp');
+      expect(res.body.expiresIn).toBe('7d');
+      expect(res.body.accessToken).toBeUndefined();
     });
   });
 

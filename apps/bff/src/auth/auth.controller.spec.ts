@@ -66,7 +66,7 @@ describe('AuthController', () => {
       tenantSlug: 'lavacar-bh',
     };
 
-    it('issues JWT cookie and redirects to /dashboard on first customer login', async () => {
+    it('issues JWT cookie and redirects to /{tenantSlug} on first customer login', async () => {
       const tenantInfo = { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' };
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValue(tenantInfo),
@@ -94,7 +94,7 @@ describe('AuthController', () => {
         expect.any(String),
         expect.objectContaining({ httpOnly: true }),
       );
-      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/dashboard');
+      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/lavacar-bh');
     });
 
     it('JWT payload has correct sub=customerId and tenantSlug', async () => {
@@ -158,7 +158,7 @@ describe('AuthController', () => {
       );
     });
 
-    it('issues a JWT cookie and redirects to /dashboard for a single-tenant customer', async () => {
+    it('issues a JWT cookie and redirects to /{tenantSlug} for a single-tenant customer', async () => {
       const tenantId = TENANT_ID_A;
       const customerId = CUSTOMER_ID_A;
       const backendHttp = makeBackendHttp({
@@ -182,7 +182,7 @@ describe('AuthController', () => {
         expect.any(String),
         expect.objectContaining({ httpOnly: true }),
       );
-      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/dashboard');
+      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/lavacar-bh');
     });
 
     it('JWT cookie payload has correct sub=customerId and role=CUSTOMER', async () => {
@@ -596,7 +596,7 @@ describe('AuthController', () => {
       role: 'CUSTOMER',
     };
 
-    it('returns a new JWT with the target tenantId and tenantSlug on success', async () => {
+    it('sets cookie + returns { tenantSlug, expiresIn } with correct JWT payload on success', async () => {
       const backendHttp = makeBackendHttp({
         get: jest
           .fn()
@@ -617,12 +617,19 @@ describe('AuthController', () => {
         configService,
       );
       const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_B };
+      const res = makeRes();
 
-      const result = await controller.switchTenant(dto, currentUser);
+      const result = await controller.switchTenant(dto, currentUser, res);
 
-      expect(result.accessToken).toBeTruthy();
+      expect(result.tenantSlug).toBe('lavacar-centro');
       expect(result.expiresIn).toBe('7d');
-      const decoded = jwtService.decode(result.accessToken) as Record<string, unknown>;
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        expect.any(String),
+        expect.objectContaining({ httpOnly: true }),
+      );
+      const [, token] = (res.cookie as jest.Mock).mock.calls[0] as [string, string];
+      const decoded = jwtService.decode(token) as Record<string, unknown>;
       expect(decoded['tenantId']).toBe(TENANT_ID_B);
       expect(decoded['tenantSlug']).toBe('lavacar-centro');
       expect(decoded['sub']).toBe(CUSTOMER_ID_B);
@@ -641,7 +648,7 @@ describe('AuthController', () => {
       );
       const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_OTHER };
 
-      await expect(controller.switchTenant(dto, currentUser)).rejects.toBeInstanceOf(
+      await expect(controller.switchTenant(dto, currentUser, makeRes())).rejects.toBeInstanceOf(
         ForbiddenException,
       );
     });
@@ -665,7 +672,7 @@ describe('AuthController', () => {
       );
       const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_B };
 
-      await controller.switchTenant(dto, currentUser);
+      await controller.switchTenant(dto, currentUser, makeRes());
 
       expect(backendHttp.get).toHaveBeenCalledWith(`/internal/customers/${CUSTOMER_ID_A}/tenants`, {
         tenantId: TENANT_ID_A,
@@ -686,7 +693,7 @@ describe('AuthController', () => {
       );
       const dto: IssueTokenDto = { selectionToken: 'bad.token.here', tenantId: TENANT_ID_A };
 
-      await expect(controller.issueToken(dto)).rejects.toBeInstanceOf(Error);
+      await expect(controller.issueToken(dto, makeRes())).rejects.toBeInstanceOf(Error);
     });
 
     it('returns 403 when the customer has no record in the requested tenant', async () => {
@@ -702,10 +709,12 @@ describe('AuthController', () => {
       );
       const dto: IssueTokenDto = { selectionToken, tenantId: TENANT_ID_OTHER };
 
-      await expect(controller.issueToken(dto)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(controller.issueToken(dto, makeRes())).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
 
-    it('returns { accessToken, expiresIn } with correct JWT payload on success', async () => {
+    it('sets cookie + returns { tenantSlug, expiresIn } with correct JWT payload on success', async () => {
       const tenantId = TENANT_ID_A;
       const customerId = CUSTOMER_ID_B;
       const selectionToken = selectionTokenService.issueSelectionToken('google-sub-123');
@@ -722,12 +731,19 @@ describe('AuthController', () => {
         configService,
       );
       const dto: IssueTokenDto = { selectionToken, tenantId };
+      const res = makeRes();
 
-      const result = await controller.issueToken(dto);
+      const result = await controller.issueToken(dto, res);
 
-      expect(result.accessToken).toBeTruthy();
+      expect(result.tenantSlug).toBe('lavacar-bh');
       expect(result.expiresIn).toBe('7d');
-      const decoded = jwtService.decode(result.accessToken) as Record<string, unknown>;
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        expect.any(String),
+        expect.objectContaining({ httpOnly: true }),
+      );
+      const [, token] = (res.cookie as jest.Mock).mock.calls[0] as [string, string];
+      const decoded = jwtService.decode(token) as Record<string, unknown>;
       expect(decoded['sub']).toBe(customerId);
       expect(decoded['role']).toBe('CUSTOMER');
       expect(decoded['tenantSlug']).toBe('lavacar-bh');
