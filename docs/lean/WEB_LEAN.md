@@ -20,6 +20,9 @@
 - [M12-S10 — Storage: Public vs Private Buckets, Cross-Service Revalidation](#m12-s10)
 - [M12-S11 — Extending a Design-Token System Without Breaking Old Tenants](#m12-s11)
 - [M12-S12 — Linting React: react-hooks and jsx-a11y](#m12-s12)
+- [M13-S41 — Playwright E2E: What Integration Tests Can't Catch](#m13-s41)
+- [M13-S01 — TanStack Query + Typed BFF Client](#m13-s01)
+- [M13-S02 — HTTP Cookies, Auth Security, and BFF Patterns](#m13-s02)
 
 ---
 
@@ -1699,4 +1702,723 @@ Per CLAUDE.md's "no `// eslint-disable`" rule, any violation these plugins surfa
 
 ---
 
-*Next update: M13-S01 — TanStack Query setup + typed BFF client.*
+---
+
+<a name="m13-s41"></a>
+## M13-S41 — Playwright E2E: What Integration Tests Can't Catch
+
+---
+
+### 50. What Playwright Is (and Why Unit Tests Aren't Enough)
+
+Unit tests and component tests (Vitest) test **individual functions and components in isolation**. Playwright tests test **the whole application running for real** — a real Next.js server, real BFF, real database, a real (headless) browser.
+
+Here's what only an E2E test can catch:
+
+| Scenario | Unit test? | E2E test? |
+|---|---|---|
+| A button click triggers an API call with the right body | ✅ (mock the API) | ✅ (real API) |
+| The booking form actually submits to the backend and the record is created | ❌ (backend isn't running) | ✅ |
+| A Next.js middleware blocks unauthenticated access | ❌ (no real server) | ✅ |
+| The page title from `generateMetadata` appears in `<head>` | ❌ (server component not runnable in Vitest) | ✅ |
+| CSS is applied and the button is actually visible (not hidden by a z-index bug) | ❌ | ✅ |
+
+**Backend analogy:** Playwright is your integration/E2E test suite. Vitest unit tests are like testing a use case with an InMemory repository — correct behavior in isolation. Playwright is like running `pnpm test:integration` against a real database — verifies the whole system, not just the parts.
+
+---
+
+### 51. Playwright Anatomy — `test`, `expect`, `page`
+
+A Playwright test looks like this:
+
+```ts
+import { test, expect } from '@playwright/test';
+
+test('guest can submit a booking', async ({ page }) => {
+  await page.goto('/lavacar-beloauto');
+  await page.getByRole('link', { name: 'Agendar' }).click();
+  await page.getByTestId('service-card-lavagem-completa').click();
+  await page.getByRole('button', { name: 'Próximo' }).click();
+  await expect(page.getByTestId('booking-confirmation')).toBeVisible();
+});
+```
+
+**`test(description, async ({ page }) => {})`** — the test function. It receives a `page` object, which represents a browser tab. Everything you do to interact with or assert on the page goes through `page`.
+
+**`page.goto(url)`** — navigates the browser to that URL. Next.js serves the page for real.
+
+**`page.getByRole()`** / **`page.getByTestId()`** / **`page.locator()`** — ways to find elements in the DOM. More on these below.
+
+**`expect(locator).toBeVisible()`** — assertions. Playwright's `expect()` automatically **waits** (up to a configurable timeout) for the condition to become true. You never write `await page.waitFor(500)` (a bad pattern) — you just assert and Playwright retries until it passes or times out.
+
+---
+
+### 52. How to Find Elements — Locators
+
+Playwright uses **locators** instead of raw CSS selectors. A locator is a description of an element — Playwright resolves it lazily when you use it, and retries if the element isn't found yet.
+
+**The hierarchy of locator types (best to worst):**
+
+1. **`getByRole(role, { name })`** — finds by ARIA role + accessible name. Most robust. Tests what users actually see.
+   ```ts
+   page.getByRole('button', { name: 'Próximo' })
+   page.getByRole('heading', { name: 'Bem-vindo à Lavacar BH' })
+   page.getByRole('link', { name: 'Agendar agora' })
+   ```
+
+2. **`getByTestId('some-id')`** — finds by `data-testid` attribute. Use when no semantic role fits.
+   ```ts
+   page.getByTestId('service-card-lavagem-completa')
+   // matches: <div data-testid="service-card-lavagem-completa">
+   ```
+
+3. **`getByText('exact text')`** — finds by visible text content. Fragile under i18n and copy changes. Use sparingly.
+
+4. **`locator('css-selector')`** — raw CSS. Last resort. Breaks easily when HTML changes.
+
+**Why we banned `getByLabel` and `getByText` in E2E tests (see CLAUDE.md §9 CI notes):** These match on user-facing text strings. If the pt-BR copy changes (`"Próximo"` → `"Continuar"`), every test that matches that string breaks — even if the feature still works. `getByRole` with a `name` is better but still brittle. `data-testid` is completely decoupled from copy and CSS — the test breaks only when the feature is removed, not when copy is tweaked.
+
+---
+
+### 53. `data-testid` — The Contract Between Playwright and Your Components
+
+A `data-testid` attribute is a stable identifier you add to elements specifically for testing. It carries no semantic meaning to the browser, no styling, no behavior — it exists purely so Playwright can find the element.
+
+```tsx
+// In the component
+<div data-testid="booking-form-step-1">
+  <h2>Escolha os serviços</h2>
+  {services.map(s => (
+    <button
+      key={s.id}
+      data-testid={`service-card-${s.slug}`}   // dynamic — encodes data in the id
+      onClick={() => toggle(s.id)}
+    >
+      {s.name}
+    </button>
+  ))}
+</div>
+```
+
+```ts
+// In the test
+await page.getByTestId(`service-card-lavagem-completa`).click();
+```
+
+**Rule: never embed dynamic values like dates in `data-testid`:**
+
+```tsx
+// ✗ WRONG — date changes every day, test breaks tomorrow
+<button data-testid={`slot-${slot.date}-${slot.time}`}>
+
+// ✓ CORRECT — encode data in separate attributes, keep id stable
+<button data-testid="slot-card" data-date={slot.date} data-time={slot.time}>
+```
+
+Then in Playwright:
+```ts
+await page.locator('[data-testid="slot-card"][data-date="2026-06-20"]').click();
+```
+
+The `data-testid` is stable (`"slot-card"`); the variable data is in a separate `data-date` attribute that you can match with CSS attribute selectors.
+
+---
+
+### 54. `playwright.config.ts` — The Test Runner Setup
+
+```ts
+// playwright.config.ts
+export default defineConfig({
+  testDir: './e2e',
+  baseURL: 'http://localhost:3000',    // all page.goto('/foo') resolve to http://localhost:3000/foo
+  use: {
+    trace: 'on-first-retry',           // record a trace when a test fails once, for debugging
+    screenshot: 'only-on-failure',
+  },
+  webServer: {
+    command: 'pnpm dev',               // starts Next.js before running tests
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env['CI'],   // in CI: always start fresh; locally: reuse if running
+  },
+  projects: [{ name: 'chromium', use: devices['Desktop Chrome'] }],
+});
+```
+
+The `webServer` block is key — Playwright starts `pnpm dev` before running any test, waits until `localhost:3000` responds, then runs all tests, then shuts down the server. **You don't have to manually start the dev server before running Playwright.**
+
+**`reuseExistingServer: !process.env['CI']`:** Locally you often already have `pnpm dev` running. This flag tells Playwright to reuse it instead of starting another. In CI, there's no existing server so it always starts fresh.
+
+---
+
+### 55. `test.step()` — Named Steps Inside a Test
+
+For long E2E tests with multiple actions, `test.step()` wraps logical sections so the Playwright report shows them as named phases:
+
+```ts
+test('guest completes a booking end-to-end', async ({ page }) => {
+  await test.step('navigate to hotsite', async () => {
+    await page.goto('/lavacar-beloauto');
+  });
+
+  await test.step('select a service', async () => {
+    await page.getByTestId('service-card-lavagem-completa').click();
+    await page.getByRole('button', { name: 'Próximo' }).click();
+  });
+
+  await test.step('pick a slot', async () => {
+    await page.getByTestId('slot-card').first().click();
+    await page.getByRole('button', { name: 'Próximo' }).click();
+  });
+});
+```
+
+When the test fails, the Playwright report shows exactly which step failed — not just "test failed at line 47." Same value as a structured `correlationId` in logs: you know where in the flow things went wrong without reading every line.
+
+---
+
+### 56. `page.waitForResponse()` — Waiting for Network
+
+Sometimes you need to wait for an API call to complete before asserting:
+
+```ts
+// Wait for the booking POST to complete before checking the confirmation
+const [response] = await Promise.all([
+  page.waitForResponse(res => res.url().includes('/v1/bookings') && res.request().method() === 'POST'),
+  page.getByRole('button', { name: 'Confirmar agendamento' }).click(),
+]);
+
+expect(response.status()).toBe(201);
+await expect(page.getByTestId('booking-success-banner')).toBeVisible();
+```
+
+`Promise.all` here is important — you start the wait and the click at the same moment. If you clicked first and then waited, the response might arrive (and be gone from Playwright's buffer) before you started listening.
+
+**Backend analogy:** This is like using `await` on a published event in an integration test — you don't just fire the command and immediately assert the read model, you wait for the event handler to finish first. Same principle, different mechanism.
+
+---
+
+---
+
+<a name="m13-s01"></a>
+## M13-S01 — TanStack Query + Typed BFF Client
+
+---
+
+### 57. The Problem TanStack Query Solves
+
+Before TanStack Query, making an API call from a React component looked like this:
+
+```tsx
+'use client';
+function BookingList() {
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch('/v1/bookings')
+      .then(r => r.json())
+      .then(data => { setBookings(data); setLoading(false); })
+      .catch(err => { setError(err); setLoading(false); });
+  }, []);
+
+  if (loading) return <Spinner />;
+  if (error) return <ErrorState />;
+  return <List items={bookings} />;
+}
+```
+
+This has serious problems:
+1. **No caching** — every time the component mounts, it fetches again. Navigate away and back → another fetch.
+2. **Race conditions** — two requests can overlap. The second might resolve before the first, setting stale data.
+3. **No background refresh** — stale data is shown indefinitely.
+4. **Lots of boilerplate** — 3 state variables + a `useEffect` for every single data-fetch.
+5. **No cross-component sharing** — two components showing the same data make two separate requests.
+
+TanStack Query (`@tanstack/react-query`) solves all of these. You describe *what* you want (a query key + an async function that fetches it). The library handles *how* (caching, deduplication, background refresh, loading/error states).
+
+---
+
+### 58. React Hooks — What They Are
+
+Before going further into TanStack Query, you need to understand hooks — since TanStack Query is built entirely around them.
+
+**A hook is a function whose name starts with `use` and that can only be called inside a React component (or another hook).** Hooks let components opt into React features like state, side effects, and context.
+
+The core built-in hooks:
+
+**`useState`** — adds state to a component. The component re-renders every time the state changes.
+
+```tsx
+const [count, setCount] = useState(0);
+// count = current value
+// setCount = function to update it (triggers a re-render)
+
+<button onClick={() => setCount(count + 1)}>Clicked {count} times</button>
+```
+
+**`useEffect`** — runs a side effect (API call, event listener, timer) after the component renders.
+
+```tsx
+useEffect(() => {
+  // runs after every render where [dependency] changed
+  document.title = `Bookings (${count})`;
+}, [count]);  // dependency array — effect re-runs when these values change
+
+useEffect(() => {
+  // runs once on mount (empty array = no dependencies = never re-runs)
+  startWebSocket();
+  return () => stopWebSocket();  // cleanup runs on unmount
+}, []);
+```
+
+**`useRef`** — holds a mutable value that does NOT trigger a re-render when changed. Also used to access DOM elements.
+
+```tsx
+const inputRef = useRef<HTMLInputElement>(null);
+// inputRef.current = the actual <input> DOM node
+<input ref={inputRef} />
+<button onClick={() => inputRef.current?.focus()}>Focus</button>
+```
+
+**`useMemo`** — caches an expensive computed value, only recalculates when dependencies change.
+
+```tsx
+const total = useMemo(
+  () => items.reduce((sum, item) => sum + item.price, 0),
+  [items]  // only recalculate when items changes
+);
+```
+
+**`useCallback`** — caches a function reference (same idea as `useMemo` but for functions). Important when passing callbacks to child components — without it, a new function is created on every render, causing unnecessary child re-renders.
+
+```tsx
+const handleSubmit = useCallback(() => {
+  submitBooking(selectedServices);
+}, [selectedServices]);  // new function only when selectedServices changes
+```
+
+**The Rules of Hooks (enforced by `eslint-plugin-react-hooks`):**
+1. Only call hooks at the top level — never inside `if`, loops, or nested functions
+2. Only call hooks from React components or custom hooks
+
+**Why these rules?** React relies on hooks being called in the **same order** on every render to correctly match state to the right hook. An `if` statement could cause a hook to be skipped on some renders, breaking that order and corrupting state.
+
+---
+
+### 59. `useQuery` — The Core TanStack Query Hook
+
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { fetchStaffBookings } from '@/lib/api/dashboard/bookings';
+
+function BookingQueue() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['bookings', 'pending', tenantId],
+    queryFn: () => fetchStaffBookings({ status: 'PENDING' }),
+    staleTime: 30_000,   // consider data fresh for 30s — no refetch during this window
+  });
+
+  if (isLoading) return <Spinner />;
+  if (isError) return <ErrorBanner />;
+  return <BookingList bookings={data.items} />;
+}
+```
+
+**`queryKey`** — an array that uniquely identifies this query. Think of it as the cache key. If two components use the same `queryKey`, they share the same cached data — only one fetch happens, both get the result.
+
+```ts
+['bookings', 'pending', tenantId]   // tenant A's pending bookings
+['bookings', 'approved', tenantId]  // same shape, different status — separate cache entry
+['bookings', 'pending', tenantIdB]  // different tenant — completely separate cache entry
+```
+
+**Why `tenantId` in the key:** If a staff member switches accounts (somehow), the old tenant's bookings must not be served from cache to a new tenant's context. Including `tenantId` ensures cache entries are scoped — a `tenantId` change produces a different key → a fresh fetch.
+
+**`queryFn`** — the async function that actually fetches the data. Must return a Promise.
+
+**`staleTime`** — how long (in ms) before cached data is considered "stale." While data is fresh (within `staleTime`): navigate away and back → no refetch, instant load from cache. After `staleTime` expires: next access triggers a background refetch while showing stale data immediately ("stale-while-revalidate" pattern).
+
+**Backend analogy:** `useQuery` is like a request-scoped + TTL-based cache for API responses. `queryKey` is the cache key. `staleTime` is the TTL. The difference: it's browser-side, it's per-tab, and it automatically hooks into the component lifecycle.
+
+---
+
+### 60. `useMutation` — Writing Data
+
+`useQuery` is for reading. `useMutation` is for writing (POST, PATCH, DELETE):
+
+```tsx
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+function ApproveButton({ bookingId }: { bookingId: string }) {
+  const queryClient = useQueryClient();
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: (id: string) => approveBooking(id),
+    onSuccess: () => {
+      // Invalidate the bookings cache — next render will refetch
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    },
+    onError: (err) => {
+      toast.error('Erro ao aprovar agendamento');
+    },
+  });
+
+  return (
+    <button onClick={() => mutate(bookingId)} disabled={isPending}>
+      {isPending ? 'Aprovando...' : 'Aprovar'}
+    </button>
+  );
+}
+```
+
+**`mutate(variables)`** — triggers the mutation. `variables` is passed to `mutationFn`.
+
+**`isPending`** — true while the mutation is in-flight. Use it to disable buttons and show loading spinners.
+
+**`onSuccess` → `invalidateQueries`** — after a mutation succeeds, the cache is likely stale. `invalidateQueries` marks matching cache entries as stale so the next render triggers a fresh fetch. You don't need to manually update the list — just invalidate and let `useQuery` refetch.
+
+**`mutate` vs `mutateAsync`:**
+- `mutate()` — fire-and-forget. Errors are caught by `onError`, not by you.
+- `mutateAsync()` — returns a Promise. You `await` it and catch errors yourself. Use when you need to do something after the mutation in the same async flow.
+
+---
+
+### 61. `QueryClient` and `QueryClientProvider` — The Global Store
+
+TanStack Query stores all its cache in a `QueryClient` instance. This instance must be shared across the whole app — that's how two different components on the same page share the same cache for the same query key.
+
+```tsx
+// app/dashboard/layout.tsx  (the dashboard shell — a 'use client' component)
+'use client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useState } from 'react';
+
+export default function DashboardLayout({ children }) {
+  // useState ensures the QueryClient is created once per component mount,
+  // not recreated on every render
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30_000,   // 30s fresh window for all queries by default
+        retry: 1,            // retry once on failure before going to error state
+      },
+    },
+  }));
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+}
+```
+
+**Why `useState(() => new QueryClient())`** — the function form of `useState` (a "lazy initializer") ensures `new QueryClient()` is called only once, when the component first mounts, not on every re-render. If you wrote `useState(new QueryClient())`, React would construct a new `QueryClient` on every re-render (even though it throws them away) — wasteful.
+
+**Backend analogy:** `QueryClient` is like your Redis instance. `QueryClientProvider` is like injecting that Redis connection into your dependency injection container so any service can reach it. Every `useQuery` call is like a service calling `redis.get(key)`.
+
+---
+
+### 62. When to Use TanStack Query vs Plain `fetch` vs Axios
+
+This codebase uses three different approaches to data fetching, in different layers:
+
+| Layer | Tool | Why |
+|---|---|---|
+| Hotsite pages (`app/[slug]/`) | `fetch()` with `next: { revalidate }` | Server components — TanStack Query doesn't work server-side. ISR caching is the right model here. |
+| Dashboard pages (`app/dashboard/`) | TanStack Query + axios | Client components with complex async state — loading/error/stale states, cross-component cache sharing, mutations with optimistic updates |
+| BFF client (`lib/api/bff-client.ts`) | axios | Interceptors for 401/403 handling, typed responses, cleaner API than raw `fetch` |
+
+**Why axios over `fetch` in the dashboard:**
+
+`fetch()` is built into the browser — no library needed. For simple cases it's fine. But for a dashboard with many API calls, axios provides:
+
+1. **Interceptors** — middleware for every request/response. In Ikaro, a response interceptor catches every `401` (expired JWT) and redirects to login, without duplicating that logic in every hook.
+
+```ts
+// lib/api/bff-client.ts
+export const bffClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_BFF_URL,
+  withCredentials: true,   // sends cookies (access_token httpOnly cookie) automatically
+});
+
+bffClient.interceptors.response.use(
+  (response) => response,   // pass successful responses through unchanged
+  (error) => {
+    if (error.response?.status === 401) {
+      window.location.href = '/dashboard/login';
+      return Promise.reject(new AuthError());
+    }
+    if (error.response?.status === 403) {
+      return Promise.reject(new ForbiddenError());
+    }
+    return Promise.reject(error);
+  },
+);
+```
+
+2. **`withCredentials: true`** — tells axios to include cookies in cross-origin requests. Without this, the `access_token` httpOnly cookie would not be sent to the BFF.
+
+3. **Typed responses** — `axios.get<BookingListResponse>(url)` returns a typed `AxiosResponse<BookingListResponse>`, so `res.data` is correctly typed without casting.
+
+**The decision rule:**
+- Server component that runs at request time or at build time → `fetch()` with `next:` options
+- Client component that needs loading/error/stale state, or data that multiple components share → TanStack Query + axios
+- One-off client-side POST (like a form submit) where you don't need the response cached → `useMutation` + axios
+
+---
+
+### 63. The `dist/` Problem — How TypeScript Packages Work in a Monorepo
+
+During the CI problems with the observability package, you saw an error like:
+
+```
+Cannot find module '@ikaro/observability' or its corresponding type declarations
+```
+
+This is a fundamental Node.js/TypeScript monorepo concept worth understanding.
+
+**The problem:** When you write a TypeScript package (`packages/observability/`), you write `.ts` files. But when another package (`apps/backend/`) imports `@ikaro/observability`, Node.js is running JavaScript — it can't read `.ts` files. It needs the compiled `.js` output.
+
+**The solution:** TypeScript packages in a monorepo must be **compiled** before other packages can import them. The compilation produces a `dist/` folder:
+
+```
+packages/observability/
+├── src/
+│   ├── app-logger.ts        ← you write this
+│   └── index.ts
+└── dist/                    ← tsc generates this (gitignored)
+    ├── app-logger.js
+    ├── app-logger.d.ts      ← type declarations (so TypeScript still works in importers)
+    └── index.js
+```
+
+`packages/observability/package.json` points to the compiled output:
+```json
+{
+  "main": "./dist/index.js",       // Node.js runtime uses this
+  "types": "./dist/index.d.ts"     // TypeScript compiler uses this for type-checking
+}
+```
+
+**The CI fix:** The root `package.json` has a `postinstall` script:
+
+```json
+{
+  "scripts": {
+    "postinstall": "pnpm --filter @ikaro/observability build && pnpm --filter @ikaro/env-validation build"
+  }
+}
+```
+
+`postinstall` runs automatically after `pnpm install`. This ensures the `dist/` folders always exist before any app tries to import from these packages.
+
+**Why these two packages and not others?** `@ikaro/types` is TypeScript-only type declarations — no runtime code. Packages that import it only need the `.ts` source files, handled by TypeScript's `paths` mapping. `@ikaro/observability` and `@ikaro/env-validation` have **runtime code** (actual JS that runs), so they need compilation.
+
+**Backend analogy:** It's like compiling a Java library (`.jar`) before your application can import its classes. The library's source (`.java`) is what you edit; the `.jar` is what the runtime loads. The build step bridges the two.
+
+---
+
+### 64. Custom Hooks — Reusing Stateful Logic
+
+A **custom hook** is just a function that uses other hooks. Naming it `use*` makes it a hook and lets you use hooks inside it.
+
+Without custom hooks, you'd repeat TanStack Query boilerplate in every component:
+
+```tsx
+// ✗ Without custom hook — repeated in every component that shows bookings
+const { data, isLoading, isError } = useQuery({
+  queryKey: ['bookings', 'pending', tenantId],
+  queryFn: () => fetchStaffBookings({ status: 'PENDING' }),
+  staleTime: 30_000,
+});
+```
+
+With a custom hook:
+
+```ts
+// lib/hooks/use-staff-bookings.ts
+export function useStaffBookings(filters: BookingFilters) {
+  return useQuery({
+    queryKey: ['bookings', filters, tenantId],
+    queryFn: () => fetchStaffBookings(filters),
+    staleTime: 30_000,
+  });
+}
+
+// In the component — clean and reusable
+const { data, isLoading } = useStaffBookings({ status: 'PENDING' });
+```
+
+**The rule:** if you use the same combination of hooks in more than one component, extract it into a custom hook. Keep hooks focused on one concern.
+
+**Custom hooks can be tested with Vitest** using `@testing-library/react`'s `renderHook`:
+
+```ts
+import { renderHook, waitFor } from '@testing-library/react';
+
+it('returns bookings for the current tenant', async () => {
+  const { result } = renderHook(() => useStaffBookings({ status: 'PENDING' }), {
+    wrapper: QueryClientProvider,
+  });
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(result.current.data?.items).toHaveLength(2);
+});
+```
+
+---
+
+---
+
+<a name="m13-s02"></a>
+## M13-S02 — HTTP Cookies, Auth Security, and BFF Patterns
+
+---
+
+### 65. Why `localStorage` is Unsafe for JWTs
+
+The first instinct for storing a JWT in a browser is `localStorage`:
+
+```ts
+// ✗ Unsafe pattern — never do this with auth tokens
+localStorage.setItem('access_token', jwt);
+// later:
+const token = localStorage.getItem('access_token');
+fetch('/api/data', { headers: { Authorization: `Bearer ${token}` } });
+```
+
+**The problem: XSS (Cross-Site Scripting).** If any script on your page can run `localStorage.getItem('access_token')`, so can a malicious script injected via an XSS vulnerability (a compromised npm package, a reflected XSS in a query param, etc.). The script sends the token to an attacker's server. The attacker now has a valid JWT and can impersonate the user until it expires.
+
+`localStorage` is accessible to **any JavaScript running on the page** — including scripts you didn't write.
+
+---
+
+### 66. httpOnly Cookies — The Safer Alternative
+
+An `httpOnly` cookie is set by the server and stored by the browser, but **JavaScript cannot read it**. The browser attaches it automatically to every request to the same domain.
+
+```ts
+// BFF sets the cookie on login
+res.cookie('access_token', jwtToken, {
+  httpOnly: true,    // ← JavaScript cannot read this. Ever.
+  secure: true,      // ← only sent over HTTPS (not plain HTTP)
+  sameSite: 'lax',  // ← only sent on same-site requests (protects against CSRF)
+  maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days in milliseconds
+  path: '/',
+});
+```
+
+From that point on:
+- Browser stores the cookie
+- Every request to the BFF automatically includes `Cookie: access_token=<jwt>` in the headers — **no JavaScript code does this**
+- An XSS attack can run `document.cookie` — but `httpOnly` cookies are **invisible** to `document.cookie`. The attacker gets nothing.
+
+The `Set-Cookie` response header is what tells the browser to store it:
+```
+Set-Cookie: access_token=eyJhbGci...; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800
+```
+
+**The tradeoff:** You can't read the cookie value from JavaScript (to decode the JWT and get the user's name/role for the UI). You have to either:
+- Call a `/auth/me` endpoint that returns the decoded user info, or
+- Store non-sensitive display info (name, role) in a separate, non-httpOnly cookie or in-memory state
+
+---
+
+### 67. `@Res({ passthrough: true })` — Why NestJS Needs This
+
+When a NestJS controller method needs to set a cookie, it needs access to the Express `Response` object (`res`). Normally, NestJS handles the response automatically — it takes your method's return value and sends it as JSON. But if you inject `@Res()`, NestJS thinks *you* are taking over the response, and stops doing that automatically.
+
+That breaks `return { tenantSlug, expiresIn }` — NestJS no longer serializes it.
+
+`passthrough: true` tells NestJS: "I want `res` to set the cookie, but you still handle sending the return value."
+
+```ts
+// ✗ Without passthrough — NestJS hands over full response control
+async issueToken(
+  @Body() dto: IssueTokenDto,
+  @Res() res: Response,   // NestJS: "ok you're sending the response"
+): Promise<{ tenantSlug: string }> {
+  res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
+  return { tenantSlug: 'lavacar-bh' };  // ← this is NEVER SENT. NestJS does nothing.
+}
+
+// ✓ With passthrough — NestJS sends the return value, you only set the cookie
+async issueToken(
+  @Body() dto: IssueTokenDto,
+  @Res({ passthrough: true }) res: Response,   // NestJS: "ok I'll still send the response"
+): Promise<{ tenantSlug: string }> {
+  res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
+  return { tenantSlug: 'lavacar-bh' };  // ← this IS sent as JSON body
+}
+```
+
+**Pattern in Ikaro:** `devLogin()` was the reference implementation — it already used `@Res({ passthrough: true })`. Whenever you need to set a cookie OR a custom response header while still returning a typed response body, this is the pattern.
+
+---
+
+### 68. `SameSite` — CSRF Protection Built Into the Cookie
+
+**CSRF (Cross-Site Request Forgery):** A malicious website tricks your browser into making a request to your BFF (since the browser has the auth cookie and attaches it automatically).
+
+```
+User is logged into lavacar.ikaro.com
+User visits evil.com
+evil.com has: <img src="https://bff.ikaro.com/v1/bookings/123/cancel">
+Browser makes that request, automatically attaching the access_token cookie
+BFF receives authenticated request from the user — and cancels the booking
+```
+
+`SameSite=Lax` prevents this. The cookie is only sent when the navigation originates from your own site. A request triggered by a page on `evil.com` does not include the cookie.
+
+| `SameSite` value | Behavior |
+|---|---|
+| `Strict` | Cookie only sent when URL bar shows your domain. Breaks OAuth redirects (Google redirects back to your site — `Strict` considers this cross-site and drops the cookie). |
+| `Lax` | Cookie sent on top-level navigations (clicking a link, form submit). Not sent on sub-resource requests (images, iframes) from other sites. **Ikaro uses this** — it permits OAuth redirects while blocking the CSRF scenario above. |
+| `None` | Always send. Must be paired with `Secure: true`. Needed for embedded iframes on other domains. |
+
+---
+
+### 69. Why the BFF Returns `{ tenantSlug }` Instead of the Token
+
+After setting the cookie in `POST /auth/token`, the BFF returns:
+
+```json
+{ "tenantSlug": "lavacar-bh", "expiresIn": "7d" }
+```
+
+Not the JWT. The frontend doesn't need the JWT — the browser has it in the cookie. What the frontend *does* need is: **where should I send the user now?**
+
+The `tenantSlug` is the redirect destination. The login page (`/select-tenant`) receives this and navigates to `/{tenantSlug}`:
+
+```ts
+const { tenantSlug } = await issueToken({ selectionToken, tenantId });
+router.push(`/${tenantSlug}`);   // → /lavacar-bh
+```
+
+**The general pattern:** when a mutation changes auth state, the server's JSON response should tell the client *what to do next*, not expose internal state (the token). The token is a server-side concern that lives in the cookie layer.
+
+---
+
+### 70. The `withCredentials: true` Requirement for Cross-Origin Cookies
+
+Browsers block cookies on cross-origin requests by default. In development:
+- Next.js frontend: `localhost:3000`
+- BFF: `localhost:3002`
+
+These are different origins (different port = different origin). Without configuration, `axios.post('http://localhost:3002/v1/auth/token')` would NOT send the `access_token` cookie and would NOT save a `Set-Cookie` from the response.
+
+```ts
+// lib/api/bff-client.ts
+export const bffClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_BFF_URL,
+  withCredentials: true,   // ← required for cross-origin cookies to work
+});
+```
+
+`withCredentials: true` tells axios (and the underlying `XMLHttpRequest`/`fetch`) to include credentials (cookies, HTTP auth) on cross-origin requests. The BFF must also respond with `Access-Control-Allow-Credentials: true` in CORS headers — which NestJS's CORS config in `main.ts` sets.
+
+In production, the frontend and BFF share the same domain (via a path prefix or a single domain with different service routing), so this is less of an issue — but the config is still correct to have.
+
+---
