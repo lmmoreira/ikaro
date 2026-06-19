@@ -20,8 +20,7 @@ import { getTenantId } from '@/lib/api/bff-client';
 
 function useInvalidateBookings() {
   const queryClient = useQueryClient();
-  const tenantId = getTenantId();
-  return () => queryClient.invalidateQueries({ queryKey: ['bookings', tenantId] });
+  return () => queryClient.invalidateQueries({ queryKey: ['bookings', getTenantId()] });
 }
 
 export function useApproveBooking() {

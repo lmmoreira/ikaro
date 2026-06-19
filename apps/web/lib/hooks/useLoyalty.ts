@@ -65,9 +65,12 @@ export function useCustomerLoyaltyRedemptions(customerId: string, query?: Loyalt
 
 export function useRedeemPoints() {
   const queryClient = useQueryClient();
-  const tenantId = getTenantId();
   return useMutation({
     mutationFn: (body: RedeemPointsRequest) => redeemPoints(body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['loyalty', tenantId] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === 'loyalty' && query.queryKey[2] === getTenantId(),
+      }),
   });
 }
