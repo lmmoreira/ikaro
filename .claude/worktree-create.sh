@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="/home/leonardo/Projetos/leonardo/ikaro"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INPUT=$(cat)
 
 NAME=$(echo "$INPUT" | jq -r '.name // empty')
 
 if [ -z "$NAME" ]; then
-  echo "WorktreeCreate: missing name in hook input — input was: $INPUT" >&2
+  echo "WorktreeCreate: missing name in hook input" >&2
   exit 1
 fi
 
