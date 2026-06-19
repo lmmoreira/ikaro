@@ -26,6 +26,8 @@ Exceptions always: read-only ops (`Read`, `grep`, `ls`, `git status`, memory fil
 
 **The same gate applies before `/pre-pr` and before `gh pr create` — never chain them automatically.** Both are expensive (`/pre-pr` re-runs full verification + integration tests; opening a PR is a visible, shared action). When an implementation/edit phase is finished, say so explicitly and ask: *"Implementation finished — anything else to commit, or shall I run `/pre-pr` and open the PR?"* Wait for explicit yes before running `/pre-pr`, and again before `gh pr create`, even if the underlying work was already approved earlier in the conversation.
 
+**Branch-or-main choice for small doc-only edits:** If the change is doc-only (this file, a `CI_TRAPS.md` entry, a TD note — no code) and you're starting from `main`, don't automatically create a feature branch and run the full PR cycle. Ask first: *"Small doc-only change — want this on a new branch with a full PR, or should I just commit it directly to main?"* `git push`'s pre-push hook runs the full `ci:fast` suite every time, and `gh pr create` triggers CodeRabbit/Copilot review bots that bill per PR — disproportionate cost for a one-line markdown edit. Does not apply to any code change, which always needs a feature branch per §9 Step 1.
+
 ---
 
 ## 1. Project Facts
@@ -430,7 +432,9 @@ gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
 ### Step 10 — Ask user before merging (MANDATORY)
 Once all CI checks are green, ask: *"All checks are green on PR #N. Have you reviewed it and are you happy to merge?"*
 
-**Never merge without explicit user confirmation.** Then: `gh pr merge <PR-number> --repo lmmoreira/ikaro --squash --delete-branch && git checkout main && git pull origin main`
+**Never merge without explicit user confirmation.** Then: `gh pr merge <PR-number> --repo lmmoreira/ikaro --squash --delete-branch && git checkout main && git pull origin main && git branch -D <branch-name>`
+
+`--delete-branch` only deletes the **remote** branch — always also delete the local branch (`git branch -D <branch-name>`, not `-d`: squash merges aren't recognized as "fully merged" by git's safe-delete check, so `-d` will refuse). Do this for every merged PR, no exceptions.
 
 ### Step 11 — Mark story done (only after the squash commit is on `main`)
 Run `/mark-done M0X-SYY`. The skill updates the plan file, commits to main, and alerts if all stories in the milestone are now done.
