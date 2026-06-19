@@ -63,7 +63,7 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
     }
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
-    const timezone = tenantInfo?.timezone ?? 'America/Sao_Paulo';
+    const timezone = tenantInfo?.timezone ?? 'UTC';
     const startDate = new Date(dto.approvedSlot.startTime);
     const localDate = utcDateToLocalDate(startDate, timezone);
     const localTime = utcDateToLocalHHMM(startDate, timezone);

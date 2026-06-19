@@ -9,6 +9,10 @@ export const ProvisionTenantSchema = z.object({
     message: 'slug must only contain lowercase letters, numbers, and hyphens',
   }),
   adminEmail: z.string().refine(Email.isValid, { message: 'adminEmail must be a valid email' }),
+  country_code: z
+    .string()
+    .regex(/^[A-Za-z]{2}$/, { message: 'country_code must be a 2-letter ISO 3166-1 alpha-2 code' })
+    .toUpperCase(),
   timezone: z
     .string()
     .refine(Timezone.isValid, { message: 'timezone must be a valid IANA timezone' })

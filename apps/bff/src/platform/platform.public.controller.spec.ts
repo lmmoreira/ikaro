@@ -23,7 +23,23 @@ const businessInfo: HotsiteBusinessInfoResponse = {
   socialLinks: null,
 };
 
-const localization: HotsiteLocalizationResponse = { language: 'pt-BR' };
+const localization: HotsiteLocalizationResponse = {
+  language: 'pt-BR',
+  currency: 'BRL',
+  phonePrefix: '+55',
+  dateFormat: 'DD/MM/YYYY',
+  timeFormat: '24h',
+  numberFormat: '1.234,56',
+  firstDayOfWeek: 0,
+  address: {
+    postalLabel: 'CEP',
+    postalPlaceholder: '00000-000',
+    stateLabel: 'UF',
+    requireNeighborhood: true,
+    neighborhoodLabel: 'Bairro',
+    lookupService: 'viacep',
+  },
+};
 
 const hotsiteResponse: HotsiteResponse & {
   business: HotsiteBusinessInfoResponse;

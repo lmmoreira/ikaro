@@ -73,7 +73,7 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
       this.tenantPort.getTenantInfo(dto.tenantId),
     ]);
 
-    const timezone = tenantInfo?.timezone ?? 'America/Sao_Paulo';
+    const timezone = tenantInfo?.timezone ?? 'UTC';
     const scheduledDate = new Date(dto.scheduledAt);
     const localDate = utcDateToLocalDate(scheduledDate, timezone);
     const localTime = utcDateToLocalHHMM(scheduledDate, timezone);

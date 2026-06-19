@@ -48,7 +48,13 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${PLATFORM_KEY}`)
-      .send({ name: 'Reminder Integration', slug, adminEmail, timezone: 'America/Sao_Paulo' })
+      .send({
+        name: 'Reminder Integration',
+        slug,
+        adminEmail,
+        country_code: 'BR',
+        timezone: 'America/Sao_Paulo',
+      })
       .expect(201);
 
     tenantId = body.tenantId as string;
@@ -196,6 +202,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
         name: 'Reminder B',
         slug: tenantBSlug,
         adminEmail: tenantBAdminEmail,
+        country_code: 'BR',
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

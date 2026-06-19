@@ -29,6 +29,7 @@ describe('ProvisionTenantUseCase', () => {
       name: 'Lavacar Belo',
       slug: 'lavacar-belo',
       adminEmail: 'admin@lavacar.com.br',
+      country_code: 'BR',
     });
 
     expect(result.slug).toBe('lavacar-belo');
@@ -44,11 +45,27 @@ describe('ProvisionTenantUseCase', () => {
     expect(savedConfig!.isPublished).toBe(false);
   });
 
+  it('uses the country default timezone when timezone is omitted for a non-BR country', async () => {
+    await useCase.execute({
+      name: 'Lavacar US',
+      slug: 'lavacar-us',
+      adminEmail: 'admin@lavacar.us',
+      country_code: 'US',
+    });
+
+    const tenant = await tenantRepo.findBySlug('lavacar-us');
+    expect(tenant!.settings.business_hours.timezone).toBe('America/New_York');
+    expect(tenant!.settings.localization.country_code).toBe('US');
+    expect(tenant!.settings.localization.currency).toBe('USD');
+    expect(tenant!.settings.localization.language).toBe('en');
+  });
+
   it('uses the provided timezone instead of the default', async () => {
     await useCase.execute({
       name: 'Lavacar Norte',
       slug: 'lavacar-norte',
       adminEmail: 'admin@norte.com.br',
+      country_code: 'BR',
       timezone: 'America/Manaus',
     });
 
@@ -61,6 +78,7 @@ describe('ProvisionTenantUseCase', () => {
       name: 'Lavacar Sul',
       slug: 'lavacar-sul',
       adminEmail: 'sul@lavacar.com.br',
+      country_code: 'BR',
     });
 
     expect(eventBus.published).toHaveLength(1);
@@ -76,10 +94,15 @@ describe('ProvisionTenantUseCase', () => {
   });
 
   it('throws SlugAlreadyTakenError when slug is already taken', async () => {
-    await useCase.execute({ name: 'A', slug: 'taken-slug', adminEmail: 'a@a.com' });
+    await useCase.execute({
+      name: 'A',
+      slug: 'taken-slug',
+      adminEmail: 'a@a.com',
+      country_code: 'BR',
+    });
 
     await expect(
-      useCase.execute({ name: 'B', slug: 'taken-slug', adminEmail: 'b@b.com' }),
+      useCase.execute({ name: 'B', slug: 'taken-slug', adminEmail: 'b@b.com', country_code: 'BR' }),
     ).rejects.toThrow(SlugAlreadyTakenError);
   });
 
@@ -87,13 +110,23 @@ describe('ProvisionTenantUseCase', () => {
     jest.spyOn(hotsiteRepo, 'save').mockRejectedValue(new Error('db error'));
 
     await expect(
-      useCase.execute({ name: 'A', slug: 'fail-slug', adminEmail: 'a@a.com' }),
+      useCase.execute({ name: 'A', slug: 'fail-slug', adminEmail: 'a@a.com', country_code: 'BR' }),
     ).rejects.toThrow('db error');
   });
 
   it('tenant isolation — two tenants get separate hotsite configs', async () => {
-    const resA = await useCase.execute({ name: 'A', slug: 'iso-a', adminEmail: 'a@a.com' });
-    const resB = await useCase.execute({ name: 'B', slug: 'iso-b', adminEmail: 'b@b.com' });
+    const resA = await useCase.execute({
+      name: 'A',
+      slug: 'iso-a',
+      adminEmail: 'a@a.com',
+      country_code: 'BR',
+    });
+    const resB = await useCase.execute({
+      name: 'B',
+      slug: 'iso-b',
+      adminEmail: 'b@b.com',
+      country_code: 'BR',
+    });
 
     const configA = await hotsiteRepo.findByTenantId(resA.tenantId);
     const configB = await hotsiteRepo.findByTenantId(resB.tenantId);

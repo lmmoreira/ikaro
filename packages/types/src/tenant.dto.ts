@@ -10,6 +10,13 @@ export interface BusinessHours {
   closed: boolean;
 }
 
+export interface TenantLocalizationSettings {
+  countryCode: string;
+  currency: string;
+  language: string;
+  decimalPlaces: number;
+}
+
 export interface TenantSettings {
   timezone: string;
   booking: {
@@ -28,6 +35,7 @@ export interface TenantSettings {
     saturday: BusinessHours;
     sunday: BusinessHours;
   };
+  localization: TenantLocalizationSettings;
 }
 
 export interface UpdateTenantSettingsRequest {

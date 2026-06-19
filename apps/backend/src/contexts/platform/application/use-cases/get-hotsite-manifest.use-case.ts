@@ -18,7 +18,7 @@ export interface HotsiteBusinessInfoAddress {
   street: string;
   number: string;
   complement?: string;
-  neighborhood: string;
+  neighborhood?: string;
   city: string;
   state: string;
   zipCode: string;
@@ -37,8 +37,24 @@ export interface HotsiteBusinessInfo {
   socialLinks: HotsiteBusinessInfoSocialLinks | null;
 }
 
+export interface HotsiteAddressSpec {
+  postalLabel: string;
+  postalPlaceholder: string;
+  stateLabel: string;
+  requireNeighborhood: boolean;
+  neighborhoodLabel: string | null;
+  lookupService: 'viacep' | 'none';
+}
+
 export interface HotsiteLocalization {
   language: string;
+  currency: string;
+  phonePrefix: string;
+  dateFormat: string;
+  timeFormat: '24h' | '12h';
+  numberFormat: string;
+  firstDayOfWeek: 0 | 1;
+  address: HotsiteAddressSpec;
 }
 
 export interface GetHotsiteManifestUseCaseResult {
@@ -59,12 +75,6 @@ function emptyBusinessInfo(): HotsiteBusinessInfo {
   };
 }
 
-// Matches TenantSettings.default().localization.language — used only for the
-// unpublished/minimal payload, where the tenant aggregate is not loaded.
-function defaultLocalization(): HotsiteLocalization {
-  return { language: 'pt-BR' };
-}
-
 @Injectable()
 export class GetHotsiteManifestUseCase {
   constructor(
@@ -81,6 +91,9 @@ export class GetHotsiteManifestUseCase {
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
 
+    const tenant = await this.tenantRepo.findById(tenantId);
+    if (!tenant) throw new TenantNotFoundError(tenantId);
+
     if (!config.isPublished) {
       const { branding } = this.imageUrlResolver.resolve(config.branding, [], (storagePath) =>
         this.storageService.getPublicUrl(storagePath),
@@ -91,12 +104,9 @@ export class GetHotsiteManifestUseCase {
         seo: config.seo,
         isPublished: false,
         business: emptyBusinessInfo(),
-        localization: defaultLocalization(),
+        localization: this.mapLocalization(tenant.settings.resolveLocalization()),
       };
     }
-
-    const tenant = await this.tenantRepo.findById(tenantId);
-    if (!tenant) throw new TenantNotFoundError(tenantId);
 
     const { branding, layout } = this.imageUrlResolver.resolve(
       config.branding,
@@ -110,7 +120,29 @@ export class GetHotsiteManifestUseCase {
       seo: config.seo,
       isPublished: config.isPublished,
       business: this.mapBusinessInfo(tenant.settings.business_info),
-      localization: { language: tenant.settings.localization.language },
+      localization: this.mapLocalization(tenant.settings.resolveLocalization()),
+    };
+  }
+
+  private mapLocalization(
+    resolved: import('../../domain/value-objects/tenant-settings.vo').ResolvedLocalization,
+  ): HotsiteLocalization {
+    return {
+      language: resolved.language,
+      currency: resolved.currency,
+      phonePrefix: resolved.phonePrefix,
+      dateFormat: resolved.dateFormat,
+      timeFormat: resolved.timeFormat,
+      numberFormat: resolved.numberFormat,
+      firstDayOfWeek: resolved.firstDayOfWeek,
+      address: {
+        postalLabel: resolved.address.postalLabel,
+        postalPlaceholder: resolved.address.postalPlaceholder,
+        stateLabel: resolved.address.stateLabel,
+        requireNeighborhood: resolved.address.requireNeighborhood,
+        neighborhoodLabel: resolved.address.neighborhoodLabel,
+        lookupService: resolved.address.lookupService,
+      },
     };
   }
 
@@ -123,7 +155,7 @@ export class GetHotsiteManifestUseCase {
             street: businessInfo.address.street,
             number: businessInfo.address.number,
             complement: businessInfo.address.complement ?? undefined,
-            neighborhood: businessInfo.address.neighborhood,
+            neighborhood: businessInfo.address.neighborhood ?? undefined,
             city: businessInfo.address.city,
             state: businessInfo.address.state,
             zipCode: businessInfo.address.zip_code,

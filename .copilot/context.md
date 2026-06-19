@@ -429,6 +429,8 @@ gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
 ### Step 9 — Monitor CI; self-fix any failure
 `gh pr checks <PR-number> --repo lmmoreira/ikaro` — fix → commit → push → re-check until all green.
 
+Also check Copilot/CodeRabbit inline review comments — they don't block merge via `gh pr checks` and won't show up there, so nothing forces you to look. Fetch them with `gh api repos/lmmoreira/ikaro/pulls/<PR-number>/comments` (inline) and `gh api repos/lmmoreira/ikaro/pulls/<PR-number>/reviews` (review bodies). Triage each: fix what's valid and in scope, skip with a stated reason what isn't (e.g. findings on a file from an unrelated commit on the same branch).
+
 ### Step 10 — Ask user before merging (MANDATORY)
 Once all CI checks are green, ask: *"All checks are green on PR #N. Have you reviewed it and are you happy to merge?"*
 
@@ -483,6 +485,7 @@ If every story in the milestone is now `✅ Done`, see §15 item 9 for the two w
 | Working on M12+ (NotificationTemplate/Log, Pub/Sub DLQ, cron reminders, processed_events) | `plan/M11-NOTIFICATIONS-CRON_IMPLEMENTATION_DETAILS_IA.md` | 5 |
 | Working on M13+ (dashboard frontend; hotsite module system, branding tokens, ISR/revalidation, booking form, SEO, public/private storage) | `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_IA.md` | 11 |
 | Working on M115 (GCS signed-URL, dev-login, InternalApiGuard, `contact*` rename) | `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` | 3 |
+| Working on TD02 (localization — CountrySpec registry, Money VO, PhoneNumber E.164, address validation, next-intl, i18n locale files) | `td/TD02-LOCALIZATION.md` | 6 |
 | Writing new journeys or prototypes (`plan/journey/`) | `plan/journey/README.md` | 3 |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.

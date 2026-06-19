@@ -21,7 +21,8 @@ const linkStyle: React.CSSProperties = {
 
 function formatAddress(address: NonNullable<HotsiteBusinessInfoResponse['address']>): string {
   const complement = address.complement ? ` - ${address.complement}` : '';
-  return `${address.street}, ${address.number}${complement} - ${address.neighborhood}, ${address.city} - ${address.state}, ${address.zipCode}`;
+  const neighborhood = address.neighborhood ? ` - ${address.neighborhood}` : '';
+  return `${address.street}, ${address.number}${complement}${neighborhood}, ${address.city} - ${address.state}, ${address.zipCode}`;
 }
 
 function digitsOnly(value: string): string {

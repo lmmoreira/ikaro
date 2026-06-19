@@ -40,14 +40,24 @@ describe('BookingAttachmentsController (integration)', () => {
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${TEST_KEY}`)
-      .send({ name: 'Attach Tenant A', slug: 'attach-tenant-a', adminEmail: 'a@attach.test' })
+      .send({
+        name: 'Attach Tenant A',
+        slug: 'attach-tenant-a',
+        adminEmail: 'a@attach.test',
+        country_code: 'BR',
+      })
       .expect(201);
     tenantId = a.tenantId as string;
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${TEST_KEY}`)
-      .send({ name: 'Attach Tenant B', slug: 'attach-tenant-b', adminEmail: 'b@attach.test' })
+      .send({
+        name: 'Attach Tenant B',
+        slug: 'attach-tenant-b',
+        adminEmail: 'b@attach.test',
+        country_code: 'BR',
+      })
       .expect(201);
     tenantBId = b.tenantId as string;
 

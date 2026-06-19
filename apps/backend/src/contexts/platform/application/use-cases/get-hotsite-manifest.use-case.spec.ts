@@ -68,7 +68,9 @@ describe('GetHotsiteManifestUseCase', () => {
       address: null,
       socialLinks: null,
     });
-    expect(result.localization).toEqual({ language: 'pt-BR' });
+    expect(result.localization).toEqual(
+      expect.objectContaining({ language: 'pt-BR', currency: 'BRL', phonePrefix: '+55' }),
+    );
     expect(result.seo).toEqual({ title: null, description: null });
   });
 
@@ -179,7 +181,7 @@ describe('GetHotsiteManifestUseCase', () => {
 
     const result = await useCase.execute();
 
-    expect(result.localization).toEqual({ language: 'en-US' });
+    expect(result.localization.language).toBe('en-US');
   });
 
   it('resolves stored filePaths to permanent public URLs — branding.logoUrl and GalleryImage.url', async () => {

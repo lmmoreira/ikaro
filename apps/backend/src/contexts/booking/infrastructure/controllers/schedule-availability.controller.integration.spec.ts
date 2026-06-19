@@ -40,14 +40,24 @@ describe('ScheduleAvailabilityController (integration)', () => {
     const { body: a } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${TEST_KEY}`)
-      .send({ name: 'Avail Tenant A', slug: 'avail-tenant-a', adminEmail: 'a@avail.test' })
+      .send({
+        name: 'Avail Tenant A',
+        slug: 'avail-tenant-a',
+        adminEmail: 'a@avail.test',
+        country_code: 'BR',
+      })
       .expect(201);
     tenantAId = a.tenantId as string;
 
     const { body: b } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('Authorization', `Bearer ${TEST_KEY}`)
-      .send({ name: 'Avail Tenant B', slug: 'avail-tenant-b', adminEmail: 'b@avail.test' })
+      .send({
+        name: 'Avail Tenant B',
+        slug: 'avail-tenant-b',
+        adminEmail: 'b@avail.test',
+        country_code: 'BR',
+      })
       .expect(201);
     tenantBId = b.tenantId as string;
 
@@ -102,6 +112,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           name: 'Avail Closure Tenant',
           slug: 'avail-closure',
           adminEmail: 'closure@avail.test',
+          country_code: 'BR',
         })
         .expect(201);
       const closureTenantId = tenantBody.tenantId as string;
@@ -134,6 +145,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           name: 'Avail Partial Tenant',
           slug: 'avail-partial',
           adminEmail: 'partial@avail.test',
+          country_code: 'BR',
         })
         .expect(201);
       const partialTenantId = tenantBody.tenantId as string;
@@ -181,6 +193,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           name: 'Avail Multi Tenant',
           slug: 'avail-multi',
           adminEmail: 'multi@avail.test',
+          country_code: 'BR',
         })
         .expect(201);
       const multiTenantId = tenantBody.tenantId as string;
@@ -239,6 +252,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           name: 'Avail Opening Tenant',
           slug: 'avail-opening',
           adminEmail: 'opening@avail.test',
+          country_code: 'BR',
         })
         .expect(201);
       const openingTenantId = tenantBody.tenantId as string;
@@ -276,6 +290,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           name: 'Avail Override Tenant',
           slug: 'avail-override',
           adminEmail: 'override@avail.test',
+          country_code: 'BR',
         })
         .expect(201);
       const overrideTenantId = tenantBody.tenantId as string;

@@ -44,6 +44,12 @@ const BusinessHoursSchema = z.object({
 
 const LocalizationSchema = z
   .object({
+    country_code: z
+      .string()
+      .regex(/^[A-Za-z]{2}$/, {
+        message: 'country_code must be a 2-letter ISO 3166-1 alpha-2 code',
+      })
+      .toUpperCase(),
     currency: z.string().min(1),
     currency_symbol: z.string().min(1).max(3),
     language: z.string().min(1),
