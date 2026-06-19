@@ -21,7 +21,11 @@ const CUSTOMER_ID_B = '20000000-0000-4000-8000-000000000002';
 const STAFF_ID_A = '30000000-0000-4000-8000-000000000001';
 
 const makeRes = (): jest.Mocked<Response> =>
-  ({ redirect: jest.fn(), cookie: jest.fn() }) as unknown as jest.Mocked<Response>;
+  ({
+    redirect: jest.fn(),
+    cookie: jest.fn(),
+    clearCookie: jest.fn(),
+  }) as unknown as jest.Mocked<Response>;
 
 function makeConfigService(opts?: { enableDevAuth?: string; nodeEnv?: string }): ConfigService {
   return {
@@ -885,6 +889,57 @@ describe('AuthController', () => {
       const r2 = await ctrl.devLogin(dto, makeRes());
 
       expect(r1.user.sub).toBe(r2.user.sub);
+    });
+  });
+
+  describe('logout()', () => {
+    it('clears the access_token cookie and redirects to the tenant hotsite when tenantSlug is valid', () => {
+      const backendHttp = makeBackendHttp();
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        backendHttp,
+        configService,
+      );
+      const res = makeRes();
+
+      controller.logout('lavacar-bh', res);
+
+      expect(res.clearCookie).toHaveBeenCalledWith(
+        'access_token',
+        expect.objectContaining({ httpOnly: true }),
+      );
+      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/lavacar-bh');
+    });
+
+    it('redirects to the bare frontendUrl when tenantSlug is missing', () => {
+      const backendHttp = makeBackendHttp();
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        backendHttp,
+        configService,
+      );
+      const res = makeRes();
+
+      controller.logout(undefined, res);
+
+      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000');
+    });
+
+    it('redirects to the bare frontendUrl when tenantSlug fails validation', () => {
+      const backendHttp = makeBackendHttp();
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        backendHttp,
+        configService,
+      );
+      const res = makeRes();
+
+      controller.logout('Not Valid Slug!', res);
+
+      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000');
     });
   });
 });

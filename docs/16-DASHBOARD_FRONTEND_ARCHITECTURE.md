@@ -8,22 +8,24 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 
 ## 1. Role-Based Rendering (RBR)
 
-> **Two separate shells, not one `AppShell` with a mode switch.** M13 (`plan/M13-DASHBOARD-FRONTEND.md`, stories `S15`/`S16`) builds a **staff/manager dashboard shell** at `/dashboard/**` and a **separate customer "Minha Conta" shell** at `/{slug}/minha-conta/**`. They live under different route trees, are protected by different middleware checks, and share no top-level shell component. There is no unified `AppShell`/"mode" concept and no `CommandCenter`/`BookingTimeline`/`LoyaltyCard`/`ServiceEditor`/`TenantSwitcher` components — those names predate the M13 plan and were never built.
+> **Two separate shells, not one `AppShell` with a mode switch.** M13 (`plan/M13-DASHBOARD-FRONTEND.md`, stories `S15`/`S16`) builds a **staff/manager dashboard shell** at `/dashboard/**` and a **separate customer "Minha Conta" shell** at `/{slug}/my-account/**`. They live under different route trees, are protected by different middleware checks, and share no top-level shell component. There is no unified `AppShell`/"mode" concept and no `CommandCenter`/`BookingTimeline`/`LoyaltyCard`/`ServiceEditor`/`TenantSwitcher` components — those names predate the M13 plan and were never built.
+
+> **Naming note:** the customer area's pt-BR *concept* "Minha Conta" keeps that name in UI copy and in the prototype folder (`plan/journey/customer/prototypes/minha-conta/` — prototypes are conceptual mockups, kept pt-BR on purpose). The production route/file/component names are English (`my-account`, not `minha-conta`) per the code-standards English-only rule (`CLAUDE.md` §7) — established in `M13-S42`.
 
 ### **Staff/Manager Shell — `/dashboard/**` (M13-S15; UC-003, UC-004, UC-005, UC-008, UC-009, UC-010, UC-012, UC-013)**
 - **Focus:** Efficiency and task management for STAFF and MANAGER roles.
 - **Route protection:** `apps/web/middleware.ts` reads the JWT from the `httpOnly` cookie; redirects to `/dashboard/login` if missing or if role is not `STAFF`/`MANAGER`.
-- **Layout:** `apps/web/app/dashboard/layout.tsx` (server component) reads the JWT via `cookies()`, extracts `{ tenantSlug, tenantName, userName, role }`, and renders `<DashboardShell>`.
+- **Layout:** `apps/web/app/dashboard/layout.tsx` (server component) reads `{ tenantId, tenantSlug, role }` from the JWT via `cookies()`, and renders `<DashboardShell>`. The JWT payload is only `{ sub, tenantId, tenantSlug, role }` (see `JwtIssuerService`) — it does **not** carry `tenantName`/`userName`; S15 must source those from a separate profile/tenant-info fetch, not by destructuring the JWT.
 - **Key components (`apps/web/components/dashboard/`):**
   - `DashboardShell.tsx` — `'use client'` shell wrapper: sidebar (desktop, `≥1024px`) + topbar + bottom nav (mobile, `<1024px`); conditionally renders manager-only nav based on `role`.
   - `Sidebar.tsx` — logo block, nav items (Agenda, Horários, Serviços, Fidelidade), and a "Somente Gerente" section (Equipe, Configurações, Hotsite) shown only when `role === 'MANAGER'`.
   - `Topbar.tsx` — back arrow + title on drill-down pages, page title on list pages, avatar + date on desktop.
   - `BottomNav.tsx` — mobile-only tab bar mirroring the sidebar's nav items, role-aware.
 
-### **Customer Shell — `/{slug}/minha-conta/**` (M13-S16; UC-006, UC-007, UC-016, UC-023)**
+### **Customer Shell — `/{slug}/my-account/**` (M13-S16; UC-006, UC-007, UC-016, UC-023)**
 - **Focus:** Personal booking history and loyalty for the `CUSTOMER` role.
-- **Route protection:** `apps/web/middleware.ts` extends the same file with a check for `/{slug}/minha-conta/**` — redirects to `/{slug}/login` if the JWT is missing/expired, if the role is not `CUSTOMER` (staff must not reach the customer area), or if the JWT's `tenantSlug` does not match the `[slug]` path segment.
-- **Layout:** `apps/web/app/[slug]/minha-conta/layout.tsx` (server component) reads the JWT via `cookies()`, extracts `{ tenantName, userName, role }`, and renders `<CustomerShell>`.
+- **Route protection:** `apps/web/middleware.ts` extends the same file with a check for `/{slug}/my-account/**` — redirects to `/{slug}/login` if the JWT is missing/expired, if the role is not `CUSTOMER` (staff must not reach the customer area), or if the JWT's `tenantSlug` does not match the `[slug]` path segment.
+- **Layout:** `apps/web/app/[slug]/my-account/layout.tsx` (server component) reads `{ tenantId, tenantSlug, role }` from the JWT via `cookies()`, and renders `<CustomerShell>`. As with the staff shell, the JWT carries no `userName`/`tenantName` — fetch the customer's name via `GET /api/customers/me` (the proxy route added in `M13-S42`, also used by the hotsite auth bar) and the tenant's display name via the manifest already fetched by the parent `[slug]/layout.tsx`.
 - **Key component (`apps/web/components/customer/`):**
   - `CustomerShell.tsx` — `'use client'`: topbar (tenant brand + "+ Novo agendamento" desktop shortcut + avatar dropdown with "Sair"/"Site Ikaro"), a desktop-only horizontal tab nav (Início | Agendamentos | Fidelidade, `≥1024px`), a `main-content` slot, and a mobile-only bottom nav with the same three tabs (`<1024px`).
 
@@ -80,12 +82,12 @@ apps/web/
 │   │   ├── page.tsx                ← renders modules array from manifest (HERO, SERVICE_LIST, etc.)
 │   │   ├── booking/
 │   │   │   └── page.tsx            ← booking form (UC-001, UC-002)
-│   │   └── minha-conta/            ← customer area (requires valid JWT, role CUSTOMER — M13-S16)
+│   │   └── my-account/             ← customer area (requires valid JWT, role CUSTOMER — M13-S16)
 │   │       ├── layout.tsx          ← reads JWT via cookies(), renders <CustomerShell>
 │   │       ├── page.tsx            ← "Início" — booking history overview
-│   │       ├── agendamentos/
+│   │       ├── bookings/
 │   │       │   └── page.tsx        ← own bookings list + detail (UC-006, UC-007)
-│   │       └── fidelidade/
+│   │       └── loyalty/
 │   │           └── page.tsx        ← loyalty metrics (UC-016)
 │   ├── dashboard/                  ← staff/manager area (requires valid JWT, role STAFF|MANAGER — M13-S15)
 │   │   ├── layout.tsx              ← reads JWT via cookies(), renders <DashboardShell>
@@ -146,7 +148,7 @@ apps/web/
 │       ├── useLoyaltyBalance.ts
 │       └── useServices.ts
 │
-├── middleware.ts                    ← Next.js edge middleware: redirects /dashboard/** → /dashboard/login if no STAFF|MANAGER JWT; redirects /{slug}/minha-conta/** → /{slug}/login if no CUSTOMER JWT
+├── middleware.ts                    ← Next.js edge middleware: redirects /dashboard/** → /dashboard/login if no STAFF|MANAGER JWT; redirects /{slug}/my-account/** → /{slug}/login if no CUSTOMER JWT
 ├── next.config.js                   ← rewrites, env vars, image domains
 └── public/
     └── fonts/                       ← self-hosted fonts (no external font requests)

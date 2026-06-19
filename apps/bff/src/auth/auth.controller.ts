@@ -7,6 +7,7 @@ import {
   HttpException,
   HttpStatus,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -26,6 +27,7 @@ import { IssueTokenDto, IssueTokenSchema } from './dtos/issue-token.dto';
 import { SwitchTenantDto, SwitchTenantSchema } from './dtos/switch-tenant.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtIssuerService } from './jwt-issuer.service';
+import { isValidSlug } from './oauth-state';
 import { SelectionTokenService } from './selection-token.service';
 import { GoogleProfile } from './strategies/google.strategy';
 import {
@@ -77,6 +79,15 @@ export class AuthController {
     }
 
     await this.handleMultiTenantLogin(profile, res, frontendUrl);
+  }
+
+  @Public()
+  @Get('logout')
+  logout(@Query('tenantSlug') tenantSlug: string | undefined, @Res() res: Response): void {
+    res.clearCookie('access_token', JWT_COOKIE_OPTIONS);
+    const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
+    const path = tenantSlug && isValidSlug(tenantSlug) ? `/${tenantSlug}` : '';
+    res.redirect(`${frontendUrl}${path}`);
   }
 
   @Public()

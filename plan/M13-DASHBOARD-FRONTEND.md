@@ -33,17 +33,20 @@ This file replaces six previously separate draft milestone files — `M124-LOGIN
 
 **Multi-tenant support:** tenant selection happens at `/select-tenant` (2+ tenants at login); `TenantSwitcher`/`/switch-tenant` lets a logged-in customer change tenant context without re-doing OAuth.
 
+**Customer account area naming:** the journey prototype folder is `plan/journey/customer/prototypes/minha-conta/` and stays pt-BR — prototypes are conceptual mockups, not code. The production route/file/component names are English: `/{slug}/my-account` (not `/{slug}/minha-conta`), per the code-standards English-only rule (`CLAUDE.md` §7). This was established in `M13-S42` (hotsite auth bar) and carried through `S16`/`S27`–`S30`. UI-facing pt-BR copy ("Minha conta", "Agendamentos", "Fidelidade") is unaffected — only identifiers and paths changed.
+
 **Booking form / calendar reuse:** the `AvailabilityCalendar` component built for the guest/customer booking flow (UC-011, M12) is reused for staff's reschedule action (`M13-S19`) — verify it's extracted in a way that doesn't pull in basket/duration-recompute logic specific to the booking flow.
 
 **`dashboard-shell.html` CSS classes — do not invent new ones, use what's in `shared/tokens.css`:** `.dashboard-topbar`, `.topbar-page-title`, `.topbar-date`, `.dashboard-layout`, `.sidebar`, `.sidebar-header`, `.sidebar-nav`/`.sidebar-nav-item`/`.sidebar-nav-icon`, `.sidebar-section-label`, `.sidebar-footer`, `.main-content`, `.dashboard-body`, `.bottom-nav`, `.auth-avatar` (NOT `.topbar-avatar` — hidden on desktop), `.role-badge`/`.role-badge-manager`, `.status-badge` + `.status-*`.
 
 ---
 
-## Build order (41 stories, 11 phases)
+## Build order (42 stories, 12 phases)
 
 | Phase | Stories | Theme |
 |---|---|---|
 | Pre-0 | M13-S41 | **Playwright E2E infrastructure — implement this first** |
+| Pre-0b | M13-S42 | **Hotsite auth bar — implemented out of order, self-contained, no dependencies** |
 | 0 | M13-S01 | Frontend foundation (TanStack Query + typed client) |
 | 1 | M13-S02–M13-S12 | Backend & BFF readiness (zero frontend dependency) |
 | 2 | M13-S13–M13-S14 | Auth frontend |
@@ -1409,21 +1412,23 @@ The shell matches `plan/journey/shared/dashboard-shell.html` and `plan/journey/s
 **Parallel with:** M13-S06–M13-S08 (already landed in Phase 1, so no actual blocking here)
 
 **Description:**
-Implement the foundational shell for the customer area. All `/{slug}/minha-conta/**` routes require a valid CUSTOMER JWT — unauthenticated users must be redirected to login. The visual shell matches `plan/journey/shared/customer-dashboard.html` and `plan/journey/customer/prototypes/minha-conta/01-minha-conta.html`.
+Implement the foundational shell for the customer area. All `/{slug}/my-account/**` routes require a valid CUSTOMER JWT — unauthenticated users must be redirected to login. The visual shell matches `plan/journey/shared/customer-dashboard.html` and `plan/journey/customer/prototypes/minha-conta/01-minha-conta.html` (prototype folder stays pt-BR — see naming note below; the production route is `my-account`, not `minha-conta`).
 
-> 🔍 **Discover before starting:** Check `apps/web/app/[slug]/` for any existing `minha-conta/` folder or `layout.tsx`. Check `apps/web/middleware.ts` — read it in full before extending it; the staff guard (added in `M13-S15`) must not be broken. Read `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` for the canonical folder structure before placing any files.
+> 🔍 **Discover before starting:** Check `apps/web/app/[slug]/` for any existing `my-account/` folder or `layout.tsx`. Check `apps/web/middleware.ts` — read it in full before extending it; the staff guard (added in `M13-S15`) must not be broken. Read `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` for the canonical folder structure before placing any files.
+
+> **Naming note:** the prototype folder/journey doc use the pt-BR concept name `minha-conta` (kept as-is — prototypes are conceptual mockups, not code). All production identifiers — route segment, folder, file, component names — use the English `my-account`, per the code-standards English-only rule. This was established in `M13-S42` (hotsite auth bar), which already links to `/{slug}/my-account` from the logged-in dropdown.
 
 **What to create:**
 
-Extend `apps/web/middleware.ts` — add protection for `/{slug}/minha-conta/**`:
+Extend `apps/web/middleware.ts` — add protection for `/{slug}/my-account/**`:
 - Read JWT from `access_token` httpOnly cookie
 - If missing or expired → redirect to `/{slug}/login`
 - If JWT role is not `CUSTOMER` → redirect to `/{slug}/login` (staff must not reach customer area)
 - If valid → pass through; the `tenantSlug` in the JWT must match the `[slug]` path segment
 
-`apps/web/app/[slug]/minha-conta/layout.tsx` — server component:
-- Reads JWT from cookie (server-side via `cookies()`)
-- Extracts `{ tenantName, userName, role }` from payload
+`apps/web/app/[slug]/my-account/layout.tsx` — server component:
+- Reads `{ tenantId, tenantSlug, role }` from the JWT cookie (server-side via `cookies()`) — the JWT does **not** carry `tenantName`/`userName` (payload is `{ sub, tenantId, tenantSlug, role }` only, see `JwtIssuerService`)
+- Fetches `userName` via `GET /api/customers/me` (the proxy route added in `M13-S42`) and `tenantName` via the hotsite manifest (already fetched by the parent `[slug]/layout.tsx`)
 - Renders `<CustomerShell tenantName={...} userName={...} />`
 
 `apps/web/components/customer/CustomerShell.tsx` — `'use client'`:
@@ -1445,7 +1450,7 @@ Extend `apps/web/middleware.ts` — add protection for `/{slug}/minha-conta/**`:
 | `.status-badge` + `.status-*` | Status chips |
 
 **Acceptance criteria:**
-- [ ] Unauthenticated `GET /{slug}/minha-conta` redirects to `/{slug}/login`
+- [ ] Unauthenticated `GET /{slug}/my-account` redirects to `/{slug}/login`
 - [ ] JWT with role `STAFF` or `MANAGER` redirects to `/{slug}/login`
 - [ ] JWT `tenantSlug` mismatch with URL `[slug]` → redirect to `/{slug}/login`
 - [ ] Valid CUSTOMER JWT → shell renders; `userName` shown in avatar dropdown
@@ -2364,7 +2369,7 @@ On confirm: pass `discountByPoints` to `completeBooking()` fetcher.
 
 ---
 
-### M13-S27 — Minha Conta home + booking list page (`/{slug}/minha-conta`)
+### M13-S27 — Minha Conta home + booking list page (`/{slug}/my-account`)
 
 *(formerly M126-S03)*
 
@@ -2376,14 +2381,16 @@ On confirm: pass `discountByPoints` to `completeBooking()` fetcher.
 - `plan/journey/customer/prototypes/minha-conta/01-minha-conta.html` — Agendamentos tab (3 sections)
 - `plan/journey/customer/prototypes/minha-conta/01b-minha-conta-empty.html` — empty state
 
+> **Naming note:** prototypes above stay pt-BR (`minha-conta`, conceptual mockups). All production identifiers below — route, files, components — use the English `my-account`, per the code-standards English-only rule, established in `M13-S42`.
+
 **Description:**
 The customer's home — a single route with two tab views. The "Início" tab shows summary stats and a preview of upcoming/pending bookings. The "Agendamentos" tab shows the full sectioned list. Both views are rendered client-side from the same server-fetched data.
 
-> 🔍 **Discover before starting:** Confirm that `CustomerBookingListResponse` and `CustomerLoyaltyBalanceResponse` from `M13-S06` are available in `packages/types/`. Verify `apps/web/lib/api/` — check whether a customer fetcher file already exists (`customer.ts`, `minha-conta.ts`). Follow the convention already in place.
+> 🔍 **Discover before starting:** Confirm that `CustomerBookingListResponse` and `CustomerLoyaltyBalanceResponse` from `M13-S06` are available in `packages/types/`. Verify `apps/web/lib/api/` — check whether a customer fetcher file already exists (`customer.ts`, `my-account.ts`). Follow the convention already in place.
 
 **What to create:**
 
-`apps/web/lib/api/minha-conta.ts`:
+`apps/web/lib/api/my-account.ts`:
 ```typescript
 fetchCustomerBookings(): Promise<CustomerBookingListResponse>
 // GET /v1/bookings — no status filter; all statuses returned, split client-side
@@ -2393,25 +2400,25 @@ fetchLoyaltyBalance(): Promise<CustomerLoyaltyBalanceResponse>
 // GET /v1/loyalty/balance
 ```
 
-`apps/web/app/[slug]/minha-conta/page.tsx` — server component:
+`apps/web/app/[slug]/my-account/page.tsx` — server component:
 - Calls `fetchCustomerBookings()` and `fetchLoyaltyBalance()` in parallel (`Promise.all`)
 - On fetch error → render error boundary (not a crash)
-- Renders `<MinhaContaPage bookings={items} loyaltyBalance={balance} />`
+- Renders `<MyAccountPage bookings={items} loyaltyBalance={balance} />`
 
-`apps/web/components/customer/minha-conta/MinhaContaPage.tsx` — `'use client'`:
-- Manages `activeTab: 'inicio' | 'agendamentos'` state (default: `'inicio'`)
+`apps/web/components/customer/my-account/MyAccountPage.tsx` — `'use client'`:
+- Manages `activeTab: 'home' | 'bookings'` state (default: `'home'`)
 - Syncs active tab to the shell's tab nav + bottom nav (via props or context)
-- Renders `<InicioDashboard>` or `<AgendamentosList>` based on active tab
+- Renders `<HomeDashboard>` or `<BookingsList>` based on active tab
 
-`apps/web/components/customer/minha-conta/InicioDashboard.tsx`:
+`apps/web/components/customer/my-account/HomeDashboard.tsx`:
 - Greeting: "Olá, {userName}"
 - Stat cards: **Pontos** (`currentPoints`) + **Agendamentos** (`total`)
 - Loyalty expiry strip: "X pontos expiram em {nextExpiryDate}" — hidden when `nextExpiryDate` is null
 - Upcoming preview: up to 3 most recent APPROVED or PENDING/INFO_REQUESTED bookings as `<BookingListItem>` rows
-- "Ver todos os agendamentos →" link → switches to `'agendamentos'` tab
+- "Ver todos os agendamentos →" link → switches to `'bookings'` tab
 - "+ Novo agendamento" CTA (mobile) → `/{slug}/booking`
 
-`apps/web/components/customer/minha-conta/AgendamentosList.tsx`:
+`apps/web/components/customer/my-account/BookingsList.tsx`:
 - **Client-side section split** (from one `items` array):
   ```ts
   const upcoming = items.filter(b => b.status === 'APPROVED' && new Date(b.scheduledAt!) >= today);
@@ -2423,7 +2430,7 @@ fetchLoyaltyBalance(): Promise<CustomerLoyaltyBalanceResponse>
 - Each section: list of `<BookingListItem>` rows; empty section → section hidden (not empty state)
 - All sections empty → `<BookingEmptyState>` (UC-006 A1)
 
-`apps/web/components/customer/minha-conta/BookingListItem.tsx`:
+`apps/web/components/customer/my-account/BookingListItem.tsx`:
 - Service name(s), date + time, total price, status badge
 - For APPROVED: "Cancelar" text link (visible only within cancellation window — UC-006 A2) + links to detail page
 - For INFO_REQUESTED: "Responder" text link + status badge (blue)
@@ -2439,7 +2446,7 @@ const canCancel = new Date() < deadline;
 // canCancel === false → hide "Cancelar" link; show note "Prazo encerrado"
 ```
 
-`apps/web/components/customer/minha-conta/BookingEmptyState.tsx` — UC-006 A1:
+`apps/web/components/customer/my-account/BookingEmptyState.tsx` — UC-006 A1:
 - Icon + "Nenhum agendamento ainda"
 - CTA "Fazer agendamento" → `/{slug}/booking`
 
@@ -2459,7 +2466,7 @@ const canCancel = new Date() < deadline;
 
 ---
 
-### M13-S28 — Booking detail page + cancel flow + info submit (`/{slug}/minha-conta/agendamentos/[id]`)
+### M13-S28 — Booking detail page + cancel flow + info submit (`/{slug}/my-account/bookings/[id]`)
 
 *(formerly M126-S05)*
 
@@ -2473,6 +2480,8 @@ const canCancel = new Date() < deadline;
 - `plan/journey/customer/prototypes/minha-conta/03-cancel-confirm.html` — cancel confirmation page
 - `plan/journey/customer/prototypes/minha-conta/03b-cancel-error.html` — outside window error
 
+> **Naming note:** prototypes above stay pt-BR (`minha-conta`/`agendamento`/`cancelar`, conceptual mockups). All production identifiers below use English (`my-account`, `bookings`, `cancel`), per the code-standards English-only rule, established in `M13-S42`.
+
 **Description:**
 The booking detail page for a customer. The page adapts based on status: APPROVED/PENDING show a cancel action; INFO_REQUESTED shows an info-submit form; COMPLETED/CANCELLED/REJECTED are read-only. Cancel confirmation is a dedicated sub-page (not a JS overlay — static prototype informed this decision).
 
@@ -2480,7 +2489,7 @@ The booking detail page for a customer. The page adapts based on status: APPROVE
 
 **What to create:**
 
-`apps/web/lib/api/minha-conta.ts` (extend from `M13-S27`):
+`apps/web/lib/api/my-account.ts` (extend from `M13-S27`):
 ```typescript
 fetchCustomerBookingDetail(bookingId: string): Promise<CustomerBookingDetailResponse>
 // GET /v1/bookings/:id
@@ -2495,20 +2504,20 @@ submitInfo(bookingId: string, message: string): Promise<void>
 // 200 → booking status returns to PENDING
 ```
 
-`apps/web/app/[slug]/minha-conta/agendamentos/[id]/page.tsx` — server component:
+`apps/web/app/[slug]/my-account/bookings/[id]/page.tsx` — server component:
 - Calls `fetchCustomerBookingDetail(id)`
 - `notFound()` on 404; `redirect('/{slug}/login')` on 401/403
-- Renders `<AgendamentoDetailPage booking={data} cancellationWindowHours={windowHours} />`
+- Renders `<BookingDetailPage booking={data} cancellationWindowHours={windowHours} />`
 
-`apps/web/components/customer/minha-conta/AgendamentoDetailPage.tsx` — `'use client'`:
+`apps/web/components/customer/my-account/BookingDetailPage.tsx` — `'use client'`:
 - Topbar: `← Agendamentos` back link + status badge (updates after action)
-- Renders `<AgendamentoDetailMain>` (read-only booking info)
+- Renders `<BookingDetailMain>` (read-only booking info)
 - Conditionally renders:
   - `<CancelAction>` when status is APPROVED (within window) or PENDING/INFO_REQUESTED
   - `<InfoSubmitForm>` when status is INFO_REQUESTED and no `infoResponseMessage` yet
   - Nothing extra when COMPLETED/CANCELLED/REJECTED
 
-`apps/web/components/customer/minha-conta/AgendamentoDetailMain.tsx` — read-only body:
+`apps/web/components/customer/my-account/BookingDetailMain.tsx` — read-only body:
 - Date + time section
 - Service lines table: name | duration | price; totals row
 - "Suas observações" section: `booking.notes` — hidden when null
@@ -2516,24 +2525,24 @@ submitInfo(bookingId: string, message: string): Promise<void>
 - After-service photos grid (COMPLETED only) — hidden when empty
 - Loyalty points earned banner (COMPLETED only — show if `afterServicePhotoUrls.length > 0` or status COMPLETED)
 
-`apps/web/components/customer/minha-conta/CancelAction.tsx`:
-- "Cancelar agendamento" button → navigates to `/{slug}/minha-conta/agendamentos/[id]/cancelar`
+`apps/web/components/customer/my-account/CancelAction.tsx`:
+- "Cancelar agendamento" button → navigates to `/{slug}/my-account/bookings/[id]/cancel`
 - Window note: "Cancelamento gratuito até {deadline}" — shown for APPROVED within window
 
-`apps/web/app/[slug]/minha-conta/agendamentos/[id]/cancelar/page.tsx` — server component:
+`apps/web/app/[slug]/my-account/bookings/[id]/cancel/page.tsx` — server component:
 - Renders `<CancelConfirmPage booking={...} />`
 
-`apps/web/components/customer/minha-conta/CancelConfirmPage.tsx` — `'use client'`:
+`apps/web/components/customer/my-account/CancelConfirmPage.tsx` — `'use client'`:
 - Shows booking summary + warning
 - "Confirmar cancelamento" → calls `cancelBooking()`
-  - 200 → redirect to `/{slug}/minha-conta` (booking will appear as CANCELLED in Histórico)
-  - 422 → redirect to `/{slug}/minha-conta/agendamentos/[id]/cancelar/erro` (UC-007 A1)
+  - 200 → redirect to `/{slug}/my-account` (booking will appear as CANCELLED in Histórico)
+  - 422 → redirect to `/{slug}/my-account/bookings/[id]/cancel/error` (UC-007 A1)
 - "Voltar" → `router.back()`
 
-`apps/web/app/[slug]/minha-conta/agendamentos/[id]/cancelar/erro/page.tsx`:
+`apps/web/app/[slug]/my-account/bookings/[id]/cancel/error/page.tsx`:
 - Renders `<CancelErrorPage>` — static (no action needed, just shows error + "Voltar" + a real `wa.me` WhatsApp contact link, not a placeholder `href="#"` — see `plan/journey/customer/prototypes/minha-conta/03b-cancel-error.html`, fixed during the journey-prototype audit to use the tenant's contact number)
 
-`apps/web/components/customer/minha-conta/InfoSubmitForm.tsx` — UC-005 A2:
+`apps/web/components/customer/my-account/InfoSubmitForm.tsx` — UC-005 A2:
 - Shows `infoRequestMessage` (admin's question) in a blue info box
 - Textarea for response (required) — error message "Informe sua resposta antes de enviar." when empty
 - "Enviar resposta" → calls `submitInfo()`
@@ -2552,9 +2561,9 @@ submitInfo(bookingId: string, message: string): Promise<void>
 - [ ] Bottom nav hidden (drill-down)
 
 *Cancel flow (UC-007):*
-- [ ] "Cancelar" → navigates to `/cancelar` page showing booking summary + warning
-- [ ] "Confirmar cancelamento" → `PATCH /cancel` → 200 → redirect to minha-conta list
-- [ ] `PATCH /cancel` 422 → redirect to `/cancelar/erro` with "Prazo encerrado" message + working WhatsApp contact link
+- [ ] "Cancelar" → navigates to `/cancel` page showing booking summary + warning
+- [ ] "Confirmar cancelamento" → `PATCH /cancel` → 200 → redirect to my-account list
+- [ ] `PATCH /cancel` 422 → redirect to `/cancel/error` with "Prazo encerrado" message + working WhatsApp contact link
 
 *Info submit (UC-005 A2):*
 - [ ] INFO_REQUESTED booking shows `infoRequestMessage` + textarea form
@@ -2563,14 +2572,14 @@ submitInfo(bookingId: string, message: string): Promise<void>
 - [ ] Network error → inline error; form remains usable
 
 *Types:*
-- [ ] `cancelBooking`, `submitInfo` fetchers in `apps/web/lib/api/minha-conta.ts`
+- [ ] `cancelBooking`, `submitInfo` fetchers in `apps/web/lib/api/my-account.ts`
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
 
 **Dependencies:** M13-S16, M13-S27, M13-S07
 
 ---
 
-### M13-S29 — Frontend: Fidelidade page (`/{slug}/minha-conta/fidelidade`)
+### M13-S29 — Frontend: Fidelidade page (`/{slug}/my-account/loyalty`)
 
 *(formerly M126-S07)*
 
@@ -2581,6 +2590,8 @@ submitInfo(bookingId: string, message: string): Promise<void>
 - `plan/journey/customer/prototypes/minha-conta/04-fidelidade.html` — full view with tabs
 - `plan/journey/customer/prototypes/minha-conta/04b-fidelidade-empty.html` — 0 pts empty state
 
+> **Naming note:** prototypes above stay pt-BR (`minha-conta`/`fidelidade`, conceptual mockups). All production identifiers below use English (`my-account`, `loyalty`), per the code-standards English-only rule, established in `M13-S42`.
+
 **Description:**
 The customer's own loyalty history page — a full view of their balance, earning entries, and redemption history. Accessed by tapping the loyalty strip on the Minha Conta home page or the "Fidelidade" tab in the nav bar.
 
@@ -2589,12 +2600,12 @@ The customer's own loyalty history page — a full view of their balance, earnin
 > 🔍 **Discover before starting:**
 > - Confirm `M13-S08` types (`CustomerLoyaltyEntriesResponse`, `CustomerLoyaltyRedemptionsResponse`) are in `packages/types/`.
 > - Confirm `CustomerLoyaltyBalanceResponse` from `M13-S06` (including `conversionRate` from `M13-S12`) is available.
-> - Check `apps/web/lib/api/minha-conta.ts` — extend it rather than creating a new file.
+> - Check `apps/web/lib/api/my-account.ts` — extend it rather than creating a new file.
 > - The "10 pts = R$ 1,00" conversion row's UI was carried over from the prototype with only an inline comment caveat — the journey-prototype audit flagged it should be explicitly verified against UC-016's actual MVP scope (CLAUDE.md describes the loyalty MVP as points-balance only). Confirm with product before shipping the conversion row as-is; it is gated on `conversionRate > 0` either way, so tenants with redemption disabled never see it.
 
 **What to create:**
 
-`apps/web/lib/api/minha-conta.ts` (extend from `M13-S27`):
+`apps/web/lib/api/my-account.ts` (extend from `M13-S27`):
 ```typescript
 fetchLoyaltyEntries(limit?: number): Promise<CustomerLoyaltyEntriesResponse>
 // GET /v1/loyalty/entries?limit=50
@@ -2603,11 +2614,11 @@ fetchLoyaltyRedemptions(limit?: number): Promise<CustomerLoyaltyRedemptionsRespo
 // GET /v1/loyalty/redemptions?limit=50
 ```
 
-`apps/web/app/[slug]/minha-conta/fidelidade/page.tsx` — server component:
+`apps/web/app/[slug]/my-account/loyalty/page.tsx` — server component:
 - Calls `fetchLoyaltyBalance()`, `fetchLoyaltyEntries()`, `fetchLoyaltyRedemptions()` in parallel
-- Renders `<MinhaFidelidadePage balance={...} entries={...} redemptions={...} conversionRate={...} />`
+- Renders `<LoyaltyPage balance={...} entries={...} redemptions={...} conversionRate={...} />`
 
-`apps/web/components/customer/minha-conta/MinhaFidelidadePage.tsx` — `'use client'`:
+`apps/web/components/customer/my-account/LoyaltyPage.tsx` — `'use client'`:
 - **Balance card** (gradient blue — same pattern as `04-fidelidade.html`):
   - `currentPoints` (large bold number)
   - "pontos ativos" label
@@ -2623,14 +2634,14 @@ fetchLoyaltyRedemptions(limit?: number): Promise<CustomerLoyaltyRedemptionsRespo
 - **Empty state** (when `currentPoints === 0 && entries.total === 0`):
   - Muted balance card (0, low opacity)
   - "Nenhum ponto acumulado ainda" + CTA "Agendar agora" → `/{slug}/booking`
-- Vitest unit test: `MinhaFidelidadePage.spec.tsx` — key cases: renders balance, tabs switch correctly, empty state shown when both entries and balance are zero
+- Vitest unit test: `LoyaltyPage.spec.tsx` — key cases: renders balance, tabs switch correctly, empty state shown when both entries and balance are zero
 
 **`CustomerShell` update** (`M13-S16`):
-- "Fidelidade" tab nav link (desktop) and bottom-nav item (mobile) must link to `/{slug}/minha-conta/fidelidade`
+- "Fidelidade" tab nav link (desktop) and bottom-nav item (mobile) must link to `/{slug}/my-account/loyalty`
 - Loyalty strip on Minha Conta home (`01-minha-conta.html`) is a link → this page
 
 **Acceptance criteria:**
-- [ ] `GET /{slug}/minha-conta/fidelidade` renders balance card with `currentPoints`
+- [ ] `GET /{slug}/my-account/loyalty` renders balance card with `currentPoints`
 - [ ] Expiry strip visible when `nextExpiryDate != null`; hidden otherwise
 - [ ] Conversion row visible when `conversionRate > 0`; hidden otherwise
 - [ ] Ganhos tab: entries shown with service name, date, green `+N pts`; expired entries faded
@@ -2706,7 +2717,7 @@ switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>
 - Same visual layout as `plan/journey/customer/prototypes/login/01-select-tenant.html` (centered, full height, Ikaro logo, tenant cards)
 - On mount: calls `fetchCustomerTenants()`
   - Loading: skeleton cards
-  - Empty (customer has only 1 tenant): redirect to `/{currentSlug}/minha-conta` (should not reach this page)
+  - Empty (customer has only 1 tenant): redirect to `/{currentSlug}/my-account` (should not reach this page)
 - Shows current tenant first, marked "Atual" (non-clickable) — read `tenantSlug` from JWT cookie to identify current
 - Other tenant cards: clickable → calls `switchTenant(targetTenantId)` → on success `router.push('/{newSlug}')` → cookie updated → hotsite refreshes as logged-in customer of new tenant
 - `"← Voltar sem trocar"` link at bottom → `router.back()`
@@ -3521,6 +3532,193 @@ apps/web/test-results/
 
 ---
 
+## Phase Pre-0b — Hotsite auth bar
+
+---
+
+### M13-S42 — Hotsite auth bar (logged-out "Entrar" / logged-in avatar dropdown)
+
+> **Implemented out of build order** — pulled forward of `S13`/`S14`/`S15`/`S16`/`S27` because the public hotsite currently has no way for a returning customer to log in or see their session state at all (confirmed gap — `[slug]/layout.tsx` and `[slug]/page.tsx` have zero auth logic today). This story is deliberately self-contained: it does not wait for the full customer-login flow (`S14`) or the Minha Conta area (`S27`) to exist.
+
+**Agent:** `frontend-ts` (frontend + a small BFF addition)
+**Complexity:** M
+**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021, `docs/24-BFF_ARCHITECTURE.md`
+**Prototype references:**
+- `plan/journey/shared/hotsite.html` — logged-out auth bar ("Entrar" link; "Área da Equipe" is prototype-only, never built in production)
+- `plan/journey/shared/hotsite-logged-in.html` — logged-in auth bar (avatar + dropdown: "Minha conta" | "Sair")
+- `plan/journey/shared/login.html` — tenant-branded login screen
+
+**Description:**
+Adds the persistent top auth bar to the public hotsite (`/{slug}` and `/{slug}/booking`), matching the prototypes: unauthenticated visitors see an "Entrar" link; authenticated customers see their initials avatar + name with a dropdown ("Minha conta" / "Sair"). Also adds the minimal tenant-branded login page the bar's "Entrar" link needs, and the BFF logout endpoint the dropdown's "Sair" needs — neither existed before this story.
+
+**Scope decisions (already discussed and agreed):**
+- "Entrar" links to a new minimal `/{slug}/login` page (not directly to the BFF OAuth URL) — matches the prototype's branded login screen exactly. Multi-tenant selection (`/select-tenant`) stays out of scope; the BFF redirect for a multi-tenant customer will 404 until `M13-S14` ships (acceptable, narrow, called-out gap).
+- The avatar dropdown's "Minha conta" links to `/{slug}/my-account`, which will 404 until `M13-S27` ships. Accepted — see the naming-convention note in "Architecture & conventions" above.
+- The bar must not break the existing `revalidate = 300` ISR on `[slug]/page.tsx` / `[slug]/booking/page.tsx`. It is rendered as a `'use client'` component that fetches its own auth state after hydration via a Next.js API proxy route — it does **not** call `cookies()` inside the statically-rendered page tree.
+- The JWT cookie carries no display name (`JwtPayload` is `{ sub, tenantId, tenantSlug, role }` only — see `apps/bff/src/auth/jwt-issuer.service.ts`). The customer's name is fetched from the already-existing `GET /v1/customers/me` BFF endpoint, via a new same-origin proxy route (`/api/customers/me`) that `M13-S14`'s `PhoneCompletionPrompt` will also reuse — built once, here.
+- No logout endpoint exists yet anywhere in the codebase. This story adds the smallest functional one: a `GET /v1/auth/logout` BFF route that clears the cookie and redirects back to the hotsite.
+
+> 🔍 **Discover before starting:**
+> - Confirm `apps/web/app/[slug]/login/` does not exist yet.
+> - Confirm `apps/web/app/api/customers/me/` and `apps/bff/.../auth.controller.ts`'s `logout` handler do not exist yet.
+> - Re-check `apps/bff/src/auth/oauth-state.ts` exports `isValidSlug` — reuse it for the logout redirect's `tenantSlug` validation rather than writing a new regex.
+> - Re-check `CustomerProfileResponse` shape in `apps/bff/src/customers/customers.types.ts` (`{ customerId, email, name, phone, defaultAddress }`) before adding the mirrored type to `@ikaro/types`.
+
+**What to create:**
+
+---
+
+#### BFF: `GET /v1/auth/logout` — `apps/bff/src/auth/auth.controller.ts`
+
+```typescript
+@Public()
+@Get('logout')
+logout(@Query('tenantSlug') tenantSlug: string | undefined, @Res() res: Response): void {
+  res.clearCookie('access_token', JWT_COOKIE_OPTIONS);
+  const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
+  const path = tenantSlug && isValidSlug(tenantSlug) ? `/${tenantSlug}` : '';
+  res.redirect(`${frontendUrl}${path}`);
+}
+```
+
+Add a request block to `apps/bff/http/auth/auth.http` documenting the browser URL (logout cannot be exercised via REST Client — it's a full-page redirect, same as `google`/`google/callback`).
+
+Unit tests in `auth.controller.spec.ts`:
+- clears the `access_token` cookie and redirects to `${frontendUrl}/{tenantSlug}` when `tenantSlug` is valid
+- redirects to bare `frontendUrl` when `tenantSlug` is missing or fails `isValidSlug`
+
+---
+
+#### `packages/types/src/customer.dto.ts` (new file)
+
+```typescript
+export interface AddressResponse {
+  street: string;
+  number: string;
+  complement?: string | null;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
+export interface CustomerProfileResponse {
+  customerId: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  defaultAddress: AddressResponse | null;
+}
+```
+
+Export from `packages/types/src/index.ts`. This mirrors the BFF's existing local `CustomerProfileResponse` (`apps/bff/src/customers/customers.types.ts`) — the BFF keeps its own local type; this shared one is for `apps/web` consumers only.
+
+---
+
+#### `apps/web/app/api/customers/me/route.ts` (new) — same-origin proxy
+
+```typescript
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  const token = (await cookies()).get('access_token')?.value;
+  if (!token) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/customers/me`, {
+    headers: { Cookie: `access_token=${token}` },
+    cache: 'no-store',
+  });
+
+  const body = await res.json();
+  return NextResponse.json(body, { status: res.status });
+}
+```
+
+Transparent pass-through (status + body) so `M13-S14`'s `PhoneCompletionPrompt` can reuse it unchanged. Add `route.spec.ts` (Vitest, node environment, mocking `next/headers` and global `fetch`) — mirror the structure of `apps/web/app/api/revalidate/route.spec.ts`.
+
+---
+
+#### `apps/web/lib/api/customers.ts` (new)
+
+> **Naming note:** `M13-S01` (merged ahead of this story) already added `apps/web/lib/api/dashboard/customers.ts` with its own `getCustomerProfile()` — but that one calls the Bearer-token `bffClient`, which is only configured inside an authenticated dashboard shell (`configureBffClient()`). The public hotsite has no such shell and the JWT is httpOnly (never exposed to client JS), so this story's fetcher needs the cookie-forwarding proxy below instead. Named `getHotsiteCustomerProfile` to avoid colliding with S01's function of the same conceptual purpose but different transport.
+
+```typescript
+import type { CustomerProfileResponse } from '@ikaro/types';
+
+export async function getHotsiteCustomerProfile(): Promise<CustomerProfileResponse | null> {
+  const res = await fetch('/api/customers/me');
+  if (!res.ok) return null;
+  return (await res.json()) as CustomerProfileResponse;
+}
+```
+
+---
+
+#### `apps/web/components/hotsite/HotsiteAuthBar.tsx` (new) — `'use client'`
+
+- On mount: calls `getHotsiteCustomerProfile()`. While pending, render an empty `<div>` (no flash of "Entrar" before the authenticated state resolves — acceptable brief blank, same tradeoff `PhoneCompletionPrompt` will use in `S14`).
+- `null` → unauthenticated: right-aligned "Entrar" link → `/{slug}/login`.
+- Profile returned → authenticated: initials avatar (derived from `name`, e.g. "João Silva" → "JS") + `name`, native `<details>/<summary>` dropdown (no client JS needed for the toggle itself) with two links: "Minha conta" → `/{slug}/my-account`, "Sair" → `${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug={slug}`.
+- Styled with Tailwind utility classes + `var(--ba-*)` branding tokens, matching `HeroModule.tsx`'s conventions — do **not** use the prototype's bespoke `.auth-bar`/`.auth-avatar` CSS classes (those exist only in `plan/journey/shared/tokens.css`, not in the production app).
+- Props: `{ readonly slug: string }`.
+
+Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/react`) covering: unauthenticated renders "Entrar" with correct `href`; authenticated renders initials + name; clicking the summary opens the dropdown (native `<details>` toggles in jsdom); "Minha conta" and "Sair" hrefs are correct.
+
+---
+
+#### `apps/web/app/[slug]/login/page.tsx` (new) — server component
+
+- Fetches tenant branding via the existing `fetchManifest(slug)` (unauthenticated, ISR-cached — same as `[slug]/page.tsx`). `revalidate = 300`, no `cookies()` call.
+- Renders tenant logo (or initial-letter fallback) + `"Entrar na {tenantName}"` heading + `"Entre com sua conta Google para agendar"` subtext + Google button: `<a href={`${process.env.NEXT_PUBLIC_BFF_URL}/auth/google?tenantSlug=${slug}`}>`.
+- `searchParams.error` present → inline red alert: `"Erro ao entrar. Tente novamente."`
+- Unknown slug → `notFound()`.
+- `generateMetadata`: `title: "Entrar — {tenantName}"`.
+
+---
+
+#### Wire into existing pages
+
+`apps/web/app/[slug]/page.tsx` and `apps/web/app/[slug]/booking/page.tsx` — render `<HotsiteAuthBar slug={slug} />` once, near the top of the returned JSX (above `<main>`'s modules / above `<BookingForm>`). Do **not** add it to `[slug]/layout.tsx` or to the new `/{slug}/login/page.tsx` (a login page should never show its own "Entrar" link).
+
+**Acceptance criteria:**
+
+*Logout (BFF):*
+- [ ] `GET /v1/auth/logout?tenantSlug=<valid>` clears `access_token` cookie, redirects to `${frontendUrl}/<slug>`
+- [ ] `GET /v1/auth/logout` (no `tenantSlug`) redirects to bare `frontendUrl`
+- [ ] `.http` block added
+
+*Proxy route:*
+- [ ] `GET /api/customers/me` with no `access_token` cookie → 401
+- [ ] `GET /api/customers/me` with a valid cookie → 200 + the BFF's profile body, status/body passed through unchanged
+
+*Auth bar:*
+- [ ] Unauthenticated visitor sees "Entrar" linking to `/{slug}/login`
+- [ ] Authenticated customer sees initials + name; dropdown shows "Minha conta" (→ `/{slug}/my-account`) and "Sair" (→ BFF logout URL with correct `tenantSlug`)
+- [ ] Bar renders on both `/{slug}` and `/{slug}/booking`
+- [ ] `[slug]/page.tsx` and `[slug]/booking/page.tsx` keep `revalidate = 300`; no `cookies()` call added to either file
+
+*Login page:*
+- [ ] `GET /{slug}/login` renders tenant name + logo (or initial fallback)
+- [ ] Google button href is `${NEXT_PUBLIC_BFF_URL}/auth/google?tenantSlug={slug}`
+- [ ] `?error=anything` shows the inline alert
+- [ ] Unknown slug → `notFound()`
+
+*General:*
+- [ ] `tsc --noEmit` passes across the monorepo; `pnpm lint` zero warnings
+- [ ] Vitest unit tests pass for all new files listed above
+
+**Dependencies:** none (deliberately self-contained — see scope decisions above)
+
+**Known gaps, intentionally deferred:**
+- Multi-tenant customer login still 404s at `/select-tenant` until `M13-S14`.
+- "Minha conta" 404s until `M13-S27`.
+- `PhoneCompletionPrompt` (the other consumer of `/api/customers/me`) is still `M13-S14`'s job.
+
+---
+
 ## Open questions & future discovery
 
 > Consolidated from all 7 source files' "Open questions" and "Future discovery" sections. Items already resolved by a decision made during this consolidation (or that turned out to already be in scope) are marked `[x]` with a one-line resolution; genuinely open items are marked `[ ]` and reference the story they block.
@@ -3547,7 +3745,7 @@ apps/web/test-results/
 
 - [ ] **`cancellation_window_hours` availability:** is this value accessible to the frontend without a dedicated settings endpoint? MVP default is to hardcode `48` and read from real settings later (used by `M13-S27`/`M13-S28`).
 - [ ] **"Total washes completed" stat (UC-006 step 6):** not available from `GET /v1/loyalty/balance`. Drop from MVP Minha Conta, or derive client-side from `items.filter(b => b.status === 'COMPLETED').length`? Decide before `M13-S27`.
-- [x] **After-cancel destination (UC-007):** resolved — redirect to `/{slug}/minha-conta` list after successful cancel; booking appears in Histórico as CANCELLED on next load. Implemented in `M13-S28`.
+- [x] **After-cancel destination (UC-007):** resolved — redirect to `/{slug}/my-account` list after successful cancel; booking appears in Histórico as CANCELLED on next load. Implemented in `M13-S28`.
 - [ ] **`infoResponseMessage` already filled:** if the customer already responded to an info request once (status returned to PENDING, then re-requested), should `InfoSubmitForm` show again or just display the previous response? Recommendation carried into `M13-S28`: hide the form when `infoResponseMessage != null`.
 - [x] **`GET /v1/bookings` pagination for MVP:** resolved — load all bookings with `limit=50`, display all, no infinite scroll. Implemented in `M13-S27`.
 - [ ] **Loyalty conversion-rate UI scope (verify against UC-016):** `M13-S29`'s "10 pts = R$ 1,00" conversion row was carried over from the prototype with only an inline-comment caveat in the original draft. CLAUDE.md describes the loyalty MVP as points-balance only — confirm with product whether the conversion display is actually in scope before shipping `M13-S29`'s conversion row, even though it's gated behind `conversionRate > 0`.

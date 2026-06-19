@@ -11,3 +11,4 @@ export * from './booking.dto';
 export * from './loyalty.dto';
 export * from './tenant.dto';
 export * from './hotsite';
+export * from './customer.dto';
