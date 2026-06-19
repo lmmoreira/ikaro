@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { QueryProvider } from '@/providers/query-provider';
 
 export const metadata: Metadata = {
   title: 'Ikaro',
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { readonly children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }

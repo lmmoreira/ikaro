@@ -61,7 +61,7 @@ This file replaces six previously separate draft milestone files — `M124-LOGIN
 
 ---
 
-### M13-S01 — TanStack Query setup + typed BFF client
+### M13-S01 — TanStack Query setup + typed BFF client ✅ Done
 
 *(formerly M13-S01)*
 
