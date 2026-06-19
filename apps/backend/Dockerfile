@@ -9,6 +9,7 @@ WORKDIR /app
 COPY .npmrc pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/config/package.json packages/config/
 COPY packages/types/package.json packages/types/
+COPY packages/i18n/package.json packages/i18n/
 COPY packages/observability/package.json packages/observability/
 COPY packages/env-validation/package.json packages/env-validation/
 COPY apps/backend/package.json apps/backend/
@@ -25,7 +26,8 @@ COPY apps/backend/ apps/backend/
 # type-stripping explicitly refuses files under node_modules
 # (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), so shipping raw .ts source here would
 # crash `node dist/main.js` at container startup.
-RUN pnpm --filter @ikaro/observability build \
+RUN pnpm --filter @ikaro/i18n build \
+    && pnpm --filter @ikaro/observability build \
     && pnpm --filter @ikaro/env-validation build \
     && pnpm --filter @ikaro/backend build \
     && pnpm --filter @ikaro/backend deploy --prod /standalone --legacy \
