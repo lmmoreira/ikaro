@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ErrorAlert } from './ErrorAlert';
 import type { DaySummary } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/lib/api/schedule';
-import { addDays, toISODate } from '@/lib/formatting/date-utils';
+import { addDays, dayCarouselLabel, dayNumber, toISODate } from '@/lib/formatting/date-utils';
 
 interface AvailabilityCarouselProps {
   readonly slug: string;
@@ -17,10 +17,6 @@ interface AvailabilityCarouselProps {
 }
 
 const SCROLL_AMOUNT_PX = 240;
-
-function dayNumber(date: string): string {
-  return String(new Date(`${date}T00:00:00`).getDate());
-}
 
 export function AvailabilityCarousel({
   slug,
@@ -66,13 +62,6 @@ export function AvailabilityCarousel({
     scrollRef.current?.scrollBy({ left: amount, behavior: 'smooth' });
   }
 
-  function dayLabel(date: string, index: number): string {
-    if (index === 0) return t('availability.today');
-    return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(
-      new Date(`${date}T00:00:00`),
-    );
-  }
-
   if (error) {
     return (
       <ErrorAlert onRetry={handleRetry} retryLabel={t('errors.tryAgain')}>
@@ -116,7 +105,7 @@ export function AvailabilityCarousel({
                 color: day.date === selectedDate ? 'var(--ba-btn-text)' : 'var(--ba-text)',
               }}
             >
-              <span className="text-xs">{dayLabel(day.date, index)}</span>
+              <span className="text-xs">{dayCarouselLabel(day.date, index, locale, t('availability.today'))}</span>
               <span className="text-lg font-semibold">{dayNumber(day.date)}</span>
             </button>
           ))}
