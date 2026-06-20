@@ -105,7 +105,9 @@ export function AvailabilityCarousel({
                 color: day.date === selectedDate ? 'var(--ba-btn-text)' : 'var(--ba-text)',
               }}
             >
-              <span className="text-xs">{dayCarouselLabel(day.date, index, locale, t('availability.today'))}</span>
+              <span className="text-xs">
+                {dayCarouselLabel(day.date, index, locale, t('availability.today'))}
+              </span>
               <span className="text-lg font-semibold">{dayNumber(day.date)}</span>
             </button>
           ))}
