@@ -733,6 +733,8 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 - [ ] `formatDate` uses tenant timezone and date format (not hardcoded `America/Sao_Paulo`)
 - [ ] Admin schedule email headers come from locale file, not inline TS string
 
+**E2E gap — deferred to S09:** S07 has full unit and integration coverage. However, the localization stack (currency display, date formats, phone prefix, address fields, `<html lang>`) has **zero Playwright E2E coverage**. The existing `e2e/guest-booking.spec.ts` tests a BR-only happy path and makes no locale assertions. Full E2E coverage is deferred to TD02-S09 — see that story's acceptance criteria for the required test scenarios and the US tenant Playwright seed that must be in place.
+
 **Implementation:** Scope extended beyond spec in two ways. (1) `timezone` added to `HotsiteLocalizationResponse` (packages/types), `HotsiteLocalization` (get-hotsite-manifest use-case), and `mapLocalization()` (reads from `tenant.settings.business_hours.timezone`) — not in original spec but required for `formatTime` to work correctly; without it `FormattingContext` had no timezone source. (2) `email-tables.json` gained an `emptyState` key (pt-BR: "Nenhum agendamento para hoje" / en: "No bookings for today") so `buildBookingsHtml`'s empty-state message is also localized, not just the column headers. Key design choices: (a) `FormattingProvider` kept separate from `LocaleProvider` (single responsibility — locale/i18n vs. number/date formatting); (b) `formatDate` uses the explicit `dateFormat` pattern parameter (not locale-implied Intl format) to correctly handle tenants whose country and language differ (e.g. English-speaking BR tenant still uses `DD/MM/YYYY`); (c) `formatDateLong` is an unspecced addition to the hook — needed to replace `formatDateLongBR` callers in `ConfirmationStep` and `BookingSummaryCard`, which the spec said to migrate. `ConfirmationStep` and `BookingSummaryCard` gained `'use client'` directive — both are rendered inside `'use client'` parent components so this is safe. `InMemoryLocalizationPort` test double created in `src/test/infrastructure/` for future notification use-case specs. `send-admin-daily-schedule-reminder` spec gained an explicit `en` locale header assertion to verify locale dispatch. Backend `money-format.ts` left unchanged — it already has the correct `(amount, locale, currency, decimalPlaces)` signature from S02. `seo.spec.ts` and `platform.spec.ts` fixture objects updated to include `timezone`.
 
 ---
@@ -763,12 +765,18 @@ Update Vitest specs to use `next-intl` test utilities.
 Replace all hardcoded pt-BR strings in hotsite module components (`HeroModule`, `ServiceListModule`, `GalleryModule`, `GalleryItem`, `GalleryGrid`, `TestimonialsModule`, `TestimonialsCarousel`, `AboutModule`, `ContactModule`, `BookingCtaModule`, `HotsiteAuthBar`, `Unavailable`), `app/not-found.tsx`, `app/[slug]/login/page.tsx`, `apps/web/lib/api/bff-client.ts` error string, and SEO defaults in `lib/hotsite/seo.ts`.  
 Update Vitest specs for affected module components.
 
-**Key files:** All files under `apps/web/components/hotsite/` · `apps/web/app/not-found.tsx` · `apps/web/app/[slug]/login/page.tsx` · `apps/web/lib/hotsite/seo.ts` · `apps/web/lib/api/bff-client.ts`
+**E2E scope (mandatory — closes the localization E2E gap):**  
+Add a US tenant (`country_code: 'US'`, `language: 'en'`, `currency: 'USD'`, `timezone: 'America/New_York'`) to the Playwright seed/fixture. Then add E2E specs to `apps/web/e2e/` that validate the full localization stack end-to-end for both tenants. This is the first story where every layer (DB → backend → BFF → web) is fully wired — it is the right and only moment to add these tests.
+
+**Key files:** All files under `apps/web/components/hotsite/` · `apps/web/app/not-found.tsx` · `apps/web/app/[slug]/login/page.tsx` · `apps/web/lib/hotsite/seo.ts` · `apps/web/lib/api/bff-client.ts` · `apps/web/e2e/localization.spec.ts` (new)
 
 **Acceptance criteria:**
 - [ ] Zero hardcoded pt-BR strings in hotsite components and pages
 - [ ] All component Vitest specs pass
 - [ ] Default module titles read from locale file (e.g. "Our Services" for `en` tenants)
+- [ ] **E2E — BR tenant** (`/ikaro` or equivalent slug): `<html lang="pt-BR">`, prices shown as `R$ X,XX`, dates as `DD/MM/YYYY`, phone prefix `+55`, address field labelled "CEP", neighborhood field present
+- [ ] **E2E — US tenant** (`/us-demo` or equivalent slug): `<html lang="en">`, prices shown as `$X.XX`, dates as `MM/DD/YYYY`, phone prefix `+1`, address field labelled "ZIP Code", no neighborhood field
+- [ ] **E2E — BR tenant regression**: existing `guest-booking.spec.ts` golden path still passes unchanged
 
 ---
 
@@ -866,3 +874,4 @@ Full 54-item table available in the audit session (2026-06-19).
 - [ ] Web hotsite for a BR tenant behaves identically to today (zero regression)
 - [ ] Zero hardcoded `pt-BR` / `BRL` / `America/Sao_Paulo` string literals outside `packages/i18n/locales/` and `tenant-settings.vo.ts` defaults
 - [ ] All CI gates pass (lint, type-check, unit tests, coverage ≥ 80% on changed code)
+- [ ] **E2E — Playwright tests confirm full localization stack for BR and US tenants** (added in S09): currency, date format, phone prefix, address field labels, `<html lang>`, and zero regression on existing BR booking flow
