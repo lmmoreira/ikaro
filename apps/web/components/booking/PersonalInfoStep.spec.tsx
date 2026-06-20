@@ -138,6 +138,32 @@ describe('PersonalInfoStep', () => {
     expect(screen.getByLabelText('Telefone')).toHaveValue('4155552671');
   });
 
+  it('does not duplicate the country code when a full E.164 number is pasted', async () => {
+    const user = userEvent.setup();
+    render(<Wrapper phonePrefix="+55" />);
+
+    const input = screen.getByLabelText('Telefone');
+    await user.click(input);
+    await user.paste('+5511912345678');
+
+    expect(input).toHaveValue('11912345678');
+  });
+
+  it('clearing the phone field leaves it empty rather than just the prefix', async () => {
+    const user = userEvent.setup();
+    const onNext = vi.fn();
+    render(<Wrapper onNext={onNext} phonePrefix="+55" />);
+
+    await user.type(screen.getByLabelText('Nome'), 'Maria Silva');
+    await user.type(screen.getByLabelText('E-mail'), 'maria@example.com');
+    await user.type(screen.getByLabelText('Telefone'), '11999999999');
+    await user.clear(screen.getByLabelText('Telefone'));
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+
+    expect(screen.getByTestId('personal-info-error')).toHaveTextContent('Informe seu telefone.');
+    expect(onNext).not.toHaveBeenCalled();
+  });
+
   it('renders the order review card with the selected service and date/time', () => {
     render(<Wrapper />);
 

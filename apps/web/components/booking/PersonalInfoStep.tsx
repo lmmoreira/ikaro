@@ -166,7 +166,7 @@ export function PersonalInfoStep({
               inputMode="numeric"
               required
               data-testid="input-phone"
-              maxLength={15}
+              maxLength={Math.max(1, 15 - digitsOnly(phonePrefix).length)}
               placeholder="11912345678"
               value={
                 value.contactPhone.startsWith(phonePrefix)
@@ -174,7 +174,14 @@ export function PersonalInfoStep({
                   : digitsOnly(value.contactPhone)
               }
               onChange={(e) => {
-                onChange({ ...value, contactPhone: `${phonePrefix}${digitsOnly(e.target.value)}` });
+                const raw = e.target.value.trim();
+                const localDigits = digitsOnly(raw);
+                const contactPhone = raw.startsWith('+')
+                  ? `+${localDigits}`
+                  : localDigits
+                    ? `${phonePrefix}${localDigits}`
+                    : '';
+                onChange({ ...value, contactPhone });
                 clearErrorFor('phone');
               }}
               className="min-w-0 flex-1 border px-3 py-2"
