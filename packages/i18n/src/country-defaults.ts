@@ -15,6 +15,14 @@ export interface AddressSpec {
   readonly requireNeighborhood: boolean;
   /** Country-specific neighbourhood label. null when requireNeighborhood is false. */
   readonly neighborhoodLabel: string | null;
+  /** Country-specific street label — e.g. 'Rua', 'Street'. Not translated. */
+  readonly streetLabel: string;
+  /** Country-specific house/unit number label — e.g. 'Número', 'Number'. Not translated. */
+  readonly numberLabel: string;
+  /** Country-specific complement/unit label — e.g. 'Complemento', 'Apt, Suite, etc.'. Not translated. */
+  readonly complementLabel: string;
+  /** Country-specific city label — e.g. 'Cidade', 'City'. Not translated. */
+  readonly cityLabel: string;
   /** Postal-code lookup service available for this country. */
   readonly lookupService: 'viacep' | 'none';
 }
@@ -59,6 +67,10 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
       statePattern: /^[A-Z]{2}$/,
       requireNeighborhood: true,
       neighborhoodLabel: 'Bairro',
+      streetLabel: 'Rua',
+      numberLabel: 'Número',
+      complementLabel: 'Complemento',
+      cityLabel: 'Cidade',
       lookupService: 'viacep',
     },
   },
@@ -81,6 +93,10 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
       statePattern: /^[A-Z]{2}$/,
       requireNeighborhood: false,
       neighborhoodLabel: null,
+      streetLabel: 'Street',
+      numberLabel: 'Number',
+      complementLabel: 'Apt, Suite, etc.',
+      cityLabel: 'City',
       lookupService: 'none',
     },
   },
@@ -104,6 +120,10 @@ const FALLBACK: CountrySpec = {
     statePattern: null,
     requireNeighborhood: false,
     neighborhoodLabel: null,
+    streetLabel: 'Street',
+    numberLabel: 'Number',
+    complementLabel: 'Complement',
+    cityLabel: 'City',
     lookupService: 'none',
   },
 };

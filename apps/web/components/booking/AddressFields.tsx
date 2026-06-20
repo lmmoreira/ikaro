@@ -151,7 +151,7 @@ export function AddressFields({
       <div className="sm:col-span-4">
         <TextField
           id={`${idPrefix}-street`}
-          label="Rua"
+          label={addressSpec.streetLabel}
           value={value.street}
           onChange={(street) => onChange({ ...value, street })}
           required={required}
@@ -162,7 +162,7 @@ export function AddressFields({
       <div className="sm:col-span-2">
         <TextField
           id={`${idPrefix}-number`}
-          label="Número"
+          label={addressSpec.numberLabel}
           value={value.number}
           onChange={(number) => onChange({ ...value, number })}
           required={required}
@@ -173,7 +173,7 @@ export function AddressFields({
       <div className="sm:col-span-4">
         <TextField
           id={`${idPrefix}-complement`}
-          label="Complemento"
+          label={addressSpec.complementLabel}
           value={value.complement ?? ''}
           onChange={(complement) => onChange({ ...value, complement })}
         />
@@ -195,7 +195,7 @@ export function AddressFields({
       <div className="sm:col-span-2">
         <TextField
           id={`${idPrefix}-city`}
-          label="Cidade"
+          label={addressSpec.cityLabel}
           value={value.city}
           onChange={(city) => onChange({ ...value, city })}
           required={required}

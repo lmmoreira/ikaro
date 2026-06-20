@@ -13,6 +13,10 @@ const BR_ADDRESS_SPEC: HotsiteAddressSpec = {
   stateLabel: 'UF',
   requireNeighborhood: true,
   neighborhoodLabel: 'Bairro',
+  streetLabel: 'Rua',
+  numberLabel: 'Número',
+  complementLabel: 'Complemento',
+  cityLabel: 'Cidade',
   lookupService: 'viacep',
 };
 

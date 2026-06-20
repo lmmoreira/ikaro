@@ -43,6 +43,10 @@ export interface HotsiteAddressSpec {
   stateLabel: string;
   requireNeighborhood: boolean;
   neighborhoodLabel: string | null;
+  streetLabel: string;
+  numberLabel: string;
+  complementLabel: string;
+  cityLabel: string;
   lookupService: 'viacep' | 'none';
 }
 
@@ -141,6 +145,10 @@ export class GetHotsiteManifestUseCase {
         stateLabel: resolved.address.stateLabel,
         requireNeighborhood: resolved.address.requireNeighborhood,
         neighborhoodLabel: resolved.address.neighborhoodLabel,
+        streetLabel: resolved.address.streetLabel,
+        numberLabel: resolved.address.numberLabel,
+        complementLabel: resolved.address.complementLabel,
+        cityLabel: resolved.address.cityLabel,
         lookupService: resolved.address.lookupService,
       },
     };

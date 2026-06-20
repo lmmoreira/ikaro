@@ -175,6 +175,10 @@ export interface HotsiteAddressSpec {
   stateLabel: string;
   requireNeighborhood: boolean;
   neighborhoodLabel: string | null;
+  streetLabel: string;
+  numberLabel: string;
+  complementLabel: string;
+  cityLabel: string;
   lookupService: 'viacep' | 'none';
 }
 

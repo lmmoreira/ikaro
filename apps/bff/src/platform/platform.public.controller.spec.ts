@@ -37,6 +37,10 @@ const localization: HotsiteLocalizationResponse = {
     stateLabel: 'UF',
     requireNeighborhood: true,
     neighborhoodLabel: 'Bairro',
+    streetLabel: 'Rua',
+    numberLabel: 'Número',
+    complementLabel: 'Complemento',
+    cityLabel: 'Cidade',
     lookupService: 'viacep',
   },
 };

@@ -14,6 +14,10 @@ const BR_SPEC: HotsiteAddressSpec = {
   stateLabel: 'UF',
   requireNeighborhood: true,
   neighborhoodLabel: 'Bairro',
+  streetLabel: 'Rua',
+  numberLabel: 'Número',
+  complementLabel: 'Complemento',
+  cityLabel: 'Cidade',
   lookupService: 'viacep',
 };
 
@@ -23,6 +27,10 @@ const US_SPEC: HotsiteAddressSpec = {
   stateLabel: 'State',
   requireNeighborhood: false,
   neighborhoodLabel: null,
+  streetLabel: 'Street',
+  numberLabel: 'Number',
+  complementLabel: 'Apt, Suite, etc.',
+  cityLabel: 'City',
   lookupService: 'none',
 };
 
@@ -124,5 +132,16 @@ describe('AddressFields', () => {
     expect(screen.queryByTestId('lookup-loading')).not.toBeInTheDocument();
     expect(screen.queryByTestId('lookup-failed')).not.toBeInTheDocument();
     expect(lookup.calls).toHaveLength(0);
+  });
+
+  it('uses the country spec labels for street, number, complement and city (not hardcoded pt-BR)', () => {
+    render(<Wrapper addressSpec={US_SPEC} addressLookup={new InMemoryAddressLookup({})} />);
+
+    expect(screen.getByLabelText('Street')).toBeInTheDocument();
+    expect(screen.getByLabelText('Number')).toBeInTheDocument();
+    expect(screen.getByLabelText('Apt, Suite, etc.')).toBeInTheDocument();
+    expect(screen.getByLabelText('City')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Rua')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Cidade')).not.toBeInTheDocument();
   });
 });
