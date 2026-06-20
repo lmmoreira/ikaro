@@ -77,12 +77,10 @@ export function PersonalInfoStep({
   const [fieldError, setFieldError] = useState<FieldError | null>(null);
 
   function validate(v: PersonalInfoValue): FieldError | null {
-    if (!v.contactName.trim())
-      return { field: 'name', message: t('personalInfo.nameRequired') };
+    if (!v.contactName.trim()) return { field: 'name', message: t('personalInfo.nameRequired') };
     if (!EMAIL_SCHEMA.safeParse(v.contactEmail).success)
       return { field: 'email', message: t('personalInfo.emailRequired') };
-    if (!v.contactPhone.trim())
-      return { field: 'phone', message: t('personalInfo.phoneRequired') };
+    if (!v.contactPhone.trim()) return { field: 'phone', message: t('personalInfo.phoneRequired') };
     return null;
   }
 
