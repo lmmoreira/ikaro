@@ -659,7 +659,7 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 
 ---
 
-#### TD02-S05 — `packages/i18n` locale files + backend `ILocalizationPort`
+#### TD02-S05 — `packages/i18n` locale files + backend `ILocalizationPort` ✅ Done
 
 **Scope:**
 - Create `packages/i18n/locales/pt-BR/web.json` — full key set from spec above
