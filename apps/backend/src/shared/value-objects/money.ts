@@ -1,5 +1,6 @@
 import { Decimal } from 'decimal.js';
 import { ValueObject } from '../domain/value-object';
+import { formatMoney } from '../utils/money-format';
 
 interface MoneyProps {
   amount: string; // stored as string to preserve precision across serialization
@@ -16,7 +17,11 @@ export class Money extends ValueObject<MoneyProps> {
     if (decimal.isNaN() || !decimal.isFinite()) {
       throw new Error(`Invalid money amount: ${String(amount)}`);
     }
-    return new Money({ amount: decimal.toFixed(2), currency });
+    const normalizedCurrency = currency.trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(normalizedCurrency)) {
+      throw new Error(`Invalid money currency: ${currency}`);
+    }
+    return new Money({ amount: decimal.toFixed(2), currency: normalizedCurrency });
   }
 
   static zero(currency: string): Money {
@@ -38,12 +43,8 @@ export class Money extends ValueObject<MoneyProps> {
     return Money.from(this.amount.plus(other.amount), this.currency);
   }
 
-  format(locale: string, currency: string): string {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-    }).format(this.amount.toNumber());
+  format(locale: string): string {
+    return formatMoney(this.amount.toFixed(2), locale, this.currency);
   }
 
   isGreaterThan(other: Money): boolean {

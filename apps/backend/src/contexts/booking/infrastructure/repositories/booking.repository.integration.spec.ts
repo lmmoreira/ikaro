@@ -15,17 +15,20 @@ const TENANT_A = '00000000-0000-7000-8000-000000000060';
 const TENANT_B = '00000000-0000-7000-8000-000000000061';
 const SERVICE_ID = '00000000-0000-7000-8000-000000000070';
 const SERVICE_ID_2 = '00000000-0000-7000-8000-000000000071';
+const SERVICE_ID_3 = '00000000-0000-7000-8000-000000000072';
 
 describe('TypeOrmBookingRepository (integration)', () => {
   let dataSource: DataSource;
   let repo: TypeOrmBookingRepository;
+  let localizationPort: InMemoryTenantLocalizationPort;
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
+    localizationPort = new InMemoryTenantLocalizationPort();
     repo = new TypeOrmBookingRepository(
       dataSource.getRepository(BookingEntity),
       dataSource.getRepository(BookingLineEntity),
-      new InMemoryTenantLocalizationPort(),
+      localizationPort,
     );
 
     // Seed a service so booking_lines FK (tenant_id, service_id) → services is satisfied
@@ -95,6 +98,39 @@ describe('TypeOrmBookingRepository (integration)', () => {
     expect(found!.lines[0].pointsValueAtBooking).toBe(10);
     expect(found!.lines[0].requiresPickupAddressAtBooking).toBe(true);
     expect(found!.lines[0].actualPriceCharged).toBeNull();
+  });
+
+  it('reconstitutes Money with the tenant-configured currency, not a hardcoded BRL default', async () => {
+    const tenantId = '00000000-0000-7000-8000-000000000066';
+    localizationPort.set(tenantId, { currency: 'USD', locale: 'en' });
+
+    const svc = new ServiceEntityBuilder().withId(SERVICE_ID_3).withTenantId(tenantId).build();
+    await dataSource.getRepository(ServiceEntity).save(svc);
+
+    const booking = new BookingBuilder()
+      .withTenantId(tenantId)
+      .withTotalPrice(Money.from(100, 'USD'))
+      .withLines([
+        BookingLine.reconstitute({
+          lineId: '00000000-0000-7000-8000-000000000082',
+          bookingId: 'placeholder',
+          tenantId,
+          serviceId: SERVICE_ID_3,
+          serviceNameAtBooking: 'Car Wash',
+          priceAtBooking: Money.from(100, 'USD'),
+          durationMinsAtBooking: 30,
+          pointsValueAtBooking: 5,
+          requiresPickupAddressAtBooking: false,
+          actualPriceCharged: null,
+        }),
+      ])
+      .build();
+
+    await repo.save(booking);
+
+    const found = await repo.findById(booking.id, tenantId);
+    expect(found!.totalPrice.currency).toBe('USD');
+    expect(found!.lines[0].priceAtBooking.currency).toBe('USD');
   });
 
   it('updates lines on re-save (delete + re-insert)', async () => {

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { formatBRL } from '../../../../../shared/utils/money-format';
+import { formatMoney } from '../../../../../shared/utils/money-format';
 import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../../shared/utils/calendar-date';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
@@ -59,6 +59,7 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
   ): Promise<SendBookingRescheduledNotificationUseCaseResult> {
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
+    const locale = tenantInfo?.locale ?? 'pt-BR';
     const previousStart = new Date(dto.previousSlot.startTime);
     const newStart = new Date(dto.newSlot.startTime);
     const previousLocalDate = utcDateToLocalDate(previousStart, timezone);
@@ -66,7 +67,7 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
     const newLocalDate = utcDateToLocalDate(newStart, timezone);
     const newLocalTime = utcDateToLocalHHMM(newStart, timezone);
     const serviceNames = dto.lineSummary.map((l) => l.serviceNameAtBooking).join(', ');
-    const formattedTotal = formatBRL(dto.totalPrice.amount);
+    const formattedTotal = formatMoney(dto.totalPrice.amount, locale, dto.totalPrice.currency);
 
     const [customerTemplates, adminTemplates] = await Promise.all([
       this.templateRepo.findAllByTriggerEvent(

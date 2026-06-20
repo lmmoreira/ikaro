@@ -5,7 +5,6 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import { Money } from '../../../../shared/value-objects/money';
-import { formatMoney } from '../../../../shared/utils/money-format';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import {
   ITenantLocalizationPort,
@@ -66,7 +65,7 @@ export class CreateServiceUseCase {
       price: {
         amount: service.price.amount.toNumber(),
         currency: service.price.currency,
-        formatted: formatMoney(service.price.amount.toFixed(2), locale, service.price.currency),
+        formatted: service.price.format(locale),
       },
       durationMinutes: service.durationMinutes,
       loyaltyPointsValue: service.loyaltyPointsValue,

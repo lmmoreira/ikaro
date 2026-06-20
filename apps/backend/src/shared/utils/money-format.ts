@@ -8,10 +8,6 @@ export function formatMoney(
     style: 'currency',
     currency,
     minimumFractionDigits: decimalPlaces,
+    maximumFractionDigits: decimalPlaces,
   }).format(Number(amount));
-}
-
-/** @deprecated Use formatMoney(amount, locale, currency) instead. Removed in TD02-S07. */
-export function formatBRL(amount: string): string {
-  return formatMoney(amount, 'pt-BR', 'BRL');
 }

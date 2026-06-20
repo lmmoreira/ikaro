@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
-import { formatMoney } from '../../../../shared/utils/money-format';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import {
   ITenantLocalizationPort,
@@ -48,7 +47,7 @@ export class ListServicesUseCase {
       price: {
         amount: service.price.amount.toNumber(),
         currency: service.price.currency,
-        formatted: formatMoney(service.price.amount.toFixed(2), locale, service.price.currency),
+        formatted: service.price.format(locale),
       },
       durationMinutes: service.durationMinutes,
       loyaltyPointsValue: service.loyaltyPointsValue,

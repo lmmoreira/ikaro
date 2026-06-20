@@ -39,7 +39,7 @@ describe('TypeOrmServiceRepository (integration)', () => {
     expect(found!.name).toBe('Lavagem Completa');
     expect(found!.price.amount.toNumber()).toBe(150);
     expect(found!.price.currency).toBe('BRL');
-    expect(found!.price.format('pt-BR', 'BRL')).toBe('R$ 150,00');
+    expect(found!.price.format('pt-BR')).toBe('R$\u00A0150,00');
     expect(found!.durationMinutes).toBe(60);
     expect(found!.loyaltyPointsValue).toBe(10);
     expect(found!.isActive).toBe(true);

@@ -118,6 +118,6 @@ describe('TypeOrmServiceRepository', () => {
 
     const result = await repo.findById(entity.id, entity.tenantId);
 
-    expect(result!.price.format('pt-BR', 'BRL')).toBe('R$ 150,00');
+    expect(result!.price.format('pt-BR')).toBe('R$\u00A0150,00');
   });
 });

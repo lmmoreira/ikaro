@@ -49,7 +49,7 @@ describe('ListServicesUseCase', () => {
 
     const result = await useCase.execute();
 
-    expect(result.items[0].price.formatted).toBe('R$ 150,00');
+    expect(result.items[0].price.formatted).toBe('R$\u00A0150,00');
     expect(result.items[0].price.currency).toBe('BRL');
   });
 

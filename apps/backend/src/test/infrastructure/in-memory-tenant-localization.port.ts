@@ -10,14 +10,14 @@ export class InMemoryTenantLocalizationPort implements ITenantLocalizationPort {
   private defaultLocalization: TenantLocalization = { ...DEFAULT_LOCALIZATION };
 
   set(tenantId: string, localization: TenantLocalization): void {
-    this.store.set(tenantId, localization);
+    this.store.set(tenantId, { ...localization });
   }
 
   setDefault(localization: TenantLocalization): void {
-    this.defaultLocalization = localization;
+    this.defaultLocalization = { ...localization };
   }
 
   async getLocalization(tenantId: string): Promise<TenantLocalization> {
-    return this.store.get(tenantId) ?? this.defaultLocalization;
+    return { ...(this.store.get(tenantId) ?? this.defaultLocalization) };
   }
 }

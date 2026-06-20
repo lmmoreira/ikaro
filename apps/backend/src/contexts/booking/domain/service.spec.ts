@@ -51,7 +51,7 @@ describe('Service', () => {
 
     it('price.format() returns pt-BR formatted string', () => {
       const service = new ServiceBuilder().withTenantId(TENANT).withPrice(PRICE).build();
-      expect(service.price.format('pt-BR', 'BRL')).toBe('R$ 150,00');
+      expect(service.price.format('pt-BR')).toBe('R$\u00A0150,00');
     });
 
     it('stores no domain events on creation', () => {

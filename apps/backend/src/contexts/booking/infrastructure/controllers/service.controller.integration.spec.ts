@@ -51,6 +51,7 @@ describe('ServiceController (integration)', () => {
 
   afterAll(async () => {
     await app.close();
+    delete process.env['PLATFORM_ADMIN_KEY'];
   });
 
   // ─── POST /services ──────────────────────────────────────────────────────────
@@ -64,7 +65,7 @@ describe('ServiceController (integration)', () => {
         .expect(201);
 
       expect(body.id).toBeDefined();
-      expect(body.price.formatted).toBe('R$ 150,00');
+      expect(body.price.formatted).toBe('R$\u00A0150,00');
       expect(body.isActive).toBe(true);
     });
 

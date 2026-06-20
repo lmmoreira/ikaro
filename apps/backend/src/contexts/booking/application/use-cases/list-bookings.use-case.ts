@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
-import { formatMoney } from '../../../../shared/utils/money-format';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import {
   ITenantLocalizationPort,
@@ -83,11 +82,7 @@ export class ListBookingsUseCase {
       totalPrice: {
         amount: booking.totalPrice.amount.toNumber(),
         currency: booking.totalPrice.currency,
-        formatted: formatMoney(
-          booking.totalPrice.amount.toFixed(2),
-          locale,
-          booking.totalPrice.currency,
-        ),
+        formatted: booking.totalPrice.format(locale),
       },
       lineSummary: booking.lines.map((l) => ({
         serviceId: l.serviceId,
@@ -95,11 +90,7 @@ export class ListBookingsUseCase {
         priceAtBooking: {
           amount: l.priceAtBooking.amount.toNumber(),
           currency: l.priceAtBooking.currency,
-          formatted: formatMoney(
-            l.priceAtBooking.amount.toFixed(2),
-            locale,
-            l.priceAtBooking.currency,
-          ),
+          formatted: l.priceAtBooking.format(locale),
         },
       })),
       createdAt: booking.createdAt.toISOString(),

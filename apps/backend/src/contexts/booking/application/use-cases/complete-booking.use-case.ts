@@ -39,13 +39,13 @@ export class CompleteBookingUseCase {
 
   async execute(dto: CompleteBookingDto): Promise<CompleteBookingUseCaseResult> {
     const tenantId = this.tenantContext.tenantId;
-    const { currency } = await this.localizationPort.getLocalization(tenantId);
     const staffId = this.tenantContext.actorId!;
     const correlationId = this.tenantContext.correlationId;
 
     const booking = await this.bookingRepo.findById(dto.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(dto.bookingId);
 
+    const { currency } = await this.localizationPort.getLocalization(tenantId);
     const requestLineIds = new Set(dto.lines.map((l) => l.lineId));
     const missingLineIds = booking.lines
       .filter((l) => !requestLineIds.has(l.lineId))

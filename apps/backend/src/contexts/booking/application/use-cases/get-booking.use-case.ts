@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
-import { formatMoney } from '../../../../shared/utils/money-format';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import {
   ITenantLocalizationPort,
@@ -89,21 +88,13 @@ export class GetBookingUseCase {
       totalPrice: {
         amount: booking.totalPrice.amount.toNumber(),
         currency: booking.totalPrice.currency,
-        formatted: formatMoney(
-          booking.totalPrice.amount.toFixed(2),
-          locale,
-          booking.totalPrice.currency,
-        ),
+        formatted: booking.totalPrice.format(locale),
       },
       totalActualPrice: booking.totalActualPrice
         ? {
             amount: booking.totalActualPrice.amount.toNumber(),
             currency: booking.totalActualPrice.currency,
-            formatted: formatMoney(
-              booking.totalActualPrice.amount.toFixed(2),
-              locale,
-              booking.totalActualPrice.currency,
-            ),
+            formatted: booking.totalActualPrice.format(locale),
           }
         : null,
       pickupAddress: addr
@@ -124,11 +115,7 @@ export class GetBookingUseCase {
         priceAtBooking: {
           amount: l.priceAtBooking.amount.toNumber(),
           currency: l.priceAtBooking.currency,
-          formatted: formatMoney(
-            l.priceAtBooking.amount.toFixed(2),
-            locale,
-            l.priceAtBooking.currency,
-          ),
+          formatted: l.priceAtBooking.format(locale),
         },
         durationMinsAtBooking: l.durationMinsAtBooking,
         pointsValueAtBooking: l.pointsValueAtBooking,
@@ -137,11 +124,7 @@ export class GetBookingUseCase {
           ? {
               amount: l.actualPriceCharged.amount.toNumber(),
               currency: l.actualPriceCharged.currency,
-              formatted: formatMoney(
-                l.actualPriceCharged.amount.toFixed(2),
-                locale,
-                l.actualPriceCharged.currency,
-              ),
+              formatted: l.actualPriceCharged.format(locale),
             }
           : null,
       })),

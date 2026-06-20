@@ -47,7 +47,7 @@ describe('ServiceController', () => {
     it('returns 201 with service DTO including pt-BR formatted price', async () => {
       const result = await controller.create(validBody);
       expect(result.id).toBeDefined();
-      expect(result.price.formatted).toBe('R$ 150,00');
+      expect(result.price.formatted).toBe('R$\u00A0150,00');
       expect(result.isActive).toBe(true);
     });
 

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { formatBRL } from '../../../../../shared/utils/money-format';
+import { formatMoney } from '../../../../../shared/utils/money-format';
 import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../../shared/utils/calendar-date';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
@@ -59,11 +59,12 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
   ): Promise<SendBookingCancelledNotificationUseCaseResult> {
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
+    const locale = tenantInfo?.locale ?? 'pt-BR';
     const scheduledDate = new Date(dto.scheduledAt);
     const localDate = utcDateToLocalDate(scheduledDate, timezone);
     const localTime = utcDateToLocalHHMM(scheduledDate, timezone);
     const serviceNames = dto.lineSummary.map((l) => l.serviceNameAtBooking).join(', ');
-    const formattedTotal = formatBRL(dto.totalPrice.amount);
+    const formattedTotal = formatMoney(dto.totalPrice.amount, locale, dto.totalPrice.currency);
 
     const [customerTemplates, adminTemplates] = await Promise.all([
       this.templateRepo.findAllByTriggerEvent(

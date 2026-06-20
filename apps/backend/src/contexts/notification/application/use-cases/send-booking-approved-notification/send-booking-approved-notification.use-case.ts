@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { formatBRL } from '../../../../../shared/utils/money-format';
+import { formatMoney } from '../../../../../shared/utils/money-format';
 import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../../shared/utils/calendar-date';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
@@ -64,13 +64,17 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
+    const locale = tenantInfo?.locale ?? 'pt-BR';
     const startDate = new Date(dto.approvedSlot.startTime);
     const localDate = utcDateToLocalDate(startDate, timezone);
     const localTime = utcDateToLocalHHMM(startDate, timezone);
     const serviceNames = dto.lineSummary.map((l) => l.serviceNameAtBooking).join(', ');
-    const formattedTotal = formatBRL(dto.totalPrice.amount);
+    const formattedTotal = formatMoney(dto.totalPrice.amount, locale, dto.totalPrice.currency);
     const lineItems = dto.lineSummary
-      .map((l) => `${l.serviceNameAtBooking}: ${formatBRL(l.priceAtBooking.amount)}`)
+      .map(
+        (l) =>
+          `${l.serviceNameAtBooking}: ${formatMoney(l.priceAtBooking.amount, locale, l.priceAtBooking.currency)}`,
+      )
       .join(', ');
 
     const emailSent = await this.dispatchTemplates(templates, dto, dto.contactEmail, {

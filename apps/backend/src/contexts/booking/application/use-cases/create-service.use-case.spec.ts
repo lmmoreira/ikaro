@@ -46,7 +46,7 @@ describe('CreateServiceUseCase', () => {
     expect(result.description).toBe('Lavagem exterior e interior');
     expect(result.price.amount).toBe(150);
     expect(result.price.currency).toBe('BRL');
-    expect(result.price.formatted).toBe('R$ 150,00');
+    expect(result.price.formatted).toBe('R$\u00A0150,00');
     expect(result.durationMinutes).toBe(60);
     expect(result.loyaltyPointsValue).toBe(10);
     expect(result.requiresPickupAddress).toBe(false);
