@@ -1,4 +1,9 @@
-export function formatTime(date: Date, locale: string, timezone: string, format: '24h' | '12h'): string {
+export function formatTime(
+  date: Date,
+  locale: string,
+  timezone: string,
+  format: '24h' | '12h',
+): string {
   return new Intl.DateTimeFormat(locale, {
     hour: '2-digit',
     minute: '2-digit',

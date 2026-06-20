@@ -15,10 +15,7 @@ import {
   INotificationLogRepository,
   NOTIFICATION_LOG_REPOSITORY,
 } from '../../ports/notification-log-repository.port';
-import {
-  ILocalizationPort,
-  LOCALIZATION_PORT,
-} from '../../ports/localization.port';
+import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import {
   INotificationProcessedEventRepository,
   NOTIFICATION_PROCESSED_EVENT_REPOSITORY,
