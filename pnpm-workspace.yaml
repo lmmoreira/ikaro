@@ -9,6 +9,7 @@ overrides:
   '@opentelemetry/core': '2.8.0'
 allowBuilds:
   '@nestjs/core': true
+  '@parcel/watcher': set this to true or false
   '@swc/core': true
   cpu-features: true
   protobufjs: true

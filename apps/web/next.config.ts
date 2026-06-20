@@ -1,13 +1,17 @@
+import type { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin();
+
 const imageBaseUrl = process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL ?? 'http://localhost:4443';
 const parsedImageUrl = new URL(imageBaseUrl);
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
       {
-        protocol: parsedImageUrl.protocol.replace(':', ''),
+        protocol: parsedImageUrl.protocol.replace(':', '') as 'http' | 'https',
         hostname: parsedImageUrl.hostname,
         port: parsedImageUrl.port,
       },
@@ -16,4 +20,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

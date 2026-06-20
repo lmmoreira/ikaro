@@ -1,6 +1,8 @@
 import { fetchManifest } from '@/lib/api/platform';
 import { applyBranding } from '@/lib/hotsite/apply-branding';
 import { FONT_VARIABLES } from '@/lib/hotsite/font-config';
+import { getMessages } from '@/lib/i18n/get-messages';
+import { LocaleProvider } from '@/providers/locale-provider';
 
 interface HotsiteLayoutProps {
   readonly children: React.ReactNode;
@@ -10,7 +12,8 @@ interface HotsiteLayoutProps {
 export default async function HotsiteLayout({ children, params }: HotsiteLayoutProps) {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
-
+  const locale = manifest.localization.language ?? 'pt-BR';
+  const messages = await getMessages(locale);
   const brandingStyles = applyBranding(manifest.branding);
 
   return (
@@ -19,7 +22,9 @@ export default async function HotsiteLayout({ children, params }: HotsiteLayoutP
       style={{ ...brandingStyles, fontFamily: 'var(--ba-body-font)' }}
       className={FONT_VARIABLES.join(' ')}
     >
-      {children}
+      <LocaleProvider locale={locale} messages={messages}>
+        {children}
+      </LocaleProvider>
     </div>
   );
 }
