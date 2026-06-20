@@ -1,13 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ErrorAlert } from './ErrorAlert';
 import type { DaySummary } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/lib/api/schedule';
 import { addDays, toISODate } from '@/lib/formatting/date-utils';
-import { useLocale } from 'next-intl';
 
 interface AvailabilityCarouselProps {
   readonly slug: string;
@@ -18,6 +17,10 @@ interface AvailabilityCarouselProps {
 }
 
 const SCROLL_AMOUNT_PX = 240;
+
+function dayNumber(date: string): string {
+  return String(new Date(`${date}T00:00:00`).getDate());
+}
 
 export function AvailabilityCarousel({
   slug,
@@ -68,10 +71,6 @@ export function AvailabilityCarousel({
     return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(
       new Date(`${date}T00:00:00`),
     );
-  }
-
-  function dayNumber(date: string): string {
-    return String(new Date(`${date}T00:00:00`).getDate());
   }
 
   if (error) {
