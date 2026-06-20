@@ -34,6 +34,7 @@ function makeManifest(overrides: Partial<HotsiteManifestResponse> = {}): Hotsite
     localization: {
       language: 'pt-BR',
       currency: 'BRL',
+      timezone: 'America/Sao_Paulo',
       phonePrefix: '+55',
       dateFormat: 'DD/MM/YYYY',
       timeFormat: '24h',
@@ -187,6 +188,7 @@ describe('buildHotsiteMetadata', () => {
       localization: {
         language: 'en-US',
         currency: 'USD',
+        timezone: 'America/New_York',
         phonePrefix: '+1',
         dateFormat: 'MM/DD/YYYY',
         timeFormat: '12h',

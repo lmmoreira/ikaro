@@ -1,16 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { formatBRL } from './format-money';
+import { formatMoney } from './format-money';
 
-describe('formatBRL', () => {
-  it('formats whole reais with two decimal places', () => {
-    expect(formatBRL(150)).toBe('R$ 150,00');
+describe('formatMoney', () => {
+  it('formats BRL with pt-BR locale', () => {
+    expect(formatMoney(100, 'pt-BR', 'BRL')).toBe('R$ 100,00');
   });
 
-  it('formats thousands with a dot separator', () => {
-    expect(formatBRL(1234.5)).toBe('R$ 1.234,50');
+  it('formats USD with en locale', () => {
+    expect(formatMoney(100, 'en', 'USD')).toBe('$100.00');
+  });
+
+  it('formats thousands with correct separators for pt-BR', () => {
+    expect(formatMoney(1234.5, 'pt-BR', 'BRL')).toBe('R$ 1.234,50');
+  });
+
+  it('normalizes non-breaking space to regular space', () => {
+    const result = formatMoney(150, 'pt-BR', 'BRL');
+    expect(result.charCodeAt(2)).toBe(32); // regular space after R$
+    expect(result).toBe('R$ 150,00');
   });
 
   it('formats zero', () => {
-    expect(formatBRL(0)).toBe('R$ 0,00');
+    expect(formatMoney(0, 'pt-BR', 'BRL')).toBe('R$ 0,00');
   });
 });

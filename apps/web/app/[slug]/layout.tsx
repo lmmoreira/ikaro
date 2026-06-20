@@ -2,6 +2,7 @@ import { fetchManifest } from '@/lib/api/platform';
 import { applyBranding } from '@/lib/hotsite/apply-branding';
 import { FONT_VARIABLES } from '@/lib/hotsite/font-config';
 import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
+import { FormattingProvider } from '@/providers/formatting-provider';
 import { LocaleProvider } from '@/providers/locale-provider';
 
 interface HotsiteLayoutProps {
@@ -15,7 +16,8 @@ export default async function HotsiteLayout({
 }: HotsiteLayoutProps): Promise<React.JSX.Element> {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
-  const locale = resolveSupportedLocale(manifest.localization.language ?? 'pt-BR');
+  const { language, currency, timezone, dateFormat, timeFormat } = manifest.localization;
+  const locale = resolveSupportedLocale(language ?? 'pt-BR');
   const messages = await getMessages(locale);
   const brandingStyles = applyBranding(manifest.branding);
 
@@ -26,7 +28,15 @@ export default async function HotsiteLayout({
       className={FONT_VARIABLES.join(' ')}
     >
       <LocaleProvider locale={locale} messages={messages}>
-        {children}
+        <FormattingProvider
+          locale={locale}
+          currency={currency}
+          timezone={timezone}
+          dateFormat={dateFormat}
+          timeFormat={timeFormat}
+        >
+          {children}
+        </FormattingProvider>
       </LocaleProvider>
     </div>
   );

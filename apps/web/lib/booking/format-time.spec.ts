@@ -1,25 +1,46 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateBR, formatDateLongBR, formatTimeBR } from './format-time';
+import { formatDate, formatDateLong, formatTime } from './format-time';
 
-describe('formatTimeBR', () => {
-  it('formats an ISO datetime as HH:mm in the America/Sao_Paulo timezone', () => {
-    expect(formatTimeBR('2026-06-15T12:00:00.000Z')).toBe('09:00');
+describe('formatTime', () => {
+  it('formats a UTC date as HH:mm in America/Sao_Paulo (24h)', () => {
+    expect(formatTime(new Date('2026-06-15T12:00:00.000Z'), 'pt-BR', 'America/Sao_Paulo', '24h')).toBe('09:00');
   });
 
-  it('pads single-digit hours and minutes', () => {
-    expect(formatTimeBR('2026-06-15T08:05:00.000Z')).toBe('05:05');
+  it('pads single-digit hours', () => {
+    expect(formatTime(new Date('2026-06-15T08:05:00.000Z'), 'pt-BR', 'America/Sao_Paulo', '24h')).toBe('05:05');
+  });
+
+  it('uses 12h format for en locale', () => {
+    const result = formatTime(new Date('2026-06-15T14:00:00.000Z'), 'en', 'America/New_York', '12h');
+    expect(result).toMatch(/10:00/);
+    expect(result).toMatch(/AM|PM/i);
   });
 });
 
-describe('formatDateBR', () => {
-  it('formats an ISO date as DD/MM/YYYY', () => {
-    expect(formatDateBR('2026-06-15')).toBe('15/06/2026');
+describe('formatDate', () => {
+  it('formats DD/MM/YYYY for BR dateFormat', () => {
+    // Use noon UTC to stay unambiguously on June 15 in any UTC-offset timezone
+    expect(formatDate(new Date('2026-06-15T12:00:00Z'), 'America/Sao_Paulo', 'DD/MM/YYYY')).toBe('15/06/2026');
+  });
+
+  it('formats MM/DD/YYYY for US dateFormat', () => {
+    expect(formatDate(new Date('2026-06-15T12:00:00Z'), 'America/New_York', 'MM/DD/YYYY')).toBe('06/15/2026');
+  });
+
+  it('formats YYYY-MM-DD for ISO dateFormat', () => {
+    expect(formatDate(new Date('2026-06-15T12:00:00Z'), 'UTC', 'YYYY-MM-DD')).toBe('2026-06-15');
   });
 });
 
-describe('formatDateLongBR', () => {
-  it('formats an ISO date as "Weekday, day de month" in pt-BR, capitalized', () => {
-    expect(formatDateLongBR('2026-06-15')).toBe('Segunda-feira, 15 de junho');
-    expect(formatDateLongBR('2026-06-18')).toBe('Quinta-feira, 18 de junho');
+describe('formatDateLong', () => {
+  it('formats a date in pt-BR long format, capitalized', () => {
+    expect(formatDateLong(new Date('2026-06-15T00:00:00Z'), 'pt-BR')).toBe('Segunda-feira, 15 de junho');
+  });
+
+  it('formats a date in en long format', () => {
+    const result = formatDateLong(new Date('2026-06-15T00:00:00Z'), 'en');
+    expect(result).toMatch(/Monday/);
+    expect(result).toMatch(/June/);
+    expect(result).toMatch(/15/);
   });
 });

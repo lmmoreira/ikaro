@@ -1,9 +1,10 @@
+'use client';
+
 import type React from 'react';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import { ErrorAlert } from './ErrorAlert';
-import { formatDateLongBR, formatTimeBR } from '@/lib/booking/format-time';
+import { useFormatting } from '@/lib/formatting/use-formatting';
 import { formatDuration } from '@/lib/hotsite/format-duration';
-import { formatBRL } from '@/lib/hotsite/format-money';
 
 export type BookingSubmissionStatus = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -37,6 +38,7 @@ export function ConfirmationStep({
   onSubmit,
   onBack,
 }: ConfirmationStepProps) {
+  const { formatMoney, formatDateLong, formatTime } = useFormatting();
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));
   const totalAmount = selected.reduce((sum, service) => sum + service.price.amount, 0);
   const totalDuration = selected.reduce((sum, service) => sum + service.durationMinutes, 0);
@@ -83,11 +85,12 @@ export function ConfirmationStep({
       </ul>
 
       <p className="mb-2 font-semibold" style={{ color: 'var(--ba-text)' }}>
-        Total: {formatBRL(totalAmount)} — {formatDuration(totalDuration)}
+        Total: {formatMoney(totalAmount)} — {formatDuration(totalDuration)}
       </p>
 
       <p style={{ color: 'var(--ba-text)' }}>
-        {formatDateLongBR(selectedDate)} às {formatTimeBR(selectedSlot.startsAt)}
+        {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))} às{' '}
+        {formatTime(new Date(selectedSlot.startsAt))}
       </p>
 
       {status === 'error' && errorMessage && (

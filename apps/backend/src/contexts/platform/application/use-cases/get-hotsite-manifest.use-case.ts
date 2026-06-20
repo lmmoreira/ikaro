@@ -53,6 +53,7 @@ export interface HotsiteAddressSpec {
 export interface HotsiteLocalization {
   language: string;
   currency: string;
+  timezone: string;
   phonePrefix: string;
   dateFormat: string;
   timeFormat: '24h' | '12h';
@@ -108,7 +109,10 @@ export class GetHotsiteManifestUseCase {
         seo: config.seo,
         isPublished: false,
         business: emptyBusinessInfo(),
-        localization: this.mapLocalization(tenant.settings.resolveLocalization()),
+        localization: this.mapLocalization(
+          tenant.settings.resolveLocalization(),
+          tenant.settings.business_hours.timezone,
+        ),
       };
     }
 
@@ -124,16 +128,21 @@ export class GetHotsiteManifestUseCase {
       seo: config.seo,
       isPublished: config.isPublished,
       business: this.mapBusinessInfo(tenant.settings.business_info),
-      localization: this.mapLocalization(tenant.settings.resolveLocalization()),
+      localization: this.mapLocalization(
+        tenant.settings.resolveLocalization(),
+        tenant.settings.business_hours.timezone,
+      ),
     };
   }
 
   private mapLocalization(
     resolved: import('../../domain/value-objects/tenant-settings.vo').ResolvedLocalization,
+    timezone: string,
   ): HotsiteLocalization {
     return {
       language: resolved.language,
       currency: resolved.currency,
+      timezone,
       phonePrefix: resolved.phonePrefix,
       dateFormat: resolved.dateFormat,
       timeFormat: resolved.timeFormat,

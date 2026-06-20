@@ -1,8 +1,9 @@
+'use client';
+
 import type React from 'react';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
-import { formatDateLongBR, formatTimeBR } from '@/lib/booking/format-time';
+import { useFormatting } from '@/lib/formatting/use-formatting';
 import { formatDuration } from '@/lib/hotsite/format-duration';
-import { formatBRL } from '@/lib/hotsite/format-money';
 
 interface BookingSummaryCardProps {
   readonly services: readonly HotsiteServiceResponse[];
@@ -31,6 +32,7 @@ export function BookingSummaryCard({
   selectedDate,
   selectedSlot,
 }: BookingSummaryCardProps) {
+  const { formatMoney, formatDateLong, formatTime } = useFormatting();
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));
   const totalAmount = selected.reduce((sum, service) => sum + service.price.amount, 0);
   const totalDuration = selected.reduce((sum, service) => sum + service.durationMinutes, 0);
@@ -51,7 +53,7 @@ export function BookingSummaryCard({
           </p>
         ))}
         <p className="mt-0.5 text-sm" style={{ color: 'var(--ba-primary)' }}>
-          {formatBRL(totalAmount)} — {formatDuration(totalDuration)}
+          {formatMoney(totalAmount)} — {formatDuration(totalDuration)}
         </p>
 
         <hr className="my-3.5" style={{ borderColor: 'var(--ba-secondary)' }} />
@@ -60,7 +62,8 @@ export function BookingSummaryCard({
           Data e horário
         </p>
         <p className="font-semibold" style={{ color: 'var(--ba-text)' }}>
-          {formatDateLongBR(selectedDate)} às {formatTimeBR(selectedSlot.startsAt)}
+          {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))} às{' '}
+          {formatTime(new Date(selectedSlot.startsAt))}
         </p>
       </div>
     </div>

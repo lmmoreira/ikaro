@@ -1,27 +1,33 @@
-const TIME_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
-  hour: '2-digit',
-  minute: '2-digit',
-  timeZone: 'America/Sao_Paulo',
-});
-
-const LONG_DATE_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  timeZone: 'UTC',
-});
-
-export function formatTimeBR(iso: string): string {
-  return TIME_FORMATTER.format(new Date(iso));
+export function formatTime(date: Date, locale: string, timezone: string, format: '24h' | '12h'): string {
+  return new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: timezone,
+    hour12: format === '12h',
+  }).format(date);
 }
 
-export function formatDateBR(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-');
-  return `${day}/${month}/${year}`;
+export function formatDate(date: Date, timezone: string, dateFormat: string): string {
+  const formatter = new Intl.DateTimeFormat('en', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).map((p) => [p.type, p.value]));
+  const { year, month, day } = parts;
+
+  if (dateFormat === 'MM/DD/YYYY') return `${month}/${day}/${year}`;
+  if (dateFormat === 'YYYY-MM-DD') return `${year}-${month}-${day}`;
+  return `${day}/${month}/${year}`; // DD/MM/YYYY default
 }
 
-export function formatDateLongBR(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  const formatted = LONG_DATE_FORMATTER.format(Date.UTC(year, month - 1, day));
+export function formatDateLong(date: Date, locale: string): string {
+  const formatted = new Intl.DateTimeFormat(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(date);
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }

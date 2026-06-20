@@ -5,6 +5,7 @@
     "phone": "Phone",
     "services": "Services",
     "duration": "Duration",
-    "notes": "Notes"
+    "notes": "Notes",
+    "emptyState": "No bookings for today"
   }
 }
