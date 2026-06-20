@@ -1,0 +1,92 @@
+{
+  "BookingRequested": {
+    "admin": {
+      "subject": "New booking received",
+      "body": "<p>New booking request received.</p><p><strong>Customer:</strong> {{contactName}}</p><p><strong>Date/Time:</strong> {{scheduledAt}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>{{pickupAddressLine}}"
+    },
+    "customer": {
+      "subject": "Booking request received",
+      "body": "<p>Hello, {{contactName}}!</p><p>We received your booking request at <strong>{{tenantName}}</strong>.</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Date/Time:</strong> {{scheduledAt}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>We will contact you to confirm your booking.</p>"
+    }
+  },
+  "BookingApproved": {
+    "customer": {
+      "subject": "Your booking is confirmed!",
+      "body": "<p>Hello, {{contactName}}!</p><p>Your booking has been confirmed.</p><p><strong>Date:</strong> {{localDate}}</p><p><strong>Time:</strong> {{localTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>We look forward to seeing you!</p>"
+    }
+  },
+  "BookingRejected": {
+    "customer": {
+      "subject": "Your booking was not accepted",
+      "body": "<p>Hello, {{contactName}}!</p><p>Unfortunately we could not confirm your booking.</p><p><strong>Reason:</strong> {{reason}}</p><p>Feel free to make a new booking on our website.</p>"
+    }
+  },
+  "BookingInfoRequested": {
+    "customer": {
+      "subject": "We need more information about your booking",
+      "body": "<p>Hello, {{contactName}}!</p><p>Our team needs more information before confirming your booking.</p><p><strong>Information needed:</strong> {{informationNeeded}}</p><p><a href=\"{{respondLink}}\">Click here to respond</a></p>"
+    }
+  },
+  "BookingInfoSubmitted": {
+    "admin": {
+      "subject": "Customer responded to the information request",
+      "body": "<p>Customer <strong>{{submittedByEmail}}</strong> responded to the information request.</p><p><strong>Response:</strong> {{customerResponse}}</p><p><a href=\"{{bookingLink}}\">View booking in the dashboard</a></p>"
+    }
+  },
+  "BookingCancelled": {
+    "customer": {
+      "subject": "Your booking has been cancelled",
+      "body": "<p>Hello, {{contactName}}!</p><p>Your booking has been cancelled.</p><p><strong>Date:</strong> {{localDate}}</p><p><strong>Time:</strong> {{localTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Feel free to make a new booking on our website.</p>"
+    },
+    "admin": {
+      "subject": "Booking cancelled",
+      "body": "<p>Booking cancelled.</p><p><strong>Customer:</strong> {{contactName}}</p><p><strong>Date:</strong> {{localDate}}</p><p><strong>Time:</strong> {{localTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{cancelledByLine}}</p>{{reasonLine}}"
+    }
+  },
+  "BookingRescheduled": {
+    "customer": {
+      "subject": "Your booking has been rescheduled",
+      "body": "<p>Hello, {{contactName}}!</p><p>Your booking has been rescheduled.</p><p><strong>Previous date:</strong> {{previousLocalDate}} at {{previousLocalTime}}</p><p><strong>New date:</strong> {{newLocalDate}} at {{newLocalTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>We look forward to seeing you!</p>"
+    },
+    "admin": {
+      "subject": "Booking rescheduled",
+      "body": "<p>Booking rescheduled.</p><p><strong>Customer:</strong> {{contactName}}</p><p><strong>Previous date:</strong> {{previousLocalDate}} at {{previousLocalTime}}</p><p><strong>New date:</strong> {{newLocalDate}} at {{newLocalTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>"
+    }
+  },
+  "BookingReminderDue": {
+    "customer": {
+      "subject": "Reminder: your booking is tomorrow!",
+      "body": "<p>Hello, {{contactName}}!</p><p>Just a reminder that your booking is <strong>tomorrow</strong>.</p><p><strong>Date:</strong> {{localDate}}</p><p><strong>Time:</strong> {{localTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p>See you tomorrow!</p>"
+    }
+  },
+  "BookingReminderDueToday": {
+    "customer": {
+      "subject": "Reminder: your booking is today!",
+      "body": "<p>Hello, {{contactName}}!</p><p>Just a reminder that your booking is <strong>today</strong>.</p><p><strong>Time:</strong> {{localTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p>We are looking forward to seeing you!</p>"
+    }
+  },
+  "AdminDailyScheduleReminder": {
+    "admin": {
+      "subject": "Today's schedule",
+      "body": "<p>Hello!</p><p>Here is today's schedule, <strong>{{localDate}}</strong>:</p><p>{{bookingsSummary}}</p>"
+    }
+  },
+  "ServicePointsEarned": {
+    "customer": {
+      "subject": "You earned loyalty points!",
+      "body": "<p>Hello, {{customerName}}!</p><p>Your service is complete and you earned <strong>{{totalPointsEarned}} points</strong> in loyalty rewards.</p><p>Your current balance is <strong>{{currentBalance}} points</strong>.</p><p>Use your points on your next booking!</p>"
+    }
+  },
+  "PointsExpiringSoon": {
+    "customer": {
+      "subject": "Your points are about to expire",
+      "body": "<p>Hello, {{customerName}}!</p><p>You have <strong>{{pointsExpiringSoon}} points</strong> about to expire on {{earliestExpiresAt}}.</p><p>Make a booking to use your points before they expire.</p>"
+    }
+  },
+  "StaffInvited": {
+    "staff": {
+      "subject": "Invitation to join Ikaro",
+      "body": "<p>Hello, {{staffName}}!</p><p>You have been invited to join the <strong>{{tenantName}}</strong> team on the Ikaro platform.</p><p><a href=\"{{activationLink}}\">Click here to accept the invitation and access your account.</a></p><p>If you were not expecting this invitation, please ignore this email.</p>"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "adminDailySchedule": {
+    "time": "Horário",
+    "customer": "Cliente",
+    "phone": "Telefone",
+    "services": "Serviços",
+    "duration": "Duração",
+    "notes": "Notas"
+  }
+}
