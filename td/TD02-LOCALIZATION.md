@@ -571,7 +571,7 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 
 ---
 
-#### TD02-S02 — `Money` VO multi-currency
+#### TD02-S02 — `Money` VO multi-currency ✅ Done
 
 **Scope:**
 - Change `currency: 'BRL'` literal to `currency: string` in `apps/backend/src/shared/value-objects/money.ts`
