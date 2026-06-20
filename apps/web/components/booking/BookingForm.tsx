@@ -20,6 +20,7 @@ interface BookingFormProps {
   readonly slug: string;
   readonly services: readonly HotsiteServiceResponse[];
   readonly carouselDays: number;
+  readonly phonePrefix: string;
 }
 
 type Step = 1 | 2 | 3 | 4;
@@ -50,7 +51,7 @@ function buildPayload(
   };
 }
 
-export function BookingForm({ slug, services, carouselDays }: BookingFormProps) {
+export function BookingForm({ slug, services, carouselDays, phonePrefix }: BookingFormProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
@@ -209,6 +210,7 @@ export function BookingForm({ slug, services, carouselDays }: BookingFormProps) 
             selectedServiceIds={selectedServiceIds}
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
+            phonePrefix={phonePrefix}
             onNext={() => setStep(4)}
             onBack={() => setStep(2)}
           />

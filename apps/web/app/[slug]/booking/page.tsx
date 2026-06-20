@@ -41,7 +41,12 @@ export default async function BookingPage({ params }: BookingPageProps) {
   return (
     <>
       <HotsiteAuthBar slug={slug} />
-      <BookingForm slug={slug} services={services} carouselDays={carouselDays} />
+      <BookingForm
+        slug={slug}
+        services={services}
+        carouselDays={carouselDays}
+        phonePrefix={manifest.localization.phonePrefix}
+      />
     </>
   );
 }

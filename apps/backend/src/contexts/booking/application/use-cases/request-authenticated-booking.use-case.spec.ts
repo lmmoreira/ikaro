@@ -71,7 +71,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     customerProfilePort.setProfile(CUSTOMER_ID, {
       email: 'cliente@example.com',
       name: 'Maria Silva',
-      phone: '31999999999',
+      phone: '+5531999999999',
       defaultAddress: null,
     });
   });
@@ -170,7 +170,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     customerProfilePort.setProfile(CUSTOMER_ID, {
       email: 'cliente@example.com',
       name: 'Maria Silva',
-      phone: '31999999999',
+      phone: '+5531999999999',
       defaultAddress: addr,
     });
 
@@ -190,7 +190,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     customerProfilePort.setProfile(CUSTOMER_ID, {
       email: 'cliente@example.com',
       name: 'Maria Silva',
-      phone: '31999999999',
+      phone: '+5531999999999',
       defaultAddress: testAddress({ city: 'Uberlândia' }),
     });
 

@@ -19,10 +19,7 @@ export const UpdateCustomerProfileBodySchema = z.object({
   name: z.string().min(1).optional(),
   phone: z
     .string()
-    .refine((v) => {
-      const d = v.replace(/\D/g, '');
-      return d.length === 10 || d.length === 11;
-    }, 'phone must have 10 or 11 digits')
+    .regex(/^\+[1-9]\d{6,14}$/, 'phone must be in E.164 format')
     .nullable()
     .optional(),
   defaultAddress: AddressSchema.nullable().optional(),

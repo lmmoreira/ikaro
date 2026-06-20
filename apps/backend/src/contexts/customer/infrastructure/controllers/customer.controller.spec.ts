@@ -64,9 +64,9 @@ describe('CustomerController', () => {
 
   describe('updateMe()', () => {
     it('returns the updated profile', async () => {
-      const result = await controller.updateMe({ name: 'Updated', phone: '31988888888' });
+      const result = await controller.updateMe({ name: 'Updated', phone: '+5531988888888' });
       expect(result.name).toBe('Updated');
-      expect(result.phone).toBe('31988888888');
+      expect(result.phone).toBe('+5531988888888');
     });
 
     it('accepts a valid defaultAddress', async () => {

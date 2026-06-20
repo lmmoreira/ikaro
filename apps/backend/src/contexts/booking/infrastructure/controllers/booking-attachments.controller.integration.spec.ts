@@ -73,7 +73,7 @@ describe('BookingAttachmentsController (integration)', () => {
       .withTenantId(tenantId)
       .withEmail('joao@test.com')
       .withName('João')
-      .withPhone('31988888888')
+      .withPhone('+5531988888888')
       .build();
     await ds.getRepository(CustomerEntity).save(cust);
 
@@ -85,7 +85,7 @@ describe('BookingAttachmentsController (integration)', () => {
         scheduledAt: `${futureDate(3)}T09:00:00.000Z`,
         contactName: 'João',
         contactEmail: 'joao@test.com',
-        contactPhone: '31988888888',
+        contactPhone: '+5531988888888',
       })
       .expect(201);
     bookingId = bk.bookingId as string;

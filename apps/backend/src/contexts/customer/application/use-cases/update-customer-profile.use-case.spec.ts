@@ -49,12 +49,12 @@ describe('UpdateCustomerProfileUseCase', () => {
   });
 
   it('updates phone when provided', async () => {
-    const result = await useCase.execute({ phone: '31999999999' });
-    expect(result.phone).toBe('31999999999');
+    const result = await useCase.execute({ phone: '+5531999999999' });
+    expect(result.phone).toBe('+5531999999999');
   });
 
   it('clears phone when set to null', async () => {
-    await useCase.execute({ phone: '31999999999' });
+    await useCase.execute({ phone: '+5531999999999' });
     const result = await useCase.execute({ phone: null });
     expect(result.phone).toBeNull();
   });
@@ -72,10 +72,10 @@ describe('UpdateCustomerProfileUseCase', () => {
   });
 
   it('leaves unchanged fields untouched on partial update', async () => {
-    await useCase.execute({ phone: '31988888888' });
+    await useCase.execute({ phone: '+5531988888888' });
     const result = await useCase.execute({ name: 'Updated Name' });
     expect(result.name).toBe('Updated Name');
-    expect(result.phone).toBe('31988888888');
+    expect(result.phone).toBe('+5531988888888');
   });
 
   it('throws CustomerNotFoundError when actorId has no matching customer', async () => {

@@ -69,7 +69,7 @@ describe('BookingController', () => {
     customerProfilePort.setProfile(CUSTOMER_ID, {
       email: 'cliente@example.com',
       name: 'Maria Silva',
-      phone: '31988888888',
+      phone: '+5531988888888',
       defaultAddress: null,
     });
     controller = new BookingController(
@@ -176,7 +176,7 @@ describe('BookingController', () => {
   const validBody = () => ({
     contactEmail: 'guest@example.com',
     contactName: 'João Silva',
-    contactPhone: '31999999999',
+    contactPhone: '+5531999999999',
     scheduledAt: `${futureDate(1)}T10:00:00.000Z`,
     serviceIds: [serviceId],
   });

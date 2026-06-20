@@ -60,12 +60,12 @@ describe('Customer', () => {
     expect(c2.tenantId).toBe('tenant-b');
   });
 
-  it('updateProfile updates name, phone (normalised), and address', () => {
+  it('updateProfile updates name, phone (E.164), and address', () => {
     const c = Customer.create(...validArgs);
-    c.updateProfile('Novo Nome', '(11) 99999-0000', testAddress);
+    c.updateProfile('Novo Nome', '+5511999990000', testAddress);
     expect(c.name).toBe('Novo Nome');
     expect(c.phone).toBeInstanceOf(PhoneNumber);
-    expect(c.phone!.value).toBe('11999990000');
+    expect(c.phone!.value).toBe('+5511999990000');
     expect(c.defaultAddress).toBeInstanceOf(Address);
     expect(c.defaultAddress!.toJSON().street).toBe('Rua das Flores');
   });

@@ -7,7 +7,7 @@ const mockProfile: CustomerProfileResponse = {
   customerId: '20000000-0000-4000-8000-000000000001',
   email: 'cliente@example.com',
   name: 'João Silva',
-  phone: '31999999999',
+  phone: '+5531999999999',
   defaultAddress: null,
 };
 

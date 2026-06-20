@@ -1,41 +1,49 @@
 import { PhoneNumber } from './phone-number.vo';
 
 describe('PhoneNumber', () => {
-  it('accepts 11-digit mobile numbers', () => {
-    expect(PhoneNumber.isValid('11999990000')).toBe(true);
-    expect(PhoneNumber.isValid('(11) 99999-0000')).toBe(true);
+  it('accepts a valid Brazilian E.164 number', () => {
+    expect(PhoneNumber.isValid('+5511912345678')).toBe(true);
   });
 
-  it('accepts 10-digit landline numbers', () => {
-    expect(PhoneNumber.isValid('1133330000')).toBe(true);
-    expect(PhoneNumber.isValid('(11) 3333-0000')).toBe(true);
+  it('accepts a valid US E.164 number', () => {
+    expect(PhoneNumber.isValid('+14155552671')).toBe(true);
   });
 
-  it('rejects too few digits', () => {
-    expect(PhoneNumber.isValid('11999')).toBe(false);
+  it('rejects a number missing the leading +', () => {
+    expect(PhoneNumber.isValid('11912345678')).toBe(false);
+  });
+
+  it('rejects an empty string', () => {
     expect(PhoneNumber.isValid('')).toBe(false);
   });
 
-  it('rejects too many digits', () => {
-    expect(PhoneNumber.isValid('119999900001')).toBe(false);
+  it('rejects a number starting with +0', () => {
+    expect(PhoneNumber.isValid('+0123456')).toBe(false);
   });
 
-  it('create normalises to digits only', () => {
-    const p = PhoneNumber.create('(11) 99999-0000');
-    expect(p.value).toBe('11999990000');
+  it('rejects a number that is too short', () => {
+    expect(PhoneNumber.isValid('+123456')).toBe(false);
   });
 
-  it('format returns (XX) XXXXX-XXXX for mobile', () => {
-    const p = PhoneNumber.create('11999990000');
-    expect(p.format()).toBe('(11) 99999-0000');
+  it('rejects a number that is too long', () => {
+    expect(PhoneNumber.isValid('+1234567890123456')).toBe(false);
   });
 
-  it('format returns (XX) XXXX-XXXX for landline', () => {
-    const p = PhoneNumber.create('1133330000');
-    expect(p.format()).toBe('(11) 3333-0000');
+  it('rejects non-digit characters after the +', () => {
+    expect(PhoneNumber.isValid('+55 11 91234-5678')).toBe(false);
+  });
+
+  it('create stores the E.164 value as-is', () => {
+    const p = PhoneNumber.create('+5511912345678');
+    expect(p.value).toBe('+5511912345678');
+  });
+
+  it('format returns the E.164 value as-is', () => {
+    const p = PhoneNumber.create('+5511912345678');
+    expect(p.format()).toBe('+5511912345678');
   });
 
   it('create throws for invalid input', () => {
-    expect(() => PhoneNumber.create('123')).toThrow();
+    expect(() => PhoneNumber.create('11912345678')).toThrow();
   });
 });

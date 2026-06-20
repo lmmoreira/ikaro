@@ -78,7 +78,7 @@ describe('TypeOrmBookingRepository', () => {
         .withId(bookingId)
         .withTenantId(tenantId)
         .withContactEmail('joao@example.com')
-        .withContactPhone('31999999999')
+        .withContactPhone('+5531999999999')
         .withTotalPriceAmount('150.00')
         .build();
 

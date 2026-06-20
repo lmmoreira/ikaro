@@ -57,7 +57,7 @@ describe('CustomerController (integration)', () => {
         .withTenantId(tenantAId)
         .withEmail('getme@profile.test')
         .withName('Get Me Customer')
-        .withPhone('31999999999')
+        .withPhone('+5531999999999')
         .build();
       await ds.getRepository(CustomerEntity).save(entity);
       customerId = entity.id;
@@ -72,7 +72,7 @@ describe('CustomerController (integration)', () => {
       expect(body.customerId).toBe(customerId);
       expect(body.email).toBe('getme@profile.test');
       expect(body.name).toBe('Get Me Customer');
-      expect(body.phone).toBe('31999999999');
+      expect(body.phone).toBe('+5531999999999');
       expect(body.defaultAddress).toBeNull();
     });
 
@@ -116,7 +116,7 @@ describe('CustomerController (integration)', () => {
         .set(actorHeaders(tenantAId, customerId, 'CUSTOMER'))
         .send({
           name: 'Updated Name',
-          phone: '31988888888',
+          phone: '+5531988888888',
           defaultAddress: {
             street: 'Rua das Flores',
             number: '10',
@@ -129,20 +129,20 @@ describe('CustomerController (integration)', () => {
         .expect(200);
 
       expect(body.name).toBe('Updated Name');
-      expect(body.phone).toBe('31988888888');
+      expect(body.phone).toBe('+5531988888888');
       expect(body.defaultAddress.city).toBe('Belo Horizonte');
       expect(body.defaultAddress.zipCode).toBe('30100000');
 
       const row = await ds.getRepository(CustomerEntity).findOne({ where: { id: customerId } });
       expect(row!.name).toBe('Updated Name');
-      expect(row!.phone).toBe('31988888888');
+      expect(row!.phone).toBe('+5531988888888');
     });
 
     it('partial update: leaves unspecified fields unchanged', async () => {
       await request(app.getHttpServer())
         .patch('/customers/me')
         .set(actorHeaders(tenantAId, customerId, 'CUSTOMER'))
-        .send({ phone: '31977777777' })
+        .send({ phone: '+5531977777777' })
         .expect(200);
 
       const { body } = await request(app.getHttpServer())
@@ -152,7 +152,7 @@ describe('CustomerController (integration)', () => {
         .expect(200);
 
       expect(body.name).toBe('Only Name Changed');
-      expect(body.phone).toBe('31977777777');
+      expect(body.phone).toBe('+5531977777777');
     });
 
     it('clears defaultAddress when set to null', async () => {

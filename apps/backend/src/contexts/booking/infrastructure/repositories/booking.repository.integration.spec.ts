@@ -51,7 +51,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
       .withTenantId(TENANT_A)
       .withContactEmail('joao@example.com')
       .withContactName('João Silva')
-      .withContactPhone('31999999999')
+      .withContactPhone('+5531999999999')
       .withContactAddress(testAddress())
       .withPickupAddress(testAddress({ street: 'Rua do Pickup', number: '10' }))
       .withScheduledAt(new Date('2026-07-01T10:00:00.000Z'))
@@ -83,7 +83,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
     expect(found!.type).toBe('GUEST');
     expect(found!.contactEmail.address).toBe('joao@example.com');
     expect(found!.contactName).toBe('João Silva');
-    expect(found!.contactPhone.value).toBe('31999999999');
+    expect(found!.contactPhone.value).toBe('+5531999999999');
     expect(found!.contactAddress).not.toBeNull();
     expect(found!.pickupAddress).not.toBeNull();
     expect(found!.scheduledAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');

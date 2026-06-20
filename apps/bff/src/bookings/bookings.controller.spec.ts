@@ -37,7 +37,7 @@ const mockBookingResponse: BookingResponse = {
 const validBody = {
   contactEmail: 'joao@example.com',
   contactName: 'João Silva',
-  contactPhone: '31999999999',
+  contactPhone: '+5531999999999',
   scheduledAt: '2026-06-15T10:00:00.000Z',
   serviceIds: [SERVICE_ID],
 };
@@ -613,7 +613,7 @@ describe('BookingsController', () => {
       customerId: null,
       contactName: 'João',
       contactEmail: 'joao@example.com',
-      contactPhone: '31999999999',
+      contactPhone: '+5531999999999',
       scheduledAt: '2026-06-15T10:00:00.000Z',
       totalDurationMins: 30,
       totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },

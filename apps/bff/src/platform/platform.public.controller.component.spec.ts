@@ -9,7 +9,7 @@ import {
 const tenantInfo = { id: 'tenant-uuid', slug: 'lavacar-bh', name: 'Lavacar BH' };
 
 const businessInfo: HotsiteBusinessInfoResponse = {
-  phone: '11987654321',
+  phone: '+5511987654321',
   email: 'contato@beloauto.com.br',
   address: {
     street: 'Av. Paulista',
