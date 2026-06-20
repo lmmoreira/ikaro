@@ -772,6 +772,8 @@ Update `booking-full-workflow.handler.integration.spec.ts` to use key-based asse
 
 **Key files:**  
 `notification/infrastructure/migrations/1748100000010-CreateNotificationTemplates.ts` · all `send-*-notification.use-case.ts` files · all `send-*-notification.use-case.spec.ts` files · `booking-full-workflow.handler.integration.spec.ts` · `seed-default-templates.use-case.spec.ts`
+apps/backend/src/contexts/notification/infrastructure/migrations/1748400000010-RebrandStaffInvitationTemplate.ts
+This one can be deleted since it was from the rebrand, we can start already rebranded
 
 **Acceptance criteria:**
 - [ ] No pt-BR string literals in `.ts` files outside `packages/i18n/locales/`
