@@ -1,0 +1,109 @@
+{
+  "common": {
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "save": "Save"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signInWith": "Sign in with {provider}",
+    "signInError": "Sign-in failed. Please try again.",
+    "pageTitle": "Sign in — {name}"
+  },
+  "booking": {
+    "title": "Book a service",
+    "serviceSelection": {
+      "title": "Choose services",
+      "pickupAddressPrompt": "Enter pickup address...",
+      "singular": "service",
+      "plural": "services"
+    },
+    "slotPicker": {
+      "loading": "Loading time slots...",
+      "noSlots": "No time slots available"
+    },
+    "availability": {
+      "loadError": "Could not load availability",
+      "loading": "Loading availability...",
+      "previousDays": "Previous days",
+      "nextDays": "Next days",
+      "noSlots": "No time slots available in the coming days"
+    },
+    "personalInfo": {
+      "nameLabel": "Name",
+      "emailLabel": "Email",
+      "phoneLabel": "Phone",
+      "addressLabel": "Contact address (optional)",
+      "nameRequired": "Please enter your name.",
+      "emailRequired": "Please enter a valid email.",
+      "phoneRequired": "Please enter your phone number."
+    },
+    "address": {
+      "searching": "Looking up address...",
+      "notFound": "Address not found. Please fill in manually.",
+      "streetLabel": "Street",
+      "numberLabel": "Number",
+      "complementLabel": "Apt / Suite",
+      "cityLabel": "City"
+    },
+    "confirmation": {
+      "backToSite": "Back to website",
+      "sending": "Sending...",
+      "submit": "Confirm booking"
+    },
+    "summary": {
+      "serviceSingular": "Service",
+      "servicePlural": "Services"
+    },
+    "photo": {
+      "unsupportedFormat": "Unsupported image format",
+      "uploadFailed": "Failed to upload image",
+      "uploading": "Uploading...",
+      "uploadError": "Upload error",
+      "title": "Vehicle photos (optional)",
+      "clickToAdd": "Click to add photos"
+    },
+    "errors": {
+      "submitFailed": "Could not submit booking. Please try again.",
+      "slotUnavailable": "This time slot is no longer available, please choose another"
+    }
+  },
+  "hotsite": {
+    "services": {
+      "defaultTitle": "Our Services",
+      "pointsSuffix": "+{count} points",
+      "empty": "No services available at the moment"
+    },
+    "gallery": {
+      "defaultTitle": "Our Results",
+      "showMore": "Show more",
+      "photoAlt": "Service photo",
+      "beforeLabel": "Before",
+      "afterLabel": "After"
+    },
+    "testimonials": {
+      "defaultTitle": "What our clients say",
+      "previousAriaLabel": "Previous testimonial",
+      "nextAriaLabel": "Next testimonial"
+    },
+    "contact": { "phoneLabel": "Phone" },
+    "unavailable": { "label": "Coming soon" }
+  },
+  "notFound": {
+    "title": "Not found",
+    "tenantNotFound": "Tenant not found",
+    "tenantNotFoundDescription": "The tenant you are looking for does not exist or has been removed.",
+    "backToHome": "Back to Ikaro"
+  },
+  "seo": {
+    "defaultSubtitle": "Online Booking",
+    "defaultDescription": "Book your service quickly, easily, and online."
+  },
+  "errors": {
+    "internalServerError": "Internal server error"
+  }
+}

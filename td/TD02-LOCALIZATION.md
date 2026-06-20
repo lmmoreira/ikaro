@@ -569,6 +569,8 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 - [ ] All `'America/Sao_Paulo'` string literals removed from non-VO source files
 - [ ] Unit tests for `countrySpec()` and `resolveLocalization()`
 
+**Implementation:** Shipped as planned (PR #14, 53 files, 1376 unit + 331 integration + 225 BFF component tests). Two deviations from scope: the `?? 'America/Sao_Paulo'` fallbacks were replaced with `?? 'UTC'` rather than `TenantSettings.default().business_hours.timezone`; and `country_code` backfilled into the existing `settings` JSONB column via migration rather than a new top-level `tenants.country_code` column.
+
 ---
 
 #### TD02-S02 — `Money` VO multi-currency ✅ Done
@@ -593,6 +595,8 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 - [ ] `TypeScript` strict: no `'BRL'` literal type anywhere outside locale files
 - [ ] All existing money-related unit tests pass; new tests for USD formatting
 
+**Implementation:** Shipped as planned (PR #15, 48 files, 1378 unit + 331 integration + 225 BFF tests). Added `ITenantLocalizationPort` + `BookingTenantLocalizationAdapter` (booking→platform cross-context port — the first instance of what later turned out to be a duplicated-adapter pattern, addressed in S04's PR). Wired into 6 use-cases (`CreateService`, `UpdateService`, `CompleteBooking`, `GetBooking`, `ListBookings`, `ListServices`) plus both `TypeOrmServiceRepository`/`TypeOrmBookingRepository`. One incidental fix: `ServiceController`'s integration spec had to start provisioning real tenants via `POST /internal/tenants`, since currency resolution now does a real tenant lookup instead of assuming `'BRL'`.
+
 ---
 
 #### TD02-S03 — `PhoneNumber` VO → E.164 ✅ Done
@@ -613,6 +617,8 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 - [ ] `PhoneNumber.isValid('11912345678')` → `false` (missing `+`)
 - [ ] Domain error no longer mentions "Brazilian"
 - [ ] Web phone input prefix is dynamic from manifest
+
+**Implementation:** Shipped as planned (PR #16, 42 files, 1381 unit + 332 integration + 225 BFF tests). The 3 Zod phone validators (backend `request-booking.dto.ts`; BFF `bookings.controller.ts`/`customers.controller.ts`) were relaxed to an E.164-shaped regex rather than a bare `.min(1)` — kept format-boundary validation at the DTO layer so malformed input still 400s instead of leaking through to a domain-layer 500 (the same lesson later generalized for addresses in S04). ~30 test/builder/seed files needed fixing since their bare BR phone literals (e.g. `'11912345678'`) failed the new stricter E.164 validation at runtime. Manually verified in a real browser session against the seeded dev DB.
 
 ---
 
@@ -645,6 +651,8 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 - [ ] ViaCEP lookup only fires for BR tenants
 - [ ] Tenant-isolation test for address update
 
+**Implementation:** The `Address` VO work itself shipped as planned (countrySpec-driven validation, optional `neighborhood`, no more digit-stripping that would corrupt non-BR formats). Scope grew substantially mid-PR: fixing this story's bot-review comments surfaced `ITenantLocalizationPort` (booking, from S02) duplicating the already-existing `IBookingPlatformPort` — pulling that thread revealed 4 separate cross-context adapters each independently re-fetching a slice of the same `tenants.settings` row across 28 call sites. With explicit sign-off, the same PR absorbed three further phases: (1) renamed `TenantContext`→`RequestContext` (it already carried actor info beyond "tenant"); (2) eager-loaded tenant settings into `RequestContext` once per request via a new `ITenantSettingsPort`, replacing N adapters each re-querying the same row; (3) deleted Customer's port+adapter entirely, shrank Booking's from 5 methods to 1 (`findAllActive()`, still needed by 2 cron jobs). Mid-implementation, discovered `TypeOrmBookingRepository`/`TypeOrmServiceRepository` are called from 3 invocation contexts (HTTP, cron jobs, event handlers) but only HTTP populates `RequestContext` — reverted both repos to stay `tenantId`-parameterized via the port instead of reading ambient context. Both lessons (eager-load-over-duplicate-adapters; never read `RequestContext` from shared infrastructure) are now documented in `docs/ENGINEERING_RULES.md`/`docs/ANTI_PATTERNS.md`. Merged via PR #17 — 195 files total, 3 bot-review rounds (Copilot ×2, CodeRabbit ×1) triaged and fixed, SonarCloud Quality Gate passed clean.
+
 ---
 
 ### Wave 2 — i18n Infrastructure
@@ -664,13 +672,17 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 - Register adapter in `NotificationModule`
 
 **Key files:**
-`packages/i18n/locales/**` (all new) · `notification/application/ports/i-localization.port.ts` (new) · `notification/infrastructure/adapters/json-localization.adapter.ts` (new) · `notification/notification.module.ts`
+`packages/i18n/locales/**` (all new) · `notification/application/ports/localization.port.ts` (new — named to match the codebase's existing `<concept>.port.ts` convention, not the literal `i-localization.port.ts` filename above) · `notification/infrastructure/adapters/json-localization.adapter.ts` (new) · `notification/notification.module.ts`
 
 **Acceptance criteria:**
 - [ ] `JsonLocalizationAdapter.getNotificationTemplate('BookingApproved', 'customer', 'pt-BR')` returns correct subject
 - [ ] `JsonLocalizationAdapter.getNotificationTemplate('BookingApproved', 'customer', 'en')` returns English subject
 - [ ] Unknown locale falls back to `'pt-BR'`
 - [ ] Unit tests for adapter
+
+**Known gap — intentionally deferred to S10:** the existing `notification_templates` DB table (seeded via the `CreateNotificationTemplates` migration, copied per-tenant at provisioning) is what every `Send*NotificationUseCase` actually uses today, via `INotificationTemplateRepository`. That path is **not locale-aware** — it always renders pt-BR content regardless of `tenant.settings.localization.language`, which is TD02's P1 bug. `JsonLocalizationAdapter` is registered in `NotificationModule` but nothing calls it yet; this story does not fix that bug, only lays the groundwork. The two content sources also have minor subject-wording differences for `BookingRejected`, `AdminDailyScheduleReminder`, `ServicePointsEarned`, and `PointsExpiringSoon` — reconcile them when S10 rewires the 13 use-cases to `ILocalizationPort` and retires the DB-seeded approach.
+
+**Implementation:** Shipped as planned — 6 locale JSON files (`web`/`notifications`/`email-tables` × `pt-BR`/`en`), `ILocalizationPort` + `JsonLocalizationAdapter`. The adapter reads both locales' JSON once at construction via `require.resolve('@ikaro/i18n/package.json')` + `fs.readFileSync`, since `locales/` sits outside `packages/i18n`'s `tsc` build scope — documented as a reusable pattern in `docs/ENGINEERING_RULES.md` for S10's benefit. One naming deviation from this story's own spec: the port file is `localization.port.ts`, not the literal `i-localization.port.ts` named above — no existing port in this codebase uses an `i-` prefix, so it follows the established `<concept>.port.ts` convention instead. Post-review, Copilot flagged 2 diagnosability gaps (file read/parse errors lacked path context; missing-template errors reported the originally-requested locale instead of the one actually resolved after fallback) — both fixed. Merged via PR #18 — 1404 unit + 332 integration + 225 BFF tests, SonarCloud Quality Gate passed clean.
 
 ---
 
@@ -770,6 +782,8 @@ Update `booking-full-workflow.handler.integration.spec.ts` to use key-based asse
 
 **Key files:**  
 `notification/infrastructure/migrations/1748100000010-CreateNotificationTemplates.ts` · all `send-*-notification.use-case.ts` files · all `send-*-notification.use-case.spec.ts` files · `booking-full-workflow.handler.integration.spec.ts` · `seed-default-templates.use-case.spec.ts`
+apps/backend/src/contexts/notification/infrastructure/migrations/1748400000010-RebrandStaffInvitationTemplate.ts
+This one can be deleted since it was from the rebrand, we can start already rebranded
 
 **Acceptance criteria:**
 - [ ] No pt-BR string literals in `.ts` files outside `packages/i18n/locales/`

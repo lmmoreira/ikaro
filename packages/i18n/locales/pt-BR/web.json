@@ -1,0 +1,109 @@
+{
+  "common": {
+    "back": "Voltar",
+    "next": "Próximo",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "loading": "Carregando...",
+    "save": "Salvar"
+  },
+  "auth": {
+    "signIn": "Entrar",
+    "signOut": "Sair",
+    "signInWith": "Entrar com {provider}",
+    "signInError": "Erro ao entrar. Tente novamente.",
+    "pageTitle": "Entrar — {name}"
+  },
+  "booking": {
+    "title": "Agendar serviço",
+    "serviceSelection": {
+      "title": "Escolha os serviços",
+      "pickupAddressPrompt": "Informe o endereço de coleta...",
+      "singular": "serviço",
+      "plural": "serviços"
+    },
+    "slotPicker": {
+      "loading": "Carregando horários...",
+      "noSlots": "Nenhum horário disponível"
+    },
+    "availability": {
+      "loadError": "Não foi possível carregar a disponibilidade",
+      "loading": "Carregando disponibilidade...",
+      "previousDays": "Dias anteriores",
+      "nextDays": "Próximos dias",
+      "noSlots": "Nenhum horário disponível nos próximos dias"
+    },
+    "personalInfo": {
+      "nameLabel": "Nome",
+      "emailLabel": "E-mail",
+      "phoneLabel": "Telefone",
+      "addressLabel": "Endereço de contato (opcional)",
+      "nameRequired": "Informe seu nome.",
+      "emailRequired": "Informe um e-mail válido.",
+      "phoneRequired": "Informe seu telefone."
+    },
+    "address": {
+      "searching": "Buscando endereço...",
+      "notFound": "CEP não encontrado. Preencha o endereço manualmente.",
+      "streetLabel": "Rua",
+      "numberLabel": "Número",
+      "complementLabel": "Complemento",
+      "cityLabel": "Cidade"
+    },
+    "confirmation": {
+      "backToSite": "Voltar para o site",
+      "sending": "Enviando...",
+      "submit": "Confirmar agendamento"
+    },
+    "summary": {
+      "serviceSingular": "Serviço",
+      "servicePlural": "Serviços"
+    },
+    "photo": {
+      "unsupportedFormat": "Formato de imagem não suportado",
+      "uploadFailed": "Falha ao enviar a imagem",
+      "uploading": "Enviando...",
+      "uploadError": "Erro ao enviar",
+      "title": "Fotos do veículo (opcional)",
+      "clickToAdd": "Clique para adicionar fotos"
+    },
+    "errors": {
+      "submitFailed": "Não foi possível enviar o agendamento. Tente novamente.",
+      "slotUnavailable": "Horário indisponível, escolha outro"
+    }
+  },
+  "hotsite": {
+    "services": {
+      "defaultTitle": "Nossos Serviços",
+      "pointsSuffix": "+{count} pontos",
+      "empty": "Nenhum serviço disponível no momento"
+    },
+    "gallery": {
+      "defaultTitle": "Nossos Resultados",
+      "showMore": "Ver mais",
+      "photoAlt": "Foto do serviço",
+      "beforeLabel": "Antes",
+      "afterLabel": "Depois"
+    },
+    "testimonials": {
+      "defaultTitle": "O que nossos clientes dizem",
+      "previousAriaLabel": "Depoimento anterior",
+      "nextAriaLabel": "Próximo depoimento"
+    },
+    "contact": { "phoneLabel": "Telefone" },
+    "unavailable": { "label": "Em breve" }
+  },
+  "notFound": {
+    "title": "Não encontrado",
+    "tenantNotFound": "Tenant não encontrado",
+    "tenantNotFoundDescription": "O tenant que você está procurando não existe ou foi removido.",
+    "backToHome": "Voltar para o Ikaro"
+  },
+  "seo": {
+    "defaultSubtitle": "Agendamento Online",
+    "defaultDescription": "Agende seu serviço de forma rápida, fácil e online."
+  },
+  "errors": {
+    "internalServerError": "Erro interno do servidor"
+  }
+}

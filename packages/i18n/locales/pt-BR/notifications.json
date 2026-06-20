@@ -1,0 +1,92 @@
+{
+  "BookingRequested": {
+    "admin": {
+      "subject": "Novo agendamento recebido",
+      "body": "<p>Nova solicitação de agendamento recebida.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data/Hora:</strong> {{scheduledAt}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>{{pickupAddressLine}}"
+    },
+    "customer": {
+      "subject": "Solicitação de agendamento recebida",
+      "body": "<p>Olá, {{contactName}}!</p><p>Recebemos sua solicitação de agendamento em <strong>{{tenantName}}</strong>.</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Data/Hora:</strong> {{scheduledAt}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Entraremos em contato para confirmar seu agendamento.</p>"
+    }
+  },
+  "BookingApproved": {
+    "customer": {
+      "subject": "Seu agendamento foi confirmado!",
+      "body": "<p>Olá, {{contactName}}!</p><p>Seu agendamento foi confirmado.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Aguardamos sua visita!</p>"
+    }
+  },
+  "BookingRejected": {
+    "customer": {
+      "subject": "Seu agendamento foi rejeitado",
+      "body": "<p>Olá, {{contactName}}!</p><p>Infelizmente não foi possível confirmar seu agendamento.</p><p><strong>Motivo:</strong> {{reason}}</p><p>Se desejar, realize um novo agendamento em nosso site.</p>"
+    }
+  },
+  "BookingInfoRequested": {
+    "customer": {
+      "subject": "Precisamos de mais informações sobre seu agendamento",
+      "body": "<p>Olá, {{contactName}}!</p><p>Nossa equipe precisa de mais informações antes de confirmar seu agendamento.</p><p><strong>Informações necessárias:</strong> {{informationNeeded}}</p><p><a href=\"{{respondLink}}\">Clique aqui para responder</a></p>"
+    }
+  },
+  "BookingInfoSubmitted": {
+    "admin": {
+      "subject": "Cliente respondeu à solicitação de informações",
+      "body": "<p>O cliente <strong>{{submittedByEmail}}</strong> respondeu à solicitação de informações.</p><p><strong>Resposta:</strong> {{customerResponse}}</p><p><a href=\"{{bookingLink}}\">Ver agendamento no dashboard</a></p>"
+    }
+  },
+  "BookingCancelled": {
+    "customer": {
+      "subject": "Seu agendamento foi cancelado",
+      "body": "<p>Olá, {{contactName}}!</p><p>Seu agendamento foi cancelado.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Se desejar, realize um novo agendamento em nosso site.</p>"
+    },
+    "admin": {
+      "subject": "Agendamento cancelado",
+      "body": "<p>Agendamento cancelado.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{cancelledByLine}}</p>{{reasonLine}}"
+    }
+  },
+  "BookingRescheduled": {
+    "customer": {
+      "subject": "Seu agendamento foi reagendado",
+      "body": "<p>Olá, {{contactName}}!</p><p>Seu agendamento foi reagendado.</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Aguardamos sua visita!</p>"
+    },
+    "admin": {
+      "subject": "Agendamento reagendado",
+      "body": "<p>Agendamento reagendado.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>"
+    }
+  },
+  "BookingReminderDue": {
+    "customer": {
+      "subject": "Lembrete: seu agendamento é amanhã!",
+      "body": "<p>Olá, {{contactName}}!</p><p>Lembramos que seu agendamento é <strong>amanhã</strong>.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p>Até amanhã!</p>"
+    }
+  },
+  "BookingReminderDueToday": {
+    "customer": {
+      "subject": "Lembrete: seu agendamento é hoje!",
+      "body": "<p>Olá, {{contactName}}!</p><p>Lembramos que seu agendamento é <strong>hoje</strong>.</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p>Estamos esperando você!</p>"
+    }
+  },
+  "AdminDailyScheduleReminder": {
+    "admin": {
+      "subject": "Agenda do dia",
+      "body": "<p>Olá!</p><p>Veja a agenda de hoje, <strong>{{localDate}}</strong>:</p><p>{{bookingsSummary}}</p>"
+    }
+  },
+  "ServicePointsEarned": {
+    "customer": {
+      "subject": "Você ganhou pontos de fidelidade!",
+      "body": "<p>Olá, {{customerName}}!</p><p>Sua lavagem foi concluída e você ganhou <strong>{{totalPointsEarned}} pontos</strong> de fidelidade.</p><p>Seu saldo atual é de <strong>{{currentBalance}} pontos</strong>.</p><p>Use seus pontos no próximo agendamento!</p>"
+    }
+  },
+  "PointsExpiringSoon": {
+    "customer": {
+      "subject": "Seus pontos estão prestes a expirar",
+      "body": "<p>Olá, {{customerName}}!</p><p>Você tem <strong>{{pointsExpiringSoon}} pontos</strong> prestes a expirar em {{earliestExpiresAt}}.</p><p>Realize um agendamento para utilizar seus pontos antes que expirem.</p>"
+    }
+  },
+  "StaffInvited": {
+    "staff": {
+      "subject": "Convite para equipe Ikaro",
+      "body": "<p>Olá, {{staffName}}!</p><p>Você foi convidado para integrar a equipe de <strong>{{tenantName}}</strong> na plataforma Ikaro.</p><p><a href=\"{{activationLink}}\">Clique aqui para aceitar o convite e acessar sua conta.</a></p><p>Se você não esperava este convite, por favor ignore este e-mail.</p>"
+    }
+  }
+}

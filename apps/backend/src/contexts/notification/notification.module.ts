@@ -13,6 +13,7 @@ import { NOTIFICATION_PROCESSED_EVENT_REPOSITORY } from './application/ports/pro
 import { NOTIFICATION_BOOKING_PORT } from './application/ports/notification-booking.port';
 import { NOTIFICATION_STAFF_PORT } from './application/ports/notification-staff.port';
 import { NOTIFICATION_PLATFORM_PORT } from './application/ports/notification-platform.port';
+import { LOCALIZATION_PORT } from './application/ports/localization.port';
 import { SendStaffInvitationUseCase } from './application/use-cases/send-staff-invitation/send-staff-invitation.use-case';
 import { SendBookingRequestedNotificationUseCase } from './application/use-cases/send-booking-requested-notification/send-booking-requested-notification.use-case';
 import { SendBookingApprovedNotificationUseCase } from './application/use-cases/send-booking-approved-notification/send-booking-approved-notification.use-case';
@@ -30,6 +31,7 @@ import { NotificationCustomerAdapter } from './infrastructure/cross-context/noti
 import { NotificationBookingAdapter } from './infrastructure/cross-context/notification-booking.adapter';
 import { NotificationStaffAdapter } from './infrastructure/cross-context/notification-staff.adapter';
 import { NotificationPlatformAdapter } from './infrastructure/cross-context/notification-platform.adapter';
+import { JsonLocalizationAdapter } from './infrastructure/adapters/json-localization.adapter';
 import { DELIVERY_CHANNEL } from './application/ports/delivery-channel.port';
 import { EMAIL_SENDER } from './application/ports/email-sender.port';
 import { MailhogEmailAdapter } from './infrastructure/delivery/mailhog-email.adapter';
@@ -103,6 +105,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     { provide: NOTIFICATION_PLATFORM_PORT, useClass: NotificationPlatformAdapter },
     { provide: NOTIFICATION_CUSTOMER_PORT, useClass: NotificationCustomerAdapter },
     { provide: NOTIFICATION_BOOKING_PORT, useClass: NotificationBookingAdapter },
+    { provide: LOCALIZATION_PORT, useClass: JsonLocalizationAdapter },
     SendStaffInvitationUseCase,
     SendBookingRequestedNotificationUseCase,
     SendBookingApprovedNotificationUseCase,
