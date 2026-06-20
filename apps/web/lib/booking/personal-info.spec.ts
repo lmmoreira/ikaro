@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyAddress, emptyPersonalInfo, isAddressFilled } from './personal-info';
+import { emptyAddress, emptyPersonalInfo, isAddressFilled, sanitizeAddress } from './personal-info';
 
 describe('emptyAddress', () => {
   it('returns an address with all fields empty', () => {
@@ -96,5 +96,47 @@ describe('isAddressFilled', () => {
         false,
       ),
     ).toBe(true);
+  });
+
+  it('returns false when neighborhood is required but null (not just empty string)', () => {
+    expect(
+      isAddressFilled(
+        {
+          street: 'Avenida Paulista',
+          number: '1000',
+          neighborhood: null,
+          city: 'São Paulo',
+          state: 'SP',
+          zipCode: '01310100',
+        },
+        true,
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('sanitizeAddress', () => {
+  it('replaces an empty-string neighborhood with undefined', () => {
+    const result = sanitizeAddress({
+      street: 'Main St',
+      number: '1',
+      neighborhood: '',
+      city: 'Beverly Hills',
+      state: 'CA',
+      zipCode: '90210',
+    });
+    expect(result.neighborhood).toBeUndefined();
+  });
+
+  it('keeps a non-empty neighborhood unchanged', () => {
+    const result = sanitizeAddress({
+      street: 'Avenida Paulista',
+      number: '1000',
+      neighborhood: 'Bela Vista',
+      city: 'São Paulo',
+      state: 'SP',
+      zipCode: '01310100',
+    });
+    expect(result.neighborhood).toBe('Bela Vista');
   });
 });

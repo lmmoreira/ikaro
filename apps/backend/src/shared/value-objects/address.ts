@@ -31,7 +31,7 @@ export class Address extends ValueObject<AddressProps> {
     if (spec.statePattern !== null && !spec.statePattern.test(props.state)) {
       throw new AddressValidationError(`Invalid ${spec.stateLabel}: ${props.state}`);
     }
-    const neighborhood = props.neighborhood?.trim();
+    const neighborhood = props.neighborhood?.trim() || undefined;
     if (spec.requireNeighborhood && !neighborhood) {
       throw new AddressValidationError(`${spec.neighborhoodLabel ?? 'neighborhood'} is required`);
     }

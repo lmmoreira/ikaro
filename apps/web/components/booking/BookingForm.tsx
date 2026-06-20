@@ -12,6 +12,7 @@ import { CreateBookingError, createBooking } from '@/lib/api/bookings';
 import {
   emptyPersonalInfo,
   isAddressFilled,
+  sanitizeAddress,
   type PersonalInfoValue,
 } from '@/lib/booking/personal-info';
 import { AvailabilityCarousel } from './AvailabilityCarousel';
@@ -49,9 +50,11 @@ function buildPayload(
     scheduledAt: selectedSlot.startsAt,
     serviceIds: [...selectedServiceIds],
     ...(isAddressFilled(personalInfo.contactAddress, requireNeighborhood)
-      ? { contactAddress: personalInfo.contactAddress }
+      ? { contactAddress: sanitizeAddress(personalInfo.contactAddress) }
       : {}),
-    ...(requiresPickupAddress ? { pickupAddress: personalInfo.pickupAddress } : {}),
+    ...(requiresPickupAddress
+      ? { pickupAddress: sanitizeAddress(personalInfo.pickupAddress) }
+      : {}),
     ...(personalInfo.photoFilePaths.length > 0
       ? { beforeServicePhotoUrls: [...personalInfo.photoFilePaths] }
       : {}),

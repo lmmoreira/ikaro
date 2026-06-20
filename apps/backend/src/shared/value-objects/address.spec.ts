@@ -85,6 +85,21 @@ describe('Address', () => {
       );
     });
 
+    it('normalizes a blank neighborhood to undefined when not required, not stored as empty string', () => {
+      const address = Address.create(
+        {
+          street: 'Main St',
+          number: '1',
+          city: 'Beverly Hills',
+          state: 'CA',
+          zipCode: '90210',
+          neighborhood: '   ',
+        },
+        US,
+      );
+      expect(address.neighborhood).toBeUndefined();
+    });
+
     it('accepts any postal code and state when the country spec has no constraints', () => {
       const address = Address.create(
         { street: 'Main St', number: '1', city: 'Anytown', state: 'Anyplace', zipCode: 'N/A' },
