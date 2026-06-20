@@ -104,17 +104,20 @@ describe('RequestInterceptor', () => {
 
   it('skips tenant check for health routes', async () => {
     const ctx = makeContext({}, '/health/live');
-    await interceptor.intercept(ctx, mockCallHandler);
+    const result = await interceptor.intercept(ctx, mockCallHandler);
+    expect(result).toBeDefined();
   });
 
   it('skips tenant check for internal routes', async () => {
     const ctx = makeContext({}, '/internal/tenants');
-    await interceptor.intercept(ctx, mockCallHandler);
+    const result = await interceptor.intercept(ctx, mockCallHandler);
+    expect(result).toBeDefined();
   });
 
   it('skips tenant check for cron routes', async () => {
     const ctx = makeContext({}, '/cron/reminders');
-    await interceptor.intercept(ctx, mockCallHandler);
+    const result = await interceptor.intercept(ctx, mockCallHandler);
+    expect(result).toBeDefined();
   });
 
   it('populates actorId, actorType, actorRole when X-Actor-* headers are present', async () => {
