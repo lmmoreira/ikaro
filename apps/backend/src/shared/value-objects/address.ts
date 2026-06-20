@@ -11,6 +11,14 @@ export interface AddressProps {
   zipCode: string;
 }
 
+export class AddressValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'AddressValidationError';
+  }
+}
+
 export class Address extends ValueObject<AddressProps> {
   private constructor(props: AddressProps) {
     super(props);
@@ -18,15 +26,16 @@ export class Address extends ValueObject<AddressProps> {
 
   static create(props: AddressProps, spec: AddressSpec): Address {
     if (spec.postalRegex !== null && !spec.postalRegex.test(props.zipCode)) {
-      throw new Error(`Invalid ${spec.postalLabel}: ${props.zipCode}`);
+      throw new AddressValidationError(`Invalid ${spec.postalLabel}: ${props.zipCode}`);
     }
     if (spec.statePattern !== null && !spec.statePattern.test(props.state)) {
-      throw new Error(`Invalid ${spec.stateLabel}: ${props.state}`);
+      throw new AddressValidationError(`Invalid ${spec.stateLabel}: ${props.state}`);
     }
-    if (spec.requireNeighborhood && !props.neighborhood) {
-      throw new Error(`${spec.neighborhoodLabel ?? 'neighborhood'} is required`);
+    const neighborhood = props.neighborhood?.trim();
+    if (spec.requireNeighborhood && !neighborhood) {
+      throw new AddressValidationError(`${spec.neighborhoodLabel ?? 'neighborhood'} is required`);
     }
-    return new Address({ ...props });
+    return new Address({ ...props, neighborhood });
   }
 
   static reconstitute(props: AddressProps): Address {

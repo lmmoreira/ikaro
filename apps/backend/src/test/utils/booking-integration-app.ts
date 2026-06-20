@@ -8,8 +8,8 @@ import type { ModuleMetadata } from '@nestjs/common';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
-import { TenantInterceptor } from '../../shared/tenant/tenant.interceptor';
-import { TenantModule } from '../../shared/tenant/tenant.module';
+import { RequestInterceptor } from '../../shared/request/request.interceptor';
+import { RequestModule } from '../../shared/request/request.module';
 import { BookingEntity } from '../../contexts/booking/infrastructure/entities/booking.entity';
 import { BookingLineEntity } from '../../contexts/booking/infrastructure/entities/booking-line.entity';
 import { ScheduleClosureEntity } from '../../contexts/booking/infrastructure/entities/schedule-closure.entity';
@@ -21,7 +21,9 @@ import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/enti
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
+import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
+import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 
 export interface BookingIntegrationAppOptions {
   extraModules?: NonNullable<ModuleMetadata['imports']>;
@@ -55,11 +57,14 @@ export async function createBookingIntegrationApp(
       }),
       EventBusModule,
       TransactionManagerModule,
-      TenantModule,
+      RequestModule,
       BookingModule,
       ...extraModules,
     ],
-    providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
+    providers: [
+      { provide: APP_INTERCEPTOR, useClass: RequestInterceptor },
+      { provide: TENANT_SETTINGS_PORT, useClass: InMemoryTenantSettingsPort },
+    ],
   })
     .overrideProvider(EVENT_BUS)
     .useValue(routingBus)

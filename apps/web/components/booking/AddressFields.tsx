@@ -129,12 +129,20 @@ export function AddressFields({
           hasError={required && hasError}
         />
         {isLookingUp && (
-          <p className="mt-1 text-sm opacity-75" data-testid={`${idPrefix}-lookup-loading`}>
+          <p
+            className="mt-1 text-sm opacity-75"
+            data-testid="lookup-loading"
+            data-id-prefix={idPrefix}
+          >
             Buscando endereço...
           </p>
         )}
         {lookupFailed && (
-          <p className="mt-1 text-sm opacity-75" data-testid={`${idPrefix}-lookup-failed`}>
+          <p
+            className="mt-1 text-sm opacity-75"
+            data-testid="lookup-failed"
+            data-id-prefix={idPrefix}
+          >
             CEP não encontrado. Preencha o endereço manualmente.
           </p>
         )}

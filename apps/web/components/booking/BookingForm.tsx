@@ -40,6 +40,7 @@ function buildPayload(
   selectedServiceIds: readonly string[],
   selectedSlot: AvailableSlot,
   requiresPickupAddress: boolean,
+  requireNeighborhood: boolean,
 ): CreateBookingRequest {
   return {
     contactName: personalInfo.contactName,
@@ -47,7 +48,7 @@ function buildPayload(
     contactPhone: personalInfo.contactPhone,
     scheduledAt: selectedSlot.startsAt,
     serviceIds: [...selectedServiceIds],
-    ...(isAddressFilled(personalInfo.contactAddress)
+    ...(isAddressFilled(personalInfo.contactAddress, requireNeighborhood)
       ? { contactAddress: personalInfo.contactAddress }
       : {}),
     ...(requiresPickupAddress ? { pickupAddress: personalInfo.pickupAddress } : {}),
@@ -109,6 +110,7 @@ export function BookingForm({
         selectedServiceIds,
         selectedSlot,
         requiresPickupAddress,
+        addressSpec.requireNeighborhood,
       );
       await createBooking(slug, payload);
       setStatus('success');

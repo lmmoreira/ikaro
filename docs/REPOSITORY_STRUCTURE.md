@@ -50,7 +50,7 @@ src/shared/
 ├── value-objects/    # Email, PhoneNumber, Address, HexColor, Timezone, TimeOfDay, Slug
 ├── utils/            # deepMerge, startOfDayUTC, endOfDayUTC, todayUTC, localDateTimeToUTCIso,
 │                     # utcDateToLocalDate, utcDateToLocalHHMM, getUtcWeekDayName
-├── tenant/           # TenantContext (request-scoped), TenantInterceptor
+├── tenant/           # RequestContext (request-scoped), RequestInterceptor
 ├── observability/    # Logger, OTel tracer, structured log helpers
 ├── http/             # Pagination DTOs, RFC 9457 ProblemDetail base type
 ├── guards/           # Role guards used by more than one context

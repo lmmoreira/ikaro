@@ -1,9 +1,10 @@
 import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { BookingBuilder, ServiceEntityBuilder } from '../../../../test/builders/booking/index';
-import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
+import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { testAddress } from '../../../../test/utils/address-helpers';
 import { Money } from '../../../../shared/value-objects/money';
+import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingLine } from '../../domain/booking-line.entity';
 import { ServiceEntity } from '../entities/service.entity';
@@ -20,15 +21,15 @@ const SERVICE_ID_3 = '00000000-0000-7000-8000-000000000072';
 describe('TypeOrmBookingRepository (integration)', () => {
   let dataSource: DataSource;
   let repo: TypeOrmBookingRepository;
-  let localizationPort: InMemoryTenantLocalizationPort;
+  let settingsPort: InMemoryTenantSettingsPort;
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
-    localizationPort = new InMemoryTenantLocalizationPort();
+    settingsPort = new InMemoryTenantSettingsPort();
     repo = new TypeOrmBookingRepository(
       dataSource.getRepository(BookingEntity),
       dataSource.getRepository(BookingLineEntity),
-      localizationPort,
+      settingsPort,
     );
 
     // Seed a service so booking_lines FK (tenant_id, service_id) → services is satisfied
@@ -102,7 +103,11 @@ describe('TypeOrmBookingRepository (integration)', () => {
 
   it('reconstitutes Money with the tenant-configured currency, not a hardcoded BRL default', async () => {
     const tenantId = '00000000-0000-7000-8000-000000000066';
-    localizationPort.set(tenantId, { currency: 'USD', locale: 'en', countryCode: 'US' });
+    const defaultSettings = TenantSettings.default().toJSON();
+    settingsPort.set(tenantId, {
+      ...defaultSettings,
+      localization: { ...defaultSettings.localization, currency: 'USD', language: 'en' },
+    });
 
     const svc = new ServiceEntityBuilder().withId(SERVICE_ID_3).withTenantId(tenantId).build();
     await dataSource.getRepository(ServiceEntity).save(svc);

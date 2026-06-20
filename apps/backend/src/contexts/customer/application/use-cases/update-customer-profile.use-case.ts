@@ -1,14 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { countrySpec } from '@ikaro/i18n';
 import { Address, AddressProps } from '../../../../shared/value-objects/address';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   TRANSACTION_MANAGER,
   ITransactionManager,
 } from '../../../../shared/ports/transaction-manager.port';
 import { CustomerNotFoundError } from '../../domain/errors/customer-domain.error';
 import { CUSTOMER_REPOSITORY, ICustomerRepository } from '../ports/customer-repository.port';
-import { ITenantCountryPort, TENANT_COUNTRY_PORT } from '../ports/tenant-country.port';
 import { UpdateCustomerProfileDto } from '../dtos/update-customer-profile.dto';
 
 export type UpdateCustomerProfileUseCaseResult = {
@@ -24,8 +23,7 @@ export class UpdateCustomerProfileUseCase {
   constructor(
     @Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    @Inject(TENANT_COUNTRY_PORT) private readonly tenantCountryPort: ITenantCountryPort,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(dto: UpdateCustomerProfileDto): Promise<UpdateCustomerProfileUseCaseResult> {
@@ -44,7 +42,7 @@ export class UpdateCustomerProfileUseCase {
     } else if (dto.defaultAddress === null) {
       defaultAddress = null;
     } else {
-      const countryCode = await this.tenantCountryPort.getCountryCode(tenantId);
+      const countryCode = this.tenantContext.settings.localization.country_code;
       defaultAddress = Address.create(
         { ...dto.defaultAddress, complement: dto.defaultAddress.complement ?? undefined },
         countrySpec(countryCode).address,

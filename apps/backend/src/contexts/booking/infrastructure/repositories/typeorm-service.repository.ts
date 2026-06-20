@@ -2,12 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import {
+  ITenantSettingsPort,
+  TENANT_SETTINGS_PORT,
+} from '../../../../shared/ports/tenant-settings.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { IServiceRepository } from '../../application/ports/service-repository.port';
-import {
-  ITenantLocalizationPort,
-  TENANT_LOCALIZATION_PORT,
-} from '../../application/ports/tenant-localization.port';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceEntity } from '../entities/service.entity';
 
@@ -16,28 +16,27 @@ export class TypeOrmServiceRepository implements IServiceRepository {
   constructor(
     @InjectRepository(ServiceEntity)
     private readonly repo: Repository<ServiceEntity>,
-    @Inject(TENANT_LOCALIZATION_PORT)
-    private readonly localizationPort: ITenantLocalizationPort,
+    @Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort,
   ) {}
 
   async findById(id: string, tenantId: string): Promise<Service | null> {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
     if (!entity) return null;
-    const { currency } = await this.localizationPort.getLocalization(tenantId);
+    const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return this.toDomain(entity, currency);
   }
 
   async findByIds(ids: string[], tenantId: string): Promise<Service[]> {
     if (ids.length === 0) return [];
     const entities = await this.repo.find({ where: ids.map((id) => ({ id, tenantId })) });
-    const { currency } = await this.localizationPort.getLocalization(tenantId);
+    const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return entities.map((e) => this.toDomain(e, currency));
   }
 
   async findAllByTenant(tenantId: string, onlyActive = false): Promise<Service[]> {
     const where = onlyActive ? { tenantId, isActive: true } : { tenantId };
     const entities = await this.repo.find({ where, order: { createdAt: 'ASC' } });
-    const { currency } = await this.localizationPort.getLocalization(tenantId);
+    const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return entities.map((e) => this.toDomain(e, currency));
   }
 

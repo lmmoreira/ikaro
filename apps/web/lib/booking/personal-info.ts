@@ -32,11 +32,11 @@ export function emptyPersonalInfo(): PersonalInfoValue {
   };
 }
 
-export function isAddressFilled(address: Address): boolean {
+export function isAddressFilled(address: Address, requireNeighborhood: boolean): boolean {
   return (
     address.street !== '' &&
     address.number !== '' &&
-    address.neighborhood !== '' &&
+    (!requireNeighborhood || address.neighborhood !== '') &&
     address.city !== '' &&
     address.state !== '' &&
     address.zipCode !== ''

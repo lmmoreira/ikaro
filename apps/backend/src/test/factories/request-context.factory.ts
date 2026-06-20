@@ -1,8 +1,11 @@
-import { TenantContext } from '../../shared/tenant/tenant-context';
+import { RequestContext } from '../../shared/request/request-context';
+import { TenantSettings } from '../../contexts/platform/domain/value-objects/tenant-settings.vo';
+import type { TenantSettingsProps } from '../../contexts/platform/domain/value-objects/tenant-settings.vo';
 
-export class TenantContextBuilder {
+export class RequestContextBuilder {
   private tenantId = '10000000-0000-4000-8000-000000000001';
   private correlationId = 'corr-test';
+  private settings: TenantSettingsProps = TenantSettings.default().toJSON();
   private actorId: string | undefined = undefined;
   private actorType: 'STAFF' | 'CUSTOMER' | undefined = undefined;
   private actorRole: string | undefined = undefined;
@@ -14,6 +17,11 @@ export class TenantContextBuilder {
 
   withCorrelationId(correlationId: string): this {
     this.correlationId = correlationId;
+    return this;
+  }
+
+  withSettings(settings: TenantSettingsProps): this {
+    this.settings = settings;
     return this;
   }
 
@@ -32,10 +40,11 @@ export class TenantContextBuilder {
     return this;
   }
 
-  build(): TenantContext {
+  build(): RequestContext {
     return {
       tenantId: this.tenantId,
       correlationId: this.correlationId,
+      settings: this.settings,
       actorId: this.actorId,
       actorType: this.actorType,
       actorRole: this.actorRole,

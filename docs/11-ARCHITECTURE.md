@@ -142,7 +142,7 @@ src/contexts/booking/
 
 The architecture enforces tenant isolation at the **Adapter Layer**:
 - **Persistence Adapter:** Every query automatically injects `WHERE tenant_id = current_tenant`.
-- **Controller Adapter:** A global `TenantInterceptor` extracts the `X-Tenant-ID` header and injects it into the request context.
+- **Controller Adapter:** A global `RequestInterceptor` extracts the `X-Tenant-ID` header and injects it into the request context.
 - **Security:** Use cases always require a `tenantId` parameter to ensure operations are scoped correctly.
 
 ---

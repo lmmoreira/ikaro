@@ -1,10 +1,9 @@
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -34,16 +33,13 @@ describe('RescheduleBookingUseCase', () => {
     bookingRepo = new InMemoryBookingRepository();
     availabilityPort = new InMemoryBookingAvailabilityPort();
     eventBus = new InMemoryEventBus();
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
       .withActorId(STAFF_ID)
       .withActorRole('MANAGER')
       .build();
-    const slotConflictService = new BookingSlotConflictService(
-      availabilityPort,
-      new InMemoryBookingPlatformPort(),
-    );
+    const slotConflictService = new BookingSlotConflictService(availabilityPort, ctx);
     useCase = new RescheduleBookingUseCase(
       ctx,
       bookingRepo,

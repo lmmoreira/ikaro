@@ -10,9 +10,9 @@ const DEFAULT_ADDRESS: AddressProps = {
   zipCode: '30100000',
 };
 
-/** Returns a valid Brazilian Address VO for use in tests. */
-export function testAddress(overrides: Partial<AddressProps> = {}): Address {
-  return Address.create({ ...DEFAULT_ADDRESS, ...overrides }, countrySpec('BR').address);
+/** Returns a valid Address VO for use in tests. Defaults to a Brazilian address. */
+export function testAddress(overrides: Partial<AddressProps> = {}, countryCode = 'BR'): Address {
+  return Address.create({ ...DEFAULT_ADDRESS, ...overrides }, countrySpec(countryCode).address);
 }
 
 /** Returns raw AddressProps (plain object) for use in DTO / controller tests. */

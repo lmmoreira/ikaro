@@ -5,8 +5,7 @@ import {
 import { CustomerBuilder } from '../../../../test/builders/customer/customer.builder';
 import { InMemoryCustomerRepository } from '../../../../test/repositories/customer/in-memory-customer.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryTenantCountryPort } from '../../../../test/infrastructure/in-memory-tenant-country.port';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { UpdateCustomerProfileUseCase } from './update-customer-profile.use-case';
 
 const validAddress = {
@@ -35,17 +34,12 @@ describe('UpdateCustomerProfileUseCase', () => {
     await repo.save(customer);
     customerId = customer.id;
 
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId(customerId)
       .withActorType('CUSTOMER')
       .build();
-    useCase = new UpdateCustomerProfileUseCase(
-      repo,
-      new InMemoryTransactionManager(),
-      new InMemoryTenantCountryPort(),
-      ctx,
-    );
+    useCase = new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx);
   });
 
   it('updates name when provided', async () => {
@@ -85,17 +79,12 @@ describe('UpdateCustomerProfileUseCase', () => {
   });
 
   it('throws CustomerNotFoundError when actorId has no matching customer', async () => {
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId('00000000-0000-4000-8000-000000009998')
       .withActorType('CUSTOMER')
       .build();
-    const uc = new UpdateCustomerProfileUseCase(
-      repo,
-      new InMemoryTransactionManager(),
-      new InMemoryTenantCountryPort(),
-      ctx,
-    );
+    const uc = new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx);
     await expect(uc.execute({ name: 'X' })).rejects.toBeInstanceOf(CustomerNotFoundError);
   });
 

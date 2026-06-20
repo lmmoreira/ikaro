@@ -1,5 +1,5 @@
 import { countrySpec } from '@ikaro/i18n';
-import { Address } from './address';
+import { Address, AddressValidationError } from './address';
 
 const BR = countrySpec('BR').address;
 const US = countrySpec('US').address;
@@ -46,6 +46,20 @@ describe('Address', () => {
       expect(address.neighborhood).toBeUndefined();
     });
 
+    it('accepts a valid US ZIP+4 address', () => {
+      const address = Address.create(
+        {
+          street: 'Main St',
+          number: '1',
+          city: 'Beverly Hills',
+          state: 'CA',
+          zipCode: '90210-1234',
+        },
+        US,
+      );
+      expect(address.zipCode).toBe('90210-1234');
+    });
+
     it('throws on an invalid postal code for US', () => {
       expect(() =>
         Address.create(
@@ -57,6 +71,18 @@ describe('Address', () => {
 
     it('throws on an invalid state for a country with a state pattern', () => {
       expect(() => Address.create({ ...baseProps, state: 'sao paulo' }, BR)).toThrow('Invalid UF');
+    });
+
+    it('throws AddressValidationError (not a plain Error) on validation failure', () => {
+      expect(() => Address.create({ ...baseProps, zipCode: '123' }, BR)).toThrow(
+        AddressValidationError,
+      );
+    });
+
+    it('treats a whitespace-only neighborhood as missing when required', () => {
+      expect(() => Address.create({ ...baseProps, neighborhood: '   ' }, BR)).toThrow(
+        'Bairro is required',
+      );
     });
 
     it('accepts any postal code and state when the country spec has no constraints', () => {

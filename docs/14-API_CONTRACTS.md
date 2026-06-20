@@ -832,7 +832,7 @@ Errors:
 > 2. **Cloud IAP** (M15-S12) — Google identity gate; only allowlisted Google Workspace accounts can pass
 > 3. **`PLATFORM_ADMIN_KEY`** — static API key in the `Authorization` header, validated application-side with `crypto.timingSafeEqual`
 >
-> All three layers must pass. The `TenantInterceptor` skips `/internal/*` — no `X-Tenant-ID` header is expected.
+> All three layers must pass. The `RequestInterceptor` skips `/internal/*` — no `X-Tenant-ID` header is expected.
 
 ---
 

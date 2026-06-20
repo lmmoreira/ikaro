@@ -6,7 +6,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { Booking } from '../../domain/booking.aggregate';
 import {
   BookingServiceNotActiveError,
@@ -14,10 +14,6 @@ import {
 } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
-import {
-  ITenantLocalizationPort,
-  TENANT_LOCALIZATION_PORT,
-} from '../ports/tenant-localization.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RequestBookingDto } from '../dtos/request-booking.dto';
@@ -53,15 +49,13 @@ export class RequestBookingUseCase {
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
-    @Inject(TENANT_LOCALIZATION_PORT)
-    private readonly localizationPort: ITenantLocalizationPort,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(dto: RequestBookingDto): Promise<RequestBookingUseCaseResult> {
     const tenantId = this.tenantContext.tenantId;
     const correlationId = this.tenantContext.correlationId;
-    const { countryCode } = await this.localizationPort.getLocalization(tenantId);
+    const { country_code: countryCode } = this.tenantContext.settings.localization;
     const addressSpec = countrySpec(countryCode).address;
 
     const services = await this.serviceRepo.findByIds(dto.serviceIds, tenantId);

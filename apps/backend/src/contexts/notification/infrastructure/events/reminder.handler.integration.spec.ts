@@ -33,7 +33,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
 
     ({ app, eventBus } = await createNotificationIntegrationApp({
       dispatcher,
-      withTenantInterceptor: true,
+      withRequestInterceptor: true,
       configure: (builder) =>
         builder
           .overrideProvider(NOTIFICATION_LOG_REPOSITORY)

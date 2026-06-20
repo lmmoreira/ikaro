@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { todayUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   AvailabilityRangeInvalidError,
@@ -18,7 +18,6 @@ import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
-import { IBookingPlatformPort, BOOKING_PLATFORM_PORT } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { GetAvailabilitySummaryDto } from '../dtos/get-availability-summary.dto';
 
@@ -33,12 +32,10 @@ export type GetAvailabilitySummaryUseCaseResult = DaySummary[];
 @Injectable()
 export class GetAvailabilitySummaryUseCase {
   constructor(
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
     @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
-    @Inject(BOOKING_PLATFORM_PORT)
-    private readonly settingsPort: IBookingPlatformPort,
     @Inject(BOOKING_AVAILABILITY_PORT)
     private readonly bookingPort: IBookingAvailabilityPort,
     private readonly availabilityService: AvailabilityService,
@@ -51,8 +48,7 @@ export class GetAvailabilitySummaryUseCase {
       throw new AvailabilityRangeInvalidError('from must not be after to');
     }
 
-    const { businessHours, bookingSettings } =
-      await this.settingsPort.getSchedulingSettings(tenantId);
+    const { business_hours: businessHours, booking: bookingSettings } = this.tenantContext.settings;
 
     const rangeDays = this.daysBetween(dto.from, dto.to);
     if (rangeDays > bookingSettings.max_booking_advance_days) {

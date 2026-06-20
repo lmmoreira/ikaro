@@ -1,9 +1,8 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { CreateServiceUseCase } from '../../application/use-cases/create-service.use-case';
 import { DeactivateServiceUseCase } from '../../application/use-cases/deactivate-service.use-case';
 import { ListServicesUseCase } from '../../application/use-cases/list-services.use-case';
@@ -26,7 +25,7 @@ describe('ServiceController', () => {
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
       .withActorId('20000000-0000-4000-8000-000000000001')
@@ -34,11 +33,10 @@ describe('ServiceController', () => {
       .withActorRole('MANAGER')
       .build();
     const txManager = new InMemoryTransactionManager();
-    const localizationPort = new InMemoryTenantLocalizationPort();
     controller = new ServiceController(
-      new CreateServiceUseCase(repo, txManager, localizationPort, ctx),
-      new ListServicesUseCase(repo, localizationPort, ctx),
-      new UpdateServiceUseCase(repo, txManager, localizationPort, ctx),
+      new CreateServiceUseCase(repo, txManager, ctx),
+      new ListServicesUseCase(repo, ctx),
+      new UpdateServiceUseCase(repo, txManager, ctx),
       new DeactivateServiceUseCase(repo, txManager, ctx),
     );
   });

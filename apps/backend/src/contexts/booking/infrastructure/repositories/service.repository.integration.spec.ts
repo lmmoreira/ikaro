@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
+import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { ServiceEntity } from '../entities/service.entity';
 import { TypeOrmServiceRepository } from './typeorm-service.repository';
@@ -14,7 +14,7 @@ describe('TypeOrmServiceRepository (integration)', () => {
     dataSource = await createTestDataSource();
     repo = new TypeOrmServiceRepository(
       dataSource.getRepository(ServiceEntity),
-      new InMemoryTenantLocalizationPort(),
+      new InMemoryTenantSettingsPort(),
     );
   });
 

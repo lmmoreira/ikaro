@@ -64,7 +64,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
       dispatcher,
       extraModules: [BookingModule, LoyaltyModule],
       extraEntities: [...BOOKING_ENTITIES, ...LOYALTY_ENTITIES],
-      withTenantInterceptor: true,
+      withRequestInterceptor: true,
     }));
 
     eventBus = app.get<IEventBus>(EVENT_BUS);

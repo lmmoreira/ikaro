@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   HotsiteNotFoundError,
   TenantNotFoundError,
@@ -82,7 +82,7 @@ export class GetHotsiteManifestUseCase {
     private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
     @Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     private readonly imageUrlResolver: HotsiteImageUrlResolver,
   ) {}
 

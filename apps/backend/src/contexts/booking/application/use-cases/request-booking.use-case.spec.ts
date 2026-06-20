@@ -1,15 +1,13 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
-import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { testAddress } from '../../../../test/utils/address-helpers';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import {
@@ -40,18 +38,17 @@ describe('RequestBookingUseCase', () => {
     eventBus = new InMemoryEventBus();
     storageService = new InMemoryStorageService();
     const txManager = new InMemoryTransactionManager();
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
       .build();
     useCase = new RequestBookingUseCase(
       serviceRepo,
-      new BookingSlotConflictService(availabilityPort, new InMemoryBookingPlatformPort()),
+      new BookingSlotConflictService(availabilityPort, ctx),
       new PhotoExistenceService(storageService),
       bookingRepo,
       txManager,
       eventBus,
-      new InMemoryTenantLocalizationPort(),
       ctx,
     );
     const service = new ServiceBuilder().withTenantId(TENANT_A).withName('Lavagem Simples').build();

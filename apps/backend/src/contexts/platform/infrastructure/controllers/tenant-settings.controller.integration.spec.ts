@@ -9,7 +9,7 @@ import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
-import { TenantInterceptor } from '../../../../shared/tenant/tenant.interceptor';
+import { RequestInterceptor } from '../../../../shared/request/request.interceptor';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { TenantEntityBuilder } from '../../../../test/builders/platform/index';
@@ -40,7 +40,7 @@ describe('TenantSettingsController (integration)', () => {
         TransactionManagerModule,
         PlatformModule,
       ],
-      providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
+      providers: [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }],
     })
       .overrideProvider(EVENT_BUS)
       .useValue(new RoutingInMemoryEventBus())

@@ -76,17 +76,17 @@ export class XxxDomainError extends Error {
 
 - **Aggregate-driven events:** Aggregates record events via `this.addDomainEvent()` inside their domain methods — including system-initiated factory methods. Use cases flush via `aggregate.clearDomainEvents()` **after** `txManager.run()` completes.
 - **Never** construct or publish events directly from a use case.
-- **`correlationId`** must come from `TenantContext.correlationId`, not from a fresh `uuidv7()`. For `/internal` routes (no TenantContext), generate one `uuidv7()` at the top of the use case and pass it through.
+- **`correlationId`** must come from `RequestContext.correlationId`, not from a fresh `uuidv7()`. For `/internal` routes (no RequestContext), generate one `uuidv7()` at the top of the use case and pass it through.
 - **Domain events belong in the publishing context.** `StaffInvited` in `staff/domain/events/`, not in `platform/`. Duplicate class definitions cause SonarCloud failures.
 - **Thin vs fat events:** if data is persistently stored on the entity, the event carries only the ID. If data is transient (not stored, or represents point-in-time state), it must be in the payload.
 
 ---
 
-## `/internal` routes and TenantContext
+## `/internal` routes and RequestContext
 
-`/internal` routes skip `TenantInterceptor` — `TenantContext` is never populated for them. Use `/internal` only for auth-flow lookups where the caller passes `tenantId` explicitly. Management endpoints that need `tenantId`/`actorId` from context must live on a non-`/internal` path so `TenantInterceptor` runs.
+`/internal` routes skip `RequestInterceptor` — `RequestContext` is never populated for them. Use `/internal` only for auth-flow lookups where the caller passes `tenantId` explicitly. Management endpoints that need `tenantId`/`actorId` from context must live on a non-`/internal` path so `RequestInterceptor` runs.
 
-`TenantModule` is **not** `@Global()`. Every module whose controller injects `TenantContext` must import `TenantModule` explicitly.
+`RequestModule` is **not** `@Global()`. Every module whose controller injects `RequestContext` must import `RequestModule` explicitly.
 
 ---
 

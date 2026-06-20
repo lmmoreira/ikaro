@@ -55,7 +55,7 @@ export function ServiceSelectionStep({
 
   function handleNext() {
     if (selected.length === 0) return;
-    if (requiresPickupAddress && !isAddressFilled(pickupAddress)) {
+    if (requiresPickupAddress && !isAddressFilled(pickupAddress, addressSpec.requireNeighborhood)) {
       setError('Informe o endereço de coleta para continuar.');
       return;
     }

@@ -1,9 +1,8 @@
 import { pastDate, nextWeekday } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { OpenScheduleUseCase } from './open-schedule.use-case';
 import {
   DayAlreadyOpenInSettingsError,
@@ -17,14 +16,12 @@ const ACTOR_ID = '00000000-0000-7000-8000-000000000002';
 describe('OpenScheduleUseCase', () => {
   let repo: InMemoryScheduleOpeningRepository;
   let useCase: OpenScheduleUseCase;
-  let settingsPort: InMemoryBookingPlatformPort;
 
   beforeEach(() => {
     repo = new InMemoryScheduleOpeningRepository();
-    settingsPort = new InMemoryBookingPlatformPort();
-    const ctx = new TenantContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build();
+    const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build();
     const tx = new InMemoryTransactionManager();
-    useCase = new OpenScheduleUseCase(repo, settingsPort, tx, ctx);
+    useCase = new OpenScheduleUseCase(repo, tx, ctx);
   });
 
   it('creates an opening for a normally-closed day', async () => {

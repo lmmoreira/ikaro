@@ -408,7 +408,7 @@ BFF
     │  Attaches to request context
     │  Forwards X-Correlation-ID to Backend calls
     ▼
-Backend (TenantInterceptor + CorrelationInterceptor)
+Backend (RequestInterceptor + CorrelationInterceptor)
     │  Extracts from header → injects into NestJS request scope
     │  Logger.withContext({ correlationId })
     │  Domain events: { ...envelope, correlationId }

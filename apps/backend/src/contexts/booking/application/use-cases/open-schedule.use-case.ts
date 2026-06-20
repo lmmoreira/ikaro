@@ -3,7 +3,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import {
   DayAlreadyOpenInSettingsError,
@@ -14,7 +14,6 @@ import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
-import { IBookingPlatformPort, BOOKING_PLATFORM_PORT } from '../ports/booking-platform.port';
 import { getUtcWeekDayName, todayUTC } from '../../../../shared/utils/calendar-date';
 import { OpenScheduleDto } from '../dtos/open-schedule.dto';
 
@@ -33,10 +32,8 @@ export class OpenScheduleUseCase {
   constructor(
     @Inject(SCHEDULE_OPENING_REPOSITORY)
     private readonly openingRepo: IScheduleOpeningRepository,
-    @Inject(BOOKING_PLATFORM_PORT)
-    private readonly tenantSettings: IBookingPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(dto: OpenScheduleDto): Promise<OpenScheduleUseCaseResult> {
@@ -46,7 +43,7 @@ export class OpenScheduleUseCase {
     const today = todayUTC();
     if (dto.date < today) throw new OpeningDateInPastError();
 
-    const businessHours = await this.tenantSettings.getBusinessHours(tenantId);
+    const businessHours = this.tenantContext.settings.business_hours;
     if (businessHours[getUtcWeekDayName(dto.date)] !== null) {
       throw new DayAlreadyOpenInSettingsError(dto.date);
     }

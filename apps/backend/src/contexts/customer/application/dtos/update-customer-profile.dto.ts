@@ -6,8 +6,8 @@ const AddressSchema = z.object({
   complement: z.string().nullable().optional(),
   neighborhood: z.string().min(1).optional(),
   city: z.string().min(1),
-  state: z.string().min(1).max(10),
-  zipCode: z.string().min(1).max(20),
+  state: z.string().trim().min(1).max(10),
+  zipCode: z.string().trim().min(1).max(20),
 });
 
 export const UpdateCustomerProfileSchema = z.object({

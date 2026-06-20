@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { PaginationDto, PaginationSchema } from '../../application/dtos/pagination.dto';
 import { RedeemPointsDto, RedeemPointsSchema } from '../../application/dtos/redeem-points.dto';
@@ -41,7 +41,7 @@ export class LoyaltyController {
     private readonly getLoyaltyEntries: GetLoyaltyEntriesUseCase,
     private readonly getLoyaltyRedemptions: GetLoyaltyRedemptionsUseCase,
     private readonly redeemPointsUseCase: RedeemPointsUseCase,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   // ── Customer routes ────────────────────────────────────────────────────────

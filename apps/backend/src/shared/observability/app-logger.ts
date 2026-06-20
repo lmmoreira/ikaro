@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { BaseAppLogger } from '@ikaro/observability';
-import { getTenantStore } from '../tenant/tenant-context';
+import { getRequestStore } from '../request/request-context';
 
 @Injectable()
 export class AppLogger extends BaseAppLogger {
@@ -9,7 +9,7 @@ export class AppLogger extends BaseAppLogger {
   }
 
   protected enrich(): Record<string, unknown> {
-    const store = getTenantStore();
+    const store = getRequestStore();
     return store ? { tenantId: store.tenantId, correlationId: store.correlationId } : {};
   }
 }

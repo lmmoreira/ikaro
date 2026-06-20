@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
-import { TenantModule } from '../../shared/tenant/tenant.module';
+import { RequestModule } from '../../shared/request/request.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { CustomerModule } from '../customer/customer.module';
@@ -13,7 +13,6 @@ import { BOOKING_PLATFORM_PORT } from './application/ports/booking-platform.port
 import { SCHEDULE_CLOSURE_REPOSITORY } from './application/ports/schedule-closure-repository.port';
 import { SCHEDULE_OPENING_REPOSITORY } from './application/ports/schedule-opening-repository.port';
 import { SERVICE_REPOSITORY } from './application/ports/service-repository.port';
-import { TENANT_LOCALIZATION_PORT } from './application/ports/tenant-localization.port';
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
 import { CloseScheduleUseCase } from './application/use-cases/close-schedule.use-case';
@@ -61,7 +60,6 @@ import { ScheduleClosureController } from './infrastructure/controllers/schedule
 import { ScheduleOpeningController } from './infrastructure/controllers/schedule-opening.controller';
 import { ServiceController } from './infrastructure/controllers/service.controller';
 import { BookingPlatformAdapter } from './infrastructure/cross-context/booking-platform.adapter';
-import { BookingTenantLocalizationAdapter } from './infrastructure/cross-context/booking-tenant-localization.adapter';
 import { TypeOrmBookingAvailabilityAdapter } from './infrastructure/cross-context/typeorm-booking-availability.adapter';
 import { TypeOrmBookingRepository } from './infrastructure/repositories/typeorm-booking.repository';
 import { TypeOrmScheduleClosureRepository } from './infrastructure/repositories/typeorm-schedule-closure.repository';
@@ -79,7 +77,7 @@ import { AvailabilityService } from './domain/services/availability.service';
       BookingLineEntity,
     ]),
     EventBusModule,
-    TenantModule,
+    RequestModule,
     TransactionManagerModule,
     StorageModule,
     CustomerModule,
@@ -103,7 +101,6 @@ import { AvailabilityService } from './domain/services/availability.service';
     { provide: BOOKING_AVAILABILITY_PORT, useClass: TypeOrmBookingAvailabilityAdapter },
     { provide: BOOKING_REPOSITORY, useClass: TypeOrmBookingRepository },
     { provide: BOOKING_CUSTOMER_PORT, useClass: BookingCustomerAdapter },
-    { provide: TENANT_LOCALIZATION_PORT, useClass: BookingTenantLocalizationAdapter },
     AvailabilityService,
     BookingReminderJob,
     AdminScheduleReminderJob,

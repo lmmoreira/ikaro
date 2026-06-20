@@ -3,7 +3,7 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { BookingBuilder } from '../../../../test/builders/booking/booking.builder';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
   BookingForbiddenError,
@@ -38,7 +38,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
     guestBookingId = guestBooking.id;
     await repo.save(guestBooking);
 
-    const ctx = new TenantContextBuilder().withTenantId(TENANT_A).build();
+    const ctx = new RequestContextBuilder().withTenantId(TENANT_A).build();
     useCase = new SubmitGuestBookingInfoUseCase(
       ctx,
       repo,
@@ -105,7 +105,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
 
   it('tenant isolation: returns BookingNotFoundError for booking in another tenant', async () => {
     const TENANT_B = '10000000-0000-4000-8000-000000000022';
-    const ctx = new TenantContextBuilder().withTenantId(TENANT_B).build();
+    const ctx = new RequestContextBuilder().withTenantId(TENANT_B).build();
     const uc = new SubmitGuestBookingInfoUseCase(
       ctx,
       repo,

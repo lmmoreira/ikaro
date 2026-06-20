@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { AddressValidationError } from '../../../../shared/value-objects/address';
 import {
   BookingDomainError,
   BookingForbiddenError,
@@ -25,6 +26,12 @@ function call(err: unknown): HttpException {
 }
 
 describe('mapBookingError', () => {
+  it('maps AddressValidationError to 400', () => {
+    const err = call(new AddressValidationError('Invalid CEP: 123'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+  });
+
   it('maps ServiceNotFoundError to 404', () => {
     const err = call(new ServiceNotFoundError('svc-id'));
     expect(err).toBeInstanceOf(HttpException);

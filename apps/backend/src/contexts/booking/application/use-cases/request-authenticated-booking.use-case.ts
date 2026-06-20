@@ -6,7 +6,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { Booking } from '../../domain/booking.aggregate';
 import {
   BookingCustomerNotFoundError,
@@ -17,10 +17,6 @@ import {
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { IBookingCustomerPort, BOOKING_CUSTOMER_PORT } from '../ports/booking-customer.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
-import {
-  ITenantLocalizationPort,
-  TENANT_LOCALIZATION_PORT,
-} from '../ports/tenant-localization.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RequestAuthenticatedBookingDto } from '../dtos/request-authenticated-booking.dto';
@@ -38,9 +34,7 @@ export class RequestAuthenticatedBookingUseCase {
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
-    @Inject(TENANT_LOCALIZATION_PORT)
-    private readonly localizationPort: ITenantLocalizationPort,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(
@@ -65,14 +59,12 @@ export class RequestAuthenticatedBookingUseCase {
 
     const requiresPickup = dto.serviceIds.some((id) => serviceMap.get(id)?.requiresPickupAddress);
 
-    const { countryCode } = await this.localizationPort.getLocalization(tenantId);
-    const addressSpec = countrySpec(countryCode).address;
-
     let pickupAddress: Address | undefined;
     if (dto.pickupAddress) {
+      const { country_code: countryCode } = this.tenantContext.settings.localization;
       pickupAddress = Address.create(
         { ...dto.pickupAddress, complement: dto.pickupAddress.complement ?? undefined },
-        addressSpec,
+        countrySpec(countryCode).address,
       );
     } else if (requiresPickup && customer.defaultAddress) {
       pickupAddress = customer.defaultAddress;

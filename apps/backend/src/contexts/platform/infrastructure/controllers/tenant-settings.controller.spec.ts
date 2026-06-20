@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { TenantBuilder } from '../../../../test/builders/platform/index';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
 import { UpdateTenantSettingsUseCase } from '../../application/use-cases/update-tenant-settings.use-case';
@@ -23,7 +23,7 @@ describe('TenantSettingsController', () => {
       providers: [
         UpdateTenantSettingsUseCase,
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
-        { provide: TenantContext, useValue: tenantContext },
+        { provide: RequestContext, useValue: tenantContext },
         { provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() },
       ],
     }).compile();

@@ -6,7 +6,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 
-// Guards execute before interceptors in NestJS, so TenantContext (AsyncLocalStorage)
+// Guards execute before interceptors in NestJS, so RequestContext (AsyncLocalStorage)
 // is not populated yet. Read X-Actor-Role directly from the request header.
 //
 // TRUST BOUNDARY: The backend trusts X-Actor-Role because it is reachable only from

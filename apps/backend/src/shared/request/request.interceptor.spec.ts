@@ -1,7 +1,9 @@
 import { CallHandler, ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
 import { lastValueFrom, Observable, of, Subscriber } from 'rxjs';
-import { TenantContext } from './tenant-context';
-import { TenantInterceptor } from './tenant.interceptor';
+import { InMemoryTenantSettingsPort } from '../../test/infrastructure/in-memory-tenant-settings.port';
+import { ITenantSettingsPort } from '../ports/tenant-settings.port';
+import { RequestContext } from './request-context';
+import { RequestInterceptor } from './request.interceptor';
 
 function makeContext(
   headers: Record<string, string | undefined>,
@@ -13,13 +15,19 @@ function makeContext(
 }
 
 const mockCallHandler: CallHandler = { handle: () => of('result') };
-const interceptor = new TenantInterceptor();
+let settingsPort: InMemoryTenantSettingsPort;
+let interceptor: RequestInterceptor;
 
-describe('TenantInterceptor', () => {
-  it('throws 400 Problem Detail when X-Tenant-ID header is missing', () => {
+beforeEach(() => {
+  settingsPort = new InMemoryTenantSettingsPort();
+  interceptor = new RequestInterceptor(settingsPort);
+});
+
+describe('RequestInterceptor', () => {
+  it('throws 400 Problem Detail when X-Tenant-ID header is missing', async () => {
     let caught: HttpException | null = null;
     try {
-      interceptor.intercept(makeContext({}), mockCallHandler);
+      await interceptor.intercept(makeContext({}), mockCallHandler);
     } catch (e) {
       caught = e as HttpException;
     }
@@ -31,57 +39,82 @@ describe('TenantInterceptor', () => {
     expect(body['title']).toBe('Missing Tenant Header');
   });
 
-  it('makes tenantId and correlationId available inside the observable', async () => {
+  it('throws 404 Problem Detail when the tenant settings lookup fails', async () => {
+    const notFoundPort: ITenantSettingsPort = {
+      getSettings: () => Promise.reject(new Error('not found')),
+    };
+    const notFoundInterceptor = new RequestInterceptor(notFoundPort);
+
+    let caught: HttpException | null = null;
+    try {
+      await notFoundInterceptor.intercept(
+        makeContext({ 'x-tenant-id': 'unknown' }),
+        mockCallHandler,
+      );
+    } catch (e) {
+      caught = e as HttpException;
+    }
+
+    expect(caught).toBeInstanceOf(HttpException);
+    expect(caught!.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    const body = caught!.getResponse() as Record<string, unknown>;
+    expect(body['title']).toBe('Tenant Not Found');
+  });
+
+  it('makes tenantId, correlationId and settings available inside the observable', async () => {
     const ctx = makeContext({ 'x-tenant-id': 'tid-1', 'x-correlation-id': 'corr-1' });
-    const tenantContext = new TenantContext();
+    const requestContext = new RequestContext();
 
     let capturedTenantId: string | undefined;
     let capturedCorrelationId: string | undefined;
+    let capturedCurrency: string | undefined;
 
     const handler: CallHandler = {
       handle: () => {
-        capturedTenantId = tenantContext.tenantId;
-        capturedCorrelationId = tenantContext.correlationId;
+        capturedTenantId = requestContext.tenantId;
+        capturedCorrelationId = requestContext.correlationId;
+        capturedCurrency = requestContext.settings.localization.currency;
         return of(null);
       },
     };
 
-    await lastValueFrom(interceptor.intercept(ctx, handler));
+    await lastValueFrom(await interceptor.intercept(ctx, handler));
 
     expect(capturedTenantId).toBe('tid-1');
     expect(capturedCorrelationId).toBe('corr-1');
+    expect(capturedCurrency).toBe('BRL');
   });
 
   it('generates correlationId when X-Correlation-ID is absent', async () => {
     const ctx = makeContext({ 'x-tenant-id': 'tid-1' });
-    const tenantContext = new TenantContext();
+    const requestContext = new RequestContext();
 
     let capturedCorrelationId: string | undefined;
     const handler: CallHandler = {
       handle: () => {
-        capturedCorrelationId = tenantContext.correlationId;
+        capturedCorrelationId = requestContext.correlationId;
         return of(null);
       },
     };
 
-    await lastValueFrom(interceptor.intercept(ctx, handler));
+    await lastValueFrom(await interceptor.intercept(ctx, handler));
 
     expect(capturedCorrelationId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it('skips tenant check for health routes', () => {
+  it('skips tenant check for health routes', async () => {
     const ctx = makeContext({}, '/health/live');
-    expect(() => interceptor.intercept(ctx, mockCallHandler)).not.toThrow();
+    await interceptor.intercept(ctx, mockCallHandler);
   });
 
-  it('skips tenant check for internal routes', () => {
+  it('skips tenant check for internal routes', async () => {
     const ctx = makeContext({}, '/internal/tenants');
-    expect(() => interceptor.intercept(ctx, mockCallHandler)).not.toThrow();
+    await interceptor.intercept(ctx, mockCallHandler);
   });
 
-  it('skips tenant check for cron routes', () => {
+  it('skips tenant check for cron routes', async () => {
     const ctx = makeContext({}, '/cron/reminders');
-    expect(() => interceptor.intercept(ctx, mockCallHandler)).not.toThrow();
+    await interceptor.intercept(ctx, mockCallHandler);
   });
 
   it('populates actorId, actorType, actorRole when X-Actor-* headers are present', async () => {
@@ -92,7 +125,7 @@ describe('TenantInterceptor', () => {
       'x-actor-type': 'STAFF',
       'x-actor-role': 'MANAGER',
     });
-    const tenantContext = new TenantContext();
+    const requestContext = new RequestContext();
 
     let capturedActorId: string | undefined;
     let capturedActorType: string | undefined;
@@ -100,14 +133,14 @@ describe('TenantInterceptor', () => {
 
     const handler: CallHandler = {
       handle: () => {
-        capturedActorId = tenantContext.actorId;
-        capturedActorType = tenantContext.actorType;
-        capturedActorRole = tenantContext.actorRole;
+        capturedActorId = requestContext.actorId;
+        capturedActorType = requestContext.actorType;
+        capturedActorRole = requestContext.actorRole;
         return of(null);
       },
     };
 
-    await lastValueFrom(interceptor.intercept(ctx, handler));
+    await lastValueFrom(await interceptor.intercept(ctx, handler));
 
     expect(capturedActorId).toBe('staff-uuid-1');
     expect(capturedActorType).toBe('STAFF');
@@ -121,40 +154,40 @@ describe('TenantInterceptor', () => {
       'x-actor-type': 'ADMIN',
       'x-actor-role': 'MANAGER',
     });
-    const tenantContext = new TenantContext();
+    const requestContext = new RequestContext();
     let capturedActorType: string | undefined;
 
     const handler: CallHandler = {
       handle: () => {
-        capturedActorType = tenantContext.actorType;
+        capturedActorType = requestContext.actorType;
         return of(null);
       },
     };
 
-    await lastValueFrom(interceptor.intercept(ctx, handler));
+    await lastValueFrom(await interceptor.intercept(ctx, handler));
     expect(capturedActorType).toBeUndefined();
   });
 
   it('leaves actor fields undefined when X-Actor-* headers are absent (guest request)', async () => {
     const ctx = makeContext({ 'x-tenant-id': 'tid-1', 'x-correlation-id': 'corr-1' });
-    const tenantContext = new TenantContext();
+    const requestContext = new RequestContext();
 
     let capturedActorId: string | undefined;
 
     const handler: CallHandler = {
       handle: () => {
-        capturedActorId = tenantContext.actorId;
+        capturedActorId = requestContext.actorId;
         return of(null);
       },
     };
 
-    await lastValueFrom(interceptor.intercept(ctx, handler));
+    await lastValueFrom(await interceptor.intercept(ctx, handler));
 
     expect(capturedActorId).toBeUndefined();
   });
 
   it('concurrent requests store independent tenant contexts', async () => {
-    const tenantContext = new TenantContext();
+    const requestContext = new RequestContext();
     const results: Array<{ tenantId: string; correlationId: string }> = [];
 
     const makeSlowHandler = (delay: number): CallHandler => ({
@@ -162,8 +195,8 @@ describe('TenantInterceptor', () => {
         new Observable((sub: Subscriber<null>) => {
           setTimeout(() => {
             results.push({
-              tenantId: tenantContext.tenantId,
-              correlationId: tenantContext.correlationId,
+              tenantId: requestContext.tenantId,
+              correlationId: requestContext.correlationId,
             });
             sub.next(null);
             sub.complete();
@@ -173,13 +206,13 @@ describe('TenantInterceptor', () => {
 
     await Promise.all([
       lastValueFrom(
-        interceptor.intercept(
+        await interceptor.intercept(
           makeContext({ 'x-tenant-id': 'tenant-a', 'x-correlation-id': 'corr-a' }),
           makeSlowHandler(20),
         ),
       ),
       lastValueFrom(
-        interceptor.intercept(
+        await interceptor.intercept(
           makeContext({ 'x-tenant-id': 'tenant-b', 'x-correlation-id': 'corr-b' }),
           makeSlowHandler(10),
         ),

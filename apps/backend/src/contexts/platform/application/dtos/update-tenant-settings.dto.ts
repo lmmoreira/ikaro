@@ -64,8 +64,8 @@ const BusinessInfoAddressSchema = z
     complement: z.string().optional(),
     neighborhood: z.string().nullable(),
     city: z.string().nullable(),
-    state: z.string().min(1).max(10).nullable(),
-    zip_code: z.string().min(1).max(20).nullable(),
+    state: z.string().trim().min(1).max(10).nullable(),
+    zip_code: z.string().trim().min(1).max(20).nullable(),
   })
   .partial();
 

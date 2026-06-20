@@ -96,7 +96,7 @@ describe('AddressFields', () => {
 
     await user.type(screen.getByLabelText('CEP'), '00000000');
 
-    expect(await screen.findByTestId('contact-lookup-failed')).toBeInTheDocument();
+    expect(await screen.findByTestId('lookup-failed')).toBeInTheDocument();
     expect(screen.getByLabelText('Rua')).not.toBeDisabled();
   });
 
@@ -119,9 +119,10 @@ describe('AddressFields', () => {
     expect(screen.queryByLabelText('Bairro')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Neighborhood')).not.toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('ZIP Code'), '90210');
+    await user.type(screen.getByLabelText('ZIP Code'), '12345678');
 
-    expect(screen.queryByTestId('contact-lookup-loading')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('contact-lookup-failed')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('lookup-loading')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('lookup-failed')).not.toBeInTheDocument();
+    expect(lookup.calls).toHaveLength(0);
   });
 });

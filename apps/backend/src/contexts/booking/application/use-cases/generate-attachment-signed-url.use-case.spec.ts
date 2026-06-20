@@ -1,6 +1,6 @@
 import { BookingBuilder } from '../../../../test/builders/booking/booking.builder';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { GenerateAttachmentSignedUrlUseCase } from './generate-attachment-signed-url.use-case';
@@ -19,7 +19,7 @@ describe('GenerateAttachmentSignedUrlUseCase', () => {
     bookingRepo = new InMemoryBookingRepository();
     storageService = new InMemoryStorageService();
 
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId('corr-storage-test')
       .withActorId(STAFF_ID)
