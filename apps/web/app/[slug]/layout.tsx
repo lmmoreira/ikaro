@@ -31,7 +31,13 @@ export default async function HotsiteLayout({
 }: HotsiteLayoutProps): Promise<React.JSX.Element> {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
-  const { language, currency, timezone: rawTimezone, dateFormat, timeFormat } = manifest.localization;
+  const {
+    language,
+    currency,
+    timezone: rawTimezone,
+    dateFormat,
+    timeFormat,
+  } = manifest.localization;
   const locale = resolveSupportedLocale(language ?? 'pt-BR');
   // Defensive fallback: reconstitute() skips timezone validation; guard before passing to Intl
   const timezone = isValidTimezone(rawTimezone) ? rawTimezone : 'UTC';
