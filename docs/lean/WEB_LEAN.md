@@ -23,6 +23,7 @@
 - [M13-S41 — Playwright E2E: What Integration Tests Can't Catch](#m13-s41)
 - [M13-S01 — TanStack Query + Typed BFF Client](#m13-s01)
 - [M13-S02 — HTTP Cookies, Auth Security, and BFF Patterns](#m13-s02)
+- [TD02 — Localisation: i18n, next-intl, Intl API, FormattingContext, Testing](#td02-i18n)
 
 ---
 
@@ -2422,3 +2423,405 @@ export const bffClient = axios.create({
 In production, the frontend and BFF share the same domain (via a path prefix or a single domain with different service routing), so this is less of an issue — but the config is still correct to have.
 
 ---
+
+---
+
+<a name="td02-i18n"></a>
+## TD02 — Localisation: i18n, next-intl, Intl API, FormattingContext, Testing
+
+---
+
+### 71. What is i18n and Why Does It Matter?
+
+**i18n** is short for "internationalisation" (18 letters between the i and the n). It means making an application capable of displaying different languages, currency formats, date formats, and regional conventions without changing the code.
+
+**Backend analogy:** In NestJS you might return English error messages in domain errors and Portuguese in email templates — that's already a form of i18n. On the web, i18n is much broader: every visible string, number, date, and even UI layout direction can vary by locale.
+
+**The key split in Ikaro:**
+- **Locale** = the tenant's language code, e.g. `'pt-BR'` (Portuguese, Brazil) or `'en'` (English). One locale per tenant, not per user.
+- **Currency/timezone/date format** = also per tenant, driven by `country_code` in `TenantSettings`. A BR tenant in English still uses `DD/MM/YYYY` dates and R$.
+- **Locale files** = JSON files at `packages/i18n/locales/{locale}/web.json` containing every user-visible string as a key-value map.
+
+The rule: **no Portuguese (or any language) string literals in `.ts`/`.tsx` component files**. All copy lives in the locale files. Components reference a translation key, not the string itself.
+
+---
+
+### 72. `next-intl` — The i18n Library
+
+`next-intl` is the standard i18n library for Next.js App Router. It provides:
+- **Translation functions** (`useTranslations()` for client components, `getTranslations()` for server components)
+- **Locale context** shared across the component tree
+- **ICU message format** for plurals and interpolation (`"Step {step} of {total}"`)
+- **Integration with Next.js's RSC/client component boundary**
+
+**Why not just use a JSON import directly?**
+You could `import messages from './web.json'` and look up keys manually. But `next-intl` handles:
+- TypeScript type-safety (key paths are fully typed via `IntlMessages` augmentation)
+- ICU plurals and interpolation
+- Locale fallbacks
+- Server component support without prop-drilling
+
+**Installation in Ikaro (S06):**
+```ts
+// apps/web/next.config.ts
+import createNextIntlPlugin from 'next-intl/plugin';
+const withNextIntl = createNextIntlPlugin(); // reads i18n/request.ts by default
+export default withNextIntl(nextConfig);
+```
+
+The plugin integrates next-intl with Next.js's RSC infrastructure so that `getTranslations()` works in server components without any extra setup.
+
+---
+
+### 73. How Locale Resolves in Ikaro — The Full Chain
+
+This is the most important thing to understand. There is **no URL prefix** (`/en/slug`, `/pt-BR/slug`). The locale is completely invisible in the URL. Here is how the app knows which language to use:
+
+```
+1. Browser request: GET /belo-auto/booking
+         │
+2. Middleware (middleware.ts)
+         │  Sets x-pathname: /belo-auto/booking header on every non-static request
+         ▼
+3. i18n/request.ts — getRequestConfig()
+         │  Reads x-pathname → extracts slug → fetches manifest
+         │  GET /platform/manifest/belo-auto  ← deduplicated with [slug]/layout.tsx fetch
+         │  Reads manifest.localization.language → e.g. 'pt-BR'
+         │  Returns { locale: 'pt-BR', messages: ptBRMessages }
+         ▼
+4. app/layout.tsx (root layout — server component)
+         │  const locale = await getLocale();  // 'pt-BR' from step 3
+         │  const messages = await getMessages();  // pt-BR web.json
+         │  <html lang="pt-BR">
+         │  <NextIntlClientProvider locale={locale} messages={messages}>
+         ▼
+5. app/[slug]/layout.tsx
+         │  const manifest = await fetchManifest(slug);  // cached — same HTTP call as step 3
+         │  const locale = resolveSupportedLocale(manifest.localization.language);
+         │  <LocaleProvider locale={locale} messages={messages}>
+         │    <FormattingProvider locale={locale} currency={...} timezone={...}>
+         ▼
+6. Any component in the tree:
+         const t = useTranslations('booking');
+         t('slotPicker.loading')  // → "Carregando horários..."
+```
+
+**Backend analogy:** Step 3 (`getRequestConfig`) is like a NestJS `InterceptorFn` that runs before every request, reads context from a header, and populates a per-request "locale store" — equivalent to how `RequestContext` stores `tenantId` and settings for the HTTP request lifecycle.
+
+**The `x-pathname` header trick:** `i18n/request.ts` runs server-side but Next.js doesn't directly expose "which route is being rendered" to it. The middleware sets a custom `x-pathname` header on every request, which `i18n/request.ts` reads via `headers()` from `next/headers`. This is the standard pattern for passing request metadata to deeply nested server-side code.
+
+---
+
+### 74. `getRequestConfig` — The Server-Side Locale Entry Point
+
+`i18n/request.ts` exports a single function wrapped in `getRequestConfig()`:
+
+```ts
+// apps/web/i18n/request.ts
+import { getRequestConfig } from 'next-intl/server';
+import { headers } from 'next/headers';
+
+export default getRequestConfig(async () => {
+  const pathname = (await headers()).get('x-pathname') ?? '/';
+  const rawLocale = await resolveLocale(pathname);  // fetches manifest
+  const locale = resolveSupportedLocale(rawLocale); // guards unknown locales
+  const messages = await getMessages(locale);        // loads web.json
+  return { locale, messages };
+});
+```
+
+**This runs once per server request**, not per component. Next.js calls it lazily when the first component in the tree calls `getLocale()`, `getMessages()`, or `getTranslations()`. The result is cached for the duration of the request — exactly like how `RequestContext` in NestJS stores data for a single HTTP request lifecycle.
+
+**`resolveSupportedLocale()`** — if a tenant has `language: 'fr'` (French, not yet supported), this falls back to `'pt-BR'`. The fallback ensures the app always has valid messages even if a new country is added to the registry before its locale file exists.
+
+---
+
+### 75. RSC vs Client Components for i18n
+
+Next.js has two kinds of components and next-intl has a different API for each:
+
+| | Server Component (default) | Client Component (`'use client'`) |
+|---|---|---|
+| Translation function | `getTranslations('booking')` (async) | `useTranslations('booking')` (hook) |
+| Where it runs | Node.js, at request time | Browser (and during SSR) |
+| Example files | `layout.tsx`, `page.tsx` | `BookingForm.tsx`, `SlotPicker.tsx` |
+| Requires provider? | No — reads from `getRequestConfig` | Yes — needs `NextIntlClientProvider` in the tree |
+
+**All booking components are `'use client'`**, so they all use `useTranslations()`.
+
+**`useTranslations('booking')` returns a function `t`:**
+```ts
+const t = useTranslations('booking');
+t('slotPicker.loading')           // → "Carregando horários..."
+t('stepIndicator', { step: 2, total: 4 }) // → "Passo 2 de 4"  (ICU interpolation)
+t('confirmation.submit')          // → "Confirmar agendamento"
+```
+
+**Namespace scoping:** `useTranslations('booking')` scopes the `t` function to the `booking` section of `web.json`. `t('slotPicker.loading')` resolves to `booking.slotPicker.loading`. For keys outside `booking` (like `common.back`), call `useTranslations('common')` separately — you can have two `t` calls in one component:
+```ts
+const t = useTranslations('booking');
+const tc = useTranslations('common');
+// tc('back') → "Voltar"
+```
+
+---
+
+### 76. `NextIntlClientProvider` — The Context Bridge
+
+`'use client'` components cannot call `getRequestConfig` (that's server-only). They get translations via React context, provided by `NextIntlClientProvider`:
+
+```tsx
+// app/layout.tsx — server component
+const locale = await getLocale();       // reads from getRequestConfig result
+const messages = await getMessages();   // same
+
+return (
+  <html lang={locale}>
+    <body>
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        {children}  {/* all client components in the tree can now call useTranslations() */}
+      </NextIntlClientProvider>
+    </body>
+  </html>
+);
+```
+
+**Backend analogy:** `NextIntlClientProvider` is like NestJS's dependency injection container — it makes a value (`messages`) available to any component anywhere in the tree without passing it as a prop through every intermediate component.
+
+In Ikaro, `NextIntlClientProvider` lives in two places:
+1. **`app/layout.tsx`** (root) — provides locale/messages to the entire app (dashboard, auth pages)
+2. **`LocaleProvider`** inside `[slug]/layout.tsx` — provides the tenant-specific locale to all hotsite/booking components
+
+They can nest: inner provider wins for its subtree.
+
+---
+
+### 77. `FormattingContext` — Why React Context for Money/Date/Time
+
+`useTranslations()` handles string copy. But formatting money, dates, and times requires more: `locale`, `currency`, `timezone`, `dateFormat`, `timeFormat` — five values that come from the tenant manifest.
+
+Rather than passing these five values as props to every component that formats anything, we store them in React context:
+
+```ts
+// lib/formatting/formatting-context.ts
+export interface FormattingState {
+  readonly locale: string;       // e.g. 'pt-BR'
+  readonly currency: string;     // e.g. 'BRL'
+  readonly timezone: string;     // e.g. 'America/Sao_Paulo'
+  readonly dateFormat: DateFormat;  // 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD'
+  readonly timeFormat: '24h' | '12h';
+}
+export const FormattingContext = createContext<FormattingState>({ /* pt-BR defaults */ });
+```
+
+`FormattingProvider` (a `'use client'` component) populates this context from the manifest in `[slug]/layout.tsx`. Any component that needs formatting calls `useFormatting()`:
+
+```ts
+const { formatMoney, formatDate, formatTime } = useFormatting();
+formatMoney(totalAmount)  // → "R$ 150,00" for a BR tenant, "$150.00" for a US tenant
+```
+
+**The `useMemo` requirement:** The context value object is created on every render of `FormattingProvider`. Without `useMemo`, every child component that reads from this context re-renders every time the provider renders — even though the values haven't changed. `useMemo` with the five values as dependencies ensures a new object is only created when a value actually changes (which in practice only happens on route navigation).
+
+```tsx
+const value = useMemo(
+  () => ({ locale, currency, timezone, dateFormat, timeFormat }),
+  [locale, currency, timezone, dateFormat, timeFormat],
+);
+return <FormattingContext.Provider value={value}>{children}</FormattingContext.Provider>;
+```
+
+SonarCloud flags `<Provider value={{ a, b }}>` without `useMemo` as a **MAJOR** issue.
+
+---
+
+### 78. The `Intl` API — JavaScript's Built-In Locale Formatter
+
+JavaScript has a built-in namespace `Intl` (short for "internationalisation") that handles locale-aware formatting without any library. Ikaro uses it throughout:
+
+**`Intl.NumberFormat` — money:**
+```ts
+new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(100)
+// → "R$ 100,00"  (note: the space after R$ is U+00A0 non-breaking space)
+
+new Intl.NumberFormat('en', { style: 'currency', currency: 'USD' }).format(100)
+// → "$100.00"
+```
+
+**The NBSP trap:** `Intl.NumberFormat` for currency inserts a **non-breaking space (U+00A0)** between the currency symbol and the number in some locales (pt-BR, ru-RU). French (`fr-FR`) uses an even narrower **narrow NBSP (U+202F)**. If you do a plain `.replace(' ', ' ')` you miss:
+- Multiple occurrences (ru-RU has two)
+- The narrow NBSP variant (fr-FR)
+
+The correct pattern:
+```ts
+.replace(/[  ]/g, ' ')  // covers both variants, globally
+```
+
+**`Intl.DateTimeFormat` — dates and times:**
+```ts
+new Intl.DateTimeFormat('pt-BR', { weekday: 'short' }).format(new Date('2026-06-16T00:00:00'))
+// → "ter."   (not "Ter" — Intl produces lowercase with period in pt-BR)
+
+new Intl.DateTimeFormat('en', { weekday: 'short' }).format(new Date('2026-06-16T00:00:00'))
+// → "Tue"
+```
+
+This replaced the hardcoded `WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', ...]` array in `AvailabilityCarousel`. With `Intl`, weekday names are correct for any locale automatically.
+
+**Backend analogy:** `Intl` is like Java's `java.util.Locale` and `java.text.NumberFormat` — built into the platform, no external dependency needed for the basics.
+
+---
+
+### 79. Pure Formatting Functions Belong Outside Components
+
+A function that takes `locale`, `currency`, or `timezone` as parameters is a formatting utility, not component logic. If you define it inside a component, it gets re-created on every render and can't be reused by other components.
+
+**Wrong — defined inside component:**
+```tsx
+function AvailabilityCarousel({ carouselDays }: ...) {
+  function dayNumber(date: string) {  // recreated on every render
+    return String(new Date(`${date}T00:00:00`).getDate());
+  }
+  // ...
+}
+```
+
+SonarCloud flags this as "Move function to the outer scope" (MAJOR).
+
+**Right — in `lib/formatting/date-utils.ts`:**
+```ts
+export function dayNumber(isoDate: string): string {
+  return String(new Date(`${isoDate}T00:00:00`).getDate());
+}
+
+export function dayCarouselLabel(
+  isoDate: string, index: number, locale: string, todayLabel: string
+): string {
+  if (index === 0) return todayLabel;
+  return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(
+    new Date(`${isoDate}T00:00:00`)
+  );
+}
+```
+
+Note that `dayCarouselLabel` takes `todayLabel` as a parameter (the translated "Hoje"/"Today" string) rather than calling `useTranslations()` inside. This keeps it a **pure function** — it has no dependencies on React context, can be tested without a provider, and can be called from anywhere. The component passes the translated string in:
+
+```tsx
+// AvailabilityCarousel.tsx
+const t = useTranslations('booking');
+// ...
+{dayCarouselLabel(day.date, index, locale, t('availability.today'))}
+```
+
+**Rule of thumb for deciding where a function lives:** if removing it from the component and making it a standalone function requires no additional imports or React APIs — put it outside. If it needs `useState`, `useEffect`, `useTranslations`, or other hooks — it belongs inside (or in a custom hook).
+
+---
+
+### 80. Testing Translated Components — `renderWithIntl()`
+
+When you migrate a component to use `useTranslations()`, you can no longer `render(<Component />)` in isolation — it throws `"Could not find next-intl context"` without a provider.
+
+**The solution — a shared test helper:**
+```tsx
+// apps/web/test-utils.tsx
+import ptBRMessages from '@ikaro/i18n/locales/pt-BR/web.json';
+import enMessages from '@ikaro/i18n/locales/en/web.json';
+
+export function renderWithIntl(ui: React.ReactElement, { locale = 'pt-BR', ... } = {}) {
+  const messages = MESSAGES[locale];  // real messages, not mocks
+  const formatting = FORMATTING_DEFAULTS[locale];  // locale-matched currency/timezone/etc.
+
+  return render(
+    <NextIntlClientProvider locale={locale} messages={messages}>
+      <FormattingProvider {...formatting}>
+        {ui}
+      </FormattingProvider>
+    </NextIntlClientProvider>
+  );
+}
+```
+
+**Why real messages, not mocks?** The alternative would be:
+```ts
+const mockMessages = { booking: { slotPicker: { loading: 'Loading...' } } };
+render(<NextIntlClientProvider messages={mockMessages}>...)
+```
+
+This works but creates a **maintenance problem**: when you rename a translation key, the mock still passes — the test no longer verifies the component uses the right key. With real `web.json` messages, if the component calls `t('slotPicker.loadingXXX')` (typo), the test fails with "translation key not found".
+
+**Locale-matched defaults matter:** `renderWithIntl(ui, { locale: 'en' })` should use `en/web.json` messages AND US formatting (USD, New York timezone, MM/DD/YYYY). If it still used pt-BR messages with an `'en'` locale, a test asserting `"$100.00"` would fail because the currency would still be R$. The helper maps locale → correct messages and formatting in one step.
+
+---
+
+### 81. `DateFormat` and `TimeFormat` — Shared Types From `@ikaro/i18n`
+
+`'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD'` is the union type for date formats. It's defined once in `packages/i18n/src/country-defaults.ts` as part of `CountrySpec` (the same type that specifies each country's defaults) and exported as a named type:
+
+```ts
+// packages/i18n/src/country-defaults.ts
+export type DateFormat = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+export type TimeFormat = '24h' | '12h';
+```
+
+Both are imported from `@ikaro/i18n` anywhere they're needed:
+```ts
+import type { DateFormat, TimeFormat } from '@ikaro/i18n';
+```
+
+**Why not define them locally in the web app?** Because the backend's `tenant-settings.vo.ts` also uses these exact unions (it calls `countrySpec()` which returns them). If the web defined its own copy, you'd have two independent unions that could drift. One canonical definition in the shared package forces consistency — adding `'YYYY-DD-MM'` as a supported format means updating one place, and all consumers automatically know about it.
+
+**`resolveDateFormat()` — defensive narrowing:** The manifest's `localization.dateFormat` field arrives as a `string` (typed loosely in `HotsiteLocalizationResponse` because the shared types package deliberately stays `string` to avoid depending on the web's specific union). Before passing to `FormattingProvider`, the web narrows it:
+
+```ts
+// lib/formatting/locale-validators.ts
+const DATE_FORMATS = new Set<DateFormat>(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']);
+
+export function resolveDateFormat(fmt: string): DateFormat {
+  return DATE_FORMATS.has(fmt as DateFormat) ? (fmt as DateFormat) : 'DD/MM/YYYY';
+}
+```
+
+If the DB ever has a corrupted value, the default `'DD/MM/YYYY'` prevents a runtime crash. The same pattern applies to `timezone` via `isValidTimezone()` — because `TenantSettings.reconstitute()` (used when loading from DB) skips validation by design, so web code must guard fields before passing them to strict APIs like `Intl.DateTimeFormat`.
+
+---
+
+### 82. The `reconstitute()` Gap — Why Web Code Guards Manifest Fields
+
+In the backend, `TenantSettings` has two construction paths:
+
+| Method | Validates? | When used |
+|---|---|---|
+| `TenantSettings.create(props)` | ✅ Yes — throws on invalid timezone, currency, etc. | When creating a new tenant via `POST /internal/tenants` |
+| `TenantSettings.reconstitute(props)` | ❌ No — trusts the DB | When loading an existing tenant from PostgreSQL |
+
+`reconstitute()` skips validation deliberately: a validation rule might be tightened after data exists in production. Failing to load existing tenants because an old row doesn't meet a new rule would be catastrophic.
+
+The consequence: **a `timezone` value that passed validation when written might no longer be valid if the validation rule changed, or if data was migrated/backfilled**. The web app receives this value via the manifest and must not blindly pass it to `Intl.DateTimeFormat`:
+
+```ts
+// Without guard — throws if timezone is invalid
+new Intl.DateTimeFormat('en', { timeZone: manifest.localization.timezone }).format(date);
+
+// With guard — falls back to 'UTC' gracefully
+const timezone = isValidTimezone(manifest.localization.timezone)
+  ? manifest.localization.timezone
+  : 'UTC';
+new Intl.DateTimeFormat('en', { timeZone: timezone }).format(date);
+```
+
+```ts
+// lib/formatting/locale-validators.ts
+export function isValidTimezone(tz: string): boolean {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+```
+
+`Intl.DateTimeFormat` itself is used to test the timezone — if the timezone string is invalid, the constructor throws. This is the fastest, zero-dependency way to validate an IANA timezone in JavaScript.
+
+**General principle:** Any field arriving from the DB via `reconstitute()` should be validated at the web boundary before use in a strict API. This is the web equivalent of the NestJS "validate at the boundary" rule — the difference is that the boundary here is "data from the server" rather than "data from the user".
+

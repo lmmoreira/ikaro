@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { renderWithIntl } from '@/test-utils';
 import { useState } from 'react';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { Address, HotsiteAddressSpec } from '@ikaro/types';
@@ -67,7 +68,7 @@ function Wrapper({
 
 describe('AddressFields', () => {
   it('renders all address fields for a BR tenant', () => {
-    render(<Wrapper />);
+    renderWithIntl(<Wrapper />);
 
     expect(screen.getByLabelText('CEP')).toBeInTheDocument();
     expect(screen.getByLabelText('Rua')).toBeInTheDocument();
@@ -88,7 +89,7 @@ describe('AddressFields', () => {
         state: 'SP',
       },
     });
-    render(<Wrapper addressLookup={lookup} />);
+    renderWithIntl(<Wrapper addressLookup={lookup} />);
 
     await user.type(screen.getByLabelText('CEP'), '01310100');
 
@@ -100,7 +101,7 @@ describe('AddressFields', () => {
 
   it('shows a not-found message and leaves fields editable when the CEP does not resolve', async () => {
     const user = userEvent.setup();
-    render(<Wrapper addressLookup={new InMemoryAddressLookup({})} />);
+    renderWithIntl(<Wrapper addressLookup={new InMemoryAddressLookup({})} />);
 
     await user.type(screen.getByLabelText('CEP'), '00000000');
 
@@ -110,7 +111,7 @@ describe('AddressFields', () => {
 
   it('allows manual editing of the street field', async () => {
     const user = userEvent.setup();
-    render(<Wrapper addressLookup={new InMemoryAddressLookup({})} />);
+    renderWithIntl(<Wrapper addressLookup={new InMemoryAddressLookup({})} />);
 
     await user.type(screen.getByLabelText('Rua'), 'Rua Manual');
 
@@ -120,7 +121,7 @@ describe('AddressFields', () => {
   it('renders US labels, no neighborhood field, and does not trigger a lookup', async () => {
     const user = userEvent.setup();
     const lookup = new InMemoryAddressLookup({});
-    render(<Wrapper addressSpec={US_SPEC} addressLookup={lookup} />);
+    renderWithIntl(<Wrapper addressSpec={US_SPEC} addressLookup={lookup} />);
 
     expect(screen.getByLabelText('ZIP Code')).toBeInTheDocument();
     expect(screen.getByLabelText('State')).toBeInTheDocument();
@@ -135,7 +136,7 @@ describe('AddressFields', () => {
   });
 
   it('uses the country spec labels for street, number, complement and city (not hardcoded pt-BR)', () => {
-    render(<Wrapper addressSpec={US_SPEC} addressLookup={new InMemoryAddressLookup({})} />);
+    renderWithIntl(<Wrapper addressSpec={US_SPEC} addressLookup={new InMemoryAddressLookup({})} />);
 
     expect(screen.getByLabelText('Street')).toBeInTheDocument();
     expect(screen.getByLabelText('Number')).toBeInTheDocument();

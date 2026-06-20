@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test-utils';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAttachmentSignedUrl } from '@/lib/api/bookings';
@@ -26,13 +27,13 @@ describe('PhotoUpload', () => {
   });
 
   it('renders the file input with a pt-BR label', () => {
-    render(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
+    renderWithIntl(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
 
     expect(screen.getByLabelText('Fotos do veículo (opcional)')).toBeInTheDocument();
   });
 
   it('renders the clickable upload box with pt-BR helper text', () => {
-    render(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
+    renderWithIntl(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
 
     expect(screen.getByText('Clique para adicionar fotos')).toBeInTheDocument();
     expect(screen.getByText('JPG ou PNG')).toBeInTheDocument();
@@ -48,7 +49,7 @@ describe('PhotoUpload', () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
     const onChange = vi.fn();
 
-    render(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={onChange} />);
+    renderWithIntl(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={onChange} />);
 
     await user.upload(
       screen.getByLabelText('Fotos do veículo (opcional)'),
@@ -78,7 +79,7 @@ describe('PhotoUpload', () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
     const onChange = vi.fn();
 
-    render(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={onChange} />);
+    renderWithIntl(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={onChange} />);
 
     await user.upload(
       screen.getByLabelText('Fotos do veículo (opcional)'),
@@ -101,7 +102,7 @@ describe('PhotoUpload', () => {
     });
     fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
 
-    render(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
+    renderWithIntl(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
 
     await user.upload(
       screen.getByLabelText('Fotos do veículo (opcional)'),
@@ -120,7 +121,7 @@ describe('PhotoUpload', () => {
       expiresAt: '2026-06-15T12:00:00.000Z',
     });
 
-    render(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
+    renderWithIntl(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
 
     await user.upload(
       screen.getByLabelText('Fotos do veículo (opcional)'),
@@ -135,7 +136,7 @@ describe('PhotoUpload', () => {
 
   it('shows an error status for unsupported file types without requesting a signed URL', async () => {
     const user = userEvent.setup();
-    render(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
+    renderWithIntl(<PhotoUpload slug="lavacar-beloauto" value={[]} onChange={vi.fn()} />);
 
     await user.upload(
       screen.getByLabelText('Fotos do veículo (opcional)'),

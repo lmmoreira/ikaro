@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type React from 'react';
 import { createAttachmentSignedUrl } from '@/lib/api/bookings';
 
@@ -28,32 +29,33 @@ const uploadAreaStyle: React.CSSProperties = {
   borderRadius: 'var(--ba-radius)',
 };
 
-async function uploadFile(slug: string, file: File): Promise<string> {
-  if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
-    throw new Error('Formato de imagem não suportado');
+export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps) {
+  const t = useTranslations('booking.photo');
+  const [items, setItems] = useState<UploadItem[]>([]);
+
+  async function uploadFile(file: File): Promise<string> {
+    if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
+      throw new Error(t('unsupportedFormat'));
+    }
+
+    const contentType = file.type as 'image/jpeg' | 'image/png';
+    const { signedUrl, filePath } = await createAttachmentSignedUrl(slug, file.name, contentType);
+
+    const res = await fetch(signedUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body: file,
+    });
+    if (!res.ok) throw new Error(t('uploadFailed'));
+
+    return filePath;
   }
 
-  const contentType = file.type as 'image/jpeg' | 'image/png';
-  const { signedUrl, filePath } = await createAttachmentSignedUrl(slug, file.name, contentType);
-
-  const res = await fetch(signedUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: file,
-  });
-  if (!res.ok) throw new Error('Falha ao enviar a imagem');
-
-  return filePath;
-}
-
-function statusLabel(status: UploadStatus): string {
-  if (status === 'uploading') return 'Enviando...';
-  if (status === 'done') return 'Enviada';
-  return 'Erro ao enviar';
-}
-
-export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps) {
-  const [items, setItems] = useState<UploadItem[]>([]);
+  function statusLabel(status: UploadStatus): string {
+    if (status === 'uploading') return t('uploading');
+    if (status === 'done') return t('uploaded');
+    return t('uploadError');
+  }
 
   async function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -66,7 +68,7 @@ export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps) {
       setItems((prev) => [...prev, { id, fileName: file.name, previewUrl, status: 'uploading' }]);
 
       try {
-        const filePath = await uploadFile(slug, file);
+        const filePath = await uploadFile(file);
         filePaths = [...filePaths, filePath];
         onChange(filePaths);
         setItems((prev) =>
@@ -98,7 +100,7 @@ export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps) {
         className="mb-1 block text-sm font-medium"
         style={{ color: 'var(--ba-text)' }}
       >
-        Fotos do veículo (opcional)
+        {t('title')}
       </label>
 
       <label
@@ -107,10 +109,10 @@ export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps) {
         style={uploadAreaStyle}
       >
         <p className="text-sm opacity-75" style={{ color: 'var(--ba-text)' }}>
-          Clique para adicionar fotos
+          {t('clickToAdd')}
         </p>
         <p className="mt-1 text-xs opacity-50" style={{ color: 'var(--ba-text)' }}>
-          JPG ou PNG
+          {t('formatHint')}
         </p>
         <input
           id={INPUT_ID}
@@ -165,7 +167,7 @@ export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps) {
                   className="text-xs underline"
                   style={{ color: 'var(--ba-primary)' }}
                 >
-                  Remover
+                  {t('remove')}
                 </button>
               )}
             </li>

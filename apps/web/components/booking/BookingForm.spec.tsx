@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test-utils';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -69,7 +70,7 @@ async function advanceToStep3(
   vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
   vi.mocked(fetchAvailability).mockResolvedValue(availability);
 
-  render(
+  renderWithIntl(
     <BookingForm
       slug="lavacar-beloauto"
       services={services}
@@ -107,7 +108,7 @@ describe('BookingForm', () => {
   });
 
   it('renders Step 1 with the service list', () => {
-    render(
+    renderWithIntl(
       <BookingForm
         slug="lavacar-beloauto"
         services={[makeService()]}
@@ -125,7 +126,7 @@ describe('BookingForm', () => {
     const user = userEvent.setup();
     vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
 
-    render(
+    renderWithIntl(
       <BookingForm
         slug="lavacar-beloauto"
         services={[makeService()]}
@@ -176,7 +177,7 @@ describe('BookingForm', () => {
     const user = userEvent.setup();
     const service = makeService({ requiresPickupAddress: true });
 
-    render(
+    renderWithIntl(
       <BookingForm
         slug="lavacar-beloauto"
         services={[service]}
@@ -246,7 +247,7 @@ describe('BookingForm', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
 
     expect(await screen.findByTestId('confirmation-error')).toHaveTextContent(
-      'Não foi possível enviar sua solicitação. Tente novamente.',
+      'Não foi possível enviar o agendamento. Tente novamente.',
     );
   });
 });

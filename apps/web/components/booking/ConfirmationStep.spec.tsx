@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test-utils';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
@@ -29,7 +30,7 @@ describe('ConfirmationStep', () => {
   it('renders the selected services, total and chosen date/time', () => {
     const service = makeService();
 
-    render(
+    renderWithIntl(
       <ConfirmationStep
         slug="lavacar-beloauto"
         services={[service]}
@@ -53,7 +54,7 @@ describe('ConfirmationStep', () => {
     const onBack = vi.fn();
     const service = makeService();
 
-    render(
+    renderWithIntl(
       <ConfirmationStep
         slug="lavacar-beloauto"
         services={[service]}
@@ -77,7 +78,7 @@ describe('ConfirmationStep', () => {
     const onSubmit = vi.fn();
     const service = makeService();
 
-    render(
+    renderWithIntl(
       <ConfirmationStep
         slug="lavacar-beloauto"
         services={[service]}
@@ -99,7 +100,7 @@ describe('ConfirmationStep', () => {
   it('shows a submitting state and disables both buttons', () => {
     const service = makeService();
 
-    render(
+    renderWithIntl(
       <ConfirmationStep
         slug="lavacar-beloauto"
         services={[service]}
@@ -120,7 +121,7 @@ describe('ConfirmationStep', () => {
   it('shows the error message when status is "error"', () => {
     const service = makeService();
 
-    render(
+    renderWithIntl(
       <ConfirmationStep
         slug="lavacar-beloauto"
         services={[service]}
@@ -142,7 +143,7 @@ describe('ConfirmationStep', () => {
   it('shows the success message and hides the form when status is "success"', () => {
     const service = makeService();
 
-    render(
+    renderWithIntl(
       <ConfirmationStep
         slug="lavacar-beloauto"
         services={[service]}
@@ -157,7 +158,7 @@ describe('ConfirmationStep', () => {
     );
 
     expect(screen.getByTestId('booking-success')).toHaveTextContent(
-      'Solicitação enviada! Aguarde a confirmação por email.',
+      'Aguarde a confirmação por email.',
     );
     expect(screen.queryByRole('button', { name: 'Confirmar agendamento' })).not.toBeInTheDocument();
   });

@@ -1,6 +1,7 @@
 'use client';
 
 import type React from 'react';
+import { useTranslations } from 'next-intl';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import { ErrorAlert } from './ErrorAlert';
 import { useFormatting } from '@/lib/formatting/use-formatting';
@@ -38,6 +39,8 @@ export function ConfirmationStep({
   onSubmit,
   onBack,
 }: ConfirmationStepProps) {
+  const t = useTranslations('booking');
+  const tc = useTranslations('common');
   const { formatMoney, formatDateLong, formatTime } = useFormatting();
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));
   const totalAmount = selected.reduce((sum, service) => sum + service.price.amount, 0);
@@ -47,9 +50,9 @@ export function ConfirmationStep({
     return (
       <div>
         <h2 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
-          Solicitação enviada!
+          {t('confirmation.successHeading')}
         </h2>
-        <p data-testid="booking-success">Solicitação enviada! Aguarde a confirmação por email.</p>
+        <p data-testid="booking-success">{t('confirmation.successBody')}</p>
         <a
           href={`/${slug}`}
           className="mt-6 inline-block border px-6 py-3"
@@ -59,7 +62,7 @@ export function ConfirmationStep({
             color: 'var(--ba-text)',
           }}
         >
-          Voltar para o site
+          {t('confirmation.backToSite')}
         </a>
       </div>
     );
@@ -68,7 +71,7 @@ export function ConfirmationStep({
   return (
     <div>
       <h2 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
-        Confirme seu agendamento
+        {t('confirmation.heading')}
       </h2>
 
       <ul className="mb-4 flex flex-col gap-1">
@@ -89,7 +92,7 @@ export function ConfirmationStep({
       </p>
 
       <p style={{ color: 'var(--ba-text)' }}>
-        {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))} às{' '}
+        {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))} {t('summary.at')}{' '}
         {formatTime(new Date(selectedSlot.startsAt))}
       </p>
 
@@ -111,7 +114,7 @@ export function ConfirmationStep({
             color: 'var(--ba-text)',
           }}
         >
-          Voltar
+          {tc('back')}
         </button>
         <button
           type="button"
@@ -121,7 +124,7 @@ export function ConfirmationStep({
           style={btnStyle}
           className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {status === 'submitting' ? 'Enviando...' : 'Confirmar agendamento'}
+          {status === 'submitting' ? t('confirmation.sending') : t('confirmation.submit')}
         </button>
       </div>
     </div>

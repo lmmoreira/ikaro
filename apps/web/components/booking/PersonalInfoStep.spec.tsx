@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { renderWithIntl } from '@/test-utils';
 import { useState } from 'react';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { AvailableSlot, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
@@ -72,7 +73,7 @@ function Wrapper({
 
 describe('PersonalInfoStep', () => {
   it('renders the contact fields', () => {
-    render(<Wrapper />);
+    renderWithIntl(<Wrapper />);
 
     expect(screen.getByLabelText('Nome')).toBeInTheDocument();
     expect(screen.getByLabelText('E-mail')).toBeInTheDocument();
@@ -81,7 +82,7 @@ describe('PersonalInfoStep', () => {
 
   it('keeps the contact address section collapsed until toggled', async () => {
     const user = userEvent.setup();
-    const { container } = render(<Wrapper />);
+    const { container } = renderWithIntl(<Wrapper />);
 
     expect(container.querySelector('#contact-address-street')).not.toBeInTheDocument();
 
@@ -93,7 +94,7 @@ describe('PersonalInfoStep', () => {
   it('shows a validation error and does not call onNext when required fields are empty', async () => {
     const user = userEvent.setup();
     const onNext = vi.fn();
-    render(<Wrapper onNext={onNext} />);
+    renderWithIntl(<Wrapper onNext={onNext} />);
 
     await user.click(screen.getByRole('button', { name: 'Próximo' }));
 
@@ -103,7 +104,7 @@ describe('PersonalInfoStep', () => {
 
   it('shows a validation error when the email is invalid', async () => {
     const user = userEvent.setup();
-    render(<Wrapper />);
+    renderWithIntl(<Wrapper />);
 
     await user.type(screen.getByLabelText('Nome'), 'Maria Silva');
     await user.type(screen.getByLabelText('E-mail'), 'not-an-email');
@@ -118,7 +119,7 @@ describe('PersonalInfoStep', () => {
   it('calls onNext when all required fields are filled', async () => {
     const user = userEvent.setup();
     const onNext = vi.fn();
-    render(<Wrapper onNext={onNext} />);
+    renderWithIntl(<Wrapper onNext={onNext} />);
 
     await user.type(screen.getByLabelText('Nome'), 'Maria Silva');
     await user.type(screen.getByLabelText('E-mail'), 'maria@example.com');
@@ -131,7 +132,7 @@ describe('PersonalInfoStep', () => {
   it('calls onBack when "Voltar" is clicked', async () => {
     const user = userEvent.setup();
     const onBack = vi.fn();
-    render(<Wrapper onBack={onBack} />);
+    renderWithIntl(<Wrapper onBack={onBack} />);
 
     await user.click(screen.getByRole('button', { name: 'Voltar' }));
 
@@ -139,14 +140,14 @@ describe('PersonalInfoStep', () => {
   });
 
   it('renders the optional photo upload field', () => {
-    render(<Wrapper />);
+    renderWithIntl(<Wrapper />);
 
     expect(screen.getByLabelText('Fotos do veículo (opcional)')).toBeInTheDocument();
   });
 
   it('shows the tenant-specific country prefix and stores the phone as E.164', async () => {
     const user = userEvent.setup();
-    render(<Wrapper phonePrefix="+1" />);
+    renderWithIntl(<Wrapper phonePrefix="+1" />);
 
     expect(screen.getByText('+1')).toBeInTheDocument();
     await user.type(screen.getByLabelText('Telefone'), '4155552671');
@@ -156,7 +157,7 @@ describe('PersonalInfoStep', () => {
 
   it('does not duplicate the country code when a full E.164 number is pasted', async () => {
     const user = userEvent.setup();
-    render(<Wrapper phonePrefix="+55" />);
+    renderWithIntl(<Wrapper phonePrefix="+55" />);
 
     const input = screen.getByLabelText('Telefone');
     await user.click(input);
@@ -168,7 +169,7 @@ describe('PersonalInfoStep', () => {
   it('clearing the phone field leaves it empty rather than just the prefix', async () => {
     const user = userEvent.setup();
     const onNext = vi.fn();
-    render(<Wrapper onNext={onNext} phonePrefix="+55" />);
+    renderWithIntl(<Wrapper onNext={onNext} phonePrefix="+55" />);
 
     await user.type(screen.getByLabelText('Nome'), 'Maria Silva');
     await user.type(screen.getByLabelText('E-mail'), 'maria@example.com');
@@ -181,7 +182,7 @@ describe('PersonalInfoStep', () => {
   });
 
   it('renders the order review card with the selected service and date/time', () => {
-    render(<Wrapper />);
+    renderWithIntl(<Wrapper />);
 
     expect(screen.getByText('Revisar pedido')).toBeInTheDocument();
     expect(screen.getByText('Lavagem Simples')).toBeInTheDocument();

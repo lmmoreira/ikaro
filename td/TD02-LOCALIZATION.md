@@ -743,7 +743,7 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 
 ---
 
-#### TD02-S08 — Booking components → `next-intl`
+#### TD02-S08 — Booking components → `next-intl` ✅ Done
 
 **Scope:**  
 Replace all hardcoded pt-BR strings in booking components with `useTranslations('booking')`. Components: `BookingForm`, `ServiceSelectionStep`, `SlotPicker`, `AvailabilityCarousel`, `PersonalInfoStep`, `AddressFields`, `ConfirmationStep`, `BookingSummaryCard`, `PhotoUpload`.  
@@ -756,6 +756,8 @@ Update Vitest specs to use `next-intl` test utilities.
 - [ ] Zero hardcoded pt-BR strings in booking components
 - [ ] All component Vitest specs pass with mocked translations
 - [ ] `PersonalInfoStep` phone prefix is locale-driven
+
+**Implementation:** 15 new `booking.*` keys added to both locale files: `stepIndicator`, `slotPicker.loadError`, `availability.heading/today`, `serviceSelection.pickupAddress*`, `personalInfo.heading`, `confirmation.heading/successHeading/successBody`, `summary.heading/dateTimeLabel/at`, `photo.uploaded/formatHint/remove`, `errors.tryAgain`. Key structural changes beyond spec: (1) `dayNumber` and `dayCarouselLabel` extracted to `lib/formatting/date-utils.ts` as pure functions — `dayCarouselLabel` takes `todayLabel` as a parameter so it carries no React context dependency and is directly testable; `AvailabilityCarousel` replaced the hardcoded `WEEKDAY_LABELS` array with `Intl.DateTimeFormat(locale, { weekday: 'short' })` via `useLocale()`. (2) `uploadFile` in `PhotoUpload` and `validate()` in `PersonalInfoStep` moved inside the component body to capture `t()` via closure — the pattern for async/callback functions that need translated error messages. (3) `renderWithIntl()` test helper created at `apps/web/test-utils.tsx` wrapping `NextIntlClientProvider` + `FormattingProvider` with locale-aware defaults (`locale='en'` → en messages + USD/New_York/12h; `locale='pt-BR'` → pt-BR messages + BRL/Sao_Paulo/24h) so future tests can exercise non-BR tenants without manual setup. All 9 spec files migrated to `renderWithIntl`; text assertions updated to match canonical strings from `web.json`. Post-review fixes: `neighborhoodLabel ?? 'Neighborhood'` fallback (a11y — never actually empty since CountrySpec guarantees it when `requireNeighborhood: true`, but defensive); `rounded` Tailwind class on `BookingSummaryCard` replaced with `style={{ borderRadius: 'var(--ba-radius)' }}` (branding token convention).
 
 ---
 

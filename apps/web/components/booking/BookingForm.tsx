@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type {
   AvailableSlot,
@@ -33,8 +34,6 @@ interface BookingFormProps {
 type Step = 1 | 2 | 3 | 4;
 
 const TOTAL_STEPS = 4;
-const GENERIC_ERROR_MESSAGE = 'Não foi possível enviar sua solicitação. Tente novamente.';
-const SLOT_TAKEN_MESSAGE = 'Horário indisponível, escolha outro';
 
 function buildPayload(
   personalInfo: PersonalInfoValue,
@@ -68,6 +67,8 @@ export function BookingForm({
   phonePrefix,
   addressSpec,
 }: BookingFormProps) {
+  const t = useTranslations('booking');
+  const tc = useTranslations('common');
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
@@ -120,12 +121,12 @@ export function BookingForm({
     } catch (err) {
       if (err instanceof CreateBookingError && err.status === 409) {
         setStatus('idle');
-        setStep2Error(SLOT_TAKEN_MESSAGE);
+        setStep2Error(t('errors.slotUnavailable'));
         setStep(2);
         return;
       }
       setStatus('error');
-      setErrorMessage(GENERIC_ERROR_MESSAGE);
+      setErrorMessage(t('errors.submitFailed'));
     }
   }
 
@@ -136,7 +137,7 @@ export function BookingForm({
     >
       <div className="mx-auto max-w-2xl px-6 py-12">
         <p className="mb-6 text-sm opacity-75" style={{ color: 'var(--ba-text)' }}>
-          Passo {step} de {TOTAL_STEPS}
+          {t('stepIndicator', { step, total: TOTAL_STEPS })}
         </p>
 
         {step === 1 && (
@@ -158,7 +159,7 @@ export function BookingForm({
         {step === 2 && (
           <div>
             <h2 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
-              Escolha data e horário
+              {t('availability.heading')}
             </h2>
 
             <AvailabilityCarousel
@@ -198,7 +199,7 @@ export function BookingForm({
                   color: 'var(--ba-text)',
                 }}
               >
-                Voltar
+                {tc('back')}
               </button>
               <button
                 type="button"
@@ -213,7 +214,7 @@ export function BookingForm({
                 }}
                 className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Próximo
+                {tc('next')}
               </button>
             </div>
           </div>
