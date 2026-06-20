@@ -714,7 +714,7 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 
 ---
 
-#### TD02-S07 — Locale-aware money + date + time formatting in `apps/web`
+#### TD02-S07 — Locale-aware money + date + time formatting in `apps/web` ✅ Done
 
 **Scope:**
 - Update `apps/web/lib/hotsite/format-money.ts`: `formatMoney(amount: number, locale: string, currency: string): string` using `Intl.NumberFormat(locale, { style: 'currency', currency })`; remove module-level instance
