@@ -63,6 +63,51 @@ Every `save()` in every use case must be wrapped in `ITransactionManager.run()` 
 
 ---
 
+## RequestContext (per-request shared state)
+
+`RequestContext` (`src/shared/request/request-context.ts`) is populated once per HTTP request by `RequestInterceptor` — `tenantId`, `correlationId`, optional `actorId`/`actorType`/`actorRole`, and `settings: TenantSettingsProps` (the tenant's full `tenants.settings` JSONB, eager-loaded via `ITenantSettingsPort` before the request reaches any handler).
+
+**Prefer eager-loading into `RequestContext` over a new Port + Adapter when** the data is read by *many* contexts within the same request — tenant settings/localization/business hours are the textbook case — and is already fetched once, cheaply, at request start. Before the TD02-S04 cleanup, four separate contexts (`booking`, `customer`, `loyalty`, `notification`) each maintained their own Port + Adapter to re-fetch a different slice of the same `tenants.settings` row, duplicating the DB round-trip per use case that needed it within a single request.
+
+**`RequestContext` is HTTP-request-scoped only — never read it from shared infrastructure.** Its `AsyncLocalStorage` store is populated exclusively by `RequestInterceptor`, which only runs in the HTTP request pipeline. Two other invocation contexts call into the same repositories and services with no interceptor in front of them:
+- **Cron jobs** (`*.job.ts`) — triggered by an internal HTTP endpoint, but the job's per-tenant loop body runs outside any single request's interceptor.
+- **Event handlers** (`infrastructure/events/*.handler.ts`) — Pub/Sub delivery, no HTTP request at all.
+
+A repository or adapter that reads `this.requestContext.settings` works fine when called from a use case (always HTTP-request-scoped) but throws `Cannot read properties of undefined (reading 'settings')` the moment it's reached from a cron job or an event handler's cross-context adapter call chain — and both paths exist for the same shared repositories (`TypeOrmBookingRepository`, `TypeOrmServiceRepository`).
+
+**Rule:**
+- **Use cases** — single invocation context (HTTP) — may inject `RequestContext` directly and read `.settings`, `.tenantId`, etc.
+- **Shared infrastructure** (repositories, anything called from more than one invocation context) — must take `tenantId` as an explicit method parameter and read settings via a `tenantId`-parameterized port (`ITenantSettingsPort.getSettings(tenantId)`), never ambient context.
+
+| Artifact | Location |
+|---|---|
+| `RequestContext` | `src/shared/request/request-context.ts` |
+| `RequestInterceptor` (populates it) | `src/shared/request/request.interceptor.ts` |
+| `ITenantSettingsPort` (tenantId-parameterized, for shared infra) | `src/shared/ports/tenant-settings.port.ts` |
+| Real adapter | `src/contexts/platform/infrastructure/cross-context/platform-tenant-settings.adapter.ts` |
+| Test builder | `src/test/factories/request-context.factory.ts` (`RequestContextBuilder`) |
+| Test double for the port | `src/test/infrastructure/in-memory-tenant-settings.port.ts` |
+
+---
+
+## Static locale/config files in workspace packages
+
+`packages/i18n/locales/**` (and any future non-TypeScript static assets in a workspace package) sit outside that package's `src/`/`tsconfig.json` `include` — they are never compiled or copied into `dist/`. Importing them via a TS `import` statement only works in the source tree and silently breaks once the consuming app runs compiled JS.
+
+Read them via Node's own module resolution instead, which works identically in dev (`ts-node`) and compiled prod:
+
+```ts
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
+const localesRoot = join(dirname(require.resolve('@ikaro/i18n/package.json')), 'locales');
+const data = JSON.parse(readFileSync(join(localesRoot, locale, 'notifications.json'), 'utf-8'));
+```
+
+`require.resolve('<package>/package.json')` always resolves to the package root regardless of whether the package ships `src/` or `dist/` — `package.json` is never excluded from a build. Read all supported locales once in the constructor (`JsonLocalizationAdapter` is the model here) rather than re-reading per call.
+
+---
+
 ## Event Handlers (Pub/Sub consumers)
 
 Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**, not application layer.
