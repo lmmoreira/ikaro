@@ -11,6 +11,10 @@ import {
   CompleteBookingLinesIncompleteError,
 } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
+import {
+  ITenantLocalizationPort,
+  TENANT_LOCALIZATION_PORT,
+} from '../ports/tenant-localization.port';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { CompleteBookingDto } from '../dtos/complete-booking.dto';
 
@@ -28,6 +32,8 @@ export class CompleteBookingUseCase {
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    @Inject(TENANT_LOCALIZATION_PORT)
+    private readonly localizationPort: ITenantLocalizationPort,
     private readonly photoExistenceService: PhotoExistenceService,
   ) {}
 
@@ -39,6 +45,7 @@ export class CompleteBookingUseCase {
     const booking = await this.bookingRepo.findById(dto.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(dto.bookingId);
 
+    const { currency } = await this.localizationPort.getLocalization(tenantId);
     const requestLineIds = new Set(dto.lines.map((l) => l.lineId));
     const missingLineIds = booking.lines
       .filter((l) => !requestLineIds.has(l.lineId))
@@ -50,7 +57,7 @@ export class CompleteBookingUseCase {
     await this.photoExistenceService.assertPhotosUploaded(dto.afterServicePhotoUrls, tenantId);
 
     const lineActualPrices = new Map(
-      dto.lines.map((l) => [l.lineId, Money.from(l.actualPriceCharged)]),
+      dto.lines.map((l) => [l.lineId, Money.from(l.actualPriceCharged, currency)]),
     );
 
     booking.complete(

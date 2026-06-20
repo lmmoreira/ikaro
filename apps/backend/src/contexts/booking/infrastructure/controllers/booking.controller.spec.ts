@@ -5,6 +5,7 @@ import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { BookingBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
@@ -133,8 +134,8 @@ describe('BookingController', () => {
         new InMemoryEventBus(),
         new PhotoExistenceService(storageService),
       ),
-      new ListBookingsUseCase(bookingRepo, staffCtx),
-      new GetBookingUseCase(bookingRepo, staffCtx),
+      new ListBookingsUseCase(bookingRepo, new InMemoryTenantLocalizationPort(), staffCtx),
+      new GetBookingUseCase(bookingRepo, new InMemoryTenantLocalizationPort(), staffCtx),
       new CancelBookingAsCustomerUseCase(
         customerCtx,
         bookingRepo,
@@ -163,6 +164,7 @@ describe('BookingController', () => {
         bookingRepo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
+        new InMemoryTenantLocalizationPort(),
         new PhotoExistenceService(storageService),
       ),
     );
@@ -270,8 +272,8 @@ describe('BookingController', () => {
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
-        new ListBookingsUseCase(repoB, ctx),
-        new GetBookingUseCase(repoB, ctx),
+        new ListBookingsUseCase(repoB, new InMemoryTenantLocalizationPort(), ctx),
+        new GetBookingUseCase(repoB, new InMemoryTenantLocalizationPort(), ctx),
         new CancelBookingAsCustomerUseCase(
           customerCtxB,
           repoB,
@@ -300,6 +302,7 @@ describe('BookingController', () => {
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
+          new InMemoryTenantLocalizationPort(),
           new PhotoExistenceService(storageService),
         ),
       );
@@ -428,8 +431,8 @@ describe('BookingController', () => {
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
-        new ListBookingsUseCase(bookingRepoB, staffCtx),
-        new GetBookingUseCase(bookingRepoB, staffCtx),
+        new ListBookingsUseCase(bookingRepoB, new InMemoryTenantLocalizationPort(), staffCtx),
+        new GetBookingUseCase(bookingRepoB, new InMemoryTenantLocalizationPort(), staffCtx),
         new CancelBookingAsCustomerUseCase(
           customerCtxC,
           bookingRepoB,
@@ -455,6 +458,7 @@ describe('BookingController', () => {
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
+          new InMemoryTenantLocalizationPort(),
           new PhotoExistenceService(storageService),
         ),
       );
@@ -877,8 +881,8 @@ describe('BookingController', () => {
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
-        new ListBookingsUseCase(repoC, ctx),
-        new GetBookingUseCase(repoC, ctx),
+        new ListBookingsUseCase(repoC, new InMemoryTenantLocalizationPort(), ctx),
+        new GetBookingUseCase(repoC, new InMemoryTenantLocalizationPort(), ctx),
         new CancelBookingAsCustomerUseCase(
           ctx,
           repoC,
@@ -907,6 +911,7 @@ describe('BookingController', () => {
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
+          new InMemoryTenantLocalizationPort(),
           new PhotoExistenceService(storageService),
         ),
       );
@@ -1025,13 +1030,13 @@ describe('BookingController', () => {
     function approvedBookingWithLine() {
       const line = new BookingLineBuilder()
         .withLineId(LINE_ID)
-        .withPriceAtBooking(Money.from(100))
+        .withPriceAtBooking(Money.from(100, 'BRL'))
         .build();
       return new BookingBuilder()
         .withTenantId(TENANT_A)
         .withStatus(BookingStatus.APPROVED)
         .withLines([line])
-        .withTotalPrice(Money.from(100))
+        .withTotalPrice(Money.from(100, 'BRL'))
         .build();
     }
 

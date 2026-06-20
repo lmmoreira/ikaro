@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { TenantContext } from '../../../../shared/tenant/tenant-context';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
+import {
+  ITenantLocalizationPort,
+  TENANT_LOCALIZATION_PORT,
+} from '../ports/tenant-localization.port';
 import { ListBookingsDto } from '../dtos/list-bookings.dto';
 import { Booking } from '../../domain/booking.aggregate';
 
@@ -33,6 +37,8 @@ export interface ListBookingsUseCaseResult {
 export class ListBookingsUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
+    @Inject(TENANT_LOCALIZATION_PORT)
+    private readonly localizationPort: ITenantLocalizationPort,
     private readonly tenantContext: TenantContext,
   ) {}
 
@@ -51,8 +57,9 @@ export class ListBookingsUseCase {
       offset: dto.offset,
     });
 
+    const { locale } = await this.localizationPort.getLocalization(tenantId);
     return {
-      items: items.map((b) => this.toListItem(b)),
+      items: items.map((b) => this.toListItem(b, locale)),
       pagination: {
         limit: dto.limit,
         offset: dto.offset,
@@ -62,7 +69,7 @@ export class ListBookingsUseCase {
     };
   }
 
-  private toListItem(booking: Booking): BookingListItem {
+  private toListItem(booking: Booking, locale: string): BookingListItem {
     return {
       id: booking.id,
       status: booking.status,
@@ -75,7 +82,7 @@ export class ListBookingsUseCase {
       totalPrice: {
         amount: booking.totalPrice.amount.toNumber(),
         currency: booking.totalPrice.currency,
-        formatted: booking.totalPrice.format(),
+        formatted: booking.totalPrice.format(locale),
       },
       lineSummary: booking.lines.map((l) => ({
         serviceId: l.serviceId,
@@ -83,7 +90,7 @@ export class ListBookingsUseCase {
         priceAtBooking: {
           amount: l.priceAtBooking.amount.toNumber(),
           currency: l.priceAtBooking.currency,
-          formatted: l.priceAtBooking.format(),
+          formatted: l.priceAtBooking.format(locale),
         },
       })),
       createdAt: booking.createdAt.toISOString(),

@@ -1,7 +1,7 @@
 export interface Money {
   amount: number;
-  currency: 'BRL';
-  formatted: string; // always "R$ 1.234,56"
+  currency: string;
+  formatted: string; // locale+currency formatted via Intl.NumberFormat
 }
 
 export interface MoneyAmount {

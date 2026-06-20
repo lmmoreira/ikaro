@@ -1,4 +1,5 @@
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { Money } from '../../../../shared/value-objects/money';
@@ -15,6 +16,7 @@ describe('ListServicesUseCase', () => {
     repo = new InMemoryServiceRepository();
     useCase = new ListServicesUseCase(
       repo,
+      new InMemoryTenantLocalizationPort(),
       new TenantContextBuilder().withTenantId(TENANT_A).build(),
     );
   });
@@ -47,7 +49,7 @@ describe('ListServicesUseCase', () => {
 
     const result = await useCase.execute();
 
-    expect(result.items[0].price.formatted).toBe('R$ 150,00');
+    expect(result.items[0].price.formatted).toBe('R$\u00A0150,00');
     expect(result.items[0].price.currency).toBe('BRL');
   });
 

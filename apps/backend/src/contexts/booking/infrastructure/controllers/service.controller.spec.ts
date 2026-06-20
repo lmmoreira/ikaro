@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
@@ -33,10 +34,11 @@ describe('ServiceController', () => {
       .withActorRole('MANAGER')
       .build();
     const txManager = new InMemoryTransactionManager();
+    const localizationPort = new InMemoryTenantLocalizationPort();
     controller = new ServiceController(
-      new CreateServiceUseCase(repo, txManager, ctx),
-      new ListServicesUseCase(repo, ctx),
-      new UpdateServiceUseCase(repo, txManager, ctx),
+      new CreateServiceUseCase(repo, txManager, localizationPort, ctx),
+      new ListServicesUseCase(repo, localizationPort, ctx),
+      new UpdateServiceUseCase(repo, txManager, localizationPort, ctx),
       new DeactivateServiceUseCase(repo, txManager, ctx),
     );
   });
@@ -45,7 +47,7 @@ describe('ServiceController', () => {
     it('returns 201 with service DTO including pt-BR formatted price', async () => {
       const result = await controller.create(validBody);
       expect(result.id).toBeDefined();
-      expect(result.price.formatted).toBe('R$ 150,00');
+      expect(result.price.formatted).toBe('R$\u00A0150,00');
       expect(result.isActive).toBe(true);
     });
 

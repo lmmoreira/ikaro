@@ -41,6 +41,7 @@ describe('NotificationPlatformAdapter', () => {
       name: tenantResult.name,
       slug: tenantResult.slug,
       timezone: tenantResult.settings.business_hours.timezone,
+      locale: tenantResult.settings.localization.language,
       fromEmail: 'hello@ikaro.example',
     });
     expect(getTenantById.execute).toHaveBeenCalledWith(TENANT_ID);

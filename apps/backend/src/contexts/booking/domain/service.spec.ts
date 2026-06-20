@@ -51,7 +51,7 @@ describe('Service', () => {
 
     it('price.format() returns pt-BR formatted string', () => {
       const service = new ServiceBuilder().withTenantId(TENANT).withPrice(PRICE).build();
-      expect(service.price.format()).toBe('R$ 150,00');
+      expect(service.price.format('pt-BR')).toBe('R$\u00A0150,00');
     });
 
     it('stores no domain events on creation', () => {
@@ -76,9 +76,9 @@ describe('Service', () => {
     });
 
     it('throws when price amount is zero', () => {
-      expect(() => Service.create(TENANT, 'Lavagem', Money.from(0), DURATION, POINTS)).toThrow(
-        BookingDomainError,
-      );
+      expect(() =>
+        Service.create(TENANT, 'Lavagem', Money.from(0, 'BRL'), DURATION, POINTS),
+      ).toThrow(BookingDomainError);
     });
 
     it('throws when price amount is negative', () => {
@@ -181,9 +181,9 @@ describe('Service', () => {
     });
 
     it('throws when updated price is zero', () => {
-      expect(() => service.update('Lavagem', null, Money.from(0), DURATION, POINTS, false)).toThrow(
-        BookingDomainError,
-      );
+      expect(() =>
+        service.update('Lavagem', null, Money.from(0, 'BRL'), DURATION, POINTS, false),
+      ).toThrow(BookingDomainError);
     });
 
     it('throws when updated durationMinutes is zero', () => {

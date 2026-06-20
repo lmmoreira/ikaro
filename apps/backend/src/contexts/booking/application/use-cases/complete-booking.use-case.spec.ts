@@ -1,6 +1,7 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { BookingLineBuilder } from '../../../../test/builders/booking/booking-line.builder';
@@ -26,7 +27,7 @@ function makeApprovedBooking(tenantId = TENANT_A, lineIds = [LINE_ID_1]) {
   const lines = lineIds.map((lineId) =>
     new BookingLineBuilder()
       .withLineId(lineId)
-      .withPriceAtBooking(Money.from(100))
+      .withPriceAtBooking(Money.from(100, 'BRL'))
       .withPointsValueAtBooking(10)
       .build(),
   );
@@ -34,7 +35,7 @@ function makeApprovedBooking(tenantId = TENANT_A, lineIds = [LINE_ID_1]) {
     .withTenantId(tenantId)
     .withStatus(BookingStatus.APPROVED)
     .withLines(lines)
-    .withTotalPrice(Money.from(lineIds.length * 100))
+    .withTotalPrice(Money.from(lineIds.length * 100, 'BRL'))
     .build();
 }
 
@@ -71,6 +72,7 @@ describe('CompleteBookingUseCase', () => {
       bookingRepo,
       new InMemoryTransactionManager(),
       eventBus,
+      new InMemoryTenantLocalizationPort(),
       new PhotoExistenceService(storageService),
     );
   });

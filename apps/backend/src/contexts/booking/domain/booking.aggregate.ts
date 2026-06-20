@@ -229,7 +229,10 @@ export class Booking extends AggregateRoot {
     const id = uuidv7();
     const lines = lineInputs.map((input) => BookingLine.create(id, tenantId, input));
     const totalDurationMins = lines.reduce((sum, l) => sum + l.durationMinsAtBooking, 0);
-    const totalPrice = lines.reduce((sum, l) => sum.add(l.priceAtBooking), Money.zero());
+    const totalPrice = lines.reduce(
+      (sum, l) => sum.add(l.priceAtBooking),
+      Money.zero(lines[0].priceAtBooking.currency),
+    );
 
     const booking = new Booking({
       id,
@@ -440,7 +443,7 @@ export class Booking extends AggregateRoot {
 
     const totalActualPrice = this.props.lines.reduce(
       (sum, l) => sum.add(l.actualPriceCharged!),
-      Money.zero(),
+      Money.zero(this.props.totalPrice.currency),
     );
 
     this._linesModified = true;

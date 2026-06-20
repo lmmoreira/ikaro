@@ -5,6 +5,7 @@ export interface NotificationTenantInfo {
   name: string;
   slug: string;
   timezone: string;
+  locale: string;
   fromEmail: string | null;
 }
 

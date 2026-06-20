@@ -1,17 +1,10 @@
 import { Decimal } from 'decimal.js';
 import { ValueObject } from '../domain/value-object';
-
-function groupThousands(digits: string): string {
-  const groups: string[] = [];
-  for (let end = digits.length; end > 0; end -= 3) {
-    groups.unshift(digits.slice(Math.max(0, end - 3), end));
-  }
-  return groups.join('.');
-}
+import { formatMoney } from '../utils/money-format';
 
 interface MoneyProps {
   amount: string; // stored as string to preserve precision across serialization
-  currency: 'BRL';
+  currency: string; // ISO 4217
 }
 
 export class Money extends ValueObject<MoneyProps> {
@@ -19,23 +12,27 @@ export class Money extends ValueObject<MoneyProps> {
     super(props);
   }
 
-  static from(amount: number | string | Decimal, currency: 'BRL' = 'BRL'): Money {
+  static from(amount: number | string | Decimal, currency: string): Money {
     const decimal = new Decimal(amount);
     if (decimal.isNaN() || !decimal.isFinite()) {
       throw new Error(`Invalid money amount: ${String(amount)}`);
     }
-    return new Money({ amount: decimal.toFixed(2), currency });
+    const normalizedCurrency = currency.trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(normalizedCurrency)) {
+      throw new Error(`Invalid money currency: ${currency}`);
+    }
+    return new Money({ amount: decimal.toFixed(2), currency: normalizedCurrency });
   }
 
-  static zero(): Money {
-    return Money.from(0);
+  static zero(currency: string): Money {
+    return Money.from(0, currency);
   }
 
   get amount(): Decimal {
     return new Decimal(this.props.amount);
   }
 
-  get currency(): 'BRL' {
+  get currency(): string {
     return this.props.currency;
   }
 
@@ -46,12 +43,8 @@ export class Money extends ValueObject<MoneyProps> {
     return Money.from(this.amount.plus(other.amount), this.currency);
   }
 
-  format(): string {
-    const [intPart, decPart] = this.props.amount.split('.');
-    const negative = intPart.startsWith('-');
-    const digits = negative ? intPart.slice(1) : intPart;
-    const intFormatted = `${negative ? '-' : ''}${groupThousands(digits)}`;
-    return `R$ ${intFormatted},${decPart ?? '00'}`;
+  format(locale: string): string {
+    return formatMoney(this.amount.toFixed(2), locale, this.currency);
   }
 
   isGreaterThan(other: Money): boolean {

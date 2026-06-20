@@ -37,6 +37,7 @@ describe('SendBookingReminderDueTodayNotificationUseCase', () => {
       name: 'LavaCar SP',
       slug: 'lavacar-sp',
       timezone: 'America/Sao_Paulo',
+      locale: 'pt-BR',
       fromEmail: null,
     });
     templateRepo.seed(

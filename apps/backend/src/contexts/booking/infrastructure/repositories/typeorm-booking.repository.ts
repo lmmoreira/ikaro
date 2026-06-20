@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
@@ -12,6 +12,10 @@ import {
   BookingPaginatedResult,
   IBookingRepository,
 } from '../../application/ports/booking-repository.port';
+import {
+  ITenantLocalizationPort,
+  TENANT_LOCALIZATION_PORT,
+} from '../../application/ports/tenant-localization.port';
 import { Booking, BookingProps, BookingStatus, BookingType } from '../../domain/booking.aggregate';
 import { BookingLine } from '../../domain/booking-line.entity';
 import { BookingEntity } from '../entities/booking.entity';
@@ -24,13 +28,16 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     private readonly repo: Repository<BookingEntity>,
     @InjectRepository(BookingLineEntity)
     private readonly lineRepo: Repository<BookingLineEntity>,
+    @Inject(TENANT_LOCALIZATION_PORT)
+    private readonly localizationPort: ITenantLocalizationPort,
   ) {}
 
   async findById(id: string, tenantId: string): Promise<Booking | null> {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
     if (!entity) return null;
     const lineEntities = await this.lineRepo.find({ where: { bookingId: id, tenantId } });
-    return this.toDomain(entity, lineEntities);
+    const { currency } = await this.localizationPort.getLocalization(tenantId);
+    return this.toDomain(entity, lineEntities, currency);
   }
 
   async findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
@@ -60,7 +67,8 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       linesByBookingId.set(line.bookingId, list);
     }
 
-    return entities.map((e) => this.toDomain(e, linesByBookingId.get(e.id) ?? []));
+    const { currency } = await this.localizationPort.getLocalization(tenantId);
+    return entities.map((e) => this.toDomain(e, linesByBookingId.get(e.id) ?? [], currency));
   }
 
   async findAllByTenantPaginated(
@@ -99,8 +107,9 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       linesByBookingId.set(line.bookingId, list);
     }
 
+    const { currency } = await this.localizationPort.getLocalization(tenantId);
     return {
-      items: entities.map((e) => this.toDomain(e, linesByBookingId.get(e.id) ?? [])),
+      items: entities.map((e) => this.toDomain(e, linesByBookingId.get(e.id) ?? [], currency)),
       total,
     };
   }
@@ -135,7 +144,11 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     }
   }
 
-  private toDomain(entity: BookingEntity, lineEntities: BookingLineEntity[]): Booking {
+  private toDomain(
+    entity: BookingEntity,
+    lineEntities: BookingLineEntity[],
+    currency: string,
+  ): Booking {
     const lines = lineEntities.map((l) =>
       BookingLine.reconstitute({
         lineId: l.lineId,
@@ -143,12 +156,12 @@ export class TypeOrmBookingRepository implements IBookingRepository {
         tenantId: l.tenantId,
         serviceId: l.serviceId,
         serviceNameAtBooking: l.serviceNameAtBooking,
-        priceAtBooking: Money.from(l.priceAtBookingAmount, 'BRL'),
+        priceAtBooking: Money.from(l.priceAtBookingAmount, currency),
         durationMinsAtBooking: l.durationMinsAtBooking,
         pointsValueAtBooking: l.pointsValueAtBooking,
         requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
         actualPriceCharged: l.actualPriceChargedAmount
-          ? Money.from(l.actualPriceChargedAmount, 'BRL')
+          ? Money.from(l.actualPriceChargedAmount, currency)
           : null,
       }),
     );
@@ -170,9 +183,9 @@ export class TypeOrmBookingRepository implements IBookingRepository {
         : null,
       scheduledAt: entity.scheduledAt,
       totalDurationMins: entity.totalDurationMins,
-      totalPrice: Money.from(entity.totalPriceAmount, 'BRL'),
+      totalPrice: Money.from(entity.totalPriceAmount, currency),
       totalActualPrice: entity.totalActualPriceAmount
-        ? Money.from(entity.totalActualPriceAmount, 'BRL')
+        ? Money.from(entity.totalActualPriceAmount, currency)
         : null,
       lines,
       beforeServicePhotoUrls: entity.beforeServicePhotoUrls,

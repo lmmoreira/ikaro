@@ -40,6 +40,7 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
       name: 'LavaCar SP',
       slug: 'lavacar-sp',
       timezone: 'America/Sao_Paulo',
+      locale: 'pt-BR',
       fromEmail: null,
     });
     staffPort.setManagerEmails(TENANT_ID, ['manager1@lavacar.com', 'manager2@lavacar.com']);
