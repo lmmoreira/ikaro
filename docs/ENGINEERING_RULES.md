@@ -214,3 +214,59 @@ Two test files per controller: `.spec.ts` (unit) + `.component.spec.ts` (compone
 - `backend-http.mock.ts` — for unit specs only
 
 `test:cov` must exclude component specs — coverage instruments `AppModule` at import time, triggering `validateEnv` before env vars are set.
+
+---
+
+## Web — Formatting Utilities (`apps/web`)
+
+### All format functions belong in `lib/formatting/`
+
+Any function that takes `locale`, `currency`, `timezone`, or `dateFormat` as a parameter belongs in `apps/web/lib/formatting/` — not in a domain-scoped folder like `lib/booking/` or `lib/hotsite/`. The boundary test: *if the function would work identically in the booking flow and the hotsite, it's a formatter, not a domain function.*
+
+Current `lib/formatting/` inventory:
+
+| File | Exports |
+|---|---|
+| `format-money.ts` | `formatMoney(amount, locale, currency)` |
+| `format-duration.ts` | `formatDuration(minutes)` |
+| `format-time.ts` | `formatTime`, `formatDate`, `formatDateLong`; re-exports `DateFormat` from `@ikaro/i18n` |
+| `date-utils.ts` | `toISODate`, `addDays` — pure date math |
+| `locale-validators.ts` | `isValidTimezone`, `resolveDateFormat` |
+| `formatting-context.ts` | `FormattingContext`, `FormattingState` |
+| `use-formatting.ts` | `useFormatting()` hook |
+
+### `DateFormat` and `TimeFormat` types — use `@ikaro/i18n`
+
+`DateFormat` (`'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD'`) and `TimeFormat` (`'24h' | '12h'`) are exported from `packages/i18n` — they derive from `CountrySpec` which already defines them. Import from there, never redefine locally:
+
+```ts
+import type { DateFormat, TimeFormat } from '@ikaro/i18n';
+```
+
+### NBSP normalization in `Intl.NumberFormat` output
+
+`Intl.NumberFormat` for currency formatting emits non-breaking spaces that vary by locale:
+- `U+00A0` (NBSP) — `pt-BR` between `R$` and the amount; `ru-RU` emits two of them
+- `U+202F` (narrow NBSP) — `fr-FR` between digits and currency symbol
+
+A bare `.replace(' ', ' ')` is wrong in two ways: no `g` flag (misses duplicates) and misses `U+202F`. Always use:
+
+```ts
+.replace(/[  ]/g, ' ')
+```
+
+### `reconstitute()` skips domain validation — guard at the web boundary
+
+`TenantSettings.reconstitute()` (used when loading an entity from the DB) deliberately skips validation to avoid erroring on rows written before a validation rule existed. Any web code that consumes a field loaded via `reconstitute()` — such as `timezone` from the hotsite manifest — must apply a defensive guard before passing the value to a strict API like `Intl.DateTimeFormat`:
+
+```ts
+// BAD — trusts that DB row is valid; Intl throws on malformed timezone
+const timezone = manifest.localization.timezone;
+
+// GOOD — falls back to 'UTC' if DB value is malformed
+const timezone = isValidTimezone(manifest.localization.timezone)
+  ? manifest.localization.timezone
+  : 'UTC';
+```
+
+`isValidTimezone` is in `lib/formatting/locale-validators.ts`. The same pattern applies to any manifest field whose DB-level validity is enforced only by `create()`, not `reconstitute()`.
