@@ -664,13 +664,15 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 - Register adapter in `NotificationModule`
 
 **Key files:**
-`packages/i18n/locales/**` (all new) · `notification/application/ports/i-localization.port.ts` (new) · `notification/infrastructure/adapters/json-localization.adapter.ts` (new) · `notification/notification.module.ts`
+`packages/i18n/locales/**` (all new) · `notification/application/ports/localization.port.ts` (new — named to match the codebase's existing `<concept>.port.ts` convention, not the literal `i-localization.port.ts` filename above) · `notification/infrastructure/adapters/json-localization.adapter.ts` (new) · `notification/notification.module.ts`
 
 **Acceptance criteria:**
 - [ ] `JsonLocalizationAdapter.getNotificationTemplate('BookingApproved', 'customer', 'pt-BR')` returns correct subject
 - [ ] `JsonLocalizationAdapter.getNotificationTemplate('BookingApproved', 'customer', 'en')` returns English subject
 - [ ] Unknown locale falls back to `'pt-BR'`
 - [ ] Unit tests for adapter
+
+**Known gap — intentionally deferred to S10:** the existing `notification_templates` DB table (seeded via the `CreateNotificationTemplates` migration, copied per-tenant at provisioning) is what every `Send*NotificationUseCase` actually uses today, via `INotificationTemplateRepository`. That path is **not locale-aware** — it always renders pt-BR content regardless of `tenant.settings.localization.language`, which is TD02's P1 bug. `JsonLocalizationAdapter` is registered in `NotificationModule` but nothing calls it yet; this story does not fix that bug, only lays the groundwork. The two content sources also have minor subject-wording differences for `BookingRejected`, `AdminDailyScheduleReminder`, `ServicePointsEarned`, and `PointsExpiringSoon` — reconcile them when S10 rewires the 13 use-cases to `ILocalizationPort` and retires the DB-seeded approach.
 
 ---
 
