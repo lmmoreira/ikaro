@@ -686,7 +686,7 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 
 ---
 
-#### TD02-S06 — `next-intl` setup in `apps/web`
+#### TD02-S06 — `next-intl` setup in `apps/web` ✅ Done
 
 **Scope:**
 - Install `next-intl` in `apps/web`
