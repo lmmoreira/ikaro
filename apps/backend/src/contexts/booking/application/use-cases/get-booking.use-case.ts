@@ -35,7 +35,7 @@ export interface GetBookingUseCaseResult {
     street: string;
     number: string;
     complement: string | null;
-    neighborhood: string;
+    neighborhood: string | null;
     city: string;
     state: string;
     zipCode: string;
@@ -102,7 +102,7 @@ export class GetBookingUseCase {
             street: addr.street,
             number: addr.number,
             complement: addr.complement ?? null,
-            neighborhood: addr.neighborhood,
+            neighborhood: addr.neighborhood ?? null,
             city: addr.city,
             state: addr.state,
             zipCode: addr.zipCode,

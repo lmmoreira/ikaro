@@ -595,7 +595,7 @@ export class Booking extends AggregateRoot {
       street: j.street,
       number: j.number,
       complement: j.complement ?? null,
-      neighborhood: j.neighborhood,
+      neighborhood: j.neighborhood ?? null,
       city: j.city,
       state: j.state,
       zipCode: j.zipCode,

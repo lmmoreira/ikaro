@@ -5,6 +5,7 @@ import {
 import { CustomerBuilder } from '../../../../test/builders/customer/customer.builder';
 import { InMemoryCustomerRepository } from '../../../../test/repositories/customer/in-memory-customer.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryTenantCountryPort } from '../../../../test/infrastructure/in-memory-tenant-country.port';
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { UpdateCustomerProfileUseCase } from './update-customer-profile.use-case';
 
@@ -39,7 +40,12 @@ describe('UpdateCustomerProfileUseCase', () => {
       .withActorId(customerId)
       .withActorType('CUSTOMER')
       .build();
-    useCase = new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx);
+    useCase = new UpdateCustomerProfileUseCase(
+      repo,
+      new InMemoryTransactionManager(),
+      new InMemoryTenantCountryPort(),
+      ctx,
+    );
   });
 
   it('updates name when provided', async () => {
@@ -84,7 +90,12 @@ describe('UpdateCustomerProfileUseCase', () => {
       .withActorId('00000000-0000-4000-8000-000000009998')
       .withActorType('CUSTOMER')
       .build();
-    const uc = new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx);
+    const uc = new UpdateCustomerProfileUseCase(
+      repo,
+      new InMemoryTransactionManager(),
+      new InMemoryTenantCountryPort(),
+      ctx,
+    );
     await expect(uc.execute({ name: 'X' })).rejects.toBeInstanceOf(CustomerNotFoundError);
   });
 

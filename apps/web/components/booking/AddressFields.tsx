@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import type React from 'react';
-import type { Address } from '@ikaro/types';
+import type { Address, HotsiteAddressSpec } from '@ikaro/types';
 import type { AddressLookup } from '@/lib/address/address-lookup.port';
 import { viaCepAddressLookup } from '@/lib/address/viacep-address-lookup.adapter';
 import { digitsOnly } from '@/lib/utils';
@@ -11,6 +11,7 @@ interface AddressFieldsProps {
   readonly value: Address;
   readonly onChange: (address: Address) => void;
   readonly idPrefix: string;
+  readonly addressSpec: HotsiteAddressSpec;
   readonly addressLookup?: AddressLookup;
   readonly required?: boolean;
   readonly hasError?: boolean;
@@ -78,6 +79,7 @@ export function AddressFields({
   value,
   onChange,
   idPrefix,
+  addressSpec,
   addressLookup = viaCepAddressLookup,
   required = true,
   hasError = false,
@@ -87,10 +89,11 @@ export function AddressFields({
   const lookupSeqRef = useRef(0);
 
   async function handleZipCodeChange(zipCode: string) {
-    const digits = digitsOnly(zipCode);
-    onChange({ ...value, zipCode: digits });
+    onChange({ ...value, zipCode });
     setLookupFailed(false);
 
+    if (addressSpec.lookupService !== 'viacep') return;
+    const digits = digitsOnly(zipCode);
     if (digits.length !== 8) return;
 
     const seq = ++lookupSeqRef.current;
@@ -105,7 +108,7 @@ export function AddressFields({
         return;
       }
 
-      onChange({ ...value, zipCode: digits, ...result });
+      onChange({ ...value, zipCode, ...result });
     } catch {
       if (seq === lookupSeqRef.current) setLookupFailed(true);
     } finally {
@@ -118,12 +121,10 @@ export function AddressFields({
       <div className="sm:col-span-2">
         <TextField
           id={`${idPrefix}-zip-code`}
-          label="CEP"
+          label={addressSpec.postalLabel}
           value={value.zipCode}
           onChange={handleZipCodeChange}
-          inputMode="numeric"
-          maxLength={9}
-          placeholder="00000-000"
+          placeholder={addressSpec.postalPlaceholder}
           required={required}
           hasError={required && hasError}
         />
@@ -170,16 +171,18 @@ export function AddressFields({
         />
       </div>
 
-      <div className="sm:col-span-3">
-        <TextField
-          id={`${idPrefix}-neighborhood`}
-          label="Bairro"
-          value={value.neighborhood}
-          onChange={(neighborhood) => onChange({ ...value, neighborhood })}
-          required={required}
-          hasError={required && hasError}
-        />
-      </div>
+      {addressSpec.requireNeighborhood && (
+        <div className="sm:col-span-3">
+          <TextField
+            id={`${idPrefix}-neighborhood`}
+            label={addressSpec.neighborhoodLabel ?? 'Bairro'}
+            value={value.neighborhood ?? ''}
+            onChange={(neighborhood) => onChange({ ...value, neighborhood })}
+            required={required}
+            hasError={required && hasError}
+          />
+        </div>
+      )}
 
       <div className="sm:col-span-2">
         <TextField
@@ -195,10 +198,9 @@ export function AddressFields({
       <div className="sm:col-span-1">
         <TextField
           id={`${idPrefix}-state`}
-          label="UF"
+          label={addressSpec.stateLabel}
           value={value.state}
           onChange={(state) => onChange({ ...value, state })}
-          maxLength={2}
           required={required}
           hasError={required && hasError}
         />

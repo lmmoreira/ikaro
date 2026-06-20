@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { countrySpec } from '@ikaro/i18n';
 import { Address } from '../../../../shared/value-objects/address';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import {
@@ -13,6 +14,10 @@ import {
 } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import {
+  ITenantLocalizationPort,
+  TENANT_LOCALIZATION_PORT,
+} from '../ports/tenant-localization.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RequestBookingDto } from '../dtos/request-booking.dto';
@@ -31,7 +36,7 @@ export interface AddressResult {
   street: string;
   number: string;
   complement: string | null;
-  neighborhood: string;
+  neighborhood: string | null;
   city: string;
   state: string;
   zipCode: string;
@@ -48,12 +53,16 @@ export class RequestBookingUseCase {
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    @Inject(TENANT_LOCALIZATION_PORT)
+    private readonly localizationPort: ITenantLocalizationPort,
     private readonly tenantContext: TenantContext,
   ) {}
 
   async execute(dto: RequestBookingDto): Promise<RequestBookingUseCaseResult> {
     const tenantId = this.tenantContext.tenantId;
     const correlationId = this.tenantContext.correlationId;
+    const { countryCode } = await this.localizationPort.getLocalization(tenantId);
+    const addressSpec = countrySpec(countryCode).address;
 
     const services = await this.serviceRepo.findByIds(dto.serviceIds, tenantId);
     const serviceMap = new Map(services.map((s) => [s.id, s]));
@@ -79,16 +88,16 @@ export class RequestBookingUseCase {
     const lineInputs = buildLineInputs(dto.serviceIds, serviceMap);
 
     const contactAddress = dto.contactAddress
-      ? Address.create({
-          ...dto.contactAddress,
-          complement: dto.contactAddress.complement ?? undefined,
-        })
+      ? Address.create(
+          { ...dto.contactAddress, complement: dto.contactAddress.complement ?? undefined },
+          addressSpec,
+        )
       : undefined;
     const pickupAddress = dto.pickupAddress
-      ? Address.create({
-          ...dto.pickupAddress,
-          complement: dto.pickupAddress.complement ?? undefined,
-        })
+      ? Address.create(
+          { ...dto.pickupAddress, complement: dto.pickupAddress.complement ?? undefined },
+          addressSpec,
+        )
       : undefined;
 
     const booking = Booking.requestBooking({

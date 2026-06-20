@@ -2,10 +2,24 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AvailabilityResponse, DaySummary, HotsiteServiceResponse } from '@ikaro/types';
+import type {
+  AvailabilityResponse,
+  DaySummary,
+  HotsiteAddressSpec,
+  HotsiteServiceResponse,
+} from '@ikaro/types';
 import { CreateBookingError, createBooking } from '@/lib/api/bookings';
 import { fetchAvailability, fetchAvailabilitySummary } from '@/lib/api/schedule';
 import { BookingForm } from './BookingForm';
+
+const BR_ADDRESS_SPEC: HotsiteAddressSpec = {
+  postalLabel: 'CEP',
+  postalPlaceholder: '00000-000',
+  stateLabel: 'UF',
+  requireNeighborhood: true,
+  neighborhoodLabel: 'Bairro',
+  lookupService: 'viacep',
+};
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -52,7 +66,13 @@ async function advanceToStep3(
   vi.mocked(fetchAvailability).mockResolvedValue(availability);
 
   render(
-    <BookingForm slug="lavacar-beloauto" services={services} carouselDays={14} phonePrefix="+55" />,
+    <BookingForm
+      slug="lavacar-beloauto"
+      services={services}
+      carouselDays={14}
+      phonePrefix="+55"
+      addressSpec={BR_ADDRESS_SPEC}
+    />,
   );
 
   await user.click(screen.getByRole('checkbox'));
@@ -89,6 +109,7 @@ describe('BookingForm', () => {
         services={[makeService()]}
         carouselDays={14}
         phonePrefix="+55"
+        addressSpec={BR_ADDRESS_SPEC}
       />,
     );
 
@@ -106,6 +127,7 @@ describe('BookingForm', () => {
         services={[makeService()]}
         carouselDays={14}
         phonePrefix="+55"
+        addressSpec={BR_ADDRESS_SPEC}
       />,
     );
 
@@ -156,6 +178,7 @@ describe('BookingForm', () => {
         services={[service]}
         carouselDays={14}
         phonePrefix="+55"
+        addressSpec={BR_ADDRESS_SPEC}
       />,
     );
     await user.click(screen.getByRole('checkbox'));

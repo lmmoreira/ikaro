@@ -1,3 +1,4 @@
+import { countrySpec } from '@ikaro/i18n';
 import { Address, AddressProps } from '../../shared/value-objects/address';
 
 const DEFAULT_ADDRESS: AddressProps = {
@@ -11,7 +12,7 @@ const DEFAULT_ADDRESS: AddressProps = {
 
 /** Returns a valid Brazilian Address VO for use in tests. */
 export function testAddress(overrides: Partial<AddressProps> = {}): Address {
-  return Address.create({ ...DEFAULT_ADDRESS, ...overrides });
+  return Address.create({ ...DEFAULT_ADDRESS, ...overrides }, countrySpec('BR').address);
 }
 
 /** Returns raw AddressProps (plain object) for use in DTO / controller tests. */

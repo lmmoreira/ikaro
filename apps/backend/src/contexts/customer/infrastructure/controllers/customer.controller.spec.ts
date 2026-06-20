@@ -2,6 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { CustomerBuilder } from '../../../../test/builders/customer/customer.builder';
 import { InMemoryCustomerRepository } from '../../../../test/repositories/customer/in-memory-customer.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryTenantCountryPort } from '../../../../test/infrastructure/in-memory-tenant-country.port';
 import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
 import { testAddressProps } from '../../../../test/utils/address-helpers';
 import { GetCustomerProfileUseCase } from '../../application/use-cases/get-customer-profile.use-case';
@@ -33,7 +34,12 @@ describe('CustomerController', () => {
 
     controller = new CustomerController(
       new GetCustomerProfileUseCase(repo, ctx),
-      new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
+      new UpdateCustomerProfileUseCase(
+        repo,
+        new InMemoryTransactionManager(),
+        new InMemoryTenantCountryPort(),
+        ctx,
+      ),
     );
   });
 
@@ -54,7 +60,12 @@ describe('CustomerController', () => {
         .build();
       const ctrl = new CustomerController(
         new GetCustomerProfileUseCase(repo, ctx),
-        new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
+        new UpdateCustomerProfileUseCase(
+          repo,
+          new InMemoryTransactionManager(),
+          new InMemoryTenantCountryPort(),
+          ctx,
+        ),
       );
       const err = await ctrl.getMe().catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type React from 'react';
-import type { Address, HotsiteServiceResponse } from '@ikaro/types';
+import type { Address, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import { formatDuration } from '@/lib/hotsite/format-duration';
 import { formatBRL } from '@/lib/hotsite/format-money';
 import { isAddressFilled } from '@/lib/booking/personal-info';
@@ -16,6 +16,7 @@ interface ServiceSelectionStepProps {
   readonly requiresPickupAddress: boolean;
   readonly pickupAddress: Address;
   readonly onPickupAddressChange: (address: Address) => void;
+  readonly addressSpec: HotsiteAddressSpec;
   readonly onNext: () => void;
   readonly onBack: () => void;
 }
@@ -41,6 +42,7 @@ export function ServiceSelectionStep({
   requiresPickupAddress,
   pickupAddress,
   onPickupAddressChange,
+  addressSpec,
   onNext,
   onBack,
 }: ServiceSelectionStepProps) {
@@ -126,6 +128,7 @@ export function ServiceSelectionStep({
               setError(null);
             }}
             idPrefix="pickup-address"
+            addressSpec={addressSpec}
             hasError={!!error}
           />
         </div>

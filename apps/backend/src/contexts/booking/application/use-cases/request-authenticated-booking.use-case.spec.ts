@@ -3,6 +3,7 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
@@ -61,6 +62,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       bookingRepo,
       txManager,
       eventBus,
+      new InMemoryTenantLocalizationPort(),
       ctx,
     );
 
@@ -142,6 +144,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       bookingRepo,
       new InMemoryTransactionManager(),
       new InMemoryEventBus(),
+      new InMemoryTenantLocalizationPort(),
       ctx,
     );
 

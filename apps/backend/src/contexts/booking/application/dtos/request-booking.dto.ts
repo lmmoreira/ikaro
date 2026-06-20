@@ -4,10 +4,10 @@ const AddressSchema = z.object({
   street: z.string().min(1),
   number: z.string().min(1),
   complement: z.string().nullable().optional(),
-  neighborhood: z.string().min(1),
+  neighborhood: z.string().min(1).optional(),
   city: z.string().min(1),
-  state: z.string().length(2),
-  zipCode: z.string().regex(/^\d{8}$/, 'zipCode must be 8 digits'),
+  state: z.string().min(1).max(10),
+  zipCode: z.string().min(1).max(20),
 });
 
 export const RequestBookingSchema = z.object({

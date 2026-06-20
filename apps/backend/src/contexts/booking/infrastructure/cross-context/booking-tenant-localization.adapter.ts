@@ -11,6 +11,10 @@ export class BookingTenantLocalizationAdapter implements ITenantLocalizationPort
 
   async getLocalization(tenantId: string): Promise<TenantLocalization> {
     const { settings } = await this.getTenantById.execute(tenantId);
-    return { currency: settings.localization.currency, locale: settings.localization.language };
+    return {
+      currency: settings.localization.currency,
+      locale: settings.localization.language,
+      countryCode: settings.localization.country_code,
+    };
   }
 }

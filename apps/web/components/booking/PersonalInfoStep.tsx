@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type React from 'react';
 import { z } from 'zod';
-import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
+import type { AvailableSlot, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import type { PersonalInfoValue } from '@/lib/booking/personal-info';
 import { digitsOnly } from '@/lib/utils';
 import { AddressFields } from './AddressFields';
@@ -20,6 +20,7 @@ interface PersonalInfoStepProps {
   readonly selectedDate: string;
   readonly selectedSlot: AvailableSlot;
   readonly phonePrefix: string;
+  readonly addressSpec: HotsiteAddressSpec;
   readonly onNext: () => void;
   readonly onBack: () => void;
 }
@@ -73,6 +74,7 @@ export function PersonalInfoStep({
   selectedDate,
   selectedSlot,
   phonePrefix,
+  addressSpec,
   onNext,
   onBack,
 }: PersonalInfoStepProps) {
@@ -223,6 +225,7 @@ export function PersonalInfoStep({
               value={value.contactAddress}
               onChange={(address) => onChange({ ...value, contactAddress: address })}
               idPrefix="contact-address"
+              addressSpec={addressSpec}
               required={false}
             />
           </div>

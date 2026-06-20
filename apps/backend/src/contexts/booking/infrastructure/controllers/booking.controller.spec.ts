@@ -83,6 +83,7 @@ describe('BookingController', () => {
         bookingRepo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
+        new InMemoryTenantLocalizationPort(),
         guestCtx,
       ),
       new RequestAuthenticatedBookingUseCase(
@@ -96,6 +97,7 @@ describe('BookingController', () => {
         bookingRepo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
+        new InMemoryTenantLocalizationPort(),
         customerCtx,
       ),
       new ApproveBookingUseCase(
@@ -221,6 +223,7 @@ describe('BookingController', () => {
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
+          new InMemoryTenantLocalizationPort(),
           ctx,
         ),
         new RequestAuthenticatedBookingUseCase(
@@ -234,6 +237,7 @@ describe('BookingController', () => {
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
+          new InMemoryTenantLocalizationPort(),
           ctx,
         ),
         new ApproveBookingUseCase(
@@ -383,6 +387,7 @@ describe('BookingController', () => {
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
+          new InMemoryTenantLocalizationPort(),
           new TenantContextBuilder().withTenantId(TENANT_A).build(),
         ),
         new RequestAuthenticatedBookingUseCase(
@@ -396,6 +401,7 @@ describe('BookingController', () => {
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
+          new InMemoryTenantLocalizationPort(),
           new TenantContextBuilder().withTenantId(TENANT_A).build(),
         ),
         new ApproveBookingUseCase(
@@ -830,6 +836,7 @@ describe('BookingController', () => {
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
+          new InMemoryTenantLocalizationPort(),
           ctx,
         ),
         new RequestAuthenticatedBookingUseCase(
@@ -843,6 +850,7 @@ describe('BookingController', () => {
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
+          new InMemoryTenantLocalizationPort(),
           ctx,
         ),
         new ApproveBookingUseCase(

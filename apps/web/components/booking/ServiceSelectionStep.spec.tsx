@@ -2,9 +2,18 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { HotsiteServiceResponse } from '@ikaro/types';
+import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import { emptyAddress } from '@/lib/booking/personal-info';
 import { ServiceSelectionStep } from './ServiceSelectionStep';
+
+const BR_ADDRESS_SPEC: HotsiteAddressSpec = {
+  postalLabel: 'CEP',
+  postalPlaceholder: '00000-000',
+  stateLabel: 'UF',
+  requireNeighborhood: true,
+  neighborhoodLabel: 'Bairro',
+  lookupService: 'viacep',
+};
 
 function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServiceResponse {
   return {
@@ -25,6 +34,7 @@ const defaultPickupProps = {
   requiresPickupAddress: false,
   pickupAddress: emptyAddress(),
   onPickupAddressChange: vi.fn(),
+  addressSpec: BR_ADDRESS_SPEC,
   onBack: vi.fn(),
 };
 

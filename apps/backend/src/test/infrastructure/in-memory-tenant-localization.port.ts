@@ -3,7 +3,11 @@ import {
   TenantLocalization,
 } from '../../contexts/booking/application/ports/tenant-localization.port';
 
-const DEFAULT_LOCALIZATION: TenantLocalization = { currency: 'BRL', locale: 'pt-BR' };
+const DEFAULT_LOCALIZATION: TenantLocalization = {
+  currency: 'BRL',
+  locale: 'pt-BR',
+  countryCode: 'BR',
+};
 
 export class InMemoryTenantLocalizationPort implements ITenantLocalizationPort {
   private readonly store = new Map<string, TenantLocalization>();

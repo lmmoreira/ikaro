@@ -2,7 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AvailableSlot, CreateBookingRequest, HotsiteServiceResponse } from '@ikaro/types';
+import type {
+  AvailableSlot,
+  CreateBookingRequest,
+  HotsiteAddressSpec,
+  HotsiteServiceResponse,
+} from '@ikaro/types';
 import { CreateBookingError, createBooking } from '@/lib/api/bookings';
 import {
   emptyPersonalInfo,
@@ -21,6 +26,7 @@ interface BookingFormProps {
   readonly services: readonly HotsiteServiceResponse[];
   readonly carouselDays: number;
   readonly phonePrefix: string;
+  readonly addressSpec: HotsiteAddressSpec;
 }
 
 type Step = 1 | 2 | 3 | 4;
@@ -51,7 +57,13 @@ function buildPayload(
   };
 }
 
-export function BookingForm({ slug, services, carouselDays, phonePrefix }: BookingFormProps) {
+export function BookingForm({
+  slug,
+  services,
+  carouselDays,
+  phonePrefix,
+  addressSpec,
+}: BookingFormProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
@@ -132,6 +144,7 @@ export function BookingForm({ slug, services, carouselDays, phonePrefix }: Booki
             onPickupAddressChange={(address) =>
               setPersonalInfo((prev) => ({ ...prev, pickupAddress: address }))
             }
+            addressSpec={addressSpec}
             onNext={() => setStep(2)}
             onBack={() => router.push(`/${slug}`)}
           />
@@ -211,6 +224,7 @@ export function BookingForm({ slug, services, carouselDays, phonePrefix }: Booki
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
             phonePrefix={phonePrefix}
+            addressSpec={addressSpec}
             onNext={() => setStep(4)}
             onBack={() => setStep(2)}
           />

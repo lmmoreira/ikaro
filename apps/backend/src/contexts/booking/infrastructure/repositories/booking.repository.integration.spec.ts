@@ -102,7 +102,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
 
   it('reconstitutes Money with the tenant-configured currency, not a hardcoded BRL default', async () => {
     const tenantId = '00000000-0000-7000-8000-000000000066';
-    localizationPort.set(tenantId, { currency: 'USD', locale: 'en' });
+    localizationPort.set(tenantId, { currency: 'USD', locale: 'en', countryCode: 'US' });
 
     const svc = new ServiceEntityBuilder().withId(SERVICE_ID_3).withTenantId(tenantId).build();
     await dataSource.getRepository(ServiceEntity).save(svc);

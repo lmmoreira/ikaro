@@ -64,14 +64,8 @@ const BusinessInfoAddressSchema = z
     complement: z.string().optional(),
     neighborhood: z.string().nullable(),
     city: z.string().nullable(),
-    state: z
-      .string()
-      .regex(/^[A-Z]{2}$/, 'must be a 2-letter uppercase UF')
-      .nullable(),
-    zip_code: z
-      .string()
-      .regex(/^\d{8}$/, 'must be exactly 8 digits')
-      .nullable(),
+    state: z.string().min(1).max(10).nullable(),
+    zip_code: z.string().min(1).max(20).nullable(),
   })
   .partial();
 
