@@ -2,6 +2,7 @@
 import { render } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { AbstractIntlMessages } from 'next-intl';
+import ptBRMessages from '@ikaro/i18n/locales/pt-BR/web.json';
 import { FormattingProvider } from '@/providers/formatting-provider';
 
 // Default pt-BR formatting state for tests — mirrors a standard BR tenant
@@ -21,22 +22,13 @@ export interface RenderWithIntlOptions {
 
 export function renderWithIntl(
   ui: React.ReactElement,
-  {
-    locale = 'pt-BR',
-    messages,
-    formatting = DEFAULT_FORMATTING,
-  }: RenderWithIntlOptions = {},
+  { locale = 'pt-BR', messages, formatting = DEFAULT_FORMATTING }: RenderWithIntlOptions = {},
 ): ReturnType<typeof render> {
-  // Lazily import messages so tree-shaking keeps test bundles small
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const resolvedMessages: AbstractIntlMessages =
-    messages ?? (require('@ikaro/i18n/locales/pt-BR/web.json') as AbstractIntlMessages);
+  const resolvedMessages: AbstractIntlMessages = (messages ?? ptBRMessages) as AbstractIntlMessages;
 
   return render(
     <NextIntlClientProvider locale={locale} messages={resolvedMessages}>
-      <FormattingProvider {...formatting}>
-        {ui}
-      </FormattingProvider>
+      <FormattingProvider {...formatting}>{ui}</FormattingProvider>
     </NextIntlClientProvider>,
   );
 }

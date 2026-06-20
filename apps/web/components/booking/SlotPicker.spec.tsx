@@ -71,9 +71,7 @@ describe('SlotPicker', () => {
       />,
     );
 
-    expect(
-      await screen.findByText('Nenhum horário disponível'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Nenhum horário disponível')).toBeInTheDocument();
   });
 
   it('calls onSelectSlot when a slot button is clicked', async () => {
