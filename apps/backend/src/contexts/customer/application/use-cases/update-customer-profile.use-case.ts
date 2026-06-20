@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { countrySpec } from '@ikaro/i18n';
 import { Address, AddressProps } from '../../../../shared/value-objects/address';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   TRANSACTION_MANAGER,
   ITransactionManager,
@@ -22,7 +23,7 @@ export class UpdateCustomerProfileUseCase {
   constructor(
     @Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(dto: UpdateCustomerProfileDto): Promise<UpdateCustomerProfileUseCaseResult> {
@@ -41,10 +42,11 @@ export class UpdateCustomerProfileUseCase {
     } else if (dto.defaultAddress === null) {
       defaultAddress = null;
     } else {
-      defaultAddress = Address.create({
-        ...dto.defaultAddress,
-        complement: dto.defaultAddress.complement ?? undefined,
-      });
+      const countryCode = this.tenantContext.settings.localization.country_code;
+      defaultAddress = Address.create(
+        { ...dto.defaultAddress, complement: dto.defaultAddress.complement ?? undefined },
+        countrySpec(countryCode).address,
+      );
     }
 
     customer.updateProfile(name, phone, defaultAddress);

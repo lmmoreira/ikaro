@@ -5,7 +5,7 @@
 **Symlinked as:** `claude.md`, `gemini.md`  
 **Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
 **Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-06-18 (rebranded the SaaS/product/repo from BeloAuto to Ikaro — see td/TD04-REBRAND-IKARO.md; BeloAuto remains a valid sample tenant. Also removed the resolved CVE-2026-45447 §18 Dockerfile workaround — node:22-alpine now ships the patched libcrypto3/libssl3. Also corrected the product framing from car-wash-specific to vertical-agnostic, and added a Business Context note to §1.)
+**Last updated:** 2026-06-20 (added two anti-patterns surfaced during TD02-S04 review: duplicate cross-context Port+Adapter pairs for the same context pair, and shared-VO validation errors leaking as unmapped 500s — see §7, §8, `docs/ANTI_PATTERNS.md`, `docs/ENGINEERING_RULES.md`. Previously: rebranded the SaaS/product/repo from BeloAuto to Ikaro — see td/TD04-REBRAND-IKARO.md; BeloAuto remains a valid sample tenant. Also removed the resolved CVE-2026-45447 §18 Dockerfile workaround — node:22-alpine now ships the patched libcrypto3/libssl3. Also corrected the product framing from car-wash-specific to vertical-agnostic, and added a Business Context note to §1.)
 
 ---
 
@@ -80,7 +80,7 @@ Any code that breaks these is a defect regardless of test coverage.
 8. Logs, metrics, traces include `tenant_id`. OTel span attrs: `tenant.id`, `user.id`, `correlation.id`.
 9. Event consumers are idempotent (at-least-once delivery). Dedup via `eventId`.
 10. JWT contains `tenantId`/`tenantSlug`. BFF rejects mismatches.
-11. JWT `sub` is always the **backend entity UUID** — `staffId` for STAFF/MANAGER, `customerId` for CUSTOMER (never Google's OAuth `sub`). BFF forwards it as `X-Actor-ID`, along with `X-Actor-Type` (`STAFF`|`CUSTOMER`) and `X-Actor-Role` (`STAFF`|`MANAGER`|`CUSTOMER`). Guest requests carry none of the `X-Actor-*` headers. Backend reads these from `TenantContext`.
+11. JWT `sub` is always the **backend entity UUID** — `staffId` for STAFF/MANAGER, `customerId` for CUSTOMER (never Google's OAuth `sub`). BFF forwards it as `X-Actor-ID`, along with `X-Actor-Type` (`STAFF`|`CUSTOMER`) and `X-Actor-Role` (`STAFF`|`MANAGER`|`CUSTOMER`). Guest requests carry none of the `X-Actor-*` headers. Backend reads these from `RequestContext`.
 
 Raise a doc bug if a UC appears to violate these — do not "make it work."
 
@@ -198,9 +198,9 @@ Domain-validated fields → `src/shared/value-objects/` (never plain primitives)
 - Domain errors thrown by use cases; `mapXxxError(err: unknown): never` at HTTP layer; controller = `return this.useCase.execute(dto).catch(mapXxxError)`. Never throw `HttpException` from a use case.
 - Use case result: `{UseCaseClassName}Result`. DTO: `{Action}Dto`. Zod schema: `{Action}Schema`.
 - **Aggregate-driven events:** `this.addDomainEvent()` in aggregate method; flush `clearDomainEvents()` **after** `txManager.run()`. Never publish events directly from a use case.
-- `correlationId` from `TenantContext.correlationId` (not `uuidv7()`). Domain error base class needs `Object.setPrototypeOf(this, new.target.prototype)` after `super()`.
+- `correlationId` from `RequestContext.correlationId` (not `uuidv7()`). Domain error base class needs `Object.setPrototypeOf(this, new.target.prototype)` after `super()`.
 - Zod v4: `z.uuid()` / `z.email()` — never `z.string().uuid()` / `z.string().email()`.
-- `/internal` routes skip `TenantInterceptor`. `TenantModule` is not `@Global()` — import explicitly in every module whose controller injects `TenantContext`.
+- `/internal` routes skip `RequestInterceptor`. `RequestModule` is not `@Global()` — import explicitly in every module whose controller injects `RequestContext`.
 - Domain events belong in the publishing context (`StaffInvited` in `staff/domain/events/`, not `platform/`).
 - **All code is English-only** — identifiers, comments, file names, commit messages, and domain error messages. Only literal strings rendered to the end user (UI copy, validation/error text, email templates) follow the tenant's locale — pt-BR for BR tenants. This applies everywhere, including milestone/story specs in `plan/` — a story's field labels and error copy are pt-BR because that's what ships in the UI, not an exception to the rule.
 - Default params must come after required params (SonarCloud S1788).
@@ -212,7 +212,7 @@ When Context A needs data owned by Context B, choose the **first** option that a
 
 1. **Domain events (preferred — async):** Context B publishes; Context A subscribes and projects into its own read model.
 2. **BFF orchestration (preferred — sync read):** BFF calls both contexts independently. No context knows the other.
-3. **Port + adapter (last resort — sync, same process):** Interface in Context A's `application/ports/`. Adapter injects Context B's **service** (never its repository token).
+3. **Port + adapter (last resort — sync, same process):** Interface in Context A's `application/ports/`. Adapter injects Context B's **service** (never its repository token). Before adding a new port, grep `infrastructure/cross-context/` for an existing adapter between the same two contexts — extend it with a new method rather than creating a parallel one (TD02-S02 created `ITenantLocalizationPort` alongside the already-existing `IBookingPlatformPort`, both booking→platform — found and merged in TD02-S04).
 
 **Never** a direct SQL JOIN across contexts inside a repository. A repository queries its own schema only.
 
@@ -361,8 +361,10 @@ Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Silent-failure patt
 | Throwing `HttpException` directly from a use case | Couples app layer to HTTP | Throw domain errors only; `mapXxxError` converts them |
 | Publishing events directly from a use case | Bypasses aggregate encapsulation; wrong `correlationId` | Record via `addDomainEvent()`; flush after `txManager.run()` |
 | Missing `Object.setPrototypeOf(this, new.target.prototype)` in domain error base class | `instanceof` fails silently — every error mapper falls through to 500 | Add immediately after `super()` in every `XxxDomainError extends Error` base class |
-| `TenantModule` missing from a module that injects `TenantContext` | NestJS DI fails — integration tests crash with `TypeError: Cannot read properties of undefined` | Every module with a controller injecting `TenantContext` must import `TenantModule` |
+| `RequestModule` missing from a module that injects `RequestContext` | NestJS DI fails — integration tests crash with `TypeError: Cannot read properties of undefined` | Every module with a controller injecting `RequestContext` must import `RequestModule` |
 | `useExisting` registering adapter as standalone class: `providers: [GcsSignedUrlAdapter, { provide: STORAGE_SERVICE, useExisting: GcsSignedUrlAdapter }]` | Class instantiated even when token overridden in tests — `onApplicationBootstrap` network calls run → `ECONNREFUSED` | Use `useClass`: `providers: [{ provide: STORAGE_SERVICE, useClass: GcsSignedUrlAdapter }]`; integration app helpers must also default-override the token |
+| Creating a new cross-context Port+Adapter when one already exists for the same context pair | Duplicate adapters drift apart; the new one often ships without its own `.spec.ts` | Grep `infrastructure/cross-context/` for an existing adapter between the same two contexts first; add a method to it instead |
+| Shared VO's `create()` throws a plain `Error` for a rule the DTO's Zod schema can't fully replicate (e.g. country-specific format) | `mapXxxError`'s `if (err instanceof Error) throw err` fallthrough turns it into an unhandled 500 instead of a 400 | Give the VO a typed error class; add an `instanceof` branch to every calling context's error mapper |
 
 ---
 

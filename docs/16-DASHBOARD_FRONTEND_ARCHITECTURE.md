@@ -117,7 +117,7 @@ apps/web/
 │   │   └── callback/page.tsx       ← handles post-OAuth redirect, stores JWT
 │   ├── select-tenant/
 │   │   └── page.tsx                ← UC-021 tenant selection screen (customers with multiple tenants)
-│   ├── layout.tsx                  ← root layout: TanStack Query provider, TenantContext
+│   ├── layout.tsx                  ← root layout: TanStack Query provider, RequestContext
 │   └── page.tsx                    ← root redirect: → /dashboard if authenticated, else → /auth/login
 │
 ├── components/

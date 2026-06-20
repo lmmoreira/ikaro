@@ -616,7 +616,7 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 
 ---
 
-#### TD02-S04 — Address validation → `countrySpec`-driven
+#### TD02-S04 — Address validation → `countrySpec`-driven ✅ Done
 
 **Scope:**
 - Update `Address` VO (`apps/backend/src/shared/value-objects/address.ts`):

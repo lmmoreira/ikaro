@@ -1,11 +1,10 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
-import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { BookingLineBuilder } from '../../../../test/builders/booking/booking-line.builder';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
   BookingNotFoundError,
@@ -62,7 +61,7 @@ describe('CompleteBookingUseCase', () => {
     bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
     storageService = new InMemoryStorageService();
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId(STAFF_ID)
       .withActorRole('MANAGER')
@@ -72,7 +71,6 @@ describe('CompleteBookingUseCase', () => {
       bookingRepo,
       new InMemoryTransactionManager(),
       eventBus,
-      new InMemoryTenantLocalizationPort(),
       new PhotoExistenceService(storageService),
     );
   });

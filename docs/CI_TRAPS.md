@@ -73,7 +73,7 @@ These appear as `Nest can't resolve dependencies of XxxUseCase (?, ...)` in test
 |---------|-----------|-----|
 | `Nest can't resolve IEventBus` | `EventBusModule` missing from integration app | Add `EventBusModule` to `imports[]` in the integration app helper |
 | `Nest can't resolve ITransactionManager` | `TransactionManagerModule` missing | Add `TransactionManagerModule` |
-| `Cannot read properties of undefined` (reading `tenantId`) | `TenantModule` missing from the **context module** — not just the test app | Add `TenantModule` to the context's own `xxx.module.ts` `imports[]` |
+| `Cannot read properties of undefined` (reading `tenantId`) | `RequestModule` missing from the **context module** — not just the test app | Add `RequestModule` to the context's own `xxx.module.ts` `imports[]` |
 | `Nest can't resolve IXxxRepository` | `{ provide: XXX_REPOSITORY, useClass: TypeOrmXxxRepository }` missing from `providers[]` | Add the provider entry to the module |
 | TypeORM entity not registered | Entity class not in `entities[]` of `TypeOrmModule.forRoot` | Add entity to the integration app's `forRoot` entity list |
 | `ProvisionTenantUseCase` DI crash | `EventBusModule` missing — `PlatformModule` always needs it | Add `EventBusModule` + `.overrideProvider(EVENT_BUS).useValue(new InMemoryEventBus())` |
@@ -235,7 +235,7 @@ Before every `git commit`, verify:
 - [ ] Lines ≤ 80 chars — run `pnpm prettier --write .`
 - [ ] Every generated ID uses `uuidv7()` — not `Date.now()`, not fixed strings
 - [ ] Slugs in integration tests are unique: `` `prefix-${uuidv7()}` ``
-- [ ] `TenantModule` in context module `imports[]` (not just the test app)
+- [ ] `RequestModule` in context module `imports[]` (not just the test app)
 - [ ] `EventBusModule` in integration app `imports[]`
 - [ ] Domain events listed in the **publishing** context, not duplicated
 - [ ] Every `@Patch` body schema with all-optional fields ends with `.default({})`

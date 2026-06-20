@@ -8,8 +8,8 @@ import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
-import { TenantInterceptor } from '../../shared/tenant/tenant.interceptor';
-import { TenantModule } from '../../shared/tenant/tenant.module';
+import { RequestInterceptor } from '../../shared/request/request.interceptor';
+import { RequestModule } from '../../shared/request/request.module';
 import { BalanceExpiryLogEntity } from '../../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
@@ -23,6 +23,8 @@ import { PlatformModule } from '../../contexts/platform/platform.module';
 import { InMemoryEventBus } from '../infrastructure/in-memory-event-bus';
 import { InMemoryLoyaltyBookingPort } from '../infrastructure/in-memory-loyalty-booking.port';
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
+import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
+import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 
 export interface LoyaltyIntegrationAppResult {
   app: INestApplication;
@@ -51,12 +53,12 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
         synchronize: false,
       }),
       TransactionManagerModule,
-      TenantModule,
+      RequestModule,
       EventBusModule,
       PlatformModule,
       LoyaltyModule,
     ],
-    providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
+    providers: [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }],
   });
 
   builder = builder
@@ -65,7 +67,9 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
     .overrideProvider(LOYALTY_BOOKING_PORT)
     .useValue(serviceCatalog)
     .overrideProvider(STORAGE_SERVICE)
-    .useValue(new InMemoryStorageService());
+    .useValue(new InMemoryStorageService())
+    .overrideProvider(TENANT_SETTINGS_PORT)
+    .useValue(new InMemoryTenantSettingsPort());
 
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();

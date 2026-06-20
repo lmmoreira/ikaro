@@ -32,13 +32,19 @@ export function emptyPersonalInfo(): PersonalInfoValue {
   };
 }
 
-export function isAddressFilled(address: Address): boolean {
+export function isAddressFilled(address: Address, requireNeighborhood: boolean): boolean {
   return (
     address.street !== '' &&
     address.number !== '' &&
-    address.neighborhood !== '' &&
+    (!requireNeighborhood || !!address.neighborhood) &&
     address.city !== '' &&
     address.state !== '' &&
     address.zipCode !== ''
   );
+}
+
+/** Drops a blank neighborhood instead of sending it as an empty string — the backend's
+ * Zod schema accepts an omitted neighborhood but rejects an empty one (`.min(1)`). */
+export function sanitizeAddress(address: Address): Address {
+  return { ...address, neighborhood: address.neighborhood || undefined };
 }

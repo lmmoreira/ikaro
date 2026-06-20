@@ -46,6 +46,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
         services={services}
         carouselDays={carouselDays}
         phonePrefix={manifest.localization.phonePrefix}
+        addressSpec={manifest.localization.address}
       />
     </>
   );

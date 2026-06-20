@@ -2,11 +2,17 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AvailableSlot, CreateBookingRequest, HotsiteServiceResponse } from '@ikaro/types';
+import type {
+  AvailableSlot,
+  CreateBookingRequest,
+  HotsiteAddressSpec,
+  HotsiteServiceResponse,
+} from '@ikaro/types';
 import { CreateBookingError, createBooking } from '@/lib/api/bookings';
 import {
   emptyPersonalInfo,
   isAddressFilled,
+  sanitizeAddress,
   type PersonalInfoValue,
 } from '@/lib/booking/personal-info';
 import { AvailabilityCarousel } from './AvailabilityCarousel';
@@ -21,6 +27,7 @@ interface BookingFormProps {
   readonly services: readonly HotsiteServiceResponse[];
   readonly carouselDays: number;
   readonly phonePrefix: string;
+  readonly addressSpec: HotsiteAddressSpec;
 }
 
 type Step = 1 | 2 | 3 | 4;
@@ -34,6 +41,7 @@ function buildPayload(
   selectedServiceIds: readonly string[],
   selectedSlot: AvailableSlot,
   requiresPickupAddress: boolean,
+  requireNeighborhood: boolean,
 ): CreateBookingRequest {
   return {
     contactName: personalInfo.contactName,
@@ -41,17 +49,25 @@ function buildPayload(
     contactPhone: personalInfo.contactPhone,
     scheduledAt: selectedSlot.startsAt,
     serviceIds: [...selectedServiceIds],
-    ...(isAddressFilled(personalInfo.contactAddress)
-      ? { contactAddress: personalInfo.contactAddress }
+    ...(isAddressFilled(personalInfo.contactAddress, requireNeighborhood)
+      ? { contactAddress: sanitizeAddress(personalInfo.contactAddress) }
       : {}),
-    ...(requiresPickupAddress ? { pickupAddress: personalInfo.pickupAddress } : {}),
+    ...(requiresPickupAddress
+      ? { pickupAddress: sanitizeAddress(personalInfo.pickupAddress) }
+      : {}),
     ...(personalInfo.photoFilePaths.length > 0
       ? { beforeServicePhotoUrls: [...personalInfo.photoFilePaths] }
       : {}),
   };
 }
 
-export function BookingForm({ slug, services, carouselDays, phonePrefix }: BookingFormProps) {
+export function BookingForm({
+  slug,
+  services,
+  carouselDays,
+  phonePrefix,
+  addressSpec,
+}: BookingFormProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
@@ -97,6 +113,7 @@ export function BookingForm({ slug, services, carouselDays, phonePrefix }: Booki
         selectedServiceIds,
         selectedSlot,
         requiresPickupAddress,
+        addressSpec.requireNeighborhood,
       );
       await createBooking(slug, payload);
       setStatus('success');
@@ -132,6 +149,7 @@ export function BookingForm({ slug, services, carouselDays, phonePrefix }: Booki
             onPickupAddressChange={(address) =>
               setPersonalInfo((prev) => ({ ...prev, pickupAddress: address }))
             }
+            addressSpec={addressSpec}
             onNext={() => setStep(2)}
             onBack={() => router.push(`/${slug}`)}
           />
@@ -211,6 +229,7 @@ export function BookingForm({ slug, services, carouselDays, phonePrefix }: Booki
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
             phonePrefix={phonePrefix}
+            addressSpec={addressSpec}
             onNext={() => setStep(4)}
             onBack={() => setStep(2)}
           />

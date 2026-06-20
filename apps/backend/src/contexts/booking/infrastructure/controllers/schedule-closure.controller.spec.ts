@@ -3,7 +3,7 @@ import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { ClosureReason } from '../../domain/schedule-closure.aggregate';
 import { CloseScheduleUseCase } from '../../application/use-cases/close-schedule.use-case';
 import { ListClosuresUseCase } from '../../application/use-cases/list-closures.use-case';
@@ -19,7 +19,7 @@ describe('ScheduleClosureController', () => {
 
   beforeEach(() => {
     repo = new InMemoryScheduleClosureRepository();
-    const ctx = new TenantContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build();
+    const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build();
     const tx = new InMemoryTransactionManager();
     controller = new ScheduleClosureController(
       new CloseScheduleUseCase(repo, tx, ctx),

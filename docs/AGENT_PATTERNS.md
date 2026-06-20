@@ -129,7 +129,7 @@ Canonical examples: `approve-booking.dto.ts`, `cancel-booking-as-customer.dto.ts
 ```typescript
 // src/contexts/<ctx>/application/use-cases/get-xxx.use-case.ts
 import { Inject, Injectable } from '@nestjs/common';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { XxxNotFoundError } from '../../domain/errors/xxx-domain.error';
 import { IXxxRepository, XXX_REPOSITORY } from '../ports/xxx-repository.port';
 
@@ -143,7 +143,7 @@ export type GetXxxUseCaseResult = {
 export class GetXxxUseCase {
   constructor(
     @Inject(XXX_REPOSITORY) private readonly repo: IXxxRepository,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(): Promise<GetXxxUseCaseResult> {
@@ -168,7 +168,7 @@ Canonical example: `apps/backend/src/contexts/customer/application/use-cases/get
 ```typescript
 // src/contexts/<ctx>/application/use-cases/update-xxx.use-case.ts
 import { Inject, Injectable } from '@nestjs/common';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { ITransactionManager, TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
 import { XxxNotFoundError } from '../../domain/errors/xxx-domain.error';
 import { IXxxRepository, XXX_REPOSITORY } from '../ports/xxx-repository.port';
@@ -181,7 +181,7 @@ export class UpdateXxxUseCase {
   constructor(
     @Inject(XXX_REPOSITORY) private readonly repo: IXxxRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     // @Inject(EVENT_BUS) private readonly eventBus: IEventBus,  // add if aggregate emits events
   ) {}
 
@@ -269,7 +269,7 @@ Canonical example: `apps/backend/src/contexts/customer/infrastructure/controller
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
-import { TenantModule } from '../../shared/tenant/tenant.module';
+import { RequestModule } from '../../shared/request/request.module';
 import { XXX_REPOSITORY } from './application/ports/xxx-repository.port';
 import { GetXxxUseCase } from './application/use-cases/get-xxx.use-case';
 import { UpdateXxxUseCase } from './application/use-cases/update-xxx.use-case';
@@ -280,7 +280,7 @@ import { TypeOrmXxxRepository } from './infrastructure/repositories/typeorm-xxx.
 @Module({
   imports: [
     TypeOrmModule.forFeature([XxxEntity]),
-    TenantModule,             // always — controller injects TenantContext; TenantModule is NOT @Global()
+    RequestModule,             // always — controller injects RequestContext; RequestModule is NOT @Global()
     TransactionManagerModule, // always — write use cases use ITransactionManager
     // EventBusModule,        // add only if use cases publish domain events
     // OtherContextModule,    // add only if cross-context port+adapter needed (import the module, not its repo token)
@@ -402,7 +402,7 @@ Do not search for these — they exist at the paths below.
 
 | File | Class | Builds |
 |------|-------|--------|
-| `factories/tenant-context.factory.ts` | `TenantContextBuilder` | `TenantContext` stubs for unit/controller specs |
+| `factories/request-context.factory.ts` | `RequestContextBuilder` | `RequestContext` stubs for unit/controller specs |
 
 ---
 
@@ -502,7 +502,7 @@ export class InMemoryXxxRepository implements IXxxRepository {
 import { XxxNotFoundError } from '../../domain/errors/xxx-domain.error';
 import { XxxBuilder } from '../../../../test/builders/<ctx>/xxx.builder';
 import { InMemoryXxxRepository } from '../../../../test/repositories/<ctx>/in-memory-xxx.repository';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { GetXxxUseCase } from './get-xxx.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000011'; // unique across ALL spec files in the project
@@ -516,7 +516,7 @@ describe('GetXxxUseCase', () => {
     const entity = new XxxBuilder().withTenantId(TENANT_A).build();
     await repo.save(entity);
 
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId(entity.id)
       .withActorType('CUSTOMER')
@@ -530,7 +530,7 @@ describe('GetXxxUseCase', () => {
   });
 
   it('throws XxxNotFoundError when actor has no matching entity', async () => {
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId('00000000-0000-4000-8000-000000009999')
       .build();
@@ -541,7 +541,7 @@ describe('GetXxxUseCase', () => {
     const TENANT_B = '10000000-0000-4000-8000-000000000012';
     const entity = new XxxBuilder().withTenantId(TENANT_A).build();
     await repo.save(entity);
-    const ctx = new TenantContextBuilder().withTenantId(TENANT_B).withActorId(entity.id).build();
+    const ctx = new RequestContextBuilder().withTenantId(TENANT_B).withActorId(entity.id).build();
     await expect(new GetXxxUseCase(repo, ctx).execute()).rejects.toBeInstanceOf(XxxNotFoundError);
   });
 });
@@ -557,7 +557,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { XxxBuilder } from '../../../../test/builders/<ctx>/xxx.builder';
 import { InMemoryXxxRepository } from '../../../../test/repositories/<ctx>/in-memory-xxx.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { GetXxxUseCase } from '../../application/use-cases/get-xxx.use-case';
 import { UpdateXxxUseCase } from '../../application/use-cases/update-xxx.use-case';
 import { XxxController } from './xxx.controller';
@@ -575,7 +575,7 @@ describe('XxxController', () => {
     await repo.save(entity);
     entityId = entity.id;
 
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId(entityId)
       .withActorType('CUSTOMER')
@@ -594,7 +594,7 @@ describe('XxxController', () => {
   });
 
   it('getMe() maps XxxNotFoundError to 404', async () => {
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId('00000000-0000-4000-8000-000000009998')
       .build();
@@ -623,8 +623,8 @@ import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
-import { TenantInterceptor } from '../../shared/tenant/tenant.interceptor';
-import { TenantModule } from '../../shared/tenant/tenant.module';
+import { RequestInterceptor } from '../../shared/request/request.interceptor';
+import { RequestModule } from '../../shared/request/request.module';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../contexts/platform/platform.module';
@@ -645,12 +645,12 @@ export async function createXxxIntegrationApp(): Promise<{
         synchronize: false,
       }),
       TransactionManagerModule, // ITransactionManager
-      TenantModule,             // TenantContext + TenantInterceptor
+      RequestModule,             // RequestContext + RequestInterceptor
       EventBusModule,           // PlatformModule.ProvisionTenantUseCase requires IEventBus
       PlatformModule,           // exposes POST /internal/tenants for API-driven tenant seeding
       XxxModule,
     ],
-    providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
+    providers: [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }],
   })
     .overrideProvider(EVENT_BUS)
     .useValue(new InMemoryEventBus()) // suppress real Pub/Sub connections in tests
@@ -667,12 +667,12 @@ export async function createXxxIntegrationApp(): Promise<{
 | Module / provider | Why required |
 |-------------------|-------------|
 | `TypeOrmModule.forRoot(...)` | DB connection via `TEST_DATABASE_URL` |
-| `TenantModule` | `TenantContext` DI + populates `X-Tenant-ID` header |
+| `RequestModule` | `RequestContext` DI + populates `X-Tenant-ID` header |
 | `TransactionManagerModule` | `ITransactionManager` DI for write use cases |
 | `EventBusModule` | `PlatformModule` needs `IEventBus` for `ProvisionTenantUseCase` |
 | `PlatformModule` | Provides `POST /internal/tenants` — use it to seed tenants, never insert directly |
 | `.overrideProvider(EVENT_BUS).useValue(new InMemoryEventBus())` | Prevents real GCP Pub/Sub connections |
-| `{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }` | Populates `TenantContext` from `X-Tenant-ID` header on each request |
+| `{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }` | Populates `RequestContext` from `X-Tenant-ID` header on each request |
 
 Canonical example: `apps/backend/src/test/utils/customer-integration-app.ts`
 

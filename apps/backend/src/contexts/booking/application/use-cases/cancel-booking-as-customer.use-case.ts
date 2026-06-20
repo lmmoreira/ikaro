@@ -4,7 +4,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   BookingNotFoundError,
   BookingForbiddenError,
@@ -12,7 +12,6 @@ import {
 } from '../../domain/errors/booking-domain.error';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
-import { IBookingPlatformPort, BOOKING_PLATFORM_PORT } from '../ports/booking-platform.port';
 import { CancelBookingAsCustomerDto } from '../dtos/cancel-booking-as-customer.dto';
 
 export interface CancelBookingAsCustomerUseCaseResult {
@@ -23,10 +22,8 @@ export interface CancelBookingAsCustomerUseCaseResult {
 @Injectable()
 export class CancelBookingAsCustomerUseCase {
   constructor(
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-    @Inject(BOOKING_PLATFORM_PORT)
-    private readonly scheduleTenantSettings: IBookingPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
   ) {}
@@ -42,7 +39,7 @@ export class CancelBookingAsCustomerUseCase {
     if (booking.customerId !== customerId) throw new BookingForbiddenError();
 
     if (booking.status === BookingStatus.APPROVED) {
-      const bookingSettings = await this.scheduleTenantSettings.getBookingSettings(tenantId);
+      const bookingSettings = this.tenantContext.settings.booking;
       if (!booking.isEligibleForCancellation(bookingSettings.cancellation_window_hours)) {
         throw new CancellationWindowExpiredError();
       }

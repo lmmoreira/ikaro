@@ -28,6 +28,17 @@ Aggregate props interfaces use VO types; getters return VOs; `create()` construc
 
 → Code patterns, mapper examples, in-memory repo comparisons: `docs/VALUE_OBJECTS_REFERENCE.md`.
 
+### VO validation errors must be mapped, not just thrown
+
+A VO's `create()` throws a plain `Error` when its format rules are too varied to fully replicate in a static Zod schema. `Address` is the concrete case: it validates against a country-specific `CountrySpec.postalRegex`/`statePattern`, while the DTO boundary can only check `.min(1).max(20)` — address formats vary too much across countries for one universal regex. `Money` and `PhoneNumber` don't hit this gap today because their DTO regex (E.164, currency code) is strict enough to fully replicate the VO's rule — but the gap exists in the same shape for any VO whose DTO check is necessarily loose.
+
+Every `mapXxxError(err: unknown): never` ends with `if (err instanceof Error) throw err;` before the final `throw new Error(...)` fallback. A plain `Error` from a VO falls through that line unchanged and becomes an unhandled 500 instead of a 400.
+
+If a VO's validation can fail in a way the DTO boundary doesn't fully prevent:
+1. Give it a typed error class in the VO's own file: `export class XxxValidationError extends Error { constructor(message: string) { super(message); Object.setPrototypeOf(this, new.target.prototype); this.name = 'XxxValidationError'; } }`.
+2. Throw that instead of plain `Error` from every validation branch in `create()`.
+3. Add an `instanceof XxxValidationError` branch (→ 400) to **every** context's error mapper that calls the VO's `create()` — a shared VO can be called from multiple contexts (`Address` is called from both `booking` and `customer`).
+
 ---
 
 ## Transactions
@@ -94,7 +105,7 @@ All test data uses builder classes with fluent `withXxx()` / `build()`. Never pl
 Builder types:
 - `XxxEntityBuilder` — TypeORM entity builders
 - `XxxBuilder` — aggregate builders
-- `TenantContextBuilder` — shared request-context stub
+- `RequestContextBuilder` — shared request-context stub
 
 ### InMemory doubles
 

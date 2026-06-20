@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ProblemDetail } from '../../../../shared/http/problem-detail';
+import { AddressValidationError } from '../../../../shared/value-objects/address';
 import {
   AvailabilityDateInPastError,
   AvailabilityRangeInvalidError,
@@ -27,6 +28,15 @@ import {
 } from '../../domain/errors/booking-domain.error';
 
 export function mapBookingError(err: unknown): never {
+  if (err instanceof AddressValidationError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: HttpStatus.BAD_REQUEST,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.BAD_REQUEST);
+  }
   if (err instanceof BookingForbiddenError) {
     const body: ProblemDetail = {
       type: 'about:blank',

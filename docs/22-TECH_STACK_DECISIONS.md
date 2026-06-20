@@ -206,7 +206,7 @@ apps/backend/src/
 │   ├── staff/                      # Staff Bounded Context
 │   └── platform/                   # Platform Bounded Context
 │
-├── shared/                         # Cross-cutting: Logger, OTel, IEventBus, TenantContext
+├── shared/                         # Cross-cutting: Logger, OTel, IEventBus, RequestContext
 └── app.module.ts
 ```
 
@@ -354,8 +354,8 @@ While Vite is faster for development, Next.js provides:
 Next.js context + hooks provide clean tenant switching (UC-023):
 
 ```typescript
-// lib/contexts/TenantContext.tsx
-export const TenantContext = createContext<TenantContextType>(null);
+// lib/contexts/RequestContext.tsx
+export const RequestContext = createContext<RequestContextType>(null);
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenantId, setTenantId] = useState<string>(null);
@@ -371,9 +371,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <TenantContext.Provider value={{ tenantId, tenantSlug, switchTenant }}>
+    <RequestContext.Provider value={{ tenantId, tenantSlug, switchTenant }}>
       {children}
-    </TenantContext.Provider>
+    </RequestContext.Provider>
   );
 }
 ```

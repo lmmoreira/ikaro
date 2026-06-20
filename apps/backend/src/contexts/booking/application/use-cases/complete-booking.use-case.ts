@@ -4,17 +4,13 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { Money } from '../../../../shared/value-objects/money';
 import {
   BookingNotFoundError,
   CompleteBookingLinesIncompleteError,
 } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
-import {
-  ITenantLocalizationPort,
-  TENANT_LOCALIZATION_PORT,
-} from '../ports/tenant-localization.port';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { CompleteBookingDto } from '../dtos/complete-booking.dto';
 
@@ -28,12 +24,10 @@ export interface CompleteBookingUseCaseResult {
 @Injectable()
 export class CompleteBookingUseCase {
   constructor(
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
-    @Inject(TENANT_LOCALIZATION_PORT)
-    private readonly localizationPort: ITenantLocalizationPort,
     private readonly photoExistenceService: PhotoExistenceService,
   ) {}
 
@@ -45,7 +39,7 @@ export class CompleteBookingUseCase {
     const booking = await this.bookingRepo.findById(dto.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(dto.bookingId);
 
-    const { currency } = await this.localizationPort.getLocalization(tenantId);
+    const { currency } = this.tenantContext.settings.localization;
     const requestLineIds = new Set(dto.lines.map((l) => l.lineId));
     const missingLineIds = booking.lines
       .filter((l) => !requestLineIds.has(l.lineId))

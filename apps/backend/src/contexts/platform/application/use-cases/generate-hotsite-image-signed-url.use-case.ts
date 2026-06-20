@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { GenerateHotsiteImageSignedUrlDto } from '../dtos/generate-hotsite-image-signed-url.dto';
 
 export interface GenerateHotsiteImageSignedUrlUseCaseResult {
@@ -13,7 +13,7 @@ export interface GenerateHotsiteImageSignedUrlUseCaseResult {
 @Injectable()
 export class GenerateHotsiteImageSignedUrlUseCase {
   constructor(
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
   ) {}
 

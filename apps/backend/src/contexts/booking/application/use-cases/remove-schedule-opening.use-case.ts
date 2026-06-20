@@ -3,7 +3,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { ScheduleOpeningNotFoundError } from '../../domain/errors/booking-domain.error';
 import {
   IScheduleOpeningRepository,
@@ -16,7 +16,7 @@ export class RemoveScheduleOpeningUseCase {
     @Inject(SCHEDULE_OPENING_REPOSITORY)
     private readonly openingRepo: IScheduleOpeningRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(id: string): Promise<void> {

@@ -1,7 +1,6 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingDomainError } from '../../domain/errors/booking-domain.error';
 import { CreateServiceUseCase } from './create-service.use-case';
 
@@ -27,8 +26,7 @@ describe('CreateServiceUseCase', () => {
     useCase = new CreateServiceUseCase(
       repo,
       new InMemoryTransactionManager(),
-      new InMemoryTenantLocalizationPort(),
-      new TenantContextBuilder()
+      new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withCorrelationId(CORRELATION_ID)
         .withActorId('20000000-0000-4000-8000-000000000001')
@@ -54,7 +52,7 @@ describe('CreateServiceUseCase', () => {
     expect(result.createdAt).toBeDefined();
   });
 
-  it('persists the service scoped to TenantContext tenantId', async () => {
+  it('persists the service scoped to RequestContext tenantId', async () => {
     const result = await useCase.execute(baseDto);
 
     const saved = await repo.findById(result.id, TENANT_A);

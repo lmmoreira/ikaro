@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
@@ -16,7 +16,7 @@ export class ListOpeningsUseCase {
   constructor(
     @Inject(SCHEDULE_OPENING_REPOSITORY)
     private readonly openingRepo: IScheduleOpeningRepository,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(dto: ListOpeningsDto): Promise<ListOpeningsUseCaseResult> {

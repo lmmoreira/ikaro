@@ -5,8 +5,8 @@ import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type { ModuleMetadata } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { TenantInterceptor } from '../../shared/tenant/tenant.interceptor';
-import { TenantModule } from '../../shared/tenant/tenant.module';
+import { RequestInterceptor } from '../../shared/request/request.interceptor';
+import { RequestModule } from '../../shared/request/request.module';
 import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
@@ -24,6 +24,8 @@ import { EVENT_BUS, IEventBus } from '../../shared/ports/event-bus.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
+import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
+import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 
 type EntityClass = abstract new (...args: unknown[]) => unknown;
 
@@ -32,7 +34,7 @@ export interface NotificationIntegrationAppOptions {
   configure?: (builder: TestingModuleBuilder) => TestingModuleBuilder;
   extraModules?: NonNullable<ModuleMetadata['imports']>;
   extraEntities?: EntityClass[];
-  withTenantInterceptor?: boolean;
+  withRequestInterceptor?: boolean;
 }
 
 export async function createNotificationIntegrationApp(
@@ -43,7 +45,7 @@ export async function createNotificationIntegrationApp(
     configure,
     extraModules = [],
     extraEntities = [],
-    withTenantInterceptor = false,
+    withRequestInterceptor = false,
   } = options;
 
   const routingBus = new RoutingInMemoryEventBus();
@@ -70,11 +72,11 @@ export async function createNotificationIntegrationApp(
       PlatformModule,
       StaffModule,
       NotificationModule,
-      ...(withTenantInterceptor ? [TenantModule] : []),
+      ...(withRequestInterceptor ? [RequestModule] : []),
       ...extraModules,
     ],
-    providers: withTenantInterceptor
-      ? [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }]
+    providers: withRequestInterceptor
+      ? [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }]
       : [],
   })
     .overrideProvider(EVENT_BUS)
@@ -82,7 +84,9 @@ export async function createNotificationIntegrationApp(
     .overrideProvider(NOTIFICATION_DISPATCHER)
     .useValue(dispatcher)
     .overrideProvider(STORAGE_SERVICE)
-    .useValue(new InMemoryStorageService());
+    .useValue(new InMemoryStorageService())
+    .overrideProvider(TENANT_SETTINGS_PORT)
+    .useValue(new InMemoryTenantSettingsPort());
 
   if (configure) {
     builder = configure(builder);

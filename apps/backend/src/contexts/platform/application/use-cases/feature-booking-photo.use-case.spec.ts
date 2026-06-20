@@ -1,4 +1,4 @@
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryPlatformBookingPort } from '../../../../test/infrastructure/in-memory-platform-booking.port';
 import {
@@ -28,7 +28,7 @@ describe('FeatureBookingPhotoUseCase', () => {
       afterServicePhotoUrls: [AFTER_PHOTO],
     });
     useCase = new FeatureBookingPhotoUseCase(
-      new TenantContextBuilder().withTenantId(TENANT_A).build(),
+      new RequestContextBuilder().withTenantId(TENANT_A).build(),
       bookingLookup,
       storageService,
     );
@@ -83,7 +83,7 @@ describe('FeatureBookingPhotoUseCase', () => {
 
   it('tenant isolation: cannot feature a photo from another tenant booking', async () => {
     const useCaseB = new FeatureBookingPhotoUseCase(
-      new TenantContextBuilder().withTenantId(TENANT_B).build(),
+      new RequestContextBuilder().withTenantId(TENANT_B).build(),
       bookingLookup,
       storageService,
     );

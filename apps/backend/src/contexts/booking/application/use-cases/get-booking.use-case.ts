@@ -1,10 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
-import {
-  ITenantLocalizationPort,
-  TENANT_LOCALIZATION_PORT,
-} from '../ports/tenant-localization.port';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { Booking } from '../../domain/booking.aggregate';
 
@@ -35,7 +31,7 @@ export interface GetBookingUseCaseResult {
     street: string;
     number: string;
     complement: string | null;
-    neighborhood: string;
+    neighborhood: string | null;
     city: string;
     state: string;
     zipCode: string;
@@ -53,9 +49,7 @@ export interface GetBookingUseCaseResult {
 export class GetBookingUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-    @Inject(TENANT_LOCALIZATION_PORT)
-    private readonly localizationPort: ITenantLocalizationPort,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(dto: { bookingId: string }): Promise<GetBookingUseCaseResult> {
@@ -69,7 +63,7 @@ export class GetBookingUseCase {
       throw new BookingNotFoundError(dto.bookingId);
     }
 
-    const { locale } = await this.localizationPort.getLocalization(tenantId);
+    const { language: locale } = this.tenantContext.settings.localization;
     return this.toResult(booking, locale);
   }
 
@@ -102,7 +96,7 @@ export class GetBookingUseCase {
             street: addr.street,
             number: addr.number,
             complement: addr.complement ?? null,
-            neighborhood: addr.neighborhood,
+            neighborhood: addr.neighborhood ?? null,
             city: addr.city,
             state: addr.state,
             zipCode: addr.zipCode,

@@ -2,6 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import {
+  ITenantSettingsPort,
+  TENANT_SETTINGS_PORT,
+} from '../../../../shared/ports/tenant-settings.port';
 import { Address, AddressProps } from '../../../../shared/value-objects/address';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { Money } from '../../../../shared/value-objects/money';
@@ -12,10 +16,6 @@ import {
   BookingPaginatedResult,
   IBookingRepository,
 } from '../../application/ports/booking-repository.port';
-import {
-  ITenantLocalizationPort,
-  TENANT_LOCALIZATION_PORT,
-} from '../../application/ports/tenant-localization.port';
 import { Booking, BookingProps, BookingStatus, BookingType } from '../../domain/booking.aggregate';
 import { BookingLine } from '../../domain/booking-line.entity';
 import { BookingEntity } from '../entities/booking.entity';
@@ -28,15 +28,14 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     private readonly repo: Repository<BookingEntity>,
     @InjectRepository(BookingLineEntity)
     private readonly lineRepo: Repository<BookingLineEntity>,
-    @Inject(TENANT_LOCALIZATION_PORT)
-    private readonly localizationPort: ITenantLocalizationPort,
+    @Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort,
   ) {}
 
   async findById(id: string, tenantId: string): Promise<Booking | null> {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
     if (!entity) return null;
     const lineEntities = await this.lineRepo.find({ where: { bookingId: id, tenantId } });
-    const { currency } = await this.localizationPort.getLocalization(tenantId);
+    const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return this.toDomain(entity, lineEntities, currency);
   }
 
@@ -67,7 +66,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       linesByBookingId.set(line.bookingId, list);
     }
 
-    const { currency } = await this.localizationPort.getLocalization(tenantId);
+    const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return entities.map((e) => this.toDomain(e, linesByBookingId.get(e.id) ?? [], currency));
   }
 
@@ -107,7 +106,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       linesByBookingId.set(line.bookingId, list);
     }
 
-    const { currency } = await this.localizationPort.getLocalization(tenantId);
+    const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return {
       items: entities.map((e) => this.toDomain(e, linesByBookingId.get(e.id) ?? [], currency)),
       total,

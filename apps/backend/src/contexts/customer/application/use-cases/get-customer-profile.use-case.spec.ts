@@ -1,7 +1,7 @@
 import { CustomerNotFoundError } from '../../domain/errors/customer-domain.error';
 import { CustomerBuilder } from '../../../../test/builders/customer/customer.builder';
 import { InMemoryCustomerRepository } from '../../../../test/repositories/customer/in-memory-customer.repository';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { GetCustomerProfileUseCase } from './get-customer-profile.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000120';
@@ -18,7 +18,7 @@ describe('GetCustomerProfileUseCase', () => {
       .build();
     await repo.save(customer);
 
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId(customer.id)
       .withActorType('CUSTOMER')
@@ -35,7 +35,7 @@ describe('GetCustomerProfileUseCase', () => {
   });
 
   it('throws CustomerNotFoundError when actorId has no matching customer', async () => {
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId('00000000-0000-4000-8000-000000009999')
       .withActorType('CUSTOMER')
@@ -48,7 +48,7 @@ describe('GetCustomerProfileUseCase', () => {
     const TENANT_B = '10000000-0000-4000-8000-000000000121';
     const customer = new CustomerBuilder().withTenantId(TENANT_A).build();
     await repo.save(customer);
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_B)
       .withActorId(customer.id)
       .withActorType('CUSTOMER')

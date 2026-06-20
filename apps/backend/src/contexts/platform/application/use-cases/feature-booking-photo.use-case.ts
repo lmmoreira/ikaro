@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { PLATFORM_BOOKING_PORT, IPlatformBookingPort } from '../ports/platform-booking.port';
 import {
   FeaturedBookingNotFoundError,
@@ -18,7 +18,7 @@ export interface FeatureBookingPhotoUseCaseResult {
 @Injectable()
 export class FeatureBookingPhotoUseCase {
   constructor(
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     @Inject(PLATFORM_BOOKING_PORT) private readonly bookingLookup: IPlatformBookingPort,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
   ) {}

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
-import { TenantModule } from '../../shared/tenant/tenant.module';
+import { RequestModule } from '../../shared/request/request.module';
 import { CUSTOMER_REPOSITORY } from './application/ports/customer-repository.port';
 import { CustomerQueryService } from './application/services/customer-query.service';
 import { FindOrCreateCustomerUseCase } from './application/use-cases/find-or-create-customer.use-case';
@@ -15,7 +15,7 @@ import { CustomerEntity } from './infrastructure/entities/customer.entity';
 import { TypeOrmCustomerRepository } from './infrastructure/repositories/typeorm-customer.repository';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CustomerEntity]), TenantModule, TransactionManagerModule],
+  imports: [TypeOrmModule.forFeature([CustomerEntity]), RequestModule, TransactionManagerModule],
   controllers: [InternalCustomerController, CustomerController],
   providers: [
     { provide: CUSTOMER_REPOSITORY, useClass: TypeOrmCustomerRepository },

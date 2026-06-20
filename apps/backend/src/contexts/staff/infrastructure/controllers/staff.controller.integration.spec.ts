@@ -8,9 +8,11 @@ import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
-import { TenantInterceptor } from '../../../../shared/tenant/tenant.interceptor';
-import { TenantModule } from '../../../../shared/tenant/tenant.module';
+import { RequestInterceptor } from '../../../../shared/request/request.interceptor';
+import { RequestModule } from '../../../../shared/request/request.module';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
+import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
+import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { StaffEntity } from '../entities/staff.entity';
@@ -36,10 +38,13 @@ describe('StaffController (integration) — management endpoints', () => {
         }),
         EventBusModule,
         TransactionManagerModule,
-        TenantModule,
+        RequestModule,
         StaffModule,
       ],
-      providers: [{ provide: APP_INTERCEPTOR, useClass: TenantInterceptor }],
+      providers: [
+        { provide: APP_INTERCEPTOR, useClass: RequestInterceptor },
+        { provide: TENANT_SETTINGS_PORT, useClass: InMemoryTenantSettingsPort },
+      ],
     })
       .overrideProvider(EVENT_BUS)
       .useValue(new RoutingInMemoryEventBus())
@@ -70,7 +75,7 @@ describe('StaffController (integration) — management endpoints', () => {
       expect(body.pagination.total).toBe(0);
     });
 
-    it('returns staff for the tenant from TenantContext with pagination metadata', async () => {
+    it('returns staff for the tenant from RequestContext with pagination metadata', async () => {
       const e1 = new StaffEntityBuilder()
         .withTenantId(TENANT_A)
         .withEmail('list1-m04s04@lavacar.com.br')
@@ -164,7 +169,7 @@ describe('StaffController (integration) — management endpoints', () => {
   });
 
   describe('POST /staff/invite', () => {
-    it('creates an inactive staff row using tenantId from TenantContext', async () => {
+    it('creates an inactive staff row using tenantId from RequestContext', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/staff/invite')
         .set(actorHeaders(TENANT_A, MANAGER_ID))
@@ -208,7 +213,7 @@ describe('StaffController (integration) — management endpoints', () => {
       expect(body.status).toBe(409);
     });
 
-    it('tenant isolation: invited staff row belongs to tenant from TenantContext', async () => {
+    it('tenant isolation: invited staff row belongs to tenant from RequestContext', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/staff/invite')
         .set(actorHeaders(TENANT_A, MANAGER_ID))
@@ -323,7 +328,7 @@ describe('StaffController (integration) — management endpoints', () => {
       expect(body.status).toBe(404);
     });
 
-    it('returns 400 when X-Tenant-ID header is missing (TenantInterceptor guard)', async () => {
+    it('returns 400 when X-Tenant-ID header is missing (RequestInterceptor guard)', async () => {
       const { body } = await request(app.getHttpServer()).get('/staff').expect(400);
       expect(body.status ?? body.statusCode).toBe(400);
     });

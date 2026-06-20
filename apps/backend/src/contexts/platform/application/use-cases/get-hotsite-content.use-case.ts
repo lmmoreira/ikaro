@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { HotsiteNotFoundError } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
@@ -23,7 +23,7 @@ export class GetHotsiteContentUseCase {
     @Inject(HOTSITE_CONFIG_REPOSITORY)
     private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     private readonly imageUrlResolver: HotsiteImageUrlResolver,
   ) {}
 

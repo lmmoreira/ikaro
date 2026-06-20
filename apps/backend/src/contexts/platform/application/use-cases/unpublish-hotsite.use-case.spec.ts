@@ -1,6 +1,6 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { HotsiteConfigBuilder, TenantBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
@@ -27,7 +27,7 @@ describe('UnpublishHotsiteUseCase', () => {
       tenantRepo,
       frontendRevalidation,
       new InMemoryTransactionManager(),
-      new TenantContextBuilder().withTenantId(tenantA.id).build(),
+      new RequestContextBuilder().withTenantId(tenantA.id).build(),
     );
   });
 

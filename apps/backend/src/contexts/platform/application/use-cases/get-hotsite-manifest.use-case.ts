@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   HotsiteNotFoundError,
   TenantNotFoundError,
@@ -43,6 +43,10 @@ export interface HotsiteAddressSpec {
   stateLabel: string;
   requireNeighborhood: boolean;
   neighborhoodLabel: string | null;
+  streetLabel: string;
+  numberLabel: string;
+  complementLabel: string;
+  cityLabel: string;
   lookupService: 'viacep' | 'none';
 }
 
@@ -82,7 +86,7 @@ export class GetHotsiteManifestUseCase {
     private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
     @Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     private readonly imageUrlResolver: HotsiteImageUrlResolver,
   ) {}
 
@@ -141,6 +145,10 @@ export class GetHotsiteManifestUseCase {
         stateLabel: resolved.address.stateLabel,
         requireNeighborhood: resolved.address.requireNeighborhood,
         neighborhoodLabel: resolved.address.neighborhoodLabel,
+        streetLabel: resolved.address.streetLabel,
+        numberLabel: resolved.address.numberLabel,
+        complementLabel: resolved.address.complementLabel,
+        cityLabel: resolved.address.cityLabel,
         lookupService: resolved.address.lookupService,
       },
     };

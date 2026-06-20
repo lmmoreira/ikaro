@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { AddressValidationError } from '../../../../shared/value-objects/address';
 import {
   CustomerDomainError,
   CustomerNotFoundError,
@@ -6,6 +7,16 @@ import {
 import { mapCustomerError } from './customer-error.mapper';
 
 describe('mapCustomerError', () => {
+  it('maps AddressValidationError to 400', () => {
+    const err = new AddressValidationError('Invalid CEP: 123');
+    expect(() => mapCustomerError(err)).toThrow(HttpException);
+    try {
+      mapCustomerError(err);
+    } catch (e) {
+      expect((e as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    }
+  });
+
   it('maps CustomerNotFoundError to 404', () => {
     const err = new CustomerNotFoundError('some-id');
     expect(() => mapCustomerError(err)).toThrow(HttpException);

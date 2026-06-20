@@ -180,7 +180,7 @@ describe('CustomerController (integration)', () => {
       expect(body.defaultAddress).toBeNull();
     });
 
-    it('normalises zipCode with hyphen to 8 digits', async () => {
+    it('stores zipCode with hyphen as provided (no normalisation)', async () => {
       const { body } = await request(app.getHttpServer())
         .patch('/customers/me')
         .set(actorHeaders(tenantAId, customerId, 'CUSTOMER'))
@@ -196,7 +196,7 @@ describe('CustomerController (integration)', () => {
         })
         .expect(200);
 
-      expect(body.defaultAddress.zipCode).toBe('30130921');
+      expect(body.defaultAddress.zipCode).toBe('30130-921');
     });
 
     it('returns 400 for invalid phone', async () => {

@@ -5,7 +5,7 @@ import {
 import { CustomerBuilder } from '../../../../test/builders/customer/customer.builder';
 import { InMemoryCustomerRepository } from '../../../../test/repositories/customer/in-memory-customer.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { UpdateCustomerProfileUseCase } from './update-customer-profile.use-case';
 
 const validAddress = {
@@ -34,7 +34,7 @@ describe('UpdateCustomerProfileUseCase', () => {
     await repo.save(customer);
     customerId = customer.id;
 
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId(customerId)
       .withActorType('CUSTOMER')
@@ -79,7 +79,7 @@ describe('UpdateCustomerProfileUseCase', () => {
   });
 
   it('throws CustomerNotFoundError when actorId has no matching customer', async () => {
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId('00000000-0000-4000-8000-000000009998')
       .withActorType('CUSTOMER')

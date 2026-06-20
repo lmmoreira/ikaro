@@ -1,13 +1,22 @@
+import type { AddressSpec } from '@ikaro/i18n';
 import { ValueObject } from '../domain/value-object';
 
 export interface AddressProps {
   street: string;
   number: string;
   complement?: string;
-  neighborhood: string;
+  neighborhood?: string;
   city: string;
   state: string;
   zipCode: string;
+}
+
+export class AddressValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'AddressValidationError';
+  }
 }
 
 export class Address extends ValueObject<AddressProps> {
@@ -15,10 +24,18 @@ export class Address extends ValueObject<AddressProps> {
     super(props);
   }
 
-  static create(props: AddressProps): Address {
-    const zip = props.zipCode.replace(/\D/g, '');
-    if (zip.length !== 8) throw new Error(`Invalid CEP: ${props.zipCode}`);
-    return new Address({ ...props, zipCode: zip });
+  static create(props: AddressProps, spec: AddressSpec): Address {
+    if (spec.postalRegex !== null && !spec.postalRegex.test(props.zipCode)) {
+      throw new AddressValidationError(`Invalid ${spec.postalLabel}: ${props.zipCode}`);
+    }
+    if (spec.statePattern !== null && !spec.statePattern.test(props.state)) {
+      throw new AddressValidationError(`Invalid ${spec.stateLabel}: ${props.state}`);
+    }
+    const neighborhood = props.neighborhood?.trim() || undefined;
+    if (spec.requireNeighborhood && !neighborhood) {
+      throw new AddressValidationError(`${spec.neighborhoodLabel ?? 'neighborhood'} is required`);
+    }
+    return new Address({ ...props, neighborhood });
   }
 
   static reconstitute(props: AddressProps): Address {
@@ -38,7 +55,7 @@ export class Address extends ValueObject<AddressProps> {
   get complement(): string | undefined {
     return this.props.complement;
   }
-  get neighborhood(): string {
+  get neighborhood(): string | undefined {
     return this.props.neighborhood;
   }
   get city(): string {
@@ -54,11 +71,8 @@ export class Address extends ValueObject<AddressProps> {
   format(): string {
     const parts = [`${this.props.street}, ${this.props.number}`];
     if (this.props.complement) parts.push(this.props.complement);
-    parts.push(
-      this.props.neighborhood,
-      `${this.props.city} - ${this.props.state}`,
-      this.props.zipCode.replace(/(\d{5})(\d{3})/, '$1-$2'),
-    );
+    if (this.props.neighborhood) parts.push(this.props.neighborhood);
+    parts.push(`${this.props.city} - ${this.props.state}`, this.props.zipCode);
     return parts.join(', ');
   }
 }

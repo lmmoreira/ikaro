@@ -2,7 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { CustomerBuilder } from '../../../../test/builders/customer/customer.builder';
 import { InMemoryCustomerRepository } from '../../../../test/repositories/customer/in-memory-customer.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { testAddressProps } from '../../../../test/utils/address-helpers';
 import { GetCustomerProfileUseCase } from '../../application/use-cases/get-customer-profile.use-case';
 import { UpdateCustomerProfileUseCase } from '../../application/use-cases/update-customer-profile.use-case';
@@ -25,7 +25,7 @@ describe('CustomerController', () => {
     await repo.save(customer);
     customerId = customer.id;
 
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId(customerId)
       .withActorType('CUSTOMER')
@@ -47,7 +47,7 @@ describe('CustomerController', () => {
     });
 
     it('maps CustomerNotFoundError to 404', async () => {
-      const ctx = new TenantContextBuilder()
+      const ctx = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withActorId('00000000-0000-4000-8000-000000009997')
         .withActorType('CUSTOMER')

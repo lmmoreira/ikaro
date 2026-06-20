@@ -3,7 +3,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 
@@ -17,7 +17,7 @@ export class DeactivateServiceUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(id: string): Promise<DeactivateServiceUseCaseResult> {

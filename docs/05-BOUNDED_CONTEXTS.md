@@ -593,7 +593,7 @@ If a consumer needs data that the event does not carry, the fix is to **add that
 | `IEmailSender` port | Any use case |
 | Base classes: `AggregateRoot`, `DomainEvent`, `ValueObject` | Any repository implementation |
 | Value objects used by multiple contexts: `Money`, `Address` | Any context-specific domain service |
-| `TenantContext` (request-scoped tenant identity) | Any controller |
+| `RequestContext` (request-scoped tenant identity) | Any controller |
 | Logger, OTel utilities | Any context-specific DTO |
 | Pagination DTOs, RFC 9457 error base type | |
 

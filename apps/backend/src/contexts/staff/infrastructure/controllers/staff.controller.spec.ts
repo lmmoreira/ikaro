@@ -3,7 +3,7 @@ import { StaffBuilder } from '../../../../test/builders/staff';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { DeactivateStaffUseCase } from '../../application/use-cases/deactivate-staff.use-case';
 import { GetStaffByIdUseCase } from '../../application/use-cases/get-staff-by-id.use-case';
 import { InviteStaffUseCase } from '../../application/use-cases/invite-staff.use-case';
@@ -21,7 +21,7 @@ function makeController(
   tenantId = TENANT_A,
   actorId: string | undefined = MANAGER_ID,
 ): StaffController {
-  const builder = new TenantContextBuilder()
+  const builder = new RequestContextBuilder()
     .withTenantId(tenantId)
     .withCorrelationId(CORRELATION_ID)
     .withActorType('STAFF')
@@ -55,7 +55,7 @@ describe('StaffController', () => {
       expect(result.pagination.total).toBe(0);
     });
 
-    it('returns only staff from the tenant in TenantContext', async () => {
+    it('returns only staff from the tenant in RequestContext', async () => {
       const staffA = new StaffBuilder().withTenantId(TENANT_A).withEmail('a@a.com').build();
       const staffB = new StaffBuilder().withTenantId(TENANT_B).withEmail('b@b.com').build();
       await repo.save(staffA);
@@ -108,7 +108,7 @@ describe('StaffController', () => {
   });
 
   describe('invite()', () => {
-    it('creates staff using tenantId and actorId from TenantContext', async () => {
+    it('creates staff using tenantId and actorId from RequestContext', async () => {
       const result = await controller.invite({
         email: 'novo@lavacar.com.br',
         firstName: 'João',
@@ -143,7 +143,7 @@ describe('StaffController', () => {
 
   describe('deactivate()', () => {
     it('returns 400 when X-Actor-ID header is missing', async () => {
-      const ctxNoActor = new TenantContextBuilder()
+      const ctxNoActor = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withCorrelationId(CORRELATION_ID)
         .build();
@@ -162,7 +162,7 @@ describe('StaffController', () => {
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     });
 
-    it('deactivates a STAFF member using tenantId from TenantContext', async () => {
+    it('deactivates a STAFF member using tenantId from RequestContext', async () => {
       const manager = new StaffBuilder()
         .withTenantId(TENANT_A)
         .withRole('MANAGER')

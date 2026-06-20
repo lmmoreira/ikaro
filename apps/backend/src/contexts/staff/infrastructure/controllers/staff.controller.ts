@@ -14,7 +14,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { InviteStaffBodyDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
 import {
@@ -39,7 +39,7 @@ import { mapStaffError } from '../http/staff-error.mapper';
 @Controller('staff')
 export class StaffController {
   constructor(
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     private readonly listStaff: ListStaffUseCase,
     private readonly getStaffById: GetStaffByIdUseCase,
     private readonly inviteStaff: InviteStaffUseCase,

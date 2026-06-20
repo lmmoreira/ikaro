@@ -2,9 +2,9 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ServiceEntityBuilder } from '../../../../test/builders/booking/index';
-import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
+import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
+import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { Money } from '../../../../shared/value-objects/money';
-import { TENANT_LOCALIZATION_PORT } from '../../application/ports/tenant-localization.port';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceEntity } from '../entities/service.entity';
 import { TypeOrmServiceRepository } from './typeorm-service.repository';
@@ -25,7 +25,7 @@ describe('TypeOrmServiceRepository', () => {
             save: jest.fn(),
           },
         },
-        { provide: TENANT_LOCALIZATION_PORT, useClass: InMemoryTenantLocalizationPort },
+        { provide: TENANT_SETTINGS_PORT, useClass: InMemoryTenantSettingsPort },
       ],
     }).compile();
 

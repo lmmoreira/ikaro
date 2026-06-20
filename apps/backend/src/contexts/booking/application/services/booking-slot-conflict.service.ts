@@ -1,19 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { BookingSlotUnavailableError } from '../../domain/errors/booking-domain.error';
 import {
   IBookingAvailabilityPort,
   BOOKING_AVAILABILITY_PORT,
 } from '../ports/booking-availability.port';
-import { IBookingPlatformPort, BOOKING_PLATFORM_PORT } from '../ports/booking-platform.port';
 
 @Injectable()
 export class BookingSlotConflictService {
   constructor(
     @Inject(BOOKING_AVAILABILITY_PORT)
     private readonly availabilityPort: IBookingAvailabilityPort,
-    @Inject(BOOKING_PLATFORM_PORT)
-    private readonly settingsPort: IBookingPlatformPort,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async assertSlotFree(
@@ -22,8 +21,8 @@ export class BookingSlotConflictService {
     totalDurationMins: number,
     excludeBookingId?: string,
   ): Promise<void> {
-    const { businessHours } = await this.settingsPort.getSchedulingSettings(tenantId);
-    const localDate = utcDateToLocalDate(scheduledAt, businessHours.timezone);
+    const { timezone } = this.tenantContext.settings.business_hours;
+    const localDate = utcDateToLocalDate(scheduledAt, timezone);
     const existing = await this.availabilityPort.findApprovedByTenantAndDate(tenantId, localDate);
     const slots = excludeBookingId ? existing.filter((s) => s.id !== excludeBookingId) : existing;
     const bookingEnd = scheduledAt.getTime() + totalDurationMins * 60_000;

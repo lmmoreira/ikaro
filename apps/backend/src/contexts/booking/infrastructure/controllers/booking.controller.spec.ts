@@ -2,14 +2,12 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
-import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { BookingBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingController } from './booking.controller';
 import { RequestBookingUseCase } from '../../application/use-cases/request-booking.use-case';
@@ -48,18 +46,18 @@ describe('BookingController', () => {
     serviceRepo = new InMemoryServiceRepository();
     bookingRepo = new InMemoryBookingRepository();
     storageService = new InMemoryStorageService();
-    const guestCtx = new TenantContextBuilder()
+    const guestCtx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
       .build();
-    const customerCtx = new TenantContextBuilder()
+    const customerCtx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
       .withActorId(CUSTOMER_ID)
       .withActorType('CUSTOMER')
       .withActorRole('CUSTOMER')
       .build();
-    const staffCtx = new TenantContextBuilder()
+    const staffCtx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
       .withActorId(STAFF_ID)
@@ -75,10 +73,7 @@ describe('BookingController', () => {
     controller = new BookingController(
       new RequestBookingUseCase(
         serviceRepo,
-        new BookingSlotConflictService(
-          new InMemoryBookingAvailabilityPort(),
-          new InMemoryBookingPlatformPort(),
-        ),
+        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), guestCtx),
         new PhotoExistenceService(storageService),
         bookingRepo,
         new InMemoryTransactionManager(),
@@ -88,10 +83,7 @@ describe('BookingController', () => {
       new RequestAuthenticatedBookingUseCase(
         customerProfilePort,
         serviceRepo,
-        new BookingSlotConflictService(
-          new InMemoryBookingAvailabilityPort(),
-          new InMemoryBookingPlatformPort(),
-        ),
+        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), customerCtx),
         new PhotoExistenceService(storageService),
         bookingRepo,
         new InMemoryTransactionManager(),
@@ -101,10 +93,7 @@ describe('BookingController', () => {
       new ApproveBookingUseCase(
         staffCtx,
         bookingRepo,
-        new BookingSlotConflictService(
-          new InMemoryBookingAvailabilityPort(),
-          new InMemoryBookingPlatformPort(),
-        ),
+        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtx),
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
@@ -134,12 +123,11 @@ describe('BookingController', () => {
         new InMemoryEventBus(),
         new PhotoExistenceService(storageService),
       ),
-      new ListBookingsUseCase(bookingRepo, new InMemoryTenantLocalizationPort(), staffCtx),
-      new GetBookingUseCase(bookingRepo, new InMemoryTenantLocalizationPort(), staffCtx),
+      new ListBookingsUseCase(bookingRepo, staffCtx),
+      new GetBookingUseCase(bookingRepo, staffCtx),
       new CancelBookingAsCustomerUseCase(
         customerCtx,
         bookingRepo,
-        new InMemoryBookingPlatformPort(),
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
@@ -152,10 +140,7 @@ describe('BookingController', () => {
       new RescheduleBookingUseCase(
         staffCtx,
         bookingRepo,
-        new BookingSlotConflictService(
-          new InMemoryBookingAvailabilityPort(),
-          new InMemoryBookingPlatformPort(),
-        ),
+        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtx),
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
@@ -164,7 +149,6 @@ describe('BookingController', () => {
         bookingRepo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
-        new InMemoryTenantLocalizationPort(),
         new PhotoExistenceService(storageService),
       ),
     );
@@ -198,16 +182,16 @@ describe('BookingController', () => {
           totalDurationMins: 30,
         },
       ]);
-      const ctx = new TenantContextBuilder()
+      const ctx = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withCorrelationId(CORRELATION_ID)
         .build();
-      const staffCtxB = new TenantContextBuilder()
+      const staffCtxB = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withActorId(STAFF_ID)
         .build();
       const repoB = new InMemoryBookingRepository();
-      const customerCtxB = new TenantContextBuilder()
+      const customerCtxB = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withActorId(CUSTOMER_ID)
         .withActorType('CUSTOMER')
@@ -216,7 +200,7 @@ describe('BookingController', () => {
       const ctrl = new BookingController(
         new RequestBookingUseCase(
           serviceRepo,
-          new BookingSlotConflictService(conflictPort, new InMemoryBookingPlatformPort()),
+          new BookingSlotConflictService(conflictPort, ctx),
           new PhotoExistenceService(storageService),
           repoB,
           new InMemoryTransactionManager(),
@@ -226,10 +210,7 @@ describe('BookingController', () => {
         new RequestAuthenticatedBookingUseCase(
           new InMemoryBookingCustomerPort(),
           serviceRepo,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryBookingPlatformPort(),
-          ),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), ctx),
           new PhotoExistenceService(storageService),
           repoB,
           new InMemoryTransactionManager(),
@@ -239,10 +220,7 @@ describe('BookingController', () => {
         new ApproveBookingUseCase(
           staffCtxB,
           repoB,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryBookingPlatformPort(),
-          ),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtxB),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -272,12 +250,11 @@ describe('BookingController', () => {
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
-        new ListBookingsUseCase(repoB, new InMemoryTenantLocalizationPort(), ctx),
-        new GetBookingUseCase(repoB, new InMemoryTenantLocalizationPort(), ctx),
+        new ListBookingsUseCase(repoB, ctx),
+        new GetBookingUseCase(repoB, ctx),
         new CancelBookingAsCustomerUseCase(
           customerCtxB,
           repoB,
-          new InMemoryBookingPlatformPort(),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -290,10 +267,7 @@ describe('BookingController', () => {
         new RescheduleBookingUseCase(
           staffCtxB,
           repoB,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryBookingPlatformPort(),
-          ),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtxB),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -302,7 +276,6 @@ describe('BookingController', () => {
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          new InMemoryTenantLocalizationPort(),
           new PhotoExistenceService(storageService),
         ),
       );
@@ -359,14 +332,14 @@ describe('BookingController', () => {
       const scheduledAt = new Date(`${futureDate(3)}T11:00:00.000Z`);
       const conflictPort = new InMemoryBookingAvailabilityPort();
       conflictPort.setSlots([{ id: 'slot-test-id', scheduledAt, totalDurationMins: 60 }]);
-      const staffCtx = new TenantContextBuilder()
+      const staffCtx = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withCorrelationId(CORRELATION_ID)
         .withActorId(STAFF_ID)
         .withActorRole('MANAGER')
         .build();
       const bookingRepoB = new InMemoryBookingRepository();
-      const customerCtxC = new TenantContextBuilder()
+      const customerCtxC = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withActorId(CUSTOMER_ID)
         .withActorType('CUSTOMER')
@@ -375,33 +348,27 @@ describe('BookingController', () => {
       const ctrl = new BookingController(
         new RequestBookingUseCase(
           serviceRepo,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryBookingPlatformPort(),
-          ),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtx),
           new PhotoExistenceService(storageService),
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          new TenantContextBuilder().withTenantId(TENANT_A).build(),
+          new RequestContextBuilder().withTenantId(TENANT_A).build(),
         ),
         new RequestAuthenticatedBookingUseCase(
           new InMemoryBookingCustomerPort(),
           serviceRepo,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryBookingPlatformPort(),
-          ),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtx),
           new PhotoExistenceService(storageService),
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          new TenantContextBuilder().withTenantId(TENANT_A).build(),
+          new RequestContextBuilder().withTenantId(TENANT_A).build(),
         ),
         new ApproveBookingUseCase(
           staffCtx,
           bookingRepoB,
-          new BookingSlotConflictService(conflictPort, new InMemoryBookingPlatformPort()),
+          new BookingSlotConflictService(conflictPort, staffCtx),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -425,18 +392,17 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
         ),
         new SubmitGuestBookingInfoUseCase(
-          new TenantContextBuilder().withTenantId(TENANT_A).build(),
+          new RequestContextBuilder().withTenantId(TENANT_A).build(),
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
-        new ListBookingsUseCase(bookingRepoB, new InMemoryTenantLocalizationPort(), staffCtx),
-        new GetBookingUseCase(bookingRepoB, new InMemoryTenantLocalizationPort(), staffCtx),
+        new ListBookingsUseCase(bookingRepoB, staffCtx),
+        new GetBookingUseCase(bookingRepoB, staffCtx),
         new CancelBookingAsCustomerUseCase(
           customerCtxC,
           bookingRepoB,
-          new InMemoryBookingPlatformPort(),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -449,7 +415,7 @@ describe('BookingController', () => {
         new RescheduleBookingUseCase(
           staffCtx,
           bookingRepoB,
-          new BookingSlotConflictService(conflictPort, new InMemoryBookingPlatformPort()),
+          new BookingSlotConflictService(conflictPort, staffCtx),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -458,7 +424,6 @@ describe('BookingController', () => {
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          new InMemoryTenantLocalizationPort(),
           new PhotoExistenceService(storageService),
         ),
       );
@@ -808,13 +773,13 @@ describe('BookingController', () => {
         phone: null,
         defaultAddress: null,
       });
-      const ctx = new TenantContextBuilder()
+      const ctx = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withCorrelationId(CORRELATION_ID)
         .withActorId(CUSTOMER_ID)
         .withActorType('CUSTOMER')
         .build();
-      const staffCtxC = new TenantContextBuilder()
+      const staffCtxC = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withActorId(STAFF_ID)
         .build();
@@ -822,10 +787,7 @@ describe('BookingController', () => {
       const ctrl = new BookingController(
         new RequestBookingUseCase(
           serviceRepo,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryBookingPlatformPort(),
-          ),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), ctx),
           new PhotoExistenceService(storageService),
           repoC,
           new InMemoryTransactionManager(),
@@ -835,10 +797,7 @@ describe('BookingController', () => {
         new RequestAuthenticatedBookingUseCase(
           noPhonePort,
           serviceRepo,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryBookingPlatformPort(),
-          ),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), ctx),
           new PhotoExistenceService(storageService),
           repoC,
           new InMemoryTransactionManager(),
@@ -848,10 +807,7 @@ describe('BookingController', () => {
         new ApproveBookingUseCase(
           staffCtxC,
           repoC,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryBookingPlatformPort(),
-          ),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtxC),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -881,12 +837,11 @@ describe('BookingController', () => {
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
-        new ListBookingsUseCase(repoC, new InMemoryTenantLocalizationPort(), ctx),
-        new GetBookingUseCase(repoC, new InMemoryTenantLocalizationPort(), ctx),
+        new ListBookingsUseCase(repoC, ctx),
+        new GetBookingUseCase(repoC, ctx),
         new CancelBookingAsCustomerUseCase(
           ctx,
           repoC,
-          new InMemoryBookingPlatformPort(),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -899,10 +854,7 @@ describe('BookingController', () => {
         new RescheduleBookingUseCase(
           staffCtxC,
           repoC,
-          new BookingSlotConflictService(
-            new InMemoryBookingAvailabilityPort(),
-            new InMemoryBookingPlatformPort(),
-          ),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtxC),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
@@ -911,7 +863,6 @@ describe('BookingController', () => {
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          new InMemoryTenantLocalizationPort(),
           new PhotoExistenceService(storageService),
         ),
       );

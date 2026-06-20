@@ -1,4 +1,4 @@
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import {
   HotsiteConfigBuilder,
   TenantBuilder,
@@ -37,7 +37,7 @@ describe('GetHotsiteManifestUseCase', () => {
       repo,
       tenantRepo,
       storageService,
-      new TenantContextBuilder().withTenantId(TENANT_A).build(),
+      new RequestContextBuilder().withTenantId(TENANT_A).build(),
       new HotsiteImageUrlResolver(),
     );
     await tenantRepo.save(new TenantBuilder().withId(TENANT_A).build());
@@ -107,7 +107,7 @@ describe('GetHotsiteManifestUseCase', () => {
       repo,
       tenantRepo,
       storageService,
-      new TenantContextBuilder().withTenantId(TENANT_B).build(),
+      new RequestContextBuilder().withTenantId(TENANT_B).build(),
       new HotsiteImageUrlResolver(),
     );
 

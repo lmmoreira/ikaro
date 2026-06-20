@@ -1,10 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
-import {
-  ITenantLocalizationPort,
-  TENANT_LOCALIZATION_PORT,
-} from '../ports/tenant-localization.port';
 import { Service } from '../../domain/service.aggregate';
 
 export interface ServiceListItem {
@@ -27,15 +23,13 @@ export interface ListServicesUseCaseResult {
 export class ListServicesUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
-    @Inject(TENANT_LOCALIZATION_PORT)
-    private readonly localizationPort: ITenantLocalizationPort,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(): Promise<ListServicesUseCaseResult> {
     const tenantId = this.tenantContext.tenantId;
     const services = await this.serviceRepo.findAllByTenant(tenantId, true);
-    const { locale } = await this.localizationPort.getLocalization(tenantId);
+    const { language: locale } = this.tenantContext.settings.localization;
     return { items: services.map((s) => this.toItem(s, locale)) };
   }
 

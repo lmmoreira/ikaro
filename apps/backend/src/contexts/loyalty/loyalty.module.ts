@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
-import { TenantModule } from '../../shared/tenant/tenant.module';
+import { RequestModule } from '../../shared/request/request.module';
 import { BookingModule } from '../booking/booking.module';
 import { PlatformModule } from '../platform/platform.module';
 import { BALANCE_EXPIRY_LOG_REPOSITORY } from './application/ports/balance-expiry-log-repository.port';
@@ -45,7 +45,7 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
       ProcessedEventEntity,
     ]),
     TransactionManagerModule,
-    TenantModule,
+    RequestModule,
     BookingModule,
     PlatformModule,
   ],

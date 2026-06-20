@@ -3,7 +3,7 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -34,7 +34,7 @@ describe('SubmitBookingInfoUseCase', () => {
     bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
     storageService = new InMemoryStorageService();
-    const ctx = new TenantContextBuilder()
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
       .withActorId(CUSTOMER_ID)

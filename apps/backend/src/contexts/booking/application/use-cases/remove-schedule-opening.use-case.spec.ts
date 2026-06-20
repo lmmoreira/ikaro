@@ -2,7 +2,7 @@ import { futureDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { RemoveScheduleOpeningUseCase } from './remove-schedule-opening.use-case';
 import { ScheduleOpeningNotFoundError } from '../../domain/errors/booking-domain.error';
 
@@ -15,7 +15,7 @@ describe('RemoveScheduleOpeningUseCase', () => {
 
   beforeEach(() => {
     repo = new InMemoryScheduleOpeningRepository();
-    const ctx = new TenantContextBuilder().withTenantId(TENANT_ID).build();
+    const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).build();
     const tx = new InMemoryTransactionManager();
     useCase = new RemoveScheduleOpeningUseCase(repo, tx, ctx);
   });

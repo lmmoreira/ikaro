@@ -3,7 +3,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { ScheduleClosure } from '../../domain/schedule-closure.aggregate';
 import { ScheduleAlreadyClosedError } from '../../domain/errors/booking-domain.error';
 import {
@@ -29,7 +29,7 @@ export class CloseScheduleUseCase {
     @Inject(SCHEDULE_CLOSURE_REPOSITORY)
     private readonly closureRepo: IScheduleClosureRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(dto: CloseScheduleDto): Promise<CloseScheduleUseCaseResult> {

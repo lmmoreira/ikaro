@@ -4,7 +4,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   BookingNotFoundError,
   InvalidBookingTransitionError,
@@ -23,7 +23,7 @@ export interface ApproveBookingUseCaseResult {
 @Injectable()
 export class ApproveBookingUseCase {
   constructor(
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     private readonly slotConflictService: BookingSlotConflictService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,

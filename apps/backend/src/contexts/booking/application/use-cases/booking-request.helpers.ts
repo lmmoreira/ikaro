@@ -49,7 +49,7 @@ export function toBookingResult(booking: Booking): BookingRequestResult {
           street: pickup.street,
           number: pickup.number,
           complement: pickup.complement ?? null,
-          neighborhood: pickup.neighborhood,
+          neighborhood: pickup.neighborhood ?? null,
           city: pickup.city,
           state: pickup.state,
           zipCode: pickup.zipCode,

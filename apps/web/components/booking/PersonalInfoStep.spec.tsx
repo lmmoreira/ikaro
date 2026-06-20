@@ -3,9 +3,22 @@ import { useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
+import type { AvailableSlot, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import { emptyPersonalInfo, type PersonalInfoValue } from '@/lib/booking/personal-info';
 import { PersonalInfoStep } from './PersonalInfoStep';
+
+const BR_ADDRESS_SPEC: HotsiteAddressSpec = {
+  postalLabel: 'CEP',
+  postalPlaceholder: '00000-000',
+  stateLabel: 'UF',
+  requireNeighborhood: true,
+  neighborhoodLabel: 'Bairro',
+  streetLabel: 'Rua',
+  numberLabel: 'Número',
+  complementLabel: 'Complemento',
+  cityLabel: 'Cidade',
+  lookupService: 'viacep',
+};
 
 vi.mock('@/lib/api/bookings', () => ({
   createAttachmentSignedUrl: vi.fn(),
@@ -32,10 +45,12 @@ function Wrapper({
   onNext = vi.fn(),
   onBack = vi.fn(),
   phonePrefix = '+55',
+  addressSpec = BR_ADDRESS_SPEC,
 }: {
   readonly onNext?: () => void;
   readonly onBack?: () => void;
   readonly phonePrefix?: string;
+  readonly addressSpec?: HotsiteAddressSpec;
 }) {
   const [value, setValue] = useState<PersonalInfoValue>(emptyPersonalInfo());
   return (
@@ -48,6 +63,7 @@ function Wrapper({
       selectedDate="2026-06-18"
       selectedSlot={slot}
       phonePrefix={phonePrefix}
+      addressSpec={addressSpec}
       onNext={onNext}
       onBack={onBack}
     />

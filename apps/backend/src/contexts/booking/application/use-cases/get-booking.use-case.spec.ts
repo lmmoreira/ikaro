@@ -1,7 +1,6 @@
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
-import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { GetBookingUseCase } from './get-booking.use-case';
 
@@ -22,12 +21,12 @@ describe('GetBookingUseCase', () => {
     let useCase: GetBookingUseCase;
 
     beforeEach(() => {
-      const ctx = new TenantContextBuilder()
+      const ctx = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withActorId(STAFF_ID)
         .withActorRole('MANAGER')
         .build();
-      useCase = new GetBookingUseCase(repo, new InMemoryTenantLocalizationPort(), ctx);
+      useCase = new GetBookingUseCase(repo, ctx);
     });
 
     it('returns booking detail for any booking in the tenant', async () => {
@@ -69,13 +68,13 @@ describe('GetBookingUseCase', () => {
     let useCase: GetBookingUseCase;
 
     beforeEach(() => {
-      const ctx = new TenantContextBuilder()
+      const ctx = new RequestContextBuilder()
         .withTenantId(TENANT_A)
         .withActorId(CUSTOMER_ID)
         .withActorType('CUSTOMER')
         .withActorRole('CUSTOMER')
         .build();
-      useCase = new GetBookingUseCase(repo, new InMemoryTenantLocalizationPort(), ctx);
+      useCase = new GetBookingUseCase(repo, ctx);
     });
 
     it('returns own booking', async () => {

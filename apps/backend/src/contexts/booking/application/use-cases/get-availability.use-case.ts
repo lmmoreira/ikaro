@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { todayUTC } from '../../../../shared/utils/calendar-date';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   AvailabilityDateInPastError,
@@ -18,7 +18,6 @@ import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
-import { IBookingPlatformPort, BOOKING_PLATFORM_PORT } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { GetAvailabilityDto } from '../dtos/get-availability.dto';
 
@@ -36,12 +35,10 @@ export interface GetAvailabilityUseCaseResult {
 @Injectable()
 export class GetAvailabilityUseCase {
   constructor(
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
     @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
-    @Inject(BOOKING_PLATFORM_PORT)
-    private readonly settingsPort: IBookingPlatformPort,
     @Inject(BOOKING_AVAILABILITY_PORT)
     private readonly bookingPort: IBookingAvailabilityPort,
     private readonly availabilityService: AvailabilityService,
@@ -53,8 +50,7 @@ export class GetAvailabilityUseCase {
     const today = todayUTC();
     if (dto.date < today) throw new AvailabilityDateInPastError();
 
-    const { businessHours, bookingSettings } =
-      await this.settingsPort.getSchedulingSettings(tenantId);
+    const { business_hours: businessHours, booking: bookingSettings } = this.tenantContext.settings;
 
     const services = await this.serviceRepo.findByIds(dto.serviceIds, tenantId);
 

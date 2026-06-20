@@ -29,7 +29,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
     ({ app, ds, eventBus } = await createNotificationIntegrationApp({
       dispatcher,
       extraEntities: [CustomerEntity],
-      withTenantInterceptor: true,
+      withRequestInterceptor: true,
     }));
 
     const slug = `pts-expiring-${Date.now()}`;

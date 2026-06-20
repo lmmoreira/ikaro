@@ -2,7 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
@@ -48,7 +48,7 @@ describe('HotsiteAdminController', () => {
         updatedAt: now,
       }),
     );
-    const ctx = new TenantContextBuilder().withTenantId(TENANT_A).build();
+    const ctx = new RequestContextBuilder().withTenantId(TENANT_A).build();
     const txManager = new InMemoryTransactionManager();
 
     controller = new HotsiteAdminController(

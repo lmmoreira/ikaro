@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyAddress, emptyPersonalInfo, isAddressFilled } from './personal-info';
+import { emptyAddress, emptyPersonalInfo, isAddressFilled, sanitizeAddress } from './personal-info';
 
 describe('emptyAddress', () => {
   it('returns an address with all fields empty', () => {
@@ -29,34 +29,114 @@ describe('emptyPersonalInfo', () => {
 });
 
 describe('isAddressFilled', () => {
-  it('returns false when any required field is empty', () => {
-    expect(isAddressFilled(emptyAddress())).toBe(false);
+  it('returns false when any required field is empty (BR, neighborhood required)', () => {
+    expect(isAddressFilled(emptyAddress(), true)).toBe(false);
   });
 
-  it('returns true when all required fields are filled', () => {
+  it('returns true when all required fields are filled (BR, neighborhood required)', () => {
     expect(
-      isAddressFilled({
-        street: 'Avenida Paulista',
-        number: '1000',
-        complement: '',
-        neighborhood: 'Bela Vista',
-        city: 'São Paulo',
-        state: 'SP',
-        zipCode: '01310100',
-      }),
+      isAddressFilled(
+        {
+          street: 'Avenida Paulista',
+          number: '1000',
+          complement: '',
+          neighborhood: 'Bela Vista',
+          city: 'São Paulo',
+          state: 'SP',
+          zipCode: '01310100',
+        },
+        true,
+      ),
     ).toBe(true);
   });
 
   it('treats an empty complement as filled (complement is optional)', () => {
     expect(
-      isAddressFilled({
-        street: 'Avenida Paulista',
-        number: '1000',
-        neighborhood: 'Bela Vista',
-        city: 'São Paulo',
-        state: 'SP',
-        zipCode: '01310100',
-      }),
+      isAddressFilled(
+        {
+          street: 'Avenida Paulista',
+          number: '1000',
+          neighborhood: 'Bela Vista',
+          city: 'São Paulo',
+          state: 'SP',
+          zipCode: '01310100',
+        },
+        true,
+      ),
     ).toBe(true);
+  });
+
+  it('returns false when neighborhood is required but missing', () => {
+    expect(
+      isAddressFilled(
+        {
+          street: 'Avenida Paulista',
+          number: '1000',
+          neighborhood: '',
+          city: 'São Paulo',
+          state: 'SP',
+          zipCode: '01310100',
+        },
+        true,
+      ),
+    ).toBe(false);
+  });
+
+  it('returns true without a neighborhood when the country does not require it', () => {
+    expect(
+      isAddressFilled(
+        {
+          street: 'Main St',
+          number: '1',
+          neighborhood: '',
+          city: 'Beverly Hills',
+          state: 'CA',
+          zipCode: '90210',
+        },
+        false,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false when neighborhood is required but null (not just empty string)', () => {
+    expect(
+      isAddressFilled(
+        {
+          street: 'Avenida Paulista',
+          number: '1000',
+          neighborhood: null,
+          city: 'São Paulo',
+          state: 'SP',
+          zipCode: '01310100',
+        },
+        true,
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('sanitizeAddress', () => {
+  it('replaces an empty-string neighborhood with undefined', () => {
+    const result = sanitizeAddress({
+      street: 'Main St',
+      number: '1',
+      neighborhood: '',
+      city: 'Beverly Hills',
+      state: 'CA',
+      zipCode: '90210',
+    });
+    expect(result.neighborhood).toBeUndefined();
+  });
+
+  it('keeps a non-empty neighborhood unchanged', () => {
+    const result = sanitizeAddress({
+      street: 'Avenida Paulista',
+      number: '1000',
+      neighborhood: 'Bela Vista',
+      city: 'São Paulo',
+      state: 'SP',
+      zipCode: '01310100',
+    });
+    expect(result.neighborhood).toBe('Bela Vista');
   });
 });

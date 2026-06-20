@@ -3,13 +3,9 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { Money } from '../../../../shared/value-objects/money';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
-import {
-  ITenantLocalizationPort,
-  TENANT_LOCALIZATION_PORT,
-} from '../ports/tenant-localization.port';
 import { CreateServiceDto } from '../dtos/create-service.dto';
 import { Service } from '../../domain/service.aggregate';
 
@@ -30,14 +26,12 @@ export class CreateServiceUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    @Inject(TENANT_LOCALIZATION_PORT)
-    private readonly localizationPort: ITenantLocalizationPort,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(dto: CreateServiceDto): Promise<CreateServiceUseCaseResult> {
     const tenantId = this.tenantContext.tenantId;
-    const { currency, locale } = await this.localizationPort.getLocalization(tenantId);
+    const { currency, language: locale } = this.tenantContext.settings.localization;
     const price = Money.from(dto.priceAmount, currency);
 
     const service = Service.create(

@@ -1,11 +1,10 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { GetAvailabilitySummaryUseCase } from '../../application/use-cases/get-availability-summary.use-case';
@@ -22,11 +21,10 @@ describe('ScheduleAvailabilitySummaryController', () => {
     serviceRepo = new InMemoryServiceRepository();
     controller = new ScheduleAvailabilitySummaryController(
       new GetAvailabilitySummaryUseCase(
-        new TenantContextBuilder().withTenantId(TENANT_ID).build(),
+        new RequestContextBuilder().withTenantId(TENANT_ID).build(),
         serviceRepo,
         new InMemoryScheduleClosureRepository(),
         new InMemoryScheduleOpeningRepository(),
-        new InMemoryBookingPlatformPort(),
         new InMemoryBookingAvailabilityPort(),
         new AvailabilityService(),
       ),

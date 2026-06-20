@@ -5,7 +5,7 @@ const STAFF_ID = '30000000-0000-4000-8000-000000000001';
 
 describe('StaffController', () => {
   describe('list()', () => {
-    it('calls GET /staff with limit and offset (actor context comes from TenantContext via BFF headers)', async () => {
+    it('calls GET /staff with limit and offset (actor context comes from RequestContext via BFF headers)', async () => {
       const expectedResult = {
         items: [],
         pagination: { limit: 10, offset: 5, total: 0, hasMore: false, nextOffset: null },
@@ -21,7 +21,7 @@ describe('StaffController', () => {
   });
 
   describe('getById()', () => {
-    it('calls GET /staff/:id (actor context comes from TenantContext via BFF headers)', async () => {
+    it('calls GET /staff/:id (actor context comes from RequestContext via BFF headers)', async () => {
       const expectedResult = { id: STAFF_ID, email: 'gerente@lavacar.com.br', role: 'MANAGER' };
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(expectedResult) });
       const controller = new StaffController(backendHttp);
@@ -48,7 +48,7 @@ describe('StaffController', () => {
       role: 'STAFF' as const,
     };
 
-    it('calls POST /staff/invite with only body fields (tenantId + invitedBy come from TenantContext headers)', async () => {
+    it('calls POST /staff/invite with only body fields (tenantId + invitedBy come from RequestContext headers)', async () => {
       const expectedResult = {
         staffId: '40000000-0000-4000-8000-000000000001',
         email: 'novo@lavacar.com.br',

@@ -2,7 +2,7 @@ import { futureDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { ScheduleClosureNotFoundError } from '../../domain/errors/booking-domain.error';
 import { RemoveClosureUseCase } from './remove-closure.use-case';
 
@@ -19,7 +19,7 @@ describe('RemoveClosureUseCase', () => {
     useCase = new RemoveClosureUseCase(
       repo,
       new InMemoryTransactionManager(),
-      new TenantContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build(),
+      new RequestContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build(),
     );
   });
 

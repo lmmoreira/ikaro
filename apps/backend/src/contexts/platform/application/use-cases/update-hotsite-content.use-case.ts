@@ -4,7 +4,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   HotsiteImageNotUploadedError,
   HotsiteNotFoundError,
@@ -36,7 +36,7 @@ export class UpdateHotsiteContentUseCase {
     private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     private readonly imagePathsService: HotsiteImagePathsService,
   ) {}
 

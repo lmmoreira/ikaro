@@ -3,17 +3,22 @@ import {
   ExecutionContext,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { uuidv7 } from '../domain/uuid-v7';
 import { ProblemDetail } from '../http/problem-detail';
-import { runWithTenantContext } from './tenant-context';
+import { ITenantSettingsPort, TENANT_SETTINGS_PORT } from '../ports/tenant-settings.port';
+import type { TenantSettingsProps } from '../../contexts/platform/domain/value-objects/tenant-settings.vo';
+import { runWithRequestContext } from './request-context';
 
 @Injectable()
-export class TenantInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+export class RequestInterceptor implements NestInterceptor {
+  constructor(@Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort) {}
+
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     const req = context.switchToHttp().getRequest<{
       headers: Record<string, string | string[] | undefined>;
       path: string;
@@ -39,6 +44,19 @@ export class TenantInterceptor implements NestInterceptor {
       throw new HttpException(body, HttpStatus.BAD_REQUEST);
     }
 
+    let settings: TenantSettingsProps;
+    try {
+      settings = await this.settingsPort.getSettings(tenantId);
+    } catch {
+      const body: ProblemDetail = {
+        type: 'about:blank',
+        title: 'Tenant Not Found',
+        status: HttpStatus.NOT_FOUND,
+        detail: `Tenant not found: ${tenantId}`,
+      };
+      throw new HttpException(body, HttpStatus.NOT_FOUND);
+    }
+
     const correlationId =
       (typeof req.headers['x-correlation-id'] === 'string'
         ? req.headers['x-correlation-id']
@@ -55,11 +73,12 @@ export class TenantInterceptor implements NestInterceptor {
     const actor = actorId && actorType && actorRole ? { actorId, actorType, actorRole } : undefined;
 
     // Wrap the entire request observable in AsyncLocalStorage context so that
-    // TenantContext fields are available anywhere in the call chain.
+    // RequestContext fields are available anywhere in the call chain.
     return new Observable((subscriber) => {
-      runWithTenantContext(
+      runWithRequestContext(
         tenantId,
         correlationId,
+        settings,
         () => {
           next.handle().subscribe(subscriber);
         },

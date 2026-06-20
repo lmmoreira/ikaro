@@ -1,11 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { countrySpec } from '@ikaro/i18n';
 import { Address } from '../../../../shared/value-objects/address';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { Booking } from '../../domain/booking.aggregate';
 import {
   BookingCustomerNotFoundError,
@@ -33,7 +34,7 @@ export class RequestAuthenticatedBookingUseCase {
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(
@@ -60,10 +61,11 @@ export class RequestAuthenticatedBookingUseCase {
 
     let pickupAddress: Address | undefined;
     if (dto.pickupAddress) {
-      pickupAddress = Address.create({
-        ...dto.pickupAddress,
-        complement: dto.pickupAddress.complement ?? undefined,
-      });
+      const { country_code: countryCode } = this.tenantContext.settings.localization;
+      pickupAddress = Address.create(
+        { ...dto.pickupAddress, complement: dto.pickupAddress.complement ?? undefined },
+        countrySpec(countryCode).address,
+      );
     } else if (requiresPickup && customer.defaultAddress) {
       pickupAddress = customer.defaultAddress;
     }

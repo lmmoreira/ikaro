@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { HotsiteConfigBuilder, TenantBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
@@ -23,7 +23,7 @@ describe('HotsiteController', () => {
         repo,
         tenantRepo,
         new InMemoryStorageService(),
-        new TenantContextBuilder().withTenantId(TENANT_A).build(),
+        new RequestContextBuilder().withTenantId(TENANT_A).build(),
         new HotsiteImageUrlResolver(),
       ),
     );

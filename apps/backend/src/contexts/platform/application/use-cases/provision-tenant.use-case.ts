@@ -33,7 +33,7 @@ export class ProvisionTenantUseCase {
 
   async execute(dto: ProvisionTenantDto): Promise<ProvisionTenantUseCaseResult> {
     const timezone = dto.timezone ?? countrySpec(dto.country_code).defaultTimezone;
-    // correlationId generated here — /internal routes skip TenantInterceptor
+    // correlationId generated here — /internal routes skip RequestInterceptor
     const correlationId = uuidv7();
 
     if (await this.tenantRepo.existsBySlug(dto.slug)) {

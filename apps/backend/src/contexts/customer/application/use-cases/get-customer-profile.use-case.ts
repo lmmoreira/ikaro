@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AddressProps } from '../../../../shared/value-objects/address';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { CustomerNotFoundError } from '../../domain/errors/customer-domain.error';
 import { CUSTOMER_REPOSITORY, ICustomerRepository } from '../ports/customer-repository.port';
 
@@ -16,7 +16,7 @@ export type GetCustomerProfileUseCaseResult = {
 export class GetCustomerProfileUseCase {
   constructor(
     @Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(): Promise<GetCustomerProfileUseCaseResult> {

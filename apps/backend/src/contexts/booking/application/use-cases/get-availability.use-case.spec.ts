@@ -1,12 +1,11 @@
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
 import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { GetAvailabilityUseCase } from './get-availability.use-case';
@@ -28,11 +27,10 @@ describe('GetAvailabilityUseCase', () => {
     openingRepo = new InMemoryScheduleOpeningRepository();
     bookingPort = new InMemoryBookingAvailabilityPort();
     useCase = new GetAvailabilityUseCase(
-      new TenantContextBuilder().withTenantId(TENANT_ID).build(),
+      new RequestContextBuilder().withTenantId(TENANT_ID).build(),
       serviceRepo,
       closureRepo,
       openingRepo,
-      new InMemoryBookingPlatformPort(),
       bookingPort,
       new AvailabilityService(),
     );

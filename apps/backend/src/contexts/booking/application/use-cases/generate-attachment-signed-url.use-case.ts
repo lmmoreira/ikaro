@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { GenerateAttachmentSignedUrlDto } from '../dtos/generate-attachment-signed-url.dto';
@@ -15,7 +15,7 @@ export interface GenerateAttachmentSignedUrlResult {
 @Injectable()
 export class GenerateAttachmentSignedUrlUseCase {
   constructor(
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
   ) {}

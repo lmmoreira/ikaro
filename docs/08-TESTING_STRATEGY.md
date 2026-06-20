@@ -935,7 +935,7 @@ Always use a **class** with fluent `withXxx()` methods and a `build()` call. Nev
 |---|---|
 | TypeORM entities | `src/test/builders/<context>/XxxEntityBuilder` (`id` defaults to `uuidv7()`) |
 | Domain aggregates | `src/test/builders/<context>/XxxBuilder` |
-| Shared infra stubs (e.g. TenantContext) | `src/test/factories/XxxBuilder` — e.g. `TenantContextBuilder` at `src/test/factories/tenant-context.factory.ts` |
+| Shared infra stubs (e.g. RequestContext) | `src/test/factories/XxxBuilder` — e.g. `RequestContextBuilder` at `src/test/factories/request-context.factory.ts` |
 
 ### Test setup pattern
 
@@ -1044,7 +1044,7 @@ Currently affected helpers and their default overrides:
 
 All notification story integration specs must use `createNotificationIntegrationApp()` from `src/test/utils/notification-integration-app.ts`.
 
-Options: `dispatcher` (required), `configure` (override providers), `extraModules`, `extraEntities`, `withTenantInterceptor`. Returns `{ app, ds, eventBus }`. Never repeat `TypeOrmModule.forRoot` inline.
+Options: `dispatcher` (required), `configure` (override providers), `extraModules`, `extraEntities`, `withRequestInterceptor`. Returns `{ app, ds, eventBus }`. Never repeat `TypeOrmModule.forRoot` inline.
 
 ### Notification cross-handler isolation
 

@@ -1,10 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
-import {
-  ITenantLocalizationPort,
-  TENANT_LOCALIZATION_PORT,
-} from '../ports/tenant-localization.port';
 import { ListBookingsDto } from '../dtos/list-bookings.dto';
 import { Booking } from '../../domain/booking.aggregate';
 
@@ -37,9 +33,7 @@ export interface ListBookingsUseCaseResult {
 export class ListBookingsUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-    @Inject(TENANT_LOCALIZATION_PORT)
-    private readonly localizationPort: ITenantLocalizationPort,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(dto: ListBookingsDto): Promise<ListBookingsUseCaseResult> {
@@ -57,7 +51,7 @@ export class ListBookingsUseCase {
       offset: dto.offset,
     });
 
-    const { locale } = await this.localizationPort.getLocalization(tenantId);
+    const { language: locale } = this.tenantContext.settings.localization;
     return {
       items: items.map((b) => this.toListItem(b, locale)),
       pagination: {

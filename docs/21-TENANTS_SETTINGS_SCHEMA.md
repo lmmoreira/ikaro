@@ -427,7 +427,7 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
 
 ```typescript
 // Inject the tenant context
-constructor(private tenantContext: TenantContext) {}
+constructor(private tenantContext: RequestContext) {}
 
 // Access settings
 const loyaltyExpiryDays = this.tenantContext.settings.loyalty.expiry_days; // 180

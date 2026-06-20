@@ -1,6 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Patch, UseGuards } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   UpdateTenantSettingsDto,
   UpdateTenantSettingsSchema,
@@ -17,7 +17,7 @@ import { mapPlatformError } from '../http/platform-error.mapper';
 export class TenantSettingsController {
   constructor(
     private readonly updateTenantSettings: UpdateTenantSettingsUseCase,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   @Patch('settings')

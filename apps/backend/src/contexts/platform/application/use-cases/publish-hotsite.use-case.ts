@@ -3,7 +3,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { TenantContext } from '../../../../shared/tenant/tenant-context';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   HotsiteNotFoundError,
   TenantNotFoundError,
@@ -31,7 +31,7 @@ export class PublishHotsiteUseCase {
     @Inject(FRONTEND_REVALIDATION_PORT)
     private readonly frontendRevalidation: IFrontendRevalidationPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: TenantContext,
+    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(): Promise<PublishHotsiteUseCaseResult> {

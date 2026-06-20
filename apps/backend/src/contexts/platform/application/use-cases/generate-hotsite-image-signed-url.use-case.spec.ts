@@ -1,4 +1,4 @@
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { GenerateHotsiteImageSignedUrlUseCase } from './generate-hotsite-image-signed-url.use-case';
 
@@ -12,7 +12,7 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
   beforeEach(() => {
     storageService = new InMemoryStorageService();
     useCase = new GenerateHotsiteImageSignedUrlUseCase(
-      new TenantContextBuilder().withTenantId(TENANT_A).build(),
+      new RequestContextBuilder().withTenantId(TENANT_A).build(),
       storageService,
     );
   });
@@ -52,7 +52,7 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
 
   it('scopes the generated path to the requesting tenant', async () => {
     const useCaseB = new GenerateHotsiteImageSignedUrlUseCase(
-      new TenantContextBuilder().withTenantId(TENANT_B).build(),
+      new RequestContextBuilder().withTenantId(TENANT_B).build(),
       storageService,
     );
 

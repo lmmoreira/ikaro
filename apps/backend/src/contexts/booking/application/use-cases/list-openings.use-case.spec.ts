@@ -1,6 +1,6 @@
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { ListOpeningsUseCase } from './list-openings.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -11,7 +11,7 @@ describe('ListOpeningsUseCase', () => {
 
   beforeEach(() => {
     repo = new InMemoryScheduleOpeningRepository();
-    const ctx = new TenantContextBuilder().withTenantId(TENANT_ID).build();
+    const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).build();
     useCase = new ListOpeningsUseCase(repo, ctx);
   });
 

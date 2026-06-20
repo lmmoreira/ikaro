@@ -12,8 +12,8 @@ import { HealthController } from './health/health.controller';
 import { EventBusModule } from './shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from './shared/infrastructure/transaction-manager.module';
 import { InternalApiGuard } from './shared/guards/internal-api.guard';
-import { TenantInterceptor } from './shared/tenant/tenant.interceptor';
-import { TenantModule } from './shared/tenant/tenant.module';
+import { RequestInterceptor } from './shared/request/request.interceptor';
+import { RequestModule } from './shared/request/request.module';
 import { validateEnv } from './config/env.validation';
 
 @Module({
@@ -35,7 +35,7 @@ import { validateEnv } from './config/env.validation';
     }),
     EventBusModule,
     TransactionManagerModule,
-    TenantModule,
+    RequestModule,
     PlatformModule,
     BookingModule,
     CustomerModule,
@@ -45,7 +45,7 @@ import { validateEnv } from './config/env.validation';
   ],
   controllers: [HealthController],
   providers: [
-    { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: RequestInterceptor },
     { provide: APP_GUARD, useClass: InternalApiGuard },
   ],
 })

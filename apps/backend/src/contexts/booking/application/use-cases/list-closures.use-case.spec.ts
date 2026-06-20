@@ -1,6 +1,6 @@
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { ListClosuresUseCase } from './list-closures.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -14,7 +14,7 @@ describe('ListClosuresUseCase', () => {
     repo = new InMemoryScheduleClosureRepository();
     useCase = new ListClosuresUseCase(
       repo,
-      new TenantContextBuilder().withTenantId(TENANT_ID).build(),
+      new RequestContextBuilder().withTenantId(TENANT_ID).build(),
     );
   });
 

@@ -1,9 +1,9 @@
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
+import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -23,26 +23,28 @@ const CORRELATION_ID = 'corr-cancel-customer-test';
 describe('CancelBookingAsCustomerUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
   let eventBus: InMemoryEventBus;
-  let settingsPort: InMemoryBookingPlatformPort;
   let useCase: CancelBookingAsCustomerUseCase;
 
-  beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
-    eventBus = new InMemoryEventBus();
-    settingsPort = new InMemoryBookingPlatformPort();
-    const ctx = new TenantContextBuilder()
+  function makeUseCase(settings = TenantSettings.default().toJSON()) {
+    const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
       .withActorId(CUSTOMER_ID)
       .withActorRole('CUSTOMER')
+      .withSettings(settings)
       .build();
-    useCase = new CancelBookingAsCustomerUseCase(
+    return new CancelBookingAsCustomerUseCase(
       ctx,
       bookingRepo,
-      settingsPort,
       new InMemoryTransactionManager(),
       eventBus,
     );
+  }
+
+  beforeEach(() => {
+    bookingRepo = new InMemoryBookingRepository();
+    eventBus = new InMemoryEventBus();
+    useCase = makeUseCase();
   });
 
   describe('cancelling an APPROVED booking', () => {
@@ -117,13 +119,10 @@ describe('CancelBookingAsCustomerUseCase', () => {
     });
 
     it('respects a custom 24h cancellation window from tenant settings', async () => {
-      settingsPort.setBookingSettings(TENANT_A, {
-        cancellation_window_hours: 24,
-        auto_approve_enabled: false,
-        min_booking_advance_hours: 0,
-        max_booking_advance_days: 90,
-        service_buffer_minutes: 60,
-        slot_granularity_minutes: 30,
+      const settings = TenantSettings.default().toJSON();
+      useCase = makeUseCase({
+        ...settings,
+        booking: { ...settings.booking, cancellation_window_hours: 24 },
       });
 
       // scheduled in 25h — outside a 24h window, should succeed
@@ -155,19 +154,6 @@ describe('CancelBookingAsCustomerUseCase', () => {
       const result = await useCase.execute({ bookingId: booking.id });
 
       expect(result.status).toBe(BookingStatus.CANCELLED);
-    });
-
-    it('does not call getBookingSettings for a PENDING booking', async () => {
-      const getSpy = jest.spyOn(settingsPort, 'getBookingSettings');
-      const booking = new BookingBuilder()
-        .withTenantId(TENANT_A)
-        .withCustomerId(CUSTOMER_ID)
-        .build();
-      await bookingRepo.save(booking);
-
-      await useCase.execute({ bookingId: booking.id });
-
-      expect(getSpy).not.toHaveBeenCalled();
     });
   });
 

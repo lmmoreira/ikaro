@@ -1,7 +1,6 @@
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { InMemoryTenantLocalizationPort } from '../../../../test/infrastructure/in-memory-tenant-localization.port';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { TenantContextBuilder } from '../../../../test/factories/tenant-context.factory';
+import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { Money } from '../../../../shared/value-objects/money';
 import { ListServicesUseCase } from './list-services.use-case';
 
@@ -16,8 +15,7 @@ describe('ListServicesUseCase', () => {
     repo = new InMemoryServiceRepository();
     useCase = new ListServicesUseCase(
       repo,
-      new InMemoryTenantLocalizationPort(),
-      new TenantContextBuilder().withTenantId(TENANT_A).build(),
+      new RequestContextBuilder().withTenantId(TENANT_A).build(),
     );
   });
 

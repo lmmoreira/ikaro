@@ -1,3 +1,4 @@
+import { countrySpec } from '@ikaro/i18n';
 import { Address } from '../../../shared/value-objects/address';
 import { Email } from '../../../shared/value-objects/email.vo';
 import { PhoneNumber } from '../../../shared/value-objects/phone-number.vo';
@@ -6,14 +7,17 @@ import { CustomerDomainError } from './errors/customer-domain.error';
 
 const validArgs = ['tenant-1', 'google-sub-123', 'user@example.com', 'João Silva'] as const;
 
-const testAddress = Address.create({
-  street: 'Rua das Flores',
-  number: '123',
-  neighborhood: 'Centro',
-  city: 'Belo Horizonte',
-  state: 'MG',
-  zipCode: '30130-110',
-});
+const testAddress = Address.create(
+  {
+    street: 'Rua das Flores',
+    number: '123',
+    neighborhood: 'Centro',
+    city: 'Belo Horizonte',
+    state: 'MG',
+    zipCode: '30130-110',
+  },
+  countrySpec('BR').address,
+);
 
 describe('Customer', () => {
   it('creates a valid customer with correct defaults', () => {
