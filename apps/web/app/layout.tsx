@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages } from 'next-intl/server';
 import { QueryProvider } from '@/providers/query-provider';
 
 export const metadata: Metadata = {
@@ -7,11 +9,20 @@ export const metadata: Metadata = {
   description: 'Agendamento de lavagem automotiva',
 };
 
-export default function RootLayout({ children }: { readonly children: React.ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  readonly children: React.ReactNode;
+}): Promise<React.JSX.Element> {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="pt-BR">
+    <html lang={locale}>
       <body className="font-sans antialiased">
-        <QueryProvider>{children}</QueryProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <QueryProvider>{children}</QueryProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

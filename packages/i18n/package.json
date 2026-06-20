@@ -5,6 +5,15 @@
   "description": "Country specs, locale defaults, and i18n locale files",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./locales/*": "./locales/*",
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit"

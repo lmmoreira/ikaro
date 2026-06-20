@@ -13,4 +13,11 @@ module.exports = [
     ...jsxA11y.flatConfigs.recommended,
   },
   { ignores: ['next-env.d.ts'] },
+  // global.d.ts uses empty interface extension for next-intl IntlMessages
+  // augmentation (declaration merging) — a standard TypeScript pattern that
+  // no-empty-object-type correctly flags but must be allowed here.
+  {
+    files: ['global.d.ts'],
+    rules: { '@typescript-eslint/no-empty-object-type': 'off' },
+  },
 ];
