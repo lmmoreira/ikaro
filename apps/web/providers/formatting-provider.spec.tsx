@@ -22,7 +22,7 @@ const DEFAULT_PROPS = {
   locale: 'en',
   currency: 'USD',
   timezone: 'America/New_York',
-  dateFormat: 'MM/DD/YYYY',
+  dateFormat: 'MM/DD/YYYY' as const,
   timeFormat: '12h' as const,
 };
 

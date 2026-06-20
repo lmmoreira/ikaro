@@ -1,10 +1,11 @@
 import { createContext } from 'react';
+import type { DateFormat } from '../booking/format-time';
 
 export interface FormattingState {
   readonly locale: string;
   readonly currency: string;
   readonly timezone: string;
-  readonly dateFormat: string;
+  readonly dateFormat: DateFormat;
   readonly timeFormat: '24h' | '12h';
 }
 

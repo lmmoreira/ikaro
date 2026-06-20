@@ -12,7 +12,9 @@ export function formatTime(
   }).format(date);
 }
 
-export function formatDate(date: Date, timezone: string, dateFormat: string): string {
+export type DateFormat = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+
+export function formatDate(date: Date, timezone: string, dateFormat: DateFormat): string {
   const formatter = new Intl.DateTimeFormat('en', {
     timeZone: timezone,
     year: 'numeric',

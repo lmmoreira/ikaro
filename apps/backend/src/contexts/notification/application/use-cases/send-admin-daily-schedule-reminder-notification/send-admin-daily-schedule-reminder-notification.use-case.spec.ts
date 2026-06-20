@@ -66,7 +66,7 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
         body: '<p>Total: {{totalBookingsToday}} — {{bookingsHtml}}</p>',
       }),
     );
-    localizationPort.setTableHeaders('adminDailySchedule', PT_BR_HEADERS);
+    localizationPort.setTableHeaders('adminDailySchedule', 'pt-BR', PT_BR_HEADERS);
 
     useCase = new SendAdminDailyScheduleReminderNotificationUseCase(
       logRepo,
@@ -125,7 +125,7 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
       locale: 'en',
       fromEmail: null,
     });
-    localizationPort.setTableHeaders('adminDailySchedule', {
+    localizationPort.setTableHeaders('adminDailySchedule', 'en', {
       ...PT_BR_HEADERS,
       time: 'Time',
       customer: 'Customer',
