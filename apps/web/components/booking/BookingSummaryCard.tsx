@@ -34,7 +34,10 @@ export function BookingSummaryCard({
       <h3 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
         {t('summary.heading')}
       </h3>
-      <div className="rounded border p-4" style={{ borderColor: 'var(--ba-secondary)' }}>
+      <div
+        className="border p-4"
+        style={{ borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' }}
+      >
         <p className="mb-1 text-sm font-medium" style={labelStyle}>
           {serviceLabel}
         </p>
