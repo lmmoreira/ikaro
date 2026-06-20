@@ -12,7 +12,7 @@ const STATIC_SEGMENTS = new Set([
 ]);
 
 export function extractSlug(pathname: string): string | null {
-  const segment = pathname.split('/').filter(Boolean)[0] ?? null;
+  const segment = pathname.split('/').find(Boolean) ?? null;
   if (!segment || STATIC_SEGMENTS.has(segment)) return null;
   // Reject path-traversal patterns (dots, encoded chars)
   if (/[.%/\\]/.test(segment)) return null;
