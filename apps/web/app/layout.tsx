@@ -6,7 +6,7 @@ import { QueryProvider } from '@/providers/query-provider';
 
 export const metadata: Metadata = {
   title: 'Ikaro',
-  description: 'Agendamento de lavagem automotiva',
+  description: 'Vertical SaaS for local service businesses',
 };
 
 export default async function RootLayout({
