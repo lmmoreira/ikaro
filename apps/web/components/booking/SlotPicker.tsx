@@ -1,10 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { AvailableSlot } from '@ikaro/types';
 import { fetchAvailability } from '@/lib/api/schedule';
-import { ErrorAlert } from './ErrorAlert';
 import { useFormatting } from '@/lib/formatting/use-formatting';
+import { ErrorAlert } from './ErrorAlert';
 
 interface SlotPickerProps {
   readonly slug: string;
@@ -21,6 +22,7 @@ export function SlotPicker({
   selectedSlot,
   onSelectSlot,
 }: SlotPickerProps) {
+  const t = useTranslations('booking');
   const { formatTime } = useFormatting();
   const [result, setResult] = useState<{ date: string; slots: AvailableSlot[] } | null>(null);
   const [errorDate, setErrorDate] = useState<string | null>(null);
@@ -50,14 +52,14 @@ export function SlotPicker({
 
   if (errorDate === date) {
     return (
-      <ErrorAlert onRetry={handleRetry}>
-        Não foi possível carregar os horários para este dia.
+      <ErrorAlert onRetry={handleRetry} retryLabel={t('errors.tryAgain')}>
+        {t('slotPicker.loadError')}
       </ErrorAlert>
     );
   }
 
   if (result?.date !== date) {
-    return <p>Carregando horários...</p>;
+    return <p>{t('slotPicker.loading')}</p>;
   }
 
   const { slots } = result;
@@ -84,9 +86,7 @@ export function SlotPicker({
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        <span className="text-sm font-medium text-amber-700">
-          Nenhum horário disponível para este dia. Escolha outra data.
-        </span>
+        <span className="text-sm font-medium text-amber-700">{t('slotPicker.noSlots')}</span>
       </output>
     );
   }

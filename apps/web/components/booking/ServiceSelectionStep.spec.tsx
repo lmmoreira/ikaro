@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test-utils';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
@@ -45,7 +46,7 @@ const defaultPickupProps = {
 describe('ServiceSelectionStep', () => {
   it('renders a card for each service with name, price and duration', () => {
     const service = makeService();
-    render(
+    renderWithIntl(
       <ServiceSelectionStep
         services={[service]}
         selectedServiceIds={[]}
@@ -66,7 +67,7 @@ describe('ServiceSelectionStep', () => {
     const onToggleService = vi.fn();
     const service = makeService();
 
-    render(
+    renderWithIntl(
       <ServiceSelectionStep
         services={[service]}
         selectedServiceIds={[]}
@@ -82,7 +83,7 @@ describe('ServiceSelectionStep', () => {
   });
 
   it('does not show a running total when nothing is selected', () => {
-    render(
+    renderWithIntl(
       <ServiceSelectionStep
         services={[makeService()]}
         selectedServiceIds={[]}
@@ -97,7 +98,7 @@ describe('ServiceSelectionStep', () => {
 
   it('shows a singular running total for one selected service', () => {
     const service = makeService();
-    render(
+    renderWithIntl(
       <ServiceSelectionStep
         services={[service]}
         selectedServiceIds={[service.id]}
@@ -123,7 +124,7 @@ describe('ServiceSelectionStep', () => {
       durationMinutes: 30,
     });
 
-    render(
+    renderWithIntl(
       <ServiceSelectionStep
         services={[serviceA, serviceB]}
         selectedServiceIds={[serviceA.id, serviceB.id]}
@@ -137,7 +138,7 @@ describe('ServiceSelectionStep', () => {
   });
 
   it('disables the "Próximo" button when no service is selected', () => {
-    render(
+    renderWithIntl(
       <ServiceSelectionStep
         services={[makeService()]}
         selectedServiceIds={[]}
@@ -155,7 +156,7 @@ describe('ServiceSelectionStep', () => {
     const onNext = vi.fn();
     const service = makeService();
 
-    render(
+    renderWithIntl(
       <ServiceSelectionStep
         services={[service]}
         selectedServiceIds={[service.id]}

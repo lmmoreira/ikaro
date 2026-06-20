@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { Address, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import { formatDuration } from '@/lib/formatting/format-duration';
@@ -46,18 +47,21 @@ export function ServiceSelectionStep({
   onNext,
   onBack,
 }: ServiceSelectionStepProps) {
+  const t = useTranslations('booking');
+  const tc = useTranslations('common');
   const [error, setError] = useState<string | null>(null);
 
   const { formatMoney } = useFormatting();
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));
   const totalAmount = selected.reduce((sum, service) => sum + service.price.amount, 0);
   const totalDuration = selected.reduce((sum, service) => sum + service.durationMinutes, 0);
-  const serviceWord = selected.length === 1 ? 'serviço' : 'serviços';
+  const serviceWord =
+    selected.length === 1 ? t('serviceSelection.singular') : t('serviceSelection.plural');
 
   function handleNext() {
     if (selected.length === 0) return;
     if (requiresPickupAddress && !isAddressFilled(pickupAddress, addressSpec.requireNeighborhood)) {
-      setError('Informe o endereço de coleta para continuar.');
+      setError(t('serviceSelection.pickupAddressError'));
       return;
     }
     setError(null);
@@ -67,7 +71,7 @@ export function ServiceSelectionStep({
   return (
     <div data-testid="step-service-selection">
       <h2 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
-        Escolha os serviços
+        {t('serviceSelection.title')}
       </h2>
 
       <ul className="flex flex-col gap-3">
@@ -120,7 +124,7 @@ export function ServiceSelectionStep({
       {requiresPickupAddress && (
         <div className="mt-6">
           <h3 className="mb-2 text-lg font-semibold" style={{ color: 'var(--ba-text)' }}>
-            Endereço de coleta
+            {t('serviceSelection.pickupAddressHeading')}
           </h3>
           <AddressFields
             value={pickupAddress}
@@ -152,7 +156,7 @@ export function ServiceSelectionStep({
             color: 'var(--ba-text)',
           }}
         >
-          Voltar
+          {tc('back')}
         </button>
         <button
           type="button"
@@ -162,7 +166,7 @@ export function ServiceSelectionStep({
           style={btnStyle}
           className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Próximo
+          {tc('next')}
         </button>
       </div>
     </div>

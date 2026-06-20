@@ -16,24 +16,31 @@
   },
   "booking": {
     "title": "Book a service",
+    "stepIndicator": "Step {step} of {total}",
     "serviceSelection": {
       "title": "Choose services",
       "pickupAddressPrompt": "Enter pickup address...",
+      "pickupAddressHeading": "Pickup address",
+      "pickupAddressError": "Please enter the pickup address to continue.",
       "singular": "service",
       "plural": "services"
     },
     "slotPicker": {
       "loading": "Loading time slots...",
-      "noSlots": "No time slots available"
+      "noSlots": "No time slots available",
+      "loadError": "Could not load time slots for this day."
     },
     "availability": {
+      "heading": "Choose date and time",
       "loadError": "Could not load availability",
       "loading": "Loading availability...",
       "previousDays": "Previous days",
       "nextDays": "Next days",
-      "noSlots": "No time slots available in the coming days"
+      "noSlots": "No time slots available in the coming days",
+      "today": "Today"
     },
     "personalInfo": {
+      "heading": "Your details",
       "nameLabel": "Name",
       "emailLabel": "Email",
       "phoneLabel": "Phone",
@@ -51,25 +58,35 @@
       "cityLabel": "City"
     },
     "confirmation": {
+      "heading": "Confirm your booking",
+      "successHeading": "Request submitted!",
+      "successBody": "Please wait for email confirmation.",
       "backToSite": "Back to website",
       "sending": "Sending...",
       "submit": "Confirm booking"
     },
     "summary": {
+      "heading": "Review order",
       "serviceSingular": "Service",
-      "servicePlural": "Services"
+      "servicePlural": "Services",
+      "dateTimeLabel": "Date and time",
+      "at": "at"
     },
     "photo": {
       "unsupportedFormat": "Unsupported image format",
       "uploadFailed": "Failed to upload image",
       "uploading": "Uploading...",
+      "uploaded": "Uploaded",
       "uploadError": "Upload error",
       "title": "Vehicle photos (optional)",
-      "clickToAdd": "Click to add photos"
+      "clickToAdd": "Click to add photos",
+      "formatHint": "JPG or PNG",
+      "remove": "Remove"
     },
     "errors": {
       "submitFailed": "Could not submit booking. Please try again.",
-      "slotUnavailable": "This time slot is no longer available, please choose another"
+      "slotUnavailable": "This time slot is no longer available, please choose another",
+      "tryAgain": "Try again"
     }
   },
   "hotsite": {

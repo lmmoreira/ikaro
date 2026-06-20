@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ErrorAlert } from './ErrorAlert';
 import type { DaySummary } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/lib/api/schedule';
 import { addDays, toISODate } from '@/lib/formatting/date-utils';
+import { useLocale } from 'next-intl';
 
 interface AvailabilityCarouselProps {
   readonly slug: string;
@@ -15,17 +17,7 @@ interface AvailabilityCarouselProps {
   readonly carouselDays: number;
 }
 
-const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const SCROLL_AMOUNT_PX = 240;
-
-function dayLabel(date: string, index: number): string {
-  if (index === 0) return 'Hoje';
-  return WEEKDAY_LABELS[new Date(`${date}T00:00:00`).getDay()];
-}
-
-function dayNumber(date: string): string {
-  return String(new Date(`${date}T00:00:00`).getDate());
-}
 
 export function AvailabilityCarousel({
   slug,
@@ -34,6 +26,8 @@ export function AvailabilityCarousel({
   onSelectDate,
   carouselDays,
 }: AvailabilityCarouselProps) {
+  const t = useTranslations('booking');
+  const locale = useLocale();
   const [days, setDays] = useState<DaySummary[] | null>(null);
   const [error, setError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
@@ -69,14 +63,27 @@ export function AvailabilityCarousel({
     scrollRef.current?.scrollBy({ left: amount, behavior: 'smooth' });
   }
 
+  function dayLabel(date: string, index: number): string {
+    if (index === 0) return t('availability.today');
+    return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(
+      new Date(`${date}T00:00:00`),
+    );
+  }
+
+  function dayNumber(date: string): string {
+    return String(new Date(`${date}T00:00:00`).getDate());
+  }
+
   if (error) {
     return (
-      <ErrorAlert onRetry={handleRetry}>Não foi possível carregar a disponibilidade.</ErrorAlert>
+      <ErrorAlert onRetry={handleRetry} retryLabel={t('errors.tryAgain')}>
+        {t('availability.loadError')}
+      </ErrorAlert>
     );
   }
 
   if (!days) {
-    return <p>Carregando disponibilidade...</p>;
+    return <p>{t('availability.loading')}</p>;
   }
 
   const fullyBooked = days.every((d) => !d.available);
@@ -86,7 +93,7 @@ export function AvailabilityCarousel({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          aria-label="Dias anteriores"
+          aria-label={t('availability.previousDays')}
           onClick={() => scrollBy(-SCROLL_AMOUNT_PX)}
           className="hidden shrink-0 sm:block"
         >
@@ -118,7 +125,7 @@ export function AvailabilityCarousel({
 
         <button
           type="button"
-          aria-label="Próximos dias"
+          aria-label={t('availability.nextDays')}
           onClick={() => scrollBy(SCROLL_AMOUNT_PX)}
           className="hidden shrink-0 sm:block"
         >
@@ -128,10 +135,7 @@ export function AvailabilityCarousel({
 
       {fullyBooked && (
         <div className="mt-3" data-testid="fully-booked-message">
-          <ErrorAlert>
-            Nenhum horário disponível nos próximos {carouselDays} dias. Entre em contato conosco
-            para agendar.
-          </ErrorAlert>
+          <ErrorAlert>{t('availability.noSlots')}</ErrorAlert>
         </div>
       )}
     </div>

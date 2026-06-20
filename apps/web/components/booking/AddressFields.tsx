@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { Address, HotsiteAddressSpec } from '@ikaro/types';
 import type { AddressLookup } from '@/lib/address/address-lookup.port';
@@ -84,6 +85,7 @@ export function AddressFields({
   required = true,
   hasError = false,
 }: AddressFieldsProps) {
+  const t = useTranslations('booking.address');
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupFailed, setLookupFailed] = useState(false);
   const lookupSeqRef = useRef(0);
@@ -134,7 +136,7 @@ export function AddressFields({
             data-testid="lookup-loading"
             data-id-prefix={idPrefix}
           >
-            Buscando endereço...
+            {t('searching')}
           </p>
         )}
         {lookupFailed && (
@@ -143,7 +145,7 @@ export function AddressFields({
             data-testid="lookup-failed"
             data-id-prefix={idPrefix}
           >
-            CEP não encontrado. Preencha o endereço manualmente.
+            {t('notFound')}
           </p>
         )}
       </div>
@@ -183,7 +185,7 @@ export function AddressFields({
         <div className="sm:col-span-3">
           <TextField
             id={`${idPrefix}-neighborhood`}
-            label={addressSpec.neighborhoodLabel ?? 'Bairro'}
+            label={addressSpec.neighborhoodLabel ?? ''}
             value={value.neighborhood ?? ''}
             onChange={(neighborhood) => onChange({ ...value, neighborhood })}
             required={required}

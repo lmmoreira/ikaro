@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test-utils';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DaySummary } from '@ikaro/types';
@@ -12,7 +13,7 @@ vi.mock('@/lib/api/schedule', () => ({
 }));
 
 function renderCarousel(overrides?: Partial<Parameters<typeof AvailabilityCarousel>[0]>) {
-  return render(
+  return renderWithIntl(
     <AvailabilityCarousel
       slug="lavacar-beloauto"
       serviceIds={['svc-1']}
@@ -57,7 +58,7 @@ describe('AvailabilityCarousel', () => {
     await screen.findAllByTestId('day-option');
     expect(getDayOption('2026-06-15')).toBeInTheDocument();
     expect(screen.getByText('Hoje')).toBeInTheDocument();
-    expect(screen.getByText('Ter')).toBeInTheDocument();
+    expect(screen.getByText('ter.')).toBeInTheDocument();
   });
 
   it('disables day cards with available: false', async () => {
@@ -103,7 +104,7 @@ describe('AvailabilityCarousel', () => {
     renderCarousel();
 
     expect(
-      await screen.findByText('Não foi possível carregar a disponibilidade.'),
+      await screen.findByText('Não foi possível carregar a disponibilidade'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
   });
@@ -118,20 +119,20 @@ describe('AvailabilityCarousel', () => {
     renderCarousel({ carouselDays: 14 });
 
     expect(await screen.findByTestId('fully-booked-message')).toHaveTextContent(
-      'Nenhum horário disponível nos próximos 14 dias.',
+      'Nenhum horário disponível nos próximos dias',
     );
     await screen.findAllByTestId('day-option');
     expect(getDayOption('2026-06-15')).toBeDisabled();
   });
 
-  it('uses the configured carouselDays value in the fully booked message', async () => {
+  it('shows the fully booked message regardless of carouselDays value', async () => {
     const days: DaySummary[] = [{ date: '2026-06-15', available: false, slotCount: 0 }];
     vi.mocked(fetchAvailabilitySummary).mockResolvedValue(days);
 
     renderCarousel({ carouselDays: 30 });
 
     expect(await screen.findByTestId('fully-booked-message')).toHaveTextContent(
-      'Nenhum horário disponível nos próximos 30 dias.',
+      'Nenhum horário disponível nos próximos dias',
     );
   });
 });

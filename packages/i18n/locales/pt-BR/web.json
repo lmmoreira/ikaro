@@ -16,24 +16,31 @@
   },
   "booking": {
     "title": "Agendar serviço",
+    "stepIndicator": "Passo {step} de {total}",
     "serviceSelection": {
       "title": "Escolha os serviços",
       "pickupAddressPrompt": "Informe o endereço de coleta...",
+      "pickupAddressHeading": "Endereço de coleta",
+      "pickupAddressError": "Informe o endereço de coleta para continuar.",
       "singular": "serviço",
       "plural": "serviços"
     },
     "slotPicker": {
       "loading": "Carregando horários...",
-      "noSlots": "Nenhum horário disponível"
+      "noSlots": "Nenhum horário disponível",
+      "loadError": "Não foi possível carregar os horários para este dia."
     },
     "availability": {
+      "heading": "Escolha data e horário",
       "loadError": "Não foi possível carregar a disponibilidade",
       "loading": "Carregando disponibilidade...",
       "previousDays": "Dias anteriores",
       "nextDays": "Próximos dias",
-      "noSlots": "Nenhum horário disponível nos próximos dias"
+      "noSlots": "Nenhum horário disponível nos próximos dias",
+      "today": "Hoje"
     },
     "personalInfo": {
+      "heading": "Seus dados",
       "nameLabel": "Nome",
       "emailLabel": "E-mail",
       "phoneLabel": "Telefone",
@@ -51,25 +58,35 @@
       "cityLabel": "Cidade"
     },
     "confirmation": {
+      "heading": "Confirme seu agendamento",
+      "successHeading": "Solicitação enviada!",
+      "successBody": "Aguarde a confirmação por email.",
       "backToSite": "Voltar para o site",
       "sending": "Enviando...",
       "submit": "Confirmar agendamento"
     },
     "summary": {
+      "heading": "Revisar pedido",
       "serviceSingular": "Serviço",
-      "servicePlural": "Serviços"
+      "servicePlural": "Serviços",
+      "dateTimeLabel": "Data e horário",
+      "at": "às"
     },
     "photo": {
       "unsupportedFormat": "Formato de imagem não suportado",
       "uploadFailed": "Falha ao enviar a imagem",
       "uploading": "Enviando...",
+      "uploaded": "Enviada",
       "uploadError": "Erro ao enviar",
       "title": "Fotos do veículo (opcional)",
-      "clickToAdd": "Clique para adicionar fotos"
+      "clickToAdd": "Clique para adicionar fotos",
+      "formatHint": "JPG ou PNG",
+      "remove": "Remover"
     },
     "errors": {
       "submitFailed": "Não foi possível enviar o agendamento. Tente novamente.",
-      "slotUnavailable": "Horário indisponível, escolha outro"
+      "slotUnavailable": "Horário indisponível, escolha outro",
+      "tryAgain": "Tentar novamente"
     }
   },
   "hotsite": {

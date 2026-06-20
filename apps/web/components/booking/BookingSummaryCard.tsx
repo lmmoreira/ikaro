@@ -1,6 +1,7 @@
 'use client';
 
 import type React from 'react';
+import { useTranslations } from 'next-intl';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { formatDuration } from '@/lib/formatting/format-duration';
@@ -12,19 +13,7 @@ interface BookingSummaryCardProps {
   readonly selectedSlot: AvailableSlot;
 }
 
-const cardStyle: React.CSSProperties = {
-  borderRadius: 'var(--ba-radius)',
-  borderColor: 'var(--ba-secondary)',
-  boxShadow: 'var(--ba-shadow)',
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
-  fontWeight: 600,
-  opacity: 0.65,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-};
+const labelStyle: React.CSSProperties = { color: 'var(--ba-text)', opacity: 0.7 };
 
 export function BookingSummaryCard({
   services,
@@ -32,19 +21,21 @@ export function BookingSummaryCard({
   selectedDate,
   selectedSlot,
 }: BookingSummaryCardProps) {
+  const t = useTranslations('booking');
   const { formatMoney, formatDateLong, formatTime } = useFormatting();
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));
   const totalAmount = selected.reduce((sum, service) => sum + service.price.amount, 0);
   const totalDuration = selected.reduce((sum, service) => sum + service.durationMinutes, 0);
-  const serviceLabel = selected.length === 1 ? 'Serviço' : 'Serviços';
+  const serviceLabel =
+    selected.length === 1 ? t('summary.serviceSingular') : t('summary.servicePlural');
 
   return (
     <div className="mt-6">
       <h3 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
-        Revisar pedido
+        {t('summary.heading')}
       </h3>
-      <div className="border p-4" style={cardStyle}>
-        <p className="mb-2" style={labelStyle}>
+      <div className="rounded border p-4" style={{ borderColor: 'var(--ba-secondary)' }}>
+        <p className="mb-1 text-sm font-medium" style={labelStyle}>
           {serviceLabel}
         </p>
         {selected.map((service) => (
@@ -59,10 +50,10 @@ export function BookingSummaryCard({
         <hr className="my-3.5" style={{ borderColor: 'var(--ba-secondary)' }} />
 
         <p className="mb-1" style={labelStyle}>
-          Data e horário
+          {t('summary.dateTimeLabel')}
         </p>
         <p className="font-semibold" style={{ color: 'var(--ba-text)' }}>
-          {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))} às{' '}
+          {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))} {t('summary.at')}{' '}
           {formatTime(new Date(selectedSlot.startsAt))}
         </p>
       </div>

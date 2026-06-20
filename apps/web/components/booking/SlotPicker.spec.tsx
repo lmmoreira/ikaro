@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test-utils';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AvailabilityResponse } from '@ikaro/types';
@@ -19,7 +20,7 @@ describe('SlotPicker', () => {
   it('shows a loading message while fetching', () => {
     vi.mocked(fetchAvailability).mockReturnValue(new Promise(() => {}));
 
-    render(
+    renderWithIntl(
       <SlotPicker
         slug="lavacar-beloauto"
         serviceIds={['svc-1']}
@@ -40,7 +41,7 @@ describe('SlotPicker', () => {
     };
     vi.mocked(fetchAvailability).mockResolvedValue(availability);
 
-    render(
+    renderWithIntl(
       <SlotPicker
         slug="lavacar-beloauto"
         serviceIds={['svc-1']}
@@ -60,7 +61,7 @@ describe('SlotPicker', () => {
       slots: [],
     });
 
-    render(
+    renderWithIntl(
       <SlotPicker
         slug="lavacar-beloauto"
         serviceIds={['svc-1']}
@@ -71,7 +72,7 @@ describe('SlotPicker', () => {
     );
 
     expect(
-      await screen.findByText('Nenhum horário disponível para este dia. Escolha outra data.'),
+      await screen.findByText('Nenhum horário disponível'),
     ).toBeInTheDocument();
   });
 
@@ -85,7 +86,7 @@ describe('SlotPicker', () => {
     });
     const onSelectSlot = vi.fn();
 
-    render(
+    renderWithIntl(
       <SlotPicker
         slug="lavacar-beloauto"
         serviceIds={['svc-1']}
@@ -108,7 +109,7 @@ describe('SlotPicker', () => {
       slots: [slot],
     });
 
-    render(
+    renderWithIntl(
       <SlotPicker
         slug="lavacar-beloauto"
         serviceIds={['svc-1']}
@@ -124,7 +125,7 @@ describe('SlotPicker', () => {
   it('shows an error message with a retry button when the fetch fails', async () => {
     vi.mocked(fetchAvailability).mockRejectedValue(new Error('network error'));
 
-    render(
+    renderWithIntl(
       <SlotPicker
         slug="lavacar-beloauto"
         serviceIds={['svc-1']}

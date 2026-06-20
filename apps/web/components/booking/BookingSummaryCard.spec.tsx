@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test-utils';
+import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import { BookingSummaryCard } from './BookingSummaryCard';
@@ -28,7 +29,7 @@ describe('BookingSummaryCard', () => {
   it('renders the selected service, total and the long-form date/time', () => {
     const service = makeService();
 
-    render(
+    renderWithIntl(
       <BookingSummaryCard
         services={[service]}
         selectedServiceIds={[service.id]}
@@ -54,7 +55,7 @@ describe('BookingSummaryCard', () => {
       durationMinutes: 20,
     });
 
-    render(
+    renderWithIntl(
       <BookingSummaryCard
         services={[serviceA, serviceB]}
         selectedServiceIds={[serviceA.id, serviceB.id]}

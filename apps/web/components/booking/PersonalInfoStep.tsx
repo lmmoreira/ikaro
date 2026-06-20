@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type React from 'react';
 import { z } from 'zod';
 import type { AvailableSlot, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
@@ -48,14 +49,6 @@ function buildContactPhone(rawInput: string, phonePrefix: string): string {
   return `${phonePrefix}${localDigits}`;
 }
 
-function validate(value: PersonalInfoValue): FieldError | null {
-  if (!value.contactName.trim()) return { field: 'name', message: 'Informe seu nome.' };
-  if (!EMAIL_SCHEMA.safeParse(value.contactEmail).success)
-    return { field: 'email', message: 'Informe um e-mail válido.' };
-  if (!value.contactPhone.trim()) return { field: 'phone', message: 'Informe seu telefone.' };
-  return null;
-}
-
 function errorBorderStyle(isInvalid: boolean): React.CSSProperties {
   return {
     borderRadius: 'var(--ba-radius)',
@@ -78,8 +71,20 @@ export function PersonalInfoStep({
   onNext,
   onBack,
 }: PersonalInfoStepProps) {
+  const t = useTranslations('booking');
+  const tc = useTranslations('common');
   const [showContactAddress, setShowContactAddress] = useState(false);
   const [fieldError, setFieldError] = useState<FieldError | null>(null);
+
+  function validate(v: PersonalInfoValue): FieldError | null {
+    if (!v.contactName.trim())
+      return { field: 'name', message: t('personalInfo.nameRequired') };
+    if (!EMAIL_SCHEMA.safeParse(v.contactEmail).success)
+      return { field: 'email', message: t('personalInfo.emailRequired') };
+    if (!v.contactPhone.trim())
+      return { field: 'phone', message: t('personalInfo.phoneRequired') };
+    return null;
+  }
 
   function handleNext() {
     const result = validate(value);
@@ -98,7 +103,7 @@ export function PersonalInfoStep({
   return (
     <div>
       <h2 className="mb-4 text-2xl font-bold" style={{ color: 'var(--ba-text)' }}>
-        Seus dados
+        {t('personalInfo.heading')}
       </h2>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -108,7 +113,7 @@ export function PersonalInfoStep({
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--ba-text)' }}
           >
-            Nome
+            {t('personalInfo.nameLabel')}
           </label>
           <input
             id="contact-name"
@@ -132,7 +137,7 @@ export function PersonalInfoStep({
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--ba-text)' }}
           >
-            E-mail
+            {t('personalInfo.emailLabel')}
           </label>
           <input
             id="contact-email"
@@ -156,7 +161,7 @@ export function PersonalInfoStep({
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--ba-text)' }}
           >
-            Telefone
+            {t('personalInfo.phoneLabel')}
           </label>
           <div className="flex">
             <span
@@ -217,7 +222,7 @@ export function PersonalInfoStep({
           style={{ color: 'var(--ba-primary)' }}
           aria-expanded={showContactAddress}
         >
-          Endereço de contato (opcional)
+          {t('personalInfo.addressLabel')}
         </button>
         {showContactAddress && (
           <div className="mt-3">
@@ -258,7 +263,7 @@ export function PersonalInfoStep({
             color: 'var(--ba-text)',
           }}
         >
-          Voltar
+          {tc('back')}
         </button>
         <button
           type="button"
@@ -267,7 +272,7 @@ export function PersonalInfoStep({
           style={btnStyle}
           className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90"
         >
-          Próximo
+          {tc('next')}
         </button>
       </div>
     </div>
