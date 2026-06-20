@@ -3,7 +3,7 @@
 import type React from 'react';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import { useFormatting } from '@/lib/formatting/use-formatting';
-import { formatDuration } from '@/lib/hotsite/format-duration';
+import { formatDuration } from '@/lib/formatting/format-duration';
 
 interface BookingSummaryCardProps {
   readonly services: readonly HotsiteServiceResponse[];

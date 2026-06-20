@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { DateFormat } from '../booking/format-time';
+import type { DateFormat } from '@ikaro/i18n';
 
 export interface FormattingState {
   readonly locale: string;

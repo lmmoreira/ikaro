@@ -1,3 +1,7 @@
+import type { DateFormat } from '@ikaro/i18n';
+
+export type { DateFormat };
+
 export function formatTime(
   date: Date,
   locale: string,
@@ -11,8 +15,6 @@ export function formatTime(
     hour12: format === '12h',
   }).format(date);
 }
-
-export type DateFormat = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
 
 export function formatDate(date: Date, timezone: string, dateFormat: DateFormat): string {
   const formatter = new Intl.DateTimeFormat('en', {

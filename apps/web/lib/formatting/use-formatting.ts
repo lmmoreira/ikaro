@@ -1,8 +1,8 @@
 'use client';
 
 import { useContext } from 'react';
-import { formatDate, formatDateLong, formatTime } from '../booking/format-time';
-import { formatMoney } from '../hotsite/format-money';
+import { formatDate, formatDateLong, formatTime } from './format-time';
+import { formatMoney } from './format-money';
 import { FormattingContext } from './formatting-context';
 
 export interface FormattingUtils {

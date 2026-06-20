@@ -2,23 +2,9 @@ import { fetchManifest } from '@/lib/api/platform';
 import { applyBranding } from '@/lib/hotsite/apply-branding';
 import { FONT_VARIABLES } from '@/lib/hotsite/font-config';
 import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
-import type { DateFormat } from '@/lib/booking/format-time';
+import { isValidTimezone, resolveDateFormat } from '@/lib/formatting/locale-validators';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import { LocaleProvider } from '@/providers/locale-provider';
-
-const DATE_FORMATS = new Set<DateFormat>(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']);
-function resolveDateFormat(fmt: string): DateFormat {
-  return DATE_FORMATS.has(fmt as DateFormat) ? (fmt as DateFormat) : 'DD/MM/YYYY';
-}
-
-function isValidTimezone(tz: string): boolean {
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 interface HotsiteLayoutProps {
   readonly children: React.ReactNode;

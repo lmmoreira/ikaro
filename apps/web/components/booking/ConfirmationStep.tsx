@@ -4,7 +4,7 @@ import type React from 'react';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import { ErrorAlert } from './ErrorAlert';
 import { useFormatting } from '@/lib/formatting/use-formatting';
-import { formatDuration } from '@/lib/hotsite/format-duration';
+import { formatDuration } from '@/lib/formatting/format-duration';
 
 export type BookingSubmissionStatus = 'idle' | 'submitting' | 'success' | 'error';
 

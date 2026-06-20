@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type React from 'react';
 import type { Address, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
-import { formatDuration } from '@/lib/hotsite/format-duration';
+import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { isAddressFilled } from '@/lib/booking/personal-info';
 import { AddressFields } from './AddressFields';

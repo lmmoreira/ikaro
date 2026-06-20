@@ -1,3 +1,6 @@
+export type DateFormat = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+export type TimeFormat = '24h' | '12h';
+
 export interface AddressSpec {
   /** Country-specific postal system label — e.g. 'CEP', 'ZIP Code', 'Postcode'. Not translated. */
   readonly postalLabel: string;
@@ -37,9 +40,9 @@ export interface CountrySpec {
   /** IANA timezone — best-guess default for provisioning; tenant should always set explicitly. */
   readonly defaultTimezone: string;
   /** Short date order — drives display formatting across emails and web. */
-  readonly dateFormat: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+  readonly dateFormat: DateFormat;
   /** 24-hour vs 12-hour (AM/PM) clock — drives slot display in emails and web. */
-  readonly timeFormat: '24h' | '12h';
+  readonly timeFormat: TimeFormat;
   /** Decimal/thousands separator convention — '1.234,56' (BR) vs '1,234.56' (US). */
   readonly numberFormat: '1.234,56' | '1,234.56';
   /** 0 = Sunday, 1 = Monday — drives calendar week-start rendering. */
