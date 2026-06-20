@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AvailableSlot } from '@ikaro/types';
 import { fetchAvailability } from '@/lib/api/schedule';
 import { ErrorAlert } from './ErrorAlert';
-import { formatTimeBR } from '@/lib/booking/format-time';
+import { useFormatting } from '@/lib/formatting/use-formatting';
 
 interface SlotPickerProps {
   readonly slug: string;
@@ -21,6 +21,7 @@ export function SlotPicker({
   selectedSlot,
   onSelectSlot,
 }: SlotPickerProps) {
+  const { formatTime } = useFormatting();
   const [result, setResult] = useState<{ date: string; slots: AvailableSlot[] } | null>(null);
   const [errorDate, setErrorDate] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -109,7 +110,7 @@ export function SlotPicker({
               color: isSelected ? 'var(--ba-btn-text)' : 'var(--ba-text)',
             }}
           >
-            {formatTimeBR(slot.startsAt)}–{formatTimeBR(slot.endsAt)}
+            {formatTime(new Date(slot.startsAt))}–{formatTime(new Date(slot.endsAt))}
           </button>
         );
       })}

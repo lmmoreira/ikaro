@@ -15,6 +15,7 @@ import {
   INotificationLogRepository,
   NOTIFICATION_LOG_REPOSITORY,
 } from '../../ports/notification-log-repository.port';
+import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import {
   INotificationProcessedEventRepository,
   NOTIFICATION_PROCESSED_EVENT_REPOSITORY,
@@ -34,6 +35,7 @@ import {
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.ADMIN_DAILY_SCHEDULE_REMINDER;
+const TABLE_KEY = 'adminDailySchedule';
 
 export interface SendAdminDailyScheduleReminderNotificationUseCaseResult {
   emailSent: boolean;
@@ -52,6 +54,7 @@ export class SendAdminDailyScheduleReminderNotificationUseCase extends BaseNotif
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
+    @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
   ) {
     super(logRepo, processedEventRepo, dispatcher, txManager);
   }
@@ -75,7 +78,9 @@ export class SendAdminDailyScheduleReminderNotificationUseCase extends BaseNotif
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
-    const bookingsHtml = this.buildBookingsHtml(dto.bookingsToday, timezone);
+    const locale = tenantInfo?.locale ?? 'pt-BR';
+    const headers = this.localizationPort.getEmailTableHeaders(TABLE_KEY, locale);
+    const bookingsHtml = this.buildBookingsHtml(dto.bookingsToday, timezone, headers);
 
     const emailSent = await this.dispatchTemplatesToMany(templates, dto, managerEmails, {
       localDate: dto.localDate,
@@ -88,9 +93,10 @@ export class SendAdminDailyScheduleReminderNotificationUseCase extends BaseNotif
   private buildBookingsHtml(
     bookingsToday: SendAdminDailyScheduleReminderNotificationDto['bookingsToday'],
     timezone: string,
+    headers: Record<string, string>,
   ): string {
     if (bookingsToday.length === 0) {
-      return '<p>Nenhum agendamento para hoje</p>';
+      return `<p>${escapeHtml(headers.emptyState ?? 'No bookings for today')}</p>`;
     }
 
     const rows = bookingsToday
@@ -106,6 +112,7 @@ export class SendAdminDailyScheduleReminderNotificationUseCase extends BaseNotif
       })
       .join('');
 
-    return `<table><thead><tr><th>Horário</th><th>Cliente</th><th>Telefone</th><th>Serviços</th><th>Duração</th><th>Notas</th></tr></thead><tbody>${rows}</tbody></table>`;
+    const th = (key: string): string => escapeHtml(headers[key] ?? key);
+    return `<table><thead><tr><th>${th('time')}</th><th>${th('customer')}</th><th>${th('phone')}</th><th>${th('services')}</th><th>${th('duration')}</th><th>${th('notes')}</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 }

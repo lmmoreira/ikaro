@@ -185,6 +185,7 @@ export interface HotsiteAddressSpec {
 export interface HotsiteLocalizationResponse {
   language: string;
   currency: string;
+  timezone: string;
   phonePrefix: string;
   dateFormat: string;
   timeFormat: '24h' | '12h';

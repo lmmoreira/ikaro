@@ -5,6 +5,7 @@
     "phone": "Telefone",
     "services": "Serviços",
     "duration": "Duração",
-    "notes": "Notas"
+    "notes": "Notas",
+    "emptyState": "Nenhum agendamento para hoje"
   }
 }

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ErrorAlert } from './ErrorAlert';
 import type { DaySummary } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/lib/api/schedule';
-import { addDays, toISODate } from '@/lib/booking/date-range';
+import { addDays, toISODate } from '@/lib/formatting/date-utils';
 
 interface AvailabilityCarouselProps {
   readonly slug: string;

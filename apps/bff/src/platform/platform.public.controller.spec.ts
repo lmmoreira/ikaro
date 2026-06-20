@@ -26,6 +26,7 @@ const businessInfo: HotsiteBusinessInfoResponse = {
 const localization: HotsiteLocalizationResponse = {
   language: 'pt-BR',
   currency: 'BRL',
+  timezone: 'America/Sao_Paulo',
   phonePrefix: '+55',
   dateFormat: 'DD/MM/YYYY',
   timeFormat: '24h',

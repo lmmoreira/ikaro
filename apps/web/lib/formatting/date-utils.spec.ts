@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, toISODate } from './date-range';
+import { addDays, toISODate } from './date-utils';
 
 describe('toISODate', () => {
   it('formats a date as YYYY-MM-DD', () => {

@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import type React from 'react';
 import type { Address, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
-import { formatDuration } from '@/lib/hotsite/format-duration';
-import { formatBRL } from '@/lib/hotsite/format-money';
+import { formatDuration } from '@/lib/formatting/format-duration';
+import { useFormatting } from '@/lib/formatting/use-formatting';
 import { isAddressFilled } from '@/lib/booking/personal-info';
 import { AddressFields } from './AddressFields';
 import { ErrorAlert } from './ErrorAlert';
@@ -48,6 +48,7 @@ export function ServiceSelectionStep({
 }: ServiceSelectionStepProps) {
   const [error, setError] = useState<string | null>(null);
 
+  const { formatMoney } = useFormatting();
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));
   const totalAmount = selected.reduce((sum, service) => sum + service.price.amount, 0);
   const totalDuration = selected.reduce((sum, service) => sum + service.durationMinutes, 0);
@@ -111,7 +112,7 @@ export function ServiceSelectionStep({
           style={{ color: 'var(--ba-text)' }}
           data-testid="selection-total"
         >
-          {selected.length} {serviceWord} — {formatBRL(totalAmount)} —{' '}
+          {selected.length} {serviceWord} — {formatMoney(totalAmount)} —{' '}
           {formatDuration(totalDuration)}
         </p>
       )}
