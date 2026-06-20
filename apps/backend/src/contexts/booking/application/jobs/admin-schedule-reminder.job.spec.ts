@@ -73,7 +73,7 @@ describe('AdminScheduleReminderJob', () => {
       .withStatus(BookingStatus.APPROVED)
       .withScheduledAt(TODAY)
       .withContactName('Carlos Mendes')
-      .withContactPhone('31988888888')
+      .withContactPhone('+5531988888888')
       .withTotalDurationMins(45)
       .withLines([
         new BookingLineBuilder()
@@ -91,7 +91,7 @@ describe('AdminScheduleReminderJob', () => {
     expect(data.totalBookingsToday).toBe(1);
     const digest = data.bookingsToday[0];
     expect(digest.customerName).toBe('Carlos Mendes');
-    expect(digest.customerPhone).toBe('31988888888');
+    expect(digest.customerPhone).toBe('+5531988888888');
     expect(digest.lines[0].serviceName).toBe('Lavagem Premium');
     expect(digest.appointmentSlot.startTime).toBe(TODAY.toISOString());
     const expectedEnd = new Date(TODAY.getTime() + 45 * 60_000).toISOString();
@@ -111,7 +111,7 @@ describe('AdminScheduleReminderJob', () => {
     customerProfilePort.setProfile(CUSTOMER_ID, {
       email: 'auth@example.com',
       name: 'Ana Paula',
-      phone: '31977777777',
+      phone: '+5531977777777',
       defaultAddress: null,
     });
 
@@ -120,7 +120,7 @@ describe('AdminScheduleReminderJob', () => {
     const event = eventBus.published.find((e) => e.eventName === 'AdminDailyScheduleReminder');
     const digest = (event?.data as unknown as DigestEventData).bookingsToday[0];
     expect(digest.customerName).toBe('Ana Paula');
-    expect(digest.customerPhone).toBe('31977777777');
+    expect(digest.customerPhone).toBe('+5531977777777');
   });
 
   it('does not emit events for tenant outside 06:00–06:29 window', async () => {

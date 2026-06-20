@@ -79,11 +79,11 @@ describe('UpdateTenantSettingsUseCase', () => {
     await tenantRepo.save(tenant);
 
     const result = await useCase.execute(tenant.id, {
-      settings: { business_info: { phone: '11987654321' } },
+      settings: { business_info: { phone: '+5511987654321' } },
     });
 
     expect(result.settings.business_info).toEqual({
-      phone: '11987654321',
+      phone: '+5511987654321',
       email: null,
       address: null,
       social_links: null,
@@ -99,7 +99,7 @@ describe('UpdateTenantSettingsUseCase', () => {
       settings: {
         business_info: {
           social_links: {
-            whatsapp: '11987654321',
+            whatsapp: '+5511987654321',
             instagram: 'https://instagram.com/lavacar',
             facebook: 'https://facebook.com/lavacar',
           },
@@ -108,7 +108,7 @@ describe('UpdateTenantSettingsUseCase', () => {
     });
 
     expect(result.settings.business_info!.social_links).toEqual({
-      whatsapp: '11987654321',
+      whatsapp: '+5511987654321',
       instagram: 'https://instagram.com/lavacar',
       facebook: 'https://facebook.com/lavacar',
     });
@@ -123,7 +123,7 @@ describe('UpdateTenantSettingsUseCase', () => {
       settings: {
         business_info: {
           social_links: {
-            whatsapp: '11987654321',
+            whatsapp: '+5511987654321',
             instagram: 'https://instagram.com/lavacar',
             facebook: 'https://facebook.com/lavacar',
           },
@@ -132,11 +132,11 @@ describe('UpdateTenantSettingsUseCase', () => {
     });
 
     const result = await useCase.execute(tenant.id, {
-      settings: { business_info: { social_links: { whatsapp: '11999999999' } } },
+      settings: { business_info: { social_links: { whatsapp: '+5511999999999' } } },
     });
 
     expect(result.settings.business_info!.social_links).toEqual({
-      whatsapp: '11999999999',
+      whatsapp: '+5511999999999',
       instagram: 'https://instagram.com/lavacar',
       facebook: 'https://facebook.com/lavacar',
     });

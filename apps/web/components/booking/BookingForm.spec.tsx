@@ -51,7 +51,9 @@ async function advanceToStep3(
   vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
   vi.mocked(fetchAvailability).mockResolvedValue(availability);
 
-  render(<BookingForm slug="lavacar-beloauto" services={services} carouselDays={14} />);
+  render(
+    <BookingForm slug="lavacar-beloauto" services={services} carouselDays={14} phonePrefix="+55" />,
+  );
 
   await user.click(screen.getByRole('checkbox'));
   await user.click(screen.getByRole('button', { name: 'Próximo' }));
@@ -81,7 +83,14 @@ describe('BookingForm', () => {
   });
 
   it('renders Step 1 with the service list', () => {
-    render(<BookingForm slug="lavacar-beloauto" services={[makeService()]} carouselDays={14} />);
+    render(
+      <BookingForm
+        slug="lavacar-beloauto"
+        services={[makeService()]}
+        carouselDays={14}
+        phonePrefix="+55"
+      />,
+    );
 
     expect(screen.getByText('Escolha os serviços')).toBeInTheDocument();
     expect(screen.getByText('Passo 1 de 4')).toBeInTheDocument();
@@ -91,7 +100,14 @@ describe('BookingForm', () => {
     const user = userEvent.setup();
     vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
 
-    render(<BookingForm slug="lavacar-beloauto" services={[makeService()]} carouselDays={14} />);
+    render(
+      <BookingForm
+        slug="lavacar-beloauto"
+        services={[makeService()]}
+        carouselDays={14}
+        phonePrefix="+55"
+      />,
+    );
 
     await user.click(screen.getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Próximo' }));
@@ -134,7 +150,14 @@ describe('BookingForm', () => {
     const user = userEvent.setup();
     const service = makeService({ requiresPickupAddress: true });
 
-    render(<BookingForm slug="lavacar-beloauto" services={[service]} carouselDays={14} />);
+    render(
+      <BookingForm
+        slug="lavacar-beloauto"
+        services={[service]}
+        carouselDays={14}
+        phonePrefix="+55"
+      />,
+    );
     await user.click(screen.getByRole('checkbox'));
 
     expect(screen.getByText('Endereço de coleta')).toBeInTheDocument();
@@ -164,7 +187,7 @@ describe('BookingForm', () => {
       expect.objectContaining({
         contactName: 'Maria Silva',
         contactEmail: 'maria@example.com',
-        contactPhone: '(11) 99999-9999',
+        contactPhone: '+5511999999999',
         scheduledAt: slot.startsAt,
         serviceIds: ['svc-1'],
       }),

@@ -120,7 +120,7 @@ describe('GetHotsiteManifestUseCase', () => {
     const settings = TenantSettings.create(
       new TenantSettingsPropsBuilder()
         .withBusinessInfo({
-          phone: '11987654321',
+          phone: '+5511987654321',
           email: 'contato@beloauto.com.br',
           address: {
             street: 'Av. Paulista',
@@ -132,7 +132,7 @@ describe('GetHotsiteManifestUseCase', () => {
           },
         })
         .withSocialLinks({
-          whatsapp: '11987654321',
+          whatsapp: '+5511987654321',
           instagram: 'https://instagram.com/lavacar',
           facebook: null,
         })
@@ -143,7 +143,7 @@ describe('GetHotsiteManifestUseCase', () => {
     const result = await useCase.execute();
 
     expect(result.business).toEqual({
-      phone: '11987654321',
+      phone: '+5511987654321',
       email: 'contato@beloauto.com.br',
       address: {
         street: 'Av. Paulista',
@@ -155,7 +155,7 @@ describe('GetHotsiteManifestUseCase', () => {
         zipCode: '01310100',
       },
       socialLinks: {
-        whatsapp: '11987654321',
+        whatsapp: '+5511987654321',
         instagram: 'https://instagram.com/lavacar',
         facebook: null,
       },

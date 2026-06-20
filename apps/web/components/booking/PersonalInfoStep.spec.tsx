@@ -31,9 +31,11 @@ const slot: AvailableSlot = {
 function Wrapper({
   onNext = vi.fn(),
   onBack = vi.fn(),
+  phonePrefix = '+55',
 }: {
   readonly onNext?: () => void;
   readonly onBack?: () => void;
+  readonly phonePrefix?: string;
 }) {
   const [value, setValue] = useState<PersonalInfoValue>(emptyPersonalInfo());
   return (
@@ -45,6 +47,7 @@ function Wrapper({
       selectedServiceIds={[service.id]}
       selectedDate="2026-06-18"
       selectedSlot={slot}
+      phonePrefix={phonePrefix}
       onNext={onNext}
       onBack={onBack}
     />
@@ -123,6 +126,16 @@ describe('PersonalInfoStep', () => {
     render(<Wrapper />);
 
     expect(screen.getByLabelText('Fotos do veículo (opcional)')).toBeInTheDocument();
+  });
+
+  it('shows the tenant-specific country prefix and stores the phone as E.164', async () => {
+    const user = userEvent.setup();
+    render(<Wrapper phonePrefix="+1" />);
+
+    expect(screen.getByText('+1')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Telefone'), '4155552671');
+
+    expect(screen.getByLabelText('Telefone')).toHaveValue('4155552671');
   });
 
   it('renders the order review card with the selected service and date/time', () => {

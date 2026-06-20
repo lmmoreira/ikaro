@@ -118,11 +118,11 @@ describe('TenantSettings', () => {
 
     it('accepts a partial business_info with only phone set', () => {
       const props = new TenantSettingsPropsBuilder()
-        .withBusinessInfo({ phone: '11987654321' })
+        .withBusinessInfo({ phone: '+5511987654321' })
         .build();
       const settings = TenantSettings.create(props);
       expect(settings.business_info).toEqual({
-        phone: '11987654321',
+        phone: '+5511987654321',
         email: null,
         address: null,
         social_links: null,
@@ -132,7 +132,7 @@ describe('TenantSettings', () => {
     it('accepts a full business_info with a valid address', () => {
       const props = new TenantSettingsPropsBuilder()
         .withBusinessInfo({
-          phone: '11987654321',
+          phone: '+5511987654321',
           email: 'contato@beloauto.com.br',
           address: validAddress,
         })
@@ -175,16 +175,16 @@ describe('TenantSettings', () => {
 
     it('accepts business_info with social_links set and exposes them via getter', () => {
       const props = new TenantSettingsPropsBuilder()
-        .withBusinessInfo({ phone: '11987654321' })
+        .withBusinessInfo({ phone: '+5511987654321' })
         .withSocialLinks({
-          whatsapp: '11987654321',
+          whatsapp: '+5511987654321',
           instagram: 'https://instagram.com/lavacar',
           facebook: null,
         })
         .build();
       const settings = TenantSettings.create(props);
       expect(settings.business_info.social_links).toEqual({
-        whatsapp: '11987654321',
+        whatsapp: '+5511987654321',
         instagram: 'https://instagram.com/lavacar',
         facebook: null,
       });
@@ -192,11 +192,11 @@ describe('TenantSettings', () => {
 
     it('toJSON() serialises social_links from business_info', () => {
       const props = new TenantSettingsPropsBuilder()
-        .withSocialLinks({ whatsapp: '11987654321', instagram: null, facebook: null })
+        .withSocialLinks({ whatsapp: '+5511987654321', instagram: null, facebook: null })
         .build();
       const settings = TenantSettings.create(props);
       expect(settings.toJSON().business_info!.social_links).toEqual({
-        whatsapp: '11987654321',
+        whatsapp: '+5511987654321',
         instagram: null,
         facebook: null,
       });

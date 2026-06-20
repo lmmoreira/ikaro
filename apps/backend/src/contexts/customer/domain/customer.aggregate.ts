@@ -81,7 +81,7 @@ export class Customer extends AggregateRoot {
     if (!name || name.trim().length === 0) throw new CustomerDomainError('name must not be empty');
     if (phone !== null && !PhoneNumber.isValid(phone)) {
       throw new CustomerDomainError(
-        'phone must be a valid Brazilian phone number (10 or 11 digits)',
+        'phone must be a valid E.164 phone number (e.g. +5511912345678)',
       );
     }
     this.props.name = name.trim();

@@ -78,7 +78,7 @@ describe('HotsiteController (integration)', () => {
         .withSettings(
           new TenantSettingsPropsBuilder()
             .withBusinessInfo({
-              phone: '11987654321',
+              phone: '+5511987654321',
               email: 'contato@beloauto.com.br',
               address: {
                 street: 'Av. Paulista',
@@ -99,9 +99,9 @@ describe('HotsiteController (integration)', () => {
         .withSlug('hotsite-integ-tenant-f')
         .withSettings(
           new TenantSettingsPropsBuilder()
-            .withBusinessInfo({ phone: '11987654321' })
+            .withBusinessInfo({ phone: '+5511987654321' })
             .withSocialLinks({
-              whatsapp: '11987654321',
+              whatsapp: '+5511987654321',
               instagram: 'https://instagram.com/lavacar',
               facebook: null,
             })
@@ -196,7 +196,7 @@ describe('HotsiteController (integration)', () => {
       .expect(200);
 
     expect(body.business).toEqual({
-      phone: '11987654321',
+      phone: '+5511987654321',
       email: 'contato@beloauto.com.br',
       address: {
         street: 'Av. Paulista',
@@ -218,7 +218,7 @@ describe('HotsiteController (integration)', () => {
       .expect(200);
 
     expect(body.business.socialLinks).toEqual({
-      whatsapp: '11987654321',
+      whatsapp: '+5511987654321',
       instagram: 'https://instagram.com/lavacar',
       facebook: null,
     });

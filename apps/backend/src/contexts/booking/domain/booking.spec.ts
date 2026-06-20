@@ -35,7 +35,7 @@ function request(overrides: Partial<RequestBookingInput> = {}): Booking {
     tenantId: TENANT_ID,
     contactEmail: 'g@t.com',
     contactName: 'Test Guest',
-    contactPhone: '31999999999',
+    contactPhone: '+5531999999999',
     scheduledAt: new Date(Date.now() + 3_600_000),
     lineInputs: [lineInput().build()],
     type: 'GUEST',
@@ -117,7 +117,7 @@ describe('Booking.requestBooking()', () => {
     const booking = request({
       contactEmail: 'c@test.com',
       contactName: 'Ana',
-      contactPhone: '31888888888',
+      contactPhone: '+5531888888888',
       type: 'CUSTOMER',
       customerId,
     });

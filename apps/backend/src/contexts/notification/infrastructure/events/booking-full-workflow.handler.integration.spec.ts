@@ -111,7 +111,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
           .withId(customerId)
           .withTenantId(tenantId)
           .withEmail(customerEmail)
-          .withPhone('31999888777')
+          .withPhone('+5531999888777')
           .build(),
       );
   });
@@ -172,7 +172,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
       .send({
         contactEmail,
         contactName: 'Ana Costa',
-        contactPhone: '31998765432',
+        contactPhone: '+5531998765432',
         scheduledAt: '2026-07-02T14:00:00.000Z',
         serviceIds: [serviceId],
       })
@@ -208,7 +208,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
       .send({
         contactEmail: booking3GuestEmail,
         contactName: 'Pedro Santos',
-        contactPhone: '31997654321',
+        contactPhone: '+5531997654321',
         scheduledAt: '2026-07-03T10:00:00.000Z',
         serviceIds: [serviceId],
       })

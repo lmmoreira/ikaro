@@ -99,7 +99,7 @@ describe('BookingController (integration)', () => {
   const validBody = () => ({
     contactEmail: 'joao@example.com',
     contactName: 'João Silva',
-    contactPhone: '31999999999',
+    contactPhone: '+5531999999999',
     scheduledAt,
     serviceIds: [serviceId],
   });
@@ -207,7 +207,7 @@ describe('BookingController (integration)', () => {
         .send({
           contactEmail: 'x@x.com',
           contactName: 'X',
-          contactPhone: '31999999999',
+          contactPhone: '+5531999999999',
           scheduledAt,
         })
         .expect(400);
@@ -249,7 +249,7 @@ describe('BookingController (integration)', () => {
         .withGoogleOAuthId('google-sub-cancel-customer')
         .withEmail('cancel-customer@booking.test')
         .withName('Cancel Customer')
-        .withPhone('31944444444')
+        .withPhone('+5531944444444')
         .build();
       await ds.getRepository(CustomerEntity).save(customer);
       cancelCustomerId = customer.id;
@@ -384,7 +384,7 @@ describe('BookingController (integration)', () => {
         .withGoogleOAuthId('google-sub-cancel-b')
         .withEmail('cancel-customer-b@booking.test')
         .withName('Cancel Customer B')
-        .withPhone('31933333333')
+        .withPhone('+5531933333333')
         .build();
       await ds.getRepository(CustomerEntity).save(customerB);
 
@@ -678,7 +678,7 @@ describe('BookingController (integration)', () => {
         .withTenantId(tenantAId)
         .withEmail('cliente@auth-booking.test')
         .withName('Cliente Auth')
-        .withPhone('31988888888')
+        .withPhone('+5531988888888')
         .build();
       await ds.getRepository(CustomerEntity).save(customer);
       customerId = customer.id;
@@ -762,7 +762,7 @@ describe('BookingController (integration)', () => {
         .withGoogleOAuthId('google-sub-submit-info')
         .withEmail('submit-info-customer@booking.test')
         .withName('Submit Info Customer')
-        .withPhone('31977777777')
+        .withPhone('+5531977777777')
         .build();
       await ds.getRepository(CustomerEntity).save(customer);
       submitCustomerId = customer.id;
@@ -862,7 +862,7 @@ describe('BookingController (integration)', () => {
         .withGoogleOAuthId('google-sub-submit-b')
         .withEmail('submit-customer-b@booking.test')
         .withName('Customer B')
-        .withPhone('31966666666')
+        .withPhone('+5531966666666')
         .build();
       await ds.getRepository(CustomerEntity).save(customerB);
 
@@ -928,7 +928,7 @@ describe('BookingController (integration)', () => {
         .withGoogleOAuthId('google-sub-guest-submit')
         .withEmail('guest-submit-customer@booking.test')
         .withName('Guest Submit Customer')
-        .withPhone('31955555555')
+        .withPhone('+5531955555555')
         .build();
       await ds.getRepository(CustomerEntity).save(customer);
 
@@ -1046,7 +1046,7 @@ describe('BookingController (integration)', () => {
         .withTenantId(listTenantId)
         .withEmail('list-customer@bookings.test')
         .withName('Cliente Lista')
-        .withPhone('31911111111')
+        .withPhone('+5531911111111')
         .build();
       await ds.getRepository(CustomerEntity).save(customer);
       listCustomerId = customer.id;
@@ -1166,7 +1166,7 @@ describe('BookingController (integration)', () => {
         .withTenantId(detailTenantId)
         .withEmail('detail-customer@bookings.test')
         .withName('Cliente Detalhe')
-        .withPhone('31922222222')
+        .withPhone('+5531922222222')
         .build();
       await ds.getRepository(CustomerEntity).save(customer);
       detailCustomerId = customer.id;

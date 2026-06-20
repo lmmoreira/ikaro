@@ -595,7 +595,7 @@ The web reads it once at SSR and passes it to `LocaleProvider` and formatting ut
 
 ---
 
-#### TD02-S03 — `PhoneNumber` VO → E.164
+#### TD02-S03 — `PhoneNumber` VO → E.164 ✅ Done
 
 **Scope:**
 - Rewrite `phone-number.vo.ts`: `isValid()` accepts E.164 (`/^\+[1-9]\d{6,14}$/`); `format()` returns E.164 as-is

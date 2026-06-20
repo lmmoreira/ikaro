@@ -112,7 +112,7 @@ describe('BookingReminderJob', () => {
     customerProfilePort.setProfile(CUSTOMER_ID, {
       email: 'auth@example.com',
       name: 'Auth User',
-      phone: '31999999999',
+      phone: '+5531999999999',
       defaultAddress: null,
     });
 

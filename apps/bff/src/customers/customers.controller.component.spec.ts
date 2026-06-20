@@ -15,7 +15,7 @@ const mockProfile: CustomerProfileResponse = {
   customerId: '20000000-0000-4000-8000-000000000001',
   email: 'cliente@example.com',
   name: 'João Silva',
-  phone: '31999999999',
+  phone: '+5531999999999',
   defaultAddress: null,
 };
 
@@ -81,7 +81,7 @@ describe('CustomersController (component)', () => {
   });
 
   describe('PATCH /v1/customers/me', () => {
-    const validBody = { name: 'New Name', phone: '31988888888' };
+    const validBody = { name: 'New Name', phone: '+5531988888888' };
 
     it('returns 401 when no JWT is provided', async () => {
       const res = await request(app.getHttpServer()).patch('/v1/customers/me').send(validBody);
@@ -118,7 +118,7 @@ describe('CustomersController (component)', () => {
 
     it('returns 200 with the updated profile on success', async () => {
       const token = makeCustomerJwt(jwtService);
-      const updated = { ...mockProfile, name: 'New Name', phone: '31988888888' };
+      const updated = { ...mockProfile, name: 'New Name', phone: '+5531988888888' };
       backendHttpService.patch.mockResolvedValue(updated);
 
       const res = await request(app.getHttpServer())
@@ -139,7 +139,7 @@ describe('CustomersController (component)', () => {
       const res = await request(app.getHttpServer())
         .patch('/v1/customers/me')
         .set('Authorization', `Bearer ${token}`)
-        .send({ phone: '31988888888' });
+        .send({ phone: '+5531988888888' });
 
       expect(res.status).toBe(400);
     });

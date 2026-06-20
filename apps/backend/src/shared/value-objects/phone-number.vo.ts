@@ -1,29 +1,27 @@
+const E164_PATTERN = /^\+[1-9]\d{6,14}$/;
+
 export class PhoneNumber {
   private constructor(private readonly _value: string) {}
 
-  // Strips all non-digits and checks for 10–11 digits (Brazilian mobile/landline)
   static isValid(phone: string): boolean {
-    const digits = phone.replace(/\D/g, '');
-    return digits.length === 10 || digits.length === 11;
+    return E164_PATTERN.test(phone);
   }
 
-  // Normalises to digits only for consistent storage
   static create(phone: string): PhoneNumber {
     if (!PhoneNumber.isValid(phone)) {
-      throw new Error(`"${phone}" is not a valid phone number — expected 10 or 11 digits`);
+      throw new Error(
+        `"${phone}" is not a valid phone number — expected E.164 format (e.g. +5511912345678)`,
+      );
     }
-    return new PhoneNumber(phone.replace(/\D/g, ''));
+    return new PhoneNumber(phone);
   }
 
   get value(): string {
     return this._value;
   }
 
-  // Formats as (XX) XXXXX-XXXX or (XX) XXXX-XXXX
   format(): string {
-    const d = this._value;
-    if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return this._value;
   }
 
   toString(): string {

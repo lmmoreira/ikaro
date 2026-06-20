@@ -60,7 +60,7 @@ describe('RequestBookingUseCase', () => {
   const baseDto = () => ({
     contactEmail: 'joao@example.com',
     contactName: 'João Silva',
-    contactPhone: '31999999999',
+    contactPhone: '+5531999999999',
     scheduledAt,
     serviceIds: [serviceId],
     beforeServicePhotoUrls: undefined as string[] | undefined,

@@ -5,7 +5,7 @@ import type React from 'react';
 import { z } from 'zod';
 import type { AvailableSlot, HotsiteServiceResponse } from '@ikaro/types';
 import type { PersonalInfoValue } from '@/lib/booking/personal-info';
-import { formatPhoneBR } from '@/lib/utils';
+import { digitsOnly } from '@/lib/utils';
 import { AddressFields } from './AddressFields';
 import { BookingSummaryCard } from './BookingSummaryCard';
 import { ErrorAlert } from './ErrorAlert';
@@ -19,6 +19,7 @@ interface PersonalInfoStepProps {
   readonly selectedServiceIds: readonly string[];
   readonly selectedDate: string;
   readonly selectedSlot: AvailableSlot;
+  readonly phonePrefix: string;
   readonly onNext: () => void;
   readonly onBack: () => void;
 }
@@ -63,6 +64,7 @@ export function PersonalInfoStep({
   selectedServiceIds,
   selectedDate,
   selectedSlot,
+  phonePrefix,
   onNext,
   onBack,
 }: PersonalInfoStepProps) {
@@ -156,7 +158,7 @@ export function PersonalInfoStep({
                 color: 'var(--ba-text)',
               }}
             >
-              +55
+              {phonePrefix}
             </span>
             <input
               id="contact-phone"
@@ -165,10 +167,14 @@ export function PersonalInfoStep({
               required
               data-testid="input-phone"
               maxLength={15}
-              placeholder="(11) 91234-5678"
-              value={formatPhoneBR(value.contactPhone)}
+              placeholder="11912345678"
+              value={
+                value.contactPhone.startsWith(phonePrefix)
+                  ? value.contactPhone.slice(phonePrefix.length)
+                  : digitsOnly(value.contactPhone)
+              }
               onChange={(e) => {
-                onChange({ ...value, contactPhone: formatPhoneBR(e.target.value) });
+                onChange({ ...value, contactPhone: `${phonePrefix}${digitsOnly(e.target.value)}` });
                 clearErrorFor('phone');
               }}
               className="min-w-0 flex-1 border px-3 py-2"

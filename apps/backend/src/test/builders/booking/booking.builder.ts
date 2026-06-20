@@ -20,7 +20,7 @@ export class BookingBuilder {
   private customerId: string | null = null;
   private contactEmail = Email.create('guest@example.com');
   private contactName = 'João Silva';
-  private contactPhone = PhoneNumber.create('31999999999');
+  private contactPhone = PhoneNumber.create('+5531999999999');
   private contactAddress: Address | null = null;
   private pickupAddress: Address | null = null;
   private scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000);

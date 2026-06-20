@@ -9,7 +9,7 @@ export class BookingEntityBuilder {
   private customerId: string | null = null;
   private contactEmail = 'guest@example.com';
   private contactName = 'João Silva';
-  private contactPhone = '31999999999';
+  private contactPhone = '+5531999999999';
   private contactAddress: Record<string, unknown> | null = null;
   private pickupAddress: Record<string, unknown> | null = null;
   private scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000);

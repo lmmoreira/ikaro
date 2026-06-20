@@ -176,7 +176,7 @@ describe('TenantSettingsController (integration)', () => {
       .send({
         settings: {
           business_info: {
-            phone: '11987654321',
+            phone: '+5511987654321',
             email: 'contato@beloauto.com.br',
             address: {
               street: 'Av. Paulista',
@@ -191,7 +191,7 @@ describe('TenantSettingsController (integration)', () => {
       })
       .expect(200);
 
-    expect(body.settings.business_info.phone).toBe('11987654321');
+    expect(body.settings.business_info.phone).toBe('+5511987654321');
     expect(body.settings.business_info.address.zip_code).toBe('01310100');
 
     const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
@@ -242,7 +242,7 @@ describe('TenantSettingsController (integration)', () => {
         settings: {
           business_info: {
             social_links: {
-              whatsapp: '11987654321',
+              whatsapp: '+5511987654321',
               instagram: 'https://instagram.com/lavacar',
               facebook: 'https://facebook.com/lavacar',
             },
@@ -252,13 +252,13 @@ describe('TenantSettingsController (integration)', () => {
       .expect(200);
 
     expect(body.settings.business_info.social_links).toEqual({
-      whatsapp: '11987654321',
+      whatsapp: '+5511987654321',
       instagram: 'https://instagram.com/lavacar',
       facebook: 'https://facebook.com/lavacar',
     });
 
     const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
-    expect(row!.settings.business_info?.social_links?.whatsapp).toBe('11987654321');
+    expect(row!.settings.business_info?.social_links?.whatsapp).toBe('+5511987654321');
   });
 
   it('returns 400 for an invalid social_links.whatsapp (not a phone number)', async () => {
