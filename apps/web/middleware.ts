@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
+export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('access_token');
 
@@ -16,6 +16,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Run on all routes except Next.js internals and static files
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // Run on all routes except API handlers, Next.js internals and static files.
+  // API routes don't need locale headers — excluding them avoids middleware
+  // overhead on route handlers and prevents caching interference.
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };

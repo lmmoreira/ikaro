@@ -14,6 +14,8 @@ const STATIC_SEGMENTS = new Set([
 export function extractSlug(pathname: string): string | null {
   const segment = pathname.split('/').filter(Boolean)[0] ?? null;
   if (!segment || STATIC_SEGMENTS.has(segment)) return null;
+  // Reject path-traversal patterns (dots, encoded chars)
+  if (/[.%/\\]/.test(segment)) return null;
   return segment;
 }
 
@@ -21,10 +23,14 @@ export async function resolveLocale(pathname: string): Promise<string> {
   const slug = extractSlug(pathname);
   if (!slug) return FALLBACK_LOCALE;
 
+  const bffUrl = process.env.NEXT_PUBLIC_BFF_URL;
+  if (!bffUrl) return FALLBACK_LOCALE;
+
+  const isDev = process.env.NODE_ENV === 'development';
+
   try {
-    const bffUrl = process.env.NEXT_PUBLIC_BFF_URL ?? '';
     const res = await fetch(`${bffUrl}/platform/manifest/${slug}`, {
-      next: { revalidate: 300 },
+      next: { revalidate: isDev ? 0 : 300 },
     });
     if (!res.ok) return FALLBACK_LOCALE;
     const manifest = (await res.json()) as { localization?: { language?: string } };

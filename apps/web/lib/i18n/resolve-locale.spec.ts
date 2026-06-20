@@ -24,15 +24,30 @@ describe('extractSlug', () => {
       expect(extractSlug(`/${segment}/something`)).toBeNull();
     },
   );
+
+  it.each(['../etc', '%2e%2e', 'slug\\path', '.hidden'])(
+    'returns null for path-traversal pattern "%s"',
+    (segment) => {
+      expect(extractSlug(`/${segment}`)).toBeNull();
+    },
+  );
 });
 
 describe('resolveLocale', () => {
+  let originalBffUrl: string | undefined;
+
   beforeEach(() => {
+    originalBffUrl = process.env.NEXT_PUBLIC_BFF_URL;
     process.env.NEXT_PUBLIC_BFF_URL = 'http://localhost:3001';
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    if (originalBffUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_BFF_URL;
+    } else {
+      process.env.NEXT_PUBLIC_BFF_URL = originalBffUrl;
+    }
   });
 
   it('returns tenant language from manifest', async () => {
@@ -48,7 +63,7 @@ describe('resolveLocale', () => {
     expect(locale).toBe('en');
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       'http://localhost:3001/platform/manifest/us-tenant',
-      expect.objectContaining({ next: { revalidate: 300 } }),
+      expect.objectContaining({ next: expect.objectContaining({ revalidate: 300 }) }),
     );
   });
 
@@ -74,6 +89,15 @@ describe('resolveLocale', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
 
     expect(await resolveLocale('/some-tenant')).toBe('pt-BR');
+  });
+
+  it('falls back to pt-BR when NEXT_PUBLIC_BFF_URL is not set', async () => {
+    delete process.env.NEXT_PUBLIC_BFF_URL;
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await resolveLocale('/some-tenant')).toBe('pt-BR');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('returns pt-BR for static segments without calling fetch', async () => {

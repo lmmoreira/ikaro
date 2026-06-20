@@ -1,7 +1,7 @@
 import { fetchManifest } from '@/lib/api/platform';
 import { applyBranding } from '@/lib/hotsite/apply-branding';
 import { FONT_VARIABLES } from '@/lib/hotsite/font-config';
-import { getMessages } from '@/lib/i18n/get-messages';
+import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
 import { LocaleProvider } from '@/providers/locale-provider';
 
 interface HotsiteLayoutProps {
@@ -9,10 +9,13 @@ interface HotsiteLayoutProps {
   readonly params: Promise<{ readonly slug: string }>;
 }
 
-export default async function HotsiteLayout({ children, params }: HotsiteLayoutProps) {
+export default async function HotsiteLayout({
+  children,
+  params,
+}: HotsiteLayoutProps): Promise<React.JSX.Element> {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
-  const locale = manifest.localization.language ?? 'pt-BR';
+  const locale = resolveSupportedLocale(manifest.localization.language ?? 'pt-BR');
   const messages = await getMessages(locale);
   const brandingStyles = applyBranding(manifest.branding);
 

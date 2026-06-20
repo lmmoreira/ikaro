@@ -9,7 +9,11 @@ export const metadata: Metadata = {
   description: 'Agendamento de lavagem automotiva',
 };
 
-export default async function RootLayout({ children }: { readonly children: React.ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  readonly children: React.ReactNode;
+}): Promise<React.JSX.Element> {
   const locale = await getLocale();
   const messages = await getMessages();
 

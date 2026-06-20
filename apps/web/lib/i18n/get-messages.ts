@@ -1,13 +1,17 @@
 import type { AbstractIntlMessages } from 'next-intl';
 
-const SUPPORTED_LOCALES = ['pt-BR', 'en'] as const;
-type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+export const SUPPORTED_LOCALES = ['pt-BR', 'en'] as const;
+export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 const FALLBACK: SupportedLocale = 'pt-BR';
 
-export async function getMessages(locale: string): Promise<AbstractIntlMessages> {
-  const resolved: SupportedLocale = (SUPPORTED_LOCALES as readonly string[]).includes(locale)
+export function resolveSupportedLocale(locale: string): SupportedLocale {
+  return (SUPPORTED_LOCALES as readonly string[]).includes(locale)
     ? (locale as SupportedLocale)
     : FALLBACK;
+}
+
+export async function getMessages(locale: string): Promise<AbstractIntlMessages> {
+  const resolved = resolveSupportedLocale(locale);
 
   if (resolved === 'en') {
     return (
