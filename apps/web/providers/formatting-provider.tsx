@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { FormattingContext, type FormattingState } from '@/lib/formatting/formatting-context';
 
 interface FormattingProviderProps extends FormattingState {
@@ -14,9 +15,10 @@ export function FormattingProvider({
   dateFormat,
   timeFormat,
 }: FormattingProviderProps): React.JSX.Element {
-  return (
-    <FormattingContext.Provider value={{ locale, currency, timezone, dateFormat, timeFormat }}>
-      {children}
-    </FormattingContext.Provider>
+  const value = useMemo(
+    () => ({ locale, currency, timezone, dateFormat, timeFormat }),
+    [locale, currency, timezone, dateFormat, timeFormat],
   );
+
+  return <FormattingContext.Provider value={value}>{children}</FormattingContext.Provider>;
 }
