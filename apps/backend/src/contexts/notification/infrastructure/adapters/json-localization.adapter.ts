@@ -18,7 +18,11 @@ function localesRoot(): string {
 
 function readLocaleFile<T>(locale: string, fileName: string): T {
   const path = join(localesRoot(), locale, fileName);
-  return JSON.parse(readFileSync(path, 'utf-8')) as T;
+  try {
+    return JSON.parse(readFileSync(path, 'utf-8')) as T;
+  } catch (err: unknown) {
+    throw new Error(`Failed to load locale file "${path}": ${String(err)}`);
+  }
 }
 
 @Injectable()
@@ -41,21 +45,21 @@ export class JsonLocalizationAdapter implements ILocalizationPort {
     recipientType: string,
     locale: string,
   ): LocalizedNotificationTemplate {
-    const file = this.notifications.get(locale) ?? this.notifications.get(DEFAULT_LOCALE)!;
-    const template = file[eventName]?.[recipientType];
+    const resolvedLocale = this.notifications.has(locale) ? locale : DEFAULT_LOCALE;
+    const template = this.notifications.get(resolvedLocale)![eventName]?.[recipientType];
     if (!template) {
       throw new Error(
-        `No notification template for event "${eventName}" / recipient "${recipientType}"`,
+        `No notification template for event "${eventName}" / recipient "${recipientType}" / locale "${resolvedLocale}"`,
       );
     }
     return template;
   }
 
   getEmailTableHeaders(tableKey: string, locale: string): Record<string, string> {
-    const file = this.emailTables.get(locale) ?? this.emailTables.get(DEFAULT_LOCALE)!;
-    const headers = file[tableKey];
+    const resolvedLocale = this.emailTables.has(locale) ? locale : DEFAULT_LOCALE;
+    const headers = this.emailTables.get(resolvedLocale)![tableKey];
     if (!headers) {
-      throw new Error(`No email table headers for key "${tableKey}"`);
+      throw new Error(`No email table headers for key "${tableKey}" / locale "${resolvedLocale}"`);
     }
     return headers;
   }

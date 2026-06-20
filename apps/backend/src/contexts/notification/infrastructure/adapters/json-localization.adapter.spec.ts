@@ -24,8 +24,16 @@ describe('JsonLocalizationAdapter', () => {
       expect(result.subject).toBe('Seu agendamento foi confirmado!');
     });
 
-    it('throws when the event/recipient combination does not exist', () => {
-      expect(() => adapter.getNotificationTemplate('UnknownEvent', 'customer', 'pt-BR')).toThrow();
+    it('throws including the resolved locale when the event/recipient combination does not exist', () => {
+      expect(() => adapter.getNotificationTemplate('UnknownEvent', 'customer', 'pt-BR')).toThrow(
+        /locale "pt-BR"/,
+      );
+    });
+
+    it('throws including the fallback locale (not the requested one) for an unknown locale', () => {
+      expect(() => adapter.getNotificationTemplate('UnknownEvent', 'customer', 'fr')).toThrow(
+        /locale "pt-BR"/,
+      );
     });
 
     it('resolves every documented event/recipient pair for both locales', () => {
@@ -76,8 +84,8 @@ describe('JsonLocalizationAdapter', () => {
       expect(headers.time).toBe('Horário');
     });
 
-    it('throws when the table key does not exist', () => {
-      expect(() => adapter.getEmailTableHeaders('unknownTable', 'pt-BR')).toThrow();
+    it('throws including the resolved locale when the table key does not exist', () => {
+      expect(() => adapter.getEmailTableHeaders('unknownTable', 'pt-BR')).toThrow(/locale "pt-BR"/);
     });
   });
 });
