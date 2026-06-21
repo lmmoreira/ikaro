@@ -108,6 +108,31 @@ const data = JSON.parse(readFileSync(join(localesRoot, locale, 'notifications.js
 
 ---
 
+## Adding a new notification type
+
+Every new `NotificationTemplateKey` touches several files across layers — miss one and the failure mode is silent (a notification that never sends, with no error). Do them in this order:
+
+1. **`notification/domain/notification-template-key.enum.ts`** — add the new kebab-case key (e.g. `BOOKING_NO_SHOW_CUSTOMER = 'booking-no-show-customer'`).
+2. **`notification/domain/notification-template-key.mapping.ts`** — add the `{eventName, recipientType}` entry. `notification-template-key.mapping.spec.ts` asserts every enum key has a mapping entry — it fails loudly if you forget this one.
+3. **Both** `packages/i18n/locales/pt-BR/notifications.json` **and** `packages/i18n/locales/en/notifications.json` — add `{eventName}.{recipientType}.{subject,body}`. The migration's `buildSeedRows()` throws at migration-run time if either locale is missing the key — there is no silent partial-locale state.
+4. **A new migration** to insert the global default rows for the new key (`tenant_id IS NULL`) — do **not** edit `1748100000010-CreateNotificationTemplates.ts` directly once real tenant data exists; that migration has already run in every environment with history. (Editing it in place is only safe pre-production with no deployed history to protect — see the squashing precedent from TD02-S09/S10 — and stops being safe the moment this ships to a real environment.)
+5. **A new `send-<trigger>-notification.use-case.ts`** extending `BaseNotificationUseCase`: inject `ILocalizationPort`, fetch templates via `findAllByTriggerEvent`, call `this.localizeTemplates(templates, this.localizationPort, locale)` before `dispatchTemplates`/`dispatchTemplatesToMany` — never read `template.subject`/`template.body` directly, the DB row's own content is not the source of truth.
+6. **An event handler** in `infrastructure/events/` if triggered by a domain event (thin — calls exactly one use case, per the Event Handlers rules below), plus provider registration in `notification.module.ts`.
+7. **Tests:** a unit spec for the use case using `InMemoryLocalizationPort.setTemplate('EventName:recipientType', {...})` (defaults to `pt-BR`; use `setTemplateForLocale(key, locale, {...})` to also cover `en`), a handler spec if applicable, and a tenant-isolation assertion.
+
+**Gotcha — existing tenants don't automatically get new template rows.** `copyGlobalDefaultsForTenant` only runs once, on `TenantProvisioned` (new-tenant creation). Adding a new key seeds the *global* default row fine, but every tenant provisioned *before* that migration has no per-tenant copy — `findAllByTriggerEvent(tenantId, NEW_KEY)` returns empty, the use case's `templates.length === 0` guard fires, and the notification silently never sends for any pre-existing tenant. There is currently no backfill mechanism. If a new notification type must reach existing tenants, the new migration must also `INSERT ... SELECT` the new global row into every existing tenant's rows directly (mirroring `copyGlobalDefaultsForTenant`'s own query), not rely on the provisioning event.
+
+---
+
+## Authoring new i18n UI copy keys (`packages/i18n/locales/*/web.json`)
+
+- Always add the key to **both** `pt-BR/web.json` and `en/web.json` in the same commit — never ship a key in one locale only.
+- Namespace by UI area, matching existing top-level keys (`hotsite.*`, `auth.*`, `booking.*`, `seo.*`, etc.) rather than inventing a new top-level namespace for a feature that belongs under an existing one.
+- Use ICU placeholders (`{name}`, `{location}`) for interpolated values — see `seo.defaultTitleWithLocation` for the pattern — never string-concatenate translated fragments.
+- Server Components call `useTranslations()` directly (no `'use client'` needed — see Code Standards). Only reach for a Context-based hook like `useFormatting()` when the value also depends on tenant-specific formatting (currency, date), not just translated text.
+
+---
+
 ## Event Handlers (Pub/Sub consumers)
 
 Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**, not application layer.
