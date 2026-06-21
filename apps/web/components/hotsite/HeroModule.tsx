@@ -30,7 +30,13 @@ const secondaryBtnStyle: React.CSSProperties = {
   opacity: 0.85,
 };
 
-function BrandCard({ name, tagline }: { readonly name: string; readonly tagline?: string }) {
+function BrandCard({
+  name,
+  tagline,
+}: {
+  readonly name: string;
+  readonly tagline?: string;
+}): React.JSX.Element {
   return (
     <div
       className="flex flex-shrink-0 flex-col items-center justify-center p-8 text-center sm:p-10"
@@ -66,7 +72,7 @@ function HeroTextContent({
 }: {
   readonly data: HeroModuleData;
   readonly ctaHref: string;
-}) {
+}): React.JSX.Element {
   const secondaryHref = data.secondaryCtaTarget ? `#${data.secondaryCtaTarget}` : undefined;
 
   return (
@@ -107,7 +113,7 @@ function HeroTextContent({
   );
 }
 
-export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps) {
+export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): React.JSX.Element {
   const ctaHref = `#${data.ctaTarget}`;
   const bgUrl = data.backgroundImageUrl;
 

@@ -7,7 +7,7 @@ interface QueryProviderProps {
   readonly children: React.ReactNode;
 }
 
-export function QueryProvider({ children }: QueryProviderProps) {
+export function QueryProvider({ children }: QueryProviderProps): React.JSX.Element {
   const [queryClient] = useState(
     () =>
       new QueryClient({

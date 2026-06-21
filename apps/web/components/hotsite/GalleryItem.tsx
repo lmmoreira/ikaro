@@ -13,7 +13,7 @@ const badgeStyle = {
   borderRadius: 'var(--ba-radius)',
 };
 
-export function GalleryItem({ image, priority = false }: GalleryItemProps) {
+export function GalleryItem({ image, priority = false }: GalleryItemProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const photoTypeLabels: Record<'before' | 'after', string> = {
     before: t('gallery.beforeLabel'),

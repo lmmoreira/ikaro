@@ -148,3 +148,11 @@ Only add `'use client'` when the component has a genuine client-only need:
 `GalleryGrid`, `TestimonialsCarousel`, and `HotsiteAuthBar` correctly keep `'use client'` — they have real interactivity (lightbox/carousel state, client-side data fetching) independent of translation.
 
 When in doubt, verify against the real dev server (`pnpm dev`), not just by reading next-intl's docs or package exports — confirm the page actually renders with zero console errors for at least one BR and one non-BR tenant before relying on the assumption.
+
+## Next.js (`apps/web`): explicit return types on component functions (mandatory)
+
+Every component function — exported or internal helper, `function Name(...)` declaration style — must declare an explicit return type: `React.JSX.Element` for components that always render, `React.JSX.Element | null` for ones with an early-return empty state (e.g. `GalleryModule`/`TestimonialsModule` returning `null` when their data array is empty).
+
+**Lint enforcement is partial — don't rely on it alone.** `@typescript-eslint/explicit-module-boundary-types` in `apps/web/eslint.config.js` only checks `**/*.tsx` declarations that are actually `export`ed; it does not flag a missing return type on a non-exported internal helper component (e.g. a small sub-component defined above the file's main export). The convention above still applies to those — catch a missing one in code review, the same as any other style rule ESLint doesn't cover.
+
+**Exception — Next.js App Router special files are excluded** (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `template.tsx`, `default.tsx`, `not-found.tsx`, `global-error.tsx`): their default-export shape is already validated by Next's own type generation (`.next/types`) against `PageProps`/`LayoutProps` — annotating them manually fights that contract rather than reinforcing it. This is the same boundary the testing rules already draw (page/layout are Playwright-only, never unit-tested).

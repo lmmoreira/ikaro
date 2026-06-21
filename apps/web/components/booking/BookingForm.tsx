@@ -66,7 +66,7 @@ export function BookingForm({
   carouselDays,
   phonePrefix,
   addressSpec,
-}: BookingFormProps) {
+}: BookingFormProps): React.JSX.Element {
   const t = useTranslations('booking');
   const tc = useTranslations('common');
   const router = useRouter();

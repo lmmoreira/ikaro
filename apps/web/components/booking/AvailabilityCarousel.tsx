@@ -24,7 +24,7 @@ export function AvailabilityCarousel({
   selectedDate,
   onSelectDate,
   carouselDays,
-}: AvailabilityCarouselProps) {
+}: AvailabilityCarouselProps): React.JSX.Element {
   const t = useTranslations('booking');
   const locale = useLocale();
   const [days, setDays] = useState<DaySummary[] | null>(null);

@@ -17,7 +17,11 @@ const headingStyle: React.CSSProperties = {
   color: 'var(--ba-text)',
 };
 
-export function GalleryModule({ data, slug: _, bgVariant }: GalleryModuleProps) {
+export function GalleryModule({
+  data,
+  slug: _,
+  bgVariant,
+}: GalleryModuleProps): React.JSX.Element | null {
   const t = useTranslations('hotsite');
 
   if (data.images.length === 0) {

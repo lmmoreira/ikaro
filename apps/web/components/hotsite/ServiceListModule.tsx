@@ -24,7 +24,12 @@ interface ServiceCardProps {
   readonly cardBg: string;
 }
 
-function ServiceCard({ service, showPrices, showPoints, cardBg }: ServiceCardProps) {
+function ServiceCard({
+  service,
+  showPrices,
+  showPoints,
+  cardBg,
+}: ServiceCardProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const cardStyle: React.CSSProperties = {
     backgroundColor: cardBg,
@@ -58,7 +63,12 @@ function ServiceCard({ service, showPrices, showPoints, cardBg }: ServiceCardPro
   );
 }
 
-export function ServiceListModule({ data, services, slug: _, bgVariant }: ServiceListModuleProps) {
+export function ServiceListModule({
+  data,
+  services,
+  slug: _,
+  bgVariant,
+}: ServiceListModuleProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const title = data.title ?? t('services.defaultTitle');
   const bg = bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';

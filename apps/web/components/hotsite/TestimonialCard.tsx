@@ -11,7 +11,7 @@ interface StarRatingProps {
   readonly rating: 1 | 2 | 3 | 4 | 5;
 }
 
-function StarRating({ rating }: StarRatingProps) {
+function StarRating({ rating }: StarRatingProps): React.JSX.Element {
   return (
     <div
       aria-label={`${rating} de 5 estrelas`}
@@ -31,7 +31,7 @@ function StarRating({ rating }: StarRatingProps) {
   );
 }
 
-export function TestimonialCard({ testimonial, cardBg }: TestimonialCardProps) {
+export function TestimonialCard({ testimonial, cardBg }: TestimonialCardProps): React.JSX.Element {
   const cardStyle: React.CSSProperties = {
     backgroundColor: cardBg ?? 'var(--ba-secondary)',
     borderRadius: 'var(--ba-radius)',
