@@ -1,11 +1,11 @@
 # TD02 — Localization: Full Multi-Country Support
 
-**Status:** Open  
+**Status:** Done — all 10 stories merged  
 **Priority:** High — blocks any non-BR tenant onboarding  
 **Effort estimate:** Large (10 stories across 5 waves)  
 **Affects:** `apps/backend/`, `apps/bff/`, `apps/web/`, `packages/i18n/` (new), `packages/types/`  
 **Initial locales:** `pt-BR` (Brazil) · `en` (United States)  
-**Last updated:** 2026-06-19
+**Last updated:** 2026-06-21
 
 ---
 
