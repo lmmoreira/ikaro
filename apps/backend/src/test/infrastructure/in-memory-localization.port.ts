@@ -7,8 +7,18 @@ export class InMemoryLocalizationPort implements ILocalizationPort {
   private readonly templates = new Map<string, LocalizedNotificationTemplate>();
   private readonly tableHeaders = new Map<string, Map<string, Record<string, string>>>();
 
-  setTemplate(key: string, template: LocalizedNotificationTemplate): this {
-    this.templates.set(key, template);
+  // Key includes locale so tests actually fail if the use case under test passes the wrong
+  // locale through to ILocalizationPort, instead of silently matching regardless of locale.
+  setTemplate(eventNameAndRecipientType: string, template: LocalizedNotificationTemplate): this {
+    return this.setTemplateForLocale(eventNameAndRecipientType, 'pt-BR', template);
+  }
+
+  setTemplateForLocale(
+    eventNameAndRecipientType: string,
+    locale: string,
+    template: LocalizedNotificationTemplate,
+  ): this {
+    this.templates.set(`${eventNameAndRecipientType}:${locale}`, template);
     return this;
   }
 
@@ -22,10 +32,10 @@ export class InMemoryLocalizationPort implements ILocalizationPort {
   getNotificationTemplate(
     eventName: string,
     recipientType: string,
-    _locale: string,
+    locale: string,
   ): LocalizedNotificationTemplate {
-    const template = this.templates.get(`${eventName}:${recipientType}`);
-    if (!template) throw new Error(`No template for ${eventName}:${recipientType}`);
+    const template = this.templates.get(`${eventName}:${recipientType}:${locale}`);
+    if (!template) throw new Error(`No template for ${eventName}:${recipientType}:${locale}`);
     return template;
   }
 

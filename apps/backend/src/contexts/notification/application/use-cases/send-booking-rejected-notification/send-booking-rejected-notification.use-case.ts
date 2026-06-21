@@ -29,8 +29,6 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER;
-const EVENT_NAME = 'BookingRejected';
-const RECIPIENT_TYPE = 'customer';
 
 export interface SendBookingRejectedNotificationUseCaseResult {
   emailSent: boolean;
@@ -66,7 +64,7 @@ export class SendBookingRejectedNotificationUseCase extends BaseNotificationUseC
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const locale = tenantInfo?.locale ?? 'pt-BR';
-    this.localizeTemplates(templates, this.localizationPort, EVENT_NAME, RECIPIENT_TYPE, locale);
+    this.localizeTemplates(templates, this.localizationPort, locale);
 
     const emailSent = await this.dispatchTemplates(templates, dto, dto.contactEmail, {
       contactName: dto.contactName,

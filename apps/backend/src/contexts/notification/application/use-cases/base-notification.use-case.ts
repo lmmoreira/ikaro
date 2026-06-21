@@ -2,6 +2,7 @@ import { AppLogger } from '../../../../shared/observability/app-logger';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
 import { NotificationLog } from '../../domain/notification-log.aggregate';
 import { NotificationTemplate } from '../../domain/notification-template.aggregate';
+import { NOTIFICATION_TEMPLATE_KEY_MAPPING } from '../../domain/notification-template-key.mapping';
 import { INotificationDispatcher } from '../ports/notification-dispatcher.port';
 import { INotificationLogRepository } from '../ports/notification-log-repository.port';
 import { INotificationProcessedEventRepository } from '../ports/processed-event-repository.port';
@@ -70,16 +71,16 @@ export abstract class BaseNotificationUseCase {
   // Overlays each fetched template's subject/body with locale-correct content from
   // ILocalizationPort before render() interpolates variables — the DB row's own subject/body
   // is no longer the content source (TD02-S10), only its triggerEvent/channel/existence matter.
+  // eventName/recipientType are derived per template from NOTIFICATION_TEMPLATE_KEY_MAPPING
+  // rather than passed in by callers, so that mapping stays the single source of truth.
   protected localizeTemplates(
     templates: NotificationTemplate[],
     localizationPort: ILocalizationPort,
-    eventName: string,
-    recipientType: string,
     locale: string,
   ): void {
-    if (templates.length === 0) return;
-    const localized = localizationPort.getNotificationTemplate(eventName, recipientType, locale);
     for (const template of templates) {
+      const { eventName, recipientType } = NOTIFICATION_TEMPLATE_KEY_MAPPING[template.triggerEvent];
+      const localized = localizationPort.getNotificationTemplate(eventName, recipientType, locale);
       template.update(localized.subject, localized.body);
     }
   }

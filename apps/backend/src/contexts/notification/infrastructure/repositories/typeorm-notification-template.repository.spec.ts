@@ -18,7 +18,7 @@ describe('TypeOrmNotificationTemplateRepository', () => {
   let mockQuery: jest.Mock;
 
   beforeEach(async () => {
-    mockQuery = jest.fn().mockResolvedValue({ rowCount: 16 });
+    mockQuery = jest.fn().mockResolvedValue(Array.from({ length: 16 }, () => ({ inserted: 1 })));
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -186,7 +186,7 @@ describe('TypeOrmNotificationTemplateRepository', () => {
   });
 
   describe('copyGlobalDefaultsForTenant', () => {
-    it('executes INSERT...SELECT and returns rowCount', async () => {
+    it('executes INSERT...SELECT...RETURNING and returns the inserted row count', async () => {
       const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
       expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO'), [
@@ -196,22 +196,20 @@ describe('TypeOrmNotificationTemplateRepository', () => {
       expect(result).toBe(16);
     });
 
+    it('uses RETURNING instead of rowCount (unreliable for raw INSERT via DataSource.query())', async () => {
+      await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
+
+      expect(mockQuery.mock.calls[0][0] as string).toContain('RETURNING');
+    });
+
     it('uses ON CONFLICT DO NOTHING for idempotency', async () => {
       await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
       expect(mockQuery.mock.calls[0][0] as string).toContain('ON CONFLICT DO NOTHING');
     });
 
-    it('returns 0 when query result has no rowCount', async () => {
-      mockQuery.mockResolvedValueOnce(null);
-
-      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
-
-      expect(result).toBe(0);
-    });
-
-    it('returns 0 when rowCount is undefined', async () => {
-      mockQuery.mockResolvedValueOnce({ rowCount: undefined });
+    it('returns 0 when no rows are inserted (all already exist for the tenant)', async () => {
+      mockQuery.mockResolvedValueOnce([]);
 
       const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 

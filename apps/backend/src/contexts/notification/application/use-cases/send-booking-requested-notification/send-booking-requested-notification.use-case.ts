@@ -76,20 +76,8 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
 
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? 'pt-BR';
-    this.localizeTemplates(
-      adminTemplates,
-      this.localizationPort,
-      'BookingRequested',
-      'admin',
-      locale,
-    );
-    this.localizeTemplates(
-      customerTemplates,
-      this.localizationPort,
-      'BookingRequested',
-      'customer',
-      locale,
-    );
+    this.localizeTemplates(adminTemplates, this.localizationPort, locale);
+    this.localizeTemplates(customerTemplates, this.localizationPort, locale);
     const formattedPrice = formatMoney(dto.totalPrice.amount, locale, dto.totalPrice.currency);
     const scheduledDate = new Date(dto.scheduledAt);
     const localDate = utcDateToLocalDate(scheduledDate, timezone);

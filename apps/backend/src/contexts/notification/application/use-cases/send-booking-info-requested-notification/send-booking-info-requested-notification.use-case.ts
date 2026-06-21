@@ -32,8 +32,6 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER;
 const GUEST_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
-const EVENT_NAME = 'BookingInfoRequested';
-const RECIPIENT_TYPE = 'customer';
 
 export interface SendBookingInfoRequestedNotificationUseCaseResult {
   emailSent: boolean;
@@ -70,7 +68,7 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const locale = tenantInfo?.locale ?? 'pt-BR';
-    this.localizeTemplates(templates, this.localizationPort, EVENT_NAME, RECIPIENT_TYPE, locale);
+    this.localizeTemplates(templates, this.localizationPort, locale);
 
     const respondLink = this.buildRespondLink(dto);
 

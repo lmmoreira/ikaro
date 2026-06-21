@@ -32,7 +32,6 @@ export { BookingReminderNotificationUseCaseResult as SendBookingReminderDueNotif
 @Injectable()
 export class SendBookingReminderDueNotificationUseCase extends BaseBookingReminderNotificationUseCase {
   protected readonly reminderTemplateKey = NotificationTemplateKey.BOOKING_REMINDER_DUE;
-  protected readonly eventName = 'BookingReminderDue';
 
   constructor(
     @Inject(NOTIFICATION_LOG_REPOSITORY) logRepo: INotificationLogRepository,

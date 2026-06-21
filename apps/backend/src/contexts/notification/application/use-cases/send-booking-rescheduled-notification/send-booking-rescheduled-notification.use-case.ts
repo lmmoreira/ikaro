@@ -81,20 +81,8 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
         NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN,
       ),
     ]);
-    this.localizeTemplates(
-      customerTemplates,
-      this.localizationPort,
-      'BookingRescheduled',
-      'customer',
-      locale,
-    );
-    this.localizeTemplates(
-      adminTemplates,
-      this.localizationPort,
-      'BookingRescheduled',
-      'admin',
-      locale,
-    );
+    this.localizeTemplates(customerTemplates, this.localizationPort, locale);
+    this.localizeTemplates(adminTemplates, this.localizationPort, locale);
 
     const variables: Record<string, string> = {
       contactName: dto.contactName,

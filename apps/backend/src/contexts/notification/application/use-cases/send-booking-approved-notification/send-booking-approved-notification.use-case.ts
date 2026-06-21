@@ -31,8 +31,6 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER;
-const EVENT_NAME = 'BookingApproved';
-const RECIPIENT_TYPE = 'customer';
 
 export interface SendBookingApprovedNotificationUseCaseResult {
   emailSent: boolean;
@@ -69,7 +67,7 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? 'pt-BR';
-    this.localizeTemplates(templates, this.localizationPort, EVENT_NAME, RECIPIENT_TYPE, locale);
+    this.localizeTemplates(templates, this.localizationPort, locale);
     const startDate = new Date(dto.approvedSlot.startTime);
     const localDate = utcDateToLocalDate(startDate, timezone);
     const localTime = utcDateToLocalHHMM(startDate, timezone);

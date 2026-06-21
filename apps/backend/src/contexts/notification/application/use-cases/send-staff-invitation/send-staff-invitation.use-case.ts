@@ -34,8 +34,6 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.STAFF_INVITATION;
-const EVENT_NAME = 'StaffInvited';
-const RECIPIENT_TYPE = 'staff';
 
 export interface SendStaffInvitationUseCaseResult {
   sent: boolean;
@@ -75,13 +73,7 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
     ]);
     if (!staff || !tenant) return { sent: false };
 
-    this.localizeTemplates(
-      templates,
-      this.localizationPort,
-      EVENT_NAME,
-      RECIPIENT_TYPE,
-      tenant.locale,
-    );
+    this.localizeTemplates(templates, this.localizationPort, tenant.locale);
 
     const activationLink = `${this.config.getOrThrow<string>('FRONTEND_URL')}/${tenant.slug}/auth/staff`;
 

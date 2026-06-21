@@ -34,8 +34,6 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN;
-const EVENT_NAME = 'BookingInfoSubmitted';
-const RECIPIENT_TYPE = 'admin';
 
 export interface SendBookingInfoSubmittedNotificationUseCaseResult {
   emailSent: boolean;
@@ -76,7 +74,7 @@ export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificatio
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const locale = tenantInfo?.locale ?? 'pt-BR';
-    this.localizeTemplates(templates, this.localizationPort, EVENT_NAME, RECIPIENT_TYPE, locale);
+    this.localizeTemplates(templates, this.localizationPort, locale);
 
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
     const bookingLink = `${frontendUrl}/dashboard/bookings/${dto.bookingId}`;

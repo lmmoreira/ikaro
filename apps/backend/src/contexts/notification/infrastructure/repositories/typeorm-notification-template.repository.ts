@@ -51,16 +51,20 @@ export class TypeOrmNotificationTemplateRepository implements INotificationTempl
   }
 
   async copyGlobalDefaultsForTenant(tenantId: string, locale: string): Promise<number> {
-    const result: { rowCount?: number } | null = await this.dataSource.query(
+    // DataSource.query() does not populate rowCount for raw INSERT statements in TypeORM
+    // 0.3.x/pg — RETURNING is the only reliable way to count rows actually inserted
+    // (ON CONFLICT DO NOTHING means the affected-row count can differ from the SELECT's size).
+    const insertedRows: unknown[] = await this.dataSource.query(
       `INSERT INTO notification.notification_templates
          (id, tenant_id, trigger_event, channel, locale, subject, body, created_at, updated_at)
        SELECT gen_random_uuid(), $1::uuid, trigger_event, channel, locale, subject, body, now(), now()
        FROM notification.notification_templates
        WHERE tenant_id IS NULL AND locale = $2
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT DO NOTHING
+       RETURNING 1 AS inserted`,
       [tenantId, locale],
     );
-    return result?.rowCount ?? 0;
+    return insertedRows.length;
   }
 
   private toDomain(entity: NotificationTemplateEntity): NotificationTemplate {

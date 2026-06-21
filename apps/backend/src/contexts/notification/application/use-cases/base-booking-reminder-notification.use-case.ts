@@ -16,7 +16,6 @@ export interface BookingReminderNotificationUseCaseResult {
 
 export abstract class BaseBookingReminderNotificationUseCase extends BaseNotificationUseCase {
   protected abstract readonly reminderTemplateKey: NotificationTemplateKey;
-  protected abstract readonly eventName: string;
 
   constructor(
     logRepo: INotificationLogRepository,
@@ -48,7 +47,7 @@ export abstract class BaseBookingReminderNotificationUseCase extends BaseNotific
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? 'pt-BR';
-    this.localizeTemplates(templates, this.localizationPort, this.eventName, 'customer', locale);
+    this.localizeTemplates(templates, this.localizationPort, locale);
     const start = new Date(dto.scheduledAt);
     const localDate = utcDateToLocalDate(start, timezone);
     const localTime = utcDateToLocalHHMM(start, timezone);

@@ -42,6 +42,18 @@ describe('NotificationTemplate', () => {
         'body must be non-empty',
       );
     });
+
+    it('throws when locale is empty', () => {
+      expect(() => NotificationTemplate.create({ ...BASE_PROPS, locale: '' })).toThrow(
+        'locale must be non-empty',
+      );
+    });
+
+    it('throws when locale is whitespace only', () => {
+      expect(() => NotificationTemplate.create({ ...BASE_PROPS, locale: '   ' })).toThrow(
+        'locale must be non-empty',
+      );
+    });
   });
 
   describe('render()', () => {

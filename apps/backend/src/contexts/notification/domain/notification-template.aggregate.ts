@@ -49,6 +49,7 @@ export class NotificationTemplate {
   }
 
   static create(props: Omit<NotificationTemplateProps, 'id' | 'updatedAt'>): NotificationTemplate {
+    if (!props.locale.trim()) throw new Error('NotificationTemplate locale must be non-empty');
     if (!props.subject.trim()) throw new Error('NotificationTemplate subject must be non-empty');
     if (!props.body.trim()) throw new Error('NotificationTemplate body must be non-empty');
     return new NotificationTemplate({ ...props, id: uuidv7(), updatedAt: new Date() });

@@ -311,7 +311,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     expect(requestedAdminMsgs.length).toBeGreaterThanOrEqual(1);
 
     const requestedCustomerMsgs = d.filter(
-      (m) => m.notificationType === 'booking-requested-customer',
+      (m) => m.notificationType === 'booking-requested-customer' && m.to === customerEmail,
     );
     expect(requestedCustomerMsgs.length).toBeGreaterThanOrEqual(1);
 

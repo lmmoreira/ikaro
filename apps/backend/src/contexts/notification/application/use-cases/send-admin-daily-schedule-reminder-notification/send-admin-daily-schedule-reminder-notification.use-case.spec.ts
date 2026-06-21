@@ -130,6 +130,10 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
       locale: 'en',
       fromEmail: null,
     });
+    localizationPort.setTemplateForLocale('AdminDailyScheduleReminder:admin', 'en', {
+      subject: "Today's schedule — {{localDate}}",
+      body: '<p>Total: {{totalBookingsToday}} — {{bookingsHtml}}</p>',
+    });
     localizationPort.setTableHeaders('adminDailySchedule', 'en', {
       ...PT_BR_HEADERS,
       time: 'Time',

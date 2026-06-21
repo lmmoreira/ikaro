@@ -105,7 +105,8 @@ export class CreateNotificationTemplates1748100000010 implements MigrationInterf
       `INSERT INTO "notification"."notification_templates"
          ("id", "tenant_id", "trigger_event", "channel", "locale", "subject", "body")
        VALUES
-        ${valuesSql}`,
+        ${valuesSql}
+       ON CONFLICT DO NOTHING`,
       params,
     );
   }

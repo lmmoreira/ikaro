@@ -79,13 +79,7 @@ export class SendAdminDailyScheduleReminderNotificationUseCase extends BaseNotif
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? 'pt-BR';
-    this.localizeTemplates(
-      templates,
-      this.localizationPort,
-      'AdminDailyScheduleReminder',
-      'admin',
-      locale,
-    );
+    this.localizeTemplates(templates, this.localizationPort, locale);
     const headers = this.localizationPort.getEmailTableHeaders(TABLE_KEY, locale);
     const bookingsHtml = this.buildBookingsHtml(dto.bookingsToday, timezone, headers);
 

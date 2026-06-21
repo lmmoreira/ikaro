@@ -78,20 +78,8 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
         NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
       ),
     ]);
-    this.localizeTemplates(
-      customerTemplates,
-      this.localizationPort,
-      'BookingCancelled',
-      'customer',
-      locale,
-    );
-    this.localizeTemplates(
-      adminTemplates,
-      this.localizationPort,
-      'BookingCancelled',
-      'admin',
-      locale,
-    );
+    this.localizeTemplates(customerTemplates, this.localizationPort, locale);
+    this.localizeTemplates(adminTemplates, this.localizationPort, locale);
 
     const variables: Record<string, string> = {
       contactName: dto.contactName,
