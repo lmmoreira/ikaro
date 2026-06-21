@@ -129,3 +129,22 @@ HTTP request bodies (`contactPhone`, customer `phone`) must send digits only, no
 - Email templates in pt-BR
 - Money display as `R$ 1.234,56`
 - Domain error messages are **English only** — pt-BR copy from UC specs is frontend UI copy, never in domain error constructors.
+
+---
+
+## Next.js (`apps/web`): Server vs Client Components for `next-intl`
+
+`useTranslations()` (imported from `'next-intl'`, not `'next-intl/server'`) works fine in **Server Components**. The package ships a dedicated `react-server` build, resolved automatically by Next.js's bundler for any file with no `'use client'` directive — calling the hook does **not**, by itself, require the component to be a Client Component.
+
+Only add `'use client'` when the component has a genuine client-only need:
+- State or effects (`useState`, `useEffect`)
+- Browser-only APIs — event handlers, `window`, `localStorage`, client-side `fetch` on mount
+- A **Context-based hook**, e.g. `useFormatting()` (`FormattingProvider`) — React Context only works inside a Client Component subtree, regardless of what the hook itself does
+
+**Default hotsite/SEO-facing module components to Server Components** — smaller client bundle, no behavior change for translation, and they remain just as testable: Vitest/RTL doesn't honor the `'use client'` directive at all (Vite resolves the client `next-intl` build either way), so `renderWithIntl()`'s `NextIntlClientProvider` wrapper satisfies `useTranslations()` in tests regardless of which build actually ships in production.
+
+**Worked example (TD02-S09):** `ServiceListModule`, `GalleryModule`, `GalleryItem`, `TestimonialsModule`, `ContactModule`, and `Unavailable` only called `useTranslations()` — no state, no effects, no Context — so they're Server Components. `ConfirmationStep`/`BookingSummaryCard` (from TD02-S07) *do* need `'use client'`, but because they call `useFormatting()`, not because of translation — don't generalize "this component needed `'use client'`" into "translation requires `'use client'`" without checking *why* it actually needed it.
+
+`GalleryGrid`, `TestimonialsCarousel`, and `HotsiteAuthBar` correctly keep `'use client'` — they have real interactivity (lightbox/carousel state, client-side data fetching) independent of translation.
+
+When in doubt, verify against the real dev server (`pnpm dev`), not just by reading next-intl's docs or package exports — confirm the page actually renders with zero console errors for at least one BR and one non-BR tenant before relying on the assumption.

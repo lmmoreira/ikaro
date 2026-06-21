@@ -31,6 +31,8 @@ export function formatDate(date: Date, timezone: string, dateFormat: DateFormat)
   return `${day}/${month}/${year}`; // DD/MM/YYYY default
 }
 
+// Deliberately pins UTC (unlike dayCarouselLabel() in date-utils.ts, which uses local time)
+// and upper-cases the first letter — match both when asserting this in tests.
 export function formatDateLong(date: Date, locale: string): string {
   const formatted = new Intl.DateTimeFormat(locale, {
     weekday: 'long',

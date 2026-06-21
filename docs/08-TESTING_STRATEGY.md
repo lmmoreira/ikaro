@@ -8,6 +8,7 @@ Tests in Ikaro are **executable specifications**. Each test proves that a specif
 1. Every UC must have a unit test, an integration test, and a tenant-isolation test.
 2. Tests are co-located with source: `booking.entity.spec.ts` lives next to `booking.entity.ts`.
 3. No `.skip()`, `.only()`, or `setTimeout()` in any test file — CI will block the merge.
+4. **A new or changed Playwright spec must actually be run** (`npx playwright test`) against the real dev stack before it's considered done. Inspecting rendered HTML with `curl` or reasoning from the source code is not a substitute — it cannot catch wrong-page selectors, timezone-parsing mismatches, or formatting differences (e.g. capitalization) that only show up when the real browser renders the real app. TD02-S09's `localization.spec.ts` shipped with 3 such bugs that only surfaced once the suite was actually executed.
 
 ---
 
@@ -534,16 +535,26 @@ page.locator('[data-testid="day-card-2026-06-01"]')
 
 Never mix concerns in a single attribute.
 
-**5. Never assert translated strings**
+**5. Never use translated text as the *selector*** — asserting it as *content* is fine, and mandatory for localization tests
 
-Hardcoding UI copy in E2E tests breaks under i18n. Use `data-testid` on action buttons instead.
+Hardcoding UI copy to **locate** an element breaks under i18n. Use `data-testid` (or a stable, non-translated `id`/`idPrefix`) to find the element; only then assert the translated string as its content via `toContainText()`/`toHaveText()`.
 
 ```ts
-// ✅ — survives translation to any language
+// ✅ — locate by testid, survives translation to any language
 page.locator('[data-testid="step-next"]').click()
 
-// ❌ — breaks the day localization ships
+// ❌ — using translated text as the locator breaks the day localization ships
 page.getByRole('button', { name: 'Próximo' }).click()
+```
+
+**Exception:** when the test's entire purpose is validating localization itself (e.g. confirming a label reads "CEP" for a BR tenant and "ZIP Code" for a US tenant), asserting the translated string is the point of the test — that's still rule-compliant as long as the *locator* is `data-testid`/stable `id`, never the text itself:
+
+```ts
+// ✅ — locator is the stable id; the translated text is only the assertion target
+await expect(page.locator('label[for="contact-address-zip-code"]')).toHaveText('ZIP Code');
+
+// ❌ — the translated text IS the locator; breaks the moment copy changes
+await page.getByLabel('ZIP Code').click();
 ```
 
 When a heading or label is the right locator (rule 1), use a **case-insensitive regex** so capitalisation changes don't break the test:
@@ -849,6 +860,8 @@ describe('RescheduleBookingUseCase', () => {
 | Security scan clean | Snyk + Gitleaks | Block merge |
 
 > Coverage is **differential** (changed files only), not a global project threshold. SonarCloud computes this on the PR diff. The Jest/Vitest coverage report feeds into SonarCloud.
+>
+> **Playwright/E2E coverage does not feed this gate** — there's no CI step instrumenting E2E runs into the lcov reports SonarCloud reads, and Playwright doesn't even run in CI yet (planned for M16-S06; today it's local-only against the dev stack). A file with real E2E coverage but no Vitest/Jest test (e.g. an async Server Component page/layout that can't be unit-tested — see `apps/web/app/**/page.tsx`, `layout.tsx`, `not-found.tsx`) still needs a `sonar.coverage.exclusions` entry, or the gate fails on 0% regardless of how well the E2E suite actually exercises it. Don't "fix" the exclusion by trying to make the file unit-testable, and don't remove it just because an E2E test now exists for it.
 
 ---
 
