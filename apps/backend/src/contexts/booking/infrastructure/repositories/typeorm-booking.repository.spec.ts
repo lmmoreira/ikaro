@@ -151,7 +151,7 @@ describe('TypeOrmBookingRepository', () => {
     it('applies status filter to the where clause', async () => {
       ormRepo.find.mockResolvedValue([]);
 
-      await repo.findAllByTenant('tenant-1', { status: BookingStatus.APPROVED });
+      await repo.findAllByTenant('tenant-1', { status: [BookingStatus.APPROVED] });
 
       expect(ormRepo.find).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -203,7 +203,7 @@ describe('TypeOrmBookingRepository', () => {
       await repo.findAllByTenantPaginated(tenantId, { limit: 10, offset: 20 });
 
       expect(ormRepo.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 10, skip: 20, order: { scheduledAt: 'DESC' } }),
+        expect.objectContaining({ take: 10, skip: 20, order: { scheduledAt: 'ASC' } }),
       );
     });
 
@@ -213,7 +213,7 @@ describe('TypeOrmBookingRepository', () => {
       await repo.findAllByTenantPaginated(tenantId, {
         limit: 25,
         offset: 0,
-        status: BookingStatus.APPROVED,
+        status: [BookingStatus.APPROVED],
       });
 
       expect(ormRepo.findAndCount).toHaveBeenCalledWith(

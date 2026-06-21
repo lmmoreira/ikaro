@@ -8,6 +8,7 @@ import {
   createTestApp,
   makeCustomerJwt,
   makeManagerJwt,
+  makeStaffJwt,
   setupActiveGuardMock,
   request,
   TENANT_ID,
@@ -164,6 +165,149 @@ describe('BookingsController (component)', () => {
         .send(validGuestBody);
 
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /v1/bookings — staff booking list (M13-S03)', () => {
+    const backendListResponse = {
+      items: [
+        {
+          id: '40000000-0000-4000-8000-000000000001',
+          status: 'PENDING',
+          type: 'CUSTOMER',
+          customerId: '20000000-0000-4000-8000-000000000001',
+          contactName: 'João Silva',
+          contactEmail: 'joao@example.com',
+          scheduledAt: '2026-06-15T10:00:00.000Z',
+          totalDurationMins: 30,
+          totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+          lineSummary: [
+            {
+              serviceId: '30000000-0000-4000-8000-000000000001',
+              serviceNameAtBooking: 'Lavagem Simples',
+              priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+            },
+          ],
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      pagination: { limit: 20, offset: 0, total: 1, hasMore: false },
+    };
+
+    it('returns 401 when no JWT is provided', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/bookings');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 when CUSTOMER JWT is provided', async () => {
+      const token = makeCustomerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/bookings')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 200 with StaffBookingListResponse for MANAGER JWT', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(backendListResponse);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/bookings?status=PENDING,INFO_REQUESTED')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].bookingId).toBe('40000000-0000-4000-8000-000000000001');
+      expect(res.body.items[0].serviceNames).toEqual(['Lavagem Simples']);
+      expect(res.body.items[0].isCustomer).toBe(true);
+      expect(res.body.total).toBe(1);
+      expect(res.body.page).toBe(1);
+      expect(res.body.limit).toBe(20);
+    });
+
+    it('passes date boundaries to backend when date param is given', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        items: [],
+        pagination: { limit: 20, offset: 0, total: 0, hasMore: false },
+      });
+
+      await request(app.getHttpServer())
+        .get('/v1/bookings?status=APPROVED&date=2026-06-16')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(backendHttpService.get).toHaveBeenCalledWith(
+        '/bookings',
+        expect.objectContaining({
+          from: '2026-06-16T00:00:00.000Z',
+          to: '2026-06-16T23:59:59.999Z',
+        }),
+      );
+    });
+
+    it('passes from boundary to backend when from param is given', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        items: [],
+        pagination: { limit: 20, offset: 0, total: 0, hasMore: false },
+      });
+
+      await request(app.getHttpServer())
+        .get('/v1/bookings?status=APPROVED&from=2026-06-17')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(backendHttpService.get).toHaveBeenCalledWith(
+        '/bookings',
+        expect.objectContaining({ from: '2026-06-17T00:00:00.000Z' }),
+      );
+    });
+
+    it('returns 200 with empty list when backend returns no items', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        items: [],
+        pagination: { limit: 20, offset: 0, total: 0, hasMore: false },
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/bookings')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ items: [], total: 0, page: 1, limit: 20 });
+    });
+
+    it('returns 200 for STAFF JWT', async () => {
+      const token = makeStaffJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        items: [],
+        pagination: { limit: 20, offset: 0, total: 0, hasMore: false },
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/bookings')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+    });
+
+    it('returns 400 when status value is invalid', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/bookings?status=INVALID_STATUS')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(400);
     });
   });
 
@@ -842,53 +986,6 @@ describe('BookingsController (component)', () => {
         .send(validGuestSubmitBody);
 
       expect(res.status).toBe(422);
-    });
-  });
-
-  describe('GET /v1/bookings', () => {
-    const mockListResponse = {
-      items: [],
-      pagination: { limit: 25, offset: 0, total: 0, hasMore: false },
-    };
-
-    it('returns 401 with no JWT', async () => {
-      expect((await request(app.getHttpServer()).get('/v1/bookings')).status).toBe(401);
-    });
-
-    it('returns 200 for CUSTOMER with own bookings', async () => {
-      const token = makeCustomerJwt(jwtService);
-      backendHttpService.get.mockResolvedValueOnce(mockListResponse);
-
-      const res = await request(app.getHttpServer())
-        .get('/v1/bookings')
-        .set('Authorization', `Bearer ${token}`);
-
-      expect(res.status).toBe(200);
-      expect(backendHttpService.get).toHaveBeenCalledWith('/bookings', expect.any(Object));
-    });
-
-    it('returns 200 for MANAGER', async () => {
-      const token = makeManagerJwt(jwtService);
-      setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValueOnce(mockListResponse);
-
-      const res = await request(app.getHttpServer())
-        .get('/v1/bookings')
-        .set('Authorization', `Bearer ${token}`);
-
-      expect(res.status).toBe(200);
-    });
-
-    it('propagates backend error', async () => {
-      const { HttpException: HE } = await import('@nestjs/common');
-      const token = makeCustomerJwt(jwtService);
-      backendHttpService.get.mockRejectedValueOnce(new HE({ status: 500 }, 500));
-
-      const res = await request(app.getHttpServer())
-        .get('/v1/bookings')
-        .set('Authorization', `Bearer ${token}`);
-
-      expect(res.status).toBe(500);
     });
   });
 

@@ -1,5 +1,6 @@
 import type { Address } from './address';
 import type { MoneyAmount } from './money';
+import type { BookingStatus } from './enums';
 
 export interface CreateBookingRequest {
   contactEmail: string;
@@ -42,4 +43,22 @@ export interface AttachmentSignedUrlResponse {
   signedUrl: string;
   filePath: string;
   expiresAt: string;
+}
+
+export interface StaffBookingCardResponse {
+  bookingId: string;
+  status: BookingStatus;
+  scheduledAt: string; // ISO-8601
+  contactName: string;
+  serviceNames: string[];
+  totalPrice: MoneyAmount;
+  totalDurationMins: number;
+  isCustomer: boolean; // true = authenticated customer booking; false = guest
+}
+
+export interface StaffBookingListResponse {
+  items: StaffBookingCardResponse[];
+  total: number;
+  page: number;
+  limit: number;
 }

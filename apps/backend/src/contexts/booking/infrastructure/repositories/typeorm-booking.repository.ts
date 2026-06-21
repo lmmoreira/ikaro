@@ -1,6 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  Between,
+  FindOptionsWhere,
+  In,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
   ITenantSettingsPort,
@@ -41,7 +48,8 @@ export class TypeOrmBookingRepository implements IBookingRepository {
 
   async findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
     const where: FindOptionsWhere<BookingEntity> = { tenantId };
-    if (filters.status) where.status = filters.status;
+    if (filters.status?.length === 1) where.status = filters.status[0];
+    else if (filters.status?.length) where.status = In(filters.status);
     if (filters.customerId) where.customerId = filters.customerId;
     if (filters.scheduledAfter && filters.scheduledBefore) {
       where.scheduledAt = Between(filters.scheduledAfter, filters.scheduledBefore);
@@ -51,7 +59,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       where.scheduledAt = LessThanOrEqual(filters.scheduledBefore);
     }
 
-    const entities = await this.repo.find({ where, order: { scheduledAt: 'DESC' } });
+    const entities = await this.repo.find({ where, order: { scheduledAt: 'ASC' } });
     if (!entities.length) return [];
 
     const bookingIds = entities.map((e) => e.id);
@@ -75,7 +83,8 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     filters: BookingListFilters,
   ): Promise<BookingPaginatedResult> {
     const where: FindOptionsWhere<BookingEntity> = { tenantId };
-    if (filters.status) where.status = filters.status;
+    if (filters.status?.length === 1) where.status = filters.status[0];
+    else if (filters.status?.length) where.status = In(filters.status);
     if (filters.customerId) where.customerId = filters.customerId;
     if (filters.scheduledAfter && filters.scheduledBefore) {
       where.scheduledAt = Between(filters.scheduledAfter, filters.scheduledBefore);
@@ -87,7 +96,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
 
     const [entities, total] = await this.repo.findAndCount({
       where,
-      order: { scheduledAt: 'DESC' },
+      order: { scheduledAt: 'ASC' },
       take: filters.limit,
       skip: filters.offset,
     });

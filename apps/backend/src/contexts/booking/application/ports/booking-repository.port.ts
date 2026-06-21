@@ -3,7 +3,7 @@ import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 export const BOOKING_REPOSITORY = Symbol('IBookingRepository');
 
 export interface BookingFilters {
-  status?: BookingStatus;
+  status?: BookingStatus[];
   customerId?: string;
   scheduledAfter?: Date;
   scheduledBefore?: Date;

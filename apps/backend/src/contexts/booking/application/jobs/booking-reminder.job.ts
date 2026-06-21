@@ -54,12 +54,12 @@ export class BookingReminderJob {
 
       const [tomorrowBookings, todayBookings] = await Promise.all([
         this.bookingRepo.findAllByTenant(tenant.id, {
-          status: BookingStatus.APPROVED,
+          status: [BookingStatus.APPROVED],
           scheduledAfter: tomorrowStart,
           scheduledBefore: tomorrowEnd,
         }),
         this.bookingRepo.findAllByTenant(tenant.id, {
-          status: BookingStatus.APPROVED,
+          status: [BookingStatus.APPROVED],
           scheduledAfter: todayStart,
           scheduledBefore: todayEnd,
         }),

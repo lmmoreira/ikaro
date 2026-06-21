@@ -40,7 +40,7 @@ export class AdminScheduleReminderJob {
         .toJSDate();
 
       const todayBookings = await this.bookingRepo.findAllByTenant(tenant.id, {
-        status: BookingStatus.APPROVED,
+        status: [BookingStatus.APPROVED],
         scheduledAfter: todayStart,
         scheduledBefore: todayEnd,
       });

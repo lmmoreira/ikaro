@@ -17,7 +17,7 @@ export class InMemoryBookingRepository implements IBookingRepository {
 
   async findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
     let results = Array.from(this.store.values()).filter((b) => b.tenantId === tenantId);
-    if (filters.status) results = results.filter((b) => b.status === filters.status);
+    if (filters.status?.length) results = results.filter((b) => filters.status!.includes(b.status));
     if (filters.customerId) results = results.filter((b) => b.customerId === filters.customerId);
     if (filters.scheduledAfter)
       results = results.filter((b) => b.scheduledAt >= filters.scheduledAfter!);
