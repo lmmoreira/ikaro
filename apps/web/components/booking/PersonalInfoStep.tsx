@@ -163,6 +163,7 @@ export function PersonalInfoStep({
           </label>
           <div className="flex">
             <span
+              data-testid="phone-prefix"
               className="flex items-center border border-r-0 px-3 text-sm font-medium"
               style={{
                 borderRadius: 'var(--ba-radius) 0 0 var(--ba-radius)',
@@ -215,6 +216,7 @@ export function PersonalInfoStep({
       <div className="mt-6">
         <button
           type="button"
+          data-testid="toggle-contact-address"
           onClick={() => setShowContactAddress((prev) => !prev)}
           className="text-sm font-medium underline"
           style={{ color: 'var(--ba-primary)' }}

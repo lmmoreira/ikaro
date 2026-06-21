@@ -5,6 +5,10 @@ import { test, expect, type Page } from '@playwright/test';
 // end-to-end for both a BR tenant (lavacar-beloauto, seeded pt-BR/BRL) and the US tenant
 // (ikaro, seeded en/USD — see apps/backend/src/shared/database/seed.ts).
 //
+// All elements are located by data-testid or a stable, non-translated `id`/`idPrefix`
+// (never by translated text) — translated copy is only ever asserted as content, never
+// used as the selector, per the project's E2E convention.
+//
 // formatDate()'s literal DD/MM/YYYY vs MM/DD/YYYY numeric output has no UI consumer yet
 // (only formatDateLong's weekday+month-name form is rendered), so date-locale coverage here
 // asserts against the actually-rendered weekday/month-name text instead of a numeric pattern.
@@ -17,7 +21,6 @@ interface LocalizationCase {
   readonly contactName: string;
   readonly contactEmail: string;
   readonly phonePrefix: string;
-  readonly addressToggleLabel: string;
   readonly postalLabel: string;
   readonly neighborhoodLabel: string | null;
 }
@@ -30,7 +33,6 @@ const BR: LocalizationCase = {
   contactName: 'Cliente E2E',
   contactEmail: 'e2e@teste.com.br',
   phonePrefix: '+55',
-  addressToggleLabel: 'Endereço de contato (opcional)',
   postalLabel: 'CEP',
   neighborhoodLabel: 'Bairro',
 };
@@ -43,10 +45,12 @@ const US: LocalizationCase = {
   contactName: 'E2E Customer',
   contactEmail: 'e2e@test.com',
   phonePrefix: '+1',
-  addressToggleLabel: 'Contact address (optional)',
   postalLabel: 'ZIP Code',
   neighborhoodLabel: null,
 };
+
+// AddressFields is mounted with idPrefix="contact-address" by PersonalInfoStep.
+const ADDRESS_ID_PREFIX = 'contact-address';
 
 async function runLocalizationCheck(page: Page, c: LocalizationCase): Promise<void> {
   await page.goto(`/${c.slug}`);
@@ -75,18 +79,20 @@ async function runLocalizationCheck(page: Page, c: LocalizationCase): Promise<vo
   await page.locator('[data-testid="step-next"]').click();
 
   // Step 3: personal info — phone prefix and country-specific address fields.
-  await expect(page.getByText(c.phonePrefix, { exact: true })).toBeVisible();
+  await expect(page.locator('[data-testid="phone-prefix"]')).toHaveText(c.phonePrefix);
   await page.locator('[data-testid="input-name"]').fill(c.contactName);
   await page.locator('[data-testid="input-email"]').fill(c.contactEmail);
   await page.locator('[data-testid="input-phone"]').fill('9999999');
 
-  await page.getByRole('button', { name: c.addressToggleLabel }).click();
-  await expect(page.getByLabel(c.postalLabel)).toBeVisible();
+  await page.locator('[data-testid="toggle-contact-address"]').click();
+  await expect(page.locator(`label[for="${ADDRESS_ID_PREFIX}-zip-code"]`)).toHaveText(
+    c.postalLabel,
+  );
+  const neighborhoodLabel = page.locator(`label[for="${ADDRESS_ID_PREFIX}-neighborhood"]`);
   if (c.neighborhoodLabel) {
-    await expect(page.getByLabel(c.neighborhoodLabel)).toBeVisible();
+    await expect(neighborhoodLabel).toHaveText(c.neighborhoodLabel);
   } else {
-    await expect(page.getByLabel('Bairro')).not.toBeVisible();
-    await expect(page.getByLabel('Neighborhood')).not.toBeVisible();
+    await expect(neighborhoodLabel).toHaveCount(0);
   }
 
   // Step 4: confirmation — the long-form locale date for the day selected above.
@@ -97,7 +103,9 @@ async function runLocalizationCheck(page: Page, c: LocalizationCase): Promise<vo
     month: 'long',
     timeZone: 'UTC',
   }).format(new Date(`${selectedDayIso}T00:00:00Z`));
-  await expect(page.getByText(expectedDateLong, { exact: false })).toBeVisible();
+  await expect(page.locator('[data-testid="confirmation-datetime"]')).toContainText(
+    expectedDateLong,
+  );
 }
 
 test.describe('TD02-S09 — BR tenant localization (lavacar-beloauto)', () => {
