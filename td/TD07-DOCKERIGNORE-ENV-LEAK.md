@@ -1,11 +1,13 @@
 # TD07 — `.dockerignore` doesn't exclude nested `apps/*/.env` from the Docker build context
 
 ## Status
+- **State**: ✅ Done — resolved in PR #24 (`fix/TD07-dockerignore-env-leak`)
 - **Type**: Technical Debt / Security
 - **Priority**: Medium (real secret-exposure risk, but requires a specific precondition — building from a machine where a real `.env` exists — and today's local `.env` contents are dev-placeholder values, not production secrets)
 - **Context**: `.dockerignore`, `apps/backend/Dockerfile`, `apps/bff/Dockerfile`, `apps/web/Dockerfile`
 - **Created**: 2026-06-19
-- **Updated**: 2026-06-19
+- **Updated**: 2026-06-21
+- **Resolved**: 2026-06-21
 
 ---
 
