@@ -9,7 +9,11 @@ interface LocaleProviderProps {
   readonly children: React.ReactNode;
 }
 
-export function LocaleProvider({ locale, messages, children }: LocaleProviderProps) {
+export function LocaleProvider({
+  locale,
+  messages,
+  children,
+}: LocaleProviderProps): React.JSX.Element {
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       {children}

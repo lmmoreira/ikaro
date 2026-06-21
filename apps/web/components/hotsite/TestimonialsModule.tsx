@@ -17,7 +17,11 @@ const headingStyle: React.CSSProperties = {
   color: 'var(--ba-text)',
 };
 
-export function TestimonialsModule({ data, slug: _, bgVariant }: TestimonialsModuleProps) {
+export function TestimonialsModule({
+  data,
+  slug: _,
+  bgVariant,
+}: TestimonialsModuleProps): React.JSX.Element | null {
   const t = useTranslations('hotsite');
 
   if (data.items.length === 0) {

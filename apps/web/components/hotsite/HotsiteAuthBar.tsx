@@ -21,7 +21,7 @@ function getInitials(name: string): string {
   return `${first}${last}`.toUpperCase();
 }
 
-export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps) {
+export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element {
   const t = useTranslations('auth');
   const [state, setState] = useState<AuthBarState>({ status: 'loading' });
 

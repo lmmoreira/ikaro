@@ -70,7 +70,7 @@ export function PersonalInfoStep({
   addressSpec,
   onNext,
   onBack,
-}: PersonalInfoStepProps) {
+}: PersonalInfoStepProps): React.JSX.Element {
   const t = useTranslations('booking');
   const tc = useTranslations('common');
   const [showContactAddress, setShowContactAddress] = useState(false);

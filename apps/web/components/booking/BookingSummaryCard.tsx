@@ -20,7 +20,7 @@ export function BookingSummaryCard({
   selectedServiceIds,
   selectedDate,
   selectedSlot,
-}: BookingSummaryCardProps) {
+}: BookingSummaryCardProps): React.JSX.Element {
   const t = useTranslations('booking');
   const { formatMoney, formatDateLong, formatTime } = useFormatting();
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));

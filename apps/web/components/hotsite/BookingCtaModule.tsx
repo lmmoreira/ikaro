@@ -28,7 +28,13 @@ function resolveTextColor(bgStyle: BookingCtaModuleData['bgStyle']): string {
   return bgStyle === 'background' ? 'var(--ba-text)' : 'var(--ba-hero-text)';
 }
 
-function BrandCard({ name, tagline }: { readonly name: string; readonly tagline?: string }) {
+function BrandCard({
+  name,
+  tagline,
+}: {
+  readonly name: string;
+  readonly tagline?: string;
+}): React.JSX.Element {
   return (
     <div
       className="flex flex-shrink-0 flex-col items-center justify-center p-8 text-center sm:p-10"
@@ -63,7 +69,7 @@ function BookingCtaContent({
 }: {
   readonly data: BookingCtaModuleData;
   readonly slug: string;
-}) {
+}): React.JSX.Element {
   const textColor = resolveTextColor(data.bgStyle);
 
   return (
@@ -95,7 +101,11 @@ function BookingCtaContent({
   );
 }
 
-export function BookingCtaModule({ data, slug, tenantBrand }: BookingCtaModuleProps) {
+export function BookingCtaModule({
+  data,
+  slug,
+  tenantBrand,
+}: BookingCtaModuleProps): React.JSX.Element {
   const bgUrl = data.backgroundImageUrl;
   const variant = data.variant ?? 'centered';
   const sectionBg = resolveSectionBg(data.bgStyle);

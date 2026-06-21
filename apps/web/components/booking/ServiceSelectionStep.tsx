@@ -46,7 +46,7 @@ export function ServiceSelectionStep({
   addressSpec,
   onNext,
   onBack,
-}: ServiceSelectionStepProps) {
+}: ServiceSelectionStepProps): React.JSX.Element {
   const t = useTranslations('booking');
   const tc = useTranslations('common');
   const [error, setError] = useState<string | null>(null);

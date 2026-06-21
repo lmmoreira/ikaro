@@ -21,7 +21,7 @@ export function SlotPicker({
   date,
   selectedSlot,
   onSelectSlot,
-}: SlotPickerProps) {
+}: SlotPickerProps): React.JSX.Element {
   const t = useTranslations('booking');
   const { formatTime } = useFormatting();
   const [result, setResult] = useState<{ date: string; slots: AvailableSlot[] } | null>(null);

@@ -10,7 +10,7 @@ export function ErrorAlert({
   children,
   onRetry,
   retryLabel = 'Tentar novamente',
-}: ErrorAlertProps) {
+}: ErrorAlertProps): React.JSX.Element {
   return (
     <div
       role="alert"

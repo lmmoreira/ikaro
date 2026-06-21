@@ -49,7 +49,7 @@ function TextField({
   inputMode,
   placeholder,
   hasError,
-}: TextFieldProps) {
+}: TextFieldProps): React.JSX.Element {
   return (
     <div>
       <label
@@ -84,7 +84,7 @@ export function AddressFields({
   addressLookup = viaCepAddressLookup,
   required = true,
   hasError = false,
-}: AddressFieldsProps) {
+}: AddressFieldsProps): React.JSX.Element {
   const t = useTranslations('booking.address');
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupFailed, setLookupFailed] = useState(false);

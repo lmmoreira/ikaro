@@ -29,7 +29,7 @@ const uploadAreaStyle: React.CSSProperties = {
   borderRadius: 'var(--ba-radius)',
 };
 
-export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps) {
+export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps): React.JSX.Element {
   const t = useTranslations('booking.photo');
   const [items, setItems] = useState<UploadItem[]>([]);
 

@@ -21,7 +21,11 @@ const closeBtnStyle: CSSProperties = {
   borderRadius: '50%',
 };
 
-export function GalleryGrid({ children, maxVisible, totalImages }: GalleryGridProps) {
+export function GalleryGrid({
+  children,
+  maxVisible,
+  totalImages,
+}: GalleryGridProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const [expanded, setExpanded] = useState(false);
   const [lightbox, setLightbox] = useState<{ url: string; caption: string } | null>(null);

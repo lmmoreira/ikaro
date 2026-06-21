@@ -62,7 +62,7 @@ interface IconRowProps {
   readonly cardBg: string;
 }
 
-function IconRow({ icon, label, children, cardBg }: IconRowProps) {
+function IconRow({ icon, label, children, cardBg }: IconRowProps): React.JSX.Element {
   return (
     <div className="flex items-start gap-3">
       <div style={makeIconBoxStyle(cardBg)} aria-hidden="true">
@@ -92,7 +92,7 @@ function ListLayout({
   readonly showEmail: boolean;
   readonly showInstagram: boolean;
   readonly showFacebook: boolean;
-}) {
+}): React.JSX.Element {
   const t = useTranslations('hotsite');
   const whatsapp = business.socialLinks?.whatsapp;
   const instagram = business.socialLinks?.instagram;
@@ -160,7 +160,7 @@ function IconCardsLayout({
   readonly showInstagram: boolean;
   readonly showFacebook: boolean;
   readonly cardBg: string;
-}) {
+}): React.JSX.Element {
   const t = useTranslations('hotsite');
   const whatsapp = business.socialLinks?.whatsapp;
   const instagram = business.socialLinks?.instagram;
@@ -228,7 +228,12 @@ function IconCardsLayout({
   );
 }
 
-export function ContactModule({ data, business, slug: _, bgVariant }: ContactModuleProps) {
+export function ContactModule({
+  data,
+  business,
+  slug: _,
+  bgVariant,
+}: ContactModuleProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const title = data.title ?? t('contact.defaultTitle');
   const address = business.address;

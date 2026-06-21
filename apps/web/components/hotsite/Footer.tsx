@@ -11,7 +11,7 @@ function digitsOnly(value: string): string {
   return value.replace(/\D/g, '');
 }
 
-export function Footer({ slug: _, data, tenantName, business }: FooterProps) {
+export function Footer({ slug: _, data, tenantName, business }: FooterProps): React.JSX.Element {
   const whatsapp = business.socialLinks?.whatsapp;
   const showWhatsapp = data.showWhatsapp !== false;
   const year = new Date().getFullYear();

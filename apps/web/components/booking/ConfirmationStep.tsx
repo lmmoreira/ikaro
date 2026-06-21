@@ -38,7 +38,7 @@ export function ConfirmationStep({
   errorMessage,
   onSubmit,
   onBack,
-}: ConfirmationStepProps) {
+}: ConfirmationStepProps): React.JSX.Element {
   const t = useTranslations('booking');
   const tc = useTranslations('common');
   const { formatMoney, formatDateLong, formatTime } = useFormatting();

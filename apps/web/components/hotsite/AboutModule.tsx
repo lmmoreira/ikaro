@@ -41,7 +41,7 @@ const markdownComponents: Components = {
   ),
 };
 
-export function AboutModule({ data, slug: _, bgVariant }: AboutModuleProps) {
+export function AboutModule({ data, slug: _, bgVariant }: AboutModuleProps): React.JSX.Element {
   const imagePosition = data.imagePosition ?? 'right';
   const bg = bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';
 

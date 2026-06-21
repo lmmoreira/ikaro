@@ -14,7 +14,7 @@ const navButtonStyle: CSSProperties = {
   borderRadius: 'var(--ba-radius)',
 };
 
-export function TestimonialsCarousel({ children }: TestimonialsCarouselProps) {
+export function TestimonialsCarousel({ children }: TestimonialsCarouselProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const [activeIndex, setActiveIndex] = useState(0);
   const total = children.length;

@@ -9,7 +9,7 @@ const headingStyle: React.CSSProperties = {
 
 // Inherits the tenant's branding via [slug]/layout.tsx's applyBranding() — falls back to
 // DEFAULT_HOTSITE_BRANDING for tenants that haven't configured a hotsite yet.
-export function Unavailable() {
+export function Unavailable(): React.JSX.Element {
   const t = useTranslations('hotsite');
 
   return (
