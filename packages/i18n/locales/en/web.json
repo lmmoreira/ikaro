@@ -122,7 +122,10 @@
       "whatsappDefaultCta": "Message us on WhatsApp",
       "mapTitle": "Location map"
     },
-    "unavailable": { "label": "Coming soon", "body": "We're preparing something special. Check back soon!" }
+    "unavailable": {
+      "label": "Coming soon",
+      "body": "We're preparing something special. Check back soon!"
+    }
   },
   "notFound": {
     "title": "Not found — Ikaro",

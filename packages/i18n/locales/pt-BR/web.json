@@ -122,7 +122,10 @@
       "whatsappDefaultCta": "Chamar no WhatsApp",
       "mapTitle": "Mapa de localização"
     },
-    "unavailable": { "label": "Em breve", "body": "Estamos preparando algo especial. Volte em breve!" }
+    "unavailable": {
+      "label": "Em breve",
+      "body": "Estamos preparando algo especial. Volte em breve!"
+    }
   },
   "notFound": {
     "title": "Não encontrado — Ikaro",
