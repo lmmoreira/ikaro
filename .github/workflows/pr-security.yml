@@ -71,6 +71,22 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
 
+      # Regression-proof the TD07 fix: verify no .env* file (other than .env.example)
+      # was baked into the image by a misconfigured .dockerignore or pnpm deploy.
+      # Matches the same wildcard as the ignore patterns (.env.local, .env.production,
+      # etc.) — not just a literal .env. Runs on a fresh checkout (no local .env
+      # present), so a failure here means the exclusion pattern itself broke.
+      - name: Env-leak check — ${{ matrix.service }}
+        run: |
+          LEAKED=$(docker run --rm --entrypoint sh "ikaro-${{ matrix.service }}:scan" \
+            -c 'find /app -name ".env*" -not -name ".env.example" 2>/dev/null || true')
+          if [ -n "$LEAKED" ]; then
+            echo "❌ .env* file found inside the ${{ matrix.service }} image:"
+            echo "$LEAKED"
+            exit 1
+          fi
+          echo "✅ No .env* files found inside the ${{ matrix.service }} image"
+
       # Catches a class of bug Trivy can't see: docker build succeeding and the
       # filesystem scanning clean doesn't mean `node dist/main.js` resolves its own
       # require() graph — see TD06. No DB/Pub/Sub emulator needed: the crash this
