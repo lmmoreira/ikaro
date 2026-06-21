@@ -2,6 +2,8 @@ import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructu
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
 import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingRejectedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -33,16 +35,24 @@ describe('SendBookingRejectedNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER,
         channel: 'EMAIL',
-        subject: 'Sobre seu pedido de agendamento',
-        body: '<p>Olá, {{contactName}}! Motivo: {{reason}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    const localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('BookingRejected:customer', {
+      subject: 'Sobre seu pedido de agendamento',
+      body: '<p>Olá, {{contactName}}! Motivo: {{reason}}</p>',
+    });
     useCase = new SendBookingRejectedNotificationUseCase(
       logRepo,
       processedEventRepo,
       dispatcher,
       new InMemoryTransactionManager(),
       templateRepo,
+      new InMemoryNotificationPlatformPort(),
+      localizationPort,
     );
   });
 
@@ -71,6 +81,8 @@ describe('SendBookingRejectedNotificationUseCase', () => {
       dispatcher,
       new InMemoryTransactionManager(),
       new InMemoryNotificationTemplateRepository(),
+      new InMemoryNotificationPlatformPort(),
+      new InMemoryLocalizationPort(),
     );
     const result = await uc.execute(dto);
     expect(result.emailSent).toBe(false);

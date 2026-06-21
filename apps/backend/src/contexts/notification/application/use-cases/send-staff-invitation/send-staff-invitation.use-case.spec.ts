@@ -5,6 +5,7 @@ import { InMemoryNotificationProcessedEventRepository } from '../../../../../tes
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendStaffInvitationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -57,10 +58,16 @@ describe('SendStaffInvitationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.STAFF_INVITATION,
         channel: 'EMAIL',
-        subject: 'Você foi convidado para a equipe {{tenantName}}',
-        body: '<p>Olá, {{staffName}}! <a href="{{activationLink}}">Acessar</a></p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    const localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('StaffInvited:staff', {
+      subject: 'Você foi convidado para a equipe {{tenantName}}',
+      body: '<p>Olá, {{staffName}}! <a href="{{activationLink}}">Acessar</a></p>',
+    });
     useCase = new SendStaffInvitationUseCase(
       logRepo,
       processedEventRepo,
@@ -69,6 +76,7 @@ describe('SendStaffInvitationUseCase', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      localizationPort,
       configService,
     );
   });

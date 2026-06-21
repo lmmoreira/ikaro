@@ -29,6 +29,12 @@ import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
+import {
+  INotificationPlatformPort,
+  NOTIFICATION_PLATFORM_PORT,
+} from '../../ports/notification-platform.port';
+import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
+import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.SERVICE_POINTS_EARNED;
@@ -49,6 +55,8 @@ export class SendServicePointsEarnedNotificationUseCase extends BaseNotification
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
+    @Inject(NOTIFICATION_PLATFORM_PORT) private readonly tenantPort: INotificationPlatformPort,
+    @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
   ) {
     super(logRepo, processedEventRepo, dispatcher, txManager);
   }
@@ -67,6 +75,10 @@ export class SendServicePointsEarnedNotificationUseCase extends BaseNotification
 
     const customer = await this.customerPort.getCustomerInfo(dto.customerId, dto.tenantId);
     if (!customer) return { emailSent: false };
+
+    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
+    this.localizeTemplates(templates, this.localizationPort, locale);
 
     const serviceIds = dto.lines.map((l) => l.serviceId);
     const serviceInfos = await this.servicePort.findServicesByIds(dto.tenantId, serviceIds);

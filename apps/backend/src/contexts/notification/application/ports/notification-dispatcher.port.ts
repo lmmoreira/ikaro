@@ -6,6 +6,7 @@ export interface OutboundMessage {
   subject: string;
   body: string;
   channel: NotificationChannel;
+  notificationType: string;
 }
 
 export const NOTIFICATION_DISPATCHER = Symbol('INotificationDispatcher');

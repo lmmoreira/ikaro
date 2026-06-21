@@ -3,6 +3,7 @@ import { InMemoryNotificationLogRepository } from '../../../../../test/repositor
 import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingApprovedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -23,6 +24,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
   let dispatcher: InMemoryNotificationDispatcher;
   let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
+  let localizationPort: InMemoryLocalizationPort;
   let useCase: SendBookingApprovedNotificationUseCase;
 
   beforeEach(() => {
@@ -31,6 +33,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
     dispatcher = new InMemoryNotificationDispatcher();
     tenantPort = new InMemoryNotificationPlatformPort();
     templateRepo = new InMemoryNotificationTemplateRepository();
+    localizationPort = new InMemoryLocalizationPort();
 
     tenantPort.setTenantInfo(TENANT_ID, {
       id: TENANT_ID,
@@ -45,10 +48,15 @@ describe('SendBookingApprovedNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
         channel: 'EMAIL',
-        subject: 'Seu agendamento foi confirmado!',
-        body: '<p>Olá, {{contactName}}! Data: {{localDate}} Horário: {{localTime}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused — sourced from ILocalizationPort)',
+        body: 'DB BODY (unused)',
       }),
     );
+    localizationPort.setTemplate('BookingApproved:customer', {
+      subject: 'Seu agendamento foi confirmado!',
+      body: '<p>Olá, {{contactName}}! Data: {{localDate}} Horário: {{localTime}}</p>',
+    });
 
     useCase = new SendBookingApprovedNotificationUseCase(
       logRepo,
@@ -57,6 +65,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      localizationPort,
     );
   });
 
@@ -89,6 +98,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
       emptyTenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      localizationPort,
     );
     const result = await uc.execute(dto);
     expect(result.emailSent).toBe(true);
@@ -104,6 +114,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       emptyTemplateRepo,
+      localizationPort,
     );
 
     const result = await uc.execute(dto);

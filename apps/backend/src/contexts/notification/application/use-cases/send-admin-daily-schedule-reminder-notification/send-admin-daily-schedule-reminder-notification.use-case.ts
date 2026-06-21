@@ -32,6 +32,7 @@ import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
+import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.ADMIN_DAILY_SCHEDULE_REMINDER;
@@ -78,7 +79,8 @@ export class SendAdminDailyScheduleReminderNotificationUseCase extends BaseNotif
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
-    const locale = tenantInfo?.locale ?? 'pt-BR';
+    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
+    this.localizeTemplates(templates, this.localizationPort, locale);
     const headers = this.localizationPort.getEmailTableHeaders(TABLE_KEY, locale);
     const bookingsHtml = this.buildBookingsHtml(dto.bookingsToday, timezone, headers);
 

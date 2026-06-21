@@ -3,6 +3,11 @@ import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
+import {
+  INotificationPlatformPort,
+  NOTIFICATION_PLATFORM_PORT,
+} from '../../ports/notification-platform.port';
+import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 
 export interface SeedDefaultTemplatesDto {
   tenantId: string;
@@ -17,10 +22,14 @@ export class SeedDefaultTemplatesUseCase {
   constructor(
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
+    @Inject(NOTIFICATION_PLATFORM_PORT)
+    private readonly platformPort: INotificationPlatformPort,
   ) {}
 
   async execute(dto: SeedDefaultTemplatesDto): Promise<SeedDefaultTemplatesUseCaseResult> {
-    const seeded = await this.templateRepo.copyGlobalDefaultsForTenant(dto.tenantId);
+    const tenantInfo = await this.platformPort.getTenantInfo(dto.tenantId);
+    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
+    const seeded = await this.templateRepo.copyGlobalDefaultsForTenant(dto.tenantId, locale);
     return { seeded };
   }
 }

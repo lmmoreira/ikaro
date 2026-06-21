@@ -8,6 +8,7 @@ const emailMessage: OutboundMessage = {
   subject: 'Convite',
   body: '<p>Corpo do email</p>',
   channel: 'EMAIL',
+  notificationType: 'staff-invitation',
 };
 
 function makeChannel(channelType: 'EMAIL' | 'WHATSAPP' = 'EMAIL'): jest.Mocked<IDeliveryChannel> {

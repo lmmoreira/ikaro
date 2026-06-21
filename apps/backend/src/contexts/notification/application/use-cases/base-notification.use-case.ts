@@ -2,9 +2,11 @@ import { AppLogger } from '../../../../shared/observability/app-logger';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
 import { NotificationLog } from '../../domain/notification-log.aggregate';
 import { NotificationTemplate } from '../../domain/notification-template.aggregate';
+import { NOTIFICATION_TEMPLATE_KEY_MAPPING } from '../../domain/notification-template-key.mapping';
 import { INotificationDispatcher } from '../ports/notification-dispatcher.port';
 import { INotificationLogRepository } from '../ports/notification-log-repository.port';
 import { INotificationProcessedEventRepository } from '../ports/processed-event-repository.port';
+import { ILocalizationPort } from '../ports/localization.port';
 
 export abstract class BaseNotificationUseCase {
   protected readonly logger = new AppLogger(this.constructor.name);
@@ -66,6 +68,32 @@ export abstract class BaseNotificationUseCase {
     });
   }
 
+  // Overlays each fetched template's subject/body with locale-correct content from
+  // ILocalizationPort before render() interpolates variables — the DB row's own subject/body
+  // is no longer the content source (TD02-S10), only its triggerEvent/channel/existence matter.
+  // eventName/recipientType are derived per template from NOTIFICATION_TEMPLATE_KEY_MAPPING
+  // rather than passed in by callers, so that mapping stays the single source of truth.
+  protected localizeTemplates(
+    templates: NotificationTemplate[],
+    localizationPort: ILocalizationPort,
+    locale: string,
+  ): void {
+    for (const template of templates) {
+      const mapping = NOTIFICATION_TEMPLATE_KEY_MAPPING[template.triggerEvent];
+      if (!mapping) {
+        throw new Error(
+          `No mapping found for trigger event "${template.triggerEvent}" — check NOTIFICATION_TEMPLATE_KEY_MAPPING`,
+        );
+      }
+      const localized = localizationPort.getNotificationTemplate(
+        mapping.eventName,
+        mapping.recipientType,
+        locale,
+      );
+      template.update(localized.subject, localized.body);
+    }
+  }
+
   protected async dispatchTemplates(
     templates: NotificationTemplate[],
     dto: { tenantId: string; eventId: string },
@@ -83,6 +111,7 @@ export abstract class BaseNotificationUseCase {
           subject,
           body,
           channel: template.channel,
+          notificationType: template.triggerEvent,
         });
         await this.saveLog(dto.tenantId, dto.eventId, template.triggerEvent, template.channel, to);
         sent = true;
@@ -120,6 +149,7 @@ export abstract class BaseNotificationUseCase {
               subject,
               body,
               channel: template.channel,
+              notificationType: template.triggerEvent,
             }),
           ),
         );

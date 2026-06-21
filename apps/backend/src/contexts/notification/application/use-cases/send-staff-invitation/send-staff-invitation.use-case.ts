@@ -30,6 +30,8 @@ import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
+import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
+import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.STAFF_INVITATION;
@@ -50,6 +52,7 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
+    @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
     private readonly config: ConfigService,
   ) {
     super(logRepo, processedEventRepo, dispatcher, txManager);
@@ -70,6 +73,8 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
       this.tenantPort.getTenantInfo(dto.tenantId),
     ]);
     if (!staff || !tenant) return { sent: false };
+
+    this.localizeTemplates(templates, this.localizationPort, tenant.locale ?? DEFAULT_LOCALE);
 
     const activationLink = `${this.config.getOrThrow<string>('FRONTEND_URL')}/${tenant.slug}/auth/staff`;
 

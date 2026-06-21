@@ -4,6 +4,7 @@ import { InMemoryNotificationProcessedEventRepository } from '../../../../../tes
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingRequestedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -25,6 +26,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
   let staffPort: InMemoryNotificationStaffPort;
   let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
+  let localizationPort: InMemoryLocalizationPort;
   let useCase: SendBookingRequestedNotificationUseCase;
 
   beforeEach(() => {
@@ -48,8 +50,9 @@ describe('SendBookingRequestedNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
         channel: 'EMAIL',
-        subject: 'Nova solicitação — {{serviceNames}}',
-        body: '<p>Cliente: {{contactName}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
     templateRepo.seed(
@@ -57,10 +60,20 @@ describe('SendBookingRequestedNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
         channel: 'EMAIL',
-        subject: 'Agendamento recebido em {{tenantName}}',
-        body: '<p>Olá, {{contactName}}!</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('BookingRequested:admin', {
+      subject: 'Nova solicitação — {{serviceNames}}',
+      body: '<p>Cliente: {{contactName}}</p>',
+    });
+    localizationPort.setTemplate('BookingRequested:customer', {
+      subject: 'Agendamento recebido em {{tenantName}}',
+      body: '<p>Olá, {{contactName}}!</p>',
+    });
 
     useCase = new SendBookingRequestedNotificationUseCase(
       logRepo,
@@ -70,6 +83,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      localizationPort,
     );
   });
 

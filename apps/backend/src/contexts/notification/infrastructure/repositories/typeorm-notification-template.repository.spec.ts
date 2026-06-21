@@ -9,6 +9,7 @@ import { NotificationTemplateEntityBuilder } from '../../../../test/builders/not
 import { TypeOrmNotificationTemplateRepository } from './typeorm-notification-template.repository';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000011';
+const GLOBAL_DEFAULTS_COUNT = 16;
 
 describe('TypeOrmNotificationTemplateRepository', () => {
   let repo: TypeOrmNotificationTemplateRepository;
@@ -18,7 +19,9 @@ describe('TypeOrmNotificationTemplateRepository', () => {
   let mockQuery: jest.Mock;
 
   beforeEach(async () => {
-    mockQuery = jest.fn().mockResolvedValue({ rowCount: 16 });
+    mockQuery = jest
+      .fn()
+      .mockResolvedValue(Array.from({ length: GLOBAL_DEFAULTS_COUNT }, () => ({ inserted: 1 })));
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -148,6 +151,7 @@ describe('TypeOrmNotificationTemplateRepository', () => {
           tenantId: TENANT_ID,
           triggerEvent: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
           channel: 'EMAIL',
+          locale: 'pt-BR',
           subject: 'Aprovado',
           body: '<p>Ok</p>',
         }),
@@ -171,6 +175,7 @@ describe('TypeOrmNotificationTemplateRepository', () => {
           tenantId: TENANT_ID,
           triggerEvent: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
           channel: 'EMAIL',
+          locale: 'pt-BR',
           subject: 'Aprovado',
           body: '<p>Ok</p>',
         }),
@@ -184,31 +189,38 @@ describe('TypeOrmNotificationTemplateRepository', () => {
   });
 
   describe('copyGlobalDefaultsForTenant', () => {
-    it('executes INSERT...SELECT and returns rowCount', async () => {
-      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID);
+    it('executes INSERT...SELECT...RETURNING and returns the inserted row count', async () => {
+      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
-      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO'), [TENANT_ID]);
-      expect(result).toBe(16);
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO'), [
+        TENANT_ID,
+        'pt-BR',
+      ]);
+      expect(result).toBe(GLOBAL_DEFAULTS_COUNT);
+    });
+
+    it('uses RETURNING instead of rowCount (unreliable for raw INSERT via DataSource.query())', async () => {
+      await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
+
+      expect(mockQuery.mock.calls[0][0] as string).toContain('RETURNING');
     });
 
     it('uses ON CONFLICT DO NOTHING for idempotency', async () => {
-      await repo.copyGlobalDefaultsForTenant(TENANT_ID);
+      await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
       expect(mockQuery.mock.calls[0][0] as string).toContain('ON CONFLICT DO NOTHING');
     });
 
-    it('returns 0 when query result has no rowCount', async () => {
-      mockQuery.mockResolvedValueOnce(null);
+    it('only sources rows from global defaults (tenant_id IS NULL)', async () => {
+      await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
-      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID);
-
-      expect(result).toBe(0);
+      expect(mockQuery.mock.calls[0][0] as string).toContain('WHERE tenant_id IS NULL');
     });
 
-    it('returns 0 when rowCount is undefined', async () => {
-      mockQuery.mockResolvedValueOnce({ rowCount: undefined });
+    it('returns 0 when no rows are inserted (all already exist for the tenant)', async () => {
+      mockQuery.mockResolvedValueOnce([]);
 
-      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID);
+      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
       expect(result).toBe(0);
     });

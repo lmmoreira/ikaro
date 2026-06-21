@@ -3,6 +3,7 @@ import { InMemoryNotificationLogRepository } from '../../../../../test/repositor
 import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingReminderDueNotificationDtoBuilder } from '../../../../../test/builders/notification/send-booking-reminder-due-notification-dto.builder';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -23,6 +24,7 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
   let processedEventRepo: InMemoryNotificationProcessedEventRepository;
   let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
+  let localizationPort: InMemoryLocalizationPort;
   let useCase: SendBookingReminderDueNotificationUseCase;
 
   beforeEach(() => {
@@ -31,6 +33,7 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
     processedEventRepo = new InMemoryNotificationProcessedEventRepository();
     tenantPort = new InMemoryNotificationPlatformPort();
     templateRepo = new InMemoryNotificationTemplateRepository();
+    localizationPort = new InMemoryLocalizationPort();
 
     tenantPort.setTenantInfo(TENANT_ID, {
       id: TENANT_ID,
@@ -45,10 +48,15 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_REMINDER_DUE,
         channel: 'EMAIL',
-        subject: 'Lembrete: seu agendamento é amanhã!',
-        body: '<p>{{customerName}} — {{serviceNames}} — {{localDate}} {{localTime}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    localizationPort.setTemplate('BookingReminderDue:customer', {
+      subject: 'Lembrete: seu agendamento é amanhã!',
+      body: '<p>{{customerName}} — {{serviceNames}} — {{localDate}} {{localTime}}</p>',
+    });
 
     useCase = new SendBookingReminderDueNotificationUseCase(
       logRepo,
@@ -57,6 +65,7 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      localizationPort,
     );
   });
 
@@ -94,8 +103,9 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_REMINDER_DUE,
         channel: 'EMAIL',
-        subject: 'Lembrete: seu agendamento é amanhã!',
-        body: '<p>body</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
 
@@ -127,6 +137,7 @@ describe('SendBookingReminderDueNotificationUseCase', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       new InMemoryNotificationTemplateRepository(),
+      localizationPort,
     );
     const result = await uc.execute(dto);
     expect(result.emailSent).toBe(false);

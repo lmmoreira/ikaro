@@ -16,6 +16,9 @@ export class NotificationTemplateEntity {
   @Column({ type: 'varchar', length: 20, default: 'EMAIL' })
   channel!: string;
 
+  @Column({ type: 'varchar', length: 10, default: 'pt-BR' })
+  locale!: string;
+
   @Column({ type: 'varchar', length: 255 })
   subject!: string;
 

@@ -3,6 +3,8 @@ import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructu
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
 import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingInfoRequestedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -54,16 +56,24 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER,
         channel: 'EMAIL',
-        subject: 'Precisamos de mais informações sobre seu agendamento',
-        body: '<p>{{contactName}} — {{informationNeeded}} — <a href="{{respondLink}}">Responder</a></p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    const localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('BookingInfoRequested:customer', {
+      subject: 'Precisamos de mais informações sobre seu agendamento',
+      body: '<p>{{contactName}} — {{informationNeeded}} — <a href="{{respondLink}}">Responder</a></p>',
+    });
     useCase = new SendBookingInfoRequestedNotificationUseCase(
       logRepo,
       processedEventRepo,
       dispatcher,
       new InMemoryTransactionManager(),
       templateRepo,
+      new InMemoryNotificationPlatformPort(),
+      localizationPort,
       configService,
     );
   });

@@ -62,10 +62,15 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.ADMIN_DAILY_SCHEDULE_REMINDER,
         channel: 'EMAIL',
-        subject: 'Agenda do dia — {{localDate}}',
-        body: '<p>Total: {{totalBookingsToday}} — {{bookingsHtml}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    localizationPort.setTemplate('AdminDailyScheduleReminder:admin', {
+      subject: 'Agenda do dia — {{localDate}}',
+      body: '<p>Total: {{totalBookingsToday}} — {{bookingsHtml}}</p>',
+    });
     localizationPort.setTableHeaders('adminDailySchedule', 'pt-BR', PT_BR_HEADERS);
 
     useCase = new SendAdminDailyScheduleReminderNotificationUseCase(
@@ -124,6 +129,10 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
       timezone: 'America/Sao_Paulo',
       locale: 'en',
       fromEmail: null,
+    });
+    localizationPort.setTemplateForLocale('AdminDailyScheduleReminder:admin', 'en', {
+      subject: "Today's schedule — {{localDate}}",
+      body: '<p>Total: {{totalBookingsToday}} — {{bookingsHtml}}</p>',
     });
     localizationPort.setTableHeaders('adminDailySchedule', 'en', {
       ...PT_BR_HEADERS,
