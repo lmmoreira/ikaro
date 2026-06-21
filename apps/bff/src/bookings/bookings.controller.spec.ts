@@ -565,33 +565,124 @@ describe('BookingsController', () => {
   });
 
   describe('list()', () => {
-    const mockListResponse = {
-      items: [
+    const backendItem = {
+      id: BOOKING_ID,
+      status: 'PENDING',
+      type: 'CUSTOMER',
+      customerId: '20000000-0000-4000-8000-000000000001',
+      contactName: 'João',
+      contactEmail: 'joao@example.com',
+      scheduledAt: '2026-06-15T10:00:00.000Z',
+      totalDurationMins: 30,
+      totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+      lineSummary: [
         {
-          id: BOOKING_ID,
-          status: 'PENDING',
-          type: 'CUSTOMER',
-          customerId: null,
-          contactName: 'João',
-          contactEmail: 'joao@example.com',
-          scheduledAt: '2026-06-15T10:00:00.000Z',
-          totalDurationMins: 30,
-          totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
-          lineSummary: [],
-          createdAt: '2026-01-01T00:00:00.000Z',
+          serviceId: SERVICE_ID,
+          serviceNameAtBooking: 'Lavagem Simples',
+          priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
         },
       ],
-      pagination: { limit: 25, offset: 0, total: 1, hasMore: false },
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+    const backendListResponse = {
+      items: [backendItem],
+      pagination: { limit: 20, offset: 0, total: 1, hasMore: false },
     };
 
-    it('calls GET /bookings with query params and returns result', async () => {
-      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockListResponse) });
+    it('passes status and default pagination to backend and maps to StaffBookingListResponse', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue(backendListResponse),
+      });
       const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const result = await controller.list({ limit: 25, offset: 0 });
+      const result = await controller.list({
+        status: 'PENDING,INFO_REQUESTED',
+        page: 1,
+        limit: 20,
+      });
 
-      expect(backendHttp.get).toHaveBeenCalledWith('/bookings', { limit: 25, offset: 0 });
-      expect(result).toBe(mockListResponse);
+      expect(backendHttp.get).toHaveBeenCalledWith('/bookings', {
+        status: 'PENDING,INFO_REQUESTED',
+        limit: 20,
+        offset: 0,
+      });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].bookingId).toBe(BOOKING_ID);
+      expect(result.items[0].serviceNames).toEqual(['Lavagem Simples']);
+      expect(result.items[0].isCustomer).toBe(true);
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
+    });
+
+    it('converts date to from/to datetime boundaries', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue({
+          items: [],
+          pagination: { limit: 20, offset: 0, total: 0, hasMore: false },
+        }),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      await controller.list({ status: 'APPROVED', date: '2026-06-16', page: 1, limit: 20 });
+
+      expect(backendHttp.get).toHaveBeenCalledWith('/bookings', {
+        status: 'APPROVED',
+        limit: 20,
+        offset: 0,
+        from: '2026-06-16T00:00:00.000Z',
+        to: '2026-06-16T23:59:59.999Z',
+      });
+    });
+
+    it('converts from date to from datetime and omits to', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue({
+          items: [],
+          pagination: { limit: 20, offset: 0, total: 0, hasMore: false },
+        }),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      await controller.list({ status: 'APPROVED', from: '2026-06-17', page: 1, limit: 20 });
+
+      expect(backendHttp.get).toHaveBeenCalledWith('/bookings', {
+        status: 'APPROVED',
+        limit: 20,
+        offset: 0,
+        from: '2026-06-17T00:00:00.000Z',
+      });
+    });
+
+    it('calculates offset from page 2', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue({
+          items: [],
+          pagination: { limit: 20, offset: 20, total: 0, hasMore: false },
+        }),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      await controller.list({ status: 'PENDING', page: 2, limit: 20 });
+
+      expect(backendHttp.get).toHaveBeenCalledWith(
+        '/bookings',
+        expect.objectContaining({ offset: 20 }),
+      );
+    });
+
+    it('maps guest booking with isCustomer = false', async () => {
+      const guestItem = { ...backendItem, customerId: null };
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue({
+          items: [guestItem],
+          pagination: { limit: 20, offset: 0, total: 1, hasMore: false },
+        }),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const result = await controller.list({ status: 'PENDING', page: 1, limit: 20 });
+
+      expect(result.items[0].isCustomer).toBe(false);
     });
 
     it('propagates backend errors', async () => {
@@ -600,7 +691,9 @@ describe('BookingsController', () => {
       });
       const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const err = await controller.list({ limit: 25, offset: 0 }).catch((e: unknown) => e);
+      const err = await controller
+        .list({ status: 'PENDING', page: 1, limit: 20 })
+        .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
     });
   });

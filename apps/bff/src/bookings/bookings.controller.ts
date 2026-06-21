@@ -29,7 +29,9 @@ import {
   CancelBookingResponse,
   CompleteBookingResponse,
   RescheduleBookingResponse,
+  BookingListItem,
 } from './bookings.types';
+import { StaffBookingCardResponse, StaffBookingListResponse } from '@ikaro/types';
 import { tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
 
 const AddressSchema = z.object({
@@ -117,24 +119,25 @@ export const SubmitGuestBookingInfoBodySchema = z.object({
     .optional(),
 });
 
-const BookingStatusEnum = z.enum([
-  'PENDING',
-  'INFO_REQUESTED',
-  'APPROVED',
-  'COMPLETED',
-  'REJECTED',
-  'CANCELLED',
-]);
+// Matches one or more comma-separated BookingStatus values, e.g. "PENDING" or "PENDING,INFO_REQUESTED"
+const BOOKING_STATUS_RE =
+  /^(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED)(,(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED))*$/;
 
-const ListBookingsQuerySchema = z.object({
-  status: BookingStatusEnum.optional(),
-  from: z.iso.datetime().optional(),
-  to: z.iso.datetime().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(25),
-  offset: z.coerce.number().int().min(0).default(0),
+const StaffListBookingsQuerySchema = z.object({
+  status: z.string().regex(BOOKING_STATUS_RE).optional().default('PENDING,INFO_REQUESTED'),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-type ListBookingsQuery = z.infer<typeof ListBookingsQuerySchema>;
+type StaffListBookingsQuery = z.infer<typeof StaffListBookingsQuerySchema>;
 
 export const AttachmentSignedUrlBodySchema = z.object({
   fileName: z
@@ -158,6 +161,19 @@ type RejectBookingBody = z.infer<typeof RejectBookingBodySchema>;
 type RequestMoreInfoBody = z.infer<typeof RequestMoreInfoBodySchema>;
 type SubmitBookingInfoBody = z.infer<typeof SubmitBookingInfoBodySchema>;
 type SubmitGuestBookingInfoBody = z.infer<typeof SubmitGuestBookingInfoBodySchema>;
+
+function toStaffBookingCard(item: BookingListItem): StaffBookingCardResponse {
+  return {
+    bookingId: item.id,
+    status: item.status as StaffBookingCardResponse['status'],
+    scheduledAt: item.scheduledAt,
+    contactName: item.contactName,
+    serviceNames: item.lineSummary.map((l) => l.serviceNameAtBooking),
+    totalPrice: { amount: item.totalPrice.amount, currency: item.totalPrice.currency },
+    totalDurationMins: item.totalDurationMins,
+    isCustomer: item.customerId !== null,
+  };
+}
 
 @Controller('bookings')
 export class BookingsController {
@@ -252,11 +268,31 @@ export class BookingsController {
   }
 
   @Get()
-  @Roles('CUSTOMER', 'MANAGER', 'STAFF')
-  list(
-    @Query(new ZodValidationPipe(ListBookingsQuerySchema)) query: ListBookingsQuery,
-  ): Promise<BookingListResponse> {
-    return this.backendHttp.get<BookingListResponse>('/bookings', query);
+  @Roles('MANAGER', 'STAFF')
+  async list(
+    @Query(new ZodValidationPipe(StaffListBookingsQuerySchema)) query: StaffListBookingsQuery,
+  ): Promise<StaffBookingListResponse> {
+    const params: Record<string, unknown> = {
+      status: query.status,
+      limit: query.limit,
+      offset: (query.page - 1) * query.limit,
+    };
+
+    if (query.date) {
+      params.from = `${query.date}T00:00:00.000Z`;
+      params.to = `${query.date}T23:59:59.999Z`;
+    } else if (query.from) {
+      params.from = `${query.from}T00:00:00.000Z`;
+    }
+
+    const backend = await this.backendHttp.get<BookingListResponse>('/bookings', params);
+
+    return {
+      items: backend.items.map(toStaffBookingCard),
+      total: backend.pagination.total,
+      page: query.page,
+      limit: query.limit,
+    };
   }
 
   @Get(':id')

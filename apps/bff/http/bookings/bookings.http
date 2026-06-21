@@ -38,26 +38,52 @@ Content-Type: application/json
 { "email": "cliente@email.com.br", "tenantSlug": "{{tenantSlug}}", "type": "customer" }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GET /v1/bookings — list bookings
+# GET /v1/bookings — staff booking list (M13-S03)
+# STAFF and MANAGER only — CUSTOMER returns 403.
+# Queue groupings: "Precisa de ação" = no date filter (all pending/info-requested);
+#                  "Hoje"           = status=APPROVED&date=<today>;
+#                  "Próximos dias"  = status=APPROVED&from=<tomorrow>
 # ─────────────────────────────────────────────────────────────────────────────
 
 ###
 
-### MANAGER lists all bookings
-GET {{bffUrl}}/v1/bookings
+### Queue — "Precisa de ação": all PENDING and INFO_REQUESTED (no date filter)
+GET {{bffUrl}}/v1/bookings?status=PENDING,INFO_REQUESTED
 Authorization: Bearer {{managerToken}}
 
 ###
 
-### MANAGER filters by status
-GET {{bffUrl}}/v1/bookings?status=PENDING&limit=25&offset=0
+### Queue — "Hoje": APPROVED bookings for today
+GET {{bffUrl}}/v1/bookings?status=APPROVED&date=2026-06-21
 Authorization: Bearer {{managerToken}}
 
 ###
 
-### CUSTOMER lists own bookings
+### Queue — "Próximos dias": APPROVED bookings from tomorrow onwards
+GET {{bffUrl}}/v1/bookings?status=APPROVED&from=2026-06-22
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Pagination — page 2 with 10 items per page
+GET {{bffUrl}}/v1/bookings?status=PENDING,INFO_REQUESTED&page=2&limit=10
+Authorization: Bearer {{managerToken}}
+
+###
+
+### ERROR — CUSTOMER JWT → 403
 GET {{bffUrl}}/v1/bookings
 Authorization: Bearer {{customerToken}}
+
+###
+
+### ERROR — no JWT → 401
+GET {{bffUrl}}/v1/bookings
+
+###
+
+### ERROR — invalid status value → 400
+GET {{bffUrl}}/v1/bookings?status=INVALID
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /v1/bookings/:id — booking detail

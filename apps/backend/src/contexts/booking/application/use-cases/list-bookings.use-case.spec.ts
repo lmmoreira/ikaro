@@ -41,7 +41,7 @@ describe('ListBookingsUseCase', () => {
       expect(result.pagination.hasMore).toBe(false);
     });
 
-    it('filters by status', async () => {
+    it('filters by a single status', async () => {
       const approved = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withStatus(BookingStatus.APPROVED)
@@ -49,10 +49,35 @@ describe('ListBookingsUseCase', () => {
       await repo.save(approved);
       await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
 
-      const result = await useCase.execute({ ...defaultDto, status: BookingStatus.APPROVED });
+      const result = await useCase.execute({ ...defaultDto, status: [BookingStatus.APPROVED] });
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].status).toBe('APPROVED');
+    });
+
+    it('filters by multiple statuses', async () => {
+      await repo.save(
+        new BookingBuilder().withTenantId(TENANT_A).withStatus(BookingStatus.PENDING).build(),
+      );
+      await repo.save(
+        new BookingBuilder()
+          .withTenantId(TENANT_A)
+          .withStatus(BookingStatus.INFO_REQUESTED)
+          .build(),
+      );
+      await repo.save(
+        new BookingBuilder().withTenantId(TENANT_A).withStatus(BookingStatus.APPROVED).build(),
+      );
+
+      const result = await useCase.execute({
+        ...defaultDto,
+        status: [BookingStatus.PENDING, BookingStatus.INFO_REQUESTED],
+      });
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items.map((i) => i.status)).toEqual(
+        expect.arrayContaining(['PENDING', 'INFO_REQUESTED']),
+      );
     });
 
     it('returns paginated slice with correct hasMore', async () => {

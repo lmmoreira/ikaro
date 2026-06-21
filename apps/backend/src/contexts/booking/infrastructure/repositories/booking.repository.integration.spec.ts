@@ -227,7 +227,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
     await repo.save(pending);
     await repo.save(approved);
 
-    const results = await repo.findAllByTenant(tenantId, { status: BookingStatus.APPROVED });
+    const results = await repo.findAllByTenant(tenantId, { status: [BookingStatus.APPROVED] });
     expect(results.every((b) => b.status === BookingStatus.APPROVED)).toBe(true);
     expect(results.some((b) => b.id === approved.id)).toBe(true);
     expect(results.some((b) => b.id === pending.id)).toBe(false);

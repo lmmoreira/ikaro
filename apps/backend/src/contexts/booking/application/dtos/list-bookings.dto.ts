@@ -1,16 +1,22 @@
 import { z } from 'zod';
 import { BookingStatus } from '../../domain/booking.aggregate';
 
+const BookingStatusEnum = z.enum([
+  BookingStatus.PENDING,
+  BookingStatus.INFO_REQUESTED,
+  BookingStatus.APPROVED,
+  BookingStatus.COMPLETED,
+  BookingStatus.REJECTED,
+  BookingStatus.CANCELLED,
+]);
+
 export const ListBookingsSchema = z.object({
+  // Accepts a single value ("PENDING") or comma-separated list ("PENDING,INFO_REQUESTED").
+  // After parsing, dto.status is BookingStatus[].
   status: z
-    .enum([
-      BookingStatus.PENDING,
-      BookingStatus.INFO_REQUESTED,
-      BookingStatus.APPROVED,
-      BookingStatus.COMPLETED,
-      BookingStatus.REJECTED,
-      BookingStatus.CANCELLED,
-    ])
+    .string()
+    .transform((val) => val.split(',').map((s) => s.trim()))
+    .pipe(z.array(BookingStatusEnum).min(1))
     .optional(),
   from: z.iso.datetime().optional(),
   to: z.iso.datetime().optional(),
