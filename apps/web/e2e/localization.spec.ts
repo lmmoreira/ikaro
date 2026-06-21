@@ -55,21 +55,25 @@ const ADDRESS_ID_PREFIX = 'contact-address';
 async function runLocalizationCheck(page: Page, c: LocalizationCase): Promise<void> {
   await page.goto(`/${c.slug}`);
   await expect(page.locator('html')).toHaveAttribute('lang', c.htmlLang);
+  // price-badge lives on the hotsite's ServiceListModule, not the booking flow's service cards.
+  await expect(page.locator('[data-testid="price-badge"]').first()).toContainText(c.currencySymbol);
 
   await page.goto(`/${c.slug}/booking`);
   await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
-  await expect(page.locator('[data-testid="price-badge"]').first()).toContainText(c.currencySymbol);
 
   // Step 1 → 2: service selection advances to the day/slot picker.
   await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
   await page.locator('[data-testid="step-next"]').click();
 
   // Weekday abbreviation on the 2nd carousel day (index 0 is the translated "Today" label).
+  // dayCarouselLabel() (lib/formatting/date-utils.ts) parses/formats in the browser's local
+  // timezone (no explicit UTC) — match that here, unlike the UTC-explicit check below for
+  // formatDateLong(), which the app itself always pins to 'UTC'.
   const secondDay = page.locator('[data-testid="day-option"]').nth(1);
   const secondDayIso = await secondDay.getAttribute('data-date');
   expect(secondDayIso).not.toBeNull();
   const expectedWeekday = new Intl.DateTimeFormat(c.intlLocale, { weekday: 'short' }).format(
-    new Date(`${secondDayIso}T00:00:00Z`),
+    new Date(`${secondDayIso}T00:00:00`),
   );
   await expect(secondDay).toContainText(expectedWeekday);
 
@@ -98,13 +102,15 @@ async function runLocalizationCheck(page: Page, c: LocalizationCase): Promise<vo
   }
 
   // Step 4: confirmation — the long-form locale date for the day selected above.
+  // formatDateLong() (lib/formatting/format-time.ts) upper-cases the first letter — match that.
   await page.locator('[data-testid="step-next"]').click();
-  const expectedDateLong = new Intl.DateTimeFormat(c.intlLocale, {
+  const rawDateLong = new Intl.DateTimeFormat(c.intlLocale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     timeZone: 'UTC',
   }).format(new Date(`${selectedDayIso}T00:00:00Z`));
+  const expectedDateLong = rawDateLong.charAt(0).toUpperCase() + rawDateLong.slice(1);
   await expect(page.locator('[data-testid="confirmation-datetime"]')).toContainText(
     expectedDateLong,
   );
