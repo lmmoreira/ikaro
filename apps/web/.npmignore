@@ -1,0 +1,4 @@
+# Prevent pnpm deploy --prod from carrying .env files into /standalone.
+# Defense-in-depth alongside the root .dockerignore fix (TD07).
+.env*
+!.env.example
