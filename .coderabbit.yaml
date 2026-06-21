@@ -1,5 +1,265 @@
+language: 'en-US'
+
+tone_instructions: |
+  Be assertive, direct, and precise — act as a senior engineer who knows this
+  codebase deeply. Prioritize correctness, long-term maintainability, and
+  production safety over style. Flag architectural drift early. Prefer short,
+  decisive comments over hedged suggestions. If something is wrong, say so
+  clearly and explain why, referencing the pattern it violates. Skip praise
+  for things that are merely correct — only highlight what needs attention.
+
 reviews:
+  profile: assertive
   auto_review:
     auto_incremental_review: false
     base_branches:
-      - 'main'
+      - main
+  high_level_summary: true
+  poem: false
+  collapse_walkthrough: false
+  sequence_diagrams: true
+
+  path_instructions:
+    # ── Backend: Domain layer ──────────────────────────────────────────────
+    - path: 'apps/backend/src/contexts/**/domain/**'
+      instructions: |
+        This is the pure domain layer — zero framework or infrastructure
+        dependencies allowed. Enforce strictly:
+        - No NestJS decorators (@Injectable, @Inject, etc.) in domain files.
+        - Aggregates must expose state changes only through named methods
+          (approve/cancel/complete etc.); never mutate props directly from
+          outside the aggregate.
+        - Every state-changing method must call addDomainEvent() — never
+          publish events directly.
+        - Value objects must validate in create() and skip validation in
+          reconstitute(). Plain Error throws in shared VOs are a bug:
+          they fall through error mappers to 500s — require typed error classes.
+        - Domain errors must call Object.setPrototypeOf(this, new.target.prototype)
+          after super() or instanceof checks will silently fail in every mapper.
+        - Classes must be ≤ 200 lines, functions ≤ 20 lines (project rule).
+        - No barrel index.ts in ports/ or shared/domain/.
+
+    # ── Backend: Application layer (use cases, ports) ─────────────────────
+    - path: 'apps/backend/src/contexts/**/application/**'
+      instructions: |
+        Application layer — orchestration only, no framework deps, no SQL.
+        Flag these violations:
+        - eventBus.publish() called directly from a use case or job — ALL
+          publishes must go through the transactional outbox written inside
+          the same txManager.run() as the aggregate save. This is the project's
+          highest-risk bug: a direct publish after commit silently loses events
+          on crash/SIGTERM.
+        - clearDomainEvents() called BEFORE txManager.run() — flush must happen
+          AFTER the transaction commits.
+        - Re-emitting a follow-on event (e.g. ServicePointsEarned) AFTER
+          markProcessed is committed — if the process dies between, the event
+          is permanently unrecoverable because the idempotency guard blocks retry.
+          The follow-on event must be in the outbox inside the same txn.
+        - Use case injecting a Repository token directly — use ports (interfaces).
+        - Business logic in a controller — controllers call use cases only.
+        - HttpException thrown from a use case — domain errors only; HTTP
+          mapping belongs in mapXxxError() at the infrastructure layer.
+        - correlationId generated with uuidv7() inside a use case or handler —
+          it must come from RequestContext.correlationId or the event envelope.
+        - RequestContext injected into a use case that is also called from a
+          cron/event handler — shared infrastructure must never read RequestContext
+          directly (cron jobs and event handlers run outside the HTTP interceptor).
+
+    # ── Backend: Infrastructure layer ────────────────────────────────────
+    - path: 'apps/backend/src/contexts/**/infrastructure/**'
+      instructions: |
+        Infrastructure layer — adapters, repositories, controllers, migrations.
+        - Every repository query MUST filter WHERE tenant_id = :tenantId.
+          A query missing this is a cross-tenant data leak — block the PR.
+        - Repositories must query only their own context's schema — no cross-
+          context SQL JOINs.
+        - Controllers call use cases only. No domain logic, no direct repo access.
+        - Every new entity/migration must be registered in
+          integration-global-setup.ts in the same commit or integration tests
+          will fail silently.
+        - Adapters registered as useExisting when the class has an
+          onApplicationBootstrap — use useClass instead, otherwise the class
+          instantiates even when the token is overridden in tests (ECONNREFUSED).
+        - New cross-context adapter: grep infrastructure/cross-context/ first —
+          if an adapter already exists between the same two contexts, extend it
+          with a new method rather than creating a parallel one.
+        - Booking save(): linesModified flag must be set before save() or line
+          changes are silently dropped.
+
+    # ── Backend: Events ──────────────────────────────────────────────────
+    - path: 'apps/backend/src/contexts/**/events/**'
+      instructions: |
+        Event handlers and domain events — thin by law.
+        - Handler handle() method must call exactly one use case and rethrow.
+          Zero domain logic in handlers.
+        - Domain events belong in the publishing context's domain/events/ folder
+          (e.g. StaffInvited in staff/domain/events/, not platform/).
+        - Every event envelope must include: eventId (uuid-v7), tenantId,
+          occurredAt (ISO-8601 UTC), correlationId, eventName, eventVersion.
+        - Cron-generated events (BookingReminderDue, AdminDailyScheduleReminder)
+          need a deterministic eventId (e.g. uuidv5(bookingId+type+date)) so
+          scheduler retries and overlapping window invocations don't send
+          duplicate emails — a new random uuidv7() per run defeats consumer dedup.
+        - PII in event payloads (email, phone, address) is a LGPD concern —
+          flag it; prefer reference IDs + lookup over embedding raw PII.
+
+    # ── Backend: Shared ──────────────────────────────────────────────────
+    - path: 'apps/backend/src/shared/**'
+      instructions: |
+        Shared cross-cutting infrastructure — highest blast radius for any change.
+        - No domain objects here — shared/ is for logger, OTel, IEventBus port,
+          tenant-context, VOs, utils only.
+        - deepMerge: any merge of admin-supplied JSON must strip __proto__,
+          constructor, prototype keys before merging (prototype pollution risk).
+        - RequestInterceptor: skips /health, /internal, /cron — flag any new
+          route prefix that bypasses it without a documented reason.
+        - InternalApiGuard is a global APP_GUARD — any new route that needs to
+          be public must explicitly bypass it with a decorator, not by removing
+          the guard.
+        - Money VO: always use Decimal.js arithmetic — never native JS floats.
+
+    # ── Backend: Tests ───────────────────────────────────────────────────
+    - path: 'apps/backend/src/**/*.spec.ts'
+      instructions: |
+        Unit tests — enforce the project's test quality standards:
+        - Builders are mandatory — never plain object literals for test data.
+          InMemory doubles over jest.fn() for repositories and ports.
+        - No .skip(), .only(), setTimeout() in committed tests.
+        - Every use case needs at least one tenant-isolation test: attempt the
+          same action with a different tenantId and assert it's blocked/not found.
+        - Idempotency tests: deliver the same eventId twice and assert exactly
+          one effect (one LoyaltyEntry, one email, etc.).
+
+    - path: 'apps/backend/src/**/*.integration.spec.ts'
+      instructions: |
+        Integration tests — real Postgres via Testcontainers:
+        - Each test suite must use a unique inline tenant UUID for count
+          assertions (never share tenant state across suites).
+        - New entity/migration: registered in integration-global-setup.ts in
+          the same commit or the suite will fail silently on a missing table.
+        - Concurrency paths that MUST have integration tests:
+          (a) two concurrent approvals for the same booking slot — assert exactly
+              one succeeds;
+          (b) stale aggregate save — assert OptimisticLockVersionMismatchError;
+          (c) duplicate eventId delivery — assert exactly one DB write.
+          Flag any PR touching slot-approval or loyalty-entry logic that doesn't
+          have or update these cases.
+
+    # ── BFF ──────────────────────────────────────────────────────────────
+    - path: 'apps/bff/src/**'
+      instructions: |
+        BFF — the public API surface and auth boundary.
+        - BackendHttpService forwards X-Actor-ID/Type/Role and X-Tenant-ID;
+          these must never be set from client-supplied headers — only from the
+          validated JWT payload or internal logic.
+        - All authenticated routes must go through JwtAuthGuard + TenantGuard.
+          New public (@Public()) routes need a stated reason.
+        - BFF modules are named after bounded contexts (platform/, not tenants/).
+          Public (hotsite) controllers: <context>.public.controller.ts.
+        - No direct domain knowledge — the BFF orchestrates, never owns domain
+          logic. No business rules in controllers.
+        - BackendHttpService is Scope.REQUEST — every provider that injects it
+          becomes request-scoped (DI scope bubbling). Flag new injections and
+          ask if the overhead is justified.
+        - bff-client.ts (apps/web) holds module-level auth state — this must
+          never be imported into a Server Component (add 'client-only' guard
+          if not present). Flag any server-side import.
+
+    # ── Web: Hotsite ─────────────────────────────────────────────────────
+    - path: 'apps/web/**'
+      instructions: |
+        Next.js 16 / React 19 frontend — hotsite (public) + dashboard (in progress).
+        Architecture rules:
+        - Hotsite module components (HeroModule, ServiceListModule, etc.) must
+          be Server Components — no 'use client' unless they use state/effects/
+          DOM APIs or a Context-based hook like useFormatting().
+        - useTranslations() from next-intl works in Server Components — adding
+          'use client' just for translations is wrong.
+        - All readonly props interfaces — every field must be readonly (SonarCloud
+          S6759 fires on every new component missing this).
+        - Import Node.js built-ins with the node: prefix (node:path, node:fs).
+        - CSS custom property return types: React.CSSProperties &
+          Record<`--ba-${string}`, string> — never use `as React.CSSProperties`.
+        Performance:
+        - Font loading: flag if new fonts are added to font-config.ts without
+          a corresponding per-tenant selection gate. All 8 fonts loading on every
+          hotsite is a known LCP regression.
+        - ISR: revalidate values must be literals (not imported constants) in
+          page-level segment config — Next.js does static analysis only.
+        Security:
+        - dangerouslySetInnerHTML: only allowed for the JSON-LD script with the
+          toJsonLdScript() escape (which escapes <). Any other usage is a block.
+        - Markdown must go through rehype-sanitize — raw HTML rendering is a block.
+        - Module data from the manifest (admin-authored) must be parsed with
+          Schema.safeParse() — a thrown .parse() takes down the whole hotsite;
+          fail-soft per module.
+
+    # ── CI / GitHub Actions ──────────────────────────────────────────────
+    - path: '.github/workflows/**'
+      instructions: |
+        CI/CD — supply-chain and pipeline quality.
+        - Third-party actions MUST be pinned to a full commit SHA, not @master
+          or a floating major tag. @master is a supply-chain risk: it executes
+          arbitrary upstream code with access to SONAR_TOKEN, SNYK_TOKEN, and
+          GITHUB_TOKEN. Block any PR adding or updating an action to a non-SHA ref.
+        - Every workflow must declare permissions: { contents: read } at the top;
+          elevate per-job only where needed (e.g. security-events: write for SARIF).
+        - PR workflows should have a concurrency group to cancel superseded runs:
+          concurrency: { group: "${{ github.workflow }}-${{ github.ref }}",
+          cancel-in-progress: true }
+        - Coverage suites must not run twice (test job + sonar job) — generate
+          once, pass via artifacts.
+
+    # ── Dockerfiles ──────────────────────────────────────────────────────
+    - path: '**/Dockerfile'
+      instructions: |
+        Container build quality and supply-chain:
+        - Base images must be pinned to a digest (FROM node:22-alpine@sha256:...)
+          not a floating tag. A floating tag is non-reproducible and silently
+          pulls a compromised upstream on next build.
+        - pnpm install must use --frozen-lockfile --ignore-scripts.
+          --ignore-scripts is the single most effective supply-chain control
+          (blocks malicious postinstall at build time) — never remove it.
+        - Runtime stage must run as a non-root user (uid 1001).
+        - npm/npx must be removed from the runner stage (eliminates npm's
+          bundled CVEs).
+        - No rm -rf workarounds for known-vulnerable packages — fix the override
+          in pnpm-workspace.yaml so the package doesn't resolve at all; a
+          hardcoded path string will silently stop working after a version bump.
+
+    # ── Migrations ───────────────────────────────────────────────────────
+    - path: 'apps/backend/src/**/migrations/**'
+      instructions: |
+        Database migrations — zero-downtime, expand/contract discipline:
+        - No DROP COLUMN, DROP TABLE, or NOT NULL constraint on existing columns
+          without a multi-step expand/contract plan. Adding a NOT NULL column
+          to a live table without a default or backfill step will lock the table.
+        - Every new table must have tenant_id UUID NOT NULL and tenant_id must
+          be the first column in every composite index.
+        - New composite foreign keys must use (tenant_id, id) — never id alone —
+          to enforce cross-tenant referential integrity at the DB level.
+        - Every new entity/table must be registered in
+          integration-global-setup.ts in the same PR commit.
+
+    # ── Packages ─────────────────────────────────────────────────────────
+    - path: 'packages/**'
+      instructions: |
+        Shared workspace packages — highest blast radius; changes affect all apps.
+        - @ikaro/types: adding a required field to a response type is a breaking
+          change for all consumers — prefer optional fields or a new type.
+        - @ikaro/env-validation: new required env vars must have sensible
+          validation (z.string().min(32) for secrets) and be documented in
+          .env.example.
+        - Non-TypeScript static files (e.g. packages/i18n/locales/**) must be
+          read via require.resolve, not relative paths, from consuming packages.
+
+    # ── pnpm workspace ───────────────────────────────────────────────────
+    - path: 'pnpm-workspace.yaml'
+      instructions: |
+        Dependency management — supply-chain critical file:
+        - New entries in allowBuilds must be justified — this is a default-deny
+          list for native install scripts. Each new entry is a supply-chain
+          trust decision; require a comment explaining why it's necessary.
+        - New overrides: verify the override actually dedupes the vulnerable
+          version (run pnpm why <package>) — a hand-deleted path in a Dockerfile
+          is not an acceptable substitute for a working override.
