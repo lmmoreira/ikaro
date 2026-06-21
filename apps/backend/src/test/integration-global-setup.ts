@@ -31,7 +31,6 @@ import { CreateNotificationTemplates1748100000010 } from '../contexts/notificati
 import { AlterNotificationLogs1748200000010 } from '../contexts/notification/infrastructure/migrations/1748200000010-AlterNotificationLogs';
 import { CreateNotificationProcessedEvents1748200000020 } from '../contexts/notification/infrastructure/migrations/1748200000020-CreateNotificationProcessedEvents';
 import { AddNotificationLogUniqueConstraint1748300000010 } from '../contexts/notification/infrastructure/migrations/1748300000010-AddNotificationLogUniqueConstraint';
-import { RebrandStaffInvitationTemplate1748400000010 } from '../contexts/notification/infrastructure/migrations/1748400000010-RebrandStaffInvitationTemplate';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
 import { BootstrapSchemas1700000000000 } from '../contexts/platform/infrastructure/migrations/1700000000000-BootstrapSchemas';
@@ -90,7 +89,6 @@ export default async function globalSetup(): Promise<void> {
       AlterNotificationLogs1748200000010,
       CreateNotificationProcessedEvents1748200000020,
       AddNotificationLogUniqueConstraint1748300000010,
-      RebrandStaffInvitationTemplate1748400000010,
       CreateBookingServices1748000000011,
       CreateBookingScheduleClosures1748000000012,
       CreateBookingScheduleOpenings1748000000013,

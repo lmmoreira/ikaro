@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { ContactModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
@@ -92,11 +95,12 @@ function ListLayout({
   readonly showInstagram: boolean;
   readonly showFacebook: boolean;
 }) {
+  const t = useTranslations('hotsite');
   const whatsapp = business.socialLinks?.whatsapp;
   const instagram = business.socialLinks?.instagram;
   const facebook = business.socialLinks?.facebook;
   const address = business.address;
-  const waLabel = data.whatsappCtaLabel ?? 'WhatsApp';
+  const waLabel = data.whatsappCtaLabel ?? t('contact.whatsappLabel');
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -159,31 +163,32 @@ function IconCardsLayout({
   readonly showFacebook: boolean;
   readonly cardBg: string;
 }) {
+  const t = useTranslations('hotsite');
   const whatsapp = business.socialLinks?.whatsapp;
   const instagram = business.socialLinks?.instagram;
   const facebook = business.socialLinks?.facebook;
   const address = business.address;
-  const waLabel = data.whatsappCtaLabel ?? 'Chamar no WhatsApp';
+  const waLabel = data.whatsappCtaLabel ?? t('contact.whatsappDefaultCta');
 
   return (
     <div className="flex flex-col gap-5">
       {showAddress && address && (
-        <IconRow icon="📍" label="Endereço" cardBg={cardBg}>
+        <IconRow icon="📍" label={t('contact.addressLabel')} cardBg={cardBg}>
           {formatAddress(address)}
         </IconRow>
       )}
       {showPhone && business.phone && (
-        <IconRow icon="📱" label="Telefone" cardBg={cardBg}>
+        <IconRow icon="📱" label={t('contact.phoneLabel')} cardBg={cardBg}>
           {business.phone}
         </IconRow>
       )}
       {showEmail && business.email && (
-        <IconRow icon="✉️" label="E-mail" cardBg={cardBg}>
+        <IconRow icon="✉️" label={t('contact.emailLabel')} cardBg={cardBg}>
           {business.email}
         </IconRow>
       )}
       {data.showWhatsapp && whatsapp && (
-        <IconRow icon="💬" label="WhatsApp" cardBg={cardBg}>
+        <IconRow icon="💬" label={t('contact.whatsappLabel')} cardBg={cardBg}>
           <a
             href={`https://wa.me/${digitsOnly(whatsapp)}`}
             target="_blank"
@@ -226,7 +231,8 @@ function IconCardsLayout({
 }
 
 export function ContactModule({ data, business, slug: _, bgVariant }: ContactModuleProps) {
-  const title = data.title ?? 'Fale conosco';
+  const t = useTranslations('hotsite');
+  const title = data.title ?? t('contact.defaultTitle');
   const address = business.address;
   const bg = bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';
 
@@ -284,7 +290,7 @@ export function ContactModule({ data, business, slug: _, bgVariant }: ContactMod
           )}
           {showMap && address && (
             <iframe
-              title="Mapa de localização"
+              title={t('contact.mapTitle')}
               src={`https://maps.google.com/maps?q=${encodeURIComponent(formatAddress(address))}&output=embed`}
               loading="lazy"
               className="h-64 w-full border-0"

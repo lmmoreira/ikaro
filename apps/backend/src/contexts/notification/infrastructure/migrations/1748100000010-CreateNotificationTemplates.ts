@@ -100,7 +100,7 @@ export class CreateNotificationTemplates1748100000010 implements MigrationInterf
         ),
         (gen_random_uuid(), NULL, 'staff-invitation', 'EMAIL',
          'Você foi convidado para a equipe {{tenantName}}',
-         '<p>Olá, {{staffName}}!</p><p>Você foi convidado para integrar a equipe de <strong>{{tenantName}}</strong> na plataforma BeloAuto.</p><p><a href="{{activationLink}}">Clique aqui para aceitar o convite e acessar sua conta.</a></p><p>Se você não esperava este convite, por favor ignore este e-mail.</p>'
+         '<p>Olá, {{staffName}}!</p><p>Você foi convidado para integrar a equipe de <strong>{{tenantName}}</strong> na plataforma Ikaro.</p><p><a href="{{activationLink}}">Clique aqui para aceitar o convite e acessar sua conta.</a></p><p>Se você não esperava este convite, por favor ignore este e-mail.</p>'
         )
     `);
   }

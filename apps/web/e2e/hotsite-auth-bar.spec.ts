@@ -12,7 +12,7 @@ test.describe('M13-S42 — Hotsite auth bar', () => {
 
     await loginLink.click();
     await expect(page).toHaveURL('/ikaro/login');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Entrar na');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Sign in to');
 
     const googleButton = page.locator('[data-testid="google-login"]');
     await expect(googleButton).toBeVisible();

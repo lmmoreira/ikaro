@@ -12,7 +12,11 @@
     "signOut": "Sign out",
     "signInWith": "Sign in with {provider}",
     "signInError": "Sign-in failed. Please try again.",
-    "pageTitle": "Sign in — {name}"
+    "pageTitle": "Sign in — {name}",
+    "myAccount": "My account",
+    "heading": "Sign in to {name}",
+    "subtitle": "Sign in with your Google account to book",
+    "disclaimer": "By continuing, you agree to Ikaro's terms of use."
   },
   "booking": {
     "title": "Book a service",
@@ -100,25 +104,37 @@
       "showMore": "Show more",
       "photoAlt": "Service photo",
       "beforeLabel": "Before",
-      "afterLabel": "After"
+      "afterLabel": "After",
+      "closeLightboxAriaLabel": "Close lightbox",
+      "closeAriaLabel": "Close"
     },
     "testimonials": {
       "defaultTitle": "What our clients say",
       "previousAriaLabel": "Previous testimonial",
       "nextAriaLabel": "Next testimonial"
     },
-    "contact": { "phoneLabel": "Phone" },
-    "unavailable": { "label": "Coming soon" }
+    "contact": {
+      "defaultTitle": "Get in touch",
+      "phoneLabel": "Phone",
+      "addressLabel": "Address",
+      "emailLabel": "Email",
+      "whatsappLabel": "WhatsApp",
+      "whatsappDefaultCta": "Message us on WhatsApp",
+      "mapTitle": "Location map"
+    },
+    "unavailable": { "label": "Coming soon", "body": "We're preparing something special. Check back soon!" }
   },
   "notFound": {
-    "title": "Not found",
+    "title": "Not found — Ikaro",
     "tenantNotFound": "Tenant not found",
     "tenantNotFoundDescription": "The tenant you are looking for does not exist or has been removed.",
     "backToHome": "Back to Ikaro"
   },
   "seo": {
-    "defaultSubtitle": "Online Booking",
-    "defaultDescription": "Book your service quickly, easily, and online."
+    "defaultTitle": "{name} — Online Booking",
+    "defaultTitleWithLocation": "{name} — Online Booking in {location}",
+    "defaultDescription": "Book your service at {name}. Quick, easy, and online.",
+    "defaultDescriptionWithLocation": "Book your service at {name}, in {location}. Quick, easy, and online."
   },
   "errors": {
     "internalServerError": "Internal server error"

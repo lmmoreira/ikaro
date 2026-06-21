@@ -95,10 +95,10 @@ describe('SITE_URL', () => {
 });
 
 describe('buildHotsiteMetadata', () => {
-  it('builds title, description, canonical, and Open Graph from the manifest', () => {
+  it('builds title, description, canonical, and Open Graph from the manifest', async () => {
     const manifest = makeManifest();
 
-    const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.title).toBe('Lavacar BH — Agendamento Online');
     expect(metadata.description).toBe('Agende seu serviço na Lavacar BH. Rápido, fácil e online.');
@@ -113,52 +113,52 @@ describe('buildHotsiteMetadata', () => {
     });
   });
 
-  it('appends path to the canonical and Open Graph URL when provided', () => {
+  it('appends path to the canonical and Open Graph URL when provided', async () => {
     const manifest = makeManifest();
 
-    const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh', path: '/booking' });
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh', path: '/booking' });
 
     expect(metadata.alternates).toEqual({ canonical: `${SITE_URL}/lavacar-bh/booking` });
     expect(metadata.openGraph).toMatchObject({ url: `${SITE_URL}/lavacar-bh/booking` });
   });
 
-  it('sets robots to index/follow when the hotsite is published', () => {
+  it('sets robots to index/follow when the hotsite is published', async () => {
     const manifest = makeManifest({ isPublished: true });
 
-    const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.robots).toEqual({ index: true, follow: true });
   });
 
-  it('sets robots to noindex/nofollow when the hotsite is not published', () => {
+  it('sets robots to noindex/nofollow when the hotsite is not published', async () => {
     const manifest = makeManifest({ isPublished: false });
 
-    const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });
 
-  it('includes the branding logo as a sized Open Graph image when present', () => {
+  it('includes the branding logo as a sized Open Graph image when present', async () => {
     const manifest = makeManifest({
       branding: { ...makeManifest().branding, logoUrl: 'https://cdn.example.com/logo.png' },
     });
 
-    const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.openGraph?.images).toEqual([
       { url: 'https://cdn.example.com/logo.png', width: 1200, height: 630 },
     ]);
   });
 
-  it('returns an empty Open Graph images array when there is no logo', () => {
+  it('returns an empty Open Graph images array when there is no logo', async () => {
     const manifest = makeManifest();
 
-    const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.openGraph?.images).toEqual([]);
   });
 
-  it('includes the city and state from business_info.address in title and description when present', () => {
+  it('includes the city and state from business_info.address in title and description when present', async () => {
     const manifest = makeManifest({
       business: {
         phone: null,
@@ -175,7 +175,7 @@ describe('buildHotsiteMetadata', () => {
       },
     });
 
-    const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.title).toBe('Lavacar BH — Agendamento Online em São Paulo, SP');
     expect(metadata.description).toBe(
@@ -183,7 +183,7 @@ describe('buildHotsiteMetadata', () => {
     );
   });
 
-  it('derives the Open Graph locale from settings.localization.language', () => {
+  it('derives the Open Graph locale from settings.localization.language', async () => {
     const manifest = makeManifest({
       localization: {
         language: 'en-US',
@@ -209,12 +209,12 @@ describe('buildHotsiteMetadata', () => {
       },
     });
 
-    const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.openGraph).toMatchObject({ locale: 'en_US' });
   });
 
-  it('uses the tenant-configured seo.title and seo.description when present', () => {
+  it('uses the tenant-configured seo.title and seo.description when present', async () => {
     const manifest = makeManifest({
       seo: {
         title: 'Lavacar Estrela — Agendamento Online em São Paulo',
@@ -222,7 +222,7 @@ describe('buildHotsiteMetadata', () => {
       },
     });
 
-    const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.title).toBe('Lavacar Estrela — Agendamento Online em São Paulo');
     expect(metadata.description).toBe(
@@ -234,10 +234,10 @@ describe('buildHotsiteMetadata', () => {
     });
   });
 
-  it('falls back to the generated title/description when seo fields are null', () => {
+  it('falls back to the generated title/description when seo fields are null', async () => {
     const manifest = makeManifest({ seo: { title: null, description: null } });
 
-    const metadata = buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
+    const metadata = await buildHotsiteMetadata({ manifest, slug: 'lavacar-bh' });
 
     expect(metadata.title).toBe('Lavacar BH — Agendamento Online');
     expect(metadata.description).toBe('Agende seu serviço na Lavacar BH. Rápido, fácil e online.');
@@ -245,7 +245,7 @@ describe('buildHotsiteMetadata', () => {
 });
 
 describe('buildLocalBusinessJsonLd', () => {
-  it('builds a LocalBusiness entry with the tenant name and canonical URL', () => {
+  it('builds a LocalBusiness entry with the tenant name and canonical URL', async () => {
     const manifest = makeManifest();
 
     const jsonLd = buildLocalBusinessJsonLd({ manifest, slug: 'lavacar-bh' });

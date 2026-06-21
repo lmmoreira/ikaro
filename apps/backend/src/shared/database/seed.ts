@@ -5,8 +5,10 @@ import { DataSource } from 'typeorm';
 config();
 
 // ── Fixed UUIDs ensure idempotency across multiple runs ──────────────────────
-// tenantA/tenantB keep their original ids/meaning (Lavacar BeloAuto / AutoSpa Premium) —
-// tenantIkaro is purely additive so nothing referencing the existing two breaks.
+// tenantA/tenantB keep their original ids/meaning (Lavacar BeloAuto / AutoSpa Premium).
+// tenantIkaro is the platform's own US-localized demo tenant (en/USD/MM-DD-YYYY/ZIP code) —
+// it's what closes the TD02-S09 localization E2E gap, exercising the non-BR branch of the
+// CountrySpec registry. tenantA/tenantB stay pt-BR/BRL, the BR regression baseline.
 const IDS = {
   tenantIkaro: '00000000-0000-7000-8000-000000000003',
   tenantA: '00000000-0000-7000-8000-000000000001',
@@ -40,7 +42,7 @@ const IDS = {
 };
 
 // Matches TenantSettingsProps exactly — snake_case keys, null for closed days
-const TENANT_SETTINGS = {
+const TENANT_SETTINGS_BR = {
   loyalty: {
     expiry_days: 180,
     enable_notifications: true,
@@ -72,6 +74,21 @@ const TENANT_SETTINGS = {
   },
   notification: {
     from_email: null,
+  },
+};
+
+// Ikaro (TD02-S09) — en/USD/America/New_York, exercises the US CountrySpec branch.
+const TENANT_SETTINGS_US = {
+  ...TENANT_SETTINGS_BR,
+  business_hours: {
+    ...TENANT_SETTINGS_BR.business_hours,
+    timezone: 'America/New_York',
+  },
+  localization: {
+    country_code: 'US',
+    currency: 'USD',
+    language: 'en',
+    decimal_places: 2,
   },
 };
 
@@ -136,14 +153,15 @@ async function seed(): Promise<void> {
 // ── Seed functions — pure data insertion, schema is owned by migrations ──────
 
 async function seedTenants(q: ReturnType<DataSource['createQueryRunner']>): Promise<void> {
-  const settings = JSON.stringify(TENANT_SETTINGS);
+  const settingsUS = JSON.stringify(TENANT_SETTINGS_US);
+  const settingsBR = JSON.stringify(TENANT_SETTINGS_BR);
   await q.query(
     `INSERT INTO platform.tenants (id, name, slug, settings, is_active) VALUES
       ($1, 'Ikaro',           'ikaro',            $4, true),
-      ($2, 'Lavacar BeloAuto', 'lavacar-beloauto', $4, true),
-      ($3, 'AutoSpa Premium',  'autospa-premium',  $4, true)
+      ($2, 'Lavacar BeloAuto', 'lavacar-beloauto', $5, true),
+      ($3, 'AutoSpa Premium',  'autospa-premium',  $5, true)
     ON CONFLICT (id) DO NOTHING`,
-    [IDS.tenantIkaro, IDS.tenantA, IDS.tenantB, settings],
+    [IDS.tenantIkaro, IDS.tenantA, IDS.tenantB, settingsUS, settingsBR],
   );
 }
 
@@ -169,8 +187,8 @@ async function seedHotsites(q: ReturnType<DataSource['createQueryRunner']>): Pro
       enabled: true,
       data: {
         variant: 'centered',
-        title: 'Agende com poucos cliques',
-        ctaLabel: 'Agendar agora',
+        title: 'Book your service in a few clicks',
+        ctaLabel: 'Book now',
         ctaTarget: 'booking-form',
       },
     },
@@ -182,7 +200,7 @@ async function seedHotsites(q: ReturnType<DataSource['createQueryRunner']>): Pro
     {
       type: 'BOOKING_CTA',
       enabled: true,
-      data: { title: 'Agende seu horário', ctaLabel: 'Agendar agora' },
+      data: { title: 'Book your appointment', ctaLabel: 'Book now' },
     },
   ]);
   const layoutA = JSON.stringify([
@@ -250,7 +268,7 @@ async function seedHotsites(q: ReturnType<DataSource['createQueryRunner']>): Pro
 async function seedStaff(q: ReturnType<DataSource['createQueryRunner']>): Promise<void> {
   await q.query(
     `INSERT INTO staff.staff (id, tenant_id, email, role, google_oauth_id, is_active) VALUES
-      ($1, $5, 'admin@ikaro.com.br',         'MANAGER', 'google-sub-admin-ikaro', true),
+      ($1, $5, 'admin@ikaro.com',          'MANAGER', 'google-sub-admin-ikaro', true),
       ($2, $6, 'admin@lavacar.com.br',       'MANAGER', 'google-sub-admin-a',     true),
       ($3, $6, 'funcionario@lavacar.com.br', 'STAFF',   'google-sub-worker-a',    true),
       ($4, $7, 'admin@autospa.com.br',       'MANAGER', 'google-sub-admin-b',     true)
@@ -282,11 +300,11 @@ async function seedServices(q: ReturnType<DataSource['createQueryRunner']>): Pro
   await q.query(
     `INSERT INTO booking.services
       (id, tenant_id, name, price_amount, duration_minutes, loyalty_points_value, requires_pickup_address) VALUES
-      ($1, $7, 'Lavagem Básica',       70.00,  30,  5,  false),
-      ($2, $7, 'Lavagem Premium',     180.00,  75,  12, false),
-      ($3, $8, 'Lavagem Simples',      80.00,  30,  5,  false),
-      ($4, $8, 'Lavagem Completa',    150.00,  60,  10, false),
-      ($5, $8, 'Polimento',           350.00, 120,  25, true),
+      ($1, $7, 'Basic Wash',            70.00,  30,  5,  false),
+      ($2, $7, 'Premium Wash',         180.00,  75,  12, false),
+      ($3, $8, 'Lavagem Simples',       80.00,  30,  5,  false),
+      ($4, $8, 'Lavagem Completa',     150.00,  60,  10, false),
+      ($5, $8, 'Polimento',            350.00, 120,  25, true),
       ($6, $9, 'Higienização Interna', 200.00,  90,  15, false)
     ON CONFLICT (id) DO NOTHING`,
     [
@@ -391,11 +409,11 @@ function printSummary(): void {
     '╔════════════════════════════════════════════════════════════════╗',
     '║                    Ikaro Seed — Done                           ║',
     '╠════════════════════════════════════════════════════════════════╣',
-    '║  Tenant 1  │ Ikaro               │ ikaro                       ║',
-    '║  Tenant 2  │ Lavacar BeloAuto    │ lavacar-beloauto            ║',
-    '║  Tenant 3  │ AutoSpa Premium     │ autospa-premium             ║',
+    '║  Tenant 1  │ Ikaro (US)          │ ikaro                       ║',
+    '║  Tenant 2  │ Lavacar BeloAuto (BR)│ lavacar-beloauto           ║',
+    '║  Tenant 3  │ AutoSpa Premium (BR) │ autospa-premium            ║',
     '╠════════════════════════════════════════════════════════════════╣',
-    '║  Staff     │ admin@ikaro.com.br         (MANAGER, Ikaro)       ║',
+    '║  Staff     │ admin@ikaro.com            (MANAGER, Ikaro)       ║',
     '║            │ admin@lavacar.com.br       (MANAGER, BeloAuto)    ║',
     '║            │ funcionario@lavacar.com.br (STAFF,   BeloAuto)    ║',
     '║            │ admin@autospa.com.br       (MANAGER, AutoSpa)     ║',

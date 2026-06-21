@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 
 interface TestimonialsCarouselProps {
@@ -14,6 +15,7 @@ const navButtonStyle: CSSProperties = {
 };
 
 export function TestimonialsCarousel({ children }: TestimonialsCarouselProps) {
+  const t = useTranslations('hotsite');
   const [activeIndex, setActiveIndex] = useState(0);
   const total = children.length;
 
@@ -28,7 +30,7 @@ export function TestimonialsCarousel({ children }: TestimonialsCarouselProps) {
           <button
             type="button"
             onClick={goToPrevious}
-            aria-label="Depoimento anterior"
+            aria-label={t('testimonials.previousAriaLabel')}
             style={navButtonStyle}
             className="border-2 px-4 py-2 font-semibold transition-all hover:opacity-90 hover:bg-[var(--ba-btn-hover-bg)]"
           >
@@ -40,7 +42,7 @@ export function TestimonialsCarousel({ children }: TestimonialsCarouselProps) {
           <button
             type="button"
             onClick={goToNext}
-            aria-label="Próximo depoimento"
+            aria-label={t('testimonials.nextAriaLabel')}
             style={navButtonStyle}
             className="border-2 px-4 py-2 font-semibold transition-all hover:opacity-90 hover:bg-[var(--ba-btn-hover-bg)]"
           >

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
+import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/lib/api/platform';
 import { buildHotsiteMetadata } from '@/lib/hotsite/seo';
 
@@ -14,10 +15,11 @@ export async function generateMetadata({ params }: LoginPageProps): Promise<Meta
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
   const displayName = manifest.branding.brandName ?? manifest.tenant.name;
+  const t = await getTranslations('auth');
 
   return {
-    ...buildHotsiteMetadata({ manifest, slug, path: '/login' }),
-    title: `Entrar — ${displayName}`,
+    ...(await buildHotsiteMetadata({ manifest, slug, path: '/login' })),
+    title: t('pageTitle', { name: displayName }),
     robots: { index: false, follow: false },
   };
 }
@@ -28,6 +30,7 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
   const manifest = await fetchManifest(slug);
   const displayName = manifest.branding.brandName ?? manifest.tenant.name;
   const googleHref = `${process.env.NEXT_PUBLIC_BFF_URL}/auth/google?tenantSlug=${slug}`;
+  const t = await getTranslations('auth');
 
   return (
     <main
@@ -52,15 +55,15 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
           </div>
         )}
 
-        <h1 className="text-2xl font-bold">Entrar na {displayName}</h1>
-        <p className="mt-2 text-sm opacity-70">Entre com sua conta Google para agendar</p>
+        <h1 className="text-2xl font-bold">{t('heading', { name: displayName })}</h1>
+        <p className="mt-2 text-sm opacity-70">{t('subtitle')}</p>
 
         {error && (
           <div
             role="alert"
             className="mt-6 rounded-[var(--ba-radius)] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
           >
-            Erro ao entrar. Tente novamente.
+            {t('signInError')}
           </div>
         )}
 
@@ -75,12 +78,10 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
             borderRadius: 'var(--ba-radius)',
           }}
         >
-          Entrar com Google
+          {t('signInWith', { provider: 'Google' })}
         </a>
 
-        <p className="mt-6 text-xs opacity-50">
-          Ao continuar, você concorda com os termos de uso do Ikaro.
-        </p>
+        <p className="mt-6 text-xs opacity-50">{t('disclaimer')}</p>
       </div>
     </main>
   );

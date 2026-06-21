@@ -40,7 +40,7 @@ bffClient.interceptors.response.use(
     if (status === 401) return Promise.reject(new AuthError(clientDetail));
     if (status === 403) return Promise.reject(new ForbiddenError(clientDetail));
     return Promise.reject(
-      new ApiError(status, status >= 500 ? 'Erro interno do servidor' : clientDetail),
+      new ApiError(status, status >= 500 ? 'Internal server error' : clientDetail),
     );
   },
 );

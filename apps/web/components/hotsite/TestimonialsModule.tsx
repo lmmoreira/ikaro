@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { TestimonialsModuleData } from '@ikaro/types';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
@@ -17,11 +20,13 @@ const headingStyle: React.CSSProperties = {
 };
 
 export function TestimonialsModule({ data, slug: _, bgVariant }: TestimonialsModuleProps) {
+  const t = useTranslations('hotsite');
+
   if (data.items.length === 0) {
     return null;
   }
 
-  const title = data.title ?? 'O que nossos clientes dizem';
+  const title = data.title ?? t('testimonials.defaultTitle');
   const bg = bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';
   const cardBg = bgVariant === 'alt' ? 'var(--ba-background)' : 'var(--ba-secondary)';
 
