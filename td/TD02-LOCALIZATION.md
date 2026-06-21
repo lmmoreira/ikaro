@@ -788,7 +788,7 @@ Add a US tenant (`country_code: 'US'`, `language: 'en'`, `currency: 'USD'`, `tim
 
 ---
 
-#### TD02-S10 — Notification template i18n
+#### TD02-S10 — Notification template i18n ✅ Done
 
 **Scope:**  
 Inject `ILocalizationPort` into all notification use-cases that currently read subjects from the DB template.  
