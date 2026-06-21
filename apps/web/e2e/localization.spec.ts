@@ -67,13 +67,15 @@ async function runLocalizationCheck(page: Page, c: LocalizationCase): Promise<vo
   // Weekday abbreviation on the 2nd carousel day (index 0 is the translated "Today" label).
   const secondDay = page.locator('[data-testid="day-option"]').nth(1);
   const secondDayIso = await secondDay.getAttribute('data-date');
+  expect(secondDayIso).not.toBeNull();
   const expectedWeekday = new Intl.DateTimeFormat(c.intlLocale, { weekday: 'short' }).format(
-    new Date(`${secondDayIso}T00:00:00`),
+    new Date(`${secondDayIso}T00:00:00Z`),
   );
   await expect(secondDay).toContainText(expectedWeekday);
 
   const selectedDay = page.locator('[data-testid="day-option"]:not([disabled])').first();
   const selectedDayIso = await selectedDay.getAttribute('data-date');
+  expect(selectedDayIso).not.toBeNull();
   await selectedDay.click();
   await page.locator('[data-testid="time-slot"]').first().click();
   await page.locator('[data-testid="step-next"]').click();

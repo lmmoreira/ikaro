@@ -1,5 +1,3 @@
-'use client';
-
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type { GalleryImage } from '@ikaro/types';
@@ -29,7 +27,7 @@ export function GalleryItem({ image, priority = false }: GalleryItemProps) {
     >
       <Image
         src={image.url}
-        alt={image.caption ?? t('gallery.photoAlt')}
+        alt={image.caption?.trim() || t('gallery.photoAlt')}
         fill
         loading={priority ? 'eager' : 'lazy'}
         priority={priority}

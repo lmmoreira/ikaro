@@ -1,5 +1,3 @@
-'use client';
-
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';

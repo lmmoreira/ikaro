@@ -245,7 +245,7 @@ describe('buildHotsiteMetadata', () => {
 });
 
 describe('buildLocalBusinessJsonLd', () => {
-  it('builds a LocalBusiness entry with the tenant name and canonical URL', async () => {
+  it('builds a LocalBusiness entry with the tenant name and canonical URL', () => {
     const manifest = makeManifest();
 
     const jsonLd = buildLocalBusinessJsonLd({ manifest, slug: 'lavacar-bh' });
