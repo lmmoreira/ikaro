@@ -1,19 +1,25 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from '@/lib/hotsite/seo';
 
-export const metadata: Metadata = {
-  title: 'Não encontrado — Ikaro',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('notFound');
+  return { title: t('title') };
+}
 
-export default function HotsiteNotFound() {
+export default async function HotsiteNotFound() {
+  const t = await getTranslations('notFound');
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-      <h1 className="mb-4 text-3xl font-bold">Lavacar não encontrada</h1>
-      <p className="mb-8 text-gray-600">
-        A lavacar que você está procurando não existe ou não está mais disponível.
+      <h1 data-testid="not-found-heading" className="mb-4 text-3xl font-bold">
+        {t('tenantNotFound')}
+      </h1>
+      <p data-testid="not-found-description" className="mb-8 text-gray-600">
+        {t('tenantNotFoundDescription')}
       </p>
-      <a href={SITE_URL} className="text-blue-600 underline">
-        Voltar para o Ikaro
+      <a data-testid="not-found-back-link" href={SITE_URL} className="text-blue-600 underline">
+        {t('backToHome')}
       </a>
     </main>
   );

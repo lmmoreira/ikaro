@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/lib/api/platform';
 import { fetchServices } from '@/lib/api/services';
 import { BookingForm } from '@/components/booking/BookingForm';
@@ -16,10 +17,12 @@ interface BookingPageProps {
 export async function generateMetadata({ params }: BookingPageProps): Promise<Metadata> {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
+  const tBooking = await getTranslations('booking');
+  const tHotsite = await getTranslations('hotsite');
 
   return {
-    ...buildHotsiteMetadata({ manifest, slug, path: '/booking' }),
-    title: manifest.isPublished ? 'Agendar serviço' : 'Em breve — Ikaro',
+    ...(await buildHotsiteMetadata({ manifest, slug, path: '/booking' })),
+    title: manifest.isPublished ? tBooking('title') : `${tHotsite('unavailable.label')} — Ikaro`,
     robots: { index: false, follow: false },
   };
 }

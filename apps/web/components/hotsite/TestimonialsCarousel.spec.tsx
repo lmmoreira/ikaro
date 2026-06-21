@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { renderWithIntl } from '@/test-utils';
 import { TestimonialsCarousel } from './TestimonialsCarousel';
 
 function items(count: number) {
@@ -10,7 +11,7 @@ function items(count: number) {
 
 describe('TestimonialsCarousel', () => {
   it('renders only the active child', () => {
-    render(<TestimonialsCarousel>{items(3)}</TestimonialsCarousel>);
+    renderWithIntl(<TestimonialsCarousel>{items(3)}</TestimonialsCarousel>);
 
     expect(screen.getByTestId('item-0')).toBeInTheDocument();
     expect(screen.queryByTestId('item-1')).not.toBeInTheDocument();
@@ -19,7 +20,7 @@ describe('TestimonialsCarousel', () => {
   });
 
   it('does not render navigation when there is only one child', () => {
-    render(<TestimonialsCarousel>{items(1)}</TestimonialsCarousel>);
+    renderWithIntl(<TestimonialsCarousel>{items(1)}</TestimonialsCarousel>);
 
     expect(screen.queryByLabelText('Depoimento anterior')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Próximo depoimento')).not.toBeInTheDocument();
@@ -27,7 +28,7 @@ describe('TestimonialsCarousel', () => {
 
   it('advances activeIndex when "Próximo depoimento" is clicked', async () => {
     const user = userEvent.setup();
-    render(<TestimonialsCarousel>{items(3)}</TestimonialsCarousel>);
+    renderWithIntl(<TestimonialsCarousel>{items(3)}</TestimonialsCarousel>);
 
     await user.click(screen.getByLabelText('Próximo depoimento'));
 
@@ -38,7 +39,7 @@ describe('TestimonialsCarousel', () => {
 
   it('wraps to the first child after the last when advancing', async () => {
     const user = userEvent.setup();
-    render(<TestimonialsCarousel>{items(2)}</TestimonialsCarousel>);
+    renderWithIntl(<TestimonialsCarousel>{items(2)}</TestimonialsCarousel>);
 
     await user.click(screen.getByLabelText('Próximo depoimento'));
     await user.click(screen.getByLabelText('Próximo depoimento'));
@@ -49,7 +50,7 @@ describe('TestimonialsCarousel', () => {
 
   it('moves to the previous child when "Depoimento anterior" is clicked, wrapping to the last', async () => {
     const user = userEvent.setup();
-    render(<TestimonialsCarousel>{items(3)}</TestimonialsCarousel>);
+    renderWithIntl(<TestimonialsCarousel>{items(3)}</TestimonialsCarousel>);
 
     await user.click(screen.getByLabelText('Depoimento anterior'));
 

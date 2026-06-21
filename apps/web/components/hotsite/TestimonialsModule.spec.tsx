@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { Testimonial, TestimonialsModuleData } from '@ikaro/types';
+import { renderWithIntl } from '@/test-utils';
 import { TestimonialsModule } from './TestimonialsModule';
 
 function makeTestimonial(overrides?: Partial<Testimonial>): Testimonial {
@@ -22,7 +23,7 @@ function makeData(overrides?: Partial<TestimonialsModuleData>): TestimonialsModu
 
 describe('TestimonialsModule', () => {
   it('renders the default title when none is provided', () => {
-    render(<TestimonialsModule data={makeData()} slug="tenant" />);
+    renderWithIntl(<TestimonialsModule data={makeData()} slug="tenant" />);
 
     expect(
       screen.getByRole('heading', { name: 'O que nossos clientes dizem' }),
@@ -30,13 +31,13 @@ describe('TestimonialsModule', () => {
   });
 
   it('renders a custom title when provided', () => {
-    render(<TestimonialsModule data={makeData({ title: 'Avaliações' })} slug="tenant" />);
+    renderWithIntl(<TestimonialsModule data={makeData({ title: 'Avaliações' })} slug="tenant" />);
 
     expect(screen.getByRole('heading', { name: 'Avaliações' })).toBeInTheDocument();
   });
 
   it('renders nothing when items is empty', () => {
-    const { container } = render(
+    const { container } = renderWithIntl(
       <TestimonialsModule data={makeData({ items: [] })} slug="tenant" />,
     );
 
@@ -48,7 +49,7 @@ describe('TestimonialsModule', () => {
       makeTestimonial({ authorName: 'Maria Silva', text: 'Serviço impecável.' }),
       makeTestimonial({ authorName: 'João Souza', text: 'Voltarei sempre.' }),
     ];
-    render(<TestimonialsModule data={makeData({ items })} slug="tenant" />);
+    renderWithIntl(<TestimonialsModule data={makeData({ items })} slug="tenant" />);
 
     expect(screen.getByText('Maria Silva')).toBeInTheDocument();
     expect(screen.getByText(/Serviço impecável\./)).toBeInTheDocument();
@@ -57,7 +58,7 @@ describe('TestimonialsModule', () => {
   });
 
   it('renders 4 filled stars and 1 empty star when rating is 4', () => {
-    render(
+    renderWithIntl(
       <TestimonialsModule
         data={makeData({ items: [makeTestimonial({ rating: 4 })] })}
         slug="tenant"
@@ -69,7 +70,9 @@ describe('TestimonialsModule', () => {
   });
 
   it('renders no star elements when rating is absent', () => {
-    render(<TestimonialsModule data={makeData({ items: [makeTestimonial()] })} slug="tenant" />);
+    renderWithIntl(
+      <TestimonialsModule data={makeData({ items: [makeTestimonial()] })} slug="tenant" />,
+    );
 
     expect(screen.queryByTestId('star-filled')).not.toBeInTheDocument();
     expect(screen.queryByTestId('star-empty')).not.toBeInTheDocument();
@@ -77,7 +80,7 @@ describe('TestimonialsModule', () => {
 
   it('renders items as a list when layout is grid', () => {
     const items = [makeTestimonial(), makeTestimonial({ authorName: 'João Souza' })];
-    render(<TestimonialsModule data={makeData({ items, layout: 'grid' })} slug="tenant" />);
+    renderWithIntl(<TestimonialsModule data={makeData({ items, layout: 'grid' })} slug="tenant" />);
 
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
     expect(screen.queryByLabelText('Próximo depoimento')).not.toBeInTheDocument();
@@ -85,7 +88,9 @@ describe('TestimonialsModule', () => {
 
   it('renders the carousel structure when layout is carousel', () => {
     const items = [makeTestimonial(), makeTestimonial({ authorName: 'João Souza' })];
-    render(<TestimonialsModule data={makeData({ items, layout: 'carousel' })} slug="tenant" />);
+    renderWithIntl(
+      <TestimonialsModule data={makeData({ items, layout: 'carousel' })} slug="tenant" />,
+    );
 
     expect(screen.getByLabelText('Depoimento anterior')).toBeInTheDocument();
     expect(screen.getByLabelText('Próximo depoimento')).toBeInTheDocument();
@@ -94,13 +99,15 @@ describe('TestimonialsModule', () => {
 
   describe('eyebrow', () => {
     it('renders eyebrow when provided', () => {
-      render(<TestimonialsModule data={makeData({ eyebrow: 'Quem já conhece' })} slug="tenant" />);
+      renderWithIntl(
+        <TestimonialsModule data={makeData({ eyebrow: 'Quem já conhece' })} slug="tenant" />,
+      );
 
       expect(screen.getByTestId('section-eyebrow')).toHaveTextContent('Quem já conhece');
     });
 
     it('does not render eyebrow when absent', () => {
-      const { container } = render(<TestimonialsModule data={makeData()} slug="tenant" />);
+      const { container } = renderWithIntl(<TestimonialsModule data={makeData()} slug="tenant" />);
 
       expect(container.querySelector('[data-testid="section-eyebrow"]')).not.toBeInTheDocument();
     });

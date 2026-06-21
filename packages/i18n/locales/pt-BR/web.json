@@ -12,7 +12,11 @@
     "signOut": "Sair",
     "signInWith": "Entrar com {provider}",
     "signInError": "Erro ao entrar. Tente novamente.",
-    "pageTitle": "Entrar — {name}"
+    "pageTitle": "Entrar — {name}",
+    "myAccount": "Minha conta",
+    "heading": "Entrar na {name}",
+    "subtitle": "Entre com sua conta Google para agendar",
+    "disclaimer": "Ao continuar, você concorda com os termos de uso do Ikaro."
   },
   "booking": {
     "title": "Agendar serviço",
@@ -100,25 +104,40 @@
       "showMore": "Ver mais",
       "photoAlt": "Foto do serviço",
       "beforeLabel": "Antes",
-      "afterLabel": "Depois"
+      "afterLabel": "Depois",
+      "closeLightboxAriaLabel": "Fechar lightbox",
+      "closeAriaLabel": "Fechar"
     },
     "testimonials": {
       "defaultTitle": "O que nossos clientes dizem",
       "previousAriaLabel": "Depoimento anterior",
       "nextAriaLabel": "Próximo depoimento"
     },
-    "contact": { "phoneLabel": "Telefone" },
-    "unavailable": { "label": "Em breve" }
+    "contact": {
+      "defaultTitle": "Fale conosco",
+      "phoneLabel": "Telefone",
+      "addressLabel": "Endereço",
+      "emailLabel": "E-mail",
+      "whatsappLabel": "WhatsApp",
+      "whatsappDefaultCta": "Chamar no WhatsApp",
+      "mapTitle": "Mapa de localização"
+    },
+    "unavailable": {
+      "label": "Em breve",
+      "body": "Estamos preparando algo especial. Volte em breve!"
+    }
   },
   "notFound": {
-    "title": "Não encontrado",
+    "title": "Não encontrado — Ikaro",
     "tenantNotFound": "Tenant não encontrado",
     "tenantNotFoundDescription": "O tenant que você está procurando não existe ou foi removido.",
     "backToHome": "Voltar para o Ikaro"
   },
   "seo": {
-    "defaultSubtitle": "Agendamento Online",
-    "defaultDescription": "Agende seu serviço de forma rápida, fácil e online."
+    "defaultTitle": "{name} — Agendamento Online",
+    "defaultTitleWithLocation": "{name} — Agendamento Online em {location}",
+    "defaultDescription": "Agende seu serviço na {name}. Rápido, fácil e online.",
+    "defaultDescriptionWithLocation": "Agende seu serviço na {name}, em {location}. Rápido, fácil e online."
   },
   "errors": {
     "internalServerError": "Erro interno do servidor"

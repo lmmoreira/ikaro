@@ -761,7 +761,7 @@ Update Vitest specs to use `next-intl` test utilities.
 
 ---
 
-#### TD02-S09 — Hotsite components + pages → `next-intl`
+#### TD02-S09 — Hotsite components + pages → `next-intl` ✅ Done
 
 **Scope:**  
 Replace all hardcoded pt-BR strings in hotsite module components (`HeroModule`, `ServiceListModule`, `GalleryModule`, `GalleryItem`, `GalleryGrid`, `TestimonialsModule`, `TestimonialsCarousel`, `AboutModule`, `ContactModule`, `BookingCtaModule`, `HotsiteAuthBar`, `Unavailable`), `app/not-found.tsx`, `app/[slug]/login/page.tsx`, `apps/web/lib/api/bff-client.ts` error string, and SEO defaults in `lib/hotsite/seo.ts`.  
@@ -773,12 +773,14 @@ Add a US tenant (`country_code: 'US'`, `language: 'en'`, `currency: 'USD'`, `tim
 **Key files:** All files under `apps/web/components/hotsite/` · `apps/web/app/not-found.tsx` · `apps/web/app/[slug]/login/page.tsx` · `apps/web/lib/hotsite/seo.ts` · `apps/web/lib/api/bff-client.ts` · `apps/web/e2e/localization.spec.ts` (new)
 
 **Acceptance criteria:**
-- [ ] Zero hardcoded pt-BR strings in hotsite components and pages
-- [ ] All component Vitest specs pass
-- [ ] Default module titles read from locale file (e.g. "Our Services" for `en` tenants)
-- [ ] **E2E — BR tenant** (`/ikaro` or equivalent slug): `<html lang="pt-BR">`, prices shown as `R$ X,XX`, dates as `DD/MM/YYYY`, phone prefix `+55`, address field labelled "CEP", neighborhood field present
-- [ ] **E2E — US tenant** (`/us-demo` or equivalent slug): `<html lang="en">`, prices shown as `$X.XX`, dates as `MM/DD/YYYY`, phone prefix `+1`, address field labelled "ZIP Code", no neighborhood field
-- [ ] **E2E — BR tenant regression**: existing `guest-booking.spec.ts` golden path still passes unchanged
+- [x] Zero hardcoded pt-BR strings in hotsite components and pages
+- [x] All component Vitest specs pass
+- [x] Default module titles read from locale file (e.g. "Our Services" for `en` tenants)
+- [x] **E2E — BR tenant** (`/lavacar-beloauto`): `<html lang="pt-BR">`, prices shown as `R$ X,XX`, weekday/long-date formatting in pt-BR, phone prefix `+55`, address field labelled "CEP", neighborhood field present
+- [x] **E2E — US tenant** (`/ikaro`): `<html lang="en">`, prices shown as `$X.XX`, weekday/long-date formatting in en, phone prefix `+1`, address field labelled "ZIP Code", no neighborhood field
+- [x] **E2E — BR tenant regression**: existing `guest-booking.spec.ts` golden path still passes unchanged (verified locale-agnostic — no text assertions — so it's unaffected by the tenant-locale reassignment below)
+
+**Implementation:** Mid-story pivot on tenant assignment: rather than adding a 4th synthetic `us-demo` tenant as the spec suggested, `apps/backend/src/shared/database/seed.ts`'s `ikaro` tenant (slug `ikaro`) was reassigned to be the US-localized demo tenant (en/USD/America/New_York, services renamed "Basic Wash"/"Premium Wash"); `lavacar-beloauto`/`autospa-premium` stay pt-BR/BRL. This reuses two already richly-seeded tenants (existing bookings/loyalty/staff data) instead of a barely-populated 4th fixture, and `localization.spec.ts` targets them directly. Caused one real regression, fixed in the same commit: `hotsite-auth-bar.spec.ts` asserted hardcoded `'Entrar na'` against `/ikaro/login`, which now renders in English (`'Sign in to'`). `formatDate()`'s literal `DD/MM/YYYY`/`MM/DD/YYYY` numeric output has no UI consumer anywhere in the app (only `formatDateLong`'s weekday+month-name long form is actually rendered, in `ConfirmationStep`/`BookingSummaryCard`) — E2E date-locale coverage asserts against the real rendered weekday-abbreviation (`AvailabilityCarousel`'s day options) and long-form date text instead of inventing a numeric-format UI surface that didn't already exist. `lib/hotsite/seo.ts`'s `buildHotsiteMetadata()` was made `async` and switched from `next-intl/server`'s `getTranslations()` (ambient request-context locale) to `next-intl`'s `createTranslator()` with an explicit `resolveSupportedLocale(manifest.localization.language)` — the ambient approach couldn't satisfy `seo.spec.ts`'s existing tests, which vary `manifest.localization.language` per test case and require the function's translation choice to follow that parameter, not request-context guessing; explicit resolution is also more correct for any future caller where the manifest's tenant might differ from the request's own slug. `app/not-found.tsx` is now an async server component (`generateMetadata` + default export both call `getTranslations`) and also replaced car-wash-specific copy ("Lavacar não encontrada") with the already-prepared generic `notFound.*` keys — per the project's own page/layout testing rule this made it untestable with `render()`, so `not-found.spec.tsx` was deleted and `apps/web/app/not-found.tsx` added to `sonar.coverage.exclusions` alongside the existing `page.tsx`/`layout.tsx` entries. `bff-client.ts`'s `'Erro interno do servidor'` fallback was confirmed (via grep) to never reach end users — `BookingForm` always shows its own static `t('errors.submitFailed')` regardless of the underlying error — so it was simply translated to English (`'Internal server error'`) as an internal-only marker rather than wired through next-intl. New locale keys: `hotsite.gallery.{closeLightboxAriaLabel,closeAriaLabel}`, `hotsite.contact.{defaultTitle,addressLabel,emailLabel,whatsappLabel,whatsappDefaultCta,mapTitle}`, `hotsite.unavailable.body`, `auth.{myAccount,heading,subtitle,disclaimer}`; `seo.defaultSubtitle`/`defaultDescription` replaced with `seo.{defaultTitle,defaultTitleWithLocation,defaultDescription,defaultDescriptionWithLocation}` (ICU `{name}`/`{location}` placeholders, preserving the exact pre-existing visible copy). Separately, while resetting the local dev DB for the above: deleted `1748400000010-RebrandStaffInvitationTemplate.ts` (a fix-up migration correcting `1748100000010-CreateNotificationTemplates.ts`'s hardcoded "plataforma BeloAuto" to "plataforma Ikaro") and folded the fix directly into the original migration — safe pre-production squash, removed from `integration-global-setup.ts`'s migration list in the same commit. This was originally TD02-S10 scope; doing it now means S10 doesn't need to repeat it.
 
 ---
 
@@ -796,8 +798,8 @@ Update `booking-full-workflow.handler.integration.spec.ts` to use key-based asse
 
 **Key files:**  
 `notification/infrastructure/migrations/1748100000010-CreateNotificationTemplates.ts` · all `send-*-notification.use-case.ts` files · all `send-*-notification.use-case.spec.ts` files · `booking-full-workflow.handler.integration.spec.ts` · `seed-default-templates.use-case.spec.ts`
-apps/backend/src/contexts/notification/infrastructure/migrations/1748400000010-RebrandStaffInvitationTemplate.ts
-This one can be deleted since it was from the rebrand, we can start already rebranded
+
+> `1748400000010-RebrandStaffInvitationTemplate.ts` was already deleted in TD02-S09 (folded into `1748100000010-CreateNotificationTemplates.ts` directly) while resetting the local dev DB — nothing left to do here for that file.
 
 **Acceptance criteria:**
 - [ ] No pt-BR string literals in `.ts` files outside `packages/i18n/locales/`

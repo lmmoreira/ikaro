@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { GalleryModuleData } from '@ikaro/types';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
@@ -17,11 +18,13 @@ const headingStyle: React.CSSProperties = {
 };
 
 export function GalleryModule({ data, slug: _, bgVariant }: GalleryModuleProps) {
+  const t = useTranslations('hotsite');
+
   if (data.images.length === 0) {
     return null;
   }
 
-  const title = data.title ?? 'Nossos Resultados';
+  const title = data.title ?? t('gallery.defaultTitle');
   const bg = bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';
   const gridClass =
     data.layout === 'masonry'

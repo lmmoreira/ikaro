@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type { GalleryImage } from '@ikaro/types';
 
@@ -6,11 +7,6 @@ interface GalleryItemProps {
   readonly priority?: boolean;
 }
 
-const PHOTO_TYPE_LABELS: Record<'before' | 'after', string> = {
-  before: 'Antes',
-  after: 'Depois',
-};
-
 const badgeStyle = {
   backgroundColor: 'var(--ba-primary)',
   color: '#ffffff',
@@ -18,6 +14,12 @@ const badgeStyle = {
 };
 
 export function GalleryItem({ image, priority = false }: GalleryItemProps) {
+  const t = useTranslations('hotsite');
+  const photoTypeLabels: Record<'before' | 'after', string> = {
+    before: t('gallery.beforeLabel'),
+    after: t('gallery.afterLabel'),
+  };
+
   return (
     <div
       className="relative aspect-[4/3] w-full overflow-hidden"
@@ -25,7 +27,7 @@ export function GalleryItem({ image, priority = false }: GalleryItemProps) {
     >
       <Image
         src={image.url}
-        alt={image.caption ?? 'Foto da lavagem'}
+        alt={image.caption?.trim() || t('gallery.photoAlt')}
         fill
         loading={priority ? 'eager' : 'lazy'}
         priority={priority}
@@ -34,7 +36,7 @@ export function GalleryItem({ image, priority = false }: GalleryItemProps) {
       />
       {image.photoType && (
         <span className="absolute left-2 top-2 px-2 py-1 text-xs font-semibold" style={badgeStyle}>
-          {PHOTO_TYPE_LABELS[image.photoType]}
+          {photoTypeLabels[image.photoType]}
         </span>
       )}
       {image.caption && (

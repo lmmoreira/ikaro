@@ -24,4 +24,9 @@ describe('getMessages', () => {
     const messages = await getMessages('');
     expect((messages as { common: { back: string } }).common.back).toBe('Voltar');
   });
+
+  it('resolves a region-qualified en tag (e.g. en-US) to en messages', async () => {
+    const messages = await getMessages('en-US');
+    expect((messages as { common: { back: string } }).common.back).toBe('Back');
+  });
 });

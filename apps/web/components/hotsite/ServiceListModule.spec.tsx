@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
+import { renderWithIntl } from '@/test-utils';
 import { ServiceListModule } from './ServiceListModule';
 
 function makeData(overrides?: Partial<ServiceListModuleData>): ServiceListModuleData {
@@ -30,20 +31,24 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
 
 describe('ServiceListModule', () => {
   it('renders cards from the provided services', () => {
-    render(<ServiceListModule data={makeData()} slug="tenant" services={[makeService()]} />);
+    renderWithIntl(
+      <ServiceListModule data={makeData()} slug="tenant" services={[makeService()]} />,
+    );
 
     expect(screen.getByRole('heading', { name: 'Lavagem Completa' })).toBeInTheDocument();
     expect(screen.getByText('Lavagem externa e interna')).toBeInTheDocument();
   });
 
   it('renders the default title when none is provided', () => {
-    render(<ServiceListModule data={makeData()} slug="tenant" services={[makeService()]} />);
+    renderWithIntl(
+      <ServiceListModule data={makeData()} slug="tenant" services={[makeService()]} />,
+    );
 
     expect(screen.getByRole('heading', { name: 'Nossos Serviços' })).toBeInTheDocument();
   });
 
   it('renders a custom title when provided', () => {
-    render(
+    renderWithIntl(
       <ServiceListModule
         data={makeData({ title: 'Conheça nossos serviços' })}
         slug="tenant"
@@ -56,7 +61,7 @@ describe('ServiceListModule', () => {
 
   describe('showPrices', () => {
     it('renders the price badge when showPrices is true', () => {
-      render(
+      renderWithIntl(
         <ServiceListModule
           data={makeData({ showPrices: true })}
           slug="tenant"
@@ -68,7 +73,7 @@ describe('ServiceListModule', () => {
     });
 
     it('hides the price badge when showPrices is false', () => {
-      render(
+      renderWithIntl(
         <ServiceListModule
           data={makeData({ showPrices: false })}
           slug="tenant"
@@ -82,7 +87,7 @@ describe('ServiceListModule', () => {
 
   describe('showPoints', () => {
     it('renders the loyalty points badge when showPoints is true', () => {
-      render(
+      renderWithIntl(
         <ServiceListModule
           data={makeData({ showPoints: true })}
           slug="tenant"
@@ -94,7 +99,7 @@ describe('ServiceListModule', () => {
     });
 
     it('hides the loyalty points badge when showPoints is false', () => {
-      render(
+      renderWithIntl(
         <ServiceListModule
           data={makeData({ showPoints: false })}
           slug="tenant"
@@ -108,7 +113,7 @@ describe('ServiceListModule', () => {
 
   describe('layout', () => {
     it('renders a responsive grid for layout: grid', () => {
-      const { container } = render(
+      const { container } = renderWithIntl(
         <ServiceListModule
           data={makeData({ layout: 'grid' })}
           slug="tenant"
@@ -122,7 +127,7 @@ describe('ServiceListModule', () => {
     });
 
     it('renders a single-column list for layout: list', () => {
-      const { container } = render(
+      const { container } = renderWithIntl(
         <ServiceListModule
           data={makeData({ layout: 'list' })}
           slug="tenant"
@@ -138,14 +143,14 @@ describe('ServiceListModule', () => {
 
   describe('empty state', () => {
     it('renders the pt-BR empty-state message when there are no services', () => {
-      render(<ServiceListModule data={makeData()} slug="tenant" services={[]} />);
+      renderWithIntl(<ServiceListModule data={makeData()} slug="tenant" services={[]} />);
 
       expect(screen.getByText('Nenhum serviço disponível no momento')).toBeInTheDocument();
     });
   });
 
   it('renders the section with id="service-list"', () => {
-    const { container } = render(
+    const { container } = renderWithIntl(
       <ServiceListModule data={makeData()} slug="tenant" services={[makeService()]} />,
     );
 
@@ -154,7 +159,7 @@ describe('ServiceListModule', () => {
 
   describe('eyebrow', () => {
     it('renders eyebrow when provided', () => {
-      render(
+      renderWithIntl(
         <ServiceListModule
           data={makeData({ eyebrow: 'O que fazemos' })}
           slug="tenant"
@@ -166,7 +171,7 @@ describe('ServiceListModule', () => {
     });
 
     it('does not render eyebrow when absent', () => {
-      const { container } = render(
+      const { container } = renderWithIntl(
         <ServiceListModule data={makeData()} slug="tenant" services={[makeService()]} />,
       );
 

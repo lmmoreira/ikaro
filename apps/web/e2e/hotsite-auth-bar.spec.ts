@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('M13-S42 — Hotsite auth bar', () => {
-  test('anonymous visitor sees "Entrar" on the hotsite and reaches the tenant-branded login page', async ({
+  test('anonymous visitor sees the localized login CTA on the hotsite and reaches the tenant-branded login page', async ({
     page,
   }) => {
     await page.goto('/ikaro');
@@ -12,7 +12,7 @@ test.describe('M13-S42 — Hotsite auth bar', () => {
 
     await loginLink.click();
     await expect(page).toHaveURL('/ikaro/login');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Entrar na');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Sign in to');
 
     const googleButton = page.locator('[data-testid="google-login"]');
     await expect(googleButton).toBeVisible();

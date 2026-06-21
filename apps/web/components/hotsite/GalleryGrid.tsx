@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from 'react';
 
 interface GalleryGridProps {
@@ -21,6 +22,7 @@ const closeBtnStyle: CSSProperties = {
 };
 
 export function GalleryGrid({ children, maxVisible, totalImages }: GalleryGridProps) {
+  const t = useTranslations('hotsite');
   const [expanded, setExpanded] = useState(false);
   const [lightbox, setLightbox] = useState<{ url: string; caption: string } | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -77,7 +79,7 @@ export function GalleryGrid({ children, maxVisible, totalImages }: GalleryGridPr
             style={btnStyle}
             className="inline-block border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 hover:bg-[var(--ba-btn-hover-bg)]"
           >
-            Ver mais
+            {t('gallery.showMore')}
           </button>
         </div>
       )}
@@ -99,7 +101,7 @@ export function GalleryGrid({ children, maxVisible, totalImages }: GalleryGridPr
       >
         <button
           type="button"
-          aria-label="Fechar lightbox"
+          aria-label={t('gallery.closeLightboxAriaLabel')}
           onClick={() => setLightbox(null)}
           style={{
             position: 'fixed',
@@ -114,7 +116,7 @@ export function GalleryGrid({ children, maxVisible, totalImages }: GalleryGridPr
             <button
               type="button"
               onClick={() => setLightbox(null)}
-              aria-label="Fechar"
+              aria-label={t('gallery.closeAriaLabel')}
               style={closeBtnStyle}
               className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center shadow-lg hover:bg-white"
             >
@@ -122,7 +124,7 @@ export function GalleryGrid({ children, maxVisible, totalImages }: GalleryGridPr
             </button>
             <img
               src={lightbox.url}
-              alt={lightbox.caption || 'Foto da lavagem'}
+              alt={lightbox.caption || t('gallery.photoAlt')}
               style={{
                 maxWidth: 'min(85vw, 1200px)',
                 maxHeight: '85dvh',

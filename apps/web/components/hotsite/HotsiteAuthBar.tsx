@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { getHotsiteCustomerProfile } from '@/lib/api/customers';
@@ -21,6 +22,7 @@ function getInitials(name: string): string {
 }
 
 export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps) {
+  const t = useTranslations('auth');
   const [state, setState] = useState<AuthBarState>({ status: 'loading' });
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps) {
               className="block px-4 py-2.5 text-sm font-medium"
               style={{ color: 'var(--ba-text)' }}
             >
-              Minha conta
+              {t('myAccount')}
             </a>
             <hr style={{ borderColor: 'var(--ba-background)' }} />
             <a
@@ -78,7 +80,7 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps) {
               className="block px-4 py-2.5 text-sm opacity-60"
               style={{ color: 'var(--ba-text)' }}
             >
-              Sair
+              {t('signOut')}
             </a>
           </div>
         </details>
@@ -90,7 +92,7 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps) {
           className="text-sm font-medium"
           style={{ color: 'var(--ba-primary)' }}
         >
-          Entrar
+          {t('signIn')}
         </a>
       )}
     </div>

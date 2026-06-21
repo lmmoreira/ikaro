@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { createTranslator } from 'next-intl';
 import type { HotsiteManifestResponse } from '@ikaro/types';
+import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
 
 function stripTrailingSlashes(value: string): string {
   let result = value;
@@ -19,24 +21,28 @@ export interface BuildHotsiteMetadataParams {
   readonly path?: string;
 }
 
-export function buildHotsiteMetadata({
+export async function buildHotsiteMetadata({
   manifest,
   slug,
   path = '',
-}: BuildHotsiteMetadataParams): Metadata {
+}: BuildHotsiteMetadataParams): Promise<Metadata> {
   const url = `${SITE_URL}/${slug}${path}`;
   const location = manifest.business.address
     ? `${manifest.business.address.city}, ${manifest.business.address.state}`
     : null;
+  const locale = resolveSupportedLocale(manifest.localization.language);
+  const messages = (await getMessages(locale)) as IntlMessages;
+  const t = createTranslator<IntlMessages, 'seo'>({ locale, messages, namespace: 'seo' });
+  const name = manifest.tenant.name;
   const defaultTitle = location
-    ? `${manifest.tenant.name} — Agendamento Online em ${location}`
-    : `${manifest.tenant.name} — Agendamento Online`;
+    ? t('defaultTitleWithLocation', { name, location })
+    : t('defaultTitle', { name });
   const defaultDescription = location
-    ? `Agende seu serviço na ${manifest.tenant.name}, em ${location}. Rápido, fácil e online.`
-    : `Agende seu serviço na ${manifest.tenant.name}. Rápido, fácil e online.`;
+    ? t('defaultDescriptionWithLocation', { name, location })
+    : t('defaultDescription', { name });
   const title = manifest.seo.title ?? defaultTitle;
   const description = manifest.seo.description ?? defaultDescription;
-  const locale = manifest.localization.language.replaceAll('-', '_');
+  const openGraphLocale = manifest.localization.language.replaceAll('-', '_');
 
   return {
     title,
@@ -47,7 +53,7 @@ export function buildHotsiteMetadata({
       description,
       url,
       siteName: 'Ikaro',
-      locale,
+      locale: openGraphLocale,
       type: 'website',
       images: manifest.branding.logoUrl
         ? [{ url: manifest.branding.logoUrl, width: 1200, height: 630 }]

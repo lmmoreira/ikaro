@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getHotsiteCustomerProfile } from '@/lib/api/customers';
+import { renderWithIntl } from '@/test-utils';
 import { HotsiteAuthBar } from './HotsiteAuthBar';
 
 vi.mock('@/lib/api/customers', () => ({
@@ -24,7 +25,7 @@ describe('HotsiteAuthBar', () => {
   it('renders nothing visible while the profile request is pending', () => {
     vi.mocked(getHotsiteCustomerProfile).mockReturnValue(new Promise(() => {}));
 
-    render(<HotsiteAuthBar slug="lavacar-beloauto" />);
+    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
 
     expect(screen.queryByText('Entrar')).not.toBeInTheDocument();
     expect(screen.queryByText('Minha conta')).not.toBeInTheDocument();
@@ -33,7 +34,7 @@ describe('HotsiteAuthBar', () => {
   it('renders "Entrar" linking to /{slug}/login when unauthenticated', async () => {
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
 
-    render(<HotsiteAuthBar slug="lavacar-beloauto" />);
+    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
 
     const link = await screen.findByText('Entrar');
     expect(link).toHaveAttribute('href', '/lavacar-beloauto/login');
@@ -48,7 +49,7 @@ describe('HotsiteAuthBar', () => {
       defaultAddress: null,
     });
 
-    render(<HotsiteAuthBar slug="lavacar-beloauto" />);
+    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
 
     expect(await screen.findByText('João Silva')).toBeInTheDocument();
     expect(screen.getByText('JS')).toBeInTheDocument();
@@ -64,7 +65,7 @@ describe('HotsiteAuthBar', () => {
     });
     process.env.NEXT_PUBLIC_BFF_URL = 'http://bff-test:3002/v1';
 
-    render(<HotsiteAuthBar slug="lavacar-beloauto" />);
+    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
     await screen.findByText('João Silva');
 
     const summary = screen.getByText('João Silva').closest('summary');

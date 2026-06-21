@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
 import { formatDuration } from '@/lib/formatting/format-duration';
@@ -24,6 +25,7 @@ interface ServiceCardProps {
 }
 
 function ServiceCard({ service, showPrices, showPoints, cardBg }: ServiceCardProps) {
+  const t = useTranslations('hotsite');
   const cardStyle: React.CSSProperties = {
     backgroundColor: cardBg,
     borderRadius: 'var(--ba-radius)',
@@ -49,7 +51,7 @@ function ServiceCard({ service, showPrices, showPoints, cardBg }: ServiceCardPro
       </div>
       {showPoints && (
         <span className="text-xs opacity-75" data-testid="loyalty-points-badge">
-          +{service.loyaltyPointsValue} pontos
+          {t('services.pointsSuffix', { count: service.loyaltyPointsValue })}
         </span>
       )}
     </li>
@@ -57,7 +59,8 @@ function ServiceCard({ service, showPrices, showPoints, cardBg }: ServiceCardPro
 }
 
 export function ServiceListModule({ data, services, slug: _, bgVariant }: ServiceListModuleProps) {
-  const title = data.title ?? 'Nossos Serviços';
+  const t = useTranslations('hotsite');
+  const title = data.title ?? t('services.defaultTitle');
   const bg = bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';
   // Cards must contrast with the section bg — use the opposite surface color.
   const cardBg = bgVariant === 'alt' ? 'var(--ba-background)' : 'var(--ba-secondary)';
@@ -85,7 +88,7 @@ export function ServiceListModule({ data, services, slug: _, bgVariant }: Servic
           {title}
         </h2>
         {services.length === 0 ? (
-          <p className="text-center opacity-75">Nenhum serviço disponível no momento</p>
+          <p className="text-center opacity-75">{t('services.empty')}</p>
         ) : (
           <ul className={listClassName}>
             {services.map((service) => (

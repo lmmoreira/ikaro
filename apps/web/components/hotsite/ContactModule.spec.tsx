@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { ContactModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
+import { renderWithIntl } from '@/test-utils';
 import { ContactModule } from './ContactModule';
 
 function makeBusiness(
@@ -36,13 +37,13 @@ function makeData(overrides?: Partial<ContactModuleData>): ContactModuleData {
 
 describe('ContactModule', () => {
   it('renders the default title when none is provided', () => {
-    render(<ContactModule data={makeData()} business={makeBusiness()} slug="tenant" />);
+    renderWithIntl(<ContactModule data={makeData()} business={makeBusiness()} slug="tenant" />);
 
     expect(screen.getByRole('heading', { name: 'Fale conosco' })).toBeInTheDocument();
   });
 
   it('renders a custom title when provided', () => {
-    render(
+    renderWithIntl(
       <ContactModule
         data={makeData({ title: 'Contato' })}
         business={makeBusiness()}
@@ -54,7 +55,7 @@ describe('ContactModule', () => {
   });
 
   it('renders no <iframe> when showMap is false', () => {
-    const { container } = render(
+    const { container } = renderWithIntl(
       <ContactModule data={makeData({ showMap: false })} business={makeBusiness()} slug="tenant" />,
     );
 
@@ -62,7 +63,7 @@ describe('ContactModule', () => {
   });
 
   it('renders no <iframe> when showMap is true but business.address is null', () => {
-    const { container } = render(
+    const { container } = renderWithIntl(
       <ContactModule
         data={makeData({ showMap: true })}
         business={makeBusiness({ address: null })}
@@ -74,7 +75,7 @@ describe('ContactModule', () => {
   });
 
   it('renders no WhatsApp link when showWhatsapp is false', () => {
-    render(
+    renderWithIntl(
       <ContactModule
         data={makeData({ showWhatsapp: false })}
         business={makeBusiness()}
@@ -86,7 +87,7 @@ describe('ContactModule', () => {
   });
 
   it('renders the WhatsApp link to wa.me with digits-only number from business.socialLinks', () => {
-    render(
+    renderWithIntl(
       <ContactModule
         data={makeData()}
         business={makeBusiness({
@@ -102,7 +103,7 @@ describe('ContactModule', () => {
   });
 
   it('renders no address block when showAddress is false', () => {
-    render(
+    renderWithIntl(
       <ContactModule
         data={makeData({ showAddress: false })}
         business={makeBusiness()}
@@ -114,7 +115,7 @@ describe('ContactModule', () => {
   });
 
   it('renders no address block when showAddress is true but business.address is null', () => {
-    render(
+    renderWithIntl(
       <ContactModule
         data={makeData({ showAddress: true })}
         business={makeBusiness({ address: null })}
@@ -126,7 +127,7 @@ describe('ContactModule', () => {
   });
 
   it('renders no phone when showPhone is true but business.phone is null', () => {
-    render(
+    renderWithIntl(
       <ContactModule
         data={makeData({ showPhone: true })}
         business={makeBusiness({ phone: null })}
@@ -138,7 +139,7 @@ describe('ContactModule', () => {
   });
 
   it('renders no email when showEmail is true but business.email is null', () => {
-    render(
+    renderWithIntl(
       <ContactModule
         data={makeData({ showEmail: true })}
         business={makeBusiness({ email: null })}
@@ -150,7 +151,7 @@ describe('ContactModule', () => {
   });
 
   it('renders Instagram and Facebook links from business.socialLinks', () => {
-    render(
+    renderWithIntl(
       <ContactModule
         data={makeData()}
         business={makeBusiness({
@@ -175,7 +176,7 @@ describe('ContactModule', () => {
   });
 
   it('does not render social links when business.socialLinks is null', () => {
-    render(
+    renderWithIntl(
       <ContactModule
         data={makeData()}
         business={makeBusiness({ socialLinks: null })}
@@ -190,7 +191,7 @@ describe('ContactModule', () => {
 
   describe('eyebrow', () => {
     it('renders eyebrow when provided', () => {
-      render(
+      renderWithIntl(
         <ContactModule
           data={makeData({ eyebrow: 'Vem nos visitar' })}
           business={makeBusiness()}
@@ -202,7 +203,7 @@ describe('ContactModule', () => {
     });
 
     it('does not render eyebrow when absent', () => {
-      const { container } = render(
+      const { container } = renderWithIntl(
         <ContactModule data={makeData()} business={makeBusiness()} slug="tenant" />,
       );
 
@@ -212,7 +213,7 @@ describe('ContactModule', () => {
 
   describe('displayStyle: icon-cards', () => {
     it('renders icon rows instead of plain text when displayStyle is "icon-cards"', () => {
-      const { container } = render(
+      const { container } = renderWithIntl(
         <ContactModule
           data={makeData({ displayStyle: 'icon-cards' })}
           business={makeBusiness()}
@@ -226,7 +227,7 @@ describe('ContactModule', () => {
 
   describe('showInstagram / showFacebook toggles', () => {
     it('hides Instagram when showInstagram is false even if URL exists', () => {
-      render(
+      renderWithIntl(
         <ContactModule
           data={makeData({ showInstagram: false })}
           business={makeBusiness({
@@ -244,7 +245,7 @@ describe('ContactModule', () => {
     });
 
     it('hides Facebook when showFacebook is false even if URL exists', () => {
-      render(
+      renderWithIntl(
         <ContactModule
           data={makeData({ showFacebook: false })}
           business={makeBusiness({
@@ -260,7 +261,7 @@ describe('ContactModule', () => {
 
   describe('whatsappCtaLabel', () => {
     it('uses custom label for the WhatsApp link when whatsappCtaLabel is provided', () => {
-      render(
+      renderWithIntl(
         <ContactModule
           data={makeData({ whatsappCtaLabel: 'Chamar no WhatsApp' })}
           business={makeBusiness()}

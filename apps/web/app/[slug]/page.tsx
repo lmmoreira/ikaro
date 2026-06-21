@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import type { HotsiteModuleType } from '@ikaro/types';
 import { fetchManifest } from '@/lib/api/platform';
 import { fetchServices } from '@/lib/api/services';
@@ -46,10 +47,11 @@ export async function generateMetadata({ params }: HotsitePageProps): Promise<Me
   const manifest = await fetchManifest(slug);
 
   if (!manifest.isPublished) {
-    return { title: 'Em breve — Ikaro', robots: { index: false, follow: false } };
+    const t = await getTranslations('hotsite');
+    return { title: `${t('unavailable.label')} — Ikaro`, robots: { index: false, follow: false } };
   }
 
-  return buildHotsiteMetadata({ manifest, slug });
+  return await buildHotsiteMetadata({ manifest, slug });
 }
 
 export default async function HotsitePage({ params }: HotsitePageProps) {
