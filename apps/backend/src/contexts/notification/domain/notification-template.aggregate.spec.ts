@@ -5,6 +5,7 @@ const BASE_PROPS = {
   tenantId: '10000000-0000-4000-8000-000000000001',
   triggerEvent: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
   channel: 'EMAIL' as const,
+  locale: 'pt-BR',
   subject: 'Olá, {{customerName}}!',
   body: '<p>Seu agendamento em {{localDate}} às {{localTime}} foi confirmado.</p>',
 };
@@ -16,6 +17,7 @@ describe('NotificationTemplate', () => {
       expect(t.triggerEvent).toBe(NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER);
       expect(t.channel).toBe('EMAIL');
       expect(t.tenantId).toBe(BASE_PROPS.tenantId);
+      expect(t.locale).toBe('pt-BR');
     });
 
     it('accepts null tenantId for global defaults', () => {
@@ -99,6 +101,7 @@ describe('NotificationTemplate', () => {
         tenantId: BASE_PROPS.tenantId,
         triggerEvent: BASE_PROPS.triggerEvent,
         channel: BASE_PROPS.channel,
+        locale: BASE_PROPS.locale,
         subject: BASE_PROPS.subject,
         body: BASE_PROPS.body,
         updatedAt: new Date('2026-01-01T00:00:00Z'),

@@ -295,70 +295,67 @@ describe('Story: full booking lifecycle → event bus → all notification email
     expect(logTypes).toContain('booking-rescheduled-admin');
     expect(logTypes).toContain('service-points-earned');
 
-    // Assert recipients
+    // Assert recipients — by notificationType (= NotificationTemplateKey) and recipient email,
+    // never by parsing subject text. Subject content is sourced from ILocalizationPort and is
+    // free to change wording without breaking this test (TD02-S10).
     const d = dispatcher.dispatched;
 
-    const staffMsg = d.find((m) => m.subject.includes('convidado') && m.to === adminEmail);
+    const staffMsg = d.find(
+      (m) => m.notificationType === 'staff-invitation' && m.to === adminEmail,
+    );
     expect(staffMsg).toBeDefined();
 
     const requestedAdminMsgs = d.filter(
-      (m) =>
-        (m.to === adminEmail && m.subject.includes('agendamento recebido')) ||
-        (m.to === adminEmail && m.subject.includes('Novo agendamento')),
+      (m) => m.notificationType === 'booking-requested-admin' && m.to === adminEmail,
     );
     expect(requestedAdminMsgs.length).toBeGreaterThanOrEqual(1);
 
     const requestedCustomerMsgs = d.filter(
-      (m) =>
-        m.subject.includes('Solicitação de agendamento') ||
-        m.subject.includes('agendamento foi recebido'),
+      (m) => m.notificationType === 'booking-requested-customer',
     );
     expect(requestedCustomerMsgs.length).toBeGreaterThanOrEqual(1);
 
     const infoReqMsg = d.find(
-      (m) =>
-        m.to === customerEmail &&
-        (m.subject.includes('informações') || m.subject.includes('mais informações')),
+      (m) => m.notificationType === 'booking-info-requested-customer' && m.to === customerEmail,
     );
     expect(infoReqMsg).toBeDefined();
 
-    const infoSubmitMsg = d.find((m) => m.to === adminEmail && m.subject.includes('respondeu'));
+    const infoSubmitMsg = d.find(
+      (m) => m.notificationType === 'booking-info-submitted-admin' && m.to === adminEmail,
+    );
     expect(infoSubmitMsg).toBeDefined();
 
-    const approvedMsgs = d.filter((m) => m.subject.includes('confirmado'));
+    const approvedMsgs = d.filter((m) => m.notificationType === 'booking-approved-customer');
     expect(approvedMsgs.map((m) => m.to)).toContain(customerEmail);
 
     const rejectedMsg = d.find(
-      (m) =>
-        m.to === contactEmail &&
-        (m.subject.includes('não confirmado') || m.subject.includes('pedido')),
+      (m) => m.notificationType === 'booking-rejected-customer' && m.to === contactEmail,
     );
     expect(rejectedMsg).toBeDefined();
 
     const cancelledCustomerMsg = d.find(
-      (m) => m.to === customerEmail && m.subject.includes('cancelado'),
+      (m) => m.notificationType === 'booking-cancelled-customer' && m.to === customerEmail,
     );
     expect(cancelledCustomerMsg).toBeDefined();
 
     const cancelledAdminMsg = d.find(
-      (m) =>
-        m.to === adminEmail &&
-        m.subject.includes('cancelado') &&
-        m.subject !== cancelledCustomerMsg?.subject,
+      (m) => m.notificationType === 'booking-cancelled-admin' && m.to === adminEmail,
     );
     expect(cancelledAdminMsg).toBeDefined();
 
     const rescheduledCustomerMsg = d.find(
-      (m) => m.to === booking3GuestEmail && m.subject.includes('reagendado'),
+      (m) => m.notificationType === 'booking-rescheduled-customer' && m.to === booking3GuestEmail,
     );
     expect(rescheduledCustomerMsg).toBeDefined();
 
     const rescheduledAdminMsg = d.find(
-      (m) => m.to === adminEmail && m.subject.includes('reagendado'),
+      (m) => m.notificationType === 'booking-rescheduled-admin' && m.to === adminEmail,
     );
     expect(rescheduledAdminMsg).toBeDefined();
 
-    const pointsMsg = d.find((m) => m.to === customerEmail && m.subject.includes('pontos'));
+    const pointsMsg = d.find(
+      (m) => m.notificationType === 'service-points-earned' && m.to === customerEmail,
+    );
     expect(pointsMsg).toBeDefined();
   });
 

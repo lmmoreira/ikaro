@@ -50,15 +50,15 @@ export class TypeOrmNotificationTemplateRepository implements INotificationTempl
     }
   }
 
-  async copyGlobalDefaultsForTenant(tenantId: string): Promise<number> {
+  async copyGlobalDefaultsForTenant(tenantId: string, locale: string): Promise<number> {
     const result: { rowCount?: number } | null = await this.dataSource.query(
       `INSERT INTO notification.notification_templates
-         (id, tenant_id, trigger_event, channel, subject, body, created_at, updated_at)
-       SELECT gen_random_uuid(), $1::uuid, trigger_event, channel, subject, body, now(), now()
+         (id, tenant_id, trigger_event, channel, locale, subject, body, created_at, updated_at)
+       SELECT gen_random_uuid(), $1::uuid, trigger_event, channel, locale, subject, body, now(), now()
        FROM notification.notification_templates
-       WHERE tenant_id IS NULL
+       WHERE tenant_id IS NULL AND locale = $2
        ON CONFLICT DO NOTHING`,
-      [tenantId],
+      [tenantId, locale],
     );
     return result?.rowCount ?? 0;
   }
@@ -69,6 +69,7 @@ export class TypeOrmNotificationTemplateRepository implements INotificationTempl
       tenantId: entity.tenantId,
       triggerEvent: entity.triggerEvent,
       channel: entity.channel as NotificationChannel,
+      locale: entity.locale,
       subject: entity.subject,
       body: entity.body,
       updatedAt: entity.updatedAt,
@@ -81,6 +82,7 @@ export class TypeOrmNotificationTemplateRepository implements INotificationTempl
     entity.tenantId = template.tenantId;
     entity.triggerEvent = template.triggerEvent;
     entity.channel = template.channel;
+    entity.locale = template.locale;
     entity.subject = template.subject;
     entity.body = template.body;
     entity.createdAt = new Date();

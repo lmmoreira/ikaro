@@ -148,6 +148,7 @@ describe('TypeOrmNotificationTemplateRepository', () => {
           tenantId: TENANT_ID,
           triggerEvent: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
           channel: 'EMAIL',
+          locale: 'pt-BR',
           subject: 'Aprovado',
           body: '<p>Ok</p>',
         }),
@@ -171,6 +172,7 @@ describe('TypeOrmNotificationTemplateRepository', () => {
           tenantId: TENANT_ID,
           triggerEvent: NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
           channel: 'EMAIL',
+          locale: 'pt-BR',
           subject: 'Aprovado',
           body: '<p>Ok</p>',
         }),
@@ -185,14 +187,17 @@ describe('TypeOrmNotificationTemplateRepository', () => {
 
   describe('copyGlobalDefaultsForTenant', () => {
     it('executes INSERT...SELECT and returns rowCount', async () => {
-      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID);
+      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
-      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO'), [TENANT_ID]);
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO'), [
+        TENANT_ID,
+        'pt-BR',
+      ]);
       expect(result).toBe(16);
     });
 
     it('uses ON CONFLICT DO NOTHING for idempotency', async () => {
-      await repo.copyGlobalDefaultsForTenant(TENANT_ID);
+      await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
       expect(mockQuery.mock.calls[0][0] as string).toContain('ON CONFLICT DO NOTHING');
     });
@@ -200,7 +205,7 @@ describe('TypeOrmNotificationTemplateRepository', () => {
     it('returns 0 when query result has no rowCount', async () => {
       mockQuery.mockResolvedValueOnce(null);
 
-      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID);
+      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
       expect(result).toBe(0);
     });
@@ -208,7 +213,7 @@ describe('TypeOrmNotificationTemplateRepository', () => {
     it('returns 0 when rowCount is undefined', async () => {
       mockQuery.mockResolvedValueOnce({ rowCount: undefined });
 
-      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID);
+      const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
       expect(result).toBe(0);
     });

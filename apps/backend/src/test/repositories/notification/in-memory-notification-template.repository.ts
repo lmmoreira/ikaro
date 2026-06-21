@@ -34,8 +34,8 @@ export class InMemoryNotificationTemplateRepository implements INotificationTemp
     }
   }
 
-  async copyGlobalDefaultsForTenant(tenantId: string): Promise<number> {
-    const defaults = this.store.filter((t) => t.tenantId === null);
+  async copyGlobalDefaultsForTenant(tenantId: string, locale: string): Promise<number> {
+    const defaults = this.store.filter((t) => t.tenantId === null && t.locale === locale);
     const copies = defaults
       .filter(
         (d) =>
@@ -51,6 +51,7 @@ export class InMemoryNotificationTemplateRepository implements INotificationTemp
           tenantId,
           triggerEvent: d.triggerEvent,
           channel: d.channel as 'EMAIL' | 'SMS' | 'WHATSAPP',
+          locale: d.locale,
           subject: d.subject,
           body: d.body,
         }),

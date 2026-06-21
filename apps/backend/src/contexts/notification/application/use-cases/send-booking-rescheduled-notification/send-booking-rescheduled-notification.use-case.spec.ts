@@ -4,6 +4,7 @@ import { InMemoryNotificationProcessedEventRepository } from '../../../../../tes
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingRescheduledNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -48,8 +49,9 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER,
         channel: 'EMAIL',
-        subject: 'Seu agendamento foi reagendado',
-        body: '<p>Olá, {{contactName}}! Anterior: {{previousLocalDate}} {{previousLocalTime}} Novo: {{newLocalDate}} {{newLocalTime}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
     templateRepo.seed(
@@ -57,10 +59,20 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN,
         channel: 'EMAIL',
-        subject: 'Agendamento reagendado',
-        body: '<p>Cliente: {{contactName}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    const localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('BookingRescheduled:customer', {
+      subject: 'Seu agendamento foi reagendado',
+      body: '<p>Olá, {{contactName}}! Anterior: {{previousLocalDate}} {{previousLocalTime}} Novo: {{newLocalDate}} {{newLocalTime}}</p>',
+    });
+    localizationPort.setTemplate('BookingRescheduled:admin', {
+      subject: 'Agendamento reagendado',
+      body: '<p>Cliente: {{contactName}}</p>',
+    });
     useCase = new SendBookingRescheduledNotificationUseCase(
       logRepo,
       processedEventRepo,
@@ -69,6 +81,7 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      localizationPort,
     );
   });
 

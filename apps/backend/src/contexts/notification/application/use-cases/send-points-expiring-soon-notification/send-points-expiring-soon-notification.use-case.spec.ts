@@ -3,6 +3,8 @@ import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructu
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
 import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendPointsExpiringSoonNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -44,10 +46,16 @@ describe('SendPointsExpiringSoonNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.POINTS_EXPIRING_SOON,
         channel: 'EMAIL',
-        subject: 'Seus pontos de fidelidade estão prestes a expirar!',
-        body: '<p>{{customerName}} — {{pointsExpiringSoon}} pontos expirando em {{earliestExpiresAt}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    const localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('PointsExpiringSoon:customer', {
+      subject: 'Seus pontos de fidelidade estão prestes a expirar!',
+      body: '<p>{{customerName}} — {{pointsExpiringSoon}} pontos expirando em {{earliestExpiresAt}}</p>',
+    });
 
     useCase = new SendPointsExpiringSoonNotificationUseCase(
       logRepo,
@@ -56,6 +64,8 @@ describe('SendPointsExpiringSoonNotificationUseCase', () => {
       customerPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      new InMemoryNotificationPlatformPort(),
+      localizationPort,
     );
   });
 

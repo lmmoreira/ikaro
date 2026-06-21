@@ -4,6 +4,7 @@ import { InMemoryNotificationProcessedEventRepository } from '../../../../../tes
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingCancelledNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -48,8 +49,9 @@ describe('SendBookingCancelledNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_CANCELLED_CUSTOMER,
         channel: 'EMAIL',
-        subject: 'Seu agendamento foi cancelado',
-        body: '<p>Olá, {{contactName}}! Serviços: {{serviceNames}} Data: {{localDate}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
     templateRepo.seed(
@@ -57,10 +59,20 @@ describe('SendBookingCancelledNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
         channel: 'EMAIL',
-        subject: 'Agendamento cancelado',
-        body: '<p>Cliente: {{contactName}} isBusiness: {{isBusiness}} reason: {{reason}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    const localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('BookingCancelled:customer', {
+      subject: 'Seu agendamento foi cancelado',
+      body: '<p>Olá, {{contactName}}! Serviços: {{serviceNames}} Data: {{localDate}}</p>',
+    });
+    localizationPort.setTemplate('BookingCancelled:admin', {
+      subject: 'Agendamento cancelado',
+      body: '<p>Cliente: {{contactName}} isBusiness: {{isBusiness}} reason: {{reason}}</p>',
+    });
     useCase = new SendBookingCancelledNotificationUseCase(
       logRepo,
       processedEventRepo,
@@ -69,6 +81,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      localizationPort,
     );
   });
 

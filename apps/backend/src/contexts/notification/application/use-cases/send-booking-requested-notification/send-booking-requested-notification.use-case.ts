@@ -31,6 +31,7 @@ import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
+import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 export interface SendBookingRequestedNotificationUseCaseResult {
@@ -50,6 +51,7 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
+    @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
   ) {
     super(logRepo, processedEventRepo, dispatcher, txManager);
   }
@@ -74,6 +76,20 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
 
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? 'pt-BR';
+    this.localizeTemplates(
+      adminTemplates,
+      this.localizationPort,
+      'BookingRequested',
+      'admin',
+      locale,
+    );
+    this.localizeTemplates(
+      customerTemplates,
+      this.localizationPort,
+      'BookingRequested',
+      'customer',
+      locale,
+    );
     const formattedPrice = formatMoney(dto.totalPrice.amount, locale, dto.totalPrice.currency);
     const scheduledDate = new Date(dto.scheduledAt);
     const localDate = utcDateToLocalDate(scheduledDate, timezone);

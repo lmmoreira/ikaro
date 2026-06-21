@@ -31,6 +31,7 @@ import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
+import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 export interface SendBookingCancelledNotificationUseCaseResult {
@@ -50,6 +51,7 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
+    @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
   ) {
     super(logRepo, processedEventRepo, dispatcher, txManager);
   }
@@ -76,6 +78,20 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
         NotificationTemplateKey.BOOKING_CANCELLED_ADMIN,
       ),
     ]);
+    this.localizeTemplates(
+      customerTemplates,
+      this.localizationPort,
+      'BookingCancelled',
+      'customer',
+      locale,
+    );
+    this.localizeTemplates(
+      adminTemplates,
+      this.localizationPort,
+      'BookingCancelled',
+      'admin',
+      locale,
+    );
 
     const variables: Record<string, string> = {
       contactName: dto.contactName,

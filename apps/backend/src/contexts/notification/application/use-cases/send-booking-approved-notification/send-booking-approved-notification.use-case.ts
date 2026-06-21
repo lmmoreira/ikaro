@@ -27,9 +27,12 @@ import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
+import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER;
+const EVENT_NAME = 'BookingApproved';
+const RECIPIENT_TYPE = 'customer';
 
 export interface SendBookingApprovedNotificationUseCaseResult {
   emailSent: boolean;
@@ -46,6 +49,7 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
+    @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
   ) {
     super(logRepo, processedEventRepo, dispatcher, txManager);
   }
@@ -65,6 +69,7 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? 'pt-BR';
+    this.localizeTemplates(templates, this.localizationPort, EVENT_NAME, RECIPIENT_TYPE, locale);
     const startDate = new Date(dto.approvedSlot.startTime);
     const localDate = utcDateToLocalDate(startDate, timezone);
     const localTime = utcDateToLocalHHMM(startDate, timezone);

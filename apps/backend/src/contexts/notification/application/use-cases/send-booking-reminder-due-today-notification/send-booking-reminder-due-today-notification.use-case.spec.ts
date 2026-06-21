@@ -3,6 +3,7 @@ import { InMemoryNotificationLogRepository } from '../../../../../test/repositor
 import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingReminderDueNotificationDtoBuilder } from '../../../../../test/builders/notification/send-booking-reminder-due-notification-dto.builder';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -45,10 +46,16 @@ describe('SendBookingReminderDueTodayNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_REMINDER_DUE_TODAY,
         channel: 'EMAIL',
-        subject: 'Lembrete: seu agendamento é hoje!',
-        body: '<p>{{customerName}} — {{serviceNames}} — {{localDate}} {{localTime}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    const localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('BookingReminderDueToday:customer', {
+      subject: 'Lembrete: seu agendamento é hoje!',
+      body: '<p>{{customerName}} — {{serviceNames}} — {{localDate}} {{localTime}}</p>',
+    });
 
     useCase = new SendBookingReminderDueTodayNotificationUseCase(
       logRepo,
@@ -57,6 +64,7 @@ describe('SendBookingReminderDueTodayNotificationUseCase', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      localizationPort,
     );
   });
 

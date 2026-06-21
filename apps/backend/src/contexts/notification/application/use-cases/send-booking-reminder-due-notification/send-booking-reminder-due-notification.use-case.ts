@@ -24,6 +24,7 @@ import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
+import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { BaseBookingReminderNotificationUseCase } from '../base-booking-reminder-notification.use-case';
 
 export { BookingReminderNotificationUseCaseResult as SendBookingReminderDueNotificationUseCaseResult } from '../base-booking-reminder-notification.use-case';
@@ -31,6 +32,7 @@ export { BookingReminderNotificationUseCaseResult as SendBookingReminderDueNotif
 @Injectable()
 export class SendBookingReminderDueNotificationUseCase extends BaseBookingReminderNotificationUseCase {
   protected readonly reminderTemplateKey = NotificationTemplateKey.BOOKING_REMINDER_DUE;
+  protected readonly eventName = 'BookingReminderDue';
 
   constructor(
     @Inject(NOTIFICATION_LOG_REPOSITORY) logRepo: INotificationLogRepository,
@@ -40,7 +42,16 @@ export class SendBookingReminderDueNotificationUseCase extends BaseBookingRemind
     @Inject(NOTIFICATION_PLATFORM_PORT) tenantPort: INotificationPlatformPort,
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY) templateRepo: INotificationTemplateRepository,
+    @Inject(LOCALIZATION_PORT) localizationPort: ILocalizationPort,
   ) {
-    super(logRepo, processedEventRepo, dispatcher, tenantPort, txManager, templateRepo);
+    super(
+      logRepo,
+      processedEventRepo,
+      dispatcher,
+      tenantPort,
+      txManager,
+      templateRepo,
+      localizationPort,
+    );
   }
 }

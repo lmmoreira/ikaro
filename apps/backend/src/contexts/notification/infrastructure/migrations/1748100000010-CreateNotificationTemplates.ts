@@ -1,4 +1,62 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
+import { NOTIFICATION_TEMPLATE_KEY_MAPPING } from '../../domain/notification-template-key.mapping';
+
+// TD02-S10 — global default templates are seeded directly from packages/i18n/locales/<locale>/
+// notifications.json (one row per trigger_event x locale) instead of inline pt-BR literals, so
+// the locale file stays the single source of truth and the migration can't drift from it.
+const SEED_LOCALES = ['pt-BR', 'en'] as const;
+
+interface LocalizedTemplate {
+  subject: string;
+  body: string;
+}
+
+type NotificationsFile = Record<string, Record<string, LocalizedTemplate>>;
+
+interface SeedRow {
+  triggerEvent: string;
+  channel: string;
+  locale: string;
+  subject: string;
+  body: string;
+}
+
+function readNotificationsFile(locale: string): NotificationsFile {
+  const path = join(
+    dirname(require.resolve('@ikaro/i18n/package.json')),
+    'locales',
+    locale,
+    'notifications.json',
+  );
+  return JSON.parse(readFileSync(path, 'utf-8')) as NotificationsFile;
+}
+
+function buildSeedRows(): SeedRow[] {
+  const rows: SeedRow[] = [];
+  for (const locale of SEED_LOCALES) {
+    const file = readNotificationsFile(locale);
+    for (const triggerEvent of Object.values(NotificationTemplateKey)) {
+      const { eventName, recipientType } = NOTIFICATION_TEMPLATE_KEY_MAPPING[triggerEvent];
+      const template = file[eventName]?.[recipientType];
+      if (!template) {
+        throw new Error(
+          `Missing notification template for event "${eventName}" / recipient "${recipientType}" in locale "${locale}" (trigger_event "${triggerEvent}")`,
+        );
+      }
+      rows.push({
+        triggerEvent,
+        channel: 'EMAIL',
+        locale,
+        subject: template.subject,
+        body: template.body,
+      });
+    }
+  }
+  return rows;
+}
 
 export class CreateNotificationTemplates1748100000010 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -8,6 +66,7 @@ export class CreateNotificationTemplates1748100000010 implements MigrationInterf
         "tenant_id"     UUID          NULL,
         "trigger_event" VARCHAR(100)  NOT NULL,
         "channel"       VARCHAR(20)   NOT NULL DEFAULT 'EMAIL',
+        "locale"        VARCHAR(10)   NOT NULL DEFAULT 'pt-BR',
         "subject"       VARCHAR(255)  NOT NULL,
         "body"          TEXT          NOT NULL,
         "created_at"    TIMESTAMPTZ   NOT NULL DEFAULT now(),
@@ -18,7 +77,7 @@ export class CreateNotificationTemplates1748100000010 implements MigrationInterf
 
     await queryRunner.query(`
       CREATE UNIQUE INDEX "UQ_notification_templates_global"
-        ON "notification"."notification_templates" ("trigger_event", "channel")
+        ON "notification"."notification_templates" ("trigger_event", "channel", "locale")
         WHERE "tenant_id" IS NULL
     `);
 
@@ -33,76 +92,22 @@ export class CreateNotificationTemplates1748100000010 implements MigrationInterf
         ON "notification"."notification_templates" ("tenant_id")
     `);
 
-    // Seed global defaults (tenant_id = NULL)
-    await queryRunner.query(`
-      INSERT INTO "notification"."notification_templates"
-        ("id", "tenant_id", "trigger_event", "channel", "subject", "body")
-      VALUES
-        (gen_random_uuid(), NULL, 'booking-requested-admin', 'EMAIL',
-         'Novo agendamento recebido',
-         '<p>Nova solicitação de agendamento recebida.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data/Hora:</strong> {{scheduledAt}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>{{pickupAddressLine}}'
-        ),
-        (gen_random_uuid(), NULL, 'booking-requested-customer', 'EMAIL',
-         'Solicitação de agendamento recebida',
-         '<p>Olá, {{contactName}}!</p><p>Recebemos sua solicitação de agendamento em <strong>{{tenantName}}</strong>.</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Data/Hora:</strong> {{scheduledAt}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Entraremos em contato para confirmar seu agendamento.</p>'
-        ),
-        (gen_random_uuid(), NULL, 'booking-approved-customer', 'EMAIL',
-         'Seu agendamento foi confirmado!',
-         '<p>Olá, {{contactName}}!</p><p>Seu agendamento foi confirmado.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Aguardamos sua visita!</p>'
-        ),
-        (gen_random_uuid(), NULL, 'booking-rejected-customer', 'EMAIL',
-         'Agendamento não confirmado',
-         '<p>Olá, {{contactName}}!</p><p>Infelizmente não foi possível confirmar seu agendamento.</p><p><strong>Motivo:</strong> {{reason}}</p><p>Se desejar, realize um novo agendamento em nosso site.</p>'
-        ),
-        (gen_random_uuid(), NULL, 'booking-info-requested-customer', 'EMAIL',
-         'Precisamos de mais informações sobre seu agendamento',
-         '<p>Olá, {{contactName}}!</p><p>Nossa equipe precisa de mais informações antes de confirmar seu agendamento.</p><p><strong>Informações necessárias:</strong> {{informationNeeded}}</p><p><a href="{{respondLink}}">Clique aqui para responder</a></p>'
-        ),
-        (gen_random_uuid(), NULL, 'booking-info-submitted-admin', 'EMAIL',
-         'Cliente respondeu à solicitação de informações',
-         '<p>O cliente <strong>{{submittedByEmail}}</strong> respondeu à solicitação de informações.</p><p><strong>Resposta:</strong> {{customerResponse}}</p><p><a href="{{bookingLink}}">Ver agendamento no dashboard</a></p>'
-        ),
-        (gen_random_uuid(), NULL, 'booking-cancelled-customer', 'EMAIL',
-         'Seu agendamento foi cancelado',
-         '<p>Olá, {{contactName}}!</p><p>Seu agendamento foi cancelado.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Se desejar, realize um novo agendamento em nosso site.</p>'
-        ),
-        (gen_random_uuid(), NULL, 'booking-cancelled-admin', 'EMAIL',
-         'Agendamento cancelado',
-         '<p>Agendamento cancelado.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{cancelledByLine}}</p>{{reasonLine}}'
-        ),
-        (gen_random_uuid(), NULL, 'booking-rescheduled-customer', 'EMAIL',
-         'Seu agendamento foi reagendado',
-         '<p>Olá, {{contactName}}!</p><p>Seu agendamento foi reagendado.</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>Aguardamos sua visita!</p>'
-        ),
-        (gen_random_uuid(), NULL, 'booking-rescheduled-admin', 'EMAIL',
-         'Agendamento reagendado',
-         '<p>Agendamento reagendado.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data anterior:</strong> {{previousLocalDate}} às {{previousLocalTime}}</p><p><strong>Nova data:</strong> {{newLocalDate}} às {{newLocalTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p>'
-        ),
-        (gen_random_uuid(), NULL, 'booking-reminder-due', 'EMAIL',
-         'Lembrete: seu agendamento é amanhã!',
-         '<p>Olá, {{contactName}}!</p><p>Lembramos que seu agendamento é <strong>amanhã</strong>.</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p>Até amanhã!</p>'
-        ),
-        (gen_random_uuid(), NULL, 'booking-reminder-due-today', 'EMAIL',
-         'Lembrete: seu agendamento é hoje!',
-         '<p>Olá, {{contactName}}!</p><p>Lembramos que seu agendamento é <strong>hoje</strong>.</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p>Estamos esperando você!</p>'
-        ),
-        (gen_random_uuid(), NULL, 'admin-daily-schedule-reminder', 'EMAIL',
-         'Agenda do dia — {{localDate}}',
-         '<p>Olá!</p><p>Veja a agenda de hoje, <strong>{{localDate}}</strong>:</p><p>{{bookingsSummary}}</p>'
-        ),
-        (gen_random_uuid(), NULL, 'service-points-earned', 'EMAIL',
-         'Lavagem concluída! Você ganhou {{totalPointsEarned}} pontos',
-         '<p>Olá, {{customerName}}!</p><p>Sua lavagem foi concluída e você ganhou <strong>{{totalPointsEarned}} pontos</strong> de fidelidade.</p><p>Seu saldo atual é de <strong>{{currentBalance}} pontos</strong>.</p><p>Use seus pontos no próximo agendamento!</p>'
-        ),
-        (gen_random_uuid(), NULL, 'points-expiring-soon', 'EMAIL',
-         'Seus pontos de fidelidade estão prestes a expirar!',
-         '<p>Olá, {{customerName}}!</p><p>Você tem <strong>{{pointsExpiringSoon}} pontos</strong> prestes a expirar em {{earliestExpiresAt}}.</p><p>Realize um agendamento para utilizar seus pontos antes que expirem.</p>'
-        ),
-        (gen_random_uuid(), NULL, 'staff-invitation', 'EMAIL',
-         'Você foi convidado para a equipe {{tenantName}}',
-         '<p>Olá, {{staffName}}!</p><p>Você foi convidado para integrar a equipe de <strong>{{tenantName}}</strong> na plataforma Ikaro.</p><p><a href="{{activationLink}}">Clique aqui para aceitar o convite e acessar sua conta.</a></p><p>Se você não esperava este convite, por favor ignore este e-mail.</p>'
-        )
-    `);
+    const rows = buildSeedRows();
+    const valuesSql = rows
+      .map((_, i) => {
+        const base = i * 5;
+        return `(gen_random_uuid(), NULL, $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
+      })
+      .join(',\n        ');
+    const params = rows.flatMap((r) => [r.triggerEvent, r.channel, r.locale, r.subject, r.body]);
+
+    await queryRunner.query(
+      `INSERT INTO "notification"."notification_templates"
+         ("id", "tenant_id", "trigger_event", "channel", "locale", "subject", "body")
+       VALUES
+        ${valuesSql}`,
+      params,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

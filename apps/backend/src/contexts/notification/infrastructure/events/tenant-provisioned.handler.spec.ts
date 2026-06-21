@@ -1,4 +1,5 @@
 import { InMemoryNotificationTemplateRepository } from '../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryNotificationPlatformPort } from '../../../../test/infrastructure/in-memory-notification-platform.port';
 import { NotificationTemplateBuilder } from '../../../../test/builders/notification/notification-template.builder';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 import { SeedDefaultTemplatesUseCase } from '../../application/use-cases/seed-default-templates/seed-default-templates.use-case';
@@ -22,7 +23,10 @@ describe('TenantProvisionedNotificationHandler', () => {
 
   beforeEach(() => {
     templateRepo = new InMemoryNotificationTemplateRepository();
-    const seedUseCase = new SeedDefaultTemplatesUseCase(templateRepo);
+    const seedUseCase = new SeedDefaultTemplatesUseCase(
+      templateRepo,
+      new InMemoryNotificationPlatformPort(),
+    );
     handler = new TenantProvisionedNotificationHandler(seedUseCase, {
       publish: jest.fn(),
       subscribe: jest.fn(),
@@ -62,6 +66,7 @@ describe('TenantProvisionedNotificationHandler', () => {
     const mockEventBus = { publish: jest.fn(), subscribe: jest.fn() };
     const seedUseCase = new SeedDefaultTemplatesUseCase(
       new InMemoryNotificationTemplateRepository(),
+      new InMemoryNotificationPlatformPort(),
     );
     const h = new TenantProvisionedNotificationHandler(seedUseCase, mockEventBus);
 

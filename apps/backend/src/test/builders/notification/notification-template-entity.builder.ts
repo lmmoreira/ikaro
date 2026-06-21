@@ -7,6 +7,7 @@ export class NotificationTemplateEntityBuilder {
   private tenantId: string | null = '10000000-0000-4000-8000-000000000001';
   private triggerEvent: NotificationTemplateKey = NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER;
   private channel = 'EMAIL';
+  private locale = 'pt-BR';
   private subject = 'Assunto padrão';
   private body = '<p>Corpo padrão</p>';
   private readonly createdAt = new Date('2026-01-01T00:00:00Z');
@@ -32,6 +33,11 @@ export class NotificationTemplateEntityBuilder {
     return this;
   }
 
+  withLocale(locale: string): this {
+    this.locale = locale;
+    return this;
+  }
+
   withSubject(subject: string): this {
     this.subject = subject;
     return this;
@@ -53,6 +59,7 @@ export class NotificationTemplateEntityBuilder {
     e.tenantId = this.tenantId;
     e.triggerEvent = this.triggerEvent;
     e.channel = this.channel;
+    e.locale = this.locale;
     e.subject = this.subject;
     e.body = this.body;
     e.createdAt = this.createdAt;

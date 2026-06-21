@@ -7,6 +7,7 @@ import { INotificationLogRepository } from '../ports/notification-log-repository
 import { INotificationProcessedEventRepository } from '../ports/processed-event-repository.port';
 import { INotificationPlatformPort } from '../ports/notification-platform.port';
 import { INotificationTemplateRepository } from '../ports/notification-template-repository.port';
+import { ILocalizationPort } from '../ports/localization.port';
 import { BaseNotificationUseCase } from './base-notification.use-case';
 
 export interface BookingReminderNotificationUseCaseResult {
@@ -15,6 +16,7 @@ export interface BookingReminderNotificationUseCaseResult {
 
 export abstract class BaseBookingReminderNotificationUseCase extends BaseNotificationUseCase {
   protected abstract readonly reminderTemplateKey: NotificationTemplateKey;
+  protected abstract readonly eventName: string;
 
   constructor(
     logRepo: INotificationLogRepository,
@@ -23,6 +25,7 @@ export abstract class BaseBookingReminderNotificationUseCase extends BaseNotific
     protected readonly tenantPort: INotificationPlatformPort,
     txManager: ITransactionManager,
     protected readonly templateRepo: INotificationTemplateRepository,
+    protected readonly localizationPort: ILocalizationPort,
   ) {
     super(logRepo, processedEventRepo, dispatcher, txManager);
   }
@@ -44,6 +47,8 @@ export abstract class BaseBookingReminderNotificationUseCase extends BaseNotific
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
+    const locale = tenantInfo?.locale ?? 'pt-BR';
+    this.localizeTemplates(templates, this.localizationPort, this.eventName, 'customer', locale);
     const start = new Date(dto.scheduledAt);
     const localDate = utcDateToLocalDate(start, timezone);
     const localTime = utcDateToLocalHHMM(start, timezone);

@@ -26,9 +26,16 @@ import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
+import {
+  INotificationPlatformPort,
+  NOTIFICATION_PLATFORM_PORT,
+} from '../../ports/notification-platform.port';
+import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN;
+const EVENT_NAME = 'BookingInfoSubmitted';
+const RECIPIENT_TYPE = 'admin';
 
 export interface SendBookingInfoSubmittedNotificationUseCaseResult {
   emailSent: boolean;
@@ -45,6 +52,8 @@ export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificatio
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
+    @Inject(NOTIFICATION_PLATFORM_PORT) private readonly tenantPort: INotificationPlatformPort,
+    @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
     private readonly config: ConfigService,
   ) {
     super(logRepo, processedEventRepo, dispatcher, txManager);
@@ -64,6 +73,10 @@ export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificatio
 
     const managerEmails = await this.staffPort.getManagerEmails(dto.tenantId);
     if (managerEmails.length === 0) return { emailSent: false };
+
+    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const locale = tenantInfo?.locale ?? 'pt-BR';
+    this.localizeTemplates(templates, this.localizationPort, EVENT_NAME, RECIPIENT_TYPE, locale);
 
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
     const bookingLink = `${frontendUrl}/dashboard/bookings/${dto.bookingId}`;

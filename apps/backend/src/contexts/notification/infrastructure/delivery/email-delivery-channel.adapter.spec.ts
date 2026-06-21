@@ -34,6 +34,7 @@ const baseMessage: OutboundMessage = {
   subject: 'Seu agendamento foi confirmado!',
   body: '<p>Olá, João Silva! Seu agendamento foi confirmado.</p>',
   channel: 'EMAIL',
+  notificationType: 'booking-approved-customer',
 };
 
 describe('EmailDeliveryChannelAdapter', () => {

@@ -18,12 +18,19 @@ import {
   NOTIFICATION_PROCESSED_EVENT_REPOSITORY,
 } from '../../ports/processed-event-repository.port';
 import {
+  INotificationPlatformPort,
+  NOTIFICATION_PLATFORM_PORT,
+} from '../../ports/notification-platform.port';
+import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
+import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER;
+const EVENT_NAME = 'BookingRejected';
+const RECIPIENT_TYPE = 'customer';
 
 export interface SendBookingRejectedNotificationUseCaseResult {
   emailSent: boolean;
@@ -39,6 +46,8 @@ export class SendBookingRejectedNotificationUseCase extends BaseNotificationUseC
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
     private readonly templateRepo: INotificationTemplateRepository,
+    @Inject(NOTIFICATION_PLATFORM_PORT) private readonly tenantPort: INotificationPlatformPort,
+    @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
   ) {
     super(logRepo, processedEventRepo, dispatcher, txManager);
   }
@@ -54,6 +63,10 @@ export class SendBookingRejectedNotificationUseCase extends BaseNotificationUseC
       });
       return { emailSent: false };
     }
+
+    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const locale = tenantInfo?.locale ?? 'pt-BR';
+    this.localizeTemplates(templates, this.localizationPort, EVENT_NAME, RECIPIENT_TYPE, locale);
 
     const emailSent = await this.dispatchTemplates(templates, dto, dto.contactEmail, {
       contactName: dto.contactName,

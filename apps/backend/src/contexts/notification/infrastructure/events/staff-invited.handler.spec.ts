@@ -8,6 +8,7 @@ import { InMemoryNotificationStaffPort } from '../../../../test/infrastructure/i
 import { InMemoryNotificationPlatformPort } from '../../../../test/infrastructure/in-memory-notification-platform.port';
 import { StaffInvitedEventBuilder } from '../../../../test/builders/staff/staff-invited-event.builder';
 import { InMemoryNotificationTemplateRepository } from '../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryLocalizationPort } from '../../../../test/infrastructure/in-memory-localization.port';
 import { NotificationTemplate } from '../../domain/notification-template.aggregate';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 import { INotificationDispatcher } from '../../application/ports/notification-dispatcher.port';
@@ -31,6 +32,7 @@ describe('StaffInvitedHandler', () => {
   let staffPort: InMemoryNotificationStaffPort;
   let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
+  let localizationPort: InMemoryLocalizationPort;
   let handler: StaffInvitedHandler;
 
   beforeEach(() => {
@@ -54,10 +56,16 @@ describe('StaffInvitedHandler', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.STAFF_INVITATION,
         channel: 'EMAIL',
-        subject: 'Você foi convidado para a equipe {{tenantName}}',
-        body: '<p>Olá, {{staffName}}! <a href="{{activationLink}}">Acessar</a></p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('StaffInvited:staff', {
+      subject: 'Você foi convidado para a equipe {{tenantName}}',
+      body: '<p>Olá, {{staffName}}! <a href="{{activationLink}}">Acessar</a></p>',
+    });
     const useCase = new SendStaffInvitationUseCase(
       logRepo,
       processedEventRepo,
@@ -66,6 +74,7 @@ describe('StaffInvitedHandler', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      localizationPort,
       configService,
     );
     handler = new StaffInvitedHandler(useCase, new InMemoryEventBus());
@@ -110,6 +119,7 @@ describe('StaffInvitedHandler', () => {
       tenantPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      localizationPort,
       configService,
     );
     const failHandler = new StaffInvitedHandler(failUseCase, new InMemoryEventBus());

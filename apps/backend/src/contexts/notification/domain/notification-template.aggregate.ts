@@ -8,6 +8,7 @@ export interface NotificationTemplateProps {
   tenantId: string | null;
   triggerEvent: NotificationTemplateKey;
   channel: NotificationChannel;
+  locale: string;
   subject: string;
   body: string;
   updatedAt: Date;
@@ -23,6 +24,7 @@ export class NotificationTemplate {
   readonly tenantId: string | null;
   readonly triggerEvent: NotificationTemplateKey;
   readonly channel: NotificationChannel;
+  readonly locale: string;
   private _subject: string;
   private _body: string;
   readonly updatedAt: Date;
@@ -32,6 +34,7 @@ export class NotificationTemplate {
     this.tenantId = props.tenantId;
     this.triggerEvent = props.triggerEvent;
     this.channel = props.channel;
+    this.locale = props.locale;
     this._subject = props.subject;
     this._body = props.body;
     this.updatedAt = props.updatedAt;

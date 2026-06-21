@@ -4,6 +4,8 @@ import { InMemoryNotificationLogRepository } from '../../../../../test/repositor
 import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationBookingPort } from '../../../../../test/infrastructure/in-memory-notification-booking.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendServicePointsEarnedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -50,10 +52,16 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.SERVICE_POINTS_EARNED,
         channel: 'EMAIL',
-        subject: 'Lavagem concluída! Você ganhou {{totalPointsEarned}} pontos',
-        body: '<p>{{customerName}} — saldo: {{currentBalance}}</p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    const localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('ServicePointsEarned:customer', {
+      subject: 'Lavagem concluída! Você ganhou {{totalPointsEarned}} pontos',
+      body: '<p>{{customerName}} — saldo: {{currentBalance}}</p>',
+    });
 
     useCase = new SendServicePointsEarnedNotificationUseCase(
       logRepo,
@@ -63,6 +71,8 @@ describe('SendServicePointsEarnedNotificationUseCase', () => {
       servicePort,
       new InMemoryTransactionManager(),
       templateRepo,
+      new InMemoryNotificationPlatformPort(),
+      localizationPort,
     );
   });
 

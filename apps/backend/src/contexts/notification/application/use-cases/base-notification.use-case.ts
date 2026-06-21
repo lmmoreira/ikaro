@@ -5,6 +5,7 @@ import { NotificationTemplate } from '../../domain/notification-template.aggrega
 import { INotificationDispatcher } from '../ports/notification-dispatcher.port';
 import { INotificationLogRepository } from '../ports/notification-log-repository.port';
 import { INotificationProcessedEventRepository } from '../ports/processed-event-repository.port';
+import { ILocalizationPort } from '../ports/localization.port';
 
 export abstract class BaseNotificationUseCase {
   protected readonly logger = new AppLogger(this.constructor.name);
@@ -66,6 +67,23 @@ export abstract class BaseNotificationUseCase {
     });
   }
 
+  // Overlays each fetched template's subject/body with locale-correct content from
+  // ILocalizationPort before render() interpolates variables — the DB row's own subject/body
+  // is no longer the content source (TD02-S10), only its triggerEvent/channel/existence matter.
+  protected localizeTemplates(
+    templates: NotificationTemplate[],
+    localizationPort: ILocalizationPort,
+    eventName: string,
+    recipientType: string,
+    locale: string,
+  ): void {
+    if (templates.length === 0) return;
+    const localized = localizationPort.getNotificationTemplate(eventName, recipientType, locale);
+    for (const template of templates) {
+      template.update(localized.subject, localized.body);
+    }
+  }
+
   protected async dispatchTemplates(
     templates: NotificationTemplate[],
     dto: { tenantId: string; eventId: string },
@@ -83,6 +101,7 @@ export abstract class BaseNotificationUseCase {
           subject,
           body,
           channel: template.channel,
+          notificationType: template.triggerEvent,
         });
         await this.saveLog(dto.tenantId, dto.eventId, template.triggerEvent, template.channel, to);
         sent = true;
@@ -120,6 +139,7 @@ export abstract class BaseNotificationUseCase {
               subject,
               body,
               channel: template.channel,
+              notificationType: template.triggerEvent,
             }),
           ),
         );

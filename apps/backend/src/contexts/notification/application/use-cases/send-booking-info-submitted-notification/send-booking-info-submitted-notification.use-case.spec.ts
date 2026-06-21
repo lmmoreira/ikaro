@@ -4,6 +4,8 @@ import { InMemoryNotificationLogRepository } from '../../../../../test/repositor
 import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
+import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
+import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingInfoSubmittedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
@@ -46,10 +48,16 @@ describe('SendBookingInfoSubmittedNotificationUseCase', () => {
         tenantId: TENANT_ID,
         triggerEvent: NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN,
         channel: 'EMAIL',
-        subject: 'Cliente respondeu à solicitação de informações',
-        body: '<p>{{submittedByEmail}} — {{customerResponse}} — <a href="{{bookingLink}}">Ver</a></p>',
+        locale: 'pt-BR',
+        subject: 'DB SUBJECT (unused)',
+        body: 'DB BODY (unused)',
       }),
     );
+    const localizationPort = new InMemoryLocalizationPort();
+    localizationPort.setTemplate('BookingInfoSubmitted:admin', {
+      subject: 'Cliente respondeu à solicitação de informações',
+      body: '<p>{{submittedByEmail}} — {{customerResponse}} — <a href="{{bookingLink}}">Ver</a></p>',
+    });
     useCase = new SendBookingInfoSubmittedNotificationUseCase(
       logRepo,
       processedEventRepo,
@@ -57,6 +65,8 @@ describe('SendBookingInfoSubmittedNotificationUseCase', () => {
       staffPort,
       new InMemoryTransactionManager(),
       templateRepo,
+      new InMemoryNotificationPlatformPort(),
+      localizationPort,
       configService,
     );
   });
