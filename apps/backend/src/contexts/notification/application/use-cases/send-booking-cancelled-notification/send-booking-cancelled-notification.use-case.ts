@@ -32,6 +32,7 @@ import {
   NOTIFICATION_TEMPLATE_REPOSITORY,
 } from '../../ports/notification-template-repository.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
+import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 export interface SendBookingCancelledNotificationUseCaseResult {
@@ -61,7 +62,7 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
   ): Promise<SendBookingCancelledNotificationUseCaseResult> {
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
-    const locale = tenantInfo?.locale ?? 'pt-BR';
+    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     const scheduledDate = new Date(dto.scheduledAt);
     const localDate = utcDateToLocalDate(scheduledDate, timezone);
     const localTime = utcDateToLocalHHMM(scheduledDate, timezone);

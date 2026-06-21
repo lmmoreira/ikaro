@@ -79,8 +79,17 @@ export abstract class BaseNotificationUseCase {
     locale: string,
   ): void {
     for (const template of templates) {
-      const { eventName, recipientType } = NOTIFICATION_TEMPLATE_KEY_MAPPING[template.triggerEvent];
-      const localized = localizationPort.getNotificationTemplate(eventName, recipientType, locale);
+      const mapping = NOTIFICATION_TEMPLATE_KEY_MAPPING[template.triggerEvent];
+      if (!mapping) {
+        throw new Error(
+          `No mapping found for trigger event "${template.triggerEvent}" — check NOTIFICATION_TEMPLATE_KEY_MAPPING`,
+        );
+      }
+      const localized = localizationPort.getNotificationTemplate(
+        mapping.eventName,
+        mapping.recipientType,
+        locale,
+      );
       template.update(localized.subject, localized.body);
     }
   }

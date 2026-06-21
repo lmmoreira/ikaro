@@ -8,6 +8,7 @@ import { INotificationProcessedEventRepository } from '../ports/processed-event-
 import { INotificationPlatformPort } from '../ports/notification-platform.port';
 import { INotificationTemplateRepository } from '../ports/notification-template-repository.port';
 import { ILocalizationPort } from '../ports/localization.port';
+import { DEFAULT_LOCALE } from '../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from './base-notification.use-case';
 
 export interface BookingReminderNotificationUseCaseResult {
@@ -46,7 +47,7 @@ export abstract class BaseBookingReminderNotificationUseCase extends BaseNotific
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
-    const locale = tenantInfo?.locale ?? 'pt-BR';
+    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
     const start = new Date(dto.scheduledAt);
     const localDate = utcDateToLocalDate(start, timezone);

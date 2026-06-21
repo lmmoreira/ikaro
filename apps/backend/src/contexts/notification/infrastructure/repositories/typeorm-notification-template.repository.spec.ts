@@ -9,6 +9,7 @@ import { NotificationTemplateEntityBuilder } from '../../../../test/builders/not
 import { TypeOrmNotificationTemplateRepository } from './typeorm-notification-template.repository';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000011';
+const GLOBAL_DEFAULTS_COUNT = 16;
 
 describe('TypeOrmNotificationTemplateRepository', () => {
   let repo: TypeOrmNotificationTemplateRepository;
@@ -18,7 +19,9 @@ describe('TypeOrmNotificationTemplateRepository', () => {
   let mockQuery: jest.Mock;
 
   beforeEach(async () => {
-    mockQuery = jest.fn().mockResolvedValue(Array.from({ length: 16 }, () => ({ inserted: 1 })));
+    mockQuery = jest
+      .fn()
+      .mockResolvedValue(Array.from({ length: GLOBAL_DEFAULTS_COUNT }, () => ({ inserted: 1 })));
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -193,7 +196,7 @@ describe('TypeOrmNotificationTemplateRepository', () => {
         TENANT_ID,
         'pt-BR',
       ]);
-      expect(result).toBe(16);
+      expect(result).toBe(GLOBAL_DEFAULTS_COUNT);
     });
 
     it('uses RETURNING instead of rowCount (unreliable for raw INSERT via DataSource.query())', async () => {
@@ -206,6 +209,12 @@ describe('TypeOrmNotificationTemplateRepository', () => {
       await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
       expect(mockQuery.mock.calls[0][0] as string).toContain('ON CONFLICT DO NOTHING');
+    });
+
+    it('only sources rows from global defaults (tenant_id IS NULL)', async () => {
+      await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
+
+      expect(mockQuery.mock.calls[0][0] as string).toContain('WHERE tenant_id IS NULL');
     });
 
     it('returns 0 when no rows are inserted (all already exist for the tenant)', async () => {

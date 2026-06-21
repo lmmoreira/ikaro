@@ -7,6 +7,7 @@ import {
   INotificationPlatformPort,
   NOTIFICATION_PLATFORM_PORT,
 } from '../../ports/notification-platform.port';
+import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 
 export interface SeedDefaultTemplatesDto {
   tenantId: string;
@@ -15,8 +16,6 @@ export interface SeedDefaultTemplatesDto {
 export interface SeedDefaultTemplatesUseCaseResult {
   seeded: number;
 }
-
-const DEFAULT_LOCALE = 'pt-BR';
 
 @Injectable()
 export class SeedDefaultTemplatesUseCase {

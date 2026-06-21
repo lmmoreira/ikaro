@@ -30,6 +30,7 @@ import {
   NOTIFICATION_PLATFORM_PORT,
 } from '../../ports/notification-platform.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
+import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.POINTS_EXPIRING_SOON;
@@ -71,7 +72,7 @@ export class SendPointsExpiringSoonNotificationUseCase extends BaseNotificationU
     if (!customer) return { emailSent: false };
 
     const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
-    const locale = tenantInfo?.locale ?? 'pt-BR';
+    const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
     const emailSent = await this.dispatchTemplates(templates, dto, customer.email, {
