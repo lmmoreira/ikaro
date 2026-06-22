@@ -29,9 +29,10 @@ import {
   CancelBookingResponse,
   CompleteBookingResponse,
   RescheduleBookingResponse,
-  BookingListItem,
 } from './bookings.types';
-import { StaffBookingCardResponse, StaffBookingListResponse } from '@ikaro/types';
+import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
+import { StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
+import { toStaffBookingCard, toStaffBookingDetail } from './bookings.mapper';
 import { tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
 
 const AddressSchema = z.object({
@@ -162,19 +163,6 @@ type RequestMoreInfoBody = z.infer<typeof RequestMoreInfoBodySchema>;
 type SubmitBookingInfoBody = z.infer<typeof SubmitBookingInfoBodySchema>;
 type SubmitGuestBookingInfoBody = z.infer<typeof SubmitGuestBookingInfoBodySchema>;
 
-function toStaffBookingCard(item: BookingListItem): StaffBookingCardResponse {
-  return {
-    bookingId: item.id,
-    status: item.status as StaffBookingCardResponse['status'],
-    scheduledAt: item.scheduledAt,
-    contactName: item.contactName,
-    serviceNames: item.lineSummary.map((l) => l.serviceNameAtBooking),
-    totalPrice: { amount: item.totalPrice.amount, currency: item.totalPrice.currency },
-    totalDurationMins: item.totalDurationMins,
-    isCustomer: item.customerId !== null,
-  };
-}
-
 @Controller('bookings')
 export class BookingsController {
   constructor(
@@ -297,8 +285,31 @@ export class BookingsController {
 
   @Get(':id')
   @Roles('CUSTOMER', 'MANAGER', 'STAFF')
-  getOne(@Param('id', ParseUUIDPipe) id: string): Promise<BookingDetailResponse> {
-    return this.backendHttp.get<BookingDetailResponse>(`/bookings/${id}`);
+  async getOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ): Promise<BookingDetailResponse | StaffBookingDetailResponse> {
+    const detail = await this.backendHttp.get<BookingDetailResponse>(`/bookings/${id}`);
+
+    if (user.role !== 'MANAGER' && user.role !== 'STAFF') {
+      return detail;
+    }
+
+    const loyaltyBalance =
+      detail.customerId === null ? null : await this.fetchLoyaltyBalance(detail.customerId);
+
+    return toStaffBookingDetail(detail, loyaltyBalance);
+  }
+
+  private async fetchLoyaltyBalance(customerId: string): Promise<number | null> {
+    try {
+      const balance = await this.backendHttp.get<LoyaltyBalanceResponse>(
+        `/customers/${customerId}/loyalty/balance`,
+      );
+      return balance.currentPoints;
+    } catch {
+      return null;
+    }
   }
 
   @Post()

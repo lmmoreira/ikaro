@@ -32,10 +32,9 @@ export class GenerateAttachmentSignedUrlUseCase {
       filePath = `tenants/${tenantId}/uploads/${uuidv7()}/${dto.fileName}`;
     }
 
-    const { signedUrl, expiresAt } = await this.storageService.generateSignedUrl(
+    const { signedUrl, expiresAt } = await this.storageService.generateWriteSignedUrl(
       filePath,
       dto.contentType,
-      'write',
     );
 
     return { signedUrl, filePath, expiresAt: expiresAt.toISOString() };

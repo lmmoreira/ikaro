@@ -1,3 +1,4 @@
+import type { Address, StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
 import { bffClient } from '../bff-client';
 
 export interface BookingListFilters {
@@ -6,103 +7,6 @@ export interface BookingListFilters {
   readonly to?: string;
   readonly limit?: number;
   readonly offset?: number;
-}
-
-export interface BookingLineSummary {
-  readonly serviceId: string;
-  readonly serviceNameAtBooking: string;
-  readonly priceAtBooking: {
-    readonly amount: number;
-    readonly currency: string;
-    readonly formatted: string;
-  };
-}
-
-export interface BookingListItem {
-  readonly id: string;
-  readonly status: string;
-  readonly type: string;
-  readonly customerId: string | null;
-  readonly contactName: string;
-  readonly contactEmail: string;
-  readonly scheduledAt: string;
-  readonly totalDurationMins: number;
-  readonly totalPrice: {
-    readonly amount: number;
-    readonly currency: string;
-    readonly formatted: string;
-  };
-  readonly lineSummary: readonly BookingLineSummary[];
-  readonly createdAt: string;
-}
-
-export interface BookingListResponse {
-  readonly items: readonly BookingListItem[];
-  readonly pagination: {
-    readonly limit: number;
-    readonly offset: number;
-    readonly total: number;
-    readonly hasMore: boolean;
-  };
-}
-
-export interface BookingLineDetail {
-  readonly lineId: string;
-  readonly serviceId: string;
-  readonly serviceNameAtBooking: string;
-  readonly priceAtBooking: {
-    readonly amount: number;
-    readonly currency: string;
-    readonly formatted: string;
-  };
-  readonly durationMinsAtBooking: number;
-  readonly pointsValueAtBooking: number;
-  readonly requiresPickupAddressAtBooking: boolean;
-  readonly actualPriceCharged: {
-    readonly amount: number;
-    readonly currency: string;
-    readonly formatted: string;
-  } | null;
-}
-
-export interface AddressDetail {
-  readonly street: string;
-  readonly number: string;
-  readonly complement: string | null;
-  readonly neighborhood: string;
-  readonly city: string;
-  readonly state: string;
-  readonly zipCode: string;
-}
-
-export interface BookingDetailResponse {
-  readonly id: string;
-  readonly status: string;
-  readonly type: string;
-  readonly customerId: string | null;
-  readonly contactName: string;
-  readonly contactEmail: string;
-  readonly contactPhone: string;
-  readonly scheduledAt: string;
-  readonly totalDurationMins: number;
-  readonly totalPrice: {
-    readonly amount: number;
-    readonly currency: string;
-    readonly formatted: string;
-  };
-  readonly totalActualPrice: {
-    readonly amount: number;
-    readonly currency: string;
-    readonly formatted: string;
-  } | null;
-  readonly pickupAddress: AddressDetail | null;
-  readonly lines: readonly BookingLineDetail[];
-  readonly beforeServicePhotoUrls: readonly string[];
-  readonly afterServicePhotoUrls: readonly string[];
-  readonly adminNotes: string | null;
-  readonly infoRequestMessage: string | null;
-  readonly infoResponseMessage: string | null;
-  readonly createdAt: string;
 }
 
 export interface RejectBookingRequest {
@@ -141,7 +45,7 @@ export interface SubmitInfoRequest {
 export interface AuthenticatedBookingRequest {
   readonly scheduledAt: string;
   readonly serviceIds: readonly string[];
-  readonly pickupAddress?: AddressDetail;
+  readonly pickupAddress?: Address;
   readonly beforeServicePhotoUrls?: readonly string[];
 }
 
@@ -163,13 +67,15 @@ export interface CompleteBookingResponse {
   readonly totalActualPrice: { readonly amount: number; readonly currency: string };
 }
 
-export async function listBookings(filters?: BookingListFilters): Promise<BookingListResponse> {
-  const res = await bffClient.get<BookingListResponse>('/bookings', { params: filters });
+export async function listBookings(
+  filters?: BookingListFilters,
+): Promise<StaffBookingListResponse> {
+  const res = await bffClient.get<StaffBookingListResponse>('/bookings', { params: filters });
   return res.data;
 }
 
-export async function getBooking(id: string): Promise<BookingDetailResponse> {
-  const res = await bffClient.get<BookingDetailResponse>(`/bookings/${id}`);
+export async function getBooking(id: string): Promise<StaffBookingDetailResponse> {
+  const res = await bffClient.get<StaffBookingDetailResponse>(`/bookings/${id}`);
   return res.data;
 }
 

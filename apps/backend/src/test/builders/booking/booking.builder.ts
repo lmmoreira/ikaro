@@ -28,8 +28,8 @@ export class BookingBuilder {
   private totalDurationMins = 30;
   private totalPrice = Money.from(100, 'BRL');
   private totalActualPrice: Money | null = null;
-  private readonly beforeServicePhotoUrls: string[] = [];
-  private readonly afterServicePhotoUrls: string[] = [];
+  private beforeServicePhotoUrls: string[] = [];
+  private afterServicePhotoUrls: string[] = [];
   private adminNotes: string | null = null;
   private readonly infoRequestMessage: string | null = null;
   private readonly infoRequestedAt: Date | null = null;
@@ -45,7 +45,7 @@ export class BookingBuilder {
   private readonly cancellationReason: string | null = null;
   private readonly rejectedAt: Date | null = null;
   private readonly rejectedBy: string | null = null;
-  private readonly rejectionReason: string | null = null;
+  private rejectionReason: string | null = null;
   private readonly createdAt = new Date();
   private linesModified = true;
 
@@ -119,6 +119,18 @@ export class BookingBuilder {
   }
   withAdminNotes(notes: string | null): this {
     this.adminNotes = notes;
+    return this;
+  }
+  withRejectionReason(reason: string | null): this {
+    this.rejectionReason = reason;
+    return this;
+  }
+  withBeforeServicePhotoUrls(urls: string[]): this {
+    this.beforeServicePhotoUrls = urls;
+    return this;
+  }
+  withAfterServicePhotoUrls(urls: string[]): this {
+    this.afterServicePhotoUrls = urls;
     return this;
   }
 

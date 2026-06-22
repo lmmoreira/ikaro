@@ -5,7 +5,7 @@
 #
 # Covers: pre-pr checks 1,5,6,7,11,12,14,15,16,17,18, W1 (web vitest setup),
 #         bad-smell-audit backend checks BE-2,BE-3,BE-4,BE-5,BE-7,
-#         web checks WEB-1,WEB-4,WEB-6,
+#         web checks WEB-1,WEB-4,WEB-6,WEB-7,
 #         and E2E quality checks E2E-1,E2E-2,E2E-3.
 # The remaining checks require agent reasoning and are listed at the end.
 
@@ -158,6 +158,23 @@ run_check "WEB-4. New component spec files have // @vitest-environment jsdom on 
 grep_into_tmp "$web_tsx_prod" \
   "from '(path|fs|os|crypto|stream|util|url|events)'"
 run_check "WEB-6. No bare Node.js built-in imports in web (use node: prefix)"
+
+# WEB-7: apps/web/lib/api/** declaring a type whose name already exists in @ikaro/types
+# Can't auto-judge which side is correct (TD09 found cases both ways) — just flag for a look.
+> "$TMP"
+ikaro_types_exports=$(grep -hoE "^export (interface|type) [A-Za-z]+" packages/types/src/*.ts 2>/dev/null \
+  | awk '{print $3}' | sort -u)
+web_api_changed=$(echo "$ts_prod" | grep '^apps/web/lib/api/' || true)
+while IFS= read -r f; do
+  [ -z "$f" ] || [ ! -f "$f" ] && continue
+  while IFS= read -r name; do
+    [ -z "$name" ] && continue
+    if echo "$ikaro_types_exports" | grep -qx "$name"; then
+      printf "%s declares '%s' — also exported by @ikaro/types; verify shapes match (see td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md)\n" "$f" "$name" >> "$TMP"
+    fi
+  done < <(grep -oE "^export (interface|type) [A-Za-z]+" "$f" 2>/dev/null | awk '{print $3}')
+done <<< "$web_api_changed"
+run_check "WEB-7. apps/web/lib/api/** type names checked against @ikaro/types for collisions"
 
 # ── E2E test quality checks ───────────────────────────────────────────────────
 # These only apply when e2e/ files are present/changed.

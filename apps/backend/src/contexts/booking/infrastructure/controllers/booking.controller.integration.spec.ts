@@ -1139,6 +1139,8 @@ describe('BookingController (integration)', () => {
     let detailCustomerId: string;
     let ownBookingId: string;
     let otherBookingId: string;
+    let detailServiceId: string;
+    let detailServicePickupId: string;
 
     beforeAll(async () => {
       const { body: dt } = await request(app.getHttpServer())
@@ -1161,6 +1163,18 @@ describe('BookingController (integration)', () => {
         .withIsActive(true)
         .build();
       await ds.getRepository(ServiceEntity).save(svc);
+      detailServiceId = svc.id;
+
+      const svcPickup = new ServiceEntityBuilder()
+        .withTenantId(detailTenantId)
+        .withName('Coleta Detalhe')
+        .withPriceAmount('50.00')
+        .withDurationMinutes(20)
+        .withRequiresPickupAddress(true)
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(ServiceEntity).save(svcPickup);
+      detailServicePickupId = svcPickup.id;
 
       const customer = new CustomerEntityBuilder()
         .withTenantId(detailTenantId)
@@ -1238,6 +1252,100 @@ describe('BookingController (integration)', () => {
         .expect(404);
 
       expect(body.status).toBe(404);
+    });
+
+    it('returns contactAddress when provided at creation', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set({ 'x-tenant-id': detailTenantId, 'x-correlation-id': 'detail-test-address' })
+        .send({
+          ...validBody(),
+          serviceIds: [detailServicePickupId],
+          scheduledAt: `${futureDate(27)}T09:00:00.000Z`,
+          contactAddress: {
+            street: 'Rua das Flores',
+            number: '10',
+            neighborhood: 'Centro',
+            city: 'Belo Horizonte',
+            state: 'MG',
+            zipCode: '30100000',
+          },
+          pickupAddress: {
+            street: 'Rua das Flores',
+            number: '10',
+            neighborhood: 'Centro',
+            city: 'Belo Horizonte',
+            state: 'MG',
+            zipCode: '30100000',
+          },
+        })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/bookings/${created.bookingId}`)
+        .set(actorHeaders(detailTenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      expect(body.contactAddress).not.toBeNull();
+      expect(body.contactAddress.city).toBe('Belo Horizonte');
+    });
+
+    it('returns approvedAt, approvedBy and signed beforeServicePhotoUrls after approval', async () => {
+      const photoPath = `tenants/${detailTenantId}/uploads/upload-detail/car.jpg`;
+      storageService.markAsUploaded(photoPath);
+
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set({ 'x-tenant-id': detailTenantId, 'x-correlation-id': 'detail-test-approve' })
+        .send({
+          ...validBody(),
+          serviceIds: [detailServiceId],
+          scheduledAt: `${futureDate(28)}T09:00:00.000Z`,
+          beforeServicePhotoUrls: [photoPath],
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/approve`)
+        .set(actorHeaders(detailTenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/bookings/${created.bookingId}`)
+        .set(actorHeaders(detailTenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      expect(body.approvedAt).not.toBeNull();
+      expect(new Date(body.approvedAt).toISOString()).toBe(body.approvedAt);
+      expect(body.approvedBy).toBe(STAFF_ID);
+      expect(body.beforeServicePhotoUrls).toHaveLength(1);
+      expect(body.beforeServicePhotoUrls[0]).not.toBe(photoPath);
+      expect(body.beforeServicePhotoUrls[0]).toContain(photoPath);
+    });
+
+    it('returns rejectionReason after rejection', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set({ 'x-tenant-id': detailTenantId, 'x-correlation-id': 'detail-test-reject' })
+        .send({
+          ...validBody(),
+          serviceIds: [detailServiceId],
+          scheduledAt: `${futureDate(29)}T09:00:00.000Z`,
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/reject`)
+        .set(actorHeaders(detailTenantId, STAFF_ID, 'MANAGER'))
+        .send({ reason: 'Cliente não confirmou disponibilidade' })
+        .expect(200);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/bookings/${created.bookingId}`)
+        .set(actorHeaders(detailTenantId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+
+      expect(body.rejectionReason).toBe('Cliente não confirmou disponibilidade');
     });
   });
 

@@ -91,13 +91,15 @@ GET {{bffUrl}}/v1/bookings?status=INVALID
 
 ###
 
-### MANAGER views booking detail
+### MANAGER views booking detail — StaffBookingDetailResponse, includes loyaltyBalance (M13-S04)
+# loyaltyBalance is populated when the booking has a customerId (enriched via
+# GET /customers/:customerId/loyalty/balance), null for guest bookings.
 GET {{bffUrl}}/v1/bookings/{{bookingId}}
 Authorization: Bearer {{managerToken}}
 
 ###
 
-### CUSTOMER views own booking detail
+### CUSTOMER views own booking detail — unchanged generic passthrough (dedicated shape lands in M13-S07)
 GET {{bffUrl}}/v1/bookings/{{bookingId}}
 Authorization: Bearer {{customerToken}}
 

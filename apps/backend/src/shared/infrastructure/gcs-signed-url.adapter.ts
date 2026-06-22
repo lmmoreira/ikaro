@@ -47,22 +47,31 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
     }
   }
 
-  async generateSignedUrl(
+  async generateWriteSignedUrl(
     storagePath: string,
     contentType: string,
-    _operation: 'write',
     bucket: 'private' | 'public' = 'private',
+  ): Promise<GenerateSignedUrlResult> {
+    return this.signUrl(storagePath, bucket, { version: 'v4', action: 'write', contentType });
+  }
+
+  async generateReadSignedUrl(
+    storagePath: string,
+    bucket: 'private' | 'public' = 'private',
+  ): Promise<GenerateSignedUrlResult> {
+    return this.signUrl(storagePath, bucket, { version: 'v4', action: 'read' });
+  }
+
+  private async signUrl(
+    storagePath: string,
+    bucket: 'private' | 'public',
+    config: { version: 'v4'; action: 'read' | 'write'; contentType?: string },
   ): Promise<GenerateSignedUrlResult> {
     const expiresAt = new Date(Date.now() + SIGNED_URL_TTL_MS);
     const bucketName = bucket === 'public' ? this.publicBucketName : this.bucketName;
     const file = this.storage.bucket(bucketName).file(storagePath);
 
-    const [signedUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'write',
-      expires: expiresAt,
-      contentType,
-    });
+    const [signedUrl] = await file.getSignedUrl({ ...config, expires: expiresAt });
 
     return { signedUrl, expiresAt };
   }

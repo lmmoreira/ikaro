@@ -19,17 +19,17 @@ const mock = new MockAdapter(bffClient);
 beforeEach(() => mock.reset());
 afterEach(() => mock.reset());
 
-const booking = { id: 'b-1', status: 'PENDING' };
+const booking = { bookingId: 'b-1', status: 'PENDING' };
 
 describe('listBookings', () => {
   it('calls GET /bookings and returns the list', async () => {
-    mock.onGet('/bookings').reply(200, { items: [booking], pagination: { total: 1 } });
+    mock.onGet('/bookings').reply(200, { items: [booking], total: 1, page: 1, limit: 20 });
     const res = await listBookings();
     expect(res.items).toHaveLength(1);
   });
 
   it('passes filters as query params', async () => {
-    mock.onGet('/bookings').reply(200, { items: [], pagination: { total: 0 } });
+    mock.onGet('/bookings').reply(200, { items: [], total: 0, page: 1, limit: 10 });
     await listBookings({ status: 'PENDING', limit: 10 });
     expect(mock.history['get']?.[0]?.params).toMatchObject({ status: 'PENDING', limit: 10 });
   });

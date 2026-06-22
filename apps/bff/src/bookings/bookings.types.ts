@@ -11,7 +11,7 @@ export interface AddressResponse {
   street: string;
   number: string;
   complement: string | null;
-  neighborhood: string;
+  neighborhood: string | null;
   city: string;
   state: string;
   zipCode: string;
@@ -96,6 +96,7 @@ export interface BookingDetailResponse {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  contactAddress: AddressResponse | null;
   scheduledAt: string;
   totalDurationMins: number;
   totalPrice: { amount: number; currency: string; formatted: string };
@@ -107,5 +108,8 @@ export interface BookingDetailResponse {
   adminNotes: string | null;
   infoRequestMessage: string | null;
   infoResponseMessage: string | null;
+  approvedAt: string | null;
+  approvedBy: string | null;
+  rejectionReason: string | null;
   createdAt: string;
 }

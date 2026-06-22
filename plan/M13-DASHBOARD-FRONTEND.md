@@ -268,7 +268,7 @@ interface StaffBookingListResponse {
 
 ---
 
-### M13-S04 — BFF: booking detail endpoint for staff
+### M13-S04 — BFF: booking detail endpoint for staff ✅ Done
 
 *(formerly M125-S04)*
 
@@ -347,12 +347,18 @@ When `customerId == null` (guest booking): skip loyalty call, return `loyaltyBal
 
 Before-service photo URLs: call `IStorageService.getSignedReadUrl(path)` per photo path (same pattern as M115-S01). Or pass filePaths to frontend and have Next.js image proxy — decide at discovery.
 
+> **Note (resolved during M13-S04 discovery):** No signed-read-URL capability exists anywhere in the codebase yet — M115-S01 only ever added **write**-signed URLs (`IStorageService.generateSignedUrl(..., operation: 'write')`). This story adds `operation: 'read'` to the port + GCS adapter; `GetBookingUseCase` (backend) signs each `beforeServicePhotoUrls`/`afterServicePhotoUrls` path before returning — the BFF just passes the already-signed URLs through. Since the signing happens in the shared backend projection (not BFF-side), it benefits the CUSTOMER passthrough branch too, and also unblocks `M13-S07`, which has the identical gap for customer photo URLs.
+>
+> Also resolved: `contactAddress`, `approvedAt`, `approvedBy`, `rejectionReason` exist as `Booking` aggregate getters but were never projected by `GetBookingUseCase.toResult()`. This story extends that projection to surface them — no new business logic, just widening an existing read model.
+>
+> `GET /v1/bookings/:id` stays a single shared route, branched by `X-Actor-Role` inside the existing `getOne()` handler. STAFF/MANAGER get the new `StaffBookingDetailResponse`; CUSTOMER keeps today's unchanged generic `BookingDetailResponse` passthrough — narrowing the route to staff-only would have broken the validated customer "Minha Conta" detail prototype (`plan/journey/customer/prototypes/minha-conta/02-agendamento-detail.html`), which already relies on this route today. `M13-S07` later replaces the CUSTOMER branch with the dedicated `CustomerBookingDetailResponse` shape.
+
 **Acceptance criteria:**
 - [ ] `GET /v1/bookings/:id` with STAFF|MANAGER JWT returns `StaffBookingDetailResponse`
 - [ ] `loyaltyBalance` is populated for customer bookings; `null` for guest bookings
 - [ ] `infoRequestMessage` populated when booking is INFO_REQUESTED or beyond
 - [ ] `infoResponseMessage` populated when customer submitted info (UC-005 A2)
-- [ ] CUSTOMER JWT → `403` (staff-only endpoint)
+- [ ] CUSTOMER JWT → `200`, unchanged generic `BookingDetailResponse` passthrough (no regression to the customer detail prototype); `M13-S07` replaces this branch with `CustomerBookingDetailResponse`
 - [ ] Booking not in tenant → `404`
 - [ ] Tenant isolation: MANAGER of Tenant A cannot retrieve Tenant B's booking detail
 - [ ] `StaffBookingDetailResponse` + `StaffBookingLineResponse` in `packages/types/src/booking.dto.ts`
@@ -372,6 +378,8 @@ Before-service photo URLs: call `IStorageService.getSignedReadUrl(path)` per pho
 
 **Description:**
 Verify and fill the BFF surface for staff service management. `POST /v1/services`, `PATCH /v1/services/:id`, and `DELETE /v1/services/:id` were implemented in M05 — this story confirms they exist and adds any missing pieces: a staff-authenticated list endpoint that returns **inactive** services (the public hotsite endpoint only returns `isActive: true`), and a single-service fetch for edit pre-fill.
+
+> **Note (added M13-S04):** `apps/web/lib/api/dashboard/services.ts` already declares its own `CreateServiceRequest`/`UpdateServiceRequest` (`priceAmount`, `loyaltyPointsValue`) which diverges from `@ikaro/types`'s same-named exports (`price`, `loyaltyPoints`). Reconcile this as part of re-verifying the `POST`/`PATCH /v1/services` contract here — see `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` for the full writeup.
 
 > 🔍 **Discover before starting:** Open `apps/bff/src/` and locate the services module (likely `platform/` or `catalog/`). Check: (a) does `GET /v1/services` already exist with a STAFF|MANAGER guard? Does it return `isActive`? (b) does `GET /v1/services/:id` exist for authenticated staff? (c) do `POST`, `PATCH`, `DELETE` endpoints exist with correct `@Roles('STAFF','MANAGER')` guard and `.http` blocks? List every gap — this story fills all of them.
 >
@@ -2215,6 +2223,7 @@ Two pages under a new `/dashboard/loyalty` route. The search page lets staff fin
 > - Confirm `M13-S12` has shipped: `GET /v1/customers?search=` and enriched balance response exist.
 > - Check `apps/web/app/dashboard/` structure — place new route at `loyalty/`.
 > - Confirm `apps/web/lib/api/dashboard/` convention (flat files or per-module folders).
+> - `apps/web/lib/api/dashboard/loyalty.ts`'s local `LoyaltyBalanceResponse` (`currentPoints`/`nextExpiryDate`) does **not** match `@ikaro/types`'s same-named export (`tenantId`/`activePoints`/`entries` — verified dead, zero real consumers). Fix `@ikaro/types` first, don't blindly import it — see `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md`.
 
 **Prototype references:**
 - `plan/journey/staff/prototypes/fidelidade/00-customer-search.html`
@@ -2816,6 +2825,8 @@ updateTenantSettings(body: UpdateTenantSettingsRequest): Promise<TenantSettingsR
 The team list with Ativo / Convite pendente / Inativo filter tabs. The data model has no dedicated "pending invite" status — both a never-activated invitee and a deactivated former member have `isActive: false`. The list must derive the displayed status client-side.
 
 > 🔍 **Discover before starting:** `GET /staff` (BFF) already exists and returns a `StaffListResponse` (`apps/bff/src/staff/staff.controller.ts`) — confirm via `apps/bff/src/staff/staff.types.ts` whether each list item exposes `googleOAuthId` or `deactivatedBy`. If neither is exposed, this story must add one of them to the BFF response (a small addition here, not a new story) — without it, "Convite pendente" vs. "Inativo" cannot be computed. Also reconcile: `packages/types/src/staff.dto.ts`'s `StaffResponse` differs slightly from the BFF's local `staff.types.ts` shapes — per CLAUDE.md's `@ikaro/types` scope rule (BFF→Frontend contract only), confirm `apps/web` should import from `@ikaro/types`, and align the BFF's local type with it if they've drifted.
+>
+> **Additionally (found during `M13-S04`):** `apps/web/lib/api/dashboard/staff.ts` *already exists* (from earlier scaffolding) with its own locally-declared `StaffResponse`/`StaffListResponse`/`StaffRole`/`InviteStaffRequest` — don't create a third parallel set of types in the new `team.ts`. Its `InviteStaffRequest` (`firstName`/`lastName`) is the one that actually matches the live `InviteStaffBodySchema`; `@ikaro/types`'s `InviteStaffRequest` (`name`) does not — fix `@ikaro/types` to match the real schema before pointing anything at it. Full writeup: `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md`.
 
 **Prototype reference:** `plan/journey/manager/prototypes/equipe/01-team-list.html`
 **Route:** `/dashboard/team`

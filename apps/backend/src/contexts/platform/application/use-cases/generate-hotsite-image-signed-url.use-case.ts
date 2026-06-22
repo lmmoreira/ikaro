@@ -23,10 +23,9 @@ export class GenerateHotsiteImageSignedUrlUseCase {
     const tenantId = this.tenantContext.tenantId;
     const filePath = `tenants/${tenantId}/hotsite/${dto.purpose}/${uuidv7()}/${dto.fileName}`;
 
-    const { signedUrl, expiresAt } = await this.storageService.generateSignedUrl(
+    const { signedUrl, expiresAt } = await this.storageService.generateWriteSignedUrl(
       filePath,
       dto.contentType,
-      'write',
       'public',
     );
 
