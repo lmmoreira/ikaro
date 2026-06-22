@@ -92,6 +92,17 @@ describe('ServicesController (component)', () => {
       expect(res.body).toEqual({ items: [mockStaffServiceResponse], total: 1 });
       expect(backendHttpService.get).toHaveBeenCalledWith('/services');
     });
+
+    it('STAFF JWT → 200', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({ items: [mockServiceDetail] });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/services')
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+    });
   });
 
   // ─── GET /v1/services/:id ─────────────────────────────────────────────────────
@@ -120,6 +131,17 @@ describe('ServicesController (component)', () => {
       expect(res.status).toBe(200);
       expect(res.body).toEqual(mockStaffServiceResponse);
       expect(backendHttpService.get).toHaveBeenCalledWith(`/services/${SERVICE_ID}`);
+    });
+
+    it('STAFF JWT → 200', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(mockServiceDetail);
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/services/${SERVICE_ID}`)
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
     });
 
     it('propagates 404 from backend', async () => {

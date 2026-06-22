@@ -296,15 +296,15 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
 - `GET /public/services` -> List **active-only** services for the hotsite (Public, no JWT — `X-Tenant-Slug` header). **Unpaginated** — no `limit`/`offset` query params accepted; returns `{ items: [...] }` (`HotsiteServiceListResponse`, see Pagination Strategy Pattern D above). Each item includes:
   ```json
   {
-    "serviceId": "uuid", "name": "Coleta e Entrega", "description": "...",
-    "price": { "amount": 20.00, "currency": "BRL" },
+    "id": "uuid", "name": "Coleta e Entrega", "description": "...",
+    "price": { "amount": 20.00, "currency": "BRL", "formatted": "R$ 20,00" },
     "durationMinutes": 15, "loyaltyPointsValue": 1,
     "requiresPickupAddress": true,
-    "isActive": true
+    "isActive": true, "createdAt": "2026-01-01T00:00:00.000Z"
   }
   ```
   Response shape: `{ "items": [ { ...above... }, ... ] }`. The frontend uses `requiresPickupAddress` to show/hide the address field as services are added to the basket.
-- `GET /services` -> List **all** services for the tenant, including `isActive: false` (STAFF|MANAGER). Same item shape as above, returns `{ items: [...], total: number }` (`StaffServiceListResponse`). Lives on the bare `/services` path — see `docs/24-BFF_ARCHITECTURE.md` for why the public list moved to `/public/services` (`M13-S05`).
+- `GET /services` -> List **all** services for the tenant, including `isActive: false` (STAFF|MANAGER). Returns `{ items: [...], total: number }` (`StaffServiceListResponse`) — each item uses `serviceId` (not `id`) and `price: { amount, currency }` (no `formatted`); see `StaffServiceResponse` in `service.dto.ts`. Lives on the bare `/services` path — see `docs/24-BFF_ARCHITECTURE.md` for why the public list moved to `/public/services` (`M13-S05`).
 - `GET /services/:id` -> Single service by id, active or inactive (STAFF|MANAGER). `StaffServiceResponse`. `404` if not found or wrong tenant.
 - `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`).
 - `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER).

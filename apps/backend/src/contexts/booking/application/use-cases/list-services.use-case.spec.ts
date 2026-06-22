@@ -79,6 +79,23 @@ describe('ListServicesUseCase', () => {
       expect(result.items).toHaveLength(2);
       expect(result.items.map((i) => i.name).sort()).toEqual(['Ativo', 'Inativo']);
     });
+
+    it('tenant isolation: does not return inactive services from another tenant', async () => {
+      const staffUseCase = new ListServicesUseCase(
+        repo,
+        new RequestContextBuilder().withTenantId(TENANT_A).withActorRole('MANAGER').build(),
+      );
+      const inactiveA = new ServiceBuilder().withTenantId(TENANT_A).withName('Inativo A').build();
+      inactiveA.deactivate();
+      const inactiveB = new ServiceBuilder().withTenantId(TENANT_B).withName('Inativo B').build();
+      inactiveB.deactivate();
+      await repo.save(inactiveA);
+      await repo.save(inactiveB);
+
+      const result = await staffUseCase.execute();
+
+      expect(result.items.every((i) => i.id !== inactiveB.id)).toBe(true);
+    });
   });
 
   describe('no actor role (public/guest)', () => {

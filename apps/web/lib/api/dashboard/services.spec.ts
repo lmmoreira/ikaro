@@ -21,6 +21,7 @@ describe('listServices', () => {
     mock.onGet('/services').reply(200, { items: [service], total: 1 });
     const res = await listServices();
     expect(res.items).toHaveLength(1);
+    expect(res.total).toBe(1);
   });
 });
 
