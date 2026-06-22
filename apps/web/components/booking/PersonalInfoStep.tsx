@@ -255,6 +255,7 @@ export function PersonalInfoStep({
       <div className="mt-6 flex gap-3">
         <button
           type="button"
+          data-testid="step-back"
           onClick={onBack}
           className="border px-6 py-3"
           style={{

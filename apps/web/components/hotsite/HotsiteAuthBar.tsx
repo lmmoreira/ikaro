@@ -39,7 +39,7 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element
   }, []);
 
   return (
-    <div
+    <header
       className="flex h-12 items-center justify-end px-6"
       style={{ backgroundColor: 'var(--ba-secondary)' }}
       data-testid="hotsite-auth-bar"
@@ -95,6 +95,6 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element
           {t('signIn')}
         </a>
       )}
-    </div>
+    </header>
   );
 }

@@ -12,6 +12,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  // webServer intentionally omitted — tests run against the already-running dev stack
-  // (docker-compose up + pnpm dev). CI startup is M16-S06's scope.
+  // webServer intentionally omitted — tests run against the already-running dev stack.
+  // Local: docker compose -f docker/docker-compose.yml up -d && pnpm dev
+  // CI: pr-e2e.yml starts the full stack before running Playwright (absorbed from M16-S06).
 });

@@ -1,0 +1,190 @@
+name: PR — E2E Tests (Playwright)
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 11.1.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      # ── Infrastructure ────────────────────────────────────────────────────────
+      - name: Start infrastructure (postgres, pubsub, gcs, mailhog)
+        run: docker compose -f docker/docker-compose.yml up -d
+
+      - name: Wait for postgres
+        run: |
+          retries=30
+          until docker compose -f docker/docker-compose.yml exec -T postgres \
+            pg_isready -U postgres -d ikaro; do
+            retries=$((retries - 1))
+            if [ "$retries" -le 0 ]; then
+              echo "Postgres did not become ready in time"
+              docker compose -f docker/docker-compose.yml logs postgres
+              exit 1
+            fi
+            sleep 2
+          done
+
+      # ── Database ──────────────────────────────────────────────────────────────
+      - name: Run migrations
+        run: pnpm db:migrate
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: ikaro_app
+          DB_PASSWORD: ikaro_app
+          DB_NAME: ikaro
+          DB_MIGRATOR_USER: ikaro_migrator
+          DB_MIGRATOR_PASSWORD: ikaro_migrator
+          PUBSUB_EMULATOR_HOST: localhost:8085
+          PUBSUB_PROJECT_ID: ikaro-local
+
+      - name: Seed database
+        run: pnpm db:seed
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: ikaro_app
+          DB_PASSWORD: ikaro_app
+          DB_NAME: ikaro
+          DB_MIGRATOR_USER: ikaro_migrator
+          DB_MIGRATOR_PASSWORD: ikaro_migrator
+          PUBSUB_EMULATOR_HOST: localhost:8085
+          PUBSUB_PROJECT_ID: ikaro-local
+          PUBSUB_AUTO_CREATE: 'true'
+          GCS_EMULATOR_HOST: 'http://localhost:4443'
+          GCS_BUCKET_NAME: ikaro-local
+          GCS_PUBLIC_BUCKET_NAME: ikaro-local-public
+          GCS_PUBLIC_BASE_URL: 'http://localhost:4443'
+          GCS_KEY_FILE: docker/fake-service-account.json
+          EMAIL_ADAPTER: mailhog
+          EMAIL_FROM: noreply@ikaro.example
+          SMTP_HOST: localhost
+          SMTP_PORT: '1025'
+          JWT_SECRET: 'e2e-ci-jwt-secret-must-be-at-least-64-characters-long-xxxxxxxxxxxxx'
+          PLATFORM_ADMIN_KEY: 'e2e-ci-platform-admin-key-must-be-32-chars!!'
+          INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'
+          FRONTEND_URL: 'http://localhost:3000'
+          HOTSITE_REVALIDATE_SECRET: 'e2e-ci-revalidate-secret-must-be-32ch!!'
+          ENABLE_DEV_AUTH: 'true'
+
+      # ── Application servers + readiness ──────────────────────────────────────
+      # All three apps are started and awaited in a single step so their
+      # background processes share one shell lifetime and cannot be reaped
+      # when an earlier step's shell exits.
+      - name: Start services and wait for readiness
+        timeout-minutes: 8
+        env:
+          # Backend
+          NODE_ENV: development
+          PORT: '3001'
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_USER: ikaro_app
+          DB_PASSWORD: ikaro_app
+          DB_NAME: ikaro
+          DB_MIGRATOR_USER: ikaro_migrator
+          DB_MIGRATOR_PASSWORD: ikaro_migrator
+          PUBSUB_EMULATOR_HOST: localhost:8085
+          PUBSUB_PROJECT_ID: ikaro-local
+          PUBSUB_AUTO_CREATE: 'true'
+          PUBSUB_MAX_DELIVERY_ATTEMPTS: '5'
+          GCS_EMULATOR_HOST: 'http://localhost:4443'
+          GCS_BUCKET_NAME: ikaro-local
+          GCS_PUBLIC_BUCKET_NAME: ikaro-local-public
+          GCS_PUBLIC_BASE_URL: 'http://localhost:4443'
+          GCS_KEY_FILE: docker/fake-service-account.json
+          GCS_MAX_UPLOAD_BYTES: '10485760'
+          EMAIL_ADAPTER: mailhog
+          EMAIL_FROM: noreply@ikaro.example
+          SMTP_HOST: localhost
+          SMTP_PORT: '1025'
+          JWT_SECRET: 'e2e-ci-jwt-secret-must-be-at-least-64-characters-long-xxxxxxxxxxxxx'
+          PLATFORM_ADMIN_KEY: 'e2e-ci-platform-admin-key-must-be-32-chars!!'
+          INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'
+          FRONTEND_URL: 'http://localhost:3000'
+          HOTSITE_REVALIDATE_SECRET: 'e2e-ci-revalidate-secret-must-be-32ch!!'
+          ENABLE_DEV_AUTH: 'true'
+          # BFF (overrides that differ from backend)
+          BACKEND_INTERNAL_URL: 'http://localhost:3001'
+          JWT_EXPIRES_IN: 7d
+          GOOGLE_CLIENT_ID: e2e-test-client-id
+          GOOGLE_CLIENT_SECRET: e2e-test-client-secret
+          GOOGLE_CALLBACK_URL: 'http://localhost:3002/v1/auth/google/callback'
+          ALLOWED_ORIGINS: 'http://localhost:3000'
+          CRON_SECRET: 'e2e-ci-cron-secret-must-be-at-least-32-chars!!'
+          # Web
+          NEXT_PUBLIC_BFF_URL: 'http://localhost:3002/v1'
+          NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'http://localhost:4443/ikaro-local-public'
+          NEXT_PUBLIC_SITE_URL: 'http://localhost:3000'
+        run: |
+          set -e
+
+          pnpm --filter @ikaro/backend dev > /tmp/backend.log 2>&1 &
+          PORT=3002 pnpm --filter @ikaro/bff dev > /tmp/bff.log 2>&1 &
+          pnpm --filter @ikaro/web dev > /tmp/web.log 2>&1 &
+
+          # wait-on tcp: checks TCP connectivity on all interfaces (IPv4 + IPv6),
+          # avoiding the localhost → :: (IPv6 only) binding issue in GitHub Actions.
+          npx -y wait-on \
+            tcp:localhost:3001 \
+            tcp:localhost:3002 \
+            tcp:localhost:3000 \
+            --timeout 180000 \
+            --interval 2000 \
+          || {
+            echo "=== Listening ports ==="
+            ss -tlnp 2>/dev/null || true
+            echo "=== Backend log (last 30 lines) ==="
+            tail -30 /tmp/backend.log || true
+            echo "=== BFF log (last 30 lines) ==="
+            tail -30 /tmp/bff.log || true
+            echo "=== Web log (last 30 lines) ==="
+            tail -30 /tmp/web.log || true
+            exit 1
+          }
+          echo "All services ready ✓"
+
+      # ── Playwright ────────────────────────────────────────────────────────────
+      - name: Install Playwright browsers
+        run: pnpm --filter @ikaro/web exec playwright install chromium --with-deps
+
+      - name: Run Playwright E2E
+        run: pnpm --filter @ikaro/web e2e:ci
+        env:
+          PLAYWRIGHT_BASE_URL: 'http://localhost:3000'
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
