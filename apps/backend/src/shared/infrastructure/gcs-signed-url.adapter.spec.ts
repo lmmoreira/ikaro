@@ -95,13 +95,12 @@ describe('GcsSignedUrlAdapter', () => {
     });
   });
 
-  describe('generateSignedUrl()', () => {
+  describe('generateWriteSignedUrl()', () => {
     it('returns the signedUrl and an expiresAt Date', async () => {
       const service = makeService({});
-      const result = await service.generateSignedUrl(
+      const result = await service.generateWriteSignedUrl(
         'tenants/t1/uploads/uuid/car.jpg',
         'image/jpeg',
-        'write',
       );
       expect(result.signedUrl).toBe(
         'https://storage.googleapis.com/bucket/path?X-Goog-Signature=abc',
@@ -111,7 +110,7 @@ describe('GcsSignedUrlAdapter', () => {
 
     it('calls getSignedUrl with v4, write action and correct contentType', async () => {
       const service = makeService({});
-      await service.generateSignedUrl('tenants/t1/uploads/uuid/car.jpg', 'image/png', 'write');
+      await service.generateWriteSignedUrl('tenants/t1/uploads/uuid/car.jpg', 'image/png');
       expect(mockGetSignedUrl).toHaveBeenCalledWith(
         expect.objectContaining({ version: 'v4', action: 'write', contentType: 'image/png' }),
       );
@@ -120,31 +119,65 @@ describe('GcsSignedUrlAdapter', () => {
     it('passes the correct file path to the storage bucket', async () => {
       const service = makeService({});
       const path = 'tenants/abc/bookings/def/photo.jpg';
-      await service.generateSignedUrl(path, 'image/jpeg', 'write');
+      await service.generateWriteSignedUrl(path, 'image/jpeg');
       expect(mockFile).toHaveBeenCalledWith(path);
     });
 
     it('uses custom bucket name from config', async () => {
       const service = makeService({ GCS_BUCKET_NAME: 'my-prod-bucket' });
-      await service.generateSignedUrl('path/file.jpg', 'image/jpeg', 'write');
+      await service.generateWriteSignedUrl('path/file.jpg', 'image/jpeg');
       expect(mockBucket).toHaveBeenCalledWith('my-prod-bucket');
     });
 
     it('defaults to ikaro-local bucket when GCS_BUCKET_NAME is not set', async () => {
       const service = makeService({});
-      await service.generateSignedUrl('path/file.jpg', 'image/jpeg', 'write');
+      await service.generateWriteSignedUrl('path/file.jpg', 'image/jpeg');
       expect(mockBucket).toHaveBeenCalledWith('ikaro-local');
     });
 
     it('sets expiresAt approximately 15 minutes in the future', async () => {
       const before = Date.now();
       const service = makeService({});
-      const result = await service.generateSignedUrl('path/file.jpg', 'image/jpeg', 'write');
+      const result = await service.generateWriteSignedUrl('path/file.jpg', 'image/jpeg');
       const after = Date.now();
       const expiresMs = result.expiresAt.getTime();
       const ttlMs = 15 * 60 * 1000;
       expect(expiresMs).toBeGreaterThanOrEqual(before + ttlMs - 100);
       expect(expiresMs).toBeLessThanOrEqual(after + ttlMs + 100);
+    });
+  });
+
+  describe('generateReadSignedUrl()', () => {
+    it('returns the signedUrl and an expiresAt Date', async () => {
+      const service = makeService({});
+      const result = await service.generateReadSignedUrl('tenants/t1/bookings/b1/car.jpg');
+      expect(result.signedUrl).toBe(
+        'https://storage.googleapis.com/bucket/path?X-Goog-Signature=abc',
+      );
+      expect(result.expiresAt).toBeInstanceOf(Date);
+    });
+
+    it('calls getSignedUrl with v4, read action and no contentType', async () => {
+      const service = makeService({});
+      await service.generateReadSignedUrl('tenants/t1/bookings/b1/car.jpg');
+      expect(mockGetSignedUrl).toHaveBeenCalledWith({
+        version: 'v4',
+        action: 'read',
+        expires: expect.any(Date),
+      });
+    });
+
+    it('passes the correct file path to the storage bucket', async () => {
+      const service = makeService({});
+      const path = 'tenants/abc/bookings/def/photo.jpg';
+      await service.generateReadSignedUrl(path);
+      expect(mockFile).toHaveBeenCalledWith(path);
+    });
+
+    it('uses the public bucket when bucket is "public"', async () => {
+      const service = makeService({});
+      await service.generateReadSignedUrl('hotsite/banner.jpg', 'public');
+      expect(mockBucket).toHaveBeenCalledWith('ikaro-local-public');
     });
   });
 

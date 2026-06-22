@@ -91,10 +91,7 @@ export class GetBookingUseCase {
 
   private signPhotoUrls(paths: string[]): Promise<string[]> {
     return Promise.all(
-      paths.map(
-        async (path) =>
-          (await this.storageService.generateSignedUrl(path, undefined, 'read')).signedUrl,
-      ),
+      paths.map(async (path) => (await this.storageService.generateReadSignedUrl(path)).signedUrl),
     );
   }
 

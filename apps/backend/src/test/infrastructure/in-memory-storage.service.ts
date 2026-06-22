@@ -6,23 +6,27 @@ export class InMemoryStorageService implements IStorageService {
   readonly copiedPaths: Array<{ sourcePath: string; destinationPath: string }> = [];
   private readonly existingPaths = new Set<string>();
 
-  async generateSignedUrl(
+  async generateWriteSignedUrl(
     storagePath: string,
-    contentType: string | undefined,
-    operation: 'write' | 'read',
+    contentType: string,
     bucket: 'private' | 'public' = 'private',
   ): Promise<GenerateSignedUrlResult> {
-    const bucketName = bucket === 'public' ? 'ikaro-local-public' : 'bucket';
-    if (operation === 'read') {
-      this.readSignedPaths.push(storagePath);
-      return {
-        signedUrl: `http://fake-gcs/${bucketName}/${storagePath}?sig=test&op=read`,
-        expiresAt: new Date('2099-01-01T00:00:00Z'),
-      };
-    }
     this.uploadedPaths.push(storagePath);
+    const bucketName = bucket === 'public' ? 'ikaro-local-public' : 'bucket';
     return {
-      signedUrl: `http://fake-gcs/${bucketName}/${storagePath}?sig=test&contentType=${encodeURIComponent(contentType ?? '')}`,
+      signedUrl: `http://fake-gcs/${bucketName}/${storagePath}?sig=test&contentType=${encodeURIComponent(contentType)}`,
+      expiresAt: new Date('2099-01-01T00:00:00Z'),
+    };
+  }
+
+  async generateReadSignedUrl(
+    storagePath: string,
+    bucket: 'private' | 'public' = 'private',
+  ): Promise<GenerateSignedUrlResult> {
+    this.readSignedPaths.push(storagePath);
+    const bucketName = bucket === 'public' ? 'ikaro-local-public' : 'bucket';
+    return {
+      signedUrl: `http://fake-gcs/${bucketName}/${storagePath}?sig=test&op=read`,
       expiresAt: new Date('2099-01-01T00:00:00Z'),
     };
   }

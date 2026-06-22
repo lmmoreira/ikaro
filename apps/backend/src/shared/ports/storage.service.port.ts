@@ -10,13 +10,17 @@ export interface IStorageService {
    * `bucket` decides the signed URL's destination — it's cryptographically bound to a
    * specific bucket+path and cannot be redirected later. Defaults to the private bucket;
    * pass `'public'` for assets that must resolve via `getPublicUrl()` (e.g. hotsite images).
-   * `contentType` is only meaningful for `'write'` (it's bound into the signature); pass
-   * `undefined` for `'read'`.
+   * `contentType` is bound into the signature — must match the `Content-Type` header the
+   * client uses on the actual upload, or GCS rejects the request.
    */
-  generateSignedUrl(
+  generateWriteSignedUrl(
     storagePath: string,
-    contentType: string | undefined,
-    operation: 'write' | 'read',
+    contentType: string,
+    bucket?: 'private' | 'public',
+  ): Promise<GenerateSignedUrlResult>;
+  /** `bucket` defaults to private — pass `'public'` for assets that must resolve via `getPublicUrl()`. */
+  generateReadSignedUrl(
+    storagePath: string,
     bucket?: 'private' | 'public',
   ): Promise<GenerateSignedUrlResult>;
   /** `bucket` defaults to private — pass `'public'` to check the hotsite public bucket. */
