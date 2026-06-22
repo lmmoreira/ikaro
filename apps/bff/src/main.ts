@@ -26,6 +26,8 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix('v1');
 
+  app.enableShutdownHooks();
+
   const port = config.getOrThrow<number>('PORT');
   await app.listen(port);
   logger.log(`BFF running on port ${port}`);

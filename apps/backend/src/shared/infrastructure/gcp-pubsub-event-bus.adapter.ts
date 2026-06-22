@@ -76,6 +76,7 @@ export class GcpPubSubEventBusAdapter
 
   async onModuleDestroy(): Promise<void> {
     await Promise.all(this.active.map((s) => s.close()));
+    this.logger.log(`[pubsub] closed ${this.active.length} subscription(s) on shutdown`);
   }
 
   private async dispatch(
