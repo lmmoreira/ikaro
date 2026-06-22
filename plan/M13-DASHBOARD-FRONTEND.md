@@ -379,6 +379,8 @@ Before-service photo URLs: call `IStorageService.getSignedReadUrl(path)` per pho
 **Description:**
 Verify and fill the BFF surface for staff service management. `POST /v1/services`, `PATCH /v1/services/:id`, and `DELETE /v1/services/:id` were implemented in M05 — this story confirms they exist and adds any missing pieces: a staff-authenticated list endpoint that returns **inactive** services (the public hotsite endpoint only returns `isActive: true`), and a single-service fetch for edit pre-fill.
 
+> **Note (added M13-S04):** `apps/web/lib/api/dashboard/services.ts` already declares its own `CreateServiceRequest`/`UpdateServiceRequest` (`priceAmount`, `loyaltyPointsValue`) which diverges from `@ikaro/types`'s same-named exports (`price`, `loyaltyPoints`). Reconcile this as part of re-verifying the `POST`/`PATCH /v1/services` contract here — see `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` for the full writeup.
+
 > 🔍 **Discover before starting:** Open `apps/bff/src/` and locate the services module (likely `platform/` or `catalog/`). Check: (a) does `GET /v1/services` already exist with a STAFF|MANAGER guard? Does it return `isActive`? (b) does `GET /v1/services/:id` exist for authenticated staff? (c) do `POST`, `PATCH`, `DELETE` endpoints exist with correct `@Roles('STAFF','MANAGER')` guard and `.http` blocks? List every gap — this story fills all of them.
 >
 > ⚠️ **Backend gap, not just BFF:** `CreateServiceRequest.isActive` below has no backing capability today — `Service.create()` in `apps/backend/src/contexts/booking/domain/service.aggregate.ts` hardcodes `isActive: true` with no override parameter, and `CreateServiceSchema` has no `isActive` field. Passing `isActive: false` through the BFF will not work until the backend's `Service.create()` and DTO/schema are extended to accept it — this is a backend-side change, out of scope for this BFF-only story unless explicitly pulled in.
@@ -2221,6 +2223,7 @@ Two pages under a new `/dashboard/loyalty` route. The search page lets staff fin
 > - Confirm `M13-S12` has shipped: `GET /v1/customers?search=` and enriched balance response exist.
 > - Check `apps/web/app/dashboard/` structure — place new route at `loyalty/`.
 > - Confirm `apps/web/lib/api/dashboard/` convention (flat files or per-module folders).
+> - `apps/web/lib/api/dashboard/loyalty.ts`'s local `LoyaltyBalanceResponse` (`currentPoints`/`nextExpiryDate`) does **not** match `@ikaro/types`'s same-named export (`tenantId`/`activePoints`/`entries` — verified dead, zero real consumers). Fix `@ikaro/types` first, don't blindly import it — see `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md`.
 
 **Prototype references:**
 - `plan/journey/staff/prototypes/fidelidade/00-customer-search.html`
@@ -2822,6 +2825,8 @@ updateTenantSettings(body: UpdateTenantSettingsRequest): Promise<TenantSettingsR
 The team list with Ativo / Convite pendente / Inativo filter tabs. The data model has no dedicated "pending invite" status — both a never-activated invitee and a deactivated former member have `isActive: false`. The list must derive the displayed status client-side.
 
 > 🔍 **Discover before starting:** `GET /staff` (BFF) already exists and returns a `StaffListResponse` (`apps/bff/src/staff/staff.controller.ts`) — confirm via `apps/bff/src/staff/staff.types.ts` whether each list item exposes `googleOAuthId` or `deactivatedBy`. If neither is exposed, this story must add one of them to the BFF response (a small addition here, not a new story) — without it, "Convite pendente" vs. "Inativo" cannot be computed. Also reconcile: `packages/types/src/staff.dto.ts`'s `StaffResponse` differs slightly from the BFF's local `staff.types.ts` shapes — per CLAUDE.md's `@ikaro/types` scope rule (BFF→Frontend contract only), confirm `apps/web` should import from `@ikaro/types`, and align the BFF's local type with it if they've drifted.
+>
+> **Additionally (found during `M13-S04`):** `apps/web/lib/api/dashboard/staff.ts` *already exists* (from earlier scaffolding) with its own locally-declared `StaffResponse`/`StaffListResponse`/`StaffRole`/`InviteStaffRequest` — don't create a third parallel set of types in the new `team.ts`. Its `InviteStaffRequest` (`firstName`/`lastName`) is the one that actually matches the live `InviteStaffBodySchema`; `@ikaro/types`'s `InviteStaffRequest` (`name`) does not — fix `@ikaro/types` to match the real schema before pointing anything at it. Full writeup: `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md`.
 
 **Prototype reference:** `plan/journey/manager/prototypes/equipe/01-team-list.html`
 **Route:** `/dashboard/team`
