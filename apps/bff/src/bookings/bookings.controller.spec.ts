@@ -798,6 +798,25 @@ describe('BookingsController', () => {
       expect(result).toMatchObject({ loyaltyBalance: 150, customerId: CUSTOMER_ID });
     });
 
+    it('MANAGER: degrades loyaltyBalance to null when the loyalty backend call fails', async () => {
+      const customerDetail = { ...mockDetailResponse, customerId: CUSTOMER_ID };
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce(customerDetail)
+          .mockRejectedValueOnce(new HttpException({ status: 500 }, 500)),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const result = await controller.getOne(BOOKING_ID, managerUser);
+
+      expect(result).toMatchObject({
+        bookingId: BOOKING_ID,
+        customerId: CUSTOMER_ID,
+        loyaltyBalance: null,
+      });
+    });
+
     it('MANAGER: maps lines, audit fields and address detail into StaffBookingDetailResponse', async () => {
       const detail = {
         ...mockDetailResponse,
@@ -813,6 +832,7 @@ describe('BookingsController', () => {
         approvedAt: '2026-05-01T10:00:00.000Z',
         approvedBy: '20000000-0000-4000-8000-000000000099',
         rejectionReason: 'Cliente não confirmou disponibilidade',
+        afterServicePhotoUrls: ['https://example.com/after.jpg'],
         lines: [
           {
             lineId: 'line-1',
@@ -836,6 +856,7 @@ describe('BookingsController', () => {
         approvedAt: '2026-05-01T10:00:00.000Z',
         approvedBy: '20000000-0000-4000-8000-000000000099',
         rejectionReason: 'Cliente não confirmou disponibilidade',
+        afterServicePhotoUrls: ['https://example.com/after.jpg'],
         lines: [
           {
             lineId: 'line-1',

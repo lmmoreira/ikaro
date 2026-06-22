@@ -1315,7 +1315,8 @@ describe('BookingController (integration)', () => {
         .set(actorHeaders(detailTenantId, STAFF_ID, 'MANAGER'))
         .expect(200);
 
-      expect(body.approvedAt).toBeDefined();
+      expect(body.approvedAt).not.toBeNull();
+      expect(new Date(body.approvedAt).toISOString()).toBe(body.approvedAt);
       expect(body.approvedBy).toBe(STAFF_ID);
       expect(body.beforeServicePhotoUrls).toHaveLength(1);
       expect(body.beforeServicePhotoUrls[0]).not.toBe(photoPath);

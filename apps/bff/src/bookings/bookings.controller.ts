@@ -207,6 +207,7 @@ function toStaffBookingDetail(
     totalPrice: { amount: detail.totalPrice.amount, currency: detail.totalPrice.currency },
     totalDurationMins: detail.totalDurationMins,
     beforeServicePhotoUrls: detail.beforeServicePhotoUrls,
+    afterServicePhotoUrls: detail.afterServicePhotoUrls,
     infoRequestMessage: detail.infoRequestMessage,
     infoResponseMessage: detail.infoResponseMessage,
     approvedAt: detail.approvedAt,
@@ -348,15 +349,20 @@ export class BookingsController {
     }
 
     const loyaltyBalance =
-      detail.customerId === null
-        ? null
-        : (
-            await this.backendHttp.get<LoyaltyBalanceResponse>(
-              `/customers/${detail.customerId}/loyalty/balance`,
-            )
-          ).currentPoints;
+      detail.customerId === null ? null : await this.fetchLoyaltyBalance(detail.customerId);
 
     return toStaffBookingDetail(detail, loyaltyBalance);
+  }
+
+  private async fetchLoyaltyBalance(customerId: string): Promise<number | null> {
+    try {
+      const balance = await this.backendHttp.get<LoyaltyBalanceResponse>(
+        `/customers/${customerId}/loyalty/balance`,
+      );
+      return balance.currentPoints;
+    } catch {
+      return null;
+    }
   }
 
   @Post()

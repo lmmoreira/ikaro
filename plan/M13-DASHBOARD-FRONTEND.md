@@ -347,7 +347,7 @@ When `customerId == null` (guest booking): skip loyalty call, return `loyaltyBal
 
 Before-service photo URLs: call `IStorageService.getSignedReadUrl(path)` per photo path (same pattern as M115-S01). Or pass filePaths to frontend and have Next.js image proxy — decide at discovery.
 
-> **Note (resolved during M13-S04 discovery):** No signed-read-URL capability exists anywhere in the codebase yet — M115-S01 only ever added **write**-signed URLs (`IStorageService.generateSignedUrl(..., operation: 'write')`). This story adds `operation: 'read'` to the port + GCS adapter and signs each `beforeServicePhotoUrls` path in the BFF before returning. This also unblocks `M13-S07`, which has the identical gap for customer photo URLs.
+> **Note (resolved during M13-S04 discovery):** No signed-read-URL capability exists anywhere in the codebase yet — M115-S01 only ever added **write**-signed URLs (`IStorageService.generateSignedUrl(..., operation: 'write')`). This story adds `operation: 'read'` to the port + GCS adapter; `GetBookingUseCase` (backend) signs each `beforeServicePhotoUrls`/`afterServicePhotoUrls` path before returning — the BFF just passes the already-signed URLs through. Since the signing happens in the shared backend projection (not BFF-side), it benefits the CUSTOMER passthrough branch too, and also unblocks `M13-S07`, which has the identical gap for customer photo URLs.
 >
 > Also resolved: `contactAddress`, `approvedAt`, `approvedBy`, `rejectionReason` exist as `Booking` aggregate getters but were never projected by `GetBookingUseCase.toResult()`. This story extends that projection to surface them — no new business logic, just widening an existing read model.
 >

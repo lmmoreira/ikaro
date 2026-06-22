@@ -96,6 +96,7 @@ export interface StaffBookingDetailResponse {
 
   // Media
   beforeServicePhotoUrls: string[]; // signed read URLs
+  afterServicePhotoUrls: string[]; // signed read URLs — populated once COMPLETED
 
   // Admin-recorded fields
   infoRequestMessage: string | null; // UC-005: what admin asked
