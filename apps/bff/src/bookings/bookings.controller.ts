@@ -29,14 +29,10 @@ import {
   CancelBookingResponse,
   CompleteBookingResponse,
   RescheduleBookingResponse,
-  BookingListItem,
 } from './bookings.types';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
-import {
-  StaffBookingCardResponse,
-  StaffBookingDetailResponse,
-  StaffBookingListResponse,
-} from '@ikaro/types';
+import { StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
+import { toStaffBookingCard, toStaffBookingDetail } from './bookings.mapper';
 import { tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
 
 const AddressSchema = z.object({
@@ -166,55 +162,6 @@ type RejectBookingBody = z.infer<typeof RejectBookingBodySchema>;
 type RequestMoreInfoBody = z.infer<typeof RequestMoreInfoBodySchema>;
 type SubmitBookingInfoBody = z.infer<typeof SubmitBookingInfoBodySchema>;
 type SubmitGuestBookingInfoBody = z.infer<typeof SubmitGuestBookingInfoBodySchema>;
-
-function toStaffBookingCard(item: BookingListItem): StaffBookingCardResponse {
-  return {
-    bookingId: item.id,
-    status: item.status as StaffBookingCardResponse['status'],
-    scheduledAt: item.scheduledAt,
-    contactName: item.contactName,
-    serviceNames: item.lineSummary.map((l) => l.serviceNameAtBooking),
-    totalPrice: { amount: item.totalPrice.amount, currency: item.totalPrice.currency },
-    totalDurationMins: item.totalDurationMins,
-    isCustomer: item.customerId !== null,
-  };
-}
-
-function toStaffBookingDetail(
-  detail: BookingDetailResponse,
-  loyaltyBalance: number | null,
-): StaffBookingDetailResponse {
-  return {
-    bookingId: detail.id,
-    status: detail.status as StaffBookingDetailResponse['status'],
-    scheduledAt: detail.scheduledAt,
-    type: detail.type as StaffBookingDetailResponse['type'],
-    contactName: detail.contactName,
-    contactEmail: detail.contactEmail,
-    contactPhone: detail.contactPhone,
-    contactAddress: detail.contactAddress,
-    pickupAddress: detail.pickupAddress,
-    customerId: detail.customerId,
-    loyaltyBalance,
-    lines: detail.lines.map((l) => ({
-      lineId: l.lineId,
-      serviceName: l.serviceNameAtBooking,
-      priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
-      durationMinsAtBooking: l.durationMinsAtBooking,
-      pointsValueAtBooking: l.pointsValueAtBooking,
-      requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
-    })),
-    totalPrice: { amount: detail.totalPrice.amount, currency: detail.totalPrice.currency },
-    totalDurationMins: detail.totalDurationMins,
-    beforeServicePhotoUrls: detail.beforeServicePhotoUrls,
-    afterServicePhotoUrls: detail.afterServicePhotoUrls,
-    infoRequestMessage: detail.infoRequestMessage,
-    infoResponseMessage: detail.infoResponseMessage,
-    approvedAt: detail.approvedAt,
-    approvedBy: detail.approvedBy,
-    rejectionReason: detail.rejectionReason,
-  };
-}
 
 @Controller('bookings')
 export class BookingsController {

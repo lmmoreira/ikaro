@@ -24,11 +24,8 @@ function wrapper({ children }: { readonly children: React.ReactNode }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockListBookings.mockResolvedValue({
-    items: [],
-    pagination: { total: 0, hasMore: false, limit: 25, offset: 0 },
-  });
-  mockGetBooking.mockResolvedValue({ id: 'b-1', status: 'PENDING' });
+  mockListBookings.mockResolvedValue({ items: [], total: 0, page: 1, limit: 25 });
+  mockGetBooking.mockResolvedValue({ bookingId: 'b-1', status: 'PENDING' });
 });
 
 describe('useBookings', () => {
@@ -55,7 +52,7 @@ describe('useBooking', () => {
   it('fetches booking when id is provided', async () => {
     const { result } = renderHook(() => useBooking('b-1'), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.id).toBe('b-1');
+    expect(result.current.data?.bookingId).toBe('b-1');
     expect(mockGetBooking).toHaveBeenCalledWith('b-1');
   });
 });

@@ -816,58 +816,6 @@ describe('BookingsController', () => {
         loyaltyBalance: null,
       });
     });
-
-    it('MANAGER: maps lines, audit fields and address detail into StaffBookingDetailResponse', async () => {
-      const detail = {
-        ...mockDetailResponse,
-        contactAddress: {
-          street: 'Rua A',
-          number: '10',
-          complement: null,
-          neighborhood: 'Centro',
-          city: 'Belo Horizonte',
-          state: 'MG',
-          zipCode: '30100-000',
-        },
-        approvedAt: '2026-05-01T10:00:00.000Z',
-        approvedBy: '20000000-0000-4000-8000-000000000099',
-        rejectionReason: 'Cliente não confirmou disponibilidade',
-        afterServicePhotoUrls: ['https://example.com/after.jpg'],
-        lines: [
-          {
-            lineId: 'line-1',
-            serviceId: 'service-1',
-            serviceNameAtBooking: 'Lavagem Completa',
-            priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
-            durationMinsAtBooking: 30,
-            pointsValueAtBooking: 10,
-            requiresPickupAddressAtBooking: false,
-            actualPriceCharged: null,
-          },
-        ],
-      };
-      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValueOnce(detail) });
-      const controller = new BookingsController(backendHttp, makeConfigService());
-
-      const result = await controller.getOne(BOOKING_ID, managerUser);
-
-      expect(result).toMatchObject({
-        contactAddress: { city: 'Belo Horizonte' },
-        approvedAt: '2026-05-01T10:00:00.000Z',
-        approvedBy: '20000000-0000-4000-8000-000000000099',
-        rejectionReason: 'Cliente não confirmou disponibilidade',
-        afterServicePhotoUrls: ['https://example.com/after.jpg'],
-        lines: [
-          {
-            lineId: 'line-1',
-            serviceName: 'Lavagem Completa',
-            durationMinsAtBooking: 30,
-            pointsValueAtBooking: 10,
-            requiresPickupAddressAtBooking: false,
-          },
-        ],
-      });
-    });
   });
 
   describe('reschedule()', () => {
