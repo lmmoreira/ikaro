@@ -268,7 +268,7 @@ interface StaffBookingListResponse {
 
 ---
 
-### M13-S04 — BFF: booking detail endpoint for staff
+### M13-S04 — BFF: booking detail endpoint for staff ✅ Done
 
 *(formerly M125-S04)*
 
