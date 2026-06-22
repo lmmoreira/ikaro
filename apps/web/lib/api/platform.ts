@@ -4,7 +4,7 @@ import { HOTSITE_REVALIDATE_SECONDS } from '@/lib/hotsite/revalidate';
 
 export async function fetchManifest(slug: string): Promise<HotsiteManifestResponse> {
   const isDev = process.env.NODE_ENV === 'development';
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/platform/manifest/${slug}`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/public/platform/manifest/${slug}`, {
     next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS },
   });
 
@@ -16,7 +16,7 @@ export async function fetchManifest(slug: string): Promise<HotsiteManifestRespon
 
 export async function fetchPublishedHotsiteSlugs(): Promise<HotsiteSitemapEntryListResponse> {
   const isDev = process.env.NODE_ENV === 'development';
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/platform/published-hotsites`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/public/platform/published-hotsites`, {
     next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS },
   });
 

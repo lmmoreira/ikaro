@@ -10,7 +10,7 @@ import {
   HotsiteSitemapEntryListResponse,
 } from '@ikaro/types';
 
-@Controller('platform')
+@Controller('public/platform')
 export class PlatformPublicController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 

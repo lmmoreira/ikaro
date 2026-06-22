@@ -34,11 +34,11 @@ describe('ServicesPublicController (component)', () => {
     jest.resetAllMocks();
   });
 
-  // ─── GET /v1/services (public) ───────────────────────────────────────────────
+  // ─── GET /v1/public/services ───────────────────────────────────────────────
 
-  describe('GET /v1/services (public)', () => {
+  describe('GET /v1/public/services', () => {
     it('returns 400 when X-Tenant-Slug header is missing', async () => {
-      const res = await request(app.getHttpServer()).get('/v1/services');
+      const res = await request(app.getHttpServer()).get('/v1/public/services');
       expect(res.status).toBe(400);
       expect(res.body.status).toBe(400);
     });
@@ -49,7 +49,7 @@ describe('ServicesPublicController (component)', () => {
       backendHttpService.getForPublic = jest.fn().mockResolvedValueOnce(mockListResponse);
 
       const res = await request(app.getHttpServer())
-        .get('/v1/services')
+        .get('/v1/public/services')
         .set('X-Tenant-Slug', 'lavacar-bh');
 
       expect(res.status).toBe(200);
@@ -62,7 +62,7 @@ describe('ServicesPublicController (component)', () => {
       );
 
       const res = await request(app.getHttpServer())
-        .get('/v1/services')
+        .get('/v1/public/services')
         .set('X-Tenant-Slug', 'unknown-slug');
 
       expect(res.status).toBe(404);
