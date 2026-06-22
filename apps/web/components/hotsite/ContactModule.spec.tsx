@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
-import { axe } from 'jest-axe';
+import { axe } from '@/axe-helper';
 import { describe, expect, it } from 'vitest';
 import type { ContactModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';

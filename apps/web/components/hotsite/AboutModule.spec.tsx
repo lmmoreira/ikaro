@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { axe } from 'jest-axe';
+import { axe } from '@/axe-helper';
 import { describe, expect, it } from 'vitest';
 import type { AboutModuleData } from '@ikaro/types';
 import { AboutModule } from './AboutModule';
