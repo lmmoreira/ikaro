@@ -37,7 +37,7 @@
 | **AUD-002** | Fix booking slot-conflict race + prove optimistic lock | 🔴 Critical | M | Now | — | §4.2, §4.3 |
 | **AUD-003** | Adversarial concurrency + event-failure test suite | 🔴 Critical | M | Now | AUD-001, AUD-002 | §11.1, §11.2 |
 | **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
-| **AUD-005** | Graceful shutdown hooks (backend + BFF) | 🟠 High | XS | Now | — | §5.2 |
+| **AUD-005** | Graceful shutdown hooks (backend + BFF) ✅ | 🟠 High | XS | Now | — | §5.2 |
 | **AUD-006** | Helmet / security headers on BFF | 🟠 High | XS | Now | — | §5.6 |
 | **AUD-007** | CSP + security headers on hotsite | 🟠 High | S | Now | — | §8.3 |
 | **AUD-008** | Isolate BFF HTTP-client auth state (`client-only` guard) | 🟠 High | XS | Now | — | §8.4 |
@@ -214,7 +214,7 @@ Duplicate booking confirmations and daily reminders to customers/staff are a vis
 
 ### AUD-005 — Graceful shutdown hooks (backend + BFF)
 **Risk:** 🟠 High · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** §5.2
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 #### What's wrong
 `apps/backend/src/main.ts` (and BFF `main.ts`) call `app.listen()` without `app.enableShutdownHooks()`. So `OnModuleDestroy` (Pub/Sub `subscription.close()` in `gcp-pubsub-event-bus.adapter.ts:77`) never fires on SIGTERM.
