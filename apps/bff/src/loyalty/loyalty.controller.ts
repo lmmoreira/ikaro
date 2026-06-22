@@ -10,6 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { z } from 'zod';
+import { CustomerLoyaltyBalanceResponse } from '@ikaro/types';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
@@ -19,6 +20,9 @@ import {
   LoyaltyRedemptionsResponse,
   RedeemPointsResponse,
 } from './loyalty.types';
+
+// points_per_currency_unit — see M13-S12/M13-S11; not landed yet, hardcode disabled.
+const REDEMPTION_CONVERSION_RATE = 0;
 
 const PaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -44,8 +48,14 @@ export class LoyaltyController {
 
   @Get('loyalty/balance')
   @Roles('CUSTOMER')
-  getBalance(): Promise<LoyaltyBalanceResponse> {
-    return this.backendHttp.get<LoyaltyBalanceResponse>('/loyalty/balance');
+  async getBalance(): Promise<CustomerLoyaltyBalanceResponse> {
+    const balance = await this.backendHttp.get<LoyaltyBalanceResponse>('/loyalty/balance');
+    return {
+      currentPoints: balance.currentPoints,
+      nextExpiryDate: balance.nextExpiryDate,
+      nextExpiryPoints: balance.nextExpiryPoints,
+      conversionRate: REDEMPTION_CONVERSION_RATE,
+    };
   }
 
   @Get('loyalty/entries')

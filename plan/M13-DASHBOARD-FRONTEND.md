@@ -464,7 +464,9 @@ export interface UpdateServiceRequest {
 Provide the two data endpoints needed for the Minha Conta list page: a customer-scoped booking list and the loyalty balance strip.
 
 > 🔍 **Discover before starting:**
-> - Open `apps/bff/src/bookings/bookings.controller.ts`. Look for `GET /v1/bookings`. Check: (a) does it already allow `CUSTOMER` role via `@Roles`? (b) when called with a CUSTOMER JWT, does it filter to `customerId === JWT.sub`? (c) does its response shape include `status`, `scheduledAt`, `lines[].serviceName`, `lines[].priceAtBooking`, `totalPrice`, and `booking.notes`? If yes to all three, this story reduces to adding `CustomerBookingListResponse` to `packages/types/` only.
+> - Open `apps/bff/src/bookings/bookings.controller.ts`. Look for `GET /v1/bookings`. Check: (a) does it already allow `CUSTOMER` role via `@Roles`? (b) when called with a CUSTOMER JWT, does it filter to `customerId === JWT.sub`? (c) does its response shape include `status`, `scheduledAt`, `lines[].serviceName`, `lines[].priceAtBooking`, `totalPrice`? If yes to all three, this story reduces to adding `CustomerBookingListResponse` to `packages/types/` only.
+>
+> **Note (resolved during M13-S06 discovery):** an earlier draft of this story's `CustomerBookingListItem` included `notes: string | null` ("booking.notes — what the customer wrote on request"). Removed — the validated UX prototype for this list page (`plan/journey/customer/prototypes/minha-conta/01-minha-conta.html`) has no notes/observations element at all; that section only exists on the *detail* page prototype (`02-agendamento-detail.html`, "Suas observações"). See the note added to `M13-S07` below — the backend has no field to back that section either way, so it's a real gap for whichever story picks up the detail page, not this one.
 > - Open `apps/bff/src/loyalty/loyalty.controller.ts` (or similar). Check if `GET /v1/loyalty/balance` exists and is accessible to CUSTOMER role. Response should include `currentPoints`, `nextExpiryDate`, `nextExpiryPoints`.
 
 **`@ikaro/types` additions** (`packages/types/src/booking.dto.ts`):
@@ -472,24 +474,27 @@ Provide the two data endpoints needed for the Minha Conta list page: a customer-
 export interface CustomerBookingLineItem {
   lineId: string;
   serviceName: string;
-  durationMins: number;
+  durationMinsAtBooking: number;  // renamed from durationMins during implementation — matches StaffBookingLineResponse/BookingLineResponse's existing convention
   priceAtBooking: MoneyAmount;
 }
 
 export interface CustomerBookingListItem {
   bookingId: string;
   status: BookingStatus;
-  scheduledAt: string | null;     // ISO-8601; null when PENDING with no slot yet
+  scheduledAt: string;             // ISO-8601 — always set; no booking state has a missing slot
   lines: CustomerBookingLineItem[];
   totalPrice: MoneyAmount;
-  notes: string | null;           // booking.notes — what the customer wrote on request
 }
 
 export interface CustomerBookingListResponse {
   items: CustomerBookingListItem[];
   total: number;
+  page: number;
+  limit: number;
 }
 ```
+
+> **Note (resolved during M13-S06 discovery):** `GET /v1/bookings` reuses the exact same `StaffListBookingsQuerySchema` and its defaults for CUSTOMER callers too (no separate customer query schema) — same pagination (`page`/`limit`, default `limit: 20`), same `status` default (`PENDING,INFO_REQUESTED`). Only the **role guard** and the **response mapping** differ per role (mirrors the existing `getOne()` precedent at `bookings.controller.ts:286-302`, which already branches the same path by `user.role`). `CustomerBookingListResponse` therefore carries `page`/`limit` like `StaffBookingListResponse` does — not the unpaginated `{ items, total }` shape an earlier draft of this story proposed.
 
 **`@ikaro/types` additions** (`packages/types/src/loyalty.dto.ts` — extend if exists):
 ```typescript
@@ -503,15 +508,19 @@ export interface CustomerLoyaltyBalanceResponse {
 
 **BFF changes (only if not already correct):**
 - `GET /v1/bookings` — ensure `@Roles('CUSTOMER')` is included and the handler filters `WHERE customerId = X-Actor-ID AND tenantId = X-Tenant-ID`
-- `GET /v1/loyalty/balance` — ensure `@Roles('CUSTOMER')` included; returns `CustomerLoyaltyBalanceResponse` shape
+- `GET /v1/loyalty/balance` — ensure `@Roles('CUSTOMER')` included; returns `CustomerLoyaltyBalanceResponse` shape (resolves TD09's loyalty case — `apps/bff/src/loyalty/loyalty.controller.ts#getBalance()` currently returns its own internal `loyalty.types.ts#LoyaltyBalanceResponse`, not `@ikaro/types`; `@ikaro/types`'s existing `LoyaltyBalanceResponse` is the dead/stale export TD09 flagged. Point `getBalance()` at the new `CustomerLoyaltyBalanceResponse` instead, and delete or correct the dead export per TD09's own proposed fix)
+
+**Backend change (only if not already correct):**
+- `list-bookings.use-case.ts`'s `BookingLineSummary` is missing `lineId` and `durationMinsAtBooking` — both already exist on `BookingLine` and are already exposed in the detail view's `BookingLineDetail` (BFF `bookings.types.ts`), just never projected into the list's slimmer summary. Add both fields to `BookingLineSummary` + `toListItem()`'s mapping.
 
 **Acceptance criteria:**
 - [ ] `GET /v1/bookings` with CUSTOMER JWT returns only that customer's bookings for the tenant
-- [ ] Response items include `status`, `scheduledAt`, `lines`, `totalPrice`, `notes`
+- [ ] Response items include `status`, `scheduledAt`, `lines`, `totalPrice`
 - [ ] `GET /v1/bookings` with STAFF JWT → still works (no regression to `M13-S03`)
 - [ ] `GET /v1/loyalty/balance` with CUSTOMER JWT → `CustomerLoyaltyBalanceResponse`, including `conversionRate` (see `M13-S12`; if `M13-S12` hasn't landed yet within Phase 1, default to `0` and patch when it does)
 - [ ] Tenant isolation: Customer A cannot retrieve Customer B's bookings
 - [ ] `CustomerBookingListResponse`, `CustomerBookingListItem`, `CustomerLoyaltyBalanceResponse` in `packages/types/`
+- [ ] TD09's loyalty case resolved: `@ikaro/types`'s dead `LoyaltyBalanceResponse` deleted/corrected; BFF's `getBalance()` returns `CustomerLoyaltyBalanceResponse` from `@ikaro/types`
 - [ ] `.http` request blocks added/updated in `apps/bff/http/bookings/bookings.http` and `apps/bff/http/loyalty/loyalty.http`
 
 **Dependencies:** M08 (booking list backend), M10 (loyalty balance backend)
@@ -529,7 +538,9 @@ export interface CustomerLoyaltyBalanceResponse {
 **Description:**
 Provide the full booking detail for a customer viewing their own booking. Ownership is mandatory: a CUSTOMER may only fetch bookings where `customerId === JWT.sub`.
 
-> 🔍 **Discover before starting:** Open `apps/bff/src/bookings/bookings.controller.ts`. Find `GET /v1/bookings/:id`. Check: (a) does it allow `CUSTOMER` role? (b) does it enforce `customerId === X-Actor-ID`, returning `403` otherwise? (c) does its response shape include `status`, `scheduledAt`, `lines`, `totalPrice`, `notes`, `infoRequestMessage`, `infoResponseMessage`? If yes to all three, this story is types-only.
+> 🔍 **Discover before starting:** Open `apps/bff/src/bookings/bookings.controller.ts`. Find `GET /v1/bookings/:id`. Check: (a) does it allow `CUSTOMER` role? (b) does it enforce `customerId === X-Actor-ID`, returning `403` otherwise? (c) does its response shape include `status`, `scheduledAt`, `lines`, `totalPrice`, `infoRequestMessage`, `infoResponseMessage`? If yes to all three, this story is types-only.
+>
+> ⚠️ **Backend gap, not just BFF (surfaced during M13-S06 discovery):** `notes` below has no backing field anywhere in the booking domain — `RequestBookingSchema` has no notes/special-instructions field, and `Booking` has no `notes` property. The detail page's UX prototype (`plan/journey/customer/prototypes/minha-conta/02-agendamento-detail.html`, "Suas observações" section) validates that customers should be able to see a note they wrote when requesting — but nothing captures it today. Before implementing `notes` here, either (a) scope in a real backend change — add the field to `RequestBookingSchema`/`Booking`/the migration, which is out of scope for a BFF-only story unless explicitly pulled in, or (b) drop `notes` from this response and from the detail page's "Suas observações" section, and treat it as a future enhancement. Don't ship `notes: null` permanently without picking one of these — that would silently look like a bug to anyone reading the UI.
 
 **`@ikaro/types` additions** (`packages/types/src/booking.dto.ts`):
 ```typescript

@@ -38,8 +38,11 @@ Content-Type: application/json
 { "email": "cliente@email.com.br", "tenantSlug": "{{tenantSlug}}", "type": "customer" }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GET /v1/bookings — staff booking list (M13-S03)
-# STAFF and MANAGER only — CUSTOMER returns 403.
+# GET /v1/bookings — staff + customer booking list (M13-S03, M13-S06)
+# STAFF/MANAGER and CUSTOMER share the same route + query schema/defaults —
+# only the role guard and the response mapping differ (StaffBookingListResponse
+# vs CustomerBookingListResponse). Backend filters by customerId server-side
+# when the actor is a CUSTOMER, so a customer never sees another customer's rows.
 # Queue groupings: "Precisa de ação" = no date filter (all pending/info-requested);
 #                  "Hoje"           = status=APPROVED&date=<today>;
 #                  "Próximos dias"  = status=APPROVED&from=<tomorrow>
@@ -71,8 +74,14 @@ Authorization: Bearer {{managerToken}}
 
 ###
 
-### ERROR — CUSTOMER JWT → 403
+### CUSTOMER — own bookings, CustomerBookingListResponse (M13-S06)
 GET {{bffUrl}}/v1/bookings
+Authorization: Bearer {{customerToken}}
+
+###
+
+### CUSTOMER — own bookings, all statuses (default status filter is PENDING,INFO_REQUESTED, same as staff)
+GET {{bffUrl}}/v1/bookings?status=PENDING,INFO_REQUESTED,APPROVED,COMPLETED,REJECTED,CANCELLED
 Authorization: Bearer {{customerToken}}
 
 ###
@@ -101,10 +110,6 @@ Authorization: Bearer {{managerToken}}
 
 ### CUSTOMER views own booking detail — unchanged generic passthrough (dedicated shape lands in M13-S07)
 GET {{bffUrl}}/v1/bookings/{{bookingId}}
-Authorization: Bearer {{customerToken}}
-
-### CUSTOMER views own bookings
-GET {{bffUrl}}/v1/bookings/
 Authorization: Bearer {{customerToken}}
 
 ###

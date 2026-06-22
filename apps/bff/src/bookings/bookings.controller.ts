@@ -31,8 +31,16 @@ import {
   RescheduleBookingResponse,
 } from './bookings.types';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
-import { StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
-import { toStaffBookingCard, toStaffBookingDetail } from './bookings.mapper';
+import {
+  CustomerBookingListResponse,
+  StaffBookingDetailResponse,
+  StaffBookingListResponse,
+} from '@ikaro/types';
+import {
+  toCustomerBookingListItem,
+  toStaffBookingCard,
+  toStaffBookingDetail,
+} from './bookings.mapper';
 import { tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
 
 const AddressSchema = z.object({
@@ -256,10 +264,11 @@ export class BookingsController {
   }
 
   @Get()
-  @Roles('MANAGER', 'STAFF')
+  @Roles('CUSTOMER', 'MANAGER', 'STAFF')
   async list(
     @Query(new ZodValidationPipe(StaffListBookingsQuerySchema)) query: StaffListBookingsQuery,
-  ): Promise<StaffBookingListResponse> {
+    @CurrentUser() user: CurrentUserPayload,
+  ): Promise<StaffBookingListResponse | CustomerBookingListResponse> {
     const params: Record<string, unknown> = {
       status: query.status,
       limit: query.limit,
@@ -274,6 +283,15 @@ export class BookingsController {
     }
 
     const backend = await this.backendHttp.get<BookingListResponse>('/bookings', params);
+
+    if (user.role !== 'MANAGER' && user.role !== 'STAFF') {
+      return {
+        items: backend.items.map(toCustomerBookingListItem),
+        total: backend.pagination.total,
+        page: query.page,
+        limit: query.limit,
+      };
+    }
 
     return {
       items: backend.items.map(toStaffBookingCard),

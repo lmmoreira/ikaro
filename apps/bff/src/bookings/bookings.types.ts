@@ -29,8 +29,10 @@ export interface BookingResponse {
 }
 
 export interface BookingLineSummary {
+  lineId: string;
   serviceId: string;
   serviceNameAtBooking: string;
+  durationMinsAtBooking: number;
   priceAtBooking: { amount: number; currency: string; formatted: string };
 }
 

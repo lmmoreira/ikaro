@@ -115,7 +115,11 @@ describe('ListBookingsUseCase', () => {
       expect(item.type).toBe(booking.type);
       expect(item.totalPrice.formatted).toMatch(/^R\$/);
       expect(item.lineSummary).toHaveLength(booking.lines.length);
+      expect(item.lineSummary[0].lineId).toBe(booking.lines[0].lineId);
       expect(item.lineSummary[0].serviceNameAtBooking).toBeDefined();
+      expect(item.lineSummary[0].durationMinsAtBooking).toBe(
+        booking.lines[0].durationMinsAtBooking,
+      );
     });
 
     it('does not filter by customerId — sees all bookings', async () => {
