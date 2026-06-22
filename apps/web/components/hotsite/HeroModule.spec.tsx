@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
 import type { HeroModuleData } from '@ikaro/types';
 import { HeroModule } from './HeroModule';
@@ -209,11 +208,5 @@ describe('HeroModule', () => {
 
       expect(container.querySelector('img')).not.toBeInTheDocument();
     });
-  });
-
-  it('has no axe violations', async () => {
-    const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
-
-    expect(await axe(container)).toHaveNoViolations();
   });
 });

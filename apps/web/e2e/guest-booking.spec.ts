@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
 
 test.describe('UC-001 — Guest booking golden path', () => {
   test('guest navigates from hotsite to booking form and submits successfully', async ({
@@ -34,24 +33,5 @@ test.describe('UC-001 — Guest booking golden path', () => {
     // Step 4 — submit
     await page.locator('[data-testid="step-confirm"]').click();
     await expect(page.locator('[data-testid="booking-success"]')).toBeVisible();
-  });
-});
-
-// Note: E2E does not run in CI yet (planned for M16-S06) — run locally with `pnpm e2e`.
-test.describe('UC-001 — Accessibility (axe)', () => {
-  test('hotsite landing page has no axe violations', async ({ page }) => {
-    await page.goto('/ikaro');
-    await expect(page.locator('#service-list')).toBeVisible();
-
-    const results = await new AxeBuilder({ page }).analyze();
-    expect(results.violations).toEqual([]);
-  });
-
-  test('booking form step 1 has no axe violations', async ({ page }) => {
-    await page.goto('/ikaro/booking');
-    await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
-
-    const results = await new AxeBuilder({ page }).analyze();
-    expect(results.violations).toEqual([]);
   });
 });

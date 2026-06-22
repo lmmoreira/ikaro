@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
-import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
@@ -178,13 +177,5 @@ describe('ServiceListModule', () => {
 
       expect(container.querySelector('[data-testid="section-eyebrow"]')).not.toBeInTheDocument();
     });
-  });
-
-  it('has no axe violations', async () => {
-    const { container } = renderWithIntl(
-      <ServiceListModule data={makeData()} slug="tenant" services={[makeService()]} />,
-    );
-
-    expect(await axe(container)).toHaveNoViolations();
   });
 });

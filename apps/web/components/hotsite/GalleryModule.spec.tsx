@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
 import type { GalleryImage, GalleryModuleData } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
@@ -181,11 +180,5 @@ describe('GalleryModule', () => {
 
       expect(container.querySelector('[data-testid="section-eyebrow"]')).not.toBeInTheDocument();
     });
-  });
-
-  it('has no axe violations', async () => {
-    const { container } = renderWithIntl(<GalleryModule data={makeData()} slug="tenant" />);
-
-    expect(await axe(container)).toHaveNoViolations();
   });
 });

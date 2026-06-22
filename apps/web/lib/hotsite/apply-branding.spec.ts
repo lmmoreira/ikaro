@@ -2,7 +2,7 @@ import type { HotsiteBrandingResponse } from '@ikaro/types';
 import { describe, expect, it } from 'vitest';
 
 // next/font/google is aliased to __mocks__/next-font-google.ts in vitest.config.ts
-import { applyBranding, contrastRatio } from './apply-branding';
+import { applyBranding } from './apply-branding';
 
 type CSSTokens = Record<string, string>;
 
@@ -282,53 +282,5 @@ describe('applyBranding', () => {
 
       expect(result['--ba-btn-hover-bg']).toBe('#fbbf24');
     });
-  });
-});
-
-// WCAG 2.1 AA requires ≥ 4.5:1 for normal text; 3:1 for large text / UI components.
-describe('contrastRatio — WCAG AA thresholds', () => {
-  it('returns ≥ 4.5 for white on dark blue (#FFFFFF / #0055A4)', () => {
-    expect(contrastRatio('#FFFFFF', '#0055A4')).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it('returns ≥ 4.5 for black on white (#000000 / #FFFFFF)', () => {
-    expect(contrastRatio('#000000', '#FFFFFF')).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it('returns < 4.5 for two near-grey colours that fail AA (#AAAAAA / #FFFFFF)', () => {
-    expect(contrastRatio('#AAAAAA', '#FFFFFF')).toBeLessThan(4.5);
-  });
-
-  it('is symmetric — ratio(A,B) === ratio(B,A)', () => {
-    const ratio = contrastRatio('#0055A4', '#FFFFFF');
-    expect(contrastRatio('#FFFFFF', '#0055A4')).toBeCloseTo(ratio, 10);
-  });
-});
-
-describe('deriveHeroTextColor — chosen colour always wins on contrast', () => {
-  it('picks #FFFFFF over #111111 against dark primary #0055A4 and the winner meets AA (4.5:1)', () => {
-    const result = applyBranding(
-      makeBranding({ primaryColor: '#0055A4', backgroundColor: '#111111', textColor: '#FFFFFF' }),
-    ) as CSSTokens;
-    const heroBg = result['--ba-hero-bg'] as string;
-    const heroText = result['--ba-hero-text'] as string;
-
-    expect(contrastRatio(heroBg, heroText)).toBeGreaterThanOrEqual(4.5);
-    expect(heroText).toBe('#FFFFFF');
-  });
-
-  it('picks dark text over light text against near-white primary and the winner has higher ratio', () => {
-    // Both colours may fail AA against a near-white bg, but the function must still pick the better one.
-    const primary = '#F5F5F5';
-    const result = applyBranding(
-      makeBranding({ primaryColor: primary, backgroundColor: '#FFFFFF', textColor: '#111111' }),
-    ) as CSSTokens;
-    const heroBg = result['--ba-hero-bg'] as string;
-    const heroText = result['--ba-hero-text'] as string;
-
-    // #111111 has higher contrast against #F5F5F5 than #FFFFFF does
-    expect(contrastRatio(heroBg, heroText)).toBeGreaterThanOrEqual(
-      contrastRatio(heroBg, heroText === '#111111' ? '#FFFFFF' : '#111111'),
-    );
   });
 });

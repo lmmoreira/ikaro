@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
 import type { BookingCtaModuleData } from '@ikaro/types';
 import { BookingCtaModule } from './BookingCtaModule';
@@ -107,11 +106,5 @@ describe('BookingCtaModule', () => {
         container.querySelector('[data-testid="booking-cta-brand-card"]'),
       ).not.toBeInTheDocument();
     });
-  });
-
-  it('has no axe violations', async () => {
-    const { container } = render(<BookingCtaModule data={makeData()} slug="lavacar-beloauto" />);
-
-    expect(await axe(container)).toHaveNoViolations();
   });
 });

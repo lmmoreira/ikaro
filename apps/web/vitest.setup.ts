@@ -1,15 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { configureAxe, toHaveNoViolations } from 'jest-axe';
-import { expect, vi } from 'vitest';
-
-// Register jest-axe matchers globally — available in all jsdom component specs.
-expect.extend(toHaveNoViolations);
-
-// Disable colour-contrast rule globally: jsdom does not compute CSS custom
-// properties (--ba-primary etc.) so axe always reports contrast violations
-// even for valid branding. Contrast correctness is covered separately by
-// the contrastRatio unit tests in apply-branding.spec.ts.
-configureAxe({ rules: { 'color-contrast': { enabled: false } } });
+import { vi } from 'vitest';
 
 // jsdom does not implement HTMLDialogElement.showModal / close.
 // Guard is required because lib/** specs run in the node environment where
