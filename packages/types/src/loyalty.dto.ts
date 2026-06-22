@@ -1,16 +1,6 @@
-export interface LoyaltyEntryResponse {
-  id: string;
-  tenantId: string;
-  bookingId: string;
-  bookingLineId: string;
-  points: number;
-  expiresAt: string; // ISO-8601 datetime
-  earnedAt: string;
-}
-
-export interface LoyaltyBalanceResponse {
-  tenantId: string;
-  customerId: string;
-  activePoints: number;
-  entries: LoyaltyEntryResponse[];
+export interface CustomerLoyaltyBalanceResponse {
+  currentPoints: number;
+  nextExpiryDate: string | null; // ISO-8601 datetime (Date.toISOString())
+  nextExpiryPoints: number | null;
+  conversionRate: number; // points_per_currency_unit — see M13-S12; 0 = redemption disabled
 }

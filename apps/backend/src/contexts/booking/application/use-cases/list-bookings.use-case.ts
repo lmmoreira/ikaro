@@ -5,8 +5,10 @@ import { ListBookingsDto } from '../dtos/list-bookings.dto';
 import { Booking } from '../../domain/booking.aggregate';
 
 export interface BookingLineSummary {
+  lineId: string;
   serviceId: string;
   serviceNameAtBooking: string;
+  durationMinsAtBooking: number;
   priceAtBooking: { amount: number; currency: string; formatted: string };
 }
 
@@ -79,8 +81,10 @@ export class ListBookingsUseCase {
         formatted: booking.totalPrice.format(locale),
       },
       lineSummary: booking.lines.map((l) => ({
+        lineId: l.lineId,
         serviceId: l.serviceId,
         serviceNameAtBooking: l.serviceNameAtBooking,
+        durationMinsAtBooking: l.durationMinsAtBooking,
         priceAtBooking: {
           amount: l.priceAtBooking.amount.toNumber(),
           currency: l.priceAtBooking.currency,

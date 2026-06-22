@@ -72,6 +72,28 @@ export interface StaffBookingLineResponse {
   requiresPickupAddressAtBooking: boolean;
 }
 
+export interface CustomerBookingLineItem {
+  lineId: string;
+  serviceName: string;
+  durationMinsAtBooking: number;
+  priceAtBooking: MoneyAmount;
+}
+
+export interface CustomerBookingListItem {
+  bookingId: string;
+  status: BookingStatus;
+  scheduledAt: string; // ISO-8601 — always set; no booking state has a missing slot
+  lines: CustomerBookingLineItem[];
+  totalPrice: MoneyAmount;
+}
+
+export interface CustomerBookingListResponse {
+  items: CustomerBookingListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface StaffBookingDetailResponse {
   bookingId: string;
   status: BookingStatus;

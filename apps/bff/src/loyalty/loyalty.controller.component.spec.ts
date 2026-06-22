@@ -70,7 +70,12 @@ describe('LoyaltyController (component)', () => {
         .set('x-tenant-id', TENANT_ID);
 
       expect(res.status).toBe(200);
-      expect(res.body.currentPoints).toBe(75);
+      expect(res.body).toEqual({
+        currentPoints: 75,
+        nextExpiryDate: mockBalance.nextExpiryDate,
+        nextExpiryPoints: mockBalance.nextExpiryPoints,
+        conversionRate: 0,
+      });
     });
 
     it('returns 403 for MANAGER JWT', async () => {

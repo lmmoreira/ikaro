@@ -1,5 +1,24 @@
-import { StaffBookingCardResponse, StaffBookingDetailResponse } from '@ikaro/types';
+import {
+  CustomerBookingListItem,
+  StaffBookingCardResponse,
+  StaffBookingDetailResponse,
+} from '@ikaro/types';
 import { BookingDetailResponse, BookingListItem } from './bookings.types';
+
+export function toCustomerBookingListItem(item: BookingListItem): CustomerBookingListItem {
+  return {
+    bookingId: item.id,
+    status: item.status as CustomerBookingListItem['status'],
+    scheduledAt: item.scheduledAt,
+    lines: item.lineSummary.map((l) => ({
+      lineId: l.lineId,
+      serviceName: l.serviceNameAtBooking,
+      durationMinsAtBooking: l.durationMinsAtBooking,
+      priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
+    })),
+    totalPrice: { amount: item.totalPrice.amount, currency: item.totalPrice.currency },
+  };
+}
 
 export function toStaffBookingCard(item: BookingListItem): StaffBookingCardResponse {
   return {

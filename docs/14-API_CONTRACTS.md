@@ -519,8 +519,10 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 (`pickupAddress` omitted when null. `serviceNameAtBooking` stored on the line but not returned.)
 
 ### **Booking Management (UC-003 - UC-008)**
-- `GET /bookings` → List bookings. Filters: `status`, `dateRange`, `customerId`. Each list item includes `totalPrice`, `totalDurationMins`, and a compact `lineSummary: [{ serviceId, serviceNameAtBooking, priceAtBooking }, …]`.
+- `GET /bookings` → List bookings. Filters: `status`, `dateRange`, `customerId`. Each list item includes `totalPrice`, `totalDurationMins`, and a compact `lineSummary: [{ lineId, serviceId, serviceNameAtBooking, durationMinsAtBooking, priceAtBooking }, …]`.
 - `GET /bookings/:id` → Detailed view: every line in full, audit log, photos, customer / guest info.
+
+> **BFF note (M13-S06):** `GET /v1/bookings` is also accessible to `CUSTOMER` role — same query schema/defaults as STAFF/MANAGER (backend filters by `customerId` server-side), but the BFF maps the response to `CustomerBookingListResponse` (`lines[]` with `lineId`/`serviceName`/`durationMinsAtBooking`/`priceAtBooking`, no contact info) instead of `StaffBookingListResponse`.
 
 **Admin approval workflow** (JWT + `MANAGER|STAFF` role required):
 - `PATCH /bookings/:id/approve` → (UC-003) Approve a PENDING or INFO_REQUESTED booking. Re-checks slot availability. Returns `200 { bookingId, status: 'APPROVED', approvedAt }`. Returns `409 slot-unavailable` if slot is taken.
@@ -729,10 +731,11 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
 - `GET /loyalty/balance`
   - Response:
     ```json
-    { "currentPoints": 150, "nextExpiryDate": "2026-11-15", "nextExpiryPoints": 30 }
+    { "currentPoints": 150, "nextExpiryDate": "2026-11-15T00:00:00.000Z", "nextExpiryPoints": 30 }
     ```
+  - **BFF note (M13-S06):** `GET /v1/loyalty/balance` adds a `conversionRate` field (`CustomerLoyaltyBalanceResponse`) on top of this backend response — `points_per_currency_unit`, hardcoded `0` until `M13-S11`/`M13-S12` land.
   - `currentPoints`: read from `loyalty_balances.current_points` (O(1) — no SUM).
-  - `nextExpiryDate`: ISO-8601 date string of the earliest `expires_at` among active entries; `null` if no active entries.
+  - `nextExpiryDate`: ISO-8601 datetime string (`Date.toISOString()`) of the earliest `expires_at` among active entries; `null` if no active entries.
   - `nextExpiryPoints`: sum of points expiring on `nextExpiryDate`; `null` if no active entries.
   - Returns `{ currentPoints: 0, nextExpiryDate: null, nextExpiryPoints: null }` when customer has no balance row.
 

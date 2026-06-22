@@ -1,8 +1,13 @@
 import { BookingDetailResponse, BookingListItem } from './bookings.types';
-import { toStaffBookingCard, toStaffBookingDetail } from './bookings.mapper';
+import {
+  toCustomerBookingListItem,
+  toStaffBookingCard,
+  toStaffBookingDetail,
+} from './bookings.mapper';
 
 const BOOKING_ID = '40000000-0000-4000-8000-000000000001';
 const SERVICE_ID = '30000000-0000-4000-8000-000000000001';
+const LINE_ID = '50000000-0000-4000-8000-000000000001';
 
 describe('toStaffBookingCard()', () => {
   const backendItem: BookingListItem = {
@@ -17,8 +22,10 @@ describe('toStaffBookingCard()', () => {
     totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
     lineSummary: [
       {
+        lineId: LINE_ID,
         serviceId: SERVICE_ID,
         serviceNameAtBooking: 'Lavagem Simples',
+        durationMinsAtBooking: 30,
         priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
       },
     ],
@@ -51,13 +58,75 @@ describe('toStaffBookingCard()', () => {
       lineSummary: [
         ...backendItem.lineSummary,
         {
+          lineId: 'line-2',
           serviceId: 'service-2',
           serviceNameAtBooking: 'Cera',
+          durationMinsAtBooking: 15,
           priceAtBooking: { amount: 50, currency: 'BRL', formatted: 'R$ 50,00' },
         },
       ],
     });
     expect(result.serviceNames).toEqual(['Lavagem Simples', 'Cera']);
+  });
+});
+
+describe('toCustomerBookingListItem()', () => {
+  const backendItem: BookingListItem = {
+    id: BOOKING_ID,
+    status: 'PENDING',
+    type: 'CUSTOMER',
+    customerId: '20000000-0000-4000-8000-000000000001',
+    contactName: 'João',
+    contactEmail: 'joao@example.com',
+    scheduledAt: '2026-06-15T10:00:00.000Z',
+    totalDurationMins: 30,
+    totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+    lineSummary: [
+      {
+        lineId: LINE_ID,
+        serviceId: SERVICE_ID,
+        serviceNameAtBooking: 'Lavagem Simples',
+        durationMinsAtBooking: 30,
+        priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+      },
+    ],
+    createdAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  it('maps backend booking-list item fields to CustomerBookingListItem, dropping contact info and formatted price', () => {
+    const result = toCustomerBookingListItem(backendItem);
+
+    expect(result).toEqual({
+      bookingId: BOOKING_ID,
+      status: 'PENDING',
+      scheduledAt: '2026-06-15T10:00:00.000Z',
+      lines: [
+        {
+          lineId: LINE_ID,
+          serviceName: 'Lavagem Simples',
+          durationMinsAtBooking: 30,
+          priceAtBooking: { amount: 100, currency: 'BRL' },
+        },
+      ],
+      totalPrice: { amount: 100, currency: 'BRL' },
+    });
+  });
+
+  it('maps multiple lines in order', () => {
+    const result = toCustomerBookingListItem({
+      ...backendItem,
+      lineSummary: [
+        ...backendItem.lineSummary,
+        {
+          lineId: 'line-2',
+          serviceId: 'service-2',
+          serviceNameAtBooking: 'Cera',
+          durationMinsAtBooking: 15,
+          priceAtBooking: { amount: 50, currency: 'BRL', formatted: 'R$ 50,00' },
+        },
+      ],
+    });
+    expect(result.lines.map((l) => l.serviceName)).toEqual(['Lavagem Simples', 'Cera']);
   });
 });
 

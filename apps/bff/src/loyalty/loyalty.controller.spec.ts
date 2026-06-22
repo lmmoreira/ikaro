@@ -54,7 +54,12 @@ describe('LoyaltyController (BFF)', () => {
       const result = await controller.getBalance();
 
       expect(backendHttp.get).toHaveBeenCalledWith('/loyalty/balance');
-      expect(result.currentPoints).toBe(75);
+      expect(result).toEqual({
+        currentPoints: 75,
+        nextExpiryDate: '2026-11-15T00:00:00.000Z',
+        nextExpiryPoints: 30,
+        conversionRate: 0,
+      });
     });
   });
 

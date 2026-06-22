@@ -168,7 +168,7 @@ describe('BookingsController (component)', () => {
     });
   });
 
-  describe('GET /v1/bookings — staff booking list (M13-S03)', () => {
+  describe('GET /v1/bookings — staff + customer booking list (M13-S03, M13-S06)', () => {
     const backendListResponse = {
       items: [
         {
@@ -183,8 +183,10 @@ describe('BookingsController (component)', () => {
           totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
           lineSummary: [
             {
+              lineId: '50000000-0000-4000-8000-000000000001',
               serviceId: '30000000-0000-4000-8000-000000000001',
               serviceNameAtBooking: 'Lavagem Simples',
+              durationMinsAtBooking: 30,
               priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
             },
           ],
@@ -199,15 +201,22 @@ describe('BookingsController (component)', () => {
       expect(res.status).toBe(401);
     });
 
-    it('returns 403 when CUSTOMER JWT is provided', async () => {
+    it('returns 200 with CustomerBookingListResponse for CUSTOMER JWT', async () => {
       const token = makeCustomerJwt(jwtService);
       setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(backendListResponse);
 
       const res = await request(app.getHttpServer())
         .get('/v1/bookings')
         .set('Authorization', `Bearer ${token}`);
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].bookingId).toBe('40000000-0000-4000-8000-000000000001');
+      expect(res.body.items[0].lines).toHaveLength(1);
+      expect(res.body.items[0].serviceNames).toBeUndefined();
+      expect(res.body.items[0].isCustomer).toBeUndefined();
+      expect(res.body.total).toBe(1);
     });
 
     it('returns 200 with StaffBookingListResponse for MANAGER JWT', async () => {
