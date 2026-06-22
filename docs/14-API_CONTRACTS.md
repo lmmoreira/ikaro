@@ -731,11 +731,11 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
 - `GET /loyalty/balance`
   - Response:
     ```json
-    { "currentPoints": 150, "nextExpiryDate": "2026-11-15", "nextExpiryPoints": 30 }
+    { "currentPoints": 150, "nextExpiryDate": "2026-11-15T00:00:00.000Z", "nextExpiryPoints": 30 }
     ```
   - **BFF note (M13-S06):** `GET /v1/loyalty/balance` adds a `conversionRate` field (`CustomerLoyaltyBalanceResponse`) on top of this backend response — `points_per_currency_unit`, hardcoded `0` until `M13-S11`/`M13-S12` land.
   - `currentPoints`: read from `loyalty_balances.current_points` (O(1) — no SUM).
-  - `nextExpiryDate`: ISO-8601 date string of the earliest `expires_at` among active entries; `null` if no active entries.
+  - `nextExpiryDate`: ISO-8601 datetime string (`Date.toISOString()`) of the earliest `expires_at` among active entries; `null` if no active entries.
   - `nextExpiryPoints`: sum of points expiring on `nextExpiryDate`; `null` if no active entries.
   - Returns `{ currentPoints: 0, nextExpiryDate: null, nextExpiryPoints: null }` when customer has no balance row.
 

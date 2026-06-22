@@ -470,6 +470,7 @@ Provide the two data endpoints needed for the Minha Conta list page: a customer-
 > - Open `apps/bff/src/loyalty/loyalty.controller.ts` (or similar). Check if `GET /v1/loyalty/balance` exists and is accessible to CUSTOMER role. Response should include `currentPoints`, `nextExpiryDate`, `nextExpiryPoints`.
 
 **`@ikaro/types` additions** (`packages/types/src/booking.dto.ts`):
+
 ```typescript
 export interface CustomerBookingLineItem {
   lineId: string;
@@ -497,6 +498,7 @@ export interface CustomerBookingListResponse {
 > **Note (resolved during M13-S06 discovery):** `GET /v1/bookings` reuses the exact same `StaffListBookingsQuerySchema` and its defaults for CUSTOMER callers too (no separate customer query schema) — same pagination (`page`/`limit`, default `limit: 20`), same `status` default (`PENDING,INFO_REQUESTED`). Only the **role guard** and the **response mapping** differ per role (mirrors the existing `getOne()` precedent at `bookings.controller.ts:286-302`, which already branches the same path by `user.role`). `CustomerBookingListResponse` therefore carries `page`/`limit` like `StaffBookingListResponse` does — not the unpaginated `{ items, total }` shape an earlier draft of this story proposed.
 
 **`@ikaro/types` additions** (`packages/types/src/loyalty.dto.ts` — extend if exists):
+
 ```typescript
 export interface CustomerLoyaltyBalanceResponse {
   currentPoints: number;
