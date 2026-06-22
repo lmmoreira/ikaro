@@ -64,6 +64,40 @@ test.describe('UC-001 — Booking form error paths', () => {
     await expect(page.locator('[data-testid="input-name"]')).toBeVisible();
   });
 
+  test('step 1: shows error when no service is selected and next is clicked', async ({ page }) => {
+    await page.goto('/ikaro/booking');
+    await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
+
+    // Click next without selecting any service
+    await page.locator('[data-testid="step-next"]').click();
+
+    await expect(page.locator('[data-testid="step1-error"]')).toBeVisible();
+    await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
+  });
+
+  test('step 2: shows fully-booked message when no slots are available for selected day', async ({
+    page,
+  }) => {
+    // Intercept the BFF availability endpoint and return a day with no slots
+    await page.route('**/v1/availability/**', (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ days: [{ date: '2099-01-01', slots: [] }] }),
+      });
+    });
+
+    await page.goto('/ikaro/booking');
+    await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
+    await page.locator('[data-testid="step-next"]').click();
+
+    // Select the day with no slots
+    await page.locator('[data-testid="day-option"]').first().click();
+
+    await expect(page.locator('[data-testid="fully-booked-message"]')).toBeVisible();
+  });
+
   test('step 1: shows error when pickup-required service selected without address', async ({
     page,
   }) => {

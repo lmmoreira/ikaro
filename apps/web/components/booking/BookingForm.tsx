@@ -131,11 +131,12 @@ export function BookingForm({
   }
 
   return (
-    <div
+    <main
       className="min-h-screen"
       style={{ backgroundColor: 'var(--ba-background)', color: 'var(--ba-text)' }}
     >
       <div className="mx-auto max-w-2xl px-6 py-12">
+        <h1 className="sr-only">{t('title')}</h1>
         <p className="mb-6 text-sm opacity-75" style={{ color: 'var(--ba-text)' }}>
           {t('stepIndicator', { step, total: TOTAL_STEPS })}
         </p>
@@ -250,6 +251,6 @@ export function BookingForm({
           />
         )}
       </div>
-    </div>
+    </main>
   );
 }
