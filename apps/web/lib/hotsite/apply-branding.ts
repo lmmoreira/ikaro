@@ -67,7 +67,7 @@ function relativeLuminance(hex: string): number {
   return 0.2126 * linearizeChannel(r) + 0.7152 * linearizeChannel(g) + 0.0722 * linearizeChannel(b);
 }
 
-function contrastRatio(hexA: string, hexB: string): number {
+export function contrastRatio(hexA: string, hexB: string): number {
   const [lighter, darker] = [relativeLuminance(hexA), relativeLuminance(hexB)].sort(
     (a, b) => b - a,
   );
