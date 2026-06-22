@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom/vitest';
-import { vi } from 'vitest';
+import { toHaveNoViolations } from 'jest-axe';
+import { expect, vi } from 'vitest';
+
+// Register jest-axe matchers globally — available in all jsdom component specs.
+// The configured axe instance (color-contrast disabled) lives in axe-helper.ts;
+// specs import { axe } from there, not directly from jest-axe.
+expect.extend(toHaveNoViolations);
 
 // jsdom does not implement HTMLDialogElement.showModal / close.
 // Guard is required because lib/** specs run in the node environment where

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
+import { axe } from '@/axe-helper';
 import { describe, expect, it } from 'vitest';
 import type { AboutModuleData } from '@ikaro/types';
 import { AboutModule } from './AboutModule';
@@ -84,5 +85,11 @@ describe('AboutModule', () => {
 
       expect(container.querySelector('[data-testid="section-eyebrow"]')).not.toBeInTheDocument();
     });
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(<AboutModule data={makeData()} slug="tenant" />);
+
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

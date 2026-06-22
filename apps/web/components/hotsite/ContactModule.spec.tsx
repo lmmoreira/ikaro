@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
+import { axe } from '@/axe-helper';
 import { describe, expect, it } from 'vitest';
 import type { ContactModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
@@ -271,5 +272,14 @@ describe('ContactModule', () => {
 
       expect(screen.getByRole('link', { name: 'Chamar no WhatsApp' })).toBeInTheDocument();
     });
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = renderWithIntl(
+      <ContactModule data={makeData()} business={makeBusiness()} slug="tenant" />,
+    );
+
+    // iframes (Google Maps embed) cannot be scanned by axe in jsdom — disable frame scanning.
+    expect(await axe(container, { iframes: false })).toHaveNoViolations();
   });
 });

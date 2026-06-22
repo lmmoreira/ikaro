@@ -315,6 +315,18 @@ Every hotsite module component requires a `*.spec.tsx` alongside it. Minimum cov
 | `ContactModule` | `showMap: false` → no `<iframe>`; `showWhatsapp: false` → no WhatsApp link; `showAddress: false` → no address block; WhatsApp link opens `wa.me/` with correct number |
 | `BookingCtaModule` | CTA links to `/<slug>/booking`; section has `id="booking-form"` |
 
+**Every hotsite module component spec must also include a `has no axe violations` assertion** using `jest-axe`:
+```ts
+it('has no axe violations', async () => {
+  const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
+  expect(await axe(container)).toHaveNoViolations();
+});
+```
+- `toHaveNoViolations` is registered globally in `vitest.setup.ts` via `expect.extend(toHaveNoViolations)` — no per-file setup needed.
+- The `color-contrast` axe rule is **disabled globally** in `vitest.setup.ts` (`configureAxe({ rules: { 'color-contrast': { enabled: false } } })`). Reason: jsdom cannot resolve CSS custom properties (`--ba-primary`, `--ba-hero-bg`, etc.) so the rule always false-positives on branding tokens. WCAG AA contrast correctness is covered instead by the `contrastRatio` unit tests in `apply-branding.spec.ts`.
+- `ContactModule` passes `{ iframes: false }` to `axe()` because jsdom cannot scan cross-origin `<iframe>` content (Google Maps embed) via `postMessage`.
+- This colour-contrast caveat is **hotsite-specific**. Dashboard and account components use Ikaro's fixed design system (no CSS custom property branding tokens) — their axe assertions should use the full default ruleset including `color-contrast`.
+
 #### SonarCloud configuration
 - `sonar.coverage.exclusions`: `apps/web/app/**/page.tsx`, `apps/web/app/**/layout.tsx` — **`apps/web/components/**` is NOT excluded** because module components now have Vitest tests and must contribute to the coverage gate.
 - `sonar.exclusions`: `**/vitest.config.ts`, `**/__mocks__/**`, `**/vitest.setup.ts`.
