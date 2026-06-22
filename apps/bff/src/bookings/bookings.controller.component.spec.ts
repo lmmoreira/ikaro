@@ -991,6 +991,7 @@ describe('BookingsController (component)', () => {
 
   describe('GET /v1/bookings/:id', () => {
     const BOOKING_UUID = '40000000-0000-4000-8000-000000000099';
+    const CUSTOMER_ID = '60000000-0000-4000-8000-000000000099';
     const mockDetailResponse = {
       id: BOOKING_UUID,
       status: 'PENDING',
@@ -999,6 +1000,7 @@ describe('BookingsController (component)', () => {
       contactName: 'João',
       contactEmail: 'joao@example.com',
       contactPhone: '+5531999999999',
+      contactAddress: null,
       scheduledAt: '2026-06-15T10:00:00.000Z',
       totalDurationMins: 30,
       totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
@@ -1010,6 +1012,9 @@ describe('BookingsController (component)', () => {
       adminNotes: null,
       infoRequestMessage: null,
       infoResponseMessage: null,
+      approvedAt: null,
+      approvedBy: null,
+      rejectionReason: null,
       createdAt: '2026-01-01T00:00:00.000Z',
     };
 
@@ -1019,7 +1024,7 @@ describe('BookingsController (component)', () => {
       );
     });
 
-    it('returns 200 for CUSTOMER', async () => {
+    it('returns 200 for CUSTOMER with unchanged generic passthrough', async () => {
       const token = makeCustomerJwt(jwtService);
       backendHttpService.get.mockResolvedValueOnce(mockDetailResponse);
 
@@ -1028,10 +1033,12 @@ describe('BookingsController (component)', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
+      expect(res.body.id).toBe(BOOKING_UUID);
       expect(backendHttpService.get).toHaveBeenCalledWith(`/bookings/${BOOKING_UUID}`);
+      expect(backendHttpService.get).toHaveBeenCalledTimes(1);
     });
 
-    it('returns 200 for MANAGER', async () => {
+    it('returns 200 for MANAGER with StaffBookingDetailResponse shape, loyaltyBalance null for guest booking', async () => {
       const token = makeManagerJwt(jwtService);
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockResolvedValueOnce(mockDetailResponse);
@@ -1041,6 +1048,28 @@ describe('BookingsController (component)', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
+      expect(res.body.bookingId).toBe(BOOKING_UUID);
+      expect(res.body.loyaltyBalance).toBeNull();
+      expect(backendHttpService.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns 200 for STAFF enriched with loyaltyBalance for a customer booking', async () => {
+      const token = makeStaffJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.get
+        .mockResolvedValueOnce({ ...mockDetailResponse, customerId: CUSTOMER_ID })
+        .mockResolvedValueOnce({ currentPoints: 80, nextExpiryDate: null, nextExpiryPoints: null });
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/bookings/${BOOKING_UUID}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.loyaltyBalance).toBe(80);
+      expect(backendHttpService.get).toHaveBeenNthCalledWith(
+        2,
+        `/customers/${CUSTOMER_ID}/loyalty/balance`,
+      );
     });
 
     it('propagates 404 from backend', async () => {

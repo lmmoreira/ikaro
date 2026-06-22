@@ -31,7 +31,12 @@ import {
   RescheduleBookingResponse,
   BookingListItem,
 } from './bookings.types';
-import { StaffBookingCardResponse, StaffBookingListResponse } from '@ikaro/types';
+import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
+import {
+  StaffBookingCardResponse,
+  StaffBookingDetailResponse,
+  StaffBookingListResponse,
+} from '@ikaro/types';
 import { tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
 
 const AddressSchema = z.object({
@@ -175,6 +180,41 @@ function toStaffBookingCard(item: BookingListItem): StaffBookingCardResponse {
   };
 }
 
+function toStaffBookingDetail(
+  detail: BookingDetailResponse,
+  loyaltyBalance: number | null,
+): StaffBookingDetailResponse {
+  return {
+    bookingId: detail.id,
+    status: detail.status as StaffBookingDetailResponse['status'],
+    scheduledAt: detail.scheduledAt,
+    type: detail.type as StaffBookingDetailResponse['type'],
+    contactName: detail.contactName,
+    contactEmail: detail.contactEmail,
+    contactPhone: detail.contactPhone,
+    contactAddress: detail.contactAddress,
+    pickupAddress: detail.pickupAddress,
+    customerId: detail.customerId,
+    loyaltyBalance,
+    lines: detail.lines.map((l) => ({
+      lineId: l.lineId,
+      serviceName: l.serviceNameAtBooking,
+      priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
+      durationMinsAtBooking: l.durationMinsAtBooking,
+      pointsValueAtBooking: l.pointsValueAtBooking,
+      requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
+    })),
+    totalPrice: { amount: detail.totalPrice.amount, currency: detail.totalPrice.currency },
+    totalDurationMins: detail.totalDurationMins,
+    beforeServicePhotoUrls: detail.beforeServicePhotoUrls,
+    infoRequestMessage: detail.infoRequestMessage,
+    infoResponseMessage: detail.infoResponseMessage,
+    approvedAt: detail.approvedAt,
+    approvedBy: detail.approvedBy,
+    rejectionReason: detail.rejectionReason,
+  };
+}
+
 @Controller('bookings')
 export class BookingsController {
   constructor(
@@ -297,8 +337,26 @@ export class BookingsController {
 
   @Get(':id')
   @Roles('CUSTOMER', 'MANAGER', 'STAFF')
-  getOne(@Param('id', ParseUUIDPipe) id: string): Promise<BookingDetailResponse> {
-    return this.backendHttp.get<BookingDetailResponse>(`/bookings/${id}`);
+  async getOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ): Promise<BookingDetailResponse | StaffBookingDetailResponse> {
+    const detail = await this.backendHttp.get<BookingDetailResponse>(`/bookings/${id}`);
+
+    if (user.role !== 'MANAGER' && user.role !== 'STAFF') {
+      return detail;
+    }
+
+    const loyaltyBalance =
+      detail.customerId === null
+        ? null
+        : (
+            await this.backendHttp.get<LoyaltyBalanceResponse>(
+              `/customers/${detail.customerId}/loyalty/balance`,
+            )
+          ).currentPoints;
+
+    return toStaffBookingDetail(detail, loyaltyBalance);
   }
 
   @Post()

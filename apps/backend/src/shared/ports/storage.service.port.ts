@@ -10,11 +10,13 @@ export interface IStorageService {
    * `bucket` decides the signed URL's destination — it's cryptographically bound to a
    * specific bucket+path and cannot be redirected later. Defaults to the private bucket;
    * pass `'public'` for assets that must resolve via `getPublicUrl()` (e.g. hotsite images).
+   * `contentType` is only meaningful for `'write'` (it's bound into the signature); pass
+   * `undefined` for `'read'`.
    */
   generateSignedUrl(
     storagePath: string,
-    contentType: string,
-    operation: 'write',
+    contentType: string | undefined,
+    operation: 'write' | 'read',
     bucket?: 'private' | 'public',
   ): Promise<GenerateSignedUrlResult>;
   /** `bucket` defaults to private — pass `'public'` to check the hotsite public bucket. */

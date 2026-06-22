@@ -124,7 +124,7 @@ describe('BookingController', () => {
         new PhotoExistenceService(storageService),
       ),
       new ListBookingsUseCase(bookingRepo, staffCtx),
-      new GetBookingUseCase(bookingRepo, staffCtx),
+      new GetBookingUseCase(bookingRepo, staffCtx, storageService),
       new CancelBookingAsCustomerUseCase(
         customerCtx,
         bookingRepo,
@@ -251,7 +251,7 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
         ),
         new ListBookingsUseCase(repoB, ctx),
-        new GetBookingUseCase(repoB, ctx),
+        new GetBookingUseCase(repoB, ctx, storageService),
         new CancelBookingAsCustomerUseCase(
           customerCtxB,
           repoB,
@@ -399,7 +399,7 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
         ),
         new ListBookingsUseCase(bookingRepoB, staffCtx),
-        new GetBookingUseCase(bookingRepoB, staffCtx),
+        new GetBookingUseCase(bookingRepoB, staffCtx, storageService),
         new CancelBookingAsCustomerUseCase(
           customerCtxC,
           bookingRepoB,
@@ -838,7 +838,7 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
         ),
         new ListBookingsUseCase(repoC, ctx),
-        new GetBookingUseCase(repoC, ctx),
+        new GetBookingUseCase(repoC, ctx, storageService),
         new CancelBookingAsCustomerUseCase(
           ctx,
           repoC,

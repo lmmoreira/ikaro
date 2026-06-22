@@ -699,6 +699,20 @@ describe('BookingsController', () => {
   });
 
   describe('getOne()', () => {
+    const customerUser = {
+      sub: '20000000-0000-4000-8000-000000000001',
+      tenantId: TENANT_ID,
+      tenantSlug: TENANT_SLUG,
+      role: 'CUSTOMER',
+    };
+    const managerUser = {
+      sub: '20000000-0000-4000-8000-000000000002',
+      tenantId: TENANT_ID,
+      tenantSlug: TENANT_SLUG,
+      role: 'MANAGER',
+    };
+    const CUSTOMER_ID = '60000000-0000-4000-8000-000000000001';
+
     const mockDetailResponse = {
       id: BOOKING_ID,
       status: 'PENDING',
@@ -707,6 +721,7 @@ describe('BookingsController', () => {
       contactName: 'João',
       contactEmail: 'joao@example.com',
       contactPhone: '+5531999999999',
+      contactAddress: null,
       scheduledAt: '2026-06-15T10:00:00.000Z',
       totalDurationMins: 30,
       totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
@@ -718,16 +733,20 @@ describe('BookingsController', () => {
       adminNotes: null,
       infoRequestMessage: null,
       infoResponseMessage: null,
+      approvedAt: null,
+      approvedBy: null,
+      rejectionReason: null,
       createdAt: '2026-01-01T00:00:00.000Z',
     };
 
-    it('calls GET /bookings/:id and returns result', async () => {
+    it('CUSTOMER: calls GET /bookings/:id and returns generic passthrough', async () => {
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockDetailResponse) });
       const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const result = await controller.getOne(BOOKING_ID);
+      const result = await controller.getOne(BOOKING_ID, customerUser);
 
       expect(backendHttp.get).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}`);
+      expect(backendHttp.get).toHaveBeenCalledTimes(1);
       expect(result).toBe(mockDetailResponse);
     });
 
@@ -737,9 +756,96 @@ describe('BookingsController', () => {
       });
       const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const err = await controller.getOne(BOOKING_ID).catch((e: unknown) => e);
+      const err = await controller.getOne(BOOKING_ID, customerUser).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(404);
+    });
+
+    it('MANAGER: returns StaffBookingDetailResponse with loyaltyBalance null for a guest booking', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValueOnce(mockDetailResponse),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const result = await controller.getOne(BOOKING_ID, managerUser);
+
+      expect(backendHttp.get).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({
+        bookingId: BOOKING_ID,
+        loyaltyBalance: null,
+        contactName: 'João',
+      });
+    });
+
+    it('MANAGER: enriches with loyaltyBalance for a customer booking', async () => {
+      const customerDetail = { ...mockDetailResponse, customerId: CUSTOMER_ID };
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValueOnce(customerDetail).mockResolvedValueOnce({
+          currentPoints: 150,
+          nextExpiryDate: null,
+          nextExpiryPoints: null,
+        }),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const result = await controller.getOne(BOOKING_ID, managerUser);
+
+      expect(backendHttp.get).toHaveBeenNthCalledWith(1, `/bookings/${BOOKING_ID}`);
+      expect(backendHttp.get).toHaveBeenNthCalledWith(
+        2,
+        `/customers/${CUSTOMER_ID}/loyalty/balance`,
+      );
+      expect(result).toMatchObject({ loyaltyBalance: 150, customerId: CUSTOMER_ID });
+    });
+
+    it('MANAGER: maps lines, audit fields and address detail into StaffBookingDetailResponse', async () => {
+      const detail = {
+        ...mockDetailResponse,
+        contactAddress: {
+          street: 'Rua A',
+          number: '10',
+          complement: null,
+          neighborhood: 'Centro',
+          city: 'Belo Horizonte',
+          state: 'MG',
+          zipCode: '30100-000',
+        },
+        approvedAt: '2026-05-01T10:00:00.000Z',
+        approvedBy: '20000000-0000-4000-8000-000000000099',
+        rejectionReason: 'Cliente não confirmou disponibilidade',
+        lines: [
+          {
+            lineId: 'line-1',
+            serviceId: 'service-1',
+            serviceNameAtBooking: 'Lavagem Completa',
+            priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+            durationMinsAtBooking: 30,
+            pointsValueAtBooking: 10,
+            requiresPickupAddressAtBooking: false,
+            actualPriceCharged: null,
+          },
+        ],
+      };
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValueOnce(detail) });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      const result = await controller.getOne(BOOKING_ID, managerUser);
+
+      expect(result).toMatchObject({
+        contactAddress: { city: 'Belo Horizonte' },
+        approvedAt: '2026-05-01T10:00:00.000Z',
+        approvedBy: '20000000-0000-4000-8000-000000000099',
+        rejectionReason: 'Cliente não confirmou disponibilidade',
+        lines: [
+          {
+            lineId: 'line-1',
+            serviceName: 'Lavagem Completa',
+            durationMinsAtBooking: 30,
+            pointsValueAtBooking: 10,
+            requiresPickupAddressAtBooking: false,
+          },
+        ],
+      });
     });
   });
 

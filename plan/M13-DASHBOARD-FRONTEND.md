@@ -347,12 +347,18 @@ When `customerId == null` (guest booking): skip loyalty call, return `loyaltyBal
 
 Before-service photo URLs: call `IStorageService.getSignedReadUrl(path)` per photo path (same pattern as M115-S01). Or pass filePaths to frontend and have Next.js image proxy — decide at discovery.
 
+> **Note (resolved during M13-S04 discovery):** No signed-read-URL capability exists anywhere in the codebase yet — M115-S01 only ever added **write**-signed URLs (`IStorageService.generateSignedUrl(..., operation: 'write')`). This story adds `operation: 'read'` to the port + GCS adapter and signs each `beforeServicePhotoUrls` path in the BFF before returning. This also unblocks `M13-S07`, which has the identical gap for customer photo URLs.
+>
+> Also resolved: `contactAddress`, `approvedAt`, `approvedBy`, `rejectionReason` exist as `Booking` aggregate getters but were never projected by `GetBookingUseCase.toResult()`. This story extends that projection to surface them — no new business logic, just widening an existing read model.
+>
+> `GET /v1/bookings/:id` stays a single shared route, branched by `X-Actor-Role` inside the existing `getOne()` handler. STAFF/MANAGER get the new `StaffBookingDetailResponse`; CUSTOMER keeps today's unchanged generic `BookingDetailResponse` passthrough — narrowing the route to staff-only would have broken the validated customer "Minha Conta" detail prototype (`plan/journey/customer/prototypes/minha-conta/02-agendamento-detail.html`), which already relies on this route today. `M13-S07` later replaces the CUSTOMER branch with the dedicated `CustomerBookingDetailResponse` shape.
+
 **Acceptance criteria:**
 - [ ] `GET /v1/bookings/:id` with STAFF|MANAGER JWT returns `StaffBookingDetailResponse`
 - [ ] `loyaltyBalance` is populated for customer bookings; `null` for guest bookings
 - [ ] `infoRequestMessage` populated when booking is INFO_REQUESTED or beyond
 - [ ] `infoResponseMessage` populated when customer submitted info (UC-005 A2)
-- [ ] CUSTOMER JWT → `403` (staff-only endpoint)
+- [ ] CUSTOMER JWT → `200`, unchanged generic `BookingDetailResponse` passthrough (no regression to the customer detail prototype); `M13-S07` replaces this branch with `CustomerBookingDetailResponse`
 - [ ] Booking not in tenant → `404`
 - [ ] Tenant isolation: MANAGER of Tenant A cannot retrieve Tenant B's booking detail
 - [ ] `StaffBookingDetailResponse` + `StaffBookingLineResponse` in `packages/types/src/booking.dto.ts`

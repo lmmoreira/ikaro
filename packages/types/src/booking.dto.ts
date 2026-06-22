@@ -62,3 +62,45 @@ export interface StaffBookingListResponse {
   page: number;
   limit: number;
 }
+
+export interface StaffBookingLineResponse {
+  lineId: string;
+  serviceName: string;
+  priceAtBooking: MoneyAmount;
+  durationMinsAtBooking: number;
+  pointsValueAtBooking: number;
+  requiresPickupAddressAtBooking: boolean;
+}
+
+export interface StaffBookingDetailResponse {
+  bookingId: string;
+  status: BookingStatus;
+  scheduledAt: string;
+  type: 'GUEST' | 'CUSTOMER';
+
+  // Contact / customer info
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  contactAddress: Address | null;
+  pickupAddress: Address | null;
+
+  // Loyalty (null for guest bookings)
+  customerId: string | null;
+  loyaltyBalance: number | null; // current active points
+
+  // Lines
+  lines: StaffBookingLineResponse[];
+  totalPrice: MoneyAmount;
+  totalDurationMins: number;
+
+  // Media
+  beforeServicePhotoUrls: string[]; // signed read URLs
+
+  // Admin-recorded fields
+  infoRequestMessage: string | null; // UC-005: what admin asked
+  infoResponseMessage: string | null; // UC-005 A2: what customer answered
+  approvedAt: string | null;
+  approvedBy: string | null; // staffId UUID
+  rejectionReason: string | null;
+}
