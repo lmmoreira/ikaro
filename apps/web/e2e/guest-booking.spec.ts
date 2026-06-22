@@ -64,27 +64,22 @@ test.describe('UC-001 — Booking form error paths', () => {
     await expect(page.locator('[data-testid="input-name"]')).toBeVisible();
   });
 
-  test('step 1: shows error when no service is selected and next is clicked', async ({ page }) => {
+  test('step 1: next button is disabled when no service is selected', async ({ page }) => {
     await page.goto('/ikaro/booking');
     await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
 
-    // Click next without selecting any service
-    await page.locator('[data-testid="step-next"]').click();
-
-    await expect(page.locator('[data-testid="step1-error"]')).toBeVisible();
-    await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
+    // step-next is disabled until at least one service is selected
+    await expect(page.locator('[data-testid="step-next"]')).toBeDisabled();
   });
 
-  test('step 2: shows fully-booked message when no slots are available for selected day', async ({
-    page,
-  }) => {
-    // Intercept the BFF availability endpoint and return a day with no slots
-    await page.route('**/v1/availability/**', (route) => {
+  test('step 2: shows fully-booked message when all days are unavailable', async ({ page }) => {
+    // Intercept availability summary — DaySummary[] with all days unavailable
+    await page.route('**/v1/schedule/availability/summary**', (route) => {
       if (route.request().method() !== 'GET') return route.continue();
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ days: [{ date: '2099-01-01', slots: [] }] }),
+        body: JSON.stringify([{ date: '2099-01-01', available: false, slotCount: 0 }]),
       });
     });
 
@@ -95,9 +90,7 @@ test.describe('UC-001 — Booking form error paths', () => {
       .click();
     await page.locator('[data-testid="step-next"]').click();
 
-    // Select the day with no slots
-    await page.locator('[data-testid="day-option"]').first().click();
-
+    // fully-booked-message renders immediately when every day has available: false
     await expect(page.locator('[data-testid="fully-booked-message"]')).toBeVisible();
   });
 
