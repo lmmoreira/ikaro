@@ -89,7 +89,10 @@ test.describe('UC-001 — Booking form error paths', () => {
     });
 
     await page.goto('/ikaro/booking');
-    await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
+    await page
+      .locator('[data-testid="service-card"][data-requires-pickup="false"]')
+      .first()
+      .click();
     await page.locator('[data-testid="step-next"]').click();
 
     // Select the day with no slots
