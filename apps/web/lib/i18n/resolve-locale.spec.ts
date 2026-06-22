@@ -62,7 +62,7 @@ describe('resolveLocale', () => {
     const locale = await resolveLocale('/us-tenant');
     expect(locale).toBe('en');
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-      'http://localhost:3001/platform/manifest/us-tenant',
+      'http://localhost:3001/public/platform/manifest/us-tenant',
       expect.objectContaining({ next: expect.objectContaining({ revalidate: 300 }) }),
     );
   });
