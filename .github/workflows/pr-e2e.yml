@@ -148,40 +148,29 @@ jobs:
           set -e
 
           pnpm --filter @ikaro/backend dev > /tmp/backend.log 2>&1 &
-          BACKEND_PID=$!
-
           PORT=3002 pnpm --filter @ikaro/bff dev > /tmp/bff.log 2>&1 &
-          BFF_PID=$!
-
           pnpm --filter @ikaro/web dev > /tmp/web.log 2>&1 &
-          WEB_PID=$!
 
-          wait_for() {
-            local name=$1 url=$2 pid=$3
-            local retries=60
-            # Use --ipv4 to avoid localhost → ::1 (IPv6) ambiguity in GitHub Actions
-            until curl --ipv4 -sf "$url"; do
-              if ! kill -0 "$pid" 2>/dev/null; then
-                echo "::error::$name process (PID $pid) died before becoming ready"
-                cat "/tmp/$(echo "$name" | tr '[:upper:]' '[:lower:]').log" || true
-                exit 1
-              fi
-              retries=$((retries - 1))
-              if [ "$retries" -le 0 ]; then
-                echo "::error::$name did not become ready after 3 min. Last log lines:"
-                tail -30 "/tmp/$(echo "$name" | tr '[:upper:]' '[:lower:]').log" || true
-                echo "=== Listening ports ==="
-                ss -tlnp 2>/dev/null || true
-                exit 1
-              fi
-              sleep 3
-            done
-            echo "$name ready ✓"
+          # wait-on tcp: checks TCP connectivity on all interfaces (IPv4 + IPv6),
+          # avoiding the localhost → :: (IPv6 only) binding issue in GitHub Actions.
+          npx -y wait-on \
+            tcp:localhost:3001 \
+            tcp:localhost:3002 \
+            tcp:localhost:3000 \
+            --timeout 180000 \
+            --interval 2000 \
+          || {
+            echo "=== Listening ports ==="
+            ss -tlnp 2>/dev/null || true
+            echo "=== Backend log (last 30 lines) ==="
+            tail -30 /tmp/backend.log || true
+            echo "=== BFF log (last 30 lines) ==="
+            tail -30 /tmp/bff.log || true
+            echo "=== Web log (last 30 lines) ==="
+            tail -30 /tmp/web.log || true
+            exit 1
           }
-
-          wait_for "backend" "http://127.0.0.1:3001/health/live" "$BACKEND_PID"
-          wait_for "bff"     "http://127.0.0.1:3002/v1/health/live" "$BFF_PID"
-          wait_for "web"     "http://127.0.0.1:3000" "$WEB_PID"
+          echo "All services ready ✓"
 
       # ── Playwright ────────────────────────────────────────────────────────────
       - name: Install Playwright browsers
@@ -190,7 +179,7 @@ jobs:
       - name: Run Playwright E2E
         run: pnpm --filter @ikaro/web e2e:ci
         env:
-          PLAYWRIGHT_BASE_URL: 'http://127.0.0.1:3000'
+          PLAYWRIGHT_BASE_URL: 'http://localhost:3000'
 
       - name: Upload Playwright report
         if: failure()
