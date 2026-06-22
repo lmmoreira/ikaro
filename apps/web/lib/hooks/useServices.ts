@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CreateServiceRequest, UpdateServiceRequest } from '@ikaro/types';
 import {
   createService,
   deactivateService,
   listServices,
   updateService,
-  type CreateServiceRequest,
-  type UpdateServiceRequest,
 } from '@/lib/api/dashboard/services';
 import { getTenantId } from '@/lib/api/bff-client';
 

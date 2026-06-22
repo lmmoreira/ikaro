@@ -1,43 +1,34 @@
-import type { HotsiteServiceListResponse, HotsiteServiceResponse } from '@ikaro/types';
+import type {
+  CreateServiceRequest,
+  StaffServiceListResponse,
+  StaffServiceResponse,
+  UpdateServiceRequest,
+} from '@ikaro/types';
 import { bffClient } from '../bff-client';
 
-export async function listServices(): Promise<HotsiteServiceListResponse> {
-  const res = await bffClient.get<HotsiteServiceListResponse>('/services');
+export async function listServices(): Promise<StaffServiceListResponse> {
+  const res = await bffClient.get<StaffServiceListResponse>('/services');
   return res.data;
 }
 
-export interface CreateServiceRequest {
-  readonly name: string;
-  readonly description?: string;
-  readonly priceAmount: number;
-  readonly durationMinutes: number;
-  readonly loyaltyPointsValue: number;
-  readonly requiresPickupAddress?: boolean;
+export async function getService(id: string): Promise<StaffServiceResponse> {
+  const res = await bffClient.get<StaffServiceResponse>(`/services/${id}`);
+  return res.data;
 }
 
-export interface UpdateServiceRequest {
-  readonly name?: string;
-  readonly description?: string | null;
-  readonly priceAmount?: number;
-  readonly durationMinutes?: number;
-  readonly loyaltyPointsValue?: number;
-  readonly requiresPickupAddress?: boolean;
-}
-
-export async function createService(body: CreateServiceRequest): Promise<HotsiteServiceResponse> {
-  const res = await bffClient.post<HotsiteServiceResponse>('/services', body);
+export async function createService(body: CreateServiceRequest): Promise<StaffServiceResponse> {
+  const res = await bffClient.post<StaffServiceResponse>('/services', body);
   return res.data;
 }
 
 export async function updateService(
   id: string,
   body: UpdateServiceRequest,
-): Promise<HotsiteServiceResponse> {
-  const res = await bffClient.patch<HotsiteServiceResponse>(`/services/${id}`, body);
+): Promise<StaffServiceResponse> {
+  const res = await bffClient.patch<StaffServiceResponse>(`/services/${id}`, body);
   return res.data;
 }
 
-export async function deactivateService(id: string): Promise<{ id: string; isActive: false }> {
-  const res = await bffClient.delete<{ id: string; isActive: false }>(`/services/${id}`);
-  return res.data;
+export async function deactivateService(id: string): Promise<void> {
+  await bffClient.delete(`/services/${id}`);
 }

@@ -104,7 +104,7 @@ describe('ServiceController (integration)', () => {
   // ─── GET /services ───────────────────────────────────────────────────────────
 
   describe('GET /services', () => {
-    it('returns only active services for the tenant', async () => {
+    it('STAFF/MANAGER: returns active and inactive services for the tenant', async () => {
       const isolatedTenant = await provisionTenant();
       const activeEntity = new ServiceEntityBuilder()
         .withTenantId(isolatedTenant)
@@ -122,6 +122,30 @@ describe('ServiceController (integration)', () => {
       const { body } = await request(app.getHttpServer())
         .get('/services')
         .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+
+      expect(body.items.some((i: { name: string }) => i.name === 'Ativo')).toBe(true);
+      expect(body.items.some((i: { name: string }) => i.name === 'Inativo')).toBe(true);
+    });
+
+    it('no actor role (public/guest): returns only active services', async () => {
+      const isolatedTenant = await provisionTenant();
+      const activeEntity = new ServiceEntityBuilder()
+        .withTenantId(isolatedTenant)
+        .withName('Ativo')
+        .withIsActive(true)
+        .build();
+      const inactiveEntity = new ServiceEntityBuilder()
+        .withTenantId(isolatedTenant)
+        .withName('Inativo')
+        .withIsActive(false)
+        .build();
+      await ds.getRepository(ServiceEntity).save(activeEntity);
+      await ds.getRepository(ServiceEntity).save(inactiveEntity);
+
+      const { body } = await request(app.getHttpServer())
+        .get('/services')
+        .set({ 'x-tenant-id': isolatedTenant, 'x-correlation-id': 'test-correlation-id' })
         .expect(200);
 
       expect(body.items.some((i: { name: string }) => i.name === 'Ativo')).toBe(true);
@@ -226,7 +250,7 @@ describe('ServiceController (integration)', () => {
       expect(row!.isActive).toBe(false);
     });
 
-    it('deactivated service is excluded from GET /services list', async () => {
+    it('deactivated service is excluded from the public list but still visible to STAFF/MANAGER', async () => {
       const isolatedTenant = await provisionTenant();
       const { body: created } = await request(app.getHttpServer())
         .post('/services')
@@ -239,12 +263,19 @@ describe('ServiceController (integration)', () => {
         .set(actorHeaders(isolatedTenant, MANAGER_ID))
         .expect(200);
 
-      const { body } = await request(app.getHttpServer())
+      const { body: publicBody } = await request(app.getHttpServer())
+        .get('/services')
+        .set({ 'x-tenant-id': isolatedTenant, 'x-correlation-id': 'test-correlation-id' })
+        .expect(200);
+      expect(publicBody.items.every((i: { id: string }) => i.id !== created.id)).toBe(true);
+
+      const { body: staffBody } = await request(app.getHttpServer())
         .get('/services')
         .set(actorHeaders(isolatedTenant, MANAGER_ID))
         .expect(200);
-
-      expect(body.items.every((i: { id: string }) => i.id !== created.id)).toBe(true);
+      const found = staffBody.items.find((i: { id: string }) => i.id === created.id);
+      expect(found).toBeDefined();
+      expect(found.isActive).toBe(false);
     });
 
     it('returns 404 for service belonging to a different tenant', async () => {

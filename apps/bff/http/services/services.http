@@ -1,5 +1,5 @@
 # BFF — Services endpoints
-# UC-012 (create), UC-013 (update, deactivate), public list
+# UC-012 (create), UC-013 (update, deactivate), staff list/get, public list
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -45,8 +45,30 @@ Content-Type: application/json
 ###
 
 ### List active services for a tenant by slug (no auth required)
-GET {{bffUrl}}/v1/services
+GET {{bffUrl}}/v1/public/services
 X-Tenant-Slug: {{tenantSlug}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — staff list + get by id (returns inactive services too)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Staff list — includes inactive services (MANAGER JWT)
+GET {{bffUrl}}/v1/services
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Staff list — STAFF JWT also allowed
+GET {{bffUrl}}/v1/services
+Authorization: Bearer {{staffToken}}
+
+###
+
+### Get a single service by id (active or inactive)
+GET {{bffUrl}}/v1/services/{{serviceId}}
+Authorization: Bearer {{managerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — create service (UC-012)
@@ -116,7 +138,7 @@ Authorization: Bearer {{managerToken}}
 
 ###
 
-### Deactivate a service (logical delete)
+### Deactivate a service (logical delete) — returns 204 No Content
 DELETE {{bffUrl}}/v1/services/{{serviceId}}
 Authorization: Bearer {{managerToken}}
 
@@ -127,7 +149,24 @@ Authorization: Bearer {{managerToken}}
 ###
 
 ### 400 — Missing X-Tenant-Slug on public list
+GET {{bffUrl}}/v1/public/services
+
+###
+
+### 401 — Staff list without a JWT
 GET {{bffUrl}}/v1/services
+
+###
+
+### 403 — Staff list with CUSTOMER JWT
+GET {{bffUrl}}/v1/services
+Authorization: Bearer {{customerToken}}
+
+###
+
+### 404 — Get a non-existent service
+GET {{bffUrl}}/v1/services/00000000-0000-4000-8000-000000009999
+Authorization: Bearer {{managerToken}}
 
 ###
 

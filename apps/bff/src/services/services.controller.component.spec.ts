@@ -1,6 +1,5 @@
 import { HttpException, INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { HotsiteServiceResponse } from '@ikaro/types';
 import {
   MockHttpService,
   MockBackendHttpService,
@@ -11,14 +10,27 @@ import {
   setupActiveGuardMock,
   request,
 } from '../test/component-test.helpers';
+import { ServiceDetail } from './services.types';
 
 const SERVICE_ID = '10000000-0000-4000-8000-000000000001';
 
-const mockServiceResponse: HotsiteServiceResponse = {
+const mockServiceDetail: ServiceDetail = {
   id: SERVICE_ID,
   name: 'Lavagem Completa',
   description: null,
   price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
+  durationMinutes: 60,
+  loyaltyPointsValue: 10,
+  requiresPickupAddress: false,
+  isActive: true,
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+
+const mockStaffServiceResponse = {
+  serviceId: SERVICE_ID,
+  name: 'Lavagem Completa',
+  description: null,
+  price: { amount: 150, currency: 'BRL' },
   durationMinutes: 60,
   loyaltyPointsValue: 10,
   requiresPickupAddress: false,
@@ -53,6 +65,77 @@ describe('ServicesController (component)', () => {
     jest.resetAllMocks();
   });
 
+  // ─── GET /v1/services ────────────────────────────────────────────────────────
+
+  describe('GET /v1/services', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/services');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/v1/services')
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200, returns StaffServiceListResponse including inactive', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({ items: [mockServiceDetail] });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/services')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ items: [mockStaffServiceResponse], total: 1 });
+      expect(backendHttpService.get).toHaveBeenCalledWith('/services');
+    });
+  });
+
+  // ─── GET /v1/services/:id ─────────────────────────────────────────────────────
+
+  describe('GET /v1/services/:id', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer()).get(`/v1/services/${SERVICE_ID}`);
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/v1/services/${SERVICE_ID}`)
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200, returns StaffServiceResponse', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(mockServiceDetail);
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/services/${SERVICE_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockStaffServiceResponse);
+      expect(backendHttpService.get).toHaveBeenCalledWith(`/services/${SERVICE_ID}`);
+    });
+
+    it('propagates 404 from backend', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockRejectedValueOnce(
+        new HttpException({ title: 'Not Found', status: 404 }, 404),
+      );
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/services/${SERVICE_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(404);
+    });
+  });
+
   // ─── POST /v1/services ───────────────────────────────────────────────────────
 
   describe('POST /v1/services', () => {
@@ -80,7 +163,7 @@ describe('ServicesController (component)', () => {
 
     it('MANAGER JWT → 201, calls POST /services on backend', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.post.mockResolvedValueOnce(mockServiceResponse);
+      backendHttpService.post.mockResolvedValueOnce(mockServiceDetail);
 
       const res = await request(app.getHttpServer())
         .post('/v1/services')
@@ -88,13 +171,13 @@ describe('ServicesController (component)', () => {
         .send(validCreateBody);
 
       expect(res.status).toBe(201);
-      expect(res.body).toEqual(mockServiceResponse);
+      expect(res.body).toEqual(mockStaffServiceResponse);
       expect(backendHttpService.post).toHaveBeenCalledWith('/services', validCreateBody);
     });
 
     it('STAFF JWT → 201', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.post.mockResolvedValueOnce(mockServiceResponse);
+      backendHttpService.post.mockResolvedValueOnce(mockServiceDetail);
 
       const res = await request(app.getHttpServer())
         .post('/v1/services')
@@ -134,7 +217,7 @@ describe('ServicesController (component)', () => {
 
     it('MANAGER JWT → 200, calls PATCH /services/:id', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockResolvedValueOnce(mockServiceResponse);
+      backendHttpService.patch.mockResolvedValueOnce(mockServiceDetail);
 
       const res = await request(app.getHttpServer())
         .patch(`/v1/services/${SERVICE_ID}`)
@@ -177,7 +260,7 @@ describe('ServicesController (component)', () => {
       expect(res.status).toBe(403);
     });
 
-    it('MANAGER JWT → 200, calls DELETE /services/:id', async () => {
+    it('MANAGER JWT → 204, calls DELETE /services/:id', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.delete.mockResolvedValueOnce({ id: SERVICE_ID, isActive: false });
 
@@ -185,8 +268,8 @@ describe('ServicesController (component)', () => {
         .delete(`/v1/services/${SERVICE_ID}`)
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
 
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual({ id: SERVICE_ID, isActive: false });
+      expect(res.status).toBe(204);
+      expect(res.body).toEqual({});
       expect(backendHttpService.delete).toHaveBeenCalledWith(`/services/${SERVICE_ID}`);
     });
 
