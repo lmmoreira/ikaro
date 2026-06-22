@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
+import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
-import { Service } from '../../domain/service.aggregate';
 
-export interface ServiceListItem {
+export interface GetServiceUseCaseResult {
   id: string;
   name: string;
   description: string | null;
@@ -15,26 +15,20 @@ export interface ServiceListItem {
   createdAt: string;
 }
 
-export interface ListServicesUseCaseResult {
-  items: ServiceListItem[];
-}
-
 @Injectable()
-export class ListServicesUseCase {
+export class GetServiceUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(): Promise<ListServicesUseCaseResult> {
-    const { tenantId, actorRole } = this.tenantContext;
-    const isStaffOrManager = actorRole === 'MANAGER' || actorRole === 'STAFF';
-    const services = await this.serviceRepo.findAllByTenant(tenantId, !isStaffOrManager);
-    const { language: locale } = this.tenantContext.settings.localization;
-    return { items: services.map((s) => this.toItem(s, locale)) };
-  }
+  async execute(id: string): Promise<GetServiceUseCaseResult> {
+    const tenantId = this.tenantContext.tenantId;
+    const service = await this.serviceRepo.findById(id, tenantId);
+    if (!service) throw new ServiceNotFoundError(id);
 
-  private toItem(service: Service, locale: string): ServiceListItem {
+    const { language: locale } = this.tenantContext.settings.localization;
+
     return {
       id: service.id,
       name: service.name,

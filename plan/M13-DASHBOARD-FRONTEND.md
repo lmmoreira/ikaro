@@ -368,7 +368,7 @@ Before-service photo URLs: call `IStorageService.getSignedReadUrl(path)` per pho
 
 ---
 
-### M13-S05 — BFF: staff service management endpoints
+### M13-S05 — BFF: staff service management endpoints ✅ Done
 
 *(formerly M125-S07)*
 
@@ -379,7 +379,9 @@ Before-service photo URLs: call `IStorageService.getSignedReadUrl(path)` per pho
 **Description:**
 Verify and fill the BFF surface for staff service management. `POST /v1/services`, `PATCH /v1/services/:id`, and `DELETE /v1/services/:id` were implemented in M05 — this story confirms they exist and adds any missing pieces: a staff-authenticated list endpoint that returns **inactive** services (the public hotsite endpoint only returns `isActive: true`), and a single-service fetch for edit pre-fill.
 
-> **Note (added M13-S04):** `apps/web/lib/api/dashboard/services.ts` already declares its own `CreateServiceRequest`/`UpdateServiceRequest` (`priceAmount`, `loyaltyPointsValue`) which diverges from `@ikaro/types`'s same-named exports (`price`, `loyaltyPoints`). Reconcile this as part of re-verifying the `POST`/`PATCH /v1/services` contract here — see `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` for the full writeup.
+> **Note (resolved during M13-S05):** `@ikaro/types`'s `CreateServiceRequest`/`UpdateServiceRequest` were fixed to the dominant `priceAmount`/`loyaltyPointsValue` convention (matching the backend Zod schema, the BFF Zod schema, and the web fetcher — all three already agreed; `@ikaro/types` was the one out of sync). `apps/web/lib/api/dashboard/services.ts` now imports these (plus the new `StaffServiceResponse`/`StaffServiceListResponse`) from `@ikaro/types` instead of redeclaring them locally. The story's own proposed `priceAmountCents`/`durationMins` shapes below were **not** adopted — `priceAmountCents` would have implied an integer-cents semantic that doesn't match `Money.from(dto.priceAmount, currency)`'s actual decimal usage; almost certainly a leftover from the older `M125-S07` draft. See `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` for the full writeup (the `services` case there is now resolved; `customers`/`loyalty`/`staff` remain open).
+>
+> **Also resolved:** the bare `GET /v1/services` already belonged to the public hotsite controller (`ServicesPublicController`), which would have collided with the new staff-guarded list at the same path. Moved the public controller to `public/services` (and, for the same reason, `platform.public.controller.ts` to `public/platform`) — see `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions for the new default rule. `ListServicesUseCase` now branches on `RequestContext.actorRole` (mirroring `GetBookingUseCase` from `M13-S04`) to return inactive services to STAFF/MANAGER only. `DELETE /v1/services/:id` now returns `204` (was `200` + body) to match this story's AC.
 
 > 🔍 **Discover before starting:** Open `apps/bff/src/` and locate the services module (likely `platform/` or `catalog/`). Check: (a) does `GET /v1/services` already exist with a STAFF|MANAGER guard? Does it return `isActive`? (b) does `GET /v1/services/:id` exist for authenticated staff? (c) do `POST`, `PATCH`, `DELETE` endpoints exist with correct `@Roles('STAFF','MANAGER')` guard and `.http` blocks? List every gap — this story fills all of them.
 >

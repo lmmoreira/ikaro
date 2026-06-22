@@ -14,23 +14,23 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 ### Get the hotsite manifest for a tenant by slug (public — no auth required)
-GET {{bffUrl}}/v1/platform/manifest/{{tenantSlug}}
+GET {{bffUrl}}/v1/public/platform/manifest/{{tenantSlug}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
 
 ### 404 — Unknown tenant slug
-GET {{bffUrl}}/v1/platform/manifest/no-such-tenant-slug
+GET {{bffUrl}}/v1/public/platform/manifest/no-such-tenant-slug
 
 ###
 
 ### 404 — Hotsite exists but is not published
-GET {{bffUrl}}/v1/platform/manifest/unpublished-hotsite-tenant
+GET {{bffUrl}}/v1/public/platform/manifest/unpublished-hotsite-tenant
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Published hotsites listing (M12-S09 — backs apps/web sitemap.xml)
 # ─────────────────────────────────────────────────────────────────────────────
 
 ### List active tenants with a published hotsite — { items: [{ slug, updatedAt }] }
-GET {{bffUrl}}/v1/platform/published-hotsites
+GET {{bffUrl}}/v1/public/platform/published-hotsites

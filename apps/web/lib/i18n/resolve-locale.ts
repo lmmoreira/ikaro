@@ -1,3 +1,5 @@
+import { fetchManifestResponse } from '@/lib/api/platform';
+
 const FALLBACK_LOCALE = 'pt-BR';
 
 // Segments that are never tenant slugs
@@ -23,15 +25,10 @@ export async function resolveLocale(pathname: string): Promise<string> {
   const slug = extractSlug(pathname);
   if (!slug) return FALLBACK_LOCALE;
 
-  const bffUrl = process.env.NEXT_PUBLIC_BFF_URL;
-  if (!bffUrl) return FALLBACK_LOCALE;
-
-  const isDev = process.env.NODE_ENV === 'development';
+  if (!process.env.NEXT_PUBLIC_BFF_URL) return FALLBACK_LOCALE;
 
   try {
-    const res = await fetch(`${bffUrl}/platform/manifest/${slug}`, {
-      next: { revalidate: isDev ? 0 : 300 },
-    });
+    const res = await fetchManifestResponse(slug);
     if (!res.ok) return FALLBACK_LOCALE;
     const manifest = (await res.json()) as { localization?: { language?: string } };
     return manifest.localization?.language ?? FALLBACK_LOCALE;

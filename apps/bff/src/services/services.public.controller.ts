@@ -4,7 +4,7 @@ import { Public } from '../shared/decorators/public.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { TenantInfoResponse } from '../shared/types/backend-responses';
 
-@Controller('services')
+@Controller('public/services')
 export class ServicesPublicController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 

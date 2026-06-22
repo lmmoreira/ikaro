@@ -39,7 +39,7 @@ describe('fetchServices', () => {
 
     expect(result).toEqual([service]);
     expect(fetchSpy).toHaveBeenCalledWith(
-      `${BFF_URL}/services`,
+      `${BFF_URL}/public/services`,
       expect.objectContaining({
         headers: { 'X-Tenant-Slug': 'lavacar-beloauto' },
         next: { revalidate: 300 },

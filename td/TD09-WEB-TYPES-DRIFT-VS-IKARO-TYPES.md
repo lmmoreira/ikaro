@@ -5,7 +5,7 @@
 - **Priority**: Medium (no live defect today — every affected fetcher has zero page/component consumers yet — but each will surface as a confusing bug or a wrong "fix" the first time a story builds a real page on top of it)
 - **Context**: `apps/web/lib/api/dashboard/*.ts`, `packages/types/src/*.dto.ts`
 - **Created**: 2026-06-22
-- **Updated**: 2026-06-22
+- **Updated**: 2026-06-22 — `services` case resolved in `M13-S05`; `pre-pr.sh` now has a `WEB-7` mechanical check flagging future collisions automatically
 
 ---
 
@@ -15,11 +15,11 @@ Discovered while implementing `M13-S04` (BFF booking-detail endpoint for staff).
 
 A systematic grep across every other `apps/web/lib/api/dashboard/*.ts` file for local type names that collide with an existing `@ikaro/types` export of the same name found three more cases. Each has a different verdict — **this is not a uniform "swap to `@ikaro/types`" fix**:
 
-### 1. `dashboard/services.ts` — real divergence, fix belongs to `M13-S05`
+### 1. `dashboard/services.ts` — ✅ resolved in `M13-S05`
 - Local `CreateServiceRequest`/`UpdateServiceRequest`: `{ priceAmount, durationMinutes, loyaltyPointsValue, ... }`
 - `@ikaro/types`'s same-named exports (`packages/types/src/service.dto.ts`): `{ price, durationMinutes, loyaltyPoints, ... }`
 - Same type name, different field names — not interchangeable.
-- `M13-S05` ("BFF: staff service management endpoints") owns this BFF module and hasn't landed yet. It already re-verifies the `POST`/`PATCH /v1/services` contract from scratch, so it's the natural place to reconcile this rather than a standalone fix.
+- Fixed `@ikaro/types`'s `CreateServiceRequest`/`UpdateServiceRequest` to the dominant `priceAmount`/`loyaltyPointsValue` convention (3 of 4 layers already agreed; `@ikaro/types` was the outlier). `dashboard/services.ts` now imports them directly, plus the new `StaffServiceResponse`/`StaffServiceListResponse`.
 
 ### 2. `dashboard/customers.ts` — safe, low-risk duplicate
 - Local `CustomerProfileResponse`/`CustomerAddressResponse` is structurally near-identical to `@ikaro/types`'s `CustomerProfileResponse`/`Address` (`packages/types/src/customer.dto.ts`, `address.ts`).
@@ -49,17 +49,17 @@ None of these are live defects today — every affected fetcher (`services`, `cu
 
 Each case needs its own verification against the live BFF contract before touching anything — do not batch-fix these as one mechanical find-and-replace:
 
-1. **`services`** — fold into `M13-S05`'s own discovery phase; it already re-verifies this exact contract end to end.
+1. ~~**`services`** — fold into `M13-S05`'s own discovery phase; it already re-verifies this exact contract end to end.~~ Done.
 2. **`customers`** — swap `dashboard/customers.ts` to import `CustomerProfileResponse`/`Address` from `@ikaro/types`; adjust `Address.neighborhood` usage if needed. Standalone, low risk, can be done any time.
 3. **`loyalty`** — confirm `@ikaro/types`'s `LoyaltyBalanceResponse` truly has no consumer (re-run the grep at fix time, not just trust this doc), then either delete it or correct it to the real shape; only then point `dashboard/loyalty.ts` at it.
 4. **`staff`** — fix `@ikaro/types`'s `InviteStaffRequest`/`StaffResponse` to match the live `InviteStaffBodySchema`/the real BFF response first, then point `dashboard/staff.ts` at the corrected types.
 
-**General rule worth adding to `docs/CODE_STANDARDS.md` or `docs/24-BFF_ARCHITECTURE.md` while resolving any of these:** before declaring a request/response type in `apps/web/lib/api/**`, grep `@ikaro/types` for an export of the same (or a similar) name first. If one already exists but the shape looks wrong, verify which side actually matches the live endpoint before assuming the shared package is the source of truth — it sometimes isn't.
+**General rule — added to CLAUDE.md §7/§8 during `M13-S05`:** before declaring a request/response type in `apps/web/lib/api/**`, grep `@ikaro/types` for an export of the same (or a similar) name first. If one already exists but the shape looks wrong, verify which side actually matches the live endpoint before assuming the shared package is the source of truth — it sometimes isn't. `scripts/pre-pr.sh`'s `WEB-7` check now flags these collisions mechanically on every PR touching `apps/web/lib/api/**`.
 
 ## Acceptance criteria
 
 - [ ] `dashboard/customers.ts` imports `CustomerProfileResponse`/`Address` from `@ikaro/types`; local duplicates removed
 - [ ] `@ikaro/types`'s `LoyaltyBalanceResponse` resolved (deleted or corrected to match the live BFF contract); `dashboard/loyalty.ts` points at the shared type
 - [ ] `@ikaro/types`'s `InviteStaffRequest`/`StaffResponse` corrected to match `InviteStaffBodySchema`/the real BFF response; `dashboard/staff.ts` points at the shared types
-- [ ] `services` divergence resolved as part of `M13-S05`
+- [x] `services` divergence resolved as part of `M13-S05`
 - [ ] Re-run the grep this TD is based on (`apps/web/lib/api/dashboard/*.ts` interface names vs. `@ikaro/types` exports) once all four are resolved, to confirm no remaining collisions

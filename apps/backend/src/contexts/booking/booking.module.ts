@@ -22,6 +22,7 @@ import { RequestBookingUseCase } from './application/use-cases/request-booking.u
 import { DeactivateServiceUseCase } from './application/use-cases/deactivate-service.use-case';
 import { GetAvailabilityUseCase } from './application/use-cases/get-availability.use-case';
 import { GetAvailabilitySummaryUseCase } from './application/use-cases/get-availability-summary.use-case';
+import { GetServiceUseCase } from './application/use-cases/get-service.use-case';
 import { ListClosuresUseCase } from './application/use-cases/list-closures.use-case';
 import { ListOpeningsUseCase } from './application/use-cases/list-openings.use-case';
 import { ListServicesUseCase } from './application/use-cases/list-services.use-case';
@@ -112,6 +113,7 @@ import { AvailabilityService } from './domain/services/availability.service';
     RequestBookingUseCase,
     RequestAuthenticatedBookingUseCase,
     ListServicesUseCase,
+    GetServiceUseCase,
     UpdateServiceUseCase,
     DeactivateServiceUseCase,
     CloseScheduleUseCase,

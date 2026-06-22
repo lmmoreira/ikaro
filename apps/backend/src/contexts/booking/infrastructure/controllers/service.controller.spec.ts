@@ -5,6 +5,7 @@ import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { CreateServiceUseCase } from '../../application/use-cases/create-service.use-case';
 import { DeactivateServiceUseCase } from '../../application/use-cases/deactivate-service.use-case';
+import { GetServiceUseCase } from '../../application/use-cases/get-service.use-case';
 import { ListServicesUseCase } from '../../application/use-cases/list-services.use-case';
 import { UpdateServiceUseCase } from '../../application/use-cases/update-service.use-case';
 import { ServiceController } from './service.controller';
@@ -36,6 +37,7 @@ describe('ServiceController', () => {
     controller = new ServiceController(
       new CreateServiceUseCase(repo, txManager, ctx),
       new ListServicesUseCase(repo, ctx),
+      new GetServiceUseCase(repo, ctx),
       new UpdateServiceUseCase(repo, txManager, ctx),
       new DeactivateServiceUseCase(repo, txManager, ctx),
     );
@@ -59,7 +61,7 @@ describe('ServiceController', () => {
   });
 
   describe('list()', () => {
-    it('returns only active services for the tenant', async () => {
+    it('returns active and inactive services for STAFF/MANAGER', async () => {
       const active = new ServiceBuilder().withTenantId(TENANT_A).withName('Ativo').build();
       const inactive = new ServiceBuilder().withTenantId(TENANT_A).withName('Inativo').build();
       inactive.deactivate();
@@ -67,13 +69,32 @@ describe('ServiceController', () => {
       await repo.save(inactive);
 
       const result = await controller.list();
-      expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Ativo');
+      expect(result.items).toHaveLength(2);
     });
 
-    it('returns empty list when no active services', async () => {
+    it('returns empty list when no services', async () => {
       const result = await controller.list();
       expect(result.items).toHaveLength(0);
+    });
+  });
+
+  describe('getOne()', () => {
+    it('returns the service including inactive ones', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      service.deactivate();
+      await repo.save(service);
+
+      const result = await controller.getOne(service.id);
+      expect(result.id).toBe(service.id);
+      expect(result.isActive).toBe(false);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller
+        .getOne('00000000-0000-4000-8000-000000009999')
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
   });
 

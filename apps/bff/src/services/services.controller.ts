@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -10,10 +11,12 @@ import {
   Post,
 } from '@nestjs/common';
 import { z } from 'zod';
-import { HotsiteServiceResponse } from '@ikaro/types';
+import { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../shared/http/backend-http.service';
+import { ServiceDetail, ServiceListResponse } from './services.types';
+import { toStaffServiceListResponse, toStaffServiceResponse } from './services.mapper';
 
 const CreateServiceBodySchema = z.object({
   name: z.string().min(1),
@@ -40,29 +43,45 @@ type UpdateServiceBody = z.infer<typeof UpdateServiceBodySchema>;
 export class ServicesController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
+  @Get()
+  @Roles('MANAGER', 'STAFF')
+  async list(): Promise<StaffServiceListResponse> {
+    const result = await this.backendHttp.get<ServiceListResponse>('/services');
+    return toStaffServiceListResponse(result);
+  }
+
+  @Get(':id')
+  @Roles('MANAGER', 'STAFF')
+  async getOne(@Param('id', ParseUUIDPipe) id: string): Promise<StaffServiceResponse> {
+    const result = await this.backendHttp.get<ServiceDetail>(`/services/${id}`);
+    return toStaffServiceResponse(result);
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles('MANAGER', 'STAFF')
-  create(
+  async create(
     @Body(new ZodValidationPipe(CreateServiceBodySchema)) body: CreateServiceBody,
-  ): Promise<HotsiteServiceResponse> {
-    return this.backendHttp.post<HotsiteServiceResponse>('/services', body);
+  ): Promise<StaffServiceResponse> {
+    const result = await this.backendHttp.post<ServiceDetail>('/services', body);
+    return toStaffServiceResponse(result);
   }
 
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   @Roles('MANAGER', 'STAFF')
-  update(
+  async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateServiceBodySchema)) body: UpdateServiceBody,
-  ): Promise<HotsiteServiceResponse> {
-    return this.backendHttp.patch<HotsiteServiceResponse>(`/services/${id}`, body);
+  ): Promise<StaffServiceResponse> {
+    const result = await this.backendHttp.patch<ServiceDetail>(`/services/${id}`, body);
+    return toStaffServiceResponse(result);
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @Roles('MANAGER', 'STAFF')
-  deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<{ id: string; isActive: false }> {
-    return this.backendHttp.delete<{ id: string; isActive: false }>(`/services/${id}`);
+  async deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.backendHttp.delete(`/services/${id}`);
   }
 }

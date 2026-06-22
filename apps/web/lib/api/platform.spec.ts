@@ -89,7 +89,7 @@ describe('fetchManifest', () => {
     expect(result.tenant.slug).toBe('tenant-a');
     expect(result.tenant.id).toBe(manifest.tenant.id);
     expect(fetchSpy).toHaveBeenCalledWith(
-      `${BFF_URL}/platform/manifest/tenant-a`,
+      `${BFF_URL}/public/platform/manifest/tenant-a`,
       expect.objectContaining({ next: { revalidate: 300 } }),
     );
   });
@@ -130,7 +130,7 @@ describe('fetchPublishedHotsiteSlugs', () => {
 
     expect(result).toEqual(response);
     expect(fetchSpy).toHaveBeenCalledWith(
-      `${BFF_URL}/platform/published-hotsites`,
+      `${BFF_URL}/public/platform/published-hotsites`,
       expect.objectContaining({ next: { revalidate: 300 } }),
     );
   });

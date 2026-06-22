@@ -115,15 +115,15 @@ apps/bff/src/
 
 | File | Audience | Example |
 |---|---|---|
-| `<context>.controller.ts` | Authenticated dashboard (STAFF/MANAGER/CUSTOMER), `@Roles(...)` guarded | `ServicesController` — `POST /services`, `PATCH /services/:id`, `DELETE /services/:id` |
-| `<context>.public.controller.ts` | Unauthenticated hotsite, `@Public()` | `ServicesPublicController` — `GET /services`; `PlatformPublicController` — `GET /platform/manifest/:slug` |
+| `<context>.controller.ts` | Authenticated dashboard (STAFF/MANAGER/CUSTOMER), `@Roles(...)` guarded | `ServicesController` — `GET /services`, `GET /services/:id`, `POST /services`, `PATCH /services/:id`, `DELETE /services/:id` |
+| `<context>.public.controller.ts` | Unauthenticated hotsite, `@Public()` | `ServicesPublicController` — `GET /public/services`; `PlatformPublicController` — `GET /public/platform/manifest/:slug` |
 
-- Both controllers **may share the same `@Controller('<path>')` prefix** as long as method+path combinations don't collide (e.g. `ServicesController` owns the mutating `/services` routes, `ServicesPublicController` owns `GET /services`).
+- **`.public.controller.ts` always lives under a `public/<resource>` prefix — never the bare resource path.** Settled in `M13-S05` after `ServicesController`'s staff list (`GET /services`, returning inactive services too) needed the exact same method+path the existing `ServicesPublicController` already occupied (`GET /services`, active-only). Putting the public variant under `public/` frees the bare resource path entirely for the authenticated controller, so audience-split controllers never have to coordinate which one "owns" a given method+path. This is the default now — not an "optional-auth guard" workaround, and not something to re-litigate per endpoint.
 - A single `.public.controller.ts` can serve **multiple hotsite module types** — it is not 1:1 with `HotsiteModuleType`.
-- `@Public()` is binary — a public route never receives `req.user`. A route that must behave differently for guests vs. authenticated callers needs a new optional-auth guard; treat that as an open decision, not something to improvise per-endpoint.
-- Public route paths describe the **resource/action returned** (`/platform/manifest/:slug`, `/services`), independent of the module folder name.
+- `@Public()` is binary — a public route never receives `req.user`. Two different audiences needing the same conceptual resource get two different paths (`public/<resource>` vs `<resource>`), each with its own consistent guard — not one route branching on whether a JWT happens to be present.
+- Public route paths describe the **resource/action returned**, prefixed with `public/` (`public/platform/manifest/:slug`, `public/services`), independent of the module folder name.
 
-**Response types for `.public.controller.ts` endpoints** live in `@ikaro/types` (`packages/types/src/hotsite.ts`), named `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` (e.g. `HotsiteManifestResponse`, `HotsiteServiceResponse` / `HotsiteServiceListResponse`). Authenticated/admin response types may use plainer names (e.g. `ServiceResponse` in `service.dto.ts`) since they aren't part of the public hotsite contract.
+**Response types for `.public.controller.ts` endpoints** live in `@ikaro/types` (`packages/types/src/hotsite.ts`), named `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` (e.g. `HotsiteManifestResponse`, `HotsiteServiceResponse` / `HotsiteServiceListResponse`). Authenticated/staff response types use a `Staff<Resource>Response` / `Staff<Resource>ListResponse` naming (e.g. `StaffServiceResponse` / `StaffServiceListResponse` in `service.dto.ts`, `StaffBookingDetailResponse` in `booking.dto.ts`) since they aren't part of the public hotsite contract — see CLAUDE.md §7 "BFF module & controller naming" for the `<module>.mapper.ts` convention that translates the backend-internal shape into these public types.
 
 **Frontend fetchers (`apps/web/lib/api/<name>.ts`) mirror the BFF module name** they call — e.g. `lib/api/platform.ts` ↔ `platform.public.controller.ts`, `lib/api/services.ts` ↔ `services.public.controller.ts`.
 
