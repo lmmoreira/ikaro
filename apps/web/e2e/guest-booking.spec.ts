@@ -38,7 +38,7 @@ test.describe('UC-001 — Guest booking golden path', () => {
 });
 
 // ── Shared helper: navigate to step 3 (personal info) ────────────────────────
-async function navigateToStep3(page: Page) {
+async function navigateToStep3(page: Page): Promise<void> {
   await page.goto('/ikaro/booking');
   await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
 
@@ -82,10 +82,15 @@ test.describe('UC-001 — Booking form error paths', () => {
   });
 
   test('step 4: shows error message when booking POST fails (500)', async ({ page }) => {
-    // Intercept the BFF booking endpoint and return a server error
-    await page.route('**/v1/bookings', (route) =>
-      route.fulfill({ status: 500, body: JSON.stringify({ title: 'Internal Server Error' }) }),
-    );
+    // Intercept only POST to the BFF booking endpoint and return a server error
+    await page.route('**/v1/bookings', (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ title: 'Internal Server Error' }),
+      });
+    });
 
     await navigateToStep3(page);
 

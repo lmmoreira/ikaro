@@ -5,6 +5,13 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened]
 
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   e2e:
     name: Playwright E2E
@@ -13,6 +20,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v3
         with:
@@ -31,8 +40,17 @@ jobs:
 
       - name: Wait for postgres
         run: |
+          retries=30
           until docker compose -f docker/docker-compose.yml exec -T postgres \
-            pg_isready -U postgres -d ikaro; do sleep 2; done
+            pg_isready -U postgres -d ikaro; do
+            retries=$((retries - 1))
+            if [ "$retries" -le 0 ]; then
+              echo "Postgres did not become ready in time"
+              docker compose -f docker/docker-compose.yml logs postgres
+              exit 1
+            fi
+            sleep 2
+          done
 
       # ── Database ──────────────────────────────────────────────────────────────
       - name: Run migrations
@@ -139,13 +157,32 @@ jobs:
       # ── Wait for services ─────────────────────────────────────────────────────
       - name: Wait for services to be ready
         run: |
-          until curl -sf http://localhost:3001/health/live; do sleep 3; done
+          # Backend: /health/live (no global prefix)
+          retries=40
+          until curl -sf http://localhost:3001/health/live; do
+            retries=$((retries - 1))
+            [ "$retries" -le 0 ] && echo "Backend timed out" && exit 1
+            sleep 3
+          done
           echo "Backend ready"
-          until curl -sf http://localhost:3002/health/live; do sleep 3; done
+
+          # BFF: /v1/health/live (all routes under /v1 global prefix)
+          retries=40
+          until curl -sf http://localhost:3002/v1/health/live; do
+            retries=$((retries - 1))
+            [ "$retries" -le 0 ] && echo "BFF timed out" && exit 1
+            sleep 3
+          done
           echo "BFF ready"
-          until curl -sf http://localhost:3000; do sleep 3; done
+
+          # Web: Next.js dev server
+          retries=40
+          until curl -sf http://localhost:3000; do
+            retries=$((retries - 1))
+            [ "$retries" -le 0 ] && echo "Web timed out" && exit 1
+            sleep 3
+          done
           echo "Web ready"
-        timeout-minutes: 5
 
       # ── Playwright ────────────────────────────────────────────────────────────
       - name: Install Playwright browsers
