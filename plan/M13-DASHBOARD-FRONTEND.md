@@ -452,7 +452,7 @@ export interface UpdateServiceRequest {
 
 ---
 
-### M13-S06 — BFF: customer booking list + loyalty balance endpoints
+### M13-S06 — BFF: customer booking list + loyalty balance endpoints ✅ Done
 
 *(formerly M126-S02)*
 
