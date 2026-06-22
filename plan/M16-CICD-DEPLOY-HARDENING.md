@@ -212,6 +212,11 @@ Implement the migration runner as a dedicated CI step that runs BEFORE app deplo
 **Complexity:** L  
 **Docs to load:** `docs/08-TESTING_STRATEGY.md` § E2E tests, `docs/04-USE_CASES.md` § relevant UCs
 
+> **⚠️ Partially absorbed by AUD-015 (2026-06-22):**
+> The CI infrastructure work originally scoped here — spinning up the full stack (docker-compose infra + backend + BFF + web) in GitHub Actions and running Playwright per-PR — has been implemented in `.github/workflows/pr-e2e.yml` as part of AUD-015. The existing spec suite (`guest-booking.spec.ts`, `localization.spec.ts`, `not-found.spec.ts`, `hotsite-auth-bar.spec.ts`) already runs in CI on every PR against the local dev stack.
+>
+> **Remaining scope for M16-S06:** adapt the CI job to run against the **staging/production URL** (set `PLAYWRIGHT_BASE_URL` to the deployed environment) and implement the auth-flow journeys (Journey 2–5 below) once Google OAuth test-bypass (`ENABLE_DEV_AUTH`) is wired up in staging.
+
 **Description:**  
 Implement the 5 critical end-to-end journeys using Playwright. These tests run against the staging environment after deployment (smoke test). They cover the golden paths — no negative/edge cases (those are unit/integration tests).
 
