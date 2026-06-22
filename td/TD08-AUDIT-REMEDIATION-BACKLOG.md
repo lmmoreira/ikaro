@@ -47,7 +47,7 @@
 | **AUD-012** | Prototype-pollution guard in `deepMerge` | 🟡 Medium | XS | Now | — | §5.7 |
 | **AUD-013** | Per-tenant font loading (LCP) | 🟡 Medium | S | Now | — | §8.1 |
 | **AUD-014** | Coverage floor in test runners | 🟡 Medium | XS | Now | — | §11.3 |
-| **AUD-015** | Playwright E2E in CI + expand booking flows | 🟡 Medium | M | Now | — | §9.4, §11.4 |
+| **AUD-015** | Playwright E2E in CI + expand booking flows ✅ | 🟡 Medium | M | Now | — | §9.4, §11.4 |
 | **AUD-016** | API idempotency-key on mutating endpoints | 🟡 Medium | M | Pre-deploy | — | §13.9 |
 | **AUD-017** | Manifest module `safeParse` fail-soft | 🟡 Medium | S | Now | — | §8.6 |
 | **AUD-018** | Pub/Sub ordering keys per booking | 🟡 Medium | S | Now | AUD-001 | §12.6 |
@@ -386,7 +386,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-015 — Playwright E2E in CI + expand booking flows
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Now · **Audit ref:** §9.4, §11.4
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 **What's wrong:** Playwright suite exists but no workflow runs it; `guest-booking.spec.ts` is one 37-line golden path. The revenue flow has no coverage of validation errors, required-pickup-address, authenticated booking (UC-002), slot-becomes-unavailable mid-flow, photo upload, back-navigation, or login/tenant-selection (UC-021/022/023).
 **Fix:** Add a Playwright CI job (sharded or nightly + on-PR smoke). Expand specs to the error/edge branches and auth/tenant journeys. Selector rule: assert translated text as content, never use it as the selector (`CLAUDE.md`).
