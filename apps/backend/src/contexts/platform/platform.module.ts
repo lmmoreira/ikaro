@@ -19,6 +19,7 @@ import { GetTenantBySlugUseCase } from './application/use-cases/get-tenant-by-sl
 import { ListPublishedHotsitesUseCase } from './application/use-cases/list-published-hotsites.use-case';
 import { ProvisionTenantUseCase } from './application/use-cases/provision-tenant.use-case';
 import { PublishHotsiteUseCase } from './application/use-cases/publish-hotsite.use-case';
+import { RenameTenantUseCase } from './application/use-cases/rename-tenant.use-case';
 import { UnpublishHotsiteUseCase } from './application/use-cases/unpublish-hotsite.use-case';
 import { UpdateHotsiteContentUseCase } from './application/use-cases/update-hotsite-content.use-case';
 import { UpdateTenantSettingsUseCase } from './application/use-cases/update-tenant-settings.use-case';
@@ -32,6 +33,7 @@ import { HotsiteAdminController } from './infrastructure/controllers/hotsite-adm
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
 import { InternalTenantController } from './infrastructure/controllers/internal-tenant.controller';
 import { InternalTenantReadController } from './infrastructure/controllers/internal-tenant-read.controller';
+import { TenantController } from './infrastructure/controllers/tenant.controller';
 import { TenantSettingsController } from './infrastructure/controllers/tenant-settings.controller';
 import { TypeOrmHotsiteConfigRepository } from './infrastructure/repositories/typeorm-hotsite-config.repository';
 import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-tenant.repository';
@@ -48,6 +50,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     HotsiteController,
     InternalTenantController,
     InternalTenantReadController,
+    TenantController,
     TenantSettingsController,
   ],
   providers: [
@@ -68,6 +71,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     ListPublishedHotsitesUseCase,
     ProvisionTenantUseCase,
     PublishHotsiteUseCase,
+    RenameTenantUseCase,
     UnpublishHotsiteUseCase,
     UpdateHotsiteContentUseCase,
     UpdateTenantSettingsUseCase,

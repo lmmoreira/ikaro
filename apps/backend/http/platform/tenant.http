@@ -1,0 +1,85 @@
+# Platform — Tenant (identity — currently just renaming; see tenant-settings.http for the settings JSONB)
+# UC-026: Admin edits tenant settings ("Nome do estabelecimento")
+# Guarded by ManagerRoleGuard — requires X-Actor-Role: MANAGER on every request.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Rename the tenant
+PATCH {{baseUrl}}/tenants
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "name": "AutoWash Pro"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 400 — Missing X-Tenant-ID header
+PATCH {{baseUrl}}/tenants
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "name": "AutoWash Pro"
+}
+
+###
+
+### 400 — Empty name
+PATCH {{baseUrl}}/tenants
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "name": ""
+}
+
+###
+
+### 403 — STAFF role not allowed (ManagerRoleGuard rejects)
+PATCH {{baseUrl}}/tenants
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+Content-Type: application/json
+
+{
+  "name": "AutoWash Pro"
+}
+
+###
+
+### 409 — Tenant is inactive (deactivated tenants cannot be modified)
+# Replace with the ID of a deactivated tenant to test this case
+PATCH {{baseUrl}}/tenants
+X-Tenant-ID: 00000000-0000-4000-8000-000000009999
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "name": "AutoWash Pro"
+}

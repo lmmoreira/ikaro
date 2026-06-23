@@ -86,21 +86,19 @@ const BusinessInfoSchema = z
   })
   .partial();
 
-export const UpdateTenantSettingsSchema = z
-  .object({
-    name: z.string().min(1, 'name must not be empty').optional(),
-    settings: z
-      .object({
-        loyalty: LoyaltySchema.optional(),
-        booking: BookingSchema.optional(),
-        business_hours: BusinessHoursSchema.optional(),
-        localization: LocalizationSchema.optional(),
-        business_info: BusinessInfoSchema.optional(),
-      })
-      .optional(),
-  })
-  .refine((data) => data.name !== undefined || data.settings !== undefined, {
-    message: 'at least one of name or settings must be provided',
-  });
+export const UpdateTenantSettingsSchema = z.object({
+  settings: z
+    .object({
+      loyalty: LoyaltySchema.optional(),
+      booking: BookingSchema.optional(),
+      business_hours: BusinessHoursSchema.optional(),
+      localization: LocalizationSchema.optional(),
+      business_info: BusinessInfoSchema.optional(),
+    })
+    .strict()
+    .refine((settings) => Object.values(settings).some((value) => value !== undefined), {
+      message: 'at least one settings field must be provided',
+    }),
+});
 
 export type UpdateTenantSettingsDto = z.infer<typeof UpdateTenantSettingsSchema>;

@@ -1,4 +1,4 @@
-# Platform — Tenant Settings
+# Platform — Tenant Settings (settings JSONB only — see tenant.http for renaming the tenant)
 # UC-026: Admin edits tenant settings
 # Guarded by ManagerRoleGuard — requires X-Actor-Role: MANAGER on every request.
 #
@@ -16,6 +16,15 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH
 # ─────────────────────────────────────────────────────────────────────────────
+
+### Get current tenant settings
+GET {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
 
 ### Partial loyalty update (only expiry_days changes; other loyalty fields preserved)
 PATCH {{baseUrl}}/tenants/settings
@@ -206,7 +215,7 @@ Content-Type: application/json
 
 ###
 
-### Update tenant name only
+### Full settings update (tenant rename is a separate endpoint — see tenant.http)
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -215,21 +224,6 @@ X-Actor-Role: MANAGER
 Content-Type: application/json
 
 {
-  "name": "Lavacar Novo Nome"
-}
-
-###
-
-### Full settings + name update
-PATCH {{baseUrl}}/tenants/settings
-X-Tenant-ID: {{tenantId}}
-X-Actor-ID: {{managerId}}
-X-Actor-Type: STAFF
-X-Actor-Role: MANAGER
-Content-Type: application/json
-
-{
-  "name": "AutoWash Pro",
   "settings": {
     "loyalty": {
       "expiry_days": 180,
@@ -376,7 +370,7 @@ Content-Type: application/json
 
 ###
 
-### 400 — Empty body (neither name nor settings provided)
+### 400 — Empty body (settings field is required)
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -385,6 +379,20 @@ X-Actor-Role: MANAGER
 Content-Type: application/json
 
 {}
+
+###
+
+### 400 — name provided instead of settings (moved to PATCH /tenants — see tenant.http)
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "name": "Lavacar Novo Nome"
+}
 
 ###
 
@@ -414,3 +422,18 @@ Content-Type: application/json
 {
   "settings": { "loyalty": { "expiry_days": 90 } }
 }
+
+###
+
+### 400 — Get: missing X-Tenant-ID header
+GET {{baseUrl}}/tenants/settings
+X-Actor-Role: MANAGER
+
+###
+
+### 403 — Get: STAFF role not allowed (ManagerRoleGuard rejects)
+GET {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF

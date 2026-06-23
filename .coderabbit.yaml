@@ -1,5 +1,15 @@
 language: 'en-US'
 
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - '.copilot/context.md'
+      - 'docs/CODE_STANDARDS.md'
+      - 'docs/ENGINEERING_RULES.md'
+      - 'docs/ANTI_PATTERNS.md'
+      - 'docs/AGENT_PATTERNS.md'
+
 tone_instructions: |
   Be direct and precise. Act as a senior engineer focused on correctness, maintainability, and production safety. Flag architectural drift early. State issues clearly, explain why, and reference the violated pattern. Skip praise; focus on issues.
 
@@ -37,7 +47,12 @@ reviews:
     # ── Backend: Application layer (use cases, ports) ─────────────────────
     - path: 'apps/backend/src/contexts/**/application/**'
       instructions: |
-        Application layer — orchestration only, no framework deps, no SQL.
+        Application layer — orchestration only, no SQL, no HTTP-framework
+        coupling (no @Body()/@Req()/@Res(), no Express/Fastify types, no
+        HttpException). NestJS DI decorators (@Injectable(), @Inject(TOKEN))
+        ARE the established pattern here — every use case in this codebase
+        uses them to inject ports (repositories, transaction manager, etc.);
+        do NOT flag their presence as a layer violation.
         Flag these violations:
         - eventBus.publish() called directly from a use case or job — ALL
           publishes must go through the transactional outbox written inside
@@ -80,6 +95,13 @@ reviews:
           with a new method rather than creating a parallel one.
         - Booking save(): linesModified flag must be set before save() or line
           changes are silently dropped.
+        - mapXxxError() files: a final `if (err instanceof Error) throw err`
+          fallthrough is intentional, not an info-disclosure bug — NestJS's
+          default BaseExceptionFilter already converts any non-HttpException
+          into a generic 500 with no detail and logs the real exception
+          server-side only (verified against the installed @nestjs/core).
+          Do not flag this as Critical/info-disclosure unless a custom global
+          exception filter has been added that changes this default behavior.
 
     # ── Backend: Events ──────────────────────────────────────────────────
     - path: 'apps/backend/src/contexts/**/events/**'
@@ -117,7 +139,13 @@ reviews:
     - path: 'apps/backend/src/**/*.spec.ts'
       instructions: |
         Unit tests — enforce the project's test quality standards:
-        - Builders are mandatory — never plain object literals for test data.
+        - Builders are mandatory for constructing aggregates/entities used as
+          test fixtures (e.g. TenantBuilder, BookingBuilder) — never raw
+          `new Entity()` or hand-built property bags for fixture setup. This
+          does NOT apply to plain request/DTO parameters passed directly into
+          a use case's execute(dto) or a controller method — inline object
+          literals there (e.g. `useCase.execute(tenantId, { name: 'X' })`) are
+          the established, codebase-wide pattern; do not flag them.
           InMemory doubles over jest.fn() for repositories and ports.
         - No .skip(), .only(), setTimeout() in committed tests.
         - Every use case needs at least one tenant-isolation test: attempt the
@@ -159,6 +187,11 @@ reviews:
         - bff-client.ts (apps/web) holds module-level auth state — this must
           never be imported into a Server Component (add 'client-only' guard
           if not present). Flag any server-side import.
+        - BackendHttpService's catch-all re-throw of unmapped backend errors
+          is intentional (tracked as td/TD10-BFF-BACKEND-UNREACHABLE-GENERIC-500.md,
+          Low priority) — NestJS's default exception filter already sanitizes
+          it to a generic 500 before it reaches the client. Re-verify against
+          the installed @nestjs/core before re-flagging this as Critical.
 
     # ── Web: Hotsite ─────────────────────────────────────────────────────
     - path: 'apps/web/**'
