@@ -692,7 +692,7 @@ export interface CustomerLoyaltyRedemptionsResponse {
 
 ---
 
-### M13-S09 — Backend: add `GET /tenants/settings`
+### M13-S09 — Backend: add `GET /tenants/settings` ✅ Done
 
 *(formerly M127-S01)*
 
