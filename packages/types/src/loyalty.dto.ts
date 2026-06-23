@@ -26,7 +26,7 @@ export interface CustomerLoyaltyRedemptionResponse {
   pointsUsed: number;
   amountSaved: string; // formatted BRL e.g. "R$ 8,50" — "R$ 0,00" until M13-S12 lands
   redeemedAt: string; // ISO-8601
-  bookingReference: string | null; // e.g. "Lavagem Completa" — from booking.lines[0]
+  bookingReference: string | null; // e.g. "Lavagem Completa, Busca e Entrega" — all of the booking's services joined by the BFF mapper
 }
 
 export interface CustomerLoyaltyRedemptionsResponse {

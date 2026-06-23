@@ -38,6 +38,7 @@ describe('RedeemPointsUseCase', () => {
       tenantId: TENANT_ID,
       customerId: CUSTOMER_ID,
       pointsToRedeem: 20,
+      pointsPerCurrencyUnit: 0,
       redeemedBy: STAFF_ID,
       notes: 'Free wash',
     });
@@ -62,6 +63,7 @@ describe('RedeemPointsUseCase', () => {
       tenantId: TENANT_ID,
       customerId: CUSTOMER_ID,
       pointsToRedeem: 10,
+      pointsPerCurrencyUnit: 0,
       redeemedBy: STAFF_ID,
     });
 
@@ -69,6 +71,27 @@ describe('RedeemPointsUseCase', () => {
     expect(items).toHaveLength(1);
     expect(items[0].pointsRedeemed).toBe(10);
     expect(items[0].redeemedBy).toBe(STAFF_ID);
+  });
+
+  it('persists the pointsPerCurrencyUnit rate in effect at redemption time', async () => {
+    await balanceRepo.upsert(
+      new LoyaltyBalanceBuilder()
+        .withTenantId(TENANT_ID)
+        .withCustomerId(CUSTOMER_ID)
+        .withCurrentPoints(30)
+        .build(),
+    );
+
+    await useCase.execute({
+      tenantId: TENANT_ID,
+      customerId: CUSTOMER_ID,
+      pointsToRedeem: 10,
+      pointsPerCurrencyUnit: 10,
+      redeemedBy: STAFF_ID,
+    });
+
+    const { items } = await redemptionRepo.findByCustomer(TENANT_ID, CUSTOMER_ID, 1, 20);
+    expect(items[0].pointsPerCurrencyUnit).toBe(10);
   });
 
   it('stores optional notes and bookingId on the redemption', async () => {
@@ -85,6 +108,7 @@ describe('RedeemPointsUseCase', () => {
       tenantId: TENANT_ID,
       customerId: CUSTOMER_ID,
       pointsToRedeem: 50,
+      pointsPerCurrencyUnit: 0,
       redeemedBy: STAFF_ID,
       notes: 'Discount applied',
       bookingId: BOOKING_ID,
@@ -101,6 +125,7 @@ describe('RedeemPointsUseCase', () => {
         tenantId: TENANT_ID,
         customerId: CUSTOMER_ID,
         pointsToRedeem: 10,
+        pointsPerCurrencyUnit: 0,
         redeemedBy: STAFF_ID,
       }),
     ).rejects.toThrow(LoyaltyBalanceNotFoundError);
@@ -120,6 +145,7 @@ describe('RedeemPointsUseCase', () => {
         tenantId: TENANT_ID,
         customerId: CUSTOMER_ID,
         pointsToRedeem: 10,
+        pointsPerCurrencyUnit: 0,
         redeemedBy: STAFF_ID,
       }),
     ).rejects.toThrow(LoyaltyInsufficientPointsError);
@@ -139,6 +165,7 @@ describe('RedeemPointsUseCase', () => {
         tenantId: TENANT_ID,
         customerId: CUSTOMER_ID,
         pointsToRedeem: 10,
+        pointsPerCurrencyUnit: 0,
         redeemedBy: STAFF_ID,
       }),
     ).rejects.toThrow();

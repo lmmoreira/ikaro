@@ -621,7 +621,12 @@ Provide the two paginated endpoints needed for the customer's full loyalty histo
 >
 > **Pagination default:** keeping the existing shared `PaginationSchema` default of `limit=20` (not the `limit=50` originally noted here) — that schema is also used by the admin/balance routes, and bumping its default has wider blast radius than this story intends. The `50` was an unvalidated draft preference.
 >
-> **`amountSaved` (redemptions):** computed as `pointsUsed * conversionRate`. `conversionRate` is `REDEMPTION_CONVERSION_RATE = 0` (hardcoded, see `loyalty.controller.ts` comment) until `M13-S12` lands — identical interim state already shipped in `M13-S06`'s `CustomerLoyaltyBalanceResponse.conversionRate`. Shows `"R$ 0,00"` until `M13-S12` lands; no new dependency, reuses the same already-accepted constant.
+> ✅ **Resolved — `amountSaved` is computed from the rate stored on the redemption itself, not a live/current one.** An earlier version of this story computed `amountSaved` at **read time** using whatever `points_per_currency_unit` is *currently* configured (`REDEMPTION_CONVERSION_RATE` hardcoded to `0` in the BFF). This is a real correctness bug, not just an interim placeholder: if a tenant ever changes their rate, every *past* redemption's displayed `amountSaved` would silently get reinterpreted under the new rate, corrupting historical/audit data. The fix captures the rate **at the moment of redemption** instead:
+> - `points_per_currency_unit` didn't exist anywhere in code yet (`docs/21-TENANTS_SETTINGS_SCHEMA.md` marked it "planned — see M13-S11"). Pulled in **only Part A** of `M13-S11` (the `TenantSettingsVO`/`LoyaltySettings` field itself, validated 0–10000, default 0) — not Parts B–D, which move redemption-recording to be triggered by `BookingCompleted` during booking completion; that's a separate, larger architectural change, untouched here.
+> - `LoyaltyRedemption` aggregate/entity/migration gain `pointsPerCurrencyUnit: number` — a snapshot, never recomputed after the fact.
+> - `LoyaltyController.recordRedemption()` (backend) reads `this.tenantContext.settings.loyalty.points_per_currency_unit` and passes it into `RedeemPointsUseCase` as a plain DTO field — **deliberately not** injecting `RequestContext` directly into the use case itself, even though that's the pattern used elsewhere (e.g. `GetBookingUseCase`). `RedeemPointsUseCase` is documented in `M13-S11`'s own plan to soon gain a second caller (`BookingCompletedHandler`, an event handler) where `RequestContext` is never populated — keeping the use case invocation-context-agnostic avoids a guaranteed rework when that lands.
+> - `GetLoyaltyRedemptionsUseCase` projects the stored `pointsPerCurrencyUnit` (not an externally-supplied one); the BFF mapper computes `amountSaved` from it directly — no `conversionRate` parameter on `toCustomerLoyaltyRedemption()` at all anymore.
+> - Out of scope (unchanged): the admin "edit tenant settings" endpoint still can't actually *set* `points_per_currency_unit` to a non-zero value (`update-tenant-settings.dto.ts`'s `LoyaltySchema` wasn't touched) — that's `M13-S12`'s job. Until then this is `0` everywhere, identical to today's behavior, but now structurally correct. `getBalance()`'s separate `BALANCE_DISPLAY_CONVERSION_RATE` (renamed from `REDEMPTION_CONVERSION_RATE`) is a forward-looking display rate, conceptually different from a historical redemption record, and stays hardcoded pending `M13-S12`.
 
 > ✅ **Resolved — `bookingReference` (redemptions) gets a real backend lookup, not `null`.** `LoyaltyRedemption.bookingId` exists (nullable) but nothing resolves it to a service name today. The prototype (`plan/journey/customer/prototypes/minha-conta/04-fidelidade.html`, "Resgate — Lavagem Completa") confirms this is UX-validated, not speculative. A pickup-requiring service creates its own separate line (`docs/14-API_CONTRACTS.md`'s shared booking response example has a dedicated `"uuid-pickup"` line alongside the wash service line), so resolving only the first line would silently drop services from multi-line bookings. **The backend returns structured data, not a pre-joined display string** — joining into `", "`-separated text is a presentation decision that belongs in the BFF mapper (which already owns customer-facing shaping), not in a cross-context backend port. **Backend changes required (extends an existing cross-context port — does not create a new one, per the cross-context reuse rule):**
 > - `loyalty-booking.port.ts` (`ILoyaltyBookingPort`) — add `findBookingServices(tenantId: string, bookingId: string): Promise<ServiceSummary[]>` (reuses the existing `ServiceSummary` shape from `findServicesByIds`; empty array when the booking has no lines or doesn't exist).
@@ -652,7 +657,7 @@ export interface CustomerLoyaltyEntriesResponse {
 export interface CustomerLoyaltyRedemptionResponse {
   redemptionId: string;
   pointsUsed: number;
-  amountSaved: string;       // formatted BRL e.g. "R$ 8,50" — "R$ 0,00" until M13-S12 lands
+  amountSaved: string;       // formatted BRL e.g. "R$ 8,50" — computed from the redemption's own stored pointsPerCurrencyUnit, not a live rate; "R$ 0,00" today since the rate can't be set to non-zero via the API yet (M13-S12)
   redeemedAt: string;        // ISO-8601
   bookingReference: string | null; // e.g. "Lavagem Completa" — BFF-mapper joins all of the booking's services with ", "; null if no bookingId
 }
@@ -669,20 +674,21 @@ export interface CustomerLoyaltyRedemptionsResponse {
 - New `apps/bff/src/loyalty/loyalty.mapper.ts` — `toCustomerLoyaltyEntry()` (renames `points`→`pointsEarned`, inverts `isActive`→`expired`) and `toCustomerLoyaltyRedemption()` (renames `pointsRedeemed`→`pointsUsed`, formats `amountSaved`, joins `bookingServices[].serviceName` with `", "` into `bookingReference`).
 - `loyalty.controller.ts#getEntries()`/`getRedemptions()` — wire the new mappers; response now includes `page`/`limit` (already known from the validated query, same pattern as `bookings.controller.ts#list()`).
 
-**Backend changes:** see the resolved `bookingReference` callout above.
+**Backend changes:** see the resolved `bookingReference` and `amountSaved` callouts above.
 
 **Acceptance criteria:**
 - [ ] `GET /v1/loyalty/entries` with CUSTOMER JWT → only that customer's entries for the tenant, mapped to `CustomerLoyaltyEntryResponse` (`pointsEarned`, `expired`)
 - [ ] `GET /v1/loyalty/redemptions` with CUSTOMER JWT → only that customer's redemptions, mapped to `CustomerLoyaltyRedemptionResponse` (`pointsUsed`, `amountSaved`, `bookingReference`)
 - [ ] Entries include `expired: true` when `expiresAt < now`
 - [ ] Redemptions with a `bookingId` resolve `bookingReference` to all of that booking's line service names joined with `", "` (not just the first line); redemptions with no `bookingId` → `bookingReference: null`
+- [ ] `POST /v1/loyalty/redeem` captures `tenants.settings.loyalty.points_per_currency_unit` at the moment of redemption and persists it on the `LoyaltyRedemption` row; `GET /v1/loyalty/redemptions` computes `amountSaved` from that stored value, not a live setting
 - [ ] Tenant isolation: Customer A cannot retrieve Customer B's entries or redemptions
 - [ ] STAFF JWT on these endpoints still works (no regression to the existing admin routes)
 - [ ] Response includes `page`/`limit` alongside `items`/`total`
 - [ ] Types in `packages/types/`
 - [ ] `.http` blocks updated in `apps/bff/http/loyalty/loyalty.http`
 
-**Dependencies:** M10 (loyalty entries + redemptions backend)
+**Dependencies:** M10 (loyalty entries + redemptions backend), M13-S11 Part A only (`points_per_currency_unit` on `TenantSettingsVO` — pulled in here; Parts B–D remain M13-S11's own scope)
 
 ---
 
@@ -810,6 +816,8 @@ Three targeted additions across two bounded contexts. No new use cases — all c
 ---
 
 #### Part A — `points_per_currency_unit` in `TenantSettingsVO`
+
+> ✅ **Already implemented — landed via `M13-S08`.** `GetLoyaltyRedemptionsUseCase`'s `amountSaved` computation needed this field early (to capture the rate at redemption time rather than recomputing from a live setting later — see `M13-S08`'s resolved `amountSaved` callout), so Part A below was pulled forward. The interface field, Zod schema entry, default, validation, and the prescribed `tenant-settings.spec.ts` test cases are all in place on `main` already — **do not redo them**. Parts B–D (booking-completion-triggered redemption via `BookingCompleted`/`BookingCompletedHandler`) remain this story's own scope, untouched by `M13-S08`. Note: the admin-editable `PATCH /tenants/settings` endpoint (`update-tenant-settings.dto.ts`'s `LoyaltySchema`) was deliberately **not** touched by `M13-S08` — the "Add to the Zod loyalty schema" instruction below refers to *that* file, not `tenant-settings.vo.ts` (which has no Zod schema, only plain `PlatformDomainError` validation) — confirm during this story's own discovery whether `M13-S12` already covers it before duplicating.
 
 **File:** `apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts`
 

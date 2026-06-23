@@ -19,6 +19,7 @@ export interface GetLoyaltyRedemptionsDto {
 export interface LoyaltyRedemptionItem {
   redemptionId: string;
   pointsRedeemed: number;
+  pointsPerCurrencyUnit: number;
   redeemedAt: string;
   notes: string | null;
   bookingServices: ServiceSummary[];
@@ -49,6 +50,7 @@ export class GetLoyaltyRedemptionsUseCase {
       items.map(async (r) => ({
         redemptionId: r.id,
         pointsRedeemed: r.pointsRedeemed,
+        pointsPerCurrencyUnit: r.pointsPerCurrencyUnit,
         redeemedAt: r.redeemedAt.toISOString(),
         notes: r.notes,
         bookingServices: r.bookingId

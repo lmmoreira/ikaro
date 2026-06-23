@@ -12,6 +12,7 @@ function baseParams(
     tenantId: TENANT_ID,
     customerId: CUSTOMER_ID,
     pointsRedeemed: 30,
+    pointsPerCurrencyUnit: 0,
     redeemedBy: STAFF_ID,
     ...overrides,
   };
@@ -28,11 +29,17 @@ describe('LoyaltyRedemption', () => {
       expect(redemption.tenantId).toBe(TENANT_ID);
       expect(redemption.customerId).toBe(CUSTOMER_ID);
       expect(redemption.pointsRedeemed).toBe(30);
+      expect(redemption.pointsPerCurrencyUnit).toBe(0);
       expect(redemption.redeemedBy).toBe(STAFF_ID);
       expect(redemption.notes).toBeNull();
       expect(redemption.bookingId).toBeNull();
       expect(redemption.redeemedAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
       expect(redemption.redeemedAt.getTime()).toBeLessThanOrEqual(after.getTime());
+    });
+
+    it('stores the points-per-currency-unit rate in effect at redemption time', () => {
+      const redemption = LoyaltyRedemption.record(baseParams({ pointsPerCurrencyUnit: 10 }));
+      expect(redemption.pointsPerCurrencyUnit).toBe(10);
     });
 
     it('stores notes when provided', () => {
@@ -59,6 +66,7 @@ describe('LoyaltyRedemption', () => {
         tenantId: TENANT_ID,
         customerId: CUSTOMER_ID,
         pointsRedeemed: 50,
+        pointsPerCurrencyUnit: 10,
         redeemedBy: STAFF_ID,
         notes: 'VIP discount',
         bookingId: BOOKING_ID,
@@ -67,6 +75,7 @@ describe('LoyaltyRedemption', () => {
 
       expect(redemption.id).toBe('00000000-0000-7000-8000-000000000099');
       expect(redemption.pointsRedeemed).toBe(50);
+      expect(redemption.pointsPerCurrencyUnit).toBe(10);
       expect(redemption.notes).toBe('VIP discount');
       expect(redemption.bookingId).toBe(BOOKING_ID);
       expect(redemption.redeemedAt).toBe(redeemedAt);

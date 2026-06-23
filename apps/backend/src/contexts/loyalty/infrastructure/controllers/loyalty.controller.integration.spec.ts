@@ -247,7 +247,7 @@ describe('LoyaltyController (integration)', () => {
 
     it('resolves bookingServices from the booking catalog when bookingId is set', async () => {
       const bookingId = 'dddddddd-0000-7000-8000-000000000001';
-      serviceCatalog.seedBookingServices(bookingId, [
+      serviceCatalog.seedBookingServices(tenantId, bookingId, [
         { serviceId: SERVICE_ID, serviceName: 'Lavagem Completa' },
       ]);
       await ds
@@ -421,6 +421,10 @@ describe('LoyaltyController (integration)', () => {
         .find({ where: { tenantId: redeemTenantId, customerId: CUSTOMER_ID } });
       expect(redemptions).toHaveLength(1);
       expect(redemptions[0].notes).toBe('Free wash');
+      // points_per_currency_unit defaults to 0 (TenantSettings.default()) — admin can't change it
+      // via the API yet (M13-S12's scope); this confirms the rate-at-redemption-time capture
+      // round-trips end-to-end through the full HTTP + DB stack regardless of its value.
+      expect(redemptions[0].pointsPerCurrencyUnit).toBe(0);
 
       await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId: redeemTenantId });
       await ds.getRepository(LoyaltyRedemptionEntity).delete({ tenantId: redeemTenantId });

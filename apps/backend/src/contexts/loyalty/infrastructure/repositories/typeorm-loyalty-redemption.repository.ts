@@ -47,6 +47,7 @@ export class TypeOrmLoyaltyRedemptionRepository implements ILoyaltyRedemptionRep
       tenantId: entity.tenantId,
       customerId: entity.customerId,
       pointsRedeemed: entity.pointsRedeemed,
+      pointsPerCurrencyUnit: entity.pointsPerCurrencyUnit,
       redeemedBy: entity.redeemedBy,
       notes: entity.notes,
       bookingId: entity.bookingId,
@@ -60,6 +61,7 @@ export class TypeOrmLoyaltyRedemptionRepository implements ILoyaltyRedemptionRep
     entity.tenantId = redemption.tenantId;
     entity.customerId = redemption.customerId;
     entity.pointsRedeemed = redemption.pointsRedeemed;
+    entity.pointsPerCurrencyUnit = redemption.pointsPerCurrencyUnit;
     entity.redeemedBy = redemption.redeemedBy;
     entity.notes = redemption.notes;
     entity.bookingId = redemption.bookingId;

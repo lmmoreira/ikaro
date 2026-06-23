@@ -5,6 +5,7 @@ export class LoyaltyRedemptionBuilder {
   private tenantId = '00000000-0000-7000-8000-000000000001';
   private customerId = uuidv7();
   private pointsRedeemed = 10;
+  private pointsPerCurrencyUnit = 0;
   private redeemedBy = uuidv7();
   private notes: string | null = null;
   private bookingId: string | null = null;
@@ -21,6 +22,11 @@ export class LoyaltyRedemptionBuilder {
 
   withPointsRedeemed(points: number): this {
     this.pointsRedeemed = points;
+    return this;
+  }
+
+  withPointsPerCurrencyUnit(rate: number): this {
+    this.pointsPerCurrencyUnit = rate;
     return this;
   }
 
@@ -44,6 +50,7 @@ export class LoyaltyRedemptionBuilder {
       tenantId: this.tenantId,
       customerId: this.customerId,
       pointsRedeemed: this.pointsRedeemed,
+      pointsPerCurrencyUnit: this.pointsPerCurrencyUnit,
       redeemedBy: this.redeemedBy,
       notes: this.notes,
       bookingId: this.bookingId,

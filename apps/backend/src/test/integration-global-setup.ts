@@ -24,6 +24,7 @@ import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/enti
 import { ProcessedEventEntity } from '../contexts/loyalty/infrastructure/entities/processed-event.entity';
 import { CreateLoyaltyLoyaltyEntries1748000000016 } from '../contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries';
 import { CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017 } from '../contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog';
+import { AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003 } from '../contexts/loyalty/infrastructure/migrations/1748400000003-AddLoyaltyRedemptionPointsPerCurrencyUnit';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { NotificationProcessedEventEntity } from '../contexts/notification/infrastructure/entities/processed-event.entity';
 import { NotificationTemplateEntity } from '../contexts/notification/infrastructure/entities/notification-template.entity';
@@ -98,6 +99,7 @@ export default async function globalSetup(): Promise<void> {
       AddBookingNotes1748400000002,
       CreateLoyaltyLoyaltyEntries1748000000016,
       CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017,
+      AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003,
       AddSeoToHotsiteConfigs1748400000001,
     ],
     synchronize: false,

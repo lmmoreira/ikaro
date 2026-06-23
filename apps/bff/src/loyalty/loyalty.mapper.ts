@@ -1,8 +1,15 @@
 import { CustomerLoyaltyEntryResponse, CustomerLoyaltyRedemptionResponse } from '@ikaro/types';
 import { LoyaltyEntryItem, LoyaltyRedemptionItem } from './loyalty.types';
 
+const BRL_FORMATTER = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 function formatBRL(amount: number): string {
-  return `R$ ${amount.toFixed(2).replace('.', ',')}`;
+  return BRL_FORMATTER.format(amount);
 }
 
 export function toCustomerLoyaltyEntry(item: LoyaltyEntryItem): CustomerLoyaltyEntryResponse {
@@ -18,9 +25,9 @@ export function toCustomerLoyaltyEntry(item: LoyaltyEntryItem): CustomerLoyaltyE
 
 export function toCustomerLoyaltyRedemption(
   item: LoyaltyRedemptionItem,
-  conversionRate: number,
 ): CustomerLoyaltyRedemptionResponse {
-  const amountSaved = conversionRate > 0 ? item.pointsRedeemed / conversionRate : 0;
+  const amountSaved =
+    item.pointsPerCurrencyUnit > 0 ? item.pointsRedeemed / item.pointsPerCurrencyUnit : 0;
   return {
     redemptionId: item.redemptionId,
     pointsUsed: item.pointsRedeemed,

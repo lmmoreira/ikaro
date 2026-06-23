@@ -26,8 +26,10 @@ import {
 } from './loyalty.types';
 import { toCustomerLoyaltyEntry, toCustomerLoyaltyRedemption } from './loyalty.mapper';
 
-// points_per_currency_unit — see M13-S12/M13-S11; not landed yet, hardcode disabled.
-const REDEMPTION_CONVERSION_RATE = 0;
+// Forward-looking rate shown on the balance card (e.g. "10 pts = R$ 1,00"), decoupled from any
+// past redemption — those store their own pointsPerCurrencyUnit at the time they happened.
+// Reading the real tenants.settings.loyalty.points_per_currency_unit here is M13-S12's scope.
+const BALANCE_DISPLAY_CONVERSION_RATE = 0;
 
 const PaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -59,7 +61,7 @@ export class LoyaltyController {
       currentPoints: balance.currentPoints,
       nextExpiryDate: balance.nextExpiryDate,
       nextExpiryPoints: balance.nextExpiryPoints,
-      conversionRate: REDEMPTION_CONVERSION_RATE,
+      conversionRate: BALANCE_DISPLAY_CONVERSION_RATE,
     };
   }
 
@@ -87,9 +89,7 @@ export class LoyaltyController {
       query,
     );
     return {
-      items: backend.redemptions.map((r) =>
-        toCustomerLoyaltyRedemption(r, REDEMPTION_CONVERSION_RATE),
-      ),
+      items: backend.redemptions.map(toCustomerLoyaltyRedemption),
       total: backend.pagination.total,
       page: backend.pagination.page,
       limit: backend.pagination.limit,

@@ -202,6 +202,7 @@ describe('LoyaltyController (component)', () => {
           {
             redemptionId: 'r1111111-0000-4000-8000-000000000001',
             pointsRedeemed: 50,
+            pointsPerCurrencyUnit: 0,
             redeemedAt: '2026-05-10T10:00:00.000Z',
             notes: 'Free basic wash',
             bookingServices: [
@@ -225,7 +226,7 @@ describe('LoyaltyController (component)', () => {
       expect(res.body.items[0]).toEqual({
         redemptionId: 'r1111111-0000-4000-8000-000000000001',
         pointsUsed: 50,
-        amountSaved: 'R$ 0,00',
+        amountSaved: 'R$ 0,00',
         redeemedAt: '2026-05-10T10:00:00.000Z',
         bookingReference: 'Lavagem Completa',
       });
