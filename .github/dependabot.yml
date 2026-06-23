@@ -5,6 +5,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    versioning-strategy: lockfile-only
     groups:
       all-dependencies:
         patterns:
