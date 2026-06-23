@@ -99,6 +99,7 @@ export interface BookingDetailResponse {
   contactEmail: string;
   contactPhone: string;
   contactAddress: AddressResponse | null;
+  notes: string | null;
   scheduledAt: string;
   totalDurationMins: number;
   totalPrice: { amount: number; currency: string; formatted: string };

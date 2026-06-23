@@ -1,4 +1,5 @@
 import {
+  CustomerBookingDetailResponse,
   CustomerBookingListItem,
   StaffBookingCardResponse,
   StaffBookingDetailResponse,
@@ -30,6 +31,28 @@ export function toStaffBookingCard(item: BookingListItem): StaffBookingCardRespo
     totalPrice: { amount: item.totalPrice.amount, currency: item.totalPrice.currency },
     totalDurationMins: item.totalDurationMins,
     isCustomer: item.customerId !== null,
+  };
+}
+
+export function toCustomerBookingDetail(
+  detail: BookingDetailResponse,
+): CustomerBookingDetailResponse {
+  return {
+    bookingId: detail.id,
+    status: detail.status as CustomerBookingDetailResponse['status'],
+    scheduledAt: detail.scheduledAt,
+    lines: detail.lines.map((l) => ({
+      lineId: l.lineId,
+      serviceName: l.serviceNameAtBooking,
+      durationMinsAtBooking: l.durationMinsAtBooking,
+      priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
+    })),
+    totalPrice: { amount: detail.totalPrice.amount, currency: detail.totalPrice.currency },
+    notes: detail.notes,
+    infoRequestMessage: detail.infoRequestMessage,
+    infoResponseMessage: detail.infoResponseMessage,
+    beforeServicePhotoUrls: detail.beforeServicePhotoUrls,
+    afterServicePhotoUrls: detail.afterServicePhotoUrls,
   };
 }
 

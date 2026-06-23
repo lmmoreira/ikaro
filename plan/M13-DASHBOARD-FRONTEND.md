@@ -533,16 +533,29 @@ export interface CustomerLoyaltyBalanceResponse {
 
 *(formerly M126-S04)*
 
-**Agent:** `bff-ts`
-**Complexity:** S
+**Agent:** `bff-ts` (+ a small backend addition — see "Backend changes" below)
+**Complexity:** M
 **Docs to load:** `docs/14-API_CONTRACTS.md` § Bookings, `docs/24-BFF_ARCHITECTURE.md`
 
 **Description:**
 Provide the full booking detail for a customer viewing their own booking. Ownership is mandatory: a CUSTOMER may only fetch bookings where `customerId === JWT.sub`.
 
-> 🔍 **Discover before starting:** Open `apps/bff/src/bookings/bookings.controller.ts`. Find `GET /v1/bookings/:id`. Check: (a) does it allow `CUSTOMER` role? (b) does it enforce `customerId === X-Actor-ID`, returning `403` otherwise? (c) does its response shape include `status`, `scheduledAt`, `lines`, `totalPrice`, `infoRequestMessage`, `infoResponseMessage`? If yes to all three, this story is types-only.
+> ✅ **Resolved during M13-S07 discovery — discover-before-starting checklist:** `GET /v1/bookings/:id` already allows `CUSTOMER` role and the route already exists (`bookings.controller.ts#getOne()`). Ownership is already enforced — but in the backend's `GetBookingUseCase`, not the BFF — and returns `404` (`BookingNotFoundError`), not `403` (see decision below — this story's original AC text and the prototype's `dev-notes.md` were both wrong on this point, not the code). Today's response shape is the **unscoped generic `BookingDetailResponse`**, passed straight through to the customer — including `adminNotes` (staff-internal) and `approvedBy` (a staff UUID), neither of which should reach a customer. So this story is **not** types-only: it needs a real `toCustomerBookingDetail()` mapper (parallel to the existing `toStaffBookingDetail()`, both belong in `bookings.mapper.ts`).
 >
-> ⚠️ **Backend gap, not just BFF (surfaced during M13-S06 discovery):** `notes` below has no backing field anywhere in the booking domain — `RequestBookingSchema` has no notes/special-instructions field, and `Booking` has no `notes` property. The detail page's UX prototype (`plan/journey/customer/prototypes/minha-conta/02-agendamento-detail.html`, "Suas observações" section) validates that customers should be able to see a note they wrote when requesting — but nothing captures it today. Before implementing `notes` here, either (a) scope in a real backend change — add the field to `RequestBookingSchema`/`Booking`/the migration, which is out of scope for a BFF-only story unless explicitly pulled in, or (b) drop `notes` from this response and from the detail page's "Suas observações" section, and treat it as a future enhancement. Don't ship `notes: null` permanently without picking one of these — that would silently look like a bug to anyone reading the UI.
+> The story's earlier "Before-service/after-service photo URLs: call `IStorageService.getSignedReadUrl()`" bullet is now obsolete — `M13-S04` already moved photo-URL signing into the backend's shared `GetBookingUseCase.toResult()` (the real method is `generateReadSignedUrl()`), so every role's `beforeServicePhotoUrls`/`afterServicePhotoUrls` arrive at the BFF already signed. No BFF-side signing work remains for this story.
+
+> ✅ **Resolved — ownership mismatch stays `404`, not `403`. No backend change.** `get-booking.use-case.spec.ts` already has a test explicitly titled `"returns 404 for another customer booking (security: does not reveal existence)"` — `get-booking.use-case.ts` throwing `BookingNotFoundError` (→ `404`) for the ownership-mismatch branch is a **deliberate, already-documented** security choice (don't confirm a booking's existence to a non-owner), not an oversight. `cancel-booking-as-customer.use-case.ts`/`submit-booking-info.use-case.ts` throwing `BookingForbiddenError` (→ `403`) for their own ownership checks remains the inconsistent pattern between the three — fixing that inconsistency is out of scope here. This story's AC and `dev-notes.md` are corrected to `404` below; no `get-booking.use-case.ts` change needed.
+
+> ✅ **Resolved — `notes` gets a real backend implementation, not dropped.** Decided during discovery: scope in the full field rather than removing the validated "Suas observações" prototype section. **Backend changes required (touches M07's booking-creation path, not just this story's BFF layer):**
+> - `booking.aggregate.ts` — add `notes: string | null` to `BookingProps` and `RequestBookingInput`; initialize alongside `adminNotes: null` in `Booking.requestBooking()`; add a `get notes()` getter (same unvalidated-raw-string pattern as `adminNotes` — no VO).
+> - `booking.entity.ts` — add `@Column({ name: 'notes', type: 'text', nullable: true })`.
+> - New migration (next sequential timestamp after `1748000000015-AddBookingVersion.ts`) — `ALTER TABLE ... ADD COLUMN IF NOT EXISTS "notes" TEXT NULL` / `DROP COLUMN IF EXISTS "notes"` in `down()`. **Register it in `integration-global-setup.ts` in the same commit** (missing registration is a silent integration-test failure — see `docs/ENGINEERING_RULES.md`).
+> - `get-booking.use-case.ts` — add `notes: booking.notes` to `GetBookingUseCaseResult` and `toResult()`.
+> - `request-booking.dto.ts` and the authenticated-booking equivalent — accept optional `notes` and pass it into `Booking.requestBooking()`'s input.
+> - `BookingBuilder` test helper — add `private notes: string | null = null` + `withNotes()`.
+> - BFF: add `notes: z.string().trim().min(1).max(1000).optional()` to both `RequestBookingBodySchema` and `AuthenticatedBookingBodySchema` (guest and authenticated creation, kept symmetric; `.min(1)` matches the existing `adminNotes` schema convention elsewhere in this file — an explicit empty string is rejected, omitting the field is how a client says "no notes"); add `notes: string | null` to `BookingDetailResponse` (`bookings.types.ts`) so it flows through to the new customer mapper. The same `notes: z.string().trim().min(1).max(1000).optional()` schema is also added directly on the backend's `RequestBookingSchema`/`RequestAuthenticatedBookingSchema` (defense in depth — the BFF forwards the JSON body as-is, so both layers validate independently).
+> - `packages/types` — add `notes?: string | null` to `CreateBookingRequest` (and the authenticated-booking request type, if a separate interface exists).
+> - Max length (`1000` chars) is a discovery-time default, not a validated UX/product decision — adjust if product feedback says otherwise.
 
 **`@ikaro/types` additions** (`packages/types/src/booking.dto.ts`):
 ```typescript
@@ -559,26 +572,33 @@ export interface CustomerBookingDetailResponse {
   infoResponseMessage: string | null; // what the customer already answered (if any)
 
   // Photos — empty array if none
-  beforeServicePhotoUrls: string[];   // signed read URLs (BFF generates)
+  beforeServicePhotoUrls: string[];   // signed read URLs (already signed by backend's GetBookingUseCase — no BFF-side signing needed)
   afterServicePhotoUrls: string[];    // populated only when COMPLETED
 }
 ```
 
-**BFF changes (only if not already correct):**
-- `GET /v1/bookings/:id` — ensure `@Roles('CUSTOMER')` allowed and `customerId === X-Actor-ID` enforced (403 if not the owner)
-- Before-service/after-service photo URLs: call `IStorageService.getSignedReadUrl()` per path (same pattern as M115-S01)
+Also add `notes?: string` to `CreateBookingRequest` in the same file, per the backend changes above — matches the Zod schemas' `optional()` (no `.nullable()`) convention. There's no `@ikaro/types` interface for the authenticated-booking request today (the frontend's `AuthenticatedBookingRequest` is a local type in `apps/web/lib/api/dashboard/bookings.ts`, outside this story's scope); only the BFF/backend Zod schemas for `POST /v1/bookings/authenticated` gained `notes`.
+
+**BFF changes:**
+- `bookings.mapper.ts` — add `toCustomerBookingDetail(detail: BookingDetailResponse): CustomerBookingDetailResponse`, narrowing out `adminNotes`/`approvedBy`/`rejectionReason`/contact fields and reshaping `lines` to `CustomerBookingLineItem[]`.
+- `bookings.controller.ts#getOne()` — CUSTOMER branch now calls `toCustomerBookingDetail()` instead of returning `detail` unchanged.
+- `RequestBookingBodySchema` / `AuthenticatedBookingBodySchema` — add optional `notes` (see backend changes above).
+- `BookingDetailResponse` (`bookings.types.ts`) — add `notes: string | null`.
 
 **Acceptance criteria:**
 - [ ] `GET /v1/bookings/:id` with CUSTOMER JWT (owner) → `200 CustomerBookingDetailResponse`
-- [ ] `GET /v1/bookings/:id` with CUSTOMER JWT (not the owner) → `403`
+- [ ] `GET /v1/bookings/:id` with CUSTOMER JWT (not the owner) → `404` (via `BookingNotFoundError` — existing behavior, documented as deliberate in `get-booking.use-case.spec.ts`)
 - [ ] `GET /v1/bookings/:id` with STAFF JWT → `200` (no regression to `M13-S04`)
 - [ ] `infoRequestMessage` populated when booking is INFO_REQUESTED or beyond
 - [ ] `afterServicePhotoUrls` non-empty only when `status === COMPLETED`
+- [ ] `notes` provided at booking-request time is persisted and echoed back unchanged on `GET /v1/bookings/:id`; `null` when omitted
+- [ ] `POST /v1/bookings` and `POST /v1/bookings/authenticated` both accept optional `notes` (max 1000 chars)
+- [ ] New `notes` migration registered in `integration-global-setup.ts`
 - [ ] Tenant isolation: `customerId` from Tenant A cannot retrieve Tenant B's bookings
 - [ ] `CustomerBookingDetailResponse` in `packages/types/src/booking.dto.ts`
-- [ ] `.http` block added/updated in `apps/bff/http/bookings/bookings.http`
+- [ ] `.http` block added/updated in `apps/bff/http/bookings/bookings.http` (detail endpoint + both creation endpoints' new `notes` field)
 
-**Dependencies:** M08 (booking detail backend), M115-S01 (signed URL pattern)
+**Dependencies:** M08 (booking detail backend), M115-S01 (signed URL pattern), M07 (booking creation — `notes` field addition)
 
 ---
 

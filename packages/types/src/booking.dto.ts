@@ -8,6 +8,7 @@ export interface CreateBookingRequest {
   contactPhone: string;
   contactAddress?: Address;
   pickupAddress?: Address;
+  notes?: string;
   scheduledAt: string; // ISO-8601 datetime
   serviceIds: string[];
   beforeServicePhotoUrls?: string[];
@@ -126,4 +127,21 @@ export interface StaffBookingDetailResponse {
   approvedAt: string | null;
   approvedBy: string | null; // staffId UUID
   rejectionReason: string | null;
+}
+
+export interface CustomerBookingDetailResponse {
+  bookingId: string;
+  status: BookingStatus;
+  scheduledAt: string | null;
+  lines: CustomerBookingLineItem[];
+  totalPrice: MoneyAmount;
+  notes: string | null; // customer's own notes at time of request
+
+  // UC-005 A2 — present when status is INFO_REQUESTED or beyond
+  infoRequestMessage: string | null; // what the admin asked
+  infoResponseMessage: string | null; // what the customer already answered (if any)
+
+  // Photos — empty array if none
+  beforeServicePhotoUrls: string[]; // signed read URLs
+  afterServicePhotoUrls: string[]; // populated only when COMPLETED
 }

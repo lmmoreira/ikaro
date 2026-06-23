@@ -1,5 +1,6 @@
 import { BookingDetailResponse, BookingListItem } from './bookings.types';
 import {
+  toCustomerBookingDetail,
   toCustomerBookingListItem,
   toStaffBookingCard,
   toStaffBookingDetail,
@@ -140,6 +141,7 @@ describe('toStaffBookingDetail()', () => {
     contactEmail: 'joao@example.com',
     contactPhone: '+5531999999999',
     contactAddress: null,
+    notes: null,
     scheduledAt: '2026-06-15T10:00:00.000Z',
     totalDurationMins: 30,
     totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
@@ -265,5 +267,120 @@ describe('toStaffBookingDetail()', () => {
         requiresPickupAddressAtBooking: false,
       },
     ]);
+  });
+});
+
+describe('toCustomerBookingDetail()', () => {
+  const backendDetail: BookingDetailResponse = {
+    id: BOOKING_ID,
+    status: 'PENDING',
+    type: 'CUSTOMER',
+    customerId: '20000000-0000-4000-8000-000000000001',
+    contactName: 'João',
+    contactEmail: 'joao@example.com',
+    contactPhone: '+5531999999999',
+    contactAddress: null,
+    notes: null,
+    scheduledAt: '2026-06-15T10:00:00.000Z',
+    totalDurationMins: 30,
+    totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+    totalActualPrice: null,
+    pickupAddress: null,
+    lines: [],
+    beforeServicePhotoUrls: [],
+    afterServicePhotoUrls: [],
+    adminNotes: 'Staff-only note',
+    infoRequestMessage: null,
+    infoResponseMessage: null,
+    approvedAt: '2026-05-01T10:00:00.000Z',
+    approvedBy: '20000000-0000-4000-8000-000000000099',
+    rejectionReason: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  it('maps backend booking detail fields to CustomerBookingDetailResponse', () => {
+    const result = toCustomerBookingDetail(backendDetail);
+
+    expect(result).toEqual({
+      bookingId: BOOKING_ID,
+      status: 'PENDING',
+      scheduledAt: '2026-06-15T10:00:00.000Z',
+      lines: [],
+      totalPrice: { amount: 100, currency: 'BRL' },
+      notes: null,
+      infoRequestMessage: null,
+      infoResponseMessage: null,
+      beforeServicePhotoUrls: [],
+      afterServicePhotoUrls: [],
+    });
+  });
+
+  it('drops staff-internal fields (adminNotes, approvedBy, rejectionReason, contact info)', () => {
+    const result = toCustomerBookingDetail(backendDetail);
+
+    expect(result).not.toHaveProperty('adminNotes');
+    expect(result).not.toHaveProperty('approvedBy');
+    expect(result).not.toHaveProperty('approvedAt');
+    expect(result).not.toHaveProperty('rejectionReason');
+    expect(result).not.toHaveProperty('contactName');
+    expect(result).not.toHaveProperty('contactEmail');
+    expect(result).not.toHaveProperty('contactPhone');
+  });
+
+  it('passes through notes, infoRequestMessage and infoResponseMessage', () => {
+    const detail: BookingDetailResponse = {
+      ...backendDetail,
+      notes: 'Carro está sujo de lama',
+      infoRequestMessage: 'Pode enviar fotos do veículo?',
+      infoResponseMessage: 'Seguem as fotos solicitadas',
+    };
+
+    const result = toCustomerBookingDetail(detail);
+
+    expect(result.notes).toBe('Carro está sujo de lama');
+    expect(result.infoRequestMessage).toBe('Pode enviar fotos do veículo?');
+    expect(result.infoResponseMessage).toBe('Seguem as fotos solicitadas');
+  });
+
+  it('maps lines to CustomerBookingLineItem, dropping serviceId/pointsValue/requiresPickupAddress', () => {
+    const detail: BookingDetailResponse = {
+      ...backendDetail,
+      lines: [
+        {
+          lineId: 'line-1',
+          serviceId: 'service-1',
+          serviceNameAtBooking: 'Lavagem Completa',
+          priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+          durationMinsAtBooking: 30,
+          pointsValueAtBooking: 10,
+          requiresPickupAddressAtBooking: false,
+          actualPriceCharged: null,
+        },
+      ],
+    };
+
+    const result = toCustomerBookingDetail(detail);
+
+    expect(result.lines).toEqual([
+      {
+        lineId: 'line-1',
+        serviceName: 'Lavagem Completa',
+        durationMinsAtBooking: 30,
+        priceAtBooking: { amount: 100, currency: 'BRL' },
+      },
+    ]);
+  });
+
+  it('maps before/after-service photo URLs through unchanged', () => {
+    const detail: BookingDetailResponse = {
+      ...backendDetail,
+      beforeServicePhotoUrls: ['https://example.com/before.jpg'],
+      afterServicePhotoUrls: ['https://example.com/after.jpg'],
+    };
+
+    const result = toCustomerBookingDetail(detail);
+
+    expect(result.beforeServicePhotoUrls).toEqual(['https://example.com/before.jpg']);
+    expect(result.afterServicePhotoUrls).toEqual(['https://example.com/after.jpg']);
   });
 });

@@ -108,7 +108,7 @@ Authorization: Bearer {{managerToken}}
 
 ###
 
-### CUSTOMER views own booking detail — unchanged generic passthrough (dedicated shape lands in M13-S07)
+### CUSTOMER views own booking detail — CustomerBookingDetailResponse (M13-S07)
 GET {{bffUrl}}/v1/bookings/{{bookingId}}
 Authorization: Bearer {{customerToken}}
 
@@ -117,6 +117,14 @@ Authorization: Bearer {{customerToken}}
 ### 404 — booking not found
 GET {{bffUrl}}/v1/bookings/00000000-0000-4000-8000-000000009999
 Authorization: Bearer {{managerToken}}
+
+###
+
+### 404 — CUSTOMER fetching another customer's booking (ownership check, deliberate — does not reveal existence)
+# The seed only provisions one customer account, so this can't be run as-is against
+# the seed data. To verify manually: dev-login as a second customer (a different
+# Customer row, e.g. by inviting one via the dashboard) and request the bookingId
+# above — expect 404, not 403, per get-booking.use-case.spec.ts's documented intent.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /v1/bookings — guest booking (public, no JWT)  UC-001
@@ -142,7 +150,8 @@ X-Tenant-Slug: {{tenantSlug}}
     "zipCode": "30130020"
   },
   "scheduledAt": "2026-06-15T13:00:00.000Z",
-  "serviceIds": ["{{serviceId}}"]
+  "serviceIds": ["{{serviceId}}"],
+  "notes": "Carro tem um arranhão na porta do motorista, favor verificar"
 }
 
 ###
@@ -226,7 +235,8 @@ Authorization: Bearer {{customerToken}}
 
 {
   "scheduledAt": "2026-06-15T13:00:00.000Z",
-  "serviceIds": ["{{serviceId}}"]
+  "serviceIds": ["{{serviceId}}"],
+  "notes": "Favor chegar com 10 minutos de antecedência"
 }
 
 ###

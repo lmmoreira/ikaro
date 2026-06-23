@@ -105,6 +105,7 @@ export class RequestBookingUseCase {
       correlationId,
       contactAddress,
       pickupAddress,
+      notes: dto.notes,
       beforeServicePhotoUrls: dto.beforeServicePhotoUrls,
     });
 

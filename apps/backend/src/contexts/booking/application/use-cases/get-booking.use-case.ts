@@ -35,6 +35,7 @@ export interface GetBookingUseCaseResult {
   contactEmail: string;
   contactPhone: string;
   contactAddress: BookingAddressDetail | null;
+  notes: string | null;
   scheduledAt: string;
   totalDurationMins: number;
   totalPrice: { amount: number; currency: string; formatted: string };
@@ -110,6 +111,7 @@ export class GetBookingUseCase {
       contactEmail: booking.contactEmail.address,
       contactPhone: booking.contactPhone.value,
       contactAddress: this.toAddressDetail(booking.contactAddress),
+      notes: booking.notes,
       scheduledAt: booking.scheduledAt.toISOString(),
       totalDurationMins: booking.totalDurationMins,
       totalPrice: {

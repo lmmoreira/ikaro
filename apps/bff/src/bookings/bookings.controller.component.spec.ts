@@ -123,6 +123,23 @@ describe('BookingsController (component)', () => {
       );
     });
 
+    it('forwards optional notes to the backend', async () => {
+      backendHttpService.get.mockResolvedValueOnce(tenantInfo);
+      backendHttpService.postForPublic = jest.fn().mockResolvedValueOnce(mockBookingResponse);
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/bookings')
+        .set('X-Tenant-Slug', TENANT_SLUG)
+        .send({ ...validGuestBody, notes: 'Carro está sujo de lama' });
+
+      expect(res.status).toBe(201);
+      expect(backendHttpService.postForPublic).toHaveBeenCalledWith(
+        '/bookings',
+        expect.objectContaining({ notes: 'Carro está sujo de lama' }),
+        TENANT_ID,
+      );
+    });
+
     it('also accepts a request with a MANAGER JWT (non-guest flow uses same endpoint)', async () => {
       const token = makeManagerJwt(jwtService);
       setupActiveGuardMock(httpService);
@@ -793,6 +810,22 @@ describe('BookingsController (component)', () => {
       );
     });
 
+    it('forwards optional notes to the backend', async () => {
+      const token = makeCustomerJwt(jwtService);
+      backendHttpService.post.mockResolvedValueOnce(mockBookingResponse);
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/bookings/authenticated')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ ...validAuthBody, notes: 'Favor chegar com 10 minutos de antecedência' });
+
+      expect(res.status).toBe(201);
+      expect(backendHttpService.post).toHaveBeenCalledWith('/bookings/authenticated', {
+        ...validAuthBody,
+        notes: 'Favor chegar com 10 minutos de antecedência',
+      });
+    });
+
     it('propagates 422 from backend when customer phone is not set', async () => {
       const { HttpException: HE } = await import('@nestjs/common');
       const token = makeCustomerJwt(jwtService);
@@ -1010,6 +1043,7 @@ describe('BookingsController (component)', () => {
       contactEmail: 'joao@example.com',
       contactPhone: '+5531999999999',
       contactAddress: null,
+      notes: null,
       scheduledAt: '2026-06-15T10:00:00.000Z',
       totalDurationMins: 30,
       totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
@@ -1033,7 +1067,7 @@ describe('BookingsController (component)', () => {
       );
     });
 
-    it('returns 200 for CUSTOMER with unchanged generic passthrough', async () => {
+    it('returns 200 for CUSTOMER with CustomerBookingDetailResponse, dropping staff-only fields', async () => {
       const token = makeCustomerJwt(jwtService);
       backendHttpService.get.mockResolvedValueOnce(mockDetailResponse);
 
@@ -1042,7 +1076,9 @@ describe('BookingsController (component)', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.id).toBe(BOOKING_UUID);
+      expect(res.body.bookingId).toBe(BOOKING_UUID);
+      expect(res.body).not.toHaveProperty('contactEmail');
+      expect(res.body).not.toHaveProperty('adminNotes');
       expect(backendHttpService.get).toHaveBeenCalledWith(`/bookings/${BOOKING_UUID}`);
       expect(backendHttpService.get).toHaveBeenCalledTimes(1);
     });

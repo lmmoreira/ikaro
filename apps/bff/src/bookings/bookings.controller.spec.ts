@@ -770,6 +770,7 @@ describe('BookingsController', () => {
       contactEmail: 'joao@example.com',
       contactPhone: '+5531999999999',
       contactAddress: null,
+      notes: null,
       scheduledAt: '2026-06-15T10:00:00.000Z',
       totalDurationMins: 30,
       totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
@@ -787,7 +788,7 @@ describe('BookingsController', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
     };
 
-    it('CUSTOMER: calls GET /bookings/:id and returns generic passthrough', async () => {
+    it('CUSTOMER: calls GET /bookings/:id and returns CustomerBookingDetailResponse, dropping staff-only fields', async () => {
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockDetailResponse) });
       const controller = new BookingsController(backendHttp, makeConfigService());
 
@@ -795,7 +796,20 @@ describe('BookingsController', () => {
 
       expect(backendHttp.get).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}`);
       expect(backendHttp.get).toHaveBeenCalledTimes(1);
-      expect(result).toBe(mockDetailResponse);
+      expect(result).toEqual({
+        bookingId: BOOKING_ID,
+        status: 'PENDING',
+        scheduledAt: '2026-06-15T10:00:00.000Z',
+        lines: [],
+        totalPrice: { amount: 100, currency: 'BRL' },
+        notes: null,
+        infoRequestMessage: null,
+        infoResponseMessage: null,
+        beforeServicePhotoUrls: [],
+        afterServicePhotoUrls: [],
+      });
+      expect(result).not.toHaveProperty('contactEmail');
+      expect(result).not.toHaveProperty('adminNotes');
     });
 
     it('propagates 404 from backend', async () => {

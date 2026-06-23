@@ -23,6 +23,7 @@ export class BookingBuilder {
   private contactPhone = PhoneNumber.create('+5531999999999');
   private contactAddress: Address | null = null;
   private pickupAddress: Address | null = null;
+  private notes: string | null = null;
   private scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   private lines: BookingLine[] = [new BookingLineBuilder().build()];
   private totalDurationMins = 30;
@@ -89,6 +90,10 @@ export class BookingBuilder {
     this.pickupAddress = address;
     return this;
   }
+  withNotes(notes: string | null): this {
+    this.notes = notes;
+    return this;
+  }
   withScheduledAt(scheduledAt: Date): this {
     this.scheduledAt = scheduledAt;
     return this;
@@ -151,6 +156,7 @@ export class BookingBuilder {
       contactPhone: this.contactPhone,
       contactAddress: this.contactAddress,
       pickupAddress: this.pickupAddress,
+      notes: this.notes,
       scheduledAt: this.scheduledAt,
       totalDurationMins: this.totalDurationMins,
       totalPrice: this.totalPrice,

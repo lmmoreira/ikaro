@@ -55,6 +55,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
       .withContactPhone('+5531999999999')
       .withContactAddress(testAddress())
       .withPickupAddress(testAddress({ street: 'Rua do Pickup', number: '10' }))
+      .withNotes('Favor chegar com 10 minutos de antecedência')
       .withScheduledAt(new Date('2026-07-01T10:00:00.000Z'))
       .withTotalDurationMins(60)
       .withTotalPrice(Money.from(150, 'BRL'))
@@ -87,6 +88,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
     expect(found!.contactPhone.value).toBe('+5531999999999');
     expect(found!.contactAddress).not.toBeNull();
     expect(found!.pickupAddress).not.toBeNull();
+    expect(found!.notes).toBe('Favor chegar com 10 minutos de antecedência');
     expect(found!.scheduledAt.toISOString()).toBe('2026-07-01T10:00:00.000Z');
     expect(found!.totalDurationMins).toBe(60);
     expect(found!.totalPrice.amount.toNumber()).toBe(150);

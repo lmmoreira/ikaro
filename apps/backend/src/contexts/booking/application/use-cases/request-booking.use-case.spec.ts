@@ -125,6 +125,18 @@ describe('RequestBookingUseCase', () => {
     expect(saved!.contactAddress!.city).toBe('BH');
   });
 
+  it('stores optional notes when provided', async () => {
+    const result = await useCase.execute({ ...baseDto(), notes: 'Carro está sujo de lama' });
+    const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+    expect(saved!.notes).toBe('Carro está sujo de lama');
+  });
+
+  it('defaults notes to null when not provided', async () => {
+    const result = await useCase.execute(baseDto());
+    const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+    expect(saved!.notes).toBeNull();
+  });
+
   it('stores pickupAddress and returns it in result', async () => {
     const pickupSvc = new ServiceBuilder()
       .withTenantId(TENANT_A)

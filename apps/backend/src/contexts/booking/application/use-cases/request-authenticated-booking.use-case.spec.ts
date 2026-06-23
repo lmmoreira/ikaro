@@ -125,6 +125,18 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     ).rejects.toBeInstanceOf(BookingPhotoNotUploadedError);
   });
 
+  it('stores optional notes when provided', async () => {
+    const result = await useCase.execute({ ...baseDto(), notes: 'Carro está sujo de lama' });
+    const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+    expect(saved!.notes).toBe('Carro está sujo de lama');
+  });
+
+  it('defaults notes to null when not provided', async () => {
+    const result = await useCase.execute(baseDto());
+    const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
+    expect(saved!.notes).toBeNull();
+  });
+
   it('throws BookingCustomerNotFoundError when customer does not exist', async () => {
     const emptyPort = new InMemoryBookingCustomerPort();
     const ctx = new RequestContextBuilder()

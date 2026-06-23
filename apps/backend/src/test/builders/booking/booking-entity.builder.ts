@@ -12,6 +12,7 @@ export class BookingEntityBuilder {
   private contactPhone = '+5531999999999';
   private contactAddress: Record<string, unknown> | null = null;
   private pickupAddress: Record<string, unknown> | null = null;
+  private readonly notes: string | null = null;
   private scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   private totalDurationMins = 30;
   private totalPriceAmount = '100.00';
@@ -108,6 +109,7 @@ export class BookingEntityBuilder {
     entity.contactPhone = this.contactPhone;
     entity.contactAddress = this.contactAddress;
     entity.pickupAddress = this.pickupAddress;
+    entity.notes = this.notes;
     entity.scheduledAt = this.scheduledAt;
     entity.totalDurationMins = this.totalDurationMins;
     entity.totalPriceAmount = this.totalPriceAmount;

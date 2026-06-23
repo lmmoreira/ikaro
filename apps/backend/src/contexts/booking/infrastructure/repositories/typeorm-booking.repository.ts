@@ -189,6 +189,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       pickupAddress: entity.pickupAddress
         ? Address.reconstitute(entity.pickupAddress as unknown as AddressProps)
         : null,
+      notes: entity.notes,
       scheduledAt: entity.scheduledAt,
       totalDurationMins: entity.totalDurationMins,
       totalPrice: Money.from(entity.totalPriceAmount, currency),
@@ -239,6 +240,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       string,
       unknown
     > | null;
+    entity.notes = booking.notes;
     entity.scheduledAt = booking.scheduledAt;
     entity.totalDurationMins = booking.totalDurationMins;
     entity.totalPriceAmount = booking.totalPrice.amount.toFixed(2);

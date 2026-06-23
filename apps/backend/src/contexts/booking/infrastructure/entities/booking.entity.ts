@@ -36,6 +36,9 @@ export class BookingEntity {
   @Column({ name: 'pickup_address', type: 'jsonb', nullable: true })
   pickupAddress!: Record<string, unknown> | null;
 
+  @Column({ name: 'notes', type: 'text', nullable: true })
+  notes!: string | null;
+
   @Column({ name: 'scheduled_at', type: 'timestamptz' })
   scheduledAt!: Date;
 
