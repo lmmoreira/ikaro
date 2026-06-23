@@ -44,7 +44,7 @@ describe('LoyaltyController', () => {
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
-        new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
@@ -86,7 +86,7 @@ describe('LoyaltyController', () => {
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
-        new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
@@ -128,7 +128,7 @@ describe('LoyaltyController', () => {
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
-        new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
@@ -169,7 +169,7 @@ describe('LoyaltyController', () => {
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
-        new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
@@ -210,7 +210,7 @@ describe('LoyaltyController', () => {
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
-        new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
@@ -246,7 +246,7 @@ describe('LoyaltyController', () => {
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
-        new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
@@ -282,7 +282,7 @@ describe('LoyaltyController', () => {
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
-        new GetLoyaltyRedemptionsUseCase(redemptionRepo),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );

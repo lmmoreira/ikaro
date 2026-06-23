@@ -40,13 +40,18 @@ Authorization: Bearer {{customerToken}}
 
 ###
 
-### GET /v1/loyalty/entries — customer views earning history
+### GET /v1/loyalty/entries — customer views earning history (M13-S08)
+# Returns CustomerLoyaltyEntriesResponse: { items: [{ entryId, serviceName, pointsEarned,
+# earnedAt, expiresAt, expired }], total, page, limit }
 GET {{bffUrl}}/v1/loyalty/entries?page=1&limit=20
 Authorization: Bearer {{customerToken}}
 
 ###
 
-### GET /v1/loyalty/redemptions — customer views redemption history
+### GET /v1/loyalty/redemptions — customer views redemption history (M13-S08)
+# Returns CustomerLoyaltyRedemptionsResponse: { items: [{ redemptionId, pointsUsed,
+# amountSaved, redeemedAt, bookingReference }], total, page, limit }
+# amountSaved is "R$ 0,00" until M13-S12 lands (conversionRate hardcoded to 0)
 GET {{bffUrl}}/v1/loyalty/redemptions?page=1&limit=20
 Authorization: Bearer {{customerToken}}
 

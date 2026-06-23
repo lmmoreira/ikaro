@@ -10,7 +10,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { z } from 'zod';
-import { CustomerLoyaltyBalanceResponse } from '@ikaro/types';
+import {
+  CustomerLoyaltyBalanceResponse,
+  CustomerLoyaltyEntriesResponse,
+  CustomerLoyaltyRedemptionsResponse,
+} from '@ikaro/types';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
@@ -20,6 +24,7 @@ import {
   LoyaltyRedemptionsResponse,
   RedeemPointsResponse,
 } from './loyalty.types';
+import { toCustomerLoyaltyEntry, toCustomerLoyaltyRedemption } from './loyalty.mapper';
 
 // points_per_currency_unit — see M13-S12/M13-S11; not landed yet, hardcode disabled.
 const REDEMPTION_CONVERSION_RATE = 0;
@@ -60,18 +65,35 @@ export class LoyaltyController {
 
   @Get('loyalty/entries')
   @Roles('CUSTOMER')
-  getEntries(
+  async getEntries(
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
-  ): Promise<LoyaltyEntriesResponse> {
-    return this.backendHttp.get<LoyaltyEntriesResponse>('/loyalty/entries', query);
+  ): Promise<CustomerLoyaltyEntriesResponse> {
+    const backend = await this.backendHttp.get<LoyaltyEntriesResponse>('/loyalty/entries', query);
+    return {
+      items: backend.entries.map(toCustomerLoyaltyEntry),
+      total: backend.pagination.total,
+      page: backend.pagination.page,
+      limit: backend.pagination.limit,
+    };
   }
 
   @Get('loyalty/redemptions')
   @Roles('CUSTOMER')
-  getRedemptions(
+  async getRedemptions(
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
-  ): Promise<LoyaltyRedemptionsResponse> {
-    return this.backendHttp.get<LoyaltyRedemptionsResponse>('/loyalty/redemptions', query);
+  ): Promise<CustomerLoyaltyRedemptionsResponse> {
+    const backend = await this.backendHttp.get<LoyaltyRedemptionsResponse>(
+      '/loyalty/redemptions',
+      query,
+    );
+    return {
+      items: backend.redemptions.map((r) =>
+        toCustomerLoyaltyRedemption(r, REDEMPTION_CONVERSION_RATE),
+      ),
+      total: backend.pagination.total,
+      page: backend.pagination.page,
+      limit: backend.pagination.limit,
+    };
   }
 
   // ── Admin routes ──────────────────────────────────────────────────────────

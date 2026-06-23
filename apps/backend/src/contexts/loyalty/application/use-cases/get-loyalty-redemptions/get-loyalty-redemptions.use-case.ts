@@ -3,6 +3,11 @@ import {
   ILoyaltyRedemptionRepository,
   LOYALTY_REDEMPTION_REPOSITORY,
 } from '../../ports/loyalty-redemption-repository.port';
+import {
+  ILoyaltyBookingPort,
+  LOYALTY_BOOKING_PORT,
+  ServiceSummary,
+} from '../../ports/loyalty-booking.port';
 
 export interface GetLoyaltyRedemptionsDto {
   tenantId: string;
@@ -16,6 +21,7 @@ export interface LoyaltyRedemptionItem {
   pointsRedeemed: number;
   redeemedAt: string;
   notes: string | null;
+  bookingServices: ServiceSummary[];
 }
 
 export interface GetLoyaltyRedemptionsResult {
@@ -28,6 +34,7 @@ export class GetLoyaltyRedemptionsUseCase {
   constructor(
     @Inject(LOYALTY_REDEMPTION_REPOSITORY)
     private readonly redemptionRepo: ILoyaltyRedemptionRepository,
+    @Inject(LOYALTY_BOOKING_PORT) private readonly bookingCatalog: ILoyaltyBookingPort,
   ) {}
 
   async execute(dto: GetLoyaltyRedemptionsDto): Promise<GetLoyaltyRedemptionsResult> {
@@ -38,12 +45,17 @@ export class GetLoyaltyRedemptionsUseCase {
       dto.limit,
     );
 
-    const redemptions: LoyaltyRedemptionItem[] = items.map((r) => ({
-      redemptionId: r.id,
-      pointsRedeemed: r.pointsRedeemed,
-      redeemedAt: r.redeemedAt.toISOString(),
-      notes: r.notes,
-    }));
+    const redemptions: LoyaltyRedemptionItem[] = await Promise.all(
+      items.map(async (r) => ({
+        redemptionId: r.id,
+        pointsRedeemed: r.pointsRedeemed,
+        redeemedAt: r.redeemedAt.toISOString(),
+        notes: r.notes,
+        bookingServices: r.bookingId
+          ? await this.bookingCatalog.findBookingServices(dto.tenantId, r.bookingId)
+          : [],
+      })),
+    );
 
     return { redemptions, pagination: { page: dto.page, limit: dto.limit, total } };
   }

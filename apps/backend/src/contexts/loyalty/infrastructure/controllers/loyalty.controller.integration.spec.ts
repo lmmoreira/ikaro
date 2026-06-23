@@ -244,6 +244,31 @@ describe('LoyaltyController (integration)', () => {
       expect(body.redemptions[0].pointsRedeemed).toBe(50);
       expect(body.redemptions[0].notes).toBe('Free wash');
     });
+
+    it('resolves bookingServices from the booking catalog when bookingId is set', async () => {
+      const bookingId = 'dddddddd-0000-7000-8000-000000000001';
+      serviceCatalog.seedBookingServices(bookingId, [
+        { serviceId: SERVICE_ID, serviceName: 'Lavagem Completa' },
+      ]);
+      await ds
+        .getRepository(LoyaltyRedemptionEntity)
+        .save(
+          new LoyaltyRedemptionEntityBuilder()
+            .withTenantId(tenantId)
+            .withCustomerId(CUSTOMER_ID)
+            .withBookingId(bookingId)
+            .build(),
+        );
+
+      const { body } = await request(app.getHttpServer())
+        .get('/loyalty/redemptions')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+
+      expect(body.redemptions[0].bookingServices).toEqual([
+        { serviceId: SERVICE_ID, serviceName: 'Lavagem Completa' },
+      ]);
+    });
   });
 
   // ── Admin: GET /customers/:customerId/loyalty/* ───────────────────────────
