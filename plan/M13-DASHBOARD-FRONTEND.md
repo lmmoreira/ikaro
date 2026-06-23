@@ -529,7 +529,7 @@ export interface CustomerLoyaltyBalanceResponse {
 
 ---
 
-### M13-S07 — BFF: customer booking detail endpoint
+### M13-S07 — BFF: customer booking detail endpoint ✅ Done
 
 *(formerly M126-S04)*
 
