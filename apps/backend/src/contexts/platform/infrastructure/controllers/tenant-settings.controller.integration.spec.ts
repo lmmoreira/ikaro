@@ -226,6 +226,28 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.status).toBe(400);
   });
 
+  it('returns 400 for an empty settings object (no-op update)', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: {} })
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
+  it('returns 400 for an unknown key inside settings', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: { not_a_real_category: { foo: 'bar' } } })
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
   it('returns 400 for an invalid IANA timezone from domain validation', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')

@@ -13,6 +13,7 @@ import { RequestInterceptor } from '../../../../shared/request/request.intercept
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { TenantEntityBuilder } from '../../../../test/builders/platform/index';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { PlatformModule } from '../../platform.module';
@@ -145,7 +146,7 @@ describe('TenantController (integration)', () => {
 
   it('returns 409 when the tenant is inactive', async () => {
     const inactiveTenant = new TenantEntityBuilder()
-      .withId('00000000-0000-0000-0000-000000000002')
+      .withId(uuidv7())
       .withSlug('lavacar-rename-inactive-integ-01')
       .withIsActive(false)
       .build();
