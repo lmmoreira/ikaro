@@ -35,8 +35,12 @@ const mockRedemptions: LoyaltyRedemptionsResponse = {
     {
       redemptionId: 'r1111111-0000-4000-8000-000000000001',
       pointsRedeemed: 50,
+      pointsPerCurrencyUnit: 0,
       redeemedAt: '2026-05-10T10:00:00.000Z',
       notes: 'Free basic wash',
+      bookingServices: [
+        { serviceId: 'cccccccc-0000-4000-8000-000000000001', serviceName: 'Lavagem Completa' },
+      ],
     },
   ],
   pagination: { page: 1, limit: 20, total: 1 },
@@ -64,7 +68,7 @@ describe('LoyaltyController (BFF)', () => {
   });
 
   describe('getEntries()', () => {
-    it('proxies to GET /loyalty/entries with pagination params', async () => {
+    it('proxies to GET /loyalty/entries and maps to CustomerLoyaltyEntryResponse', async () => {
       const backendHttp = makeBackendHttp();
       backendHttp.get.mockResolvedValue(mockEntries);
       const controller = new LoyaltyController(backendHttp);
@@ -72,12 +76,39 @@ describe('LoyaltyController (BFF)', () => {
       const result = await controller.getEntries({ page: 1, limit: 20 });
 
       expect(backendHttp.get).toHaveBeenCalledWith('/loyalty/entries', { page: 1, limit: 20 });
-      expect(result.entries[0].serviceName).toBe('Lavagem Completa');
+      expect(result).toEqual({
+        items: [
+          {
+            entryId: 'e1111111-0000-4000-8000-000000000001',
+            serviceName: 'Lavagem Completa',
+            pointsEarned: 10,
+            earnedAt: '2026-05-28T14:00:00.000Z',
+            expiresAt: '2026-11-24T14:00:00.000Z',
+            expired: false,
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 20,
+      });
+    });
+
+    it('marks an entry as expired when isActive is false', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockResolvedValue({
+        ...mockEntries,
+        entries: [{ ...mockEntries.entries[0], isActive: false }],
+      });
+      const controller = new LoyaltyController(backendHttp);
+
+      const result = await controller.getEntries({ page: 1, limit: 20 });
+
+      expect(result.items[0].expired).toBe(true);
     });
   });
 
   describe('getRedemptions()', () => {
-    it('proxies to GET /loyalty/redemptions with pagination params', async () => {
+    it('proxies to GET /loyalty/redemptions and maps to CustomerLoyaltyRedemptionResponse', async () => {
       const backendHttp = makeBackendHttp();
       backendHttp.get.mockResolvedValue(mockRedemptions);
       const controller = new LoyaltyController(backendHttp);
@@ -85,7 +116,33 @@ describe('LoyaltyController (BFF)', () => {
       const result = await controller.getRedemptions({ page: 1, limit: 20 });
 
       expect(backendHttp.get).toHaveBeenCalledWith('/loyalty/redemptions', { page: 1, limit: 20 });
-      expect(result.redemptions[0].pointsRedeemed).toBe(50);
+      expect(result).toEqual({
+        items: [
+          {
+            redemptionId: 'r1111111-0000-4000-8000-000000000001',
+            pointsUsed: 50,
+            amountSaved: 'R$ 0,00',
+            redeemedAt: '2026-05-10T10:00:00.000Z',
+            bookingReference: 'Lavagem Completa',
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 20,
+      });
+    });
+
+    it('returns a null bookingReference when the redemption has no booking', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockResolvedValue({
+        ...mockRedemptions,
+        redemptions: [{ ...mockRedemptions.redemptions[0], bookingServices: [] }],
+      });
+      const controller = new LoyaltyController(backendHttp);
+
+      const result = await controller.getRedemptions({ page: 1, limit: 20 });
+
+      expect(result.items[0].bookingReference).toBeNull();
     });
   });
 

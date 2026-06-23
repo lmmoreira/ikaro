@@ -15,6 +15,9 @@ export class LoyaltyRedemptionEntity {
   @Column({ name: 'points_redeemed', type: 'int' })
   pointsRedeemed!: number;
 
+  @Column({ name: 'points_per_currency_unit', type: 'int', default: 0 })
+  pointsPerCurrencyUnit!: number;
+
   @Column({ name: 'redeemed_by', type: 'uuid' })
   redeemedBy!: string;
 

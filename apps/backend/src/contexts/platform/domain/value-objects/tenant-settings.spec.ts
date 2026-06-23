@@ -10,6 +10,7 @@ describe('TenantSettings', () => {
       expect(settings.loyalty.enable_notifications).toBe(true);
       expect(settings.loyalty.expiry_warning_days).toBe(7);
       expect(settings.loyalty.notification_min_points).toBe(50);
+      expect(settings.loyalty.points_per_currency_unit).toBe(0);
       expect(settings.booking.cancellation_window_hours).toBe(48);
       expect(settings.booking.auto_approve_enabled).toBe(false);
       expect(settings.booking.min_booking_advance_hours).toBe(0);
@@ -62,6 +63,41 @@ describe('TenantSettings', () => {
         .withLoyalty({ notification_min_points: 0 })
         .build();
       expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+
+    it('accepts points_per_currency_unit of 10', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withLoyalty({ points_per_currency_unit: 10 })
+        .build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+
+    it('accepts points_per_currency_unit of 0 (redemption disabled)', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withLoyalty({ points_per_currency_unit: 0 })
+        .build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+
+    it('accepts points_per_currency_unit at the upper boundary of 10000', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withLoyalty({ points_per_currency_unit: 10000 })
+        .build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+
+    it('throws for points_per_currency_unit below 0', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withLoyalty({ points_per_currency_unit: -1 })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('throws for points_per_currency_unit above 10000', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withLoyalty({ points_per_currency_unit: 10001 })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
     });
   });
 

@@ -44,6 +44,19 @@ describe('TypeOrmLoyaltyRedemptionRepository (integration)', () => {
       expect(result.items[0].pointsRedeemed).toBe(20);
     });
 
+    it('persists the pointsPerCurrencyUnit rate in effect at redemption time', async () => {
+      const redemption = new LoyaltyRedemptionBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_1)
+        .withPointsPerCurrencyUnit(10)
+        .build();
+
+      await repo.save(redemption);
+
+      const result = await repo.findByCustomer(TENANT_A, CUSTOMER_1, 1, 20);
+      expect(result.items[0].pointsPerCurrencyUnit).toBe(10);
+    });
+
     it('stores optional notes and bookingId correctly', async () => {
       const redemption = new LoyaltyRedemptionBuilder()
         .withTenantId(TENANT_A)

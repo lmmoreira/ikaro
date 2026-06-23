@@ -7,4 +7,5 @@ export interface ServiceSummary {
 
 export interface ILoyaltyBookingPort {
   findServicesByIds(tenantId: string, serviceIds: string[]): Promise<ServiceSummary[]>;
+  findBookingServices(tenantId: string, bookingId: string): Promise<ServiceSummary[]>;
 }

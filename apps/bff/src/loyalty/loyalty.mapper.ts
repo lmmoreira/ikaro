@@ -1,0 +1,41 @@
+import { CustomerLoyaltyEntryResponse, CustomerLoyaltyRedemptionResponse } from '@ikaro/types';
+import { LoyaltyEntryItem, LoyaltyRedemptionItem } from './loyalty.types';
+
+const BRL_FORMATTER = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function formatBRL(amount: number): string {
+  return BRL_FORMATTER.format(amount);
+}
+
+export function toCustomerLoyaltyEntry(item: LoyaltyEntryItem): CustomerLoyaltyEntryResponse {
+  return {
+    entryId: item.entryId,
+    serviceName: item.serviceName,
+    pointsEarned: item.points,
+    earnedAt: item.earnedAt,
+    expiresAt: item.expiresAt,
+    expired: !item.isActive,
+  };
+}
+
+export function toCustomerLoyaltyRedemption(
+  item: LoyaltyRedemptionItem,
+): CustomerLoyaltyRedemptionResponse {
+  const amountSaved =
+    item.pointsPerCurrencyUnit > 0 ? item.pointsRedeemed / item.pointsPerCurrencyUnit : 0;
+  return {
+    redemptionId: item.redemptionId,
+    pointsUsed: item.pointsRedeemed,
+    amountSaved: formatBRL(amountSaved),
+    redeemedAt: item.redeemedAt,
+    bookingReference:
+      item.bookingServices.length > 0
+        ? item.bookingServices.map((s) => s.serviceName).join(', ')
+        : null,
+  };
+}

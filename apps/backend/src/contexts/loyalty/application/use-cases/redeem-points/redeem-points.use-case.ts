@@ -18,6 +18,7 @@ export interface RedeemPointsDto {
   tenantId: string;
   customerId: string;
   pointsToRedeem: number;
+  pointsPerCurrencyUnit: number;
   redeemedBy: string;
   notes?: string | null;
   bookingId?: string | null;
@@ -50,6 +51,7 @@ export class RedeemPointsUseCase {
       tenantId: dto.tenantId,
       customerId: dto.customerId,
       pointsRedeemed: dto.pointsToRedeem,
+      pointsPerCurrencyUnit: dto.pointsPerCurrencyUnit,
       redeemedBy: dto.redeemedBy,
       notes: dto.notes,
       bookingId: dto.bookingId,

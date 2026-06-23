@@ -6,6 +6,7 @@ export interface LoyaltyRedemptionProps {
   tenantId: string;
   customerId: string;
   pointsRedeemed: number;
+  pointsPerCurrencyUnit: number;
   redeemedBy: string;
   notes: string | null;
   bookingId: string | null;
@@ -16,6 +17,7 @@ export interface RecordLoyaltyRedemptionParams {
   tenantId: string;
   customerId: string;
   pointsRedeemed: number;
+  pointsPerCurrencyUnit: number;
   redeemedBy: string;
   notes?: string | null;
   bookingId?: string | null;
@@ -45,6 +47,10 @@ export class LoyaltyRedemption extends AggregateRoot {
     return this.props.pointsRedeemed;
   }
 
+  get pointsPerCurrencyUnit(): number {
+    return this.props.pointsPerCurrencyUnit;
+  }
+
   get redeemedBy(): string {
     return this.props.redeemedBy;
   }
@@ -67,6 +73,7 @@ export class LoyaltyRedemption extends AggregateRoot {
       tenantId: params.tenantId,
       customerId: params.customerId,
       pointsRedeemed: params.pointsRedeemed,
+      pointsPerCurrencyUnit: params.pointsPerCurrencyUnit,
       redeemedBy: params.redeemedBy,
       notes: params.notes ?? null,
       bookingId: params.bookingId ?? null,

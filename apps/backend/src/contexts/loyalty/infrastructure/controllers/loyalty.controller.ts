@@ -85,12 +85,13 @@ export class LoyaltyController {
   recordRedemption(
     @Body(new ZodValidationPipe(RedeemPointsSchema)) body: RedeemPointsDto,
   ): Promise<RedeemPointsUseCaseResult> {
-    const { tenantId, actorId } = this.tenantContext;
+    const { tenantId, actorId, settings } = this.tenantContext;
     return this.redeemPointsUseCase
       .execute({
         tenantId,
         customerId: body.customerId,
         pointsToRedeem: body.pointsToRedeem,
+        pointsPerCurrencyUnit: settings.loyalty.points_per_currency_unit,
         redeemedBy: actorId!,
         notes: body.notes,
         bookingId: body.bookingId,

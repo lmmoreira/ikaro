@@ -6,9 +6,10 @@ export class LoyaltyRedemptionEntityBuilder {
   private tenantId = '00000000-0000-7000-8000-000000000001';
   private customerId = uuidv7();
   private pointsRedeemed = 10;
+  private pointsPerCurrencyUnit = 0;
   private readonly redeemedBy = uuidv7();
   private notes: string | null = null;
-  private readonly bookingId: string | null = null;
+  private bookingId: string | null = null;
   private readonly redeemedAt = new Date();
 
   withId(id: string): this {
@@ -31,8 +32,18 @@ export class LoyaltyRedemptionEntityBuilder {
     return this;
   }
 
+  withPointsPerCurrencyUnit(rate: number): this {
+    this.pointsPerCurrencyUnit = rate;
+    return this;
+  }
+
   withNotes(notes: string): this {
     this.notes = notes;
+    return this;
+  }
+
+  withBookingId(bookingId: string): this {
+    this.bookingId = bookingId;
     return this;
   }
 
@@ -42,6 +53,7 @@ export class LoyaltyRedemptionEntityBuilder {
     entity.tenantId = this.tenantId;
     entity.customerId = this.customerId;
     entity.pointsRedeemed = this.pointsRedeemed;
+    entity.pointsPerCurrencyUnit = this.pointsPerCurrencyUnit;
     entity.redeemedBy = this.redeemedBy;
     entity.notes = this.notes;
     entity.bookingId = this.bookingId;

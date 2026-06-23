@@ -125,7 +125,44 @@ describe('LoyaltyController (component)', () => {
         .set('x-tenant-id', TENANT_ID);
 
       expect(res.status).toBe(200);
-      expect(res.body.entries).toEqual([]);
+      expect(res.body.items).toEqual([]);
+    });
+
+    it('maps entries to CustomerLoyaltyEntryResponse shape', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValue({
+        entries: [
+          {
+            entryId: 'e1111111-0000-4000-8000-000000000001',
+            serviceId: 'cccccccc-0000-4000-8000-000000000001',
+            serviceName: 'Lavagem Completa',
+            points: 10,
+            earnedAt: '2026-05-28T14:00:00.000Z',
+            expiresAt: '2026-11-24T14:00:00.000Z',
+            isActive: true,
+          },
+        ],
+        pagination: { page: 1, limit: 20, total: 1 },
+      });
+      const token = makeCustomerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/loyalty/entries')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(200);
+      expect(res.body.items[0]).toEqual({
+        entryId: 'e1111111-0000-4000-8000-000000000001',
+        serviceName: 'Lavagem Completa',
+        pointsEarned: 10,
+        earnedAt: '2026-05-28T14:00:00.000Z',
+        expiresAt: '2026-11-24T14:00:00.000Z',
+        expired: false,
+      });
+      expect(res.body.total).toBe(1);
+      expect(res.body.page).toBe(1);
+      expect(res.body.limit).toBe(20);
     });
 
     it('returns 403 for MANAGER JWT', async () => {
@@ -155,7 +192,44 @@ describe('LoyaltyController (component)', () => {
         .set('x-tenant-id', TENANT_ID);
 
       expect(res.status).toBe(200);
-      expect(res.body.redemptions).toEqual([]);
+      expect(res.body.items).toEqual([]);
+    });
+
+    it('maps redemptions to CustomerLoyaltyRedemptionResponse shape', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValue({
+        redemptions: [
+          {
+            redemptionId: 'r1111111-0000-4000-8000-000000000001',
+            pointsRedeemed: 50,
+            pointsPerCurrencyUnit: 0,
+            redeemedAt: '2026-05-10T10:00:00.000Z',
+            notes: 'Free basic wash',
+            bookingServices: [
+              {
+                serviceId: 'cccccccc-0000-4000-8000-000000000001',
+                serviceName: 'Lavagem Completa',
+              },
+            ],
+          },
+        ],
+        pagination: { page: 1, limit: 20, total: 1 },
+      });
+      const token = makeCustomerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/loyalty/redemptions')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(200);
+      expect(res.body.items[0]).toEqual({
+        redemptionId: 'r1111111-0000-4000-8000-000000000001',
+        pointsUsed: 50,
+        amountSaved: 'R$ 0,00',
+        redeemedAt: '2026-05-10T10:00:00.000Z',
+        bookingReference: 'Lavagem Completa',
+      });
     });
   });
 

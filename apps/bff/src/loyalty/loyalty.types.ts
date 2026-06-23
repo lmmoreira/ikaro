@@ -19,11 +19,18 @@ export interface LoyaltyEntriesResponse {
   pagination: { page: number; limit: number; total: number };
 }
 
+export interface LoyaltyBookingServiceSummary {
+  serviceId: string;
+  serviceName: string;
+}
+
 export interface LoyaltyRedemptionItem {
   redemptionId: string;
   pointsRedeemed: number;
+  pointsPerCurrencyUnit: number;
   redeemedAt: string;
   notes: string | null;
+  bookingServices: LoyaltyBookingServiceSummary[];
 }
 
 export interface LoyaltyRedemptionsResponse {
