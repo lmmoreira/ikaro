@@ -34,7 +34,7 @@ jobs:
         run: pnpm --filter @ikaro/backend test:cov
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: apps/backend/coverage/lcov.info
@@ -83,7 +83,7 @@ jobs:
         run: pnpm --filter @ikaro/bff test:cov
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bff-coverage
           path: apps/bff/coverage/lcov.info
@@ -110,7 +110,7 @@ jobs:
         run: pnpm --filter @ikaro/web test:cov
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-coverage
           path: apps/web/coverage/lcov.info
