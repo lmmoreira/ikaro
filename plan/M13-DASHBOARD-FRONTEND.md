@@ -602,7 +602,7 @@ Also add `notes?: string` to `CreateBookingRequest` in the same file, per the ba
 
 ---
 
-### M13-S08 — BFF: customer loyalty entries + redemptions
+### M13-S08 — BFF: customer loyalty entries + redemptions ✅ Done
 
 *(formerly M126-S06)*
 
