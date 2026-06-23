@@ -1,0 +1,165 @@
+# BFF — Tenant Settings (M13-S10)
+# UC-026: Admin edits tenant settings (settings JSONB only — see tenant.http for renaming)
+# Guarded by @Roles('MANAGER') — requires a manager JWT (Authorization: Bearer <token>).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev  (port 3001)
+#   5. pnpm --filter @ikaro/bff run dev      (port 3002)
+#   6. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@managerToken = {{managerLogin.response.body.accessToken}}
+@staffToken   = {{staffLogin.response.body.accessToken}}
+
+###
+# @name managerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "funcionario@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Get current tenant settings (camelCase)
+GET {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Partial loyalty update
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "loyalty": { "expiryDays": 365 }
+  }
+}
+
+###
+
+### Partial booking update
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "booking": { "cancellationWindowHours": 72, "serviceBufferMinutes": 45 }
+  }
+}
+
+###
+
+### Update business hours (close Sunday, change timezone)
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "businessHours": {
+      "timezone": "America/Manaus",
+      "sunday": null
+    }
+  }
+}
+
+###
+
+### Set business info (phone, email, address)
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "businessInfo": {
+      "phone": "+5511987654321",
+      "email": "contato@lavacar.com.br",
+      "address": {
+        "street": "Av. Paulista",
+        "number": "1000",
+        "neighborhood": "Bela Vista",
+        "city": "São Paulo",
+        "state": "SP",
+        "zipCode": "01310100"
+      }
+    }
+  }
+}
+
+###
+
+### Set social links
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "businessInfo": {
+      "socialLinks": { "whatsapp": "+5511987654321", "instagram": "https://instagram.com/lavacar" }
+    }
+  }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 401 — Missing token
+GET {{bffUrl}}/v1/tenants/settings
+
+###
+
+### 403 — STAFF role not allowed
+GET {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{staffToken}}
+
+###
+
+### 400 — Empty settings object (no-op update rejected)
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": {}
+}
+
+###
+
+### 400 — Unknown key inside settings
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": { "notACategory": { "foo": "bar" } }
+}
+
+###
+
+### 400 — Invalid IANA timezone (forwarded from backend domain validation)
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": { "businessHours": { "timezone": "Not/AZone" } }
+}
