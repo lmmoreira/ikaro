@@ -285,6 +285,7 @@ Either (a) add `import 'client-only'` at the top of `bff-client.ts` so any accid
 ---
 
 ### AUD-009 — Supply-chain CI hardening ✅ Done
+
 **Risk:** 🟠 High · **Effort:** M · **Phase:** Now · **Depends on:** — · **Audit ref:** §9.1, §9.2, §9.5, §10.1, §10.2, §10.3
 **Status:** ✅ Done
 
