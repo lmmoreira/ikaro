@@ -41,7 +41,7 @@
 | **AUD-006** | Helmet / security headers on BFF | 🟠 High | XS | Now | — | §5.6 |
 | **AUD-007** | CSP + security headers on hotsite | 🟠 High | S | Now | — | §8.3 |
 | **AUD-008** | Isolate BFF HTTP-client auth state (`client-only` guard) | 🟠 High | XS | Now | — | §8.4 |
-| **AUD-009** | Supply-chain CI hardening (pin actions, Dependabot, digests, concurrency, permissions) | 🟠 High | M | Now | — | §9.1, §9.2, §9.5, §10.1–10.3 |
+| **AUD-009** | Supply-chain CI hardening (pin actions, Dependabot, digests, concurrency, permissions) ✅ | 🟠 High | M | Now | — | §9.1, §9.2, §9.5, §10.1–10.3 |
 | **AUD-010** | Fix the brittle `multer` override (real CVE) | 🟠 High | S | Now | — | §10.6 |
 | **AUD-011** | Tenant-settings cache (in-memory LRU + TTL) | 🟡 Medium | S | Now | — | §5.1 |
 | **AUD-012** | Prototype-pollution guard in `deepMerge` | 🟡 Medium | XS | Now | — | §5.7 |
@@ -284,9 +284,10 @@ Either (a) add `import 'client-only'` at the top of `bff-client.ts` so any accid
 
 ---
 
-### AUD-009 — Supply-chain CI hardening
+### AUD-009 — Supply-chain CI hardening ✅ Done
+
 **Risk:** 🟠 High · **Effort:** M · **Phase:** Now · **Depends on:** — · **Audit ref:** §9.1, §9.2, §9.5, §10.1, §10.2, §10.3
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 #### What's wrong
 - Third-party actions pinned to `@master` (`sonarcloud-github-action`, `trivy-action`, `checkov-action`, `snyk/actions/node`) run in CI with `SONAR_TOKEN`/`SNYK_TOKEN`/`GITHUB_TOKEN` — arbitrary upstream code execution (§9.1/§10.3).
