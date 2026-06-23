@@ -32,11 +32,13 @@ import {
 } from './bookings.types';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import {
+  CustomerBookingDetailResponse,
   CustomerBookingListResponse,
   StaffBookingDetailResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
 import {
+  toCustomerBookingDetail,
   toCustomerBookingListItem,
   toStaffBookingCard,
   toStaffBookingDetail,
@@ -59,6 +61,7 @@ export const RequestBookingBodySchema = z.object({
   contactPhone: z.string().regex(/^\+[1-9]\d{6,14}$/, 'contactPhone must be in E.164 format'),
   contactAddress: AddressSchema.optional(),
   pickupAddress: AddressSchema.optional(),
+  notes: z.string().trim().min(1).max(1000).optional(),
   scheduledAt: z.iso.datetime(),
   serviceIds: z.array(z.uuid()).min(1),
   beforeServicePhotoUrls: z
@@ -70,6 +73,7 @@ export const AuthenticatedBookingBodySchema = z.object({
   scheduledAt: z.iso.datetime(),
   serviceIds: z.array(z.uuid()).min(1),
   pickupAddress: AddressSchema.optional(),
+  notes: z.string().trim().min(1).max(1000).optional(),
   beforeServicePhotoUrls: z
     .array(z.string().regex(/^tenants\/[^/]+\/(uploads|bookings)\/[^/]+\/.+$/))
     .optional(),
@@ -306,11 +310,11 @@ export class BookingsController {
   async getOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserPayload,
-  ): Promise<BookingDetailResponse | StaffBookingDetailResponse> {
+  ): Promise<CustomerBookingDetailResponse | StaffBookingDetailResponse> {
     const detail = await this.backendHttp.get<BookingDetailResponse>(`/bookings/${id}`);
 
     if (user.role !== 'MANAGER' && user.role !== 'STAFF') {
-      return detail;
+      return toCustomerBookingDetail(detail);
     }
 
     const loyaltyBalance =

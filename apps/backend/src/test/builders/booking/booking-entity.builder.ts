@@ -1,5 +1,6 @@
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { BookingEntity } from '../../../contexts/booking/infrastructure/entities/booking.entity';
+import { AddressProps } from '../../../shared/value-objects/address';
 
 export class BookingEntityBuilder {
   private id = uuidv7();
@@ -10,8 +11,9 @@ export class BookingEntityBuilder {
   private contactEmail = 'guest@example.com';
   private contactName = 'João Silva';
   private contactPhone = '+5531999999999';
-  private contactAddress: Record<string, unknown> | null = null;
-  private pickupAddress: Record<string, unknown> | null = null;
+  private contactAddress: AddressProps | null = null;
+  private pickupAddress: AddressProps | null = null;
+  private readonly notes: string | null = null;
   private scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   private totalDurationMins = 30;
   private totalPriceAmount = '100.00';
@@ -70,11 +72,11 @@ export class BookingEntityBuilder {
     this.contactPhone = phone;
     return this;
   }
-  withContactAddress(address: Record<string, unknown> | null): this {
+  withContactAddress(address: AddressProps | null): this {
     this.contactAddress = address;
     return this;
   }
-  withPickupAddress(address: Record<string, unknown> | null): this {
+  withPickupAddress(address: AddressProps | null): this {
     this.pickupAddress = address;
     return this;
   }
@@ -108,6 +110,7 @@ export class BookingEntityBuilder {
     entity.contactPhone = this.contactPhone;
     entity.contactAddress = this.contactAddress;
     entity.pickupAddress = this.pickupAddress;
+    entity.notes = this.notes;
     entity.scheduledAt = this.scheduledAt;
     entity.totalDurationMins = this.totalDurationMins;
     entity.totalPriceAmount = this.totalPriceAmount;

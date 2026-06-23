@@ -13,7 +13,7 @@ import {
   ITenantSettingsPort,
   TENANT_SETTINGS_PORT,
 } from '../../../../shared/ports/tenant-settings.port';
-import { Address, AddressProps } from '../../../../shared/value-objects/address';
+import { Address } from '../../../../shared/value-objects/address';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { Money } from '../../../../shared/value-objects/money';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
@@ -183,12 +183,9 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       contactEmail: Email.create(entity.contactEmail),
       contactName: entity.contactName,
       contactPhone: PhoneNumber.create(entity.contactPhone),
-      contactAddress: entity.contactAddress
-        ? Address.reconstitute(entity.contactAddress as unknown as AddressProps)
-        : null,
-      pickupAddress: entity.pickupAddress
-        ? Address.reconstitute(entity.pickupAddress as unknown as AddressProps)
-        : null,
+      contactAddress: entity.contactAddress ? Address.reconstitute(entity.contactAddress) : null,
+      pickupAddress: entity.pickupAddress ? Address.reconstitute(entity.pickupAddress) : null,
+      notes: entity.notes,
       scheduledAt: entity.scheduledAt,
       totalDurationMins: entity.totalDurationMins,
       totalPrice: Money.from(entity.totalPriceAmount, currency),
@@ -231,14 +228,9 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     entity.contactEmail = booking.contactEmail.address;
     entity.contactName = booking.contactName;
     entity.contactPhone = booking.contactPhone.value;
-    entity.contactAddress = (booking.contactAddress?.toJSON() ?? null) as Record<
-      string,
-      unknown
-    > | null;
-    entity.pickupAddress = (booking.pickupAddress?.toJSON() ?? null) as Record<
-      string,
-      unknown
-    > | null;
+    entity.contactAddress = booking.contactAddress?.toJSON() ?? null;
+    entity.pickupAddress = booking.pickupAddress?.toJSON() ?? null;
+    entity.notes = booking.notes;
     entity.scheduledAt = booking.scheduledAt;
     entity.totalDurationMins = booking.totalDurationMins;
     entity.totalPriceAmount = booking.totalPrice.amount.toFixed(2);

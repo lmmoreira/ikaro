@@ -16,6 +16,7 @@ export const RequestBookingSchema = z.object({
   contactPhone: z.string().regex(/^\+[1-9]\d{6,14}$/, 'contactPhone must be in E.164 format'),
   contactAddress: AddressSchema.optional(),
   pickupAddress: AddressSchema.optional(),
+  notes: z.string().trim().min(1).max(1000).optional(),
   scheduledAt: z.iso.datetime(),
   serviceIds: z.array(z.uuid()).min(1),
   beforeServicePhotoUrls: z

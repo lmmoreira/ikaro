@@ -98,6 +98,7 @@ export class RequestAuthenticatedBookingUseCase {
       customerId,
       contactAddress,
       pickupAddress,
+      notes: dto.notes,
       beforeServicePhotoUrls: dto.beforeServicePhotoUrls,
     });
 

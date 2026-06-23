@@ -1,4 +1,5 @@
 import { Column, Entity, Index, PrimaryColumn, VersionColumn } from 'typeorm';
+import { AddressProps } from '../../../../shared/value-objects/address';
 
 @Entity('bookings', { schema: 'booking' })
 @Index(['tenantId'])
@@ -31,10 +32,13 @@ export class BookingEntity {
   contactPhone!: string;
 
   @Column({ name: 'contact_address', type: 'jsonb', nullable: true })
-  contactAddress!: Record<string, unknown> | null;
+  contactAddress!: AddressProps | null;
 
   @Column({ name: 'pickup_address', type: 'jsonb', nullable: true })
-  pickupAddress!: Record<string, unknown> | null;
+  pickupAddress!: AddressProps | null;
+
+  @Column({ name: 'notes', type: 'text', nullable: true })
+  notes!: string | null;
 
   @Column({ name: 'scheduled_at', type: 'timestamptz' })
   scheduledAt!: Date;

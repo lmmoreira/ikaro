@@ -14,6 +14,7 @@ export const RequestAuthenticatedBookingSchema = z.object({
   scheduledAt: z.iso.datetime(),
   serviceIds: z.array(z.uuid()).min(1),
   pickupAddress: AddressSchema.optional(),
+  notes: z.string().trim().min(1).max(1000).optional(),
   beforeServicePhotoUrls: z
     .array(z.string().regex(/^tenants\/[^/]+\/(uploads|bookings)\/[^/]+\/.+$/))
     .optional(),

@@ -107,6 +107,19 @@ describe('GetBookingUseCase', () => {
       expect(result.rejectionReason).toBeNull();
     });
 
+    it('returns notes when set on the booking', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withNotes('Carro está na garagem do prédio')
+        .build();
+      await repo.save(booking);
+
+      const result = await useCase.execute({ bookingId: booking.id });
+
+      expect(result.notes).toBe('Carro está na garagem do prédio');
+    });
+
     it('returns signed read URLs for before/after-service photos', async () => {
       const beforePath = `tenants/${TENANT_A}/bookings/photo-before.jpg`;
       const afterPath = `tenants/${TENANT_A}/bookings/photo-after.jpg`;

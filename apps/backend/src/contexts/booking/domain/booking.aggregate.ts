@@ -43,6 +43,7 @@ export interface BookingProps {
   contactPhone: PhoneNumber;
   contactAddress: Address | null;
   pickupAddress: Address | null;
+  notes: string | null;
   scheduledAt: Date;
   totalDurationMins: number;
   totalPrice: Money;
@@ -82,6 +83,7 @@ export interface RequestBookingInput {
   customerId?: string;
   contactAddress?: Address;
   pickupAddress?: Address;
+  notes?: string;
   beforeServicePhotoUrls?: string[];
 }
 
@@ -131,6 +133,9 @@ export class Booking extends AggregateRoot {
   }
   get pickupAddress(): Address | null {
     return this.props.pickupAddress;
+  }
+  get notes(): string | null {
+    return this.props.notes;
   }
   get scheduledAt(): Date {
     return this.props.scheduledAt;
@@ -218,6 +223,7 @@ export class Booking extends AggregateRoot {
       customerId,
       contactAddress,
       pickupAddress,
+      notes,
       beforeServicePhotoUrls = [],
     } = input;
 
@@ -245,6 +251,7 @@ export class Booking extends AggregateRoot {
       contactPhone: PhoneNumber.create(contactPhone),
       contactAddress: contactAddress ?? null,
       pickupAddress: pickupAddress ?? null,
+      notes: notes?.trim() || null,
       scheduledAt,
       totalDurationMins,
       totalPrice,

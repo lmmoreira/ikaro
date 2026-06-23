@@ -26,7 +26,7 @@ On 401 → redirect to `/{slug}/login`.
 |---|---|---|---|
 | Minha Conta (list) | `GET /v1/bookings` | booking context | No status filter — split client-side into 3 sections |
 | Minha Conta (list) | `GET /v1/loyalty/balance` | loyalty context | Compact strip: `currentPoints` + `nextExpiryDate` + `nextExpiryPoints` |
-| Detail | `GET /v1/bookings/:id` | booking context | Ownership check: backend returns 403 if `customerId ≠ JWT.sub` |
+| Detail | `GET /v1/bookings/:id` | booking context | Ownership check: backend returns 404 if `customerId ≠ JWT.sub` (deliberate — doesn't reveal booking existence to a non-owner) |
 | Cancel | `PATCH /v1/bookings/:id/cancel` | BFF routes to `/cancel-customer` | 422 if outside `cancellation_window_hours` |
 | Info submit (UC-005 A2) | `PATCH /v1/bookings/:id/submit-info` | booking context | Body: `{ message: string }` |
 

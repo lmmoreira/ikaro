@@ -112,6 +112,16 @@ describe('Booking.requestBooking()', () => {
     expect((events[0] as BookingRequested).data.requiresPickup).toBe(false);
   });
 
+  it('trims and stores notes when provided', () => {
+    const booking = request({ notes: '  Favor chegar 10 minutos antes  ' });
+    expect(booking.notes).toBe('Favor chegar 10 minutos antes');
+  });
+
+  it('defaults notes to null when not provided', () => {
+    const booking = request({});
+    expect(booking.notes).toBeNull();
+  });
+
   it('sets type=CUSTOMER and customerId when authenticated', () => {
     const customerId = '00000000-0000-7000-8000-000000000099';
     const booking = request({
