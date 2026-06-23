@@ -7,6 +7,7 @@ import { RequestContext } from '../../../../shared/request/request-context';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
 import { UpdateTenantSettingsUseCase } from '../../application/use-cases/update-tenant-settings.use-case';
+import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
 import { TenantSettingsController } from './tenant-settings.controller';
 
 describe('TenantSettingsController', () => {
@@ -21,6 +22,7 @@ describe('TenantSettingsController', () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [TenantSettingsController],
       providers: [
+        GetTenantByIdUseCase,
         UpdateTenantSettingsUseCase,
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
         { provide: RequestContext, useValue: tenantContext },
@@ -29,6 +31,33 @@ describe('TenantSettingsController', () => {
     }).compile();
 
     controller = moduleRef.get(TenantSettingsController);
+  });
+
+  describe('getSettings', () => {
+    it('returns the tenant settings with tenantId/name/slug/settings', async () => {
+      const tenant = new TenantBuilder().withSlug('ctrl-settings-get-01').build();
+      await tenantRepo.save(tenant);
+      tenantContext.tenantId = tenant.id;
+
+      const result = await controller.getSettings();
+
+      expect(result.tenantId).toBe(tenant.id);
+      expect(result.slug).toBe('ctrl-settings-get-01');
+      expect(result.name).toBe(tenant.name);
+      expect(result.settings.loyalty).toBeDefined();
+    });
+
+    it('maps TenantNotFoundError to 404 HttpException', async () => {
+      tenantContext.tenantId = 'non-existent-id';
+
+      expect.assertions(2);
+      try {
+        await controller.getSettings();
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+      }
+    });
   });
 
   it('updates settings and returns the updated result', async () => {
@@ -43,16 +72,6 @@ describe('TenantSettingsController', () => {
     expect(result.settings.loyalty.expiry_days).toBe(365);
     expect(result.settings.loyalty.enable_notifications).toBe(true);
     expect(result.tenantId).toBe(tenant.id);
-  });
-
-  it('updates the tenant name', async () => {
-    const tenant = new TenantBuilder().withSlug('ctrl-settings-02').build();
-    await tenantRepo.save(tenant);
-    tenantContext.tenantId = tenant.id;
-
-    const result = await controller.updateSettings({ name: 'Novo Nome' });
-
-    expect(result.name).toBe('Novo Nome');
   });
 
   it('maps TenantNotFoundError to 404 HttpException', async () => {

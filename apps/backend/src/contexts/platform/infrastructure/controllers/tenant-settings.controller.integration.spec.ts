@@ -72,6 +72,78 @@ describe('TenantSettingsController (integration)', () => {
     delete process.env['PLATFORM_ADMIN_KEY'];
   });
 
+  it('returns 200 with the tenant settings on GET', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .expect(200);
+
+    expect(body.tenantId).toBe(tenantId);
+    expect(body.slug).toBe('lavacar-settings-integ-01');
+    expect(body.name).toBe('Lavacar Settings Test');
+    expect(body.settings.loyalty).toBeDefined();
+    expect(body.settings.booking).toBeDefined();
+  });
+
+  it('returns 403 on GET when X-Actor-Role is not MANAGER', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'STAFF')
+      .expect(403);
+
+    expect(body.status).toBe(403);
+  });
+
+  it('returns 400 on GET when X-Tenant-ID header is missing', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Actor-Role', 'MANAGER')
+      .expect(400);
+
+    expect(body.status).toBe(400);
+  });
+
+  it('returns 403 on GET when X-Actor-Role is absent entirely (no separate 401 path on ManagerRoleGuard)', async () => {
+    const { body } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .expect(403);
+
+    expect(body.status).toBe(403);
+  });
+
+  it('GET only returns the requesting tenant settings, not another tenant', async () => {
+    const { body: otherBody } = await request(app.getHttpServer())
+      .post('/internal/tenants')
+      .set('Authorization', `Bearer ${TEST_KEY}`)
+      .send({
+        name: 'Other Tenant Settings Test',
+        slug: 'other-tenant-settings-integ-01',
+        adminEmail: 'other-settings@test.com.br',
+        country_code: 'BR',
+      })
+      .expect(201);
+    const otherTenantId = otherBody.tenantId as string;
+
+    await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', otherTenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: { loyalty: { expiry_days: 30 } } })
+      .expect(200);
+
+    const { body } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .expect(200);
+
+    expect(body.tenantId).toBe(tenantId);
+    expect(body.settings.loyalty.expiry_days).not.toBe(30);
+  });
+
   it('returns 400 when X-Tenant-ID header is missing', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')
@@ -143,18 +215,15 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.settings.loyalty.expiry_days).toBe(365);
   });
 
-  it('returns 200 and updates the tenant name', async () => {
+  it('returns 400 when the body has no settings field (name moved to PATCH /tenants)', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
       .send({ name: 'Lavacar Renomeado' })
-      .expect(200);
+      .expect(400);
 
-    expect(body.name).toBe('Lavacar Renomeado');
-
-    const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
-    expect(row!.name).toBe('Lavacar Renomeado');
+    expect(body.status).toBe(400);
   });
 
   it('returns 400 for an invalid IANA timezone from domain validation', async () => {

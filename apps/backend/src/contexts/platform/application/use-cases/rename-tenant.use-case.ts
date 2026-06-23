@@ -3,46 +3,32 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { deepMerge } from '../../../../shared/utils/deep-merge';
 import { TenantNotFoundError } from '../../domain/errors/platform-domain.error';
-import { TenantSettings, TenantSettingsProps } from '../../domain/value-objects/tenant-settings.vo';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
-import { UpdateTenantSettingsDto } from '../dtos/update-tenant-settings.dto';
+import { RenameTenantDto } from '../dtos/rename-tenant.dto';
 
-export interface UpdateTenantSettingsUseCaseResult {
+export interface RenameTenantUseCaseResult {
   tenantId: string;
   name: string;
-  settings: TenantSettingsProps;
 }
 
 @Injectable()
-export class UpdateTenantSettingsUseCase {
+export class RenameTenantUseCase {
   constructor(
     @Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(
-    tenantId: string,
-    dto: UpdateTenantSettingsDto,
-  ): Promise<UpdateTenantSettingsUseCaseResult> {
+  async execute(tenantId: string, dto: RenameTenantDto): Promise<RenameTenantUseCaseResult> {
     const tenant = await this.tenantRepo.findById(tenantId);
     if (!tenant) throw new TenantNotFoundError(tenantId);
 
-    const merged = deepMerge(
-      tenant.settings.toJSON(),
-      dto.settings as Partial<TenantSettingsProps>,
-    );
-    tenant.updateSettings(TenantSettings.create(merged));
+    tenant.updateName(dto.name);
 
     await this.txManager.run(async () => {
       await this.tenantRepo.save(tenant);
     });
 
-    return {
-      tenantId: tenant.id,
-      name: tenant.name,
-      settings: tenant.settings.toJSON(),
-    };
+    return { tenantId: tenant.id, name: tenant.name };
   }
 }

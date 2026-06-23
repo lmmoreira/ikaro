@@ -153,17 +153,6 @@ describe('UpdateTenantSettingsUseCase', () => {
     ).rejects.toThrow(PlatformDomainError);
   });
 
-  it('updates the tenant name', async () => {
-    const tenant = new TenantBuilder().build();
-    await tenantRepo.save(tenant);
-
-    const result = await useCase.execute(tenant.id, { name: 'Novo Nome Lavacar' });
-
-    expect(result.name).toBe('Novo Nome Lavacar');
-    const saved = await tenantRepo.findById(tenant.id);
-    expect(saved!.name).toBe('Novo Nome Lavacar');
-  });
-
   it('throws PlatformDomainError for an invalid IANA timezone', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
@@ -220,15 +209,5 @@ describe('UpdateTenantSettingsUseCase', () => {
     await expect(
       useCase.execute(tenant.id, { settings: { loyalty: { expiry_days: 90 } } }),
     ).rejects.toThrow(TenantInactiveError);
-  });
-
-  it('throws TenantInactiveError when updating name on an inactive tenant', async () => {
-    const tenant = new TenantBuilder().withSlug('inactive-name').build();
-    tenant.deactivate();
-    await tenantRepo.save(tenant);
-
-    await expect(useCase.execute(tenant.id, { name: 'Novo Nome' })).rejects.toThrow(
-      TenantInactiveError,
-    );
   });
 });
