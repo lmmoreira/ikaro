@@ -554,7 +554,7 @@ Provide the full booking detail for a customer viewing their own booking. Owners
 > - `request-booking.dto.ts` and the authenticated-booking equivalent — accept optional `notes` and pass it into `Booking.requestBooking()`'s input.
 > - `BookingBuilder` test helper — add `private notes: string | null = null` + `withNotes()`.
 > - BFF: add `notes: z.string().trim().min(1).max(1000).optional()` to both `RequestBookingBodySchema` and `AuthenticatedBookingBodySchema` (guest and authenticated creation, kept symmetric; `.min(1)` matches the existing `adminNotes` schema convention elsewhere in this file — an explicit empty string is rejected, omitting the field is how a client says "no notes"); add `notes: string | null` to `BookingDetailResponse` (`bookings.types.ts`) so it flows through to the new customer mapper. The same `notes: z.string().trim().min(1).max(1000).optional()` schema is also added directly on the backend's `RequestBookingSchema`/`RequestAuthenticatedBookingSchema` (defense in depth — the BFF forwards the JSON body as-is, so both layers validate independently).
-> - `packages/types` — add `notes?: string | null` to `CreateBookingRequest` (and the authenticated-booking request type, if a separate interface exists).
+> - `packages/types` — add `notes?: string` to `CreateBookingRequest` (matches the Zod schemas' `optional()`-only convention — no `.nullable()`).
 > - Max length (`1000` chars) is a discovery-time default, not a validated UX/product decision — adjust if product feedback says otherwise.
 
 **`@ikaro/types` additions** (`packages/types/src/booking.dto.ts`):
