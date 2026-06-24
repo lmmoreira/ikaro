@@ -364,7 +364,6 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
   }
 }
 ```
-> `loyalty.pointsPerCurrencyUnit` above is **planned — not yet implemented in code; see M13-S11**.
 
 ---
 
@@ -416,7 +415,6 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
   }
 }
 ```
-> `loyalty.pointsPerCurrencyUnit` above is **planned — not yet implemented in code; see M13-S11**.
 
 ---
 

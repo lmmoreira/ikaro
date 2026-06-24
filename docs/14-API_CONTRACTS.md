@@ -686,7 +686,23 @@ Auth: JWT + `MANAGER|STAFF` on all write endpoints.
 ## 5. Customer & Loyalty
 
 ### **Customer Management (UC-002, UC-006, UC-007)**
-- `GET /customers` -> (Admin) List all customers in tenant.
+- `GET /customers?search=&limit=20` -> (Admin) Search customers in tenant by name or email.
+  - Requires JWT with `MANAGER|STAFF` role.
+  - Query params:
+    - `search` (optional, string, min 5 chars when present) — case-insensitive `ILIKE %search%` match on `name` and `email`. When omitted, returns all customers up to `limit`.
+    - `limit` (optional, integer, default 20) — max results to return.
+  - Response:
+    ```json
+    {
+      "items": [
+        { "customerId": "uuid", "name": "João Silva", "email": "joao@example.com", "currentPoints": 150 }
+      ],
+      "total": 1
+    }
+    ```
+  - `currentPoints` is read from `loyalty_balances.current_points` for the customer (`0` if no balance row).
+  - Results are scoped to the caller's tenant — no cross-tenant leakage possible.
+  - `CUSTOMER` role → `403`.
 - `GET /customers/:id` -> (Admin/Self) Detailed profile. Response includes `defaultAddress` (nullable).
 - `GET /customers/me` -> (Self) Current authenticated customer profile.
   - Requires JWT with `role: CUSTOMER`.
@@ -733,7 +749,7 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
     ```json
     { "currentPoints": 150, "nextExpiryDate": "2026-11-15T00:00:00.000Z", "nextExpiryPoints": 30 }
     ```
-  - **BFF note (M13-S06):** `GET /v1/loyalty/balance` adds a `conversionRate` field (`CustomerLoyaltyBalanceResponse`) on top of this backend response — `pointsPerCurrencyUnit`, hardcoded `0` until `M13-S11`/`M13-S12` land.
+  - **BFF note (M13-S06/M13-S12):** `GET /v1/loyalty/balance` returns `CustomerLoyaltyBalanceResponse`, which extends the backend response with `conversionRate: number` — the live `pointsPerCurrencyUnit` from tenant settings (`0` = redemption disabled).
   - `currentPoints`: read from `loyalty_balances.current_points` (O(1) — no SUM).
   - `nextExpiryDate`: ISO-8601 datetime string (`Date.toISOString()`) of the earliest `expires_at` among active entries; `null` if no active entries.
   - `nextExpiryPoints`: sum of points expiring on `nextExpiryDate`; `null` if no active entries.
@@ -778,7 +794,7 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
 
 All endpoints require JWT with `MANAGER|STAFF` role. The `customerId` is taken from the URL path. Returns `404` if `customerId` does not belong to the caller's tenant.
 
-- `GET /customers/:customerId/loyalty/balance` — same response shape as customer balance endpoint.
+- `GET /customers/:customerId/loyalty/balance` — returns `EnrichedLoyaltyBalanceResponse` (same fields as `CustomerLoyaltyBalanceResponse` including `conversionRate`).
 - `GET /customers/:customerId/loyalty/entries?page=1&limit=20` — same response shape as customer entries endpoint.
 - `GET /customers/:customerId/loyalty/redemptions?page=1&limit=20` — same response shape as customer redemptions endpoint.
 
