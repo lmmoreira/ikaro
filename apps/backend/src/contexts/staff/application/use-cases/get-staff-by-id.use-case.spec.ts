@@ -39,7 +39,7 @@ describe('GetStaffByIdUseCase', () => {
     expect(result.createdAt).toBeDefined();
   });
 
-  it('name is stored at invite time for inactive staff', async () => {
+  it('name is stored at invite time for newly invited (not yet linked) staff', async () => {
     const invited = new StaffBuilder()
       .withTenantId(TENANT_A)
       .withEmail('invited@lavacar.com.br')
@@ -50,7 +50,7 @@ describe('GetStaffByIdUseCase', () => {
     const result = await useCase.execute(invited.id, TENANT_A);
 
     expect(result.name).toBe('Test User');
-    expect(result.isActive).toBe(false);
+    expect(result.isActive).toBe(true);
   });
 
   it('tenant isolation: throws StaffNotFoundError when id exists but belongs to another tenant', async () => {

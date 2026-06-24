@@ -52,7 +52,7 @@ describe('ListStaffUseCase', () => {
     expect(managerItem!.isActive).toBe(true);
   });
 
-  it('name is stored at invite time even for inactive staff', async () => {
+  it('name is stored at invite time even for newly invited (not yet linked) staff', async () => {
     const invited = new StaffBuilder()
       .withTenantId(TENANT_A)
       .withEmail('invited@lavacar.com.br')
@@ -64,7 +64,7 @@ describe('ListStaffUseCase', () => {
     const result = await useCase.execute(TENANT_A, 50, 0);
 
     expect(result.items[0].name).toBe('Test User');
-    expect(result.items[0].isActive).toBe(false);
+    expect(result.items[0].isActive).toBe(true);
   });
 
   it('respects limit and offset — pagination fields are correct', async () => {

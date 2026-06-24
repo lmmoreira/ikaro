@@ -169,7 +169,7 @@ describe('StaffController (integration) — management endpoints', () => {
   });
 
   describe('POST /staff/invite', () => {
-    it('creates an inactive staff row using tenantId from RequestContext', async () => {
+    it('creates an active staff row using tenantId from RequestContext', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/staff/invite')
         .set(actorHeaders(TENANT_A, MANAGER_ID))
@@ -182,7 +182,7 @@ describe('StaffController (integration) — management endpoints', () => {
         .expect(201);
 
       expect(body.email).toBe('invite-m04s04@lavacar.com.br');
-      expect(body.isActive).toBe(false);
+      expect(body.isActive).toBe(true);
 
       const row = await ds
         .getRepository(StaffEntity)

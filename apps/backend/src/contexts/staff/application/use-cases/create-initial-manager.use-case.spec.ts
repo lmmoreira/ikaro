@@ -23,7 +23,7 @@ describe('CreateInitialManagerUseCase', () => {
     useCase = new CreateInitialManagerUseCase(repo, new InMemoryTransactionManager(), eventBus);
   });
 
-  it('creates inactive MANAGER staff and publishes StaffInvited', async () => {
+  it('creates active MANAGER staff and publishes StaffInvited', async () => {
     const result = await useCase.execute(baseDto);
 
     expect(result.staffId).toBeDefined();
@@ -31,7 +31,7 @@ describe('CreateInitialManagerUseCase', () => {
     const saved = await repo.findByTenantAndEmail(TENANT_ID, ADMIN_EMAIL);
     expect(saved).not.toBeNull();
     expect(saved!.role).toBe('MANAGER');
-    expect(saved!.isActive).toBe(false);
+    expect(saved!.isActive).toBe(true);
     expect(saved!.googleOAuthId).toBeNull();
     expect(saved!.name).toBeNull();
     expect(saved!.invitedBy).toBe(SYSTEM_ACTOR_ID);
