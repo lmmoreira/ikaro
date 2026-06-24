@@ -6,6 +6,7 @@ import {
 } from '../../../../../shared/ports/transaction-manager.port';
 import { LoyaltyBalance } from '../../../domain/loyalty-balance.aggregate';
 import { LoyaltyEntry } from '../../../domain/loyalty-entry.aggregate';
+import { LoyaltyRedemption } from '../../../domain/loyalty-redemption.aggregate';
 import { ServicePointsEarned } from '../../../domain/events/service-points-earned.event';
 import {
   ILoyaltyBalanceRepository,
@@ -15,6 +16,10 @@ import {
   ILoyaltyEntryRepository,
   LOYALTY_ENTRY_REPOSITORY,
 } from '../../ports/loyalty-entry-repository.port';
+import {
+  ILoyaltyRedemptionRepository,
+  LOYALTY_REDEMPTION_REPOSITORY,
+} from '../../ports/loyalty-redemption-repository.port';
 import { ILoyaltyPlatformPort, LOYALTY_PLATFORM_PORT } from '../../ports/loyalty-platform.port';
 import {
   IProcessedEventRepository,
@@ -27,28 +32,45 @@ export interface BookingCompletedLine {
   pointsValueAtBooking: number;
 }
 
-export interface RecordLoyaltyEntriesDto {
+export interface CompleteBookingLoyaltyEffectsDto {
   tenantId: string;
   eventId: string;
   correlationId: string;
   customerId: string | null;
   bookingId: string;
+  completedBy: string;
   lines: BookingCompletedLine[];
+  discountByPoints?: { pointsUsed: number; amountDeducted: number };
 }
 
-export interface RecordLoyaltyEntriesResult {
+export interface CompleteBookingLoyaltyEffectsResult {
   skipped: boolean;
   entriesCreated: number;
   totalPointsEarned: number;
+  pointsRedeemed: number;
 }
 
+const SKIPPED_RESULT: CompleteBookingLoyaltyEffectsResult = {
+  skipped: true,
+  entriesCreated: 0,
+  totalPointsEarned: 0,
+  pointsRedeemed: 0,
+};
+
+/**
+ * The single, self-contained reaction to `BookingCompleted`: records earned points
+ * and — if a loyalty discount was applied at completion — redeems points, all in
+ * one transaction with one idempotency check against the triggering event.
+ */
 @Injectable()
-export class RecordLoyaltyEntriesUseCase {
-  static readonly CONSUMER_NAME = 'RECORD_LOYALTY_ENTRY';
+export class CompleteBookingLoyaltyEffectsUseCase {
+  static readonly CONSUMER_NAME = 'COMPLETE_BOOKING_LOYALTY_EFFECTS';
 
   constructor(
     @Inject(LOYALTY_ENTRY_REPOSITORY) private readonly entryRepo: ILoyaltyEntryRepository,
     @Inject(LOYALTY_BALANCE_REPOSITORY) private readonly balanceRepo: ILoyaltyBalanceRepository,
+    @Inject(LOYALTY_REDEMPTION_REPOSITORY)
+    private readonly redemptionRepo: ILoyaltyRedemptionRepository,
     @Inject(PROCESSED_EVENT_REPOSITORY)
     private readonly processedEventRepo: IProcessedEventRepository,
     @Inject(LOYALTY_PLATFORM_PORT)
@@ -57,34 +79,33 @@ export class RecordLoyaltyEntriesUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(dto: RecordLoyaltyEntriesDto): Promise<RecordLoyaltyEntriesResult> {
-    if (
-      await this.processedEventRepo.hasBeenProcessed(
-        dto.eventId,
-        RecordLoyaltyEntriesUseCase.CONSUMER_NAME,
-      )
-    ) {
-      return { skipped: true, entriesCreated: 0, totalPointsEarned: 0 };
-    }
+  async execute(
+    dto: CompleteBookingLoyaltyEffectsDto,
+  ): Promise<CompleteBookingLoyaltyEffectsResult> {
+    if (dto.customerId === null) return SKIPPED_RESULT;
 
-    if (dto.customerId === null) {
-      return { skipped: true, entriesCreated: 0, totalPointsEarned: 0 };
-    }
+    const alreadyProcessed = await this.processedEventRepo.hasBeenProcessed(
+      dto.eventId,
+      CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+    );
+    if (alreadyProcessed) return SKIPPED_RESULT;
 
-    const { expiryDays } = await this.tenantSettingsPort.getLoyaltySettings(dto.tenantId);
+    const { expiryDays, pointsPerCurrencyUnit } = await this.tenantSettingsPort.getLoyaltySettings(
+      dto.tenantId,
+    );
 
     const totalPointsEarned = dto.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0);
+    const pointsRedeemed = dto.discountByPoints?.pointsUsed ?? 0;
+    const customerId = dto.customerId;
 
     const balance =
-      (await this.balanceRepo.findByCustomer(dto.tenantId, dto.customerId)) ??
-      LoyaltyBalance.create(dto.tenantId, dto.customerId);
+      (await this.balanceRepo.findByCustomer(dto.tenantId, customerId)) ??
+      LoyaltyBalance.create(dto.tenantId, customerId);
 
-    const finalBalance = balance.currentPoints + totalPointsEarned;
-
-    const entries: LoyaltyEntry[] = dto.lines.map((line) =>
+    const entries = dto.lines.map((line) =>
       LoyaltyEntry.record({
         tenantId: dto.tenantId,
-        customerId: dto.customerId as string,
+        customerId,
         bookingId: dto.bookingId,
         bookingLineId: line.lineId,
         serviceId: line.serviceId,
@@ -92,23 +113,38 @@ export class RecordLoyaltyEntriesUseCase {
         expiryDays,
       }),
     );
-
     balance.increment(totalPointsEarned);
+
+    let redemption: LoyaltyRedemption | null = null;
+    if (pointsRedeemed > 0) {
+      balance.decrement(pointsRedeemed);
+      redemption = LoyaltyRedemption.record({
+        tenantId: dto.tenantId,
+        customerId,
+        pointsRedeemed,
+        pointsPerCurrencyUnit,
+        redeemedBy: dto.completedBy,
+        bookingId: dto.bookingId,
+      });
+    }
+
+    const finalBalance = balance.currentPoints;
 
     await this.txManager.run(async () => {
       for (const entry of entries) {
         await this.entryRepo.save(entry);
       }
       await this.balanceRepo.upsert(balance);
+      if (redemption) await this.redemptionRepo.save(redemption);
       await this.processedEventRepo.markProcessed(
         dto.eventId,
-        RecordLoyaltyEntriesUseCase.CONSUMER_NAME,
+        CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
       );
     });
 
     await this.eventBus.publish(
       new ServicePointsEarned(dto.tenantId, dto.correlationId, {
-        customerId: dto.customerId,
+        customerId,
         bookingId: dto.bookingId,
         totalPointsEarned,
         earnedAt: entries[0].earnedAt.toISOString(),
@@ -122,6 +158,11 @@ export class RecordLoyaltyEntriesUseCase {
       }),
     );
 
-    return { skipped: false, entriesCreated: entries.length, totalPointsEarned };
+    return {
+      skipped: false,
+      entriesCreated: entries.length,
+      totalPointsEarned,
+      pointsRedeemed,
+    };
   }
 }

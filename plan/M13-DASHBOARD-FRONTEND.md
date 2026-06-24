@@ -906,12 +906,12 @@ Three targeted additions across two bounded contexts. No new use cases in the bo
 > - Read `apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts` in full — confirm `LoyaltySettings` interface and Zod schema location.
 > - Read `apps/backend/src/contexts/booking/application/dtos/complete-booking.dto.ts` and `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` `complete()` method — understand how `totalActualPrice` is currently computed (it's `Money`-VO based, not raw-number arithmetic — `Money` has no `subtract()` today, see Part B).
 > - Read `apps/backend/src/contexts/loyalty/infrastructure/events/booking-completed.handler.ts` — understand the existing earning entry flow before extending it.
-> - Read `apps/backend/src/contexts/loyalty/application/use-cases/redeem-points/redeem-points.use-case.ts` — this is the **existing** redemption use case (`RedeemPointsUseCase`, DTO: `tenantId, customerId, pointsToRedeem, pointsPerCurrencyUnit, redeemedBy, notes?, bookingId?`). There is no `RecordRedemptionUseCase` anywhere in the codebase — do not create one with that name; reuse `RedeemPointsUseCase` unmodified.
+> - Read `apps/backend/src/contexts/loyalty/application/use-cases/redeem-points/redeem-points.use-case.ts` — this is the **existing standalone** redemption use case (`RedeemPointsUseCase`), used only by the `POST /loyalty/redeem` admin endpoint. Do not call it, extend it, or compose it from the new booking-completion flow — see the architecture decision below for why.
 > - Read `apps/backend/src/contexts/loyalty/application/ports/loyalty-platform.port.ts` and `infrastructure/cross-context/loyalty-platform.adapter.ts` — `LoyaltyTenantSettings` currently only exposes `expiryDays`/`notificationMinPoints`; it needs `pointsPerCurrencyUnit` added, because event handlers can't read `RequestContext` (unlike the `POST /loyalty/redeem` controller, which sources the rate from `RequestContext.settings.loyalty.pointsPerCurrencyUnit`).
-
+>
 > **Architecture decision — redemption via event (not BFF orchestration):** The redemption is triggered by the existing `BookingCompleted` domain event, not by the BFF calling `POST /v1/loyalty/redeem` as a second HTTP call. This keeps the BFF thin (one call: `PATCH /complete`) and the redemption idempotent (dedup via `processed_events`). The BFF's `POST /v1/loyalty/redeem` route is unaffected — it keeps serving its existing use case (standalone manual admin redemption, unrelated to booking completion).
 >
-> **Why a new use case instead of calling `RecordLoyaltyEntriesUseCase` and `RedeemPointsUseCase` directly from the handler:** CLAUDE.md's event-handler rule requires `handle()` to call exactly one use case with zero domain logic — true of every handler in the codebase today (verified: every existing handler calls exactly one use case, no exceptions). `ProcessBookingCompletedLoyaltyEffectsUseCase` (Part C) is the single use case the handler calls; internally it calls `RecordLoyaltyEntriesUseCase.execute()` (unchanged) and then, only if `discountByPoints` is present, performs its own `processed_events` idempotency check and calls `RedeemPointsUseCase.execute()` (unchanged).
+> **Architecture decision — one self-contained use case, not a use case calling other use cases:** an earlier draft of this story had a new orchestrating use case calling `RecordLoyaltyEntriesUseCase` and `RedeemPointsUseCase` in sequence, each managing its own transaction, glued together with an idempotency check threaded through both. That shape has a real atomicity hole: if the process crashes between the redemption write and marking it processed, a retry double-redeems, because the two writes are in separate transactions. The fix is structural, not parametric — a use case should not orchestrate other use cases that each own their own transaction boundary. The single reaction to `BookingCompleted` is `CompleteBookingLoyaltyEffectsUseCase`: fully self-contained, with the earn-points logic inlined directly (no separate `RecordLoyaltyEntriesUseCase` — delete it, it had no other caller), one idempotency check against the event's `eventId`, and one `txManager.run()` covering entries, balance, the optional redemption, and the processed marker together. `RedeemPointsUseCase` is untouched and keeps serving only the standalone admin endpoint.
 
 ---
 
@@ -968,6 +968,7 @@ discountByPoints?: { pointsUsed: number; amountDeducted: number };
 
 **`Money` VO addition** (`apps/backend/src/shared/value-objects/money.ts`):
 `Money` currently only has `add()` — no `subtract()`. Add one, mirroring `add()`'s currency-mismatch guard:
+
 ```typescript
 subtract(other: Money): Money {
   if (this.currency !== other.currency) {
@@ -978,6 +979,7 @@ subtract(other: Money): Money {
 ```
 
 **`Booking.complete()` signature update** (`booking.aggregate.ts`):
+
 ```typescript
 complete(
   staffId: string,
@@ -990,6 +992,7 @@ complete(
 ```
 
 `totalActualPrice` calculation — builds on the existing `Money`-based reduce, then applies the discount via `subtract()`:
+
 ```typescript
 const linesTotal = this.props.lines.reduce(
   (sum, l) => sum.add(l.actualPriceCharged!),
@@ -1010,16 +1013,19 @@ this.props.discountAmount = discountAmount;
 ```
 
 **New migration** — add two nullable columns to `booking.bookings` (register in `integration-global-setup.ts` in the same commit):
+
 ```sql
 ALTER TABLE booking.bookings
   ADD COLUMN discount_points_used INTEGER,
   ADD COLUMN discount_amount NUMERIC(10,2);
 ```
+
 Both set once at completion alongside `total_actual_price_amount`; remain `NULL` when no discount was applied.
 
 **`booking.entity.ts` + `typeorm-booking.repository.ts`:** add `discountPointsUsed`/`discountAmount` columns and map them in `toDomain()`/`toEntity()`.
 
 **New booking-domain errors** (`apps/backend/src/contexts/booking/domain/errors/booking-domain.error.ts`, all extend `BookingDomainError` — matching every other error in this file; none of these are loyalty-context errors even though they're about a loyalty-adjacent concept, since they're thrown from booking's own use case):
+
 - `BookingDiscountNotAvailableError` — discount attempted on a guest booking
 - `BookingDiscountDisabledError` — `pointsPerCurrencyUnit === 0`
 - `BookingDiscountMismatchError` — `amountDeducted` doesn't reconcile with `pointsUsed / pointsPerCurrencyUnit`
@@ -1044,66 +1050,71 @@ The `Booking.complete()` method already publishes `BookingCompleted` — update 
 
 Add `pointsPerCurrencyUnit: number` to `LoyaltyTenantSettings`, mapped from `result.settings.loyalty.pointsPerCurrencyUnit` in the adapter (default `0` in the existing catch-block fallback, matching `expiryDays`/`notificationMinPoints`).
 
-**New file:** `apps/backend/src/contexts/loyalty/application/use-cases/process-booking-completed-loyalty-effects/process-booking-completed-loyalty-effects.use-case.ts`
+**New file:** `apps/backend/src/contexts/loyalty/application/use-cases/complete-booking-loyalty-effects/complete-booking-loyalty-effects.use-case.ts`
+
+The single, self-contained reaction to `BookingCompleted`. No calls to other use cases — earning logic is inlined directly (the old `RecordLoyaltyEntriesUseCase` is deleted; it had no other caller), and the optional redemption is inlined too rather than calling `RedeemPointsUseCase`. One idempotency check against the event's `eventId`, one `txManager.run()` covering every write:
 
 ```typescript
 @Injectable()
-export class ProcessBookingCompletedLoyaltyEffectsUseCase {
-  static readonly REDEMPTION_CONSUMER_NAME = 'REDEEM_POINTS_ON_COMPLETION';
+export class CompleteBookingLoyaltyEffectsUseCase {
+  static readonly CONSUMER_NAME = 'COMPLETE_BOOKING_LOYALTY_EFFECTS';
 
   constructor(
-    private readonly recordLoyaltyEntries: RecordLoyaltyEntriesUseCase,
-    private readonly redeemPoints: RedeemPointsUseCase,
-    @Inject(PROCESSED_EVENT_REPOSITORY)
-    private readonly processedEventRepo: IProcessedEventRepository,
+    @Inject(LOYALTY_ENTRY_REPOSITORY) private readonly entryRepo: ILoyaltyEntryRepository,
+    @Inject(LOYALTY_BALANCE_REPOSITORY) private readonly balanceRepo: ILoyaltyBalanceRepository,
+    @Inject(LOYALTY_REDEMPTION_REPOSITORY) private readonly redemptionRepo: ILoyaltyRedemptionRepository,
+    @Inject(PROCESSED_EVENT_REPOSITORY) private readonly processedEventRepo: IProcessedEventRepository,
     @Inject(LOYALTY_PLATFORM_PORT) private readonly tenantSettingsPort: ILoyaltyPlatformPort,
+    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(dto: ProcessBookingCompletedLoyaltyEffectsDto): Promise<void> {
-    await this.recordLoyaltyEntries.execute({
-      tenantId: dto.tenantId,
-      eventId: dto.eventId,
-      correlationId: dto.correlationId,
-      customerId: dto.customerId,
-      bookingId: dto.bookingId,
-      lines: dto.lines,
+  async execute(dto: CompleteBookingLoyaltyEffectsDto): Promise<CompleteBookingLoyaltyEffectsResult> {
+    if (dto.customerId === null) return SKIPPED_RESULT;
+
+    const alreadyProcessed = await this.processedEventRepo.hasBeenProcessed(
+      dto.eventId,
+      CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+    );
+    if (alreadyProcessed) return SKIPPED_RESULT;
+
+    const { expiryDays, pointsPerCurrencyUnit } = await this.tenantSettingsPort.getLoyaltySettings(dto.tenantId);
+    const totalPointsEarned = dto.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0);
+    const pointsRedeemed = dto.discountByPoints?.pointsUsed ?? 0;
+
+    const balance =
+      (await this.balanceRepo.findByCustomer(dto.tenantId, dto.customerId)) ??
+      LoyaltyBalance.create(dto.tenantId, dto.customerId);
+
+    const entries = dto.lines.map((line) => LoyaltyEntry.record({ /* ... */ expiryDays }));
+    balance.increment(totalPointsEarned);
+
+    let redemption: LoyaltyRedemption | null = null;
+    if (pointsRedeemed > 0) {
+      balance.decrement(pointsRedeemed); // throws LoyaltyInsufficientPointsError if balance too low
+      redemption = LoyaltyRedemption.record({ /* ... */ pointsPerCurrencyUnit, redeemedBy: dto.completedBy });
+    }
+
+    await this.txManager.run(async () => {
+      for (const entry of entries) await this.entryRepo.save(entry);
+      await this.balanceRepo.upsert(balance);
+      if (redemption) await this.redemptionRepo.save(redemption);
+      await this.processedEventRepo.markProcessed(dto.eventId, CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME);
     });
 
-    if (!dto.discountByPoints || !dto.customerId) return;
-
-    const alreadyRedeemed = await this.processedEventRepo.hasBeenProcessed(
-      dto.eventId,
-      ProcessBookingCompletedLoyaltyEffectsUseCase.REDEMPTION_CONSUMER_NAME,
-    );
-    if (alreadyRedeemed) return;
-
-    const { pointsPerCurrencyUnit } = await this.tenantSettingsPort.getLoyaltySettings(dto.tenantId);
-
-    await this.redeemPoints.execute({
-      tenantId: dto.tenantId,
-      customerId: dto.customerId,
-      pointsToRedeem: dto.discountByPoints.pointsUsed,
-      pointsPerCurrencyUnit,
-      redeemedBy: dto.completedBy,
-      bookingId: dto.bookingId,
-      notes: 'Desconto na conclusão do agendamento',
-    });
-
-    await this.processedEventRepo.markProcessed(
-      dto.eventId,
-      ProcessBookingCompletedLoyaltyEffectsUseCase.REDEMPTION_CONSUMER_NAME,
-    );
+    await this.eventBus.publish(new ServicePointsEarned(/* ... */));
+    return { skipped: false, entriesCreated: entries.length, totalPointsEarned, pointsRedeemed };
   }
 }
 ```
 
 **File:** `apps/backend/src/contexts/loyalty/infrastructure/events/booking-completed.handler.ts`
 
-Update `handle()` to call `ProcessBookingCompletedLoyaltyEffectsUseCase.execute(...)` instead of calling `RecordLoyaltyEntriesUseCase` directly — passing `completedBy: event.data.completedBy` and `discountByPoints: event.data.discountByPoints` alongside the existing fields. The handler still calls exactly one use case.
+Update `handle()` to call `CompleteBookingLoyaltyEffectsUseCase.execute(...)` — passing `completedBy: event.data.completedBy` and `discountByPoints: event.data.discountByPoints` alongside the existing fields. The handler still calls exactly one use case.
 
-Register `ProcessBookingCompletedLoyaltyEffectsUseCase` in `LoyaltyModule` providers (and remove `RecordLoyaltyEntriesUseCase`/`RedeemPointsUseCase` from the handler's own constructor if they were ever injected there directly — they're now only consumed by the new use case).
+Register `CompleteBookingLoyaltyEffectsUseCase` in `LoyaltyModule` providers. Delete `RecordLoyaltyEntriesUseCase` and its spec entirely.
 
-> **Idempotency note:** the earn-side dedup (`RecordLoyaltyEntriesUseCase`, key `(eventId, 'RECORD_LOYALTY_ENTRY')`) and the redemption-side dedup (key `(eventId, 'REDEEM_POINTS_ON_COMPLETION')`) are two separate `processed_events` rows for the same `eventId` — following the existing composite-key pattern, not string concatenation on `eventId`. A nack/retry of the whole handler correctly skips whichever half already succeeded without re-running it or skipping the other half.
+> **Idempotency note:** earning and redemption commit in the **same** transaction, deduplicated via **one** `processed_events` row keyed by `(eventId, CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME)`. There is no separate redemption-side idempotency key — a nack/retry of the whole event either re-runs everything (if the transaction never committed) or skips everything (if it did), never a partial double-write.
 
 ---
 
@@ -1118,8 +1129,8 @@ Update the `PATCH /bookings/:id/complete` request block to include an example wi
 - [ ] `PATCH /bookings/:id/complete` when `amountDeducted` doesn't reconcile with `pointsUsed/pointsPerCurrencyUnit` → `422` with `booking-discount-mismatch`
 - [ ] `PATCH /bookings/:id/complete` when `amountDeducted` exceeds the lines total → `422` with `booking-discount-exceeds-total`
 - [ ] `BookingCompleted` event carries `discountByPoints` when present
-- [ ] `ProcessBookingCompletedLoyaltyEffectsUseCase` calls `RecordLoyaltyEntriesUseCase` unconditionally and `RedeemPointsUseCase` only when `discountByPoints` is present
-- [ ] Redemption is idempotent — replaying the event does not create a duplicate `LoyaltyRedemption` or double-decrement the balance (independent of the earn-side idempotency check)
+- [ ] `CompleteBookingLoyaltyEffectsUseCase` always records earning entries and only redeems when `discountByPoints` is present, in one self-contained transaction
+- [ ] Redemption is idempotent — replaying the event does not create a duplicate `LoyaltyRedemption` or double-decrement the balance (one idempotency check covers both earning and redemption together)
 - [ ] Unit tests for `Booking.complete()` with and without `discountByPoints`, and for `Money.subtract()`
 - [ ] Integration test: complete booking with discount → loyalty balance decremented by `pointsUsed`; booking's `discount_points_used`/`discount_amount` persisted
 - [ ] Integration test: tenant isolation — cannot apply discount to another tenant's customer
@@ -4022,7 +4033,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 - [x] **`loyaltyConversionRate` in booking detail response:** resolved — added to `StaffBookingDetailResponse` (`M13-S04`'s note), sourced from `M13-S12`, so `M13-S26`'s `MarkCompleteSheet` doesn't need a second BFF call on mount.
 - [ ] **"Clientes recentes" query:** does `GET /v1/customers?search=&limit=5` with empty `search` return the 5 most recently active customers (sorted by last booking `completedAt`)? Confirm the backend query plan at `M13-S25`, or simplify to alphabetical sort for MVP.
-- [ ] **Redemption notes field in UI:** `RecordRedemptionUseCase` accepts optional `notes`; the prototype auto-fills "Desconto na conclusão do agendamento" (already implemented this way in `M13-S11`). MVP recommendation: auto-fill only, no extra staff-facing input — revisit only if requested.
+- [ ] **Redemption notes field in UI:** `LoyaltyRedemption.notes` is optional; `M13-S11`'s `CompleteBookingLoyaltyEffectsUseCase` deliberately leaves it `null` for booking-completion-triggered redemptions — hardcoding a pt-BR string like "Desconto na conclusão do agendamento" server-side would violate the English-only-code/tenant-locale rule (a non-BR tenant's customer would see Portuguese), and `bookingId` already links the redemption to its booking without needing free text. Still open for `M13-S26`: does the UI need a note at all, and if so, is it staff-entered free text or a locale-aware label generated client-side (where i18n already lives)?
 - [x] **`conversionRate` in the customer-facing balance route too:** resolved — `M13-S12` enriches both the staff (`getBalanceAdmin`) and customer (`getBalance`) routes, so `M13-S29` (customer Fidelidade page) can use the field once it ships.
 
 ### Guest submit-info (Phase 9, M13-S38–M13-S40)

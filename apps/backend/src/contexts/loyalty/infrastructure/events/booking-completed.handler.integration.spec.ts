@@ -200,7 +200,7 @@ describe('Story: booking completion with a loyalty points discount (integration)
     expect(bookingRow!.discountAmount).toBe('20.00');
 
     // RoutingInMemoryEventBus dispatches synchronously — by the time the PATCH above
-    // resolved, ProcessBookingCompletedLoyaltyEffectsUseCase has already run.
+    // resolved, CompleteBookingLoyaltyEffectsUseCase has already run.
     const balanceRow = await ds
       .getRepository(LoyaltyBalanceEntity)
       .findOne({ where: { tenantId, customerId } });

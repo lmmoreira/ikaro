@@ -307,6 +307,21 @@ describe('CompleteBookingUseCase', () => {
       ).rejects.toThrow(BookingDiscountMismatchError);
     });
 
+    it('throws BookingDiscountMismatchError for a sub-cent amountDeducted that would round up to a different value', async () => {
+      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      await bookingRepo.save(booking);
+      const discountUseCase = makeUseCase(10);
+
+      // 200 pts / 10 = 20 exactly; 20.009 rounds to 20.01, which must not slip through.
+      await expect(
+        discountUseCase.execute(
+          makeDto(booking.id, [LINE_ID_1], {
+            discountByPoints: { pointsUsed: 200, amountDeducted: 20.009 },
+          }),
+        ),
+      ).rejects.toThrow(BookingDiscountMismatchError);
+    });
+
     it('throws BookingDiscountExceedsTotalError when amountDeducted exceeds the lines total', async () => {
       const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
       await bookingRepo.save(booking);

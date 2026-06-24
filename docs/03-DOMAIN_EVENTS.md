@@ -209,7 +209,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   ```
 - **Consumers:**
   - **Notification Context** → email to customer summarising all services completed, showing both quoted and actual prices where they differ, plus total points earned.
-  - **Loyalty Context** → if `customerId != null`, iterate `lines`: insert one `LoyaltyEntry` per line using `pointsValueAtBooking` (loyalty is **not** affected by `actualPriceCharged`); increment `LoyaltyBalance.current_points` by the total points across all lines; publish one `ServicePointsEarned` per inserted line. If `discountByPoints` is present: also decrement `LoyaltyBalance.current_points` by `pointsUsed` and record a `LoyaltyRedemption` linked to `bookingId`. Earning and redemption are dedup'd independently via separate `processed_events` rows for the same `eventId`.
+  - **Loyalty Context** → if `customerId != null`, iterate `lines`: insert one `LoyaltyEntry` per line using `pointsValueAtBooking` (loyalty is **not** affected by `actualPriceCharged`); increment `LoyaltyBalance.current_points` by the total points across all lines; publish one `ServicePointsEarned` event containing the earned lines summary. If `discountByPoints` is present: also decrement `LoyaltyBalance.current_points` by `pointsUsed` and record a `LoyaltyRedemption` linked to `bookingId`. Earning and redemption commit together in a single transaction, deduplicated via one `processed_events` row for the `eventId`.
 
 ---
 

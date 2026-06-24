@@ -1,6 +1,6 @@
 import { BookingCompleted } from '../../../booking/domain/events/booking-completed.event';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { ProcessBookingCompletedLoyaltyEffectsUseCase } from '../../application/use-cases/process-booking-completed-loyalty-effects/process-booking-completed-loyalty-effects.use-case';
+import { CompleteBookingLoyaltyEffectsUseCase } from '../../application/use-cases/complete-booking-loyalty-effects/complete-booking-loyalty-effects.use-case';
 import { BookingCompletedHandler } from './booking-completed.handler';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -35,13 +35,13 @@ function makeEvent(customerId: string | null = CUSTOMER_ID): BookingCompleted {
 
 describe('BookingCompletedHandler', () => {
   let handler: BookingCompletedHandler;
-  let useCase: jest.Mocked<ProcessBookingCompletedLoyaltyEffectsUseCase>;
+  let useCase: jest.Mocked<CompleteBookingLoyaltyEffectsUseCase>;
   let eventBus: InMemoryEventBus;
 
   beforeEach(() => {
     useCase = {
       execute: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<ProcessBookingCompletedLoyaltyEffectsUseCase>;
+    } as unknown as jest.Mocked<CompleteBookingLoyaltyEffectsUseCase>;
     eventBus = new InMemoryEventBus();
     handler = new BookingCompletedHandler(useCase, eventBus);
   });
@@ -52,11 +52,11 @@ describe('BookingCompletedHandler', () => {
     expect(spy).toHaveBeenCalledWith(
       'BookingCompleted',
       expect.any(Function),
-      ProcessBookingCompletedLoyaltyEffectsUseCase.CONSUMER_NAME,
+      CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
     );
   });
 
-  it('delegates to ProcessBookingCompletedLoyaltyEffectsUseCase with correct DTO', async () => {
+  it('delegates to CompleteBookingLoyaltyEffectsUseCase with correct DTO', async () => {
     const event = makeEvent();
     await handler.handle(event);
 

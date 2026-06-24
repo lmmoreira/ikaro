@@ -925,6 +925,82 @@ X-Correlation-ID: test-corr-complete-discount-001
 
 ###
 
+# ERROR — discountByPoints on a guest booking (customerId == null) → 422 booking-discount-not-available
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/complete
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-complete-discount-002
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 100.00 }
+  ],
+  "afterServicePhotoUrls": [],
+  "discountByPoints": { "pointsUsed": 200, "amountDeducted": 20.00 }
+}
+
+###
+
+# ERROR — tenants.settings.loyalty.pointsPerCurrencyUnit = 0 → 422 booking-discount-disabled
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/complete
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-complete-discount-003
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 100.00 }
+  ],
+  "afterServicePhotoUrls": [],
+  "discountByPoints": { "pointsUsed": 200, "amountDeducted": 20.00 }
+}
+
+###
+
+# ERROR — amountDeducted does not reconcile with pointsUsed/pointsPerCurrencyUnit → 422 booking-discount-mismatch
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/complete
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-complete-discount-004
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 100.00 }
+  ],
+  "afterServicePhotoUrls": [],
+  "discountByPoints": { "pointsUsed": 200, "amountDeducted": 25.00 }
+}
+
+###
+
+# ERROR — amountDeducted exceeds the lines total → 422 booking-discount-exceeds-total
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/complete
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-complete-discount-005
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 10.00 }
+  ],
+  "afterServicePhotoUrls": [],
+  "discountByPoints": { "pointsUsed": 9000, "amountDeducted": 900.00 }
+}
+
+###
+
 # ERROR — booking not APPROVED (PENDING) → 422
 PATCH {{baseUrl}}/bookings/{{bookingId}}/complete
 Content-Type: application/json

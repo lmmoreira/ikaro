@@ -193,6 +193,7 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | updated_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **UNIQUE** | (tenant_id, id) | Composite FK target for `booking_lines` |
+| **CHECK** | `CHK_booking_bookings_discount_consistency` | `discount_points_used`/`discount_amount` must be both `NULL` or both `> 0` |
 | **INDEX** | (tenant_id) | Tenant-scoped base filter |
 | **INDEX** | (tenant_id, status) | Main dashboard query |
 | **INDEX** | (tenant_id, customer_id) | Customer booking history |

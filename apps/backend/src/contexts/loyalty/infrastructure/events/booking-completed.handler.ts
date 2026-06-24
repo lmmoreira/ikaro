@@ -2,14 +2,14 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { BookingCompleted } from '../../../booking/domain/events/booking-completed.event';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
-import { ProcessBookingCompletedLoyaltyEffectsUseCase } from '../../application/use-cases/process-booking-completed-loyalty-effects/process-booking-completed-loyalty-effects.use-case';
+import { CompleteBookingLoyaltyEffectsUseCase } from '../../application/use-cases/complete-booking-loyalty-effects/complete-booking-loyalty-effects.use-case';
 
 @Injectable()
 export class BookingCompletedHandler implements OnModuleInit {
   private readonly logger = new AppLogger(BookingCompletedHandler.name);
 
   constructor(
-    private readonly processLoyaltyEffects: ProcessBookingCompletedLoyaltyEffectsUseCase,
+    private readonly completeBookingLoyaltyEffects: CompleteBookingLoyaltyEffectsUseCase,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
   ) {}
 
@@ -17,7 +17,7 @@ export class BookingCompletedHandler implements OnModuleInit {
     this.eventBus.subscribe<BookingCompleted>(
       'BookingCompleted',
       (event) => this.handle(event),
-      ProcessBookingCompletedLoyaltyEffectsUseCase.CONSUMER_NAME,
+      CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
     );
   }
 
@@ -29,7 +29,7 @@ export class BookingCompletedHandler implements OnModuleInit {
       customerId: event.data.customerId,
     });
     try {
-      await this.processLoyaltyEffects.execute({
+      await this.completeBookingLoyaltyEffects.execute({
         tenantId: event.tenantId,
         eventId: event.eventId,
         correlationId: event.correlationId,
