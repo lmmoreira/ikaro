@@ -12,6 +12,36 @@
 
 @baseUrl = {{backendUrl}}
 
+### GET /customers?search=&limit= — staff/manager searches customers (M13-S12)
+GET {{baseUrl}}/customers?search=joao&limit=20
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+X-Correlation-ID: test-corr-id
+
+###
+
+### GET /customers — list all customers up to limit (search omitted)
+GET {{baseUrl}}/customers?limit=20
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+X-Correlation-ID: test-corr-id
+
+###
+
+### ERROR — CUSTOMER role → 403
+GET {{baseUrl}}/customers?search=joao
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-id
+
+###
+
 ### GET /customers/me — get authenticated customer profile
 GET {{baseUrl}}/customers/me
 X-Tenant-ID: {{tenantId}}
