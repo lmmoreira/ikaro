@@ -5,7 +5,14 @@ import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 
-const DayHoursSchema = z.object({ open: z.string(), close: z.string() }).nullable();
+const HHMM_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+const DayHoursSchema = z
+  .object({
+    open: z.string().regex(HHMM_REGEX),
+    close: z.string().regex(HHMM_REGEX),
+  })
+  .nullable();
 
 const LoyaltySchema = z
   .object({

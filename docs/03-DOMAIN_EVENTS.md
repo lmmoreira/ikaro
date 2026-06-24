@@ -491,7 +491,7 @@ PENDING ◄── BookingInfoSubmitted ◄────────┘
 Customer clicks "Cancel"
         │
         ▼
-  (now + tenants.settings.cancellationWindowHours ≤ appointment ?)
+  (now + tenants.settings.booking.cancellationWindowHours ≤ appointment ?)
         │           │
        NO         YES
         │           │

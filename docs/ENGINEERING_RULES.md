@@ -41,6 +41,27 @@ If a VO's validation can fail in a way the DTO boundary doesn't fully prevent:
 
 ---
 
+## Partial-update types for deeply-nested Zod schemas
+
+`Partial<T>` only makes a type's **outer** keys optional — fields inside a nested object stay fully required. When a Zod schema chains `.partial()` at more than one nesting level (e.g. `settings.businessInfo.address`, where each address field is independently optional), `Partial<TenantSettings>` does **not** match what the schema actually accepts: TypeScript rejects passing the Zod-inferred body into a function typed with `Partial<TenantSettings>`, because `Partial<>` requires `address`, if present, to have every `BusinessInfoAddress` field populated — Zod's `.partial()` on the inner schema allows any subset.
+
+Define an explicit input type that mirrors the schema's real nesting depth instead of reaching for `Partial<T>` on the whole structure:
+
+```typescript
+// Matches what the Zod schema actually produces — not Partial<TenantSettings>
+export interface TenantSettingsUpdateInput {
+  loyalty?: Partial<TenantLoyaltySettings>;       // flat — Partial<> is correct here
+  businessInfo?: {
+    phone?: string | null;
+    address?: Partial<TenantBusinessInfoAddress> | null;  // nested — needs its own Partial<>
+  };
+}
+```
+
+Apply `Partial<>` at the level where the schema actually stops requiring all fields together — one level per `.partial()` in the Zod chain, not once at the top.
+
+---
+
 ## Transactions
 
 Every `save()` in every use case must be wrapped in `ITransactionManager.run()` — including single-aggregate writes. TypeORM's `save()` is a merge (internal SELECT + UPDATE/INSERT); without a transaction those two DB ops are not atomic.

@@ -234,7 +234,7 @@ Currency, language, and regional preferences.
 **Validation Rules:**
 - `currency` must be a valid ISO 4217 code
 - `currencySymbol` must be 1–3 characters
-- `language` must be ISO 639-1 format
+- `language` must be a BCP-47 language tag (e.g. `pt-BR`, not bare ISO 639-1 `pt`)
 - `decimalPlaces` must be 0–8
 
 ---

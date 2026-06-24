@@ -17,37 +17,39 @@ const settingsResponse: TenantSettingsResponse = {
   tenantId: TENANT_ID,
   name: 'Lavacar Estrela',
   slug: 'lavacar-estrela',
-  loyalty: {
-    expiryDays: 180,
-    enableNotifications: true,
-    expiryWarningDays: 7,
-    notificationMinPoints: 10,
-    pointsPerCurrencyUnit: 1,
-  },
-  booking: {
-    cancellationWindowHours: 48,
-    autoApproveEnabled: false,
-    minBookingAdvanceHours: 2,
-    maxBookingAdvanceDays: 60,
-    serviceBufferMinutes: 30,
-    slotGranularityMinutes: 30,
-  },
-  businessHours: {
-    timezone: 'America/Sao_Paulo',
-    monday: { open: '08:00', close: '18:00' },
-    tuesday: { open: '08:00', close: '18:00' },
-    wednesday: { open: '08:00', close: '18:00' },
-    thursday: { open: '08:00', close: '18:00' },
-    friday: { open: '08:00', close: '18:00' },
-    saturday: { open: '09:00', close: '14:00' },
-    sunday: null,
-  },
-  localization: {
-    countryCode: 'BR',
-    currency: 'BRL',
-    currencySymbol: 'R$',
-    language: 'pt-BR',
-    decimalPlaces: 2,
+  settings: {
+    loyalty: {
+      expiryDays: 180,
+      enableNotifications: true,
+      expiryWarningDays: 7,
+      notificationMinPoints: 10,
+      pointsPerCurrencyUnit: 1,
+    },
+    booking: {
+      cancellationWindowHours: 48,
+      autoApproveEnabled: false,
+      minBookingAdvanceHours: 2,
+      maxBookingAdvanceDays: 60,
+      serviceBufferMinutes: 30,
+      slotGranularityMinutes: 30,
+    },
+    businessHours: {
+      timezone: 'America/Sao_Paulo',
+      monday: { open: '08:00', close: '18:00' },
+      tuesday: { open: '08:00', close: '18:00' },
+      wednesday: { open: '08:00', close: '18:00' },
+      thursday: { open: '08:00', close: '18:00' },
+      friday: { open: '08:00', close: '18:00' },
+      saturday: { open: '09:00', close: '14:00' },
+      sunday: null,
+    },
+    localization: {
+      countryCode: 'BR',
+      currency: 'BRL',
+      currencySymbol: 'R$',
+      language: 'pt-BR',
+      decimalPlaces: 2,
+    },
   },
 };
 
@@ -104,8 +106,8 @@ describe('TenantSettingsController (component)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.tenantId).toBe(TENANT_ID);
-      expect(res.body.loyalty.expiryDays).toBe(180);
-      expect(res.body.businessHours.sunday).toBeNull();
+      expect(res.body.settings.loyalty.expiryDays).toBe(180);
+      expect(res.body.settings.businessHours.sunday).toBeNull();
       expect(backendHttpService.get).toHaveBeenCalledWith('/tenants/settings');
     });
   });
@@ -124,14 +126,17 @@ describe('TenantSettingsController (component)', () => {
       expect(backendHttpService.patch).toHaveBeenCalledWith('/tenants/settings', {
         settings: { loyalty: { expiryDays: 365 } },
       });
-      expect(res.body.loyalty.expiryDays).toBe(180);
+      expect(res.body.settings.loyalty.expiryDays).toBe(180);
     });
 
     it('round-trip: PATCH a field then GET reflects the persisted value', async () => {
       setupActiveGuardMock(httpService);
       const updated: TenantSettingsResponse = {
         ...settingsResponse,
-        loyalty: { ...settingsResponse.loyalty, expiryDays: 365 },
+        settings: {
+          ...settingsResponse.settings,
+          loyalty: { ...settingsResponse.settings.loyalty, expiryDays: 365 },
+        },
       };
       backendHttpService.patch.mockResolvedValueOnce(updated);
 
@@ -141,7 +146,7 @@ describe('TenantSettingsController (component)', () => {
         .send({ settings: { loyalty: { expiryDays: 365 } } });
 
       expect(patchRes.status).toBe(200);
-      expect(patchRes.body.loyalty.expiryDays).toBe(365);
+      expect(patchRes.body.settings.loyalty.expiryDays).toBe(365);
 
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockResolvedValueOnce(updated);
@@ -151,7 +156,7 @@ describe('TenantSettingsController (component)', () => {
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
 
       expect(getRes.status).toBe(200);
-      expect(getRes.body.loyalty.expiryDays).toBe(365);
+      expect(getRes.body.settings.loyalty.expiryDays).toBe(365);
     });
 
     it('PATCH /v1/tenants/settings → 400 for an empty settings object', async () => {

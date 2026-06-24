@@ -229,7 +229,7 @@ BookingLine {
   For each line: sets `actualPriceCharged = actualPrices[lineId] ?? priceAtBooking`.
   Computes and caches `totalActualPrice = SUM(lines.actualPriceCharged)`.
   Stores photos. Publishes `BookingCompleted` **with the full line list including `actualPriceCharged`**.
-- `cancelBooking(actor, reason?)` → validates `tenants.settings.cancellationWindowHours` rule, transitions to `CANCELLED`, publishes `BookingCancelled`.
+- `cancelBooking(actor, reason?)` → validates `tenants.settings.booking.cancellationWindowHours` rule, transitions to `CANCELLED`, publishes `BookingCancelled`.
 - `isEligibleForCancellation(now)` → checks the cancellation-window rule.
 - `uploadBeforeServicePhotos(photoUrls)` → appends to `beforeServicePhotoUrls`.
 - `uploadAfterServicePhotos(photoUrls)` → appends to `afterServicePhotoUrls`.

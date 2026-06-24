@@ -862,6 +862,8 @@ describe('RescheduleBookingUseCase', () => {
 > Coverage is **differential** (changed files only), not a global project threshold. SonarCloud computes this on the PR diff. The Jest/Vitest coverage report feeds into SonarCloud.
 >
 > **Playwright/E2E coverage does not feed this gate** — there's no CI step instrumenting E2E runs into the lcov reports SonarCloud reads, and Playwright doesn't even run in CI yet (planned for M16-S06; today it's local-only against the dev stack). A file with real E2E coverage but no Vitest/Jest test (e.g. an async Server Component page/layout that can't be unit-tested — see `apps/web/app/**/page.tsx`, `layout.tsx`, `not-found.tsx`) still needs a `sonar.coverage.exclusions` entry, or the gate fails on 0% regardless of how well the E2E suite actually exercises it. Don't "fix" the exclusion by trying to make the file unit-testable, and don't remove it just because an E2E test now exists for it.
+>
+> **BFF `*.component.spec.ts` files don't feed this gate either, but for a different reason than E2E:** they run as real Jest tests in CI, but `apps/bff`'s `test:cov` script explicitly excludes them (`--testPathIgnorePatterns='component\.spec\.ts'`), since SonarCloud only ingests the unit-test coverage report. Any logic exercised only at the HTTP/component level — a Zod `.refine()` predicate, a deep mapper branch reached only through a specific request body — shows as uncovered even though a real test exists for it (M13-S10). Add a direct unit-level (`.spec.ts`) test that exercises the same code path (e.g. call `schema.safeParse()` directly, or call the mapper function directly) rather than relying on the component spec alone.
 
 ---
 

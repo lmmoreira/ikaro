@@ -739,18 +739,20 @@ Add a read endpoint for tenant settings. Today the only way to read `tenants.set
 **Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md`
 
 **Description:**
-Add the BFF module surface that doesn't exist today. The backend speaks snake_case (`cancellationWindowHours`, `businessHours.monday`, …); everything `apps/web` consumes elsewhere speaks camelCase (per the existing read-only `TenantSettings` interface in `packages/types/src/tenant.dto.ts`). This story is the translation layer, plus the write DTOs that don't exist yet — `tenant.dto.ts` currently has no update/write shape at all.
+Add the BFF module surface that doesn't exist today. At the time this story was drafted, the backend spoke snake_case (`cancellation_window_hours`, `business_hours.monday`, …) while everything `apps/web` consumes elsewhere speaks camelCase — this story was originally the translation layer. Mid-implementation, the backend's `tenants.settings` JSONB was itself normalized to camelCase end-to-end (see the resolved-during-implementation note below), which removed the need for a translation layer entirely — the BFF controller is a thin passthrough, not a mapper.
 
 > ⚠️ **Backend contract changed since this story was drafted (M13-S09):** the backend split tenant identity from settings — `PATCH /tenants` (rename only, `RenameTenantUseCase`/`TenantController`) and `PATCH /tenants/settings` (settings only, no longer accepts `name`). The BFF mirrors this split 1:1 instead of re-combining it into one orchestrated endpoint: **two independent BFF controllers**, each a thin proxy to its one backend counterpart. No fan-out, no multi-call orchestration, no partial-failure semantics to design — each BFF endpoint maps 1:1 to one backend endpoint. If the frontend's settings form needs to save both a renamed tenant and changed settings in one "Salvar" click, that sequencing happens client-side (two API calls), not inside the BFF. `GET /tenants/settings` is unaffected either way — the backend's GET already returns the combined `{ tenantId, name, slug, settings }` shape.
 >
 > ✅ **Resolved during discovery:** `packages/types/src/tenant.dto.ts`'s existing `TenantSettings`/`UpdateTenantSettingsRequest`/`BusinessHours` are stale placeholders with **zero consumers** anywhere in `apps/bff`/`apps/web` (confirmed by grep) — `loyalty` has 1 of 5 real backend fields, `booking` has 2 of 6, the per-day-hours shape uses `{open,close,closed:boolean}` instead of backend's nullable `{open,close}|null`, and `businessInfo`/`notification` are missing entirely. Safe to fully replace, not merge — see the corrected shapes below. Read `apps/bff/src/platform/hotsite-admin.controller.ts` and `platform.module.ts` to copy the exact registration pattern for new controllers in the same module (per CLAUDE.md's BFF naming rule — this belongs in the `platform` module, not a new one).
+>
+> ✅ **Resolved during implementation — backend normalized to camelCase too:** after this story shipped its first version (snake_case↔camelCase mapper in `tenant-settings.mapper.ts`), the backend's `TenantSettingsProps`/`update-tenant-settings.dto.ts` were themselves normalized from snake_case to camelCase (no DB migration needed — `tenants.settings` is a plain `jsonb` column with no transformer; local dev DB dropped and reseeded since there's no production data). This made the BFF's translation layer dead code — `tenant-settings.mapper.ts`/`tenant-settings.types.ts` were deleted; `TenantSettingsController` now types its `BackendHttpService` calls directly against `@ikaro/types`, matching the `services`/`customers`/`staff` controller pattern. Backend's GET/PATCH response is `{ tenantId, name, slug, settings: TenantSettings }` (nested under `settings`, not flattened) — `TenantSettingsResponse` must mirror that nesting, not `extend TenantSettings` directly. `UpdateTenantSettingsRequest.settings` is a hand-written per-category partial type (not `Partial<TenantSettings>` or a blind recursive `DeepPartial`) — see `docs/ENGINEERING_RULES.md` § Partial-update types for deeply-nested Zod schemas for why; it also deliberately omits `notification`, since neither backend nor BFF accept it for writes.
 
 **What to create:**
 
 `apps/bff/src/platform/tenant-settings.controller.ts`:
 ```
-GET   tenants/settings   @Roles('MANAGER')  -> calls backend GET /tenants/settings, maps snake_case -> camelCase, returns TenantSettingsResponse
-PATCH tenants/settings   @Roles('MANAGER')  -> validates UpdateTenantSettingsRequest (Zod, camelCase, settings required); maps camelCase -> snake_case, calls backend PATCH /tenants/settings, maps response back to camelCase
+GET   tenants/settings   @Roles('MANAGER')  -> thin passthrough: backendHttp.get<TenantSettingsResponse>('/tenants/settings')
+PATCH tenants/settings   @Roles('MANAGER')  -> validates UpdateTenantSettingsBodySchema (Zod, camelCase, settings required, .strict()); forwards the validated body as-is to backendHttp.patch<TenantSettingsResponse>('/tenants/settings', body)
 ```
 
 `apps/bff/src/platform/tenant.controller.ts`:
@@ -804,13 +806,13 @@ export interface TenantLocalizationSettings {
 }
 
 export interface TenantBusinessInfoAddress {
-  street: string;
-  number: string;
+  street: string | null;
+  number: string | null;
   complement?: string;
-  neighborhood: string;
-  city: string;
-  state: string;
-  zipCode: string;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
 }
 
 export interface TenantSocialLinks {
@@ -839,14 +841,26 @@ export interface TenantSettings {
   businessInfo?: TenantBusinessInfo;
 }
 
-export interface TenantSettingsResponse extends TenantSettings {
+export interface TenantSettingsResponse {
   tenantId: string;
   name: string;
   slug: string;
+  settings: TenantSettings;
 }
 
 export interface UpdateTenantSettingsRequest {
-  settings: Partial<TenantSettings>;
+  settings: {
+    loyalty?: Partial<TenantLoyaltySettings>;
+    booking?: Partial<TenantBookingSettings>;
+    businessHours?: Partial<TenantBusinessHours>;
+    localization?: Partial<TenantLocalizationSettings>;
+    businessInfo?: {
+      phone?: string | null;
+      email?: string | null;
+      address?: Partial<TenantBusinessInfoAddress> | null;
+      socialLinks?: Partial<TenantSocialLinks> | null;
+    };
+  };
 }
 
 export interface RenameTenantRequest {
@@ -859,7 +873,7 @@ export interface RenameTenantResponse {
 }
 ```
 
-Note: `M13-S12`'s plan already expects to "extend `UpdateTenantSettingsRequest` with `pointsPerCurrencyUnit`" — since the write shape here is a full `Partial<TenantSettings>`, `pointsPerCurrencyUnit` (nested under `settings.loyalty`) is already supported by construction; `M13-S12` likely needs no DTO change at all, only confirm during that story's own discovery.
+Note: `M13-S12`'s plan already expects to "extend `UpdateTenantSettingsRequest` with `pointsPerCurrencyUnit`" — `settings.loyalty` above is already `Partial<TenantLoyaltySettings>`, which includes `pointsPerCurrencyUnit`, so it's already supported by construction; `M13-S12` likely needs no DTO change at all, only confirm during that story's own discovery.
 
 `.http` blocks in `apps/bff/http/platform/tenant-settings.http` and `apps/bff/http/platform/tenant.http`.
 

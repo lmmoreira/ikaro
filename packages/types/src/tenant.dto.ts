@@ -46,13 +46,13 @@ export interface TenantLocalizationSettings {
 }
 
 export interface TenantBusinessInfoAddress {
-  street: string;
-  number: string;
+  street: string | null;
+  number: string | null;
   complement?: string;
-  neighborhood: string;
-  city: string;
-  state: string;
-  zipCode: string;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
 }
 
 export interface TenantSocialLinks {
@@ -81,14 +81,26 @@ export interface TenantSettings {
   businessInfo?: TenantBusinessInfo;
 }
 
-export interface TenantSettingsResponse extends TenantSettings {
+export interface TenantSettingsResponse {
   tenantId: string;
   name: string;
   slug: string;
+  settings: TenantSettings;
 }
 
 export interface UpdateTenantSettingsRequest {
-  settings: Partial<TenantSettings>;
+  settings: {
+    loyalty?: Partial<TenantLoyaltySettings>;
+    booking?: Partial<TenantBookingSettings>;
+    businessHours?: Partial<TenantBusinessHours>;
+    localization?: Partial<TenantLocalizationSettings>;
+    businessInfo?: {
+      phone?: string | null;
+      email?: string | null;
+      address?: Partial<TenantBusinessInfoAddress> | null;
+      socialLinks?: Partial<TenantSocialLinks> | null;
+    };
+  };
 }
 
 export interface RenameTenantRequest {
