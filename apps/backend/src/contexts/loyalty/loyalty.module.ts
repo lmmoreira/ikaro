@@ -14,8 +14,8 @@ import { PROCESSED_EVENT_REPOSITORY } from './application/ports/processed-event-
 import { GetLoyaltyBalanceUseCase } from './application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
 import { GetLoyaltyEntriesUseCase } from './application/use-cases/get-loyalty-entries/get-loyalty-entries.use-case';
 import { GetLoyaltyRedemptionsUseCase } from './application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
-import { RecordLoyaltyEntriesUseCase } from './application/use-cases/record-loyalty-entries/record-loyalty-entries.use-case';
 import { RedeemPointsUseCase } from './application/use-cases/redeem-points/redeem-points.use-case';
+import { CompleteBookingLoyaltyEffectsUseCase } from './application/use-cases/complete-booking-loyalty-effects/complete-booking-loyalty-effects.use-case';
 import { ExpirePointsUseCase } from './application/use-cases/expire-points/expire-points.use-case';
 import { NotifyExpiringPointsUseCase } from './application/use-cases/notify-expiring-points/notify-expiring-points.use-case';
 import { BalanceExpiryLogEntity } from './infrastructure/entities/balance-expiry-log.entity';
@@ -59,13 +59,13 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
     { provide: LOYALTY_PLATFORM_PORT, useClass: LoyaltyPlatformAdapter },
     { provide: LOYALTY_BOOKING_PORT, useClass: LoyaltyBookingAdapter },
     CustomerRoleGuard,
-    RecordLoyaltyEntriesUseCase,
     GetLoyaltyBalanceUseCase,
     GetLoyaltyEntriesUseCase,
     GetLoyaltyRedemptionsUseCase,
     RedeemPointsUseCase,
     ExpirePointsUseCase,
     NotifyExpiringPointsUseCase,
+    CompleteBookingLoyaltyEffectsUseCase,
     BookingCompletedHandler,
   ],
   exports: [

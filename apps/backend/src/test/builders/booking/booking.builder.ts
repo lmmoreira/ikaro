@@ -29,6 +29,8 @@ export class BookingBuilder {
   private totalDurationMins = 30;
   private totalPrice = Money.from(100, 'BRL');
   private totalActualPrice: Money | null = null;
+  private discountPointsUsed: number | null = null;
+  private discountAmount: Money | null = null;
   private beforeServicePhotoUrls: string[] = [];
   private afterServicePhotoUrls: string[] = [];
   private adminNotes: string | null = null;
@@ -114,6 +116,14 @@ export class BookingBuilder {
     this.totalActualPrice = price;
     return this;
   }
+  withDiscountPointsUsed(points: number | null): this {
+    this.discountPointsUsed = points;
+    return this;
+  }
+  withDiscountAmount(amount: Money | null): this {
+    this.discountAmount = amount;
+    return this;
+  }
   withApprovedAt(at: Date | null): this {
     this.approvedAt = at;
     return this;
@@ -161,6 +171,8 @@ export class BookingBuilder {
       totalDurationMins: this.totalDurationMins,
       totalPrice: this.totalPrice,
       totalActualPrice: this.totalActualPrice,
+      discountPointsUsed: this.discountPointsUsed,
+      discountAmount: this.discountAmount,
       lines: this.lines,
       beforeServicePhotoUrls: this.beforeServicePhotoUrls,
       afterServicePhotoUrls: this.afterServicePhotoUrls,

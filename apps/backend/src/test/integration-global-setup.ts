@@ -14,6 +14,7 @@ import { CreateBookingScheduleOpenings1748000000013 } from '../contexts/booking/
 import { CreateBookingBookings1748000000014 } from '../contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings';
 import { AddBookingVersion1748000000015 } from '../contexts/booking/infrastructure/migrations/1748000000015-AddBookingVersion';
 import { AddBookingNotes1748400000002 } from '../contexts/booking/infrastructure/migrations/1748400000002-AddBookingNotes';
+import { AddBookingDiscountByPoints1748400000004 } from '../contexts/booking/infrastructure/migrations/1748400000004-AddBookingDiscountByPoints';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -97,6 +98,7 @@ export default async function globalSetup(): Promise<void> {
       CreateBookingBookings1748000000014,
       AddBookingVersion1748000000015,
       AddBookingNotes1748400000002,
+      AddBookingDiscountByPoints1748400000004,
       CreateLoyaltyLoyaltyEntries1748000000016,
       CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017,
       AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003,

@@ -60,6 +60,40 @@ describe('Money', () => {
     });
   });
 
+  describe('subtract()', () => {
+    it('returns a new Money instance', () => {
+      const a = Money.from(100, 'BRL');
+      const b = Money.from(40, 'BRL');
+      const result = a.subtract(b);
+      expect(result).not.toBe(a);
+      expect(result.format('pt-BR')).toBe('R$\u00A060,00');
+    });
+
+    it('does not mutate the original', () => {
+      const a = Money.from(100, 'BRL');
+      a.subtract(Money.from(40, 'BRL'));
+      expect(a.format('pt-BR')).toBe('R$\u00A0100,00');
+    });
+
+    it('handles floating point correctly (no binary precision errors)', () => {
+      expect(Money.from(0.3, 'BRL').subtract(Money.from(0.1, 'BRL')).format('pt-BR')).toBe(
+        'R$\u00A00,20',
+      );
+    });
+
+    it('allows the result to go negative (callers decide how to handle it)', () => {
+      expect(Money.from(10, 'BRL').subtract(Money.from(40, 'BRL')).format('pt-BR')).toBe(
+        '-R$\u00A030,00',
+      );
+    });
+
+    it('throws when currencies differ', () => {
+      const a = Money.from(100, 'BRL');
+      const b = Money.from(100, 'USD');
+      expect(() => a.subtract(b)).toThrow();
+    });
+  });
+
   describe('construction', () => {
     it('throws on NaN input', () => {
       expect(() => Money.from(NaN, 'BRL')).toThrow();

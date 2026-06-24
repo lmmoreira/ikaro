@@ -14,6 +14,12 @@ export const CompleteBookingBodySchema = z.object({
     .optional()
     .default([]),
   adminNotes: z.string().optional(),
+  discountByPoints: z
+    .object({
+      pointsUsed: z.number().int().positive(),
+      amountDeducted: z.number().positive(),
+    })
+    .optional(),
 });
 
 export type CompleteBookingBody = z.infer<typeof CompleteBookingBodySchema>;
@@ -23,4 +29,5 @@ export interface CompleteBookingDto {
   lines: { lineId: string; actualPriceCharged: number }[];
   afterServicePhotoUrls: string[];
   adminNotes?: string;
+  discountByPoints?: { pointsUsed: number; amountDeducted: number };
 }

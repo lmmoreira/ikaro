@@ -5,6 +5,7 @@ import { BookingLineBuilder } from '../../../test/builders/booking/booking-line.
 import { BookingLineInputBuilder } from '../../../test/builders/booking/booking-line-input.builder';
 import { Booking, BookingStatus, RequestBookingInput } from './booking.aggregate';
 import {
+  BookingDiscountExceedsTotalError,
   BookingInfoMessageTooShortError,
   BookingLineRequiredError,
   BookingRejectionReasonTooShortError,
@@ -322,6 +323,61 @@ describe('Booking.complete()', () => {
     expect(() => booking.complete(STAFF_ID, new Map(), [], CORRELATION_ID)).toThrow(
       InvalidBookingTransitionError,
     );
+  });
+
+  it('applies a discountByPoints discount to totalActualPrice and persists the snapshot', () => {
+    const line = new BookingLineBuilder().withPriceAtBooking(Money.from(100, 'BRL')).build();
+    const booking = new BookingBuilder()
+      .withStatus(BookingStatus.APPROVED)
+      .withLines([line])
+      .withTotalPrice(Money.from(100, 'BRL'))
+      .build();
+
+    booking.complete(STAFF_ID, new Map(), [], CORRELATION_ID, undefined, {
+      pointsUsed: 200,
+      amountDeducted: 20,
+    });
+
+    expect(booking.totalActualPrice?.amount.toFixed(2)).toBe('80.00');
+    expect(booking.discountPointsUsed).toBe(200);
+    expect(booking.discountAmount?.amount.toFixed(2)).toBe('20.00');
+    const event = booking.domainEvents[0] as BookingCompleted;
+    expect(event.data.discountByPoints).toEqual({
+      pointsUsed: 200,
+      amountDeducted: { amount: '20.00', currency: 'BRL' },
+    });
+  });
+
+  it('leaves discountPointsUsed/discountAmount null when no discount is applied', () => {
+    const line = new BookingLineBuilder().withPriceAtBooking(Money.from(100, 'BRL')).build();
+    const booking = new BookingBuilder()
+      .withStatus(BookingStatus.APPROVED)
+      .withLines([line])
+      .withTotalPrice(Money.from(100, 'BRL'))
+      .build();
+
+    booking.complete(STAFF_ID, new Map(), [], CORRELATION_ID);
+
+    expect(booking.discountPointsUsed).toBeNull();
+    expect(booking.discountAmount).toBeNull();
+    const event = booking.domainEvents[0] as BookingCompleted;
+    expect(event.data.discountByPoints).toBeUndefined();
+  });
+
+  it('throws BookingDiscountExceedsTotalError when amountDeducted exceeds the lines total', () => {
+    const line = new BookingLineBuilder().withPriceAtBooking(Money.from(100, 'BRL')).build();
+    const booking = new BookingBuilder()
+      .withStatus(BookingStatus.APPROVED)
+      .withLines([line])
+      .withTotalPrice(Money.from(100, 'BRL'))
+      .build();
+
+    expect(() =>
+      booking.complete(STAFF_ID, new Map(), [], CORRELATION_ID, undefined, {
+        pointsUsed: 2000,
+        amountDeducted: 150,
+      }),
+    ).toThrow(BookingDiscountExceedsTotalError);
   });
 });
 

@@ -43,6 +43,13 @@ export class Money extends ValueObject<MoneyProps> {
     return Money.from(this.amount.plus(other.amount), this.currency);
   }
 
+  subtract(other: Money): Money {
+    if (this.currency !== other.currency) {
+      throw new Error(`Cannot subtract ${other.currency} from ${this.currency}`);
+    }
+    return Money.from(this.amount.minus(other.amount), this.currency);
+  }
+
   format(locale: string): string {
     return formatMoney(this.amount.toFixed(2), locale, this.currency);
   }

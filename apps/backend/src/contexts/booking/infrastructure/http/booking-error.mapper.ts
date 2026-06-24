@@ -5,6 +5,10 @@ import {
   AvailabilityDateInPastError,
   AvailabilityRangeInvalidError,
   BookingCustomerNotFoundError,
+  BookingDiscountDisabledError,
+  BookingDiscountExceedsTotalError,
+  BookingDiscountMismatchError,
+  BookingDiscountNotAvailableError,
   BookingDomainError,
   BookingForbiddenError,
   BookingInfoMessageTooShortError,
@@ -96,6 +100,20 @@ export function mapBookingError(err: unknown): never {
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.CONFLICT);
+  }
+  if (
+    err instanceof BookingDiscountNotAvailableError ||
+    err instanceof BookingDiscountDisabledError ||
+    err instanceof BookingDiscountMismatchError ||
+    err instanceof BookingDiscountExceedsTotalError
+  ) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Unprocessable Entity',
+      status: HttpStatus.UNPROCESSABLE_ENTITY,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
   }
   if (err instanceof CancellationWindowExpiredError || err instanceof BookingScheduledInPastError) {
     const body: ProblemDetail = {

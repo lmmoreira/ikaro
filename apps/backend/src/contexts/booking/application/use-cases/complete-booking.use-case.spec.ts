@@ -7,6 +7,10 @@ import { BookingLineBuilder } from '../../../../test/builders/booking/booking-li
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
+  BookingDiscountDisabledError,
+  BookingDiscountExceedsTotalError,
+  BookingDiscountMismatchError,
+  BookingDiscountNotAvailableError,
   BookingNotFoundError,
   BookingPhotoNotUploadedError,
   CompleteBookingLinesIncompleteError,
@@ -15,6 +19,15 @@ import {
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { CompleteBookingUseCase } from './complete-booking.use-case';
 import { Money } from '../../../../shared/value-objects/money';
+import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
+import type { TenantSettingsProps } from '../../../platform/domain/value-objects/tenant-settings.vo';
+
+const CUSTOMER_ID = '40000000-0000-4000-8000-000000000301';
+
+function settingsWithPointsPerCurrencyUnit(rate: number): TenantSettingsProps {
+  const defaults = TenantSettings.default().toJSON();
+  return { ...defaults, loyalty: { ...defaults.loyalty, pointsPerCurrencyUnit: rate } };
+}
 
 const TENANT_A = '10000000-0000-4000-8000-000000000301';
 const TENANT_B = '10000000-0000-4000-8000-000000000302';
@@ -22,7 +35,11 @@ const STAFF_ID = '20000000-0000-4000-8000-000000000301';
 const LINE_ID_1 = '30000000-0000-4000-8000-000000000301';
 const LINE_ID_2 = '30000000-0000-4000-8000-000000000302';
 
-function makeApprovedBooking(tenantId = TENANT_A, lineIds = [LINE_ID_1]) {
+function makeApprovedBooking(
+  tenantId = TENANT_A,
+  lineIds = [LINE_ID_1],
+  customerId: string | null = null,
+) {
   const lines = lineIds.map((lineId) =>
     new BookingLineBuilder()
       .withLineId(lineId)
@@ -33,6 +50,7 @@ function makeApprovedBooking(tenantId = TENANT_A, lineIds = [LINE_ID_1]) {
   return new BookingBuilder()
     .withTenantId(tenantId)
     .withStatus(BookingStatus.APPROVED)
+    .withCustomerId(customerId)
     .withLines(lines)
     .withTotalPrice(Money.from(lineIds.length * 100, 'BRL'))
     .build();
@@ -41,13 +59,18 @@ function makeApprovedBooking(tenantId = TENANT_A, lineIds = [LINE_ID_1]) {
 function makeDto(
   bookingId: string,
   lineIds = [LINE_ID_1],
-  overrides: { afterServicePhotoUrls?: string[]; adminNotes?: string } = {},
+  overrides: {
+    afterServicePhotoUrls?: string[];
+    adminNotes?: string;
+    discountByPoints?: { pointsUsed: number; amountDeducted: number };
+  } = {},
 ) {
   return {
     bookingId,
     lines: lineIds.map((lineId) => ({ lineId, actualPriceCharged: 80 })),
     afterServicePhotoUrls: overrides.afterServicePhotoUrls ?? [],
     adminNotes: overrides.adminNotes,
+    discountByPoints: overrides.discountByPoints,
   };
 }
 
@@ -57,22 +80,27 @@ describe('CompleteBookingUseCase', () => {
   let storageService: InMemoryStorageService;
   let useCase: CompleteBookingUseCase;
 
-  beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
-    eventBus = new InMemoryEventBus();
-    storageService = new InMemoryStorageService();
+  function makeUseCase(pointsPerCurrencyUnit = 0): CompleteBookingUseCase {
     const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withActorId(STAFF_ID)
       .withActorRole('MANAGER')
+      .withSettings(settingsWithPointsPerCurrencyUnit(pointsPerCurrencyUnit))
       .build();
-    useCase = new CompleteBookingUseCase(
+    return new CompleteBookingUseCase(
       ctx,
       bookingRepo,
       new InMemoryTransactionManager(),
       eventBus,
       new PhotoExistenceService(storageService),
     );
+  }
+
+  beforeEach(() => {
+    bookingRepo = new InMemoryBookingRepository();
+    eventBus = new InMemoryEventBus();
+    storageService = new InMemoryStorageService();
+    useCase = makeUseCase();
   });
 
   it('transitions APPROVED → COMPLETED and returns result', async () => {
@@ -218,5 +246,94 @@ describe('CompleteBookingUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(useCase.execute(makeDto(booking.id))).rejects.toThrow(BookingNotFoundError);
+  });
+
+  describe('discountByPoints', () => {
+    it('applies the discount and persists it on the booking when valid', async () => {
+      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      await bookingRepo.save(booking);
+      const discountUseCase = makeUseCase(10);
+
+      const result = await discountUseCase.execute(
+        makeDto(booking.id, [LINE_ID_1], {
+          discountByPoints: { pointsUsed: 200, amountDeducted: 20 },
+        }),
+      );
+
+      expect(result.totalActualPrice.amount).toBe(60);
+      const saved = await bookingRepo.findById(booking.id, TENANT_A);
+      expect(saved!.discountPointsUsed).toBe(200);
+      expect(saved!.discountAmount?.amount.toFixed(2)).toBe('20.00');
+    });
+
+    it('throws BookingDiscountNotAvailableError for a guest booking (no customerId)', async () => {
+      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], null);
+      await bookingRepo.save(booking);
+      const discountUseCase = makeUseCase(10);
+
+      await expect(
+        discountUseCase.execute(
+          makeDto(booking.id, [LINE_ID_1], {
+            discountByPoints: { pointsUsed: 200, amountDeducted: 20 },
+          }),
+        ),
+      ).rejects.toThrow(BookingDiscountNotAvailableError);
+    });
+
+    it('throws BookingDiscountDisabledError when pointsPerCurrencyUnit is 0', async () => {
+      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      await bookingRepo.save(booking);
+
+      await expect(
+        useCase.execute(
+          makeDto(booking.id, [LINE_ID_1], {
+            discountByPoints: { pointsUsed: 200, amountDeducted: 20 },
+          }),
+        ),
+      ).rejects.toThrow(BookingDiscountDisabledError);
+    });
+
+    it('throws BookingDiscountMismatchError when amountDeducted does not reconcile', async () => {
+      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      await bookingRepo.save(booking);
+      const discountUseCase = makeUseCase(10);
+
+      await expect(
+        discountUseCase.execute(
+          makeDto(booking.id, [LINE_ID_1], {
+            discountByPoints: { pointsUsed: 200, amountDeducted: 25 },
+          }),
+        ),
+      ).rejects.toThrow(BookingDiscountMismatchError);
+    });
+
+    it('throws BookingDiscountMismatchError for a sub-cent amountDeducted that would round up to a different value', async () => {
+      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      await bookingRepo.save(booking);
+      const discountUseCase = makeUseCase(10);
+
+      // 200 pts / 10 = 20 exactly; 20.009 rounds to 20.01, which must not slip through.
+      await expect(
+        discountUseCase.execute(
+          makeDto(booking.id, [LINE_ID_1], {
+            discountByPoints: { pointsUsed: 200, amountDeducted: 20.009 },
+          }),
+        ),
+      ).rejects.toThrow(BookingDiscountMismatchError);
+    });
+
+    it('throws BookingDiscountExceedsTotalError when amountDeducted exceeds the lines total', async () => {
+      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      await bookingRepo.save(booking);
+      const discountUseCase = makeUseCase(1);
+
+      await expect(
+        discountUseCase.execute(
+          makeDto(booking.id, [LINE_ID_1], {
+            discountByPoints: { pointsUsed: 90, amountDeducted: 90 },
+          }),
+        ),
+      ).rejects.toThrow(BookingDiscountExceedsTotalError);
+    });
   });
 });

@@ -1,6 +1,10 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
 import {
+  BookingDiscountDisabledError,
+  BookingDiscountExceedsTotalError,
+  BookingDiscountMismatchError,
+  BookingDiscountNotAvailableError,
   BookingDomainError,
   BookingForbiddenError,
   BookingNotFoundError,
@@ -96,6 +100,30 @@ describe('mapBookingError', () => {
     const err = call(new BookingPhotoNotUploadedError('tenants/t1/bookings/b1/photo.jpg'));
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+  });
+
+  it('maps BookingDiscountNotAvailableError to 422', () => {
+    const err = call(new BookingDiscountNotAvailableError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps BookingDiscountDisabledError to 422', () => {
+    const err = call(new BookingDiscountDisabledError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps BookingDiscountMismatchError to 422', () => {
+    const err = call(new BookingDiscountMismatchError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+  });
+
+  it('maps BookingDiscountExceedsTotalError to 422', () => {
+    const err = call(new BookingDiscountExceedsTotalError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });
 
   it('maps generic BookingDomainError to 400', () => {

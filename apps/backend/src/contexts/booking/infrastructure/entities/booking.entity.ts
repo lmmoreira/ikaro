@@ -58,6 +58,18 @@ export class BookingEntity {
   })
   totalActualPriceAmount!: string | null;
 
+  @Column({ name: 'discount_points_used', type: 'int', nullable: true })
+  discountPointsUsed!: number | null;
+
+  @Column({
+    name: 'discount_amount',
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  discountAmount!: string | null;
+
   @Column({ name: 'before_service_photo_urls', type: 'text', array: true })
   beforeServicePhotoUrls!: string[];
 

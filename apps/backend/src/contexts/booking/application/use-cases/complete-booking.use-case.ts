@@ -6,7 +6,11 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { Money } from '../../../../shared/value-objects/money';
+import { Booking } from '../../domain/booking.aggregate';
 import {
+  BookingDiscountDisabledError,
+  BookingDiscountMismatchError,
+  BookingDiscountNotAvailableError,
   BookingNotFoundError,
   CompleteBookingLinesIncompleteError,
 } from '../../domain/errors/booking-domain.error';
@@ -50,6 +54,8 @@ export class CompleteBookingUseCase {
 
     await this.photoExistenceService.assertPhotosUploaded(dto.afterServicePhotoUrls, tenantId);
 
+    this.validateDiscount(dto, booking);
+
     const lineActualPrices = new Map(
       dto.lines.map((l) => [l.lineId, Money.from(l.actualPriceCharged, currency)]),
     );
@@ -60,6 +66,7 @@ export class CompleteBookingUseCase {
       dto.afterServicePhotoUrls,
       correlationId,
       dto.adminNotes,
+      dto.discountByPoints,
     );
 
     await this.txManager.run(async () => {
@@ -79,5 +86,22 @@ export class CompleteBookingUseCase {
         currency: booking.totalActualPrice!.currency,
       },
     };
+  }
+
+  private validateDiscount(dto: CompleteBookingDto, booking: Booking): void {
+    if (!dto.discountByPoints) return;
+
+    if (booking.customerId === null) throw new BookingDiscountNotAvailableError();
+
+    const { pointsPerCurrencyUnit } = this.tenantContext.settings.loyalty;
+    if (pointsPerCurrencyUnit === 0) throw new BookingDiscountDisabledError();
+
+    const expectedAmountDeducted = Math.floor(
+      dto.discountByPoints.pointsUsed / pointsPerCurrencyUnit,
+    );
+    const roundedAmountDeducted = Math.round(dto.discountByPoints.amountDeducted * 100) / 100;
+    if (roundedAmountDeducted !== expectedAmountDeducted) {
+      throw new BookingDiscountMismatchError();
+    }
   }
 }

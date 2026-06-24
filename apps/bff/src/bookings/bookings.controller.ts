@@ -108,6 +108,12 @@ export const CompleteBookingBodySchema = z.object({
     .optional()
     .default([]),
   adminNotes: z.string().trim().min(1).max(500).optional(),
+  discountByPoints: z
+    .object({
+      pointsUsed: z.number().int().positive(),
+      amountDeducted: z.number().positive(),
+    })
+    .optional(),
 });
 
 type CancelAsAdminBody = z.infer<typeof CancelAsAdminBodySchema>;

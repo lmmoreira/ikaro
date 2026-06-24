@@ -22,6 +22,7 @@ interface BookingCompletedData extends Record<string, unknown> {
   totalPrice: { amount: string; currency: string };
   totalActualPrice: { amount: string; currency: string };
   lines: BookingCompletedLinePayload[];
+  discountByPoints?: { pointsUsed: number; amountDeducted: { amount: string; currency: string } };
 }
 
 export class BookingCompleted extends DomainEvent<BookingCompletedData> {

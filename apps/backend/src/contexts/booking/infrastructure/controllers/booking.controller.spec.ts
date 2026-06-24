@@ -1065,5 +1065,20 @@ describe('BookingController', () => {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
+
+    it('forwards discountByPoints to the use case (rejected here since the tenant rate is 0)', async () => {
+      const booking = approvedBookingWithLine();
+      await bookingRepo.save(booking);
+
+      const err = await controller
+        .complete(booking.id, {
+          lines: [{ lineId: LINE_ID, actualPriceCharged: 100 }],
+          afterServicePhotoUrls: [],
+          discountByPoints: { pointsUsed: 100, amountDeducted: 10 },
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    });
   });
 });

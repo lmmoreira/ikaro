@@ -5,7 +5,11 @@ import {
   LoyaltyTenantSettings,
 } from '../../application/ports/loyalty-platform.port';
 
-const DEFAULTS: LoyaltyTenantSettings = { expiryDays: 180, notificationMinPoints: 50 };
+const DEFAULTS: LoyaltyTenantSettings = {
+  expiryDays: 180,
+  notificationMinPoints: 50,
+  pointsPerCurrencyUnit: 0,
+};
 
 @Injectable()
 export class LoyaltyPlatformAdapter implements ILoyaltyPlatformPort {
@@ -17,6 +21,7 @@ export class LoyaltyPlatformAdapter implements ILoyaltyPlatformPort {
       return {
         expiryDays: result.settings.loyalty.expiryDays,
         notificationMinPoints: result.settings.loyalty.notificationMinPoints,
+        pointsPerCurrencyUnit: result.settings.loyalty.pointsPerCurrencyUnit,
       };
     } catch {
       return { ...DEFAULTS };

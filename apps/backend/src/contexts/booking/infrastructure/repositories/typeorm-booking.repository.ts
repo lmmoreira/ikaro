@@ -192,6 +192,8 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       totalActualPrice: entity.totalActualPriceAmount
         ? Money.from(entity.totalActualPriceAmount, currency)
         : null,
+      discountPointsUsed: entity.discountPointsUsed,
+      discountAmount: entity.discountAmount ? Money.from(entity.discountAmount, currency) : null,
       lines,
       beforeServicePhotoUrls: entity.beforeServicePhotoUrls,
       afterServicePhotoUrls: entity.afterServicePhotoUrls,
@@ -235,6 +237,8 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     entity.totalDurationMins = booking.totalDurationMins;
     entity.totalPriceAmount = booking.totalPrice.amount.toFixed(2);
     entity.totalActualPriceAmount = booking.totalActualPrice?.amount.toFixed(2) ?? null;
+    entity.discountPointsUsed = booking.discountPointsUsed;
+    entity.discountAmount = booking.discountAmount?.amount.toFixed(2) ?? null;
     entity.beforeServicePhotoUrls = booking.beforeServicePhotoUrls;
     entity.afterServicePhotoUrls = booking.afterServicePhotoUrls;
     entity.adminNotes = booking.adminNotes;
