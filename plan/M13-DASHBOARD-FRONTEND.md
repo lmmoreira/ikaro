@@ -1335,7 +1335,7 @@ export interface CompleteBookingRequest {
 
 ---
 
-### M13-S13 — Staff auth flow overhaul + login pages
+### M13-S13 — Staff auth flow overhaul + login pages ✅ Done
 
 *(formerly M124-S02 — expanded during discovery to full-stack)*
 
