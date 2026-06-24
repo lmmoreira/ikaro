@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
 
@@ -27,9 +27,9 @@ jobs:
         with:
           version: 11.1.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
@@ -153,7 +153,7 @@ jobs:
 
           # wait-on tcp: checks TCP connectivity on all interfaces (IPv4 + IPv6),
           # avoiding the localhost → :: (IPv6 only) binding issue in GitHub Actions.
-          npx -y wait-on \
+          pnpm exec wait-on \
             tcp:localhost:3001 \
             tcp:localhost:3002 \
             tcp:localhost:3000 \

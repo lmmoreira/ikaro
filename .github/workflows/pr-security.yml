@@ -17,7 +17,7 @@ jobs:
     name: Dependency Review
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Dependency review
         uses: actions/dependency-review-action@v4
         with:
@@ -31,7 +31,7 @@ jobs:
       pull-requests: write
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
@@ -44,15 +44,15 @@ jobs:
     name: Snyk SCA
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3.0.0
         with:
           version: 11.1.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
@@ -78,10 +78,20 @@ jobs:
           - service: web
             dockerfile: apps/web/Dockerfile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Docker Buildx
+        run: docker buildx create --use --driver docker-container
 
       - name: Build ${{ matrix.service }} image
-        run: docker build -f ${{ matrix.dockerfile }} -t ikaro-${{ matrix.service }}:scan .
+        run: |
+          docker buildx build \
+            --cache-from type=gha,scope=trivy-${{ matrix.service }} \
+            --cache-to type=gha,scope=trivy-${{ matrix.service }},mode=max \
+            --load \
+            -f ${{ matrix.dockerfile }} \
+            -t ikaro-${{ matrix.service }}:scan \
+            .
 
       - name: Trivy scan — ${{ matrix.service }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -156,7 +166,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Detect Terraform changes
         id: filter
