@@ -18,6 +18,8 @@ export class BookingEntityBuilder {
   private totalDurationMins = 30;
   private totalPriceAmount = '100.00';
   private readonly totalActualPriceAmount: string | null = null;
+  private readonly discountPointsUsed: number | null = null;
+  private readonly discountAmount: string | null = null;
   private readonly beforeServicePhotoUrls: string[] = [];
   private readonly afterServicePhotoUrls: string[] = [];
   private readonly adminNotes: string | null = null;
@@ -115,6 +117,8 @@ export class BookingEntityBuilder {
     entity.totalDurationMins = this.totalDurationMins;
     entity.totalPriceAmount = this.totalPriceAmount;
     entity.totalActualPriceAmount = this.totalActualPriceAmount;
+    entity.discountPointsUsed = this.discountPointsUsed;
+    entity.discountAmount = this.discountAmount;
     entity.beforeServicePhotoUrls = this.beforeServicePhotoUrls;
     entity.afterServicePhotoUrls = this.afterServicePhotoUrls;
     entity.adminNotes = this.adminNotes;
