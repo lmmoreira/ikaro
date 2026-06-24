@@ -18,6 +18,8 @@ describe('TypeOrmCustomerRepository', () => {
           provide: getRepositoryToken(CustomerEntity),
           useValue: {
             findOne: jest.fn(),
+            find: jest.fn(),
+            findAndCount: jest.fn(),
             save: jest.fn(),
             createQueryBuilder: jest.fn(),
           },
@@ -86,5 +88,45 @@ describe('TypeOrmCustomerRepository', () => {
     expect(ormRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'a@b.com', tenantId: 'tenant-1' }),
     );
+  });
+
+  describe('searchByTenant()', () => {
+    const entity = new CustomerEntityBuilder()
+      .withTenantId('tenant-1')
+      .withEmail('joao@example.com')
+      .withName('João Silva')
+      .build();
+
+    it('returns rows and total when search term is provided', async () => {
+      (ormRepo.findAndCount as jest.Mock).mockResolvedValue([[entity], 1]);
+
+      const result = await repo.searchByTenant('tenant-1', 'João', 20);
+
+      expect(ormRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 20, order: { name: 'ASC' } }),
+      );
+      expect(result.total).toBe(1);
+      expect(result.rows[0]?.name).toBe('João Silva');
+      expect(result.rows[0]?.email).toBe('joao@example.com');
+    });
+
+    it('uses plain tenantId where clause when search is undefined', async () => {
+      (ormRepo.findAndCount as jest.Mock).mockResolvedValue([[entity], 1]);
+
+      await repo.searchByTenant('tenant-1', undefined, 10);
+
+      expect(ormRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { tenantId: 'tenant-1' }, take: 10 }),
+      );
+    });
+
+    it('returns empty rows and zero total when no customers match', async () => {
+      (ormRepo.findAndCount as jest.Mock).mockResolvedValue([[], 0]);
+
+      const result = await repo.searchByTenant('tenant-1', 'zzz', 20);
+
+      expect(result.rows).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
   });
 });

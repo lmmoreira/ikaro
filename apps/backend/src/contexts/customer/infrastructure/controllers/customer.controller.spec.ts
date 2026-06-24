@@ -83,4 +83,37 @@ describe('CustomerController', () => {
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     });
   });
+
+  describe('search()', () => {
+    it('returns matching customers for the caller tenant', async () => {
+      const result = await controller.search('Test', '20');
+      expect(result.total).toBe(1);
+      expect(result.items[0]?.name).toBe('Test Customer');
+    });
+
+    it('returns all customers when search is omitted', async () => {
+      const result = await controller.search(undefined, '20');
+      expect(result.total).toBe(1);
+    });
+
+    it('defaults to limit 20 when limit param is undefined', async () => {
+      const result = await controller.search(undefined, undefined);
+      expect(result.total).toBe(1);
+    });
+
+    it('respects the limit param', async () => {
+      for (let i = 0; i < 3; i++) {
+        await repo.save(
+          new CustomerBuilder()
+            .withTenantId(TENANT_A)
+            .withName(`Extra ${i}`)
+            .withEmail(`e${i}@x.com`)
+            .build(),
+        );
+      }
+      const result = await controller.search(undefined, '2');
+      expect(result.items).toHaveLength(2);
+      expect(result.total).toBe(4);
+    });
+  });
 });
