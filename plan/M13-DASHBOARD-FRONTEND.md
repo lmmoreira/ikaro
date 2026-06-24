@@ -730,7 +730,7 @@ Add a read endpoint for tenant settings. Today the only way to read `tenants.set
 
 ---
 
-### M13-S10 — BFF: proxy `GET`/`PATCH /tenants/settings` + `PATCH /tenants` (camelCase translation layer)
+### M13-S10 — BFF: proxy `GET`/`PATCH /tenants/settings` + `PATCH /tenants` (camelCase translation layer) ✅ Done
 
 *(formerly M127-S02)*
 
