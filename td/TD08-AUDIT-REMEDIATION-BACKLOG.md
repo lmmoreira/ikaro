@@ -460,11 +460,11 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-024 — CI efficiency: dedupe test runs, docker cache, trivy
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Now · **Audit ref:** §9.3, §9.6
-**Status:** ☐ Not started
+**Status:** ✅ Done — PR #46
 
 **What's wrong:** Backend/bff/web coverage suites run **twice** per PR (test gate + Sonar job). No Docker layer caching (3 images built from scratch). `trivy ignore-unfixed: true` ships unpatched vulns silently. Node/pnpm versions drift between root `engines` and CI.
 **Fix:** Generate coverage once, pass via artifacts to the Sonar job. Add `buildx` + `cache-from: type=gha` to image builds. Track unfixed-vuln exceptions on a schedule. Pin node/pnpm once (`.nvmrc` + `packageManager`).
-**Acceptance:** ☐ Each coverage suite runs once per PR; Docker builds use layer cache; versions are single-sourced.
+**Acceptance:** ✅ Each coverage suite runs once per PR; Docker builds use layer cache; versions are single-sourced.
 
 ### AUD-025 — Public-image CDN delivery vs signed URLs
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Pre-deploy · **Audit ref:** §8.5
