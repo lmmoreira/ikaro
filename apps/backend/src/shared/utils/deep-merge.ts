@@ -8,7 +8,7 @@ type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } 
  * Key behaviours:
  * - Nested objects are merged recursively (not replaced wholesale).
  * - A `null` override value replaces the base value (important for nullable
- *   JSONB fields such as `business_hours.sunday = null`).
+ *   JSONB fields such as `businessHours.sunday = null`).
  * - Arrays are replaced, not concatenated (JSONB layout arrays must be
  *   replaced in their entirety when updated).
  * - The original objects are never mutated.

@@ -1112,7 +1112,7 @@ export class CronController {
 }
 ```
 
-> **"6 AM per tenant" logic lives in the handler, not in Cloud Scheduler.** Cloud Scheduler fires the `/cron/reminders` endpoint every 30 minutes (UTC). The `BookingReminderJob.run()` queries the `tenants` table, converts the current UTC time to each tenant's local timezone (`settings.business_hours.timezone`), and only processes tenants whose local time is between 06:00 and 06:30. This guarantees each tenant gets exactly one reminder per day regardless of timezone.
+> **"6 AM per tenant" logic lives in the handler, not in Cloud Scheduler.** Cloud Scheduler fires the `/cron/reminders` endpoint every 30 minutes (UTC). The `BookingReminderJob.run()` queries the `tenants` table, converts the current UTC time to each tenant's local timezone (`settings.businessHours.timezone`), and only processes tenants whose local time is between 06:00 and 06:30. This guarantees each tenant gets exactly one reminder per day regardless of timezone.
 
 ### Terraform — `scheduler.tf`
 

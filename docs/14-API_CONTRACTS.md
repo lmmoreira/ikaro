@@ -190,7 +190,7 @@ Used by the Next.js hotsite renderer to fetch full branding and layout for a ten
   ```
 - **Module types:** `HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTACT`
 - **`enabled: false`** modules are included in the response; the frontend decides to skip them
-- **`business`** (M12-S06) — resolved from `tenants.settings.business_info` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6), camelCased. Always present; any of `phone`/`email`/`address` may be `null` if the admin hasn't filled them in. Consumed by the `CONTACT` module — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT.
+- **`business`** (M12-S06) — resolved from `tenants.settings.businessInfo` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6), camelCased. Always present; any of `phone`/`email`/`address` may be `null` if the admin hasn't filled them in. Consumed by the `CONTACT` module — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT.
 - **`localization`** (M12-S09) — `language` resolved from `tenants.settings.localization.language` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §5), e.g. `"pt-BR"`. Always present, falling back to `"pt-BR"` when `isPublished: false`. Drives the hotsite's `og:locale` (converted to `pt_BR` format).
 - **`seo`** (M12-S09) — tenant-configured `title`/`description` overrides, edited via `PATCH /v1/tenants/hotsite` (see "Hotsite Admin Management" below). Both fields are `string | null`; `null` means the admin hasn't set an override. When `null`, the frontend (`buildHotsiteMetadata()`) falls back to a generated `<title>`/meta description derived from `tenant.name` and `business.address` (city/state).
 - **`isPublished: false`** — still a `200`, not a `404`. Minimal payload: `branding` reflects the admin's configured (but unpublished) branding — needed so the "Em breve" placeholder (M12-S08) can render with the tenant's `var(--ba-*)` tokens. `layout: []` and `business` (all fields `null`) are stubbed — this public, unauthenticated endpoint never exposes a tenant's draft layout/services/gallery/contact info before they publish. (The admin's full draft state remains available via the authenticated `GET /v1/tenants/hotsite` below.)
@@ -609,7 +609,7 @@ Response `200`:
 
 Errors:
 - `400` — serviceId not found, inactive, or from wrong tenant
-- `422` — `from > to`, or range exceeds `max_booking_advance_days` (default 90 days)
+- `422` — `from > to`, or range exceeds `maxBookingAdvanceDays` (default 90 days)
 
 Constraints: past dates return `{ available: false, slotCount: 0 }` without an error (for seamless calendar rendering).
 
@@ -674,7 +674,7 @@ Auth: JWT + `MANAGER|STAFF` on all write endpoints.
   }
   ```
   - `201` on success
-  - `422` if date is past OR day-of-week is already open in `business_hours`
+  - `422` if date is past OR day-of-week is already open in `businessHours`
   - `409` if an opening already exists for that date
 
 - `DELETE /schedule/openings/:id` → remove opening; day reverts to default-closed
@@ -733,7 +733,7 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
     ```json
     { "currentPoints": 150, "nextExpiryDate": "2026-11-15T00:00:00.000Z", "nextExpiryPoints": 30 }
     ```
-  - **BFF note (M13-S06):** `GET /v1/loyalty/balance` adds a `conversionRate` field (`CustomerLoyaltyBalanceResponse`) on top of this backend response — `points_per_currency_unit`, hardcoded `0` until `M13-S11`/`M13-S12` land.
+  - **BFF note (M13-S06):** `GET /v1/loyalty/balance` adds a `conversionRate` field (`CustomerLoyaltyBalanceResponse`) on top of this backend response — `pointsPerCurrencyUnit`, hardcoded `0` until `M13-S11`/`M13-S12` land.
   - `currentPoints`: read from `loyalty_balances.current_points` (O(1) — no SUM).
   - `nextExpiryDate`: ISO-8601 datetime string (`Date.toISOString()`) of the earliest `expires_at` among active entries; `null` if no active entries.
   - `nextExpiryPoints`: sum of points expiring on `nextExpiryDate`; `null` if no active entries.

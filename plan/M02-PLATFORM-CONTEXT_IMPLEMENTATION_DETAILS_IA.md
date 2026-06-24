@@ -40,7 +40,7 @@
 | PhoneNumber VO | `src/shared/value-objects/phone-number.vo.ts` | Brazilian 10–11 digits; strips non-digits on `create()`; `isValid()` for conditional construction; getter: `.value`; `format()` |
 | Slug VO | `src/shared/value-objects/slug.vo.ts` | `/^[a-z0-9-]+$/`; `Slug.create(str)` / `Slug.isValid(str)`; getter: `.value` — used for `Tenant.slug` |
 | Timezone VO | `src/shared/value-objects/timezone.vo.ts` | `Intl.supportedValuesOf('timeZone')` check; getter: `.value` |
-| TimeOfDay VO | `src/shared/value-objects/time-of-day.vo.ts` | HH:MM string; `isBefore()` comparison; getter: `.value` — used in TenantSettings business_hours |
+| TimeOfDay VO | `src/shared/value-objects/time-of-day.vo.ts` | HH:MM string; `isBefore()` comparison; getter: `.value` — used in TenantSettings businessHours |
 | HexColor VO | `src/shared/value-objects/hex-color.vo.ts` | `/#[0-9A-Fa-f]{6}/`; normalises to uppercase; getter: `.value` — used in HotsiteConfig branding |
 | Address VO | `src/shared/value-objects/address.ts` | `create()` validates CEP; `reconstitute()` skips validation (for DB reads); `toJSON()` → `AddressProps`; `AddressProps` exported |
 
@@ -134,7 +134,7 @@ Never `DATABASE_URL`.
 **#8 — deepMerge: null overrides are preserved, arrays are replaced**  
 `deepMerge({ saturday: { open:'09:00', close:'17:00' } }, { saturday: null })` → `{ saturday: null }`.  
 `deepMerge({ layout: ['HERO','GALLERY'] }, { layout: ['HERO'] })` → `{ layout: ['HERO'] }`.  
-This is important for business_hours day closure and HotsiteConfig layout updates.
+This is important for businessHours day closure and HotsiteConfig layout updates.
 
 **#9 — PlatformModule never exports repository tokens**  
 Repository tokens (`TENANT_REPOSITORY`, `HOTSITE_CONFIG_REPOSITORY`) are only injected within PlatformModule's own providers. Cross-context data flows through BFF orchestration or domain events. Never add these to `exports`.

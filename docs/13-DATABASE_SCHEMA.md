@@ -265,8 +265,8 @@ One row per service unit. Snapshots from `booking.services` at request time — 
 
 **Rules:**
 - `end_time > start_time`
-- The day-of-week for `date` must be `null` in `business_hours` (enforced by use case, not DB)
-- A `ScheduleOpening` takes priority over `ScheduleClosure` and `business_hours` in the availability algorithm
+- The day-of-week for `date` must be `null` in `businessHours` (enforced by use case, not DB)
+- A `ScheduleOpening` takes priority over `ScheduleClosure` and `businessHours` in the availability algorithm
 
 ---
 
@@ -287,7 +287,7 @@ One immutable row per `BookingLine` completed for an authenticated customer. App
 | service_id | UUID | NOT NULL — no FK (cross-context ref to `booking.services`; denormalised for per-service queries) |
 | points | INT | NOT NULL, CHECK > 0 — = `booking_lines.points_value_at_booking` at completion |
 | earned_at | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT now() |
-| expires_at | TIMESTAMP WITH TIME ZONE | NOT NULL — `earned_at + tenants.settings.loyalty.expiry_days` |
+| expires_at | TIMESTAMP WITH TIME ZONE | NOT NULL — `earned_at + tenants.settings.loyalty.expiryDays` |
 | **UNIQUE** | (tenant_id, booking_line_id) | Idempotency — replaying `BookingCompleted` is a no-op |
 | **INDEX** | (tenant_id, customer_id, expires_at) | Active balance query |
 | **INDEX** | (tenant_id, customer_id, service_id, expires_at) | Per-service breakdown |

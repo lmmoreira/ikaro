@@ -1,9 +1,9 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { z } from 'zod';
+import { CustomerProfileResponse } from '@ikaro/types';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
-import { CustomerProfileResponse } from './customers.types';
 
 const AddressSchema = z.object({
   street: z.string().min(1),

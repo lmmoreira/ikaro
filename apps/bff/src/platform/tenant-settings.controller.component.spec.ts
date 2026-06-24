@@ -1,5 +1,6 @@
 import { HttpException, INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { TenantSettingsResponse } from '@ikaro/types';
 import {
   MockBackendHttpService,
   MockHttpService,
@@ -11,45 +12,42 @@ import {
   request,
   setupActiveGuardMock,
 } from '../test/component-test.helpers';
-import { RawTenantSettingsResponse } from './tenant-settings.types';
 
-const rawResponse: RawTenantSettingsResponse = {
+const settingsResponse: TenantSettingsResponse = {
   tenantId: TENANT_ID,
   name: 'Lavacar Estrela',
   slug: 'lavacar-estrela',
-  settings: {
-    loyalty: {
-      expiry_days: 180,
-      enable_notifications: true,
-      expiry_warning_days: 7,
-      notification_min_points: 10,
-      points_per_currency_unit: 1,
-    },
-    booking: {
-      cancellation_window_hours: 48,
-      auto_approve_enabled: false,
-      min_booking_advance_hours: 2,
-      max_booking_advance_days: 60,
-      service_buffer_minutes: 30,
-      slot_granularity_minutes: 30,
-    },
-    business_hours: {
-      timezone: 'America/Sao_Paulo',
-      monday: { open: '08:00', close: '18:00' },
-      tuesday: { open: '08:00', close: '18:00' },
-      wednesday: { open: '08:00', close: '18:00' },
-      thursday: { open: '08:00', close: '18:00' },
-      friday: { open: '08:00', close: '18:00' },
-      saturday: { open: '09:00', close: '14:00' },
-      sunday: null,
-    },
-    localization: {
-      country_code: 'BR',
-      currency: 'BRL',
-      currency_symbol: 'R$',
-      language: 'pt-BR',
-      decimal_places: 2,
-    },
+  loyalty: {
+    expiryDays: 180,
+    enableNotifications: true,
+    expiryWarningDays: 7,
+    notificationMinPoints: 10,
+    pointsPerCurrencyUnit: 1,
+  },
+  booking: {
+    cancellationWindowHours: 48,
+    autoApproveEnabled: false,
+    minBookingAdvanceHours: 2,
+    maxBookingAdvanceDays: 60,
+    serviceBufferMinutes: 30,
+    slotGranularityMinutes: 30,
+  },
+  businessHours: {
+    timezone: 'America/Sao_Paulo',
+    monday: { open: '08:00', close: '18:00' },
+    tuesday: { open: '08:00', close: '18:00' },
+    wednesday: { open: '08:00', close: '18:00' },
+    thursday: { open: '08:00', close: '18:00' },
+    friday: { open: '08:00', close: '18:00' },
+    saturday: { open: '09:00', close: '14:00' },
+    sunday: null,
+  },
+  localization: {
+    countryCode: 'BR',
+    currency: 'BRL',
+    currencySymbol: 'R$',
+    language: 'pt-BR',
+    decimalPlaces: 2,
   },
 };
 
@@ -96,9 +94,9 @@ describe('TenantSettingsController (component)', () => {
   });
 
   describe('getSettings', () => {
-    it('GET /v1/tenants/settings → 200, proxies to backend and maps the response to camelCase', async () => {
+    it('GET /v1/tenants/settings → 200, proxies to backend unchanged', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValueOnce(rawResponse);
+      backendHttpService.get.mockResolvedValueOnce(settingsResponse);
 
       const res = await request(app.getHttpServer())
         .get('/v1/tenants/settings')
@@ -113,9 +111,9 @@ describe('TenantSettingsController (component)', () => {
   });
 
   describe('updateSettings', () => {
-    it('PATCH /v1/tenants/settings → 200, maps the body to snake_case and the response back to camelCase', async () => {
+    it('PATCH /v1/tenants/settings → 200, forwards the parsed body and returns the backend response', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.patch.mockResolvedValueOnce(rawResponse);
+      backendHttpService.patch.mockResolvedValueOnce(settingsResponse);
 
       const res = await request(app.getHttpServer())
         .patch('/v1/tenants/settings')
@@ -124,19 +122,16 @@ describe('TenantSettingsController (component)', () => {
 
       expect(res.status).toBe(200);
       expect(backendHttpService.patch).toHaveBeenCalledWith('/tenants/settings', {
-        settings: { loyalty: { expiry_days: 365 } },
+        settings: { loyalty: { expiryDays: 365 } },
       });
       expect(res.body.loyalty.expiryDays).toBe(180);
     });
 
-    it('round-trip: PATCH a field then GET reflects the persisted value, both correctly mapped', async () => {
+    it('round-trip: PATCH a field then GET reflects the persisted value', async () => {
       setupActiveGuardMock(httpService);
-      const updated: RawTenantSettingsResponse = {
-        ...rawResponse,
-        settings: {
-          ...rawResponse.settings,
-          loyalty: { ...rawResponse.settings.loyalty, expiry_days: 365 },
-        },
+      const updated: TenantSettingsResponse = {
+        ...settingsResponse,
+        loyalty: { ...settingsResponse.loyalty, expiryDays: 365 },
       };
       backendHttpService.patch.mockResolvedValueOnce(updated);
 

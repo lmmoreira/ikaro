@@ -4,8 +4,6 @@ import { TenantSettingsResponse } from '@ikaro/types';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
-import { toBackendSettingsBody, toTenantSettingsResponse } from './tenant-settings.mapper';
-import { RawTenantSettingsResponse } from './tenant-settings.types';
 
 const DayHoursSchema = z.object({ open: z.string(), close: z.string() }).nullable();
 
@@ -103,21 +101,15 @@ export class TenantSettingsController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
   @Get()
-  async getSettings(): Promise<TenantSettingsResponse> {
-    const raw = await this.backendHttp.get<RawTenantSettingsResponse>('/tenants/settings');
-    return toTenantSettingsResponse(raw);
+  getSettings(): Promise<TenantSettingsResponse> {
+    return this.backendHttp.get<TenantSettingsResponse>('/tenants/settings');
   }
 
   @Patch()
   @HttpCode(HttpStatus.OK)
-  async updateSettings(
+  updateSettings(
     @Body(new ZodValidationPipe(UpdateTenantSettingsBodySchema)) body: UpdateTenantSettingsBody,
   ): Promise<TenantSettingsResponse> {
-    const backendBody = toBackendSettingsBody(body.settings);
-    const raw = await this.backendHttp.patch<RawTenantSettingsResponse>(
-      '/tenants/settings',
-      backendBody,
-    );
-    return toTenantSettingsResponse(raw);
+    return this.backendHttp.patch<TenantSettingsResponse>('/tenants/settings', body);
   }
 }

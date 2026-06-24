@@ -66,11 +66,11 @@ describe('TenantSettingsController', () => {
     tenantContext.tenantId = tenant.id;
 
     const result = await controller.updateSettings({
-      settings: { loyalty: { expiry_days: 365 } },
+      settings: { loyalty: { expiryDays: 365 } },
     });
 
-    expect(result.settings.loyalty.expiry_days).toBe(365);
-    expect(result.settings.loyalty.enable_notifications).toBe(true);
+    expect(result.settings.loyalty.expiryDays).toBe(365);
+    expect(result.settings.loyalty.enableNotifications).toBe(true);
     expect(result.tenantId).toBe(tenant.id);
   });
 
@@ -79,7 +79,7 @@ describe('TenantSettingsController', () => {
 
     expect.assertions(2);
     try {
-      await controller.updateSettings({ settings: { loyalty: { expiry_days: 90 } } });
+      await controller.updateSettings({ settings: { loyalty: { expiryDays: 90 } } });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
@@ -94,7 +94,7 @@ describe('TenantSettingsController', () => {
     expect.assertions(2);
     try {
       await controller.updateSettings({
-        settings: { business_hours: { timezone: 'Not/AZone' } },
+        settings: { businessHours: { timezone: 'Not/AZone' } },
       });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
@@ -110,7 +110,7 @@ describe('TenantSettingsController', () => {
 
     expect.assertions(2);
     try {
-      await controller.updateSettings({ settings: { loyalty: { expiry_days: 90 } } });
+      await controller.updateSettings({ settings: { loyalty: { expiryDays: 90 } } });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);

@@ -279,7 +279,7 @@ Small car wash businesses face challenges:
 | **Country** | Brazil 🇧🇷 |
 | **Language** | Portuguese (pt-BR) — all customer-facing text, email templates, and UI copy |
 | **Currency** | BRL (R$) — displayed as `R$ 1.234,56` (Brazilian number format) |
-| **Timezone** | One timezone per tenant, stored in `settings.business_hours.timezone`. Default: `America/Sao_Paulo` (UTC-3). All DB timestamps in UTC. |
+| **Timezone** | One timezone per tenant, stored in `settings.businessHours.timezone`. Default: `America/Sao_Paulo` (UTC-3). All DB timestamps in UTC. |
 | **Compliance** | Brazil — all customer data stored in Brazil or Brazilian-approved regions. |
 
 ---

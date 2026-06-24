@@ -19,7 +19,7 @@ describe('UpdateTenantSettingsUseCase', () => {
 
   it('throws TenantNotFoundError when the tenant does not exist', async () => {
     await expect(
-      useCase.execute('non-existent-id', { settings: { loyalty: { expiry_days: 90 } } }),
+      useCase.execute('non-existent-id', { settings: { loyalty: { expiryDays: 90 } } }),
     ).rejects.toThrow(TenantNotFoundError);
   });
 
@@ -28,38 +28,38 @@ describe('UpdateTenantSettingsUseCase', () => {
     await tenantRepo.save(tenant);
 
     const result = await useCase.execute(tenant.id, {
-      settings: { loyalty: { expiry_days: 90 } },
+      settings: { loyalty: { expiryDays: 90 } },
     });
 
-    expect(result.settings.loyalty.expiry_days).toBe(90);
-    expect(result.settings.loyalty.enable_notifications).toBe(true);
-    expect(result.settings.loyalty.expiry_warning_days).toBe(7);
-    expect(result.settings.booking.cancellation_window_hours).toBe(48);
+    expect(result.settings.loyalty.expiryDays).toBe(90);
+    expect(result.settings.loyalty.enableNotifications).toBe(true);
+    expect(result.settings.loyalty.expiryWarningDays).toBe(7);
+    expect(result.settings.booking.cancellationWindowHours).toBe(48);
   });
 
-  it('merges partial booking settings without touching loyalty or business_hours', async () => {
+  it('merges partial booking settings without touching loyalty or businessHours', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
     const result = await useCase.execute(tenant.id, {
-      settings: { booking: { cancellation_window_hours: 24 } },
+      settings: { booking: { cancellationWindowHours: 24 } },
     });
 
-    expect(result.settings.booking.cancellation_window_hours).toBe(24);
-    expect(result.settings.booking.max_booking_advance_days).toBe(90);
-    expect(result.settings.loyalty.expiry_days).toBe(180);
+    expect(result.settings.booking.cancellationWindowHours).toBe(24);
+    expect(result.settings.booking.maxBookingAdvanceDays).toBe(90);
+    expect(result.settings.loyalty.expiryDays).toBe(180);
   });
 
-  it('updates business_hours timezone and keeps existing day hours', async () => {
+  it('updates businessHours timezone and keeps existing day hours', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
     const result = await useCase.execute(tenant.id, {
-      settings: { business_hours: { timezone: 'America/Manaus' } },
+      settings: { businessHours: { timezone: 'America/Manaus' } },
     });
 
-    expect(result.settings.business_hours.timezone).toBe('America/Manaus');
-    expect(result.settings.business_hours.monday).toEqual({ open: '09:00', close: '18:00' });
+    expect(result.settings.businessHours.timezone).toBe('America/Manaus');
+    expect(result.settings.businessHours.monday).toEqual({ open: '09:00', close: '18:00' });
   });
 
   it('closes a day by setting it to null', async () => {
@@ -67,38 +67,38 @@ describe('UpdateTenantSettingsUseCase', () => {
     await tenantRepo.save(tenant);
 
     const result = await useCase.execute(tenant.id, {
-      settings: { business_hours: { saturday: null } },
+      settings: { businessHours: { saturday: null } },
     });
 
-    expect(result.settings.business_hours.saturday).toBeNull();
-    expect(result.settings.business_hours.monday).toEqual({ open: '09:00', close: '18:00' });
+    expect(result.settings.businessHours.saturday).toBeNull();
+    expect(result.settings.businessHours.monday).toEqual({ open: '09:00', close: '18:00' });
   });
 
-  it('merges partial business_info without wiping other settings', async () => {
+  it('merges partial businessInfo without wiping other settings', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
     const result = await useCase.execute(tenant.id, {
-      settings: { business_info: { phone: '+5511987654321' } },
+      settings: { businessInfo: { phone: '+5511987654321' } },
     });
 
-    expect(result.settings.business_info).toEqual({
+    expect(result.settings.businessInfo).toEqual({
       phone: '+5511987654321',
       email: null,
       address: null,
-      social_links: null,
+      socialLinks: null,
     });
-    expect(result.settings.loyalty.expiry_days).toBe(180);
+    expect(result.settings.loyalty.expiryDays).toBe(180);
   });
 
-  it('sets social_links in business_info', async () => {
+  it('sets socialLinks in businessInfo', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
     const result = await useCase.execute(tenant.id, {
       settings: {
-        business_info: {
-          social_links: {
+        businessInfo: {
+          socialLinks: {
             whatsapp: '+5511987654321',
             instagram: 'https://instagram.com/lavacar',
             facebook: 'https://facebook.com/lavacar',
@@ -107,22 +107,22 @@ describe('UpdateTenantSettingsUseCase', () => {
       },
     });
 
-    expect(result.settings.business_info!.social_links).toEqual({
+    expect(result.settings.businessInfo!.socialLinks).toEqual({
       whatsapp: '+5511987654321',
       instagram: 'https://instagram.com/lavacar',
       facebook: 'https://facebook.com/lavacar',
     });
-    expect(result.settings.business_info!.phone).toBeNull();
+    expect(result.settings.businessInfo!.phone).toBeNull();
   });
 
-  it('partial social_links update preserves untouched fields', async () => {
+  it('partial socialLinks update preserves untouched fields', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
     await useCase.execute(tenant.id, {
       settings: {
-        business_info: {
-          social_links: {
+        businessInfo: {
+          socialLinks: {
             whatsapp: '+5511987654321',
             instagram: 'https://instagram.com/lavacar',
             facebook: 'https://facebook.com/lavacar',
@@ -132,23 +132,23 @@ describe('UpdateTenantSettingsUseCase', () => {
     });
 
     const result = await useCase.execute(tenant.id, {
-      settings: { business_info: { social_links: { whatsapp: '+5511999999999' } } },
+      settings: { businessInfo: { socialLinks: { whatsapp: '+5511999999999' } } },
     });
 
-    expect(result.settings.business_info!.social_links).toEqual({
+    expect(result.settings.businessInfo!.socialLinks).toEqual({
       whatsapp: '+5511999999999',
       instagram: 'https://instagram.com/lavacar',
       facebook: 'https://facebook.com/lavacar',
     });
   });
 
-  it('throws PlatformDomainError for an invalid business_info.phone', async () => {
+  it('throws PlatformDomainError for an invalid businessInfo.phone', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
     await expect(
       useCase.execute(tenant.id, {
-        settings: { business_info: { phone: '123' } },
+        settings: { businessInfo: { phone: '123' } },
       }),
     ).rejects.toThrow(PlatformDomainError);
   });
@@ -159,18 +159,18 @@ describe('UpdateTenantSettingsUseCase', () => {
 
     await expect(
       useCase.execute(tenant.id, {
-        settings: { business_hours: { timezone: 'Not/AZone' } },
+        settings: { businessHours: { timezone: 'Not/AZone' } },
       }),
     ).rejects.toThrow(PlatformDomainError);
   });
 
-  it('throws PlatformDomainError when expiry_warning_days >= expiry_days', async () => {
+  it('throws PlatformDomainError when expiryWarningDays >= expiryDays', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
     await expect(
       useCase.execute(tenant.id, {
-        settings: { loyalty: { expiry_warning_days: 180 } },
+        settings: { loyalty: { expiryWarningDays: 180 } },
       }),
     ).rejects.toThrow(PlatformDomainError);
   });
@@ -180,11 +180,11 @@ describe('UpdateTenantSettingsUseCase', () => {
     await tenantRepo.save(tenant);
 
     await useCase.execute(tenant.id, {
-      settings: { loyalty: { expiry_days: 365 } },
+      settings: { loyalty: { expiryDays: 365 } },
     });
 
     const reloaded = await tenantRepo.findById(tenant.id);
-    expect(reloaded!.settings.loyalty.expiry_days).toBe(365);
+    expect(reloaded!.settings.loyalty.expiryDays).toBe(365);
   });
 
   it('tenant isolation — updating tenant A does not affect tenant B', async () => {
@@ -194,11 +194,11 @@ describe('UpdateTenantSettingsUseCase', () => {
     await tenantRepo.save(tenantB);
 
     await useCase.execute(tenantA.id, {
-      settings: { loyalty: { expiry_days: 100 } },
+      settings: { loyalty: { expiryDays: 100 } },
     });
 
     const reloadedB = await tenantRepo.findById(tenantB.id);
-    expect(reloadedB!.settings.loyalty.expiry_days).toBe(180);
+    expect(reloadedB!.settings.loyalty.expiryDays).toBe(180);
   });
 
   it('throws TenantInactiveError when updating settings on an inactive tenant', async () => {
@@ -207,7 +207,7 @@ describe('UpdateTenantSettingsUseCase', () => {
     await tenantRepo.save(tenant);
 
     await expect(
-      useCase.execute(tenant.id, { settings: { loyalty: { expiry_days: 90 } } }),
+      useCase.execute(tenant.id, { settings: { loyalty: { expiryDays: 90 } } }),
     ).rejects.toThrow(TenantInactiveError);
   });
 });

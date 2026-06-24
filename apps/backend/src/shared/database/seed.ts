@@ -41,22 +41,22 @@ const IDS = {
   loyaltyEntry: '00000000-0000-7000-8007-000000000001',
 };
 
-// Matches TenantSettingsProps exactly — snake_case keys, null for closed days
+// Matches TenantSettingsProps exactly — camelCase keys, null for closed days
 const TENANT_SETTINGS_BR = {
   loyalty: {
-    expiry_days: 180,
-    enable_notifications: true,
-    expiry_warning_days: 7,
+    expiryDays: 180,
+    enableNotifications: true,
+    expiryWarningDays: 7,
   },
   booking: {
-    cancellation_window_hours: 48,
-    auto_approve_enabled: false,
-    min_booking_advance_hours: 0,
-    max_booking_advance_days: 90,
-    service_buffer_minutes: 60,
-    slot_granularity_minutes: 30,
+    cancellationWindowHours: 48,
+    autoApproveEnabled: false,
+    minBookingAdvanceHours: 0,
+    maxBookingAdvanceDays: 90,
+    serviceBufferMinutes: 60,
+    slotGranularityMinutes: 30,
   },
-  business_hours: {
+  businessHours: {
     timezone: 'America/Sao_Paulo',
     monday: { open: '08:00', close: '18:00' },
     tuesday: { open: '08:00', close: '18:00' },
@@ -67,28 +67,28 @@ const TENANT_SETTINGS_BR = {
     sunday: null,
   },
   localization: {
-    country_code: 'BR',
+    countryCode: 'BR',
     currency: 'BRL',
     language: 'pt-BR',
-    decimal_places: 2,
+    decimalPlaces: 2,
   },
   notification: {
-    from_email: null,
+    fromEmail: null,
   },
 };
 
 // Ikaro (TD02-S09) — en/USD/America/New_York, exercises the US CountrySpec branch.
 const TENANT_SETTINGS_US = {
   ...TENANT_SETTINGS_BR,
-  business_hours: {
-    ...TENANT_SETTINGS_BR.business_hours,
+  businessHours: {
+    ...TENANT_SETTINGS_BR.businessHours,
     timezone: 'America/New_York',
   },
   localization: {
-    country_code: 'US',
+    countryCode: 'US',
     currency: 'USD',
     language: 'en',
-    decimal_places: 2,
+    decimalPlaces: 2,
   },
 };
 

@@ -15,8 +15,8 @@ function makeTenantResult(overrides: { expiryDays?: number; notificationMinPoint
       ...tenant.settings.toJSON(),
       loyalty: {
         ...tenant.settings.toJSON().loyalty,
-        expiry_days: overrides.expiryDays ?? 365,
-        notification_min_points: overrides.notificationMinPoints ?? 100,
+        expiryDays: overrides.expiryDays ?? 365,
+        notificationMinPoints: overrides.notificationMinPoints ?? 100,
       },
     },
   };

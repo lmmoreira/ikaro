@@ -42,7 +42,7 @@ export class UpdateCustomerProfileUseCase {
     } else if (dto.defaultAddress === null) {
       defaultAddress = null;
     } else {
-      const countryCode = this.tenantContext.settings.localization.country_code;
+      const countryCode = this.tenantContext.settings.localization.countryCode;
       defaultAddress = Address.create(
         { ...dto.defaultAddress, complement: dto.defaultAddress.complement ?? undefined },
         countrySpec(countryCode).address,

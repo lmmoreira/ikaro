@@ -19,9 +19,9 @@ describe('PlatformTenantSettingsAdapter', () => {
     const settings = await adapter.getSettings(tenant.id);
 
     expect(settings.localization.currency).toBe('BRL');
-    expect(settings.localization.country_code).toBe('BR');
-    expect(settings.business_hours.timezone).toBe('America/Sao_Paulo');
-    expect(settings.booking.cancellation_window_hours).toBe(48);
+    expect(settings.localization.countryCode).toBe('BR');
+    expect(settings.businessHours.timezone).toBe('America/Sao_Paulo');
+    expect(settings.booking.cancellationWindowHours).toBe(48);
   });
 
   it('propagates TenantNotFoundError when tenant does not exist', async () => {

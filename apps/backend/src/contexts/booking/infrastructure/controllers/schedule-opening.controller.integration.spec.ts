@@ -14,7 +14,7 @@ const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
 
 // Default TenantSettings has sunday=null (closed) and Mon–Sat open.
 const CLOSED_DAY = nextWeekday(0); // Sunday
-const OPEN_DAY = nextWeekday(1); // Monday — already open in business_hours
+const OPEN_DAY = nextWeekday(1); // Monday — already open in businessHours
 
 describe('ScheduleOpeningController (integration)', () => {
   let app: INestApplication;
@@ -85,7 +85,7 @@ describe('ScheduleOpeningController (integration)', () => {
       expect(body.status).toBe(422);
     });
 
-    it('returns 422 when day is already open in business_hours', async () => {
+    it('returns 422 when day is already open in businessHours', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/schedule/openings')
         .set(actorHeaders(tenantAId, MANAGER_ID))

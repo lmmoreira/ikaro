@@ -20,10 +20,10 @@ The `tenants.settings` column is a JSONB field that stores per-tenant configurat
 {
   "loyalty": { ... },
   "booking": { ... },
-  "business_hours": { ... },
+  "businessHours": { ... },
   "notification": { ... },
   "localization": { ... },
-  "business_info": { ... }
+  "businessInfo": { ... }
 }
 ```
 
@@ -37,32 +37,32 @@ Controls how the loyalty system behaves for this tenant.
 
 | Key | Type | Default | Min | Max | Description |
 |-----|------|---------|-----|-----|-------------|
-| `expiry_days` | integer | 180 | 1 | 3650 | Days until loyalty points expire after earning |
-| `enable_notifications` | boolean | true | — | — | Send email when points expiring soon |
-| `expiry_warning_days` | integer | 7 | 1 | 90 | Look-ahead window for expiring-soon check (weekly cron) |
-| `notification_min_points` | integer | 50 | 0 | 10000 | Minimum active point balance a customer must have for the `PointsExpiringSoon` notification's threshold check (used by `notify-expiring-points.use-case.ts` and `loyalty-platform.port.ts`) |
-| `points_per_currency_unit` **(planned — not yet implemented in code; see M13-S11)** | integer | 0 | 0 | 10000 | How many points equal 1 currency unit (e.g. `10` = 10 pts → R$1 / $1). `0` = loyalty redemption feature disabled — the discount strip will not appear during booking completion (UC-009 A6). |
+| `expiryDays` | integer | 180 | 1 | 3650 | Days until loyalty points expire after earning |
+| `enableNotifications` | boolean | true | — | — | Send email when points expiring soon |
+| `expiryWarningDays` | integer | 7 | 1 | 90 | Look-ahead window for expiring-soon check (weekly cron) |
+| `notificationMinPoints` | integer | 50 | 0 | 10000 | Minimum active point balance a customer must have for the `PointsExpiringSoon` notification's threshold check (used by `notify-expiring-points.use-case.ts` and `loyalty-platform.port.ts`) |
+| `pointsPerCurrencyUnit` **(planned — not yet implemented in code; see M13-S11)** | integer | 0 | 0 | 10000 | How many points equal 1 currency unit (e.g. `10` = 10 pts → R$1 / $1). `0` = loyalty redemption feature disabled — the discount strip will not appear during booking completion (UC-009 A6). |
 
 **Example:**
 ```json
 {
   "loyalty": {
-    "expiry_days": 180,
-    "enable_notifications": true,
-    "expiry_warning_days": 7,
-    "notification_min_points": 50,
-    "points_per_currency_unit": 10
+    "expiryDays": 180,
+    "enableNotifications": true,
+    "expiryWarningDays": 7,
+    "notificationMinPoints": 50,
+    "pointsPerCurrencyUnit": 10
   }
 }
 ```
-> `points_per_currency_unit` above is **planned — not yet implemented in code; see M13-S11**.
+> `pointsPerCurrencyUnit` above is **planned — not yet implemented in code; see M13-S11**.
 
 **Validation Rules:**
-- `expiry_days` must be between 1 and 3650 (1 year to 10 years)
-- `expiry_warning_days` must be > 0 and < `expiry_days`
-- `enable_notifications` must be boolean
-- `notification_min_points` must be 0–10000
-- `points_per_currency_unit` must be 0–10000 (`0` disables redemption) **(planned — not yet implemented in code; see M13-S11)**
+- `expiryDays` must be between 1 and 3650 (1 year to 10 years)
+- `expiryWarningDays` must be > 0 and < `expiryDays`
+- `enableNotifications` must be boolean
+- `notificationMinPoints` must be 0–10000
+- `pointsPerCurrencyUnit` must be 0–10000 (`0` disables redemption) **(planned — not yet implemented in code; see M13-S11)**
 
 ---
 
@@ -72,37 +72,37 @@ Controls booking lifecycle and rules.
 
 | Key | Type | Default | Min | Max | Description |
 |-----|------|---------|-----|-----|-------------|
-| `cancellation_window_hours` | integer | 48 | 0 | 720 | Hours before appointment when customer can still cancel (0 = no self-cancellation) |
-| `auto_approve_enabled` | boolean | false | — | — | **Reserved — post-MVP only. Currently ignored.** Automatically approve bookings without admin review. |
-| `min_booking_advance_hours` | integer | 0 | 0 | 8760 | Minimum hours in advance customer must book (0 = can book same day) |
-| `max_booking_advance_days` | integer | 90 | 1 | 365 | Maximum days in advance customer can book |
-| `service_buffer_minutes` | integer | 60 | 0 | 120 | Buffer time between service end and next booking (cleaning, prep time) |
-| `slot_granularity_minutes` | integer | 30 | 15 | 60 | Calendar slot unit in minutes. Valid values: 15, 30, 60. Controls granularity of available start times shown in UC-011. |
+| `cancellationWindowHours` | integer | 48 | 0 | 720 | Hours before appointment when customer can still cancel (0 = no self-cancellation) |
+| `autoApproveEnabled` | boolean | false | — | — | **Reserved — post-MVP only. Currently ignored.** Automatically approve bookings without admin review. |
+| `minBookingAdvanceHours` | integer | 0 | 0 | 8760 | Minimum hours in advance customer must book (0 = can book same day) |
+| `maxBookingAdvanceDays` | integer | 90 | 1 | 365 | Maximum days in advance customer can book |
+| `serviceBufferMinutes` | integer | 60 | 0 | 120 | Buffer time between service end and next booking (cleaning, prep time) |
+| `slotGranularityMinutes` | integer | 30 | 15 | 60 | Calendar slot unit in minutes. Valid values: 15, 30, 60. Controls granularity of available start times shown in UC-011. |
 
 **Example:**
 ```json
 {
   "booking": {
-    "cancellation_window_hours": 48,
-    "auto_approve_enabled": false,
-    "min_booking_advance_hours": 0,
-    "max_booking_advance_days": 90,
-    "service_buffer_minutes": 60,
-    "slot_granularity_minutes": 30
+    "cancellationWindowHours": 48,
+    "autoApproveEnabled": false,
+    "minBookingAdvanceHours": 0,
+    "maxBookingAdvanceDays": 90,
+    "serviceBufferMinutes": 60,
+    "slotGranularityMinutes": 30
   }
 }
 ```
 
 **Validation Rules:**
-- `cancellation_window_hours` must be 0–720 (0–30 days)
-- `min_booking_advance_hours` must be ≥ 0
-- `max_booking_advance_days` must be ≥ 1
-- `min_booking_advance_hours` / 24 must be < `max_booking_advance_days`
-- `slot_granularity_minutes` must be one of: 15, 30, 60
+- `cancellationWindowHours` must be 0–720 (0–30 days)
+- `minBookingAdvanceHours` must be ≥ 0
+- `maxBookingAdvanceDays` must be ≥ 1
+- `minBookingAdvanceHours` / 24 must be < `maxBookingAdvanceDays`
+- `slotGranularityMinutes` must be one of: 15, 30, 60
 
 ---
 
-### **3. Business Hours** (`settings.business_hours`)
+### **3. Business Hours** (`settings.businessHours`)
 
 Defines when the car wash operates. Used for availability calculations and reminders.
 
@@ -127,7 +127,7 @@ Defines when the car wash operates. Used for availability calculations and remin
 **Example:**
 ```json
 {
-  "business_hours": {
+  "businessHours": {
     "timezone": "America/Sao_Paulo",
     "monday": { "open": "09:00", "close": "18:00" },
     "tuesday": { "open": "09:00", "close": "18:00" },
@@ -147,7 +147,7 @@ Defines when the car wash operates. Used for availability calculations and remin
 - Day objects must be either null (closed) or `{ open: string, close: string }`
 
 **Usage in Availability Calculation (UC-011):**
-1. System loads tenant's `settings.business_hours.timezone` (e.g., "America/New_York")
+1. System loads tenant's `settings.businessHours.timezone` (e.g., "America/New_York")
 2. System converts current time to tenant timezone
 3. System calculates available slots within business hours (in tenant timezone)
 4. When displaying to user: show times in tenant timezone
@@ -157,7 +157,7 @@ Defines when the car wash operates. Used for availability calculations and remin
 **Example Code (NestJS):**
 ```typescript
 // Read tenant timezone
-const tenantTimezone = tenant.settings.business_hours.timezone; // "America/New_York"
+const tenantTimezone = tenant.settings.businessHours.timezone; // "America/New_York"
 
 // Convert UTC time to tenant timezone for display
 const bookingTimeUTC = booking.scheduledAt; // "2026-05-12T18:00:00Z" (always UTC)
@@ -165,7 +165,7 @@ const bookingTimeLocal = DateTime.fromISO(bookingTimeUTC).setZone(tenantTimezone
 console.log(bookingTimeLocal.toFormat("HH:mm")); // "14:00" (2 PM EST)
 
 // Check if time is within business hours
-const businessHours = tenant.settings.business_hours;
+const businessHours = tenant.settings.businessHours;
 const dayOfWeek = bookingTimeLocal.weekdayLong; // "Monday"
 const dayHours = businessHours[dayOfWeek.toLowerCase()]; // { open: "09:00", close: "18:00" }
 const isWithinHours = bookingTimeLocal.toFormat("HH:mm") >= dayHours.open &&
@@ -180,19 +180,19 @@ Controls per-tenant email delivery behaviour.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `from_email` | string \| null | null | Custom sender address for this tenant's emails (e.g. `"lavagem@<ikaro-domain>"`). When null, the global `EMAIL_FROM` environment variable is used. Must be a valid email address. |
+| `fromEmail` | string \| null | null | Custom sender address for this tenant's emails (e.g. `"lavagem@<ikaro-domain>"`). When null, the global `EMAIL_FROM` environment variable is used. Must be a valid email address. |
 
 **Example:**
 ```json
 {
   "notification": {
-    "from_email": "lavagem@<ikaro-domain>"
+    "fromEmail": "lavagem@<ikaro-domain>"
   }
 }
 ```
 
 **Validation Rules:**
-- `from_email` must be a valid email address when present
+- `fromEmail` must be a valid email address when present
 - If null or absent, falls back to the global `EMAIL_FROM` env var
 - The address must be verified in SendGrid (Sender Authentication → Single Sender Verification) before emails will be delivered in staging/production
 
@@ -212,18 +212,18 @@ Currency, language, and regional preferences.
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `currency` | string | "BRL" | ISO 4217 currency code. Ikaro is Brazil-only — always BRL. |
-| `currency_symbol` | string | "R$" | Display symbol (used in UI). Brazilian Real symbol. |
+| `currencySymbol` | string | "R$" | Display symbol (used in UI). Brazilian Real symbol. |
 | `language` | string | "pt-BR" | BCP-47 language tag. All customer-facing text in Brazilian Portuguese. |
-| `decimal_places` | integer | 2 | Decimal precision for money display |
+| `decimalPlaces` | integer | 2 | Decimal precision for money display |
 
 **Example:**
 ```json
 {
   "localization": {
     "currency": "BRL",
-    "currency_symbol": "R$",
+    "currencySymbol": "R$",
     "language": "pt-BR",
-    "decimal_places": 2
+    "decimalPlaces": 2
   }
 }
 ```
@@ -233,13 +233,13 @@ Currency, language, and regional preferences.
 
 **Validation Rules:**
 - `currency` must be a valid ISO 4217 code
-- `currency_symbol` must be 1–3 characters
+- `currencySymbol` must be 1–3 characters
 - `language` must be ISO 639-1 format
-- `decimal_places` must be 0–8
+- `decimalPlaces` must be 0–8
 
 ---
 
-### **6. Business Info Settings** (`settings.business_info`)
+### **6. Business Info Settings** (`settings.businessInfo`)
 
 Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module). Optional — admins fill these in via UC-026; until then every field is `null` and the hotsite `CONTACT` module renders nothing for the corresponding `showXxx` flag.
 
@@ -248,7 +248,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 | `phone` | string \| null | null | Business phone, digits only (10–11 digits, no country code) — same format as `Customer.phone` |
 | `email` | string \| null | null | Business contact email |
 | `address` | object \| null | null | Business address — see sub-fields below |
-| `social_links` | object \| null | null | Social/contact links — see sub-fields below |
+| `socialLinks` | object \| null | null | Social/contact links — see sub-fields below |
 
 **`address` sub-fields** (all required when `address` is non-null, except `complement`):
 
@@ -260,9 +260,9 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 | `neighborhood` | string | Neighborhood / district |
 | `city` | string | City |
 | `state` | string | UF — 2-letter Brazilian state code |
-| `zip_code` | string | CEP, 8 digits, no hyphen |
+| `zipCode` | string | CEP, 8 digits, no hyphen |
 
-**`social_links` sub-fields** (all optional/nullable independently):
+**`socialLinks` sub-fields** (all optional/nullable independently):
 
 | Key | Type | Description |
 |-----|------|-------------|
@@ -273,7 +273,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 **Example:**
 ```json
 {
-  "business_info": {
+  "businessInfo": {
     "phone": "31999999999",
     "email": "contato@lavacar.com.br",
     "address": {
@@ -283,9 +283,9 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
       "neighborhood": "Centro",
       "city": "Belo Horizonte",
       "state": "MG",
-      "zip_code": "30130000"
+      "zipCode": "30130000"
     },
-    "social_links": {
+    "socialLinks": {
       "whatsapp": "31999999999",
       "instagram": "https://instagram.com/lavacar",
       "facebook": "https://facebook.com/lavacar"
@@ -297,10 +297,10 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 **Validation Rules:**
 - `phone`, when present, must be 10–11 digits (`PhoneNumber.isValid`)
 - `email`, when present, must be a valid email address (`Email.isValid`)
-- `address`, when present, requires `street`, `number`, `neighborhood`, `city`, `state`, `zip_code`; `complement` is optional
-- `zip_code` must be exactly 8 digits (no hyphen)
+- `address`, when present, requires `street`, `number`, `neighborhood`, `city`, `state`, `zipCode`; `complement` is optional
+- `zipCode` must be exactly 8 digits (no hyphen)
 - `state` must be a 2-letter uppercase Brazilian UF code
-- `social_links.whatsapp`, when present, must be a valid phone number (`PhoneNumber.isValid`); `instagram`/`facebook` are unvalidated URL strings
+- `socialLinks.whatsapp`, when present, must be a valid phone number (`PhoneNumber.isValid`); `instagram`/`facebook` are unvalidated URL strings
 - Any top-level field may be `null`/absent — partial business info is valid (e.g. `phone` set, `address` not yet filled)
 
 **Usage:** Resolved into the public hotsite manifest's `business` field (camelCase) by `GetHotsiteManifestUseCase` — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT.
@@ -312,21 +312,21 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 ```json
 {
   "loyalty": {
-    "expiry_days": 180,
-    "enable_notifications": true,
-    "expiry_warning_days": 7,
-    "notification_min_points": 50,
-    "points_per_currency_unit": 0
+    "expiryDays": 180,
+    "enableNotifications": true,
+    "expiryWarningDays": 7,
+    "notificationMinPoints": 50,
+    "pointsPerCurrencyUnit": 0
   },
   "booking": {
-    "cancellation_window_hours": 48,
-    "auto_approve_enabled": false,
-    "min_booking_advance_hours": 0,
-    "max_booking_advance_days": 90,
-    "service_buffer_minutes": 60,
-    "slot_granularity_minutes": 30
+    "cancellationWindowHours": 48,
+    "autoApproveEnabled": false,
+    "minBookingAdvanceHours": 0,
+    "maxBookingAdvanceDays": 90,
+    "serviceBufferMinutes": 60,
+    "slotGranularityMinutes": 30
   },
-  "business_hours": {
+  "businessHours": {
     "timezone": "America/Sao_Paulo",
     "monday": { "open": "09:00", "close": "18:00" },
     "tuesday": { "open": "09:00", "close": "18:00" },
@@ -337,15 +337,15 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
     "sunday": null
   },
   "notification": {
-    "from_email": null
+    "fromEmail": null
   },
   "localization": {
     "currency": "BRL",
-    "currency_symbol": "R$",
+    "currencySymbol": "R$",
     "language": "pt-BR",
-    "decimal_places": 2
+    "decimalPlaces": 2
   },
-  "business_info": {
+  "businessInfo": {
     "phone": "31999999999",
     "email": "contato@lavacar.com.br",
     "address": {
@@ -355,9 +355,9 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
       "neighborhood": "Centro",
       "city": "Belo Horizonte",
       "state": "MG",
-      "zip_code": "30130000"
+      "zipCode": "30130000"
     },
-    "social_links": {
+    "socialLinks": {
       "whatsapp": "31999999999",
       "instagram": "https://instagram.com/lavacar",
       "facebook": "https://facebook.com/lavacar"
@@ -365,7 +365,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
   }
 }
 ```
-> `loyalty.points_per_currency_unit` above is **planned — not yet implemented in code; see M13-S11**.
+> `loyalty.pointsPerCurrencyUnit` above is **planned — not yet implemented in code; see M13-S11**.
 
 ---
 
@@ -376,21 +376,21 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
 ```json
 {
   "loyalty": {
-    "expiry_days": 180,
-    "enable_notifications": true,
-    "expiry_warning_days": 7,
-    "notification_min_points": 50,
-    "points_per_currency_unit": 0
+    "expiryDays": 180,
+    "enableNotifications": true,
+    "expiryWarningDays": 7,
+    "notificationMinPoints": 50,
+    "pointsPerCurrencyUnit": 0
   },
   "booking": {
-    "cancellation_window_hours": 48,
-    "auto_approve_enabled": false,
-    "min_booking_advance_hours": 0,
-    "max_booking_advance_days": 90,
-    "service_buffer_minutes": 60,
-    "slot_granularity_minutes": 30
+    "cancellationWindowHours": 48,
+    "autoApproveEnabled": false,
+    "minBookingAdvanceHours": 0,
+    "maxBookingAdvanceDays": 90,
+    "serviceBufferMinutes": 60,
+    "slotGranularityMinutes": 30
   },
-  "business_hours": {
+  "businessHours": {
     "timezone": "America/Sao_Paulo",
     "monday": { "open": "09:00", "close": "18:00" },
     "tuesday": { "open": "09:00", "close": "18:00" },
@@ -401,23 +401,23 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
     "sunday": null
   },
   "notification": {
-    "from_email": null
+    "fromEmail": null
   },
   "localization": {
     "currency": "BRL",
-    "currency_symbol": "R$",
+    "currencySymbol": "R$",
     "language": "pt-BR",
-    "decimal_places": 2
+    "decimalPlaces": 2
   },
-  "business_info": {
+  "businessInfo": {
     "phone": null,
     "email": null,
     "address": null,
-    "social_links": null
+    "socialLinks": null
   }
 }
 ```
-> `loyalty.points_per_currency_unit` above is **planned — not yet implemented in code; see M13-S11**.
+> `loyalty.pointsPerCurrencyUnit` above is **planned — not yet implemented in code; see M13-S11**.
 
 ---
 
@@ -430,9 +430,9 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
 constructor(private tenantContext: RequestContext) {}
 
 // Access settings
-const loyaltyExpiryDays = this.tenantContext.settings.loyalty.expiry_days; // 180
-const cancellationWindow = this.tenantContext.settings.booking.cancellation_window_hours; // 48
-const timezone = this.tenantContext.settings.business_hours.timezone; // "America/Sao_Paulo"
+const loyaltyExpiryDays = this.tenantContext.settings.loyalty.expiryDays; // 180
+const cancellationWindow = this.tenantContext.settings.booking.cancellationWindowHours; // 48
+const timezone = this.tenantContext.settings.businessHours.timezone; // "America/Sao_Paulo"
 const currency = this.tenantContext.settings.localization.currency; // "BRL"
 ```
 
@@ -441,7 +441,7 @@ const currency = this.tenantContext.settings.localization.currency; // "BRL"
 ```typescript
 async canCancelBooking(booking: Booking, now: DateTime, tenantId: string): Promise<boolean> {
   const tenant = await this.tenantsRepository.findById(tenantId);
-  const cancellationWindowHours = tenant.settings.booking.cancellation_window_hours;
+  const cancellationWindowHours = tenant.settings.booking.cancellationWindowHours;
   
   const cutoffTime = booking.scheduledAt.minus({ hours: cancellationWindowHours });
   return now < cutoffTime; // true = can still cancel
@@ -468,12 +468,12 @@ Tenant admin edits settings via dashboard → updates `tenants.settings` JSONB.
 ## Future Extensions (Post-MVP)
 
 Possible future settings keys:
-- `staff.max_concurrent_bookings`: Limit bookings per staff member
-- `services.show_prices_on_hotsite`: Toggle price visibility
-- `notifications.sms_enabled`: SMS delivery (future)
-- `analytics.data_retention_days`: How long to keep analytics
-- `api.rate_limit_per_hour`: API rate limiting
-- `payments.stripe_account_id`: Payment gateway config (future)
+- `staff.maxConcurrentBookings`: Limit bookings per staff member
+- `services.showPricesOnHotsite`: Toggle price visibility
+- `notifications.smsEnabled`: SMS delivery (future)
+- `analytics.dataRetentionDays`: How long to keep analytics
+- `api.rateLimitPerHour`: API rate limiting
+- `payments.stripeAccountId`: Payment gateway config (future)
 
 Add these via gradual migration — JSONB schema is designed for flexibility.
 
@@ -488,7 +488,7 @@ Add these via gradual migration — JSONB schema is designed for flexibility.
 Example (defensive code):
 
 ```typescript
-const expiryDays = tenant.settings?.loyalty?.expiry_days ?? 180; // Use default if missing
+const expiryDays = tenant.settings?.loyalty?.expiryDays ?? 180; // Use default if missing
 ```
 
 ---

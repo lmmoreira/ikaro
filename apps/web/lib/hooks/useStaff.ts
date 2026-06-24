@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { InviteStaffRequest } from '@ikaro/types';
 import {
   deactivateStaff,
   getStaffMember,
   inviteStaff,
   listStaff,
-  type InviteStaffRequest,
   type StaffListQuery,
 } from '@/lib/api/dashboard/staff';
 import { getTenantId } from '@/lib/api/bff-client';

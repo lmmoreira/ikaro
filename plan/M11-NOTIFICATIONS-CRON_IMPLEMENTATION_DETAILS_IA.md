@@ -115,7 +115,7 @@ NotificationDispatcherAdapter (INotificationDispatcher)
 | Var | Default | Notes |
 |---|---|---|
 | `EMAIL_ADAPTER` | `mailhog` | `sendgrid` in staging/prod |
-| `EMAIL_FROM` | — | Global sender fallback; per-tenant override via `settings.notification.from_email` |
+| `EMAIL_FROM` | — | Global sender fallback; per-tenant override via `settings.notification.fromEmail` |
 | `SENDGRID_API_KEY` | — | Required only when `EMAIL_ADAPTER=sendgrid`; never log |
 | `PUBSUB_MAX_DELIVERY_ATTEMPTS` | `5` | Nack threshold before DLQ routing |
 | `PUBSUB_AUTO_CREATE` | `true` | Set `false` in staging/prod |

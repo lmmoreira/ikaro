@@ -249,8 +249,8 @@ const x: number = 123;
 | Cache without invalidation strategy | Stale data | Keep simple; cache only if proven necessary |
 | English copy in customer-facing text | Wrong locale for Brazilian market | All UI and email text in pt-BR |
 | Money as plain `number` | Loses currency code | Use `Money { amount: Decimal, currency: 'BRL' }` |
-| Hardcoded `48` for cancellation window | Breaks per-tenant config | Read `tenants.settings.cancellation_window_hours` |
-| Hardcoded `180` for loyalty expiry | Breaks per-tenant config | Read `tenants.settings.loyalty.expiry_days` |
+| Hardcoded `48` for cancellation window | Breaks per-tenant config | Read `tenants.settings.cancellationWindowHours` |
+| Hardcoded `180` for loyalty expiry | Breaks per-tenant config | Read `tenants.settings.loyalty.expiryDays` |
 
 ---
 

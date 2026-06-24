@@ -85,7 +85,7 @@ describe('AvailabilityService', () => {
   });
 
   it('returns slots within opening window when ScheduleOpening exists on a closed day', () => {
-    // Sunday is null in business_hours; opening makes it available 09:00–14:00.
+    // Sunday is null in businessHours; opening makes it available 09:00–14:00.
     const opening = new ScheduleOpeningBuilder()
       .withDate(sunday)
       .withStartTime('09:00')
@@ -100,8 +100,8 @@ describe('AvailabilityService', () => {
     expect(result[6].startsAt).toBe(utcIso(sunday, 12));
   });
 
-  it('uses ScheduleOpening window instead of business_hours even when day is already open', () => {
-    // Monday is open 09:00–18:00 in business_hours.
+  it('uses ScheduleOpening window instead of businessHours even when day is already open', () => {
+    // Monday is open 09:00–18:00 in businessHours.
     // Opening 10:00–14:00 should override it — not invalid here (domain service is pure).
     const opening = new ScheduleOpeningBuilder()
       .withDate(monday)

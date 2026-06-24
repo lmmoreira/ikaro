@@ -15,8 +15,8 @@ export class LoyaltyPlatformAdapter implements ILoyaltyPlatformPort {
     try {
       const result = await this.getTenantById.execute(tenantId);
       return {
-        expiryDays: result.settings.loyalty.expiry_days,
-        notificationMinPoints: result.settings.loyalty.notification_min_points,
+        expiryDays: result.settings.loyalty.expiryDays,
+        notificationMinPoints: result.settings.loyalty.notificationMinPoints,
       };
     } catch {
       return { ...DEFAULTS };

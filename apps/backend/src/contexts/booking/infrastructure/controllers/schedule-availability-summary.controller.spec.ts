@@ -87,7 +87,7 @@ describe('ScheduleAvailabilitySummaryController', () => {
   it('includes both open and closed days in the same result', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_ID).build();
     await serviceRepo.save(service);
-    // monday=open, next sunday=closed (business_hours default)
+    // monday=open, next sunday=closed (businessHours default)
     const sunday = nextWeekday(0, 2);
 
     const result = await controller.get({

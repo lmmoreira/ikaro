@@ -25,7 +25,7 @@ describe('GetTenantByIdUseCase', () => {
     expect(result.id).toBe(tenant.id);
     expect(result.slug).toBe('lavacar-bh');
     expect(result.name).toBe('Lavacar BH');
-    expect(result.settings.business_hours.sunday).toBeNull();
-    expect(result.settings.business_hours.monday).toBeDefined();
+    expect(result.settings.businessHours.sunday).toBeNull();
+    expect(result.settings.businessHours.monday).toBeDefined();
   });
 });

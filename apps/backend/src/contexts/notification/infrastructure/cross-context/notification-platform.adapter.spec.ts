@@ -14,7 +14,7 @@ function makeTenantResult(fromEmail: string | null = 'no-reply@example.com') {
     name: tenant.name,
     settings: {
       ...settings,
-      notification: { from_email: fromEmail },
+      notification: { fromEmail: fromEmail },
     },
   };
 }
@@ -40,14 +40,14 @@ describe('NotificationPlatformAdapter', () => {
       id: tenantResult.id,
       name: tenantResult.name,
       slug: tenantResult.slug,
-      timezone: tenantResult.settings.business_hours.timezone,
+      timezone: tenantResult.settings.businessHours.timezone,
       locale: tenantResult.settings.localization.language,
       fromEmail: 'hello@ikaro.example',
     });
     expect(getTenantById.execute).toHaveBeenCalledWith(TENANT_ID);
   });
 
-  it('returns null fromEmail when from_email is null', async () => {
+  it('returns null fromEmail when fromEmail is null', async () => {
     const tenantResult = makeTenantResult(null);
     getTenantById.execute.mockResolvedValue(tenantResult);
 

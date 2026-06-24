@@ -50,7 +50,7 @@ describe('OpenScheduleUseCase', () => {
     ).rejects.toThrow(OpeningDateInPastError);
   });
 
-  it('throws DayAlreadyOpenInSettingsError when day is open in business_hours', async () => {
+  it('throws DayAlreadyOpenInSettingsError when day is open in businessHours', async () => {
     const date = nextWeekday(1); // Monday — open by default
     await expect(useCase.execute({ date, startTime: '09:00', endTime: '14:00' })).rejects.toThrow(
       DayAlreadyOpenInSettingsError,

@@ -212,7 +212,7 @@ UC-XXX: [Use Case Name]
 
 - **Alternative Flows:**
   - **A1: No bookings** → System shows "You haven't booked yet"
-  - **A2: Cancellation not eligible** → Cancel button hidden with note: "Cancellation available up to `tenants.settings.booking.cancellation_window_hours` hours before your appointment"
+  - **A2: Cancellation not eligible** → Cancel button hidden with note: "Cancellation available up to `tenants.settings.booking.cancellationWindowHours` hours before your appointment"
 
 - **Postconditions:** Customer sees booking history and loyalty status
 - **Events Triggered:** None (read operation)
@@ -223,12 +223,12 @@ UC-XXX: [Use Case Name]
 
 - **Actor:** Authenticated Customer
 - **Preconditions:** Booking belongs to the customer and is in APPROVED, PENDING, or INFO_REQUESTED state.
-  - For APPROVED bookings: time to booking ≥ `tenants.settings.booking.cancellation_window_hours`.
+  - For APPROVED bookings: time to booking ≥ `tenants.settings.booking.cancellationWindowHours`.
   - For PENDING / INFO_REQUESTED bookings: no time restriction — customer may cancel a pending request at any time.
 - **Trigger:** Customer clicks "Cancel Booking" (APPROVED) or "Cancel Request" (PENDING / INFO_REQUESTED)
 - **Endpoint:** `PATCH /v1/bookings/:id/cancel` (CUSTOMER | STAFF | MANAGER — BFF dispatches to `/cancel-customer` for CUSTOMER, `/cancel-admin` for staff)
 - **Main Flow:**
-  1. If booking is APPROVED: System validates that `scheduledAt − now() ≥ tenants.settings.booking.cancellation_window_hours`. If not, returns error (A1).
+  1. If booking is APPROVED: System validates that `scheduledAt − now() ≥ tenants.settings.booking.cancellationWindowHours`. If not, returns error (A1).
   2. If booking is PENDING or INFO_REQUESTED: no time validation needed — proceed directly.
   3. Customer sees confirmation: "Cancelar este agendamento?"
   4. Customer clicks "Confirmar"
@@ -238,7 +238,7 @@ UC-XXX: [Use Case Name]
   8. System shows success: "Agendamento cancelado."
 
 - **Alternative Flows:**
-  - **A1: Inside cancellation window (APPROVED bookings only)** → System shows error: "Cancelamentos devem ser feitos com pelo menos `tenants.settings.booking.cancellation_window_hours` horas de antecedência."
+  - **A1: Inside cancellation window (APPROVED bookings only)** → System shows error: "Cancelamentos devem ser feitos com pelo menos `tenants.settings.booking.cancellationWindowHours` horas de antecedência."
   - **A2: Booking is COMPLETED, REJECTED, or CANCELLED** → System shows error: "Este agendamento não pode ser cancelado."
 
 - **Postconditions:** Booking is CANCELLED. Customer receives cancellation confirmation email. Admin notified.
@@ -316,14 +316,14 @@ UC-XXX: [Use Case Name]
   - **A3: Photo upload fails** → System allows completion without photos (optional).
   - **A4: Guest booking** → Booking is marked COMPLETED but no `LoyaltyEntry` is created (no `customerId`). Notification still sends a "thanks" email to the guest with the actual amounts.
   - **A5: All lines charged at full price** → Staff leaves all fields unchanged. `actualPriceCharged = priceAtBooking` for every line. `totalActualPrice = totalPrice`.
-  - **A6: Customer has loyalty points and `tenants.settings.loyalty.points_per_currency_unit > 0`** → Staff applies a points-based discount during completion:
-    1. System shows a loyalty strip: customer's active balance + currency equivalent (e.g. "João tem 350 pontos = R$ 35,00", based on `points_per_currency_unit = 10`).
-    2. Staff enters how many points to use, or clicks "Usar todos". Points capped at `min(currentPoints, totalActualPrice × points_per_currency_unit)` so the discount never exceeds the booking total.
+  - **A6: Customer has loyalty points and `tenants.settings.loyalty.pointsPerCurrencyUnit > 0`** → Staff applies a points-based discount during completion:
+    1. System shows a loyalty strip: customer's active balance + currency equivalent (e.g. "João tem 350 pontos = R$ 35,00", based on `pointsPerCurrencyUnit = 10`).
+    2. Staff enters how many points to use, or clicks "Usar todos". Points capped at `min(currentPoints, totalActualPrice × pointsPerCurrencyUnit)` so the discount never exceeds the booking total.
     3. System shows live discount: "Desconto (200 pts): − R$ 20,00 · Total a cobrar: R$ 40,00".
     4. Staff clicks "Confirmar conclusão". System calls `PATCH /bookings/:id/complete` (body includes `discountByPoints: { pointsUsed, amountDeducted }`) and then `POST /loyalty/redeem { customerId, pointsToRedeem, bookingId }`.
     5. Customer's balance is decremented. Redemption recorded linked to the booking.
     6. Completion summary shows per-line charges plus the loyalty discount row.
-    - Only shown when `customerId != null` AND `points_per_currency_unit > 0`. Not available for guest bookings (A4).
+    - Only shown when `customerId != null` AND `pointsPerCurrencyUnit > 0`. Not available for guest bookings (A4).
 
 - **Postconditions:** Booking is COMPLETED. `actualPriceCharged` set on every line; `totalActualPrice` cached on the booking. For authenticated customers: N new `LoyaltyEntry` rows (N = number of lines, points based on `pointsValueAtBooking` regardless of price). Notification email shows both quoted and actual amounts.
 - **Events Triggered:** `BookingCompleted` (once), `ServicePointsEarned` (once per line, only when `customerId != null`).
@@ -390,25 +390,25 @@ UC-XXX: [Use Case Name]
 
 #### **UC-010c: STAFF | MANAGER Opens a Normally-Closed Day (Schedule Opening)**
 
-Used when `business_hours[dayOfWeek] = null` (e.g., Sunday is always closed) but the business wants to open on a specific date (e.g., a special event on a Sunday).
+Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but the business wants to open on a specific date (e.g., a special event on a Sunday).
 
 - **Actor:** STAFF | MANAGER
 - **Endpoint:** `POST /v1/schedule/openings`
-- **Preconditions:** Admin is authenticated. The day-of-week for the selected date is closed in `business_hours`.
+- **Preconditions:** Admin is authenticated. The day-of-week for the selected date is closed in `businessHours`.
 - **Trigger:** Admin clicks "Open Schedule" on a normally-closed day in the calendar.
 - **Main Flow:**
-  1. Admin selects date (must be a day-of-week that is `null` in `business_hours`).
+  1. Admin selects date (must be a day-of-week that is `null` in `businessHours`).
   2. Admin enters `startTime` and `endTime` for the opening window (e.g., 09:00–14:00).
   3. Admin optionally enters notes.
   4. Admin confirms.
-  5. System validates: date is not past; day-of-week is closed in `business_hours`; no `ScheduleOpening` already exists for `(tenantId, date)`; `endTime > startTime`.
+  5. System validates: date is not past; day-of-week is closed in `businessHours`; no `ScheduleOpening` already exists for `(tenantId, date)`; `endTime > startTime`.
   6. System creates `ScheduleOpening`.
   7. Calendar shows the date as partially available within the specified window.
   8. Admin sees confirmation: "Agenda aberta [09:00–14:00] em [date]."
 
 - **Alternative Flows:**
   - **A1: Date is in the past** → `422 Unprocessable`.
-  - **A2: Day-of-week is already open in `business_hours`** → `422 Unprocessable` — "Esse dia já está aberto nas configurações regulares. Ajuste os horários de funcionamento em vez disso."
+  - **A2: Day-of-week is already open in `businessHours`** → `422 Unprocessable` — "Esse dia já está aberto nas configurações regulares. Ajuste os horários de funcionamento em vez disso."
   - **A3: Opening already exists for this date** → `409 Conflict`.
 
 - **Postconditions:** `ScheduleOpening` persisted. That date now shows availability within the opening window.
@@ -425,7 +425,7 @@ Used when `business_hours[dayOfWeek] = null` (e.g., Sunday is always closed) but
 - **Main Flow:**
   1. System finds `ScheduleOpening` by `(id, tenantId)`.
   2. System deletes it.
-  3. The date reverts to its default closed state per `business_hours`.
+  3. The date reverts to its default closed state per `businessHours`.
 - **Alternative Flows:**
   - **A1: Opening not found or belongs to another tenant** → `404 Not Found`.
 - **Postconditions:** Opening deleted.
@@ -442,14 +442,14 @@ Used when `business_hours[dayOfWeek] = null` (e.g., Sunday is always closed) but
 #### **Scheduling Algorithm (MVP)**
 
 **Slot Structure:**
-- Slot unit: `tenants.settings.booking.slot_granularity_minutes` (default: 30 min, valid: 15/30/60)
+- Slot unit: `tenants.settings.booking.slotGranularityMinutes` (default: 30 min, valid: 15/30/60)
 - Valid start times are multiples of the granularity within business hours (e.g., 09:00, 09:30, 10:00, … for 30-min slots)
-- Tenant's business hours (`settings.business_hours`) determine the available window
+- Tenant's business hours (`settings.businessHours`) determine the available window
 
 **Booking Duration Calculation:**
 ```
 booking_duration_minutes = SUM(service.duration_minutes for each service in basket)
-                         + tenants.settings.booking.service_buffer_minutes
+                         + tenants.settings.booking.serviceBufferMinutes
 ```
 
 Example: basket = [Basic Wash (30 min), Wax (25 min)], buffer = 60 min, granularity = 30 min:
@@ -463,33 +463,33 @@ For each date in the query window, the effective operating hours are resolved in
 ```
 1. ScheduleOpening  (highest — opens a normally-closed day for a specific window)
 2. ScheduleClosure  (blocks the whole day or a time window within it)
-3. business_hours   (lowest — the recurring weekly default)
+3. businessHours   (lowest — the recurring weekly default)
 ```
 
 Resolution per date:
 ```
 if ScheduleOpening exists for (tenantId, date):
     effectiveHours = { open: opening.startTime, close: opening.endTime }
-    (ScheduleClosure and business_hours are ignored for this date)
-elif business_hours[dayOfWeek] = null:
+    (ScheduleClosure and businessHours are ignored for this date)
+elif businessHours[dayOfWeek] = null:
     return []  ← default-closed day, no opening exception
 elif full-day ScheduleClosure exists for (tenantId, date):
     return []  ← entire day blocked
 else:
-    effectiveHours = business_hours[dayOfWeek]
+    effectiveHours = businessHours[dayOfWeek]
 
 // Within effectiveHours, remove any slots overlapping a partial ScheduleClosure:
 partialClosures = ScheduleClosures for (tenantId, date) where startTime IS NOT NULL
-for each candidate slot in effectiveHours at slot_granularity_minutes:
+for each candidate slot in effectiveHours at slotGranularityMinutes:
     blockedByPartialClosure = partialClosures.any(c => slot overlaps [c.startTime, c.endTime])
     blockedByBooking = APPROVED bookings.any(b => slot overlaps b window)
     if not blockedByPartialClosure and not blockedByBooking:
         → slot is available
 ```
 
-1. Load `slot_granularity_minutes`, `service_buffer_minutes`, business hours, and timezone from `tenants.settings`
+1. Load `slotGranularityMinutes`, `serviceBufferMinutes`, business hours, and timezone from `tenants.settings`
 2. Compute `bookingDurationMins` from basket + buffer
-3. Compute `requiredSlots = CEIL(bookingDurationMins / slot_granularity_minutes)`
+3. Compute `requiredSlots = CEIL(bookingDurationMins / slotGranularityMinutes)`
 4. For each date: resolve effective hours using 3-layer logic above
 5. For each potential start-time in effectiveHours:
    - Check all `requiredSlots` consecutive slots are free (no partial closure overlap, no APPROVED booking overlap)
@@ -529,7 +529,7 @@ Backend loads ScheduleClosures, ScheduleOpenings, and APPROVED bookings for the 
 ]
 ```
 
-Constraints: `from ≤ to`; range ≤ 90 days (tenant's `max_booking_advance_days`). Past dates return `available: false, slotCount: 0` without an error.
+Constraints: `from ≤ to`; range ≤ 90 days (tenant's `maxBookingAdvanceDays`). Past dates return `available: false, slotCount: 0` without an error.
 
 **Phase 2 — Day Detail (user clicks a specific day)**
 
@@ -558,7 +558,7 @@ Returns:
    - **A1: Entire week is grey** → Calendar shows no available days; user presses `>` to try next week.
    - **A2: User clicks a day but no slots are available** → Phase 2 returns `{ available: false, slots: [] }`. Frontend re-greys the day and shows message.
    - **A3: User changes basket after opening Phase 2** → Frontend invalidates the slot list and calls Phase 2 again with updated `serviceIds`.
-   - **A4: Range > 90 days** → 422 error; frontend should cap requests to `max_booking_advance_days`.
+   - **A4: Range > 90 days** → 422 error; frontend should cap requests to `maxBookingAdvanceDays`.
 
 - **Postconditions:** User has selected a date/time with start slot = available start time, duration = calculated booking duration.
 - **Events Triggered:** None (read operation).
@@ -658,7 +658,7 @@ Returns:
 - **Preconditions:** At least one tenant has customers with `LoyaltyEntry` rows whose `expires_at` falls within the warning window.
 - **Trigger:** GCP Cloud Scheduler fires `POST /cron/loyalty-expiry-warning` once a week (Mondays 06:00 UTC).
 - **Main Flow:**
-  1. Handler fetches all `LoyaltyEntry` rows where `expires_at BETWEEN now() AND now() + expiry_warning_days` across all tenants in a single query (all-tenant pass, same pattern as `POST /cron/loyalty-expiry`).
+  1. Handler fetches all `LoyaltyEntry` rows where `expires_at BETWEEN now() AND now() + expiryWarningDays` across all tenants in a single query (all-tenant pass, same pattern as `POST /cron/loyalty-expiry`).
   2. Groups entries by `(tenant_id, customer_id)`.
   3. For each group: computes `pointsExpiringSoon` (sum of `points`) and `earliestExpiresAt` (minimum `expires_at`).
   4. Publishes one `PointsExpiringSoon` event per customer.
@@ -672,7 +672,7 @@ Returns:
 
 - **Postconditions:** One warning email sent per customer with expiring points. No DB rows written by the cron itself (state-free read + publish).
 - **Events Triggered:** `PointsExpiringSoon` (one per affected customer per tenant).
-- **Config key:** `settings.loyalty.expiry_warning_days` (integer, default 7, range 1–90, must be less than `expiry_days`).
+- **Config key:** `settings.loyalty.expiryWarningDays` (integer, default 7, range 1–90, must be less than `expiryDays`).
 - **Out of scope (MVP):** No per-service breakdown in the email. No opt-out mechanism.
 
 ---
@@ -705,7 +705,7 @@ Returns:
 
 ### **UC-018: Admin Receives Daily Schedule Reminder**
 
-> **Cron scheduling note (applies to UC-018, UC-019, UC-020):** A single global cron fires every 30 minutes. On each fire it queries `tenants` for records whose current local time (UTC offset from `settings.business_hours.timezone`) equals 06:00. Only those tenants are processed. This ensures "6 AM tenant-local" without per-tenant scheduled jobs.
+> **Cron scheduling note (applies to UC-018, UC-019, UC-020):** A single global cron fires every 30 minutes. On each fire it queries `tenants` for records whose current local time (UTC offset from `settings.businessHours.timezone`) equals 06:00. Only those tenants are processed. This ensures "6 AM tenant-local" without per-tenant scheduled jobs.
 
 - **Actor:** System (scheduled job) & Staff/Admin
 - **Preconditions:** Admin has active account and bookings for today
@@ -956,7 +956,7 @@ Returns:
       - **Horário de funcionamento** — days of week + open/close times
       - **Fuso horário** — required; default `America/Sao_Paulo`
       - **Buffer entre agendamentos** (minutos) — prep time between bookings, default 60
-      - **Endereço, telefone e e-mail do estabelecimento** — `settings.business_info` (M12-S06); all optional. Shown on the hotsite `CONTACT` module when its `showAddress`/`showPhone`/`showEmail`/`showMap` flags are enabled (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT, `docs/21-TENANTS_SETTINGS_SCHEMA.md` §6)
+      - **Endereço, telefone e e-mail do estabelecimento** — `settings.businessInfo` (M12-S06); all optional. Shown on the hotsite `CONTACT` module when its `showAddress`/`showPhone`/`showEmail`/`showMap` flags are enabled (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT, `docs/21-TENANTS_SETTINGS_SCHEMA.md` §6)
    2. Admin updates values.
    3. Admin clicks "Salvar".
    4. System validates all fields (see `docs/21-TENANTS_SETTINGS_SCHEMA.md` for rules).

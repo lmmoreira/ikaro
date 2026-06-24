@@ -91,7 +91,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
       }
     });
 
-    it('Mon–Sat entries are available; Sunday entry is not (default business_hours)', async () => {
+    it('Mon–Sat entries are available; Sunday entry is not (default businessHours)', async () => {
       const { body } = await request(app.getHttpServer())
         .get(
           `/schedule/availability/summary?from=${RANGE_START}&to=${RANGE_END}&serviceIds=${serviceId}`,

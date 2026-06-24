@@ -111,7 +111,7 @@ export class GetHotsiteManifestUseCase {
         business: emptyBusinessInfo(),
         localization: this.mapLocalization(
           tenant.settings.resolveLocalization(),
-          tenant.settings.business_hours.timezone,
+          tenant.settings.businessHours.timezone,
         ),
       };
     }
@@ -127,10 +127,10 @@ export class GetHotsiteManifestUseCase {
       layout,
       seo: config.seo,
       isPublished: config.isPublished,
-      business: this.mapBusinessInfo(tenant.settings.business_info),
+      business: this.mapBusinessInfo(tenant.settings.businessInfo),
       localization: this.mapLocalization(
         tenant.settings.resolveLocalization(),
-        tenant.settings.business_hours.timezone,
+        tenant.settings.businessHours.timezone,
       ),
     };
   }
@@ -175,14 +175,14 @@ export class GetHotsiteManifestUseCase {
             neighborhood: businessInfo.address.neighborhood ?? undefined,
             city: businessInfo.address.city,
             state: businessInfo.address.state,
-            zipCode: businessInfo.address.zip_code,
+            zipCode: businessInfo.address.zipCode,
           }
         : null,
-      socialLinks: businessInfo.social_links
+      socialLinks: businessInfo.socialLinks
         ? {
-            whatsapp: businessInfo.social_links.whatsapp,
-            instagram: businessInfo.social_links.instagram,
-            facebook: businessInfo.social_links.facebook,
+            whatsapp: businessInfo.socialLinks.whatsapp,
+            instagram: businessInfo.socialLinks.instagram,
+            facebook: businessInfo.socialLinks.facebook,
           }
         : null,
     };

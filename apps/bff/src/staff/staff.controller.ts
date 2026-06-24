@@ -13,15 +13,15 @@ import {
   Query,
 } from '@nestjs/common';
 import { z } from 'zod';
-import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
-import { Roles } from '../shared/decorators/roles.decorator';
-import { BackendHttpService } from '../shared/http/backend-http.service';
 import {
   DeactivateStaffResponse,
   InviteStaffResponse,
   StaffListResponse,
   StaffResponse,
-} from './staff.types';
+} from '@ikaro/types';
+import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
+import { Roles } from '../shared/decorators/roles.decorator';
+import { BackendHttpService } from '../shared/http/backend-http.service';
 
 const InviteStaffBodySchema = z.object({
   email: z.email(),

@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { CustomerProfileResponse } from '@ikaro/types';
 import {
   MockHttpService,
   MockBackendHttpService,
@@ -9,7 +10,6 @@ import {
   setupActiveGuardMock,
   request,
 } from '../test/component-test.helpers';
-import { CustomerProfileResponse } from './customers.types';
 
 const mockProfile: CustomerProfileResponse = {
   customerId: '20000000-0000-4000-8000-000000000001',

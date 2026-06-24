@@ -108,7 +108,7 @@ All events emitted by the system include the `tenant_id`.
 - Example: `2026-05-12T18:00:00Z` (database row)
 
 **Tenant Configuration (Timezone Reference):**
-- Tenant's timezone defined in `tenants.settings.business_hours.timezone`
+- Tenant's timezone defined in `tenants.settings.businessHours.timezone`
 - Example: `"America/New_York"`
 - Configured once by tenant admin (UC-026), applies to entire tenant
 
@@ -146,7 +146,7 @@ Message to User:           "Cancellation available 48 hours before appointment.
 import { DateTime } from 'luxon';
 
 // Get tenant's timezone
-const tenantTimezone = tenant.settings.business_hours.timezone; // "America/New_York"
+const tenantTimezone = tenant.settings.businessHours.timezone; // "America/New_York"
 
 // Convert UTC timestamp to tenant timezone
 const bookingTimeUTC = booking.scheduledAt; // ISO 8601 UTC string

@@ -55,7 +55,7 @@ export class RequestBookingUseCase {
   async execute(dto: RequestBookingDto): Promise<RequestBookingUseCaseResult> {
     const tenantId = this.tenantContext.tenantId;
     const correlationId = this.tenantContext.correlationId;
-    const { country_code: countryCode } = this.tenantContext.settings.localization;
+    const { countryCode } = this.tenantContext.settings.localization;
     const addressSpec = countrySpec(countryCode).address;
 
     const services = await this.serviceRepo.findByIds(dto.serviceIds, tenantId);

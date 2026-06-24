@@ -171,7 +171,7 @@ LoyaltyEntry {
   bookingId, bookingLineId, serviceId
   points       (positive int — = BookingLine.pointsValueAtBooking, frozen)
   earnedAt
-  expiresAt    (= earnedAt + tenants.settings.loyalty.expiry_days; never null)
+  expiresAt    (= earnedAt + tenants.settings.loyalty.expiryDays; never null)
 }
 ```
 

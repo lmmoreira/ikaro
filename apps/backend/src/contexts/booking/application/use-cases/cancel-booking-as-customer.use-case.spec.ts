@@ -122,7 +122,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
       const settings = TenantSettings.default().toJSON();
       useCase = makeUseCase({
         ...settings,
-        booking: { ...settings.booking, cancellation_window_hours: 24 },
+        booking: { ...settings.booking, cancellationWindowHours: 24 },
       });
 
       // scheduled in 25h — outside a 24h window, should succeed

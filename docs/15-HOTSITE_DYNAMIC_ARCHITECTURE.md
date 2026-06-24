@@ -289,15 +289,15 @@ interface ContactModuleData {
   showPhone: boolean;
   showWhatsapp: boolean;
   showEmail: boolean;
-  showMap: boolean;        // Google Maps embed using address from tenants.settings.business_info
+  showMap: boolean;        // Google Maps embed using address from tenants.settings.businessInfo
 }
 ```
 
-Social links (whatsapp, instagram, facebook) are **not stored in `ContactModuleData`**. They come from `tenants.settings.business_info.social_links`, resolved into `manifest.business.socialLinks` by `GetHotsiteManifestUseCase`. The admin edits them once on the tenant settings page — `ContactModule` renders them based on `business.socialLinks`.
+Social links (whatsapp, instagram, facebook) are **not stored in `ContactModuleData`**. They come from `tenants.settings.businessInfo.socialLinks`, resolved into `manifest.business.socialLinks` by `GetHotsiteManifestUseCase`. The admin edits them once on the tenant settings page — `ContactModule` renders them based on `business.socialLinks`.
 
-`ContactModuleData` (manifest `layout[].data`) only carries **display preferences** — which sections to show. The actual **values** (address, phone, email, social links) live in `tenants.settings.business_info` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6) — the admin edits them once on the tenant settings page (UC-026), not per-module.
+`ContactModuleData` (manifest `layout[].data`) only carries **display preferences** — which sections to show. The actual **values** (address, phone, email, social links) live in `tenants.settings.businessInfo` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6) — the admin edits them once on the tenant settings page (UC-026), not per-module.
 
-`GetHotsiteManifestUseCase` resolves `tenants.settings.business_info` into a top-level `business` field on the manifest (camelCased, sibling of `tenant`/`branding`/`layout`):
+`GetHotsiteManifestUseCase` resolves `tenants.settings.businessInfo` into a top-level `business` field on the manifest (camelCased, sibling of `tenant`/`branding`/`layout`):
 
 ```typescript
 // packages/types/src/hotsite.ts
