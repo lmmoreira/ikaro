@@ -56,7 +56,7 @@
 | **AUD-021** | Edge-case tests: timezone/DST, money, idempotency replay | 🟡 Medium | M | Now | — | §11.8 |
 | **AUD-022** | Contract tests at BFF↔backend seam | 🟡 Medium | M | Now | — | §11.5 |
 | **AUD-023** | Runtime accessibility tests (axe) ✅ | 🟡 Medium | S | Now | — | §11.7 |
-| **AUD-024** | CI efficiency: dedupe test runs, docker cache, trivy | 🟡 Medium | S | Now | — | §9.3, §9.6 |
+| **AUD-024** | CI efficiency: dedupe test runs, docker cache, trivy ✅ | 🟡 Medium | S | Now | — | §9.3, §9.6 |
 | **AUD-025** | Public-image CDN delivery vs signed URLs | 🟡 Medium | S | Pre-deploy | — | §8.5 |
 | **AUD-026** | Reconsider `BackendHttpService` request scope | 🟡 Medium | M | Now | — | §5.4 |
 | **AUD-027** | Booking-lines diff-upsert (drop delete-all) | 🔵 Low | S | Now | — | §5.5 |
