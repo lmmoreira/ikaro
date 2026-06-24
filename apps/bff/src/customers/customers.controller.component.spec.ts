@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { CustomerProfileResponse, CustomerSearchListResponse } from '@ikaro/types';
+import { CustomerProfileResponse } from '@ikaro/types';
 import {
   MockHttpService,
   MockBackendHttpService,
@@ -148,21 +148,21 @@ describe('CustomersController (component)', () => {
   });
 
   describe('GET /v1/customers', () => {
-    const mockSearchResult: CustomerSearchListResponse = {
+    const backendItems = {
       items: [
         {
           customerId: '20000000-0000-4000-8000-000000000001',
           name: 'João Silva',
           email: 'joao@example.com',
-          currentPoints: 50,
         },
       ],
       total: 1,
     };
+    const mockBalance = { currentPoints: 50, nextExpiryDate: null, nextExpiryPoints: null };
 
     it('returns 200 with search results for STAFF JWT', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValue(mockSearchResult);
+      backendHttpService.get.mockResolvedValueOnce(backendItems).mockResolvedValueOnce(mockBalance);
       const token = makeStaffJwt(jwtService);
 
       const res = await request(app.getHttpServer())
@@ -172,11 +172,12 @@ describe('CustomersController (component)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.total).toBe(1);
+      expect(res.body.items[0].currentPoints).toBe(50);
     });
 
     it('returns 200 with all customers when search is omitted', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValue(mockSearchResult);
+      backendHttpService.get.mockResolvedValue({ items: [], total: 0 });
       const token = makeManagerJwt(jwtService);
 
       const res = await request(app.getHttpServer())

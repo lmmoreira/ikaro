@@ -2,8 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { RequestModule } from '../../shared/request/request.module';
-import { LoyaltyModule } from '../loyalty/loyalty.module';
-import { CUSTOMER_LOYALTY_PORT } from './application/ports/customer-loyalty.port';
 import { CUSTOMER_REPOSITORY } from './application/ports/customer-repository.port';
 import { CustomerQueryService } from './application/services/customer-query.service';
 import { FindOrCreateCustomerUseCase } from './application/use-cases/find-or-create-customer.use-case';
@@ -14,21 +12,14 @@ import { SearchCustomersUseCase } from './application/use-cases/search-customers
 import { UpdateCustomerProfileUseCase } from './application/use-cases/update-customer-profile.use-case';
 import { CustomerController } from './infrastructure/controllers/customer.controller';
 import { InternalCustomerController } from './infrastructure/controllers/internal-customer.controller';
-import { CustomerLoyaltyAdapter } from './infrastructure/cross-context/customer-loyalty.adapter';
 import { CustomerEntity } from './infrastructure/entities/customer.entity';
 import { TypeOrmCustomerRepository } from './infrastructure/repositories/typeorm-customer.repository';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([CustomerEntity]),
-    RequestModule,
-    TransactionManagerModule,
-    LoyaltyModule,
-  ],
+  imports: [TypeOrmModule.forFeature([CustomerEntity]), RequestModule, TransactionManagerModule],
   controllers: [InternalCustomerController, CustomerController],
   providers: [
     { provide: CUSTOMER_REPOSITORY, useClass: TypeOrmCustomerRepository },
-    { provide: CUSTOMER_LOYALTY_PORT, useClass: CustomerLoyaltyAdapter },
     CustomerQueryService,
     FindOrCreateCustomerUseCase,
     GetCustomerTenantsUseCase,
