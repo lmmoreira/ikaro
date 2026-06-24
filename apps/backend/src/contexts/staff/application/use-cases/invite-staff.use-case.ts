@@ -14,7 +14,7 @@ export interface InviteStaffUseCaseResult {
   staffId: string;
   email: string;
   role: 'MANAGER' | 'STAFF';
-  isActive: false;
+  isActive: boolean;
 }
 
 @Injectable()
@@ -34,7 +34,7 @@ export class InviteStaffUseCase {
 
     const existing = await this.staffRepo.findByTenantAndEmail(tenantId, normalizedEmail);
 
-    if (existing?.isActive) {
+    if (existing?.googleOAuthId) {
       throw new StaffAlreadyExistsError(normalizedEmail);
     }
 
@@ -50,6 +50,11 @@ export class InviteStaffUseCase {
       await this.eventBus.publish(event);
     }
 
-    return { staffId: staff.id, email: normalizedEmail, role: staff.role, isActive: false };
+    return {
+      staffId: staff.id,
+      email: normalizedEmail,
+      role: staff.role,
+      isActive: staff.isActive,
+    };
   }
 }

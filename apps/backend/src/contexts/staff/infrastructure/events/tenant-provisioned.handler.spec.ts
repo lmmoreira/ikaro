@@ -38,7 +38,7 @@ describe('TenantProvisionedHandler', () => {
     const staff = await repo.findByTenantAndEmail(TENANT_ID, 'admin@lavacar.com.br');
     expect(staff).not.toBeNull();
     expect(staff!.role).toBe('MANAGER');
-    expect(staff!.isActive).toBe(false);
+    expect(staff!.isActive).toBe(true);
 
     expect(eventBus.published).toHaveLength(1);
     expect(eventBus.published[0].eventName).toBe('StaffInvited');

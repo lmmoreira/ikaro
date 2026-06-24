@@ -24,6 +24,7 @@ import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { JWT_COOKIE_OPTIONS } from './cookie-options';
 import { DevLoginDto, DevLoginResponse, DevLoginSchema } from './dtos/dev-login.dto';
 import { IssueTokenDto, IssueTokenSchema } from './dtos/issue-token.dto';
+import { IssueStaffTokenDto, IssueStaffTokenSchema } from './dtos/issue-staff-token.dto';
 import { SwitchTenantDto, SwitchTenantSchema } from './dtos/switch-tenant.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtIssuerService } from './jwt-issuer.service';
@@ -31,11 +32,12 @@ import { isValidSlug } from './oauth-state';
 import { SelectionTokenService } from './selection-token.service';
 import { GoogleProfile } from './strategies/google.strategy';
 import {
-  ActivateStaffResponse,
   CustomerTenantSummaryResponse,
   FindOrCreateCustomerResponse,
+  LinkGoogleAccountResponse,
   StaffByEmailResponse,
   StaffInfoResponse,
+  StaffTenantOption,
 } from './auth.types';
 import { TenantInfoResponse } from '../shared/types/backend-responses';
 
@@ -64,10 +66,8 @@ export class AuthController {
 
     if (profile.loginType === 'staff') {
       if (profile.tenantSlug) {
-        // First login: invited staff activating their account via invite link
         await this.handleStaffFirstLogin(profile, profile.tenantSlug, res, frontendUrl);
       } else {
-        // Regular login: already-activated staff
         await this.handleStaffLogin(profile, res, frontendUrl);
       }
       return;
@@ -121,6 +121,69 @@ export class AuthController {
       tenantId: dto.tenantId,
       tenantSlug: tenantInfo.slug,
       role: 'CUSTOMER',
+    });
+
+    res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
+    return {
+      tenantSlug: tenantInfo.slug,
+      expiresIn: this.config.getOrThrow<string>('JWT_EXPIRES_IN'),
+    };
+  }
+
+  @Public()
+  @Get('staff-tenants')
+  async getStaffTenants(@Query('token') token: string): Promise<StaffTenantOption[]> {
+    const { googleOAuthId } = this.selectionToken.verifySelectionToken(token);
+    const staffList = await this.backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {
+      googleOAuthId,
+    });
+    const activeStaff = staffList.filter((s) => s.isActive);
+    return Promise.all(
+      activeStaff.map(async (s) => {
+        const tenantInfo = await this.backendHttp.get<TenantInfoResponse>(
+          `/internal/tenants/${s.tenantId}`,
+        );
+        return {
+          staffId: s.staffId,
+          tenantId: s.tenantId,
+          tenantSlug: tenantInfo.slug,
+          tenantName: tenantInfo.name,
+          role: s.role,
+        };
+      }),
+    );
+  }
+
+  @Public()
+  @Post('staff-token')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(IssueStaffTokenSchema))
+  async issueStaffToken(
+    @Body() dto: IssueStaffTokenDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ tenantSlug: string; expiresIn: string }> {
+    const { googleOAuthId } = this.selectionToken.verifySelectionToken(dto.selectionToken);
+    const staffList = await this.backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {
+      googleOAuthId,
+    });
+    const match = staffList.find((s) => s.staffId === dto.staffId && s.isActive);
+    if (!match) {
+      throw new ForbiddenException({
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: HttpStatus.FORBIDDEN,
+        detail: 'Staff record not found or not active',
+      });
+    }
+
+    const tenantInfo = await this.backendHttp.get<TenantInfoResponse>(
+      `/internal/tenants/${match.tenantId}`,
+    );
+    const accessToken = this.jwtIssuer.issueToken({
+      sub: match.staffId,
+      tenantId: match.tenantId,
+      tenantSlug: tenantInfo.slug,
+      role: match.role,
     });
 
     res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
@@ -200,12 +263,31 @@ export class AuthController {
     let role: 'CUSTOMER' | 'STAFF' | 'MANAGER';
 
     if (dto.type === 'staff') {
-      const staff = await this.backendHttp.get<StaffByEmailResponse>('/internal/staff/by-email', {
-        email: dto.email,
-        tenantId: tenantInfo.id,
-      });
-      actorId = staff.staffId;
-      role = staff.role;
+      const staffList = await this.backendHttp.get<StaffInfoResponse[]>(
+        '/internal/staff/by-oauth',
+        { googleOAuthId: `dev::${dto.email}` },
+      );
+      const staff = staffList.find((s) => s.tenantId === tenantInfo.id && s.isActive);
+      if (staff) {
+        actorId = staff.staffId;
+        role = staff.role;
+      } else {
+        const staffByEmail = await this.backendHttp.get<StaffByEmailResponse>(
+          '/internal/staff/by-email',
+          { email: dto.email, tenantId: tenantInfo.id },
+        );
+        await this.backendHttp.post<LinkGoogleAccountResponse>(
+          `/internal/staff/${staffByEmail.staffId}/link-google`,
+          {
+            tenantId: tenantInfo.id,
+            googleOAuthId: `dev::${dto.email}`,
+            email: dto.email,
+            name: 'Dev User',
+          },
+        );
+        actorId = staffByEmail.staffId;
+        role = staffByEmail.role;
+      }
     } else {
       const googleOAuthId = `dev::${dto.email}`;
       if (googleOAuthId.length > 255) {
@@ -246,6 +328,45 @@ export class AuthController {
     };
   }
 
+  private async handleStaffLogin(
+    profile: GoogleProfile,
+    res: Response,
+    frontendUrl: string,
+  ): Promise<void> {
+    const staffList = await this.backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {
+      googleOAuthId: profile.googleOAuthId,
+    });
+
+    const activeStaff = staffList.filter((s) => s.isActive);
+
+    if (activeStaff.length === 0) {
+      const reason = staffList.some((s) => !s.isActive)
+        ? 'staff-deactivated'
+        : 'not-a-staff-member';
+      res.redirect(`${frontendUrl}/auth/error?reason=${reason}`);
+      return;
+    }
+
+    if (activeStaff.length === 1) {
+      const staff = activeStaff[0];
+      const tenantInfo = await this.backendHttp.get<TenantInfoResponse>(
+        `/internal/tenants/${staff.tenantId}`,
+      );
+      const token = this.jwtIssuer.issueToken({
+        sub: staff.staffId,
+        tenantId: staff.tenantId,
+        tenantSlug: tenantInfo.slug,
+        role: staff.role,
+      });
+      res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
+      res.redirect(`${frontendUrl}/dashboard`);
+      return;
+    }
+
+    const selectionToken = this.selectionToken.issueSelectionToken(profile.googleOAuthId);
+    res.redirect(`${frontendUrl}/select-staff-tenant?token=${selectionToken}`);
+  }
+
   private async handleStaffFirstLogin(
     profile: GoogleProfile,
     tenantSlug: string,
@@ -278,16 +399,14 @@ export class AuthController {
       return;
     }
 
-    // UC-025 A2: already active → treat as normal login
-    if (staffByEmail.isActive) {
-      await this.handleStaffLogin(profile, res, frontendUrl);
+    if (!staffByEmail.isActive) {
+      res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated`);
       return;
     }
 
-    let activated: ActivateStaffResponse;
     try {
-      activated = await this.backendHttp.post<ActivateStaffResponse>(
-        `/internal/staff/${staffByEmail.staffId}/activate`,
+      await this.backendHttp.post<LinkGoogleAccountResponse>(
+        `/internal/staff/${staffByEmail.staffId}/link-google`,
         {
           tenantId: tenantInfo.id,
           googleOAuthId: profile.googleOAuthId,
@@ -297,13 +416,16 @@ export class AuthController {
       );
     } catch (err) {
       if (err instanceof HttpException) {
-        if (err.getStatus() === HttpStatus.CONFLICT) {
-          // 409 = already active; treat as normal login
-          await this.handleStaffLogin(profile, res, frontendUrl);
-          return;
-        }
         if (err.getStatus() === HttpStatus.UNPROCESSABLE_ENTITY) {
           res.redirect(`${frontendUrl}/auth/error?reason=email-mismatch`);
+          return;
+        }
+        if (err.getStatus() === HttpStatus.FORBIDDEN) {
+          res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated`);
+          return;
+        }
+        if (err.getStatus() === HttpStatus.CONFLICT) {
+          res.redirect(`${frontendUrl}/auth/error?reason=account-linked-elsewhere`);
           return;
         }
       }
@@ -311,45 +433,10 @@ export class AuthController {
     }
 
     const token = this.jwtIssuer.issueToken({
-      sub: activated.staffId,
-      tenantId: activated.tenantId,
+      sub: staffByEmail.staffId,
+      tenantId: tenantInfo.id,
       tenantSlug: tenantInfo.slug,
-      role: activated.role,
-    });
-    res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
-    res.redirect(`${frontendUrl}/dashboard`);
-  }
-
-  private async handleStaffLogin(
-    profile: GoogleProfile,
-    res: Response,
-    frontendUrl: string,
-  ): Promise<void> {
-    const staffInfo = await this.backendHttp
-      .get<StaffInfoResponse>('/internal/staff/by-oauth', { googleOAuthId: profile.googleOAuthId })
-      .catch((err: unknown) => {
-        if (err instanceof HttpException && err.getStatus() === HttpStatus.NOT_FOUND) return null;
-        throw err;
-      });
-
-    if (!staffInfo) {
-      res.redirect(`${frontendUrl}/auth/error?reason=not-a-staff-member`);
-      return;
-    }
-
-    if (!staffInfo.isActive) {
-      res.redirect(`${frontendUrl}/auth/first-login?staffId=${staffInfo.staffId}`);
-      return;
-    }
-
-    const tenantInfo = await this.backendHttp.get<TenantInfoResponse>(
-      `/internal/tenants/${staffInfo.tenantId}`,
-    );
-    const token = this.jwtIssuer.issueToken({
-      sub: staffInfo.staffId,
-      tenantId: staffInfo.tenantId,
-      tenantSlug: tenantInfo.slug,
-      role: staffInfo.role,
+      role: staffByEmail.role,
     });
     res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
     res.redirect(`${frontendUrl}/dashboard`);

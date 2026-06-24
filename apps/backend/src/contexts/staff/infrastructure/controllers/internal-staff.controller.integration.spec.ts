@@ -73,16 +73,16 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
       expect(body.detail).toContain('googleOAuthId');
     });
 
-    it('returns 404 when no staff is found for the given googleOAuthId', async () => {
+    it('returns 200 with empty array when no staff is found for the given googleOAuthId', async () => {
       const { body } = await request(app.getHttpServer())
         .get('/internal/staff/by-oauth?googleOAuthId=google-sub-m03s07-unknown')
         .set('X-Internal-Key', INTERNAL_KEY)
-        .expect(404);
+        .expect(200);
 
-      expect(body.status).toBe(404);
+      expect(body).toEqual([]);
     });
 
-    it('returns GetStaffByOAuthIdUseCaseResult for an active staff member', async () => {
+    it('returns array with one result for an active staff member', async () => {
       const entity = new StaffEntityBuilder()
         .withTenantId('00000000-0000-0000-0000-000000000050')
         .withGoogleOAuthId('google-sub-m03s07-active')
@@ -97,10 +97,12 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
         .set('X-Internal-Key', INTERNAL_KEY)
         .expect(200);
 
-      expect(body.staffId).toBe(entity.id);
-      expect(body.tenantId).toBe('00000000-0000-0000-0000-000000000050');
-      expect(body.role).toBe('MANAGER');
-      expect(body.isActive).toBe(true);
+      expect(Array.isArray(body)).toBe(true);
+      expect(body).toHaveLength(1);
+      expect(body[0].staffId).toBe(entity.id);
+      expect(body[0].tenantId).toBe('00000000-0000-0000-0000-000000000050');
+      expect(body[0].role).toBe('MANAGER');
+      expect(body[0].isActive).toBe(true);
     });
 
     it('returns isActive=false for a deactivated staff member', async () => {
@@ -118,26 +120,37 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
         .set('X-Internal-Key', INTERNAL_KEY)
         .expect(200);
 
-      expect(body.isActive).toBe(false);
-      expect(body.role).toBe('STAFF');
+      expect(body).toHaveLength(1);
+      expect(body[0].isActive).toBe(false);
+      expect(body[0].role).toBe('STAFF');
     });
 
-    it('tenant isolation: different staff in different tenants are returned independently', async () => {
+    it('tenant isolation: same googleOAuthId in different tenants returns both records', async () => {
+      const sharedSub = 'google-sub-m03s07-multi-tenant';
       const entityA = new StaffEntityBuilder()
         .withTenantId('00000000-0000-0000-0000-000000000052')
-        .withGoogleOAuthId('google-sub-m03s07-iso-a')
+        .withGoogleOAuthId(sharedSub)
         .withEmail('staff-a-m03s07@tenanta.com.br')
         .withIsActive(true)
         .build();
+      const entityB = new StaffEntityBuilder()
+        .withTenantId('00000000-0000-0000-0000-000000000053')
+        .withGoogleOAuthId(sharedSub)
+        .withEmail('staff-b-m03s07@tenantb.com.br')
+        .withIsActive(true)
+        .build();
       await ds.getRepository(StaffEntity).save(entityA);
+      await ds.getRepository(StaffEntity).save(entityB);
 
       const { body } = await request(app.getHttpServer())
-        .get('/internal/staff/by-oauth?googleOAuthId=google-sub-m03s07-iso-a')
+        .get(`/internal/staff/by-oauth?googleOAuthId=${sharedSub}`)
         .set('X-Internal-Key', INTERNAL_KEY)
         .expect(200);
 
-      expect(body.tenantId).toBe('00000000-0000-0000-0000-000000000052');
-      expect(body.staffId).toBe(entityA.id);
+      expect(body).toHaveLength(2);
+      const tenantIds = body.map((s: { tenantId: string }) => s.tenantId);
+      expect(tenantIds).toContain('00000000-0000-0000-0000-000000000052');
+      expect(tenantIds).toContain('00000000-0000-0000-0000-000000000053');
     });
   });
 
@@ -168,12 +181,12 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
       expect(body.status).toBe(404);
     });
 
-    it('returns GetStaffByEmailUseCaseResult for an invited (inactive) staff', async () => {
+    it('returns GetStaffByEmailUseCaseResult for an active staff (not yet linked)', async () => {
       const entity = new StaffEntityBuilder()
         .withTenantId('10000000-0000-4000-8000-000000000060')
         .withEmail('invited-m04s01@lavacar.com.br')
         .withRole('MANAGER')
-        .withIsActive(false)
+        .withIsActive(true)
         .build();
       await ds.getRepository(StaffEntity).save(entity);
 
@@ -187,14 +200,14 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
       expect(body.staffId).toBe(entity.id);
       expect(body.email).toBe('invited-m04s01@lavacar.com.br');
       expect(body.role).toBe('MANAGER');
-      expect(body.isActive).toBe(false);
+      expect(body.isActive).toBe(true);
     });
 
     it('tenant isolation: same email in different tenant returns 404', async () => {
       const entity = new StaffEntityBuilder()
         .withTenantId('10000000-0000-4000-8000-000000000061')
         .withEmail('iso-m04s01@lavacar.com.br')
-        .withIsActive(false)
+        .withIsActive(true)
         .build();
       await ds.getRepository(StaffEntity).save(entity);
 
@@ -209,10 +222,10 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
     });
   });
 
-  describe('POST /internal/staff/:staffId/activate', () => {
+  describe('POST /internal/staff/:staffId/link-google', () => {
     it('returns 404 when staffId does not exist', async () => {
       const { body } = await request(app.getHttpServer())
-        .post('/internal/staff/10000000-0000-4000-8000-000000009999/activate')
+        .post('/internal/staff/10000000-0000-4000-8000-000000009999/link-google')
         .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           tenantId: '10000000-0000-4000-8000-000000000070',
@@ -229,12 +242,12 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
       const entity = new StaffEntityBuilder()
         .withTenantId('10000000-0000-4000-8000-000000000070')
         .withEmail('invited-m04s01-act@lavacar.com.br')
-        .withIsActive(false)
+        .withIsActive(true)
         .build();
       await ds.getRepository(StaffEntity).save(entity);
 
       const { body } = await request(app.getHttpServer())
-        .post(`/internal/staff/${entity.id}/activate`)
+        .post(`/internal/staff/${entity.id}/link-google`)
         .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           tenantId: '10000000-0000-4000-8000-000000000070',
@@ -247,41 +260,67 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
       expect(body.status).toBe(422);
     });
 
-    it('activates staff, persists name, and returns 200 with result', async () => {
+    it('links google account, persists name, and returns 200 with result', async () => {
       const entity = new StaffEntityBuilder()
         .withTenantId('10000000-0000-4000-8000-000000000071')
         .withEmail('activate-m04s01@lavacar.com.br')
         .withRole('MANAGER')
-        .withIsActive(false)
+        .withIsActive(true)
         .build();
       await ds.getRepository(StaffEntity).save(entity);
 
       const { body } = await request(app.getHttpServer())
-        .post(`/internal/staff/${entity.id}/activate`)
+        .post(`/internal/staff/${entity.id}/link-google`)
         .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           tenantId: '10000000-0000-4000-8000-000000000071',
           googleOAuthId: 'google-sub-m04s01-activated',
           email: 'activate-m04s01@lavacar.com.br',
-          name: 'Gerente Ativado',
+          name: 'Gerente Vinculado',
         })
         .expect(200);
 
       expect(body.staffId).toBe(entity.id);
-      expect(body.isActive).toBe(true);
       expect(body.role).toBe('MANAGER');
+      expect(body.tenantId).toBe('10000000-0000-4000-8000-000000000071');
+
+      const saved = await ds.getRepository(StaffEntity).findOneBy({ id: entity.id });
+      expect(saved?.googleOAuthId).toBe('google-sub-m04s01-activated');
+      expect(saved?.name).toBe('Gerente Vinculado');
     });
 
-    it('tenant isolation: cannot activate staff from a different tenant (404)', async () => {
+    it('returns 403 when staff is deactivated', async () => {
       const entity = new StaffEntityBuilder()
-        .withTenantId('10000000-0000-4000-8000-000000000072')
-        .withEmail('iso-activate-m04s01@lavacar.com.br')
+        .withTenantId('10000000-0000-4000-8000-000000000073')
+        .withEmail('deactivated-link@lavacar.com.br')
         .withIsActive(false)
         .build();
       await ds.getRepository(StaffEntity).save(entity);
 
       const { body } = await request(app.getHttpServer())
-        .post(`/internal/staff/${entity.id}/activate`)
+        .post(`/internal/staff/${entity.id}/link-google`)
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .send({
+          tenantId: '10000000-0000-4000-8000-000000000073',
+          googleOAuthId: 'google-sub-deactivated',
+          email: 'deactivated-link@lavacar.com.br',
+          name: 'Staff User',
+        })
+        .expect(403);
+
+      expect(body.status).toBe(403);
+    });
+
+    it('tenant isolation: cannot link google account for staff from a different tenant (404)', async () => {
+      const entity = new StaffEntityBuilder()
+        .withTenantId('10000000-0000-4000-8000-000000000072')
+        .withEmail('iso-activate-m04s01@lavacar.com.br')
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(StaffEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .post(`/internal/staff/${entity.id}/link-google`)
         .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           tenantId: '10000000-0000-4000-8000-000000000099',

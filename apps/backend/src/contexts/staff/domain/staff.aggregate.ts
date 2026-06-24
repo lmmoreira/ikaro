@@ -4,7 +4,11 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Email } from '../../../shared/value-objects/email.vo';
 import { StaffDeactivated } from './events/staff-deactivated.event';
 import { StaffInvited } from './events/staff-invited.event';
-import { StaffDomainError, StaffSelfDeactivationError } from './errors/staff-domain.error';
+import {
+  StaffDomainError,
+  StaffGoogleAccountConflictError,
+  StaffSelfDeactivationError,
+} from './errors/staff-domain.error';
 
 export type StaffRole = 'MANAGER' | 'STAFF';
 
@@ -88,7 +92,7 @@ export class Staff extends AggregateRoot {
       name: trimmedName,
       email: Email.create(email),
       role,
-      isActive: false,
+      isActive: true,
       invitedBy,
       deactivatedBy: null,
       createdAt: now,
@@ -112,7 +116,7 @@ export class Staff extends AggregateRoot {
       name: null,
       email: Email.create(email),
       role: 'MANAGER',
-      isActive: false,
+      isActive: true,
       invitedBy: SYSTEM_ACTOR_ID,
       deactivatedBy: null,
       createdAt: now,
@@ -128,13 +132,15 @@ export class Staff extends AggregateRoot {
     return new Staff(props);
   }
 
-  activate(googleOAuthId: string, name: string): void {
-    if (!googleOAuthId) throw new StaffDomainError('googleOAuthId is required to activate staff');
+  linkGoogleAccount(googleOAuthId: string, name: string): void {
+    if (!googleOAuthId) throw new StaffDomainError('googleOAuthId is required');
     const trimmedName = name?.trim();
-    if (!trimmedName) throw new StaffDomainError('name is required to activate staff');
+    if (!trimmedName) throw new StaffDomainError('name is required');
+    if (this.props.googleOAuthId && this.props.googleOAuthId !== googleOAuthId) {
+      throw new StaffGoogleAccountConflictError();
+    }
     this.props.googleOAuthId = googleOAuthId;
     this.props.name = trimmedName;
-    this.props.isActive = true;
     this.props.updatedAt = new Date();
   }
 

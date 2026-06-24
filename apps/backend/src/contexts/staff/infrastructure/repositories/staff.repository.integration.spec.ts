@@ -33,7 +33,7 @@ describe('TypeOrmStaffRepository (integration)', () => {
     expect(found).not.toBeNull();
     expect(found!.id).toBe(staff.id);
     expect(found!.role).toBe('MANAGER');
-    expect(found!.isActive).toBe(false);
+    expect(found!.isActive).toBe(true);
     expect(found!.googleOAuthId).toBeNull();
   });
 
@@ -45,7 +45,7 @@ describe('TypeOrmStaffRepository (integration)', () => {
       .build();
     await repo.save(staff);
 
-    staff.activate('google-sub-m03s02-activate', 'Staff Ativado');
+    staff.linkGoogleAccount('google-sub-m03s02-activate', 'Staff Ativado');
     await repo.save(staff);
 
     const found = await repo.findByTenantAndOAuthId(
@@ -58,8 +58,8 @@ describe('TypeOrmStaffRepository (integration)', () => {
     expect(found!.isActive).toBe(true);
   });
 
-  it('single-tenant: same google_oauth_id in different tenants causes unique constraint violation', async () => {
-    const sharedSub = 'google-sub-m03s02-single-tenant';
+  it('multi-tenant: same google_oauth_id in different tenants is allowed (per-tenant unique index)', async () => {
+    const sharedSub = 'google-sub-m03s02-multi-tenant';
 
     const staffA = new StaffBuilder()
       .withTenantId('00000000-0000-0000-0000-000000000022')
@@ -74,7 +74,20 @@ describe('TypeOrmStaffRepository (integration)', () => {
       .withGoogleOAuthId(sharedSub)
       .build();
 
-    await expect(repo.save(staffB)).rejects.toThrow();
+    await expect(repo.save(staffB)).resolves.toBeUndefined();
+
+    const foundA = await repo.findByTenantAndOAuthId(
+      '00000000-0000-0000-0000-000000000022',
+      sharedSub,
+    );
+    const foundB = await repo.findByTenantAndOAuthId(
+      '00000000-0000-0000-0000-000000000023',
+      sharedSub,
+    );
+    expect(foundA?.id).toBe(staffA.id);
+    expect(foundA?.tenantId).toBe('00000000-0000-0000-0000-000000000022');
+    expect(foundB?.id).toBe(staffB.id);
+    expect(foundB?.tenantId).toBe('00000000-0000-0000-0000-000000000023');
   });
 
   it('multiple null googleOAuthId rows in the same tenant are allowed (invited but not yet activated)', async () => {
@@ -156,6 +169,8 @@ describe('TypeOrmStaffRepository (integration)', () => {
       .withEmail('mgr-inactive@lavacar.com.br')
       .withRole('MANAGER')
       .build();
+    inactiveManager.deactivate(manager.id, 'corr-count-test');
+    inactiveManager.clearDomainEvents();
     const staffMember = new StaffBuilder()
       .withTenantId(tenantId)
       .withEmail('staff-count@lavacar.com.br')

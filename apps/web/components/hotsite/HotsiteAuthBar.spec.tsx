@@ -22,6 +22,16 @@ describe('HotsiteAuthBar', () => {
     }
   });
 
+  it('always renders the "Área da Equipe" staff link with briefcase icon on the left', () => {
+    vi.mocked(getHotsiteCustomerProfile).mockReturnValue(new Promise(() => {}));
+
+    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
+
+    const staffLink = screen.getByTestId('hotsite-staff-link');
+    expect(staffLink).toHaveAttribute('href', '/dashboard/login');
+    expect(staffLink).toHaveTextContent('Área da Equipe');
+  });
+
   it('renders nothing visible while the profile request is pending', () => {
     vi.mocked(getHotsiteCustomerProfile).mockReturnValue(new Promise(() => {}));
 

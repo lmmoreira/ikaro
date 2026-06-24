@@ -1335,88 +1335,305 @@ export interface CompleteBookingRequest {
 
 ---
 
-### M13-S13 — Staff login frontend: `/dashboard/login`, `/auth/first-login`, `/auth/error`
+### M13-S13 — Staff auth flow overhaul + login pages
 
-*(formerly M124-S02)*
+*(formerly M124-S02 — expanded during discovery to full-stack)*
 
-**Agent:** `frontend-ts`
-**Complexity:** S
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-022 UC-025, `plan/journey/staff/prototypes/login/dev-notes.md`
+**Agent:** `backend-ts` + `bff-ts` + `frontend-ts`
+**Complexity:** M
+**Docs to load:** `docs/ENGINEERING_RULES.md`, `docs/CODE_STANDARDS.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-022 UC-025
 
 **Description:**
-Three static server-component pages covering the complete staff authentication surface (UC-022 and UC-025). All BFF redirects for staff already land in the right places; this story just creates the pages those redirects point to.
+Full-stack overhaul of the staff auth flow, driven by three bugs found during discovery: (1) staff was provisioned as `is_active=false` requiring a separate activation step that could be bypassed; (2) a deactivated staff who still had their invite link could re-activate their own account; (3) the global `UNIQUE(google_oauth_id)` constraint prevented the same person from being staff at multiple tenants.
 
-> 🔍 **Discover before starting:** Check `apps/web/app/dashboard/` — a `page.tsx` stub may exist; read it. Check `apps/web/app/auth/login/page.tsx` — a 3-line stub exists at the wrong route; delete it in this story (nothing links to `/auth/login`). Verify `apps/web/middleware.ts` does NOT exist yet (it is created in `M13-S15`). If it does exist, read it before touching any route.
+New design: staff is always provisioned as `is_active=true`; the invite link only *links* the Google account (`google_oauth_id`) to the already-active record; deactivated staff hitting login goes to an error page; staff with active records at multiple tenants sees a tenant-selection screen (parallel to the customer flow).
+
+`/auth/first-login` page is **removed** — the only path to it was `is_active=false` via regular login, which is now an error condition.
+
+> 🔍 **Discover before starting:** `apps/web/middleware.ts` already exists and redirects `/dashboard/**` to `/auth/login` (wrong target — fix in this story). `apps/web/app/auth/login/page.tsx` is a 3-line stub to delete. `apps/web/app/dashboard/page.tsx` is a stub — leave it.
 
 **Prototype references:**
-- `plan/journey/staff/prototypes/login/00-staff-login.html` → `plan/journey/shared/staff-login.html` (staff login screen)
-- `plan/journey/staff/prototypes/login/01-first-login.html` (invite not accepted)
-- `plan/journey/staff/prototypes/login/01b-error.html`, `01c-error-email-mismatch.html`, `01d-error-tenant-deactivated.html` and `plan/journey/customer/prototypes/login/01b-error.html` (shared error page)
+- `plan/journey/shared/staff-login.html` → `/dashboard/login`
+- `plan/journey/staff/prototypes/login/01b-error.html` and siblings → `/auth/error`
 
-**What to create / delete:**
+---
 
-`apps/web/app/dashboard/login/page.tsx` — server component:
+#### Layer 1 — DB Migration
 
-```typescript
-// Reads optional ?error= from searchParams; renders the staff login screen.
-// No data fetching — static.
+Edit `apps/backend/src/contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff.ts` directly (not in production — drop and reseed):
+
+```sql
+-- Change default:
+"is_active" BOOLEAN NOT NULL DEFAULT true   -- was: false
+
+-- Replace global unique with per-tenant unique:
+-- REMOVE:
+CREATE UNIQUE INDEX "UQ_staff_staff_google_oauth_id"
+  ON staff.staff (google_oauth_id) WHERE google_oauth_id IS NOT NULL
+
+-- ADD:
+CREATE UNIQUE INDEX "UQ_staff_tenant_google_oauth_id"
+  ON staff.staff (tenant_id, google_oauth_id)
+  WHERE google_oauth_id IS NOT NULL
 ```
 
-Renders (per `shared/staff-login.html`):
-- Ikaro logomark (SVG or `<img>`)
+Also update `staff.entity.ts` `@Index` decorator: replace the global unique on `googleOAuthId` with a composite unique on `['tenantId', 'googleOAuthId']` (partial, where not null).
+
+---
+
+#### Layer 2 — Backend: Domain
+
+**`staff-domain.error.ts`** — add:
+```typescript
+export class StaffDeactivatedError extends StaffDomainError {
+  constructor() {
+    super('Staff account is deactivated');
+    this.name = 'StaffDeactivatedError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+```
+
+**`staff.aggregate.ts`:**
+- `Staff.inviteFromProvisioning` → `isActive: true` (was `false`)
+- `Staff.invite` (UC-028) → `isActive: true` (was `false`)
+- Rename `activate(googleOAuthId, name)` → `linkGoogleAccount(googleOAuthId, name)` — remove `this.props.isActive = true` (staff is already active; this method now only sets `googleOAuthId` and `name`)
+
+**`staff-repository.port.ts`** — change signature:
+```typescript
+// was: findByGoogleOAuthId(id: string): Promise<Staff | null>
+findAllByGoogleOAuthId(id: string): Promise<Staff[]>
+```
+
+**`typeorm-staff.repository.ts`** — implement `findAllByGoogleOAuthId` returning `Staff[]` (no `findOne` — use `find({ where: { googleOAuthId } })`).
+
+---
+
+#### Layer 3 — Backend: Application
+
+**`ActivateStaffUseCase` → replaced by `LinkGoogleAccountUseCase`** (new file; delete old):
+
+```
+File: application/use-cases/link-google-account.use-case.ts
+
+execute(staffId, dto: { tenantId, googleOAuthId, email, name }):
+  1. staffRepo.findById(staffId, dto.tenantId) → not found → StaffNotFoundError
+  2. if (!staff.isActive) → throw StaffDeactivatedError        ← guard flipped vs old
+  3. if email mismatch → throw StaffEmailMismatchError
+  4. staff.linkGoogleAccount(dto.googleOAuthId, dto.name)
+  5. txManager.run(() => staffRepo.save(staff))
+  6. return { staffId, tenantId, role }
+```
+
+**`GetStaffByOAuthIdUseCase`** — returns array, never throws `StaffNotFoundError`:
+```typescript
+async execute(googleOAuthId: string): Promise<GetStaffByOAuthIdUseCaseResult[]>
+// uses findAllByGoogleOAuthId; empty array = valid (not-a-staff-member handled by BFF)
+```
+
+Result type:
+```typescript
+export interface GetStaffByOAuthIdUseCaseResult {
+  staffId: string;
+  tenantId: string;
+  role: StaffRole;
+  isActive: boolean;
+}
+```
+
+---
+
+#### Layer 4 — Backend: Infrastructure
+
+**`internal-staff.controller.ts`:**
+- `GET /internal/staff/by-oauth` → returns `GetStaffByOAuthIdUseCaseResult[]` (array, no 404)
+- `POST /:staffId/activate` → rename to `POST /:staffId/link-google`; use `LinkGoogleAccountUseCase` and `LinkGoogleAccountDto`/`LinkGoogleAccountSchema`
+
+**`staff-error.mapper.ts`** — add:
+```typescript
+if (err instanceof StaffDeactivatedError)
+  throw new HttpException({ type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Staff account is deactivated' }, HttpStatus.FORBIDDEN);
+```
+
+**`activate-staff.dto.ts`** → rename to `link-google-account.dto.ts`; schema/type rename accordingly. Fields unchanged: `{ tenantId, googleOAuthId, email, name }`.
+
+**`staff.module.ts`** — swap `ActivateStaffUseCase` for `LinkGoogleAccountUseCase` in providers.
+
+---
+
+#### Layer 5 — BFF
+
+**`auth.types.ts`:**
+```typescript
+// StaffInfoResponse — unchanged fields, now returned as array from by-oauth
+export interface StaffInfoResponse {
+  staffId: string;
+  tenantId: string;
+  role: 'STAFF' | 'MANAGER';
+  isActive: boolean;
+}
+
+// ActivateStaffResponse → replaced by:
+export interface LinkGoogleAccountResponse {
+  staffId: string;
+  tenantId: string;
+  role: 'STAFF' | 'MANAGER';
+}
+
+// New:
+export interface StaffTenantOption {
+  staffId: string;
+  tenantId: string;
+  tenantSlug: string;
+  tenantName: string;
+  role: 'STAFF' | 'MANAGER';
+}
+```
+
+**`packages/types/src/`** — add `StaffTenantOption` and `IssueStaffTokenRequest { selectionToken: string; staffId: string }` to `@ikaro/types`.
+
+**`auth.controller.ts`** — `handleStaffLogin` rewrite:
+```
+staffList = GET /internal/staff/by-oauth → StaffInfoResponse[]
+activeStaff = staffList.filter(s => s.isActive)
+
+activeStaff.length === 0 && staffList.some(s => !s.isActive)
+  → redirect /auth/error?reason=staff-deactivated
+
+activeStaff.length === 0
+  → redirect /auth/error?reason=not-a-staff-member
+
+activeStaff.length === 1
+  → GET /internal/tenants/:tenantId → issue JWT → cookie → redirect /dashboard
+
+activeStaff.length > 1
+  → selectionToken = issueSelectionToken(profile.googleOAuthId)
+  → redirect /select-staff-tenant?token=<selectionToken>
+```
+
+**`auth.controller.ts`** — `handleStaffFirstLogin` rewrite:
+```
+1. GET /internal/tenants/by-slug/:slug  → not found → tenant-not-found
+2. GET /internal/staff/by-email?email&tenantId → not found → invite-not-found
+3. if !staffByEmail.isActive → staff-deactivated
+4. POST /internal/staff/:staffId/link-google { tenantId, googleOAuthId, email, name }
+   catch 422 → email-mismatch
+5. issue JWT → cookie → redirect /dashboard
+```
+
+**`auth.controller.ts`** — two new `@Public()` endpoints:
+
+`GET /auth/staff-tenants?token=...`:
+```
+verifySelectionToken(token) → { googleOAuthId }
+GET /internal/staff/by-oauth → StaffInfoResponse[]
+filter active → for each: GET /internal/tenants/:tenantId
+return StaffTenantOption[]
+```
+
+`POST /auth/staff-token` (body: `IssueStaffTokenDto { selectionToken, staffId }`):
+```
+verifySelectionToken → { googleOAuthId }
+GET /internal/staff/by-oauth → find matching staffId that isActive
+if not found → ForbiddenException
+GET /internal/tenants/:tenantId
+issue JWT → cookie → return { tenantSlug }
+```
+
+Add `IssueStaffTokenDto` / `IssueStaffTokenSchema` (same pattern as `IssueTokenDto`).
+
+---
+
+#### Layer 6 — Frontend
+
+**`apps/web/middleware.ts`** — fix redirect target:
+```typescript
+// was: new URL('/auth/login', request.url)
+new URL('/dashboard/login', request.url)
+```
+
+**`apps/web/app/dashboard/login/page.tsx`** — new server component (static):
+- Ikaro logomark (coloured square with "I", no new icon library)
 - Heading: `"Área da Equipe"`
 - Subtext: `"Acesso exclusivo para funcionários e gerentes"`
-- If `searchParams.error === 'not-a-staff-member'`: inline red alert box above the button — `"Sua conta Google não está cadastrada como funcionário neste estabelecimento."` + retry button
-- Google Sign-In button: `<a href="/api/auth/google?state=__staff__">` — full page navigation (not `fetch`)
-- Footer note: `"Primeiro acesso? Use o link enviado no e-mail de convite."`
+- Google Sign-In button: `<a href={\`${process.env.NEXT_PUBLIC_BFF_URL}/auth/google?type=staff\`}>` — plain `<a>` (full redirect, not fetch)
+- Footer: `"Primeiro acesso? Use o link enviado no e-mail de convite."`
+- No inline error banner — all errors go to `/auth/error`
 
-> Note: the Google Sign-In button is a plain `<a>` tag (full redirect), not a form submit or client-side fetch, because OAuth requires a browser navigation to set the state cookie correctly.
-
-`apps/web/app/auth/first-login/page.tsx` — server component:
-
-Renders (per `01-first-login.html`):
-- Envelope icon in blue circle (use an SVG icon or emoji placeholder; do not install a new icon library)
-- Heading: `"Acesso ainda não ativado"`
-- Explanation paragraph: staff must use the invite link from their email
-- 3-step instruction list (match prototype text exactly — pt-BR)
-- Note: `"Não recebeu o e-mail? Peça ao gerente que reenvie o convite."`
-- `"Voltar ao login"` link → `/dashboard/login`
-
-`apps/web/app/auth/error/page.tsx` — server component (shared by staff + customer):
-
-`searchParams.reason` drives content:
+**`apps/web/app/auth/error/page.tsx`** — new server component, `searchParams.reason` drives content:
 
 | `reason` | Heading | Message | CTA label | CTA href |
 |---|---|---|---|---|
 | `not-a-staff-member` | `"Acesso não autorizado"` | `"Sua conta Google não está cadastrada como funcionário neste estabelecimento."` | `"Voltar ao login"` | `/dashboard/login` |
+| `staff-deactivated` | `"Conta desativada"` | `"Sua conta foi desativada. Entre em contato com o gerente."` | `"Voltar ao login"` | `/dashboard/login` |
 | `email-mismatch` | `"Acesso não autorizado"` | `"Por favor, use o e-mail para o qual você foi convidado(a)."` | `"Voltar ao login"` | `/dashboard/login` |
 | `invite-not-found` | `"Convite não encontrado"` | `"Nenhum convite pendente foi encontrado para este estabelecimento."` | `"Voltar ao login"` | `/dashboard/login` |
+| `account-linked-elsewhere` | `"Conta já vinculada"` | `"Esta conta Google já está vinculada a outro funcionário. Entre com a conta original ou peça ajuda ao gerente."` | `"Voltar ao login"` | `/dashboard/login` |
 | `tenant-not-found` | `"Estabelecimento não encontrado"` | `"O link de convite é inválido ou o estabelecimento foi removido."` | `"Voltar ao site"` | `/` |
 | `tenant-deactivated` | `"Estabelecimento desativado"` | `"Este estabelecimento está temporariamente desativado."` | `"Voltar ao site"` | `/` |
 | `no-tenant` | `"Não foi possível entrar"` | `"Nenhum estabelecimento encontrado para sua conta Google."` | `"Voltar ao site"` | `/` |
-| _(unknown / missing)_ | `"Erro de autenticação"` | `"Ocorreu um erro inesperado. Tente novamente."` | `"Voltar"` | `"javascript:history.back()"` |
+| _(missing/unknown)_ | `"Erro de autenticação"` | `"Ocorreu um erro inesperado. Tente novamente."` | `"Voltar"` | `/` |
 
-Show `reason` code at bottom in small grey text for support reference (e.g. `"Código: not-a-staff-member"`).
+Show reason code in small grey text at bottom: `"Código: <reason>"`.
+
+**`apps/web/app/select-staff-tenant/page.tsx`** — new `'use client'` component:
+- Reads `?token=` via `useSearchParams()`
+- On mount: `GET ${process.env.NEXT_PUBLIC_BFF_URL}/auth/staff-tenants?token=<token>` → `StaffTenantOption[]`
+- Loading state while fetching; error state if fetch fails (show "Tente novamente" link to `/dashboard/login`)
+- Renders list: each option shows `tenantName` + `role` badge → clicking calls `POST ${NEXT_PUBLIC_BFF_URL}/auth/staff-token { selectionToken: token, staffId }` → on success `router.push('/dashboard')`
+- Heading: `"Selecione o estabelecimento"`
 
 **Delete:**
+- `apps/web/app/auth/login/` directory (3-line stub — wrong route)
+- `apps/web/app/auth/first-login/` is **not created** (concept removed)
 
-`apps/web/app/auth/login/page.tsx` — the existing 3-line stub at `/auth/login`. This route is not referenced anywhere and conflicts with the convention. Remove the file and the `login/` directory under `auth/`.
+---
 
-**Testing:**
+#### Layer 7 — Tests
 
-These are `app/**/page.tsx` server components — do not write Vitest unit tests. Acceptance is verified by the AC below; full E2E coverage belongs to a future Playwright suite.
+**Backend unit tests:**
+- `get-staff-by-oauth-id.use-case.spec.ts` → update for `Staff[]` return; remove `StaffNotFoundError` case; add empty-array case
+- `link-google-account.use-case.spec.ts` (renamed from `activate-staff.use-case.spec.ts`):
+  - active staff + correct email → links `googleOAuthId`, saves, returns `{ staffId, tenantId, role }`
+  - deactivated staff → throws `StaffDeactivatedError`
+  - email mismatch → throws `StaffEmailMismatchError`
+  - staff not found → throws `StaffNotFoundError`
+- `staff.aggregate.spec.ts` → update `activate` tests to `linkGoogleAccount`; add tests that `inviteFromProvisioning` and `invite` create staff with `isActive: true`
+
+**Backend integration tests:**
+- `tenant-provisioned.handler.integration.spec.ts` → assert created staff has `isActive: true`
+- `internal-staff.controller.integration.spec.ts` → update `by-oauth` to return array; add `link-google` endpoint tests
+
+**BFF unit tests (`auth.controller.spec.ts`):**
+- `handleStaffLogin`: 0 results → `not-a-staff-member`; deactivated results → `staff-deactivated`; 1 active → JWT + cookie; 2 active → selection token + redirect
+- `handleStaffFirstLogin`: deactivated staff → `staff-deactivated`; email mismatch (BFF catches 422) → `email-mismatch`; success → JWT + redirect `/dashboard`
+- `GET /auth/staff-tenants`: valid token → `StaffTenantOption[]`; expired token → 400
+- `POST /auth/staff-token`: valid → JWT + `{ tenantSlug }`; staffId not in list → 403
+
+**Update `InMemoryStaffRepository`** (test double): replace `findByGoogleOAuthId` with `findAllByGoogleOAuthId`.
+
+---
+
+**Testing note:** `app/**/page.tsx` server components — no Vitest unit tests. `select-staff-tenant/page.tsx` is a client component but its interaction (fetch + redirect) is best covered by Playwright (future). AC verification is by visual/manual check per the criteria below.
 
 **Acceptance criteria:**
-- [ ] `GET /dashboard/login` renders the staff login screen; Google button href = `/api/auth/google?state=__staff__` (confirm exact BFF route prefix)
-- [ ] `GET /dashboard/login?error=not-a-staff-member` renders inline red alert; page does not redirect
-- [ ] `GET /auth/first-login` renders the invite-not-accepted screen with "Voltar ao login" link
-- [ ] `GET /auth/error?reason=not-a-staff-member` renders correct heading + message + CTA
-- [ ] `GET /auth/error?reason=no-tenant` renders correct heading + message + CTA pointing to `/`
-- [ ] `GET /auth/error` (no reason) renders fallback error message without throwing
-- [ ] `apps/web/app/auth/login/page.tsx` deleted
-- [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
+- [ ] `GET /dashboard/login` renders; Google button `href` = `${NEXT_PUBLIC_BFF_URL}/auth/google?state=__staff__`
+- [ ] `GET /auth/error?reason=not-a-staff-member` renders correct heading + CTA → `/dashboard/login`
+- [ ] `GET /auth/error?reason=staff-deactivated` renders "Conta desativada" + CTA → `/dashboard/login`
+- [ ] `GET /auth/error?reason=email-mismatch` renders correct heading + CTA → `/dashboard/login`
+- [ ] `GET /auth/error?reason=tenant-not-found` renders correct heading + CTA → `/`
+- [ ] `GET /auth/error` (no reason) renders fallback without throwing
+- [ ] `GET /select-staff-tenant?token=<valid>` renders tenant list fetched from BFF
+- [ ] `apps/web/middleware.ts` redirects unauthenticated `/dashboard/**` to `/dashboard/login`
+- [ ] Staff provisioned via `TenantProvisioned` event has `isActive: true` in DB
+- [ ] `POST /internal/staff/:id/link-google` links `googleOAuthId` for an active staff; returns 403 for deactivated staff
+- [ ] `GET /internal/staff/by-oauth` returns `StaffInfoResponse[]` (array); returns `[]` when not found (no 404)
+- [ ] BFF `handleStaffLogin`: single active → JWT cookie + redirect `/dashboard`; 2 active → redirect `/select-staff-tenant?token=...`; all deactivated → redirect `/auth/error?reason=staff-deactivated`
+- [ ] BFF `POST /auth/staff-token`: valid `staffId` → JWT cookie + `{ tenantSlug }`; unknown `staffId` → 403
+- [ ] `apps/web/app/auth/login/` deleted
+- [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings; all unit tests pass
 
-**Dependencies:** M13-S02 not strictly required (staff redirects already correct), but sequenced after it to keep story order clean — can be developed in parallel.
+**Dependencies:** M13-S02 (auth cookie fix already merged ✅).
 
 ---
 
@@ -1612,10 +1829,10 @@ The shell matches `plan/journey/shared/dashboard-shell.html` and `plan/journey/s
 
 **What to create:**
 
-`apps/web/middleware.ts` — route protection for `/dashboard/**`:
-- Read JWT from `httpOnly` cookie (same cookie set by UC-022/UC-025 login flow)
+`apps/web/middleware.ts` — **extend** (already exists — created in M13-S13 to fix the `/dashboard/login` redirect; add role-based JWT guard on top):
+- Read JWT from `httpOnly` cookie
 - If no JWT or JWT role is not `STAFF` | `MANAGER` → redirect to `/dashboard/login`
-- If JWT valid → pass through
+- If JWT valid → pass through (the existing `x-pathname` propagation for i18n must be preserved)
 
 `apps/web/app/dashboard/layout.tsx` — server component:
 - Reads JWT from cookie (server-side, via `cookies()`)
@@ -3998,10 +4215,11 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 - [ ] **Selection token decode strategy:** does `issueSelectionToken` encode the tenant list (decode on frontend) or only `{ googleOAuthId }` (requires a separate BFF `GET /auth/tenants?token=...` endpoint)? If the endpoint is missing, add it to `M13-S02`'s scope. Resolve before `M13-S14`.
 - [ ] **`TenantOption.primaryColor`:** does the BFF selection token carry the tenant's `primaryColor`? If yes, include the field and use it for the initial avatar background in `/select-tenant`. If no, use a neutral placeholder.
 - [x] **Post-login redirect from customer area:** confirmed — the customer lands on `/{slug}` (the hotsite), which already reads the `access_token` cookie server-side (M12) and shows the logged-in nav bar. No follow-up story needed.
-- [ ] **Staff login Google button href prefix:** `/api/auth/google` (Next.js proxy) or `/v1/auth/google` (direct BFF)? Must match what the BFF OAuth callback `redirectUri` expects. Resolve before `M13-S13` AC sign-off.
+- [x] **Staff login Google button href prefix:** resolved in M13-S13 — uses `${NEXT_PUBLIC_BFF_URL}/auth/google?state=__staff__` (absolute BFF URL, same pattern as the customer login page). `NEXT_PUBLIC_BFF_URL` includes the `/v1` prefix (`http://localhost:3002/v1` in dev).
 - [ ] **Staff logout:** no logout endpoint designed yet. Current MVP behavior: JWT expiry → redirect to `/dashboard/login`. An explicit logout button is post-MVP — not scoped in any story above.
-- [ ] **"Bem-vindo(a)!" first-login banner (UC-025 step 8):** would need the BFF to append `?welcome=1` to the `/dashboard` redirect, and the dashboard to render a one-time dismissible banner. Not scoped in any story above — fold into `M13-S15` or a follow-up patch if product wants it.
+- [ ] **"Bem-vindo(a)!" first-login banner (UC-025 step 8):** ⚠️ auth flow redesigned in M13-S13 — `link-google` now redirects straight to `/dashboard` with no distinguishable "first login" moment. To implement the banner, the BFF would need to detect that `google_oauth_id` was just set (i.e. call `link-google` succeeded where it previously returned 200 without a cookie) and append `?welcome=1` to the `/dashboard` redirect — this logic does not exist today. Post-MVP; fold into a follow-up patch if product wants it.
 - [ ] **Playwright E2E suite for auth flows:** login flows need full E2E coverage (M16-S06). Playwright infrastructure is set up in M13-S41; the Google OAuth test-bypass endpoint required for automated auth testing is M16's scope.
+- [ ] **Staff invite email `activationLink` broken (TD13):** `send-staff-invitation.use-case.ts` generates `${FRONTEND_URL}/${slug}/auth/staff` which is a 404 — the Next.js route doesn't exist. Fix: create `app/[slug]/auth/staff/page.tsx` as a server redirect to `${NEXT_PUBLIC_BFF_URL}/auth/google?type=staff&tenantSlug=${slug}` (Option B in `td/TD13-STAFF-INVITE-EMAIL-LINK.md`). Staff can still log in via the direct BFF URL as a workaround. Blocks end-to-end invite flow testing.
 
 ### Staff booking core (Phase 4, M13-S17–M13-S20)
 

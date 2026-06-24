@@ -117,7 +117,7 @@ describe('StaffController', () => {
       });
 
       expect(result.email).toBe('novo@lavacar.com.br');
-      expect(result.isActive).toBe(false);
+      expect(result.isActive).toBe(true);
       const saved = await repo.findByTenantAndEmail(TENANT_A, 'novo@lavacar.com.br');
       expect(saved!.tenantId).toBe(TENANT_A);
       expect(saved!.name).toBe('João Silva');

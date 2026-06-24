@@ -6,7 +6,7 @@ export function middleware(request: NextRequest): NextResponse {
   const token = request.cookies.get('access_token');
 
   if (pathname.startsWith('/dashboard') && !token) {
-    return NextResponse.redirect(new URL('/auth/login', request.url));
+    return NextResponse.redirect(new URL('/dashboard/login', request.url));
   }
 
   // Propagate pathname to RSC so i18n/request.ts can resolve the tenant locale

@@ -52,8 +52,9 @@
 #   → Google authenticates → redirects back to /v1/auth/google/callback
 #   → BFF: GET /internal/tenants/by-slug/lavacar-beloauto → tenantInfo
 #   → BFF: GET /internal/staff/by-email?email=<google_email>&tenantId=<id>
-#   → Staff found + isActive=false → POST /internal/staff/:staffId/activate
+#   → Staff found + isActive=true (no googleOAuthId yet) → POST /internal/staff/:staffId/link-google
 #   → JWT issued → cookie set → redirects to /dashboard
+#   → Staff deactivated → /auth/error?reason=staff-deactivated
 #   → Email mismatch → /auth/error?reason=email-mismatch
 #   → Not invited → /auth/error?reason=invite-not-found
 
@@ -145,4 +146,53 @@ Content-Type: application/json
 {
   "selectionToken": "paste-valid-selection-token-here",
   "tenantId": "00000000-0000-4000-8000-000000009999"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MULTI-TENANT STAFF SELECTION — GET /v1/auth/staff-tenants + POST /v1/auth/staff-token
+# UC-022 (staff in 2+ tenants): after browser redirects to /select-staff-tenant?token=<...>,
+# the frontend GETs the list then POSTs to exchange the selection token for a JWT.
+# ─────────────────────────────────────────────────────────────────────────────
+
+### List tenants where the staff member has an active record (multi-tenant selection)
+# Replace token with the value from the ?token= query param in the redirect URL
+GET {{bffUrl}}/v1/auth/staff-tenants?token=paste-selection-token-here
+
+###
+
+### Exchange staff selection token for JWT
+POST {{bffUrl}}/v1/auth/staff-token
+Content-Type: application/json
+
+{
+  "selectionToken": "paste-selection-token-here",
+  "staffId": "paste-target-staff-uuid-here"
+}
+
+###
+
+### 400 — Selection token missing or invalid for staff-tenants
+GET {{bffUrl}}/v1/auth/staff-tenants?token=invalid.token.signature
+
+###
+
+### 400 — selectionToken missing from staff-token body
+POST {{bffUrl}}/v1/auth/staff-token
+Content-Type: application/json
+
+{
+  "staffId": "{{staffId}}"
+}
+
+###
+
+### 403 — staffId not in the selection token's tenant list (or inactive)
+POST {{bffUrl}}/v1/auth/staff-token
+Content-Type: application/json
+
+{
+  "selectionToken": "paste-valid-selection-token-here",
+  "staffId": "00000000-0000-4000-8000-000000009999"
 }

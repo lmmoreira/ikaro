@@ -11,11 +11,14 @@ import {
   Query,
 } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
-import { ActivateStaffDto, ActivateStaffSchema } from '../../application/dtos/activate-staff.dto';
 import {
-  ActivateStaffUseCaseResult,
-  ActivateStaffUseCase,
-} from '../../application/use-cases/activate-staff.use-case';
+  LinkGoogleAccountDto,
+  LinkGoogleAccountSchema,
+} from '../../application/dtos/link-google-account.dto';
+import {
+  LinkGoogleAccountUseCase,
+  LinkGoogleAccountUseCaseResult,
+} from '../../application/use-cases/link-google-account.use-case';
 import {
   GetStaffByEmailUseCase,
   GetStaffByEmailUseCaseResult,
@@ -33,13 +36,13 @@ export class InternalStaffController {
   constructor(
     private readonly getStaffByOAuthId: GetStaffByOAuthIdUseCase,
     private readonly getStaffByEmail: GetStaffByEmailUseCase,
-    private readonly activateStaff: ActivateStaffUseCase,
+    private readonly linkGoogleAccount: LinkGoogleAccountUseCase,
   ) {}
 
   @Get('by-oauth')
   async getByOAuth(
     @Query('googleOAuthId') googleOAuthId: string,
-  ): Promise<GetStaffByOAuthIdUseCaseResult> {
+  ): Promise<GetStaffByOAuthIdUseCaseResult[]> {
     if (!googleOAuthId) {
       throw new BadRequestException({
         type: 'about:blank',
@@ -48,7 +51,7 @@ export class InternalStaffController {
         detail: 'googleOAuthId query parameter is required',
       });
     }
-    return this.getStaffByOAuthId.execute(googleOAuthId).catch(mapStaffError);
+    return this.getStaffByOAuthId.execute(googleOAuthId);
   }
 
   @Get('by-email')
@@ -68,13 +71,13 @@ export class InternalStaffController {
     return this.getStaffByEmail.execute(email, tenantId).catch(mapStaffError);
   }
 
-  @Post(':staffId/activate')
+  @Post(':staffId/link-google')
   @HttpCode(HttpStatus.OK)
-  activate(
+  linkGoogle(
     @Param('staffId', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST }))
     staffId: string,
-    @Body(new ZodValidationPipe(ActivateStaffSchema)) dto: ActivateStaffDto,
-  ): Promise<ActivateStaffUseCaseResult> {
-    return this.activateStaff.execute(staffId, dto).catch(mapStaffError);
+    @Body(new ZodValidationPipe(LinkGoogleAccountSchema)) dto: LinkGoogleAccountDto,
+  ): Promise<LinkGoogleAccountUseCaseResult> {
+    return this.linkGoogleAccount.execute(staffId, dto).catch(mapStaffError);
   }
 }

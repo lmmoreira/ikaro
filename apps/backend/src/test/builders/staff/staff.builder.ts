@@ -51,7 +51,7 @@ export class StaffBuilder {
     );
     staff.clearDomainEvents(); // builders don't produce events in tests
     if (this.googleOAuthId) {
-      staff.activate(this.googleOAuthId, this.name);
+      staff.linkGoogleAccount(this.googleOAuthId, this.name);
     }
     return staff;
   }

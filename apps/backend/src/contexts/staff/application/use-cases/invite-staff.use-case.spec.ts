@@ -43,17 +43,17 @@ describe('InviteStaffUseCase', () => {
     );
   });
 
-  it('creates an inactive staff row with name stored and publishes StaffInvited', async () => {
+  it('creates an active staff row with name stored and publishes StaffInvited', async () => {
     const result = await useCase.execute(baseDto);
 
     expect(result.email).toBe('novo@lavacar.com.br');
     expect(result.role).toBe('STAFF');
-    expect(result.isActive).toBe(false);
+    expect(result.isActive).toBe(true);
     expect(result.staffId).toBeDefined();
 
     const saved = await repo.findByTenantAndEmail(TENANT_A, 'novo@lavacar.com.br');
     expect(saved).not.toBeNull();
-    expect(saved!.isActive).toBe(false);
+    expect(saved!.isActive).toBe(true);
     expect(saved!.name).toBe('João Silva');
     expect(saved!.invitedBy).toBe(MANAGER_ID);
 
@@ -73,7 +73,7 @@ describe('InviteStaffUseCase', () => {
     expect(saved).not.toBeNull();
   });
 
-  it('throws StaffAlreadyExistsError when email is already active in the same tenant', async () => {
+  it('throws StaffAlreadyExistsError when email already has a linked Google account', async () => {
     const active = new StaffBuilder()
       .withTenantId(TENANT_A)
       .withEmail('novo@lavacar.com.br')
@@ -85,7 +85,7 @@ describe('InviteStaffUseCase', () => {
     expect(eventBus.published).toHaveLength(0);
   });
 
-  it('resends invite (A2) when email has an inactive row — updates name and role', async () => {
+  it('resends invite (A2) when email exists but google account not yet linked — updates name and role', async () => {
     const inactive = new StaffBuilder()
       .withTenantId(TENANT_A)
       .withEmail('novo@lavacar.com.br')
@@ -101,7 +101,7 @@ describe('InviteStaffUseCase', () => {
     });
 
     expect(result.staffId).toBe(inactive.id);
-    expect(result.isActive).toBe(false);
+    expect(result.isActive).toBe(true);
     expect(result.role).toBe('MANAGER');
 
     const saved = await repo.findByTenantAndEmail(TENANT_A, 'novo@lavacar.com.br');
@@ -126,7 +126,7 @@ describe('InviteStaffUseCase', () => {
     const result = await useCase.execute(baseDto);
 
     expect(result.staffId).not.toBe(otherTenantStaff.id);
-    expect(result.isActive).toBe(false);
+    expect(result.isActive).toBe(true);
   });
 
   it('assigns tenantId from dto to the new staff row', async () => {

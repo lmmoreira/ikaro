@@ -1,6 +1,6 @@
 # Staff — Internal Auth-Flow Endpoints
-# UC-022: BFF resolves which tenant a Google account belongs to (staff login)
-# UC-025: BFF activates a staff member on first login (accept invite)
+# UC-022: BFF resolves which tenants a Google account belongs to (staff login — returns array)
+# UC-025: BFF links Google account to an already-active staff record on first login
 #
 # Management endpoints (list, getById, invite, deactivate) have moved to staff.http
 #
@@ -20,7 +20,7 @@
 # HAPPY PATH — by-oauth (UC-022)
 # ─────────────────────────────────────────────────────────────────────────────
 
-### Get staff info for a known active Google OAuth ID
+### Get all staff records for a known Google OAuth ID (returns array — empty if none)
 GET {{baseUrl}}/internal/staff/by-oauth?googleOAuthId={{sub}}
 X-Internal-Key: {{internalKey}}
 
@@ -30,18 +30,18 @@ X-Internal-Key: {{internalKey}}
 
 ###
 
-### Find invited (inactive) staff by email + tenantId
+### Find staff by email + tenantId (returns 404 if not found)
 GET {{baseUrl}}/internal/staff/by-email?email=gerente@lavacar.com.br&tenantId={{tenantId}}
 X-Internal-Key: {{internalKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
-# HAPPY PATH — activate (UC-025)
+# HAPPY PATH — link-google (UC-025)
 # ─────────────────────────────────────────────────────────────────────────────
 
 ###
 
-### Activate staff on first Google login
-POST {{baseUrl}}/internal/staff/{{staffId}}/activate
+### Link Google account to an active staff record (first login via invite link)
+POST {{baseUrl}}/internal/staff/{{staffId}}/link-google
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
@@ -75,7 +75,7 @@ X-Internal-Key: {{internalKey}}
 
 ###
 
-### 404 — Google account not registered as staff
+### Empty array — Google account not registered as staff (200 [] instead of 404)
 GET {{baseUrl}}/internal/staff/by-oauth?googleOAuthId=unknown-sub-not-staff
 X-Internal-Key: {{internalKey}}
 
@@ -88,7 +88,7 @@ X-Internal-Key: {{internalKey}}
 ###
 
 ### 404 — staffId not found in tenant
-POST {{baseUrl}}/internal/staff/non-existent-id/activate
+POST {{baseUrl}}/internal/staff/00000000-0000-4000-8000-000000009999/link-google
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
@@ -101,8 +101,50 @@ Content-Type: application/json
 
 ###
 
+### 403 — Staff account is deactivated
+# Prerequisite chain: invite a throwaway staff member, then deactivate it,
+# so this request has a genuinely deactivated record to call link-google against.
+
+# @name inviteThrowawayStaff
+POST {{baseUrl}}/staff/invite
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "email": "desativado-link-google@lavacar.com.br",
+  "firstName": "Desativado",
+  "lastName": "Teste",
+  "role": "STAFF"
+}
+
+###
+
+PATCH {{baseUrl}}/staff/{{inviteThrowawayStaff.response.body.staffId}}/deactivate
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+POST {{baseUrl}}/internal/staff/{{inviteThrowawayStaff.response.body.staffId}}/link-google
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "tenantId": "{{tenantId}}",
+  "googleOAuthId": "{{sub}}",
+  "email": "desativado-link-google@lavacar.com.br",
+  "name": "Desativado Teste"
+}
+
+###
+
 ### 422 — Google email does not match invited email
-POST {{baseUrl}}/internal/staff/{{staffId}}/activate
+POST {{baseUrl}}/internal/staff/{{staffId}}/link-google
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 

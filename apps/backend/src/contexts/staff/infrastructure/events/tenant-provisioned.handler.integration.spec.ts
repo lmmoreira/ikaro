@@ -83,7 +83,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
 
     expect(staff).not.toBeNull();
     expect(staff!.role).toBe('MANAGER');
-    expect(staff!.isActive).toBe(false);
+    expect(staff!.isActive).toBe(true);
     expect(staff!.googleOAuthId).toBeNull();
     expect(staff!.name).toBeNull();
     expect(staff!.invitedBy).toBe(SYSTEM_ACTOR_ID);

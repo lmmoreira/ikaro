@@ -16,11 +16,8 @@ export class InMemoryStaffRepository implements IStaffRepository {
     return null;
   }
 
-  async findByGoogleOAuthId(googleOAuthId: string): Promise<Staff | null> {
-    for (const staff of this.store.values()) {
-      if (staff.googleOAuthId === googleOAuthId) return staff;
-    }
-    return null;
+  async findAllByGoogleOAuthId(googleOAuthId: string): Promise<Staff[]> {
+    return Array.from(this.store.values()).filter((s) => s.googleOAuthId === googleOAuthId);
   }
 
   async findByTenantAndEmail(tenantId: string, email: string): Promise<Staff | null> {

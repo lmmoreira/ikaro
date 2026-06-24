@@ -22,9 +22,16 @@ export interface StaffByEmailResponse {
   isActive: boolean;
 }
 
-export interface ActivateStaffResponse {
+export interface LinkGoogleAccountResponse {
   staffId: string;
   tenantId: string;
   role: 'STAFF' | 'MANAGER';
-  isActive: true;
+}
+
+export interface StaffTenantOption {
+  staffId: string;
+  tenantId: string;
+  tenantSlug: string;
+  tenantName: string;
+  role: 'STAFF' | 'MANAGER';
 }

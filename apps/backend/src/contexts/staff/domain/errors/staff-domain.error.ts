@@ -20,6 +20,13 @@ export class StaffAlreadyActiveError extends StaffDomainError {
   }
 }
 
+export class StaffDeactivatedError extends StaffDomainError {
+  constructor() {
+    super('Staff account is deactivated');
+    this.name = 'StaffDeactivatedError';
+  }
+}
+
 export class StaffEmailMismatchError extends StaffDomainError {
   constructor() {
     super('The Google account email does not match the invited email address');
@@ -45,5 +52,12 @@ export class LastActiveManagerError extends StaffDomainError {
   constructor() {
     super('Cannot remove the last active manager');
     this.name = 'LastActiveManagerError';
+  }
+}
+
+export class StaffGoogleAccountConflictError extends StaffDomainError {
+  constructor() {
+    super('This Google account is already linked to a different staff member');
+    this.name = 'StaffGoogleAccountConflictError';
   }
 }

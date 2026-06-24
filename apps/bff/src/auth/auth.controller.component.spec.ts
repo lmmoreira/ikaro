@@ -222,7 +222,9 @@ describe('AuthController (component) — non-OAuth routes', () => {
     it('200 — staff path: returns { accessToken, user } with correct role and sets cookie', async () => {
       backendHttpService.get
         .mockResolvedValueOnce({ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' })
-        .mockResolvedValueOnce({ staffId: STAFF_ID, role: 'MANAGER', isActive: true });
+        .mockResolvedValueOnce([
+          { staffId: STAFF_ID, tenantId: TENANT_ID, role: 'MANAGER', isActive: true },
+        ]);
 
       const res = await request(app.getHttpServer())
         .post('/v1/auth/dev-login')
