@@ -7,6 +7,9 @@ import {
 import { RequestContext } from '../../../../shared/request/request-context';
 import { Money } from '../../../../shared/value-objects/money';
 import {
+  BookingDiscountDisabledError,
+  BookingDiscountMismatchError,
+  BookingDiscountNotAvailableError,
   BookingNotFoundError,
   CompleteBookingLinesIncompleteError,
 } from '../../domain/errors/booking-domain.error';
@@ -50,6 +53,20 @@ export class CompleteBookingUseCase {
 
     await this.photoExistenceService.assertPhotosUploaded(dto.afterServicePhotoUrls, tenantId);
 
+    if (dto.discountByPoints) {
+      if (booking.customerId === null) throw new BookingDiscountNotAvailableError();
+
+      const { pointsPerCurrencyUnit } = this.tenantContext.settings.loyalty;
+      if (pointsPerCurrencyUnit === 0) throw new BookingDiscountDisabledError();
+
+      const expectedAmountDeducted = Math.floor(
+        dto.discountByPoints.pointsUsed / pointsPerCurrencyUnit,
+      );
+      if (Math.abs(dto.discountByPoints.amountDeducted - expectedAmountDeducted) > 0.01) {
+        throw new BookingDiscountMismatchError();
+      }
+    }
+
     const lineActualPrices = new Map(
       dto.lines.map((l) => [l.lineId, Money.from(l.actualPriceCharged, currency)]),
     );
@@ -60,6 +77,7 @@ export class CompleteBookingUseCase {
       dto.afterServicePhotoUrls,
       correlationId,
       dto.adminNotes,
+      dto.discountByPoints,
     );
 
     await this.txManager.run(async () => {

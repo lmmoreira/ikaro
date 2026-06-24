@@ -5,7 +5,13 @@ import { LoyaltyPlatformAdapter } from './loyalty-platform.adapter';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 
-function makeTenantResult(overrides: { expiryDays?: number; notificationMinPoints?: number } = {}) {
+function makeTenantResult(
+  overrides: {
+    expiryDays?: number;
+    notificationMinPoints?: number;
+    pointsPerCurrencyUnit?: number;
+  } = {},
+) {
   const tenant = new TenantBuilder().build();
   return {
     id: tenant.id,
@@ -17,6 +23,7 @@ function makeTenantResult(overrides: { expiryDays?: number; notificationMinPoint
         ...tenant.settings.toJSON().loyalty,
         expiryDays: overrides.expiryDays ?? 365,
         notificationMinPoints: overrides.notificationMinPoints ?? 100,
+        pointsPerCurrencyUnit: overrides.pointsPerCurrencyUnit ?? 10,
       },
     },
   };
@@ -35,12 +42,16 @@ describe('LoyaltyPlatformAdapter', () => {
 
   it('returns loyalty settings from tenant', async () => {
     getTenantById.execute.mockResolvedValue(
-      makeTenantResult({ expiryDays: 90, notificationMinPoints: 20 }),
+      makeTenantResult({ expiryDays: 90, notificationMinPoints: 20, pointsPerCurrencyUnit: 10 }),
     );
 
     const result = await adapter.getLoyaltySettings(TENANT_ID);
 
-    expect(result).toEqual({ expiryDays: 90, notificationMinPoints: 20 });
+    expect(result).toEqual({
+      expiryDays: 90,
+      notificationMinPoints: 20,
+      pointsPerCurrencyUnit: 10,
+    });
     expect(getTenantById.execute).toHaveBeenCalledWith(TENANT_ID);
   });
 
@@ -49,6 +60,10 @@ describe('LoyaltyPlatformAdapter', () => {
 
     const result = await adapter.getLoyaltySettings(TENANT_ID);
 
-    expect(result).toEqual({ expiryDays: 180, notificationMinPoints: 50 });
+    expect(result).toEqual({
+      expiryDays: 180,
+      notificationMinPoints: 50,
+      pointsPerCurrencyUnit: 0,
+    });
   });
 });

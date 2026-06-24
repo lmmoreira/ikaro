@@ -16,6 +16,7 @@ import { GetLoyaltyEntriesUseCase } from './application/use-cases/get-loyalty-en
 import { GetLoyaltyRedemptionsUseCase } from './application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
 import { RecordLoyaltyEntriesUseCase } from './application/use-cases/record-loyalty-entries/record-loyalty-entries.use-case';
 import { RedeemPointsUseCase } from './application/use-cases/redeem-points/redeem-points.use-case';
+import { ProcessBookingCompletedLoyaltyEffectsUseCase } from './application/use-cases/process-booking-completed-loyalty-effects/process-booking-completed-loyalty-effects.use-case';
 import { ExpirePointsUseCase } from './application/use-cases/expire-points/expire-points.use-case';
 import { NotifyExpiringPointsUseCase } from './application/use-cases/notify-expiring-points/notify-expiring-points.use-case';
 import { BalanceExpiryLogEntity } from './infrastructure/entities/balance-expiry-log.entity';
@@ -66,6 +67,7 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
     RedeemPointsUseCase,
     ExpirePointsUseCase,
     NotifyExpiringPointsUseCase,
+    ProcessBookingCompletedLoyaltyEffectsUseCase,
     BookingCompletedHandler,
   ],
   exports: [

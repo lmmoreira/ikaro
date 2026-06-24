@@ -194,3 +194,33 @@ export class BookingPhotoNotUploadedError extends BookingDomainError {
     this.name = 'BookingPhotoNotUploadedError';
   }
 }
+
+export class BookingDiscountNotAvailableError extends BookingDomainError {
+  constructor() {
+    super('A loyalty discount cannot be applied to a guest booking');
+    this.name = 'BookingDiscountNotAvailableError';
+  }
+}
+
+export class BookingDiscountDisabledError extends BookingDomainError {
+  constructor() {
+    super('Loyalty redemption is disabled for this tenant');
+    this.name = 'BookingDiscountDisabledError';
+  }
+}
+
+export class BookingDiscountMismatchError extends BookingDomainError {
+  constructor() {
+    super(
+      'discountByPoints.amountDeducted does not reconcile with pointsUsed and the current rate',
+    );
+    this.name = 'BookingDiscountMismatchError';
+  }
+}
+
+export class BookingDiscountExceedsTotalError extends BookingDomainError {
+  constructor() {
+    super('discountByPoints.amountDeducted cannot exceed the booking lines total');
+    this.name = 'BookingDiscountExceedsTotalError';
+  }
+}

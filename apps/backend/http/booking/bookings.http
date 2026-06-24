@@ -904,6 +904,27 @@ X-Correlation-ID: test-corr-complete-001
 
 ###
 
+# SUCCESS — APPROVED → COMPLETED with a loyalty points discount (UC-009 A6)
+# Requires: booking.customerId != null, tenants.settings.loyalty.pointsPerCurrencyUnit > 0,
+# amountDeducted = floor(pointsUsed / pointsPerCurrencyUnit), amountDeducted <= lines total.
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/complete
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-complete-discount-001
+
+{
+  "lines": [
+    { "lineId": "{{lineId}}", "actualPriceCharged": 100.00 }
+  ],
+  "afterServicePhotoUrls": [],
+  "discountByPoints": { "pointsUsed": 200, "amountDeducted": 20.00 }
+}
+
+###
+
 # ERROR — booking not APPROVED (PENDING) → 422
 PATCH {{baseUrl}}/bookings/{{bookingId}}/complete
 Content-Type: application/json

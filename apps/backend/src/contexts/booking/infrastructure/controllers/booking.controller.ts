@@ -242,6 +242,7 @@ export class BookingController {
         lines: body.lines,
         afterServicePhotoUrls: body.afterServicePhotoUrls,
         adminNotes: body.adminNotes,
+        discountByPoints: body.discountByPoints,
       })
       .catch(mapBookingError);
   }

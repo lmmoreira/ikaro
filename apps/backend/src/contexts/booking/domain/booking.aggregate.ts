@@ -6,6 +6,7 @@ import { Money } from '../../../shared/value-objects/money';
 import { PhoneNumber } from '../../../shared/value-objects/phone-number.vo';
 import { BookingLine, BookingLineInput } from './booking-line.entity';
 import {
+  BookingDiscountExceedsTotalError,
   BookingInfoMessageTooShortError,
   BookingLineRequiredError,
   BookingRejectionReasonTooShortError,
@@ -48,6 +49,8 @@ export interface BookingProps {
   totalDurationMins: number;
   totalPrice: Money;
   totalActualPrice: Money | null;
+  discountPointsUsed: number | null;
+  discountAmount: Money | null;
   lines: BookingLine[];
   beforeServicePhotoUrls: string[];
   afterServicePhotoUrls: string[];
@@ -148,6 +151,12 @@ export class Booking extends AggregateRoot {
   }
   get totalActualPrice(): Money | null {
     return this.props.totalActualPrice;
+  }
+  get discountPointsUsed(): number | null {
+    return this.props.discountPointsUsed;
+  }
+  get discountAmount(): Money | null {
+    return this.props.discountAmount;
   }
   get lines(): BookingLine[] {
     return [...this.props.lines];
@@ -256,6 +265,8 @@ export class Booking extends AggregateRoot {
       totalDurationMins,
       totalPrice,
       totalActualPrice: null,
+      discountPointsUsed: null,
+      discountAmount: null,
       lines,
       beforeServicePhotoUrls: [...beforeServicePhotoUrls],
       afterServicePhotoUrls: [],
@@ -438,6 +449,7 @@ export class Booking extends AggregateRoot {
     afterPhotos: string[],
     correlationId: string,
     adminNotes?: string,
+    discountByPoints?: { pointsUsed: number; amountDeducted: number },
   ): void {
     if (this.props.status !== BookingStatus.APPROVED) {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.COMPLETED);
@@ -448,16 +460,26 @@ export class Booking extends AggregateRoot {
       line.setActualPrice(actual);
     }
 
-    const totalActualPrice = this.props.lines.reduce(
+    const linesTotal = this.props.lines.reduce(
       (sum, l) => sum.add(l.actualPriceCharged!),
       Money.zero(this.props.totalPrice.currency),
     );
+
+    let totalActualPrice = linesTotal;
+    let discountAmount: Money | null = null;
+    if (discountByPoints) {
+      discountAmount = Money.from(discountByPoints.amountDeducted, this.props.totalPrice.currency);
+      if (discountAmount.isGreaterThan(linesTotal)) throw new BookingDiscountExceedsTotalError();
+      totalActualPrice = linesTotal.subtract(discountAmount);
+    }
 
     this._linesModified = true;
     this.props.status = BookingStatus.COMPLETED;
     this.props.completedAt = new Date();
     this.props.completedBy = staffId;
     this.props.totalActualPrice = totalActualPrice;
+    this.props.discountPointsUsed = discountByPoints?.pointsUsed ?? null;
+    this.props.discountAmount = discountAmount;
     this.props.afterServicePhotoUrls = [...afterPhotos];
     if (adminNotes !== undefined) this.props.adminNotes = adminNotes.trim() || null;
 
@@ -500,6 +522,15 @@ export class Booking extends AggregateRoot {
           },
           pointsValueAtBooking: l.pointsValueAtBooking,
         })),
+        discountByPoints: discountByPoints
+          ? {
+              pointsUsed: discountByPoints.pointsUsed,
+              amountDeducted: {
+                amount: discountAmount!.amount.toFixed(2),
+                currency: discountAmount!.currency,
+              },
+            }
+          : undefined,
       }),
     );
   }

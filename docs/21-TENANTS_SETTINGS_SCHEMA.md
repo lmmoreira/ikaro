@@ -41,7 +41,7 @@ Controls how the loyalty system behaves for this tenant.
 | `enableNotifications` | boolean | true | — | — | Send email when points expiring soon |
 | `expiryWarningDays` | integer | 7 | 1 | 90 | Look-ahead window for expiring-soon check (weekly cron) |
 | `notificationMinPoints` | integer | 50 | 0 | 10000 | Minimum active point balance a customer must have for the `PointsExpiringSoon` notification's threshold check (used by `notify-expiring-points.use-case.ts` and `loyalty-platform.port.ts`) |
-| `pointsPerCurrencyUnit` **(planned — not yet implemented in code; see M13-S11)** | integer | 0 | 0 | 10000 | How many points equal 1 currency unit (e.g. `10` = 10 pts → R$1 / $1). `0` = loyalty redemption feature disabled — the discount strip will not appear during booking completion (UC-009 A6). |
+| `pointsPerCurrencyUnit` | integer | 0 | 0 | 10000 | How many points equal 1 currency unit (e.g. `10` = 10 pts → R$1 / $1). `0` = loyalty redemption feature disabled — the discount strip will not appear during booking completion (UC-009 A6). |
 
 **Example:**
 ```json
@@ -55,14 +55,13 @@ Controls how the loyalty system behaves for this tenant.
   }
 }
 ```
-> `pointsPerCurrencyUnit` above is **planned — not yet implemented in code; see M13-S11**.
 
 **Validation Rules:**
 - `expiryDays` must be between 1 and 3650 (1 year to 10 years)
 - `expiryWarningDays` must be > 0 and < `expiryDays`
 - `enableNotifications` must be boolean
 - `notificationMinPoints` must be 0–10000
-- `pointsPerCurrencyUnit` must be 0–10000 (`0` disables redemption) **(planned — not yet implemented in code; see M13-S11)**
+- `pointsPerCurrencyUnit` must be 0–10000 (`0` disables redemption)
 
 ---
 

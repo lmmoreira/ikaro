@@ -169,6 +169,8 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 | total_duration_mins | INTEGER | NOT NULL — denormalised SUM of `booking_lines.duration_mins_at_booking` |
 | total_price_amount | NUMERIC(10,2) | NOT NULL — denormalised SUM of `booking_lines.price_at_booking_amount` |
 | total_actual_price_amount | NUMERIC(10,2) | NULLABLE — null until COMPLETED; SUM of `booking_lines.actual_price_charged_amount` |
+| discount_points_used | INTEGER | NULLABLE — loyalty points redeemed as a discount on this booking's completion (UC-009 A6); null = no discount applied |
+| discount_amount | NUMERIC(10,2) | NULLABLE — currency amount deducted from `total_actual_price_amount` via `discount_points_used`; null = no discount applied |
 | before_service_photo_urls | TEXT[] | NOT NULL DEFAULT '{}' — before-service photos |
 | after_service_photo_urls | TEXT[] | NOT NULL DEFAULT '{}' — after-service photos (UC-009) |
 | admin_notes | TEXT | NULLABLE |
@@ -200,6 +202,7 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 - `≥ 1 booking_line` required. Application-enforced by `Booking.requestBooking()`.
 - `total_price_amount`, `total_duration_mins`, `total_actual_price_amount` are denormalised for fast list queries.
 - `pickup_address` must be non-null if any `booking_lines.requires_pickup_address_at_booking = true`. Enforced by the aggregate.
+- `discount_points_used`/`discount_amount` are set once at completion (UC-009 A6) when a loyalty discount was applied; both remain `NULL` otherwise.
 
 ### `booking.booking_lines`
 One row per service unit. Snapshots from `booking.services` at request time — intra-context FKs apply.

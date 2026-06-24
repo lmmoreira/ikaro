@@ -2,14 +2,14 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { BookingCompleted } from '../../../booking/domain/events/booking-completed.event';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
-import { RecordLoyaltyEntriesUseCase } from '../../application/use-cases/record-loyalty-entries/record-loyalty-entries.use-case';
+import { ProcessBookingCompletedLoyaltyEffectsUseCase } from '../../application/use-cases/process-booking-completed-loyalty-effects/process-booking-completed-loyalty-effects.use-case';
 
 @Injectable()
 export class BookingCompletedHandler implements OnModuleInit {
   private readonly logger = new AppLogger(BookingCompletedHandler.name);
 
   constructor(
-    private readonly recordLoyaltyEntries: RecordLoyaltyEntriesUseCase,
+    private readonly processLoyaltyEffects: ProcessBookingCompletedLoyaltyEffectsUseCase,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
   ) {}
 
@@ -17,7 +17,7 @@ export class BookingCompletedHandler implements OnModuleInit {
     this.eventBus.subscribe<BookingCompleted>(
       'BookingCompleted',
       (event) => this.handle(event),
-      RecordLoyaltyEntriesUseCase.CONSUMER_NAME,
+      ProcessBookingCompletedLoyaltyEffectsUseCase.CONSUMER_NAME,
     );
   }
 
@@ -29,17 +29,24 @@ export class BookingCompletedHandler implements OnModuleInit {
       customerId: event.data.customerId,
     });
     try {
-      await this.recordLoyaltyEntries.execute({
+      await this.processLoyaltyEffects.execute({
         tenantId: event.tenantId,
         eventId: event.eventId,
         correlationId: event.correlationId,
         customerId: event.data.customerId,
         bookingId: event.data.bookingId,
+        completedBy: event.data.completedBy,
         lines: event.data.lines.map((l) => ({
           lineId: l.lineId,
           serviceId: l.serviceId,
           pointsValueAtBooking: l.pointsValueAtBooking,
         })),
+        discountByPoints: event.data.discountByPoints
+          ? {
+              pointsUsed: event.data.discountByPoints.pointsUsed,
+              amountDeducted: Number(event.data.discountByPoints.amountDeducted.amount),
+            }
+          : undefined,
       });
     } catch (err) {
       this.logger.error(

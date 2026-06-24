@@ -320,12 +320,13 @@ UC-XXX: [Use Case Name]
     1. System shows a loyalty strip: customer's active balance + currency equivalent (e.g. "João tem 350 pontos = R$ 35,00", based on `pointsPerCurrencyUnit = 10`).
     2. Staff enters how many points to use, or clicks "Usar todos". Points capped at `min(currentPoints, totalActualPrice × pointsPerCurrencyUnit)` so the discount never exceeds the booking total.
     3. System shows live discount: "Desconto (200 pts): − R$ 20,00 · Total a cobrar: R$ 40,00".
-    4. Staff clicks "Confirmar conclusão". System calls `PATCH /bookings/:id/complete` (body includes `discountByPoints: { pointsUsed, amountDeducted }`) and then `POST /loyalty/redeem { customerId, pointsToRedeem, bookingId }`.
-    5. Customer's balance is decremented. Redemption recorded linked to the booking.
-    6. Completion summary shows per-line charges plus the loyalty discount row.
+    4. Staff clicks "Confirmar conclusão". System calls a single `PATCH /bookings/:id/complete` (body includes `discountByPoints: { pointsUsed, amountDeducted }`) — the booking is saved as COMPLETED with the discount already applied to `totalActualPrice`; no second HTTP call is made by the client.
+    5. The `BookingCompleted` event (carrying `discountByPoints`) triggers the Loyalty Context asynchronously: the customer's balance is decremented and a `LoyaltyRedemption` is recorded, linked to the booking.
+    6. Completion summary (returned synchronously in the `PATCH` response) shows per-line charges plus the loyalty discount row.
     - Only shown when `customerId != null` AND `pointsPerCurrencyUnit > 0`. Not available for guest bookings (A4).
+    - `amountDeducted` exceeding the booking's actual total → `422 Unprocessable` — discount cannot exceed the amount charged.
 
-- **Postconditions:** Booking is COMPLETED. `actualPriceCharged` set on every line; `totalActualPrice` cached on the booking. For authenticated customers: N new `LoyaltyEntry` rows (N = number of lines, points based on `pointsValueAtBooking` regardless of price). Notification email shows both quoted and actual amounts.
+- **Postconditions:** Booking is COMPLETED. `actualPriceCharged` set on every line; `totalActualPrice` cached on the booking. For authenticated customers: N new `LoyaltyEntry` rows (N = number of lines, points based on `pointsValueAtBooking` regardless of price). When A6 applies: customer's loyalty balance decremented and a `LoyaltyRedemption` recorded, linked to the booking. Notification email shows both quoted and actual amounts.
 - **Events Triggered:** `BookingCompleted` (once), `ServicePointsEarned` (once per line, only when `customerId != null`).
 
 ---
