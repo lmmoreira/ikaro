@@ -785,37 +785,27 @@ Returns:
 
 ## Authentication & Login
 
-### **UC-021: Customer Login (with Tenant Selection)**
+### **UC-021: Customer Login**
 
 - **Actor:** Customer (unauthenticated)
-- **Preconditions:** Customer has Google account. Customer may have bookings in one or more tenants.
-- **Trigger:** Customer clicks "Login with Google" on any hotsite
+- **Preconditions:** Customer has Google account.
+- **Trigger:** Customer clicks "Entrar" on a specific tenant's hotsite (the OAuth flow always carries that tenant's slug)
 - **Main Flow:**
-  1. System redirects to Google OAuth
+  1. System redirects to Google OAuth, with the tenant slug encoded in the OAuth state
   2. Customer logs in with Google account
   3. Google returns: googleOAuthId, email, name
-  4. System queries: Which tenants does this customer belong to?
-  5. **Case A: Customer in ONE tenant only**
-     - Session automatically created for that tenant
-     - Customer redirected to dashboard
-  6. **Case B: Customer in MULTIPLE tenants**
-     - System shows tenant selection screen with the customer's active-point balance at each tenant:
-       ```
-       "Which car wash would you like to book with?
-        - AutoWash Pro  · 50 active points
-        - SuperClean    ·  8 active points"
-       ```
-     - Customer selects: "AutoWash Pro"
-     - Session created: {userId: customer_id, tenantId: "tenant_a"}
-  7. Customer logged in and sees selected tenant's data only
+  4. System finds or creates a Customer record scoped to that tenant (`handleTenantLogin` → `POST /internal/customers`)
+  5. Session created for that tenant; customer redirected to the tenant's hotsite (`/{slug}`), now in logged-in state
 
 - **Alternative Flows:**
-  - **A1: No existing bookings in any tenant** → Customer can choose any tenant to start booking
-  - **A2: First time customer** → System creates Customer record in selected tenant
-  - **A3: Customer's profile has no phone number** → After tenant resolution (Case A or B), before redirecting to the dashboard, system shows a one-time "Complete seu perfil" prompt collecting `phone`. Submits via `PATCH /customers/me`. Once set, this step is skipped on all future logins. (Unblocks UC-002's phone precondition — see UC-002 A11.)
+  - **A1: No existing bookings in this tenant** → Customer can choose any service to start booking
+  - **A2: First time customer** → System creates the Customer record in this tenant (main flow step 4)
+  - **A3: Customer's profile has no phone number** → After landing on the tenant's hotsite (main flow step 5), an inline, non-dismissible "Complete seu perfil" prompt collects `phone`. Submits via `PATCH /customers/me`. Once set, this step is skipped on all future logins. (Unblocks UC-002's phone precondition — see UC-002 A11.) Implemented in `M13-S14`.
 
 - **Postconditions:** Customer logged in to one tenant. Session scoped to that tenant.
 - **Events Triggered:** None (read operation)
+
+> **Descoped — Case B, multi-tenant selection at login (decided 2026-06-24, `M13-S14` discovery session):** an earlier design considered a tenant-selection screen (`/select-tenant`) for a customer logging in via a generic, tenant-agnostic entry point not tied to any specific hotsite — analogous to staff's `/select-staff-tenant`. No such entry point exists in this product: every customer login starts from a specific tenant's hotsite, which always supplies the tenant slug directly (main flow step 1), so the BFF's multi-tenant OAuth branch (`handleMultiTenantLogin`'s 2+-tenant case, `POST /auth/token`) is unreachable from any shipped UI and was removed. **Multi-tenant customers are still fully supported** (see invariant 5 in `CLAUDE.md` §2) — they simply log into whichever tenant's hotsite they started from, then use UC-023 below to move between tenants they already belong to. If a tenant-agnostic entry point is ever built, login-time selection should be redesigned then against real requirements, not resurrected from this draft.
 
 ---
 
@@ -850,21 +840,22 @@ Returns:
 
 - **Actor:** Authenticated customer (logged in)
 - **Preconditions:** Customer belongs to multiple tenants. Currently in one tenant.
-- **Trigger:** Customer clicks "Trocar empresa" in the avatar dropdown (only shown when JWT indicates 2+ tenants)
-- **Endpoint:** `POST /v1/auth/switch-tenant { targetTenantId }` (CUSTOMER)
+- **Trigger:** Customer clicks "Trocar empresa" in `HotsiteAuthBar`'s avatar dropdown — shown only when `GET /v1/customers/tenants` returns at least one other tenant (the JWT itself carries no tenant count, just `{ sub, tenantId, tenantSlug, role }`)
+- **Endpoint:** `GET /v1/customers/tenants` (list) + `POST /v1/auth/switch-tenant { targetTenantId }` (CUSTOMER)
 - **Main Flow:**
-  1. System shows list of other tenants customer belongs to (excluding current)
+  1. System shows list of other tenants customer belongs to (excluding current), via `/switch-tenant` page
   2. Customer selects: "SuperClean"
   3. Old JWT expires client-side — no active revocation (stateless JWT)
   4. BFF validates customer belongs to target tenant; issues new JWT scoped to `tenant_b`
-  5. Customer redirected to SuperClean's hotsite or customer area
+  5. Customer redirected to SuperClean's hotsite
   6. Customer sees: SuperClean's bookings and SuperClean's loyalty (8 active points)
 
 - **Alternative Flows:**
-  - **A1: Customer has only one tenant** → "Switch" button hidden/disabled
+  - **A1: Customer has only one tenant** → "Trocar empresa" item hidden entirely (not disabled)
 
 - **Postconditions:** Customer switched to different tenant. Session scoped to new tenant.
 - **Events Triggered:** None
+- Implemented in `M13-S14` (folded in from the original `M13-S30`).
 
 ---
 
@@ -1103,7 +1094,7 @@ Returns:
 | UC-018 | Admin receives daily schedule | System | Scheduled reminder email at 6 AM |
 | UC-019 | Customer reminder (day before) | System | Cron emits `BookingReminderDue`; Notification sends email at 6 AM |
 | UC-020 | Customer reminder (day of) | System | Cron emits `BookingReminderDueToday`; Notification sends email at 6 AM |
-| UC-021 | Customer login with tenant selection | Customer | OAuth + tenant selection if multiple |
+| UC-021 | Customer login | Customer | OAuth, tenant-scoped (login-time multi-tenant selection descoped — see UC-021 note) |
 | UC-022 | Staff login (no selection) | Staff | OAuth (direct to single tenant) |
 | UC-023 | Customer switches tenant | Customer | Switch session to different tenant |
 | UC-024 | Platform operator provisions new tenant (REST API) | Platform operator | `tenants` row + first MANAGER staff row; invite email sent |

@@ -31,7 +31,7 @@ This file replaces six previously separate draft milestone files — `M124-LOGIN
 
 **Phone precondition for CUSTOMER (UC-021 A3):** after login/tenant-selection, a CUSTOMER with `phone === null` is prompted inline (bottom sheet) to complete it before proceeding. STAFF/MANAGER never see this.
 
-**Multi-tenant support:** tenant selection happens at `/select-tenant` (2+ tenants at login); `TenantSwitcher`/`/switch-tenant` lets a logged-in customer change tenant context without re-doing OAuth.
+**Multi-tenant support:** a login-time `/select-tenant` selection screen was designed but descoped in `M13-S14`'s discovery session — every customer login starts from a specific tenant's hotsite, which always supplies the tenant context directly, so the BFF's multi-tenant OAuth branch is unreachable in practice (see `docs/04-USE_CASES.md` UC-021). Multi-tenant customers are still fully supported — they log into whichever tenant's hotsite they started from, then use `/switch-tenant` (UC-023, built in `M13-S14`) to move between tenants they already belong to, triggered from "Trocar empresa" in `HotsiteAuthBar`'s avatar dropdown.
 
 **Customer account area naming:** the journey prototype folder is `plan/journey/customer/prototypes/minha-conta/` and stays pt-BR — prototypes are conceptual mockups, not code. The production route/file/component names are English: `/{slug}/my-account` (not `/{slug}/minha-conta`), per the code-standards English-only rule (`CLAUDE.md` §7). This was established in `M13-S42` (hotsite auth bar) and carried through `S16`/`S27`–`S30`. UI-facing pt-BR copy ("Minha conta", "Agendamentos", "Fidelidade") is unaffected — only identifiers and paths changed.
 
@@ -54,7 +54,7 @@ This file replaces six previously separate draft milestone files — `M124-LOGIN
 | 4 | M13-S17–M13-S20 | Staff booking core |
 | 5 | M13-S21–M13-S24 | Staff schedule & services |
 | 6 | M13-S25–M13-S26 | Staff loyalty frontend |
-| 7 | M13-S27–M13-S30 | Customer Minha Conta |
+| 7 | M13-S27–M13-S29 | Customer Minha Conta (`M13-S30` merged into `M13-S14`) |
 | 8 | M13-S31–M13-S37 | Manager workspace |
 | 9 | M13-S38–M13-S40 | Guest submit-info |
 
@@ -180,6 +180,8 @@ export interface TenantOption {
 ```
 
 `TenantOption` is consumed by the `/select-tenant` page (`M13-S14`). `IssueTokenResponse` and `SwitchTenantResponse` replace the old `{ accessToken, expiresIn }` shape — since neither endpoint has a frontend consumer yet (those pages are built in `M13-S13`/`M13-S14`), this is a safe breaking change.
+
+> **Superseded by `M13-S14`'s discovery session (2026-06-24):** `/select-tenant` and `POST /auth/token` (`issueToken`) were never reachable from any shipped UI — every customer login entry point supplies a `tenantSlug` directly, so `handleMultiTenantLogin`'s 2+-tenant branch never triggers. Both were removed as dead code in `M13-S14`. `TenantOption` survives — it's reused by `M13-S14`'s switch-tenant feature (folded in from the original `M13-S30`). `SwitchTenantResponse` also survives (used by `switch-tenant`). See `docs/04-USE_CASES.md` UC-021 for the corresponding use-case update.
 
 **Tests to update:**
 
@@ -1637,170 +1639,162 @@ Show reason code in small grey text at bottom: `"Código: <reason>"`.
 
 ---
 
-### M13-S14 — Customer login frontend: `/{slug}/login`, `/select-tenant`, phone completion
+### M13-S14 — Customer phone completion, auth proxy-route cleanup, and tenant switch (UC-021 A3, UC-023)
 
-*(formerly M124-S03)*
+*(formerly M124-S03; scope revised 2026-06-24 after a story-discovery session — see rationale below. Folds in the original `M13-S30`, which is now merged here.)*
 
-**Agent:** `frontend-ts`
+**Agent:** `frontend-ts` (frontend) + `bff-ts` (two new/changed BFF endpoints) + `backend-ts` (one new internal endpoint)
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/journey/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/journey/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `td/TD02-LOCALIZATION.md`
 
-**Description:**
-Three customer-facing auth pages: the tenant-branded login screen, the multi-tenant selection screen (UC-021 Case B), and an inline phone completion prompt (UC-021 A3). All BFF endpoints already exist after `M13-S02` is applied.
+**Scope-change rationale (read before starting):** the story originally planned three deliverables: the tenant-branded login screen, a multi-tenant selection screen (`/select-tenant`, UC-021 Case B), and the phone-completion prompt. A discovery session found:
+1. The login screen was already built in `M13-S42` (out of build order) — nothing left to do there.
+2. `/select-tenant` and its supporting BFF machinery (`handleMultiTenantLogin`'s 2+-tenant branch, `POST /auth/token`) are **unreachable from any shipped UI** — every customer login entry point supplies a `tenantSlug` directly (`handleTenantLogin`), so the multi-tenant OAuth branch never triggers. Building the page would ship dead UI on top of dead BFF code. **Descoped permanently** — see `docs/04-USE_CASES.md` UC-021's updated text.
+3. `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` documents that any client component outside an authenticated shell must reach the BFF only through a same-origin Next.js proxy route (cookies don't reliably travel cross-origin in production). `M13-S13`'s `/select-staff-tenant` violates this — it calls the BFF directly. Fixing it is folded into this story since it's the same architecture this story already has to get right for the items below.
+4. The original `M13-S30` (UC-023 tenant switch) reuses the exact same `TenantOption` card pattern this story already needs, and its trigger doesn't actually require the not-yet-built `CustomerShell` (`M13-S16`) — it fits naturally into the already-shipped `HotsiteAuthBar` avatar dropdown. Folded in here rather than left as a separate story waiting on `M13-S16`.
+
+What's actually left to build: the phone-completion prompt, the staff proxy-route fix, and the customer tenant-switch feature.
 
 > 🔍 **Discover before starting:**
-> - Confirm `M13-S02` is merged (cookie fix + customer redirect to `/{slug}`)
-> - Read `apps/web/app/[slug]/layout.tsx` — phone prompt goes here
-> - Read `apps/web/lib/api/` to understand existing fetcher conventions before adding new ones
-> - Verify the BFF route prefix for auth: is it `/api/auth/...` or `/v1/auth/...`? Check `apps/web/` next.config or API route proxying to confirm
-> - Confirm `TenantOption` is in `@ikaro/types` (added in `M13-S02`)
+> - Confirm `M13-S42` is merged (`/{slug}/login`, `/auth/error`, `HotsiteAuthBar`, `/api/customers/me` GET all exist).
+> - Read `apps/web/app/[slug]/layout.tsx` — phone prompt mounts here.
+> - Read `apps/web/components/hotsite/HotsiteAuthBar.tsx` — "Trocar empresa" goes in its dropdown, between "Minha conta" and "Sair".
+> - Read `apps/web/app/select-staff-tenant/page.tsx` and `apps/bff/src/auth/auth.controller.ts`'s `getStaffTenants`/`issueStaffToken` before writing the staff proxy routes — mirror their request/response shapes exactly, just relocate the call site.
+> - Read `apps/web/components/booking/PersonalInfoStep.tsx`'s `buildContactPhone`/`digitsOnly` helpers — extract `buildContactPhone` into `apps/web/lib/utils.ts` (next to the already-shared `digitsOnly`) and reuse it from `PhoneCompletionPrompt`, rather than re-deriving the same E.164-assembly logic.
+> - Read `packages/i18n/src/country-defaults.ts`'s `CountrySpec` — phone formatting is calling-code-prefix only (`phonePrefix`, e.g. `+55`/`+1`); there is no per-country visual mask anywhere in this codebase. Do not invent a BR-specific `(XX) XXXXX-XXXX` mask — follow the same prefix-label + plain-digit-input pattern `PersonalInfoStep` already uses.
+> - Read `apps/bff/src/customers/customers.controller.ts`'s `UpdateCustomerProfileBodySchema` — `phone` must already be E.164 by the time it's sent; a Zod failure returns `400 { violations: [...] }`, not `422 { type: 'invalid-phone' }`.
+> - Read `apps/backend/src/contexts/customer/infrastructure/controllers/internal-customer.controller.ts` and any `internal/tenants/**` controller for the exact internal-route conventions (no role guard, called by `BackendHttpService`) before adding the new loyalty-balance internal endpoint — match the existing pattern exactly, don't invent a new one.
 
 **Prototype references:**
-- `plan/journey/shared/login.html` (customer login screen)
-- `plan/journey/customer/prototypes/login/01-select-tenant.html` (tenant selection)
-- `plan/journey/customer/prototypes/login/02-phone-completion.html` (phone prompt — rendered inline, not as a page)
+- `plan/journey/customer/prototypes/login/02-phone-completion.html` + `02b-validation-error.html` (phone prompt — rendered inline, not as a page)
+- `plan/journey/customer/prototypes/minha-conta/05-trocar-empresa.html` (switch-tenant — same visual pattern as the now-descoped `01-select-tenant.html`)
 
 **What to create:**
 
 ---
 
-#### `apps/web/app/[slug]/login/page.tsx` — server component
+#### 1. Phone completion — `apps/web/components/customer/PhoneCompletionPrompt.tsx` — `'use client'`
 
-Fetches hotsite config to get tenant branding; renders the customer login screen.
-
-```typescript
-// Params: { slug: string }
-// Fetches: GET /v1/hotsite/{slug}/config → { name, branding: { logoUrl, primaryColor } }
-// If tenant not found → notFound()
-```
-
-Renders (per `shared/login.html`):
-- Tenant logo: if `branding.logoUrl` → `<img src={logoUrl} alt={tenantName}>`, else name-initial avatar with `--ba-primary` background
-- Heading: `"Entrar na {tenantName}"`
-- Subtext: `"Entre com sua conta Google para agendar"`
-- If `searchParams.error` present → inline red alert with a generic `"Erro ao entrar. Tente novamente."` message (BFF error detail not shown to customers)
-- Google Sign-In button: `<a href="/api/auth/google?tenantSlug={slug}">` (full page navigation)
-- Terms notice (pt-BR)
-
-`generateMetadata`: `title: \`Entrar — {tenantName}\``
-
----
-
-#### `apps/web/app/select-tenant/page.tsx` — `'use client'`
-
-Shown when the customer belongs to 2+ tenants (UC-021 Case B). BFF has already issued a selection token and redirected here with `?token=<selectionToken>`.
+A **mandatory** inline bottom-sheet prompt shown to customers who have no `phone` set (UC-021 A3) — there is no skip/dismiss option; the prompt stays open until a valid phone is saved. Mounts inside `apps/web/app/[slug]/layout.tsx`.
 
 ```typescript
-// Reads ?token= from searchParams (passed as prop from server wrapper)
-// On mount: decodes or fetches the tenant list
-// On tenant click: POST /api/auth/token { selectionToken, tenantId }
-//   → { tenantSlug } → router.push(`/${tenantSlug}`)
+// On mount: call the already-existing getHotsiteCustomerProfile() (lib/api/customers.ts)
+// If phone != null OR not authenticated (getHotsiteCustomerProfile() returns null) → render nothing
+// If phone == null → show bottom sheet, non-dismissible
 ```
 
-> 🔍 **Discover:** Does the `selectionToken` contain the tenant list encoded (JWT-like, decodable without a server call), or does the frontend need to call `GET /api/auth/tenants?token=...` first? Check `apps/bff/src/auth/selection-token.service.ts` — if `issueSelectionToken` only encodes `{ googleOAuthId }` (not the tenant list), the frontend must call a separate endpoint to get the list. If no such endpoint exists, add it to this story's scope or decode via `POST /auth/token` with a dry-run approach. **Resolve this before writing any component code.**
-
-Renders (per `01-select-tenant.html`):
-- Heading: `"Selecionar Estabelecimento"`
-- Subtext: `"Você tem acesso a mais de um estabelecimento."`
-- List of `TenantOption` cards, each showing:
-  - Name-initial avatar (use `--ba-primary` placeholder until per-tenant color is available)
-  - Tenant name (bold)
-  - `"{loyaltyPoints} pontos ativos"` (or `"0 pontos"`)
-  - Chevron right
-  - Tappable → calls `POST /auth/token`
-- Loading state: 2–3 skeleton cards while data loads
-- Error state: token invalid/expired → `"Sessão expirada. Tente entrar novamente."` with link back to `/auth/login` (the generic entry)
-
-On `POST /api/auth/token` success: `{ tenantSlug }` → `router.push(`/${tenantSlug}`)`.
-
-`@ikaro/types` addition (if not already in `M13-S02`): `TenantOption` must include `primaryColor?: string` if the BFF selection token carries it — verify and add the field if present.
-
----
-
-#### `apps/web/components/customer/PhoneCompletionPrompt.tsx` — `'use client'`
-
-An inline bottom-sheet prompt shown to customers who have no `phone` set (UC-021 A3). Mounts inside `apps/web/app/[slug]/layout.tsx`.
-
-```typescript
-// On mount: GET /api/customers/me → { phone: string | null }
-// If phone != null OR user is not authenticated (no cookie / 401) → render nothing
-// If phone == null → show bottom sheet
-```
-
-Sheet content (per `02-phone-completion.html`):
-- Heading: `"Completar seu perfil"`
-- Subtext: `"Informe seu telefone para receber confirmações de agendamento."`
-- Phone input: `<input type="tel" placeholder="(11) 99999-9999">`
-  - Client-side mask: strip non-digits; display as `(XX) XXXXX-XXXX` or `(XX) XXXX-XXXX`
-  - Validation: stripped digits must be 10 or 11 characters
-- `"Salvar"` button — disabled until valid
-- `"Agora não"` dismiss link (dismisses for the session, does not persist)
+Sheet content (per `02-phone-completion.html` / UC-021 A3 — use this copy verbatim, it's the validated wording, not the earlier draft of this story):
+- Heading: `"Complete seu perfil"`
+- Subtext: `"Precisamos do seu telefone para confirmar agendamentos. Você só precisa fazer isso uma vez."`
+- Phone input: prefix label showing `manifest.localization.phonePrefix` (e.g. `+55`) + plain digit input, `type="tel"` — **no visual mask**, matching `PersonalInfoStep`'s existing pattern (see discover note above). `manifest` is already fetched by the parent `[slug]/layout.tsx`; pass `phonePrefix` down as a prop.
+  - Validation: stripped digits must be 10 or 11 characters (client-side gate, fast feedback)
+- `"Salvar e continuar"` button — disabled until valid. No dismiss/"Agora não" link — phone completion is mandatory.
 
 On submit:
 ```
-PATCH /api/customers/me { phone: "<stripped-digits>" }
+const e164 = buildContactPhone(rawInput, phonePrefix);  // shared helper, see discover note
+PATCH /api/customers/me { phone: e164 }
 → 200: close sheet
-→ 422 { type: 'invalid-phone' }: "Digite um número de telefone válido (10 ou 11 dígitos)."
+→ 400 { violations: [...] }: "Digite um número de telefone válido (10 ou 11 dígitos)."
 → other error: "Erro ao salvar. Tente novamente."
 ```
 
 Add `PhoneCompletionPrompt` to `apps/web/app/[slug]/layout.tsx`:
 ```tsx
-// Server layout renders children; PhoneCompletionPrompt is a client component
-// that mounts and self-checks; it renders nothing until it confirms phone == null.
-<PhoneCompletionPrompt />
+<PhoneCompletionPrompt phonePrefix={manifest.localization.phonePrefix} />
 {children}
 ```
 
-**Testing:**
+**`apps/web/app/api/customers/me/route.ts`** — extend with a `PATCH` handler, mirroring the existing `GET` handler exactly (read `access_token` cookie, forward to BFF `PATCH /customers/me` with the `Cookie` header, pass through status + body).
 
-All three pages are `app/**/page.tsx` — do not unit-test. `PhoneCompletionPrompt` is a complex stateful client component — Playwright E2E. No Vitest coverage required for this story; SonarCloud `sonar.coverage.exclusions` already covers `apps/web/app/**/page.tsx`.
+**`apps/web/lib/api/customers.ts`** — add `updateHotsiteCustomerProfile(body: { phone: string }): Promise<CustomerProfileResponse>`, calling `PATCH /api/customers/me`. **Do not** name it `updateCustomerProfile` — that name already exists in `apps/web/lib/api/dashboard/customers.ts` (the Bearer-token `bffClient` version, dashboard-shell-only) and means something different (different transport, different auth). Follow `getHotsiteCustomerProfile`'s existing naming convention.
 
-**`apps/web/lib/api/` additions:**
+---
 
+#### 2. Staff proxy-route fix (architecture cleanup, no behavior change)
+
+`apps/web/app/api/auth/staff-tenants/route.ts` — `GET`, reads `?token=`, forwards to BFF `GET /auth/staff-tenants?token=...`, passes through status + body. No cookie involved (selection token is the only credential).
+
+`apps/web/app/api/auth/staff-token/route.ts` — `POST`, reads `{ selectionToken, staffId }` body, forwards to BFF `POST /auth/staff-token`, and **relays the BFF's `Set-Cookie` response header back to the browser** (this is the one that actually needed the proxy — it's what sets the session cookie on the web app's own origin instead of the BFF's).
+
+Update `apps/web/app/select-staff-tenant/page.tsx`: replace the two direct `fetch(`${bffUrl}/auth/...`)` calls with `fetch('/api/auth/staff-tenants?...')` / `fetch('/api/auth/staff-token', ...)`. Behavior is identical from the user's perspective — this is purely an architecture fix.
+
+---
+
+#### 3. Customer tenant switch (UC-023) — folded in from the original `M13-S30`
+
+**Backend — new internal endpoint** (exact route name/shape per the discover note above — match existing `/internal/**` conventions): given a `customerId` + `tenantId`, return that customer's current loyalty balance in that tenant. Needed because the existing JWT-guarded `GET /loyalty/balance` only ever returns the balance for the *currently active* tenant — switching requires seeing balances in tenants the customer isn't currently authenticated against.
+
+**BFF — `GET /v1/customers/tenants`** (add to `apps/bff/src/customers/customers.controller.ts`, `@Roles('CUSTOMER')`):
 ```typescript
-// apps/web/lib/api/auth.ts
-fetchTenantOptions(token: string): Promise<TenantOption[]>
-issueToken(selectionToken: string, tenantId: string): Promise<IssueTokenResponse>
-// (cookie set server-side by BFF; response body gives tenantSlug for redirect)
-
-// apps/web/lib/api/customers.ts (or extend existing)
-getCustomerProfile(): Promise<CustomerProfileResponse>
-updateCustomerProfile(body: { phone: string }): Promise<CustomerProfileResponse>
+getCustomerTenants(@CurrentUser() user: CurrentUserPayload): Promise<TenantOption[]>
+// Calls GET /internal/customers/{user.sub}/tenants (already exists)
+// Excludes the current tenant (user.tenantId)
+// Enriches each via GET /internal/tenants/{id} (name, slug) + the new loyalty-balance internal endpoint
 ```
 
-Follow the naming and error-handling pattern of existing fetchers in `apps/web/lib/api/`.
+`SwitchTenantRequest { readonly targetTenantId: string }` — add to `packages/types/src/auth.dto.ts` (the BFF's `SwitchTenantDto`/`SwitchTenantSchema` already exist and are unchanged).
+
+**New proxy routes:**
+- `apps/web/app/api/customers/tenants/route.ts` — `GET`, forwards the `access_token` cookie, calls BFF `GET /v1/customers/tenants`.
+- `apps/web/app/api/auth/switch-tenant/route.ts` — `POST`, forwards `{ targetTenantId }` + cookie, calls BFF `POST /v1/auth/switch-tenant`, relays the new `Set-Cookie` back.
+
+**`apps/web/lib/api/auth.ts`** (new file):
+```typescript
+fetchStaffTenants(token: string): Promise<StaffTenantOption[]>       // GET /api/auth/staff-tenants
+selectStaffTenant(selectionToken: string, staffId: string): Promise<{ tenantSlug: string }>  // POST /api/auth/staff-token
+fetchCustomerTenants(): Promise<TenantOption[]>                       // GET /api/customers/tenants
+switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>  // POST /api/auth/switch-tenant
+```
+
+**`apps/web/app/switch-tenant/page.tsx`** — `'use client'`:
+- Same visual layout as `minha-conta/05-trocar-empresa.html` (centered, full height, Ikaro logo, tenant cards — the same card pattern the now-descoped `/select-tenant` would have used)
+- On mount: `fetchCustomerTenants()` — loading: skeleton cards; empty (only 1 tenant): redirect to `/{currentSlug}` (should not reach this page — see trigger visibility below)
+- Shows current tenant first, marked "Atual" (non-clickable, read `tenantSlug` from the JWT cookie)
+- Other tenant cards: clickable → `switchTenant(targetTenantId)` → on success `router.push('/{newSlug}')`
+- `"← Voltar sem trocar"` link → `router.back()`
+- Error (network failure on switch): inline alert "Não foi possível trocar de empresa. Tente novamente." + retry — no navigation
+
+**`apps/web/components/hotsite/HotsiteAuthBar.tsx` update:** add a "Trocar empresa" item between "Minha conta" and "Sair" in the avatar dropdown. **Only render when the customer has 2+ tenants** — call `fetchCustomerTenants()` alongside the existing `getHotsiteCustomerProfile()` call on mount; if it returns an empty list, omit the item. Links to `/switch-tenant`.
+
+---
+
+**Testing:**
+
+`app/**/page.tsx` files (`switch-tenant`, `select-staff-tenant`) are not unit-tested per the standing rule. `PhoneCompletionPrompt` and the `HotsiteAuthBar` dropdown addition are stateful client components warranting Playwright E2E coverage. The four route handlers (`api/auth/staff-tenants`, `api/auth/staff-token`, `api/customers/tenants`, `api/auth/switch-tenant`, and the `customers/me` `PATCH` addition) each need a `route.spec.ts`, mirroring `apps/web/app/api/revalidate/route.spec.ts`'s structure (Vitest, node environment, mocked `next/headers` + global `fetch`).
 
 **Acceptance criteria:**
 
-*Customer login page:*
-- [ ] `GET /{slug}/login` renders tenant name + logo (or initial fallback)
-- [ ] `generateMetadata` returns `title: "Entrar — {tenantName}"`
-- [ ] Google button href routes to BFF OAuth with correct `tenantSlug` param
-- [ ] `GET /{slug}/login?error=anything` shows inline red alert
-- [ ] Unknown slug → `notFound()` (404 page)
-
-*Select-tenant page:*
-- [ ] `GET /select-tenant?token=<valid>` renders list of tenant cards with name + loyalty points
-- [ ] Clicking a card calls `POST /api/auth/token`; on success redirects to `/{tenantSlug}`
-- [ ] Expired / invalid token → error banner with link back to login
-- [ ] Loading skeleton visible before data resolves
-
 *Phone completion prompt:*
-- [ ] Prompt does NOT appear when `GET /api/customers/me` returns `phone != null`
-- [ ] Prompt does NOT appear when request is unauthenticated (guest, no cookie)
-- [ ] Prompt appears as bottom sheet when `phone == null`
-- [ ] Submit disabled while phone input < 10 digits
-- [ ] Valid submit → `PATCH /api/customers/me` → sheet closes
-- [ ] `422` → inline error message in pt-BR; sheet stays open
-- [ ] "Agora não" dismisses for session; prompt does not reappear on route change within the session
+- [ ] Prompt does NOT appear when `getHotsiteCustomerProfile()` returns `phone != null`
+- [ ] Prompt does NOT appear when unauthenticated (`getHotsiteCustomerProfile()` returns `null`)
+- [ ] Prompt appears as a non-dismissible bottom sheet when `phone == null` — no skip option anywhere
+- [ ] Phone input shows the tenant's `phonePrefix` (e.g. `+1` for a US tenant, `+55` for a BR tenant) — no visual digit mask
+- [ ] Submit disabled while stripped input is not 10 or 11 digits
+- [ ] Valid submit → `PATCH /api/customers/me` with an E.164 `phone` (prefix + digits) → sheet closes
+- [ ] `400` response → inline error "Digite um número de telefone válido (10 ou 11 dígitos)." in pt-BR; sheet stays open
+- [ ] Prompt reappears on every route change within `[slug]/**` until phone is actually saved (no session-level dismissal state exists)
+
+*Staff proxy fix:*
+- [ ] `/select-staff-tenant` no longer calls `NEXT_PUBLIC_BFF_URL` directly from client code — both calls go through `/api/auth/staff-tenants` and `/api/auth/staff-token`
+- [ ] Staff tenant-selection flow behaves identically end-to-end (manual regression, no behavior change intended)
+
+*Customer tenant switch:*
+- [ ] `GET /v1/customers/tenants` (CUSTOMER JWT) returns list excluding current tenant, each with name, slug, loyaltyPoints
+- [ ] Tenant isolation: Customer A cannot retrieve Customer B's tenant list
+- [ ] "Trocar empresa" visible in `HotsiteAuthBar`'s dropdown only when the customer has 2+ tenants
+- [ ] `GET /switch-tenant` renders current tenant (marked "Atual") + other tenants as cards; skeleton while loading
+- [ ] Clicking another tenant calls `POST /api/auth/switch-tenant`; success → redirect to `/{newSlug}`, cookie updated, hotsite renders logged-in as the new tenant's customer
+- [ ] Network error on switch → inline alert + retry, no navigation
+- [ ] `"← Voltar sem trocar"` navigates back without switching
 
 *General:*
 - [ ] `tsc --noEmit` passes across monorepo
 - [ ] `pnpm lint` zero warnings
 - [ ] No new `any` types introduced
+- [ ] `.http` blocks added/updated for `GET /v1/customers/tenants` and the new internal loyalty-balance endpoint
 
-**Dependencies:** M13-S02 (cookie fix must be deployed; customer redirect must land on `/{slug}`)
+**Dependencies:** M13-S42 (login page, `HotsiteAuthBar`, `/api/customers/me` GET), M13-S02 (cookie fix; `TenantOption`/`SwitchTenantResponse` types)
 
 ---
 
@@ -3147,93 +3141,11 @@ fetchLoyaltyRedemptions(limit?: number): Promise<CustomerLoyaltyRedemptionsRespo
 
 ---
 
-### M13-S30 — Frontend: UC-023 tenant switch trigger + page
+### M13-S30 — ~~Frontend: UC-023 tenant switch trigger + page~~ — Merged into `M13-S14`
 
 *(formerly M126-S08)*
 
-**Agent:** `frontend-ts` (frontend) + `bff-ts` (one new BFF endpoint)
-**Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-023, `docs/24-BFF_ARCHITECTURE.md`, `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md`
-**Prototype references:**
-- `plan/journey/customer/prototypes/minha-conta/05-trocar-empresa.html` — same visual pattern as `/select-tenant`
-- `plan/journey/customer/prototypes/login/01-select-tenant.html` — reference for card pattern
-
-**Description:**
-Completes UC-023: a logged-in customer who belongs to multiple tenants can switch their active tenant from the avatar dropdown in the customer shell. The BFF already issues a new cookie-set JWT on `POST /v1/auth/switch-tenant` (fixed in `M13-S02`); this story adds the tenant-list endpoint and the UI.
-
-> 🔍 **Discover before starting:**
-> - Confirm `M13-S02` is deployed: `POST /v1/auth/switch-tenant` sets the `access_token` httpOnly cookie and returns `{ tenantSlug, expiresIn }`.
-> - Check `apps/bff/src/customers/customers.controller.ts` — does `GET /v1/customers/tenants` exist? If not, it must be added (see BFF part below).
-> - Check `apps/web/app/switch-tenant/page.tsx` — this is separate from `/select-tenant` (login flow). Same visual, different endpoint and context.
-> - In the JWT payload, check if `tenantCount` or a list of tenant IDs is included. If not, the frontend must always call the BFF endpoint (cannot short-circuit based on JWT alone).
-
-**BFF part — `GET /v1/customers/tenants` (if missing):**
-
-Add to `apps/bff/src/customers/customers.controller.ts`:
-```typescript
-@Get('tenants')
-@Roles('CUSTOMER')
-getCustomerTenants(
-  @CurrentUser() user: CurrentUserPayload,
-): Promise<TenantOption[]> {
-  // Calls GET /internal/customers/{user.sub}/tenants
-  // Excludes the current tenant (user.tenantId) from the returned list
-  // Returns TenantOption[] (same type used by /select-tenant)
-}
-```
-
-`TenantOption` is already in `@ikaro/types` (added in `M13-S02`). Confirm it contains: `{ id, name, slug, loyaltyPoints }`. If `loyaltyPoints` is not available from the internal tenant endpoint, call `GET /internal/customers/{customerId}/loyalty-balance?tenantId={id}` per tenant or set to `0` for now (note the limitation in dev-notes).
-
-**`@ikaro/types` addition** (if not already in `M13-S02`):
-```typescript
-// packages/types/src/auth.dto.ts
-export interface SwitchTenantRequest {
-  readonly targetTenantId: string;
-}
-// SwitchTenantResponse already defined in M13-S02: { tenantSlug, expiresIn }
-```
-
-**Frontend part:**
-
-`apps/web/lib/api/auth.ts` (extend from `M13-S14`):
-```typescript
-fetchCustomerTenants(): Promise<TenantOption[]>
-// GET /api/customers/tenants — returns other tenants (current excluded)
-
-switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>
-// POST /api/auth/switch-tenant { targetTenantId }
-// BFF sets httpOnly cookie; returns { tenantSlug }
-```
-
-`apps/web/app/switch-tenant/page.tsx` — `'use client'`:
-- Same visual layout as `plan/journey/customer/prototypes/login/01-select-tenant.html` (centered, full height, Ikaro logo, tenant cards)
-- On mount: calls `fetchCustomerTenants()`
-  - Loading: skeleton cards
-  - Empty (customer has only 1 tenant): redirect to `/{currentSlug}/my-account` (should not reach this page)
-- Shows current tenant first, marked "Atual" (non-clickable) — read `tenantSlug` from JWT cookie to identify current
-- Other tenant cards: clickable → calls `switchTenant(targetTenantId)` → on success `router.push('/{newSlug}')` → cookie updated → hotsite refreshes as logged-in customer of new tenant
-- `"← Voltar sem trocar"` link at bottom → `router.back()`
-- Error (network failure on switch): inline alert "Não foi possível trocar de empresa. Tente novamente." + retry button
-
-`CustomerShell` update (in `apps/web/components/customer/CustomerShell.tsx`):
-- Avatar dropdown: add "Trocar empresa" item between "← Site Ikaro" and "Sair" links
-- **Only render this item when customer has 2+ tenants.** Detection: call `fetchCustomerTenants()` on mount of CustomerShell (or include tenant count in JWT payload if available). If the call returns an empty list → do not render the "Trocar empresa" item.
-- "Trocar empresa" links to `/switch-tenant`
-
-**Acceptance criteria:**
-- [ ] `GET /v1/customers/tenants` (CUSTOMER JWT) returns list of tenants excluding current; each with name, slug, loyaltyPoints
-- [ ] Tenant isolation: Customer A cannot retrieve Customer B's tenant list
-- [ ] "Trocar empresa" item visible in avatar dropdown when `fetchCustomerTenants()` returns at least 1 item
-- [ ] "Trocar empresa" item hidden when customer has only 1 tenant
-- [ ] `GET /switch-tenant` renders current tenant (marked "Atual") + other tenants as cards
-- [ ] Clicking another tenant calls `POST /api/auth/switch-tenant` + redirects to `/{newSlug}` on success
-- [ ] New tenant's hotsite renders in logged-in state (cookie updated)
-- [ ] Network error on switch → inline alert + retry; no navigation
-- [ ] `"← Voltar sem trocar"` navigates back without switching
-- [ ] `.http` block added for `GET /v1/customers/tenants`
-- [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
-
-**Dependencies:** M13-S02 (switch-tenant cookie fix), M13-S14 (`TenantOption` type + `/select-tenant` visual pattern), M13-S16 (CustomerShell exists)
+**Merged into `M13-S14` on 2026-06-24.** During `M13-S14`'s story-discovery session it became clear this story's trigger doesn't need `CustomerShell` (`M13-S16`, not yet built) — it fits into the already-shipped `HotsiteAuthBar` avatar dropdown instead — and it reuses the exact same `TenantOption` card pattern `M13-S14` already needed once `/select-tenant` was descoped. Rather than leave this waiting on `M13-S16` for no real reason, its full scope (BFF `GET /v1/customers/tenants`, the loyalty-balance internal endpoint, `/switch-tenant` page, `HotsiteAuthBar` trigger) was folded into `M13-S14` directly. See that story for the current spec and acceptance criteria.
 
 ---
 
@@ -4046,7 +3958,7 @@ apps/web/test-results/
 Adds the persistent top auth bar to the public hotsite (`/{slug}` and `/{slug}/booking`), matching the prototypes: unauthenticated visitors see an "Entrar" link; authenticated customers see their initials avatar + name with a dropdown ("Minha conta" / "Sair"). Also adds the minimal tenant-branded login page the bar's "Entrar" link needs, and the BFF logout endpoint the dropdown's "Sair" needs — neither existed before this story.
 
 **Scope decisions (already discussed and agreed):**
-- "Entrar" links to a new minimal `/{slug}/login` page (not directly to the BFF OAuth URL) — matches the prototype's branded login screen exactly. Multi-tenant selection (`/select-tenant`) stays out of scope; the BFF redirect for a multi-tenant customer will 404 until `M13-S14` ships (acceptable, narrow, called-out gap).
+- "Entrar" links to a new minimal `/{slug}/login` page (not directly to the BFF OAuth URL) — matches the prototype's branded login screen exactly. Multi-tenant selection (`/select-tenant`) stays out of scope — `M13-S14`'s discovery session found this BFF branch is unreachable from any shipped UI and descoped it permanently rather than building it (see `docs/04-USE_CASES.md` UC-021).
 - The avatar dropdown's "Minha conta" links to `/{slug}/my-account`, which will 404 until `M13-S27` ships. Accepted — see the naming-convention note in "Architecture & conventions" above.
 - The bar must not break the existing `revalidate = 300` ISR on `[slug]/page.tsx` / `[slug]/booking/page.tsx`. It is rendered as a `'use client'` component that fetches its own auth state after hydration via a Next.js API proxy route — it does **not** call `cookies()` inside the statically-rendered page tree.
 - The JWT cookie carries no display name (`JwtPayload` is `{ sub, tenantId, tenantSlug, role }` only — see `apps/bff/src/auth/jwt-issuer.service.ts`). The customer's name is fetched from the already-existing `GET /v1/customers/me` BFF endpoint, via a new same-origin proxy route (`/api/customers/me`) that `M13-S14`'s `PhoneCompletionPrompt` will also reuse — built once, here.
@@ -4199,7 +4111,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 **Dependencies:** none (deliberately self-contained — see scope decisions above)
 
 **Known gaps, intentionally deferred:**
-- Multi-tenant customer login still 404s at `/select-tenant` until `M13-S14`.
+- ~~Multi-tenant customer login still 404s at `/select-tenant` until `M13-S14`.~~ Resolved by `M13-S14`'s discovery session: `/select-tenant` was descoped entirely, not built. See `docs/04-USE_CASES.md` UC-021.
 - "Minha conta" 404s until `M13-S27`.
 - `PhoneCompletionPrompt` (the other consumer of `/api/customers/me`) is still `M13-S14`'s job.
 
@@ -4211,9 +4123,9 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 ### Auth (Phase 1–2, M13-S02/M13-S13/M13-S14)
 
-- [ ] **BFF API route prefix in `apps/web`:** is auth called via `/api/auth/...` (Next.js API route proxy) or directly as `/v1/auth/...` (direct BFF call)? Verify before `M13-S13`/`M13-S14`. Check `next.config.js` rewrites or `apps/web/app/api/` route handlers.
-- [ ] **Selection token decode strategy:** does `issueSelectionToken` encode the tenant list (decode on frontend) or only `{ googleOAuthId }` (requires a separate BFF `GET /auth/tenants?token=...` endpoint)? If the endpoint is missing, add it to `M13-S02`'s scope. Resolve before `M13-S14`.
-- [ ] **`TenantOption.primaryColor`:** does the BFF selection token carry the tenant's `primaryColor`? If yes, include the field and use it for the initial avatar background in `/select-tenant`. If no, use a neutral placeholder.
+- [x] **BFF API route prefix in `apps/web`:** resolved in `M13-S14`'s discovery session — full-page navigations (OAuth, logout) go directly to the BFF (`${NEXT_PUBLIC_BFF_URL}/auth/...`); any client-side JSON exchange that needs the session cookie must go through a same-origin Next.js proxy route (`apps/web/app/api/...`), per `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`'s documented rule. `M13-S13`'s `/select-staff-tenant` violated this (called the BFF directly cross-origin) and was refactored to match in `M13-S14`.
+- [x] **Selection token decode strategy:** moot — `/select-tenant` was descoped entirely in `M13-S14` (no UI ever reaches the multi-tenant OAuth branch). See `docs/04-USE_CASES.md` UC-021.
+- [x] **`TenantOption.primaryColor`:** not carried by the BFF today; `/select-tenant` is moot (see above). The switch-tenant feature (folded into `M13-S14` from the original `M13-S30`) also still reuses `TenantOption` and uses the same neutral `--ba-primary` placeholder for the avatar background.
 - [x] **Post-login redirect from customer area:** confirmed — the customer lands on `/{slug}` (the hotsite), which already reads the `access_token` cookie server-side (M12) and shows the logged-in nav bar. No follow-up story needed.
 - [x] **Staff login Google button href prefix:** resolved in M13-S13 — uses `${NEXT_PUBLIC_BFF_URL}/auth/google?state=__staff__` (absolute BFF URL, same pattern as the customer login page). `NEXT_PUBLIC_BFF_URL` includes the `/v1` prefix (`http://localhost:3002/v1` in dev).
 - [ ] **Staff logout:** no logout endpoint designed yet. Current MVP behavior: JWT expiry → redirect to `/dashboard/login`. An explicit logout button is post-MVP — not scoped in any story above.
@@ -4228,7 +4140,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 - [ ] **Photo URL strategy:** GCS signed read URLs generated by the BFF at detail-fetch time, or a Next.js image proxy? M115-S01's pattern used signed URLs — recommend the same here (already assumed in `M13-S04`/`M13-S18`/`M13-S20`).
 - [ ] **Real-time queue updates:** polling interval vs. WebSocket — two staff members might view the same booking simultaneously. Not scoped in `M13-S17`; decide at a Phase-4 retrospective, don't add silently.
 
-### Customer Minha Conta (Phase 7, M13-S27–M13-S30)
+### Customer Minha Conta (Phase 7, M13-S27–M13-S29; `M13-S30` merged into `M13-S14`)
 
 - [ ] **`cancellationWindowHours` availability:** is this value accessible to the frontend without a dedicated settings endpoint? MVP default is to hardcode `48` and read from real settings later (used by `M13-S27`/`M13-S28`).
 - [ ] **"Total washes completed" stat (UC-006 step 6):** not available from `GET /v1/loyalty/balance`. Drop from MVP Minha Conta, or derive client-side from `items.filter(b => b.status === 'COMPLETED').length`? Decide before `M13-S27`.
