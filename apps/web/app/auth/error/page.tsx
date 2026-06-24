@@ -11,53 +11,54 @@ interface Props {
   readonly searchParams: Promise<{ reason?: string }>;
 }
 
+interface CtaConfig {
+  readonly ctaLabel: string;
+  readonly ctaHref: string;
+}
+
+function makeErrorConfig(heading: string, message: string, cta: CtaConfig): ErrorConfig {
+  return { heading, message, ...cta };
+}
+
 export default async function AuthErrorPage({ searchParams }: Props) {
   const { reason } = await searchParams;
   const t = await getTranslations('auth');
 
+  const ctaLogin: CtaConfig = { ctaLabel: t('errorBackToLogin'), ctaHref: '/dashboard/login' };
+  const ctaSite: CtaConfig = { ctaLabel: t('errorBackToSite'), ctaHref: '/' };
+
   const ERROR_MAP: Record<string, ErrorConfig> = {
-    'not-a-staff-member': {
-      heading: t('errorNotAStaffMemberHeading'),
-      message: t('errorNotAStaffMemberMessage'),
-      ctaLabel: t('errorBackToLogin'),
-      ctaHref: '/dashboard/login',
-    },
-    'staff-deactivated': {
-      heading: t('errorStaffDeactivatedHeading'),
-      message: t('errorStaffDeactivatedMessage'),
-      ctaLabel: t('errorBackToLogin'),
-      ctaHref: '/dashboard/login',
-    },
-    'email-mismatch': {
-      heading: t('errorEmailMismatchHeading'),
-      message: t('errorEmailMismatchMessage'),
-      ctaLabel: t('errorBackToLogin'),
-      ctaHref: '/dashboard/login',
-    },
-    'invite-not-found': {
-      heading: t('errorInviteNotFoundHeading'),
-      message: t('errorInviteNotFoundMessage'),
-      ctaLabel: t('errorBackToLogin'),
-      ctaHref: '/dashboard/login',
-    },
-    'tenant-not-found': {
-      heading: t('errorTenantNotFoundHeading'),
-      message: t('errorTenantNotFoundMessage'),
-      ctaLabel: t('errorBackToSite'),
-      ctaHref: '/',
-    },
-    'tenant-deactivated': {
-      heading: t('errorTenantDeactivatedHeading'),
-      message: t('errorTenantDeactivatedMessage'),
-      ctaLabel: t('errorBackToSite'),
-      ctaHref: '/',
-    },
-    'no-tenant': {
-      heading: t('errorNoTenantHeading'),
-      message: t('errorNoTenantMessage'),
-      ctaLabel: t('errorBackToSite'),
-      ctaHref: '/',
-    },
+    'not-a-staff-member': makeErrorConfig(
+      t('errorNotAStaffMemberHeading'),
+      t('errorNotAStaffMemberMessage'),
+      ctaLogin,
+    ),
+    'staff-deactivated': makeErrorConfig(
+      t('errorStaffDeactivatedHeading'),
+      t('errorStaffDeactivatedMessage'),
+      ctaLogin,
+    ),
+    'email-mismatch': makeErrorConfig(
+      t('errorEmailMismatchHeading'),
+      t('errorEmailMismatchMessage'),
+      ctaLogin,
+    ),
+    'invite-not-found': makeErrorConfig(
+      t('errorInviteNotFoundHeading'),
+      t('errorInviteNotFoundMessage'),
+      ctaLogin,
+    ),
+    'tenant-not-found': makeErrorConfig(
+      t('errorTenantNotFoundHeading'),
+      t('errorTenantNotFoundMessage'),
+      ctaSite,
+    ),
+    'tenant-deactivated': makeErrorConfig(
+      t('errorTenantDeactivatedHeading'),
+      t('errorTenantDeactivatedMessage'),
+      ctaSite,
+    ),
+    'no-tenant': makeErrorConfig(t('errorNoTenantHeading'), t('errorNoTenantMessage'), ctaSite),
   };
 
   const config = (reason && ERROR_MAP[reason]) || {

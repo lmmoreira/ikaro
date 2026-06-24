@@ -6,6 +6,7 @@ import { CurrentUserPayload } from '../shared/decorators/current-user.decorator'
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { AuthController } from './auth.controller';
 import { DevLoginDto } from './dtos/dev-login.dto';
+import { IssueStaffTokenDto } from './dtos/issue-staff-token.dto';
 import { IssueTokenDto } from './dtos/issue-token.dto';
 import { SwitchTenantDto } from './dtos/switch-tenant.dto';
 import { JwtIssuerService } from './jwt-issuer.service';
@@ -752,6 +753,163 @@ describe('AuthController', () => {
     });
   });
 
+  describe('getStaffTenants()', () => {
+    const STAFF_ID_B = '30000000-0000-4000-8000-000000000002';
+
+    it('returns tenant options only for active staff records, resolving each tenant', async () => {
+      const selectionToken = selectionTokenService.issueSelectionToken('google-sub-123');
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
+            { staffId: STAFF_ID_B, tenantId: TENANT_ID_B, role: 'STAFF', isActive: true },
+            {
+              staffId: 'inactive-staff',
+              tenantId: TENANT_ID_OTHER,
+              role: 'STAFF',
+              isActive: false,
+            },
+          ])
+          .mockResolvedValueOnce({ id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' })
+          .mockResolvedValueOnce({
+            id: TENANT_ID_B,
+            slug: 'lavacar-centro',
+            name: 'Lavacar Centro',
+          }),
+      });
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        backendHttp,
+        configService,
+      );
+
+      const result = await controller.getStaffTenants(selectionToken);
+
+      expect(result).toEqual([
+        {
+          staffId: STAFF_ID_A,
+          tenantId: TENANT_ID_A,
+          tenantSlug: 'lavacar-bh',
+          tenantName: 'Lavacar BH',
+          role: 'MANAGER',
+        },
+        {
+          staffId: STAFF_ID_B,
+          tenantId: TENANT_ID_B,
+          tenantSlug: 'lavacar-centro',
+          tenantName: 'Lavacar Centro',
+          role: 'STAFF',
+        },
+      ]);
+      expect(backendHttp.get).toHaveBeenCalledWith('/internal/staff/by-oauth', {
+        googleOAuthId: 'google-sub-123',
+      });
+    });
+
+    it('returns an empty array when the staff has no active tenants', async () => {
+      const selectionToken = selectionTokenService.issueSelectionToken('google-sub-123');
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue([]),
+      });
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        backendHttp,
+        configService,
+      );
+
+      const result = await controller.getStaffTenants(selectionToken);
+
+      expect(result).toEqual([]);
+    });
+
+    it('rejects when the selection token is invalid', async () => {
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        makeBackendHttp(),
+        configService,
+      );
+
+      await expect(controller.getStaffTenants('bad.token.here')).rejects.toBeInstanceOf(Error);
+    });
+  });
+
+  describe('issueStaffToken()', () => {
+    it('sets cookie + returns { tenantSlug, expiresIn } with correct JWT payload on success', async () => {
+      const selectionToken = selectionTokenService.issueSelectionToken('google-sub-123');
+      const tenantInfo = { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' };
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
+          ])
+          .mockResolvedValueOnce(tenantInfo),
+      });
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        backendHttp,
+        configService,
+      );
+      const dto: IssueStaffTokenDto = { selectionToken, staffId: STAFF_ID_A };
+      const res = makeRes();
+
+      const result = await controller.issueStaffToken(dto, res);
+
+      expect(result.tenantSlug).toBe('lavacar-bh');
+      expect(result.expiresIn).toBe('7d');
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        expect.any(String),
+        expect.objectContaining({ httpOnly: true }),
+      );
+      const [, token] = (res.cookie as jest.Mock).mock.calls[0] as [string, string];
+      const decoded = jwtService.decode(token) as Record<string, unknown>;
+      expect(decoded['sub']).toBe(STAFF_ID_A);
+      expect(decoded['role']).toBe('MANAGER');
+      expect(decoded['tenantId']).toBe(TENANT_ID_A);
+      expect(decoded['tenantSlug']).toBe('lavacar-bh');
+    });
+
+    it('returns 403 when the staffId does not match an active record for this account', async () => {
+      const selectionToken = selectionTokenService.issueSelectionToken('google-sub-123');
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValue([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: false },
+          ]),
+      });
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        backendHttp,
+        configService,
+      );
+      const dto: IssueStaffTokenDto = { selectionToken, staffId: STAFF_ID_A };
+
+      await expect(controller.issueStaffToken(dto, makeRes())).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('returns 400 when the selection token is expired or invalid', async () => {
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        makeBackendHttp(),
+        configService,
+      );
+      const dto: IssueStaffTokenDto = { selectionToken: 'bad.token.here', staffId: STAFF_ID_A };
+
+      await expect(controller.issueStaffToken(dto, makeRes())).rejects.toBeInstanceOf(Error);
+    });
+  });
+
   describe('devLogin()', () => {
     const tenantInfo = { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' };
     const makeRes = (): jest.Mocked<Response> =>
@@ -816,6 +974,42 @@ describe('AuthController', () => {
         result.accessToken,
         expect.objectContaining({ httpOnly: true }),
       );
+    });
+
+    it('staff path: not yet linked — looks up by email and links the dev Google account', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce(tenantInfo) // GET /internal/tenants/by-slug
+          .mockResolvedValueOnce([]) // GET by-oauth → not yet linked
+          .mockResolvedValueOnce({
+            staffId: STAFF_ID_A,
+            email: 'admin@lavacar.com.br',
+            role: 'MANAGER',
+            isActive: true,
+          }), // GET by-email
+        post: jest.fn().mockResolvedValueOnce({
+          staffId: STAFF_ID_A,
+          tenantId: TENANT_ID_A,
+          role: 'MANAGER',
+        }), // POST link-google
+      });
+      const ctrl = new AuthController(jwtIssuer, selectionTokenService, backendHttp, configService);
+      const res = makeRes();
+      const dto: DevLoginDto = {
+        email: 'admin@lavacar.com.br',
+        tenantSlug: 'lavacar-bh',
+        type: 'staff',
+      };
+
+      const result = await ctrl.devLogin(dto, res);
+
+      expect(backendHttp.post).toHaveBeenCalledWith(
+        `/internal/staff/${STAFF_ID_A}/link-google`,
+        expect.objectContaining({ googleOAuthId: 'dev::admin@lavacar.com.br' }),
+      );
+      expect(result.user.sub).toBe(STAFF_ID_A);
+      expect(result.user.role).toBe('MANAGER');
     });
 
     it('staff path: JWT payload has sub=staffId and role from DB', async () => {
