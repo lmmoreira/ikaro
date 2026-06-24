@@ -76,8 +76,14 @@ describe('TypeOrmStaffRepository (integration)', () => {
 
     await expect(repo.save(staffB)).resolves.not.toThrow();
 
-    const foundA = await repo.findByTenantAndOAuthId('00000000-0000-0000-0000-000000000022', sharedSub);
-    const foundB = await repo.findByTenantAndOAuthId('00000000-0000-0000-0000-000000000023', sharedSub);
+    const foundA = await repo.findByTenantAndOAuthId(
+      '00000000-0000-0000-0000-000000000022',
+      sharedSub,
+    );
+    const foundB = await repo.findByTenantAndOAuthId(
+      '00000000-0000-0000-0000-000000000023',
+      sharedSub,
+    );
     expect(foundA).not.toBeNull();
     expect(foundB).not.toBeNull();
   });

@@ -50,6 +50,11 @@ export class InviteStaffUseCase {
       await this.eventBus.publish(event);
     }
 
-    return { staffId: staff.id, email: normalizedEmail, role: staff.role, isActive: staff.isActive };
+    return {
+      staffId: staff.id,
+      email: normalizedEmail,
+      role: staff.role,
+      isActive: staff.isActive,
+    };
   }
 }
