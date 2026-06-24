@@ -45,7 +45,7 @@ describe('TypeOrmStaffRepository (integration)', () => {
       .build();
     await repo.save(staff);
 
-    staff.activate('google-sub-m03s02-activate', 'Staff Ativado');
+    staff.linkGoogleAccount('google-sub-m03s02-activate', 'Staff Ativado');
     await repo.save(staff);
 
     const found = await repo.findByTenantAndOAuthId(

@@ -4,6 +4,7 @@ import {
   LastActiveManagerError,
   StaffAlreadyActiveError,
   StaffAlreadyExistsError,
+  StaffDeactivatedError,
   StaffDomainError,
   StaffEmailMismatchError,
   StaffNotFoundError,
@@ -55,6 +56,15 @@ export function mapStaffError(err: unknown): never {
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.CONFLICT);
+  }
+  if (err instanceof StaffDeactivatedError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Forbidden',
+      status: HttpStatus.FORBIDDEN,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.FORBIDDEN);
   }
   if (err instanceof StaffEmailMismatchError) {
     const body: ProblemDetail = {

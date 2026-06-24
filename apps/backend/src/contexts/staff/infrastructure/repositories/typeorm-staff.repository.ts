@@ -23,9 +23,9 @@ export class TypeOrmStaffRepository implements IStaffRepository {
     return entity ? this.toDomain(entity) : null;
   }
 
-  async findByGoogleOAuthId(googleOAuthId: string): Promise<Staff | null> {
-    const entity = await this.repo.findOne({ where: { googleOAuthId } });
-    return entity ? this.toDomain(entity) : null;
+  async findAllByGoogleOAuthId(googleOAuthId: string): Promise<Staff[]> {
+    const entities = await this.repo.find({ where: { googleOAuthId } });
+    return entities.map((e) => this.toDomain(e));
   }
 
   async findByTenantAndEmail(tenantId: string, email: string): Promise<Staff | null> {

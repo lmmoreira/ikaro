@@ -68,26 +68,27 @@ describe('TypeOrmStaffRepository', () => {
     expect(result!.isActive).toBe(false);
   });
 
-  it('findByGoogleOAuthId returns null when no row found', async () => {
-    ormRepo.findOne.mockResolvedValue(null);
-    const result = await repo.findByGoogleOAuthId('unknown-sub');
-    expect(result).toBeNull();
+  it('findAllByGoogleOAuthId returns empty array when no rows found', async () => {
+    ormRepo.find.mockResolvedValue([]);
+    const result = await repo.findAllByGoogleOAuthId('unknown-sub');
+    expect(result).toEqual([]);
   });
 
-  it('findByGoogleOAuthId returns the mapped Staff when found', async () => {
+  it('findAllByGoogleOAuthId returns array of mapped Staff when found', async () => {
     const entity = new StaffEntityBuilder()
       .withGoogleOAuthId('google-sub-1')
       .withIsActive(true)
       .withRole('MANAGER')
       .build();
-    ormRepo.findOne.mockResolvedValue(entity);
+    ormRepo.find.mockResolvedValue([entity]);
 
-    const result = await repo.findByGoogleOAuthId('google-sub-1');
+    const result = await repo.findAllByGoogleOAuthId('google-sub-1');
 
-    expect(result).toBeInstanceOf(Staff);
-    expect(result!.googleOAuthId).toBe('google-sub-1');
-    expect(result!.isActive).toBe(true);
-    expect(result!.role).toBe('MANAGER');
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBeInstanceOf(Staff);
+    expect(result[0].googleOAuthId).toBe('google-sub-1');
+    expect(result[0].isActive).toBe(true);
+    expect(result[0].role).toBe('MANAGER');
   });
 
   it('findByTenantAndEmail returns null when not found', async () => {

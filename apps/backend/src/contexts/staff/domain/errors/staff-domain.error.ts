@@ -20,6 +20,13 @@ export class StaffAlreadyActiveError extends StaffDomainError {
   }
 }
 
+export class StaffDeactivatedError extends StaffDomainError {
+  constructor() {
+    super('Staff account is deactivated');
+    this.name = 'StaffDeactivatedError';
+  }
+}
+
 export class StaffEmailMismatchError extends StaffDomainError {
   constructor() {
     super('The Google account email does not match the invited email address');

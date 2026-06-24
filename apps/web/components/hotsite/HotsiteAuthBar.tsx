@@ -40,10 +40,32 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element
 
   return (
     <header
-      className="flex h-12 items-center justify-end px-6"
+      className="flex h-12 items-center justify-between px-6"
       style={{ backgroundColor: 'var(--ba-secondary)' }}
       data-testid="hotsite-auth-bar"
     >
+      <a
+        href="/dashboard/login"
+        data-testid="hotsite-staff-link"
+        className="flex items-center gap-1.5 text-[0.8125rem] font-medium no-underline"
+        style={{ color: 'rgba(17,24,39,0.4)' }}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </svg>
+        {t('staffArea')}
+      </a>
       {state.status === 'authenticated' && (
         <details className="relative">
           <summary

@@ -4,7 +4,7 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Index(['tenantId'])
 @Index(['tenantId', 'email'])
 @Index(['tenantId', 'googleOAuthId'])
-@Index('UQ_staff_staff_google_oauth_id', ['googleOAuthId'], {
+@Index('UQ_staff_tenant_google_oauth_id', ['tenantId', 'googleOAuthId'], {
   unique: true,
   where: '"google_oauth_id" IS NOT NULL',
 })
@@ -27,7 +27,7 @@ export class StaffEntity {
   @Column({ type: 'varchar', length: 20 })
   role!: string;
 
-  @Column({ name: 'is_active', type: 'boolean', default: false })
+  @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;
 
   @Column({ name: 'invited_by', type: 'uuid', nullable: true })

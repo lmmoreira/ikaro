@@ -9,7 +9,7 @@ export class CreateStaffStaff1716600000002 implements MigrationInterface {
         "google_oauth_id" VARCHAR(255),
         "email"           VARCHAR(255) NOT NULL,
         "role"            VARCHAR(20)  NOT NULL CHECK (role IN ('MANAGER','STAFF')),
-        "is_active"       BOOLEAN      NOT NULL DEFAULT false,
+        "is_active"       BOOLEAN      NOT NULL DEFAULT true,
         "created_at"      TIMESTAMPTZ  NOT NULL DEFAULT now(),
         "updated_at"      TIMESTAMPTZ  NOT NULL DEFAULT now(),
         CONSTRAINT "PK_staff_staff" PRIMARY KEY ("id")
@@ -28,8 +28,8 @@ export class CreateStaffStaff1716600000002 implements MigrationInterface {
         ON "staff"."staff" ("tenant_id", "google_oauth_id")
     `);
     await queryRunner.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_staff_staff_google_oauth_id"
-        ON "staff"."staff" ("google_oauth_id")
+      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_staff_tenant_google_oauth_id"
+        ON "staff"."staff" ("tenant_id", "google_oauth_id")
         WHERE "google_oauth_id" IS NOT NULL
     `);
   }

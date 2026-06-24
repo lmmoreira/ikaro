@@ -3,40 +3,42 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { ActivateStaffDto } from '../dtos/activate-staff.dto';
+import { LinkGoogleAccountDto } from '../dtos/link-google-account.dto';
 import {
-  StaffAlreadyActiveError,
+  StaffDeactivatedError,
   StaffEmailMismatchError,
   StaffNotFoundError,
 } from '../../domain/errors/staff-domain.error';
 import { StaffRole } from '../../domain/staff.aggregate';
 import { IStaffRepository, STAFF_REPOSITORY } from '../ports/staff-repository.port';
 
-export interface ActivateStaffUseCaseResult {
+export interface LinkGoogleAccountUseCaseResult {
   staffId: string;
   tenantId: string;
   role: StaffRole;
-  isActive: true;
 }
 
 @Injectable()
-export class ActivateStaffUseCase {
+export class LinkGoogleAccountUseCase {
   constructor(
     @Inject(STAFF_REPOSITORY) private readonly staffRepo: IStaffRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(staffId: string, dto: ActivateStaffDto): Promise<ActivateStaffUseCaseResult> {
+  async execute(
+    staffId: string,
+    dto: LinkGoogleAccountDto,
+  ): Promise<LinkGoogleAccountUseCaseResult> {
     const staff = await this.staffRepo.findById(staffId, dto.tenantId);
     if (!staff) throw new StaffNotFoundError(staffId);
-    if (staff.isActive) throw new StaffAlreadyActiveError(staffId);
+    if (!staff.isActive) throw new StaffDeactivatedError();
     if (staff.email.address !== dto.email.toLowerCase().trim()) throw new StaffEmailMismatchError();
 
-    staff.activate(dto.googleOAuthId, dto.name);
+    staff.linkGoogleAccount(dto.googleOAuthId, dto.name);
     await this.txManager.run(async () => {
       await this.staffRepo.save(staff);
     });
 
-    return { staffId: staff.id, tenantId: staff.tenantId, role: staff.role, isActive: true };
+    return { staffId: staff.id, tenantId: staff.tenantId, role: staff.role };
   }
 }

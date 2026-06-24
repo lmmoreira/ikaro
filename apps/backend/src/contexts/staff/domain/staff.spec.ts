@@ -22,7 +22,7 @@ describe('Staff', () => {
       expect(staff.email).toBeInstanceOf(Email);
       expect(staff.email.address).toBe('ana@lavacar.com.br');
       expect(staff.role).toBe('STAFF');
-      expect(staff.isActive).toBe(false);
+      expect(staff.isActive).toBe(true);
       expect(staff.googleOAuthId).toBeNull();
       expect(staff.name).toBe('Ana Silva');
       expect(staff.invitedBy).toBe('mgr-id');
@@ -92,13 +92,13 @@ describe('Staff', () => {
   });
 
   describe('inviteFromProvisioning()', () => {
-    it('creates a MANAGER with isActive=false, null googleOAuthId, null name, invitedBy=SYSTEM_ACTOR_ID', () => {
+    it('creates a MANAGER with isActive=true, null googleOAuthId, null name, invitedBy=SYSTEM_ACTOR_ID', () => {
       const staff = Staff.inviteFromProvisioning('tenant-1', 'admin@lavacar.com.br', 'corr-1');
       expect(staff.tenantId).toBe('tenant-1');
       expect(staff.email).toBeInstanceOf(Email);
       expect(staff.email.address).toBe('admin@lavacar.com.br');
       expect(staff.role).toBe('MANAGER');
-      expect(staff.isActive).toBe(false);
+      expect(staff.isActive).toBe(true);
       expect(staff.googleOAuthId).toBeNull();
       expect(staff.name).toBeNull();
       expect(staff.invitedBy).toBe(SYSTEM_ACTOR_ID);
@@ -128,8 +128,8 @@ describe('Staff', () => {
     });
   });
 
-  describe('activate()', () => {
-    it('sets googleOAuthId, name, and isActive=true', () => {
+  describe('linkGoogleAccount()', () => {
+    it('sets googleOAuthId and name without changing isActive', () => {
       const staff = Staff.invite(
         'tenant-1',
         'ana@lavacar.com.br',
@@ -139,9 +139,9 @@ describe('Staff', () => {
         CORR,
       );
       staff.clearDomainEvents();
-      staff.activate('google-sub-456', 'Ana Ativada');
+      staff.linkGoogleAccount('google-sub-456', 'Ana Vinculada');
       expect(staff.googleOAuthId).toBe('google-sub-456');
-      expect(staff.name).toBe('Ana Ativada');
+      expect(staff.name).toBe('Ana Vinculada');
       expect(staff.isActive).toBe(true);
     });
 
@@ -154,7 +154,7 @@ describe('Staff', () => {
         null,
         CORR,
       );
-      expect(() => staff.activate('', 'Ana')).toThrow(StaffDomainError);
+      expect(() => staff.linkGoogleAccount('', 'Ana')).toThrow(StaffDomainError);
     });
 
     it('throws when name is whitespace-only', () => {
@@ -166,7 +166,7 @@ describe('Staff', () => {
         null,
         CORR,
       );
-      expect(() => staff.activate('google-sub', '   ')).toThrow(StaffDomainError);
+      expect(() => staff.linkGoogleAccount('google-sub', '   ')).toThrow(StaffDomainError);
     });
   });
 
@@ -202,7 +202,7 @@ describe('Staff', () => {
         CORR,
       );
       staff.clearDomainEvents();
-      staff.activate('google-sub-789', 'Ana Silva');
+      staff.linkGoogleAccount('google-sub-789', 'Ana Silva');
       staff.deactivate('other-staff-id', CORR);
       expect(staff.isActive).toBe(false);
       expect(staff.deactivatedBy).toBe('other-staff-id');
@@ -222,7 +222,7 @@ describe('Staff', () => {
         null,
         CORR,
       );
-      staff.activate('google-sub-789', 'Ana Silva');
+      staff.linkGoogleAccount('google-sub-789', 'Ana Silva');
       expect(() => staff.deactivate(staff.id, CORR)).toThrow(StaffSelfDeactivationError);
       expect(staff.isActive).toBe(true);
     });

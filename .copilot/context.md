@@ -75,7 +75,7 @@ Any code that breaks these is a defect regardless of test coverage.
 3. Every domain event includes `tenantId`, `eventId` (idempotency key), `occurredAt` (ISO-8601 UTC), `correlationId`.
 4. Composite FKs use `(tenant_id, id)` to block cross-tenant references at DB level.
 5. **Customers are multi-tenant** — same Google `sub` → multiple `Customer` rows (one per tenant). No unique on `google_oauth_id` alone.
-6. **Staff are single-tenant** — global `UNIQUE(google_oauth_id)` at DB level (not composite with `tenant_id` — the same Google account cannot be staff at two different tenants).
+6. **Staff can be multi-tenant** — `UNIQUE(tenant_id, google_oauth_id)` per-tenant partial index (where not null). The same Google account may be staff at more than one tenant. When `handleStaffLogin` finds multiple active staff records for a `google_oauth_id`, it issues a selection token and redirects to `/select-staff-tenant` (parallel to the customer flow). Staff is always provisioned as `is_active=true`; the invite link only *links* the Google account (`google_oauth_id`) to the existing active record — there is no separate activation step. A deactivated staff member hitting login is redirected to `/auth/error?reason=staff-deactivated`.
 7. File paths prefixed by tenant (see §1 Storage).
 8. Logs, metrics, traces include `tenant_id`. OTel span attrs: `tenant.id`, `user.id`, `correlation.id`.
 9. Event consumers are idempotent (at-least-once delivery). Dedup via `eventId`.
