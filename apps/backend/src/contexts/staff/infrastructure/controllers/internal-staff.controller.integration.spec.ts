@@ -283,6 +283,10 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
       expect(body.staffId).toBe(entity.id);
       expect(body.role).toBe('MANAGER');
       expect(body.tenantId).toBe('10000000-0000-4000-8000-000000000071');
+
+      const saved = await ds.getRepository(StaffEntity).findOneBy({ id: entity.id });
+      expect(saved?.googleOAuthId).toBe('google-sub-m04s01-activated');
+      expect(saved?.name).toBe('Gerente Vinculado');
     });
 
     it('returns 403 when staff is deactivated', async () => {

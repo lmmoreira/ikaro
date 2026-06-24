@@ -7,6 +7,7 @@ import {
   StaffDeactivatedError,
   StaffDomainError,
   StaffEmailMismatchError,
+  StaffGoogleAccountConflictError,
   StaffNotFoundError,
   StaffSelfDeactivationError,
 } from '../../domain/errors/staff-domain.error';
@@ -65,6 +66,15 @@ export function mapStaffError(err: unknown): never {
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.FORBIDDEN);
+  }
+  if (err instanceof StaffGoogleAccountConflictError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Conflict',
+      status: HttpStatus.CONFLICT,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.CONFLICT);
   }
   if (err instanceof StaffEmailMismatchError) {
     const body: ProblemDetail = {

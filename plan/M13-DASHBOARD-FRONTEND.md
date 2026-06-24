@@ -1451,7 +1451,7 @@ new URL('/dashboard/login', request.url)
 - Ikaro logomark (coloured square with "I", no new icon library)
 - Heading: `"Área da Equipe"`
 - Subtext: `"Acesso exclusivo para funcionários e gerentes"`
-- Google Sign-In button: `<a href={\`${process.env.NEXT_PUBLIC_BFF_URL}/auth/google?state=__staff__\`}>` — plain `<a>` (full redirect, not fetch)
+- Google Sign-In button: `<a href={\`${process.env.NEXT_PUBLIC_BFF_URL}/auth/google?type=staff\`}>` — plain `<a>` (full redirect, not fetch)
 - Footer: `"Primeiro acesso? Use o link enviado no e-mail de convite."`
 - No inline error banner — all errors go to `/auth/error`
 
@@ -1463,10 +1463,11 @@ new URL('/dashboard/login', request.url)
 | `staff-deactivated` | `"Conta desativada"` | `"Sua conta foi desativada. Entre em contato com o gerente."` | `"Voltar ao login"` | `/dashboard/login` |
 | `email-mismatch` | `"Acesso não autorizado"` | `"Por favor, use o e-mail para o qual você foi convidado(a)."` | `"Voltar ao login"` | `/dashboard/login` |
 | `invite-not-found` | `"Convite não encontrado"` | `"Nenhum convite pendente foi encontrado para este estabelecimento."` | `"Voltar ao login"` | `/dashboard/login` |
+| `account-linked-elsewhere` | `"Conta já vinculada"` | `"Esta conta Google já está vinculada a outro funcionário. Entre com a conta original ou peça ajuda ao gerente."` | `"Voltar ao login"` | `/dashboard/login` |
 | `tenant-not-found` | `"Estabelecimento não encontrado"` | `"O link de convite é inválido ou o estabelecimento foi removido."` | `"Voltar ao site"` | `/` |
 | `tenant-deactivated` | `"Estabelecimento desativado"` | `"Este estabelecimento está temporariamente desativado."` | `"Voltar ao site"` | `/` |
 | `no-tenant` | `"Não foi possível entrar"` | `"Nenhum estabelecimento encontrado para sua conta Google."` | `"Voltar ao site"` | `/` |
-| _(missing/unknown)_ | `"Erro de autenticação"` | `"Ocorreu um erro inesperado. Tente novamente."` | `"Voltar"` | `javascript:history.back()` |
+| _(missing/unknown)_ | `"Erro de autenticação"` | `"Ocorreu um erro inesperado. Tente novamente."` | `"Voltar"` | `/` |
 
 Show reason code in small grey text at bottom: `"Código: <reason>"`.
 

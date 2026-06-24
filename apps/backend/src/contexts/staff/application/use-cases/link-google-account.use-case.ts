@@ -7,6 +7,7 @@ import { LinkGoogleAccountDto } from '../dtos/link-google-account.dto';
 import {
   StaffDeactivatedError,
   StaffEmailMismatchError,
+  StaffGoogleAccountConflictError,
   StaffNotFoundError,
 } from '../../domain/errors/staff-domain.error';
 import { StaffRole } from '../../domain/staff.aggregate';
@@ -33,6 +34,14 @@ export class LinkGoogleAccountUseCase {
     if (!staff) throw new StaffNotFoundError(staffId);
     if (!staff.isActive) throw new StaffDeactivatedError();
     if (staff.email.address !== dto.email.toLowerCase().trim()) throw new StaffEmailMismatchError();
+
+    const conflicting = await this.staffRepo.findByTenantAndOAuthId(
+      dto.tenantId,
+      dto.googleOAuthId,
+    );
+    if (conflicting && conflicting.id !== staff.id) {
+      throw new StaffGoogleAccountConflictError();
+    }
 
     staff.linkGoogleAccount(dto.googleOAuthId, dto.name);
     await this.txManager.run(async () => {

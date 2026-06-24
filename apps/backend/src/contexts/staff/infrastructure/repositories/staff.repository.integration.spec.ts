@@ -74,7 +74,7 @@ describe('TypeOrmStaffRepository (integration)', () => {
       .withGoogleOAuthId(sharedSub)
       .build();
 
-    await expect(repo.save(staffB)).resolves.not.toThrow();
+    await expect(repo.save(staffB)).resolves.toBeUndefined();
 
     const foundA = await repo.findByTenantAndOAuthId(
       '00000000-0000-0000-0000-000000000022',
@@ -84,8 +84,10 @@ describe('TypeOrmStaffRepository (integration)', () => {
       '00000000-0000-0000-0000-000000000023',
       sharedSub,
     );
-    expect(foundA).not.toBeNull();
-    expect(foundB).not.toBeNull();
+    expect(foundA?.id).toBe(staffA.id);
+    expect(foundA?.tenantId).toBe('00000000-0000-0000-0000-000000000022');
+    expect(foundB?.id).toBe(staffB.id);
+    expect(foundB?.tenantId).toBe('00000000-0000-0000-0000-000000000023');
   });
 
   it('multiple null googleOAuthId rows in the same tenant are allowed (invited but not yet activated)', async () => {

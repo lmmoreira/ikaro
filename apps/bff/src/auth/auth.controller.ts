@@ -415,9 +415,19 @@ export class AuthController {
         },
       );
     } catch (err) {
-      if (err instanceof HttpException && err.getStatus() === HttpStatus.UNPROCESSABLE_ENTITY) {
-        res.redirect(`${frontendUrl}/auth/error?reason=email-mismatch`);
-        return;
+      if (err instanceof HttpException) {
+        if (err.getStatus() === HttpStatus.UNPROCESSABLE_ENTITY) {
+          res.redirect(`${frontendUrl}/auth/error?reason=email-mismatch`);
+          return;
+        }
+        if (err.getStatus() === HttpStatus.FORBIDDEN) {
+          res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated`);
+          return;
+        }
+        if (err.getStatus() === HttpStatus.CONFLICT) {
+          res.redirect(`${frontendUrl}/auth/error?reason=account-linked-elsewhere`);
+          return;
+        }
       }
       throw err;
     }

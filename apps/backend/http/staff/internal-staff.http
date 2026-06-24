@@ -88,7 +88,7 @@ X-Internal-Key: {{internalKey}}
 ###
 
 ### 404 — staffId not found in tenant
-POST {{baseUrl}}/internal/staff/non-existent-id/link-google
+POST {{baseUrl}}/internal/staff/00000000-0000-4000-8000-000000009999/link-google
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
@@ -102,15 +102,43 @@ Content-Type: application/json
 ###
 
 ### 403 — Staff account is deactivated
-POST {{baseUrl}}/internal/staff/{{staffId}}/link-google
+# Prerequisite chain: invite a throwaway staff member, then deactivate it,
+# so this request has a genuinely deactivated record to call link-google against.
+
+# @name inviteThrowawayStaff
+POST {{baseUrl}}/staff/invite
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "email": "desativado-link-google@lavacar.com.br",
+  "firstName": "Desativado",
+  "lastName": "Teste",
+  "role": "STAFF"
+}
+
+###
+
+PATCH {{baseUrl}}/staff/{{inviteThrowawayStaff.response.body.staffId}}/deactivate
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+POST {{baseUrl}}/internal/staff/{{inviteThrowawayStaff.response.body.staffId}}/link-google
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 {
   "tenantId": "{{tenantId}}",
   "googleOAuthId": "{{sub}}",
-  "email": "gerente@lavacar.com.br",
-  "name": "Gerente Silva"
+  "email": "desativado-link-google@lavacar.com.br",
+  "name": "Desativado Teste"
 }
 
 ###

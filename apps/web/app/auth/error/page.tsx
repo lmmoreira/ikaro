@@ -48,6 +48,11 @@ export default async function AuthErrorPage({ searchParams }: Props) {
       t('errorInviteNotFoundMessage'),
       ctaLogin,
     ),
+    'account-linked-elsewhere': makeErrorConfig(
+      t('errorAccountLinkedElsewhereHeading'),
+      t('errorAccountLinkedElsewhereMessage'),
+      ctaLogin,
+    ),
     'tenant-not-found': makeErrorConfig(
       t('errorTenantNotFoundHeading'),
       t('errorTenantNotFoundMessage'),
@@ -65,7 +70,7 @@ export default async function AuthErrorPage({ searchParams }: Props) {
     heading: t('errorFallbackHeading'),
     message: t('errorFallbackMessage'),
     ctaLabel: t('errorBack'),
-    ctaHref: 'javascript:history.back()',
+    ctaHref: '/',
   };
 
   return (

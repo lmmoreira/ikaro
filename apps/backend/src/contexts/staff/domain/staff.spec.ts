@@ -2,7 +2,11 @@ import { SYSTEM_ACTOR_ID } from '../../../shared/domain/system-actor';
 import { Email } from '../../../shared/value-objects/email.vo';
 import { StaffDeactivated } from './events/staff-deactivated.event';
 import { StaffInvited } from './events/staff-invited.event';
-import { StaffDomainError, StaffSelfDeactivationError } from './errors/staff-domain.error';
+import {
+  StaffDomainError,
+  StaffGoogleAccountConflictError,
+  StaffSelfDeactivationError,
+} from './errors/staff-domain.error';
 import { Staff } from './staff.aggregate';
 
 const CORR = 'corr-test';
@@ -167,6 +171,41 @@ describe('Staff', () => {
         CORR,
       );
       expect(() => staff.linkGoogleAccount('google-sub', '   ')).toThrow(StaffDomainError);
+    });
+
+    it('is idempotent when re-linking the same googleOAuthId', () => {
+      const staff = Staff.invite(
+        'tenant-1',
+        'ana@lavacar.com.br',
+        'STAFF',
+        'Ana Silva',
+        null,
+        CORR,
+      );
+      staff.linkGoogleAccount('google-sub-456', 'Ana Vinculada');
+
+      expect(() =>
+        staff.linkGoogleAccount('google-sub-456', 'Ana Vinculada Novamente'),
+      ).not.toThrow();
+      expect(staff.googleOAuthId).toBe('google-sub-456');
+      expect(staff.name).toBe('Ana Vinculada Novamente');
+    });
+
+    it('throws StaffGoogleAccountConflictError when re-linking to a different googleOAuthId', () => {
+      const staff = Staff.invite(
+        'tenant-1',
+        'ana@lavacar.com.br',
+        'STAFF',
+        'Ana Silva',
+        null,
+        CORR,
+      );
+      staff.linkGoogleAccount('google-sub-456', 'Ana Vinculada');
+
+      expect(() => staff.linkGoogleAccount('google-sub-789', 'Outra Conta')).toThrow(
+        StaffGoogleAccountConflictError,
+      );
+      expect(staff.googleOAuthId).toBe('google-sub-456');
     });
   });
 

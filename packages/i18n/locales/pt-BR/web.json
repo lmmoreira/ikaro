@@ -38,6 +38,8 @@
     "errorStaffDeactivatedMessage": "Sua conta foi desativada. Entre em contato com o gerente.",
     "errorEmailMismatchHeading": "Acesso não autorizado",
     "errorEmailMismatchMessage": "Por favor, use o e-mail para o qual você foi convidado(a).",
+    "errorAccountLinkedElsewhereHeading": "Conta já vinculada",
+    "errorAccountLinkedElsewhereMessage": "Esta conta Google já está vinculada a outro funcionário. Entre com a conta original ou peça ajuda ao gerente.",
     "errorInviteNotFoundHeading": "Convite não encontrado",
     "errorInviteNotFoundMessage": "Nenhum convite pendente foi encontrado para este estabelecimento.",
     "errorTenantNotFoundHeading": "Estabelecimento não encontrado",

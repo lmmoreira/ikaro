@@ -38,6 +38,8 @@
     "errorStaffDeactivatedMessage": "Your account has been deactivated. Please contact your manager.",
     "errorEmailMismatchHeading": "Unauthorized",
     "errorEmailMismatchMessage": "Please use the email address you were invited with.",
+    "errorAccountLinkedElsewhereHeading": "Account already linked",
+    "errorAccountLinkedElsewhereMessage": "This Google account is already linked to a different staff member. Sign in with the original account or ask a manager for help.",
     "errorInviteNotFoundHeading": "Invite not found",
     "errorInviteNotFoundMessage": "No pending invite was found for this establishment.",
     "errorTenantNotFoundHeading": "Establishment not found",

@@ -4,7 +4,11 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Email } from '../../../shared/value-objects/email.vo';
 import { StaffDeactivated } from './events/staff-deactivated.event';
 import { StaffInvited } from './events/staff-invited.event';
-import { StaffDomainError, StaffSelfDeactivationError } from './errors/staff-domain.error';
+import {
+  StaffDomainError,
+  StaffGoogleAccountConflictError,
+  StaffSelfDeactivationError,
+} from './errors/staff-domain.error';
 
 export type StaffRole = 'MANAGER' | 'STAFF';
 
@@ -132,6 +136,9 @@ export class Staff extends AggregateRoot {
     if (!googleOAuthId) throw new StaffDomainError('googleOAuthId is required');
     const trimmedName = name?.trim();
     if (!trimmedName) throw new StaffDomainError('name is required');
+    if (this.props.googleOAuthId && this.props.googleOAuthId !== googleOAuthId) {
+      throw new StaffGoogleAccountConflictError();
+    }
     this.props.googleOAuthId = googleOAuthId;
     this.props.name = trimmedName;
     this.props.updatedAt = new Date();

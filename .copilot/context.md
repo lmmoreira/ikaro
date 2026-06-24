@@ -92,7 +92,7 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 |---|---|---|---|
 | **Booking** | Core | `Booking`, `Service`, `ScheduleClosure` | `BookingRequested/Approved/Rejected/InfoRequested/InfoSubmitted/Completed/Cancelled/Rescheduled` + `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` |
 | **Customer** | Supporting | `Customer` (multi-tenant rows) | — |
-| **Staff** | Supporting | `Staff` (single-tenant) | `StaffInvited`, `StaffDeactivated` |
+| **Staff** | Supporting | `Staff` (multi-tenant rows) | `StaffInvited`, `StaffDeactivated` |
 | **Loyalty** | Supporting | `LoyaltyEntry` (append-only), `LoyaltyBalance` (running total), `LoyaltyRedemption` (append-only) | `ServicePointsEarned`, `PointsExpiringSoon` |
 | **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` | `EmailSent`, `EmailFailed` |
 | **Platform** | Foundational | `Tenant`, `HotsiteConfig` | `TenantProvisioned` |

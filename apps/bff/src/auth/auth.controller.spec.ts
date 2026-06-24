@@ -413,6 +413,58 @@ describe('AuthController', () => {
         'http://localhost:3000/auth/error?reason=email-mismatch',
       );
     });
+
+    it('redirects to /auth/error?reason=staff-deactivated when link-google returns 403', async () => {
+      const tenantInfo = { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' };
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValueOnce(tenantInfo).mockResolvedValueOnce({
+          staffId: STAFF_ID_A,
+          email: 'gerente@lavacar.com.br',
+          role: 'MANAGER',
+          isActive: true,
+        }),
+        post: jest.fn().mockRejectedValue(new HttpException({ status: 403 }, 403)),
+      });
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        backendHttp,
+        configService,
+      );
+      const res = makeRes();
+
+      await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=staff-deactivated',
+      );
+    });
+
+    it('redirects to /auth/error?reason=account-linked-elsewhere when link-google returns 409', async () => {
+      const tenantInfo = { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' };
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValueOnce(tenantInfo).mockResolvedValueOnce({
+          staffId: STAFF_ID_A,
+          email: 'gerente@lavacar.com.br',
+          role: 'MANAGER',
+          isActive: true,
+        }),
+        post: jest.fn().mockRejectedValue(new HttpException({ status: 409 }, 409)),
+      });
+      const controller = new AuthController(
+        jwtIssuer,
+        selectionTokenService,
+        backendHttp,
+        configService,
+      );
+      const res = makeRes();
+
+      await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=account-linked-elsewhere',
+      );
+    });
   });
 
   describe('handleGoogleCallback() — staff login path (loginType=staff)', () => {

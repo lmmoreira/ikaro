@@ -5,6 +5,7 @@ import {
   StaffAlreadyExistsError,
   StaffDomainError,
   StaffEmailMismatchError,
+  StaffGoogleAccountConflictError,
   StaffNotFoundError,
   StaffSelfDeactivationError,
 } from '../../domain/errors/staff-domain.error';
@@ -62,6 +63,15 @@ describe('mapStaffError', () => {
       mapStaffError(new StaffEmailMismatchError());
     } catch (e) {
       expect((e as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+  });
+
+  it('maps StaffGoogleAccountConflictError to 409', () => {
+    expect(() => mapStaffError(new StaffGoogleAccountConflictError())).toThrow(HttpException);
+    try {
+      mapStaffError(new StaffGoogleAccountConflictError());
+    } catch (e) {
+      expect((e as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
     }
   });
 

@@ -54,3 +54,10 @@ export class LastActiveManagerError extends StaffDomainError {
     this.name = 'LastActiveManagerError';
   }
 }
+
+export class StaffGoogleAccountConflictError extends StaffDomainError {
+  constructor() {
+    super('This Google account is already linked to a different staff member');
+    this.name = 'StaffGoogleAccountConflictError';
+  }
+}
