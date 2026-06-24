@@ -154,6 +154,21 @@ Every new `NotificationTemplateKey` touches several files across layers — miss
 
 ---
 
+## Staff OAuth login URL format (BFF `GoogleAuthGuard`)
+
+`GoogleAuthGuard.getAuthenticateOptions` constructs the OAuth state from two **separate** query params — it does **not** read a `?state=` param. Any frontend page or email link that starts the staff OAuth flow must use this format:
+
+| Scenario | URL |
+|---|---|
+| Regular staff login button | `${NEXT_PUBLIC_BFF_URL}/auth/google?type=staff` |
+| Invite email link (first login) | `${NEXT_PUBLIC_BFF_URL}/auth/google?type=staff&tenantSlug=<slug>` |
+
+**Common mistake:** `?state=__staff__` or `?state=__staff__:slug` — these are the *encoded* state strings the guard sends to Google internally. Passing them in the browser URL has no effect; the guard ignores the `state` query param and always derives the state from `type`/`tenantSlug`. Both the shared prototype (`shared/staff-login.html`) and the original M13-S13 story spec had this wrong — caught only during a real Google OAuth login attempt in M13-S13.
+
+The existing customer login in `app/[slug]/login/page.tsx` (which uses `${NEXT_PUBLIC_BFF_URL}/auth/google?tenantSlug=${slug}`) follows the same pattern — there is no `type=customer` param because the guard defaults to the customer path when `type` is absent.
+
+---
+
 ## Event Handlers (Pub/Sub consumers)
 
 Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**, not application layer.

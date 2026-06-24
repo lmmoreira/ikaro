@@ -4113,6 +4113,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 - [ ] **Staff logout:** no logout endpoint designed yet. Current MVP behavior: JWT expiry → redirect to `/dashboard/login`. An explicit logout button is post-MVP — not scoped in any story above.
 - [ ] **"Bem-vindo(a)!" first-login banner (UC-025 step 8):** ⚠️ auth flow redesigned in M13-S13 — `link-google` now redirects straight to `/dashboard` with no distinguishable "first login" moment. To implement the banner, the BFF would need to detect that `google_oauth_id` was just set (i.e. call `link-google` succeeded where it previously returned 200 without a cookie) and append `?welcome=1` to the `/dashboard` redirect — this logic does not exist today. Post-MVP; fold into a follow-up patch if product wants it.
 - [ ] **Playwright E2E suite for auth flows:** login flows need full E2E coverage (M16-S06). Playwright infrastructure is set up in M13-S41; the Google OAuth test-bypass endpoint required for automated auth testing is M16's scope.
+- [ ] **Staff invite email `activationLink` broken (TD13):** `send-staff-invitation.use-case.ts` generates `${FRONTEND_URL}/${slug}/auth/staff` which is a 404 — the Next.js route doesn't exist. Fix: create `app/[slug]/auth/staff/page.tsx` as a server redirect to `${NEXT_PUBLIC_BFF_URL}/auth/google?type=staff&tenantSlug=${slug}` (Option B in `td/TD13-STAFF-INVITE-EMAIL-LINK.md`). Staff can still log in via the direct BFF URL as a workaround. Blocks end-to-end invite flow testing.
 
 ### Staff booking core (Phase 4, M13-S17–M13-S20)
 
