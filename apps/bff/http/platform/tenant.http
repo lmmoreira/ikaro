@@ -1,0 +1,66 @@
+# BFF — Tenant (M13-S10)
+# UC-026: Admin edits tenant settings ("Nome do estabelecimento") — identity only,
+# see tenant-settings.http for the settings JSONB.
+# Guarded by @Roles('MANAGER') — requires a manager JWT (Authorization: Bearer <token>).
+#
+# Prerequisites: same as tenant-settings.http
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@managerToken = {{managerLogin.response.body.accessToken}}
+@staffToken   = {{staffLogin.response.body.accessToken}}
+
+###
+# @name managerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "funcionario@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Rename the tenant
+PATCH {{bffUrl}}/v1/tenants
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "name": "AutoWash Pro"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### 401 — Missing token
+PATCH {{bffUrl}}/v1/tenants
+Content-Type: application/json
+
+{ "name": "AutoWash Pro" }
+
+###
+
+### 403 — STAFF role not allowed
+PATCH {{bffUrl}}/v1/tenants
+Authorization: Bearer {{staffToken}}
+Content-Type: application/json
+
+{ "name": "AutoWash Pro" }
+
+###
+
+### 400 — Empty name
+PATCH {{bffUrl}}/v1/tenants
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "name": "" }

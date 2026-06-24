@@ -50,7 +50,7 @@ export class GetAvailabilityUseCase {
     const today = todayUTC();
     if (dto.date < today) throw new AvailabilityDateInPastError();
 
-    const { business_hours: businessHours, booking: bookingSettings } = this.tenantContext.settings;
+    const { businessHours, booking: bookingSettings } = this.tenantContext.settings;
 
     const services = await this.serviceRepo.findByIds(dto.serviceIds, tenantId);
 
@@ -74,8 +74,8 @@ export class GetAvailabilityUseCase {
       date: dto.date,
       services: services.map((s) => ({ durationMinutes: s.durationMinutes })),
       businessHours,
-      slotGranularityMinutes: bookingSettings.slot_granularity_minutes,
-      serviceBufferMinutes: bookingSettings.service_buffer_minutes,
+      slotGranularityMinutes: bookingSettings.slotGranularityMinutes,
+      serviceBufferMinutes: bookingSettings.serviceBufferMinutes,
       closures,
       opening: opening ?? null,
       existingBookings,

@@ -91,7 +91,7 @@ export class LoyaltyController {
         tenantId,
         customerId: body.customerId,
         pointsToRedeem: body.pointsToRedeem,
-        pointsPerCurrencyUnit: settings.loyalty.points_per_currency_unit,
+        pointsPerCurrencyUnit: settings.loyalty.pointsPerCurrencyUnit,
         redeemedBy: actorId!,
         notes: body.notes,
         bookingId: body.bookingId,

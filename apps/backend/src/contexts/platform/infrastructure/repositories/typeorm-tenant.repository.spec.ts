@@ -46,8 +46,8 @@ describe('TypeOrmTenantRepository', () => {
       const result = await repo.findBySlug('beloauto');
 
       expect(result!.settings).toBeInstanceOf(TenantSettings);
-      expect(result!.settings.loyalty.expiry_days).toBe(180);
-      expect(result!.settings.business_hours.timezone).toBe('America/Sao_Paulo');
+      expect(result!.settings.loyalty.expiryDays).toBe(180);
+      expect(result!.settings.businessHours.timezone).toBe('America/Sao_Paulo');
     });
   });
 

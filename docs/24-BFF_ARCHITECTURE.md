@@ -224,8 +224,9 @@ BackendHttpService
   │  Injects headers:
   │    X-Tenant-ID:       req.user.tenantId
   │    X-Correlation-ID:  req.correlationId
-  │    X-User-ID:         req.user.sub
-  │    X-User-Role:       req.user.role
+  │    X-Actor-ID:        req.user.sub
+  │    X-Actor-Type:      'CUSTOMER' if req.user.role === 'CUSTOMER' else 'STAFF'
+  │    X-Actor-Role:      req.user.role
   ▼
 Backend (internal Cloud Run — not public)
   │  Returns response

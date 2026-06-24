@@ -1117,14 +1117,14 @@ During the `ContactModule` implementation, a design question arose: *where do so
 
 **Problem:** The admin would configure social links every time they configure the Contact module. But these links are business identity information — they shouldn't change per-module. An admin might have five page variations with different Contact module configurations but the same WhatsApp number. Managing them in the module means updating five places.
 
-**Option B (what we built):** Social links live in `tenants.settings.business_info.social_links` — the same place as phone, email, and address.
+**Option B (what we built):** Social links live in `tenants.settings.businessInfo.socialLinks` — the same place as phone, email, and address.
 
 ```
-tenants.settings.business_info {
+tenants.settings.businessInfo {
   phone: "11 99999-9999",
   email: "contato@lavacar.com.br",
   address: { ... },
-  social_links: {
+  socialLinks: {
     whatsapp: "11987654321",
     instagram: "https://instagram.com/lavacar",
     facebook: null
@@ -1160,7 +1160,7 @@ private static validateSocialLinks(socialLinks: SocialLinks | null): void {
   if (socialLinks == null) return;
   if (socialLinks.whatsapp != null && !PhoneNumber.isValid(socialLinks.whatsapp)) {
     throw new PlatformDomainError(
-      'business_info.social_links.whatsapp must be a valid phone number',
+      'businessInfo.socialLinks.whatsapp must be a valid phone number',
     );
   }
 }
@@ -1511,7 +1511,7 @@ export function toJsonLdScript(data: unknown): string {
 
 If a tenant's name contained the literal text `</script>`, plain `JSON.stringify` would emit it verbatim — and a browser parsing `<script type="application/ld+json">{"name":"</script><script>evil()"}</script>` would treat `</script>` as the **end of the JSON-LD block**, not as a string character, letting the rest become live, executable HTML. Escaping `<` to its Unicode form (`<`) is valid inside a JSON string but can never be interpreted as the start of a tag — the JSON-LD stays inert data.
 
-**Backend analogy:** treat any tenant-controlled string (`tenant.name`, `business_info.*`) that ends up embedded in HTML the same way you'd treat user input going into a SQL query — it needs an escaping/encoding step at the boundary where it crosses from "data" into "markup."
+**Backend analogy:** treat any tenant-controlled string (`tenant.name`, `businessInfo.*`) that ends up embedded in HTML the same way you'd treat user input going into a SQL query — it needs an escaping/encoding step at the boundary where it crosses from "data" into "markup."
 
 ---
 

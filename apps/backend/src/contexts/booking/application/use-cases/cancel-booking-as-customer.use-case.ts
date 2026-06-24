@@ -40,7 +40,7 @@ export class CancelBookingAsCustomerUseCase {
 
     if (booking.status === BookingStatus.APPROVED) {
       const bookingSettings = this.tenantContext.settings.booking;
-      if (!booking.isEligibleForCancellation(bookingSettings.cancellation_window_hours)) {
+      if (!booking.isEligibleForCancellation(bookingSettings.cancellationWindowHours)) {
         throw new CancellationWindowExpiredError();
       }
     }

@@ -361,7 +361,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
         entryId:        string
         serviceId:      string
         pointsEarned:   number
-        expiresAt:      ISO8601      // earnedAt + tenants.settings.loyalty.expiry_days
+        expiresAt:      ISO8601      // earnedAt + tenants.settings.loyalty.expiryDays
       }
     ]
     currentBalance:     number       // customer's total active points after this increment (snapshot)
@@ -374,7 +374,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 ---
 
 #### **PointsExpiringSoon**
-- **Trigger:** GCP Cloud Scheduler fires `POST /cron/loyalty-expiry-warning` once a week (Mondays 06:00 UTC). The handler finds all customers across all tenants who have `LoyaltyEntry` rows whose `expires_at` falls within the configured warning window (`settings.loyalty.expiry_warning_days`, default 7).
+- **Trigger:** GCP Cloud Scheduler fires `POST /cron/loyalty-expiry-warning` once a week (Mondays 06:00 UTC). The handler finds all customers across all tenants who have `LoyaltyEntry` rows whose `expires_at` falls within the configured warning window (`settings.loyalty.expiryWarningDays`, default 7).
 - **Direction:** Forward-looking — this is a heads-up, not a post-mortem. Once `expires_at` actually passes, `POST /cron/loyalty-expiry` (triggered by GCP Cloud Scheduler at 02:00 UTC) decrements `loyalty_balances.current_points` for those entries.
 - **Aggregation:** One event per customer per tenant — all expiring entries for a customer are aggregated into a single event.
 - **State change:** None — the weekly cron does not write any DB rows. It only computes and publishes.
@@ -382,7 +382,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   ```
   {
     customerId:           string
-    pointsExpiringSoon:   number    // sum of `points` from entries with expires_at in [now, now + expiry_warning_days)
+    pointsExpiringSoon:   number    // sum of `points` from entries with expires_at in [now, now + expiryWarningDays)
     earliestExpiresAt:    ISO8601   // the soonest expires_at among those entries
   }
   ```
@@ -491,7 +491,7 @@ PENDING ◄── BookingInfoSubmitted ◄────────┘
 Customer clicks "Cancel"
         │
         ▼
-  (now + tenants.settings.cancellation_window_hours ≤ appointment ?)
+  (now + tenants.settings.booking.cancellationWindowHours ≤ appointment ?)
         │           │
        NO         YES
         │           │

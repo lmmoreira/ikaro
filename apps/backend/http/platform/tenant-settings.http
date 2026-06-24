@@ -26,7 +26,7 @@ X-Actor-Role: MANAGER
 
 ###
 
-### Partial loyalty update (only expiry_days changes; other loyalty fields preserved)
+### Partial loyalty update (only expiryDays changes; other loyalty fields preserved)
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -37,7 +37,7 @@ Content-Type: application/json
 {
   "settings": {
     "loyalty": {
-      "expiry_days": 365
+      "expiryDays": 365
     }
   }
 }
@@ -55,7 +55,7 @@ Content-Type: application/json
 {
   "settings": {
     "booking": {
-      "cancellation_window_hours": 72
+      "cancellationWindowHours": 72
     }
   }
 }
@@ -72,7 +72,7 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_hours": {
+    "businessHours": {
       "timezone": "America/Manaus",
       "sunday": null
     }
@@ -81,7 +81,7 @@ Content-Type: application/json
 
 ###
 
-### Set business_info (phone, email, address) — used by the CONTACT hotsite module
+### Set businessInfo (phone, email, address) — used by the CONTACT hotsite module
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -92,7 +92,7 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_info": {
+    "businessInfo": {
       "phone": "12982553850",
       "email": "contato@beloauto.com.br",
       "address": {
@@ -102,9 +102,9 @@ Content-Type: application/json
         "neighborhood": "Bela Vista",
         "city": "São Paulo",
         "state": "SP",
-        "zip_code": "01310100"
+        "zipCode": "01310100"
       },
-      "social_links": {
+      "socialLinks": {
         "whatsapp": "12982553850",
         "instagram": "https://instagram.com/lavacar",
         "facebook": "https://facebook.com/lavacar"
@@ -115,7 +115,7 @@ Content-Type: application/json
 
 ###
 
-### Clear business_info.phone only (other business_info fields preserved)
+### Clear businessInfo.phone only (other businessInfo fields preserved)
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -125,7 +125,7 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_info": {
+    "businessInfo": {
       "phone": null
     }
   }
@@ -133,7 +133,7 @@ Content-Type: application/json
 
 ###
 
-### Clear business_info.address entirely
+### Clear businessInfo.address entirely
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -143,7 +143,7 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_info": {
+    "businessInfo": {
       "address": null
     }
   }
@@ -161,8 +161,8 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_info": {
-      "social_links": {
+    "businessInfo": {
+      "socialLinks": {
         "whatsapp": "11987654321",
         "instagram": "https://instagram.com/lavacar",
         "facebook": "https://facebook.com/lavacar"
@@ -183,8 +183,8 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_info": {
-      "social_links": {
+    "businessInfo": {
+      "socialLinks": {
         "whatsapp": "11999999999"
       }
     }
@@ -203,8 +203,8 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_info": {
-      "social_links": {
+    "businessInfo": {
+      "socialLinks": {
         "whatsapp": null,
         "instagram": null,
         "facebook": null
@@ -226,19 +226,19 @@ Content-Type: application/json
 {
   "settings": {
     "loyalty": {
-      "expiry_days": 180,
-      "enable_notifications": true,
-      "expiry_warning_days": 7
+      "expiryDays": 180,
+      "enableNotifications": true,
+      "expiryWarningDays": 7
     },
     "booking": {
-      "cancellation_window_hours": 48,
-      "auto_approve_enabled": false,
-      "min_booking_advance_hours": 2,
-      "max_booking_advance_days": 60,
-      "service_buffer_minutes": 30,
-      "slot_granularity_minutes": 30
+      "cancellationWindowHours": 48,
+      "autoApproveEnabled": false,
+      "minBookingAdvanceHours": 2,
+      "maxBookingAdvanceDays": 60,
+      "serviceBufferMinutes": 30,
+      "slotGranularityMinutes": 30
     },
-    "business_hours": {
+    "businessHours": {
       "timezone": "America/Sao_Paulo",
       "monday": { "open": "08:00", "close": "18:00" },
       "tuesday": { "open": "08:00", "close": "18:00" },
@@ -260,12 +260,12 @@ PATCH {{baseUrl}}/tenants/settings
 Content-Type: application/json
 
 {
-  "settings": { "loyalty": { "expiry_days": 90 } }
+  "settings": { "loyalty": { "expiryDays": 90 } }
 }
 
 ###
 
-### 400 — cancellation_window_hours out of range (negative)
+### 400 — cancellationWindowHours out of range (negative)
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -275,7 +275,7 @@ Content-Type: application/json
 
 {
   "settings": {
-    "booking": { "cancellation_window_hours": -1 }
+    "booking": { "cancellationWindowHours": -1 }
   }
 }
 
@@ -291,13 +291,13 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_hours": { "timezone": "Not/AZone" }
+    "businessHours": { "timezone": "Not/AZone" }
   }
 }
 
 ###
 
-### 400 — slot_granularity_minutes not in [15, 30, 60]
+### 400 — slotGranularityMinutes not in [15, 30, 60]
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -307,13 +307,13 @@ Content-Type: application/json
 
 {
   "settings": {
-    "booking": { "slot_granularity_minutes": 45 }
+    "booking": { "slotGranularityMinutes": 45 }
   }
 }
 
 ###
 
-### 400 — business_info.address.zip_code not 8 digits
+### 400 — businessInfo.address.zipCode not 8 digits
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -323,14 +323,14 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_info": {
+    "businessInfo": {
       "address": {
         "street": "Av. Paulista",
         "number": "1000",
         "neighborhood": "Bela Vista",
         "city": "São Paulo",
         "state": "SP",
-        "zip_code": "123"
+        "zipCode": "123"
       }
     }
   }
@@ -338,7 +338,7 @@ Content-Type: application/json
 
 ###
 
-### 400 — business_info.phone not a valid phone number
+### 400 — businessInfo.phone not a valid phone number
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -348,13 +348,13 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_info": { "phone": "123" }
+    "businessInfo": { "phone": "123" }
   }
 }
 
 ###
 
-### 400 — business_info.email not a valid email address
+### 400 — businessInfo.email not a valid email address
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -364,7 +364,7 @@ Content-Type: application/json
 
 {
   "settings": {
-    "business_info": { "email": "not-an-email" }
+    "businessInfo": { "email": "not-an-email" }
   }
 }
 
@@ -406,7 +406,7 @@ X-Actor-Role: MANAGER
 Content-Type: application/json
 
 {
-  "settings": { "loyalty": { "expiry_days": 90 } }
+  "settings": { "loyalty": { "expiryDays": 90 } }
 }
 
 ###
@@ -420,7 +420,7 @@ X-Actor-Role: CUSTOMER
 Content-Type: application/json
 
 {
-  "settings": { "loyalty": { "expiry_days": 90 } }
+  "settings": { "loyalty": { "expiryDays": 90 } }
 }
 
 ###

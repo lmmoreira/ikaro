@@ -38,7 +38,7 @@ describe('ProvisionTenantUseCase', () => {
 
     const savedTenant = await tenantRepo.findBySlug('lavacar-belo');
     expect(savedTenant).not.toBeNull();
-    expect(savedTenant!.settings.business_hours.timezone).toBe('America/Sao_Paulo');
+    expect(savedTenant!.settings.businessHours.timezone).toBe('America/Sao_Paulo');
 
     const savedConfig = await hotsiteRepo.findByTenantId(result.tenantId);
     expect(savedConfig).not.toBeNull();
@@ -54,8 +54,8 @@ describe('ProvisionTenantUseCase', () => {
     });
 
     const tenant = await tenantRepo.findBySlug('lavacar-us');
-    expect(tenant!.settings.business_hours.timezone).toBe('America/New_York');
-    expect(tenant!.settings.localization.country_code).toBe('US');
+    expect(tenant!.settings.businessHours.timezone).toBe('America/New_York');
+    expect(tenant!.settings.localization.countryCode).toBe('US');
     expect(tenant!.settings.localization.currency).toBe('USD');
     expect(tenant!.settings.localization.language).toBe('en');
   });
@@ -70,7 +70,7 @@ describe('ProvisionTenantUseCase', () => {
     });
 
     const tenant = await tenantRepo.findBySlug('lavacar-norte');
-    expect(tenant!.settings.business_hours.timezone).toBe('America/Manaus');
+    expect(tenant!.settings.businessHours.timezone).toBe('America/Manaus');
   });
 
   it('publishes TenantProvisioned event from aggregate with correct payload', async () => {

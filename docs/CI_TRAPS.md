@@ -195,6 +195,20 @@ SonarCloud gates on ≤ 3% duplicated lines on **new code**. A private method du
 
 **Rule:** Any block of ~10 identical lines that appears in ≥ 2 new files will breach the CPD gate. Extract before it ships — retrofitting after CI fails requires an extra commit cycle.
 
+**Cross-app exception:** removing a translation/mapping layer between two systems that previously used different naming conventions (e.g. a BFF dropping its snake_case↔camelCase translation once the backend itself switched to camelCase — M13-S10) can make their validation schemas become textually near-identical, even though nothing is functionally duplicated — each app independently re-validates the same business rules for a legitimate reason (the BFF gives fast feedback before round-tripping to the backend; the backend stays authoritative). This is the same pattern already accepted for `HotsiteAdminController` vs. `update-hotsite-content.dto.ts` — it just stays under the threshold there. Don't restructure the apps to share Zod schemas mid-PR just to satisfy the metric (that's a real architecture change — build chain, Dockerfiles, see `td/TD11-BFF-BACKEND-VALIDATION-SCHEMA-DUPLICATION.md`); add the newly-duplicate file to `sonar.cpd.exclusions` in `sonar-project.properties` with a comment naming the precedent, and file/extend the TD note instead.
+
+---
+
+## Bulk find-and-replace refactors (snake_case → camelCase, renames)
+
+A blanket `sed`/find-replace on a field name is unsafe the moment that exact identifier is reused by a **different, unrelated** DTO or contract. `country_code` existed both in `TenantSettingsProps.localization` (the rename target, M13-S10) and in the unrelated `ProvisionTenantDto`/`POST /internal/tenants` request body — a repo-wide rename silently corrupted the second one twice in the same session, each time only caught by a failing integration test, never by `tsc`.
+
+Worse: `tsc --noEmit` passing after a bulk rename is **not** proof the test fixtures are correct. A mock built with an `as unknown as X` cast (common for `jest.fn()` mocks that don't conform to a strict interface) bypasses the type checker entirely — a stale field name inside one of these mocks compiles cleanly and only fails when the test actually runs.
+
+**Before running a bulk rename:**
+1. Grep every occurrence of the identifier first; group by which DTO/contract each one actually belongs to — don't assume one name means one meaning.
+2. After the `sed`, run the full affected test suite (not just `tsc --noEmit`) — type-checking alone will miss any fixture hidden behind a type-erasing cast.
+
 ---
 
 ## Early return + downstream branch coverage gap
@@ -247,3 +261,4 @@ Before every `git commit`, verify:
 - [ ] Unused method parameters suppressed with `_param` prefix — not `void param;`
 - [ ] Global (non-tenant-scoped) cron use cases that read-then-write (e.g. `findExpiringBefore` → `markProcessed`) re-verify each row's existence before the write — a SELECT result can go stale across an `await` boundary
 - [ ] New/changed dependency override goes in `pnpm-workspace.yaml` — never `package.json`'s `pnpm` field (silently ignored on pnpm 11)
+- [ ] Before a bulk rename/`sed`, grepped every occurrence to confirm the identifier isn't reused by a different, unrelated DTO/contract — and ran the affected test suites afterward, not just `tsc --noEmit`

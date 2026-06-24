@@ -34,7 +34,7 @@
 Two separate backend endpoints (`cancel-customer`, `cancel-admin`) rather than one polymorphic endpoint. Avoids role-conditional logic in the backend controller.
 
 ### Customer cancellation window only applies to APPROVED bookings
-`isEligibleForCancellation()` is only called when `booking.status === APPROVED`. PENDING and INFO_REQUESTED bookings are freely cancellable by the customer (no window check). Window is read from `tenants.settings.booking.cancellation_window_hours` (default 48, range 0–720).
+`isEligibleForCancellation()` is only called when `booking.status === APPROVED`. PENDING and INFO_REQUESTED bookings are freely cancellable by the customer (no window check). Window is read from `tenants.settings.booking.cancellationWindowHours` (default 48, range 0–720).
 
 ```ts
 isEligibleForCancellation(cancellationWindowHours: number): boolean {
@@ -104,7 +104,7 @@ Both `CancellationWindowExpiredError` and `BookingScheduledInPastError` map to 4
 
 ## Cancellation Window Config
 
-- Field: `tenants.settings.booking.cancellation_window_hours`
+- Field: `tenants.settings.booking.cancellationWindowHours`
 - Default: `48`
 - Valid range: `0–720` (validated by `TenantSettings` VO)
 - Retrieved via `IScheduleTenantSettingsPort.getBookingSettings(tenantId)`

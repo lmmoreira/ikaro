@@ -421,7 +421,7 @@ describe('LoyaltyController (integration)', () => {
         .find({ where: { tenantId: redeemTenantId, customerId: CUSTOMER_ID } });
       expect(redemptions).toHaveLength(1);
       expect(redemptions[0].notes).toBe('Free wash');
-      // points_per_currency_unit defaults to 0 (TenantSettings.default()) — admin can't change it
+      // pointsPerCurrencyUnit defaults to 0 (TenantSettings.default()) — admin can't change it
       // via the API yet (M13-S12's scope); this confirms the rate-at-redemption-time capture
       // round-trips end-to-end through the full HTTP + DB stack regardless of its value.
       expect(redemptions[0].pointsPerCurrencyUnit).toBe(0);

@@ -35,8 +35,8 @@ describe('Platform repositories (integration)', () => {
     expect(bySlug!.id).toBe(tenant.id);
     expect(bySlug!.name).toBe('Lavacar Estrela');
     expect(bySlug!.isActive).toBe(true);
-    expect(bySlug!.settings.loyalty.expiry_days).toBe(180);
-    expect(bySlug!.settings.business_hours.timezone).toBe('America/Sao_Paulo');
+    expect(bySlug!.settings.loyalty.expiryDays).toBe(180);
+    expect(bySlug!.settings.businessHours.timezone).toBe('America/Sao_Paulo');
 
     // findById returns the same aggregate
     const byId = await tenantRepo.findById(tenant.id);

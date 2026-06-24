@@ -8,24 +8,24 @@ import { PlatformDomainError } from '../errors/platform-domain.error';
 export type DayHours = { open: string; close: string } | null;
 
 export interface NotificationSettings {
-  from_email: string | null;
+  fromEmail: string | null;
 }
 
 export interface LoyaltySettings {
-  expiry_days: number;
-  enable_notifications: boolean;
-  expiry_warning_days: number;
-  notification_min_points: number;
-  points_per_currency_unit: number;
+  expiryDays: number;
+  enableNotifications: boolean;
+  expiryWarningDays: number;
+  notificationMinPoints: number;
+  pointsPerCurrencyUnit: number;
 }
 
 export interface BookingSettings {
-  cancellation_window_hours: number;
-  auto_approve_enabled: boolean;
-  min_booking_advance_hours: number;
-  max_booking_advance_days: number;
-  service_buffer_minutes: number;
-  slot_granularity_minutes: 15 | 30 | 60;
+  cancellationWindowHours: number;
+  autoApproveEnabled: boolean;
+  minBookingAdvanceHours: number;
+  maxBookingAdvanceDays: number;
+  serviceBufferMinutes: number;
+  slotGranularityMinutes: 15 | 30 | 60;
 }
 
 export interface BusinessHours {
@@ -40,11 +40,11 @@ export interface BusinessHours {
 }
 
 export interface LocalizationSettings {
-  country_code: string;
+  countryCode: string;
   currency: string;
-  currency_symbol?: string;
+  currencySymbol?: string;
   language: string;
-  decimal_places: number;
+  decimalPlaces: number;
 }
 
 export interface ResolvedLocalization {
@@ -67,7 +67,7 @@ export interface BusinessInfoAddress {
   neighborhood: string;
   city: string;
   state: string;
-  zip_code: string;
+  zipCode: string;
 }
 
 export interface SocialLinks {
@@ -80,16 +80,16 @@ export interface BusinessInfo {
   phone: string | null;
   email: string | null;
   address: BusinessInfoAddress | null;
-  social_links: SocialLinks | null;
+  socialLinks: SocialLinks | null;
 }
 
 export interface TenantSettingsProps {
   loyalty: LoyaltySettings;
   booking: BookingSettings;
-  business_hours: BusinessHours;
+  businessHours: BusinessHours;
   localization: LocalizationSettings;
   notification?: NotificationSettings;
-  business_info?: BusinessInfo;
+  businessInfo?: BusinessInfo;
 }
 
 export class TenantSettings {
@@ -107,8 +107,8 @@ export class TenantSettings {
     return { ...this.props.booking };
   }
 
-  get business_hours(): BusinessHours {
-    return structuredClone(this.props.business_hours);
+  get businessHours(): BusinessHours {
+    return structuredClone(this.props.businessHours);
   }
 
   get localization(): LocalizationSettings {
@@ -116,16 +116,16 @@ export class TenantSettings {
   }
 
   get notification(): NotificationSettings {
-    return this.props.notification ?? { from_email: null };
+    return this.props.notification ?? { fromEmail: null };
   }
 
   resolveLocalization(): ResolvedLocalization {
-    const spec = countrySpec(this.props.localization.country_code);
+    const spec = countrySpec(this.props.localization.countryCode);
     return {
-      countryCode: this.props.localization.country_code,
+      countryCode: this.props.localization.countryCode,
       language: this.props.localization.language,
       currency: this.props.localization.currency,
-      decimalPlaces: this.props.localization.decimal_places,
+      decimalPlaces: this.props.localization.decimalPlaces,
       phonePrefix: spec.phonePrefix,
       dateFormat: spec.dateFormat,
       timeFormat: spec.timeFormat,
@@ -135,12 +135,12 @@ export class TenantSettings {
     };
   }
 
-  get business_info(): BusinessInfo {
+  get businessInfo(): BusinessInfo {
     return {
-      phone: this.props.business_info?.phone ?? null,
-      email: this.props.business_info?.email ?? null,
-      address: this.props.business_info?.address ?? null,
-      social_links: this.props.business_info?.social_links ?? null,
+      phone: this.props.businessInfo?.phone ?? null,
+      email: this.props.businessInfo?.email ?? null,
+      address: this.props.businessInfo?.address ?? null,
+      socialLinks: this.props.businessInfo?.socialLinks ?? null,
     };
   }
 
@@ -148,34 +148,34 @@ export class TenantSettings {
     const clone = structuredClone(this.props);
     return {
       ...clone,
-      business_info: {
-        phone: clone.business_info?.phone ?? null,
-        email: clone.business_info?.email ?? null,
-        address: clone.business_info?.address ?? null,
-        social_links: clone.business_info?.social_links ?? null,
+      businessInfo: {
+        phone: clone.businessInfo?.phone ?? null,
+        email: clone.businessInfo?.email ?? null,
+        address: clone.businessInfo?.address ?? null,
+        socialLinks: clone.businessInfo?.socialLinks ?? null,
       },
     };
   }
 
-  static default(timezone = 'America/Sao_Paulo', country_code = 'BR'): TenantSettings {
-    const spec = countrySpec(country_code);
+  static default(timezone = 'America/Sao_Paulo', countryCode = 'BR'): TenantSettings {
+    const spec = countrySpec(countryCode);
     return new TenantSettings({
       loyalty: {
-        expiry_days: 180,
-        enable_notifications: true,
-        expiry_warning_days: 7,
-        notification_min_points: 50,
-        points_per_currency_unit: 0,
+        expiryDays: 180,
+        enableNotifications: true,
+        expiryWarningDays: 7,
+        notificationMinPoints: 50,
+        pointsPerCurrencyUnit: 0,
       },
       booking: {
-        cancellation_window_hours: 48,
-        auto_approve_enabled: false,
-        min_booking_advance_hours: 0,
-        max_booking_advance_days: 90,
-        service_buffer_minutes: 60,
-        slot_granularity_minutes: 30,
+        cancellationWindowHours: 48,
+        autoApproveEnabled: false,
+        minBookingAdvanceHours: 0,
+        maxBookingAdvanceDays: 90,
+        serviceBufferMinutes: 60,
+        slotGranularityMinutes: 30,
       },
-      business_hours: {
+      businessHours: {
         timezone,
         monday: { open: '09:00', close: '18:00' },
         tuesday: { open: '09:00', close: '18:00' },
@@ -186,19 +186,19 @@ export class TenantSettings {
         sunday: null,
       },
       localization: {
-        country_code,
+        countryCode,
         currency: spec.currency,
         language: spec.language,
-        decimal_places: 2,
+        decimalPlaces: 2,
       },
       notification: {
-        from_email: null,
+        fromEmail: null,
       },
-      business_info: {
+      businessInfo: {
         phone: null,
         email: null,
         address: null,
-        social_links: null,
+        socialLinks: null,
       },
     });
   }
@@ -215,43 +215,43 @@ export class TenantSettings {
   private static validate(props: TenantSettingsProps): void {
     TenantSettings.validateLoyalty(props.loyalty);
     TenantSettings.validateBooking(props.booking);
-    TenantSettings.validateBusinessHours(props.business_hours);
-    TenantSettings.validateBusinessInfo(props.business_info, props.localization.country_code);
+    TenantSettings.validateBusinessHours(props.businessHours);
+    TenantSettings.validateBusinessInfo(props.businessInfo, props.localization.countryCode);
   }
 
   private static validateLoyalty(loyalty: LoyaltySettings): void {
-    if (loyalty.expiry_days < 1 || loyalty.expiry_days > 3650) {
-      throw new PlatformDomainError('loyalty.expiry_days must be between 1 and 3650');
+    if (loyalty.expiryDays < 1 || loyalty.expiryDays > 3650) {
+      throw new PlatformDomainError('loyalty.expiryDays must be between 1 and 3650');
     }
-    if (loyalty.expiry_warning_days < 1 || loyalty.expiry_warning_days > 90) {
-      throw new PlatformDomainError('loyalty.expiry_warning_days must be between 1 and 90');
+    if (loyalty.expiryWarningDays < 1 || loyalty.expiryWarningDays > 90) {
+      throw new PlatformDomainError('loyalty.expiryWarningDays must be between 1 and 90');
     }
-    if (loyalty.expiry_warning_days >= loyalty.expiry_days) {
-      throw new PlatformDomainError('loyalty.expiry_warning_days must be less than expiry_days');
+    if (loyalty.expiryWarningDays >= loyalty.expiryDays) {
+      throw new PlatformDomainError('loyalty.expiryWarningDays must be less than expiryDays');
     }
-    if (loyalty.notification_min_points < 0 || loyalty.notification_min_points > 10000) {
-      throw new PlatformDomainError('loyalty.notification_min_points must be between 0 and 10000');
+    if (loyalty.notificationMinPoints < 0 || loyalty.notificationMinPoints > 10000) {
+      throw new PlatformDomainError('loyalty.notificationMinPoints must be between 0 and 10000');
     }
-    if (loyalty.points_per_currency_unit < 0 || loyalty.points_per_currency_unit > 10000) {
-      throw new PlatformDomainError('loyalty.points_per_currency_unit must be between 0 and 10000');
+    if (loyalty.pointsPerCurrencyUnit < 0 || loyalty.pointsPerCurrencyUnit > 10000) {
+      throw new PlatformDomainError('loyalty.pointsPerCurrencyUnit must be between 0 and 10000');
     }
   }
 
   private static validateBooking(booking: BookingSettings): void {
-    if (booking.cancellation_window_hours < 0 || booking.cancellation_window_hours > 720) {
-      throw new PlatformDomainError('booking.cancellation_window_hours must be between 0 and 720');
+    if (booking.cancellationWindowHours < 0 || booking.cancellationWindowHours > 720) {
+      throw new PlatformDomainError('booking.cancellationWindowHours must be between 0 and 720');
     }
-    if (booking.min_booking_advance_hours < 0) {
-      throw new PlatformDomainError('booking.min_booking_advance_hours must be >= 0');
+    if (booking.minBookingAdvanceHours < 0) {
+      throw new PlatformDomainError('booking.minBookingAdvanceHours must be >= 0');
     }
-    if (booking.max_booking_advance_days < 1) {
-      throw new PlatformDomainError('booking.max_booking_advance_days must be >= 1');
+    if (booking.maxBookingAdvanceDays < 1) {
+      throw new PlatformDomainError('booking.maxBookingAdvanceDays must be >= 1');
     }
-    if (booking.service_buffer_minutes < 0 || booking.service_buffer_minutes > 120) {
-      throw new PlatformDomainError('booking.service_buffer_minutes must be between 0 and 120');
+    if (booking.serviceBufferMinutes < 0 || booking.serviceBufferMinutes > 120) {
+      throw new PlatformDomainError('booking.serviceBufferMinutes must be between 0 and 120');
     }
-    if (![15, 30, 60].includes(booking.slot_granularity_minutes)) {
-      throw new PlatformDomainError('booking.slot_granularity_minutes must be 15, 30, or 60');
+    if (![15, 30, 60].includes(booking.slotGranularityMinutes)) {
+      throw new PlatformDomainError('booking.slotGranularityMinutes must be 15, 30, or 60');
     }
   }
 
@@ -276,61 +276,59 @@ export class TenantSettings {
   private static validateDayHours(day: string, hours: DayHours): void {
     if (hours === null || hours === undefined) return;
     if (!TimeOfDay.isValid(hours.open) || !TimeOfDay.isValid(hours.close)) {
-      throw new PlatformDomainError(`business_hours.${day}: open/close must be HH:MM format`);
+      throw new PlatformDomainError(`businessHours.${day}: open/close must be HH:MM format`);
     }
     if (hours.close <= hours.open) {
-      throw new PlatformDomainError(`business_hours.${day}: close must be after open`);
+      throw new PlatformDomainError(`businessHours.${day}: close must be after open`);
     }
   }
 
   private static validateBusinessInfo(
     businessInfo: BusinessInfo | undefined,
-    country_code: string,
+    countryCode: string,
   ): void {
     if (!businessInfo) return;
     if (businessInfo.phone != null && !PhoneNumber.isValid(businessInfo.phone)) {
-      throw new PlatformDomainError('business_info.phone must be a valid phone number');
+      throw new PlatformDomainError('businessInfo.phone must be a valid phone number');
     }
     if (businessInfo.email != null && !Email.isValid(businessInfo.email)) {
-      throw new PlatformDomainError('business_info.email must be a valid email address');
+      throw new PlatformDomainError('businessInfo.email must be a valid email address');
     }
-    TenantSettings.validateBusinessAddress(businessInfo.address, country_code);
-    TenantSettings.validateSocialLinks(businessInfo.social_links);
+    TenantSettings.validateBusinessAddress(businessInfo.address, countryCode);
+    TenantSettings.validateSocialLinks(businessInfo.socialLinks);
   }
 
   private static validateSocialLinks(socialLinks: SocialLinks | null): void {
     if (socialLinks == null) return;
     if (socialLinks.whatsapp != null && !PhoneNumber.isValid(socialLinks.whatsapp)) {
       throw new PlatformDomainError(
-        'business_info.social_links.whatsapp must be a valid phone number',
+        'businessInfo.socialLinks.whatsapp must be a valid phone number',
       );
     }
   }
 
   private static validateBusinessAddress(
     address: BusinessInfoAddress | null,
-    country_code: string,
+    countryCode: string,
   ): void {
     if (address == null) return;
-    const spec = countrySpec(country_code).address;
-    if (spec.postalRegex !== null && !spec.postalRegex.test(address.zip_code)) {
+    const spec = countrySpec(countryCode).address;
+    if (spec.postalRegex !== null && !spec.postalRegex.test(address.zipCode)) {
       throw new PlatformDomainError(
-        `business_info.address.zip_code is not a valid ${spec.postalLabel}`,
+        `businessInfo.address.zipCode is not a valid ${spec.postalLabel}`,
       );
     }
     if (spec.statePattern !== null && !spec.statePattern.test(address.state)) {
-      throw new PlatformDomainError(
-        `business_info.address.state is not a valid ${spec.stateLabel}`,
-      );
+      throw new PlatformDomainError(`businessInfo.address.state is not a valid ${spec.stateLabel}`);
     }
-    const alwaysRequired = ['street', 'number', 'city', 'state', 'zip_code'] as const;
+    const alwaysRequired = ['street', 'number', 'city', 'state', 'zipCode'] as const;
     for (const field of alwaysRequired) {
       if (!address[field]) {
-        throw new PlatformDomainError(`business_info.address.${field} is required`);
+        throw new PlatformDomainError(`businessInfo.address.${field} is required`);
       }
     }
     if (spec.requireNeighborhood && !address.neighborhood) {
-      throw new PlatformDomainError('business_info.address.neighborhood is required');
+      throw new PlatformDomainError('businessInfo.address.neighborhood is required');
     }
   }
 }

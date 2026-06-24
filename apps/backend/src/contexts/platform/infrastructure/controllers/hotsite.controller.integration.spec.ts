@@ -86,7 +86,7 @@ describe('HotsiteController (integration)', () => {
                 neighborhood: 'Bela Vista',
                 city: 'São Paulo',
                 state: 'SP',
-                zip_code: '01310100',
+                zipCode: '01310100',
               },
             })
             .build(),
@@ -178,7 +178,7 @@ describe('HotsiteController (integration)', () => {
     expect(body.layout[0].type).toBe('HERO');
   });
 
-  it('returns null business fields when tenant.settings.business_info is unset', async () => {
+  it('returns null business fields when tenant.settings.businessInfo is unset', async () => {
     const { body } = await request(app.getHttpServer())
       .get('/hotsite')
       .set('X-Internal-Key', INTERNAL_KEY)
@@ -188,7 +188,7 @@ describe('HotsiteController (integration)', () => {
     expect(body.business).toEqual({ phone: null, email: null, address: null, socialLinks: null });
   });
 
-  it('returns business resolved from tenant.settings.business_info when set', async () => {
+  it('returns business resolved from tenant.settings.businessInfo when set', async () => {
     const { body } = await request(app.getHttpServer())
       .get('/hotsite')
       .set('X-Internal-Key', INTERNAL_KEY)
@@ -210,7 +210,7 @@ describe('HotsiteController (integration)', () => {
     });
   });
 
-  it('returns socialLinks from tenant.settings.business_info.social_links when set', async () => {
+  it('returns socialLinks from tenant.settings.businessInfo.socialLinks when set', async () => {
     const { body } = await request(app.getHttpServer())
       .get('/hotsite')
       .set('X-Internal-Key', INTERNAL_KEY)

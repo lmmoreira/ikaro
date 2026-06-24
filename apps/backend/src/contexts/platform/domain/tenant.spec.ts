@@ -15,7 +15,7 @@ describe('Tenant', () => {
 
     it('uses America/Sao_Paulo as default timezone', () => {
       const tenant = new TenantBuilder().build();
-      expect(tenant.settings.business_hours.timezone).toBe('America/Sao_Paulo');
+      expect(tenant.settings.businessHours.timezone).toBe('America/Sao_Paulo');
     });
 
     it('trims whitespace from name', () => {
@@ -66,7 +66,7 @@ describe('Tenant', () => {
       const tenant = new TenantBuilder().build();
       const newSettings = TenantSettings.default('America/Manaus');
       tenant.updateSettings(newSettings);
-      expect(tenant.settings.business_hours.timezone).toBe('America/Manaus');
+      expect(tenant.settings.businessHours.timezone).toBe('America/Manaus');
     });
   });
 });

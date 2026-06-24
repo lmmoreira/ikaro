@@ -118,7 +118,7 @@ A date can have multiple partial closures. Overlap detection is in `CloseSchedul
 
 ### 7. Opening precedence is absolute
 
-If `ScheduleOpening` exists for a date, `AvailabilityService.resolveEffectiveHours()` returns the opening window and ignores ALL closures and `business_hours`. Full-day closure + opening on the same date → opening wins.
+If `ScheduleOpening` exists for a date, `AvailabilityService.resolveEffectiveHours()` returns the opening window and ignores ALL closures and `businessHours`. Full-day closure + opening on the same date → opening wins.
 
 ### 8. `overlaps()` uses half-open intervals
 
@@ -184,10 +184,10 @@ Order matters: past-date check before `getBusinessHours()` DB call. A past Thurs
 ## Three-Layer Resolution (quick reference)
 
 ```
-if (opening exists for date)           → use opening.startTime/endTime; ignore closures + business_hours
-else if (business_hours[day] == null)  → return []
+if (opening exists for date)           → use opening.startTime/endTime; ignore closures + businessHours
+else if (businessHours[day] == null)  → return []
 else if (any closure.isFullDay())      → return []
-else                                   → use business_hours[day]; filter slots blocked by partial closures
+else                                   → use businessHours[day]; filter slots blocked by partial closures
 ```
 
 ---
@@ -199,9 +199,9 @@ else                                   → use business_hours[day]; filter slots
 | Mon–Fri | 09:00–18:00 |
 | Saturday | 09:00–17:00 |
 | Sunday | `null` (closed) |
-| `service_buffer_minutes` | 60 |
-| `slot_granularity_minutes` | 30 |
-| `max_booking_advance_days` | 90 |
+| `serviceBufferMinutes` | 60 |
+| `slotGranularityMinutes` | 30 |
+| `maxBookingAdvanceDays` | 90 |
 | timezone | `America/Sao_Paulo` (UTC-3) |
 
 ---

@@ -43,7 +43,7 @@ export class OpenScheduleUseCase {
     const today = todayUTC();
     if (dto.date < today) throw new OpeningDateInPastError();
 
-    const businessHours = this.tenantContext.settings.business_hours;
+    const businessHours = this.tenantContext.settings.businessHours;
     if (businessHours[getUtcWeekDayName(dto.date)] !== null) {
       throw new DayAlreadyOpenInSettingsError(dto.date);
     }

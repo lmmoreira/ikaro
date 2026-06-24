@@ -229,7 +229,7 @@ BookingLine {
   For each line: sets `actualPriceCharged = actualPrices[lineId] ?? priceAtBooking`.
   Computes and caches `totalActualPrice = SUM(lines.actualPriceCharged)`.
   Stores photos. Publishes `BookingCompleted` **with the full line list including `actualPriceCharged`**.
-- `cancelBooking(actor, reason?)` → validates `tenants.settings.cancellation_window_hours` rule, transitions to `CANCELLED`, publishes `BookingCancelled`.
+- `cancelBooking(actor, reason?)` → validates `tenants.settings.booking.cancellationWindowHours` rule, transitions to `CANCELLED`, publishes `BookingCancelled`.
 - `isEligibleForCancellation(now)` → checks the cancellation-window rule.
 - `uploadBeforeServicePhotos(photoUrls)` → appends to `beforeServicePhotoUrls`.
 - `uploadAfterServicePhotos(photoUrls)` → appends to `afterServicePhotoUrls`.
@@ -312,9 +312,9 @@ ScheduleClosure {
 ---
 
 #### **Aggregate: ScheduleOpening** (Root Entity)
-Represents an **exception** that opens the schedule on a day that `business_hours` marks as closed (e.g., a normally-closed Sunday opened for a special event). `ScheduleOpening` is the inverse of `ScheduleClosure`: it overrides a recurring "closed" day with a specific operating window.
+Represents an **exception** that opens the schedule on a day that `businessHours` marks as closed (e.g., a normally-closed Sunday opened for a special event). `ScheduleOpening` is the inverse of `ScheduleClosure`: it overrides a recurring "closed" day with a specific operating window.
 
-`ScheduleOpening` is only meaningful when `business_hours[dayOfWeek] = null`. On a day that is already open in `business_hours`, creating an opening exception is invalid (use the `business_hours` settings to change the regular hours instead).
+`ScheduleOpening` is only meaningful when `businessHours[dayOfWeek] = null`. On a day that is already open in `businessHours`, creating an opening exception is invalid (use the `businessHours` settings to change the regular hours instead).
 
 **Entities within:**
 - `ScheduleOpening` (root)
@@ -337,7 +337,7 @@ ScheduleOpening {
 - `date` cannot be in the past
 - `endTime > startTime`
 - `startTime` and `endTime` are valid HH:MM strings
-- The day-of-week derived from `date` must be closed in `business_hours` (cannot create an opening for an already-open day)
+- The day-of-week derived from `date` must be closed in `businessHours` (cannot create an opening for an already-open day)
 - Only one `ScheduleOpening` per `(tenantId, date)` is allowed
 
 **Factory:** `ScheduleOpening.open(tenantId, date, startTime, endTime, createdBy, notes?)`
@@ -350,20 +350,20 @@ The availability algorithm resolves the effective operating window for any given
 ```
 1. ScheduleOpening  (highest priority — specific date override: open a normally-closed day)
 2. ScheduleClosure  (block a normally-open day or a time window within it)
-3. business_hours   (lowest priority — the recurring weekly pattern)
+3. businessHours   (lowest priority — the recurring weekly pattern)
 ```
 
 Resolution logic per date:
 ```
 if ScheduleOpening exists for (tenantId, date):
     effective_hours = { open: opening.startTime, close: opening.endTime }
-    skip ScheduleClosure and business_hours checks  ← opening takes full priority
-elif business_hours[dayOfWeek] = null:
+    skip ScheduleClosure and businessHours checks  ← opening takes full priority
+elif businessHours[dayOfWeek] = null:
     return []  ← day is closed; no opening exists to override it
 elif full-day ScheduleClosure exists for (tenantId, date):
     return []  ← entire day is blocked
 else:
-    effective_hours = business_hours[dayOfWeek]
+    effective_hours = businessHours[dayOfWeek]
     filter out any slots that overlap partial ScheduleClosures for this date
 ```
 
@@ -450,7 +450,7 @@ LoyaltyEntry {
   serviceId:      ServiceId
   points:         int                 (positive; = BookingLine.pointsValueAtBooking, frozen)
   earnedAt:       DateTime
-  expiresAt:      DateTime            (= earnedAt + tenants.settings.loyalty.expiry_days)
+  expiresAt:      DateTime            (= earnedAt + tenants.settings.loyalty.expiryDays)
 }
 ```
 
@@ -709,8 +709,8 @@ CANCELLED       -> (terminal)
 ### **BookingType**
 Enum: `GUEST | CUSTOMER`
 
-### **Expiration window (`loyalty.expiry_days`)**
-Configurable **per tenant** via `tenants.settings.loyalty.expiry_days` (integer, days). Typical values: 180 (6 months) or 365 (1 year). Defaults to 180 if unset.
+### **Expiration window (`loyalty.expiryDays`)**
+Configurable **per tenant** via `tenants.settings.loyalty.expiryDays` (integer, days). Typical values: 180 (6 months) or 365 (1 year). Defaults to 180 if unset.
 
 When a `LoyaltyEntry`'s `expiresAt` passes:
 - The entry stops contributing to active balance (query-time filter — nothing is mutated).

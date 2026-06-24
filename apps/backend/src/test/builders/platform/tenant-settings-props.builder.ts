@@ -28,7 +28,7 @@ export class TenantSettingsPropsBuilder {
   }
 
   withBusinessHours(overrides: Partial<BusinessHours>): this {
-    this.props.business_hours = { ...this.props.business_hours, ...overrides };
+    this.props.businessHours = { ...this.props.businessHours, ...overrides };
     return this;
   }
 
@@ -38,34 +38,34 @@ export class TenantSettingsPropsBuilder {
   }
 
   withNotification(overrides: Partial<NotificationSettings>): this {
-    this.props.notification = { from_email: null, ...this.props.notification, ...overrides };
+    this.props.notification = { fromEmail: null, ...this.props.notification, ...overrides };
     return this;
   }
 
   withBusinessInfo(overrides: Partial<BusinessInfo>): this {
-    this.props.business_info = {
+    this.props.businessInfo = {
       phone: null,
       email: null,
       address: null,
-      social_links: null,
-      ...this.props.business_info,
+      socialLinks: null,
+      ...this.props.businessInfo,
       ...overrides,
     };
     return this;
   }
 
   withSocialLinks(overrides: Partial<SocialLinks>): this {
-    const current = this.props.business_info?.social_links ?? {
+    const current = this.props.businessInfo?.socialLinks ?? {
       whatsapp: null,
       instagram: null,
       facebook: null,
     };
-    this.props.business_info = {
+    this.props.businessInfo = {
       phone: null,
       email: null,
       address: null,
-      ...this.props.business_info,
-      social_links: { ...current, ...overrides },
+      ...this.props.businessInfo,
+      socialLinks: { ...current, ...overrides },
     };
     return this;
   }

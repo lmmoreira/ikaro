@@ -1,11 +1,16 @@
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { z } from 'zod';
-import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
-import { Timezone } from '../../../../shared/value-objects/timezone.vo';
+import { TenantSettingsResponse } from '@ikaro/types';
+import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
+import { Roles } from '../shared/decorators/roles.decorator';
+import { BackendHttpService } from '../shared/http/backend-http.service';
+
+const HHMM_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const DayHoursSchema = z
   .object({
-    open: z.string().refine(TimeOfDay.isValid, { message: 'must be HH:MM (00:00–23:59)' }),
-    close: z.string().refine(TimeOfDay.isValid, { message: 'must be HH:MM (00:00–23:59)' }),
+    open: z.string().regex(HHMM_REGEX),
+    close: z.string().regex(HHMM_REGEX),
   })
   .nullable();
 
@@ -14,6 +19,8 @@ const LoyaltySchema = z
     expiryDays: z.number().int().min(1).max(3650),
     enableNotifications: z.boolean(),
     expiryWarningDays: z.number().int().min(1).max(90),
+    notificationMinPoints: z.number().int().min(0),
+    pointsPerCurrencyUnit: z.number().min(0).max(10000),
   })
   .partial();
 
@@ -29,10 +36,7 @@ const BookingSchema = z
   .partial();
 
 const BusinessHoursSchema = z.object({
-  timezone: z
-    .string()
-    .refine(Timezone.isValid, { message: 'must be a valid IANA timezone' })
-    .optional(),
+  timezone: z.string().optional(),
   monday: DayHoursSchema.optional(),
   tuesday: DayHoursSchema.optional(),
   wednesday: DayHoursSchema.optional(),
@@ -44,12 +48,7 @@ const BusinessHoursSchema = z.object({
 
 const LocalizationSchema = z
   .object({
-    countryCode: z
-      .string()
-      .regex(/^[A-Za-z]{2}$/, {
-        message: 'countryCode must be a 2-letter ISO 3166-1 alpha-2 code',
-      })
-      .toUpperCase(),
+    countryCode: z.string().regex(/^[A-Za-z]{2}$/),
     currency: z.string().min(1),
     currencySymbol: z.string().min(1).max(3),
     language: z.string().min(1),
@@ -86,7 +85,7 @@ const BusinessInfoSchema = z
   })
   .partial();
 
-export const UpdateTenantSettingsSchema = z.object({
+export const UpdateTenantSettingsBodySchema = z.object({
   settings: z
     .object({
       loyalty: LoyaltySchema.optional(),
@@ -101,4 +100,23 @@ export const UpdateTenantSettingsSchema = z.object({
     }),
 });
 
-export type UpdateTenantSettingsDto = z.infer<typeof UpdateTenantSettingsSchema>;
+type UpdateTenantSettingsBody = z.infer<typeof UpdateTenantSettingsBodySchema>;
+
+@Controller('tenants/settings')
+@Roles('MANAGER')
+export class TenantSettingsController {
+  constructor(private readonly backendHttp: BackendHttpService) {}
+
+  @Get()
+  getSettings(): Promise<TenantSettingsResponse> {
+    return this.backendHttp.get<TenantSettingsResponse>('/tenants/settings');
+  }
+
+  @Patch()
+  @HttpCode(HttpStatus.OK)
+  updateSettings(
+    @Body(new ZodValidationPipe(UpdateTenantSettingsBodySchema)) body: UpdateTenantSettingsBody,
+  ): Promise<TenantSettingsResponse> {
+    return this.backendHttp.patch<TenantSettingsResponse>('/tenants/settings', body);
+  }
+}

@@ -114,7 +114,7 @@ describe('GetHotsiteManifestUseCase', () => {
     await expect(useCaseForB.execute()).rejects.toBeInstanceOf(TenantNotFoundError);
   });
 
-  it('returns business resolved from tenant.settings.business_info', async () => {
+  it('returns business resolved from tenant.settings.businessInfo', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished();
     await repo.save(config);
     const settings = TenantSettings.create(
@@ -128,7 +128,7 @@ describe('GetHotsiteManifestUseCase', () => {
             neighborhood: 'Bela Vista',
             city: 'São Paulo',
             state: 'SP',
-            zip_code: '01310100',
+            zipCode: '01310100',
           },
         })
         .withSocialLinks({
@@ -162,7 +162,7 @@ describe('GetHotsiteManifestUseCase', () => {
     });
   });
 
-  it('returns null business fields when tenant.settings.business_info is unset', async () => {
+  it('returns null business fields when tenant.settings.businessInfo is unset', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished();
     await repo.save(config);
 

@@ -109,7 +109,7 @@ describe('GetAvailabilitySummaryUseCase', () => {
     ).rejects.toMatchObject({ name: 'AvailabilityRangeInvalidError' });
   });
 
-  it('throws AvailabilityRangeInvalidError when range exceeds max_booking_advance_days (90)', async () => {
+  it('throws AvailabilityRangeInvalidError when range exceeds maxBookingAdvanceDays (90)', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_ID).build();
     await serviceRepo.save(service);
 

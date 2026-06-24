@@ -131,7 +131,7 @@ describe('TenantSettingsController (integration)', () => {
       .patch('/tenants/settings')
       .set('X-Tenant-ID', otherTenantId)
       .set('X-Actor-Role', 'MANAGER')
-      .send({ settings: { loyalty: { expiry_days: 30 } } })
+      .send({ settings: { loyalty: { expiryDays: 30 } } })
       .expect(200);
 
     const { body } = await request(app.getHttpServer())
@@ -141,14 +141,14 @@ describe('TenantSettingsController (integration)', () => {
       .expect(200);
 
     expect(body.tenantId).toBe(tenantId);
-    expect(body.settings.loyalty.expiry_days).not.toBe(30);
+    expect(body.settings.loyalty.expiryDays).not.toBe(30);
   });
 
   it('returns 400 when X-Tenant-ID header is missing', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')
       .set('X-Actor-Role', 'MANAGER')
-      .send({ settings: { loyalty: { expiry_days: 90 } } })
+      .send({ settings: { loyalty: { expiryDays: 90 } } })
       .expect(400);
 
     expect(body.status).toBe(400);
@@ -159,29 +159,29 @@ describe('TenantSettingsController (integration)', () => {
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'STAFF')
-      .send({ settings: { loyalty: { expiry_days: 90 } } })
+      .send({ settings: { loyalty: { expiryDays: 90 } } })
       .expect(403);
 
     expect(body.status).toBe(403);
   });
 
-  it('returns 400 for an invalid payload (cancellation_window_hours negative)', async () => {
+  it('returns 400 for an invalid payload (cancellationWindowHours negative)', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
-      .send({ settings: { booking: { cancellation_window_hours: -1 } } })
+      .send({ settings: { booking: { cancellationWindowHours: -1 } } })
       .expect(400);
 
     expect(body.status).toBe(400);
   });
 
-  it('returns 400 for an invalid slot_granularity_minutes value', async () => {
+  it('returns 400 for an invalid slotGranularityMinutes value', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
-      .send({ settings: { booking: { slot_granularity_minutes: 45 } } })
+      .send({ settings: { booking: { slotGranularityMinutes: 45 } } })
       .expect(400);
 
     expect(body.status).toBe(400);
@@ -192,15 +192,15 @@ describe('TenantSettingsController (integration)', () => {
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
-      .send({ settings: { loyalty: { expiry_days: 365 } } })
+      .send({ settings: { loyalty: { expiryDays: 365 } } })
       .expect(200);
 
-    expect(body.settings.loyalty.expiry_days).toBe(365);
-    expect(body.settings.loyalty.enable_notifications).toBe(true);
-    expect(body.settings.booking.cancellation_window_hours).toBe(48);
+    expect(body.settings.loyalty.expiryDays).toBe(365);
+    expect(body.settings.loyalty.enableNotifications).toBe(true);
+    expect(body.settings.booking.cancellationWindowHours).toBe(48);
 
     const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
-    expect(row!.settings.loyalty.expiry_days).toBe(365);
+    expect(row!.settings.loyalty.expiryDays).toBe(365);
   });
 
   it('returns 200 and persists a partial booking update without wiping loyalty', async () => {
@@ -208,11 +208,11 @@ describe('TenantSettingsController (integration)', () => {
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
-      .send({ settings: { booking: { cancellation_window_hours: 72 } } })
+      .send({ settings: { booking: { cancellationWindowHours: 72 } } })
       .expect(200);
 
-    expect(body.settings.booking.cancellation_window_hours).toBe(72);
-    expect(body.settings.loyalty.expiry_days).toBe(365);
+    expect(body.settings.booking.cancellationWindowHours).toBe(72);
+    expect(body.settings.loyalty.expiryDays).toBe(365);
   });
 
   it('returns 400 when the body has no settings field (name moved to PATCH /tenants)', async () => {
@@ -253,20 +253,20 @@ describe('TenantSettingsController (integration)', () => {
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
-      .send({ settings: { business_hours: { timezone: 'Not/AZone' } } })
+      .send({ settings: { businessHours: { timezone: 'Not/AZone' } } })
       .expect(400);
 
     expect(body.status).toBe(400);
   });
 
-  it('returns 200 and persists a business_info update with address', async () => {
+  it('returns 200 and persists a businessInfo update with address', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
       .send({
         settings: {
-          business_info: {
+          businessInfo: {
             phone: '+5511987654321',
             email: 'contato@beloauto.com.br',
             address: {
@@ -275,35 +275,35 @@ describe('TenantSettingsController (integration)', () => {
               neighborhood: 'Bela Vista',
               city: 'São Paulo',
               state: 'SP',
-              zip_code: '01310100',
+              zipCode: '01310100',
             },
           },
         },
       })
       .expect(200);
 
-    expect(body.settings.business_info.phone).toBe('+5511987654321');
-    expect(body.settings.business_info.address.zip_code).toBe('01310100');
+    expect(body.settings.businessInfo.phone).toBe('+5511987654321');
+    expect(body.settings.businessInfo.address.zipCode).toBe('01310100');
 
     const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
-    expect(row!.settings.business_info?.email).toBe('contato@beloauto.com.br');
+    expect(row!.settings.businessInfo?.email).toBe('contato@beloauto.com.br');
   });
 
-  it('returns 400 for an invalid business_info.address.zip_code', async () => {
+  it('returns 400 for an invalid businessInfo.address.zipCode', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
       .send({
         settings: {
-          business_info: {
+          businessInfo: {
             address: {
               street: 'Av. Paulista',
               number: '1000',
               neighborhood: 'Bela Vista',
               city: 'São Paulo',
               state: 'SP',
-              zip_code: '123',
+              zipCode: '123',
             },
           },
         },
@@ -313,26 +313,26 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.status).toBe(400);
   });
 
-  it('returns 400 for an invalid business_info.phone', async () => {
+  it('returns 400 for an invalid businessInfo.phone', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
-      .send({ settings: { business_info: { phone: '123' } } })
+      .send({ settings: { businessInfo: { phone: '123' } } })
       .expect(400);
 
     expect(body.status).toBe(400);
   });
 
-  it('returns 200 and persists social_links in business_info', async () => {
+  it('returns 200 and persists socialLinks in businessInfo', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
       .send({
         settings: {
-          business_info: {
-            social_links: {
+          businessInfo: {
+            socialLinks: {
               whatsapp: '+5511987654321',
               instagram: 'https://instagram.com/lavacar',
               facebook: 'https://facebook.com/lavacar',
@@ -342,23 +342,23 @@ describe('TenantSettingsController (integration)', () => {
       })
       .expect(200);
 
-    expect(body.settings.business_info.social_links).toEqual({
+    expect(body.settings.businessInfo.socialLinks).toEqual({
       whatsapp: '+5511987654321',
       instagram: 'https://instagram.com/lavacar',
       facebook: 'https://facebook.com/lavacar',
     });
 
     const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
-    expect(row!.settings.business_info?.social_links?.whatsapp).toBe('+5511987654321');
+    expect(row!.settings.businessInfo?.socialLinks?.whatsapp).toBe('+5511987654321');
   });
 
-  it('returns 400 for an invalid social_links.whatsapp (not a phone number)', async () => {
+  it('returns 400 for an invalid socialLinks.whatsapp (not a phone number)', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'MANAGER')
       .send({
-        settings: { business_info: { social_links: { whatsapp: '123' } } },
+        settings: { businessInfo: { socialLinks: { whatsapp: '123' } } },
       })
       .expect(400);
 
@@ -377,7 +377,7 @@ describe('TenantSettingsController (integration)', () => {
       .patch('/tenants/settings')
       .set('X-Tenant-ID', inactiveTenant.id)
       .set('X-Actor-Role', 'MANAGER')
-      .send({ settings: { loyalty: { expiry_days: 90 } } })
+      .send({ settings: { loyalty: { expiryDays: 90 } } })
       .expect(409);
 
     expect(body.status).toBe(409);

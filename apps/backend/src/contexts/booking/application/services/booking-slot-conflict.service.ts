@@ -21,7 +21,7 @@ export class BookingSlotConflictService {
     totalDurationMins: number,
     excludeBookingId?: string,
   ): Promise<void> {
-    const { timezone } = this.tenantContext.settings.business_hours;
+    const { timezone } = this.tenantContext.settings.businessHours;
     const localDate = utcDateToLocalDate(scheduledAt, timezone);
     const existing = await this.availabilityPort.findApprovedByTenantAndDate(tenantId, localDate);
     const slots = excludeBookingId ? existing.filter((s) => s.id !== excludeBookingId) : existing;

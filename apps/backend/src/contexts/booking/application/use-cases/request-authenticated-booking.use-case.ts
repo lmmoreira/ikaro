@@ -61,7 +61,7 @@ export class RequestAuthenticatedBookingUseCase {
 
     let pickupAddress: Address | undefined;
     if (dto.pickupAddress) {
-      const { country_code: countryCode } = this.tenantContext.settings.localization;
+      const { countryCode } = this.tenantContext.settings.localization;
       pickupAddress = Address.create(
         { ...dto.pickupAddress, complement: dto.pickupAddress.complement ?? undefined },
         countrySpec(countryCode).address,

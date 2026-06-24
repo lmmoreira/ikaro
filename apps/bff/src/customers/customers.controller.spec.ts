@@ -1,7 +1,7 @@
 import { HttpException } from '@nestjs/common';
+import { CustomerProfileResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { CustomersController } from './customers.controller';
-import { CustomerProfileResponse } from './customers.types';
 
 const mockProfile: CustomerProfileResponse = {
   customerId: '20000000-0000-4000-8000-000000000001',

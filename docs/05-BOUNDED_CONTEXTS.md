@@ -121,7 +121,7 @@ Notification Context subscribes:
 - `Booking` (root) — a customer visit; parent of 1..N `BookingLine` child entities (tenant-scoped). The Booking aggregate enforces ≥1 line, snapshots line fields at request time, and computes `totalPrice` / `totalDurationMins` from its lines.
 - `Service` — type of car wash offered (tenant-scoped). Edits to a service NEVER retroactively affect past bookings — the `BookingLine` snapshot is the source of truth for an existing booking.
 - `ScheduleClosure` — blocks the schedule for a full day or a partial time window (tenant-scoped).
-- `ScheduleOpening` — opens a normally-closed day (per `business_hours`) for a specific time window (tenant-scoped). Inverse of `ScheduleClosure`.
+- `ScheduleOpening` — opens a normally-closed day (per `businessHours`) for a specific time window (tenant-scoped). Inverse of `ScheduleClosure`.
 
 **Responsibilities:**
 - Accept booking requests (guest & authenticated customers) for a specific tenant
@@ -205,7 +205,7 @@ Notification Context subscribes:
 
 **Tenant Isolation Guarantees:**
 - ✓ Cannot read another tenant's rows — all queries filter `tenant_id`
-- ✓ Expiration window is per-tenant via `tenants.settings.loyalty.expiry_days`
+- ✓ Expiration window is per-tenant via `tenants.settings.loyalty.expiryDays`
 - ✓ Events filtered by `tenantId` on consume
 
 **Example flow (tenant-scoped, multi-line booking):**
@@ -214,7 +214,7 @@ TENANT A: customer completes a booking with 3 lines:
   • Basic Wash    (points_value = 1)
   • Wax           (points_value = 3)
   • Interior Vac  (points_value = 1)
-  (tenants.settings.loyalty.expiry_days = 180)
+  (tenants.settings.loyalty.expiryDays = 180)
 
 → BookingCompleted (envelope.tenantId = "tenant_a") published by Booking
 

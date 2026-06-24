@@ -21,7 +21,7 @@ export interface AvailabilityInput {
   date: string; // YYYY-MM-DD in tenant timezone
   services: ServiceDuration[];
   businessHours: BusinessHours;
-  slotGranularityMinutes: BookingSettings['slot_granularity_minutes'];
+  slotGranularityMinutes: BookingSettings['slotGranularityMinutes'];
   serviceBufferMinutes: number;
   closures: ScheduleClosure[];
   opening: ScheduleOpening | null;

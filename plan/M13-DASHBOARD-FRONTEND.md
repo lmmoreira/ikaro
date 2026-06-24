@@ -306,7 +306,7 @@ interface StaffBookingDetailResponse {
   // Loyalty (null for guest bookings)
   customerId: string | null;
   loyaltyBalance: number | null;     // current active points
-  loyaltyConversionRate: number;     // points_per_currency_unit (added in M13-S12 — see M13-S26's note)
+  loyaltyConversionRate: number;     // pointsPerCurrencyUnit (added in M13-S12 — see M13-S26's note)
 
   // Lines
   lines: StaffBookingLineResponse[];
@@ -334,7 +334,7 @@ interface StaffBookingLineResponse {
 }
 ```
 
-> **Note (added during consolidation):** `loyaltyConversionRate` is listed here so `M13-S26` (loyalty redemption strip in Mark Complete) doesn't need a second BFF call on mount. It depends on `M13-S12` having landed (which adds `points_per_currency_unit` enrichment) — since `M13-S12` is also in Phase 1, this is satisfied by construction regardless of which order M13-S04/M13-S12 land in within the phase. If `M13-S04` is implemented before `M13-S12`, add the field as a follow-up patch rather than blocking.
+> **Note (added during consolidation):** `loyaltyConversionRate` is listed here so `M13-S26` (loyalty redemption strip in Mark Complete) doesn't need a second BFF call on mount. It depends on `M13-S12` having landed (which adds `pointsPerCurrencyUnit` enrichment) — since `M13-S12` is also in Phase 1, this is satisfied by construction regardless of which order M13-S04/M13-S12 land in within the phase. If `M13-S04` is implemented before `M13-S12`, add the field as a follow-up patch rather than blocking.
 
 **BFF orchestration:**
 
@@ -504,7 +504,7 @@ export interface CustomerLoyaltyBalanceResponse {
   currentPoints: number;
   nextExpiryDate: string | null;   // ISO-8601 date
   nextExpiryPoints: number | null;
-  conversionRate: number;          // points_per_currency_unit — see M13-S12; 0 = redemption disabled
+  conversionRate: number;          // pointsPerCurrencyUnit — see M13-S12; 0 = redemption disabled
 }
 ```
 
@@ -621,12 +621,12 @@ Provide the two paginated endpoints needed for the customer's full loyalty histo
 >
 > **Pagination default:** keeping the existing shared `PaginationSchema` default of `limit=20` (not the `limit=50` originally noted here) — that schema is also used by the admin/balance routes, and bumping its default has wider blast radius than this story intends. The `50` was an unvalidated draft preference.
 >
-> ✅ **Resolved — `amountSaved` is computed from the rate stored on the redemption itself, not a live/current one.** An earlier version of this story computed `amountSaved` at **read time** using whatever `points_per_currency_unit` is *currently* configured (`REDEMPTION_CONVERSION_RATE` hardcoded to `0` in the BFF). This is a real correctness bug, not just an interim placeholder: if a tenant ever changes their rate, every *past* redemption's displayed `amountSaved` would silently get reinterpreted under the new rate, corrupting historical/audit data. The fix captures the rate **at the moment of redemption** instead:
-> - `points_per_currency_unit` didn't exist anywhere in code yet (`docs/21-TENANTS_SETTINGS_SCHEMA.md` marked it "planned — see M13-S11"). Pulled in **only Part A** of `M13-S11` (the `TenantSettingsVO`/`LoyaltySettings` field itself, validated 0–10000, default 0) — not Parts B–D, which move redemption-recording to be triggered by `BookingCompleted` during booking completion; that's a separate, larger architectural change, untouched here.
+> ✅ **Resolved — `amountSaved` is computed from the rate stored on the redemption itself, not a live/current one.** An earlier version of this story computed `amountSaved` at **read time** using whatever `pointsPerCurrencyUnit` is *currently* configured (`REDEMPTION_CONVERSION_RATE` hardcoded to `0` in the BFF). This is a real correctness bug, not just an interim placeholder: if a tenant ever changes their rate, every *past* redemption's displayed `amountSaved` would silently get reinterpreted under the new rate, corrupting historical/audit data. The fix captures the rate **at the moment of redemption** instead:
+> - `pointsPerCurrencyUnit` didn't exist anywhere in code yet (`docs/21-TENANTS_SETTINGS_SCHEMA.md` marked it "planned — see M13-S11"). Pulled in **only Part A** of `M13-S11` (the `TenantSettingsVO`/`LoyaltySettings` field itself, validated 0–10000, default 0) — not Parts B–D, which move redemption-recording to be triggered by `BookingCompleted` during booking completion; that's a separate, larger architectural change, untouched here.
 > - `LoyaltyRedemption` aggregate/entity/migration gain `pointsPerCurrencyUnit: number` — a snapshot, never recomputed after the fact.
-> - `LoyaltyController.recordRedemption()` (backend) reads `this.tenantContext.settings.loyalty.points_per_currency_unit` and passes it into `RedeemPointsUseCase` as a plain DTO field — **deliberately not** injecting `RequestContext` directly into the use case itself, even though that's the pattern used elsewhere (e.g. `GetBookingUseCase`). `RedeemPointsUseCase` is documented in `M13-S11`'s own plan to soon gain a second caller (`BookingCompletedHandler`, an event handler) where `RequestContext` is never populated — keeping the use case invocation-context-agnostic avoids a guaranteed rework when that lands.
+> - `LoyaltyController.recordRedemption()` (backend) reads `this.tenantContext.settings.loyalty.pointsPerCurrencyUnit` and passes it into `RedeemPointsUseCase` as a plain DTO field — **deliberately not** injecting `RequestContext` directly into the use case itself, even though that's the pattern used elsewhere (e.g. `GetBookingUseCase`). `RedeemPointsUseCase` is documented in `M13-S11`'s own plan to soon gain a second caller (`BookingCompletedHandler`, an event handler) where `RequestContext` is never populated — keeping the use case invocation-context-agnostic avoids a guaranteed rework when that lands.
 > - `GetLoyaltyRedemptionsUseCase` projects the stored `pointsPerCurrencyUnit` (not an externally-supplied one); the BFF mapper computes `amountSaved` from it directly — no `conversionRate` parameter on `toCustomerLoyaltyRedemption()` at all anymore.
-> - Out of scope (unchanged): the admin "edit tenant settings" endpoint still can't actually *set* `points_per_currency_unit` to a non-zero value (`update-tenant-settings.dto.ts`'s `LoyaltySchema` wasn't touched) — that's `M13-S12`'s job. Until then this is `0` everywhere, identical to today's behavior, but now structurally correct. `getBalance()`'s separate `BALANCE_DISPLAY_CONVERSION_RATE` (renamed from `REDEMPTION_CONVERSION_RATE`) is a forward-looking display rate, conceptually different from a historical redemption record, and stays hardcoded pending `M13-S12`.
+> - Out of scope (unchanged): the admin "edit tenant settings" endpoint still can't actually *set* `pointsPerCurrencyUnit` to a non-zero value (`update-tenant-settings.dto.ts`'s `LoyaltySchema` wasn't touched) — that's `M13-S12`'s job. Until then this is `0` everywhere, identical to today's behavior, but now structurally correct. `getBalance()`'s separate `BALANCE_DISPLAY_CONVERSION_RATE` (renamed from `REDEMPTION_CONVERSION_RATE`) is a forward-looking display rate, conceptually different from a historical redemption record, and stays hardcoded pending `M13-S12`.
 
 > ✅ **Resolved — `bookingReference` (redemptions) gets a real backend lookup, not `null`.** `LoyaltyRedemption.bookingId` exists (nullable) but nothing resolves it to a service name today. The prototype (`plan/journey/customer/prototypes/minha-conta/04-fidelidade.html`, "Resgate — Lavagem Completa") confirms this is UX-validated, not speculative. A pickup-requiring service creates its own separate line (`docs/14-API_CONTRACTS.md`'s shared booking response example has a dedicated `"uuid-pickup"` line alongside the wash service line), so resolving only the first line would silently drop services from multi-line bookings. **The backend returns structured data, not a pre-joined display string** — joining into `", "`-separated text is a presentation decision that belongs in the BFF mapper (which already owns customer-facing shaping), not in a cross-context backend port. **Backend changes required (extends an existing cross-context port — does not create a new one, per the cross-context reuse rule):**
 > - `loyalty-booking.port.ts` (`ILoyaltyBookingPort`) — add `findBookingServices(tenantId: string, bookingId: string): Promise<ServiceSummary[]>` (reuses the existing `ServiceSummary` shape from `findServicesByIds`; empty array when the booking has no lines or doesn't exist).
@@ -681,18 +681,18 @@ export interface CustomerLoyaltyRedemptionsResponse {
 - [ ] `GET /v1/loyalty/redemptions` with CUSTOMER JWT → only that customer's redemptions, mapped to `CustomerLoyaltyRedemptionResponse` (`pointsUsed`, `amountSaved`, `bookingReference`)
 - [ ] Entries include `expired: true` when `expiresAt < now`
 - [ ] Redemptions with a `bookingId` resolve `bookingReference` to all of that booking's line service names joined with `", "` (not just the first line); redemptions with no `bookingId` → `bookingReference: null`
-- [ ] `POST /v1/loyalty/redeem` captures `tenants.settings.loyalty.points_per_currency_unit` at the moment of redemption and persists it on the `LoyaltyRedemption` row; `GET /v1/loyalty/redemptions` computes `amountSaved` from that stored value, not a live setting
+- [ ] `POST /v1/loyalty/redeem` captures `tenants.settings.loyalty.pointsPerCurrencyUnit` at the moment of redemption and persists it on the `LoyaltyRedemption` row; `GET /v1/loyalty/redemptions` computes `amountSaved` from that stored value, not a live setting
 - [ ] Tenant isolation: Customer A cannot retrieve Customer B's entries or redemptions
 - [ ] STAFF JWT on these endpoints still works (no regression to the existing admin routes)
 - [ ] Response includes `page`/`limit` alongside `items`/`total`
 - [ ] Types in `packages/types/`
 - [ ] `.http` blocks updated in `apps/bff/http/loyalty/loyalty.http`
 
-**Dependencies:** M10 (loyalty entries + redemptions backend), M13-S11 Part A only (`points_per_currency_unit` on `TenantSettingsVO` — pulled in here; Parts B–D remain M13-S11's own scope)
+**Dependencies:** M10 (loyalty entries + redemptions backend), M13-S11 Part A only (`pointsPerCurrencyUnit` on `TenantSettingsVO` — pulled in here; Parts B–D remain M13-S11's own scope)
 
 ---
 
-### M13-S09 — Backend: add `GET /tenants/settings`
+### M13-S09 — Backend: add `GET /tenants/settings` ✅ Done
 
 *(formerly M127-S01)*
 
@@ -730,7 +730,7 @@ Add a read endpoint for tenant settings. Today the only way to read `tenants.set
 
 ---
 
-### M13-S10 — BFF: proxy `GET`/`PATCH /tenants/settings` (camelCase translation layer)
+### M13-S10 — BFF: proxy `GET`/`PATCH /tenants/settings` + `PATCH /tenants` (camelCase translation layer)
 
 *(formerly M127-S02)*
 
@@ -739,73 +739,159 @@ Add a read endpoint for tenant settings. Today the only way to read `tenants.set
 **Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md`
 
 **Description:**
-Add the BFF module surface that doesn't exist today. The backend speaks snake_case (`cancellation_window_hours`, `business_hours.monday`, …); everything `apps/web` consumes elsewhere speaks camelCase (per the existing read-only `TenantSettings` interface in `packages/types/src/tenant.dto.ts`). This story is the translation layer, plus the write DTO that doesn't exist yet — `tenant.dto.ts` currently has no update/write shape at all.
+Add the BFF module surface that doesn't exist today. At the time this story was drafted, the backend spoke snake_case (`cancellation_window_hours`, `business_hours.monday`, …) while everything `apps/web` consumes elsewhere speaks camelCase — this story was originally the translation layer. Mid-implementation, the backend's `tenants.settings` JSONB was itself normalized to camelCase end-to-end (see the resolved-during-implementation note below), which removed the need for a translation layer entirely — the BFF controller is a thin passthrough, not a mapper.
 
-> ⚠️ **Backend contract changed since this story was drafted (M13-S09):** the backend no longer accepts `name` on `PATCH /tenants/settings` — renaming is a separate `PATCH /tenants` route (`RenameTenantUseCase`, `TenantController`). The single camelCase `PATCH /tenants/settings` (BFF) request from the frontend's one-form/one-Save-button UX (UC-026) still carries `name` alongside settings fields — so this BFF controller's `PATCH` handler must fan out to **two** backend calls when `name` is present: `PATCH /tenants` (name) and `PATCH /tenants/settings` (everything else), both within the same BFF request. This is the BFF-orchestration pattern already used for cross-context reads (CLAUDE.md §7) applied to a same-context multi-resource write. `GET /tenants/settings` (BFF) is unaffected — the backend's GET already returns the combined `{ tenantId, name, slug, settings }` shape unchanged.
+> ⚠️ **Backend contract changed since this story was drafted (M13-S09):** the backend split tenant identity from settings — `PATCH /tenants` (rename only, `RenameTenantUseCase`/`TenantController`) and `PATCH /tenants/settings` (settings only, no longer accepts `name`). The BFF mirrors this split 1:1 instead of re-combining it into one orchestrated endpoint: **two independent BFF controllers**, each a thin proxy to its one backend counterpart. No fan-out, no multi-call orchestration, no partial-failure semantics to design — each BFF endpoint maps 1:1 to one backend endpoint. If the frontend's settings form needs to save both a renamed tenant and changed settings in one "Salvar" click, that sequencing happens client-side (two API calls), not inside the BFF. `GET /tenants/settings` is unaffected either way — the backend's GET already returns the combined `{ tenantId, name, slug, settings }` shape.
 >
-> 🔍 **Discover before starting:** Read `packages/types/src/tenant.dto.ts` in full and confirm the exact field names/nesting of the existing camelCase `TenantSettings` read interface **before** defining `UpdateTenantSettingsRequest` — the write shape must mirror the read shape field-for-field, not invent new names. Read `apps/bff/src/platform/hotsite-admin.controller.ts` and `platform.module.ts` to copy the exact registration pattern for a new controller in the same module (per CLAUDE.md's BFF naming rule — this belongs in the `platform` module, not a new one).
+> ✅ **Resolved during discovery:** `packages/types/src/tenant.dto.ts`'s existing `TenantSettings`/`UpdateTenantSettingsRequest`/`BusinessHours` are stale placeholders with **zero consumers** anywhere in `apps/bff`/`apps/web` (confirmed by grep) — `loyalty` has 1 of 5 real backend fields, `booking` has 2 of 6, the per-day-hours shape uses `{open,close,closed:boolean}` instead of backend's nullable `{open,close}|null`, and `businessInfo`/`notification` are missing entirely. Safe to fully replace, not merge — see the corrected shapes below. Read `apps/bff/src/platform/hotsite-admin.controller.ts` and `platform.module.ts` to copy the exact registration pattern for new controllers in the same module (per CLAUDE.md's BFF naming rule — this belongs in the `platform` module, not a new one).
+>
+> ✅ **Resolved during implementation — backend normalized to camelCase too:** after this story shipped its first version (snake_case↔camelCase mapper in `tenant-settings.mapper.ts`), the backend's `TenantSettingsProps`/`update-tenant-settings.dto.ts` were themselves normalized from snake_case to camelCase (no DB migration needed — `tenants.settings` is a plain `jsonb` column with no transformer; local dev DB dropped and reseeded since there's no production data). This made the BFF's translation layer dead code — `tenant-settings.mapper.ts`/`tenant-settings.types.ts` were deleted; `TenantSettingsController` now types its `BackendHttpService` calls directly against `@ikaro/types`, matching the `services`/`customers`/`staff` controller pattern. Backend's GET/PATCH response is `{ tenantId, name, slug, settings: TenantSettings }` (nested under `settings`, not flattened) — `TenantSettingsResponse` must mirror that nesting, not `extend TenantSettings` directly. `UpdateTenantSettingsRequest.settings` is a hand-written per-category partial type (not `Partial<TenantSettings>` or a blind recursive `DeepPartial`) — see `docs/ENGINEERING_RULES.md` § Partial-update types for deeply-nested Zod schemas for why; it also deliberately omits `notification`, since neither backend nor BFF accept it for writes.
 
 **What to create:**
 
 `apps/bff/src/platform/tenant-settings.controller.ts`:
 ```
-GET   tenants/settings   @Roles('MANAGER')  -> calls backend GET, maps snake_case -> camelCase, returns TenantSettingsResponse
-PATCH tenants/settings   @Roles('MANAGER')  -> validates UpdateTenantSettingsRequest (Zod, camelCase), maps camelCase -> snake_case, calls backend PATCH, maps response back to camelCase
+GET   tenants/settings   @Roles('MANAGER')  -> thin passthrough: backendHttp.get<TenantSettingsResponse>('/tenants/settings')
+PATCH tenants/settings   @Roles('MANAGER')  -> validates UpdateTenantSettingsBodySchema (Zod, camelCase, settings required, .strict()); forwards the validated body as-is to backendHttp.patch<TenantSettingsResponse>('/tenants/settings', body)
 ```
 
-Register the controller in `apps/bff/src/platform/platform.module.ts` alongside `HotsiteAdminController`.
+`apps/bff/src/platform/tenant.controller.ts`:
+```
+PATCH tenants            @Roles('MANAGER')  -> validates RenameTenantRequest (Zod, { name: string }); calls backend PATCH /tenants, returns RenameTenantResponse
+```
 
-`packages/types/src/tenant.dto.ts` additions:
+Register both controllers in `apps/bff/src/platform/platform.module.ts` alongside `HotsiteAdminController`.
+
+`packages/types/src/tenant.dto.ts` — replace `TenantSettings`/`UpdateTenantSettingsRequest`/`BusinessHours` with a full nested mirror of the backend's `TenantSettingsProps` (`tenant-settings.vo.ts`) for the **read** side (including fields not yet editable via this form, e.g. `pointsPerCurrencyUnit`, `notificationMinPoints`, `localization`, `notification.fromEmail` — GET should reflect full truth even where PATCH doesn't cover it yet); the per-day-hours type is renamed `TenantDayHours` since the old `BusinessHours` name was actually describing one day, not the week. `UpdateTenantSettingsRequest` now mirrors backend's settings-only PATCH exactly — `settings` required, no `name` field (that moved to a separate `RenameTenantRequest`):
 ```typescript
-export interface TenantSettingsResponse extends TenantSettings {
+export interface TenantDayHours {
+  open: string;
+  close: string;
+}
+
+export interface TenantBusinessHours {
+  timezone: string;
+  monday: TenantDayHours | null;
+  tuesday: TenantDayHours | null;
+  wednesday: TenantDayHours | null;
+  thursday: TenantDayHours | null;
+  friday: TenantDayHours | null;
+  saturday: TenantDayHours | null;
+  sunday: TenantDayHours | null;
+}
+
+export interface TenantLoyaltySettings {
+  expiryDays: number;
+  enableNotifications: boolean;
+  expiryWarningDays: number;
+  notificationMinPoints: number;
+  pointsPerCurrencyUnit: number;
+}
+
+export interface TenantBookingSettings {
+  cancellationWindowHours: number;
+  autoApproveEnabled: boolean;
+  minBookingAdvanceHours: number;
+  maxBookingAdvanceDays: number;
+  serviceBufferMinutes: number;
+  slotGranularityMinutes: 15 | 30 | 60;
+}
+
+export interface TenantLocalizationSettings {
+  countryCode: string;
+  currency: string;
+  currencySymbol?: string;
+  language: string;
+  decimalPlaces: number;
+}
+
+export interface TenantBusinessInfoAddress {
+  street: string | null;
+  number: string | null;
+  complement?: string;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+}
+
+export interface TenantSocialLinks {
+  whatsapp: string | null;
+  instagram: string | null;
+  facebook: string | null;
+}
+
+export interface TenantBusinessInfo {
+  phone: string | null;
+  email: string | null;
+  address: TenantBusinessInfoAddress | null;
+  socialLinks: TenantSocialLinks | null;
+}
+
+export interface TenantNotificationSettings {
+  fromEmail: string | null;
+}
+
+export interface TenantSettings {
+  loyalty: TenantLoyaltySettings;
+  booking: TenantBookingSettings;
+  businessHours: TenantBusinessHours;
+  localization: TenantLocalizationSettings;
+  notification?: TenantNotificationSettings;
+  businessInfo?: TenantBusinessInfo;
+}
+
+export interface TenantSettingsResponse {
   tenantId: string;
   name: string;
   slug: string;
+  settings: TenantSettings;
 }
 
 export interface UpdateTenantSettingsRequest {
-  name?: string;
-  cancellationWindowHours?: number;
-  serviceBufferMinutes?: number;
-  loyaltyExpiryDays?: number;
-  businessHours?: {
-    timezone: string;
-    monday?: { open: string; close: string } | null;
-    tuesday?: { open: string; close: string } | null;
-    wednesday?: { open: string; close: string } | null;
-    thursday?: { open: string; close: string } | null;
-    friday?: { open: string; close: string } | null;
-    saturday?: { open: string; close: string } | null;
-    sunday?: { open: string; close: string } | null;
+  settings: {
+    loyalty?: Partial<TenantLoyaltySettings>;
+    booking?: Partial<TenantBookingSettings>;
+    businessHours?: Partial<TenantBusinessHours>;
+    localization?: Partial<TenantLocalizationSettings>;
+    businessInfo?: {
+      phone?: string | null;
+      email?: string | null;
+      address?: Partial<TenantBusinessInfoAddress> | null;
+      socialLinks?: Partial<TenantSocialLinks> | null;
+    };
   };
-  businessInfo?: {
-    phone?: string | null;
-    email?: string | null;
-    address?: {
-      street: string; number: string; complement?: string;
-      neighborhood: string; city: string; state: string; zipCode: string;
-    } | null;
-  };
+}
+
+export interface RenameTenantRequest {
+  name: string;
+}
+
+export interface RenameTenantResponse {
+  tenantId: string;
+  name: string;
 }
 ```
 
-`.http` blocks in `apps/bff/http/platform/tenant-settings.http`.
+Note: `M13-S12`'s plan already expects to "extend `UpdateTenantSettingsRequest` with `pointsPerCurrencyUnit`" — `settings.loyalty` above is already `Partial<TenantLoyaltySettings>`, which includes `pointsPerCurrencyUnit`, so it's already supported by construction; `M13-S12` likely needs no DTO change at all, only confirm during that story's own discovery.
+
+`.http` blocks in `apps/bff/http/platform/tenant-settings.http` and `apps/bff/http/platform/tenant.http`.
 
 **Acceptance criteria:**
-- [ ] `GET /tenants/settings` (BFF) returns camelCase fields matching `TenantSettingsResponse` exactly
-- [ ] `PATCH /tenants/settings` (BFF) accepts a camelCase body and correctly maps every field — including nested per-day `businessHours` objects — to the backend's snake_case DTO
-- [ ] `STAFF` JWT → `403`; no auth → `401`
-- [ ] Backend `422` (invalid field) is forwarded as an RFC 9457 Problem Detail, not swallowed or remapped to a generic 500
-- [ ] Round-trip integration test: `PATCH` a field, then `GET`, confirms the persisted value comes back correctly mapped
-- [ ] `PATCH /tenants/settings` (BFF) request body including `name` calls backend `PATCH /tenants` (name) **and** `PATCH /tenants/settings` (remaining fields); a request with only settings fields calls just the latter
-- [ ] `.http` blocks added for both routes
+- [ ] `GET /tenants/settings` (BFF) returns camelCase fields matching `TenantSettingsResponse` exactly, including categories not yet editable via PATCH (e.g. `localization`, `notification`)
+- [ ] `PATCH /tenants/settings` (BFF) accepts a camelCase body with a required `settings` field and correctly maps every category — including nested per-day `businessHours` objects — to the backend's snake_case DTO
+- [ ] `PATCH /tenants` (BFF) accepts `{ name: string }` and proxies directly to backend `PATCH /tenants`, returning `RenameTenantResponse`
+- [ ] `STAFF` JWT → `403`; no auth → `401` (both endpoints)
+- [ ] Backend `422`/`400`/`409` is forwarded as an RFC 9457 Problem Detail, not swallowed or remapped to a generic 500 (both endpoints)
+- [ ] Round-trip integration test: `PATCH /tenants/settings` a field, then `GET /tenants/settings`, confirms the persisted value comes back correctly mapped
+- [ ] `.http` blocks added for all three routes
 - [ ] `tsc --noEmit` passes across the monorepo (the `packages/types` change touches multiple consumers)
 
 **Dependencies:** M13-S09
 
 ---
 
-### M13-S11 — Backend: `points_per_currency_unit` + `discountByPoints` in booking completion
+### M13-S11 — Backend: `pointsPerCurrencyUnit` + `discountByPoints` in booking completion
 
 *(formerly M128-S01)*
 
@@ -826,7 +912,7 @@ Three targeted additions across two bounded contexts. No new use cases — all c
 
 ---
 
-#### Part A — `points_per_currency_unit` in `TenantSettingsVO`
+#### Part A — `pointsPerCurrencyUnit` in `TenantSettingsVO`
 
 > ✅ **Already implemented — landed via `M13-S08`.** `GetLoyaltyRedemptionsUseCase`'s `amountSaved` computation needed this field early (to capture the rate at redemption time rather than recomputing from a live setting later — see `M13-S08`'s resolved `amountSaved` callout), so Part A below was pulled forward. The interface field, Zod schema entry, default, validation, and the prescribed `tenant-settings.spec.ts` test cases are all in place on `main` already — **do not redo them**. Parts B–D (booking-completion-triggered redemption via `BookingCompleted`/`BookingCompletedHandler`) remain this story's own scope, untouched by `M13-S08`. Note: the admin-editable `PATCH /tenants/settings` endpoint (`update-tenant-settings.dto.ts`'s `LoyaltySchema`) was deliberately **not** touched by `M13-S08` — the "Add to the Zod loyalty schema" instruction below refers to *that* file, not `tenant-settings.vo.ts` (which has no Zod schema, only plain `PlatformDomainError` validation) — confirm during this story's own discovery whether `M13-S12` already covers it before duplicating.
 
@@ -834,20 +920,20 @@ Three targeted additions across two bounded contexts. No new use cases — all c
 
 Add to `LoyaltySettings` interface:
 ```typescript
-points_per_currency_unit: number; // 0 = redemption disabled; e.g. 10 = 10 pts → 1 currency unit
+pointsPerCurrencyUnit: number; // 0 = redemption disabled; e.g. 10 = 10 pts → 1 currency unit
 ```
 
 Add to the Zod loyalty schema:
 ```typescript
-points_per_currency_unit: z.number().int().min(0).max(10000).default(0),
+pointsPerCurrencyUnit: z.number().int().min(0).max(10000).default(0),
 ```
 
 Add to `TenantSettingsDefaults.loyalty`:
 ```typescript
-points_per_currency_unit: 0,
+pointsPerCurrencyUnit: 0,
 ```
 
-**Tests:** Update `apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.spec.ts` — add cases: valid `points_per_currency_unit = 10`, zero (disabled), boundary 10000, reject negative, reject > 10000.
+**Tests:** Update `apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.spec.ts` — add cases: valid `pointsPerCurrencyUnit = 10`, zero (disabled), boundary 10000, reject negative, reject > 10000.
 
 ---
 
@@ -872,9 +958,9 @@ discountByPoints?: { pointsUsed: number; amountDeducted: number };
 
 **Validation in use case** (`CompleteBookingUseCase`):
 - If `dto.discountByPoints` is present AND `booking.customerId` is null → throw `LoyaltyRedemptionNotAvailableError` (guest bookings cannot redeem points)
-- If `dto.discountByPoints` is present AND `settings.loyalty.points_per_currency_unit === 0` → throw `LoyaltyRedemptionDisabledError`
+- If `dto.discountByPoints` is present AND `settings.loyalty.pointsPerCurrencyUnit === 0` → throw `LoyaltyRedemptionDisabledError`
 - Cap check: `pointsUsed <= currentBalance` is enforced by `RecordRedemptionUseCase` (loyalty context) — do not duplicate here
-- `amountDeducted` must equal `Math.floor(pointsUsed / points_per_currency_unit)` within ±0.01 — reject if mismatch to prevent frontend manipulation
+- `amountDeducted` must equal `Math.floor(pointsUsed / pointsPerCurrencyUnit)` within ±0.01 — reject if mismatch to prevent frontend manipulation
 
 **`Booking.complete()` signature update** (`booking.aggregate.ts`):
 ```typescript
@@ -934,10 +1020,10 @@ Inject `RecordRedemptionUseCase` into the handler (add to `LoyaltyModule` provid
 Update the `PATCH /bookings/:id/complete` request block to include an example with `discountByPoints`.
 
 **Acceptance criteria:**
-- [ ] `TenantSettingsVO` accepts and validates `loyalty.points_per_currency_unit` (0–10000, default 0)
+- [ ] `TenantSettingsVO` accepts and validates `loyalty.pointsPerCurrencyUnit` (0–10000, default 0)
 - [ ] `PATCH /bookings/:id/complete` with `discountByPoints` → `totalActualPrice = linesTotal - amountDeducted`
 - [ ] `PATCH /bookings/:id/complete` with `discountByPoints` on a guest booking → `422` with `loyalty-redemption-not-available`
-- [ ] `PATCH /bookings/:id/complete` when `points_per_currency_unit = 0` → `422` with `loyalty-redemption-disabled`
+- [ ] `PATCH /bookings/:id/complete` when `pointsPerCurrencyUnit = 0` → `422` with `loyalty-redemption-disabled`
 - [ ] `BookingCompleted` event carries `discountByPoints` when present
 - [ ] `BookingCompletedHandler` in loyalty context calls `RecordRedemptionUseCase` when `discountByPoints` is in event
 - [ ] Redemption is idempotent — replaying the event does not create duplicate redemption
@@ -964,7 +1050,7 @@ Three additions to the BFF: a new staff-facing customer search endpoint, enrichi
 > - Read `apps/bff/src/customers/customers.controller.ts` — confirm there is no `STAFF|MANAGER`-accessible GET route yet. The only routes are `GET /me` and `PATCH /me` (CUSTOMER-only).
 > - Check `apps/backend/src/contexts/customer/infrastructure/` for an existing staff-facing customer list/search endpoint. If it exists (`GET /customers?search=`), the BFF just proxies it. If not, this story adds it to the backend as a thin read — check the customer controller in the backend too.
 > - Read `apps/bff/src/loyalty/loyalty.types.ts` — confirm `LoyaltyBalanceResponse` shape.
-> - Confirm `points_per_currency_unit` is accessible from `TenantContext` in the BFF after `M13-S11` ships.
+> - Confirm `pointsPerCurrencyUnit` is accessible from `TenantContext` in the BFF after `M13-S11` ships.
 
 ---
 
@@ -1013,7 +1099,7 @@ export interface CustomerSearchListResponse {
 
 Update `apps/bff/src/loyalty/loyalty.controller.ts` `getBalanceAdmin()` (and `getBalance()` for the customer-facing route — feeds `M13-S06`'s `conversionRate` field too):
 
-After fetching balance from backend, read `points_per_currency_unit` from tenant context and append it:
+After fetching balance from backend, read `pointsPerCurrencyUnit` from tenant context and append it:
 
 ```typescript
 @Get('customers/:customerId/loyalty/balance')
@@ -1026,7 +1112,7 @@ async getBalanceAdmin(
   );
   return {
     ...balance,
-    conversionRate: this.tenantContext.settings.loyalty.points_per_currency_unit,
+    conversionRate: this.tenantContext.settings.loyalty.pointsPerCurrencyUnit,
   };
 }
 ```
@@ -1043,7 +1129,7 @@ export interface LoyaltyBalanceResponse {
 }
 
 export interface EnrichedLoyaltyBalanceResponse extends LoyaltyBalanceResponse {
-  readonly conversionRate: number; // points_per_currency_unit; 0 = redemption disabled
+  readonly conversionRate: number; // pointsPerCurrencyUnit; 0 = redemption disabled
 }
 
 // Replace the stale LoyaltyEntryResponse:
@@ -2408,7 +2494,7 @@ If condition is false (guest booking or feature disabled): loyalty strip not ren
 ```
 Props:
   availablePoints: number          // booking.loyaltyBalance
-  conversionRate: number           // points_per_currency_unit
+  conversionRate: number           // pointsPerCurrencyUnit
   linesTotalAmount: number         // live sum of actualPriceCharged across lines
   onChange: (discount: { pointsUsed: number; amountDeducted: number } | null) => void
 ```
@@ -2523,7 +2609,7 @@ fetchLoyaltyBalance(): Promise<CustomerLoyaltyBalanceResponse>
 
 **Cancellation window check (UC-006 A2) — client-side:**
 ```ts
-// tenantSettings.booking.cancellation_window_hours loaded from JWT or BFF
+// tenantSettings.booking.cancellationWindowHours loaded from JWT or BFF
 const deadline = new Date(booking.scheduledAt!);
 deadline.setHours(deadline.getHours() - cancellationWindowHours);
 const canCancel = new Date() < deadline;
@@ -2569,7 +2655,7 @@ const canCancel = new Date() < deadline;
 **Description:**
 The booking detail page for a customer. The page adapts based on status: APPROVED/PENDING show a cancel action; INFO_REQUESTED shows an info-submit form; COMPLETED/CANCELLED/REJECTED are read-only. Cancel confirmation is a dedicated sub-page (not a JS overlay — static prototype informed this decision).
 
-> 🔍 **Discover before starting:** Confirm `CustomerBookingDetailResponse` from `M13-S07` is available in types. Check `apps/bff/src/bookings/bookings.controller.ts` for `PATCH /v1/bookings/:id/cancel` and `PATCH /v1/bookings/:id/submit-info` — verify both accept CUSTOMER role and return the expected shapes. Check `tenants.settings.booking.cancellation_window_hours` is accessible from the JWT or a BFF settings endpoint; if not, default to `48`.
+> 🔍 **Discover before starting:** Confirm `CustomerBookingDetailResponse` from `M13-S07` is available in types. Check `apps/bff/src/bookings/bookings.controller.ts` for `PATCH /v1/bookings/:id/cancel` and `PATCH /v1/bookings/:id/submit-info` — verify both accept CUSTOMER role and return the expected shapes. Check `tenants.settings.booking.cancellationWindowHours` is accessible from the JWT or a BFF settings endpoint; if not, default to `48`.
 
 **What to create:**
 
@@ -2844,7 +2930,7 @@ switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>
 **Docs to load:** `docs/04-USE_CASES.md` § UC-026, `plan/journey/manager/configuracoes.md`, `plan/journey/manager/prototypes/configuracoes/dev-notes.md`
 
 **Description:**
-The settings form — five sections matching the prototype: Geral, Agendamento, Fidelidade, Horário de funcionamento, Contato. Scope is exactly what's in the prototype and UC-026 — the backend supports additional fields (`auto_approve_enabled`, `slot_granularity_minutes`, `localization`, etc.) that are **explicitly out of scope** here; see the consolidated open-questions section at the end of this file.
+The settings form — five sections matching the prototype: Geral, Agendamento, Fidelidade, Horário de funcionamento, Contato. Scope is exactly what's in the prototype and UC-026 — the backend supports additional fields (`autoApproveEnabled`, `slotGranularityMinutes`, `localization`, etc.) that are **explicitly out of scope** here; see the consolidated open-questions section at the end of this file.
 
 > 🔍 **Discover before starting:** Confirm the exact `TenantSettingsResponse`/`UpdateTenantSettingsRequest` field names against what `M13-S10`/`M13-S12` actually shipped — don't build the form against the UC text or this plan's draft shape, the landed BFF types are the source of truth.
 
@@ -3821,7 +3907,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 ### Customer Minha Conta (Phase 7, M13-S27–M13-S30)
 
-- [ ] **`cancellation_window_hours` availability:** is this value accessible to the frontend without a dedicated settings endpoint? MVP default is to hardcode `48` and read from real settings later (used by `M13-S27`/`M13-S28`).
+- [ ] **`cancellationWindowHours` availability:** is this value accessible to the frontend without a dedicated settings endpoint? MVP default is to hardcode `48` and read from real settings later (used by `M13-S27`/`M13-S28`).
 - [ ] **"Total washes completed" stat (UC-006 step 6):** not available from `GET /v1/loyalty/balance`. Drop from MVP Minha Conta, or derive client-side from `items.filter(b => b.status === 'COMPLETED').length`? Decide before `M13-S27`.
 - [x] **After-cancel destination (UC-007):** resolved — redirect to `/{slug}/my-account` list after successful cancel; booking appears in Histórico as CANCELLED on next load. Implemented in `M13-S28`.
 - [ ] **`infoResponseMessage` already filled:** if the customer already responded to an info request once (status returned to PENDING, then re-requested), should `InfoSubmitForm` show again or just display the previous response? Recommendation carried into `M13-S28`: hide the form when `infoResponseMessage != null`.
@@ -3830,7 +3916,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 ### Manager workspace (Phase 8, M13-S31–M13-S37)
 
-- [ ] **Extra tenant-settings fields** (`auto_approve_enabled`, `max_booking_advance_days`, `min_booking_advance_hours`, `slot_granularity_minutes`, `localization` currency/language, `notification.from_email`, `business_info.social_links`): the backend already supports these, but neither UC-026 nor the Configurações prototype mention them. Needs an explicit scope decision before a story is written for them — don't add silently to `M13-S31`.
+- [ ] **Extra tenant-settings fields** (`autoApproveEnabled`, `maxBookingAdvanceDays`, `minBookingAdvanceHours`, `slotGranularityMinutes`, `localization` currency/language, `notification.fromEmail`, `businessInfo.socialLinks`): the backend already supports these, but neither UC-026 nor the Configurações prototype mention them. Needs an explicit scope decision before a story is written for them — don't add silently to `M13-S31`.
 - [ ] **Per-module config panels for `SERVICE_LIST`, `GALLERY`, `BOOKING_CTA`, `TESTIMONIALS`, `ABOUT`, `CONTACT`:** only HERO was prototyped as a representative example (`M13-S36`). Each of the other 6 needs its own UX pass — `GALLERY` in particular already has a `feature-booking-photo` BFF endpoint wired that none of the stories above use yet.
 - [ ] **BFF-token-based hotsite preview (pixel-exact production-path render):** `M13-S37` ships a pragmatic client-side render instead. Revisit only if the simplified preview proves insufficient in practice.
 - [x] **Sidebar "Fidelidade" and "Hotsite" nav items:** both confirmed included from the start in `M13-S15` (the original M125 draft's sidebar spec omitted Hotsite — caught during the manager-workspace cross-file audit and folded into `M13-S15` directly rather than a separate patch).

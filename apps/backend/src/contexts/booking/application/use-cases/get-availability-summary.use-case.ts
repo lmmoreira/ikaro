@@ -48,12 +48,12 @@ export class GetAvailabilitySummaryUseCase {
       throw new AvailabilityRangeInvalidError('from must not be after to');
     }
 
-    const { business_hours: businessHours, booking: bookingSettings } = this.tenantContext.settings;
+    const { businessHours, booking: bookingSettings } = this.tenantContext.settings;
 
     const rangeDays = this.daysBetween(dto.from, dto.to);
-    if (rangeDays > bookingSettings.max_booking_advance_days) {
+    if (rangeDays > bookingSettings.maxBookingAdvanceDays) {
       throw new AvailabilityRangeInvalidError(
-        `range exceeds max_booking_advance_days (${bookingSettings.max_booking_advance_days})`,
+        `range exceeds maxBookingAdvanceDays (${bookingSettings.maxBookingAdvanceDays})`,
       );
     }
 
@@ -88,8 +88,8 @@ export class GetAvailabilitySummaryUseCase {
         date,
         services: services.map((s) => ({ durationMinutes: s.durationMinutes })),
         businessHours,
-        slotGranularityMinutes: bookingSettings.slot_granularity_minutes,
-        serviceBufferMinutes: bookingSettings.service_buffer_minutes,
+        slotGranularityMinutes: bookingSettings.slotGranularityMinutes,
+        serviceBufferMinutes: bookingSettings.serviceBufferMinutes,
         closures: dayClosures,
         opening: dayOpening,
         existingBookings: dayBookings,

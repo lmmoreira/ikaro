@@ -132,7 +132,7 @@ If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redempti
 
 | Port | Adapter | What it reads |
 |---|---|---|
-| `ILoyaltyTenantSettingsPort` | `LoyaltyTenantSettingsAdapter` | `GetTenantByIdUseCase` → `settings.loyalty.expiry_days` |
+| `ILoyaltyTenantSettingsPort` | `LoyaltyTenantSettingsAdapter` | `GetTenantByIdUseCase` → `settings.loyalty.expiryDays` |
 | `IServiceCatalogPort` | `ServiceCatalogAdapter` | `booking.services` via `DataSource` |
 | `INotificationCustomerPort` | `CustomerInfoAdapter` | `CustomerQueryService` (from CustomerModule) |
 | `INotificationServicePort` | `ServiceInfoAdapter` | `booking.services` via `DataSource` |
@@ -162,8 +162,8 @@ If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redempti
 
 | Setting | Path | Default |
 |---|---|---|
-| Points expiry days | `tenants.settings.loyalty.expiry_days` | `180` |
-| Expiry warning days (M11-S06) | `tenants.settings.loyalty.expiry_warning_days` | `7` |
+| Points expiry days | `tenants.settings.loyalty.expiryDays` | `180` |
+| Expiry warning days (M11-S06) | `tenants.settings.loyalty.expiryWarningDays` | `7` |
 
 ---
 
