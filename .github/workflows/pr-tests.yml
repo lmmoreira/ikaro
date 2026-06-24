@@ -206,3 +206,18 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fail on any new SonarCloud issue
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          RESULT=$(curl -sf -u "${SONAR_TOKEN}:" \
+            "https://sonarcloud.io/api/issues/search?componentKeys=lmmoreira_ikaro&pullRequest=${PR}&statuses=OPEN,CONFIRMED&ps=50")
+          COUNT=$(echo "$RESULT" | jq '.total')
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ ${COUNT} new SonarCloud issue(s) — fix before merging:"
+            echo "$RESULT" | jq -r '.issues[] | "  [\(.severity)] \(.message) — \(.component | split(":")[1]):\(.line // "?")"'
+            exit 1
+          fi
+          echo "✅ No new SonarCloud issues."

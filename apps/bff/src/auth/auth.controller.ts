@@ -268,7 +268,10 @@ export class AuthController {
         { googleOAuthId: `dev::${dto.email}` },
       );
       const staff = staffList.find((s) => s.tenantId === tenantInfo.id && s.isActive);
-      if (!staff) {
+      if (staff) {
+        actorId = staff.staffId;
+        role = staff.role;
+      } else {
         const staffByEmail = await this.backendHttp.get<StaffByEmailResponse>(
           '/internal/staff/by-email',
           { email: dto.email, tenantId: tenantInfo.id },
@@ -284,9 +287,6 @@ export class AuthController {
         );
         actorId = staffByEmail.staffId;
         role = staffByEmail.role;
-      } else {
-        actorId = staff.staffId;
-        role = staff.role;
       }
     } else {
       const googleOAuthId = `dev::${dto.email}`;

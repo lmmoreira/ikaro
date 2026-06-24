@@ -86,7 +86,7 @@ export default function SelectStaffTenantPage() {
                 <button
                   onClick={() => select(opt.staffId)}
                   disabled={selecting !== null}
-                  className={`flex w-full items-center justify-between rounded-lg border border-gray-200 px-5 py-4 text-left transition-colors ${selecting === opt.staffId ? 'bg-gray-100' : 'bg-white hover:bg-gray-50'} ${selecting !== null ? 'cursor-wait' : 'cursor-pointer'}`}
+                  className={`flex w-full items-center justify-between rounded-lg border border-gray-200 px-5 py-4 text-left transition-colors ${selecting === opt.staffId ? 'bg-gray-100' : 'bg-white hover:bg-gray-50'} ${selecting === null ? 'cursor-pointer' : 'cursor-wait'}`}
                 >
                   <span className="font-medium text-gray-900">{opt.tenantName}</span>
                   <span
