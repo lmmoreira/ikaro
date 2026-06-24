@@ -239,6 +239,20 @@ These two tests together cover the four branch combinations introduced by the ea
 
 ---
 
+## CI workflow configuration traps
+
+These affect `.github/workflows/` files, not application code — but cause CI to fail or produce misleading results just as surely.
+
+| Trap | Root cause | Fix |
+|------|-----------|-----|
+| SonarCloud job re-runs `test:cov` for all packages, doubling PR build time | A `sonarcloud` job generates its own coverage instead of downloading artifacts that sibling test jobs already uploaded | Declare `needs: [backend-unit, bff-unit, web-unit]`, download their artifacts via `actions/download-artifact`, and only run `test:cov` for packages not covered by those jobs (`@ikaro/observability`, `@ikaro/env-validation`). See `pr-tests.yml` for the reference pattern. |
+| `main-sonar.yml` starts failing with exit code 3 after removing `-Dsonar.qualitygate.wait=false` | Branch-mode scans on `main` (no PR context) return `status: NONE` from the quality gate; `wait=true` (set in `sonar-project.properties`) treats `NONE` as a hard failure | Always keep `args: -Dsonar.qualitygate.wait=false` in `main-sonar.yml`. `wait=true` is correct for PR scans only — the properties file sets it and it takes effect there. See existing entry in "SonarCloud Quality Gate failures" section above for full detail. |
+| Trivy permanently blocks PRs on a CVE that has no upstream fix | Removing `ignore-unfixed: true` means un-patchable CVEs fail every PR — authors can do nothing to resolve them | Keep `ignore-unfixed: true` in the PR-blocking Trivy scan. Track unfixed CVEs separately in `security-weekly.yml` (Monday cron, `ignore-unfixed: false`, `exit-code: '0'`, SARIF uploaded to GitHub Security tab). |
+| A CI step uses `npx -y <tool>` — different jobs on the same PR can silently get different tool versions | `npx -y` downloads the latest version at runtime — not pinned, not cached, not in the lockfile | Add the CLI as a root `devDependency` (pinned in `pnpm-lock.yaml`, cached by `actions/setup-node`) and use `pnpm exec <tool>` in the workflow step. See `wait-on` in `pr-e2e.yml` as the reference. |
+| An `actions/*` step uses a floating tag (`@v4`) — zizmor / CodeRabbit flags it as Major security | GitHub-owned action tags are mutable — the tag can be silently redirected to a new commit with different code | Pin ALL actions (including `actions/checkout`, `actions/setup-node`, `actions/download-artifact`) to full commit SHAs. See `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md §7` for current SHAs and the lookup command. |
+
+---
+
 ## Quick pre-commit checklist
 
 Before every `git commit`, verify:

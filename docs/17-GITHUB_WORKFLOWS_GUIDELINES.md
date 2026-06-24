@@ -89,5 +89,98 @@ Every push to a branch triggers:
 
 ---
 
+## 7. CI Implementation Conventions
+
+### Action version pinning (supply-chain security)
+
+All GitHub Actions — including GitHub-owned ones (`actions/checkout`, `actions/setup-node`, `actions/upload-artifact`, `actions/download-artifact`) — must be pinned to an **immutable full commit SHA**, never a floating tag (`@v4`, `@main`). Established for third-party actions in AUD-009; extended to all actions in AUD-024.
+
+```yaml
+# ❌ Wrong — tag is mutable
+- uses: actions/checkout@v4
+
+# ✅ Correct — immutable SHA with tag comment for readability
+- uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+```
+
+**Current SHAs** (update the table when bumping action versions):
+
+| Action | SHA | Tag |
+|--------|-----|-----|
+| `actions/checkout` | `34e114876b0b11c390a56381ad16ebd13914f8d5` | v4 |
+| `actions/setup-node` | `49933ea5288caeca8642d1e84afbd3f7d6820020` | v4 |
+| `actions/download-artifact` | `d3f86a106a0bac45b974a628896c90dbdf5c8093` | v4 |
+| `pnpm/action-setup` | `a3252b78c470c02df07e9d59298aecedc3ccdd6d` | v3.0.0 |
+| `SonarSource/sonarqube-scan-action` | `59db25f34e16620e48ab4bb9e4a5dce155cb5432` | v8.0.0 |
+| `aquasecurity/trivy-action` | `ed142fd0673e97e23eac54620cfb913e5ce36c25` | v0.36.0 |
+
+To look up the SHA for any action: `gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha'`
+
+---
+
+### Node / pnpm version — single source of truth
+
+| Where | What it pins |
+|-------|-------------|
+| `.nvmrc` | Node version (`22`) — read by nvm, asdf, Volta locally |
+| `package.json` `"packageManager"` field | pnpm version (`pnpm@11.1.1`) — enforced by Corepack locally |
+| `pnpm/action-setup` `version:` | pnpm version in CI (must match `packageManager`) |
+
+All CI workflows use `node-version-file: '.nvmrc'` — never `node-version: '22'`. A Node version bump touches `.nvmrc` only; the workflows pick it up automatically.
+
+---
+
+### Docker image builds — Buildx + GHA layer cache
+
+All `docker build` calls in CI use Docker Buildx with GitHub Actions cache to avoid rebuilding from scratch on every run:
+
+```yaml
+- name: Set up Docker Buildx
+  run: docker buildx create --use --driver docker-container
+
+- name: Build image
+  run: |
+    docker buildx build \
+      --cache-from type=gha,scope=<service-name> \
+      --cache-to type=gha,scope=<service-name>,mode=max \
+      --load \
+      -f apps/<service>/Dockerfile \
+      -t ikaro-<service>:tag \
+      .
+```
+
+The `scope` parameter is **mandatory** in matrix jobs. Without it, the three Trivy matrix runners (backend/bff/web) compete for the same cache key and evict each other every run.
+
+`--load` exports the built image back to the local Docker daemon so subsequent steps (Trivy scan, env-leak check, boot smoke test) can use it.
+
+---
+
+### SonarCloud coverage — generate once, reuse via artifacts
+
+Coverage must be generated **once** per PR, not re-run by the Sonar job:
+
+1. Test jobs (`backend-unit`, `bff-unit`, `web-unit`) run `test:cov` and upload `lcov.info` via `actions/upload-artifact`
+2. The `sonar` job declares `needs: [backend-unit, bff-unit, web-unit]` and downloads those artifacts via `actions/download-artifact`
+3. The `sonar` job only runs `test:cov` for packages not covered by those sibling jobs (`@ikaro/observability`, `@ikaro/env-validation`)
+
+Never add a Sonar job that re-runs all `test:cov` suites from scratch — see `docs/CI_TRAPS.md § CI workflow configuration traps`.
+
+The quality gate is enforced by `sonar.qualitygate.wait=true` in `sonar-project.properties` — the scanner waits for the gate result and exits non-zero on ERROR, failing the CI job. The `main-sonar.yml` workflow **must** override this with `-Dsonar.qualitygate.wait=false` because branch-mode scans return `NONE` (not ERROR/OK), which `wait=true` incorrectly treats as a failure.
+
+---
+
+### Trivy vulnerability scanning — two-tier strategy
+
+| Scan | File | Trigger | `ignore-unfixed` | `exit-code` | Purpose |
+|------|------|---------|-----------------|-------------|---------|
+| PR gate | `pr-security.yml` | Every PR | `true` | `1` | Block merge on fixable CVEs only |
+| Weekly report | `security-weekly.yml` | Monday 08:00 UTC | `false` | `0` | Surface unfixed CVEs in GitHub Security tab (SARIF) |
+
+Never remove `ignore-unfixed: true` from the PR scan — authors cannot patch CVEs with no upstream fix, so any unfixed CVE would permanently block all PRs.
+
+The weekly scan uploads findings via `github/codeql-action/upload-sarif` to the **GitHub Security tab**, not as a blocking check. The `security-events: write` permission required for this upload must be scoped to the **job level**, not the workflow level (least privilege).
+
+---
+
 **Status:** Phase 2 - Technical Architecture  
 **Validated:** Aligned with CI/CD and Testing Strategies.
