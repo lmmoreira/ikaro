@@ -891,7 +891,7 @@ Note: `M13-S12`'s plan already expects to "extend `UpdateTenantSettingsRequest` 
 
 ---
 
-### M13-S11 — Backend: `pointsPerCurrencyUnit` + `discountByPoints` in booking completion
+### M13-S11 — Backend: `pointsPerCurrencyUnit` + `discountByPoints` in booking completion ✅ Done
 
 *(formerly M128-S01)*
 
