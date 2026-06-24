@@ -45,7 +45,7 @@ export class CustomerController {
   ): Promise<SearchCustomersUseCaseResult> {
     return this.searchCustomers.execute({
       search: search || undefined,
-      limit: Math.min(Number(limit) || 20, 100),
+      limit: Math.max(1, Math.min(Math.trunc(Number(limit) || 20), 100)),
     });
   }
 

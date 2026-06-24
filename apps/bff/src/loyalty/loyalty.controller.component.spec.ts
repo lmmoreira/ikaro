@@ -61,11 +61,12 @@ describe('LoyaltyController (component)', () => {
   describe('GET /v1/loyalty/balance', () => {
     it('returns 200 with balance and conversionRate for CUSTOMER JWT', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockImplementation((path: string) =>
-        path === '/loyalty/balance'
-          ? Promise.resolve(mockBalance)
-          : Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 10 } } }),
-      );
+      backendHttpService.get.mockImplementation((path: string) => {
+        if (path === '/loyalty/balance') return Promise.resolve(mockBalance);
+        if (path === '/tenants/settings')
+          return Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 10 } } });
+        throw new Error(`Unexpected GET: ${path}`);
+      });
       const token = makeCustomerJwt(jwtService);
 
       const res = await request(app.getHttpServer())
@@ -242,11 +243,13 @@ describe('LoyaltyController (component)', () => {
   describe('GET /v1/customers/:customerId/loyalty/balance', () => {
     it('returns 200 with enriched balance for MANAGER JWT', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockImplementation((path: string) =>
-        path.includes('/loyalty/balance')
-          ? Promise.resolve(mockBalance)
-          : Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 10 } } }),
-      );
+      backendHttpService.get.mockImplementation((path: string) => {
+        if (path === `/customers/${OTHER_CUSTOMER_ID}/loyalty/balance`)
+          return Promise.resolve(mockBalance);
+        if (path === '/tenants/settings')
+          return Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 10 } } });
+        throw new Error(`Unexpected GET: ${path}`);
+      });
       const token = makeManagerJwt(jwtService);
 
       const res = await request(app.getHttpServer())
@@ -261,11 +264,13 @@ describe('LoyaltyController (component)', () => {
 
     it('returns 200 for STAFF JWT', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockImplementation((path: string) =>
-        path.includes('/loyalty/balance')
-          ? Promise.resolve(mockBalance)
-          : Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 0 } } }),
-      );
+      backendHttpService.get.mockImplementation((path: string) => {
+        if (path === `/customers/${OTHER_CUSTOMER_ID}/loyalty/balance`)
+          return Promise.resolve(mockBalance);
+        if (path === '/tenants/settings')
+          return Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 0 } } });
+        throw new Error(`Unexpected GET: ${path}`);
+      });
       const token = makeStaffJwt(jwtService);
 
       const res = await request(app.getHttpServer())

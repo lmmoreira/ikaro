@@ -17,6 +17,10 @@ function formatBRL(amount: number): string {
   return BRL_FORMATTER.format(amount);
 }
 
+function computeAmountDeducted(pointsRedeemed: number, pointsPerCurrencyUnit: number): number {
+  return pointsPerCurrencyUnit > 0 ? pointsRedeemed / pointsPerCurrencyUnit : 0;
+}
+
 export function toCustomerLoyaltyEntry(item: LoyaltyEntryItem): CustomerLoyaltyEntryResponse {
   return {
     entryId: item.entryId,
@@ -31,8 +35,7 @@ export function toCustomerLoyaltyEntry(item: LoyaltyEntryItem): CustomerLoyaltyE
 export function toCustomerLoyaltyRedemption(
   item: LoyaltyRedemptionItem,
 ): CustomerLoyaltyRedemptionResponse {
-  const amountSaved =
-    item.pointsPerCurrencyUnit > 0 ? item.pointsRedeemed / item.pointsPerCurrencyUnit : 0;
+  const amountSaved = computeAmountDeducted(item.pointsRedeemed, item.pointsPerCurrencyUnit);
   return {
     redemptionId: item.redemptionId,
     pointsUsed: item.pointsRedeemed,
@@ -60,8 +63,7 @@ export function toStaffLoyaltyRedemption(item: LoyaltyRedemptionItem): StaffLoya
   return {
     id: item.redemptionId,
     pointsRedeemed: item.pointsRedeemed,
-    amountDeducted:
-      item.pointsPerCurrencyUnit > 0 ? item.pointsRedeemed / item.pointsPerCurrencyUnit : 0,
+    amountDeducted: computeAmountDeducted(item.pointsRedeemed, item.pointsPerCurrencyUnit),
     redeemedAt: item.redeemedAt,
     bookingId: item.bookingId,
     notes: item.notes,

@@ -1,6 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import { CustomerProfileResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
+import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import { CustomersController } from './customers.controller';
 
 const mockProfile: CustomerProfileResponse = {
@@ -11,7 +12,10 @@ const mockProfile: CustomerProfileResponse = {
   defaultAddress: null,
 };
 
-const mockBackendSearch = {
+const mockBackendSearch: {
+  items: { customerId: string; name: string; email: string }[];
+  total: number;
+} = {
   items: [
     {
       customerId: '20000000-0000-4000-8000-000000000001',
@@ -21,7 +25,11 @@ const mockBackendSearch = {
   ],
   total: 1,
 };
-const mockBalance = { currentPoints: 50, nextExpiryDate: null, nextExpiryPoints: null };
+const mockBalance: LoyaltyBalanceResponse = {
+  currentPoints: 50,
+  nextExpiryDate: null,
+  nextExpiryPoints: null,
+};
 
 describe('CustomersController', () => {
   afterEach(() => jest.resetAllMocks());

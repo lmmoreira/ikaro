@@ -40,12 +40,7 @@ export class TypeOrmCustomerRepository implements ICustomerRepository {
     search: string | undefined,
     limit: number,
   ): Promise<{ rows: CustomerSearchRow[]; total: number }> {
-    const where = search
-      ? [
-          { tenantId, name: ILike(`%${search}%`) },
-          { tenantId, email: ILike(`%${search}%`) },
-        ]
-      : { tenantId };
+    const where = this.buildSearchWhere(tenantId, search);
     const [entities, total] = await this.repo.findAndCount({
       where,
       take: limit,
@@ -55,6 +50,14 @@ export class TypeOrmCustomerRepository implements ICustomerRepository {
       rows: entities.map((e) => ({ customerId: e.id, name: e.name, email: e.email })),
       total,
     };
+  }
+
+  private buildSearchWhere(tenantId: string, search: string | undefined) {
+    if (!search) return { tenantId };
+    return [
+      { tenantId, name: ILike(`%${search}%`) },
+      { tenantId, email: ILike(`%${search}%`) },
+    ];
   }
 
   async save(customer: Customer): Promise<void> {

@@ -39,11 +39,13 @@ export class InMemoryCustomerRepository implements ICustomerRepository {
     limit: number,
   ): Promise<{ rows: CustomerSearchRow[]; total: number }> {
     const term = search?.toLowerCase();
-    const all = [...this.store.values()].filter((c) => {
-      if (c.tenantId !== tenantId) return false;
-      if (!term) return true;
-      return c.name.toLowerCase().includes(term) || c.email.address.toLowerCase().includes(term);
-    });
+    const all = [...this.store.values()]
+      .filter((c) => {
+        if (c.tenantId !== tenantId) return false;
+        if (!term) return true;
+        return c.name.toLowerCase().includes(term) || c.email.address.toLowerCase().includes(term);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
     const rows = all.slice(0, limit).map((c) => ({
       customerId: c.id,
       name: c.name,
