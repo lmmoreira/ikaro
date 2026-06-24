@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import { CustomerProfileResponse } from '@ikaro/types';
+import { CustomerProfileResponse, CustomerSearchListResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { CustomersController } from './customers.controller';
 
@@ -11,8 +11,41 @@ const mockProfile: CustomerProfileResponse = {
   defaultAddress: null,
 };
 
+const mockSearchResult: CustomerSearchListResponse = {
+  items: [
+    {
+      customerId: '20000000-0000-4000-8000-000000000001',
+      name: 'João Silva',
+      email: 'joao@example.com',
+      currentPoints: 50,
+    },
+  ],
+  total: 1,
+};
+
 describe('CustomersController', () => {
   afterEach(() => jest.resetAllMocks());
+
+  describe('searchCustomers()', () => {
+    it('calls GET /customers with search and limit params', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockSearchResult) });
+      const controller = new CustomersController(backendHttp);
+
+      const result = await controller.searchCustomers({ search: 'joao1', limit: 20 });
+
+      expect(backendHttp.get).toHaveBeenCalledWith('/customers?limit=20&search=joao1');
+      expect(result).toBe(mockSearchResult);
+    });
+
+    it('calls GET /customers without search when omitted', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockSearchResult) });
+      const controller = new CustomersController(backendHttp);
+
+      await controller.searchCustomers({ limit: 10 });
+
+      expect(backendHttp.get).toHaveBeenCalledWith('/customers?limit=10');
+    });
+  });
 
   describe('getProfile()', () => {
     it('calls GET /customers/me and returns the profile', async () => {

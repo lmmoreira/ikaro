@@ -1,4 +1,9 @@
-import { CustomerLoyaltyEntryResponse, CustomerLoyaltyRedemptionResponse } from '@ikaro/types';
+import {
+  CustomerLoyaltyEntryResponse,
+  CustomerLoyaltyRedemptionResponse,
+  LoyaltyEntryItem as StaffLoyaltyEntryItem,
+  LoyaltyRedemptionItem as StaffLoyaltyRedemptionItem,
+} from '@ikaro/types';
 import { LoyaltyEntryItem, LoyaltyRedemptionItem } from './loyalty.types';
 
 const BRL_FORMATTER = new Intl.NumberFormat('pt-BR', {
@@ -37,5 +42,28 @@ export function toCustomerLoyaltyRedemption(
       item.bookingServices.length > 0
         ? item.bookingServices.map((s) => s.serviceName).join(', ')
         : null,
+  };
+}
+
+export function toStaffLoyaltyEntry(item: LoyaltyEntryItem): StaffLoyaltyEntryItem {
+  return {
+    id: item.entryId,
+    serviceName: item.serviceName,
+    points: item.points,
+    earnedAt: item.earnedAt,
+    expiresAt: item.expiresAt,
+    isActive: item.isActive,
+  };
+}
+
+export function toStaffLoyaltyRedemption(item: LoyaltyRedemptionItem): StaffLoyaltyRedemptionItem {
+  return {
+    id: item.redemptionId,
+    pointsRedeemed: item.pointsRedeemed,
+    amountDeducted:
+      item.pointsPerCurrencyUnit > 0 ? item.pointsRedeemed / item.pointsPerCurrencyUnit : 0,
+    redeemedAt: item.redeemedAt,
+    bookingId: item.bookingId,
+    notes: item.notes,
   };
 }

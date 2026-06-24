@@ -22,6 +22,7 @@ export interface LoyaltyRedemptionItem {
   pointsPerCurrencyUnit: number;
   redeemedAt: string;
   notes: string | null;
+  bookingId: string | null;
   bookingServices: ServiceSummary[];
 }
 
@@ -53,6 +54,7 @@ export class GetLoyaltyRedemptionsUseCase {
         pointsPerCurrencyUnit: r.pointsPerCurrencyUnit,
         redeemedAt: r.redeemedAt.toISOString(),
         notes: r.notes,
+        bookingId: r.bookingId ?? null,
         bookingServices: r.bookingId
           ? await this.bookingCatalog.findBookingServices(dto.tenantId, r.bookingId)
           : [],

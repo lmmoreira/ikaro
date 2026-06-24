@@ -1,14 +1,16 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { CustomerProfileResponse } from '@ikaro/types';
+import { CustomerProfileResponse, CustomerSearchListResponse } from '@ikaro/types';
 import {
   MockHttpService,
   MockBackendHttpService,
   createTestApp,
   makeCustomerJwt,
   makeManagerJwt,
+  makeStaffJwt,
   setupActiveGuardMock,
   request,
+  TENANT_ID,
 } from '../test/component-test.helpers';
 
 const mockProfile: CustomerProfileResponse = {
@@ -142,6 +144,71 @@ describe('CustomersController (component)', () => {
         .send({ phone: '+5531988888888' });
 
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /v1/customers', () => {
+    const mockSearchResult: CustomerSearchListResponse = {
+      items: [
+        {
+          customerId: '20000000-0000-4000-8000-000000000001',
+          name: 'João Silva',
+          email: 'joao@example.com',
+          currentPoints: 50,
+        },
+      ],
+      total: 1,
+    };
+
+    it('returns 200 with search results for STAFF JWT', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValue(mockSearchResult);
+      const token = makeStaffJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers?search=joao1&limit=20')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(200);
+      expect(res.body.total).toBe(1);
+    });
+
+    it('returns 200 with all customers when search is omitted', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValue(mockSearchResult);
+      const token = makeManagerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(200);
+    });
+
+    it('returns 400 when search param is shorter than 5 chars', async () => {
+      setupActiveGuardMock(httpService);
+      const token = makeStaffJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers?search=jo')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 403 for CUSTOMER JWT', async () => {
+      setupActiveGuardMock(httpService);
+      const token = makeCustomerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(403);
     });
   });
 });

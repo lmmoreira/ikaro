@@ -30,6 +30,7 @@ export interface LoyaltyRedemptionItem {
   pointsPerCurrencyUnit: number;
   redeemedAt: string;
   notes: string | null;
+  bookingId: string | null;
   bookingServices: LoyaltyBookingServiceSummary[];
 }
 

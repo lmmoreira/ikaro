@@ -14,6 +14,10 @@ import {
   CustomerLoyaltyBalanceResponse,
   CustomerLoyaltyEntriesResponse,
   CustomerLoyaltyRedemptionsResponse,
+  EnrichedLoyaltyBalanceResponse,
+  PaginatedLoyaltyEntriesResponse,
+  PaginatedLoyaltyRedemptionsResponse,
+  TenantSettingsResponse,
 } from '@ikaro/types';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
@@ -24,12 +28,12 @@ import {
   LoyaltyRedemptionsResponse,
   RedeemPointsResponse,
 } from './loyalty.types';
-import { toCustomerLoyaltyEntry, toCustomerLoyaltyRedemption } from './loyalty.mapper';
-
-// Forward-looking rate shown on the balance card (e.g. "10 pts = R$ 1,00"), decoupled from any
-// past redemption — those store their own pointsPerCurrencyUnit at the time they happened.
-// Reading the real tenants.settings.loyalty.points_per_currency_unit here is M13-S12's scope.
-const BALANCE_DISPLAY_CONVERSION_RATE = 0;
+import {
+  toCustomerLoyaltyEntry,
+  toCustomerLoyaltyRedemption,
+  toStaffLoyaltyEntry,
+  toStaffLoyaltyRedemption,
+} from './loyalty.mapper';
 
 const PaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -56,12 +60,15 @@ export class LoyaltyController {
   @Get('loyalty/balance')
   @Roles('CUSTOMER')
   async getBalance(): Promise<CustomerLoyaltyBalanceResponse> {
-    const balance = await this.backendHttp.get<LoyaltyBalanceResponse>('/loyalty/balance');
+    const [balance, settings] = await Promise.all([
+      this.backendHttp.get<LoyaltyBalanceResponse>('/loyalty/balance'),
+      this.backendHttp.get<TenantSettingsResponse>('/tenants/settings'),
+    ]);
     return {
       currentPoints: balance.currentPoints,
       nextExpiryDate: balance.nextExpiryDate,
       nextExpiryPoints: balance.nextExpiryPoints,
-      conversionRate: BALANCE_DISPLAY_CONVERSION_RATE,
+      conversionRate: settings.settings.loyalty.pointsPerCurrencyUnit,
     };
   }
 
@@ -109,33 +116,54 @@ export class LoyaltyController {
 
   @Get('customers/:customerId/loyalty/balance')
   @Roles('MANAGER', 'STAFF')
-  getBalanceAdmin(
+  async getBalanceAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
-  ): Promise<LoyaltyBalanceResponse> {
-    return this.backendHttp.get<LoyaltyBalanceResponse>(`/customers/${customerId}/loyalty/balance`);
+  ): Promise<EnrichedLoyaltyBalanceResponse> {
+    const [balance, settings] = await Promise.all([
+      this.backendHttp.get<LoyaltyBalanceResponse>(`/customers/${customerId}/loyalty/balance`),
+      this.backendHttp.get<TenantSettingsResponse>('/tenants/settings'),
+    ]);
+    return {
+      currentPoints: balance.currentPoints,
+      nextExpiryDate: balance.nextExpiryDate,
+      nextExpiryPoints: balance.nextExpiryPoints,
+      conversionRate: settings.settings.loyalty.pointsPerCurrencyUnit,
+    };
   }
 
   @Get('customers/:customerId/loyalty/entries')
   @Roles('MANAGER', 'STAFF')
-  getEntriesAdmin(
+  async getEntriesAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
-  ): Promise<LoyaltyEntriesResponse> {
-    return this.backendHttp.get<LoyaltyEntriesResponse>(
+  ): Promise<PaginatedLoyaltyEntriesResponse> {
+    const backend = await this.backendHttp.get<LoyaltyEntriesResponse>(
       `/customers/${customerId}/loyalty/entries`,
       query,
     );
+    return {
+      items: backend.entries.map(toStaffLoyaltyEntry),
+      total: backend.pagination.total,
+      page: backend.pagination.page,
+      limit: backend.pagination.limit,
+    };
   }
 
   @Get('customers/:customerId/loyalty/redemptions')
   @Roles('MANAGER', 'STAFF')
-  getRedemptionsAdmin(
+  async getRedemptionsAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
-  ): Promise<LoyaltyRedemptionsResponse> {
-    return this.backendHttp.get<LoyaltyRedemptionsResponse>(
+  ): Promise<PaginatedLoyaltyRedemptionsResponse> {
+    const backend = await this.backendHttp.get<LoyaltyRedemptionsResponse>(
       `/customers/${customerId}/loyalty/redemptions`,
       query,
     );
+    return {
+      items: backend.redemptions.map(toStaffLoyaltyRedemption),
+      total: backend.pagination.total,
+      page: backend.pagination.page,
+      limit: backend.pagination.limit,
+    };
   }
 }

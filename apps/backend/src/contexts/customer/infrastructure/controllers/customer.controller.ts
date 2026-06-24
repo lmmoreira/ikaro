@@ -1,5 +1,16 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  DefaultValuePipe,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapCustomerError } from '../http/customer-error.mapper';
 import {
   UpdateCustomerProfileDto,
@@ -13,13 +24,30 @@ import {
   UpdateCustomerProfileUseCase,
   UpdateCustomerProfileUseCaseResult,
 } from '../../application/use-cases/update-customer-profile.use-case';
+import {
+  SearchCustomersUseCase,
+  SearchCustomersUseCaseResult,
+} from '../../application/use-cases/search-customers.use-case';
 
 @Controller('customers')
 export class CustomerController {
   constructor(
     private readonly getProfile: GetCustomerProfileUseCase,
     private readonly updateProfile: UpdateCustomerProfileUseCase,
+    private readonly searchCustomers: SearchCustomersUseCase,
   ) {}
+
+  @Get()
+  @UseGuards(StaffOrManagerRoleGuard)
+  search(
+    @Query('search') search?: string,
+    @Query('limit', new DefaultValuePipe(20)) limit?: string,
+  ): Promise<SearchCustomersUseCaseResult> {
+    return this.searchCustomers.execute({
+      search: search || undefined,
+      limit: Math.min(Number(limit) || 20, 100),
+    });
+  }
 
   @Get('me')
   getMe(): Promise<GetCustomerProfileUseCaseResult> {

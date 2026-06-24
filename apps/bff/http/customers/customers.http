@@ -17,6 +17,7 @@
 
 # ── File-level response captures (updated automatically when login request runs) ──
 @customerToken = {{customerLogin.response.body.accessToken}}
+@staffToken    = {{staffLogin.response.body.accessToken}}
 
 # ── DEV AUTH — run once per session ──
 
@@ -26,6 +27,42 @@ POST {{bffUrl}}/v1/auth/dev-login
 Content-Type: application/json
 
 { "email": "cliente@email.com.br", "tenantSlug": "{{tenantSlug}}", "type": "customer" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /v1/customers?search=&limit= — staff/manager searches customers
+# Returns CustomerSearchListResponse: { items: [{ customerId, name, email, currentPoints }], total }
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### HAPPY PATH — search by name fragment (min 5 chars)
+GET {{bffUrl}}/v1/customers?search=joaos&limit=20
+Authorization: Bearer {{staffToken}}
+
+###
+
+### HAPPY PATH — list all customers (no search param)
+GET {{bffUrl}}/v1/customers?limit=20
+Authorization: Bearer {{staffToken}}
+
+###
+
+### ERROR — search too short (< 5 chars) → 400
+GET {{bffUrl}}/v1/customers?search=jo
+Authorization: Bearer {{staffToken}}
+
+###
+
+### ERROR — customer JWT (wrong role) → 403
+GET {{bffUrl}}/v1/customers?limit=20
+Authorization: Bearer {{customerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /v1/customers/me — view own profile

@@ -4,9 +4,15 @@ import { InMemoryCustomerRepository } from '../../../../test/repositories/custom
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { testAddressProps } from '../../../../test/utils/address-helpers';
+import { ICustomerLoyaltyPort } from '../../application/ports/customer-loyalty.port';
 import { GetCustomerProfileUseCase } from '../../application/use-cases/get-customer-profile.use-case';
 import { UpdateCustomerProfileUseCase } from '../../application/use-cases/update-customer-profile.use-case';
+import { SearchCustomersUseCase } from '../../application/use-cases/search-customers.use-case';
 import { CustomerController } from './customer.controller';
+
+const noopLoyaltyPort: ICustomerLoyaltyPort = {
+  getCurrentPoints: async () => 0,
+};
 
 const TENANT_A = '10000000-0000-4000-8000-000000000140';
 
@@ -34,6 +40,7 @@ describe('CustomerController', () => {
     controller = new CustomerController(
       new GetCustomerProfileUseCase(repo, ctx),
       new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
+      new SearchCustomersUseCase(repo, noopLoyaltyPort, ctx),
     );
   });
 
@@ -55,6 +62,7 @@ describe('CustomerController', () => {
       const ctrl = new CustomerController(
         new GetCustomerProfileUseCase(repo, ctx),
         new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
+        new SearchCustomersUseCase(repo, noopLoyaltyPort, ctx),
       );
       const err = await ctrl.getMe().catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);

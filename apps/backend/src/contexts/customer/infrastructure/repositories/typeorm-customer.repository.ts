@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { Address, AddressProps } from '../../../../shared/value-objects/address';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import {
+  CustomerSearchRow,
   CustomerTenantSummary,
   ICustomerRepository,
 } from '../../application/ports/customer-repository.port';
@@ -32,6 +33,28 @@ export class TypeOrmCustomerRepository implements ICustomerRepository {
   async findAllTenantsByOAuthId(googleOAuthId: string): Promise<CustomerTenantSummary[]> {
     const rows = await this.repo.find({ where: { googleOAuthId } });
     return rows.map((r) => ({ tenantId: r.tenantId, customerId: r.id }));
+  }
+
+  async searchByTenant(
+    tenantId: string,
+    search: string | undefined,
+    limit: number,
+  ): Promise<{ rows: CustomerSearchRow[]; total: number }> {
+    const where = search
+      ? [
+          { tenantId, name: ILike(`%${search}%`) },
+          { tenantId, email: ILike(`%${search}%`) },
+        ]
+      : { tenantId };
+    const [entities, total] = await this.repo.findAndCount({
+      where,
+      take: limit,
+      order: { name: 'ASC' },
+    });
+    return {
+      rows: entities.map((e) => ({ customerId: e.id, name: e.name, email: e.email })),
+      total,
+    };
   }
 
   async save(customer: Customer): Promise<void> {

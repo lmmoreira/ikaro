@@ -59,9 +59,13 @@ describe('LoyaltyController (component)', () => {
   // ── Customer: GET /v1/loyalty/balance ─────────────────────────────────────
 
   describe('GET /v1/loyalty/balance', () => {
-    it('returns 200 with balance for CUSTOMER JWT', async () => {
+    it('returns 200 with balance and conversionRate for CUSTOMER JWT', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValue(mockBalance);
+      backendHttpService.get.mockImplementation((path: string) =>
+        path === '/loyalty/balance'
+          ? Promise.resolve(mockBalance)
+          : Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 10 } } }),
+      );
       const token = makeCustomerJwt(jwtService);
 
       const res = await request(app.getHttpServer())
@@ -74,7 +78,7 @@ describe('LoyaltyController (component)', () => {
         currentPoints: 75,
         nextExpiryDate: mockBalance.nextExpiryDate,
         nextExpiryPoints: mockBalance.nextExpiryPoints,
-        conversionRate: 0,
+        conversionRate: 10,
       });
     });
 
@@ -236,9 +240,13 @@ describe('LoyaltyController (component)', () => {
   // ── Admin: GET /v1/customers/:customerId/loyalty/* ────────────────────────
 
   describe('GET /v1/customers/:customerId/loyalty/balance', () => {
-    it('returns 200 for MANAGER JWT', async () => {
+    it('returns 200 with enriched balance for MANAGER JWT', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValue(mockBalance);
+      backendHttpService.get.mockImplementation((path: string) =>
+        path.includes('/loyalty/balance')
+          ? Promise.resolve(mockBalance)
+          : Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 10 } } }),
+      );
       const token = makeManagerJwt(jwtService);
 
       const res = await request(app.getHttpServer())
@@ -248,11 +256,16 @@ describe('LoyaltyController (component)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.currentPoints).toBe(75);
+      expect(res.body.conversionRate).toBe(10);
     });
 
     it('returns 200 for STAFF JWT', async () => {
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValue(mockBalance);
+      backendHttpService.get.mockImplementation((path: string) =>
+        path.includes('/loyalty/balance')
+          ? Promise.resolve(mockBalance)
+          : Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 0 } } }),
+      );
       const token = makeStaffJwt(jwtService);
 
       const res = await request(app.getHttpServer())

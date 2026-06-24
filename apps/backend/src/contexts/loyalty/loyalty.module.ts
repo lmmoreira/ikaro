@@ -28,6 +28,7 @@ import { LoyaltyBookingAdapter } from './infrastructure/cross-context/loyalty-bo
 import { LoyaltyController } from './infrastructure/controllers/loyalty.controller';
 import { CronLoyaltyController } from './infrastructure/controllers/cron-loyalty.controller';
 import { CustomerRoleGuard } from '../../shared/guards/customer-role.guard';
+import { LoyaltyQueryService } from './application/services/loyalty-query.service';
 import { BookingCompletedHandler } from './infrastructure/events/booking-completed.handler';
 import { TypeOrmBalanceExpiryLogRepository } from './infrastructure/repositories/typeorm-balance-expiry-log.repository';
 import { TypeOrmLoyaltyBalanceRepository } from './infrastructure/repositories/typeorm-loyalty-balance.repository';
@@ -67,12 +68,14 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
     NotifyExpiringPointsUseCase,
     CompleteBookingLoyaltyEffectsUseCase,
     BookingCompletedHandler,
+    LoyaltyQueryService,
   ],
   exports: [
     LOYALTY_ENTRY_REPOSITORY,
     LOYALTY_BALANCE_REPOSITORY,
     LOYALTY_REDEMPTION_REPOSITORY,
     BALANCE_EXPIRY_LOG_REPOSITORY,
+    LoyaltyQueryService,
   ],
 })
 export class LoyaltyModule {}
