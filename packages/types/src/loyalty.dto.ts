@@ -16,7 +16,7 @@ export interface LoyaltyEntryItem {
   readonly id: string;
   readonly serviceName: string;
   readonly points: number;
-  readonly earnedAt: string;  // ISO-8601
+  readonly earnedAt: string; // ISO-8601
   readonly expiresAt: string; // ISO-8601
   readonly isActive: boolean;
 }
@@ -25,7 +25,7 @@ export interface LoyaltyRedemptionItem {
   readonly id: string;
   readonly pointsRedeemed: number;
   readonly amountDeducted: number; // computed: pointsRedeemed / pointsPerCurrencyUnit
-  readonly redeemedAt: string;     // ISO-8601
+  readonly redeemedAt: string; // ISO-8601
   readonly bookingId: string | null;
   readonly notes: string | null;
 }
