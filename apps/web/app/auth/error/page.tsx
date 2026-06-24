@@ -60,7 +60,7 @@ export default async function AuthErrorPage({ searchParams }: Props) {
     },
   };
 
-  const config = (reason && ERROR_MAP[reason]) ?? {
+  const config = (reason && ERROR_MAP[reason]) || {
     heading: t('errorFallbackHeading'),
     message: t('errorFallbackMessage'),
     ctaLabel: t('errorBack'),
