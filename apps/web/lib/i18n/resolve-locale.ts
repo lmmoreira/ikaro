@@ -11,6 +11,8 @@ const STATIC_SEGMENTS = new Set([
   'sitemap.xml',
   'dashboard',
   'auth',
+  'switch-tenant',
+  'select-staff-tenant',
 ]);
 
 export function extractSlug(pathname: string): string | null {

@@ -2,9 +2,10 @@
 
 ## Status
 - **Type**: Technical Debt / Broken end-to-end flow
-- **Priority**: Medium (staff provisioning and invite emails work; only the invite-link click is broken — staff can still log in via the direct BFF URL as a workaround)
+- **Priority**: Low (downgraded from Medium — see Update below; the broken link is no longer the only way to complete first login)
 - **Context**: `apps/backend/src/contexts/notification/application/use-cases/send-staff-invitation/send-staff-invitation.use-case.ts:79`
 - **Created**: 2026-06-24 (surfaced during M13-S13 real OAuth login testing)
+- **Update (2026-06-25, M13-S14 follow-up)**: the underlying gap this link existed to work around is now closed a different way. `handleStaffLogin` (the generic `/dashboard/login` → "Entrar com Google" path, with no `tenantSlug`) now falls back to matching by Google's verified email across all tenants whenever the OAuth-ID lookup finds nothing, links the account, and proceeds — see `apps/bff/src/auth/auth.controller.ts`'s `linkStaffByVerifiedEmail`. A never-linked invited staff member can now just use the normal staff login button; the invite email's link is no longer the only path to first login. Fixing the link itself (Option A/B below) is still worth doing for UX polish, but is no longer blocking.
 
 ---
 

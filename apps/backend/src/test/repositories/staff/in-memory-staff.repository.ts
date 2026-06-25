@@ -29,6 +29,10 @@ export class InMemoryStaffRepository implements IStaffRepository {
     return null;
   }
 
+  async findAllByEmail(email: string): Promise<Staff[]> {
+    return Array.from(this.store.values()).filter((s) => s.email.address === email);
+  }
+
   async findById(id: string, tenantId: string): Promise<Staff | null> {
     const staff = this.store.get(id);
     if (staff?.tenantId !== tenantId) return null;

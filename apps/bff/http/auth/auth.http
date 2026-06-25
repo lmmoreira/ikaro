@@ -41,7 +41,11 @@
 #   → Google authenticates → redirects back to /v1/auth/google/callback
 #   → BFF calls GET /internal/staff/by-oauth?googleOAuthId=<sub>
 #   → Active staff found → issues JWT with role=STAFF|MANAGER, sets cookie, redirects to /dashboard
-#   → Staff not found → redirects to /auth/error?reason=not-a-staff-member
+#   → Nothing found (never linked) → falls back to GET /internal/staff/by-email-all?email=<google_email>,
+#     links every active match's Google account (POST /internal/staff/:staffId/link-google), then
+#     re-runs the by-oauth lookup — covers first login via the generic button, not just the
+#     tenant-scoped invite link below. Same outcome as UC-025 below, without needing a tenantSlug.
+#   → Still nothing found → redirects to /auth/error?reason=not-a-staff-member
 
 # ── UC-025: Staff first login / accept invite ──
 # Browser URL (copy and paste — from invite email link):

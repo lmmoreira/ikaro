@@ -48,7 +48,11 @@ export default async function HotsiteLayout({
           dateFormat={resolvedDateFormat}
           timeFormat={timeFormat}
         >
-          <InformationCompletionPrompt phonePrefix={phonePrefix} addressSpec={addressSpec} />
+          <InformationCompletionPrompt
+            slug={slug}
+            phonePrefix={phonePrefix}
+            addressSpec={addressSpec}
+          />
           {children}
         </FormattingProvider>
       </LocaleProvider>

@@ -16,6 +16,7 @@ import { AddressFields } from '../booking/AddressFields';
 import { ErrorAlert } from '../booking/ErrorAlert';
 
 interface InformationCompletionPromptProps {
+  readonly slug: string;
   readonly phonePrefix: string;
   readonly addressSpec: HotsiteAddressSpec;
 }
@@ -23,6 +24,7 @@ interface InformationCompletionPromptProps {
 type PromptState = 'loading' | 'hidden' | 'visible';
 
 export function InformationCompletionPrompt({
+  slug,
   phonePrefix,
   addressSpec,
 }: InformationCompletionPromptProps): React.JSX.Element | null {
@@ -36,7 +38,7 @@ export function InformationCompletionPrompt({
 
   useEffect(() => {
     let active = true;
-    getHotsiteCustomerProfile().then((profile) => {
+    getHotsiteCustomerProfile(slug).then((profile) => {
       if (!active) return;
       if (!profile) {
         setState('hidden');
@@ -49,7 +51,7 @@ export function InformationCompletionPrompt({
     return () => {
       active = false;
     };
-  }, []);
+  }, [slug]);
 
   if (state !== 'visible') return null;
 
@@ -78,14 +80,20 @@ export function InformationCompletionPrompt({
     setSubmitting(true);
     setError(null);
     try {
-      await updateHotsiteCustomerProfile({ phone, defaultAddress: sanitizeAddress(address) });
+      await updateHotsiteCustomerProfile(slug, { phone, defaultAddress: sanitizeAddress(address) });
       setState('hidden');
     } catch (err) {
       if (err instanceof UpdateHotsiteCustomerProfileError) {
         const fields = err.violations.map((v) => v.field);
         if (fields.includes('phone')) {
           setError(t('informationCompletionPhoneError'));
-        } else if (fields.some((field) => field.startsWith('defaultAddress'))) {
+        } else if (err.status === 400) {
+          // Either a structured defaultAddress.* Zod violation, or a deeper backend domain
+          // validation error (e.g. the Address VO's country-specific postal/state regex)
+          // that never produces a `violations` entry at all. Both are address issues from
+          // the customer's perspective — address is the only other field on this form, so
+          // any non-phone 400 is treated as one rather than falling through to a dead-end
+          // generic message.
           setShowAddressErrors(true);
           setError(t('informationCompletionAddressError'));
         } else {
@@ -153,10 +161,13 @@ export function InformationCompletionPrompt({
             <p className="mb-2 text-sm font-medium">{t('informationCompletionAddressLabel')}</p>
             <AddressFields
               value={address}
-              onChange={setAddress}
+              onChange={(next) => {
+                setAddress(next);
+                setShowAddressErrors(false);
+              }}
               idPrefix="information-completion-address"
               addressSpec={addressSpec}
-              hasError={showAddressErrors && !isAddressValid}
+              hasError={showAddressErrors}
             />
           </div>
 
@@ -180,6 +191,15 @@ export function InformationCompletionPrompt({
           >
             {t('informationCompletionSubmit')}
           </button>
+
+          <a
+            href={`${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${slug}`}
+            data-testid="information-completion-logout"
+            className="mt-3 block text-center text-sm underline opacity-70"
+            style={{ color: 'var(--ba-text)' }}
+          >
+            {t('signOut')}
+          </a>
         </form>
       </div>
     </div>

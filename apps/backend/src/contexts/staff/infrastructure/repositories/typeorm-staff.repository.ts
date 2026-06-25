@@ -33,6 +33,11 @@ export class TypeOrmStaffRepository implements IStaffRepository {
     return entity ? this.toDomain(entity) : null;
   }
 
+  async findAllByEmail(email: string): Promise<Staff[]> {
+    const entities = await this.repo.find({ where: { email } });
+    return entities.map((e) => this.toDomain(e));
+  }
+
   async findById(id: string, tenantId: string): Promise<Staff | null> {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
     return entity ? this.toDomain(entity) : null;

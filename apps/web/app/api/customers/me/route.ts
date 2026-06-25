@@ -1,16 +1,21 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const token = (await cookies()).get('access_token')?.value;
 
   if (!token) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  const slug = request.nextUrl.searchParams.get('slug');
+
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/customers/me`, {
-      headers: { Cookie: `access_token=${token}` },
+      headers: {
+        Cookie: `access_token=${token}`,
+        ...(slug ? { 'X-Tenant-Slug': slug } : {}),
+      },
       cache: 'no-store',
     });
 
@@ -32,11 +37,17 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  const slug = request.nextUrl.searchParams.get('slug');
+
   try {
     const requestBody = await request.text();
     const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/customers/me`, {
       method: 'PATCH',
-      headers: { Cookie: `access_token=${token}`, 'Content-Type': 'application/json' },
+      headers: {
+        Cookie: `access_token=${token}`,
+        'Content-Type': 'application/json',
+        ...(slug ? { 'X-Tenant-Slug': slug } : {}),
+      },
       body: requestBody,
       cache: 'no-store',
     });

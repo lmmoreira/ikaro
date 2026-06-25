@@ -100,6 +100,24 @@ describe('StaffController (component)', () => {
         .send({ email: 'a@b.com', firstName: 'A', lastName: 'B', role: 'STAFF' });
       expect(res.status).toBe(403);
     });
+
+    it('GET /v1/staff/me → not 403 for STAFF role (unlike GET /v1/staff, this route is staff-inclusive)', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        id: STAFF_ID,
+        email: 'a@b.com',
+        name: 'A',
+        role: 'STAFF',
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00Z',
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/staff/me')
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -250,6 +268,27 @@ describe('StaffController (component)', () => {
       expect(res.status).toBe(200);
       expect(res.body).toEqual(backendResponse);
       expect(backendHttpService.get).toHaveBeenCalledWith('/staff', { limit: 10, offset: 5 });
+    });
+
+    it('GET /v1/staff/me calls GET /staff/:id with the id from the JWT sub (not a route param)', async () => {
+      const staffMember = {
+        id: STAFF_ID,
+        email: 'gerente@lavacar.com.br',
+        name: 'Gerente Silva',
+        role: 'MANAGER',
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00Z',
+      };
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(staffMember);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/staff/me')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(staffMember);
+      expect(backendHttpService.get).toHaveBeenCalledWith(`/staff/${STAFF_ID}`);
     });
 
     it('GET /v1/staff/:id calls GET /staff/:id on backend', async () => {

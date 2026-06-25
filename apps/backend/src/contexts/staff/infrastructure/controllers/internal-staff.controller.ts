@@ -24,6 +24,10 @@ import {
   GetStaffByEmailUseCaseResult,
 } from '../../application/use-cases/get-staff-by-email.use-case';
 import {
+  GetStaffByEmailAcrossTenantsUseCase,
+  GetStaffByEmailAcrossTenantsUseCaseResult,
+} from '../../application/use-cases/get-staff-by-email-across-tenants.use-case';
+import {
   GetStaffByOAuthIdUseCase,
   GetStaffByOAuthIdUseCaseResult,
 } from '../../application/use-cases/get-staff-by-oauth-id.use-case';
@@ -36,6 +40,7 @@ export class InternalStaffController {
   constructor(
     private readonly getStaffByOAuthId: GetStaffByOAuthIdUseCase,
     private readonly getStaffByEmail: GetStaffByEmailUseCase,
+    private readonly getStaffByEmailAcrossTenants: GetStaffByEmailAcrossTenantsUseCase,
     private readonly linkGoogleAccount: LinkGoogleAccountUseCase,
   ) {}
 
@@ -69,6 +74,21 @@ export class InternalStaffController {
       });
     }
     return this.getStaffByEmail.execute(email, tenantId).catch(mapStaffError);
+  }
+
+  @Get('by-email-all')
+  async getByEmailAcrossTenants(
+    @Query('email') email: string,
+  ): Promise<GetStaffByEmailAcrossTenantsUseCaseResult[]> {
+    if (!email) {
+      throw new BadRequestException({
+        type: 'about:blank',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'email query parameter is required',
+      });
+    }
+    return this.getStaffByEmailAcrossTenants.execute(email);
   }
 
   @Post(':staffId/link-google')

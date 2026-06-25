@@ -137,6 +137,7 @@
     },
     "errors": {
       "submitFailed": "Could not submit booking. Please try again.",
+      "addressInvalid": "Please check the address you entered and try again.",
       "slotUnavailable": "This time slot is no longer available, please choose another",
       "tryAgain": "Try again"
     }

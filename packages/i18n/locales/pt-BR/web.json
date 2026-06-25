@@ -137,6 +137,7 @@
     },
     "errors": {
       "submitFailed": "Não foi possível enviar o agendamento. Tente novamente.",
+      "addressInvalid": "Verifique o endereço informado e tente novamente.",
       "slotUnavailable": "Horário indisponível, escolha outro",
       "tryAgain": "Tentar novamente"
     }

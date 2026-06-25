@@ -99,15 +99,34 @@ describe('SwitchTenantClient', () => {
     expect(screen.getByTestId('switch-tenant-list')).toBeInTheDocument();
   });
 
-  it('navigates back without switching when "Voltar sem trocar" is clicked', async () => {
+  it('hard-navigates to the current tenant\'s hotsite (not router.back()) when "Voltar sem trocar" is clicked', async () => {
     vi.mocked(fetchCustomerTenants).mockResolvedValue([CURRENT, OTHER]);
+    const originalLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      value: { ...originalLocation, href: '' },
+      writable: true,
+    });
 
     renderWithIntl(<SwitchTenantClient currentTenantSlug="lavacar-bh" />);
     await screen.findByTestId('switch-tenant-list');
 
-    await userEvent.click(screen.getByText('← Voltar sem trocar'));
+    await userEvent.click(screen.getByTestId('switch-tenant-cancel'));
+
+    expect(window.location.href).toBe('/lavacar-bh');
+    expect(back).not.toHaveBeenCalled();
+    expect(switchTenant).not.toHaveBeenCalled();
+
+    Object.defineProperty(window, 'location', { value: originalLocation, writable: true });
+  });
+
+  it('falls back to router.back() when there is no current tenant slug', async () => {
+    vi.mocked(fetchCustomerTenants).mockResolvedValue([CURRENT, OTHER]);
+
+    renderWithIntl(<SwitchTenantClient currentTenantSlug={null} />);
+    await screen.findByTestId('switch-tenant-list');
+
+    await userEvent.click(screen.getByTestId('switch-tenant-cancel'));
 
     expect(back).toHaveBeenCalled();
-    expect(switchTenant).not.toHaveBeenCalled();
   });
 });

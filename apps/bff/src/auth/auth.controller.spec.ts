@@ -569,6 +569,123 @@ describe('AuthController', () => {
         expect.stringMatching(/^http:\/\/localhost:3000\/select-staff-tenant\?token=.+/),
       );
     });
+
+    describe('email fallback — Google account never linked to any staff record', () => {
+      it('links by verified email and logs in when exactly one active staff record matches', async () => {
+        const tenantInfo = { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' };
+        const get = jest
+          .fn()
+          .mockResolvedValueOnce([]) // by-oauth: never linked
+          .mockResolvedValueOnce([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
+          ]) // by-email-all
+          .mockResolvedValueOnce([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
+          ]) // by-oauth re-fetch, now linked
+          .mockResolvedValueOnce(tenantInfo);
+        const post = jest.fn().mockResolvedValue({ staffId: STAFF_ID_A, tenantId: TENANT_ID_A });
+        const backendHttp = makeBackendHttp({ get, post });
+        const controller = new AuthController(
+          jwtIssuer,
+          selectionTokenService,
+          backendHttp,
+          configService,
+        );
+        const res = makeRes();
+
+        await controller.handleGoogleCallback(makeStaffReq(), res);
+
+        expect(post).toHaveBeenCalledWith(
+          `/internal/staff/${STAFF_ID_A}/link-google`,
+          expect.objectContaining({ tenantId: TENANT_ID_A, googleOAuthId: 'google-sub-staff-123' }),
+        );
+        expect(res.cookie).toHaveBeenCalledWith(
+          'access_token',
+          expect.any(String),
+          expect.objectContaining({ httpOnly: true }),
+        );
+        expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/dashboard');
+      });
+
+      it('redirects to /select-staff-tenant when the email matches active staff at multiple tenants', async () => {
+        const STAFF_ID_B = '30000000-0000-4000-8000-000000000002';
+        const get = jest
+          .fn()
+          .mockResolvedValueOnce([]) // by-oauth: never linked
+          .mockResolvedValueOnce([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
+            { staffId: STAFF_ID_B, tenantId: TENANT_ID_B, role: 'STAFF', isActive: true },
+          ]) // by-email-all
+          .mockResolvedValueOnce([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
+            { staffId: STAFF_ID_B, tenantId: TENANT_ID_B, role: 'STAFF', isActive: true },
+          ]); // by-oauth re-fetch, both now linked
+        const post = jest.fn().mockResolvedValue({});
+        const backendHttp = makeBackendHttp({ get, post });
+        const controller = new AuthController(
+          jwtIssuer,
+          selectionTokenService,
+          backendHttp,
+          configService,
+        );
+        const res = makeRes();
+
+        await controller.handleGoogleCallback(makeStaffReq(), res);
+
+        expect(post).toHaveBeenCalledTimes(2);
+        expect(res.redirect).toHaveBeenCalledWith(
+          expect.stringMatching(/^http:\/\/localhost:3000\/select-staff-tenant\?token=.+/),
+        );
+      });
+
+      it('does not attempt to link an inactive (deactivated) match found by email', async () => {
+        const get = jest
+          .fn()
+          .mockResolvedValueOnce([]) // by-oauth: never linked
+          .mockResolvedValueOnce([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'STAFF', isActive: false },
+          ]) // by-email-all: deactivated
+          .mockResolvedValueOnce([]); // by-oauth re-fetch: still nothing linked
+        const post = jest.fn();
+        const backendHttp = makeBackendHttp({ get, post });
+        const controller = new AuthController(
+          jwtIssuer,
+          selectionTokenService,
+          backendHttp,
+          configService,
+        );
+        const res = makeRes();
+
+        await controller.handleGoogleCallback(makeStaffReq(), res);
+
+        expect(post).not.toHaveBeenCalled();
+        expect(res.redirect).toHaveBeenCalledWith(
+          'http://localhost:3000/auth/error?reason=not-a-staff-member',
+        );
+      });
+
+      it('redirects to /auth/error?reason=not-a-staff-member when no staff record matches the email either', async () => {
+        const get = jest
+          .fn()
+          .mockResolvedValueOnce([]) // by-oauth
+          .mockResolvedValueOnce([]) // by-email-all
+          .mockResolvedValueOnce([]); // by-oauth re-fetch
+        const backendHttp = makeBackendHttp({ get });
+        const controller = new AuthController(
+          jwtIssuer,
+          selectionTokenService,
+          backendHttp,
+          configService,
+        );
+        const res = makeRes();
+
+        await controller.handleGoogleCallback(makeStaffReq(), res);
+
+        expect(res.redirect).toHaveBeenCalledWith(
+          'http://localhost:3000/auth/error?reason=not-a-staff-member',
+        );
+      });
+    });
   });
 
   describe('switchTenant()', () => {

@@ -34,6 +34,7 @@ import {
   CustomerTenantSummaryResponse,
   FindOrCreateCustomerResponse,
   LinkGoogleAccountResponse,
+  StaffByEmailAcrossTenantsResponse,
   StaffByEmailResponse,
   StaffInfoResponse,
   StaffTenantOption,
@@ -294,9 +295,22 @@ export class AuthController {
     res: Response,
     frontendUrl: string,
   ): Promise<void> {
-    const staffList = await this.backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {
+    let staffList = await this.backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {
       googleOAuthId: profile.googleOAuthId,
     });
+
+    // This Google account has never been linked to any staff record. Rather than failing
+    // outright, try matching by Google's own verified email — covers first login for an
+    // invited-but-not-yet-linked staff member who used the generic "Entrar com Google" button
+    // instead of a tenant-scoped invite link (the invite email's link is currently broken, see
+    // td/TD13-STAFF-INVITE-EMAIL-LINK.md). Trusts the same Google-verified email the tenant-scoped
+    // first-login flow (handleStaffFirstLogin) already trusts — this isn't a new trust boundary.
+    if (staffList.length === 0) {
+      await this.linkStaffByVerifiedEmail(profile);
+      staffList = await this.backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {
+        googleOAuthId: profile.googleOAuthId,
+      });
+    }
 
     const activeStaff = staffList.filter((s) => s.isActive);
 
@@ -326,6 +340,34 @@ export class AuthController {
 
     const selectionToken = this.selectionToken.issueSelectionToken(profile.googleOAuthId);
     res.redirect(`${frontendUrl}/select-staff-tenant?token=${selectionToken}`);
+  }
+
+  // Links this Google account to every active, not-yet-linked staff record found for its
+  // verified email — across however many tenants. Safe because each record already exists with
+  // is_active=true, granted independently by that tenant's own manager at invite time; this only
+  // completes an activation already authorized, it doesn't grant new access. Best-effort: an
+  // individual link call failing (e.g. a concurrent request racing to link the same record) is
+  // swallowed here — the re-fetch by googleOAuthId immediately after this call reflects whatever
+  // actually got linked, and the caller's normal active.length branching takes it from there.
+  private async linkStaffByVerifiedEmail(profile: GoogleProfile): Promise<void> {
+    const matches = await this.backendHttp.get<StaffByEmailAcrossTenantsResponse[]>(
+      '/internal/staff/by-email-all',
+      { email: profile.email },
+    );
+    const activeMatches = matches.filter((m) => m.isActive);
+
+    await Promise.all(
+      activeMatches.map((match) =>
+        this.backendHttp
+          .post(`/internal/staff/${match.staffId}/link-google`, {
+            tenantId: match.tenantId,
+            googleOAuthId: profile.googleOAuthId,
+            email: profile.email,
+            name: profile.name,
+          })
+          .catch(() => undefined),
+      ),
+    );
   }
 
   private async handleStaffFirstLogin(

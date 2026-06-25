@@ -14,14 +14,40 @@ interface SwitchTenantClientProps {
 
 type FetchState = 'loading' | 'loaded' | 'error';
 
-function TenantAvatar({ name }: { readonly name: string }): React.JSX.Element {
+function TenantAvatar({
+  name,
+  size = 'md',
+}: {
+  readonly name: string;
+  readonly size?: 'sm' | 'md';
+}): React.JSX.Element {
+  const dimension = size === 'sm' ? 'h-8 w-8 text-sm' : 'h-10 w-10 text-base';
   return (
     <div
-      className="flex h-10 w-10 shrink-0 items-center justify-center text-base font-bold text-white"
+      className={`flex shrink-0 items-center justify-center font-bold text-white ${dimension}`}
       style={{ backgroundColor: 'var(--ba-primary)', borderRadius: 'var(--ba-radius)' }}
     >
       {name.charAt(0).toUpperCase()}
     </div>
+  );
+}
+
+function ChevronIcon(): React.JSX.Element {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0 opacity-40"
+      aria-hidden="true"
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
   );
 }
 
@@ -70,6 +96,8 @@ export function SwitchTenantClient({
     }
   }
 
+  const currentTenant = tenants.find((tenant) => tenant.slug === currentTenantSlug);
+
   return (
     <main
       className="flex min-h-screen items-center justify-center px-6 py-16"
@@ -77,7 +105,19 @@ export function SwitchTenantClient({
     >
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-xl font-bold" style={{ color: 'var(--ba-text)' }}>
+          {currentTenant && (
+            <div className="mb-3 flex flex-col items-center gap-2">
+              <TenantAvatar name={currentTenant.name} size="sm" />
+              <p className="text-sm font-bold" style={{ color: 'var(--ba-text)' }}>
+                {currentTenant.name}
+              </p>
+            </div>
+          )}
+          <h1
+            data-testid="switch-tenant-heading"
+            className="text-xl font-bold"
+            style={{ color: 'var(--ba-text)' }}
+          >
             {t('switchTenantHeading')}
           </h1>
           <p className="mt-1.5 text-sm opacity-60" style={{ color: 'var(--ba-text)' }}>
@@ -118,6 +158,7 @@ export function SwitchTenantClient({
                     borderColor: 'var(--ba-primary)',
                     backgroundColor: 'var(--ba-secondary)',
                     borderRadius: 'var(--ba-radius)',
+                    boxShadow: 'var(--ba-shadow)',
                   }}
                 >
                   <TenantAvatar name={tenant.name} />
@@ -146,11 +187,11 @@ export function SwitchTenantClient({
                   data-testid="switch-tenant-option"
                   disabled={switchingId !== null}
                   onClick={() => handleSelect(tenant.id)}
-                  className="flex items-center gap-4 border-2 px-5 py-4 text-left transition-colors disabled:opacity-60"
+                  className="flex items-center gap-4 px-5 py-4 text-left transition-opacity disabled:opacity-60"
                   style={{
-                    borderColor: 'var(--ba-secondary)',
-                    backgroundColor: 'var(--ba-background)',
+                    backgroundColor: 'var(--ba-secondary)',
                     borderRadius: 'var(--ba-radius)',
+                    boxShadow: 'var(--ba-shadow)',
                   }}
                 >
                   <TenantAvatar name={tenant.name} />
@@ -165,6 +206,7 @@ export function SwitchTenantClient({
                       {t('tenantLoyaltyPoints', { count: tenant.loyaltyPoints })}
                     </p>
                   </div>
+                  <ChevronIcon />
                 </button>
               );
             })}
@@ -180,7 +222,21 @@ export function SwitchTenantClient({
         <p className="mt-7 text-center">
           <button
             type="button"
-            onClick={() => router.back()}
+            data-testid="switch-tenant-cancel"
+            onClick={() => {
+              // A hard navigation, not router.back()/router.push(): the hotsite was reached via
+              // a plain <a href> from HotsiteAuthBar (not a Next.js <Link>), so "back" can be
+              // served from the browser's own back-forward cache — a frozen JS snapshot that
+              // may never re-run HotsiteAuthBar's on-mount auth check, leaving the customer's
+              // name missing even though they're still logged in. We already know exactly where
+              // to land (the tenant they're already authenticated against), so go there directly
+              // instead of relying on history.
+              if (currentTenantSlug) {
+                window.location.href = `/${currentTenantSlug}`;
+              } else {
+                router.back();
+              }
+            }}
             className="text-sm font-medium"
             style={{ color: 'var(--ba-primary)' }}
           >

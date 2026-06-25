@@ -5,9 +5,16 @@ import type { Address, CustomerProfileResponse } from '@ikaro/types';
 // shell). These read/write the httpOnly cookie server-side via the /api/customers/me proxy —
 // for contexts like the public hotsite where no dashboard shell (and no in-memory token)
 // exists yet.
-export async function getHotsiteCustomerProfile(): Promise<CustomerProfileResponse | null> {
+// `slug` is the hotsite currently being viewed — forwarded so the BFF's TenantGuard can reject
+// a JWT issued for a *different* tenant. Without it, a customer authenticated at tenant A who
+// navigates to tenant B's hotsite would silently see tenant A's profile rendered as "logged in"
+// on tenant B's page. A 403 (mismatch) is treated the same as a 401 (unauthenticated) — both
+// resolve to "not logged in here".
+export async function getHotsiteCustomerProfile(
+  slug: string,
+): Promise<CustomerProfileResponse | null> {
   try {
-    const res = await fetch('/api/customers/me');
+    const res = await fetch(`/api/customers/me?slug=${encodeURIComponent(slug)}`);
     if (!res.ok) return null;
     return (await res.json()) as CustomerProfileResponse;
   } catch {
@@ -31,11 +38,14 @@ export class UpdateHotsiteCustomerProfileError extends Error {
   }
 }
 
-export async function updateHotsiteCustomerProfile(body: {
-  phone: string;
-  defaultAddress: Address;
-}): Promise<CustomerProfileResponse> {
-  const res = await fetch('/api/customers/me', {
+export async function updateHotsiteCustomerProfile(
+  slug: string,
+  body: {
+    phone: string;
+    defaultAddress: Address;
+  },
+): Promise<CustomerProfileResponse> {
+  const res = await fetch(`/api/customers/me?slug=${encodeURIComponent(slug)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

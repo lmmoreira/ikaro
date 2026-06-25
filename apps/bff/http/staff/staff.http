@@ -31,6 +31,30 @@ Content-Type: application/json
 { "email": "funcionario@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — current authenticated staff member (hotsite auth bar)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Get the authenticated staff member's own profile
+GET {{bffUrl}}/v1/staff/me
+Authorization: Bearer {{managerToken}}
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 401 — No JWT (hotsite auth bar unauthenticated state)
+GET {{bffUrl}}/v1/staff/me
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 403 — Tenant mismatch (authenticated at a different tenant)
+GET {{bffUrl}}/v1/staff/me
+Authorization: Bearer {{managerToken}}
+X-Tenant-Slug: autospa-premium
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — list staff
 # ─────────────────────────────────────────────────────────────────────────────
 

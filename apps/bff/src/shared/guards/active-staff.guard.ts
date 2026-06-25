@@ -46,7 +46,10 @@ export class ActiveStaffGuard implements CanActivate {
     try {
       const { data } = await firstValueFrom(
         this.http.get<StaffActiveResponse>(`${this.backendUrl}/staff/${user.sub}`, {
-          headers: buildBackendHeaders(req),
+          headers: {
+            ...buildBackendHeaders(req),
+            'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
+          },
           timeout: 5_000,
         }),
       );
