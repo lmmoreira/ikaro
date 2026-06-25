@@ -14,7 +14,7 @@
     "up": "pnpm infra:up && pnpm dev",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
-    "type-check": "pnpm -r run type-check",
+    "type-check": "pnpm -r --parallel run type-check",
     "format": "pnpm -r run format",
     "test:e2e": "pnpm --filter @ikaro/web run e2e",
     "infra:up": "docker compose -f docker/docker-compose.yml up -d",
