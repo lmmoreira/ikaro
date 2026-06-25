@@ -180,7 +180,7 @@ describe('LoyaltyController', () => {
       expect(result.currentPoints).toBe(0);
     });
 
-    it('returns balance for specified customerId', async () => {
+    it('returns balance for specified customerId using context tenantId when no query param given', async () => {
       await balanceRepo.upsert(
         new LoyaltyBalanceBuilder()
           .withTenantId(TENANT_ID)
@@ -191,6 +191,34 @@ describe('LoyaltyController', () => {
 
       const result = await controller.getBalanceAdmin(CUSTOMER_ID);
       expect(result.currentPoints).toBe(55);
+    });
+
+    it('uses explicit tenantId query param over context tenantId (cross-tenant switch)', async () => {
+      const OTHER_TENANT = '10000000-0000-7000-8000-000000000002';
+      await balanceRepo.upsert(
+        new LoyaltyBalanceBuilder()
+          .withTenantId(OTHER_TENANT)
+          .withCustomerId(CUSTOMER_ID)
+          .withCurrentPoints(120)
+          .build(),
+      );
+
+      const result = await controller.getBalanceAdmin(CUSTOMER_ID, OTHER_TENANT);
+      expect(result.currentPoints).toBe(120);
+    });
+
+    it('does not leak balance from a different tenant when no query param given', async () => {
+      const OTHER_TENANT = '10000000-0000-7000-8000-000000000002';
+      await balanceRepo.upsert(
+        new LoyaltyBalanceBuilder()
+          .withTenantId(OTHER_TENANT)
+          .withCustomerId(CUSTOMER_ID)
+          .withCurrentPoints(50)
+          .build(),
+      );
+
+      const result = await controller.getBalanceAdmin(CUSTOMER_ID);
+      expect(result.currentPoints).toBe(0);
     });
   });
 

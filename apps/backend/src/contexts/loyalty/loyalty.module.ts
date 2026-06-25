@@ -27,8 +27,8 @@ import { LoyaltyPlatformAdapter } from './infrastructure/cross-context/loyalty-p
 import { LoyaltyBookingAdapter } from './infrastructure/cross-context/loyalty-booking.adapter';
 import { LoyaltyController } from './infrastructure/controllers/loyalty.controller';
 import { CronLoyaltyController } from './infrastructure/controllers/cron-loyalty.controller';
-import { InternalLoyaltyController } from './infrastructure/controllers/internal-loyalty.controller';
 import { CustomerRoleGuard } from '../../shared/guards/customer-role.guard';
+import { AnyAuthenticatedRoleGuard } from '../../shared/guards/any-authenticated-role.guard';
 import { BookingCompletedHandler } from './infrastructure/events/booking-completed.handler';
 import { TypeOrmBalanceExpiryLogRepository } from './infrastructure/repositories/typeorm-balance-expiry-log.repository';
 import { TypeOrmLoyaltyBalanceRepository } from './infrastructure/repositories/typeorm-loyalty-balance.repository';
@@ -50,7 +50,7 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
     BookingModule,
     PlatformModule,
   ],
-  controllers: [LoyaltyController, CronLoyaltyController, InternalLoyaltyController],
+  controllers: [LoyaltyController, CronLoyaltyController],
   providers: [
     { provide: LOYALTY_ENTRY_REPOSITORY, useClass: TypeOrmLoyaltyEntryRepository },
     { provide: LOYALTY_BALANCE_REPOSITORY, useClass: TypeOrmLoyaltyBalanceRepository },
@@ -60,6 +60,7 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
     { provide: LOYALTY_PLATFORM_PORT, useClass: LoyaltyPlatformAdapter },
     { provide: LOYALTY_BOOKING_PORT, useClass: LoyaltyBookingAdapter },
     CustomerRoleGuard,
+    AnyAuthenticatedRoleGuard,
     GetLoyaltyBalanceUseCase,
     GetLoyaltyEntriesUseCase,
     GetLoyaltyRedemptionsUseCase,

@@ -96,7 +96,7 @@ export class CustomersController {
         const [tenantInfo, balance] = await Promise.all([
           this.backendHttp.get<TenantInfoResponse>(`/internal/tenants/${t.tenantId}`),
           this.backendHttp.get<{ currentPoints: number }>(
-            `/internal/customers/${t.customerId}/loyalty/balance`,
+            `/customers/${t.customerId}/loyalty/balance`,
             { tenantId: t.tenantId },
           ),
         ]);
