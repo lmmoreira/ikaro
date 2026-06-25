@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { completeCustomerProfile, loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
+import {
+  completeCustomerProfile,
+  loginAsCustomer,
+  loginAsStaff,
+  uniqueTestEmail,
+} from './helpers/auth';
 
 test.describe('M13-S42 — Hotsite auth bar', () => {
   test('anonymous visitor sees the localized login CTA on the hotsite and reaches the tenant-branded login page', async ({
