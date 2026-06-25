@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import type { StaffTenantOption } from '@ikaro/types';
-import { SelectStaffTenantClient } from '@/components/auth/SelectStaffTenantClient';
+import { SelectStaffTenantClient } from '@/components/staff/SelectStaffTenantClient';
 
 export default async function SelectStaffTenantPage(): Promise<React.JSX.Element> {
   const token = (await cookies()).get('access_token')?.value;
