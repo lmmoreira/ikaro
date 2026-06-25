@@ -45,19 +45,25 @@ echo "Running ci:fast (backend=$BACKEND bff=$BFF web=$WEB)..."
 # Prettier — always fast, catches formatting in any file type
 pnpm prettier --check .
 
-# Lint — only for affected apps
+# Lint — all affected apps in parallel
 LINT_FILTERS=()
 $BACKEND && LINT_FILTERS+=(--filter @ikaro/backend)
 $BFF     && LINT_FILTERS+=(--filter @ikaro/bff)
 $WEB     && LINT_FILTERS+=(--filter @ikaro/web)
-[ ${#LINT_FILTERS[@]} -gt 0 ] && pnpm "${LINT_FILTERS[@]}" lint
+[ ${#LINT_FILTERS[@]} -gt 0 ] && pnpm "${LINT_FILTERS[@]}" --parallel run lint
 
-# Type-check — only for affected apps
-$BACKEND && pnpm --filter @ikaro/backend type-check
-$BFF     && pnpm --filter @ikaro/bff     type-check
-$WEB     && pnpm --filter @ikaro/web     type-check
+# Type-check — all affected apps in parallel
+TYPE_CHECK_FILTERS=()
+$BACKEND && TYPE_CHECK_FILTERS+=(--filter @ikaro/backend)
+$BFF     && TYPE_CHECK_FILTERS+=(--filter @ikaro/bff)
+$WEB     && TYPE_CHECK_FILTERS+=(--filter @ikaro/web)
+[ ${#TYPE_CHECK_FILTERS[@]} -gt 0 ] && pnpm "${TYPE_CHECK_FILTERS[@]}" --parallel run type-check
 
-# Unit tests — only for affected apps (backend is the expensive one, ~90s)
-$BACKEND && pnpm --filter @ikaro/backend test:unit
-$BFF     && pnpm --filter @ikaro/bff     test
-$WEB     && pnpm --filter @ikaro/web     test
+# Unit tests — all affected apps in parallel (backend is the bottleneck at ~90s)
+TEST_PIDS=()
+$BACKEND && { pnpm --filter @ikaro/backend test:unit & TEST_PIDS+=($!); }
+$BFF     && { pnpm --filter @ikaro/bff     test      & TEST_PIDS+=($!); }
+$WEB     && { pnpm --filter @ikaro/web     test      & TEST_PIDS+=($!); }
+FAIL=0
+for pid in "${TEST_PIDS[@]}"; do wait "$pid" || FAIL=1; done
+[ $FAIL -eq 1 ] && exit 1
