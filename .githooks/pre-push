@@ -45,25 +45,23 @@ echo "Running ci:fast (backend=$BACKEND bff=$BFF web=$WEB)..."
 # Prettier — always fast, catches formatting in any file type
 pnpm prettier --check .
 
-# Lint — all affected apps in parallel
+# Lint — all affected apps in parallel (stateless, no contention)
 LINT_FILTERS=()
 $BACKEND && LINT_FILTERS+=(--filter @ikaro/backend)
 $BFF     && LINT_FILTERS+=(--filter @ikaro/bff)
 $WEB     && LINT_FILTERS+=(--filter @ikaro/web)
 [ ${#LINT_FILTERS[@]} -gt 0 ] && pnpm "${LINT_FILTERS[@]}" --parallel run lint
 
-# Type-check — all affected apps in parallel
+# Type-check — all affected apps in parallel (stateless, no contention)
 TYPE_CHECK_FILTERS=()
 $BACKEND && TYPE_CHECK_FILTERS+=(--filter @ikaro/backend)
 $BFF     && TYPE_CHECK_FILTERS+=(--filter @ikaro/bff)
 $WEB     && TYPE_CHECK_FILTERS+=(--filter @ikaro/web)
 [ ${#TYPE_CHECK_FILTERS[@]} -gt 0 ] && pnpm "${TYPE_CHECK_FILTERS[@]}" --parallel run type-check
 
-# Unit tests — all affected apps in parallel (backend is the bottleneck at ~90s)
-TEST_PIDS=()
-$BACKEND && { pnpm --filter @ikaro/backend test:unit & TEST_PIDS+=($!); }
-$BFF     && { pnpm --filter @ikaro/bff     test      & TEST_PIDS+=($!); }
-$WEB     && { pnpm --filter @ikaro/web     test      & TEST_PIDS+=($!); }
-FAIL=0
-for pid in "${TEST_PIDS[@]}"; do wait "$pid" || FAIL=1; done
-[ $FAIL -eq 1 ] && exit 1
+# Unit tests — sequential: running multiple Jest/Vitest worker pools simultaneously
+# causes CPU contention that produces flaky timeouts on a dev machine.
+# Order: fastest first so failures surface quickly.
+$BFF     && pnpm --filter @ikaro/bff     test
+$WEB     && pnpm --filter @ikaro/web     test
+$BACKEND && pnpm --filter @ikaro/backend test:unit
