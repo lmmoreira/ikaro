@@ -1,6 +1,6 @@
 import type { Address } from './address';
 
-export interface CustomerSearchResult {
+export interface CustomerSearchItem {
   readonly customerId: string;
   readonly name: string;
   readonly email: string;
@@ -8,7 +8,7 @@ export interface CustomerSearchResult {
 }
 
 export interface CustomerSearchListResponse {
-  readonly items: CustomerSearchResult[];
+  readonly items: CustomerSearchItem[];
   readonly total: number;
 }
 

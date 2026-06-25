@@ -5,6 +5,7 @@ import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
+import { CustomerSearchResponse } from './customers.types';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -35,11 +36,6 @@ const CustomerSearchQuerySchema = z.object({
 
 type CustomerSearchQuery = z.infer<typeof CustomerSearchQuerySchema>;
 
-interface BackendSearchResult {
-  items: { customerId: string; name: string; email: string }[];
-  total: number;
-}
-
 @Controller('customers')
 export class CustomersController {
   constructor(private readonly backendHttp: BackendHttpService) {}
@@ -51,7 +47,7 @@ export class CustomersController {
   ): Promise<CustomerSearchListResponse> {
     const params = new URLSearchParams({ limit: String(query.limit) });
     if (query.search) params.set('search', query.search);
-    const { items, total } = await this.backendHttp.get<BackendSearchResult>(
+    const { items, total } = await this.backendHttp.get<CustomerSearchResponse>(
       `/customers?${params}`,
     );
     const enriched = await Promise.all(
