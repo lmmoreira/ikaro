@@ -134,6 +134,41 @@ test.describe('UC-001 — Booking form error paths', () => {
     await expect(page.locator('[data-testid="confirmation-error"]')).toBeVisible();
   });
 
+  test('step 4: shows an address-specific error message when the backend rejects an address (400)', async ({
+    page,
+  }) => {
+    // Simulates the backend Address VO rejecting pickupAddress/contactAddress (e.g. a
+    // country-specific postal-code regex failure) — mapped to a flat 400 with no structured
+    // `violations` array. This used to fall through to the fully generic "Could not submit
+    // booking" message; it must show the address-specific one instead.
+    await page.route('**/v1/bookings', (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      return route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          type: 'about:blank',
+          title: 'Bad Request',
+          status: 400,
+          detail: 'Invalid ZIP Code: 00000-000',
+        }),
+      });
+    });
+
+    await navigateToStep3(page);
+
+    await page.locator('[data-testid="input-name"]').fill('E2E Teste');
+    await page.locator('[data-testid="input-email"]').fill('e2e@teste.com.br');
+    await page.locator('[data-testid="input-phone"]').fill('11999999999');
+    await page.locator('[data-testid="step-next"]').click();
+
+    await page.locator('[data-testid="step-confirm"]').click();
+
+    await expect(page.locator('[data-testid="confirmation-error"]')).toContainText(
+      'Please check the address you entered and try again.',
+    );
+  });
+
   test('back navigation: step 3 back button returns to step 2', async ({ page }) => {
     await navigateToStep3(page);
 

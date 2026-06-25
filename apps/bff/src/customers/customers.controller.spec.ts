@@ -31,6 +31,11 @@ const mockBalance: LoyaltyBalanceResponse = {
   nextExpiryPoints: null,
 };
 
+const TENANT_ID = '10000000-0000-4000-8000-000000000001';
+const TENANT_ID_B = '10000000-0000-4000-8000-000000000002';
+const CUSTOMER_ID = '20000000-0000-4000-8000-000000000001';
+const CUSTOMER_ID_B = '20000000-0000-4000-8000-000000000002';
+
 describe('CustomersController', () => {
   afterEach(() => jest.resetAllMocks());
 
@@ -119,6 +124,49 @@ describe('CustomersController', () => {
       const err = await controller.updateProfile({ name: 'X' }).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(404);
+    });
+  });
+
+  describe('getTenants()', () => {
+    it('includes the current tenant alongside the others, each enriched', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([
+            { tenantId: TENANT_ID, customerId: CUSTOMER_ID },
+            { tenantId: TENANT_ID_B, customerId: CUSTOMER_ID_B },
+          ])
+          .mockResolvedValueOnce({ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' })
+          .mockResolvedValueOnce({ currentPoints: 120 })
+          .mockResolvedValueOnce({ id: TENANT_ID_B, slug: 'superclean', name: 'SuperClean' })
+          .mockResolvedValueOnce({ currentPoints: 8 }),
+      });
+      const controller = new CustomersController(backendHttp);
+
+      const result = await controller.getTenants();
+
+      expect(result).toEqual([
+        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
+        { id: TENANT_ID_B, name: 'SuperClean', slug: 'superclean', loyaltyPoints: 8 },
+      ]);
+      expect(backendHttp.get).toHaveBeenCalledWith('/customers/me/tenants');
+    });
+
+    it('returns a single-item array when the customer belongs to only the current tenant', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
+          .mockResolvedValueOnce({ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' })
+          .mockResolvedValueOnce({ currentPoints: 120 }),
+      });
+      const controller = new CustomersController(backendHttp);
+
+      const result = await controller.getTenants();
+
+      expect(result).toEqual([
+        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
+      ]);
     });
   });
 });

@@ -237,6 +237,22 @@ describe('BookingForm', () => {
     expect(screen.getByText('Escolha data e horário')).toBeInTheDocument();
   });
 
+  it('shows an address-specific error message when the backend rejects an address (400)', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockRejectedValue(
+      new CreateBookingError(400, 'Invalid ZIP Code: 12245-500'),
+    );
+
+    await advanceToStep3(user, [makeService()]);
+    await fillContactFields(user);
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
+
+    expect(await screen.findByTestId('confirmation-error')).toHaveTextContent(
+      'Verifique o endereço informado e tente novamente.',
+    );
+  });
+
   it('shows a generic error message for other submission failures', async () => {
     const user = userEvent.setup();
     vi.mocked(createBooking).mockRejectedValue(new Error('network error'));

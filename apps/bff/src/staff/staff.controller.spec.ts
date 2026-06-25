@@ -20,6 +20,28 @@ describe('StaffController', () => {
     });
   });
 
+  describe('getMe()', () => {
+    it('calls GET /staff/:id with the id from the JWT sub, not a route param', async () => {
+      const expectedResult = { id: STAFF_ID, email: 'gerente@lavacar.com.br', role: 'MANAGER' };
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(expectedResult) });
+      const controller = new StaffController(backendHttp);
+      const user = { sub: STAFF_ID, tenantId: 't-1', tenantSlug: 'lavacar-bh', role: 'MANAGER' };
+
+      const result = await controller.getMe(user);
+
+      expect(backendHttp.get).toHaveBeenCalledWith(`/staff/${STAFF_ID}`);
+      expect(result).toBe(expectedResult);
+    });
+
+    it('propagates errors from the backend', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('404')) });
+      const controller = new StaffController(backendHttp);
+      const user = { sub: STAFF_ID, tenantId: 't-1', tenantSlug: 'lavacar-bh', role: 'STAFF' };
+
+      await expect(controller.getMe(user)).rejects.toThrow('404');
+    });
+  });
+
   describe('getById()', () => {
     it('calls GET /staff/:id (actor context comes from RequestContext via BFF headers)', async () => {
       const expectedResult = { id: STAFF_ID, email: 'gerente@lavacar.com.br', role: 'MANAGER' };

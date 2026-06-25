@@ -126,7 +126,16 @@ export function BookingForm({
         return;
       }
       setStatus('error');
-      setErrorMessage(t('errors.submitFailed'));
+      // A 400 here is overwhelmingly the backend Address VO rejecting pickupAddress or
+      // contactAddress (country-specific postal/state regex) — it never comes back as a
+      // structured per-field violation, and the two addresses live in different steps
+      // (pickup in step 1, contact in step 3), so we can't reliably point at one field.
+      // Still far more actionable than the fully generic fallback below.
+      setErrorMessage(
+        err instanceof CreateBookingError && err.status === 400
+          ? t('errors.addressInvalid')
+          : t('errors.submitFailed'),
+      );
     }
   }
 

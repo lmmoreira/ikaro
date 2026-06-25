@@ -9,6 +9,7 @@ import { ActiveStaffGuard } from './active-staff.guard';
 
 const STAFF_ID = '30000000-0000-4000-8000-000000000001';
 const TENANT_ID = '10000000-0000-4000-8000-000000000001';
+const INTERNAL_KEY = 'test-internal-key';
 
 function makeHttp(isActive: boolean): HttpService {
   return {
@@ -20,7 +21,11 @@ function makeHttp(isActive: boolean): HttpService {
 
 function makeConfigService(): ConfigService {
   return {
-    getOrThrow: jest.fn().mockReturnValue('http://backend:3001'),
+    getOrThrow: jest.fn().mockImplementation((key: string) => {
+      if (key === 'BACKEND_INTERNAL_URL') return 'http://backend:3001';
+      if (key === 'INTERNAL_API_KEY') return INTERNAL_KEY;
+      throw new Error(`Unexpected config key: ${key}`);
+    }),
   } as unknown as ConfigService;
 }
 
@@ -75,6 +80,19 @@ describe('ActiveStaffGuard', () => {
     const result = await guard.canActivate(ctx(activeUser));
 
     expect(result).toBe(true);
+  });
+
+  it('includes X-Internal-Key in the backend request so InternalApiGuard lets it through', async () => {
+    const http = makeHttp(true);
+    const guard = makeGuard(http);
+
+    await guard.canActivate(ctx(activeUser));
+
+    const [, requestConfig] = (http.get as jest.Mock).mock.calls[0] as [
+      string,
+      { headers: Record<string, string> },
+    ];
+    expect(requestConfig.headers['X-Internal-Key']).toBe(INTERNAL_KEY);
   });
 
   it('throws 403 when backend reports isActive=false', async () => {

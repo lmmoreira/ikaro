@@ -1,5 +1,7 @@
 # Staff — Internal Auth-Flow Endpoints
 # UC-022: BFF resolves which tenants a Google account belongs to (staff login — returns array)
+# UC-022 email fallback: when by-oauth returns nothing (Google account never linked), the BFF
+# falls back to by-email-all to find and link any active, not-yet-linked staff record by email
 # UC-025: BFF links Google account to an already-active staff record on first login
 #
 # Management endpoints (list, getById, invite, deactivate) have moved to staff.http
@@ -32,6 +34,18 @@ X-Internal-Key: {{internalKey}}
 
 ### Find staff by email + tenantId (returns 404 if not found)
 GET {{baseUrl}}/internal/staff/by-email?email=gerente@lavacar.com.br&tenantId={{tenantId}}
+X-Internal-Key: {{internalKey}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — by-email-all (UC-022 generic-login email fallback, no tenant required)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Find all staff records for an email across every tenant (returns array — empty if none).
+### Used by the BFF's generic staff login when a Google account has never been linked to any
+### staff record by OAuth ID — matches by Google's verified email instead.
+GET {{baseUrl}}/internal/staff/by-email-all?email=gerente@lavacar.com.br
 X-Internal-Key: {{internalKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -83,6 +97,18 @@ X-Internal-Key: {{internalKey}}
 
 ### 404 — No staff with that email in this tenant
 GET {{baseUrl}}/internal/staff/by-email?email=nobody@lavacar.com.br&tenantId={{tenantId}}
+X-Internal-Key: {{internalKey}}
+
+###
+
+### 400 — Missing email query parameter for by-email-all
+GET {{baseUrl}}/internal/staff/by-email-all
+X-Internal-Key: {{internalKey}}
+
+###
+
+### Empty array — no staff with that email at any tenant (200 [] instead of 404)
+GET {{baseUrl}}/internal/staff/by-email-all?email=nobody@lavacar.com.br
 X-Internal-Key: {{internalKey}}
 
 ###
@@ -154,3 +180,4 @@ Content-Type: application/json
   "email": "wrong@gmail.com",
   "name": "Staff User"
 }
+

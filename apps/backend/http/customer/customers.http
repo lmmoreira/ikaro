@@ -42,6 +42,16 @@ X-Correlation-ID: test-corr-id
 
 ###
 
+### GET /customers/me/tenants — all tenants the authenticated customer is registered at (UC-023)
+GET {{baseUrl}}/customers/me/tenants
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-id
+
+###
+
 ### GET /customers/me — get authenticated customer profile
 GET {{baseUrl}}/customers/me
 X-Tenant-ID: {{tenantId}}

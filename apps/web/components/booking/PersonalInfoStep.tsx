@@ -6,7 +6,8 @@ import type React from 'react';
 import { z } from 'zod';
 import type { AvailableSlot, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import type { PersonalInfoValue } from '@/lib/booking/personal-info';
-import { digitsOnly } from '@/lib/utils';
+import { buildContactPhone } from '@/lib/utils';
+import { formatPhoneForDisplay, phonePlaceholder, sanitizePhoneInput } from '@/lib/phone-format';
 import { AddressFields } from './AddressFields';
 import { BookingSummaryCard } from './BookingSummaryCard';
 import { ErrorAlert } from './ErrorAlert';
@@ -39,14 +40,6 @@ type ErrorField = 'name' | 'email' | 'phone';
 interface FieldError {
   readonly field: ErrorField;
   readonly message: string;
-}
-
-function buildContactPhone(rawInput: string, phonePrefix: string): string {
-  const raw = rawInput.trim();
-  const localDigits = digitsOnly(raw);
-  if (raw.startsWith('+')) return `+${localDigits}`;
-  if (!localDigits) return '';
-  return `${phonePrefix}${localDigits}`;
 }
 
 function errorBorderStyle(isInvalid: boolean): React.CSSProperties {
@@ -180,17 +173,18 @@ export function PersonalInfoStep({
               inputMode="numeric"
               required
               data-testid="input-phone"
-              maxLength={Math.max(1, 15 - digitsOnly(phonePrefix).length)}
-              placeholder="11912345678"
-              value={
+              placeholder={phonePlaceholder(phonePrefix)}
+              value={formatPhoneForDisplay(
                 value.contactPhone.startsWith(phonePrefix)
                   ? value.contactPhone.slice(phonePrefix.length)
-                  : digitsOnly(value.contactPhone)
-              }
+                  : value.contactPhone,
+                phonePrefix,
+              )}
               onChange={(e) => {
+                const input = sanitizePhoneInput(e.target.value, phonePrefix);
                 onChange({
                   ...value,
-                  contactPhone: buildContactPhone(e.target.value, phonePrefix),
+                  contactPhone: buildContactPhone(input, phonePrefix),
                 });
                 clearErrorFor('phone');
               }}

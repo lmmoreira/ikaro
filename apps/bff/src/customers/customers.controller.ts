@@ -1,11 +1,14 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Query } from '@nestjs/common';
 import { z } from 'zod';
-import { CustomerProfileResponse, CustomerSearchListResponse } from '@ikaro/types';
+import { CustomerProfileResponse, CustomerSearchListResponse, TenantOption } from '@ikaro/types';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import { CustomerSearchResponse } from './customers.types';
+import { CustomerTenantSummaryResponse } from '../auth/auth.types';
+import { TenantInfoResponse } from '../shared/types/backend-responses';
+import { toTenantOption } from './customers.mapper';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -74,5 +77,29 @@ export class CustomersController {
     @Body(new ZodValidationPipe(UpdateCustomerProfileBodySchema)) body: UpdateCustomerProfileBody,
   ): Promise<CustomerProfileResponse> {
     return this.backendHttp.patch<CustomerProfileResponse>('/customers/me', body);
+  }
+
+  // Includes the current tenant (not just the others) — the switch-tenant screen needs its
+  // name/slug/loyaltyPoints too, to render the non-clickable "Atual" card. The client can
+  // never read this from the httpOnly JWT cookie directly, so the BFF returns it here instead
+  // of forcing a second round trip.
+  @Get('tenants')
+  @Roles('CUSTOMER')
+  async getTenants(): Promise<TenantOption[]> {
+    const tenants =
+      await this.backendHttp.get<CustomerTenantSummaryResponse[]>('/customers/me/tenants');
+
+    return Promise.all(
+      tenants.map(async (t) => {
+        const [tenantInfo, balance] = await Promise.all([
+          this.backendHttp.get<TenantInfoResponse>(`/internal/tenants/${t.tenantId}`),
+          this.backendHttp.get<{ currentPoints: number }>(
+            `/customers/${t.customerId}/loyalty/balance`,
+            { tenantId: t.tenantId },
+          ),
+        ]);
+        return toTenantOption(t, tenantInfo, balance);
+      }),
+    );
   }
 }

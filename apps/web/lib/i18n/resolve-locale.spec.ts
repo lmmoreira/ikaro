@@ -18,12 +18,19 @@ describe('extractSlug', () => {
     expect(extractSlug('')).toBeNull();
   });
 
-  it.each(['_next', 'api', 'favicon.ico', 'robots.txt', 'sitemap.xml', 'dashboard', 'auth'])(
-    'returns null for static segment "%s"',
-    (segment) => {
-      expect(extractSlug(`/${segment}/something`)).toBeNull();
-    },
-  );
+  it.each([
+    '_next',
+    'api',
+    'favicon.ico',
+    'robots.txt',
+    'sitemap.xml',
+    'dashboard',
+    'auth',
+    'switch-tenant',
+    'select-staff-tenant',
+  ])('returns null for static segment "%s"', (segment) => {
+    expect(extractSlug(`/${segment}/something`)).toBeNull();
+  });
 
   it.each(['../etc', '%2e%2e', 'slug\\path', '.hidden'])(
     'returns null for path-traversal pattern "%s"',

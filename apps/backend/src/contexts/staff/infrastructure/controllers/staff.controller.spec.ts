@@ -6,6 +6,7 @@ import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { DeactivateStaffUseCase } from '../../application/use-cases/deactivate-staff.use-case';
 import { GetStaffByIdUseCase } from '../../application/use-cases/get-staff-by-id.use-case';
+import { GetStaffTenantsByIdUseCase } from '../../application/use-cases/get-staff-tenants-by-id.use-case';
 import { InviteStaffUseCase } from '../../application/use-cases/invite-staff.use-case';
 import { ListStaffUseCase } from '../../application/use-cases/list-staff.use-case';
 import { StaffController } from './staff.controller';
@@ -34,6 +35,7 @@ function makeController(
     new GetStaffByIdUseCase(repo),
     new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus, ctx),
     new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus, ctx),
+    new GetStaffTenantsByIdUseCase(repo),
   );
 }
 
@@ -107,6 +109,38 @@ describe('StaffController', () => {
     });
   });
 
+  describe('getMyTenants()', () => {
+    it('returns all tenants for the authenticated staff via RequestContext actorId', async () => {
+      const staff1 = new StaffBuilder()
+        .withTenantId(TENANT_A)
+        .withEmail('gerente@lavacar.com.br')
+        .withRole('MANAGER')
+        .withGoogleOAuthId('google-sub-multi')
+        .build();
+      const staff2 = new StaffBuilder()
+        .withTenantId(TENANT_B)
+        .withEmail('gerente@superclean.com.br')
+        .withRole('STAFF')
+        .withGoogleOAuthId('google-sub-multi')
+        .build();
+      await repo.save(staff1);
+      await repo.save(staff2);
+
+      const ctrl = makeController(repo, eventBus, TENANT_A, staff1.id);
+      const result = await ctrl.getMyTenants();
+
+      expect(result).toHaveLength(2);
+      expect(result.map((r) => r.tenantId)).toEqual(expect.arrayContaining([TENANT_A, TENANT_B]));
+    });
+
+    it('maps StaffNotFoundError to 404 when actorId does not exist', async () => {
+      const ctrl = makeController(repo, eventBus, TENANT_A, '00000000-0000-4000-8000-000000009999');
+      const err = await ctrl.getMyTenants().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
   describe('invite()', () => {
     it('creates staff using tenantId and actorId from RequestContext', async () => {
       const result = await controller.invite({
@@ -154,6 +188,7 @@ describe('StaffController', () => {
         new GetStaffByIdUseCase(repo),
         new InviteStaffUseCase(repo, txMgr, eventBus, ctxNoActor),
         new DeactivateStaffUseCase(repo, txMgr, eventBus, ctxNoActor),
+        new GetStaffTenantsByIdUseCase(repo),
       );
       const err = await ctrl
         .deactivate('10000000-0000-4000-8000-000000000001')

@@ -20,6 +20,7 @@ import {
   StaffResponse,
 } from '@ikaro/types';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
+import { CurrentUser, CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 
@@ -56,6 +57,14 @@ export class StaffController {
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ): Promise<StaffListResponse> {
     return this.backendHttp.get<StaffListResponse>('/staff', { limit, offset });
+  }
+
+  // Declared before ':id' — NestJS resolves routes in declaration order, and a dynamic
+  // segment declared first would swallow this literal path as id='me' (see ANTI_PATTERNS.md).
+  @Get('me')
+  @Roles('STAFF', 'MANAGER')
+  getMe(@CurrentUser() user: CurrentUserPayload): Promise<StaffResponse> {
+    return this.backendHttp.get<StaffResponse>(`/staff/${user.sub}`);
   }
 
   @Get(':id')

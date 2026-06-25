@@ -9,7 +9,9 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { CustomerRoleGuard } from '../../../../shared/guards/customer-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapCustomerError } from '../http/customer-error.mapper';
 import {
@@ -20,6 +22,10 @@ import {
   GetCustomerProfileUseCase,
   GetCustomerProfileUseCaseResult,
 } from '../../application/use-cases/get-customer-profile.use-case';
+import {
+  GetCustomerTenantsByIdUseCase,
+  GetCustomerTenantsByIdUseCaseResult,
+} from '../../application/use-cases/get-customer-tenants-by-id.use-case';
 import {
   UpdateCustomerProfileUseCase,
   UpdateCustomerProfileUseCaseResult,
@@ -32,9 +38,11 @@ import {
 @Controller('customers')
 export class CustomerController {
   constructor(
+    private readonly ctx: RequestContext,
     private readonly getProfile: GetCustomerProfileUseCase,
     private readonly updateProfile: UpdateCustomerProfileUseCase,
     private readonly searchCustomers: SearchCustomersUseCase,
+    private readonly getCustomerTenantsById: GetCustomerTenantsByIdUseCase,
   ) {}
 
   @Get()
@@ -50,12 +58,22 @@ export class CustomerController {
   }
 
   @Get('me')
+  @UseGuards(CustomerRoleGuard)
   getMe(): Promise<GetCustomerProfileUseCaseResult> {
     return this.getProfile.execute().catch(mapCustomerError);
   }
 
+  @Get('me/tenants')
+  @UseGuards(CustomerRoleGuard)
+  getMyTenants(): Promise<GetCustomerTenantsByIdUseCaseResult> {
+    return this.getCustomerTenantsById
+      .execute(this.ctx.actorId!, this.ctx.tenantId)
+      .catch(mapCustomerError);
+  }
+
   @Patch('me')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(CustomerRoleGuard)
   updateMe(
     @Body(new ZodValidationPipe(UpdateCustomerProfileSchema)) dto: UpdateCustomerProfileDto,
   ): Promise<UpdateCustomerProfileUseCaseResult> {

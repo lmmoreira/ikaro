@@ -1,8 +1,30 @@
 import { getTranslations } from 'next-intl/server';
 
-export default async function StaffLoginPage() {
+export default async function StaffLoginPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<{ tenantSlug?: string }>;
+}) {
   const t = await getTranslations('auth');
-  const bffUrl = process.env.NEXT_PUBLIC_BFF_URL ?? '';
+  const bffUrl = process.env.NEXT_PUBLIC_BFF_URL;
+  if (!bffUrl) throw new Error('NEXT_PUBLIC_BFF_URL is required');
+  const { tenantSlug } = await searchParams;
+
+  if (!tenantSlug) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6 py-16 text-center">
+        <div className="w-full max-w-sm">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-indigo-600 text-xl font-bold text-white">
+            I
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">{t('staffHeading')}</h1>
+          <p className="mt-4 text-sm text-gray-500">{t('staffLoginViaHotsite')}</p>
+        </div>
+      </main>
+    );
+  }
+
+  const oauthUrl = `${bffUrl}/auth/google?type=staff&tenantSlug=${encodeURIComponent(tenantSlug)}`;
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6 py-16 text-center">
@@ -15,7 +37,7 @@ export default async function StaffLoginPage() {
         <p className="mt-2 text-sm text-gray-500">{t('staffSubtitle')}</p>
 
         <a
-          href={`${bffUrl}/auth/google?type=staff`}
+          href={oauthUrl}
           className="mt-8 inline-flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-gray-50"
         >
           <svg

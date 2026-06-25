@@ -5,6 +5,7 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { testAddressProps } from '../../../../test/utils/address-helpers';
 import { GetCustomerProfileUseCase } from '../../application/use-cases/get-customer-profile.use-case';
+import { GetCustomerTenantsByIdUseCase } from '../../application/use-cases/get-customer-tenants-by-id.use-case';
 import { UpdateCustomerProfileUseCase } from '../../application/use-cases/update-customer-profile.use-case';
 import { SearchCustomersUseCase } from '../../application/use-cases/search-customers.use-case';
 import { CustomerController } from './customer.controller';
@@ -33,9 +34,11 @@ describe('CustomerController', () => {
       .build();
 
     controller = new CustomerController(
+      ctx,
       new GetCustomerProfileUseCase(repo, ctx),
       new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
       new SearchCustomersUseCase(repo, ctx),
+      new GetCustomerTenantsByIdUseCase(repo),
     );
   });
 
@@ -55,9 +58,11 @@ describe('CustomerController', () => {
         .withActorType('CUSTOMER')
         .build();
       const ctrl = new CustomerController(
+        ctx,
         new GetCustomerProfileUseCase(repo, ctx),
         new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
         new SearchCustomersUseCase(repo, ctx),
+        new GetCustomerTenantsByIdUseCase(repo),
       );
       const err = await ctrl.getMe().catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
@@ -114,6 +119,43 @@ describe('CustomerController', () => {
       const result = await controller.search(undefined, '2');
       expect(result.items).toHaveLength(2);
       expect(result.total).toBe(4);
+    });
+  });
+
+  describe('getMyTenants()', () => {
+    const TENANT_B = '10000000-0000-4000-8000-000000000141';
+
+    it('returns all tenants for the authenticated customer identified via RequestContext', async () => {
+      // The customer created in beforeEach already has the default googleOAuthId 'google-sub-1'.
+      // Add a second record at TENANT_B with the same OAuthId to simulate multi-tenant membership.
+      const customerB = new CustomerBuilder()
+        .withTenantId(TENANT_B)
+        .withEmail('ctrl-b@example.com')
+        .build();
+      await repo.save(customerB);
+
+      const result = await controller.getMyTenants();
+
+      expect(result).toHaveLength(2);
+      expect(result.map((r) => r.tenantId)).toEqual(expect.arrayContaining([TENANT_A, TENANT_B]));
+    });
+
+    it('maps CustomerNotFoundError to 404 when actorId is unknown', async () => {
+      const ctx = new RequestContextBuilder()
+        .withTenantId(TENANT_A)
+        .withActorId('00000000-0000-4000-8000-000000009998')
+        .withActorType('CUSTOMER')
+        .build();
+      const ctrl = new CustomerController(
+        ctx,
+        new GetCustomerProfileUseCase(repo, ctx),
+        new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
+        new SearchCustomersUseCase(repo, ctx),
+        new GetCustomerTenantsByIdUseCase(repo),
+      );
+      const err = await ctrl.getMyTenants().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
   });
 });

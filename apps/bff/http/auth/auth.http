@@ -41,7 +41,11 @@
 #   → Google authenticates → redirects back to /v1/auth/google/callback
 #   → BFF calls GET /internal/staff/by-oauth?googleOAuthId=<sub>
 #   → Active staff found → issues JWT with role=STAFF|MANAGER, sets cookie, redirects to /dashboard
-#   → Staff not found → redirects to /auth/error?reason=not-a-staff-member
+#   → Nothing found (never linked) → falls back to GET /internal/staff/by-email-all?email=<google_email>,
+#     links every active match's Google account (POST /internal/staff/:staffId/link-google), then
+#     re-runs the by-oauth lookup — covers first login via the generic button, not just the
+#     tenant-scoped invite link below. Same outcome as UC-025 below, without needing a tenantSlug.
+#   → Still nothing found → redirects to /auth/error?reason=not-a-staff-member
 
 # ── UC-025: Staff first login / accept invite ──
 # Browser URL (copy and paste — from invite email link):
@@ -69,26 +73,10 @@
 # Omitting ?tenantSlug (or passing an invalid slug) redirects to bare FRONTEND_URL instead.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MULTI-TENANT SELECTION — POST /v1/auth/token
-# UC-021 (2+ tenants): after browser redirects to /select-tenant?token=<...>,
-# the frontend POSTs here to exchange the short-lived selection token for a JWT.
-# ─────────────────────────────────────────────────────────────────────────────
-
-### Exchange selection token for JWT (tenant selection step)
-# Replace selectionToken with the value from the ?token= query param in the redirect URL
-POST {{bffUrl}}/v1/auth/token
-Content-Type: application/json
-
-{
-  "selectionToken": "paste-selection-token-here",
-  "tenantId": "paste-target-tenant-uuid-here"
-}
-
-###
-
-# ─────────────────────────────────────────────────────────────────────────────
 # UC-023: Customer switches tenant — POST /v1/auth/switch-tenant
 # Requires: valid JWT with role=CUSTOMER (access_token cookie or Bearer header)
+# (Login-time multi-tenant selection — POST /v1/auth/token — was removed: no shipped UI
+#  ever reaches it. See docs/04-USE_CASES.md UC-021.)
 # ─────────────────────────────────────────────────────────────────────────────
 
 ### Switch to a different tenant the customer belongs to
@@ -102,50 +90,34 @@ Authorization: Bearer paste-customer-jwt-here
 
 ###
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ERROR CASES
-# ─────────────────────────────────────────────────────────────────────────────
-
-### 400 — Missing selectionToken
-POST {{bffUrl}}/v1/auth/token
+### 401 — No JWT provided (unauthenticated)
+POST {{bffUrl}}/v1/auth/switch-tenant
 Content-Type: application/json
 
 {
-  "tenantId": "{{tenantId}}"
+  "targetTenantId": "paste-target-tenant-uuid-here"
 }
 
 ###
 
-### 400 — tenantId is not a valid UUID
-POST {{bffUrl}}/v1/auth/token
+### 400 — targetTenantId missing or not a UUID
+POST {{bffUrl}}/v1/auth/switch-tenant
 Content-Type: application/json
+Authorization: Bearer paste-customer-jwt-here
 
 {
-  "selectionToken": "some.token.here",
-  "tenantId": "not-a-uuid"
+  "targetTenantId": "not-a-uuid"
 }
 
 ###
 
-### 400 — Selection token is expired or tampered
-POST {{bffUrl}}/v1/auth/token
+### 403 — targetTenantId not in the authenticated customer's tenant list
+POST {{bffUrl}}/v1/auth/switch-tenant
 Content-Type: application/json
+Authorization: Bearer paste-customer-jwt-here
 
 {
-  "selectionToken": "invalid.token.signature",
-  "tenantId": "{{tenantId}}"
-}
-
-###
-
-### 403 — Customer has no record in the requested tenant
-# (valid selection token but tenantId not in the customer's tenant list)
-POST {{bffUrl}}/v1/auth/token
-Content-Type: application/json
-
-{
-  "selectionToken": "paste-valid-selection-token-here",
-  "tenantId": "00000000-0000-4000-8000-000000009999"
+  "targetTenantId": "00000000-0000-4000-8000-000000009999"
 }
 
 ###
