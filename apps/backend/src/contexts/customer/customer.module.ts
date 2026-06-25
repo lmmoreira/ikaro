@@ -8,6 +8,7 @@ import { FindOrCreateCustomerUseCase } from './application/use-cases/find-or-cre
 import { GetCustomerProfileUseCase } from './application/use-cases/get-customer-profile.use-case';
 import { GetCustomerTenantsByIdUseCase } from './application/use-cases/get-customer-tenants-by-id.use-case';
 import { GetCustomerTenantsUseCase } from './application/use-cases/get-customer-tenants.use-case';
+import { SearchCustomersUseCase } from './application/use-cases/search-customers.use-case';
 import { UpdateCustomerProfileUseCase } from './application/use-cases/update-customer-profile.use-case';
 import { CustomerController } from './infrastructure/controllers/customer.controller';
 import { InternalCustomerController } from './infrastructure/controllers/internal-customer.controller';
@@ -25,6 +26,7 @@ import { TypeOrmCustomerRepository } from './infrastructure/repositories/typeorm
     GetCustomerTenantsByIdUseCase,
     GetCustomerProfileUseCase,
     UpdateCustomerProfileUseCase,
+    SearchCustomersUseCase,
   ],
   exports: [CustomerQueryService],
 })

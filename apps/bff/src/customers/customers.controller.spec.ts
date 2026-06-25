@@ -1,6 +1,7 @@
 import { HttpException } from '@nestjs/common';
 import { CustomerProfileResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
+import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import { CustomersController } from './customers.controller';
 
 const mockProfile: CustomerProfileResponse = {
@@ -11,8 +12,57 @@ const mockProfile: CustomerProfileResponse = {
   defaultAddress: null,
 };
 
+const mockBackendSearch: {
+  items: { customerId: string; name: string; email: string }[];
+  total: number;
+} = {
+  items: [
+    {
+      customerId: '20000000-0000-4000-8000-000000000001',
+      name: 'João Silva',
+      email: 'joao@example.com',
+    },
+  ],
+  total: 1,
+};
+const mockBalance: LoyaltyBalanceResponse = {
+  currentPoints: 50,
+  nextExpiryDate: null,
+  nextExpiryPoints: null,
+};
+
 describe('CustomersController', () => {
   afterEach(() => jest.resetAllMocks());
+
+  describe('searchCustomers()', () => {
+    it('calls GET /customers then enriches each result with currentPoints from loyalty/balance', async () => {
+      const getMock = jest
+        .fn()
+        .mockResolvedValueOnce(mockBackendSearch)
+        .mockResolvedValueOnce(mockBalance);
+      const backendHttp = makeBackendHttp({ get: getMock });
+      const controller = new CustomersController(backendHttp);
+
+      const result = await controller.searchCustomers({ search: 'joao1', limit: 20 });
+
+      expect(getMock).toHaveBeenCalledWith('/customers?limit=20&search=joao1');
+      expect(getMock).toHaveBeenCalledWith(
+        '/customers/20000000-0000-4000-8000-000000000001/loyalty/balance',
+      );
+      expect(result.items[0]?.currentPoints).toBe(50);
+      expect(result.total).toBe(1);
+    });
+
+    it('calls GET /customers without search when omitted', async () => {
+      const getMock = jest.fn().mockResolvedValueOnce({ items: [], total: 0 });
+      const backendHttp = makeBackendHttp({ get: getMock });
+      const controller = new CustomersController(backendHttp);
+
+      await controller.searchCustomers({ limit: 10 });
+
+      expect(getMock).toHaveBeenCalledWith('/customers?limit=10');
+    });
+  });
 
   describe('getProfile()', () => {
     it('calls GET /customers/me and returns the profile', async () => {

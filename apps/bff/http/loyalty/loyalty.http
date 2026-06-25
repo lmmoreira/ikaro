@@ -35,6 +35,8 @@ Content-Type: application/json
 
 ###
 ### GET /v1/loyalty/balance — customer views own balance
+# Returns CustomerLoyaltyBalanceResponse: { currentPoints, nextExpiryDate, nextExpiryPoints,
+# conversionRate } — conversionRate is the live pointsPerCurrencyUnit from tenant settings
 GET {{bffUrl}}/v1/loyalty/balance
 Authorization: Bearer {{customerToken}}
 
@@ -51,7 +53,7 @@ Authorization: Bearer {{customerToken}}
 ### GET /v1/loyalty/redemptions — customer views redemption history (M13-S08)
 # Returns CustomerLoyaltyRedemptionsResponse: { items: [{ redemptionId, pointsUsed,
 # amountSaved, redeemedAt, bookingReference }], total, page, limit }
-# amountSaved is "R$ 0,00" until M13-S12 lands (conversionRate hardcoded to 0)
+# amountSaved is "R$ 0,00" when pointsPerCurrencyUnit is 0 (redemption disabled)
 GET {{bffUrl}}/v1/loyalty/redemptions?page=1&limit=20
 Authorization: Bearer {{customerToken}}
 
@@ -62,6 +64,8 @@ Authorization: Bearer {{customerToken}}
 ###
 
 ### GET /v1/customers/:customerId/loyalty/balance — admin views customer balance
+# Returns EnrichedLoyaltyBalanceResponse: { currentPoints, nextExpiryDate, nextExpiryPoints,
+# conversionRate } — conversionRate from live tenant settings
 GET {{bffUrl}}/v1/customers/{{customerId}}/loyalty/balance
 Authorization: Bearer {{managerToken}}
 

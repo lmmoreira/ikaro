@@ -651,7 +651,7 @@ Authorization: Bearer {{managerToken}}
 
 ###
 
-### SUCCESS — APPROVED → COMPLETED
+### SUCCESS — APPROVED → COMPLETED (no loyalty discount)
 PATCH {{bffUrl}}/v1/bookings/{{approvedBookingId}}/complete
 Content-Type: application/json
 Authorization: Bearer {{managerToken}}
@@ -662,6 +662,24 @@ Authorization: Bearer {{managerToken}}
   ],
   "afterServicePhotoUrls": ["tenants/{{tenantId}}/bookings/{{approvedBookingId}}/after1.jpg"],
   "adminNotes": "Extra shine applied"
+}
+
+###
+
+### SUCCESS — APPROVED → COMPLETED with loyalty discount (discountByPoints)
+PATCH {{bffUrl}}/v1/bookings/{{approvedBookingId}}/complete
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "lines": [
+    { "lineId": "{{bookingLineId}}", "actualPriceCharged": 70.00 }
+  ],
+  "afterServicePhotoUrls": [],
+  "discountByPoints": {
+    "pointsUsed": 100,
+    "amountDeducted": 10.00
+  }
 }
 
 ###

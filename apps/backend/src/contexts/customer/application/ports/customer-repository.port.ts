@@ -7,9 +7,20 @@ export interface CustomerTenantSummary {
   customerId: string;
 }
 
+export interface CustomerSearchRow {
+  customerId: string;
+  name: string;
+  email: string;
+}
+
 export interface ICustomerRepository {
   findByTenantAndOAuthId(tenantId: string, googleOAuthId: string): Promise<Customer | null>;
   findById(id: string, tenantId: string): Promise<Customer | null>;
   findAllTenantsByOAuthId(googleOAuthId: string): Promise<CustomerTenantSummary[]>;
+  searchByTenant(
+    tenantId: string,
+    search: string | undefined,
+    limit: number,
+  ): Promise<{ rows: CustomerSearchRow[]; total: number }>;
   save(customer: Customer): Promise<void>;
 }

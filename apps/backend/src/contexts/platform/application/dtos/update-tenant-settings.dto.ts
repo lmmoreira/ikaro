@@ -14,6 +14,7 @@ const LoyaltySchema = z
     expiryDays: z.number().int().min(1).max(3650),
     enableNotifications: z.boolean(),
     expiryWarningDays: z.number().int().min(1).max(90),
+    pointsPerCurrencyUnit: z.number().int().min(0).max(10000),
   })
   .partial();
 

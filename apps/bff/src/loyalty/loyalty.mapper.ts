@@ -1,4 +1,9 @@
-import { CustomerLoyaltyEntryResponse, CustomerLoyaltyRedemptionResponse } from '@ikaro/types';
+import {
+  CustomerLoyaltyEntryResponse,
+  CustomerLoyaltyRedemptionResponse,
+  LoyaltyEntryItem as StaffLoyaltyEntryItem,
+  LoyaltyRedemptionItem as StaffLoyaltyRedemptionItem,
+} from '@ikaro/types';
 import { LoyaltyEntryItem, LoyaltyRedemptionItem } from './loyalty.types';
 
 const BRL_FORMATTER = new Intl.NumberFormat('pt-BR', {
@@ -10,6 +15,10 @@ const BRL_FORMATTER = new Intl.NumberFormat('pt-BR', {
 
 function formatBRL(amount: number): string {
   return BRL_FORMATTER.format(amount);
+}
+
+function computeAmountDeducted(pointsRedeemed: number, pointsPerCurrencyUnit: number): number {
+  return pointsPerCurrencyUnit > 0 ? pointsRedeemed / pointsPerCurrencyUnit : 0;
 }
 
 export function toCustomerLoyaltyEntry(item: LoyaltyEntryItem): CustomerLoyaltyEntryResponse {
@@ -26,8 +35,7 @@ export function toCustomerLoyaltyEntry(item: LoyaltyEntryItem): CustomerLoyaltyE
 export function toCustomerLoyaltyRedemption(
   item: LoyaltyRedemptionItem,
 ): CustomerLoyaltyRedemptionResponse {
-  const amountSaved =
-    item.pointsPerCurrencyUnit > 0 ? item.pointsRedeemed / item.pointsPerCurrencyUnit : 0;
+  const amountSaved = computeAmountDeducted(item.pointsRedeemed, item.pointsPerCurrencyUnit);
   return {
     redemptionId: item.redemptionId,
     pointsUsed: item.pointsRedeemed,
@@ -37,5 +45,27 @@ export function toCustomerLoyaltyRedemption(
       item.bookingServices.length > 0
         ? item.bookingServices.map((s) => s.serviceName).join(', ')
         : null,
+  };
+}
+
+export function toStaffLoyaltyEntry(item: LoyaltyEntryItem): StaffLoyaltyEntryItem {
+  return {
+    id: item.entryId,
+    serviceName: item.serviceName,
+    points: item.points,
+    earnedAt: item.earnedAt,
+    expiresAt: item.expiresAt,
+    isActive: item.isActive,
+  };
+}
+
+export function toStaffLoyaltyRedemption(item: LoyaltyRedemptionItem): StaffLoyaltyRedemptionItem {
+  return {
+    id: item.redemptionId,
+    pointsRedeemed: item.pointsRedeemed,
+    amountDeducted: computeAmountDeducted(item.pointsRedeemed, item.pointsPerCurrencyUnit),
+    redeemedAt: item.redeemedAt,
+    bookingId: item.bookingId,
+    notes: item.notes,
   };
 }

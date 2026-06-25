@@ -1,4 +1,5 @@
 import {
+  CustomerSearchRow,
   CustomerTenantSummary,
   ICustomerRepository,
 } from '../../../contexts/customer/application/ports/customer-repository.port';
@@ -30,6 +31,27 @@ export class InMemoryCustomerRepository implements ICustomerRepository {
       }
     }
     return results;
+  }
+
+  async searchByTenant(
+    tenantId: string,
+    search: string | undefined,
+    limit: number,
+  ): Promise<{ rows: CustomerSearchRow[]; total: number }> {
+    const term = search?.toLowerCase();
+    const all = [...this.store.values()]
+      .filter((c) => {
+        if (c.tenantId !== tenantId) return false;
+        if (!term) return true;
+        return c.name.toLowerCase().includes(term) || c.email.address.toLowerCase().includes(term);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const rows = all.slice(0, limit).map((c) => ({
+      customerId: c.id,
+      name: c.name,
+      email: c.email.address,
+    }));
+    return { rows, total: all.length };
   }
 
   async save(customer: Customer): Promise<void> {

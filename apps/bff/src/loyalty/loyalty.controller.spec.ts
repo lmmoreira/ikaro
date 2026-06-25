@@ -1,3 +1,4 @@
+import { TenantSettingsResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { LoyaltyController } from './loyalty.controller';
 import {
@@ -13,6 +14,40 @@ const mockBalance: LoyaltyBalanceResponse = {
   currentPoints: 75,
   nextExpiryDate: '2026-11-15T00:00:00.000Z',
   nextExpiryPoints: 30,
+};
+
+const mockSettings: TenantSettingsResponse = {
+  tenantId: 'test-tenant',
+  name: 'Test',
+  slug: 'test',
+  settings: {
+    loyalty: {
+      pointsPerCurrencyUnit: 10,
+      expiryDays: 180,
+      enableNotifications: true,
+      expiryWarningDays: 7,
+      notificationMinPoints: 50,
+    },
+    booking: {
+      cancellationWindowHours: 48,
+      autoApproveEnabled: false,
+      minBookingAdvanceHours: 0,
+      maxBookingAdvanceDays: 90,
+      serviceBufferMinutes: 60,
+      slotGranularityMinutes: 30,
+    },
+    businessHours: {
+      timezone: 'America/Sao_Paulo',
+      monday: null,
+      tuesday: null,
+      wednesday: null,
+      thursday: null,
+      friday: null,
+      saturday: null,
+      sunday: null,
+    },
+    localization: { countryCode: 'BR', currency: 'BRL', language: 'pt-BR', decimalPlaces: 2 },
+  },
 };
 
 const mockEntries: LoyaltyEntriesResponse = {
@@ -38,6 +73,7 @@ const mockRedemptions: LoyaltyRedemptionsResponse = {
       pointsPerCurrencyUnit: 0,
       redeemedAt: '2026-05-10T10:00:00.000Z',
       notes: 'Free basic wash',
+      bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
       bookingServices: [
         { serviceId: 'cccccccc-0000-4000-8000-000000000001', serviceName: 'Lavagem Completa' },
       ],
@@ -50,20 +86,46 @@ describe('LoyaltyController (BFF)', () => {
   afterEach(() => jest.resetAllMocks());
 
   describe('getBalance()', () => {
-    it('proxies to GET /loyalty/balance', async () => {
+    it('enriches balance with conversionRate from tenant settings', async () => {
       const backendHttp = makeBackendHttp();
-      backendHttp.get.mockResolvedValue(mockBalance);
+      backendHttp.get.mockImplementation((path: string) => {
+        if (path === '/loyalty/balance') return Promise.resolve(mockBalance);
+        if (path === '/tenants/settings') return Promise.resolve(mockSettings);
+        throw new Error(`Unexpected GET path: ${path}`);
+      });
       const controller = new LoyaltyController(backendHttp);
 
       const result = await controller.getBalance();
 
       expect(backendHttp.get).toHaveBeenCalledWith('/loyalty/balance');
+      expect(backendHttp.get).toHaveBeenCalledWith('/tenants/settings');
       expect(result).toEqual({
         currentPoints: 75,
         nextExpiryDate: '2026-11-15T00:00:00.000Z',
         nextExpiryPoints: 30,
-        conversionRate: 0,
+        conversionRate: 10,
       });
+    });
+
+    it('returns conversionRate 0 when pointsPerCurrencyUnit is 0', async () => {
+      const backendHttp = makeBackendHttp();
+      const settingsDisabled: TenantSettingsResponse = {
+        ...mockSettings,
+        settings: {
+          ...mockSettings.settings,
+          loyalty: { ...mockSettings.settings.loyalty, pointsPerCurrencyUnit: 0 },
+        },
+      };
+      backendHttp.get.mockImplementation((path: string) => {
+        if (path === '/loyalty/balance') return Promise.resolve(mockBalance);
+        if (path === '/tenants/settings') return Promise.resolve(settingsDisabled);
+        throw new Error(`Unexpected GET path: ${path}`);
+      });
+      const controller = new LoyaltyController(backendHttp);
+
+      const result = await controller.getBalance();
+
+      expect(result.conversionRate).toBe(0);
     });
   });
 
@@ -147,45 +209,66 @@ describe('LoyaltyController (BFF)', () => {
   });
 
   describe('getBalanceAdmin()', () => {
-    it('proxies to GET /customers/:customerId/loyalty/balance', async () => {
+    it('enriches admin balance with conversionRate from tenant settings', async () => {
       const backendHttp = makeBackendHttp();
-      backendHttp.get.mockResolvedValue(mockBalance);
+      backendHttp.get.mockImplementation((path: string) => {
+        if (path === `/customers/${CUSTOMER_ID}/loyalty/balance`)
+          return Promise.resolve(mockBalance);
+        if (path === '/tenants/settings') return Promise.resolve(mockSettings);
+        throw new Error(`Unexpected GET path: ${path}`);
+      });
       const controller = new LoyaltyController(backendHttp);
 
       const result = await controller.getBalanceAdmin(CUSTOMER_ID);
 
       expect(backendHttp.get).toHaveBeenCalledWith(`/customers/${CUSTOMER_ID}/loyalty/balance`);
+      expect(backendHttp.get).toHaveBeenCalledWith('/tenants/settings');
       expect(result.currentPoints).toBe(75);
+      expect(result.conversionRate).toBe(10);
     });
   });
 
   describe('getEntriesAdmin()', () => {
-    it('proxies to GET /customers/:customerId/loyalty/entries', async () => {
+    it('maps backend entries to staff LoyaltyEntryItem shape', async () => {
       const backendHttp = makeBackendHttp();
       backendHttp.get.mockResolvedValue(mockEntries);
       const controller = new LoyaltyController(backendHttp);
 
-      await controller.getEntriesAdmin(CUSTOMER_ID, { page: 2, limit: 10 });
+      const result = await controller.getEntriesAdmin(CUSTOMER_ID, { page: 2, limit: 10 });
 
       expect(backendHttp.get).toHaveBeenCalledWith(`/customers/${CUSTOMER_ID}/loyalty/entries`, {
         page: 2,
         limit: 10,
       });
+      expect(result.items[0]).toEqual({
+        id: 'e1111111-0000-4000-8000-000000000001',
+        serviceName: 'Lavagem Completa',
+        points: 10,
+        earnedAt: '2026-05-28T14:00:00.000Z',
+        expiresAt: '2026-11-24T14:00:00.000Z',
+        isActive: true,
+      });
     });
   });
 
   describe('getRedemptionsAdmin()', () => {
-    it('proxies to GET /customers/:customerId/loyalty/redemptions', async () => {
+    it('maps backend redemptions to staff LoyaltyRedemptionItem shape with amountDeducted', async () => {
       const backendHttp = makeBackendHttp();
       backendHttp.get.mockResolvedValue(mockRedemptions);
       const controller = new LoyaltyController(backendHttp);
 
-      await controller.getRedemptionsAdmin(CUSTOMER_ID, { page: 1, limit: 20 });
+      const result = await controller.getRedemptionsAdmin(CUSTOMER_ID, { page: 1, limit: 20 });
 
       expect(backendHttp.get).toHaveBeenCalledWith(
         `/customers/${CUSTOMER_ID}/loyalty/redemptions`,
         { page: 1, limit: 20 },
       );
+      expect(result.items[0]).toMatchObject({
+        id: 'r1111111-0000-4000-8000-000000000001',
+        pointsRedeemed: 50,
+        amountDeducted: 0,
+        bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
+      });
     });
   });
 

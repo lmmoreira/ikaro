@@ -1,5 +1,10 @@
 import { LoyaltyEntryItem, LoyaltyRedemptionItem } from './loyalty.types';
-import { toCustomerLoyaltyEntry, toCustomerLoyaltyRedemption } from './loyalty.mapper';
+import {
+  toCustomerLoyaltyEntry,
+  toCustomerLoyaltyRedemption,
+  toStaffLoyaltyEntry,
+  toStaffLoyaltyRedemption,
+} from './loyalty.mapper';
 
 describe('toCustomerLoyaltyEntry()', () => {
   const backendItem: LoyaltyEntryItem = {
@@ -38,6 +43,7 @@ describe('toCustomerLoyaltyRedemption()', () => {
     pointsPerCurrencyUnit: 10,
     redeemedAt: '2026-05-18T10:00:00.000Z',
     notes: null,
+    bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
     bookingServices: [
       { serviceId: 'cccccccc-0000-4000-8000-000000000001', serviceName: 'Lavagem Completa' },
     ],
@@ -79,5 +85,62 @@ describe('toCustomerLoyaltyRedemption()', () => {
   it('returns null bookingReference when bookingServices is empty', () => {
     const result = toCustomerLoyaltyRedemption({ ...backendItem, bookingServices: [] });
     expect(result.bookingReference).toBeNull();
+  });
+});
+
+describe('toStaffLoyaltyEntry()', () => {
+  it('maps entryId → id and drops serviceId', () => {
+    const result = toStaffLoyaltyEntry({
+      entryId: 'e1111111-0000-4000-8000-000000000001',
+      serviceId: 'cccccccc-0000-4000-8000-000000000001',
+      serviceName: 'Lavagem Completa',
+      points: 10,
+      earnedAt: '2026-05-28T14:00:00.000Z',
+      expiresAt: '2026-11-24T14:00:00.000Z',
+      isActive: true,
+    });
+    expect(result).toEqual({
+      id: 'e1111111-0000-4000-8000-000000000001',
+      serviceName: 'Lavagem Completa',
+      points: 10,
+      earnedAt: '2026-05-28T14:00:00.000Z',
+      expiresAt: '2026-11-24T14:00:00.000Z',
+      isActive: true,
+    });
+  });
+});
+
+describe('toStaffLoyaltyRedemption()', () => {
+  it('maps redemptionId → id and computes amountDeducted', () => {
+    const result = toStaffLoyaltyRedemption({
+      redemptionId: 'r1111111-0000-4000-8000-000000000001',
+      pointsRedeemed: 100,
+      pointsPerCurrencyUnit: 10,
+      redeemedAt: '2026-05-18T10:00:00.000Z',
+      notes: null,
+      bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
+      bookingServices: [],
+    });
+    expect(result).toEqual({
+      id: 'r1111111-0000-4000-8000-000000000001',
+      pointsRedeemed: 100,
+      amountDeducted: 10,
+      redeemedAt: '2026-05-18T10:00:00.000Z',
+      bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
+      notes: null,
+    });
+  });
+
+  it('returns amountDeducted = 0 when pointsPerCurrencyUnit is 0', () => {
+    const result = toStaffLoyaltyRedemption({
+      redemptionId: 'r2222222-0000-4000-8000-000000000001',
+      pointsRedeemed: 50,
+      pointsPerCurrencyUnit: 0,
+      redeemedAt: '2026-05-18T10:00:00.000Z',
+      notes: null,
+      bookingId: null,
+      bookingServices: [],
+    });
+    expect(result.amountDeducted).toBe(0);
   });
 });

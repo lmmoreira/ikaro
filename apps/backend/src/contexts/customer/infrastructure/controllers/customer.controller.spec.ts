@@ -6,6 +6,7 @@ import { RequestContextBuilder } from '../../../../test/factories/request-contex
 import { testAddressProps } from '../../../../test/utils/address-helpers';
 import { GetCustomerProfileUseCase } from '../../application/use-cases/get-customer-profile.use-case';
 import { UpdateCustomerProfileUseCase } from '../../application/use-cases/update-customer-profile.use-case';
+import { SearchCustomersUseCase } from '../../application/use-cases/search-customers.use-case';
 import { CustomerController } from './customer.controller';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000140';
@@ -34,6 +35,7 @@ describe('CustomerController', () => {
     controller = new CustomerController(
       new GetCustomerProfileUseCase(repo, ctx),
       new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
+      new SearchCustomersUseCase(repo, ctx),
     );
   });
 
@@ -55,6 +57,7 @@ describe('CustomerController', () => {
       const ctrl = new CustomerController(
         new GetCustomerProfileUseCase(repo, ctx),
         new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
+        new SearchCustomersUseCase(repo, ctx),
       );
       const err = await ctrl.getMe().catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
@@ -78,6 +81,39 @@ describe('CustomerController', () => {
       const err = await controller.updateMe({ phone: '123' }).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+  });
+
+  describe('search()', () => {
+    it('returns matching customers for the caller tenant', async () => {
+      const result = await controller.search('Test', '20');
+      expect(result.total).toBe(1);
+      expect(result.items[0]?.name).toBe('Test Customer');
+    });
+
+    it('returns all customers when search is omitted', async () => {
+      const result = await controller.search(undefined, '20');
+      expect(result.total).toBe(1);
+    });
+
+    it('defaults to limit 20 when limit param is undefined', async () => {
+      const result = await controller.search(undefined, undefined);
+      expect(result.total).toBe(1);
+    });
+
+    it('respects the limit param', async () => {
+      for (let i = 0; i < 3; i++) {
+        await repo.save(
+          new CustomerBuilder()
+            .withTenantId(TENANT_A)
+            .withName(`Extra ${i}`)
+            .withEmail(`e${i}@x.com`)
+            .build(),
+        );
+      }
+      const result = await controller.search(undefined, '2');
+      expect(result.items).toHaveLength(2);
+      expect(result.total).toBe(4);
     });
   });
 });
