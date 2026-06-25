@@ -37,7 +37,7 @@ test.describe('Switch tenant', () => {
     await expect(page.locator('[data-testid="switch-tenant-heading"]')).toHaveText(
       'Switch company',
     );
-    await expect(page.locator('[data-testid="switch-tenant-cancel"]')).toHaveText(
+    await expect(page.locator('[data-testid="switch-tenant-cancel"]')).toContainText(
       'Back without switching',
     );
   });

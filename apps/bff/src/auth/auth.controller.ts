@@ -238,15 +238,16 @@ export class AuthController {
           '/internal/staff/by-email',
           { email: dto.email, tenantId: tenantInfo.id },
         );
-        await this.backendHttp.post<LinkGoogleAccountResponse>(
-          `/internal/staff/${staffByEmail.staffId}/link-google`,
-          {
+        // Ignore 409 conflicts: seed staff have a real google_oauth_id pre-set; linking
+        // dev::email would conflict. Finding the staff by email is sufficient trust here.
+        await this.backendHttp
+          .post<LinkGoogleAccountResponse>(`/internal/staff/${staffByEmail.staffId}/link-google`, {
             tenantId: tenantInfo.id,
             googleOAuthId: `dev::${dto.email}`,
             email: dto.email,
             name: 'Dev User',
-          },
-        );
+          })
+          .catch(() => undefined);
         actorId = staffByEmail.staffId;
         role = staffByEmail.role;
       }

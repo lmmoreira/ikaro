@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
+import { completeCustomerProfile, loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
 
 test.describe('M13-S42 — Hotsite auth bar', () => {
   test('anonymous visitor sees the localized login CTA on the hotsite and reaches the tenant-branded login page', async ({
@@ -56,6 +56,7 @@ test.describe('Hotsite auth bar — authenticated states', () => {
   }) => {
     const email = uniqueTestEmail('single-tenant');
     await loginAsCustomer(page, email, 'lavacar-beloauto');
+    await completeCustomerProfile(page, 'lavacar-beloauto');
 
     await page.goto('/lavacar-beloauto');
     await page.locator('[data-testid="hotsite-auth-bar"] summary').click();
@@ -66,7 +67,9 @@ test.describe('Hotsite auth bar — authenticated states', () => {
   test('"Trocar empresa" is visible for a customer who belongs to 2+ tenants', async ({ page }) => {
     const email = uniqueTestEmail('multi-tenant');
     await loginAsCustomer(page, email, 'lavacar-beloauto');
+    await completeCustomerProfile(page, 'lavacar-beloauto');
     await loginAsCustomer(page, email, 'autospa-premium');
+    await completeCustomerProfile(page, 'autospa-premium');
 
     await page.goto('/autospa-premium');
     await page.locator('[data-testid="hotsite-auth-bar"] summary').click();
@@ -81,6 +84,7 @@ test.describe('Hotsite auth bar — authenticated states', () => {
   }) => {
     const email = uniqueTestEmail('sign-out');
     await loginAsCustomer(page, email, 'lavacar-beloauto');
+    await completeCustomerProfile(page, 'lavacar-beloauto');
 
     await page.goto('/lavacar-beloauto');
     await page.locator('[data-testid="hotsite-auth-bar"] summary').click();

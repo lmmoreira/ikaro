@@ -232,7 +232,7 @@ export function SwitchTenantClient({
               // to land (the tenant they're already authenticated against), so go there directly
               // instead of relying on history.
               if (currentTenantSlug) {
-                window.location.href = `/${currentTenantSlug}`;
+                globalThis.location.href = `/${currentTenantSlug}`;
               } else {
                 router.back();
               }

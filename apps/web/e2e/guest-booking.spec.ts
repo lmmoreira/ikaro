@@ -165,7 +165,7 @@ test.describe('UC-001 — Booking form error paths', () => {
     await page.locator('[data-testid="step-confirm"]').click();
 
     await expect(page.locator('[data-testid="confirmation-error"]')).toContainText(
-      'Verifique o endereço informado e tente novamente.',
+      'Please check the address you entered and try again.',
     );
   });
 
