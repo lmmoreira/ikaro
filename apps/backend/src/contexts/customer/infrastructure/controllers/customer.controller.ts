@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { CustomerRoleGuard } from '../../../../shared/guards/customer-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapCustomerError } from '../http/customer-error.mapper';
 import {
@@ -57,11 +58,13 @@ export class CustomerController {
   }
 
   @Get('me')
+  @UseGuards(CustomerRoleGuard)
   getMe(): Promise<GetCustomerProfileUseCaseResult> {
     return this.getProfile.execute().catch(mapCustomerError);
   }
 
   @Get('me/tenants')
+  @UseGuards(CustomerRoleGuard)
   getMyTenants(): Promise<GetCustomerTenantsByIdUseCaseResult> {
     return this.getCustomerTenantsById
       .execute(this.ctx.actorId!, this.ctx.tenantId)
@@ -70,6 +73,7 @@ export class CustomerController {
 
   @Patch('me')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(CustomerRoleGuard)
   updateMe(
     @Body(new ZodValidationPipe(UpdateCustomerProfileSchema)) dto: UpdateCustomerProfileDto,
   ): Promise<UpdateCustomerProfileUseCaseResult> {

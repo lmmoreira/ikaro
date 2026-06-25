@@ -38,6 +38,7 @@ import {
   GetStaffTenantsByIdUseCaseResult,
 } from '../../application/use-cases/get-staff-tenants-by-id.use-case';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
+import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapStaffError } from '../http/staff-error.mapper';
 
 @Controller('staff')
@@ -52,6 +53,7 @@ export class StaffController {
   ) {}
 
   @Get()
+  @UseGuards(ManagerRoleGuard)
   list(
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
@@ -62,6 +64,7 @@ export class StaffController {
   }
 
   @Get('me/tenants')
+  @UseGuards(StaffOrManagerRoleGuard)
   getMyTenants(): Promise<GetStaffTenantsByIdUseCaseResult[]> {
     return this.getStaffTenantsById
       .execute(this.tenantContext.actorId!, this.tenantContext.tenantId)
@@ -69,6 +72,7 @@ export class StaffController {
   }
 
   @Get(':id')
+  @UseGuards(ManagerRoleGuard)
   getById(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<GetStaffByIdUseCaseResult> {
