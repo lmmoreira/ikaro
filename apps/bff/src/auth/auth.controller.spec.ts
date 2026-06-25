@@ -345,7 +345,9 @@ describe('AuthController', () => {
 
       await controller.handleGoogleCallback({ user: staffProfile } as unknown as Request, res);
 
-      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/auth/error?reason=no-tenant');
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=no-tenant',
+      );
       expect(backendHttp.get).not.toHaveBeenCalled();
     });
   });
