@@ -6,7 +6,6 @@ import { LinkGoogleAccountUseCase } from './application/use-cases/link-google-ac
 import { CreateInitialManagerUseCase } from './application/use-cases/create-initial-manager.use-case';
 import { DeactivateStaffUseCase } from './application/use-cases/deactivate-staff.use-case';
 import { GetStaffByEmailUseCase } from './application/use-cases/get-staff-by-email.use-case';
-import { GetStaffByEmailAcrossTenantsUseCase } from './application/use-cases/get-staff-by-email-across-tenants.use-case';
 import { GetStaffTenantsByIdUseCase } from './application/use-cases/get-staff-tenants-by-id.use-case';
 import { GetStaffByIdUseCase } from './application/use-cases/get-staff-by-id.use-case';
 import { GetStaffByOAuthIdUseCase } from './application/use-cases/get-staff-by-oauth-id.use-case';
@@ -26,7 +25,6 @@ import { TypeOrmStaffRepository } from './infrastructure/repositories/typeorm-st
     { provide: STAFF_REPOSITORY, useClass: TypeOrmStaffRepository },
     GetStaffByOAuthIdUseCase,
     GetStaffByEmailUseCase,
-    GetStaffByEmailAcrossTenantsUseCase,
     GetStaffTenantsByIdUseCase,
     LinkGoogleAccountUseCase,
     ListStaffUseCase,

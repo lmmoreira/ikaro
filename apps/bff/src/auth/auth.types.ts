@@ -22,13 +22,6 @@ export interface StaffByEmailResponse {
   isActive: boolean;
 }
 
-export interface StaffByEmailAcrossTenantsResponse {
-  staffId: string;
-  tenantId: string;
-  role: 'STAFF' | 'MANAGER';
-  isActive: boolean;
-}
-
 export interface LinkGoogleAccountResponse {
   staffId: string;
   tenantId: string;

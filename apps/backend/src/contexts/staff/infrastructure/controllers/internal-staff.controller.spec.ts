@@ -4,7 +4,6 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
 import { LinkGoogleAccountUseCase } from '../../application/use-cases/link-google-account.use-case';
 import { GetStaffByEmailUseCase } from '../../application/use-cases/get-staff-by-email.use-case';
-import { GetStaffByEmailAcrossTenantsUseCase } from '../../application/use-cases/get-staff-by-email-across-tenants.use-case';
 import { GetStaffByOAuthIdUseCase } from '../../application/use-cases/get-staff-by-oauth-id.use-case';
 import { InternalStaffController } from './internal-staff.controller';
 
@@ -17,7 +16,6 @@ describe('InternalStaffController', () => {
     controller = new InternalStaffController(
       new GetStaffByOAuthIdUseCase(repo),
       new GetStaffByEmailUseCase(repo),
-      new GetStaffByEmailAcrossTenantsUseCase(repo),
       new LinkGoogleAccountUseCase(repo, new InMemoryTransactionManager()),
     );
   });
@@ -102,50 +100,6 @@ describe('InternalStaffController', () => {
       expect(result.email).toBe('gerente@lavacar.com.br');
       expect(result.role).toBe('MANAGER');
       expect(result.isActive).toBe(true);
-    });
-  });
-
-  describe('getByEmailAcrossTenants()', () => {
-    it('throws BadRequestException when email is missing', async () => {
-      await expect(controller.getByEmailAcrossTenants('')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
-    });
-
-    it('throws BadRequestException when email is whitespace-only', async () => {
-      await expect(controller.getByEmailAcrossTenants('   ')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
-    });
-
-    it('returns empty array when no staff is found for the given email', async () => {
-      const result = await controller.getByEmailAcrossTenants('nobody@lavacar.com.br');
-      expect(result).toEqual([]);
-    });
-
-    it('returns one result per tenant the email is invited at, without requiring a tenantId', async () => {
-      const staff1 = new StaffBuilder()
-        .withTenantId('10000000-0000-4000-8000-000000000001')
-        .withEmail('multi@lavacar.com.br')
-        .withRole('MANAGER')
-        .build();
-      const staff2 = new StaffBuilder()
-        .withTenantId('10000000-0000-4000-8000-000000000002')
-        .withEmail('multi@lavacar.com.br')
-        .withRole('STAFF')
-        .build();
-      await repo.save(staff1);
-      await repo.save(staff2);
-
-      const result = await controller.getByEmailAcrossTenants('multi@lavacar.com.br');
-
-      expect(result).toHaveLength(2);
-      expect(result.map((r) => r.tenantId)).toEqual(
-        expect.arrayContaining([
-          '10000000-0000-4000-8000-000000000001',
-          '10000000-0000-4000-8000-000000000002',
-        ]),
-      );
     });
   });
 
