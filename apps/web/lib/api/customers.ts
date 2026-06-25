@@ -1,4 +1,4 @@
-import type { CustomerProfileResponse } from '@ikaro/types';
+import type { Address, CustomerProfileResponse } from '@ikaro/types';
 
 // Distinct from lib/api/dashboard/customers.ts's getCustomerProfile()/updateCustomerProfile():
 // those call the Bearer-token bffClient (only configured inside an authenticated dashboard
@@ -15,8 +15,16 @@ export async function getHotsiteCustomerProfile(): Promise<CustomerProfileRespon
   }
 }
 
+export interface UpdateCustomerProfileViolation {
+  readonly field: string;
+  readonly message: string;
+}
+
 export class UpdateHotsiteCustomerProfileError extends Error {
-  constructor(public readonly status: number) {
+  constructor(
+    public readonly status: number,
+    public readonly violations: readonly UpdateCustomerProfileViolation[] = [],
+  ) {
     super('Failed to update customer profile');
     this.name = 'UpdateHotsiteCustomerProfileError';
     Object.setPrototypeOf(this, new.target.prototype);
@@ -25,6 +33,7 @@ export class UpdateHotsiteCustomerProfileError extends Error {
 
 export async function updateHotsiteCustomerProfile(body: {
   phone: string;
+  defaultAddress: Address;
 }): Promise<CustomerProfileResponse> {
   const res = await fetch('/api/customers/me', {
     method: 'PATCH',
@@ -32,7 +41,12 @@ export async function updateHotsiteCustomerProfile(body: {
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) throw new UpdateHotsiteCustomerProfileError(res.status);
+  if (!res.ok) {
+    const violations = (await res.json().catch(() => null)) as {
+      violations?: UpdateCustomerProfileViolation[];
+    } | null;
+    throw new UpdateHotsiteCustomerProfileError(res.status, violations?.violations ?? []);
+  }
 
   return (await res.json()) as CustomerProfileResponse;
 }

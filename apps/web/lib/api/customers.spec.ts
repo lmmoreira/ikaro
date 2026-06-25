@@ -1,10 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CustomerProfileResponse } from '@ikaro/types';
+import type { Address, CustomerProfileResponse } from '@ikaro/types';
 import {
   getHotsiteCustomerProfile,
   updateHotsiteCustomerProfile,
   UpdateHotsiteCustomerProfileError,
 } from './customers';
+
+const address: Address = {
+  street: 'Rua das Acácias',
+  number: '45',
+  complement: '',
+  neighborhood: 'Jardim América',
+  city: 'Belo Horizonte',
+  state: 'MG',
+  zipCode: '30130-020',
+};
 
 describe('getHotsiteCustomerProfile', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
@@ -63,31 +73,35 @@ describe('updateHotsiteCustomerProfile', () => {
     fetchSpy.mockRestore();
   });
 
-  it('PATCHes the phone and returns the updated profile', async () => {
+  it('PATCHes the phone + address and returns the updated profile', async () => {
     const profile: CustomerProfileResponse = {
       customerId: 'c-1',
       email: 'joao@example.com',
       name: 'João Silva',
       phone: '+5511999999999',
-      defaultAddress: null,
+      defaultAddress: address,
     };
     fetchSpy.mockResolvedValue(new Response(JSON.stringify(profile), { status: 200 }));
 
-    const result = await updateHotsiteCustomerProfile({ phone: '+5511999999999' });
+    const result = await updateHotsiteCustomerProfile({
+      phone: '+5511999999999',
+      defaultAddress: address,
+    });
 
     expect(result).toEqual(profile);
     expect(fetchSpy).toHaveBeenCalledWith('/api/customers/me', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: '+5511999999999' }),
+      body: JSON.stringify({ phone: '+5511999999999', defaultAddress: address }),
     });
   });
 
-  it('throws UpdateHotsiteCustomerProfileError with the status on failure', async () => {
-    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ violations: [] }), { status: 400 }));
+  it('throws UpdateHotsiteCustomerProfileError with the status and violations on failure', async () => {
+    const violations = [{ field: 'phone', message: 'phone must be in E.164 format' }];
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ violations }), { status: 400 }));
 
-    await expect(updateHotsiteCustomerProfile({ phone: 'bad' })).rejects.toMatchObject(
-      new UpdateHotsiteCustomerProfileError(400),
-    );
+    await expect(
+      updateHotsiteCustomerProfile({ phone: 'bad', defaultAddress: address }),
+    ).rejects.toMatchObject(new UpdateHotsiteCustomerProfileError(400, violations));
   });
 });

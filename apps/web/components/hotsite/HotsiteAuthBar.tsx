@@ -58,8 +58,8 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element
       <a
         href="/dashboard/login"
         data-testid="hotsite-staff-link"
-        className="flex items-center gap-1.5 text-[0.8125rem] font-medium no-underline"
-        style={{ color: 'rgba(17,24,39,0.4)' }}
+        className="flex items-center gap-1.5 text-[0.8125rem] font-medium no-underline opacity-40"
+        style={{ color: 'var(--ba-text)' }}
       >
         <svg
           width="14"

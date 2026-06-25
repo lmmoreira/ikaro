@@ -152,7 +152,7 @@ describe('PersonalInfoStep', () => {
     expect(screen.getByText('+1')).toBeInTheDocument();
     await user.type(screen.getByLabelText('Telefone'), '4155552671');
 
-    expect(screen.getByLabelText('Telefone')).toHaveValue('4155552671');
+    expect(screen.getByLabelText('Telefone')).toHaveValue('(415) 555-2671');
   });
 
   it('does not duplicate the country code when a full E.164 number is pasted', async () => {
@@ -163,7 +163,7 @@ describe('PersonalInfoStep', () => {
     await user.click(input);
     await user.paste('+5511912345678');
 
-    expect(input).toHaveValue('11912345678');
+    expect(input).toHaveValue('(11) 91234-5678');
   });
 
   it('clearing the phone field leaves it empty rather than just the prefix', async () => {

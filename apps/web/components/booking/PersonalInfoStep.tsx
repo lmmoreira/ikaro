@@ -6,7 +6,8 @@ import type React from 'react';
 import { z } from 'zod';
 import type { AvailableSlot, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import type { PersonalInfoValue } from '@/lib/booking/personal-info';
-import { buildContactPhone, digitsOnly } from '@/lib/utils';
+import { buildContactPhone } from '@/lib/utils';
+import { formatPhoneForDisplay, phonePlaceholder, sanitizePhoneInput } from '@/lib/phone-format';
 import { AddressFields } from './AddressFields';
 import { BookingSummaryCard } from './BookingSummaryCard';
 import { ErrorAlert } from './ErrorAlert';
@@ -172,17 +173,18 @@ export function PersonalInfoStep({
               inputMode="numeric"
               required
               data-testid="input-phone"
-              maxLength={Math.max(1, 15 - digitsOnly(phonePrefix).length)}
-              placeholder="11912345678"
-              value={
+              placeholder={phonePlaceholder(phonePrefix)}
+              value={formatPhoneForDisplay(
                 value.contactPhone.startsWith(phonePrefix)
                   ? value.contactPhone.slice(phonePrefix.length)
-                  : digitsOnly(value.contactPhone)
-              }
+                  : value.contactPhone,
+                phonePrefix,
+              )}
               onChange={(e) => {
+                const input = sanitizePhoneInput(e.target.value, phonePrefix);
                 onChange({
                   ...value,
-                  contactPhone: buildContactPhone(e.target.value, phonePrefix),
+                  contactPhone: buildContactPhone(input, phonePrefix),
                 });
                 clearErrorFor('phone');
               }}

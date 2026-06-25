@@ -1660,7 +1660,7 @@ What's actually left to build: the phone-completion prompt, the staff proxy-rout
 > - Read `apps/web/app/[slug]/layout.tsx` — phone prompt mounts here.
 > - Read `apps/web/components/hotsite/HotsiteAuthBar.tsx` — "Trocar empresa" goes in its dropdown, between "Minha conta" and "Sair".
 > - Read `apps/web/app/select-staff-tenant/page.tsx` and `apps/bff/src/auth/auth.controller.ts`'s `getStaffTenants`/`issueStaffToken` before writing the staff proxy routes — mirror their request/response shapes exactly, just relocate the call site.
-> - Read `apps/web/components/booking/PersonalInfoStep.tsx`'s `buildContactPhone`/`digitsOnly` helpers — extract `buildContactPhone` into `apps/web/lib/utils.ts` (next to the already-shared `digitsOnly`) and reuse it from `PhoneCompletionPrompt`, rather than re-deriving the same E.164-assembly logic.
+> - Read `apps/web/components/booking/PersonalInfoStep.tsx`'s `buildContactPhone`/`digitsOnly` helpers — extract `buildContactPhone` into `apps/web/lib/utils.ts` (next to the already-shared `digitsOnly`) and reuse it from `InformationCompletionPrompt`, rather than re-deriving the same E.164-assembly logic. (Implementation also extracted a shared `apps/web/lib/phone-format.ts` for mask/truncation logic shared by both files — see §1 below.)
 > - Read `packages/i18n/src/country-defaults.ts`'s `CountrySpec` — phone formatting is calling-code-prefix only (`phonePrefix`, e.g. `+55`/`+1`); there is no per-country visual mask anywhere in this codebase. Do not invent a BR-specific `(XX) XXXXX-XXXX` mask — follow the same prefix-label + plain-digit-input pattern `PersonalInfoStep` already uses.
 > - Read `apps/bff/src/customers/customers.controller.ts`'s `UpdateCustomerProfileBodySchema` — `phone` must already be E.164 by the time it's sent; a Zod failure returns `400 { violations: [...] }`, not `422 { type: 'invalid-phone' }`.
 > - Read `apps/backend/src/contexts/customer/infrastructure/controllers/internal-customer.controller.ts` and any `internal/tenants/**` controller for the exact internal-route conventions (no role guard, called by `BackendHttpService`) before adding the new loyalty-balance internal endpoint — match the existing pattern exactly, don't invent a new one.
@@ -1673,41 +1673,51 @@ What's actually left to build: the phone-completion prompt, the staff proxy-rout
 
 ---
 
-#### 1. Phone completion — `apps/web/components/customer/PhoneCompletionPrompt.tsx` — `'use client'`
+#### 1. Information completion — `apps/web/components/customer/InformationCompletionPrompt.tsx` — `'use client'`
 
-A **mandatory** inline bottom-sheet prompt shown to customers who have no `phone` set (UC-021 A3) — there is no skip/dismiss option; the prompt stays open until a valid phone is saved. Mounts inside `apps/web/app/[slug]/layout.tsx`.
+*(Renamed from the original `PhoneCompletionPrompt` during implementation — scope grew from phone-only to phone + address, both mandatory.)*
+
+A **mandatory** inline bottom-sheet prompt shown to customers who are missing `phone` and/or `defaultAddress` (UC-021 A3, expanded) — there is no skip/dismiss option; the prompt stays open until both are saved. Mounts inside `apps/web/app/[slug]/layout.tsx`. Pre-fills whichever piece the customer already has on file (e.g. phone known, address missing → phone field starts filled, only the address blocks submission).
 
 ```typescript
 // On mount: call the already-existing getHotsiteCustomerProfile() (lib/api/customers.ts)
-// If phone != null OR not authenticated (getHotsiteCustomerProfile() returns null) → render nothing
-// If phone == null → show bottom sheet, non-dismissible
+// If not authenticated (returns null) → render nothing
+// If phone == null OR defaultAddress == null → show prompt, non-dismissible
 ```
 
-Sheet content (per `02-phone-completion.html` / UC-021 A3 — use this copy verbatim, it's the validated wording, not the earlier draft of this story):
+Sheet content (per `02-phone-completion.html` / UC-021 A3 for the phone portion — base copy, since address collection was added after the prototype was drawn):
 - Heading: `"Complete seu perfil"`
-- Subtext: `"Precisamos do seu telefone para confirmar agendamentos. Você só precisa fazer isso uma vez."`
-- Phone input: prefix label showing `manifest.localization.phonePrefix` (e.g. `+55`) + plain digit input, `type="tel"` — **no visual mask**, matching `PersonalInfoStep`'s existing pattern (see discover note above). `manifest` is already fetched by the parent `[slug]/layout.tsx`; pass `phonePrefix` down as a prop.
-  - Validation: stripped digits must be 10 or 11 characters (client-side gate, fast feedback)
-- `"Salvar e continuar"` button — disabled until valid. No dismiss/"Agora não" link — phone completion is mandatory.
+- Subtext: `"Precisamos do seu telefone e endereço para confirmar e organizar seus agendamentos. Você só precisa fazer isso uma vez."`
+- Phone input: prefix label showing `manifest.localization.phonePrefix` (e.g. `+55`) + masked digit input via the new `apps/web/lib/phone-format.ts` (`formatPhoneForDisplay`/`maxPhoneDigits`/`phonePlaceholder`/`sanitizePhoneInput`) — a real per-country visual mask (`(11) 99999-9999` for `+55`, `(555) 123-4567` for `+1`), applied identically in `PersonalInfoStep.tsx` (booking flow) for consistency. Built because neither file originally had a mask; both do now.
+  - Validation: stripped local digits must be 10 or 11 characters (client-side gate, fast feedback)
+- Address section: reuses the existing `AddressFields` component (`apps/web/components/booking/AddressFields.tsx`) and `emptyAddress()`/`isAddressFilled()`/`sanitizeAddress()` helpers (`apps/web/lib/booking/personal-info.ts`) — no new address UI was built, this is the same component the booking flow's optional contact-address uses, just `required` here. Fed by `addressSpec` (`manifest.localization.address`), passed down alongside `phonePrefix`.
+- `"Salvar e continuar"` button — **not** proactively disabled by validity (matches `PersonalInfoStep`'s reactive-validation convention: always clickable, invalid submit shows inline errors instead of disabling). No dismiss/"Agora não" link — both fields are mandatory. The `<form>` needs `noValidate` — native HTML `required` constraint validation on the address fields otherwise blocks the `submit` event from ever firing before the custom validation runs.
 
-On submit:
+On submit (client-side validates phone first, then address; only calls the API once both pass):
 ```
-const e164 = buildContactPhone(rawInput, phonePrefix);  // shared helper, see discover note
-PATCH /api/customers/me { phone: e164 }
-→ 200: close sheet
-→ 400 { violations: [...] }: "Digite um número de telefone válido (10 ou 11 dígitos)."
+PATCH /api/customers/me { phone, defaultAddress }
+→ 200: close prompt
+→ 400 { violations: [{ field, message }] }: inspect violations —
+    'phone' in fields              → "Digite um número de telefone válido (10 ou 11 dígitos)."
+    any field starts with 'defaultAddress' → "Verifique os dados do endereço e tente novamente." + re-highlight address fields
+    otherwise                      → "Erro ao salvar. Tente novamente."
 → other error: "Erro ao salvar. Tente novamente."
 ```
 
-Add `PhoneCompletionPrompt` to `apps/web/app/[slug]/layout.tsx`:
+`updateHotsiteCustomerProfile`'s error class (`UpdateHotsiteCustomerProfileError`) carries the parsed `violations` array precisely to support this field-aware routing — a flat "any 400 means phone" assumption (the original draft of this story) breaks once address can also fail validation.
+
+Add `InformationCompletionPrompt` to `apps/web/app/[slug]/layout.tsx`:
 ```tsx
-<PhoneCompletionPrompt phonePrefix={manifest.localization.phonePrefix} />
+<InformationCompletionPrompt
+  phonePrefix={manifest.localization.phonePrefix}
+  addressSpec={manifest.localization.address}
+/>
 {children}
 ```
 
 **`apps/web/app/api/customers/me/route.ts`** — extend with a `PATCH` handler, mirroring the existing `GET` handler exactly (read `access_token` cookie, forward to BFF `PATCH /customers/me` with the `Cookie` header, pass through status + body).
 
-**`apps/web/lib/api/customers.ts`** — add `updateHotsiteCustomerProfile(body: { phone: string }): Promise<CustomerProfileResponse>`, calling `PATCH /api/customers/me`. **Do not** name it `updateCustomerProfile` — that name already exists in `apps/web/lib/api/dashboard/customers.ts` (the Bearer-token `bffClient` version, dashboard-shell-only) and means something different (different transport, different auth). Follow `getHotsiteCustomerProfile`'s existing naming convention.
+**`apps/web/lib/api/customers.ts`** — add `updateHotsiteCustomerProfile(body: { phone: string; defaultAddress: Address }): Promise<CustomerProfileResponse>`, calling `PATCH /api/customers/me`. **Do not** name it `updateCustomerProfile` — that name already exists in `apps/web/lib/api/dashboard/customers.ts` (the Bearer-token `bffClient` version, dashboard-shell-only) and means something different (different transport, different auth). Follow `getHotsiteCustomerProfile`'s existing naming convention.
 
 ---
 
@@ -1762,19 +1772,22 @@ switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>  // POST /ap
 
 **Testing:**
 
-`app/**/page.tsx` files (`switch-tenant`, `select-staff-tenant`) are not unit-tested per the standing rule. `PhoneCompletionPrompt` and the `HotsiteAuthBar` dropdown addition are stateful client components warranting Playwright E2E coverage. The four route handlers (`api/auth/staff-tenants`, `api/auth/staff-token`, `api/customers/tenants`, `api/auth/switch-tenant`, and the `customers/me` `PATCH` addition) each need a `route.spec.ts`, mirroring `apps/web/app/api/revalidate/route.spec.ts`'s structure (Vitest, node environment, mocked `next/headers` + global `fetch`).
+`app/**/page.tsx` files (`switch-tenant`, `select-staff-tenant`) are not unit-tested per the standing rule. `InformationCompletionPrompt` and the `HotsiteAuthBar` dropdown addition are stateful client components warranting Playwright E2E coverage. The four route handlers (`api/auth/staff-tenants`, `api/auth/staff-token`, `api/customers/tenants`, `api/auth/switch-tenant`, and the `customers/me` `PATCH` addition) each need a `route.spec.ts`, mirroring `apps/web/app/api/revalidate/route.spec.ts`'s structure (Vitest, node environment, mocked `next/headers` + global `fetch`).
 
 **Acceptance criteria:**
 
-*Phone completion prompt:*
-- [ ] Prompt does NOT appear when `getHotsiteCustomerProfile()` returns `phone != null`
-- [ ] Prompt does NOT appear when unauthenticated (`getHotsiteCustomerProfile()` returns `null`)
-- [ ] Prompt appears as a non-dismissible bottom sheet when `phone == null` — no skip option anywhere
-- [ ] Phone input shows the tenant's `phonePrefix` (e.g. `+1` for a US tenant, `+55` for a BR tenant) — no visual digit mask
-- [ ] Submit disabled while stripped input is not 10 or 11 digits
-- [ ] Valid submit → `PATCH /api/customers/me` with an E.164 `phone` (prefix + digits) → sheet closes
-- [ ] `400` response → inline error "Digite um número de telefone válido (10 ou 11 dígitos)." in pt-BR; sheet stays open
-- [ ] Prompt reappears on every route change within `[slug]/**` until phone is actually saved (no session-level dismissal state exists)
+*Information completion prompt (renamed from "phone completion" — now phone + address, both mandatory):*
+- [x] Prompt does NOT appear when `getHotsiteCustomerProfile()` returns both `phone != null` AND `defaultAddress != null`
+- [x] Prompt does NOT appear when unauthenticated (`getHotsiteCustomerProfile()` returns `null`)
+- [x] Prompt appears as a non-dismissible overlay when either `phone == null` or `defaultAddress == null` — no skip option anywhere
+- [x] Whichever field is already known is pre-filled (e.g. phone present, address missing → phone field starts filled)
+- [x] Phone input shows the tenant's `phonePrefix` (e.g. `+1` for a US tenant, `+55` for a BR tenant) **and** a real per-country visual mask (`lib/phone-format.ts`) — applied identically in `PersonalInfoStep.tsx`
+- [x] Address section reuses `AddressFields`/`addressSpec` (`manifest.localization.address`), all fields required
+- [x] Submit click with an invalid phone → inline phone-specific error, no address highlighting, no API call
+- [x] Submit click with a valid phone but incomplete address → address fields highlighted red (`hasError`), no API call
+- [x] Valid submit → `PATCH /api/customers/me` with `{ phone, defaultAddress }` → prompt closes
+- [x] `400` with a `phone` violation → phone-specific error message; `400` with a `defaultAddress.*` violation → address-specific error message + re-highlighted fields; any other `400`/error → generic message
+- [x] Prompt reappears on every route change within `[slug]/**` until both fields are actually saved (no session-level dismissal state exists)
 
 *Staff proxy fix:*
 - [ ] `/select-staff-tenant` no longer calls `NEXT_PUBLIC_BFF_URL` directly from client code — both calls go through `/api/auth/staff-tenants` and `/api/auth/staff-token`
@@ -3962,7 +3975,7 @@ Adds the persistent top auth bar to the public hotsite (`/{slug}` and `/{slug}/b
 - "Entrar" links to a new minimal `/{slug}/login` page (not directly to the BFF OAuth URL) — matches the prototype's branded login screen exactly. Multi-tenant selection (`/select-tenant`) stays out of scope — `M13-S14`'s discovery session found this BFF branch is unreachable from any shipped UI and descoped it permanently rather than building it (see `docs/04-USE_CASES.md` UC-021).
 - The avatar dropdown's "Minha conta" links to `/{slug}/my-account`, which will 404 until `M13-S27` ships. Accepted — see the naming-convention note in "Architecture & conventions" above.
 - The bar must not break the existing `revalidate = 300` ISR on `[slug]/page.tsx` / `[slug]/booking/page.tsx`. It is rendered as a `'use client'` component that fetches its own auth state after hydration via a Next.js API proxy route — it does **not** call `cookies()` inside the statically-rendered page tree.
-- The JWT cookie carries no display name (`JwtPayload` is `{ sub, tenantId, tenantSlug, role }` only — see `apps/bff/src/auth/jwt-issuer.service.ts`). The customer's name is fetched from the already-existing `GET /v1/customers/me` BFF endpoint, via a new same-origin proxy route (`/api/customers/me`) that `M13-S14`'s `PhoneCompletionPrompt` will also reuse — built once, here.
+- The JWT cookie carries no display name (`JwtPayload` is `{ sub, tenantId, tenantSlug, role }` only — see `apps/bff/src/auth/jwt-issuer.service.ts`). The customer's name is fetched from the already-existing `GET /v1/customers/me` BFF endpoint, via a new same-origin proxy route (`/api/customers/me`) that `M13-S14`'s `InformationCompletionPrompt` will also reuse — built once, here.
 - No logout endpoint exists yet anywhere in the codebase. This story adds the smallest functional one: a `GET /v1/auth/logout` BFF route that clears the cookie and redirects back to the hotsite.
 
 > 🔍 **Discover before starting:**
@@ -4036,7 +4049,7 @@ export async function GET() {
 }
 ```
 
-Transparent pass-through (status + body) so `M13-S14`'s `PhoneCompletionPrompt` can reuse it unchanged. Add `route.spec.ts` (Vitest, node environment, mocking `next/headers` and global `fetch`) — mirror the structure of `apps/web/app/api/revalidate/route.spec.ts`.
+Transparent pass-through (status + body) so `M13-S14`'s `InformationCompletionPrompt` can reuse it unchanged. Add `route.spec.ts` (Vitest, node environment, mocking `next/headers` and global `fetch`) — mirror the structure of `apps/web/app/api/revalidate/route.spec.ts`.
 
 ---
 
@@ -4058,7 +4071,7 @@ export async function getHotsiteCustomerProfile(): Promise<CustomerProfileRespon
 
 #### `apps/web/components/hotsite/HotsiteAuthBar.tsx` (new) — `'use client'`
 
-- On mount: calls `getHotsiteCustomerProfile()`. While pending, render an empty `<div>` (no flash of "Entrar" before the authenticated state resolves — acceptable brief blank, same tradeoff `PhoneCompletionPrompt` will use in `S14`).
+- On mount: calls `getHotsiteCustomerProfile()`. While pending, render an empty `<div>` (no flash of "Entrar" before the authenticated state resolves — acceptable brief blank, same tradeoff `InformationCompletionPrompt` will use in `S14`).
 - `null` → unauthenticated: right-aligned "Entrar" link → `/{slug}/login`.
 - Profile returned → authenticated: initials avatar (derived from `name`, e.g. "João Silva" → "JS") + `name`, native `<details>/<summary>` dropdown (no client JS needed for the toggle itself) with two links: "Minha conta" → `/{slug}/my-account`, "Sair" → `${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug={slug}`.
 - Styled with Tailwind utility classes + `var(--ba-*)` branding tokens, matching `HeroModule.tsx`'s conventions — do **not** use the prototype's bespoke `.auth-bar`/`.auth-avatar` CSS classes (those exist only in `plan/journey/shared/tokens.css`, not in the production app).
@@ -4114,7 +4127,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 **Known gaps, intentionally deferred:**
 - ~~Multi-tenant customer login still 404s at `/select-tenant` until `M13-S14`.~~ Resolved by `M13-S14`'s discovery session: `/select-tenant` was descoped entirely, not built. See `docs/04-USE_CASES.md` UC-021.
 - "Minha conta" 404s until `M13-S27`.
-- `PhoneCompletionPrompt` (the other consumer of `/api/customers/me`) is still `M13-S14`'s job.
+- `InformationCompletionPrompt` (the other consumer of `/api/customers/me`) is still `M13-S14`'s job.
 
 ---
 
