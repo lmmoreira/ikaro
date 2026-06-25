@@ -253,6 +253,18 @@ describe('CustomersController (component)', () => {
       ]);
     });
 
+    it('propagates backend error when tenant list fetch fails', async () => {
+      const token = makeCustomerJwt(jwtService);
+      const { HttpException: HE } = await import('@nestjs/common');
+      backendHttpService.get.mockRejectedValue(new HE({ status: 503 }, 503));
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers/tenants')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(503);
+    });
+
     it('does not leak a different customer JWT tenant data (tenant isolation)', async () => {
       const tokenA = makeCustomerJwt(jwtService);
       backendHttpService.get

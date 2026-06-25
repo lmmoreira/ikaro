@@ -35,10 +35,4 @@ export interface LinkGoogleAccountResponse {
   role: 'STAFF' | 'MANAGER';
 }
 
-export interface StaffTenantOption {
-  staffId: string;
-  tenantId: string;
-  tenantSlug: string;
-  tenantName: string;
-  role: 'STAFF' | 'MANAGER';
-}
+export type { StaffTenantOption } from '@ikaro/types';

@@ -20,9 +20,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     const contentType = res.headers.get('content-type') ?? '';
-    const body = contentType.includes('application/json')
-      ? await res.json()
-      : { message: 'Upstream error' };
+    const body =
+      contentType.includes('application/json') || contentType.includes('+json')
+        ? await res.json()
+        : { message: 'Upstream error' };
 
     return NextResponse.json(body, { status: res.status });
   } catch {
@@ -53,9 +54,10 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     });
 
     const contentType = res.headers.get('content-type') ?? '';
-    const body = contentType.includes('application/json')
-      ? await res.json()
-      : { message: 'Upstream error' };
+    const body =
+      contentType.includes('application/json') || contentType.includes('+json')
+        ? await res.json()
+        : { message: 'Upstream error' };
 
     return NextResponse.json(body, { status: res.status });
   } catch {

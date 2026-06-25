@@ -29,6 +29,7 @@ export async function loginAsCustomer(
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
     data: { email, tenantSlug, type: 'customer' },
   });
+  if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
   const body = (await res.json()) as DevLoginResponse;
 
   await page.context().addCookies([
@@ -58,6 +59,7 @@ export async function loginAsStaff(
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
     data: { email, tenantSlug, type: 'staff' },
   });
+  if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
   const body = (await res.json()) as DevLoginResponse;
 
   await page.context().addCookies([

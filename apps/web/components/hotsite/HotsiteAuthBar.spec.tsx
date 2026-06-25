@@ -2,6 +2,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { axe } from '@/axe-helper';
 import { getHotsiteCustomerProfile } from '@/lib/api/customers';
 import { fetchCustomerTenants } from '@/lib/api/auth';
 import { getHotsiteStaffProfile } from '@/lib/api/staff';
@@ -185,5 +186,15 @@ describe('HotsiteAuthBar', () => {
     await userEvent.click(screen.getByText('João Silva').closest('summary') as HTMLElement);
 
     expect(screen.queryByTestId('hotsite-switch-tenant-link')).not.toBeInTheDocument();
+  });
+
+  it('has no axe violations in the unauthenticated state', async () => {
+    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
+    vi.mocked(getHotsiteStaffProfile).mockResolvedValue(null);
+
+    const { container } = renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
+    await screen.findByTestId('hotsite-login-link');
+
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

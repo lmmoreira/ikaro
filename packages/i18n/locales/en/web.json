@@ -42,7 +42,7 @@
     "selectTenantRetry": "Try again",
     "roleManager": "Manager",
     "roleStaff": "Staff",
-    "tenantLoyaltyPoints": "{count} active points",
+    "tenantLoyaltyPoints": "{count, plural, one {# active point} other {# active points}}",
     "errorBackToLogin": "Back to login",
     "errorBackToSite": "Back to site",
     "errorBack": "Back",

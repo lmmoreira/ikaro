@@ -293,9 +293,17 @@ describe('LoyaltyController (integration)', () => {
       expect(body.currentPoints).toBe(40);
     });
 
-    it('returns 403 when called with CUSTOMER role', async () => {
+    it('returns 200 when called with CUSTOMER role for their own balance', async () => {
       const res = await request(app.getHttpServer())
         .get(`/customers/${CUSTOMER_ID}/loyalty/balance`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'));
+      expect(res.status).toBe(200);
+    });
+
+    it('returns 403 when CUSTOMER calls with a different customerId (ownership check)', async () => {
+      const OTHER_CUSTOMER = 'aaaaaaaa-0000-7000-8000-000000000002';
+      const res = await request(app.getHttpServer())
+        .get(`/customers/${OTHER_CUSTOMER}/loyalty/balance`)
         .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'));
       expect(res.status).toBe(403);
     });

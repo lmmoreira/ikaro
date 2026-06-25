@@ -10,15 +10,25 @@ import type { Address, CustomerProfileResponse } from '@ikaro/types';
 // navigates to tenant B's hotsite would silently see tenant A's profile rendered as "logged in"
 // on tenant B's page. A 403 (mismatch) is treated the same as a 401 (unauthenticated) — both
 // resolve to "not logged in here".
+export class FetchCustomerProfileError extends Error {
+  constructor(public readonly status: number) {
+    super(`Unexpected status ${status} fetching customer profile`);
+    this.name = 'FetchCustomerProfileError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 export async function getHotsiteCustomerProfile(
   slug: string,
 ): Promise<CustomerProfileResponse | null> {
   try {
     const res = await fetch(`/api/customers/me?slug=${encodeURIComponent(slug)}`);
-    if (!res.ok) return null;
+    if (res.status === 401 || res.status === 403) return null;
+    if (!res.ok) throw new FetchCustomerProfileError(res.status);
     return (await res.json()) as CustomerProfileResponse;
-  } catch {
-    return null;
+  } catch (err) {
+    if (err instanceof FetchCustomerProfileError) throw err;
+    return null; // network error — treat as unauthenticated
   }
 }
 

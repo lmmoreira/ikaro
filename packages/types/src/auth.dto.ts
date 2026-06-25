@@ -13,3 +13,11 @@ export interface TenantOption {
   readonly slug: string;
   readonly loyaltyPoints: number;
 }
+
+export interface StaffTenantOption {
+  readonly staffId: string;
+  readonly tenantId: string;
+  readonly tenantSlug: string;
+  readonly tenantName: string;
+  readonly role: 'STAFF' | 'MANAGER';
+}

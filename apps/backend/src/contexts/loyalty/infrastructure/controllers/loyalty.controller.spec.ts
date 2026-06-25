@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { InMemoryLoyaltyBalanceRepository } from '../../../../test/infrastructure/in-memory-loyalty-balance.repository';
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyRedemptionRepository } from '../../../../test/infrastructure/in-memory-loyalty-redemption.repository';
@@ -176,7 +177,7 @@ describe('LoyaltyController', () => {
     });
 
     it('returns zero balance for customer with no data', async () => {
-      const result = await controller.getBalanceAdmin(CUSTOMER_ID);
+      const result = await controller.getBalanceAdmin(CUSTOMER_ID, {});
       expect(result.currentPoints).toBe(0);
     });
 
@@ -189,7 +190,7 @@ describe('LoyaltyController', () => {
           .build(),
       );
 
-      const result = await controller.getBalanceAdmin(CUSTOMER_ID);
+      const result = await controller.getBalanceAdmin(CUSTOMER_ID, {});
       expect(result.currentPoints).toBe(55);
     });
 
@@ -203,7 +204,7 @@ describe('LoyaltyController', () => {
           .build(),
       );
 
-      const result = await controller.getBalanceAdmin(CUSTOMER_ID, OTHER_TENANT);
+      const result = await controller.getBalanceAdmin(CUSTOMER_ID, { tenantId: OTHER_TENANT });
       expect(result.currentPoints).toBe(120);
     });
 
@@ -217,8 +218,76 @@ describe('LoyaltyController', () => {
           .build(),
       );
 
-      const result = await controller.getBalanceAdmin(CUSTOMER_ID);
+      const result = await controller.getBalanceAdmin(CUSTOMER_ID, {});
       expect(result.currentPoints).toBe(0);
+    });
+
+    it('allows CUSTOMER to read their own balance (ownership check passes)', async () => {
+      const ctx = new RequestContextBuilder()
+        .withTenantId(TENANT_ID)
+        .withActorId(CUSTOMER_ID)
+        .withActorType('CUSTOMER')
+        .withActorRole('CUSTOMER')
+        .build();
+      const customerController = new LoyaltyController(
+        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
+        ctx,
+      );
+      await expect(customerController.getBalanceAdmin(CUSTOMER_ID, {})).resolves.toMatchObject({
+        currentPoints: 0,
+      });
+    });
+
+    it('throws ForbiddenException when CUSTOMER reads a different customer balance in the same tenant', async () => {
+      const OTHER_CUSTOMER = 'aaaaaaaa-0000-7000-8000-000000000002';
+      const ctx = new RequestContextBuilder()
+        .withTenantId(TENANT_ID)
+        .withActorId(CUSTOMER_ID)
+        .withActorType('CUSTOMER')
+        .withActorRole('CUSTOMER')
+        .build();
+      const customerController = new LoyaltyController(
+        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
+        ctx,
+      );
+      expect(() => customerController.getBalanceAdmin(OTHER_CUSTOMER, {})).toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('allows CUSTOMER to fetch balance for their own record in another tenant (multi-tenant cross-tenant call)', async () => {
+      const OTHER_TENANT = '20000000-0000-7000-8000-000000000099';
+      const OTHER_TENANT_CUSTOMER_ID = 'bbbbbbbb-0000-7000-8000-000000000099';
+      await balanceRepo.upsert(
+        new LoyaltyBalanceBuilder()
+          .withTenantId(OTHER_TENANT)
+          .withCustomerId(OTHER_TENANT_CUSTOMER_ID)
+          .withCurrentPoints(77)
+          .build(),
+      );
+      const ctx = new RequestContextBuilder()
+        .withTenantId(TENANT_ID)
+        .withActorId(CUSTOMER_ID)
+        .withActorType('CUSTOMER')
+        .withActorRole('CUSTOMER')
+        .build();
+      const customerController = new LoyaltyController(
+        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
+        ctx,
+      );
+      // Cross-tenant call: customerId differs from actorId but tenantId query param differs too
+      await expect(
+        customerController.getBalanceAdmin(OTHER_TENANT_CUSTOMER_ID, { tenantId: OTHER_TENANT }),
+      ).resolves.toMatchObject({ currentPoints: 77 });
     });
   });
 

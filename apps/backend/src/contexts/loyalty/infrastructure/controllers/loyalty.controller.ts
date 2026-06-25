@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -10,8 +11,10 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { z } from 'zod';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
+import { AnyAuthenticatedRoleGuard } from '../../../../shared/guards/any-authenticated-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { PaginationDto, PaginationSchema } from '../../application/dtos/pagination.dto';
 import { RedeemPointsDto, RedeemPointsSchema } from '../../application/dtos/redeem-points.dto';
@@ -100,13 +103,23 @@ export class LoyaltyController {
   }
 
   @Get('customers/:customerId/loyalty/balance')
-  @UseGuards(StaffOrManagerRoleGuard)
+  @UseGuards(AnyAuthenticatedRoleGuard)
   getBalanceAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
-    @Query('tenantId') tenantId?: string,
+    @Query(new ZodValidationPipe(z.object({ tenantId: z.uuid().optional() })))
+    { tenantId }: { tenantId?: string },
   ): Promise<GetLoyaltyBalanceResult> {
+    const { actorRole, actorId, tenantId: contextTenantId } = this.tenantContext;
+    const effectiveTenantId = tenantId ?? contextTenantId;
+    // Cross-tenant calls (tenantId query param ≠ JWT tenant) come from the BFF's getTenants()
+    // which already validated the tenant list via /customers/me/tenants. Within the actor's
+    // home tenant, enforce that a CUSTOMER can only read their own balance.
+    const isCrossTenantCall = effectiveTenantId !== contextTenantId;
+    if (actorRole === 'CUSTOMER' && !isCrossTenantCall && actorId !== customerId) {
+      throw new ForbiddenException();
+    }
     return this.getLoyaltyBalance
-      .execute({ tenantId: tenantId ?? this.tenantContext.tenantId, customerId })
+      .execute({ tenantId: effectiveTenantId, customerId })
       .catch(mapLoyaltyError);
   }
 

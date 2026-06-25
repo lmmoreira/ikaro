@@ -1,12 +1,6 @@
-import type { SwitchTenantResponse, TenantOption } from '@ikaro/types';
+import type { StaffTenantOption, SwitchTenantResponse, TenantOption } from '@ikaro/types';
 
-export interface StaffTenantOption {
-  readonly staffId: string;
-  readonly tenantId: string;
-  readonly tenantSlug: string;
-  readonly tenantName: string;
-  readonly role: 'STAFF' | 'MANAGER';
-}
+export type { StaffTenantOption };
 
 export class AuthFetchError extends Error {
   constructor(public readonly status: number) {

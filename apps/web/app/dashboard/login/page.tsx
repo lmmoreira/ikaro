@@ -6,7 +6,8 @@ export default async function StaffLoginPage({
   readonly searchParams: Promise<{ tenantSlug?: string }>;
 }) {
   const t = await getTranslations('auth');
-  const bffUrl = process.env.NEXT_PUBLIC_BFF_URL ?? '';
+  const bffUrl = process.env.NEXT_PUBLIC_BFF_URL;
+  if (!bffUrl) throw new Error('NEXT_PUBLIC_BFF_URL is required');
   const { tenantSlug } = await searchParams;
   const oauthUrl = tenantSlug
     ? `${bffUrl}/auth/google?type=staff&tenantSlug=${encodeURIComponent(tenantSlug)}`

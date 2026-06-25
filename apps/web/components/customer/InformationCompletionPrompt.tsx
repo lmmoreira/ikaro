@@ -38,16 +38,21 @@ export function InformationCompletionPrompt({
 
   useEffect(() => {
     let active = true;
-    getHotsiteCustomerProfile(slug).then((profile) => {
-      if (!active) return;
-      if (!profile) {
-        setState('hidden');
-        return;
-      }
-      if (profile.phone != null) setPhone(profile.phone);
-      if (profile.defaultAddress != null) setAddress(profile.defaultAddress);
-      setState(profile.phone == null || profile.defaultAddress == null ? 'visible' : 'hidden');
-    });
+    getHotsiteCustomerProfile(slug)
+      .then((profile) => {
+        if (!active) return;
+        if (!profile) {
+          setState('hidden');
+          return;
+        }
+        if (profile.phone != null) setPhone(profile.phone);
+        if (profile.defaultAddress != null) setAddress(profile.defaultAddress);
+        setState(profile.phone == null || profile.defaultAddress == null ? 'visible' : 'hidden');
+      })
+      .catch(() => {
+        // On a non-auth upstream error, leave the prompt in 'loading' (invisible) rather than
+        // incorrectly hiding it — a 5xx is not the same as "profile is complete".
+      });
     return () => {
       active = false;
     };

@@ -8,6 +8,7 @@ import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import { CustomerSearchResponse } from './customers.types';
 import { CustomerTenantSummaryResponse } from '../auth/auth.types';
 import { TenantInfoResponse } from '../shared/types/backend-responses';
+import { toTenantOption } from './customers.mapper';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -82,10 +83,6 @@ export class CustomersController {
   // name/slug/loyaltyPoints too, to render the non-clickable "Atual" card. The client can
   // never read this from the httpOnly JWT cookie directly, so the BFF returns it here instead
   // of forcing a second round trip.
-  // Includes the current tenant (not just the others) — the switch-tenant screen needs its
-  // name/slug/loyaltyPoints too, to render the non-clickable "Atual" card. The client can
-  // never read this from the httpOnly JWT cookie directly, so the BFF returns it here instead
-  // of forcing a second round trip.
   @Get('tenants')
   @Roles('CUSTOMER')
   async getTenants(): Promise<TenantOption[]> {
@@ -101,12 +98,7 @@ export class CustomersController {
             { tenantId: t.tenantId },
           ),
         ]);
-        return {
-          id: t.tenantId,
-          name: tenantInfo.name,
-          slug: tenantInfo.slug,
-          loyaltyPoints: balance.currentPoints,
-        };
+        return toTenantOption(t, tenantInfo, balance);
       }),
     );
   }

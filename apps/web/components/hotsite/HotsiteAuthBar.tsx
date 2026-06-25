@@ -32,12 +32,16 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element
 
   useEffect(() => {
     let active = true;
-    getHotsiteCustomerProfile(slug).then((profile) => {
-      if (!active) return;
-      setState(
-        profile ? { status: 'authenticated', name: profile.name } : { status: 'unauthenticated' },
-      );
-      if (profile) {
+    getHotsiteCustomerProfile(slug)
+      .then((profile) => {
+        if (!active) return;
+        setState(
+          profile ? { status: 'authenticated', name: profile.name } : { status: 'unauthenticated' },
+        );
+        if (!profile) {
+          setHasMultipleTenants(false);
+          return;
+        }
         fetchCustomerTenants()
           .then((tenants) => {
             if (active) setHasMultipleTenants(tenants.length >= 2);
@@ -45,8 +49,10 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element
           .catch(() => {
             // "Trocar empresa" simply stays hidden if the tenant count can't be determined.
           });
-      }
-    });
+      })
+      .catch(() => {
+        if (active) setState({ status: 'unauthenticated' });
+      });
     // Independent of the customer check above — a single JWT cookie can only hold one role at a
     // time, so at most one of these two calls ever actually succeeds. Logging in as the other
     // role naturally "logs out" this side too, since it's the same cookie being checked against

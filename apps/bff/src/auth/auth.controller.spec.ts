@@ -558,7 +558,7 @@ describe('AuthController', () => {
 
         expect(post).not.toHaveBeenCalled();
         expect(res.redirect).toHaveBeenCalledWith(
-          'http://localhost:3000/auth/error?reason=not-a-staff-member',
+          'http://localhost:3000/auth/error?reason=staff-deactivated',
         );
       });
 

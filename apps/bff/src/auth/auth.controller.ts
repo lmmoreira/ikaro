@@ -292,8 +292,9 @@ export class AuthController {
     // instead of a tenant-scoped invite link (the invite email's link is currently broken, see
     // td/TD13-STAFF-INVITE-EMAIL-LINK.md). Trusts the same Google-verified email the tenant-scoped
     // first-login flow (handleStaffFirstLogin) already trusts — this isn't a new trust boundary.
+    let emailMatches: StaffByEmailAcrossTenantsResponse[] = [];
     if (staffList.length === 0) {
-      await this.linkStaffByVerifiedEmail(profile);
+      emailMatches = await this.linkStaffByVerifiedEmail(profile);
       staffList = await this.backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {
         googleOAuthId: profile.googleOAuthId,
       });
@@ -302,9 +303,9 @@ export class AuthController {
     const activeStaff = staffList.filter((s) => s.isActive);
 
     if (activeStaff.length === 0) {
-      const reason = staffList.some((s) => !s.isActive)
-        ? 'staff-deactivated'
-        : 'not-a-staff-member';
+      const hasDeactivated =
+        staffList.some((s) => !s.isActive) || emailMatches.some((m) => !m.isActive);
+      const reason = hasDeactivated ? 'staff-deactivated' : 'not-a-staff-member';
       res.redirect(`${frontendUrl}/auth/error?reason=${reason}`);
       return;
     }
@@ -346,7 +347,9 @@ export class AuthController {
   // individual link call failing (e.g. a concurrent request racing to link the same record) is
   // swallowed here — the re-fetch by googleOAuthId immediately after this call reflects whatever
   // actually got linked, and the caller's normal active.length branching takes it from there.
-  private async linkStaffByVerifiedEmail(profile: GoogleProfile): Promise<void> {
+  private async linkStaffByVerifiedEmail(
+    profile: GoogleProfile,
+  ): Promise<StaffByEmailAcrossTenantsResponse[]> {
     const matches = await this.backendHttp.get<StaffByEmailAcrossTenantsResponse[]>(
       '/internal/staff/by-email-all',
       { email: profile.email },
@@ -362,9 +365,14 @@ export class AuthController {
             email: profile.email,
             name: profile.name,
           })
-          .catch(() => undefined),
+          .catch((err: unknown) => {
+            if (!(err instanceof HttpException && err.getStatus() === HttpStatus.CONFLICT))
+              throw err;
+          }),
       ),
     );
+
+    return matches;
   }
 
   private async handleStaffFirstLogin(

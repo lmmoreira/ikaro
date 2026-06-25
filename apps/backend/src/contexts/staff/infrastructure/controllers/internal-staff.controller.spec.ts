@@ -112,6 +112,12 @@ describe('InternalStaffController', () => {
       );
     });
 
+    it('throws BadRequestException when email is whitespace-only', async () => {
+      await expect(controller.getByEmailAcrossTenants('   ')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
     it('returns empty array when no staff is found for the given email', async () => {
       const result = await controller.getByEmailAcrossTenants('nobody@lavacar.com.br');
       expect(result).toEqual([]);

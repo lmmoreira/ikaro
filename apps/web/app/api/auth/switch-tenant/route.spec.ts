@@ -55,12 +55,15 @@ describe('POST /api/auth/switch-tenant', () => {
     const response = await POST(makeRequest({ targetTenantId: 't-2' }));
     const body = await response.json();
 
-    expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/auth/switch-tenant`, {
-      method: 'POST',
-      headers: { Cookie: 'access_token=signed-jwt', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetTenantId: 't-2' }),
-      cache: 'no-store',
-    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${BFF_URL}/auth/switch-tenant`,
+      expect.objectContaining({
+        method: 'POST',
+        headers: { Cookie: 'access_token=signed-jwt', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetTenantId: 't-2' }),
+        cache: 'no-store',
+      }),
+    );
     expect(response.status).toBe(200);
     expect(body).toEqual({ tenantSlug: 'superclean', expiresIn: '7d' });
     expect(response.headers.get('set-cookie')).toBe(

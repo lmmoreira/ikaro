@@ -80,7 +80,8 @@ export class InternalStaffController {
   async getByEmailAcrossTenants(
     @Query('email') email: string,
   ): Promise<GetStaffByEmailAcrossTenantsUseCaseResult[]> {
-    if (!email) {
+    const normalizedEmail = email?.trim();
+    if (!normalizedEmail) {
       throw new BadRequestException({
         type: 'about:blank',
         title: 'Bad Request',
@@ -88,7 +89,7 @@ export class InternalStaffController {
         detail: 'email query parameter is required',
       });
     }
-    return this.getStaffByEmailAcrossTenants.execute(email);
+    return this.getStaffByEmailAcrossTenants.execute(normalizedEmail);
   }
 
   @Post(':staffId/link-google')

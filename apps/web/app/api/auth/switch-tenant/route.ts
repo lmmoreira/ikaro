@@ -15,17 +15,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       headers: { Cookie: `access_token=${token}`, 'Content-Type': 'application/json' },
       body: requestBody,
       cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
     });
 
     const contentType = res.headers.get('content-type') ?? '';
-    const body = contentType.includes('application/json')
-      ? await res.json()
-      : { message: 'Upstream error' };
+    const body =
+      contentType.includes('application/json') || contentType.includes('+json')
+        ? await res.json()
+        : { message: 'Upstream error' };
 
     const response = NextResponse.json(body, { status: res.status });
-    const setCookie = res.headers.get('set-cookie');
-    if (setCookie) {
-      response.headers.set('set-cookie', setCookie);
+    for (const cookie of res.headers.getSetCookie()) {
+      response.headers.append('set-cookie', cookie);
     }
     return response;
   } catch {

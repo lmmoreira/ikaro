@@ -90,6 +90,38 @@ Authorization: Bearer paste-customer-jwt-here
 
 ###
 
+### 401 — No JWT provided (unauthenticated)
+POST {{bffUrl}}/v1/auth/switch-tenant
+Content-Type: application/json
+
+{
+  "targetTenantId": "paste-target-tenant-uuid-here"
+}
+
+###
+
+### 400 — targetTenantId missing or not a UUID
+POST {{bffUrl}}/v1/auth/switch-tenant
+Content-Type: application/json
+Authorization: Bearer paste-customer-jwt-here
+
+{
+  "targetTenantId": "not-a-uuid"
+}
+
+###
+
+### 403 — targetTenantId not in the authenticated customer's tenant list
+POST {{bffUrl}}/v1/auth/switch-tenant
+Content-Type: application/json
+Authorization: Bearer paste-customer-jwt-here
+
+{
+  "targetTenantId": "00000000-0000-4000-8000-000000009999"
+}
+
+###
+
 # ─────────────────────────────────────────────────────────────────────────────
 # MULTI-TENANT STAFF SELECTION — GET /v1/auth/staff-tenants + POST /v1/auth/staff-token
 # UC-022 (staff in 2+ tenants): after browser redirects to /select-staff-tenant?token=<...>,

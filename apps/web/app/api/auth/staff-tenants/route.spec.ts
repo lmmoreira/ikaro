@@ -47,10 +47,13 @@ describe('GET /api/auth/staff-tenants', () => {
     const response = await GET();
     const body = await response.json();
 
-    expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/auth/staff-tenants`, {
-      headers: { Cookie: 'access_token=signed-jwt' },
-      cache: 'no-store',
-    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${BFF_URL}/auth/staff-tenants`,
+      expect.objectContaining({
+        headers: { Cookie: 'access_token=signed-jwt' },
+        cache: 'no-store',
+      }),
+    );
     expect(response.status).toBe(200);
     expect(body).toEqual(options);
   });

@@ -45,10 +45,13 @@ describe('GET /api/customers/tenants', () => {
     const response = await GET();
     const body = await response.json();
 
-    expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/customers/tenants`, {
-      headers: { Cookie: 'access_token=signed-jwt' },
-      cache: 'no-store',
-    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${BFF_URL}/customers/tenants`,
+      expect.objectContaining({
+        headers: { Cookie: 'access_token=signed-jwt' },
+        cache: 'no-store',
+      }),
+    );
     expect(response.status).toBe(200);
     expect(body).toEqual(tenants);
   });
