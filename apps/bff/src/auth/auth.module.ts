@@ -24,12 +24,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     BackendHttpModule,
   ],
   controllers: [AuthController],
-  providers: [
-    GoogleStrategy,
-    JwtStrategy,
-    JwtIssuerService,
-    GoogleAuthGuard,
-  ],
+  providers: [GoogleStrategy, JwtStrategy, JwtIssuerService, GoogleAuthGuard],
   exports: [JwtIssuerService],
 })
 export class AuthModule {}

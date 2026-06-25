@@ -150,9 +150,8 @@ export class AuthController {
     @Body(new ZodValidationPipe(SwitchTenantSchema)) dto: SwitchTenantDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ tenantSlug: string; expiresIn: string }> {
-    const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
-      '/customers/me/tenants',
-    );
+    const tenants =
+      await this.backendHttp.get<CustomerTenantSummaryResponse[]>('/customers/me/tenants');
     const match = tenants.find((t) => t.tenantId === dto.targetTenantId);
     if (!match) {
       throw new ForbiddenException({

@@ -72,11 +72,7 @@ describe('AuthController', () => {
         get: jest.fn().mockResolvedValue(tenantInfo),
         post: jest.fn().mockResolvedValue({ customerId: CUSTOMER_ID_A, created: true }),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeReq(profileWithSlug), res);
@@ -102,11 +98,7 @@ describe('AuthController', () => {
         get: jest.fn().mockResolvedValue(tenantInfo),
         post: jest.fn().mockResolvedValue({ customerId: CUSTOMER_ID_A, created: true }),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeReq(profileWithSlug), res);
@@ -122,11 +114,7 @@ describe('AuthController', () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockRejectedValue(new HttpException('Not Found', 404)),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeReq(profileWithSlug), res);
@@ -143,11 +131,7 @@ describe('AuthController', () => {
     // request), so it errors out immediately rather than running tenant-lookup logic.
     it('redirects to /auth/error without querying the backend', async () => {
       const backendHttp = makeBackendHttp({ get: jest.fn() });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeReq(profile), res);
@@ -184,11 +168,7 @@ describe('AuthController', () => {
           role: 'MANAGER',
         }),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
@@ -223,11 +203,7 @@ describe('AuthController', () => {
           .fn()
           .mockResolvedValue({ staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER' }),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
@@ -243,11 +219,7 @@ describe('AuthController', () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockRejectedValue(new HttpException('Not Found', 404)),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
@@ -265,11 +237,7 @@ describe('AuthController', () => {
           .mockResolvedValueOnce(tenantInfo)
           .mockRejectedValueOnce(new HttpException({ status: 404 }, 404)),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
@@ -289,11 +257,7 @@ describe('AuthController', () => {
           isActive: false,
         }),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
@@ -314,11 +278,7 @@ describe('AuthController', () => {
         }),
         post: jest.fn().mockRejectedValue(new HttpException({ status: 422 }, 422)),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
@@ -339,11 +299,7 @@ describe('AuthController', () => {
         }),
         post: jest.fn().mockRejectedValue(new HttpException({ status: 403 }, 403)),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
@@ -364,11 +320,7 @@ describe('AuthController', () => {
         }),
         post: jest.fn().mockRejectedValue(new HttpException({ status: 409 }, 409)),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
@@ -398,11 +350,7 @@ describe('AuthController', () => {
           ])
           .mockResolvedValueOnce(tenantInfo),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffReq(), res);
@@ -425,11 +373,7 @@ describe('AuthController', () => {
           ])
           .mockResolvedValueOnce(tenantInfo),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffReq(), res);
@@ -453,11 +397,7 @@ describe('AuthController', () => {
           ])
           .mockResolvedValueOnce(tenantInfo),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffReq(), res);
@@ -472,11 +412,7 @@ describe('AuthController', () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValue([]),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffReq(), res);
@@ -494,11 +430,7 @@ describe('AuthController', () => {
             { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'STAFF', isActive: false },
           ]),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffReq(), res);
@@ -513,11 +445,7 @@ describe('AuthController', () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockRejectedValue(serverError),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await expect(controller.handleGoogleCallback(makeStaffReq(), res)).rejects.toBeInstanceOf(
@@ -537,11 +465,7 @@ describe('AuthController', () => {
           ])
           .mockResolvedValueOnce(tenantInfo),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       await controller.handleGoogleCallback(makeStaffReq(), res);
@@ -569,11 +493,7 @@ describe('AuthController', () => {
           .mockResolvedValueOnce(tenantInfo);
         const post = jest.fn().mockResolvedValue({ staffId: STAFF_ID_A, tenantId: TENANT_ID_A });
         const backendHttp = makeBackendHttp({ get, post });
-        const controller = new AuthController(
-          jwtIssuer,
-          backendHttp,
-          configService,
-        );
+        const controller = new AuthController(jwtIssuer, backendHttp, configService);
         const res = makeRes();
 
         await controller.handleGoogleCallback(makeStaffReq(), res);
@@ -607,11 +527,7 @@ describe('AuthController', () => {
           .mockResolvedValueOnce(tenantInfo); // tenant info for first active staff
         const post = jest.fn().mockResolvedValue({});
         const backendHttp = makeBackendHttp({ get, post });
-        const controller = new AuthController(
-          jwtIssuer,
-          backendHttp,
-          configService,
-        );
+        const controller = new AuthController(jwtIssuer, backendHttp, configService);
         const res = makeRes();
 
         await controller.handleGoogleCallback(makeStaffReq(), res);
@@ -635,11 +551,7 @@ describe('AuthController', () => {
           .mockResolvedValueOnce([]); // by-oauth re-fetch: still nothing linked
         const post = jest.fn();
         const backendHttp = makeBackendHttp({ get, post });
-        const controller = new AuthController(
-          jwtIssuer,
-          backendHttp,
-          configService,
-        );
+        const controller = new AuthController(jwtIssuer, backendHttp, configService);
         const res = makeRes();
 
         await controller.handleGoogleCallback(makeStaffReq(), res);
@@ -657,11 +569,7 @@ describe('AuthController', () => {
           .mockResolvedValueOnce([]) // by-email-all
           .mockResolvedValueOnce([]); // by-oauth re-fetch
         const backendHttp = makeBackendHttp({ get });
-        const controller = new AuthController(
-          jwtIssuer,
-          backendHttp,
-          configService,
-        );
+        const controller = new AuthController(jwtIssuer, backendHttp, configService);
         const res = makeRes();
 
         await controller.handleGoogleCallback(makeStaffReq(), res);
@@ -688,11 +596,7 @@ describe('AuthController', () => {
             name: 'Lavacar Centro',
           }),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_B };
       const res = makeRes();
 
@@ -717,11 +621,7 @@ describe('AuthController', () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValue([{ tenantId: TENANT_ID_A, customerId: CUSTOMER_ID_A }]),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_OTHER };
 
       await expect(controller.switchTenant(dto, makeRes())).rejects.toBeInstanceOf(
@@ -740,11 +640,7 @@ describe('AuthController', () => {
             name: 'Lavacar Centro',
           }),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_B };
 
       await controller.switchTenant(dto, makeRes());
@@ -777,11 +673,7 @@ describe('AuthController', () => {
             name: 'Lavacar Centro',
           }),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
 
       const result = await controller.getStaffTenants();
 
@@ -808,11 +700,7 @@ describe('AuthController', () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValue([]),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
 
       const result = await controller.getStaffTenants();
 
@@ -831,11 +719,7 @@ describe('AuthController', () => {
           ])
           .mockResolvedValueOnce(tenantInfo),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const dto: SwitchStaffTenantDto = { staffId: STAFF_ID_A };
       const res = makeRes();
 
@@ -864,16 +748,12 @@ describe('AuthController', () => {
             { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: false },
           ]),
       });
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const dto: SwitchStaffTenantDto = { staffId: STAFF_ID_A };
 
-      await expect(
-        controller.switchStaffTenant(dto, makeRes()),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(controller.switchStaffTenant(dto, makeRes())).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
   });
 
@@ -1056,11 +936,7 @@ describe('AuthController', () => {
   describe('logout()', () => {
     it('clears the access_token cookie and redirects to the tenant hotsite when tenantSlug is valid', () => {
       const backendHttp = makeBackendHttp();
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       controller.logout('lavacar-bh', res);
@@ -1074,11 +950,7 @@ describe('AuthController', () => {
 
     it('redirects to the bare frontendUrl when tenantSlug is missing', () => {
       const backendHttp = makeBackendHttp();
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       controller.logout(undefined, res);
@@ -1088,11 +960,7 @@ describe('AuthController', () => {
 
     it('redirects to the bare frontendUrl when tenantSlug fails validation', () => {
       const backendHttp = makeBackendHttp();
-      const controller = new AuthController(
-        jwtIssuer,
-        backendHttp,
-        configService,
-      );
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const res = makeRes();
 
       controller.logout('Not Valid Slug!', res);

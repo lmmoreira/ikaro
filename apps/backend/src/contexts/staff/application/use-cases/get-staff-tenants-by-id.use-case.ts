@@ -20,7 +20,9 @@ export class GetStaffTenantsByIdUseCase {
 
     const { googleOAuthId } = staff;
     if (!googleOAuthId) {
-      return [{ staffId: staff.id, tenantId: staff.tenantId, role: staff.role, isActive: staff.isActive }];
+      return [
+        { staffId: staff.id, tenantId: staff.tenantId, role: staff.role, isActive: staff.isActive },
+      ];
     }
 
     const allStaff = await this.staffRepo.findAllByGoogleOAuthId(googleOAuthId);

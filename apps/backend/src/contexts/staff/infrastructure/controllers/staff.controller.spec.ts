@@ -130,9 +130,7 @@ describe('StaffController', () => {
       const result = await ctrl.getMyTenants();
 
       expect(result).toHaveLength(2);
-      expect(result.map((r) => r.tenantId)).toEqual(
-        expect.arrayContaining([TENANT_A, TENANT_B]),
-      );
+      expect(result.map((r) => r.tenantId)).toEqual(expect.arrayContaining([TENANT_A, TENANT_B]));
     });
 
     it('maps StaffNotFoundError to 404 when actorId does not exist', async () => {

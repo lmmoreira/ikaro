@@ -33,7 +33,9 @@ describe('GET /api/auth/staff-tenants', () => {
   });
 
   it('forwards the access_token cookie and passes through a successful response', async () => {
-    const options = [{ staffId: 's-1', tenantId: 't-1', tenantSlug: 'bh', tenantName: 'BH', role: 'MANAGER' }];
+    const options = [
+      { staffId: 's-1', tenantId: 't-1', tenantSlug: 'bh', tenantName: 'BH', role: 'MANAGER' },
+    ];
     mockCookieGet.mockReturnValue({ value: 'signed-jwt' });
     fetchSpy.mockResolvedValue(
       new Response(JSON.stringify(options), {

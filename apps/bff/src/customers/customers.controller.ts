@@ -89,9 +89,8 @@ export class CustomersController {
   @Get('tenants')
   @Roles('CUSTOMER')
   async getTenants(): Promise<TenantOption[]> {
-    const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
-      '/customers/me/tenants',
-    );
+    const tenants =
+      await this.backendHttp.get<CustomerTenantSummaryResponse[]>('/customers/me/tenants');
 
     return Promise.all(
       tenants.map(async (t) => {

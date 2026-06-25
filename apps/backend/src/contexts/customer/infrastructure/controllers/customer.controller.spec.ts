@@ -137,9 +137,7 @@ describe('CustomerController', () => {
       const result = await controller.getMyTenants();
 
       expect(result).toHaveLength(2);
-      expect(result.map((r) => r.tenantId)).toEqual(
-        expect.arrayContaining([TENANT_A, TENANT_B]),
-      );
+      expect(result.map((r) => r.tenantId)).toEqual(expect.arrayContaining([TENANT_A, TENANT_B]));
     });
 
     it('maps CustomerNotFoundError to 404 when actorId is unknown', async () => {
