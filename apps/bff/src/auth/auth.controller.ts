@@ -23,7 +23,6 @@ import { BackendHttpService } from '../shared/http/backend-http.service';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { JWT_COOKIE_OPTIONS } from './cookie-options';
 import { DevLoginDto, DevLoginResponse, DevLoginSchema } from './dtos/dev-login.dto';
-import { IssueTokenDto, IssueTokenSchema } from './dtos/issue-token.dto';
 import { IssueStaffTokenDto, IssueStaffTokenSchema } from './dtos/issue-staff-token.dto';
 import { SwitchTenantDto, SwitchTenantSchema } from './dtos/switch-tenant.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
@@ -78,7 +77,9 @@ export class AuthController {
       return;
     }
 
-    await this.handleMultiTenantLogin(profile, res, frontendUrl);
+    // No shipped UI initiates a customer OAuth flow without a tenantSlug — every "Entrar"
+    // link supplies one. Defensive fallback only; see docs/04-USE_CASES.md UC-021.
+    res.redirect(`${frontendUrl}/auth/error?reason=no-tenant`);
   }
 
   @Public()
@@ -88,46 +89,6 @@ export class AuthController {
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
     const path = tenantSlug && isValidSlug(tenantSlug) ? `/${tenantSlug}` : '';
     res.redirect(`${frontendUrl}${path}`);
-  }
-
-  @Public()
-  @Post('token')
-  @UsePipes(new ZodValidationPipe(IssueTokenSchema))
-  async issueToken(
-    @Body() dto: IssueTokenDto,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<{ tenantSlug: string; expiresIn: string }> {
-    const { googleOAuthId } = this.selectionToken.verifySelectionToken(dto.selectionToken);
-
-    const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
-      '/internal/customers/tenants',
-      { googleOAuthId },
-    );
-    const match = tenants.find((t) => t.tenantId === dto.tenantId);
-    if (!match) {
-      throw new ForbiddenException({
-        type: 'about:blank',
-        title: 'Forbidden',
-        status: HttpStatus.FORBIDDEN,
-        detail: 'Customer is not registered in this tenant',
-      });
-    }
-
-    const tenantInfo = await this.backendHttp.get<TenantInfoResponse>(
-      `/internal/tenants/${dto.tenantId}`,
-    );
-    const accessToken = this.jwtIssuer.issueToken({
-      sub: match.customerId,
-      tenantId: dto.tenantId,
-      tenantSlug: tenantInfo.slug,
-      role: 'CUSTOMER',
-    });
-
-    res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
-    return {
-      tenantSlug: tenantInfo.slug,
-      expiresIn: this.config.getOrThrow<string>('JWT_EXPIRES_IN'),
-    };
   }
 
   @Public()
@@ -478,40 +439,5 @@ export class AuthController {
     });
     res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
     res.redirect(`${frontendUrl}/${tenantInfo.slug}`);
-  }
-
-  private async handleMultiTenantLogin(
-    profile: GoogleProfile,
-    res: Response,
-    frontendUrl: string,
-  ): Promise<void> {
-    const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
-      '/internal/customers/tenants',
-      { googleOAuthId: profile.googleOAuthId },
-    );
-
-    if (tenants.length === 0) {
-      res.redirect(`${frontendUrl}/auth/error?reason=no-tenant`);
-      return;
-    }
-
-    if (tenants.length === 1) {
-      const { tenantId, customerId } = tenants[0];
-      const tenantInfo = await this.backendHttp.get<TenantInfoResponse>(
-        `/internal/tenants/${tenantId}`,
-      );
-      const token = this.jwtIssuer.issueToken({
-        sub: customerId,
-        tenantId,
-        tenantSlug: tenantInfo.slug,
-        role: 'CUSTOMER',
-      });
-      res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
-      res.redirect(`${frontendUrl}/${tenantInfo.slug}`);
-      return;
-    }
-
-    const selectionToken = this.selectionToken.issueSelectionToken(profile.googleOAuthId);
-    res.redirect(`${frontendUrl}/select-tenant?token=${selectionToken}`);
   }
 }

@@ -1729,7 +1729,8 @@ Update `apps/web/app/select-staff-tenant/page.tsx`: replace the two direct `fetc
 ```typescript
 getCustomerTenants(@CurrentUser() user: CurrentUserPayload): Promise<TenantOption[]>
 // Calls GET /internal/customers/{user.sub}/tenants (already exists)
-// Excludes the current tenant (user.tenantId)
+// Includes the current tenant (user.tenantId) — the client can't read it from the httpOnly
+// JWT cookie, so the switch-tenant page needs it here to render the non-clickable "Atual" card
 // Enriches each via GET /internal/tenants/{id} (name, slug) + the new loyalty-balance internal endpoint
 ```
 
@@ -1780,7 +1781,7 @@ switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>  // POST /ap
 - [ ] Staff tenant-selection flow behaves identically end-to-end (manual regression, no behavior change intended)
 
 *Customer tenant switch:*
-- [ ] `GET /v1/customers/tenants` (CUSTOMER JWT) returns list excluding current tenant, each with name, slug, loyaltyPoints
+- [ ] `GET /v1/customers/tenants` (CUSTOMER JWT) returns the customer's full tenant list (current tenant included), each with name, slug, loyaltyPoints
 - [ ] Tenant isolation: Customer A cannot retrieve Customer B's tenant list
 - [ ] "Trocar empresa" visible in `HotsiteAuthBar`'s dropdown only when the customer has 2+ tenants
 - [ ] `GET /switch-tenant` renders current tenant (marked "Atual") + other tenants as cards; skeleton while loading

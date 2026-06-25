@@ -173,3 +173,26 @@ Authorization: Bearer {{managerToken}}
 {
   "phone": "31999999999"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /v1/customers/tenants — UC-023: tenants this customer belongs to, for the
+# switch-tenant screen (includes the current tenant — the client can't read it from the
+# httpOnly JWT cookie; enriches each with name/slug/loyaltyPoints)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### HAPPY PATH — list other tenants for the switch-tenant screen
+GET {{bffUrl}}/v1/customers/tenants
+Authorization: Bearer {{customerToken}}
+
+###
+
+### ERROR — no JWT → 401
+GET {{bffUrl}}/v1/customers/tenants
+
+###
+
+### ERROR — manager JWT (wrong role) → 403
+GET {{bffUrl}}/v1/customers/tenants
+Authorization: Bearer {{managerToken}}

@@ -3,14 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
-interface StaffTenantOption {
-  readonly staffId: string;
-  readonly tenantId: string;
-  readonly tenantSlug: string;
-  readonly tenantName: string;
-  readonly role: 'STAFF' | 'MANAGER';
-}
+import { fetchStaffTenants, selectStaffTenant, StaffTenantOption } from '@/lib/api/auth';
 
 export default function SelectStaffTenantPage() {
   const t = useTranslations('auth');
@@ -23,16 +16,10 @@ export default function SelectStaffTenantPage() {
   const [error, setError] = useState(!token);
   const [selecting, setSelecting] = useState<string | null>(null);
 
-  const bffUrl = process.env.NEXT_PUBLIC_BFF_URL ?? '';
-
   useEffect(() => {
     if (!token) return;
 
-    fetch(`${bffUrl}/auth/staff-tenants?token=${encodeURIComponent(token)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error('fetch failed');
-        return res.json() as Promise<StaffTenantOption[]>;
-      })
+    fetchStaffTenants(token)
       .then((data) => {
         setOptions(data);
         setLoading(false);
@@ -41,18 +28,12 @@ export default function SelectStaffTenantPage() {
         setError(true);
         setLoading(false);
       });
-  }, [bffUrl, token]);
+  }, [token]);
 
   const select = async (staffId: string) => {
     setSelecting(staffId);
     try {
-      const res = await fetch(`${bffUrl}/auth/staff-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ selectionToken: token, staffId }),
-      });
-      if (!res.ok) throw new Error('select failed');
+      await selectStaffTenant(token, staffId);
       router.push('/dashboard');
     } catch {
       setSelecting(null);

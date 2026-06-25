@@ -1,9 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { SelectionTokenService } from './selection-token.service';
 import {
   CUSTOMER_ID,
-  GOOGLE_OAUTH_ID,
   STAFF_ID,
   TENANT_ID,
   TENANT_ID_2,
@@ -18,13 +16,11 @@ import {
 describe('AuthController (component) — non-OAuth routes', () => {
   let app: INestApplication;
   let jwtService: JwtService;
-  let selectionTokenService: SelectionTokenService;
   let backendHttpService: MockBackendHttpService;
   let restoreEnv: () => void;
 
   beforeAll(async () => {
-    ({ app, jwtService, selectionTokenService, backendHttpService, restoreEnv } =
-      await createTestApp());
+    ({ app, jwtService, backendHttpService, restoreEnv } = await createTestApp());
   });
 
   afterAll(async () => {
@@ -37,73 +33,9 @@ describe('AuthController (component) — non-OAuth routes', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // POST /auth/token  (public — exchanges selectionToken for a customer JWT)
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  describe('POST /v1/auth/token', () => {
-    it('400 when selectionToken field is missing', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/v1/auth/token')
-        .send({ tenantId: TENANT_ID });
-      expect(res.status).toBe(400);
-    });
-
-    it('400 when tenantId field is missing', async () => {
-      const selectionToken = selectionTokenService.issueSelectionToken(GOOGLE_OAUTH_ID);
-      const res = await request(app.getHttpServer())
-        .post('/v1/auth/token')
-        .send({ selectionToken });
-      expect(res.status).toBe(400);
-    });
-
-    it('400 when selectionToken is tampered', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/v1/auth/token')
-        .send({ selectionToken: 'invalid.token.here', tenantId: TENANT_ID });
-      expect(res.status).toBe(400);
-      expect(res.body).toMatchObject({
-        status: 400,
-        detail: 'Selection token is invalid or expired',
-      });
-    });
-
-    it('403 when customer is not registered in the requested tenant', async () => {
-      const selectionToken = selectionTokenService.issueSelectionToken(GOOGLE_OAUTH_ID);
-      backendHttpService.get.mockResolvedValueOnce([
-        { tenantId: TENANT_ID_2, customerId: CUSTOMER_ID },
-      ]);
-
-      const res = await request(app.getHttpServer())
-        .post('/v1/auth/token')
-        .send({ selectionToken, tenantId: TENANT_ID });
-
-      expect(res.status).toBe(403);
-      expect(res.body).toMatchObject({
-        status: 403,
-        detail: 'Customer is not registered in this tenant',
-      });
-    });
-
-    it('201 — sets access_token cookie and returns { tenantSlug, expiresIn }', async () => {
-      const selectionToken = selectionTokenService.issueSelectionToken(GOOGLE_OAUTH_ID);
-      backendHttpService.get
-        .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
-        .mockResolvedValueOnce({ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' });
-
-      const res = await request(app.getHttpServer())
-        .post('/v1/auth/token')
-        .send({ selectionToken, tenantId: TENANT_ID });
-
-      expect(res.status).toBe(201);
-      expect(res.headers['set-cookie']).toBeDefined();
-      expect(res.body.tenantSlug).toBe('lavacar-bh');
-      expect(res.body.expiresIn).toBe('7d');
-      expect(res.body.accessToken).toBeUndefined();
-    });
-  });
-
-  // ─────────────────────────────────────────────────────────────────────────────
   // POST /auth/switch-tenant  (authenticated — CUSTOMER role only)
+  // (Login-time multi-tenant selection — POST /v1/auth/token — was removed: no shipped UI
+  //  ever reaches it. See docs/04-USE_CASES.md UC-021.)
   // ─────────────────────────────────────────────────────────────────────────────
 
   describe('POST /v1/auth/switch-tenant', () => {

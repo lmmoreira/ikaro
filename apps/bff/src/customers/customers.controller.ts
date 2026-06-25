@@ -1,11 +1,14 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Query } from '@nestjs/common';
 import { z } from 'zod';
-import { CustomerProfileResponse, CustomerSearchListResponse } from '@ikaro/types';
+import { CustomerProfileResponse, CustomerSearchListResponse, TenantOption } from '@ikaro/types';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import { CustomerSearchResponse } from './customers.types';
+import { CurrentUser, CurrentUserPayload } from '../shared/decorators/current-user.decorator';
+import { CustomerTenantSummaryResponse } from '../auth/auth.types';
+import { TenantInfoResponse } from '../shared/types/backend-responses';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -74,5 +77,36 @@ export class CustomersController {
     @Body(new ZodValidationPipe(UpdateCustomerProfileBodySchema)) body: UpdateCustomerProfileBody,
   ): Promise<CustomerProfileResponse> {
     return this.backendHttp.patch<CustomerProfileResponse>('/customers/me', body);
+  }
+
+  // Includes the current tenant (not just the others) — the switch-tenant screen needs its
+  // name/slug/loyaltyPoints too, to render the non-clickable "Atual" card. The client can
+  // never read this from the httpOnly JWT cookie directly, so the BFF returns it here instead
+  // of forcing a second round trip.
+  @Get('tenants')
+  @Roles('CUSTOMER')
+  async getTenants(@CurrentUser() user: CurrentUserPayload): Promise<TenantOption[]> {
+    const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
+      `/internal/customers/${user.sub}/tenants`,
+      { tenantId: user.tenantId },
+    );
+
+    return Promise.all(
+      tenants.map(async (t) => {
+        const [tenantInfo, balance] = await Promise.all([
+          this.backendHttp.get<TenantInfoResponse>(`/internal/tenants/${t.tenantId}`),
+          this.backendHttp.get<{ currentPoints: number }>(
+            `/internal/customers/${t.customerId}/loyalty/balance`,
+            { tenantId: t.tenantId },
+          ),
+        ]);
+        return {
+          id: t.tenantId,
+          name: tenantInfo.name,
+          slug: tenantInfo.slug,
+          loyaltyPoints: balance.currentPoints,
+        };
+      }),
+    );
   }
 }

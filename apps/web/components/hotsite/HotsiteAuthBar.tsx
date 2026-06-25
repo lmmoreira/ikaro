@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { getHotsiteCustomerProfile } from '@/lib/api/customers';
+import { fetchCustomerTenants } from '@/lib/api/auth';
 
 interface HotsiteAuthBarProps {
   readonly slug: string;
@@ -24,6 +25,7 @@ function getInitials(name: string): string {
 export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element {
   const t = useTranslations('auth');
   const [state, setState] = useState<AuthBarState>({ status: 'loading' });
+  const [hasMultipleTenants, setHasMultipleTenants] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -32,6 +34,15 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element
       setState(
         profile ? { status: 'authenticated', name: profile.name } : { status: 'unauthenticated' },
       );
+      if (profile) {
+        fetchCustomerTenants()
+          .then((tenants) => {
+            if (active) setHasMultipleTenants(tenants.length >= 2);
+          })
+          .catch(() => {
+            // "Trocar empresa" simply stays hidden if the tenant count can't be determined.
+          });
+      }
     });
     return () => {
       active = false;
@@ -96,6 +107,16 @@ export function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): React.JSX.Element
             >
               {t('myAccount')}
             </a>
+            {hasMultipleTenants && (
+              <a
+                href="/switch-tenant"
+                data-testid="hotsite-switch-tenant-link"
+                className="block px-4 py-2.5 text-sm font-medium"
+                style={{ color: 'var(--ba-text)' }}
+              >
+                {t('switchTenant')}
+              </a>
+            )}
             <hr style={{ borderColor: 'var(--ba-background)' }} />
             <a
               href={`${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${slug}`}

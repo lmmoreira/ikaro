@@ -6,7 +6,7 @@ import type React from 'react';
 import { z } from 'zod';
 import type { AvailableSlot, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import type { PersonalInfoValue } from '@/lib/booking/personal-info';
-import { digitsOnly } from '@/lib/utils';
+import { buildContactPhone, digitsOnly } from '@/lib/utils';
 import { AddressFields } from './AddressFields';
 import { BookingSummaryCard } from './BookingSummaryCard';
 import { ErrorAlert } from './ErrorAlert';
@@ -39,14 +39,6 @@ type ErrorField = 'name' | 'email' | 'phone';
 interface FieldError {
   readonly field: ErrorField;
   readonly message: string;
-}
-
-function buildContactPhone(rawInput: string, phonePrefix: string): string {
-  const raw = rawInput.trim();
-  const localDigits = digitsOnly(raw);
-  if (raw.startsWith('+')) return `+${localDigits}`;
-  if (!localDigits) return '';
-  return `${phonePrefix}${localDigits}`;
 }
 
 function errorBorderStyle(isInvalid: boolean): React.CSSProperties {

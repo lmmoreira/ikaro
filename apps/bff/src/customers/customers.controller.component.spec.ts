@@ -2,6 +2,9 @@ import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { CustomerProfileResponse } from '@ikaro/types';
 import {
+  CUSTOMER_ID,
+  TENANT_ID,
+  TENANT_ID_2,
   MockHttpService,
   MockBackendHttpService,
   createTestApp,
@@ -10,7 +13,6 @@ import {
   makeStaffJwt,
   setupActiveGuardMock,
   request,
-  TENANT_ID,
 } from '../test/component-test.helpers';
 
 const mockProfile: CustomerProfileResponse = {
@@ -210,6 +212,66 @@ describe('CustomersController (component)', () => {
         .set('x-tenant-id', TENANT_ID);
 
       expect(res.status).toBe(403);
+    });
+  });
+
+  describe('GET /v1/customers/tenants', () => {
+    it('returns 401 when no JWT is provided', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/customers/tenants');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 when JWT role is MANAGER (not CUSTOMER)', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers/tenants')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('includes the current tenant and returns enriched TenantOption[] for all of them', async () => {
+      const token = makeCustomerJwt(jwtService);
+      backendHttpService.get
+        .mockResolvedValueOnce([
+          { tenantId: TENANT_ID, customerId: CUSTOMER_ID },
+          { tenantId: TENANT_ID_2, customerId: 'cid-other' },
+        ])
+        .mockResolvedValueOnce({ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' })
+        .mockResolvedValueOnce({ currentPoints: 120 })
+        .mockResolvedValueOnce({ id: TENANT_ID_2, slug: 'superclean', name: 'SuperClean' })
+        .mockResolvedValueOnce({ currentPoints: 8 });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers/tenants')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([
+        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
+        { id: TENANT_ID_2, name: 'SuperClean', slug: 'superclean', loyaltyPoints: 8 },
+      ]);
+    });
+
+    it('does not leak a different customer JWT tenant data (tenant isolation)', async () => {
+      const tokenA = makeCustomerJwt(jwtService);
+      backendHttpService.get
+        .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
+        .mockResolvedValueOnce({ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' })
+        .mockResolvedValueOnce({ currentPoints: 120 });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers/tenants')
+        .set('Authorization', `Bearer ${tokenA}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([
+        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
+      ]);
+      expect(backendHttpService.get).toHaveBeenCalledWith(
+        `/internal/customers/${CUSTOMER_ID}/tenants`,
+        { tenantId: TENANT_ID },
+      );
     });
   });
 });

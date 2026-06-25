@@ -7,7 +7,6 @@ import { makeBackendHttp } from '../test/backend-http.mock';
 import { AuthController } from './auth.controller';
 import { DevLoginDto } from './dtos/dev-login.dto';
 import { IssueStaffTokenDto } from './dtos/issue-staff-token.dto';
-import { IssueTokenDto } from './dtos/issue-token.dto';
 import { SwitchTenantDto } from './dtos/switch-tenant.dto';
 import { JwtIssuerService } from './jwt-issuer.service';
 import { SelectionTokenService } from './selection-token.service';
@@ -145,9 +144,12 @@ describe('AuthController', () => {
     });
   });
 
-  describe('handleGoogleCallback() — multi-tenant path (no tenantSlug)', () => {
-    it('redirects to /auth/error when no tenant is found', async () => {
-      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue([]) });
+  describe('handleGoogleCallback() — customer OAuth without tenantSlug', () => {
+    // No shipped UI initiates a customer OAuth flow without a tenantSlug — every "Entrar"
+    // link supplies one. This is a defensive fallback only (e.g. a tampered/malformed
+    // request), so it errors out immediately rather than running tenant-lookup logic.
+    it('redirects to /auth/error without querying the backend', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn() });
       const controller = new AuthController(
         jwtIssuer,
         selectionTokenService,
@@ -161,81 +163,7 @@ describe('AuthController', () => {
       expect(res.redirect).toHaveBeenCalledWith(
         'http://localhost:3000/auth/error?reason=no-tenant',
       );
-    });
-
-    it('issues a JWT cookie and redirects to /{tenantSlug} for a single-tenant customer', async () => {
-      const tenantId = TENANT_ID_A;
-      const customerId = CUSTOMER_ID_A;
-      const backendHttp = makeBackendHttp({
-        get: jest
-          .fn()
-          .mockResolvedValueOnce([{ tenantId, customerId }])
-          .mockResolvedValueOnce({ id: tenantId, slug: 'lavacar-bh', name: 'Lavacar BH' }),
-      });
-      const controller = new AuthController(
-        jwtIssuer,
-        selectionTokenService,
-        backendHttp,
-        configService,
-      );
-      const res = makeRes();
-
-      await controller.handleGoogleCallback(makeReq(profile), res);
-
-      expect(res.cookie).toHaveBeenCalledWith(
-        'access_token',
-        expect.any(String),
-        expect.objectContaining({ httpOnly: true }),
-      );
-      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/lavacar-bh');
-    });
-
-    it('JWT cookie payload has correct sub=customerId and role=CUSTOMER', async () => {
-      const tenantId = TENANT_ID_A;
-      const customerId = CUSTOMER_ID_A;
-      const backendHttp = makeBackendHttp({
-        get: jest
-          .fn()
-          .mockResolvedValueOnce([{ tenantId, customerId }])
-          .mockResolvedValueOnce({ id: tenantId, slug: 'lavacar-bh', name: 'Lavacar BH' }),
-      });
-      const controller = new AuthController(
-        jwtIssuer,
-        selectionTokenService,
-        backendHttp,
-        configService,
-      );
-      const res = makeRes();
-
-      await controller.handleGoogleCallback(makeReq(profile), res);
-
-      const [, token] = (res.cookie as jest.Mock).mock.calls[0] as [string, string];
-      const decoded = jwtService.decode(token) as Record<string, unknown>;
-      expect(decoded['sub']).toBe(customerId);
-      expect(decoded['role']).toBe('CUSTOMER');
-      expect(decoded['tenantId']).toBe(tenantId);
-    });
-
-    it('redirects to /select-tenant with a selection token for multi-tenant customers', async () => {
-      const backendHttp = makeBackendHttp({
-        get: jest.fn().mockResolvedValue([
-          { tenantId: TENANT_ID_A, customerId: 'cid-1' },
-          { tenantId: TENANT_ID_B, customerId: 'cid-2' },
-        ]),
-      });
-      const controller = new AuthController(
-        jwtIssuer,
-        selectionTokenService,
-        backendHttp,
-        configService,
-      );
-      const res = makeRes();
-
-      await controller.handleGoogleCallback(makeReq(profile), res);
-
-      expect(res.redirect).toHaveBeenCalledWith(
-        expect.stringMatching(/^http:\/\/localhost:3000\/select-tenant\?token=.+/),
-      );
+      expect(backendHttp.get).not.toHaveBeenCalled();
     });
   });
 
@@ -732,76 +660,6 @@ describe('AuthController', () => {
       expect(backendHttp.get).toHaveBeenCalledWith(`/internal/customers/${CUSTOMER_ID_A}/tenants`, {
         tenantId: TENANT_ID_A,
       });
-    });
-  });
-
-  describe('issueToken()', () => {
-    // Schema validation (missing fields, invalid UUID) is handled by ZodValidationPipe at the
-    // NestJS layer and is not tested here — it is covered at the integration level.
-
-    it('returns 400 when the selection token is expired or invalid', async () => {
-      const controller = new AuthController(
-        jwtIssuer,
-        selectionTokenService,
-        makeBackendHttp(),
-        configService,
-      );
-      const dto: IssueTokenDto = { selectionToken: 'bad.token.here', tenantId: TENANT_ID_A };
-
-      await expect(controller.issueToken(dto, makeRes())).rejects.toBeInstanceOf(Error);
-    });
-
-    it('returns 403 when the customer has no record in the requested tenant', async () => {
-      const selectionToken = selectionTokenService.issueSelectionToken('google-sub-123');
-      const backendHttp = makeBackendHttp({
-        get: jest.fn().mockResolvedValue([{ tenantId: TENANT_ID_A, customerId: 'cid-1' }]),
-      });
-      const controller = new AuthController(
-        jwtIssuer,
-        selectionTokenService,
-        backendHttp,
-        configService,
-      );
-      const dto: IssueTokenDto = { selectionToken, tenantId: TENANT_ID_OTHER };
-
-      await expect(controller.issueToken(dto, makeRes())).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
-    });
-
-    it('sets cookie + returns { tenantSlug, expiresIn } with correct JWT payload on success', async () => {
-      const tenantId = TENANT_ID_A;
-      const customerId = CUSTOMER_ID_B;
-      const selectionToken = selectionTokenService.issueSelectionToken('google-sub-123');
-      const backendHttp = makeBackendHttp({
-        get: jest
-          .fn()
-          .mockResolvedValueOnce([{ tenantId, customerId }])
-          .mockResolvedValueOnce({ id: tenantId, slug: 'lavacar-bh', name: 'Lavacar BH' }),
-      });
-      const controller = new AuthController(
-        jwtIssuer,
-        selectionTokenService,
-        backendHttp,
-        configService,
-      );
-      const dto: IssueTokenDto = { selectionToken, tenantId };
-      const res = makeRes();
-
-      const result = await controller.issueToken(dto, res);
-
-      expect(result.tenantSlug).toBe('lavacar-bh');
-      expect(result.expiresIn).toBe('7d');
-      expect(res.cookie).toHaveBeenCalledWith(
-        'access_token',
-        expect.any(String),
-        expect.objectContaining({ httpOnly: true }),
-      );
-      const [, token] = (res.cookie as jest.Mock).mock.calls[0] as [string, string];
-      const decoded = jwtService.decode(token) as Record<string, unknown>;
-      expect(decoded['sub']).toBe(customerId);
-      expect(decoded['role']).toBe('CUSTOMER');
-      expect(decoded['tenantSlug']).toBe('lavacar-bh');
     });
   });
 

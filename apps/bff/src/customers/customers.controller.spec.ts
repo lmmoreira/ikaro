@@ -2,6 +2,7 @@ import { HttpException } from '@nestjs/common';
 import { CustomerProfileResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
+import { CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { CustomersController } from './customers.controller';
 
 const mockProfile: CustomerProfileResponse = {
@@ -29,6 +30,18 @@ const mockBalance: LoyaltyBalanceResponse = {
   currentPoints: 50,
   nextExpiryDate: null,
   nextExpiryPoints: null,
+};
+
+const TENANT_ID = '10000000-0000-4000-8000-000000000001';
+const TENANT_ID_B = '10000000-0000-4000-8000-000000000002';
+const CUSTOMER_ID = '20000000-0000-4000-8000-000000000001';
+const CUSTOMER_ID_B = '20000000-0000-4000-8000-000000000002';
+
+const user: CurrentUserPayload = {
+  sub: CUSTOMER_ID,
+  tenantId: TENANT_ID,
+  tenantSlug: 'lavacar-bh',
+  role: 'CUSTOMER',
 };
 
 describe('CustomersController', () => {
@@ -119,6 +132,51 @@ describe('CustomersController', () => {
       const err = await controller.updateProfile({ name: 'X' }).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(404);
+    });
+  });
+
+  describe('getTenants()', () => {
+    it('includes the current tenant alongside the others, each enriched', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([
+            { tenantId: TENANT_ID, customerId: CUSTOMER_ID },
+            { tenantId: TENANT_ID_B, customerId: CUSTOMER_ID_B },
+          ])
+          .mockResolvedValueOnce({ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' })
+          .mockResolvedValueOnce({ currentPoints: 120 })
+          .mockResolvedValueOnce({ id: TENANT_ID_B, slug: 'superclean', name: 'SuperClean' })
+          .mockResolvedValueOnce({ currentPoints: 8 }),
+      });
+      const controller = new CustomersController(backendHttp);
+
+      const result = await controller.getTenants(user);
+
+      expect(result).toEqual([
+        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
+        { id: TENANT_ID_B, name: 'SuperClean', slug: 'superclean', loyaltyPoints: 8 },
+      ]);
+      expect(backendHttp.get).toHaveBeenCalledWith(`/internal/customers/${CUSTOMER_ID}/tenants`, {
+        tenantId: TENANT_ID,
+      });
+    });
+
+    it('returns a single-item array when the customer belongs to only the current tenant', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
+          .mockResolvedValueOnce({ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' })
+          .mockResolvedValueOnce({ currentPoints: 120 }),
+      });
+      const controller = new CustomersController(backendHttp);
+
+      const result = await controller.getTenants(user);
+
+      expect(result).toEqual([
+        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
+      ]);
     });
   });
 });

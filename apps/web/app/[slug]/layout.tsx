@@ -5,6 +5,7 @@ import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
 import { isValidTimezone, resolveDateFormat } from '@/lib/formatting/locale-validators';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import { LocaleProvider } from '@/providers/locale-provider';
+import { PhoneCompletionPrompt } from '@/components/customer/PhoneCompletionPrompt';
 
 interface HotsiteLayoutProps {
   readonly children: React.ReactNode;
@@ -23,6 +24,7 @@ export default async function HotsiteLayout({
     timezone: rawTimezone,
     dateFormat,
     timeFormat,
+    phonePrefix,
   } = manifest.localization;
   const locale = resolveSupportedLocale(language ?? 'pt-BR');
   // Defensive fallback: reconstitute() skips timezone validation; guard before passing to Intl
@@ -45,6 +47,7 @@ export default async function HotsiteLayout({
           dateFormat={resolvedDateFormat}
           timeFormat={timeFormat}
         >
+          <PhoneCompletionPrompt phonePrefix={phonePrefix} />
           {children}
         </FormattingProvider>
       </LocaleProvider>

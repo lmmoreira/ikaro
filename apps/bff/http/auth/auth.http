@@ -69,26 +69,10 @@
 # Omitting ?tenantSlug (or passing an invalid slug) redirects to bare FRONTEND_URL instead.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MULTI-TENANT SELECTION — POST /v1/auth/token
-# UC-021 (2+ tenants): after browser redirects to /select-tenant?token=<...>,
-# the frontend POSTs here to exchange the short-lived selection token for a JWT.
-# ─────────────────────────────────────────────────────────────────────────────
-
-### Exchange selection token for JWT (tenant selection step)
-# Replace selectionToken with the value from the ?token= query param in the redirect URL
-POST {{bffUrl}}/v1/auth/token
-Content-Type: application/json
-
-{
-  "selectionToken": "paste-selection-token-here",
-  "tenantId": "paste-target-tenant-uuid-here"
-}
-
-###
-
-# ─────────────────────────────────────────────────────────────────────────────
 # UC-023: Customer switches tenant — POST /v1/auth/switch-tenant
 # Requires: valid JWT with role=CUSTOMER (access_token cookie or Bearer header)
+# (Login-time multi-tenant selection — POST /v1/auth/token — was removed: no shipped UI
+#  ever reaches it. See docs/04-USE_CASES.md UC-021.)
 # ─────────────────────────────────────────────────────────────────────────────
 
 ### Switch to a different tenant the customer belongs to
@@ -98,54 +82,6 @@ Authorization: Bearer paste-customer-jwt-here
 
 {
   "targetTenantId": "paste-target-tenant-uuid-here"
-}
-
-###
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ERROR CASES
-# ─────────────────────────────────────────────────────────────────────────────
-
-### 400 — Missing selectionToken
-POST {{bffUrl}}/v1/auth/token
-Content-Type: application/json
-
-{
-  "tenantId": "{{tenantId}}"
-}
-
-###
-
-### 400 — tenantId is not a valid UUID
-POST {{bffUrl}}/v1/auth/token
-Content-Type: application/json
-
-{
-  "selectionToken": "some.token.here",
-  "tenantId": "not-a-uuid"
-}
-
-###
-
-### 400 — Selection token is expired or tampered
-POST {{bffUrl}}/v1/auth/token
-Content-Type: application/json
-
-{
-  "selectionToken": "invalid.token.signature",
-  "tenantId": "{{tenantId}}"
-}
-
-###
-
-### 403 — Customer has no record in the requested tenant
-# (valid selection token but tenantId not in the customer's tenant list)
-POST {{bffUrl}}/v1/auth/token
-Content-Type: application/json
-
-{
-  "selectionToken": "paste-valid-selection-token-here",
-  "tenantId": "00000000-0000-4000-8000-000000009999"
 }
 
 ###

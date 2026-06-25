@@ -1,6 +1,5 @@
-export interface IssueTokenResponse {
-  readonly tenantSlug: string;
-  readonly expiresIn: string;
+export interface SwitchTenantRequest {
+  readonly targetTenantId: string;
 }
 
 export interface SwitchTenantResponse {
