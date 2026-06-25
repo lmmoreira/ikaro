@@ -13,7 +13,6 @@ import {
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
-import { AnyAuthenticatedRoleGuard } from '../../../../shared/guards/any-authenticated-role.guard';
 import { PaginationDto, PaginationSchema } from '../../application/dtos/pagination.dto';
 import { RedeemPointsDto, RedeemPointsSchema } from '../../application/dtos/redeem-points.dto';
 import {
@@ -101,7 +100,7 @@ export class LoyaltyController {
   }
 
   @Get('customers/:customerId/loyalty/balance')
-  @UseGuards(AnyAuthenticatedRoleGuard)
+  @UseGuards(StaffOrManagerRoleGuard)
   getBalanceAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Query('tenantId') tenantId?: string,

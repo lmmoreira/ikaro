@@ -60,9 +60,9 @@ describe('StaffController (integration) — management endpoints', () => {
   });
 
   describe('GET /staff', () => {
-    it('returns 400 when X-Tenant-ID header is missing', async () => {
-      const { body } = await request(app.getHttpServer()).get('/staff').expect(400);
-      expect(body.status ?? body.statusCode).toBe(400);
+    it('returns 403 when no auth headers are provided', async () => {
+      const { body } = await request(app.getHttpServer()).get('/staff').expect(403);
+      expect(body.status ?? body.statusCode).toBe(403);
     });
 
     it('returns empty list when tenant has no staff', async () => {
@@ -328,9 +328,9 @@ describe('StaffController (integration) — management endpoints', () => {
       expect(body.status).toBe(404);
     });
 
-    it('returns 400 when X-Tenant-ID header is missing (RequestInterceptor guard)', async () => {
-      const { body } = await request(app.getHttpServer()).get('/staff').expect(400);
-      expect(body.status ?? body.statusCode).toBe(400);
+    it('returns 403 when no auth headers are provided', async () => {
+      const { body } = await request(app.getHttpServer()).get('/staff').expect(403);
+      expect(body.status ?? body.statusCode).toBe(403);
     });
   });
 });
