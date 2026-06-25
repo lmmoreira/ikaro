@@ -1140,7 +1140,7 @@ Update the `PATCH /bookings/:id/complete` request block to include an example wi
 
 ---
 
-### M13-S12 — BFF: customer search + balance enrichment + complete body update
+### M13-S12 — BFF: customer search + balance enrichment + complete body update ✅ Done
 
 *(formerly M128-S02)*
 
