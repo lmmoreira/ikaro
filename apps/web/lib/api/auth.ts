@@ -16,20 +16,17 @@ export class AuthFetchError extends Error {
   }
 }
 
-export async function fetchStaffTenants(token: string): Promise<StaffTenantOption[]> {
-  const res = await fetch(`/api/auth/staff-tenants?token=${encodeURIComponent(token)}`);
+export async function fetchStaffTenants(): Promise<StaffTenantOption[]> {
+  const res = await fetch('/api/auth/staff-tenants');
   if (!res.ok) throw new AuthFetchError(res.status);
   return (await res.json()) as StaffTenantOption[];
 }
 
-export async function selectStaffTenant(
-  selectionToken: string,
-  staffId: string,
-): Promise<{ tenantSlug: string }> {
-  const res = await fetch('/api/auth/staff-token', {
+export async function switchStaffTenant(staffId: string): Promise<{ tenantSlug: string }> {
+  const res = await fetch('/api/auth/switch-staff-tenant', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ selectionToken, staffId }),
+    body: JSON.stringify({ staffId }),
   });
   if (!res.ok) throw new AuthFetchError(res.status);
   return (await res.json()) as { tenantSlug: string };

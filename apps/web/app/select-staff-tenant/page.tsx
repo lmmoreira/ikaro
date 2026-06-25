@@ -1,25 +1,21 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { fetchStaffTenants, selectStaffTenant, StaffTenantOption } from '@/lib/api/auth';
+import { fetchStaffTenants, switchStaffTenant, StaffTenantOption } from '@/lib/api/auth';
 
 export default function SelectStaffTenantPage() {
   const t = useTranslations('auth');
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const token = searchParams.get('token') ?? '';
 
   const [options, setOptions] = useState<StaffTenantOption[]>([]);
-  const [loading, setLoading] = useState(!!token);
-  const [error, setError] = useState(!token);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [selecting, setSelecting] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) return;
-
-    fetchStaffTenants(token)
+    fetchStaffTenants()
       .then((data) => {
         setOptions(data);
         setLoading(false);
@@ -28,12 +24,12 @@ export default function SelectStaffTenantPage() {
         setError(true);
         setLoading(false);
       });
-  }, [token]);
+  }, []);
 
   const select = async (staffId: string) => {
     setSelecting(staffId);
     try {
-      await selectStaffTenant(token, staffId);
+      await switchStaffTenant(staffId);
       router.push('/dashboard');
     } catch {
       setSelecting(null);
@@ -54,7 +50,7 @@ export default function SelectStaffTenantPage() {
         {!loading && error && (
           <div className="text-center">
             <p className="mb-4 text-sm text-red-600">{t('selectTenantError')}</p>
-            <a href="/dashboard/login" className="text-sm text-indigo-600 underline">
+            <a href="/dashboard" className="text-sm text-indigo-600 underline">
               {t('selectTenantRetry')}
             </a>
           </div>

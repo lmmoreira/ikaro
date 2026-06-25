@@ -11,24 +11,21 @@ import {
   Req,
   Res,
   UseGuards,
-  UsePipes,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
-import { CurrentUser, CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { Public } from '../shared/decorators/public.decorator';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { JWT_COOKIE_OPTIONS } from './cookie-options';
 import { DevLoginDto, DevLoginResponse, DevLoginSchema } from './dtos/dev-login.dto';
-import { IssueStaffTokenDto, IssueStaffTokenSchema } from './dtos/issue-staff-token.dto';
+import { SwitchStaffTenantDto, SwitchStaffTenantSchema } from './dtos/switch-staff-tenant.dto';
 import { SwitchTenantDto, SwitchTenantSchema } from './dtos/switch-tenant.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtIssuerService } from './jwt-issuer.service';
 import { isValidSlug } from './oauth-state';
-import { SelectionTokenService } from './selection-token.service';
 import { GoogleProfile } from './strategies/google.strategy';
 import {
   CustomerTenantSummaryResponse,
@@ -45,7 +42,6 @@ import { TenantInfoResponse } from '../shared/types/backend-responses';
 export class AuthController {
   constructor(
     private readonly jwtIssuer: JwtIssuerService,
-    private readonly selectionToken: SelectionTokenService,
     private readonly backendHttp: BackendHttpService,
     private readonly config: ConfigService,
   ) {}
@@ -92,13 +88,10 @@ export class AuthController {
     res.redirect(`${frontendUrl}${path}`);
   }
 
-  @Public()
   @Get('staff-tenants')
-  async getStaffTenants(@Query('token') token: string): Promise<StaffTenantOption[]> {
-    const { googleOAuthId } = this.selectionToken.verifySelectionToken(token);
-    const staffList = await this.backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {
-      googleOAuthId,
-    });
+  @Roles('STAFF', 'MANAGER')
+  async getStaffTenants(): Promise<StaffTenantOption[]> {
+    const staffList = await this.backendHttp.get<StaffInfoResponse[]>('/staff/me/tenants');
     const activeStaff = staffList.filter((s) => s.isActive);
     return Promise.all(
       activeStaff.map(async (s) => {
@@ -116,18 +109,14 @@ export class AuthController {
     );
   }
 
-  @Public()
-  @Post('staff-token')
+  @Post('switch-staff-tenant')
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(IssueStaffTokenSchema))
-  async issueStaffToken(
-    @Body() dto: IssueStaffTokenDto,
+  @Roles('STAFF', 'MANAGER')
+  async switchStaffTenant(
+    @Body(new ZodValidationPipe(SwitchStaffTenantSchema)) dto: SwitchStaffTenantDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ tenantSlug: string; expiresIn: string }> {
-    const { googleOAuthId } = this.selectionToken.verifySelectionToken(dto.selectionToken);
-    const staffList = await this.backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {
-      googleOAuthId,
-    });
+    const staffList = await this.backendHttp.get<StaffInfoResponse[]>('/staff/me/tenants');
     const match = staffList.find((s) => s.staffId === dto.staffId && s.isActive);
     if (!match) {
       throw new ForbiddenException({
@@ -159,12 +148,10 @@ export class AuthController {
   @Roles('CUSTOMER')
   async switchTenant(
     @Body(new ZodValidationPipe(SwitchTenantSchema)) dto: SwitchTenantDto,
-    @CurrentUser() user: CurrentUserPayload,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ tenantSlug: string; expiresIn: string }> {
     const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
-      `/internal/customers/${user.sub}/tenants`,
-      { tenantId: user.tenantId },
+      '/customers/me/tenants',
     );
     const match = tenants.find((t) => t.tenantId === dto.targetTenantId);
     if (!match) {
@@ -339,8 +326,18 @@ export class AuthController {
       return;
     }
 
-    const selectionToken = this.selectionToken.issueSelectionToken(profile.googleOAuthId);
-    res.redirect(`${frontendUrl}/select-staff-tenant?token=${selectionToken}`);
+    const firstStaff = activeStaff[0];
+    const tenantInfo = await this.backendHttp.get<TenantInfoResponse>(
+      `/internal/tenants/${firstStaff.tenantId}`,
+    );
+    const token = this.jwtIssuer.issueToken({
+      sub: firstStaff.staffId,
+      tenantId: firstStaff.tenantId,
+      tenantSlug: tenantInfo.slug,
+      role: firstStaff.role,
+    });
+    res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
+    res.redirect(`${frontendUrl}/select-staff-tenant`);
   }
 
   // Links this Google account to every active, not-yet-linked staff record found for its
@@ -398,13 +395,15 @@ export class AuthController {
         throw err;
       });
 
+    const slugParam = `&tenantSlug=${encodeURIComponent(tenantSlug)}`;
+
     if (!staffByEmail) {
-      res.redirect(`${frontendUrl}/auth/error?reason=invite-not-found`);
+      res.redirect(`${frontendUrl}/auth/error?reason=invite-not-found${slugParam}`);
       return;
     }
 
     if (!staffByEmail.isActive) {
-      res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated`);
+      res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated${slugParam}`);
       return;
     }
 
@@ -421,15 +420,15 @@ export class AuthController {
     } catch (err) {
       if (err instanceof HttpException) {
         if (err.getStatus() === HttpStatus.UNPROCESSABLE_ENTITY) {
-          res.redirect(`${frontendUrl}/auth/error?reason=email-mismatch`);
+          res.redirect(`${frontendUrl}/auth/error?reason=email-mismatch${slugParam}`);
           return;
         }
         if (err.getStatus() === HttpStatus.FORBIDDEN) {
-          res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated`);
+          res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated${slugParam}`);
           return;
         }
         if (err.getStatus() === HttpStatus.CONFLICT) {
-          res.redirect(`${frontendUrl}/auth/error?reason=account-linked-elsewhere`);
+          res.redirect(`${frontendUrl}/auth/error?reason=account-linked-elsewhere${slugParam}`);
           return;
         }
       }

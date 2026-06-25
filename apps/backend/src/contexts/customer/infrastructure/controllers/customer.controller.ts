@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapCustomerError } from '../http/customer-error.mapper';
@@ -21,6 +22,10 @@ import {
   GetCustomerProfileUseCaseResult,
 } from '../../application/use-cases/get-customer-profile.use-case';
 import {
+  GetCustomerTenantsByIdUseCase,
+  GetCustomerTenantsByIdUseCaseResult,
+} from '../../application/use-cases/get-customer-tenants-by-id.use-case';
+import {
   UpdateCustomerProfileUseCase,
   UpdateCustomerProfileUseCaseResult,
 } from '../../application/use-cases/update-customer-profile.use-case';
@@ -32,9 +37,11 @@ import {
 @Controller('customers')
 export class CustomerController {
   constructor(
+    private readonly ctx: RequestContext,
     private readonly getProfile: GetCustomerProfileUseCase,
     private readonly updateProfile: UpdateCustomerProfileUseCase,
     private readonly searchCustomers: SearchCustomersUseCase,
+    private readonly getCustomerTenantsById: GetCustomerTenantsByIdUseCase,
   ) {}
 
   @Get()
@@ -52,6 +59,13 @@ export class CustomerController {
   @Get('me')
   getMe(): Promise<GetCustomerProfileUseCaseResult> {
     return this.getProfile.execute().catch(mapCustomerError);
+  }
+
+  @Get('me/tenants')
+  getMyTenants(): Promise<GetCustomerTenantsByIdUseCaseResult> {
+    return this.getCustomerTenantsById
+      .execute(this.ctx.actorId!, this.ctx.tenantId)
+      .catch(mapCustomerError);
   }
 
   @Patch('me')

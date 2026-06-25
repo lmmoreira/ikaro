@@ -9,7 +9,6 @@ import { HttpService } from '@nestjs/axios';
 import { JwtService } from '@nestjs/jwt';
 import { AppModule } from '../app.module';
 import { BackendHttpService } from '../shared/http/backend-http.service';
-import { SelectionTokenService } from '../auth/selection-token.service';
 import { MockBackendHttpService } from './backend-http.mock';
 
 export type { MockBackendHttpService };
@@ -37,7 +36,6 @@ export function makeObservableError(error: unknown): Observable<never> {
 export async function createTestApp(): Promise<{
   app: INestApplication;
   jwtService: JwtService;
-  selectionTokenService: SelectionTokenService;
   // httpService is used directly by ActiveStaffGuard — returns Observables
   httpService: MockHttpService;
   // backendHttpService is used by controllers via BackendHttpService — returns Promises
@@ -88,7 +86,6 @@ export async function createTestApp(): Promise<{
   return {
     app,
     jwtService: module.get(JwtService),
-    selectionTokenService: module.get(SelectionTokenService),
     httpService,
     backendHttpService,
     restoreEnv,

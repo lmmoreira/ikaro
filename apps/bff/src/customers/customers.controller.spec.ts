@@ -2,7 +2,6 @@ import { HttpException } from '@nestjs/common';
 import { CustomerProfileResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
-import { CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { CustomersController } from './customers.controller';
 
 const mockProfile: CustomerProfileResponse = {
@@ -36,13 +35,6 @@ const TENANT_ID = '10000000-0000-4000-8000-000000000001';
 const TENANT_ID_B = '10000000-0000-4000-8000-000000000002';
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000001';
 const CUSTOMER_ID_B = '20000000-0000-4000-8000-000000000002';
-
-const user: CurrentUserPayload = {
-  sub: CUSTOMER_ID,
-  tenantId: TENANT_ID,
-  tenantSlug: 'lavacar-bh',
-  role: 'CUSTOMER',
-};
 
 describe('CustomersController', () => {
   afterEach(() => jest.resetAllMocks());
@@ -151,15 +143,13 @@ describe('CustomersController', () => {
       });
       const controller = new CustomersController(backendHttp);
 
-      const result = await controller.getTenants(user);
+      const result = await controller.getTenants();
 
       expect(result).toEqual([
         { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
         { id: TENANT_ID_B, name: 'SuperClean', slug: 'superclean', loyaltyPoints: 8 },
       ]);
-      expect(backendHttp.get).toHaveBeenCalledWith(`/internal/customers/${CUSTOMER_ID}/tenants`, {
-        tenantId: TENANT_ID,
-      });
+      expect(backendHttp.get).toHaveBeenCalledWith('/customers/me/tenants');
     });
 
     it('returns a single-item array when the customer belongs to only the current tenant', async () => {
@@ -172,7 +162,7 @@ describe('CustomersController', () => {
       });
       const controller = new CustomersController(backendHttp);
 
-      const result = await controller.getTenants(user);
+      const result = await controller.getTenants();
 
       expect(result).toEqual([
         { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },

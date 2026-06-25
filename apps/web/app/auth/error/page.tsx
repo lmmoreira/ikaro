@@ -8,7 +8,7 @@ interface ErrorConfig {
 }
 
 interface Props {
-  readonly searchParams: Promise<{ reason?: string }>;
+  readonly searchParams: Promise<{ reason?: string; tenantSlug?: string }>;
 }
 
 interface CtaConfig {
@@ -21,10 +21,11 @@ function makeErrorConfig(heading: string, message: string, cta: CtaConfig): Erro
 }
 
 export default async function AuthErrorPage({ searchParams }: Props) {
-  const { reason } = await searchParams;
+  const { reason, tenantSlug } = await searchParams;
   const t = await getTranslations('auth');
 
-  const ctaLogin: CtaConfig = { ctaLabel: t('errorBackToLogin'), ctaHref: '/dashboard/login' };
+  const hotsiteHref = tenantSlug ? `/${tenantSlug}` : '/';
+  const ctaLogin: CtaConfig = { ctaLabel: t('errorBack'), ctaHref: hotsiteHref };
   const ctaSite: CtaConfig = { ctaLabel: t('errorBackToSite'), ctaHref: '/' };
 
   const ERROR_MAP: Record<string, ErrorConfig> = {

@@ -6,7 +6,6 @@ import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import { CustomerSearchResponse } from './customers.types';
-import { CurrentUser, CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { CustomerTenantSummaryResponse } from '../auth/auth.types';
 import { TenantInfoResponse } from '../shared/types/backend-responses';
 
@@ -83,12 +82,15 @@ export class CustomersController {
   // name/slug/loyaltyPoints too, to render the non-clickable "Atual" card. The client can
   // never read this from the httpOnly JWT cookie directly, so the BFF returns it here instead
   // of forcing a second round trip.
+  // Includes the current tenant (not just the others) — the switch-tenant screen needs its
+  // name/slug/loyaltyPoints too, to render the non-clickable "Atual" card. The client can
+  // never read this from the httpOnly JWT cookie directly, so the BFF returns it here instead
+  // of forcing a second round trip.
   @Get('tenants')
   @Roles('CUSTOMER')
-  async getTenants(@CurrentUser() user: CurrentUserPayload): Promise<TenantOption[]> {
+  async getTenants(): Promise<TenantOption[]> {
     const tenants = await this.backendHttp.get<CustomerTenantSummaryResponse[]>(
-      `/internal/customers/${user.sub}/tenants`,
-      { tenantId: user.tenantId },
+      '/customers/me/tenants',
     );
 
     return Promise.all(

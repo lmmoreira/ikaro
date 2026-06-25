@@ -33,6 +33,20 @@ X-Actor-Type: STAFF
 X-Actor-Role: MANAGER
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — me/tenants (UC-022 switch-staff-tenant)
+# Returns all tenants the authenticated staff account is registered at.
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Get all tenants for the currently authenticated staff member
+GET {{baseUrl}}/staff/me/tenants
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — get staff by id
 # ─────────────────────────────────────────────────────────────────────────────
 

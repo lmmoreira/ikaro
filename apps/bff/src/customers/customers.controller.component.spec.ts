@@ -268,10 +268,7 @@ describe('CustomersController (component)', () => {
       expect(res.body).toEqual([
         { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
       ]);
-      expect(backendHttpService.get).toHaveBeenCalledWith(
-        `/internal/customers/${CUSTOMER_ID}/tenants`,
-        { tenantId: TENANT_ID },
-      );
+      expect(backendHttpService.get).toHaveBeenCalledWith('/customers/me/tenants');
     });
   });
 });

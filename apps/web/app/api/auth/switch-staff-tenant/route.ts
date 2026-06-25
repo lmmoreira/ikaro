@@ -1,11 +1,18 @@
+import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const token = (await cookies()).get('access_token')?.value;
+
+  if (!token) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const requestBody = await request.text();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/auth/staff-token`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/auth/switch-staff-tenant`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { Cookie: `access_token=${token}`, 'Content-Type': 'application/json' },
       body: requestBody,
       cache: 'no-store',
     });

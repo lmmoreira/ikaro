@@ -33,6 +33,10 @@ import {
   ListStaffUseCase,
   ListStaffUseCaseResult,
 } from '../../application/use-cases/list-staff.use-case';
+import {
+  GetStaffTenantsByIdUseCase,
+  GetStaffTenantsByIdUseCaseResult,
+} from '../../application/use-cases/get-staff-tenants-by-id.use-case';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { mapStaffError } from '../http/staff-error.mapper';
 
@@ -44,6 +48,7 @@ export class StaffController {
     private readonly getStaffById: GetStaffByIdUseCase,
     private readonly inviteStaff: InviteStaffUseCase,
     private readonly deactivateStaff: DeactivateStaffUseCase,
+    private readonly getStaffTenantsById: GetStaffTenantsByIdUseCase,
   ) {}
 
   @Get()
@@ -53,6 +58,13 @@ export class StaffController {
   ): Promise<ListStaffUseCaseResult> {
     return this.listStaff
       .execute(this.tenantContext.tenantId, Math.min(limit, 100), offset)
+      .catch(mapStaffError);
+  }
+
+  @Get('me/tenants')
+  getMyTenants(): Promise<GetStaffTenantsByIdUseCaseResult[]> {
+    return this.getStaffTenantsById
+      .execute(this.tenantContext.actorId!, this.tenantContext.tenantId)
       .catch(mapStaffError);
   }
 

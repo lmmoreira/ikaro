@@ -3,7 +3,7 @@ import {
   AuthFetchError,
   fetchCustomerTenants,
   fetchStaffTenants,
-  selectStaffTenant,
+  switchStaffTenant,
   switchTenant,
 } from './auth';
 
@@ -18,7 +18,7 @@ describe('fetchStaffTenants', () => {
     fetchSpy.mockRestore();
   });
 
-  it('calls the proxy route with the encoded token and returns the list', async () => {
+  it('calls the proxy route with no extra params and returns the list', async () => {
     const options = [
       {
         staffId: 's-1',
@@ -30,22 +30,20 @@ describe('fetchStaffTenants', () => {
     ];
     fetchSpy.mockResolvedValue(new Response(JSON.stringify(options), { status: 200 }));
 
-    const result = await fetchStaffTenants('a token with spaces');
+    const result = await fetchStaffTenants();
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/auth/staff-tenants?token=a%20token%20with%20spaces',
-    );
+    expect(fetchSpy).toHaveBeenCalledWith('/api/auth/staff-tenants');
     expect(result).toEqual(options);
   });
 
   it('throws AuthFetchError with the status on failure', async () => {
-    fetchSpy.mockResolvedValue(new Response(null, { status: 400 }));
+    fetchSpy.mockResolvedValue(new Response(null, { status: 401 }));
 
-    await expect(fetchStaffTenants('bad')).rejects.toMatchObject(new AuthFetchError(400));
+    await expect(fetchStaffTenants()).rejects.toMatchObject(new AuthFetchError(401));
   });
 });
 
-describe('selectStaffTenant', () => {
+describe('switchStaffTenant', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -56,17 +54,17 @@ describe('selectStaffTenant', () => {
     fetchSpy.mockRestore();
   });
 
-  it('POSTs the selectionToken + staffId and returns the tenantSlug', async () => {
+  it('POSTs the staffId and returns the tenantSlug', async () => {
     fetchSpy.mockResolvedValue(
       new Response(JSON.stringify({ tenantSlug: 'lavacar-bh' }), { status: 200 }),
     );
 
-    const result = await selectStaffTenant('sel-token', 's-1');
+    const result = await switchStaffTenant('s-1');
 
-    expect(fetchSpy).toHaveBeenCalledWith('/api/auth/staff-token', {
+    expect(fetchSpy).toHaveBeenCalledWith('/api/auth/switch-staff-tenant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ selectionToken: 'sel-token', staffId: 's-1' }),
+      body: JSON.stringify({ staffId: 's-1' }),
     });
     expect(result).toEqual({ tenantSlug: 'lavacar-bh' });
   });
@@ -74,9 +72,7 @@ describe('selectStaffTenant', () => {
   it('throws AuthFetchError on failure', async () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 403 }));
 
-    await expect(selectStaffTenant('sel-token', 's-1')).rejects.toMatchObject(
-      new AuthFetchError(403),
-    );
+    await expect(switchStaffTenant('s-1')).rejects.toMatchObject(new AuthFetchError(403));
   });
 });
 
