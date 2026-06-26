@@ -14,7 +14,8 @@ export async function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): Promise<Rea
   const token = cookieStore.get('access_token')?.value;
   const payload = token ? decodeJwtPayload(token) : {};
 
-  const isExpired = payload.exp !== undefined && Date.now() / 1000 > payload.exp;
+  const nowSeconds = Math.floor(new Date().getTime() / 1000);
+  const isExpired = payload.exp !== undefined && nowSeconds > payload.exp;
   const isTenantMatch = payload.tenantSlug === slug;
   const isValidSession = !isExpired && isTenantMatch && !!payload.role && !!payload.sub;
 
