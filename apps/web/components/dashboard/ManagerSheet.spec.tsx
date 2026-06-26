@@ -4,6 +4,19 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ManagerSheet } from './ManagerSheet';
 
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const map: Record<string, string> = {
+      'nav.team': 'Equipe',
+      'nav.settings': 'Configurações',
+      'nav.hotsite': 'Hotsite',
+      'nav.managerOnly': 'Somente Gerente',
+      'sidebar.signOut': 'Sair',
+    };
+    return map[key] ?? key;
+  },
+}));
+
 vi.mock('next/link', () => ({
   default: ({
     href,
@@ -68,5 +81,19 @@ describe('ManagerSheet', () => {
 
     const panel = document.querySelector('.pointer-events-none');
     expect(panel).toBeInTheDocument();
+  });
+
+  it('marks the panel inert when closed to keep it out of tab order', () => {
+    render(<ManagerSheet open={false} onClose={vi.fn()} tenantSlug="lavacar-bh" />);
+
+    const panel = screen.getByTestId('manager-sheet-panel');
+    expect(panel).toHaveAttribute('inert');
+  });
+
+  it('removes inert from the panel when open', () => {
+    render(<ManagerSheet open={true} onClose={vi.fn()} tenantSlug="lavacar-bh" />);
+
+    const panel = screen.getByTestId('manager-sheet-panel');
+    expect(panel).not.toHaveAttribute('inert');
   });
 });

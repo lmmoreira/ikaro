@@ -56,7 +56,7 @@ export async function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): Promise<Rea
             style={{ color: 'var(--ba-text)' }}
           >
             {BriefcaseIcon}
-            {displayName || payload.sub}
+            {displayName || t('staffArea')}
           </a>
           <a
             href={`${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${slug}`}

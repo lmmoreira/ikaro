@@ -21,7 +21,7 @@ export default async function ProtectedLayout({
   const tenantSlug = payload.tenantSlug ?? '';
   const userName = payload.userName ?? null;
 
-  const locale = resolveSupportedLocale('pt-BR');
+  const locale = resolveSupportedLocale(payload.locale ?? 'pt-BR');
   const messages = await getMessages(locale);
 
   return (

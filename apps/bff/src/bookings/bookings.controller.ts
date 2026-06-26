@@ -202,6 +202,7 @@ export class BookingsController {
         tenantName: z.string().default(''),
         userName: z.string().nullable().default(null),
         role: z.string(),
+        locale: z.string().default('pt-BR'),
       })
       .safeParse(raw);
     return parsed.success ? parsed.data : null;

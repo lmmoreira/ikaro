@@ -4,6 +4,20 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BottomNav } from './BottomNav';
 
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const map: Record<string, string> = {
+      'nav.bookings': 'Agenda',
+      'nav.schedule': 'Horários',
+      'nav.services': 'Serviços',
+      'nav.loyalty': 'Fidelidade',
+      'nav.more': 'Mais',
+      'nav.moreOptions': 'Mais opções',
+    };
+    return map[key] ?? key;
+  },
+}));
+
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 vi.mock('next/link', () => ({
   default: ({

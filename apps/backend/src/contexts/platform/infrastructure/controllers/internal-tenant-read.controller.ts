@@ -55,6 +55,14 @@ export class InternalTenantReadController {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
+    if (tenantIds.length === 0) {
+      throw new BadRequestException({
+        type: 'about:blank',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'ids query parameter is required',
+      });
+    }
     return this.getTenantsByIds.execute(tenantIds).catch(mapPlatformError);
   }
 

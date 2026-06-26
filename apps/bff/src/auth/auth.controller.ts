@@ -146,6 +146,7 @@ export class AuthController {
       tenantName: tenantInfo.name,
       userName: currentUser.userName,
       role: match.role,
+      locale: tenantInfo.locale,
     });
 
     res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
@@ -184,6 +185,7 @@ export class AuthController {
       tenantName: tenantInfo.name,
       userName: currentUser.userName,
       role: 'CUSTOMER',
+      locale: tenantInfo.locale,
     });
 
     res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
@@ -283,6 +285,7 @@ export class AuthController {
       tenantName: tenantInfo.name,
       userName: 'Dev User',
       role,
+      locale: tenantInfo.locale,
     });
 
     res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
@@ -367,6 +370,7 @@ export class AuthController {
       tenantName: tenantInfo.name,
       userName: profile.name,
       role: staffByEmail.role,
+      locale: tenantInfo.locale,
     });
     res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
     res.redirect(`${frontendUrl}/dashboard`);
@@ -407,6 +411,7 @@ export class AuthController {
       tenantName: tenantInfo.name,
       userName: profile.name,
       role: 'CUSTOMER',
+      locale: tenantInfo.locale,
     });
     res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
     res.redirect(`${frontendUrl}/${tenantInfo.slug}`);

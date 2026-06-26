@@ -3,6 +3,25 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sidebar } from './Sidebar';
 
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const map: Record<string, string> = {
+      'nav.bookings': 'Agenda',
+      'nav.schedule': 'Horários',
+      'nav.services': 'Serviços',
+      'nav.loyalty': 'Fidelidade',
+      'nav.team': 'Equipe',
+      'nav.settings': 'Configurações',
+      'nav.hotsite': 'Hotsite',
+      'nav.managerOnly': 'Somente Gerente',
+      'sidebar.roleManager': 'Gerente',
+      'sidebar.roleStaff': 'Staff',
+      'sidebar.signOut': 'Sair',
+    };
+    return map[key] ?? key;
+  },
+}));
+
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 vi.mock('next/link', () => ({
   default: ({

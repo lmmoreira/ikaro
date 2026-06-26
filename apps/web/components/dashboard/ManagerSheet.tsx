@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Users, Settings, Globe, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,13 +11,14 @@ interface ManagerSheetProps {
   readonly tenantSlug: string;
 }
 
-const SHEET_ITEMS = [
-  { href: '/dashboard/team', label: 'Equipe', Icon: Users },
-  { href: '/dashboard/settings', label: 'Configurações', Icon: Settings },
-  { href: '/dashboard/hotsite', label: 'Hotsite', Icon: Globe },
+const SHEET_ITEM_KEYS = [
+  { href: '/dashboard/team', labelKey: 'nav.team', Icon: Users },
+  { href: '/dashboard/settings', labelKey: 'nav.settings', Icon: Settings },
+  { href: '/dashboard/hotsite', labelKey: 'nav.hotsite', Icon: Globe },
 ] as const;
 
 export function ManagerSheet({ open, onClose, tenantSlug }: ManagerSheetProps): React.JSX.Element {
+  const t = useTranslations('dashboard');
   const logoutUrl = `${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${tenantSlug}`;
 
   return (
@@ -33,8 +35,11 @@ export function ManagerSheet({ open, onClose, tenantSlug }: ManagerSheetProps): 
 
       {/* Sheet panel
           Mobile:  slides up from bottom  (translate-y-full → translate-y-0)
-          Desktop: centered modal         (lg: overrides translate-y; opacity+scale animate instead) */}
+          Desktop: centered modal         (lg: overrides translate-y; opacity+scale animate instead)
+          inert removes the panel from tab order and AT tree when closed */}
       <div
+        data-testid="manager-sheet-panel"
+        inert={open ? undefined : true}
         className={cn(
           'fixed z-40 bg-white transition-[transform,opacity] duration-200',
           // Mobile geometry
@@ -53,11 +58,11 @@ export function ManagerSheet({ open, onClose, tenantSlug }: ManagerSheetProps): 
 
         {/* Section label */}
         <p className="px-5 pb-1 pt-3 text-[0.6875rem] font-bold uppercase tracking-[0.07em] text-gray-900/40">
-          Somente Gerente
+          {t('nav.managerOnly')}
         </p>
 
         {/* Nav items */}
-        {SHEET_ITEMS.map(({ href, label, Icon }) => (
+        {SHEET_ITEM_KEYS.map(({ href, labelKey, Icon }) => (
           <Link
             key={href}
             href={href}
@@ -65,7 +70,7 @@ export function ManagerSheet({ open, onClose, tenantSlug }: ManagerSheetProps): 
             className="flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50"
           >
             <Icon className="h-5 w-5 shrink-0 opacity-60" />
-            {label}
+            {t(labelKey)}
           </Link>
         ))}
 
@@ -76,7 +81,7 @@ export function ManagerSheet({ open, onClose, tenantSlug }: ManagerSheetProps): 
             className="flex items-center gap-[0.875rem] py-2 text-[0.9375rem] font-medium text-red-600"
           >
             <LogOut className="h-5 w-5" />
-            Sair
+            {t('sidebar.signOut')}
           </a>
         </div>
       </div>

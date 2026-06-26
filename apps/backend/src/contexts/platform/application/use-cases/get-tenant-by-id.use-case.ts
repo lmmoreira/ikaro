@@ -7,6 +7,7 @@ export interface GetTenantByIdUseCaseResult {
   id: string;
   slug: string;
   name: string;
+  locale: string;
   settings: TenantSettingsProps;
 }
 
@@ -21,6 +22,7 @@ export class GetTenantByIdUseCase {
       id: tenant.id,
       slug: tenant.slug.value,
       name: tenant.name,
+      locale: tenant.settings.localization.language,
       settings: tenant.settings.toJSON(),
     };
   }

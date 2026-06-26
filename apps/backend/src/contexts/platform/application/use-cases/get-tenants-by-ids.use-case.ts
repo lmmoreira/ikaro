@@ -5,6 +5,7 @@ export interface GetTenantsByIdsUseCaseResult {
   id: string;
   slug: string;
   name: string;
+  locale: string;
 }
 
 @Injectable()
@@ -14,6 +15,11 @@ export class GetTenantsByIdsUseCase {
   async execute(tenantIds: string[]): Promise<GetTenantsByIdsUseCaseResult[]> {
     if (tenantIds.length === 0) return [];
     const tenants = await this.tenantRepo.findByIds(tenantIds);
-    return tenants.map((t) => ({ id: t.id, slug: t.slug.value, name: t.name }));
+    return tenants.map((t) => ({
+      id: t.id,
+      slug: t.slug.value,
+      name: t.name,
+      locale: t.settings.localization.language,
+    }));
   }
 }

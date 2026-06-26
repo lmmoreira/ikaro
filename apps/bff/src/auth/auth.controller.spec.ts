@@ -9,7 +9,7 @@ import { SwitchStaffTenantDto } from './dtos/switch-staff-tenant.dto';
 import { SwitchTenantDto } from './dtos/switch-tenant.dto';
 import { JwtIssuerService } from './jwt-issuer.service';
 import { GoogleProfile } from './strategies/google.strategy';
-import { CurrentUserPayload } from '../shared/decorators/current-user.decorator';
+import { CurrentUserPayloadBuilder } from '../test/builders/current-user-payload.builder';
 
 // Proper RFC 4122 UUIDs (v4 format: segment-3 starts with 4, segment-4 starts with [89ab])
 const TENANT_ID_A = '10000000-0000-4000-8000-000000000001';
@@ -41,14 +41,11 @@ function makeConfigService(opts?: { enableDevAuth?: string; nodeEnv?: string }):
   } as unknown as ConfigService;
 }
 
-const mockCurrentUser: CurrentUserPayload = {
-  sub: CUSTOMER_ID_A,
-  tenantId: TENANT_ID_A,
-  tenantSlug: 'lavacar-bh',
-  tenantName: 'Lavacar BH',
-  userName: 'João Silva',
-  role: 'CUSTOMER',
-};
+const mockCurrentUser = CurrentUserPayloadBuilder.asCustomer()
+  .withSub(CUSTOMER_ID_A)
+  .withTenantId(TENANT_ID_A)
+  .withUserName('João Silva')
+  .build();
 
 describe('AuthController', () => {
   const jwtSecret = 'test-secret-64-chars-long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';

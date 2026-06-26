@@ -10,6 +10,7 @@ export interface JwtPayload {
   tenantName: string;
   userName: string | null;
   role: JwtRole;
+  locale: string;
 }
 
 @Injectable()

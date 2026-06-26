@@ -42,6 +42,7 @@ function makeService(
         tenantName: 'Tenant 1',
         userName: null,
         role: 'MANAGER',
+        locale: 'pt-BR',
         ...userOverride,
       }
     : undefined;

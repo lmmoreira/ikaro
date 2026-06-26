@@ -141,7 +141,7 @@ describe('HotsiteAuthBar', () => {
       expect(link).toHaveTextContent('Sair');
     });
 
-    it('falls back to sub when userName is absent from the token', async () => {
+    it('falls back to the staff-area label when userName is absent from the token', async () => {
       const noNameToken = makeToken({
         sub: 'staff-uuid',
         tenantId: 't-1',
@@ -153,7 +153,8 @@ describe('HotsiteAuthBar', () => {
       await renderBar();
 
       const link = screen.getByTestId('hotsite-staff-authenticated-link');
-      expect(link).toHaveTextContent('staff-uuid');
+      expect(link).toHaveTextContent('Área da Equipe');
+      expect(link).not.toHaveTextContent('staff-uuid');
     });
   });
 

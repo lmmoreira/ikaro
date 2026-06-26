@@ -8,6 +8,7 @@ export interface CurrentUserPayload {
   tenantName: string;
   userName: string | null;
   role: string;
+  locale: string;
 }
 
 export const CurrentUser = createParamDecorator(

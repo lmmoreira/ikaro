@@ -197,13 +197,24 @@
       "bookings": "Bookings",
       "schedule": "Schedule",
       "services": "Services",
+      "loyalty": "Loyalty",
       "team": "Team",
       "settings": "Settings",
-      "hotsite": "Hotsite"
+      "hotsite": "Hotsite",
+      "managerOnly": "Manager only",
+      "more": "More",
+      "moreOptions": "More options"
+    },
+    "sidebar": {
+      "roleManager": "Manager",
+      "roleStaff": "Staff",
+      "signOut": "Sign out"
     },
     "topbar": {
       "openMenu": "Open menu",
-      "closeMenu": "Close menu"
+      "closeMenu": "Close menu",
+      "todayPrefix": "Today,",
+      "defaultTitle": "Dashboard"
     }
   }
 }

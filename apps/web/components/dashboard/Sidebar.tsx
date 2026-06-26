@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Calendar, Clock, Wrench, Star, Users, Settings, Globe, LogOut } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -21,17 +22,17 @@ function getInitials(name: string | null): string {
   return `${first}${last}`.toUpperCase();
 }
 
-const MAIN_NAV = [
-  { href: '/dashboard/bookings', label: 'Agenda', Icon: Calendar },
-  { href: '/dashboard/schedule', label: 'Horários', Icon: Clock },
-  { href: '/dashboard/services', label: 'Serviços', Icon: Wrench },
-  { href: '/dashboard/loyalty', label: 'Fidelidade', Icon: Star },
+const MAIN_NAV_KEYS = [
+  { href: '/dashboard/bookings', labelKey: 'nav.bookings', Icon: Calendar },
+  { href: '/dashboard/schedule', labelKey: 'nav.schedule', Icon: Clock },
+  { href: '/dashboard/services', labelKey: 'nav.services', Icon: Wrench },
+  { href: '/dashboard/loyalty', labelKey: 'nav.loyalty', Icon: Star },
 ] as const;
 
-const MANAGER_NAV = [
-  { href: '/dashboard/team', label: 'Equipe', Icon: Users },
-  { href: '/dashboard/settings', label: 'Configurações', Icon: Settings },
-  { href: '/dashboard/hotsite', label: 'Hotsite', Icon: Globe },
+const MANAGER_NAV_KEYS = [
+  { href: '/dashboard/team', labelKey: 'nav.team', Icon: Users },
+  { href: '/dashboard/settings', labelKey: 'nav.settings', Icon: Settings },
+  { href: '/dashboard/hotsite', labelKey: 'nav.hotsite', Icon: Globe },
 ] as const;
 
 function navItemClass(active: boolean): string {
@@ -47,6 +48,7 @@ export function Sidebar({
   userName,
   role,
 }: SidebarProps): React.JSX.Element {
+  const t = useTranslations('dashboard');
   const pathname = usePathname();
   const initials = getInitials(userName);
   const logoutUrl = `${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${tenantSlug}`;
@@ -66,10 +68,10 @@ export function Sidebar({
 
       {/* Main nav */}
       <nav className="mt-2 flex flex-col gap-0.5 px-2">
-        {MAIN_NAV.map(({ href, label, Icon }) => (
+        {MAIN_NAV_KEYS.map(({ href, labelKey, Icon }) => (
           <Link key={href} href={href} className={navItemClass(pathname.startsWith(href))}>
             <Icon className="h-4 w-4 shrink-0" />
-            {label}
+            {t(labelKey)}
           </Link>
         ))}
       </nav>
@@ -78,13 +80,13 @@ export function Sidebar({
       {role === 'MANAGER' && (
         <>
           <p className="px-4 pb-1 pt-[0.875rem] text-[0.625rem] font-bold uppercase tracking-[0.09em] text-white/35">
-            Somente Gerente
+            {t('nav.managerOnly')}
           </p>
           <nav className="flex flex-col gap-0.5 px-2">
-            {MANAGER_NAV.map(({ href, label, Icon }) => (
+            {MANAGER_NAV_KEYS.map(({ href, labelKey, Icon }) => (
               <Link key={href} href={href} className={navItemClass(pathname.startsWith(href))}>
                 <Icon className="h-4 w-4 shrink-0" />
-                {label}
+                {t(labelKey)}
               </Link>
             ))}
           </nav>
@@ -108,12 +110,12 @@ export function Sidebar({
               role === 'MANAGER' ? 'bg-blue-600/25 text-blue-300' : 'bg-white/10 text-white/60',
             )}
           >
-            {role === 'MANAGER' ? 'Gerente' : 'Staff'}
+            {role === 'MANAGER' ? t('sidebar.roleManager') : t('sidebar.roleStaff')}
           </span>
         </div>
         <a
           href={logoutUrl}
-          title="Sair"
+          title={t('sidebar.signOut')}
           className="shrink-0 text-white/35 transition-colors hover:text-white/75"
         >
           <LogOut className="h-4 w-4" />

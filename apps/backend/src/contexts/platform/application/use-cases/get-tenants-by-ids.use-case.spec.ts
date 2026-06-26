@@ -27,8 +27,8 @@ describe('GetTenantsByIdsUseCase', () => {
 
     expect(result).toEqual(
       expect.arrayContaining([
-        { id: a.id, slug: 'lavacar-bh', name: 'Lavacar BH' },
-        { id: b.id, slug: 'autospa-sp', name: 'AutoSpa SP' },
+        { id: a.id, slug: 'lavacar-bh', name: 'Lavacar BH', locale: 'pt-BR' },
+        { id: b.id, slug: 'autospa-sp', name: 'AutoSpa SP', locale: 'pt-BR' },
       ]),
     );
     expect(result).toHaveLength(2);
@@ -53,6 +53,8 @@ describe('GetTenantsByIdsUseCase', () => {
 
     const result = await useCase.execute([tenant.id]);
 
-    expect(result).toEqual([{ id: tenant.id, slug: 'lavacar-centro', name: 'Lavacar Centro' }]);
+    expect(result).toEqual([
+      { id: tenant.id, slug: 'lavacar-centro', name: 'Lavacar Centro', locale: 'pt-BR' },
+    ]);
   });
 });

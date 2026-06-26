@@ -5,6 +5,7 @@ export interface JwtPayload {
   readonly tenantName: string;
   readonly userName: string | null;
   readonly role: 'CUSTOMER' | 'STAFF' | 'MANAGER';
+  readonly locale: string;
   readonly exp?: number;
 }
 

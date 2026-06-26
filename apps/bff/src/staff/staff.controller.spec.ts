@@ -1,3 +1,4 @@
+import { CurrentUserPayloadBuilder } from '../test/builders/current-user-payload.builder';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { StaffController } from './staff.controller';
 
@@ -25,14 +26,10 @@ describe('StaffController', () => {
       const expectedResult = { id: STAFF_ID, email: 'gerente@lavacar.com.br', role: 'MANAGER' };
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(expectedResult) });
       const controller = new StaffController(backendHttp);
-      const user = {
-        sub: STAFF_ID,
-        tenantId: 't-1',
-        tenantSlug: 'lavacar-bh',
-        tenantName: 'Lavacar BH',
-        userName: 'Test Manager',
-        role: 'MANAGER',
-      };
+      const user = CurrentUserPayloadBuilder.asManager()
+        .withSub(STAFF_ID)
+        .withTenantId('t-1')
+        .build();
 
       const result = await controller.getMe(user);
 
@@ -43,14 +40,10 @@ describe('StaffController', () => {
     it('propagates errors from the backend', async () => {
       const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('404')) });
       const controller = new StaffController(backendHttp);
-      const user = {
-        sub: STAFF_ID,
-        tenantId: 't-1',
-        tenantSlug: 'lavacar-bh',
-        tenantName: 'Lavacar BH',
-        userName: 'Test Staff',
-        role: 'STAFF',
-      };
+      const user = CurrentUserPayloadBuilder.asStaff()
+        .withSub(STAFF_ID)
+        .withTenantId('t-1')
+        .build();
 
       await expect(controller.getMe(user)).rejects.toThrow('404');
     });

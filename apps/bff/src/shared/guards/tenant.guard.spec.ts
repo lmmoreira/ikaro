@@ -15,6 +15,7 @@ describe('TenantGuard', () => {
     tenantName: 'Lavacar Belo',
     userName: 'Test User',
     role: 'CUSTOMER',
+    locale: 'pt-BR',
   };
 
   beforeEach(() => {

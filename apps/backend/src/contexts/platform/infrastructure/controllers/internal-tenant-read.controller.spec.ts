@@ -78,6 +78,13 @@ describe('InternalTenantReadController', () => {
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     });
 
+    it('returns 400 when ids contains only separators or whitespace', async () => {
+      const err = await controller.getTenantsByIdsRoute(',,,').catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
     it('returns id, slug, and name for each found tenant', async () => {
       const a = new TenantBuilder().withSlug('lavacar-bh').withName('Lavacar BH').build();
       const b = new TenantBuilder().withSlug('autospa-sp').withName('AutoSpa SP').build();
@@ -88,8 +95,8 @@ describe('InternalTenantReadController', () => {
 
       expect(result).toEqual(
         expect.arrayContaining([
-          { id: a.id, slug: 'lavacar-bh', name: 'Lavacar BH' },
-          { id: b.id, slug: 'autospa-sp', name: 'AutoSpa SP' },
+          { id: a.id, slug: 'lavacar-bh', name: 'Lavacar BH', locale: 'pt-BR' },
+          { id: b.id, slug: 'autospa-sp', name: 'AutoSpa SP', locale: 'pt-BR' },
         ]),
       );
       expect(result).toHaveLength(2);

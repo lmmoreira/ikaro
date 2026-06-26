@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Calendar, Clock, Wrench, Star, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,14 +11,15 @@ interface BottomNavProps {
   readonly onOpenSheet: () => void;
 }
 
-const NAV_ITEMS = [
-  { href: '/dashboard/bookings', label: 'Agenda', Icon: Calendar },
-  { href: '/dashboard/schedule', label: 'Horários', Icon: Clock },
-  { href: '/dashboard/services', label: 'Serviços', Icon: Wrench },
-  { href: '/dashboard/loyalty', label: 'Fidelidade', Icon: Star },
+const NAV_ITEM_KEYS = [
+  { href: '/dashboard/bookings', labelKey: 'nav.bookings', Icon: Calendar },
+  { href: '/dashboard/schedule', labelKey: 'nav.schedule', Icon: Clock },
+  { href: '/dashboard/services', labelKey: 'nav.services', Icon: Wrench },
+  { href: '/dashboard/loyalty', labelKey: 'nav.loyalty', Icon: Star },
 ] as const;
 
 export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Element {
+  const t = useTranslations('dashboard');
   const pathname = usePathname();
 
   const itemClass = (active: boolean) =>
@@ -31,12 +33,12 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
       className="fixed inset-x-0 bottom-0 z-20 flex border-t bg-white lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
     >
-      {NAV_ITEMS.map(({ href, label, Icon }) => {
+      {NAV_ITEM_KEYS.map(({ href, labelKey, Icon }) => {
         const isActive = pathname.startsWith(href);
         return (
           <Link key={href} href={href} className={itemClass(isActive)}>
             <Icon className="h-[1.375rem] w-[1.375rem] shrink-0" />
-            {label}
+            {t(labelKey)}
           </Link>
         );
       })}
@@ -46,10 +48,10 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
           type="button"
           onClick={onOpenSheet}
           className={itemClass(false)}
-          aria-label="Mais opções"
+          aria-label={t('nav.moreOptions')}
         >
           <MoreHorizontal className="h-[1.375rem] w-[1.375rem] shrink-0" />
-          Mais
+          {t('nav.more')}
         </button>
       )}
     </nav>

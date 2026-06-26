@@ -17,6 +17,7 @@ function makeTenantResult(
     id: tenant.id,
     slug: tenant.slug.value,
     name: tenant.name,
+    locale: tenant.settings.localization.language,
     settings: {
       ...tenant.settings.toJSON(),
       loyalty: {

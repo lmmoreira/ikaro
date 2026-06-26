@@ -31,6 +31,7 @@ describe('JwtIssuerService', () => {
       tenantName: 'Lavacar Belo',
       userName: 'Test User',
       role: 'CUSTOMER',
+      locale: 'pt-BR',
     });
     expect(typeof token).toBe('string');
     expect(token.split('.')).toHaveLength(3);
@@ -44,6 +45,7 @@ describe('JwtIssuerService', () => {
       tenantName: 'Lavacar Belo',
       userName: 'Test User',
       role: 'CUSTOMER',
+      locale: 'pt-BR',
     };
 
     const token = service.issueToken(payload);
@@ -66,6 +68,7 @@ describe('JwtIssuerService', () => {
       tenantName: 'Tenant 1',
       userName: 'Staff User',
       role: 'STAFF',
+      locale: 'pt-BR',
     });
     const decoded = jwtService.verify<JwtPayload>(token);
 
@@ -81,6 +84,7 @@ describe('JwtIssuerService', () => {
         tenantName: 'Tenant 1',
         userName: 'Test User',
         role,
+        locale: 'pt-BR',
       });
       const decoded = jwtService.verify<JwtPayload>(token);
       expect(decoded.role).toBe(role);
@@ -96,6 +100,7 @@ describe('JwtIssuerService', () => {
       tenantName: 'Tenant 1',
       userName: 'Manager User',
       role: 'MANAGER',
+      locale: 'pt-BR',
     });
     const decoded = jwtService.verify<JwtPayload & { iat: number; exp: number }>(token);
     const after = Math.floor(Date.now() / 1000);
@@ -114,6 +119,7 @@ describe('JwtIssuerService', () => {
       tenantName: 'Tenant 1',
       userName: 'Test User',
       role: 'CUSTOMER',
+      locale: 'pt-BR',
     });
     const [header, payload] = token.split('.');
     const tamperedToken = `${header}.${payload}.invalidsignature`;
@@ -129,6 +135,7 @@ describe('JwtIssuerService', () => {
       tenantName: 'Tenant 1',
       userName: 'Test User',
       role: 'CUSTOMER',
+      locale: 'pt-BR',
     });
 
     expect(() =>

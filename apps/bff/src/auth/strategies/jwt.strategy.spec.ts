@@ -23,6 +23,7 @@ describe('JwtStrategy', () => {
       tenantName: 'Lavacar Belo',
       userName: 'Test User',
       role: 'CUSTOMER',
+      locale: 'pt-BR',
     };
 
     const result = strategy.validate(payload);
@@ -38,6 +39,7 @@ describe('JwtStrategy', () => {
       tenantName: 'Lavacar Belo',
       userName: 'Staff User',
       role: 'STAFF',
+      locale: 'pt-BR',
     };
 
     expect(strategy.validate(payload)).toEqual(payload);
@@ -51,6 +53,7 @@ describe('JwtStrategy', () => {
       tenantName: 'Lavacar Belo',
       userName: 'Manager User',
       role: 'MANAGER',
+      locale: 'pt-BR',
     };
 
     expect(strategy.validate(payload)).toEqual(payload);

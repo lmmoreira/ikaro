@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
+import { CurrentUserPayloadBuilder } from '../test/builders/current-user-payload.builder';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import { BookingsController } from './bookings.controller';
 import { AttachmentSignedUrlResponse, BookingResponse } from './bookings.types';
@@ -125,22 +126,8 @@ describe('BookingsController', () => {
 
   describe('cancel()', () => {
     const mockCancelResponse = { bookingId: BOOKING_ID, status: 'CANCELLED' };
-    const customerUser = {
-      sub: '20000000-0000-4000-8000-000000000001',
-      tenantId: TENANT_ID,
-      tenantSlug: 'lavacar-bh',
-      tenantName: 'Lavacar BH',
-      userName: 'Test Customer',
-      role: 'CUSTOMER',
-    };
-    const managerUser = {
-      sub: '20000000-0000-4000-8000-000000000002',
-      tenantId: TENANT_ID,
-      tenantSlug: 'lavacar-bh',
-      tenantName: 'Lavacar BH',
-      userName: 'Test Manager',
-      role: 'MANAGER',
-    };
+    const customerUser = CurrentUserPayloadBuilder.asCustomer().withTenantId(TENANT_ID).build();
+    const managerUser = CurrentUserPayloadBuilder.asManager().withTenantId(TENANT_ID).build();
 
     describe('CUSTOMER role', () => {
       it('routes to /cancel-customer and returns result', async () => {
@@ -569,22 +556,8 @@ describe('BookingsController', () => {
   });
 
   describe('list()', () => {
-    const managerUser = {
-      sub: '20000000-0000-4000-8000-000000000002',
-      tenantId: TENANT_ID,
-      tenantSlug: TENANT_SLUG,
-      tenantName: 'Lavacar BH',
-      userName: 'Test Manager',
-      role: 'MANAGER',
-    };
-    const customerUser = {
-      sub: '20000000-0000-4000-8000-000000000001',
-      tenantId: TENANT_ID,
-      tenantSlug: TENANT_SLUG,
-      tenantName: 'Lavacar BH',
-      userName: 'Test Customer',
-      role: 'CUSTOMER',
-    };
+    const managerUser = CurrentUserPayloadBuilder.asManager().withTenantId(TENANT_ID).build();
+    const customerUser = CurrentUserPayloadBuilder.asCustomer().withTenantId(TENANT_ID).build();
     const backendItem = {
       id: BOOKING_ID,
       status: 'PENDING',
@@ -653,7 +626,7 @@ describe('BookingsController', () => {
     });
 
     it('STAFF: also allowed (no regression)', async () => {
-      const staffUser = { ...managerUser, role: 'STAFF' };
+      const staffUser = CurrentUserPayloadBuilder.asStaff().withTenantId(TENANT_ID).build();
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValue(backendListResponse),
       });
@@ -755,22 +728,8 @@ describe('BookingsController', () => {
   });
 
   describe('getOne()', () => {
-    const customerUser = {
-      sub: '20000000-0000-4000-8000-000000000001',
-      tenantId: TENANT_ID,
-      tenantSlug: TENANT_SLUG,
-      tenantName: 'Lavacar BH',
-      userName: 'Test Customer',
-      role: 'CUSTOMER',
-    };
-    const managerUser = {
-      sub: '20000000-0000-4000-8000-000000000002',
-      tenantId: TENANT_ID,
-      tenantSlug: TENANT_SLUG,
-      tenantName: 'Lavacar BH',
-      userName: 'Test Manager',
-      role: 'MANAGER',
-    };
+    const customerUser = CurrentUserPayloadBuilder.asCustomer().withTenantId(TENANT_ID).build();
+    const managerUser = CurrentUserPayloadBuilder.asManager().withTenantId(TENANT_ID).build();
     const CUSTOMER_ID = '60000000-0000-4000-8000-000000000001';
 
     const mockDetailResponse = {

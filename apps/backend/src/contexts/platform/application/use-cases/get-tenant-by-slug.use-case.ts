@@ -6,6 +6,7 @@ export interface GetTenantBySlugUseCaseResult {
   id: string;
   slug: string;
   name: string;
+  locale: string;
 }
 
 @Injectable()
@@ -15,6 +16,11 @@ export class GetTenantBySlugUseCase {
   async execute(slug: string): Promise<GetTenantBySlugUseCaseResult> {
     const tenant = await this.tenantRepo.findBySlug(slug);
     if (!tenant) throw new TenantNotFoundError(slug);
-    return { id: tenant.id, slug: tenant.slug.value, name: tenant.name };
+    return {
+      id: tenant.id,
+      slug: tenant.slug.value,
+      name: tenant.name,
+      locale: tenant.settings.localization.language,
+    };
   }
 }
