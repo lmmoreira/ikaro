@@ -84,6 +84,7 @@ describe('useActionNeededBookings', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const calledUrl: string = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('/api/bookings');
+    expect(calledUrl).toContain('status=PENDING%2CINFO_REQUESTED');
     expect(calledUrl).toContain('from=2026-06-26');
     expect(calledUrl).toContain('to=2026-07-09');
     vi.unstubAllGlobals();
@@ -97,15 +98,14 @@ describe('useTodayBookings', () => {
     expect(result.current.isSuccess).toBe(true);
   });
 
-  it('fetches via proxy with date param when no initialData', async () => {
+  it('fetches via proxy with APPROVED status and date param when no initialData', async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyList });
     vi.stubGlobal('fetch', mockFetch);
     const { result } = renderHook(() => useTodayBookings('2026-06-26'), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('date=2026-06-26'),
-      expect.objectContaining({ cache: 'no-store' }),
-    );
+    const calledUrl: string = mockFetch.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('status=APPROVED');
+    expect(calledUrl).toContain('date=2026-06-26');
     vi.unstubAllGlobals();
   });
 });
@@ -120,7 +120,7 @@ describe('useUpcomingBookings', () => {
     expect(result.current.isSuccess).toBe(true);
   });
 
-  it('fetches via proxy with from and to params when no initialData', async () => {
+  it('fetches via proxy with APPROVED status and from/to params when no initialData', async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyList });
     vi.stubGlobal('fetch', mockFetch);
     const { result } = renderHook(() => useUpcomingBookings('2026-06-27', '2026-07-09'), {
@@ -128,6 +128,7 @@ describe('useUpcomingBookings', () => {
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const calledUrl: string = mockFetch.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('status=APPROVED');
     expect(calledUrl).toContain('from=2026-06-27');
     expect(calledUrl).toContain('to=2026-07-09');
     vi.unstubAllGlobals();

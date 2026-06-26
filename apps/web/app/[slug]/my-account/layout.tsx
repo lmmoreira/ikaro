@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
 import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
@@ -34,6 +35,8 @@ export default async function MyAccountLayout({
   const { slug } = await params;
   const { tenantName, tenantSlug, tenantId, userName, locale, messages } =
     await resolveMyAccountContext(slug);
+
+  if (!tenantId) redirect(`/${slug}/login`);
 
   return (
     <LocaleProvider locale={locale} messages={messages}>

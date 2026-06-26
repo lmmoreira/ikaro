@@ -5,6 +5,7 @@ import type {
   GenerateHotsiteImageSignedUrlResponse,
   FeatureBookingPhotoResponse,
   TenantFormattingResponse,
+  TenantBookingConfigResponse,
 } from '@ikaro/types';
 import { bffClient } from '../bff-client';
 import { bffServerFetch } from '../bff-server';
@@ -105,4 +106,13 @@ export async function fetchTenantFormatting(token: string): Promise<TenantFormat
   });
   if (!res.ok) throw new Error(`Failed to fetch tenant formatting (${res.status})`);
   return res.json() as Promise<TenantFormattingResponse>;
+}
+
+// Server-side only — reads tenant booking configuration (e.g. welcomeStaffScreenDays).
+export async function fetchTenantBookingConfig(
+  token: string,
+): Promise<TenantBookingConfigResponse> {
+  const res = await bffServerFetch(token, '/tenants/booking-config');
+  if (!res.ok) throw new Error(`fetchTenantBookingConfig: ${res.status}`);
+  return res.json() as Promise<TenantBookingConfigResponse>;
 }

@@ -10,7 +10,15 @@ import {
   UpdateTenantSettingsUseCase,
 } from '../../application/use-cases/update-tenant-settings.use-case';
 import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
-import { TenantSettings, TenantSettingsProps } from '../../domain/value-objects/tenant-settings.vo';
+import {
+  GetTenantFormattingUseCase,
+  GetTenantFormattingUseCaseResult,
+} from '../../application/use-cases/get-tenant-formatting.use-case';
+import {
+  GetTenantBookingConfigUseCase,
+  GetTenantBookingConfigUseCaseResult,
+} from '../../application/use-cases/get-tenant-booking-config.use-case';
+import { TenantSettingsProps } from '../../domain/value-objects/tenant-settings.vo';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapPlatformError } from '../http/platform-error.mapper';
@@ -22,19 +30,13 @@ export interface GetTenantSettingsResult {
   settings: TenantSettingsProps;
 }
 
-export interface GetTenantFormattingResult {
-  locale: string;
-  currency: string;
-  timezone: string;
-  dateFormat: string;
-  timeFormat: '24h' | '12h';
-}
-
 @Controller('tenants')
 @UseGuards(ManagerRoleGuard)
 export class TenantSettingsController {
   constructor(
     private readonly getTenantById: GetTenantByIdUseCase,
+    private readonly getTenantFormatting: GetTenantFormattingUseCase,
+    private readonly getTenantBookingConfig: GetTenantBookingConfigUseCase,
     private readonly updateTenantSettings: UpdateTenantSettingsUseCase,
     private readonly tenantContext: RequestContext,
   ) {}
@@ -51,19 +53,15 @@ export class TenantSettingsController {
   @Get('formatting')
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
-  async getFormatting(): Promise<GetTenantFormattingResult> {
-    const tenant = await this.getTenantById
-      .execute(this.tenantContext.tenantId)
-      .catch(mapPlatformError);
-    const settings = TenantSettings.reconstitute(tenant.settings);
-    const resolved = settings.resolveLocalization();
-    return {
-      locale: resolved.language,
-      currency: resolved.currency,
-      timezone: tenant.settings.businessHours.timezone,
-      dateFormat: resolved.dateFormat,
-      timeFormat: resolved.timeFormat,
-    };
+  getFormatting(): Promise<GetTenantFormattingUseCaseResult> {
+    return this.getTenantFormatting.execute(this.tenantContext.tenantId).catch(mapPlatformError);
+  }
+
+  @Get('booking-config')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  getBookingConfig(): Promise<GetTenantBookingConfigUseCaseResult> {
+    return this.getTenantBookingConfig.execute(this.tenantContext.tenantId).catch(mapPlatformError);
   }
 
   @Patch('settings')

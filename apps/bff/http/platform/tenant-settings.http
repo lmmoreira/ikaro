@@ -195,3 +195,29 @@ Authorization: Bearer {{managerToken}}
 
 ### 401 — No auth token
 GET {{bffUrl}}/v1/tenants/formatting
+
+###
+
+### 404 — Tenant not found (token references a deleted tenant)
+# This can happen when a JWT is still valid but the tenant was removed from the database.
+GET {{bffUrl}}/v1/tenants/formatting
+Authorization: Bearer {{staffToken}}
+
+###
+
+# ─── GET /v1/tenants/booking-config ──────────────────────────────────────────
+
+### 200 — Staff retrieves tenant booking configuration
+GET {{bffUrl}}/v1/tenants/booking-config
+Authorization: Bearer {{staffToken}}
+
+###
+
+### 200 — Manager retrieves tenant booking configuration
+GET {{bffUrl}}/v1/tenants/booking-config
+Authorization: Bearer {{managerToken}}
+
+###
+
+### 401 — No auth token
+GET {{bffUrl}}/v1/tenants/booking-config

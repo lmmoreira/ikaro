@@ -343,6 +343,28 @@ describe('AuthController', () => {
       );
     });
 
+    it('redirects to /auth/error?reason=account-linked-elsewhere when staff already has a different linked Google account', async () => {
+      const tenantInfo = { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' };
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValueOnce(tenantInfo).mockResolvedValueOnce({
+          staffId: STAFF_ID_A,
+          email: 'gerente@lavacar.com.br',
+          role: 'MANAGER',
+          isActive: true,
+          googleOAuthId: 'google-sub-DIFFERENT-existing-account',
+        }),
+        post: jest.fn().mockRejectedValue(new HttpException({ status: 409 }, 409)),
+      });
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
+      const res = makeRes();
+
+      await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=account-linked-elsewhere&tenantSlug=lavacar-bh',
+      );
+    });
+
     it('skips link-google and issues token when staff is already linked with the same Google account', async () => {
       const tenantInfo = { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' };
       const backendHttp = makeBackendHttp({

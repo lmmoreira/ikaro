@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
-import { addDays, isSameDay } from '@/lib/utils/date-utils';
+import { addDays, toDateKeyInTimezone } from '@/lib/utils/date-utils';
 
 export type BookingCardVariant = 'action-needed' | 'today' | 'upcoming';
 
@@ -34,26 +34,29 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Element {
-  const { formatMoney, formatTime, formatDateLong } = useFormatting();
+  const { formatMoney, formatTime, formatDateLong, timezone } = useFormatting();
   const scheduledAt = new Date(booking.scheduledAt);
 
   const timeLabel =
     variant === 'today'
       ? formatTime(scheduledAt)
       : (() => {
-          const today = new Date();
-          const tomorrow = addDays(today, 1);
+          const now = new Date();
+          const todayKey = toDateKeyInTimezone(now, timezone);
+          const tomorrowKey = toDateKeyInTimezone(addDays(now, 1), timezone);
+          const scheduledKey = toDateKeyInTimezone(scheduledAt, timezone);
 
-          const prefix = isSameDay(scheduledAt, today)
-            ? 'Hoje'
-            : isSameDay(scheduledAt, tomorrow)
-              ? 'Amanhã'
-              : formatDateLong(scheduledAt);
+          const prefix =
+            scheduledKey === todayKey
+              ? 'Hoje'
+              : scheduledKey === tomorrowKey
+                ? 'Amanhã'
+                : formatDateLong(scheduledAt);
 
           return `${prefix} · ${formatTime(scheduledAt)}`;
         })();
 
-  const cardContent = (
+  const card = (
     <Card
       className={[
         'mb-3 transition-shadow',
@@ -85,7 +88,7 @@ function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Ele
         </div>
 
         {variant === 'today' && (
-          <div className="mt-3 flex gap-2">
+          <div className="relative z-10 mt-3 flex gap-2">
             <button
               type="button"
               className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
@@ -96,7 +99,7 @@ function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Ele
         )}
 
         {variant === 'action-needed' && (
-          <div className="mt-3 flex gap-2">
+          <div className="relative z-10 mt-3 flex gap-2">
             <button
               type="button"
               className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
@@ -115,12 +118,17 @@ function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Ele
     </Card>
   );
 
-  if (variant === 'upcoming') return cardContent;
+  if (variant === 'upcoming') return card;
 
   return (
-    <Link href={`/dashboard/bookings/${booking.bookingId}`} className="block">
-      {cardContent}
-    </Link>
+    <div className="relative">
+      <Link
+        href={`/dashboard/bookings/${booking.bookingId}`}
+        className="absolute inset-0"
+        aria-label={`Ver detalhes do agendamento de ${booking.contactName}`}
+      />
+      {card}
+    </div>
   );
 }
 

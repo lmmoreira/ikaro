@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFormatting } from '@/lib/formatting/use-formatting';
-import { isSameDay, toDateKey } from '@/lib/utils/date-utils';
+import { addDays, isSameDay, toDateKey } from '@/lib/utils/date-utils';
 
 export interface WeekNavProps {
   readonly windowStart: Date;
@@ -15,8 +15,6 @@ export interface WeekNavProps {
   readonly activeDates?: ReadonlySet<string>;
 }
 
-const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
 export function WeekNav({
   windowStart,
   windowDays,
@@ -27,13 +25,8 @@ export function WeekNav({
   disableNext = false,
   activeDates,
 }: WeekNavProps): React.JSX.Element {
-  const { formatMonthYear } = useFormatting();
-  const days: Date[] = [];
-  for (let i = 0; i < windowDays; i++) {
-    const d = new Date(windowStart);
-    d.setDate(windowStart.getDate() + i);
-    days.push(d);
-  }
+  const { formatMonthYear, formatWeekdayShort } = useFormatting();
+  const days: Date[] = Array.from({ length: windowDays }, (_, i) => addDays(windowStart, i));
 
   const monthLabel = formatMonthYear(windowStart);
 
@@ -90,7 +83,7 @@ export function WeekNav({
               <span
                 className={`text-[0.6875rem] font-semibold uppercase tracking-wide ${isToday ? 'text-blue-100' : 'text-gray-400'}`}
               >
-                {DAY_LABELS[day.getDay()]}
+                {formatWeekdayShort(day)}
               </span>
               <span className={`text-base font-bold leading-none ${isToday ? 'text-white' : ''}`}>
                 {day.getDate()}

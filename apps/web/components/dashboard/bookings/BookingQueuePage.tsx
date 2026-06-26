@@ -56,6 +56,7 @@ export function BookingQueuePage({
     upcomingFrom,
     upcomingTo,
     todayInWindow && isSameDay(windowStart, todayDate) ? initialUpcoming : undefined,
+    upcomingVisible,
   );
 
   const activeDates = useMemo(() => {

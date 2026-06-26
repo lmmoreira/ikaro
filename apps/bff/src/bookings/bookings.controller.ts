@@ -142,23 +142,28 @@ export const SubmitGuestBookingInfoBodySchema = z.object({
 const BOOKING_STATUS_RE =
   /^(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED)(,(PENDING|INFO_REQUESTED|APPROVED|COMPLETED|REJECTED|CANCELLED))*$/;
 
-const StaffListBookingsQuerySchema = z.object({
-  status: z.string().regex(BOOKING_STATUS_RE).optional().default('PENDING,INFO_REQUESTED'),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  from: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  to: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
+const StaffListBookingsQuerySchema = z
+  .object({
+    status: z.string().regex(BOOKING_STATUS_RE).optional().default('PENDING,INFO_REQUESTED'),
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    from: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    to: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .refine((q) => q.to === undefined || q.from !== undefined, {
+    path: ['to'],
+    message: '`to` requires `from`',
+  });
 
 type StaffListBookingsQuery = z.infer<typeof StaffListBookingsQuerySchema>;
 

@@ -116,6 +116,13 @@ describe('TenantSettings', () => {
       expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
     });
 
+    it('throws for non-integer welcomeStaffScreenDays', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBooking({ welcomeStaffScreenDays: 7.5 })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
     it('throws for welcomeStaffScreenDays below 1', () => {
       const props = new TenantSettingsPropsBuilder()
         .withBooking({ welcomeStaffScreenDays: 0 })

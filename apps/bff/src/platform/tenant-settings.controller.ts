@@ -1,6 +1,10 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { z } from 'zod';
-import { TenantFormattingResponse, TenantSettingsResponse } from '@ikaro/types';
+import {
+  TenantBookingConfigResponse,
+  TenantFormattingResponse,
+  TenantSettingsResponse,
+} from '@ikaro/types';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
@@ -117,6 +121,12 @@ export class TenantSettingsController {
   @Roles('STAFF', 'MANAGER')
   getFormatting(): Promise<TenantFormattingResponse> {
     return this.backendHttp.get<TenantFormattingResponse>('/tenants/formatting');
+  }
+
+  @Get('booking-config')
+  @Roles('STAFF', 'MANAGER')
+  getBookingConfig(): Promise<TenantBookingConfigResponse> {
+    return this.backendHttp.get<TenantBookingConfigResponse>('/tenants/booking-config');
   }
 
   @Patch('settings')

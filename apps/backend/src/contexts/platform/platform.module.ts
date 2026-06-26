@@ -15,6 +15,8 @@ import { GenerateHotsiteImageSignedUrlUseCase } from './application/use-cases/ge
 import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-content.use-case';
 import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-manifest.use-case';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
+import { GetTenantFormattingUseCase } from './application/use-cases/get-tenant-formatting.use-case';
+import { GetTenantBookingConfigUseCase } from './application/use-cases/get-tenant-booking-config.use-case';
 import { GetTenantBySlugUseCase } from './application/use-cases/get-tenant-by-slug.use-case';
 import { GetTenantsByIdsUseCase } from './application/use-cases/get-tenants-by-ids.use-case';
 import { ListPublishedHotsitesUseCase } from './application/use-cases/list-published-hotsites.use-case';
@@ -68,6 +70,8 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetHotsiteContentUseCase,
     GetHotsiteManifestUseCase,
     GetTenantByIdUseCase,
+    GetTenantFormattingUseCase,
+    GetTenantBookingConfigUseCase,
     GetTenantBySlugUseCase,
     GetTenantsByIdsUseCase,
     ListPublishedHotsitesUseCase,
@@ -78,6 +82,12 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     UpdateHotsiteContentUseCase,
     UpdateTenantSettingsUseCase,
   ],
-  exports: [GetTenantByIdUseCase, TenantQueryService, TENANT_SETTINGS_PORT],
+  exports: [
+    GetTenantByIdUseCase,
+    GetTenantFormattingUseCase,
+    GetTenantBookingConfigUseCase,
+    TenantQueryService,
+    TENANT_SETTINGS_PORT,
+  ],
 })
 export class PlatformModule {}

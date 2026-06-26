@@ -6,6 +6,7 @@ import { BookingCard } from './BookingCard';
 
 vi.mock('@/lib/formatting/use-formatting', () => ({
   useFormatting: () => ({
+    timezone: 'America/Sao_Paulo',
     formatMoney: (amount: number) => `R$ ${amount.toFixed(2)}`,
     formatTime: (date: Date) => date.toISOString().slice(11, 16),
     formatDateLong: (_date: Date) => 'Qui, 18 de junho',

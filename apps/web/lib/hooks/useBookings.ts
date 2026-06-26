@@ -55,11 +55,13 @@ export function useUpcomingBookings(
   from: string,
   to: string,
   initialData?: StaffBookingListResponse,
+  enabled = true,
 ) {
   const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['bookings', 'upcoming', tenantId, from, to],
     queryFn: () => fetchBookingsViaProxy({ status: 'APPROVED', from, to }),
     initialData,
+    enabled,
   });
 }

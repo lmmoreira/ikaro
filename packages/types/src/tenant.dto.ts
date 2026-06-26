@@ -120,3 +120,7 @@ export interface TenantFormattingResponse {
   readonly dateFormat: string;
   readonly timeFormat: '24h' | '12h';
 }
+
+export interface TenantBookingConfigResponse {
+  readonly welcomeStaffScreenDays: number;
+}

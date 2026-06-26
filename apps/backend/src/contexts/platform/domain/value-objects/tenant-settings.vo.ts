@@ -261,6 +261,9 @@ export class TenantSettings {
     if (![15, 30, 60].includes(booking.slotGranularityMinutes)) {
       throw new PlatformDomainError('booking.slotGranularityMinutes must be 15, 30, or 60');
     }
+    if (!Number.isInteger(booking.welcomeStaffScreenDays)) {
+      throw new PlatformDomainError('booking.welcomeStaffScreenDays must be an integer');
+    }
     if (booking.welcomeStaffScreenDays < 1 || booking.welcomeStaffScreenDays > 90) {
       throw new PlatformDomainError('booking.welcomeStaffScreenDays must be between 1 and 90');
     }

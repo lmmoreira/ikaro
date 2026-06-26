@@ -1,4 +1,8 @@
-import { TenantFormattingResponse, TenantSettingsResponse } from '@ikaro/types';
+import {
+  TenantBookingConfigResponse,
+  TenantFormattingResponse,
+  TenantSettingsResponse,
+} from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import {
   TenantSettingsController,
@@ -115,6 +119,26 @@ describe('TenantSettingsController', () => {
       const controller = new TenantSettingsController(backendHttp);
 
       await expect(controller.getFormatting()).rejects.toThrow('401');
+    });
+  });
+
+  describe('getBookingConfig()', () => {
+    it('calls GET /tenants/booking-config and returns the backend response', async () => {
+      const configResponse: TenantBookingConfigResponse = { welcomeStaffScreenDays: 14 };
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(configResponse) });
+      const controller = new TenantSettingsController(backendHttp);
+
+      const result = await controller.getBookingConfig();
+
+      expect(backendHttp.get).toHaveBeenCalledWith('/tenants/booking-config');
+      expect(result).toEqual(configResponse);
+    });
+
+    it('propagates errors from the backend', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('401')) });
+      const controller = new TenantSettingsController(backendHttp);
+
+      await expect(controller.getBookingConfig()).rejects.toThrow('401');
     });
   });
 
