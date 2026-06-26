@@ -31,11 +31,26 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 
 ---
 
-## 2. Shared Component Library — shadcn/ui
+## 2. Colour System — Fixed SaaS Palette (NOT the hotsite `--ba-*` tokens)
+
+The dashboard and `my-account` shells belong to the **Ikaro SaaS product**, not to any specific tenant's brand. Their colours are **fixed** and must not change per tenant.
+
+| What to use | What NOT to use |
+|---|---|
+| Tailwind utility classes (`bg-white`, `border-gray-100`, `text-gray-900`, …) | `--ba-primary`, `--ba-secondary`, `--ba-text`, `--ba-background`, or any other `--ba-*` CSS variable |
+| shadcn/ui design tokens (`--primary`, `--secondary`, `--muted`, `--border`, …) | `var(--ba-*)` in any inline `style` prop or CSS class |
+
+**Why:** `--ba-*` variables are injected by `applyBranding()` inside `app/[slug]/layout.tsx` and only exist within the `/[slug]/` route subtree (the public hotsite). In the dashboard and `my-account` routes those variables are never set — referencing them renders the browser default (often transparent or black), silently breaking the component with no build or type error.
+
+The full rule: **hotsite tree = `--ba-*` tokens; dashboard & account shells = Tailwind + shadcn fixed palette.** See `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 for the `--ba-*` variable definitions and `docs/ANTI_PATTERNS.md` for the concrete failure mode.
+
+---
+
+## 3. Shared Component Library — shadcn/ui
 
 We use **shadcn/ui** as the component foundation. Components are copied into the repository (no runtime dependency), built on Radix UI primitives (accessible by default) and styled with Tailwind CSS.
 
-- **Why shadcn/ui:** Components are owned by the project — no vendor lock-in, full customisation control, Radix UI accessibility primitives, Tailwind theming aligns with the CSS variable branding strategy from doc 15.
+- **Why shadcn/ui:** Components are owned by the project — no vendor lock-in, full customisation control, Radix UI accessibility primitives, Tailwind theming via its own fixed CSS variables (`--primary`, `--secondary`, etc.) — completely separate from the hotsite `--ba-*` branding token system in doc 15.
 - **Atomic Components:** Buttons, Inputs, Dialogs, Toasts, Dropdowns, Cards — themed via CSS variables (`--primary`, `--secondary`, etc.).
 - **Business Modules:** `BookingForm` and `ServiceCard` are shared between the Hotsite (public) and Dashboard (staff editing).
 - **Quality Rule:** Every UI component must be accessible (WCAG 2.1 AA) and responsive.

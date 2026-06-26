@@ -37,7 +37,7 @@ export function Topbar({ tenantName, userName }: TopbarProps): React.JSX.Element
   const pageTitle = pageTitleKey ? t(pageTitleKey) : t('topbar.defaultTitle');
 
   return (
-    <header className="sticky top-0 z-10 flex items-center gap-3 border-b bg-white px-4 py-3 lg:px-6">
+    <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 lg:px-6">
       {/* Mobile: logo mark + tenant name */}
       <div className="flex items-center gap-2.5 lg:hidden">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-600 text-[0.8125rem] font-bold text-white">

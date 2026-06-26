@@ -33,6 +33,16 @@ The `layout` array is **ordered and fully controlled by the admin**. The admin c
 
 ## 2. Branding & Design Token System
 
+> **Scope boundary — read this before writing any component that uses colour.**
+>
+> `--ba-*` CSS custom properties are **hotsite-only**. They are injected by `applyBranding()` inside `app/[slug]/layout.tsx` and are valid exclusively within the `/[slug]/` route subtree — public hotsite pages and all hotsite module components (`components/hotsite/**`).
+>
+> They are **never** available in:
+> - The staff dashboard (`app/dashboard/**`, `components/dashboard/**`)
+> - The customer logged-in area (`app/[slug]/my-account/**`, `components/customer/**`)
+>
+> Both of those shells belong to the **SaaS product** whose colours are fixed and not per-tenant — they use Tailwind utility classes and shadcn/ui design tokens (`--primary`, `--secondary`, etc.), not the hotsite branding palette. When in doubt: if a component is visible to a logged-in staff member or inside a protected shell, it does not use `--ba-*`.
+
 Instead of exposing raw CSS to the admin, we use a **semantic design token** system. The admin configures 10 tokens — some are direct values (color pickers, font selectors), others are semantic choices (e.g. "Rounded" instead of "8px"). These tokens are injected as CSS custom properties and inherited by every module automatically.
 
 ### Token Definition
