@@ -136,9 +136,11 @@ describe('CustomersController', () => {
             { tenantId: TENANT_ID, customerId: CUSTOMER_ID },
             { tenantId: TENANT_ID_B, customerId: CUSTOMER_ID_B },
           ])
-          .mockResolvedValueOnce({ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' })
+          .mockResolvedValueOnce([
+            { id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' },
+            { id: TENANT_ID_B, slug: 'superclean', name: 'SuperClean' },
+          ])
           .mockResolvedValueOnce({ currentPoints: 120 })
-          .mockResolvedValueOnce({ id: TENANT_ID_B, slug: 'superclean', name: 'SuperClean' })
           .mockResolvedValueOnce({ currentPoints: 8 }),
       });
       const controller = new CustomersController(backendHttp);
@@ -157,7 +159,7 @@ describe('CustomersController', () => {
         get: jest
           .fn()
           .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
-          .mockResolvedValueOnce({ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' })
+          .mockResolvedValueOnce([{ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' }])
           .mockResolvedValueOnce({ currentPoints: 120 }),
       });
       const controller = new CustomersController(backendHttp);
