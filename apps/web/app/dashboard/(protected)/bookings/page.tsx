@@ -1,15 +1,15 @@
 import { cookies } from 'next/headers';
 import { BookingQueuePage } from '@/components/dashboard/bookings/BookingQueuePage';
 import { listBookings } from '@/lib/api/dashboard/bookings';
-import { fetchTenantFormatting } from '@/lib/api/dashboard/tenants';
 import { addDays, toDateKey } from '@/lib/utils/date-utils';
+
+const DEFAULT_WELCOME_STAFF_SCREEN_DAYS = 14;
 
 export default async function BookingsPage(): Promise<React.JSX.Element> {
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';
 
-  const formatting = await fetchTenantFormatting(token).catch(() => null);
-  const welcomeStaffScreenDays = formatting?.welcomeStaffScreenDays ?? 14;
+  const welcomeStaffScreenDays = DEFAULT_WELCOME_STAFF_SCREEN_DAYS;
 
   const now = new Date();
   const today = toDateKey(now);

@@ -96,7 +96,6 @@ describe('TenantSettingsController', () => {
       timezone: 'America/Sao_Paulo',
       dateFormat: 'DD/MM/YYYY',
       timeFormat: '24h',
-      welcomeStaffScreenDays: 14,
     };
 
     it('calls GET /tenants/formatting and returns the backend response', async () => {

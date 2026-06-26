@@ -119,5 +119,4 @@ export interface TenantFormattingResponse {
   readonly timezone: string;
   readonly dateFormat: string;
   readonly timeFormat: '24h' | '12h';
-  readonly welcomeStaffScreenDays: number;
 }

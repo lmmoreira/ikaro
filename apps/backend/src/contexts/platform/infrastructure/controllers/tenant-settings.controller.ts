@@ -28,7 +28,6 @@ export interface GetTenantFormattingResult {
   timezone: string;
   dateFormat: string;
   timeFormat: '24h' | '12h';
-  welcomeStaffScreenDays: number;
 }
 
 @Controller('tenants')
@@ -64,7 +63,6 @@ export class TenantSettingsController {
       timezone: tenant.settings.businessHours.timezone,
       dateFormat: resolved.dateFormat,
       timeFormat: resolved.timeFormat,
-      welcomeStaffScreenDays: settings.booking.welcomeStaffScreenDays,
     };
   }
 
