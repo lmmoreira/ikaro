@@ -1901,7 +1901,7 @@ The shell matches `plan/journey/shared/dashboard-shell.html` and `plan/journey/s
 
 ---
 
-### M13-S16 — Customer shell: layout, auth guard, route protection
+### M13-S16 — Customer shell: layout, auth guard, route protection ✅ Done
 
 *(formerly M126-S01)*
 
