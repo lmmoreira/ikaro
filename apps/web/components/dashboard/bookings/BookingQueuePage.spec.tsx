@@ -16,8 +16,14 @@ vi.mock('@/lib/hooks/useBookings', () => ({
 }));
 
 vi.mock('@/components/dashboard/WeekNav', () => ({
-  WeekNav: ({ startOfWeek, onPrev, onNext }: {
-    startOfWeek: Date; onPrev: () => void; onNext: () => void;
+  WeekNav: ({
+    startOfWeek,
+    onPrev,
+    onNext,
+  }: {
+    startOfWeek: Date;
+    onPrev: () => void;
+    onNext: () => void;
   }) => (
     <div data-testid="week-nav" data-week={startOfWeek.toISOString()}>
       <button type="button" onClick={onPrev} aria-label="Semana anterior" />
@@ -27,8 +33,16 @@ vi.mock('@/components/dashboard/WeekNav', () => ({
 }));
 
 vi.mock('./BookingCard', () => ({
-  BookingCard: ({ booking, variant }: { booking: { bookingId: string; contactName: string }; variant: string }) => (
-    <div data-testid={`card-${variant}`} data-id={booking.bookingId}>{booking.contactName}</div>
+  BookingCard: ({
+    booking,
+    variant,
+  }: {
+    booking: { bookingId: string; contactName: string };
+    variant: string;
+  }) => (
+    <div data-testid={`card-${variant}`} data-id={booking.bookingId}>
+      {booking.contactName}
+    </div>
   ),
 }));
 
@@ -88,7 +102,9 @@ describe('BookingQueuePage — empty states', () => {
 
   it('shows pt-BR empty message for upcoming section', () => {
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
-    expect(screen.getByText('Nenhum agendamento confirmado nos próximos dias.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Nenhum agendamento confirmado nos próximos dias.'),
+    ).toBeInTheDocument();
   });
 });
 

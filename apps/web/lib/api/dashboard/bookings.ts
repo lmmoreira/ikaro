@@ -80,7 +80,10 @@ export async function listBookings(
       });
     }
     const url = `${process.env.NEXT_PUBLIC_BFF_URL}/bookings${params.size ? `?${params.toString()}` : ''}`;
-    const res = await fetch(url, { headers: { Cookie: `access_token=${token}` }, cache: 'no-store' });
+    const res = await fetch(url, {
+      headers: { Cookie: `access_token=${token}` },
+      cache: 'no-store',
+    });
     if (!res.ok) throw new Error(`Failed to fetch bookings (${res.status})`);
     return res.json() as Promise<StaffBookingListResponse>;
   }

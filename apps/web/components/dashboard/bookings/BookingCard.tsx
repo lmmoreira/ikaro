@@ -76,8 +76,12 @@ function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Ele
     >
       <CardContent className="p-4">
         <div className="mb-1 flex items-start justify-between gap-2">
-          <span className="truncate text-sm font-semibold text-gray-900">{booking.contactName}</span>
-          <Badge className={`shrink-0 text-xs ${STATUS_BADGE[booking.status] ?? 'bg-gray-100 text-gray-600'}`}>
+          <span className="truncate text-sm font-semibold text-gray-900">
+            {booking.contactName}
+          </span>
+          <Badge
+            className={`shrink-0 text-xs ${STATUS_BADGE[booking.status] ?? 'bg-gray-100 text-gray-600'}`}
+          >
             {STATUS_LABEL[booking.status] ?? booking.status}
           </Badge>
         </div>

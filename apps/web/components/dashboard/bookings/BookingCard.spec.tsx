@@ -13,20 +13,34 @@ vi.mock('@/lib/formatting/use-formatting', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
-    <a href={href} className={className}>{children}</a>
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => (
+    <a href={href} className={className}>
+      {children}
+    </a>
   ),
 }));
 
 vi.mock('@/components/ui/badge', () => ({
   Badge: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <span className={className} data-testid="badge">{children}</span>
+    <span className={className} data-testid="badge">
+      {children}
+    </span>
   ),
 }));
 
 vi.mock('@/components/ui/card', () => ({
   Card: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={className} data-testid="card">{children}</div>
+    <div className={className} data-testid="card">
+      {children}
+    </div>
   ),
   CardContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
@@ -88,7 +102,9 @@ describe('BookingCard — action-needed variant', () => {
   });
 
   it('INFO_REQUESTED card has blue-600 left border class', () => {
-    render(<BookingCard booking={makeBooking({ status: 'INFO_REQUESTED' })} variant="action-needed" />);
+    render(
+      <BookingCard booking={makeBooking({ status: 'INFO_REQUESTED' })} variant="action-needed" />,
+    );
     const card = screen.getByTestId('card');
     expect(card.className).toContain('border-l-blue-600');
   });

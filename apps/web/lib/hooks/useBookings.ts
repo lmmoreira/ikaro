@@ -20,7 +20,9 @@ export function useBooking(id: string) {
   });
 }
 
-async function fetchBookingsViaProxy(params: Record<string, string>): Promise<StaffBookingListResponse> {
+async function fetchBookingsViaProxy(
+  params: Record<string, string>,
+): Promise<StaffBookingListResponse> {
   const query = new URLSearchParams(params).toString();
   const res = await fetch(`/api/bookings?${query}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to fetch bookings (${res.status})`);

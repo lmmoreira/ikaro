@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import type { StaffBookingListResponse } from '@ikaro/types';
 import { WeekNav } from '@/components/dashboard/WeekNav';
-import { useActionNeededBookings, useTodayBookings, useUpcomingBookings } from '@/lib/hooks/useBookings';
+import {
+  useActionNeededBookings,
+  useTodayBookings,
+  useUpcomingBookings,
+} from '@/lib/hooks/useBookings';
 import { BookingCard } from './BookingCard';
 
 export interface BookingQueuePageProps {
@@ -46,8 +50,12 @@ export function BookingQueuePage({
     <div className="mx-auto max-w-5xl px-4 pb-10 pt-4">
       <WeekNav
         startOfWeek={weekStart}
-        onPrev={() => { setWeekStart(w => shiftWeeks(w, -1)); }}
-        onNext={() => { setWeekStart(w => shiftWeeks(w, 1)); }}
+        onPrev={() => {
+          setWeekStart((w) => shiftWeeks(w, -1));
+        }}
+        onNext={() => {
+          setWeekStart((w) => shiftWeeks(w, 1));
+        }}
       />
 
       <section className="mb-6 mt-4">
@@ -55,7 +63,7 @@ export function BookingQueuePage({
           Precisa de ação
         </h2>
         {actionNeeded?.items.length ? (
-          actionNeeded.items.map(b => (
+          actionNeeded.items.map((b) => (
             <BookingCard key={b.bookingId} booking={b} variant="action-needed" />
           ))
         ) : (
@@ -66,9 +74,7 @@ export function BookingQueuePage({
       <section className="mb-6">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Hoje</h2>
         {todayData?.items.length ? (
-          todayData.items.map(b => (
-            <BookingCard key={b.bookingId} booking={b} variant="today" />
-          ))
+          todayData.items.map((b) => <BookingCard key={b.bookingId} booking={b} variant="today" />)
         ) : (
           <p className="text-sm text-gray-400">Nenhum agendamento confirmado para hoje.</p>
         )}
@@ -79,7 +85,7 @@ export function BookingQueuePage({
           Próximos dias
         </h2>
         {upcoming?.items.length ? (
-          upcoming.items.map(b => (
+          upcoming.items.map((b) => (
             <BookingCard key={b.bookingId} booking={b} variant="upcoming" />
           ))
         ) : (

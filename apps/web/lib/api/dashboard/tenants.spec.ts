@@ -112,7 +112,9 @@ describe('fetchTenantFormatting', () => {
   it('throws on non-ok response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }));
 
-    await expect(fetchTenantFormatting('bad-token')).rejects.toThrow('Failed to fetch tenant formatting');
+    await expect(fetchTenantFormatting('bad-token')).rejects.toThrow(
+      'Failed to fetch tenant formatting',
+    );
     vi.unstubAllGlobals();
   });
 });
