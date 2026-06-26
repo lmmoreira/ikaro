@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import {
   GetTenantByIdUseCase,
   GetTenantByIdUseCaseResult,
@@ -7,6 +7,10 @@ import {
   GetTenantBySlugUseCase,
   GetTenantBySlugUseCaseResult,
 } from '../../application/use-cases/get-tenant-by-slug.use-case';
+import {
+  GetTenantsByIdsUseCase,
+  GetTenantsByIdsUseCaseResult,
+} from '../../application/use-cases/get-tenants-by-ids.use-case';
 import {
   ListPublishedHotsitesUseCase,
   ListPublishedHotsitesUseCaseResult,
@@ -18,6 +22,7 @@ export class InternalTenantReadController {
   constructor(
     private readonly getTenantById: GetTenantByIdUseCase,
     private readonly getTenantBySlug: GetTenantBySlugUseCase,
+    private readonly getTenantsByIds: GetTenantsByIdsUseCase,
     private readonly listPublishedHotsites: ListPublishedHotsitesUseCase,
   ) {}
 
@@ -30,6 +35,24 @@ export class InternalTenantReadController {
   @Get('published-hotsites')
   getPublishedHotsites(): Promise<ListPublishedHotsitesUseCaseResult> {
     return this.listPublishedHotsites.execute().catch(mapPlatformError);
+  }
+
+  // Batch lookup — used by BFF to resolve multiple tenant IDs in a single call.
+  // Must be declared before :tenantId to avoid route shadowing.
+  @Get()
+  getTenantsByIdsRoute(
+    @Query('ids') ids: string | undefined,
+  ): Promise<GetTenantsByIdsUseCaseResult[]> {
+    if (!ids?.trim()) {
+      throw new BadRequestException({
+        type: 'about:blank',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'ids query parameter is required',
+      });
+    }
+    const tenantIds = ids.split(',').map((s) => s.trim()).filter(Boolean);
+    return this.getTenantsByIds.execute(tenantIds).catch(mapPlatformError);
   }
 
   @Get(':tenantId')

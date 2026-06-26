@@ -28,6 +28,8 @@ describe('JwtIssuerService', () => {
       sub: 'customer-uuid-1',
       tenantId: 'tenant-uuid-1',
       tenantSlug: 'lavacar-belo',
+      tenantName: 'Lavacar Belo',
+      userName: 'Test User',
       role: 'CUSTOMER',
     });
     expect(typeof token).toBe('string');
@@ -39,6 +41,8 @@ describe('JwtIssuerService', () => {
       sub: 'customer-uuid-abc',
       tenantId: 'tenant-uuid-xyz',
       tenantSlug: 'lavacar-belo',
+      tenantName: 'Lavacar Belo',
+      userName: 'Test User',
       role: 'CUSTOMER',
     };
 
@@ -59,6 +63,8 @@ describe('JwtIssuerService', () => {
       sub: backendUuid,
       tenantId: 'tenant-1',
       tenantSlug: 'slug-1',
+      tenantName: 'Tenant 1',
+      userName: 'Staff User',
       role: 'STAFF',
     });
     const decoded = jwtService.verify<JwtPayload>(token);
@@ -72,6 +78,8 @@ describe('JwtIssuerService', () => {
         sub: 'uuid-1',
         tenantId: 'tenant-1',
         tenantSlug: 'slug-1',
+        tenantName: 'Tenant 1',
+        userName: 'Test User',
         role,
       });
       const decoded = jwtService.verify<JwtPayload>(token);
@@ -85,6 +93,8 @@ describe('JwtIssuerService', () => {
       sub: 'uuid-1',
       tenantId: 'tenant-1',
       tenantSlug: 'slug-1',
+      tenantName: 'Tenant 1',
+      userName: 'Manager User',
       role: 'MANAGER',
     });
     const decoded = jwtService.verify<JwtPayload & { iat: number; exp: number }>(token);
@@ -101,6 +111,8 @@ describe('JwtIssuerService', () => {
       sub: 'uuid-1',
       tenantId: 'tenant-1',
       tenantSlug: 'slug-1',
+      tenantName: 'Tenant 1',
+      userName: 'Test User',
       role: 'CUSTOMER',
     });
     const [header, payload] = token.split('.');
@@ -114,6 +126,8 @@ describe('JwtIssuerService', () => {
       sub: 'uuid-1',
       tenantId: 'tenant-1',
       tenantSlug: 'slug-1',
+      tenantName: 'Tenant 1',
+      userName: 'Test User',
       role: 'CUSTOMER',
     });
 

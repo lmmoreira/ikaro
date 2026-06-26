@@ -9,6 +9,7 @@ import { SwitchStaffTenantDto } from './dtos/switch-staff-tenant.dto';
 import { SwitchTenantDto } from './dtos/switch-tenant.dto';
 import { JwtIssuerService } from './jwt-issuer.service';
 import { GoogleProfile } from './strategies/google.strategy';
+import { CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 
 // Proper RFC 4122 UUIDs (v4 format: segment-3 starts with 4, segment-4 starts with [89ab])
 const TENANT_ID_A = '10000000-0000-4000-8000-000000000001';
@@ -39,6 +40,15 @@ function makeConfigService(opts?: { enableDevAuth?: string; nodeEnv?: string }):
     }),
   } as unknown as ConfigService;
 }
+
+const mockCurrentUser: CurrentUserPayload = {
+  sub: CUSTOMER_ID_A,
+  tenantId: TENANT_ID_A,
+  tenantSlug: 'lavacar-bh',
+  tenantName: 'Lavacar BH',
+  userName: 'João Silva',
+  role: 'CUSTOMER',
+};
 
 describe('AuthController', () => {
   const jwtSecret = 'test-secret-64-chars-long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
@@ -371,7 +381,7 @@ describe('AuthController', () => {
       const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_B };
       const res = makeRes();
 
-      const result = await controller.switchTenant(dto, res);
+      const result = await controller.switchTenant(dto, mockCurrentUser, res);
 
       expect(result.tenantSlug).toBe('lavacar-centro');
       expect(result.expiresIn).toBe('7d');
@@ -395,7 +405,7 @@ describe('AuthController', () => {
       const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_OTHER };
 
-      await expect(controller.switchTenant(dto, makeRes())).rejects.toBeInstanceOf(
+      await expect(controller.switchTenant(dto, mockCurrentUser, makeRes())).rejects.toBeInstanceOf(
         ForbiddenException,
       );
     });
@@ -414,7 +424,7 @@ describe('AuthController', () => {
       const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_B };
 
-      await controller.switchTenant(dto, makeRes());
+      await controller.switchTenant(dto, mockCurrentUser, makeRes());
 
       expect(backendHttp.get).toHaveBeenCalledWith('/customers/me/tenants');
     });
@@ -437,12 +447,10 @@ describe('AuthController', () => {
               isActive: false,
             },
           ])
-          .mockResolvedValueOnce({ id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' })
-          .mockResolvedValueOnce({
-            id: TENANT_ID_B,
-            slug: 'lavacar-centro',
-            name: 'Lavacar Centro',
-          }),
+          .mockResolvedValueOnce([
+            { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' },
+            { id: TENANT_ID_B, slug: 'lavacar-centro', name: 'Lavacar Centro' },
+          ]),
       });
       const controller = new AuthController(jwtIssuer, backendHttp, configService);
 
@@ -494,7 +502,7 @@ describe('AuthController', () => {
       const dto: SwitchStaffTenantDto = { staffId: STAFF_ID_A };
       const res = makeRes();
 
-      const result = await controller.switchStaffTenant(dto, res);
+      const result = await controller.switchStaffTenant(dto, mockCurrentUser, res);
 
       expect(result.tenantSlug).toBe('lavacar-bh');
       expect(result.expiresIn).toBe('7d');
@@ -522,7 +530,7 @@ describe('AuthController', () => {
       const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const dto: SwitchStaffTenantDto = { staffId: STAFF_ID_A };
 
-      await expect(controller.switchStaffTenant(dto, makeRes())).rejects.toBeInstanceOf(
+      await expect(controller.switchStaffTenant(dto, mockCurrentUser, makeRes())).rejects.toBeInstanceOf(
         ForbiddenException,
       );
     });

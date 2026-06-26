@@ -5,6 +5,8 @@ export interface CurrentUserPayload {
   sub: string;
   tenantId: string;
   tenantSlug: string;
+  tenantName: string;
+  userName: string | null;
   role: string;
 }
 

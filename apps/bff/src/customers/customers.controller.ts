@@ -88,18 +88,26 @@ export class CustomersController {
   async getTenants(): Promise<TenantOption[]> {
     const tenants =
       await this.backendHttp.get<CustomerTenantSummaryResponse[]>('/customers/me/tenants');
+    if (tenants.length === 0) return [];
 
-    return Promise.all(
-      tenants.map(async (t) => {
-        const [tenantInfo, balance] = await Promise.all([
-          this.backendHttp.get<TenantInfoResponse>(`/internal/tenants/${t.tenantId}`),
-          this.backendHttp.get<{ currentPoints: number }>(
-            `/customers/${t.customerId}/loyalty/balance`,
-            { tenantId: t.tenantId },
-          ),
-        ]);
-        return toTenantOption(t, tenantInfo, balance);
-      }),
-    );
+    const tenantIds = tenants.map((t) => t.tenantId);
+    const [tenantInfos, ...balances] = await Promise.all([
+      this.backendHttp.get<TenantInfoResponse[]>(
+        `/internal/tenants?ids=${tenantIds.join(',')}`,
+      ),
+      ...tenants.map((t) =>
+        this.backendHttp.get<{ currentPoints: number }>(
+          `/customers/${t.customerId}/loyalty/balance`,
+          { tenantId: t.tenantId },
+        ),
+      ),
+    ]);
+    const tenantMap = new Map(tenantInfos.map((t) => [t.id, t]));
+
+    return tenants.map((t, i) => {
+      const tenantInfo = tenantMap.get(t.tenantId);
+      if (!tenantInfo) throw new Error(`Tenant ${t.tenantId} missing from batch response`);
+      return toTenantOption(t, tenantInfo, balances[i]);
+    });
   }
 }

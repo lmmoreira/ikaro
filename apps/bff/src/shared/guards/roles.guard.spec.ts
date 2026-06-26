@@ -12,6 +12,8 @@ describe('RolesGuard', () => {
     sub: 'uuid-1',
     tenantId: 'tenant-1',
     tenantSlug: 'slug-1',
+    tenantName: 'Tenant 1',
+    userName: 'Test User',
     role: 'CUSTOMER',
   };
   const staff: CurrentUserPayload = { ...customer, role: 'STAFF' };

@@ -129,12 +129,16 @@ describe('BookingsController', () => {
       sub: '20000000-0000-4000-8000-000000000001',
       tenantId: TENANT_ID,
       tenantSlug: 'lavacar-bh',
+      tenantName: 'Lavacar BH',
+      userName: 'Test Customer',
       role: 'CUSTOMER',
     };
     const managerUser = {
       sub: '20000000-0000-4000-8000-000000000002',
       tenantId: TENANT_ID,
       tenantSlug: 'lavacar-bh',
+      tenantName: 'Lavacar BH',
+      userName: 'Test Manager',
       role: 'MANAGER',
     };
 
@@ -569,12 +573,16 @@ describe('BookingsController', () => {
       sub: '20000000-0000-4000-8000-000000000002',
       tenantId: TENANT_ID,
       tenantSlug: TENANT_SLUG,
+      tenantName: 'Lavacar BH',
+      userName: 'Test Manager',
       role: 'MANAGER',
     };
     const customerUser = {
       sub: '20000000-0000-4000-8000-000000000001',
       tenantId: TENANT_ID,
       tenantSlug: TENANT_SLUG,
+      tenantName: 'Lavacar BH',
+      userName: 'Test Customer',
       role: 'CUSTOMER',
     };
     const backendItem = {
@@ -751,12 +759,16 @@ describe('BookingsController', () => {
       sub: '20000000-0000-4000-8000-000000000001',
       tenantId: TENANT_ID,
       tenantSlug: TENANT_SLUG,
+      tenantName: 'Lavacar BH',
+      userName: 'Test Customer',
       role: 'CUSTOMER',
     };
     const managerUser = {
       sub: '20000000-0000-4000-8000-000000000002',
       tenantId: TENANT_ID,
       tenantSlug: TENANT_SLUG,
+      tenantName: 'Lavacar BH',
+      userName: 'Test Manager',
       role: 'MANAGER',
     };
     const CUSTOMER_ID = '60000000-0000-4000-8000-000000000001';

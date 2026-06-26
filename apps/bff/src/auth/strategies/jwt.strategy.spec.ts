@@ -20,6 +20,8 @@ describe('JwtStrategy', () => {
       sub: 'customer-uuid-1',
       tenantId: 'tenant-uuid-1',
       tenantSlug: 'lavacar-belo',
+      tenantName: 'Lavacar Belo',
+      userName: 'Test User',
       role: 'CUSTOMER',
     };
 
@@ -33,6 +35,8 @@ describe('JwtStrategy', () => {
       sub: 'staff-uuid-1',
       tenantId: 'tenant-uuid-1',
       tenantSlug: 'lavacar-belo',
+      tenantName: 'Lavacar Belo',
+      userName: 'Staff User',
       role: 'STAFF',
     };
 
@@ -44,6 +48,8 @@ describe('JwtStrategy', () => {
       sub: 'manager-uuid-1',
       tenantId: 'tenant-uuid-1',
       tenantSlug: 'lavacar-belo',
+      tenantName: 'Lavacar Belo',
+      userName: 'Manager User',
       role: 'MANAGER',
     };
 

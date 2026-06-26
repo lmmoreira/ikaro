@@ -2,7 +2,10 @@ export interface JwtPayload {
   readonly sub: string;
   readonly tenantId: string;
   readonly tenantSlug: string;
+  readonly tenantName: string;
+  readonly userName: string | null;
   readonly role: 'CUSTOMER' | 'STAFF' | 'MANAGER';
+  readonly exp?: number;
 }
 
 // Reads claims for display purposes only — does NOT verify the signature. Safe because the

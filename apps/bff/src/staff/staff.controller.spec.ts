@@ -25,7 +25,7 @@ describe('StaffController', () => {
       const expectedResult = { id: STAFF_ID, email: 'gerente@lavacar.com.br', role: 'MANAGER' };
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(expectedResult) });
       const controller = new StaffController(backendHttp);
-      const user = { sub: STAFF_ID, tenantId: 't-1', tenantSlug: 'lavacar-bh', role: 'MANAGER' };
+      const user = { sub: STAFF_ID, tenantId: 't-1', tenantSlug: 'lavacar-bh', tenantName: 'Lavacar BH', userName: 'Test Manager', role: 'MANAGER' };
 
       const result = await controller.getMe(user);
 
@@ -36,7 +36,7 @@ describe('StaffController', () => {
     it('propagates errors from the backend', async () => {
       const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('404')) });
       const controller = new StaffController(backendHttp);
-      const user = { sub: STAFF_ID, tenantId: 't-1', tenantSlug: 'lavacar-bh', role: 'STAFF' };
+      const user = { sub: STAFF_ID, tenantId: 't-1', tenantSlug: 'lavacar-bh', tenantName: 'Lavacar BH', userName: 'Test Staff', role: 'STAFF' };
 
       await expect(controller.getMe(user)).rejects.toThrow('404');
     });

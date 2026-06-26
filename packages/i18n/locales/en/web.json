@@ -191,5 +191,19 @@
   },
   "errors": {
     "internalServerError": "Internal server error"
+  },
+  "dashboard": {
+    "nav": {
+      "bookings": "Bookings",
+      "schedule": "Schedule",
+      "services": "Services",
+      "team": "Team",
+      "settings": "Settings",
+      "hotsite": "Hotsite"
+    },
+    "topbar": {
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu"
+    }
   }
 }
