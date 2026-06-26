@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Home, Calendar, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getCustomerNavItems, isCustomerNavActive } from './customer-nav-items';
 
 interface CustomerTabNavProps {
   readonly tenantSlug: string;
@@ -13,18 +13,8 @@ interface CustomerTabNavProps {
 export function CustomerTabNav({ tenantSlug }: CustomerTabNavProps): React.JSX.Element {
   const t = useTranslations('customer');
   const pathname = usePathname();
-  const homeHref = `/${tenantSlug}/my-account`;
-
-  const navItems = [
-    { href: homeHref, labelKey: 'nav.home', Icon: Home },
-    { href: `/${tenantSlug}/my-account/bookings`, labelKey: 'nav.bookings', Icon: Calendar },
-    { href: `/${tenantSlug}/my-account/loyalty`, labelKey: 'nav.loyalty', Icon: Star },
-  ] as const;
-
-  function isActive(href: string): boolean {
-    if (href === homeHref) return pathname === homeHref;
-    return pathname.startsWith(href);
-  }
+  const navItems = getCustomerNavItems(tenantSlug);
+  const homeHref = navItems[0].href;
 
   const itemClass = (active: boolean) =>
     cn(
@@ -40,7 +30,11 @@ export function CustomerTabNav({ tenantSlug }: CustomerTabNavProps): React.JSX.E
       aria-label="customer-tabs"
     >
       {navItems.map(({ href, labelKey, Icon }) => (
-        <Link key={href} href={href} className={itemClass(isActive(href))}>
+        <Link
+          key={href}
+          href={href}
+          className={itemClass(isCustomerNavActive(pathname, href, homeHref))}
+        >
           <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
           {t(labelKey)}
         </Link>
