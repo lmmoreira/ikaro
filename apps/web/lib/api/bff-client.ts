@@ -21,6 +21,7 @@ export function getTenantId(): string {
 
 export const bffClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BFF_URL,
+  withCredentials: true,
 });
 
 bffClient.interceptors.request.use((config) => {

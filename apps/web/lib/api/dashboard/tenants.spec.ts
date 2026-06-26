@@ -1,8 +1,9 @@
 import MockAdapter from 'axios-mock-adapter';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { bffClient } from '../bff-client';
 import {
   featureBookingPhoto,
+  fetchTenantFormatting,
   generateHotsiteImageSignedUrl,
   getHotsiteConfig,
   publishHotsite,
@@ -76,5 +77,42 @@ describe('featureBookingPhoto', () => {
       filePath: 'tenants/t-1/bookings/b-1/photo.jpg',
     });
     expect(res).toMatchObject({ success: true });
+  });
+});
+
+describe('fetchTenantFormatting', () => {
+  const formattingResponse = {
+    locale: 'pt-BR',
+    currency: 'BRL',
+    timezone: 'America/Sao_Paulo',
+    dateFormat: 'DD/MM/YYYY',
+    timeFormat: '24h',
+  };
+
+  it('fetches GET /tenants/formatting with cookie header and returns formatting config', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve(formattingResponse) });
+    vi.stubGlobal('fetch', fetchMock);
+    process.env.NEXT_PUBLIC_BFF_URL = 'http://bff.test/v1';
+
+    const res = await fetchTenantFormatting('test-token');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://bff.test/v1/tenants/formatting',
+      expect.objectContaining({
+        headers: { Cookie: 'access_token=test-token' },
+        next: { revalidate: 300 },
+      }),
+    );
+    expect(res).toEqual(formattingResponse);
+    vi.unstubAllGlobals();
+  });
+
+  it('throws on non-ok response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+
+    await expect(fetchTenantFormatting('bad-token')).rejects.toThrow('Failed to fetch tenant formatting');
+    vi.unstubAllGlobals();
   });
 });

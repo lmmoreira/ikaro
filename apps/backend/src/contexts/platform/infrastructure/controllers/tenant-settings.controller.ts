@@ -10,8 +10,9 @@ import {
   UpdateTenantSettingsUseCase,
 } from '../../application/use-cases/update-tenant-settings.use-case';
 import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
-import { TenantSettingsProps } from '../../domain/value-objects/tenant-settings.vo';
+import { TenantSettings, TenantSettingsProps } from '../../domain/value-objects/tenant-settings.vo';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
+import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapPlatformError } from '../http/platform-error.mapper';
 
 export interface GetTenantSettingsResult {
@@ -19,6 +20,14 @@ export interface GetTenantSettingsResult {
   name: string;
   slug: string;
   settings: TenantSettingsProps;
+}
+
+export interface GetTenantFormattingResult {
+  locale: string;
+  currency: string;
+  timezone: string;
+  dateFormat: string;
+  timeFormat: '24h' | '12h';
 }
 
 @Controller('tenants')
@@ -37,6 +46,24 @@ export class TenantSettingsController {
       .execute(this.tenantContext.tenantId)
       .catch(mapPlatformError);
     return { tenantId: tenant.id, name: tenant.name, slug: tenant.slug, settings: tenant.settings };
+  }
+
+  @Get('formatting')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  async getFormatting(): Promise<GetTenantFormattingResult> {
+    const tenant = await this.getTenantById
+      .execute(this.tenantContext.tenantId)
+      .catch(mapPlatformError);
+    const settings = TenantSettings.reconstitute(tenant.settings);
+    const resolved = settings.resolveLocalization();
+    return {
+      locale: resolved.language,
+      currency: resolved.currency,
+      timezone: tenant.settings.businessHours.timezone,
+      dateFormat: resolved.dateFormat,
+      timeFormat: resolved.timeFormat,
+    };
   }
 
   @Patch('settings')

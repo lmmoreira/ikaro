@@ -19,6 +19,7 @@ async function resolveMyAccountContext(slug: string) {
   return {
     tenantName: payload.tenantName ?? '',
     tenantSlug: slug,
+    tenantId: payload.tenantId ?? '',
     userName: payload.userName ?? null,
     locale,
     messages,
@@ -30,12 +31,17 @@ export default async function MyAccountLayout({
   params,
 }: MyAccountLayoutProps): Promise<React.JSX.Element> {
   const { slug } = await params;
-  const { tenantName, tenantSlug, userName, locale, messages } =
+  const { tenantName, tenantSlug, tenantId, userName, locale, messages } =
     await resolveMyAccountContext(slug);
 
   return (
     <LocaleProvider locale={locale} messages={messages}>
-      <CustomerShell tenantName={tenantName} tenantSlug={tenantSlug} userName={userName}>
+      <CustomerShell
+        tenantName={tenantName}
+        tenantSlug={tenantSlug}
+        tenantId={tenantId}
+        userName={userName}
+      >
         {children}
       </CustomerShell>
     </LocaleProvider>

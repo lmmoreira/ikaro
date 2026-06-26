@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useBooking, useBookings } from './useBookings';
+import { useActionNeededBookings, useBooking, useBookings, useTodayBookings, useUpcomingBookings } from './useBookings';
 
 const mockListBookings = vi.fn();
 const mockGetBooking = vi.fn();
@@ -54,5 +54,67 @@ describe('useBooking', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.bookingId).toBe('b-1');
     expect(mockGetBooking).toHaveBeenCalledWith('b-1');
+  });
+});
+
+const emptyList = { items: [], total: 0, page: 1, limit: 25 };
+
+describe('useActionNeededBookings', () => {
+  it('returns initialData immediately without fetching', () => {
+    const { result } = renderHook(() => useActionNeededBookings(emptyList), { wrapper });
+    expect(result.current.data).toEqual(emptyList);
+    expect(result.current.isSuccess).toBe(true);
+  });
+
+  it('fetches via proxy with PENDING,INFO_REQUESTED status when no initialData', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyList });
+    vi.stubGlobal('fetch', mockFetch);
+    const { result } = renderHook(() => useActionNeededBookings(), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/bookings'),
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('useTodayBookings', () => {
+  it('returns initialData immediately without fetching', () => {
+    const { result } = renderHook(() => useTodayBookings('2026-06-26', emptyList), { wrapper });
+    expect(result.current.data).toEqual(emptyList);
+    expect(result.current.isSuccess).toBe(true);
+  });
+
+  it('fetches via proxy with date param when no initialData', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyList });
+    vi.stubGlobal('fetch', mockFetch);
+    const { result } = renderHook(() => useTodayBookings('2026-06-26'), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('date=2026-06-26'),
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('useUpcomingBookings', () => {
+  it('returns initialData immediately without fetching', () => {
+    const { result } = renderHook(() => useUpcomingBookings('2026-06-27', emptyList), { wrapper });
+    expect(result.current.data).toEqual(emptyList);
+    expect(result.current.isSuccess).toBe(true);
+  });
+
+  it('fetches via proxy with from param when no initialData', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyList });
+    vi.stubGlobal('fetch', mockFetch);
+    const { result } = renderHook(() => useUpcomingBookings('2026-06-27'), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('from=2026-06-27'),
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+    vi.unstubAllGlobals();
   });
 });

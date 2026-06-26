@@ -3,6 +3,7 @@ import { bffClient } from '../bff-client';
 
 export interface BookingListFilters {
   readonly status?: string;
+  readonly date?: string;
   readonly from?: string;
   readonly to?: string;
   readonly limit?: number;
@@ -69,7 +70,20 @@ export interface CompleteBookingResponse {
 
 export async function listBookings(
   filters?: BookingListFilters,
+  token?: string,
 ): Promise<StaffBookingListResponse> {
+  if (token) {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v !== undefined) params.set(k, String(v));
+      });
+    }
+    const url = `${process.env.NEXT_PUBLIC_BFF_URL}/bookings${params.size ? `?${params.toString()}` : ''}`;
+    const res = await fetch(url, { headers: { Cookie: `access_token=${token}` }, cache: 'no-store' });
+    if (!res.ok) throw new Error(`Failed to fetch bookings (${res.status})`);
+    return res.json() as Promise<StaffBookingListResponse>;
+  }
   const res = await bffClient.get<StaffBookingListResponse>('/bookings', { params: filters });
   return res.data;
 }

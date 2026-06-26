@@ -60,6 +60,34 @@ describe('TenantSettingsController', () => {
     });
   });
 
+  describe('getFormatting', () => {
+    it('returns locale, currency, timezone, dateFormat, timeFormat for the tenant', async () => {
+      const tenant = new TenantBuilder().withSlug('ctrl-formatting-01').build();
+      await tenantRepo.save(tenant);
+      tenantContext.tenantId = tenant.id;
+
+      const result = await controller.getFormatting();
+
+      expect(result.locale).toBe('pt-BR');
+      expect(result.currency).toBe('BRL');
+      expect(result.timezone).toBe('America/Sao_Paulo');
+      expect(result.dateFormat).toBe('DD/MM/YYYY');
+      expect(result.timeFormat).toBe('24h');
+    });
+
+    it('maps TenantNotFoundError to 404 HttpException', async () => {
+      tenantContext.tenantId = 'non-existent-id';
+
+      expect.assertions(2);
+      try {
+        await controller.getFormatting();
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+      }
+    });
+  });
+
   it('updates settings and returns the updated result', async () => {
     const tenant = new TenantBuilder().withSlug('ctrl-settings-01').build();
     await tenantRepo.save(tenant);

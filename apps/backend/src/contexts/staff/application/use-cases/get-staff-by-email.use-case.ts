@@ -8,6 +8,7 @@ export interface GetStaffByEmailUseCaseResult {
   email: string;
   role: StaffRole;
   isActive: boolean;
+  googleOAuthId: string | null;
 }
 
 @Injectable()
@@ -23,6 +24,7 @@ export class GetStaffByEmailUseCase {
       email: staff.email.address,
       role: staff.role,
       isActive: staff.isActive,
+      googleOAuthId: staff.googleOAuthId,
     };
   }
 }

@@ -111,3 +111,11 @@ export interface RenameTenantResponse {
   tenantId: string;
   name: string;
 }
+
+export interface TenantFormattingResponse {
+  readonly locale: string;
+  readonly currency: string;
+  readonly timezone: string;
+  readonly dateFormat: string;
+  readonly timeFormat: '24h' | '12h';
+}

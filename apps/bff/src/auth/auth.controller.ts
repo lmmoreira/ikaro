@@ -335,32 +335,36 @@ export class AuthController {
       return;
     }
 
-    try {
-      await this.backendHttp.post<LinkGoogleAccountResponse>(
-        `/internal/staff/${staffByEmail.staffId}/link-google`,
-        {
-          tenantId: tenantInfo.id,
-          googleOAuthId: profile.googleOAuthId,
-          email: profile.email,
-          name: profile.name,
-        },
-      );
-    } catch (err) {
-      if (err instanceof HttpException) {
-        if (err.getStatus() === HttpStatus.UNPROCESSABLE_ENTITY) {
-          res.redirect(`${frontendUrl}/auth/error?reason=email-mismatch${slugParam}`);
-          return;
+    const alreadyLinked = staffByEmail.googleOAuthId === profile.googleOAuthId;
+
+    if (!alreadyLinked) {
+      try {
+        await this.backendHttp.post<LinkGoogleAccountResponse>(
+          `/internal/staff/${staffByEmail.staffId}/link-google`,
+          {
+            tenantId: tenantInfo.id,
+            googleOAuthId: profile.googleOAuthId,
+            email: profile.email,
+            name: profile.name,
+          },
+        );
+      } catch (err) {
+        if (err instanceof HttpException) {
+          if (err.getStatus() === HttpStatus.UNPROCESSABLE_ENTITY) {
+            res.redirect(`${frontendUrl}/auth/error?reason=email-mismatch${slugParam}`);
+            return;
+          }
+          if (err.getStatus() === HttpStatus.FORBIDDEN) {
+            res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated${slugParam}`);
+            return;
+          }
+          if (err.getStatus() === HttpStatus.CONFLICT) {
+            res.redirect(`${frontendUrl}/auth/error?reason=account-linked-elsewhere${slugParam}`);
+            return;
+          }
         }
-        if (err.getStatus() === HttpStatus.FORBIDDEN) {
-          res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated${slugParam}`);
-          return;
-        }
-        if (err.getStatus() === HttpStatus.CONFLICT) {
-          res.redirect(`${frontendUrl}/auth/error?reason=account-linked-elsewhere${slugParam}`);
-          return;
-        }
+        throw err;
       }
-      throw err;
     }
 
     const token = this.jwtIssuer.issueToken({
