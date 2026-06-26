@@ -65,6 +65,19 @@ Content-Type: application/json
 
 ###
 
+### Booking update — welcome staff screen days (M13-S17: booking queue window)
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "booking": { "welcomeStaffScreenDays": 7 }
+  }
+}
+
+###
+
 ### Update business hours (close Sunday, change timezone)
 PATCH {{bffUrl}}/v1/tenants/settings
 Authorization: Bearer {{managerToken}}

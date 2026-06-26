@@ -50,8 +50,8 @@ Content-Type: application/json
 
 ###
 
-### Queue — "Precisa de ação": all PENDING and INFO_REQUESTED (no date filter)
-GET {{bffUrl}}/v1/bookings?status=PENDING,INFO_REQUESTED
+### Queue — "Precisa de ação": PENDING/INFO_REQUESTED within window (M13-S17: from+to filter)
+GET {{bffUrl}}/v1/bookings?status=PENDING,INFO_REQUESTED&from=2026-06-22&to=2026-07-05
 Authorization: Bearer {{managerToken}}
 
 ###
@@ -62,8 +62,8 @@ Authorization: Bearer {{managerToken}}
 
 ###
 
-### Queue — "Próximos dias": APPROVED bookings from tomorrow onwards
-GET {{bffUrl}}/v1/bookings?status=APPROVED&from=2026-06-22
+### Queue — "Próximos dias": APPROVED bookings from tomorrow to window end (M13-S17: from+to window)
+GET {{bffUrl}}/v1/bookings?status=APPROVED&from=2026-06-22&to=2026-07-05
 Authorization: Bearer {{managerToken}}
 
 ###

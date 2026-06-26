@@ -39,6 +39,7 @@ export default async function ProtectedLayout({
         timezone={formatting.timezone}
         dateFormat={resolveDateFormat(formatting.dateFormat)}
         timeFormat={formatting.timeFormat}
+        welcomeStaffScreenDays={formatting.welcomeStaffScreenDays}
       >
         <DashboardShell
           tenantName={tenantName}

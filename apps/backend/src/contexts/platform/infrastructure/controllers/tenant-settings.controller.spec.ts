@@ -73,6 +73,7 @@ describe('TenantSettingsController', () => {
       expect(result.timezone).toBe('America/Sao_Paulo');
       expect(result.dateFormat).toBe('DD/MM/YYYY');
       expect(result.timeFormat).toBe('24h');
+      expect(result.welcomeStaffScreenDays).toBe(14);
     });
 
     it('maps TenantNotFoundError to 404 HttpException', async () => {

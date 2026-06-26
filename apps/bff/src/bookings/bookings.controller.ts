@@ -152,6 +152,10 @@ const StaffListBookingsQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -298,6 +302,7 @@ export class BookingsController {
       params.to = `${query.date}T23:59:59.999Z`;
     } else if (query.from) {
       params.from = `${query.from}T00:00:00.000Z`;
+      if (query.to) params.to = `${query.to}T23:59:59.999Z`;
     }
 
     const backend = await this.backendHttp.get<BookingListResponse>('/bookings', params);

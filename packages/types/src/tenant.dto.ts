@@ -35,6 +35,7 @@ export interface TenantBookingSettings {
   maxBookingAdvanceDays: number;
   serviceBufferMinutes: number;
   slotGranularityMinutes: 15 | 30 | 60;
+  welcomeStaffScreenDays?: number;
 }
 
 export interface TenantLocalizationSettings {
@@ -118,4 +119,5 @@ export interface TenantFormattingResponse {
   readonly timezone: string;
   readonly dateFormat: string;
   readonly timeFormat: '24h' | '12h';
+  readonly welcomeStaffScreenDays: number;
 }

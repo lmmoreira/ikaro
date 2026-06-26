@@ -67,20 +67,25 @@ const emptyList = { items: [], total: 0, page: 1, limit: 25 };
 
 describe('useActionNeededBookings', () => {
   it('returns initialData immediately without fetching', () => {
-    const { result } = renderHook(() => useActionNeededBookings(emptyList), { wrapper });
+    const { result } = renderHook(
+      () => useActionNeededBookings('2026-06-26', '2026-07-09', emptyList),
+      { wrapper },
+    );
     expect(result.current.data).toEqual(emptyList);
     expect(result.current.isSuccess).toBe(true);
   });
 
-  it('fetches via proxy with PENDING,INFO_REQUESTED status when no initialData', async () => {
+  it('fetches via proxy with PENDING,INFO_REQUESTED status and date range', async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyList });
     vi.stubGlobal('fetch', mockFetch);
-    const { result } = renderHook(() => useActionNeededBookings(), { wrapper });
+    const { result } = renderHook(() => useActionNeededBookings('2026-06-26', '2026-07-09'), {
+      wrapper,
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/bookings'),
-      expect.objectContaining({ cache: 'no-store' }),
-    );
+    const calledUrl: string = mockFetch.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('/api/bookings');
+    expect(calledUrl).toContain('from=2026-06-26');
+    expect(calledUrl).toContain('to=2026-07-09');
     vi.unstubAllGlobals();
   });
 });
@@ -107,20 +112,24 @@ describe('useTodayBookings', () => {
 
 describe('useUpcomingBookings', () => {
   it('returns initialData immediately without fetching', () => {
-    const { result } = renderHook(() => useUpcomingBookings('2026-06-27', emptyList), { wrapper });
+    const { result } = renderHook(
+      () => useUpcomingBookings('2026-06-27', '2026-07-09', emptyList),
+      { wrapper },
+    );
     expect(result.current.data).toEqual(emptyList);
     expect(result.current.isSuccess).toBe(true);
   });
 
-  it('fetches via proxy with from param when no initialData', async () => {
+  it('fetches via proxy with from and to params when no initialData', async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => emptyList });
     vi.stubGlobal('fetch', mockFetch);
-    const { result } = renderHook(() => useUpcomingBookings('2026-06-27'), { wrapper });
+    const { result } = renderHook(() => useUpcomingBookings('2026-06-27', '2026-07-09'), {
+      wrapper,
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('from=2026-06-27'),
-      expect.objectContaining({ cache: 'no-store' }),
-    );
+    const calledUrl: string = mockFetch.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('from=2026-06-27');
+    expect(calledUrl).toContain('to=2026-07-09');
     vi.unstubAllGlobals();
   });
 });

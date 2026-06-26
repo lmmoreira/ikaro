@@ -14,6 +14,7 @@ function Consumer(): React.JSX.Element {
       <span data-testid="timezone">{ctx.timezone}</span>
       <span data-testid="dateFormat">{ctx.dateFormat}</span>
       <span data-testid="timeFormat">{ctx.timeFormat}</span>
+      <span data-testid="welcomeStaffScreenDays">{ctx.welcomeStaffScreenDays}</span>
     </div>
   );
 }
@@ -24,6 +25,7 @@ const DEFAULT_PROPS = {
   timezone: 'America/New_York',
   dateFormat: 'MM/DD/YYYY' as const,
   timeFormat: '12h' as const,
+  welcomeStaffScreenDays: 7,
 };
 
 describe('FormattingProvider', () => {
@@ -39,6 +41,7 @@ describe('FormattingProvider', () => {
     expect(screen.getByTestId('timezone')).toHaveTextContent('America/New_York');
     expect(screen.getByTestId('dateFormat')).toHaveTextContent('MM/DD/YYYY');
     expect(screen.getByTestId('timeFormat')).toHaveTextContent('12h');
+    expect(screen.getByTestId('welcomeStaffScreenDays')).toHaveTextContent('7');
   });
 
   it('provides pt-BR state for a BR tenant', () => {
@@ -49,6 +52,7 @@ describe('FormattingProvider', () => {
         timezone="America/Sao_Paulo"
         dateFormat="DD/MM/YYYY"
         timeFormat="24h"
+        welcomeStaffScreenDays={14}
       >
         <Consumer />
       </FormattingProvider>,
@@ -57,5 +61,6 @@ describe('FormattingProvider', () => {
     expect(screen.getByTestId('locale')).toHaveTextContent('pt-BR');
     expect(screen.getByTestId('currency')).toHaveTextContent('BRL');
     expect(screen.getByTestId('timeFormat')).toHaveTextContent('24h');
+    expect(screen.getByTestId('welcomeStaffScreenDays')).toHaveTextContent('14');
   });
 });

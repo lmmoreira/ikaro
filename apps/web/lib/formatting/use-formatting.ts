@@ -10,15 +10,18 @@ export interface FormattingUtils {
   formatDate: (date: Date) => string;
   formatDateLong: (date: Date) => string;
   formatTime: (date: Date) => string;
+  welcomeStaffScreenDays: number;
 }
 
 export function useFormatting(): FormattingUtils {
-  const { locale, currency, timezone, dateFormat, timeFormat } = useContext(FormattingContext);
+  const { locale, currency, timezone, dateFormat, timeFormat, welcomeStaffScreenDays } =
+    useContext(FormattingContext);
 
   return {
     formatMoney: (amount) => formatMoney(amount, locale, currency),
     formatDate: (date) => formatDate(date, timezone, dateFormat),
     formatDateLong: (date) => formatDateLong(date, locale),
     formatTime: (date) => formatTime(date, locale, timezone, timeFormat),
+    welcomeStaffScreenDays,
   };
 }

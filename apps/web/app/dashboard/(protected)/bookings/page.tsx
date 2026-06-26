@@ -15,10 +15,19 @@ export default async function BookingsPage(): Promise<React.JSX.Element> {
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
   const tomorrow = formatDate(tomorrowDate);
 
+  // SSR uses 14-day default; client reads welcomeStaffScreenDays from FormattingContext
+  const windowEndDate = new Date();
+  windowEndDate.setDate(windowEndDate.getDate() + 13);
+  const windowEnd = formatDate(windowEndDate);
+
   const [actionNeeded, todayBookings, upcoming] = await Promise.all([
-    listBookings({ status: 'PENDING,INFO_REQUESTED' }, token).catch(() => undefined),
+    listBookings({ status: 'PENDING,INFO_REQUESTED', from: today, to: windowEnd }, token).catch(
+      () => undefined,
+    ),
     listBookings({ status: 'APPROVED', date: today }, token).catch(() => undefined),
-    listBookings({ status: 'APPROVED', from: tomorrow }, token).catch(() => undefined),
+    listBookings({ status: 'APPROVED', from: tomorrow, to: windowEnd }, token).catch(
+      () => undefined,
+    ),
   ]);
 
   return (

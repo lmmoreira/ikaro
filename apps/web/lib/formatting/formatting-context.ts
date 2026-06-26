@@ -7,6 +7,7 @@ export interface FormattingState {
   readonly timezone: string;
   readonly dateFormat: DateFormat;
   readonly timeFormat: '24h' | '12h';
+  readonly welcomeStaffScreenDays: number;
 }
 
 export const FormattingContext = createContext<FormattingState>({
@@ -15,4 +16,5 @@ export const FormattingContext = createContext<FormattingState>({
   timezone: 'America/Sao_Paulo',
   dateFormat: 'DD/MM/YYYY',
   timeFormat: '24h',
+  welcomeStaffScreenDays: 14,
 });

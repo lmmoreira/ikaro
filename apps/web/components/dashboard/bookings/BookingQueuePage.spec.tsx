@@ -15,19 +15,29 @@ vi.mock('@/lib/hooks/useBookings', () => ({
   useUpcomingBookings: (...args: unknown[]) => mockUseUpcoming(...args),
 }));
 
+vi.mock('@/lib/formatting/use-formatting', () => ({
+  useFormatting: () => ({
+    formatMoney: (n: number) => `R$ ${n}`,
+    formatDate: (d: Date) => d.toISOString().slice(0, 10),
+    formatDateLong: (d: Date) => d.toISOString().slice(0, 10),
+    formatTime: (d: Date) => d.toISOString().slice(11, 16),
+    welcomeStaffScreenDays: 14,
+  }),
+}));
+
 vi.mock('@/components/dashboard/WeekNav', () => ({
   WeekNav: ({
-    startOfWeek,
+    windowStart,
     onPrev,
     onNext,
   }: {
-    startOfWeek: Date;
+    windowStart: Date;
     onPrev: () => void;
     onNext: () => void;
   }) => (
-    <div data-testid="week-nav" data-week={startOfWeek.toISOString()}>
-      <button type="button" onClick={onPrev} aria-label="Semana anterior" />
-      <button type="button" onClick={onNext} aria-label="Próxima semana" />
+    <div data-testid="week-nav" data-window-start={windowStart.toISOString()}>
+      <button type="button" onClick={onPrev} aria-label="Período anterior" />
+      <button type="button" onClick={onNext} aria-label="Próximo período" />
     </div>
   ),
 }));
@@ -71,6 +81,7 @@ function makeList(names: string[]): StaffBookingListResponse {
 const DEFAULT_PROPS = {
   today: '2026-06-26',
   tomorrow: '2026-06-27',
+  windowEndDefault: '2026-07-09',
 };
 
 beforeEach(() => {
@@ -81,11 +92,15 @@ beforeEach(() => {
 });
 
 describe('BookingQueuePage — section titles', () => {
-  it('renders all three section headings', () => {
+  it('renders the action-needed section heading', () => {
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
     expect(screen.getByText('Precisa de ação')).toBeInTheDocument();
-    expect(screen.getByText('Hoje')).toBeInTheDocument();
-    expect(screen.getByText('Próximos dias')).toBeInTheDocument();
+  });
+
+  it('renders today and upcoming sections when today is in the window', () => {
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+    expect(screen.getByText('Hoje — confirmados')).toBeInTheDocument();
+    expect(screen.getByText('Próximos dias — confirmados')).toBeInTheDocument();
   });
 });
 
@@ -143,45 +158,25 @@ describe('BookingQueuePage — card rendering', () => {
   });
 });
 
-describe('BookingQueuePage — initialData forwarding', () => {
-  it('passes initialActionNeeded to hook', () => {
-    const initial = makeList(['Pre-rendered']);
-    render(<BookingQueuePage {...DEFAULT_PROPS} initialActionNeeded={initial} />);
-    expect(mockUseActionNeeded).toHaveBeenCalledWith(initial);
-  });
-
-  it('passes initialToday to hook', () => {
-    const initial = makeList(['Pre-rendered today']);
-    render(<BookingQueuePage {...DEFAULT_PROPS} initialToday={initial} />);
-    expect(mockUseToday).toHaveBeenCalledWith('2026-06-26', initial);
-  });
-
-  it('passes initialUpcoming to hook', () => {
-    const initial = makeList(['Pre-rendered upcoming']);
-    render(<BookingQueuePage {...DEFAULT_PROPS} initialUpcoming={initial} />);
-    expect(mockUseUpcoming).toHaveBeenCalledWith('2026-06-27', initial);
-  });
-});
-
 describe('BookingQueuePage — WeekNav', () => {
   it('renders WeekNav', () => {
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
     expect(screen.getByTestId('week-nav')).toBeInTheDocument();
   });
 
-  it('updates weekStart when onPrev is clicked', async () => {
+  it('updates windowStart when onPrev is clicked', async () => {
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
-    const weekNavBefore = screen.getByTestId('week-nav').dataset.week;
-    await userEvent.click(screen.getByRole('button', { name: 'Semana anterior' }));
-    const weekNavAfter = screen.getByTestId('week-nav').dataset.week;
-    expect(weekNavAfter).not.toBe(weekNavBefore);
+    const before = screen.getByTestId('week-nav').dataset.windowStart;
+    await userEvent.click(screen.getByRole('button', { name: 'Período anterior' }));
+    const after = screen.getByTestId('week-nav').dataset.windowStart;
+    expect(after).not.toBe(before);
   });
 
-  it('updates weekStart when onNext is clicked', async () => {
+  it('updates windowStart when onNext is clicked', async () => {
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
-    const weekNavBefore = screen.getByTestId('week-nav').dataset.week;
-    await userEvent.click(screen.getByRole('button', { name: 'Próxima semana' }));
-    const weekNavAfter = screen.getByTestId('week-nav').dataset.week;
-    expect(weekNavAfter).not.toBe(weekNavBefore);
+    const before = screen.getByTestId('week-nav').dataset.windowStart;
+    await userEvent.click(screen.getByRole('button', { name: 'Próximo período' }));
+    const after = screen.getByTestId('week-nav').dataset.windowStart;
+    expect(after).not.toBe(before);
   });
 });

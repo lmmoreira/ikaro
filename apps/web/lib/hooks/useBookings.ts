@@ -29,11 +29,15 @@ async function fetchBookingsViaProxy(
   return res.json() as Promise<StaffBookingListResponse>;
 }
 
-export function useActionNeededBookings(initialData?: StaffBookingListResponse) {
+export function useActionNeededBookings(
+  from: string,
+  to: string,
+  initialData?: StaffBookingListResponse,
+) {
   const tenantId = getTenantId();
   return useQuery({
-    queryKey: ['bookings', 'action-needed', tenantId],
-    queryFn: () => fetchBookingsViaProxy({ status: 'PENDING,INFO_REQUESTED' }),
+    queryKey: ['bookings', 'action-needed', tenantId, from, to],
+    queryFn: () => fetchBookingsViaProxy({ status: 'PENDING,INFO_REQUESTED', from, to }),
     initialData,
   });
 }
@@ -47,11 +51,15 @@ export function useTodayBookings(date: string, initialData?: StaffBookingListRes
   });
 }
 
-export function useUpcomingBookings(from: string, initialData?: StaffBookingListResponse) {
+export function useUpcomingBookings(
+  from: string,
+  to: string,
+  initialData?: StaffBookingListResponse,
+) {
   const tenantId = getTenantId();
   return useQuery({
-    queryKey: ['bookings', 'upcoming', tenantId, from],
-    queryFn: () => fetchBookingsViaProxy({ status: 'APPROVED', from }),
+    queryKey: ['bookings', 'upcoming', tenantId, from, to],
+    queryFn: () => fetchBookingsViaProxy({ status: 'APPROVED', from, to }),
     initialData,
   });
 }
