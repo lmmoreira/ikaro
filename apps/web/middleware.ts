@@ -11,7 +11,7 @@ function decodeJwtClaims(token: string): {
     const payload = token.split('.')[1];
     if (!payload) return {};
     // JWT uses base64url — pad to a multiple of 4 then replace URL-safe chars
-    const padded = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = payload.replaceAll('-', '+').replaceAll('_', '/');
     const json = atob(padded);
     return JSON.parse(json) as { role?: string; tenantSlug?: string; exp?: number };
   } catch {

@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
+import { unixNow } from '@/lib/utils';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
 
 interface HotsiteAuthBarProps {
@@ -14,7 +15,7 @@ export async function HotsiteAuthBar({ slug }: HotsiteAuthBarProps): Promise<Rea
   const token = cookieStore.get('access_token')?.value;
   const payload = token ? decodeJwtPayload(token) : {};
 
-  const nowSeconds = Math.floor(new Date().getTime() / 1000);
+  const nowSeconds = unixNow();
   const isExpired = payload.exp !== undefined && nowSeconds > payload.exp;
   const isTenantMatch = payload.tenantSlug === slug;
   const isValidSession = !isExpired && isTenantMatch && !!payload.role && !!payload.sub;
