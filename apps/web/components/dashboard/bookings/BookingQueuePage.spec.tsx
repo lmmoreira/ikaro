@@ -40,7 +40,7 @@ vi.mock('./BookingCard', () => ({
     booking: { bookingId: string; contactName: string };
     variant: string;
   }) => (
-    <div data-testid={`card-${variant}`} data-id={booking.bookingId}>
+    <div data-testid="booking-card" data-variant={variant} data-id={booking.bookingId}>
       {booking.contactName}
     </div>
   ),
@@ -112,7 +112,9 @@ describe('BookingQueuePage — card rendering', () => {
   it('renders action-needed cards from hook data', () => {
     mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria', 'João']) });
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
-    const cards = screen.getAllByTestId('card-action-needed');
+    const cards = screen
+      .getAllByTestId('booking-card')
+      .filter((el) => el.dataset.variant === 'action-needed');
     expect(cards).toHaveLength(2);
     expect(cards[0]).toHaveTextContent('Maria');
     expect(cards[1]).toHaveTextContent('João');
@@ -121,13 +123,17 @@ describe('BookingQueuePage — card rendering', () => {
   it('renders today cards from hook data', () => {
     mockUseToday.mockReturnValue({ data: makeList(['Ana']) });
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
-    expect(screen.getByTestId('card-today')).toHaveTextContent('Ana');
+    const card = screen.getAllByTestId('booking-card').find((el) => el.dataset.variant === 'today');
+    expect(card).toHaveTextContent('Ana');
   });
 
   it('renders upcoming cards from hook data', () => {
     mockUseUpcoming.mockReturnValue({ data: makeList(['Carlos']) });
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
-    expect(screen.getByTestId('card-upcoming')).toHaveTextContent('Carlos');
+    const card = screen
+      .getAllByTestId('booking-card')
+      .find((el) => el.dataset.variant === 'upcoming');
+    expect(card).toHaveTextContent('Carlos');
   });
 
   it('hides action-needed empty message when cards are present', () => {
