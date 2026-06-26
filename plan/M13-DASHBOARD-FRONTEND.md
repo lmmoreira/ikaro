@@ -1816,7 +1816,7 @@ switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>  // POST /ap
 
 ---
 
-### M13-S15 — Dashboard shell: layout, middleware, auth guard (staff + manager)
+### M13-S15 — Dashboard shell: layout, middleware, auth guard (staff + manager) ✅ Done
 
 *(formerly M125-S01)*
 
