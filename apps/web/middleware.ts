@@ -23,7 +23,19 @@ function isValidStaffToken(token: string): boolean {
   const claims = decodeJwtClaims(token);
   if (!claims.role) return false;
   if (claims.role !== 'STAFF' && claims.role !== 'MANAGER') return false;
-  if (claims.exp !== undefined && Date.now() / 1000 > claims.exp) return false;
+  if (!claims.exp || Date.now() / 1000 > claims.exp) return false;
+  return true;
+}
+
+// Matches /<slug>/my-account and /<slug>/my-account/* — captures the slug.
+const MY_ACCOUNT_PATTERN = /^\/([^/]+)\/my-account(?:\/.*)?$/;
+
+function isValidCustomerToken(token: string, slugFromPath: string): boolean {
+  const claims = decodeJwtClaims(token);
+  if (!claims.role) return false;
+  if (claims.role !== 'CUSTOMER') return false;
+  if (!claims.exp || Date.now() / 1000 > claims.exp) return false;
+  if (claims.tenantSlug !== slugFromPath) return false;
   return true;
 }
 
@@ -34,6 +46,14 @@ export function middleware(request: NextRequest): NextResponse {
   if (pathname.startsWith('/dashboard') && pathname !== '/dashboard/login') {
     if (!token || !isValidStaffToken(token)) {
       return NextResponse.redirect(new URL('/dashboard/login', request.url));
+    }
+  }
+
+  const myAccountMatch = MY_ACCOUNT_PATTERN.exec(pathname);
+  if (myAccountMatch) {
+    const slugFromPath = myAccountMatch[1]!;
+    if (!token || !isValidCustomerToken(token, slugFromPath)) {
+      return NextResponse.redirect(new URL(`/${slugFromPath}/login`, request.url));
     }
   }
 

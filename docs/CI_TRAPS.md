@@ -169,6 +169,56 @@ cd - && git worktree remove /tmp/<name>-main-test --force
 
 ---
 
+## Web test binary resolution (`npx vitest` vs `pnpm exec vitest`)
+
+`ci:fast` runs web tests via `pnpm --filter @ikaro/web test`, which resolves the Vitest binary from the workspace's own `node_modules`. Running tests via `npx --prefix apps/web vitest run` can resolve to a completely different binary — different version, different plugin chain — producing results that don't match CI.
+
+**The trap:** an agent sees 4 specs "failing" with `npx` and spends time on phantom fixes. The same specs pass immediately with `pnpm`. Or vice versa: `npx` gives a green result that CI later contradicts.
+
+| Wrong ❌ | Correct ✅ |
+|---------|-----------|
+| `npx --prefix apps/web vitest run <file>` | `pnpm --prefix apps/web exec vitest run <file>` |
+| `npx --prefix apps/web vitest run` | `pnpm --filter @ikaro/web test` |
+
+**Rule:** to verify web tests locally in a way that matches `ci:fast`, always use `pnpm --filter @ikaro/web test` (full suite) or `pnpm --prefix apps/web exec vitest run <file>` (single spec). Never use `npx vitest` for authoritative results.
+
+---
+
+## JSX inside `vi.mock()` factories for external (node_modules) packages
+
+Vite v8 changed its import-analysis pass to use Rolldown (a Rust-based parser). Rolldown rejects JSX — it can only parse plain JS/TS. When Vitest hoists `vi.mock('some-package', () => ({ default: () => <a>...</a> }))` to the top of the file, the hoisted code runs through Vite's import-analysis **before** the React JSX transform, causing a parse failure on every spec that contains this pattern.
+
+This broke four specs simultaneously in M13-S16 (`Sidebar`, `BottomNav`, `ManagerSheet`, `CustomerShell`) — all used `vi.mock('next/link', ...)` with a JSX factory. The error message is:
+
+```
+Failed to parse source for import analysis because the content contains invalid JS syntax.
+If you use tsconfig.json, make sure to not set jsx to preserve.
+Unexpected JSX expression
+```
+
+**Fix pattern** (same as `next/image` and `next/font/google`): use a global `resolve.alias` in `vitest.config.ts` pointing to a `__mocks__/<name>.ts` file that uses `React.createElement` instead of JSX:
+
+```ts
+// vitest.config.ts — resolve.alias block
+'next/link': path.resolve(__dirname, '__mocks__/next-link.ts'),
+```
+
+```ts
+// apps/web/__mocks__/next-link.ts
+import React from 'react';
+const MockLink = ({ href, children, className, onClick, ...rest }) =>
+  React.createElement('a', { href, className, onClick, ...rest }, children);
+export default MockLink;
+```
+
+Remove every per-file `vi.mock('next/link', ...)` that used JSX — the global alias takes over automatically.
+
+**Packages already aliased in `vitest.config.ts`:** `next/font/google`, `next/image`, `next/link`.
+
+**Rule:** if you need to mock any external package whose factory would return a React component (JSX), **do not** write `vi.mock('package', () => ({ default: () => <...> }))`. Check `apps/web/__mocks__/` first; if no mock exists, create one using `React.createElement` and wire it in `vitest.config.ts`. JSX belongs in the component file, not in a mock factory.
+
+---
+
 ## Pre-push hook failures (`ci:fast`)
 
 `ci:fast` = `pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @ikaro/backend test:unit`
@@ -277,3 +327,5 @@ Before every `git commit`, verify:
 - [ ] Global (non-tenant-scoped) cron use cases that read-then-write (e.g. `findExpiringBefore` → `markProcessed`) re-verify each row's existence before the write — a SELECT result can go stale across an `await` boundary
 - [ ] New/changed dependency override goes in `pnpm-workspace.yaml` — never `package.json`'s `pnpm` field (silently ignored on pnpm 11)
 - [ ] Before a bulk rename/`sed`, grepped every occurrence to confirm the identifier isn't reused by a different, unrelated DTO/contract — and ran the affected test suites afterward, not just `tsc --noEmit`
+- [ ] Web test results verified with `pnpm --filter @ikaro/web test` or `pnpm --prefix apps/web exec vitest run` — NOT `npx vitest` (different binary, produces false results)
+- [ ] Any new `vi.mock()` for an external package that returns JSX → created `apps/web/__mocks__/<name>.ts` + added `resolve.alias` in `vitest.config.ts` instead of putting JSX inside the factory (Vite v8 rejects JSX at import-analysis time)

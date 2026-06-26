@@ -1926,27 +1926,22 @@ Extend `apps/web/middleware.ts` — add protection for `/{slug}/my-account/**`:
 - If valid → pass through; the `tenantSlug` in the JWT must match the `[slug]` path segment
 
 `apps/web/app/[slug]/my-account/layout.tsx` — server component:
-- Reads `{ tenantId, tenantSlug, role }` from the JWT cookie (server-side via `cookies()`) — the JWT does **not** carry `tenantName`/`userName` (payload is `{ sub, tenantId, tenantSlug, role }` only, see `JwtIssuerService`)
-- Fetches `userName` via `GET /api/customers/me` (the proxy route added in `M13-S42`) and `tenantName` via the hotsite manifest (already fetched by the parent `[slug]/layout.tsx`)
-- Renders `<CustomerShell tenantName={...} userName={...} />`
+- Reads JWT via `cookies()`, decodes with `decodeJwtPayload()` — reads `tenantName`, `tenantSlug`, `userName`, `locale` directly from the JWT payload (same pattern as `dashboard/(protected)/layout.tsx`; M13-S15 enriched all login flows to carry these fields — no separate API call needed)
+- Resolves locale via `resolveSupportedLocale(payload.locale ?? 'pt-BR')`
+- Renders `<LocaleProvider><CustomerShell tenantName={...} tenantSlug={...} userName={...}>{children}</CustomerShell></LocaleProvider>`
+
+`apps/web/app/[slug]/my-account/page.tsx` — minimal stub server component (net-new; prevents 404 until M13-S27 fills in content):
+- Returns a placeholder `<div>` or `null` wrapped by the shell
 
 `apps/web/components/customer/CustomerShell.tsx` — `'use client'`:
-- `dashboard-topbar` (brand: tenant logo/name + "+ Novo agendamento" desktop shortcut + avatar dropdown with "Sair" and "Site Ikaro" links)
-- Customer tab nav — **desktop only (`≥1024px`)**: Início | Agendamentos | Fidelidade (horizontal tab bar below topbar, same `.customer-nav` pattern from prototype)
-- `<main class="main-content">` content slot
-- `bottom-nav` — **mobile only (`<1024px`)**: 3 tabs — Início | Agendamentos | Fidelidade
+- **Pure Tailwind + shadcn + Lucide icons + `cn()` + `usePathname()` — no tokens.css classes, no `--ba-*` variables** (same SaaS fixed palette as DashboardShell)
+- Sticky topbar: tenant logo-mark + name (left) + "+ Novo agendamento" desktop button + avatar `<details>` dropdown with user name, "← Site [tenant]" and "Sair" links (right)
+- Desktop tab nav (≥1024px, `hidden lg:flex`): horizontal tabs — Início | Agendamentos | Fidelidade; active tab: `border-b-2 border-blue-600 text-blue-600`; inactive: `text-gray-900/40`
+- `<main>` content slot with appropriate padding
+- Mobile bottom nav (`flex lg:hidden`, `fixed inset-x-0 bottom-0`): 3 tabs — Início | Agendamentos | Fidelidade, same `usePathname()` active detection as `BottomNav.tsx`
 
-**CSS class reference (do not invent new classes — use `shared/tokens.css`):**
-
-| tokens.css class | Purpose |
-|---|---|
-| `.dashboard-topbar` | Sticky topbar wrapper |
-| `.topbar-brand` / `.topbar-logo-mark` / `.topbar-tenant-name` | Brand block |
-| `.dashboard-layout` / `.main-content` / `.dashboard-body` | Content layout |
-| `.bottom-nav` / `.bottom-nav-item` / `.bottom-nav-icon` | Mobile tab bar |
-| `.auth-avatar` | Avatar button |
-| `.btn-primary` / `.btn-secondary` / `.btn-danger` | Action buttons |
-| `.status-badge` + `.status-*` | Status chips |
+`apps/web/components/customer/CustomerShell.spec.tsx` — **mandatory co-located spec** (SonarCloud coverage gate):
+- Render smoke test, mobile/desktop nav visibility, active tab detection
 
 **Acceptance criteria:**
 - [ ] Unauthenticated `GET /{slug}/my-account` redirects to `/{slug}/login`

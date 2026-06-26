@@ -2,6 +2,7 @@ import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { ContactModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { sectionHeadingFont } from '@/lib/hotsite/module-styles';
+import { digitsOnly } from '@/lib/utils/digits-only';
 import { SectionEyebrow } from './SectionEyebrow';
 
 interface ContactModuleProps {
@@ -24,10 +25,6 @@ function formatAddress(address: NonNullable<HotsiteBusinessInfoResponse['address
   const complement = address.complement ? ` - ${address.complement}` : '';
   const neighborhood = address.neighborhood ? ` - ${address.neighborhood}` : '';
   return `${address.street}, ${address.number}${complement}${neighborhood}, ${address.city} - ${address.state}, ${address.zipCode}`;
-}
-
-function digitsOnly(value: string): string {
-  return value.replace(/\D/g, '');
 }
 
 function sanitizeUrl(url: string | null | undefined): string | undefined {

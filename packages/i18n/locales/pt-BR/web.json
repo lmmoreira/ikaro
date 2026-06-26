@@ -192,6 +192,19 @@
   "errors": {
     "internalServerError": "Erro interno do servidor"
   },
+  "customer": {
+    "nav": {
+      "home": "Início",
+      "bookings": "Agendamentos",
+      "loyalty": "Fidelidade"
+    },
+    "topbar": {
+      "newBooking": "Novo agendamento",
+      "backToSite": "Site {tenantName}",
+      "switchTenant": "Trocar empresa",
+      "signOut": "Sair"
+    }
+  },
   "dashboard": {
     "nav": {
       "bookings": "Agenda",

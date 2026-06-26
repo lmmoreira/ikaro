@@ -192,6 +192,19 @@
   "errors": {
     "internalServerError": "Internal server error"
   },
+  "customer": {
+    "nav": {
+      "home": "Home",
+      "bookings": "Bookings",
+      "loyalty": "Loyalty"
+    },
+    "topbar": {
+      "newBooking": "New booking",
+      "backToSite": "{tenantName} site",
+      "switchTenant": "Switch company",
+      "signOut": "Sign out"
+    }
+  },
   "dashboard": {
     "nav": {
       "bookings": "Bookings",

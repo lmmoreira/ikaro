@@ -4,17 +4,11 @@ import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { fetchCustomerTenants } from '@/lib/api/auth';
+import { getInitials } from '@/lib/utils/initials';
 
 interface HotsiteAuthBarDropdownProps {
   readonly name: string;
   readonly slug: string;
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? '?';
-  const last = parts.length > 1 ? (parts.at(-1)?.[0] ?? '') : '';
-  return `${first}${last}`.toUpperCase();
 }
 
 export function HotsiteAuthBarDropdown({

@@ -24,9 +24,12 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // Module-level side effects: both modules run infra code at import time — always swap globally
+      // Module-level side effects: these modules run infra code at import time — always swap globally.
+      // next/link also causes Vite v8 import-analysis to reject JSX in vi.mock() factory closures
+      // when the mock spans multiple lines, so it is aliased globally instead of per-file.
       'next/font/google': path.resolve(__dirname, '__mocks__/next-font-google.ts'),
       'next/image': path.resolve(__dirname, '__mocks__/next-image.ts'),
+      'next/link': path.resolve(__dirname, '__mocks__/next-link.ts'),
     },
   },
 });

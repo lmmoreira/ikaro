@@ -17,24 +17,6 @@ vi.mock('next-intl', () => ({
   },
 }));
 
-vi.mock('next/link', () => ({
-  default: ({
-    href,
-    children,
-    onClick,
-    className,
-  }: {
-    href: string;
-    children: React.ReactNode;
-    onClick?: () => void;
-    className?: string;
-  }) => (
-    <a href={href} onClick={onClick} className={className}>
-      {children}
-    </a>
-  ),
-}));
-
 describe('ManagerSheet', () => {
   it('renders nav items when open', () => {
     render(<ManagerSheet open={true} onClose={vi.fn()} tenantSlug="lavacar-bh" />);

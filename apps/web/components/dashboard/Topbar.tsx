@@ -4,6 +4,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { usePathname } from 'next/navigation';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { formatTodayLabel } from '@/lib/utils/format-today';
+import { getInitials } from '@/lib/utils/initials';
 
 interface TopbarProps {
   readonly tenantName: string;
@@ -19,14 +20,6 @@ const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
   ['/dashboard/settings', 'nav.settings'],
   ['/dashboard/hotsite', 'nav.hotsite'],
 ];
-
-function getInitials(name: string | null): string {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? '?';
-  const last = parts.length > 1 ? (parts.at(-1)?.[0] ?? '') : '';
-  return `${first}${last}`.toUpperCase();
-}
 
 export function Topbar({ tenantName, userName }: TopbarProps): React.JSX.Element {
   const t = useTranslations('dashboard');

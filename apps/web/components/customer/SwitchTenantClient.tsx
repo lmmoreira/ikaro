@@ -187,7 +187,7 @@ export function SwitchTenantClient({
                   data-testid="switch-tenant-option"
                   disabled={switchingId !== null}
                   onClick={() => handleSelect(tenant.id)}
-                  className="flex items-center gap-4 px-5 py-4 text-left transition-opacity disabled:opacity-60"
+                  className="flex cursor-pointer items-center gap-4 px-5 py-4 text-left transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
                   style={{
                     backgroundColor: 'var(--ba-secondary)',
                     borderRadius: 'var(--ba-radius)',
@@ -237,7 +237,7 @@ export function SwitchTenantClient({
                 router.back();
               }
             }}
-            className="text-sm font-medium"
+            className="cursor-pointer text-sm font-medium"
             style={{ color: 'var(--ba-primary)' }}
           >
             {t('switchTenantBack')}
