@@ -12,7 +12,10 @@ describe('RolesGuard', () => {
     sub: 'uuid-1',
     tenantId: 'tenant-1',
     tenantSlug: 'slug-1',
+    tenantName: 'Tenant 1',
+    userName: 'Test User',
     role: 'CUSTOMER',
+    locale: 'pt-BR',
   };
   const staff: CurrentUserPayload = { ...customer, role: 'STAFF' };
   const manager: CurrentUserPayload = { ...customer, role: 'MANAGER' };

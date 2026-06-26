@@ -1,7 +1,5 @@
-export default function DashboardPage() {
-  return (
-    <main>
-      <p>Dashboard</p>
-    </main>
-  );
+import { redirect } from 'next/navigation';
+
+export default function DashboardPage(): never {
+  redirect('/dashboard/bookings');
 }

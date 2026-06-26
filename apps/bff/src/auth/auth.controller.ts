@@ -15,6 +15,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
+import { CurrentUser, CurrentUserPayload } from '../shared/decorators/current-user.decorator';
 import { Public } from '../shared/decorators/public.decorator';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
@@ -95,20 +96,25 @@ export class AuthController {
   async getStaffTenants(): Promise<StaffTenantOption[]> {
     const staffList = await this.backendHttp.get<StaffInfoResponse[]>('/staff/me/tenants');
     const activeStaff = staffList.filter((s) => s.isActive);
-    return Promise.all(
-      activeStaff.map(async (s) => {
-        const tenantInfo = await this.backendHttp.get<TenantInfoResponse>(
-          `/internal/tenants/${s.tenantId}`,
-        );
-        return {
-          staffId: s.staffId,
-          tenantId: s.tenantId,
-          tenantSlug: tenantInfo.slug,
-          tenantName: tenantInfo.name,
-          role: s.role,
-        };
-      }),
+    if (activeStaff.length === 0) return [];
+
+    const tenantIds = [...new Set(activeStaff.map((s) => s.tenantId))];
+    const tenants = await this.backendHttp.get<TenantInfoResponse[]>(
+      `/internal/tenants?ids=${tenantIds.join(',')}`,
     );
+    const tenantMap = new Map(tenants.map((t) => [t.id, t]));
+
+    return activeStaff.map((s) => {
+      const tenantInfo = tenantMap.get(s.tenantId);
+      if (!tenantInfo) throw new Error(`Tenant ${s.tenantId} missing from batch response`);
+      return {
+        staffId: s.staffId,
+        tenantId: s.tenantId,
+        tenantSlug: tenantInfo.slug,
+        tenantName: tenantInfo.name,
+        role: s.role,
+      };
+    });
   }
 
   @Post('switch-staff-tenant')
@@ -116,6 +122,7 @@ export class AuthController {
   @Roles('STAFF', 'MANAGER')
   async switchStaffTenant(
     @Body(new ZodValidationPipe(SwitchStaffTenantSchema)) dto: SwitchStaffTenantDto,
+    @CurrentUser() currentUser: CurrentUserPayload,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ tenantSlug: string; expiresIn: string }> {
     const staffList = await this.backendHttp.get<StaffInfoResponse[]>('/staff/me/tenants');
@@ -136,7 +143,10 @@ export class AuthController {
       sub: match.staffId,
       tenantId: match.tenantId,
       tenantSlug: tenantInfo.slug,
+      tenantName: tenantInfo.name,
+      userName: currentUser.userName,
       role: match.role,
+      locale: tenantInfo.locale,
     });
 
     res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
@@ -150,6 +160,7 @@ export class AuthController {
   @Roles('CUSTOMER')
   async switchTenant(
     @Body(new ZodValidationPipe(SwitchTenantSchema)) dto: SwitchTenantDto,
+    @CurrentUser() currentUser: CurrentUserPayload,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ tenantSlug: string; expiresIn: string }> {
     const tenants =
@@ -171,7 +182,10 @@ export class AuthController {
       sub: match.customerId,
       tenantId: dto.targetTenantId,
       tenantSlug: tenantInfo.slug,
+      tenantName: tenantInfo.name,
+      userName: currentUser.userName,
       role: 'CUSTOMER',
+      locale: tenantInfo.locale,
     });
 
     res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
@@ -268,7 +282,10 @@ export class AuthController {
       sub: actorId,
       tenantId: tenantInfo.id,
       tenantSlug: tenantInfo.slug,
+      tenantName: tenantInfo.name,
+      userName: 'Dev User',
       role,
+      locale: tenantInfo.locale,
     });
 
     res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
@@ -350,7 +367,10 @@ export class AuthController {
       sub: staffByEmail.staffId,
       tenantId: tenantInfo.id,
       tenantSlug: tenantInfo.slug,
+      tenantName: tenantInfo.name,
+      userName: profile.name,
       role: staffByEmail.role,
+      locale: tenantInfo.locale,
     });
     res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
     res.redirect(`${frontendUrl}/dashboard`);
@@ -388,7 +408,10 @@ export class AuthController {
       sub: customerId,
       tenantId: tenantInfo.id,
       tenantSlug: tenantInfo.slug,
+      tenantName: tenantInfo.name,
+      userName: profile.name,
       role: 'CUSTOMER',
+      locale: tenantInfo.locale,
     });
     res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
     res.redirect(`${frontendUrl}/${tenantInfo.slug}`);

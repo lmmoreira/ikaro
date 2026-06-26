@@ -4,6 +4,7 @@ import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/p
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantBySlugUseCase } from '../../application/use-cases/get-tenant-by-slug.use-case';
+import { GetTenantsByIdsUseCase } from '../../application/use-cases/get-tenants-by-ids.use-case';
 import { ListPublishedHotsitesUseCase } from '../../application/use-cases/list-published-hotsites.use-case';
 import { InternalTenantReadController } from './internal-tenant-read.controller';
 
@@ -18,6 +19,7 @@ describe('InternalTenantReadController', () => {
     controller = new InternalTenantReadController(
       new GetTenantByIdUseCase(repo),
       new GetTenantBySlugUseCase(repo),
+      new GetTenantsByIdsUseCase(repo),
       new ListPublishedHotsitesUseCase(repo, hotsiteConfigRepo),
     );
   });
@@ -58,6 +60,52 @@ describe('InternalTenantReadController', () => {
 
       expect(result.id).toBe(tenant.id);
       expect(result.slug).toBe('lavacar-sp');
+    });
+  });
+
+  describe('getTenantsByIdsRoute() — batch by IDs', () => {
+    it('returns 400 when ids query param is absent', async () => {
+      const err = await controller.getTenantsByIdsRoute(undefined).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('returns 400 when ids query param is empty', async () => {
+      const err = await controller.getTenantsByIdsRoute('').catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('returns 400 when ids contains only separators or whitespace', async () => {
+      const err = await controller.getTenantsByIdsRoute(',,,').catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('returns id, slug, and name for each found tenant', async () => {
+      const a = new TenantBuilder().withSlug('lavacar-bh').withName('Lavacar BH').build();
+      const b = new TenantBuilder().withSlug('autospa-sp').withName('AutoSpa SP').build();
+      await repo.save(a);
+      await repo.save(b);
+
+      const result = await controller.getTenantsByIdsRoute(`${a.id},${b.id}`);
+
+      expect(result).toEqual(
+        expect.arrayContaining([
+          { id: a.id, slug: 'lavacar-bh', name: 'Lavacar BH', locale: 'pt-BR' },
+          { id: b.id, slug: 'autospa-sp', name: 'AutoSpa SP', locale: 'pt-BR' },
+        ]),
+      );
+      expect(result).toHaveLength(2);
+    });
+
+    it('returns an empty array when none of the IDs exist', async () => {
+      const result = await controller.getTenantsByIdsRoute('non-existent-1,non-existent-2');
+
+      expect(result).toEqual([]);
     });
   });
 

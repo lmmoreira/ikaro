@@ -12,6 +12,7 @@ function makeTenantResult(fromEmail: string | null = 'no-reply@example.com') {
     id: tenant.id,
     slug: tenant.slug.value,
     name: tenant.name,
+    locale: tenant.settings.localization.language,
     settings: {
       ...settings,
       notification: { fromEmail: fromEmail },

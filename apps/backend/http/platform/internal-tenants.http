@@ -148,6 +148,18 @@ X-Internal-Key: {{internalKey}}
 
 ###
 
+### Batch lookup — resolve multiple tenant IDs in one call (BFF uses this to avoid N+1)
+GET {{baseUrl}}/internal/tenants?ids={{tenantId}},00000000-0000-4000-8000-000000000002
+X-Internal-Key: {{internalKey}}
+
+###
+
+### 400 — Missing ids query param
+GET {{baseUrl}}/internal/tenants
+X-Internal-Key: {{internalKey}}
+
+###
+
 ### 404 — Unknown tenant ID
 GET {{baseUrl}}/internal/tenants/00000000-0000-0000-0000-000000000000
 X-Internal-Key: {{internalKey}}

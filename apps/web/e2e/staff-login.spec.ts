@@ -14,7 +14,7 @@ test.describe('Staff login (middleware regression)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Área da Equipe');
     // No slug → Google button is replaced with a "use your company's website" message.
     await expect(page.locator('a[href*="/auth/google?type=staff"]')).not.toBeAttached();
-    await expect(page.getByText('pelo site da sua empresa')).toBeVisible();
+    await expect(page.getByTestId('staff-login-via-hotsite')).toBeVisible();
   });
 
   test('visiting a protected dashboard route unauthenticated still redirects to /dashboard/login', async ({

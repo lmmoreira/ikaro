@@ -195,7 +195,15 @@ export class BookingsController {
     const raw = tryDecodeRawJwt(token, secret);
     if (!raw) return null;
     const parsed = z
-      .object({ sub: z.string(), tenantId: z.string(), tenantSlug: z.string(), role: z.string() })
+      .object({
+        sub: z.string(),
+        tenantId: z.string(),
+        tenantSlug: z.string(),
+        tenantName: z.string().default(''),
+        userName: z.string().nullable().default(null),
+        role: z.string(),
+        locale: z.string().default('pt-BR'),
+      })
       .safeParse(raw);
     return parsed.success ? parsed.data : null;
   }

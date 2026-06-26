@@ -191,5 +191,30 @@
   },
   "errors": {
     "internalServerError": "Erro interno do servidor"
+  },
+  "dashboard": {
+    "nav": {
+      "bookings": "Agenda",
+      "schedule": "Horários",
+      "services": "Serviços",
+      "loyalty": "Fidelidade",
+      "team": "Equipe",
+      "settings": "Configurações",
+      "hotsite": "Hotsite",
+      "managerOnly": "Somente Gerente",
+      "more": "Mais",
+      "moreOptions": "Mais opções"
+    },
+    "sidebar": {
+      "roleManager": "Gerente",
+      "roleStaff": "Staff",
+      "signOut": "Sair"
+    },
+    "topbar": {
+      "openMenu": "Abrir menu",
+      "closeMenu": "Fechar menu",
+      "todayPrefix": "Hoje,",
+      "defaultTitle": "Dashboard"
+    }
   }
 }

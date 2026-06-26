@@ -5,6 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function unixNow(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
 export function digitsOnly(value: string): string {
   return value.replace(/\D/g, '');
 }

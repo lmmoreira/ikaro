@@ -16,6 +16,7 @@ import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-co
 import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-manifest.use-case';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantBySlugUseCase } from './application/use-cases/get-tenant-by-slug.use-case';
+import { GetTenantsByIdsUseCase } from './application/use-cases/get-tenants-by-ids.use-case';
 import { ListPublishedHotsitesUseCase } from './application/use-cases/list-published-hotsites.use-case';
 import { ProvisionTenantUseCase } from './application/use-cases/provision-tenant.use-case';
 import { PublishHotsiteUseCase } from './application/use-cases/publish-hotsite.use-case';
@@ -68,6 +69,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetHotsiteManifestUseCase,
     GetTenantByIdUseCase,
     GetTenantBySlugUseCase,
+    GetTenantsByIdsUseCase,
     ListPublishedHotsitesUseCase,
     ProvisionTenantUseCase,
     PublishHotsiteUseCase,

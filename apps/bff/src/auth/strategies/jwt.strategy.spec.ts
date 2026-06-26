@@ -20,7 +20,10 @@ describe('JwtStrategy', () => {
       sub: 'customer-uuid-1',
       tenantId: 'tenant-uuid-1',
       tenantSlug: 'lavacar-belo',
+      tenantName: 'Lavacar Belo',
+      userName: 'Test User',
       role: 'CUSTOMER',
+      locale: 'pt-BR',
     };
 
     const result = strategy.validate(payload);
@@ -33,7 +36,10 @@ describe('JwtStrategy', () => {
       sub: 'staff-uuid-1',
       tenantId: 'tenant-uuid-1',
       tenantSlug: 'lavacar-belo',
+      tenantName: 'Lavacar Belo',
+      userName: 'Staff User',
       role: 'STAFF',
+      locale: 'pt-BR',
     };
 
     expect(strategy.validate(payload)).toEqual(payload);
@@ -44,7 +50,10 @@ describe('JwtStrategy', () => {
       sub: 'manager-uuid-1',
       tenantId: 'tenant-uuid-1',
       tenantSlug: 'lavacar-belo',
+      tenantName: 'Lavacar Belo',
+      userName: 'Manager User',
       role: 'MANAGER',
+      locale: 'pt-BR',
     };
 
     expect(strategy.validate(payload)).toEqual(payload);

@@ -1,200 +1,224 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '@/axe-helper';
-import { getHotsiteCustomerProfile } from '@/lib/api/customers';
-import { fetchCustomerTenants } from '@/lib/api/auth';
-import { getHotsiteStaffProfile } from '@/lib/api/staff';
-import { renderWithIntl } from '@/test-utils';
 import { HotsiteAuthBar } from './HotsiteAuthBar';
 
-vi.mock('@/lib/api/customers', () => ({
-  getHotsiteCustomerProfile: vi.fn(),
+// ── module mocks ──────────────────────────────────────────────────────────────
+
+vi.mock('next/headers', () => ({ cookies: vi.fn() }));
+vi.mock('next-intl/server', () => ({ getTranslations: vi.fn() }));
+vi.mock('./HotsiteAuthBarDropdown', () => ({
+  HotsiteAuthBarDropdown: ({ name, slug }: { name: string; slug: string }) => (
+    <div data-testid="hotsite-auth-dropdown" data-name={name} data-slug={slug} />
+  ),
 }));
 
-vi.mock('@/lib/api/auth', () => ({
-  fetchCustomerTenants: vi.fn(),
-}));
+import { cookies } from 'next/headers';
+import { getTranslations } from 'next-intl/server';
 
-vi.mock('@/lib/api/staff', () => ({
-  getHotsiteStaffProfile: vi.fn(),
-}));
+// ── helpers ───────────────────────────────────────────────────────────────────
 
-const authenticatedProfile = {
-  customerId: 'c-1',
-  email: 'joao@example.com',
-  name: 'João Silva',
-  phone: null,
-  defaultAddress: null,
+const TRANSLATIONS: Record<string, string> = {
+  signIn: 'Entrar',
+  signOut: 'Sair',
+  staffArea: 'Área da Equipe',
 };
 
-const staffProfileFixture = {
-  id: 's-1',
-  email: 'gerente@lavacar.com.br',
-  name: 'Gerente Silva',
-  role: 'MANAGER' as const,
-  isActive: true,
-  createdAt: '2026-01-01T00:00:00Z',
-};
+function makeToken(claims: Record<string, unknown>): string {
+  const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+  return `header.${payload}.signature`;
+}
+
+function setupCookie(token: string | undefined): void {
+  vi.mocked(cookies).mockResolvedValue({
+    get: (name: string) =>
+      name === 'access_token' && token ? { name: 'access_token', value: token } : undefined,
+  } as Awaited<ReturnType<typeof cookies>>);
+}
+
+const SLUG = 'lavacar-beloauto';
+const futureExp = Math.floor(Date.now() / 1000) + 3600;
+const pastExp = Math.floor(Date.now() / 1000) - 60;
+
+const staffToken = makeToken({
+  sub: 'staff-uuid',
+  tenantId: 't-1',
+  tenantSlug: SLUG,
+  tenantName: 'Lavacar BH',
+  userName: 'Ana Pereira',
+  role: 'STAFF',
+  exp: futureExp,
+});
+
+const managerToken = makeToken({
+  sub: 'manager-uuid',
+  tenantId: 't-1',
+  tenantSlug: SLUG,
+  tenantName: 'Lavacar BH',
+  userName: 'Carlos Gomes',
+  role: 'MANAGER',
+  exp: futureExp,
+});
+
+const customerToken = makeToken({
+  sub: 'customer-uuid',
+  tenantId: 't-1',
+  tenantSlug: SLUG,
+  tenantName: 'Lavacar BH',
+  userName: 'João Silva',
+  role: 'CUSTOMER',
+  exp: futureExp,
+});
+
+async function renderBar(slug = SLUG): Promise<ReturnType<typeof render>> {
+  const jsx = await HotsiteAuthBar({ slug });
+  return render(jsx);
+}
+
+// ── setup ─────────────────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  vi.mocked(getTranslations).mockResolvedValue(
+    ((key: string) => TRANSLATIONS[key] ?? key) as Awaited<ReturnType<typeof getTranslations>>,
+  );
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+  delete process.env.NEXT_PUBLIC_BFF_URL;
+});
+
+// ── tests ─────────────────────────────────────────────────────────────────────
 
 describe('HotsiteAuthBar', () => {
-  const originalBffUrl = process.env.NEXT_PUBLIC_BFF_URL;
+  describe('unauthenticated (no cookie)', () => {
+    beforeEach(() => setupCookie(undefined));
 
-  afterEach(() => {
-    vi.mocked(getHotsiteCustomerProfile).mockReset();
-    vi.mocked(fetchCustomerTenants).mockReset();
-    vi.mocked(getHotsiteStaffProfile).mockReset();
-    if (originalBffUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_BFF_URL;
-    } else {
-      process.env.NEXT_PUBLIC_BFF_URL = originalBffUrl;
-    }
+    it('renders the staff area link pointing to dashboard login', async () => {
+      await renderBar();
+
+      const link = screen.getByTestId('hotsite-staff-link');
+      expect(link).toHaveAttribute('href', `/dashboard/login?tenantSlug=${SLUG}`);
+      expect(link).toHaveTextContent('Área da Equipe');
+    });
+
+    it('renders the customer sign-in link pointing to the tenant login page', async () => {
+      await renderBar();
+
+      const link = screen.getByTestId('hotsite-login-link');
+      expect(link).toHaveAttribute('href', `/${SLUG}/login`);
+      expect(link).toHaveTextContent('Entrar');
+    });
+
+    it('has no axe violations', async () => {
+      const { container } = await renderBar();
+
+      expect(await axe(container)).toHaveNoViolations();
+    });
   });
 
-  it('renders the "Área da Equipe" login link when no staff is authenticated', () => {
-    vi.mocked(getHotsiteCustomerProfile).mockReturnValue(new Promise(() => {}));
-    vi.mocked(getHotsiteStaffProfile).mockReturnValue(new Promise(() => {}));
+  describe('authenticated as STAFF', () => {
+    beforeEach(() => setupCookie(staffToken));
 
-    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
+    it('shows a link to /dashboard with the user name', async () => {
+      await renderBar();
 
-    const staffLink = screen.getByTestId('hotsite-staff-link');
-    expect(staffLink).toHaveAttribute('href', '/dashboard/login?tenantSlug=lavacar-beloauto');
-    expect(staffLink).toHaveTextContent('Área da Equipe');
+      const link = screen.getByTestId('hotsite-staff-authenticated-link');
+      expect(link).toHaveAttribute('href', '/dashboard');
+      expect(link).toHaveTextContent('Ana Pereira');
+    });
+
+    it('shows a logout link pointing to the BFF logout route', async () => {
+      process.env.NEXT_PUBLIC_BFF_URL = 'http://bff-test:3002/v1';
+      await renderBar();
+
+      const link = screen.getByTestId('hotsite-staff-logout-link');
+      expect(link).toHaveAttribute(
+        'href',
+        `http://bff-test:3002/v1/auth/logout?tenantSlug=${SLUG}`,
+      );
+      expect(link).toHaveTextContent('Sair');
+    });
+
+    it('falls back to the staff-area label when userName is absent from the token', async () => {
+      const noNameToken = makeToken({
+        sub: 'staff-uuid',
+        tenantId: 't-1',
+        tenantSlug: SLUG,
+        role: 'STAFF',
+        exp: futureExp,
+      });
+      setupCookie(noNameToken);
+      await renderBar();
+
+      const link = screen.getByTestId('hotsite-staff-authenticated-link');
+      expect(link).toHaveTextContent('Área da Equipe');
+      expect(link).not.toHaveTextContent('staff-uuid');
+    });
   });
 
-  it('renders staff name linking to /dashboard when authenticated as staff', async () => {
-    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
-    vi.mocked(getHotsiteStaffProfile).mockResolvedValue(staffProfileFixture);
+  describe('authenticated as MANAGER', () => {
+    beforeEach(() => setupCookie(managerToken));
 
-    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
+    it('shows a link to /dashboard with the manager name', async () => {
+      await renderBar();
 
-    const staffLink = await screen.findByTestId('hotsite-staff-authenticated-link');
-    expect(staffLink).toHaveAttribute('href', '/dashboard');
-    expect(staffLink).toHaveTextContent('Gerente Silva');
+      const link = screen.getByTestId('hotsite-staff-authenticated-link');
+      expect(link).toHaveAttribute('href', '/dashboard');
+      expect(link).toHaveTextContent('Carlos Gomes');
+    });
   });
 
-  it('renders a logout link for authenticated staff pointing to the BFF logout route', async () => {
-    process.env.NEXT_PUBLIC_BFF_URL = 'http://bff-test:3002/v1';
-    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
-    vi.mocked(getHotsiteStaffProfile).mockResolvedValue(staffProfileFixture);
+  describe('authenticated as CUSTOMER', () => {
+    beforeEach(() => setupCookie(customerToken));
 
-    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
+    it('renders HotsiteAuthBarDropdown with the customer name and slug', async () => {
+      await renderBar();
 
-    const logoutLink = await screen.findByTestId('hotsite-staff-logout-link');
-    expect(logoutLink).toHaveAttribute(
-      'href',
-      'http://bff-test:3002/v1/auth/logout?tenantSlug=lavacar-beloauto',
-    );
-    expect(logoutLink).toHaveTextContent('Sair');
+      const dropdown = screen.getByTestId('hotsite-auth-dropdown');
+      expect(dropdown).toHaveAttribute('data-name', 'João Silva');
+      expect(dropdown).toHaveAttribute('data-slug', SLUG);
+    });
+
+    it('does not render the "Entrar" sign-in link', async () => {
+      await renderBar();
+
+      expect(screen.queryByTestId('hotsite-login-link')).not.toBeInTheDocument();
+    });
   });
 
-  it('falls back to email when authenticated staff has no name', async () => {
-    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
-    vi.mocked(getHotsiteStaffProfile).mockResolvedValue({ ...staffProfileFixture, name: null });
+  describe('expired token', () => {
+    it('treats an expired session as unauthenticated', async () => {
+      const expiredToken = makeToken({
+        sub: 'staff-uuid',
+        tenantId: 't-1',
+        tenantSlug: SLUG,
+        role: 'STAFF',
+        exp: pastExp,
+      });
+      setupCookie(expiredToken);
+      await renderBar();
 
-    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
-
-    const staffLink = await screen.findByTestId('hotsite-staff-authenticated-link');
-    expect(staffLink).toHaveTextContent('gerente@lavacar.com.br');
+      expect(screen.getByTestId('hotsite-staff-link')).toBeInTheDocument();
+      expect(screen.getByTestId('hotsite-login-link')).toBeInTheDocument();
+    });
   });
 
-  it('renders nothing visible while the profile request is pending', () => {
-    vi.mocked(getHotsiteCustomerProfile).mockReturnValue(new Promise(() => {}));
-    vi.mocked(getHotsiteStaffProfile).mockReturnValue(new Promise(() => {}));
+  describe('tenant slug mismatch', () => {
+    it('treats a token for a different tenant as unauthenticated', async () => {
+      const otherTenantToken = makeToken({
+        sub: 'staff-uuid',
+        tenantId: 't-2',
+        tenantSlug: 'another-tenant',
+        role: 'STAFF',
+        exp: futureExp,
+      });
+      setupCookie(otherTenantToken);
+      await renderBar();
 
-    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
-
-    expect(screen.queryByText('Entrar')).not.toBeInTheDocument();
-    expect(screen.queryByText('Minha conta')).not.toBeInTheDocument();
-  });
-
-  it('renders "Entrar" linking to /{slug}/login when unauthenticated', async () => {
-    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
-    vi.mocked(getHotsiteStaffProfile).mockReturnValue(new Promise(() => {}));
-
-    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
-
-    const link = await screen.findByText('Entrar');
-    expect(link).toHaveAttribute('href', '/lavacar-beloauto/login');
-  });
-
-  it('renders initials and name when authenticated', async () => {
-    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(authenticatedProfile);
-    vi.mocked(fetchCustomerTenants).mockResolvedValue([
-      { id: 't-1', name: 'Lavacar BH', slug: 'lavacar-beloauto', loyaltyPoints: 10 },
-    ]);
-    vi.mocked(getHotsiteStaffProfile).mockReturnValue(new Promise(() => {}));
-
-    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
-
-    expect(await screen.findByText('João Silva')).toBeInTheDocument();
-    expect(screen.getByText('JS')).toBeInTheDocument();
-    expect(screen.getByTestId('hotsite-auth-tenant-slug')).toHaveTextContent('lavacar-beloauto');
-  });
-
-  it('opens the dropdown with correct links when the avatar is clicked', async () => {
-    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(authenticatedProfile);
-    vi.mocked(fetchCustomerTenants).mockResolvedValue([
-      { id: 't-1', name: 'Lavacar BH', slug: 'lavacar-beloauto', loyaltyPoints: 10 },
-    ]);
-    vi.mocked(getHotsiteStaffProfile).mockReturnValue(new Promise(() => {}));
-    process.env.NEXT_PUBLIC_BFF_URL = 'http://bff-test:3002/v1';
-
-    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
-    await screen.findByText('João Silva');
-
-    const summary = screen.getByText('João Silva').closest('summary');
-    expect(summary).not.toBeNull();
-    await userEvent.click(summary as HTMLElement);
-
-    const myAccountLink = screen.getByText('Minha conta');
-    expect(myAccountLink).toHaveAttribute('href', '/lavacar-beloauto/my-account');
-
-    const logoutLink = screen.getByText('Sair');
-    expect(logoutLink).toHaveAttribute(
-      'href',
-      'http://bff-test:3002/v1/auth/logout?tenantSlug=lavacar-beloauto',
-    );
-  });
-
-  it('shows "Trocar empresa" in the dropdown when the customer has 2+ tenants', async () => {
-    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(authenticatedProfile);
-    vi.mocked(fetchCustomerTenants).mockResolvedValue([
-      { id: 't-1', name: 'Lavacar BH', slug: 'lavacar-beloauto', loyaltyPoints: 10 },
-      { id: 't-2', name: 'SuperClean', slug: 'superclean', loyaltyPoints: 8 },
-    ]);
-    vi.mocked(getHotsiteStaffProfile).mockReturnValue(new Promise(() => {}));
-
-    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
-    await screen.findByText('João Silva');
-    await userEvent.click(screen.getByText('João Silva').closest('summary') as HTMLElement);
-
-    const switchLink = await screen.findByTestId('hotsite-switch-tenant-link');
-    expect(switchLink).toHaveAttribute('href', '/switch-tenant');
-  });
-
-  it('hides "Trocar empresa" when the customer has only one tenant', async () => {
-    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(authenticatedProfile);
-    vi.mocked(fetchCustomerTenants).mockResolvedValue([
-      { id: 't-1', name: 'Lavacar BH', slug: 'lavacar-beloauto', loyaltyPoints: 10 },
-    ]);
-    vi.mocked(getHotsiteStaffProfile).mockReturnValue(new Promise(() => {}));
-
-    renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
-    await screen.findByText('João Silva');
-    await userEvent.click(screen.getByText('João Silva').closest('summary') as HTMLElement);
-
-    expect(screen.queryByTestId('hotsite-switch-tenant-link')).not.toBeInTheDocument();
-  });
-
-  it('has no axe violations in the unauthenticated state', async () => {
-    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
-    vi.mocked(getHotsiteStaffProfile).mockResolvedValue(null);
-
-    const { container } = renderWithIntl(<HotsiteAuthBar slug="lavacar-beloauto" />);
-    await screen.findByTestId('hotsite-login-link');
-
-    expect(await axe(container)).toHaveNoViolations();
+      expect(screen.getByTestId('hotsite-staff-link')).toBeInTheDocument();
+      expect(screen.getByTestId('hotsite-login-link')).toBeInTheDocument();
+    });
   });
 });

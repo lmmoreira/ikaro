@@ -2,6 +2,55 @@ import { NextRequest } from 'next/server';
 import { describe, expect, it } from 'vitest';
 import { middleware } from './middleware';
 
+// Build a minimal base64url-encoded JWT payload (no real signature — middleware only decodes)
+function makeToken(claims: Record<string, unknown>): string {
+  const payload = btoa(JSON.stringify(claims))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  return `header.${payload}.signature`;
+}
+
+const validStaffToken = makeToken({
+  sub: 'staff-id',
+  tenantId: 'tenant-id',
+  tenantSlug: 'lavacar-bh',
+  tenantName: 'Lavacar BH',
+  userName: 'João',
+  role: 'STAFF',
+  exp: Math.floor(Date.now() / 1000) + 3600,
+});
+
+const validManagerToken = makeToken({
+  sub: 'manager-id',
+  tenantId: 'tenant-id',
+  tenantSlug: 'lavacar-bh',
+  tenantName: 'Lavacar BH',
+  userName: 'Maria',
+  role: 'MANAGER',
+  exp: Math.floor(Date.now() / 1000) + 3600,
+});
+
+const expiredStaffToken = makeToken({
+  sub: 'staff-id',
+  tenantId: 'tenant-id',
+  tenantSlug: 'lavacar-bh',
+  tenantName: 'Lavacar BH',
+  userName: 'João',
+  role: 'STAFF',
+  exp: Math.floor(Date.now() / 1000) - 60,
+});
+
+const customerToken = makeToken({
+  sub: 'customer-id',
+  tenantId: 'tenant-id',
+  tenantSlug: 'lavacar-bh',
+  tenantName: 'Lavacar BH',
+  userName: 'Ana',
+  role: 'CUSTOMER',
+  exp: Math.floor(Date.now() / 1000) + 3600,
+});
+
 function makeRequest(path: string, token?: string): NextRequest {
   const init = token ? { headers: { cookie: `access_token=${token}` } } : {};
   return new NextRequest(new URL(path, 'http://localhost:3000'), init);
@@ -22,11 +71,39 @@ describe('middleware', () => {
     expect(response.headers.get('location')).toBeNull();
   });
 
-  it('passes through a protected dashboard route when a token is present', () => {
-    const response = middleware(makeRequest('/dashboard/bookings', 'signed-jwt'));
+  it('passes through a protected dashboard route with a valid STAFF token', () => {
+    const response = middleware(makeRequest('/dashboard/bookings', validStaffToken));
 
     expect(response.status).not.toBe(307);
     expect(response.headers.get('location')).toBeNull();
+  });
+
+  it('passes through a protected dashboard route with a valid MANAGER token', () => {
+    const response = middleware(makeRequest('/dashboard/bookings', validManagerToken));
+
+    expect(response.status).not.toBe(307);
+    expect(response.headers.get('location')).toBeNull();
+  });
+
+  it('redirects when the token has CUSTOMER role (customers cannot access dashboard)', () => {
+    const response = middleware(makeRequest('/dashboard/bookings', customerToken));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
+  });
+
+  it('redirects when the token is expired', () => {
+    const response = middleware(makeRequest('/dashboard/bookings', expiredStaffToken));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
+  });
+
+  it('redirects when the token is a malformed string (not a JWT)', () => {
+    const response = middleware(makeRequest('/dashboard/bookings', 'not-a-jwt'));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
   });
 
   it('passes through a non-dashboard route without a token', () => {

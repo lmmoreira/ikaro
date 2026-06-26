@@ -1639,7 +1639,7 @@ Show reason code in small grey text at bottom: `"Código: <reason>"`.
 
 ---
 
-### M13-S14 — Customer phone completion, auth proxy-route cleanup, and tenant switch (UC-021 A3, UC-023)
+### M13-S14 — Customer phone completion, auth proxy-route cleanup, and tenant switch (UC-021 A3, UC-023) ✅ Done
 
 *(formerly M124-S03; scope revised 2026-06-24 after a story-discovery session — see rationale below. Folds in the original `M13-S30`, which is now merged here.)*
 

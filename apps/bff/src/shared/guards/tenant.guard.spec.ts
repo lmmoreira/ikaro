@@ -12,7 +12,10 @@ describe('TenantGuard', () => {
     sub: 'uuid-1',
     tenantId: 'tenant-uuid-1',
     tenantSlug: 'lavacar-belo',
+    tenantName: 'Lavacar Belo',
+    userName: 'Test User',
     role: 'CUSTOMER',
+    locale: 'pt-BR',
   };
 
   beforeEach(() => {
