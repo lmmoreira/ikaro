@@ -7,10 +7,10 @@ import {
   listStaff,
   type StaffListQuery,
 } from '@/lib/api/dashboard/staff';
-import { getTenantId } from '@/lib/api/bff-client';
+import { useTenant } from '@/providers/tenant-provider';
 
 export function useStaff(query?: StaffListQuery) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['staff', tenantId, query],
     queryFn: () => listStaff(query),
@@ -18,7 +18,7 @@ export function useStaff(query?: StaffListQuery) {
 }
 
 export function useStaffMember(id: string) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['staff', tenantId, id],
     queryFn: () => getStaffMember(id),
@@ -28,7 +28,7 @@ export function useStaffMember(id: string) {
 
 export function useInviteStaff() {
   const queryClient = useQueryClient();
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (body: InviteStaffRequest) => inviteStaff(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff', tenantId] }),
@@ -37,7 +37,7 @@ export function useInviteStaff() {
 
 export function useDeactivateStaff() {
   const queryClient = useQueryClient();
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (id: string) => deactivateStaff(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff', tenantId] }),

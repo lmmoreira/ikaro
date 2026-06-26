@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
 import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
 import { LocaleProvider } from '@/providers/locale-provider';
+import { TenantProvider } from '@/providers/tenant-provider';
 import { CustomerShell } from '@/components/customer/CustomerShell';
 
 interface MyAccountLayoutProps {
@@ -36,14 +37,11 @@ export default async function MyAccountLayout({
 
   return (
     <LocaleProvider locale={locale} messages={messages}>
-      <CustomerShell
-        tenantName={tenantName}
-        tenantSlug={tenantSlug}
-        tenantId={tenantId}
-        userName={userName}
-      >
-        {children}
-      </CustomerShell>
+      <TenantProvider tenantId={tenantId} tenantSlug={tenantSlug}>
+        <CustomerShell tenantName={tenantName} tenantSlug={tenantSlug} userName={userName}>
+          {children}
+        </CustomerShell>
+      </TenantProvider>
     </LocaleProvider>
   );
 }

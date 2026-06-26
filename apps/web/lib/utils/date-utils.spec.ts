@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, isSameDay, toDateKey } from './date-utils';
+import { addDays, inWindow, isSameDay, toDateKey } from './date-utils';
 
 describe('toDateKey', () => {
   it('returns YYYY-MM-DD slice of ISO string', () => {
@@ -41,5 +41,30 @@ describe('isSameDay', () => {
     const a = new Date('2026-06-26T00:00:00');
     const b = new Date('2026-06-27T00:00:00');
     expect(isSameDay(a, b)).toBe(false);
+  });
+});
+
+describe('inWindow', () => {
+  const start = new Date('2026-06-26T00:00:00');
+  const end = new Date('2026-07-09T00:00:00');
+
+  it('returns true for a date strictly within the window', () => {
+    expect(inWindow(new Date('2026-07-01T00:00:00'), start, end)).toBe(true);
+  });
+
+  it('returns true on the start boundary', () => {
+    expect(inWindow(start, start, end)).toBe(true);
+  });
+
+  it('returns true on the end boundary', () => {
+    expect(inWindow(end, start, end)).toBe(true);
+  });
+
+  it('returns false before the window', () => {
+    expect(inWindow(new Date('2026-06-25T23:59:59'), start, end)).toBe(false);
+  });
+
+  it('returns false after the window', () => {
+    expect(inWindow(new Date('2026-07-10T00:00:00'), start, end)).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateLong, formatTime } from './format-time';
+import { formatDate, formatDateLong, formatMonthYear, formatTime } from './format-time';
 
 describe('formatTime', () => {
   it('formats a UTC date as HH:mm in America/Sao_Paulo (24h)', () => {
@@ -57,5 +57,20 @@ describe('formatDateLong', () => {
     expect(result).toMatch(/Monday/);
     expect(result).toMatch(/June/);
     expect(result).toMatch(/15/);
+  });
+});
+
+describe('formatMonthYear', () => {
+  it('returns capitalized month + year for pt-BR', () => {
+    expect(formatMonthYear(new Date('2026-06-16T00:00:00'), 'pt-BR')).toBe('Junho 2026');
+  });
+
+  it('returns English month + year for en locale', () => {
+    expect(formatMonthYear(new Date('2026-01-01T00:00:00'), 'en')).toBe('January 2026');
+  });
+
+  it('capitalizes the first letter regardless of locale output', () => {
+    const result = formatMonthYear(new Date('2026-06-16T00:00:00'), 'pt-BR');
+    expect(result.charAt(0)).toBe(result.charAt(0).toUpperCase());
   });
 });

@@ -4,7 +4,9 @@ import Link from 'next/link';
 import type { StaffBookingCardResponse } from '@ikaro/types';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
+import { addDays, isSameDay } from '@/lib/utils/date-utils';
 
 export type BookingCardVariant = 'action-needed' | 'today' | 'upcoming';
 
@@ -31,13 +33,6 @@ const STATUS_LABEL: Record<string, string> = {
   COMPLETED: 'Concluído',
 };
 
-function formatDuration(mins: number): string {
-  if (mins < 60) return `${mins} min`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m > 0 ? `${h} h ${m} min` : `${h} h`;
-}
-
 function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Element {
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
   const scheduledAt = new Date(booking.scheduledAt);
@@ -47,17 +42,11 @@ function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Ele
       ? formatTime(scheduledAt)
       : (() => {
           const today = new Date();
-          const tomorrow = new Date(today);
-          tomorrow.setDate(today.getDate() + 1);
+          const tomorrow = addDays(today, 1);
 
-          const sameDay = (a: Date, b: Date) =>
-            a.getFullYear() === b.getFullYear() &&
-            a.getMonth() === b.getMonth() &&
-            a.getDate() === b.getDate();
-
-          const prefix = sameDay(scheduledAt, today)
+          const prefix = isSameDay(scheduledAt, today)
             ? 'Hoje'
-            : sameDay(scheduledAt, tomorrow)
+            : isSameDay(scheduledAt, tomorrow)
               ? 'Amanhã'
               : formatDateLong(scheduledAt);
 

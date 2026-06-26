@@ -19,8 +19,8 @@ vi.mock('@/lib/api/dashboard/bookings', () => ({
   getBooking: (...args: unknown[]) => mockGetBooking(...args),
 }));
 
-vi.mock('@/lib/api/bff-client', () => ({
-  getTenantId: vi.fn().mockReturnValue('t-1'),
+vi.mock('@/providers/tenant-provider', () => ({
+  useTenant: vi.fn().mockReturnValue({ tenantId: 't-1', tenantSlug: 'lavacar-bh' }),
 }));
 
 function wrapper({ children }: { readonly children: React.ReactNode }) {

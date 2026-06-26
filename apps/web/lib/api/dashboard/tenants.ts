@@ -7,6 +7,7 @@ import type {
   TenantFormattingResponse,
 } from '@ikaro/types';
 import { bffClient } from '../bff-client';
+import { bffServerFetch } from '../bff-server';
 
 export interface UpdateHotsiteModuleRequest {
   readonly type: string;
@@ -99,8 +100,7 @@ export async function featureBookingPhoto(
 
 // Server-side only — reads the auth cookie directly (called from layout server components).
 export async function fetchTenantFormatting(token: string): Promise<TenantFormattingResponse> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/tenants/formatting`, {
-    headers: { Cookie: `access_token=${token}` },
+  const res = await bffServerFetch(token, '/tenants/formatting', {
     next: { revalidate: 300 },
   });
   if (!res.ok) throw new Error(`Failed to fetch tenant formatting (${res.status})`);

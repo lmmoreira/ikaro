@@ -4,10 +4,10 @@ import {
   updateCustomerProfile,
   type UpdateCustomerProfileRequest,
 } from '@/lib/api/dashboard/customers';
-import { getTenantId } from '@/lib/api/bff-client';
+import { useTenant } from '@/providers/tenant-provider';
 
 export function useCustomerProfile() {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['customer', 'profile', tenantId],
     queryFn: getCustomerProfile,
@@ -16,7 +16,7 @@ export function useCustomerProfile() {
 
 export function useUpdateCustomerProfile() {
   const queryClient = useQueryClient();
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (body: UpdateCustomerProfileRequest) => updateCustomerProfile(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customer', 'profile', tenantId] }),

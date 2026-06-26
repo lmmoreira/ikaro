@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { bffServerFetch } from '@/lib/api/bff-server';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const token = (await cookies()).get('access_token')?.value;
@@ -11,12 +12,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const slug = request.nextUrl.searchParams.get('slug');
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/customers/me`, {
-      headers: {
-        Cookie: `access_token=${token}`,
-        ...(slug ? { 'X-Tenant-Slug': slug } : {}),
-      },
-      cache: 'no-store',
+    const res = await bffServerFetch(token, '/customers/me', {
+      headers: slug ? { 'X-Tenant-Slug': slug } : undefined,
     });
 
     const contentType = res.headers.get('content-type') ?? '';
@@ -42,15 +39,13 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
   try {
     const requestBody = await request.text();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/customers/me`, {
+    const res = await bffServerFetch(token, '/customers/me', {
       method: 'PATCH',
       headers: {
-        Cookie: `access_token=${token}`,
         'Content-Type': 'application/json',
         ...(slug ? { 'X-Tenant-Slug': slug } : {}),
       },
       body: requestBody,
-      cache: 'no-store',
     });
 
     const contentType = res.headers.get('content-type') ?? '';

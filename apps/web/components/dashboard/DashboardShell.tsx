@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { configureBffClient } from '@/lib/api/bff-client';
+import { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { BottomNav } from './BottomNav';
@@ -11,7 +10,6 @@ interface DashboardShellProps {
   readonly children: React.ReactNode;
   readonly tenantName: string;
   readonly tenantSlug: string;
-  readonly tenantId: string;
   readonly userName: string | null;
   readonly role: 'STAFF' | 'MANAGER';
 }
@@ -20,15 +18,10 @@ export function DashboardShell({
   children,
   tenantName,
   tenantSlug,
-  tenantId,
   userName,
   role,
 }: DashboardShellProps): React.JSX.Element {
   const [sheetOpen, setSheetOpen] = useState(false);
-
-  useEffect(() => {
-    configureBffClient({ token: '', tenantSlug, tenantId });
-  }, [tenantSlug, tenantId]);
 
   return (
     <div className="flex min-h-screen">

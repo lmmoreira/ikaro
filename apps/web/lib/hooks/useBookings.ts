@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import type { StaffBookingListResponse } from '@ikaro/types';
 import { getBooking, listBookings, type BookingListFilters } from '@/lib/api/dashboard/bookings';
-import { getTenantId } from '@/lib/api/bff-client';
+import { useTenant } from '@/providers/tenant-provider';
 
 export function useBookings(filters?: BookingListFilters) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['bookings', tenantId, filters],
     queryFn: () => listBookings(filters),
@@ -12,7 +12,7 @@ export function useBookings(filters?: BookingListFilters) {
 }
 
 export function useBooking(id: string) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['bookings', tenantId, id],
     queryFn: () => getBooking(id),
@@ -34,7 +34,7 @@ export function useActionNeededBookings(
   to: string,
   initialData?: StaffBookingListResponse,
 ) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['bookings', 'action-needed', tenantId, from, to],
     queryFn: () => fetchBookingsViaProxy({ status: 'PENDING,INFO_REQUESTED', from, to }),
@@ -43,7 +43,7 @@ export function useActionNeededBookings(
 }
 
 export function useTodayBookings(date: string, initialData?: StaffBookingListResponse) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['bookings', 'today', tenantId, date],
     queryFn: () => fetchBookingsViaProxy({ status: 'APPROVED', date }),
@@ -56,7 +56,7 @@ export function useUpcomingBookings(
   to: string,
   initialData?: StaffBookingListResponse,
 ) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['bookings', 'upcoming', tenantId, from, to],
     queryFn: () => fetchBookingsViaProxy({ status: 'APPROVED', from, to }),

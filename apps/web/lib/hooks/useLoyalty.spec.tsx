@@ -41,8 +41,8 @@ vi.mock('@/lib/api/dashboard/loyalty', () => ({
   }),
 }));
 
-vi.mock('@/lib/api/bff-client', () => ({
-  getTenantId: vi.fn().mockReturnValue('t-1'),
+vi.mock('@/providers/tenant-provider', () => ({
+  useTenant: vi.fn().mockReturnValue({ tenantId: 't-1', tenantSlug: 'lavacar-bh' }),
 }));
 
 function wrapper({ children }: { readonly children: React.ReactNode }) {

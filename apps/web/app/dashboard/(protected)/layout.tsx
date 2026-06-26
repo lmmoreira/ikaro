@@ -4,6 +4,7 @@ import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
 import { resolveDateFormat } from '@/lib/formatting/locale-validators';
 import { LocaleProvider } from '@/providers/locale-provider';
 import { FormattingProvider } from '@/providers/formatting-provider';
+import { TenantProvider } from '@/providers/tenant-provider';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { fetchTenantFormatting } from '@/lib/api/dashboard/tenants';
 
@@ -40,15 +41,16 @@ export default async function ProtectedLayout({
         dateFormat={resolveDateFormat(formatting.dateFormat)}
         timeFormat={formatting.timeFormat}
       >
-        <DashboardShell
-          tenantName={tenantName}
-          tenantSlug={tenantSlug}
-          tenantId={tenantId}
-          userName={userName}
-          role={role}
-        >
-          {children}
-        </DashboardShell>
+        <TenantProvider tenantId={tenantId} tenantSlug={tenantSlug}>
+          <DashboardShell
+            tenantName={tenantName}
+            tenantSlug={tenantSlug}
+            userName={userName}
+            role={role}
+          >
+            {children}
+          </DashboardShell>
+        </TenantProvider>
       </FormattingProvider>
     </LocaleProvider>
   );

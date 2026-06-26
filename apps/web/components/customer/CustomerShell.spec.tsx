@@ -3,11 +3,6 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CustomerShell } from './CustomerShell';
 
-const { mockConfigureBffClient } = vi.hoisted(() => ({
-  mockConfigureBffClient: vi.fn(),
-}));
-vi.mock('@/lib/api/bff-client', () => ({ configureBffClient: mockConfigureBffClient }));
-
 vi.mock('next/navigation', () => ({
   usePathname: () => '/lavacar-bh/my-account',
 }));
@@ -29,21 +24,10 @@ import { fetchCustomerTenants } from '@/lib/api/auth';
 const DEFAULT_PROPS = {
   tenantName: 'Lavacar BH',
   tenantSlug: 'lavacar-bh',
-  tenantId: '10000000-0000-4000-8000-000000000001',
   userName: 'Ana Pereira',
 } as const;
 
 describe('CustomerShell', () => {
-  it('calls configureBffClient with tenantSlug and tenantId on mount', () => {
-    render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
-
-    expect(mockConfigureBffClient).toHaveBeenCalledWith({
-      token: '',
-      tenantSlug: 'lavacar-bh',
-      tenantId: '10000000-0000-4000-8000-000000000001',
-    });
-  });
-
   it('renders children inside the main content area', () => {
     render(
       <CustomerShell {...DEFAULT_PROPS}>
@@ -130,12 +114,7 @@ describe('CustomerShell', () => {
 
   it('handles null userName gracefully (shows ? initials)', () => {
     render(
-      <CustomerShell
-        tenantName="Lavacar BH"
-        tenantSlug="lavacar-bh"
-        tenantId="10000000-0000-4000-8000-000000000001"
-        userName={null}
-      >
+      <CustomerShell tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName={null}>
         x
       </CustomerShell>,
     );

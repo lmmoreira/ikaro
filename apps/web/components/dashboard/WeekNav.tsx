@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useFormatting } from '@/lib/formatting/use-formatting';
 import { isSameDay, toDateKey } from '@/lib/utils/date-utils';
 
 export interface WeekNavProps {
@@ -16,12 +17,6 @@ export interface WeekNavProps {
 
 const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-function formatMonthYear(date: Date): string {
-  const month = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(date);
-  const year = date.getFullYear();
-  return `${month.charAt(0).toUpperCase() + month.slice(1)} ${year}`;
-}
-
 export function WeekNav({
   windowStart,
   windowDays,
@@ -32,6 +27,7 @@ export function WeekNav({
   disableNext = false,
   activeDates,
 }: WeekNavProps): React.JSX.Element {
+  const { formatMonthYear } = useFormatting();
   const days: Date[] = [];
   for (let i = 0; i < windowDays; i++) {
     const d = new Date(windowStart);

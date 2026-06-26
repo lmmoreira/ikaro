@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { bffServerFetch } from '@/lib/api/bff-server';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const token = (await cookies()).get('access_token')?.value;
@@ -8,18 +9,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const searchParams = request.nextUrl.searchParams;
-  const upstream = new URL(`${process.env.NEXT_PUBLIC_BFF_URL}/bookings`);
-
-  for (const [key, value] of searchParams.entries()) {
-    upstream.searchParams.set(key, value);
+  const upstream = new URLSearchParams();
+  for (const [key, value] of request.nextUrl.searchParams.entries()) {
+    upstream.set(key, value);
   }
+  const query = upstream.toString();
 
   try {
-    const res = await fetch(upstream.toString(), {
-      headers: { Cookie: `access_token=${token}` },
-      cache: 'no-store',
-    });
+    const res = await bffServerFetch(token, `/bookings${query ? `?${query}` : ''}`);
 
     const contentType = res.headers.get('content-type') ?? '';
     const body =

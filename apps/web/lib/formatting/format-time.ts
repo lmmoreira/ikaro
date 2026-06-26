@@ -42,3 +42,9 @@ export function formatDateLong(date: Date, locale: string): string {
   }).format(date);
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
+
+export function formatMonthYear(date: Date, locale: string): string {
+  const month = new Intl.DateTimeFormat(locale, { month: 'long' }).format(date);
+  const year = date.getFullYear();
+  return `${month.charAt(0).toUpperCase() + month.slice(1)} ${year}`;
+}

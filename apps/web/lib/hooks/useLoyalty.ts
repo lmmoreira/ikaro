@@ -10,10 +10,10 @@ import {
   type LoyaltyPaginationQuery,
   type RedeemPointsRequest,
 } from '@/lib/api/dashboard/loyalty';
-import { getTenantId } from '@/lib/api/bff-client';
+import { useTenant } from '@/providers/tenant-provider';
 
 export function useLoyaltyBalance() {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['loyalty', 'balance', tenantId],
     queryFn: getLoyaltyBalance,
@@ -21,7 +21,7 @@ export function useLoyaltyBalance() {
 }
 
 export function useLoyaltyEntries(query?: LoyaltyPaginationQuery) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['loyalty', 'entries', tenantId, query],
     queryFn: () => getLoyaltyEntries(query),
@@ -29,7 +29,7 @@ export function useLoyaltyEntries(query?: LoyaltyPaginationQuery) {
 }
 
 export function useLoyaltyRedemptions(query?: LoyaltyPaginationQuery) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['loyalty', 'redemptions', tenantId, query],
     queryFn: () => getLoyaltyRedemptions(query),
@@ -37,7 +37,7 @@ export function useLoyaltyRedemptions(query?: LoyaltyPaginationQuery) {
 }
 
 export function useCustomerLoyaltyBalance(customerId: string) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['loyalty', 'balance', tenantId, customerId],
     queryFn: () => getCustomerLoyaltyBalance(customerId),
@@ -46,7 +46,7 @@ export function useCustomerLoyaltyBalance(customerId: string) {
 }
 
 export function useCustomerLoyaltyEntries(customerId: string, query?: LoyaltyPaginationQuery) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['loyalty', 'entries', tenantId, customerId, query],
     queryFn: () => getCustomerLoyaltyEntries(customerId, query),
@@ -55,7 +55,7 @@ export function useCustomerLoyaltyEntries(customerId: string, query?: LoyaltyPag
 }
 
 export function useCustomerLoyaltyRedemptions(customerId: string, query?: LoyaltyPaginationQuery) {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['loyalty', 'redemptions', tenantId, customerId, query],
     queryFn: () => getCustomerLoyaltyRedemptions(customerId, query),
@@ -65,12 +65,12 @@ export function useCustomerLoyaltyRedemptions(customerId: string, query?: Loyalt
 
 export function useRedeemPoints() {
   const queryClient = useQueryClient();
+  const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (body: RedeemPointsRequest) => redeemPoints(body),
     onSuccess: () =>
       queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey[0] === 'loyalty' && query.queryKey[2] === getTenantId(),
+        predicate: (query) => query.queryKey[0] === 'loyalty' && query.queryKey[2] === tenantId,
       }),
   });
 }

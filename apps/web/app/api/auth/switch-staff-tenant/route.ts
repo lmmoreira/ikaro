@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { bffServerFetch } from '@/lib/api/bff-server';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const token = (await cookies()).get('access_token')?.value;
@@ -10,11 +11,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const requestBody = await request.text();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/auth/switch-staff-tenant`, {
+    const res = await bffServerFetch(token, '/auth/switch-staff-tenant', {
       method: 'POST',
-      headers: { Cookie: `access_token=${token}`, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: requestBody,
-      cache: 'no-store',
       signal: AbortSignal.timeout(5000),
     });
 

@@ -79,7 +79,7 @@ describe('BookingCard — action-needed variant', () => {
 
   it('renders duration in human-readable format', () => {
     render(<BookingCard booking={makeBooking()} variant="action-needed" />);
-    expect(screen.getByText(/1 h 30 min/)).toBeInTheDocument();
+    expect(screen.getByText(/1h 30min/)).toBeInTheDocument();
   });
 
   it('renders PENDING status badge with yellow classes', () => {

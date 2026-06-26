@@ -8,7 +8,7 @@ import {
   useTodayBookings,
   useUpcomingBookings,
 } from '@/lib/hooks/useBookings';
-import { addDays, isSameDay, toDateKey } from '@/lib/utils/date-utils';
+import { addDays, inWindow, isSameDay, toDateKey } from '@/lib/utils/date-utils';
 import { BookingCard } from './BookingCard';
 
 export interface BookingQueuePageProps {
@@ -18,10 +18,6 @@ export interface BookingQueuePageProps {
   readonly today: string;
   readonly tomorrow: string;
   readonly welcomeStaffScreenDays: number;
-}
-
-function inWindow(date: Date, windowStart: Date, windowEnd: Date): boolean {
-  return date >= windowStart && date <= windowEnd;
 }
 
 export function BookingQueuePage({

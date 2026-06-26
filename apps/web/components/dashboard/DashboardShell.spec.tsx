@@ -4,11 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { DashboardShell } from './DashboardShell';
 
-const { mockConfigureBffClient } = vi.hoisted(() => ({
-  mockConfigureBffClient: vi.fn(),
-}));
-vi.mock('@/lib/api/bff-client', () => ({ configureBffClient: mockConfigureBffClient }));
-
 vi.mock('./Sidebar', () => ({ Sidebar: () => <aside data-testid="sidebar" /> }));
 vi.mock('./Topbar', () => ({ Topbar: () => <header data-testid="topbar" /> }));
 vi.mock('./BottomNav', () => ({
@@ -29,7 +24,6 @@ vi.mock('./ManagerSheet', () => ({
 const DEFAULT_PROPS = {
   tenantName: 'Lavacar BH',
   tenantSlug: 'lavacar-bh',
-  tenantId: '10000000-0000-4000-8000-000000000001',
   userName: 'Ana Pereira',
 } as const;
 
@@ -37,20 +31,6 @@ const STAFF = 'STAFF' as const;
 const MANAGER = 'MANAGER' as const;
 
 describe('DashboardShell', () => {
-  it('calls configureBffClient with tenantSlug and tenantId on mount', () => {
-    render(
-      <DashboardShell {...DEFAULT_PROPS} role={STAFF}>
-        children
-      </DashboardShell>,
-    );
-
-    expect(mockConfigureBffClient).toHaveBeenCalledWith({
-      token: '',
-      tenantSlug: 'lavacar-bh',
-      tenantId: '10000000-0000-4000-8000-000000000001',
-    });
-  });
-
   it('renders provided children inside the main area', () => {
     render(
       <DashboardShell {...DEFAULT_PROPS} role={STAFF}>

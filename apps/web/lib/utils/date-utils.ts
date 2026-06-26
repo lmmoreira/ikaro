@@ -15,3 +15,7 @@ export function isSameDay(a: Date, b: Date): boolean {
     a.getDate() === b.getDate()
   );
 }
+
+export function inWindow(date: Date, windowStart: Date, windowEnd: Date): boolean {
+  return date >= windowStart && date <= windowEnd;
+}
