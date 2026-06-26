@@ -195,7 +195,11 @@ describe('middleware', () => {
   });
 
   it('redirects when the CUSTOMER token has no exp claim', () => {
-    const noExpCustomerToken = makeToken({ sub: 'customer-id', tenantSlug: 'lavacar-bh', role: 'CUSTOMER' });
+    const noExpCustomerToken = makeToken({
+      sub: 'customer-id',
+      tenantSlug: 'lavacar-bh',
+      role: 'CUSTOMER',
+    });
     const response = middleware(makeRequest('/lavacar-bh/my-account', noExpCustomerToken));
 
     expect(response.status).toBe(307);

@@ -16,7 +16,13 @@ async function resolveMyAccountContext(slug: string) {
   const locale = resolveSupportedLocale(payload.locale ?? 'pt-BR');
   const messages = await getMessages(locale);
   // Middleware validates tenantSlug matches the route slug before this runs — use slug directly.
-  return { tenantName: payload.tenantName ?? '', tenantSlug: slug, userName: payload.userName ?? null, locale, messages };
+  return {
+    tenantName: payload.tenantName ?? '',
+    tenantSlug: slug,
+    userName: payload.userName ?? null,
+    locale,
+    messages,
+  };
 }
 
 export default async function MyAccountLayout({
@@ -24,7 +30,8 @@ export default async function MyAccountLayout({
   params,
 }: MyAccountLayoutProps): Promise<React.JSX.Element> {
   const { slug } = await params;
-  const { tenantName, tenantSlug, userName, locale, messages } = await resolveMyAccountContext(slug);
+  const { tenantName, tenantSlug, userName, locale, messages } =
+    await resolveMyAccountContext(slug);
 
   return (
     <LocaleProvider locale={locale} messages={messages}>

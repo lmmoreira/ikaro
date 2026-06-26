@@ -14,7 +14,11 @@ interface CustomerTopbarProps {
   readonly userName: string | null;
 }
 
-export function CustomerTopbar({ tenantName, tenantSlug, userName }: CustomerTopbarProps): React.JSX.Element {
+export function CustomerTopbar({
+  tenantName,
+  tenantSlug,
+  userName,
+}: CustomerTopbarProps): React.JSX.Element {
   const t = useTranslations('customer');
   const initials = getInitials(userName);
   const logoutUrl = `${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${tenantSlug}`;

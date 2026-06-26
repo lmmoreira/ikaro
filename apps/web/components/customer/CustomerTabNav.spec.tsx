@@ -28,7 +28,9 @@ describe('CustomerTabNav', () => {
     render(<CustomerTabNav tenantSlug="lavacar-bh" />);
 
     const nav = screen.getByRole('navigation', { name: 'customer-tabs' });
-    expect(nav.querySelector('a[href="/lavacar-bh/my-account"]')?.className).toContain('border-blue-600');
+    expect(nav.querySelector('a[href="/lavacar-bh/my-account"]')?.className).toContain(
+      'border-blue-600',
+    );
   });
 
   it('does not mark home as active on a nested route', () => {
@@ -36,8 +38,12 @@ describe('CustomerTabNav', () => {
     render(<CustomerTabNav tenantSlug="lavacar-bh" />);
 
     const nav = screen.getByRole('navigation', { name: 'customer-tabs' });
-    expect(nav.querySelector('a[href="/lavacar-bh/my-account"]')?.className).toContain('border-transparent');
-    expect(nav.querySelector('a[href="/lavacar-bh/my-account/bookings"]')?.className).toContain('border-blue-600');
+    expect(nav.querySelector('a[href="/lavacar-bh/my-account"]')?.className).toContain(
+      'border-transparent',
+    );
+    expect(nav.querySelector('a[href="/lavacar-bh/my-account/bookings"]')?.className).toContain(
+      'border-blue-600',
+    );
   });
 
   it('uses the provided tenantSlug in all href values', () => {
