@@ -437,3 +437,32 @@ X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
 X-Actor-Type: STAFF
 X-Actor-Role: STAFF
+
+###
+
+# ─── GET /tenants/formatting ─────────────────────────────────────────────────
+
+### 200 — Staff or Manager retrieves tenant formatting settings
+GET {{baseUrl}}/tenants/formatting
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+###
+
+### 200 — Manager retrieves tenant formatting settings
+GET {{baseUrl}}/tenants/formatting
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### 404 — Tenant not found
+GET {{baseUrl}}/tenants/formatting
+X-Tenant-ID: 00000000-0000-0000-0000-000000000000
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF

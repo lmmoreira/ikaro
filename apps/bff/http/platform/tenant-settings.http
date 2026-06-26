@@ -163,3 +163,22 @@ Content-Type: application/json
 {
   "settings": { "businessHours": { "timezone": "Not/AZone" } }
 }
+
+###
+
+# ─── GET /v1/tenants/formatting ──────────────────────────────────────────────
+
+### 200 — Staff retrieves tenant formatting (locale, currency, timezone, dateFormat, timeFormat)
+GET {{bffUrl}}/v1/tenants/formatting
+Authorization: Bearer {{staffToken}}
+
+###
+
+### 200 — Manager retrieves tenant formatting
+GET {{bffUrl}}/v1/tenants/formatting
+Authorization: Bearer {{managerToken}}
+
+###
+
+### 401 — No auth token
+GET {{bffUrl}}/v1/tenants/formatting
