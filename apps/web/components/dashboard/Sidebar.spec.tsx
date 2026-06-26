@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sidebar } from './Sidebar';
 
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
@@ -22,6 +22,9 @@ vi.mock('next/link', () => ({
 
 import { usePathname } from 'next/navigation';
 
+const STAFF = 'STAFF' as const;
+const MANAGER = 'MANAGER' as const;
+
 beforeEach(() => {
   vi.mocked(usePathname).mockReturnValue('/dashboard/bookings');
   process.env.NEXT_PUBLIC_BFF_URL = 'http://bff:3002/v1';
@@ -38,7 +41,7 @@ describe('Sidebar', () => {
         tenantName="Lavacar BH"
         tenantSlug="lavacar-bh"
         userName="Ana Pereira"
-        role="STAFF"
+        role={STAFF}
       />,
     );
 
@@ -52,7 +55,7 @@ describe('Sidebar', () => {
         tenantName="Lavacar BH"
         tenantSlug="lavacar-bh"
         userName="Carlos Gomes"
-        role="STAFF"
+        role={STAFF}
       />,
     );
 
@@ -60,7 +63,7 @@ describe('Sidebar', () => {
   });
 
   it('renders the core nav items for all roles', () => {
-    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role="STAFF" />);
+    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role={STAFF} />);
 
     expect(screen.getByText('Agenda')).toBeInTheDocument();
     expect(screen.getByText('Horários')).toBeInTheDocument();
@@ -70,7 +73,7 @@ describe('Sidebar', () => {
 
   it('shows the manager-only section for MANAGER role', () => {
     render(
-      <Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Carlos" role="MANAGER" />,
+      <Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Carlos" role={MANAGER} />,
     );
 
     expect(screen.getByText('Equipe')).toBeInTheDocument();
@@ -80,14 +83,14 @@ describe('Sidebar', () => {
   });
 
   it('hides the manager-only section for STAFF role', () => {
-    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role="STAFF" />);
+    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role={STAFF} />);
 
     expect(screen.queryByText('Equipe')).not.toBeInTheDocument();
     expect(screen.queryByText('Somente Gerente')).not.toBeInTheDocument();
   });
 
   it('shows the logout link pointing to the BFF logout route', () => {
-    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role="STAFF" />);
+    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role={STAFF} />);
 
     const logoutLink = screen.getByTitle('Sair');
     expect(logoutLink).toHaveAttribute(
@@ -98,7 +101,7 @@ describe('Sidebar', () => {
 
   it('applies active class to the item matching the current pathname', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/services');
-    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role="STAFF" />);
+    render(<Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="Ana" role={STAFF} />);
 
     const servicesLink = screen.getByText('Serviços').closest('a');
     expect(servicesLink?.className).toContain('bg-blue-600');
@@ -109,7 +112,7 @@ describe('Sidebar', () => {
 
   it('uses "?" as initials when userName is null', () => {
     render(
-      <Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName={null} role="STAFF" />,
+      <Sidebar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName={null} role={STAFF} />,
     );
 
     expect(screen.getByText('?')).toBeInTheDocument();

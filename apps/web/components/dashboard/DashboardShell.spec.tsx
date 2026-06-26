@@ -27,10 +27,13 @@ const DEFAULT_PROPS = {
   userName: 'Ana Pereira',
 } as const;
 
+const STAFF = 'STAFF' as const;
+const MANAGER = 'MANAGER' as const;
+
 describe('DashboardShell', () => {
   it('renders provided children inside the main area', () => {
     render(
-      <DashboardShell {...DEFAULT_PROPS} role="STAFF">
+      <DashboardShell {...DEFAULT_PROPS} role={STAFF}>
         <p>Conteúdo da página</p>
       </DashboardShell>,
     );
@@ -40,7 +43,7 @@ describe('DashboardShell', () => {
 
   it('renders Sidebar and Topbar', () => {
     render(
-      <DashboardShell {...DEFAULT_PROPS} role="STAFF">
+      <DashboardShell {...DEFAULT_PROPS} role={STAFF}>
         children
       </DashboardShell>,
     );
@@ -51,7 +54,7 @@ describe('DashboardShell', () => {
 
   it('renders ManagerSheet for MANAGER role', () => {
     render(
-      <DashboardShell {...DEFAULT_PROPS} role="MANAGER">
+      <DashboardShell {...DEFAULT_PROPS} role={MANAGER}>
         children
       </DashboardShell>,
     );
@@ -61,7 +64,7 @@ describe('DashboardShell', () => {
 
   it('does not render ManagerSheet for STAFF role', () => {
     render(
-      <DashboardShell {...DEFAULT_PROPS} role="STAFF">
+      <DashboardShell {...DEFAULT_PROPS} role={STAFF}>
         children
       </DashboardShell>,
     );
@@ -71,7 +74,7 @@ describe('DashboardShell', () => {
 
   it('opens the ManagerSheet when BottomNav triggers onOpenSheet', async () => {
     render(
-      <DashboardShell {...DEFAULT_PROPS} role="MANAGER">
+      <DashboardShell {...DEFAULT_PROPS} role={MANAGER}>
         children
       </DashboardShell>,
     );
@@ -85,7 +88,7 @@ describe('DashboardShell', () => {
 
   it('closes the ManagerSheet when onClose is called', async () => {
     render(
-      <DashboardShell {...DEFAULT_PROPS} role="MANAGER">
+      <DashboardShell {...DEFAULT_PROPS} role={MANAGER}>
         children
       </DashboardShell>,
     );
