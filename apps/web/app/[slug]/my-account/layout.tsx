@@ -9,22 +9,22 @@ interface MyAccountLayoutProps {
   readonly params: Promise<{ readonly slug: string }>;
 }
 
+async function resolveMyAccountContext(slug: string) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('access_token')?.value ?? '';
+  const payload = decodeJwtPayload(token);
+  const locale = resolveSupportedLocale(payload.locale ?? 'pt-BR');
+  const messages = await getMessages(locale);
+  // Middleware validates tenantSlug matches the route slug before this runs — use slug directly.
+  return { tenantName: payload.tenantName ?? '', tenantSlug: slug, userName: payload.userName ?? null, locale, messages };
+}
+
 export default async function MyAccountLayout({
   children,
   params,
 }: MyAccountLayoutProps): Promise<React.JSX.Element> {
   const { slug } = await params;
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value ?? '';
-  const payload = decodeJwtPayload(token);
-
-  // Middleware already rejects non-CUSTOMER tokens and slug mismatches before this layout runs.
-  const tenantName = payload.tenantName ?? '';
-  const tenantSlug = payload.tenantSlug ?? slug;
-  const userName = payload.userName ?? null;
-
-  const locale = resolveSupportedLocale(payload.locale ?? 'pt-BR');
-  const messages = await getMessages(locale);
+  const { tenantName, tenantSlug, userName, locale, messages } = await resolveMyAccountContext(slug);
 
   return (
     <LocaleProvider locale={locale} messages={messages}>

@@ -10,25 +10,16 @@ vi.mock('next/navigation', () => ({
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, string>) => {
     if (key === 'topbar.backToSite' && params?.tenantName) return `← ${params.tenantName} site`;
+    if (key === 'topbar.switchTenant') return 'Trocar empresa';
     return key;
   },
 }));
 
-vi.mock('next/link', () => ({
-  default: ({
-    href,
-    children,
-    className,
-  }: {
-    href: string;
-    children: React.ReactNode;
-    className?: string;
-  }) => (
-    <a href={href} className={className}>
-      {children}
-    </a>
-  ),
+vi.mock('@/lib/api/auth', () => ({
+  fetchCustomerTenants: vi.fn().mockResolvedValue([]),
 }));
+
+import { fetchCustomerTenants } from '@/lib/api/auth';
 
 const DEFAULT_PROPS = {
   tenantName: 'Lavacar BH',
@@ -51,12 +42,6 @@ describe('CustomerShell', () => {
     render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
 
     expect(screen.getByText('Lavacar BH')).toBeInTheDocument();
-  });
-
-  it('shows the user name in the avatar dropdown', () => {
-    render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
-
-    expect(screen.getByTestId('dropdown-user-name')).toHaveTextContent('Ana Pereira');
   });
 
   it('shows the user name on desktop next to avatar (topbar-user-name)', () => {
@@ -115,13 +100,16 @@ describe('CustomerShell', () => {
   });
 
   it('renders the sign-out link pointing to BFF logout', () => {
+    process.env.NEXT_PUBLIC_BFF_URL = 'https://bff.example.com';
     render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
 
     const logoutLink = screen
       .getAllByRole('link')
       .find((el) => el.getAttribute('href')?.includes('/auth/logout'));
     expect(logoutLink).toBeInTheDocument();
-    expect(logoutLink?.getAttribute('href')).toContain('tenantSlug=lavacar-bh');
+    expect(logoutLink?.getAttribute('href')).toBe(
+      'https://bff.example.com/auth/logout?tenantSlug=lavacar-bh',
+    );
   });
 
   it('handles null userName gracefully (shows ? initials)', () => {
@@ -131,6 +119,31 @@ describe('CustomerShell', () => {
       </CustomerShell>,
     );
 
-    expect(screen.getByTestId('dropdown-user-name')).toHaveTextContent('');
+    // Avatar fallback shows ? when userName is null — no throw
+    expect(screen.getByTestId('topbar-user-name')).toHaveTextContent('');
+  });
+
+  it('shows "Trocar empresa" link when customer has multiple tenants', async () => {
+    vi.mocked(fetchCustomerTenants).mockResolvedValueOnce([
+      { id: 'a', name: 'Tenant A', slug: 'tenant-a', loyaltyPoints: 0 },
+      { id: 'b', name: 'Tenant B', slug: 'tenant-b', loyaltyPoints: 0 },
+    ]);
+
+    render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
+
+    const link = await screen.findByTestId('switch-tenant-link');
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/switch-tenant');
+  });
+
+  it('hides "Trocar empresa" link when customer has only one tenant', async () => {
+    vi.mocked(fetchCustomerTenants).mockResolvedValueOnce([
+      { id: 'a', name: 'Tenant A', slug: 'tenant-a', loyaltyPoints: 0 },
+    ]);
+
+    render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
+
+    await screen.findByTestId('topbar-user-name');
+    expect(screen.queryByTestId('switch-tenant-link')).not.toBeInTheDocument();
   });
 });

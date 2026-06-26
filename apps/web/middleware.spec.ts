@@ -106,6 +106,14 @@ describe('middleware', () => {
     expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
   });
 
+  it('redirects when the STAFF token has no exp claim', () => {
+    const noExpStaffToken = makeToken({ sub: 'staff-id', role: 'STAFF' });
+    const response = middleware(makeRequest('/dashboard/bookings', noExpStaffToken));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
+  });
+
   it('passes through a non-dashboard route without a token', () => {
     const response = middleware(makeRequest('/lavacar-beloauto'));
 
@@ -181,6 +189,14 @@ describe('middleware', () => {
       exp: Math.floor(Date.now() / 1000) - 60,
     });
     const response = middleware(makeRequest('/lavacar-bh/my-account', expiredCustomerToken));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');
+  });
+
+  it('redirects when the CUSTOMER token has no exp claim', () => {
+    const noExpCustomerToken = makeToken({ sub: 'customer-id', tenantSlug: 'lavacar-bh', role: 'CUSTOMER' });
+    const response = middleware(makeRequest('/lavacar-bh/my-account', noExpCustomerToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');

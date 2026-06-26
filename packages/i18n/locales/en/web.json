@@ -201,6 +201,7 @@
     "topbar": {
       "newBooking": "New booking",
       "backToSite": "{tenantName} site",
+      "switchTenant": "Switch company",
       "signOut": "Sign out"
     }
   },

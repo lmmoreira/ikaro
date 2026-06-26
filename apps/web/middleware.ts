@@ -23,7 +23,7 @@ function isValidStaffToken(token: string): boolean {
   const claims = decodeJwtClaims(token);
   if (!claims.role) return false;
   if (claims.role !== 'STAFF' && claims.role !== 'MANAGER') return false;
-  if (claims.exp !== undefined && Date.now() / 1000 > claims.exp) return false;
+  if (!claims.exp || Date.now() / 1000 > claims.exp) return false;
   return true;
 }
 
@@ -34,7 +34,7 @@ function isValidCustomerToken(token: string, slugFromPath: string): boolean {
   const claims = decodeJwtClaims(token);
   if (!claims.role) return false;
   if (claims.role !== 'CUSTOMER') return false;
-  if (claims.exp !== undefined && Date.now() / 1000 > claims.exp) return false;
+  if (!claims.exp || Date.now() / 1000 > claims.exp) return false;
   if (claims.tenantSlug !== slugFromPath) return false;
   return true;
 }

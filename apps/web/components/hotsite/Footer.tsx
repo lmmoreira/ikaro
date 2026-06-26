@@ -1,14 +1,11 @@
 import type { FooterModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
+import { digitsOnly } from '@/lib/utils/digits-only';
 
 interface FooterProps {
   readonly slug: string;
   readonly data: FooterModuleData;
   readonly tenantName: string;
   readonly business: HotsiteBusinessInfoResponse;
-}
-
-function digitsOnly(value: string): string {
-  return value.replace(/\D/g, '');
 }
 
 export function Footer({ slug: _, data, tenantName, business }: FooterProps): React.JSX.Element {

@@ -201,6 +201,7 @@
     "topbar": {
       "newBooking": "Novo agendamento",
       "backToSite": "Site {tenantName}",
+      "switchTenant": "Trocar empresa",
       "signOut": "Sair"
     }
   },

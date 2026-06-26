@@ -23,22 +23,6 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
-vi.mock('next/link', () => ({
-  default: ({
-    href,
-    children,
-    className,
-  }: {
-    href: string;
-    children: React.ReactNode;
-    className?: string;
-  }) => (
-    <a href={href} className={className}>
-      {children}
-    </a>
-  ),
-}));
-
 import { usePathname } from 'next/navigation';
 
 const STAFF = 'STAFF' as const;

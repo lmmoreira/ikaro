@@ -6,20 +6,13 @@ import { useTranslations } from 'next-intl';
 import { Calendar, Clock, Wrench, Star, Users, Settings, Globe, LogOut } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { getInitials } from '@/lib/utils/initials';
 
 interface SidebarProps {
   readonly tenantName: string;
   readonly tenantSlug: string;
   readonly userName: string | null;
   readonly role: 'STAFF' | 'MANAGER';
-}
-
-function getInitials(name: string | null): string {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? '?';
-  const last = parts.length > 1 ? (parts.at(-1)?.[0] ?? '') : '';
-  return `${first}${last}`.toUpperCase();
 }
 
 const MAIN_NAV_KEYS = [
