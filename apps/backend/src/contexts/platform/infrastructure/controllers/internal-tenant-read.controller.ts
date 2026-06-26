@@ -40,7 +40,7 @@ export class InternalTenantReadController {
   // Batch lookup — used by BFF to resolve multiple tenant IDs in a single call.
   // Must be declared before :tenantId to avoid route shadowing.
   @Get()
-  getTenantsByIdsRoute(
+  async getTenantsByIdsRoute(
     @Query('ids') ids: string | undefined,
   ): Promise<GetTenantsByIdsUseCaseResult[]> {
     if (!ids?.trim()) {
