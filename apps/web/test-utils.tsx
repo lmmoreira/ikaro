@@ -14,7 +14,6 @@ const FORMATTING_DEFAULTS: Record<
     timezone: string;
     dateFormat: DateFormat;
     timeFormat: '24h' | '12h';
-    welcomeStaffScreenDays: number;
   }
 > = {
   'pt-BR': {
@@ -22,14 +21,12 @@ const FORMATTING_DEFAULTS: Record<
     timezone: 'America/Sao_Paulo',
     dateFormat: 'DD/MM/YYYY',
     timeFormat: '24h',
-    welcomeStaffScreenDays: 14,
   },
   en: {
     currency: 'USD',
     timezone: 'America/New_York',
     dateFormat: 'MM/DD/YYYY',
     timeFormat: '12h',
-    welcomeStaffScreenDays: 14,
   },
 };
 

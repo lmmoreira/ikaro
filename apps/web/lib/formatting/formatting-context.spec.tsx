@@ -13,7 +13,6 @@ function DefaultConsumer(): React.JSX.Element {
       <span data-testid="timezone">{ctx.timezone}</span>
       <span data-testid="dateFormat">{ctx.dateFormat}</span>
       <span data-testid="timeFormat">{ctx.timeFormat}</span>
-      <span data-testid="welcomeStaffScreenDays">{ctx.welcomeStaffScreenDays}</span>
     </div>
   );
 }
@@ -27,7 +26,6 @@ describe('FormattingContext', () => {
     expect(screen.getByTestId('timezone')).toHaveTextContent('America/Sao_Paulo');
     expect(screen.getByTestId('dateFormat')).toHaveTextContent('DD/MM/YYYY');
     expect(screen.getByTestId('timeFormat')).toHaveTextContent('24h');
-    expect(screen.getByTestId('welcomeStaffScreenDays')).toHaveTextContent('14');
   });
 
   it('FormattingState interface has required fields with correct types', () => {
@@ -37,10 +35,8 @@ describe('FormattingContext', () => {
       timezone: 'America/New_York',
       dateFormat: 'MM/DD/YYYY',
       timeFormat: '12h',
-      welcomeStaffScreenDays: 14,
     };
     expect(state.dateFormat).toBe('MM/DD/YYYY');
     expect(state.timeFormat).toBe('12h');
-    expect(state.welcomeStaffScreenDays).toBe(14);
   });
 });

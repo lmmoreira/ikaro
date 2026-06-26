@@ -8,7 +8,6 @@ import {
   useTodayBookings,
   useUpcomingBookings,
 } from '@/lib/hooks/useBookings';
-import { useFormatting } from '@/lib/formatting/use-formatting';
 import { addDays, isSameDay, toDateKey } from '@/lib/utils/date-utils';
 import { BookingCard } from './BookingCard';
 
@@ -18,6 +17,7 @@ export interface BookingQueuePageProps {
   readonly initialUpcoming?: StaffBookingListResponse;
   readonly today: string;
   readonly tomorrow: string;
+  readonly welcomeStaffScreenDays: number;
 }
 
 function inWindow(date: Date, windowStart: Date, windowEnd: Date): boolean {
@@ -30,8 +30,8 @@ export function BookingQueuePage({
   initialUpcoming,
   today,
   tomorrow,
+  welcomeStaffScreenDays,
 }: BookingQueuePageProps): React.JSX.Element {
-  const { welcomeStaffScreenDays } = useFormatting();
   const windowDays = welcomeStaffScreenDays;
 
   const todayDate = useMemo(() => new Date(today + 'T00:00:00'), [today]);

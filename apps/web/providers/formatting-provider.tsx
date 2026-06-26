@@ -14,11 +14,10 @@ export function FormattingProvider({
   timezone,
   dateFormat,
   timeFormat,
-  welcomeStaffScreenDays,
 }: FormattingProviderProps): React.JSX.Element {
   const value = useMemo(
-    () => ({ locale, currency, timezone, dateFormat, timeFormat, welcomeStaffScreenDays }),
-    [locale, currency, timezone, dateFormat, timeFormat, welcomeStaffScreenDays],
+    () => ({ locale, currency, timezone, dateFormat, timeFormat }),
+    [locale, currency, timezone, dateFormat, timeFormat],
   );
 
   return <FormattingContext.Provider value={value}>{children}</FormattingContext.Provider>;

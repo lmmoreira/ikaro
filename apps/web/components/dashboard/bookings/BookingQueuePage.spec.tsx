@@ -15,16 +15,6 @@ vi.mock('@/lib/hooks/useBookings', () => ({
   useUpcomingBookings: (...args: unknown[]) => mockUseUpcoming(...args),
 }));
 
-vi.mock('@/lib/formatting/use-formatting', () => ({
-  useFormatting: () => ({
-    formatMoney: (n: number) => `R$ ${n}`,
-    formatDate: (d: Date) => d.toISOString().slice(0, 10),
-    formatDateLong: (d: Date) => d.toISOString().slice(0, 10),
-    formatTime: (d: Date) => d.toISOString().slice(11, 16),
-    welcomeStaffScreenDays: 14,
-  }),
-}));
-
 vi.mock('@/components/dashboard/WeekNav', () => ({
   WeekNav: ({
     windowStart,
@@ -81,7 +71,7 @@ function makeList(names: string[]): StaffBookingListResponse {
 const DEFAULT_PROPS = {
   today: '2026-06-26',
   tomorrow: '2026-06-27',
-  windowEndDefault: '2026-07-09',
+  welcomeStaffScreenDays: 14,
 };
 
 beforeEach(() => {

@@ -47,7 +47,6 @@ export default async function HotsiteLayout({
           timezone={timezone}
           dateFormat={resolvedDateFormat}
           timeFormat={timeFormat}
-          welcomeStaffScreenDays={14}
         >
           <InformationCompletionPrompt
             slug={slug}

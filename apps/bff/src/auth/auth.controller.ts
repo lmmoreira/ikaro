@@ -62,7 +62,7 @@ export class AuthController {
 
     if (profile.loginType === 'staff') {
       if (profile.tenantSlug) {
-        await this.handleStaffFirstLogin(profile, profile.tenantSlug, res, frontendUrl);
+        await this.handleStaffLogin(profile, profile.tenantSlug, res, frontendUrl);
       } else {
         // All staff entry points carry ?tenantSlug= (hotsite link, invite email).
         // A slug-less OAuth callback means someone reached /dashboard/login directly —
@@ -296,7 +296,7 @@ export class AuthController {
     };
   }
 
-  private async handleStaffFirstLogin(
+  private async handleStaffLogin(
     profile: GoogleProfile,
     tenantSlug: string,
     res: Response,
