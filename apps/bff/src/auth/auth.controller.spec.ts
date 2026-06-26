@@ -530,9 +530,9 @@ describe('AuthController', () => {
       const controller = new AuthController(jwtIssuer, backendHttp, configService);
       const dto: SwitchStaffTenantDto = { staffId: STAFF_ID_A };
 
-      await expect(controller.switchStaffTenant(dto, mockCurrentUser, makeRes())).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(
+        controller.switchStaffTenant(dto, mockCurrentUser, makeRes()),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 

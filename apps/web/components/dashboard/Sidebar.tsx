@@ -41,7 +41,12 @@ function navItemClass(active: boolean): string {
   );
 }
 
-export function Sidebar({ tenantName, tenantSlug, userName, role }: SidebarProps): React.JSX.Element {
+export function Sidebar({
+  tenantName,
+  tenantSlug,
+  userName,
+  role,
+}: SidebarProps): React.JSX.Element {
   const pathname = usePathname();
   const initials = getInitials(userName);
   const logoutUrl = `${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug=${tenantSlug}`;

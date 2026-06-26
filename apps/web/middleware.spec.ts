@@ -4,7 +4,10 @@ import { middleware } from './middleware';
 
 // Build a minimal base64url-encoded JWT payload (no real signature — middleware only decodes)
 function makeToken(claims: Record<string, unknown>): string {
-  const payload = btoa(JSON.stringify(claims)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const payload = btoa(JSON.stringify(claims))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
   return `header.${payload}.signature`;
 }
 

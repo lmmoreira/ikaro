@@ -45,7 +45,10 @@ describe('GetTenantsByIdsUseCase', () => {
   });
 
   it('returns a single tenant when given one ID', async () => {
-    const tenant = new TenantBuilder().withSlug('lavacar-centro').withName('Lavacar Centro').build();
+    const tenant = new TenantBuilder()
+      .withSlug('lavacar-centro')
+      .withName('Lavacar Centro')
+      .build();
     await repo.save(tenant);
 
     const result = await useCase.execute([tenant.id]);

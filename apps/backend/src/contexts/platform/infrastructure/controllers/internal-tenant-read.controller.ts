@@ -51,7 +51,10 @@ export class InternalTenantReadController {
         detail: 'ids query parameter is required',
       });
     }
-    const tenantIds = ids.split(',').map((s) => s.trim()).filter(Boolean);
+    const tenantIds = ids
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     return this.getTenantsByIds.execute(tenantIds).catch(mapPlatformError);
   }
 

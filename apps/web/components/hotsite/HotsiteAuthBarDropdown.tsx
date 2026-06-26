@@ -17,7 +17,10 @@ function getInitials(name: string): string {
   return `${first}${last}`.toUpperCase();
 }
 
-export function HotsiteAuthBarDropdown({ name, slug }: HotsiteAuthBarDropdownProps): React.JSX.Element {
+export function HotsiteAuthBarDropdown({
+  name,
+  slug,
+}: HotsiteAuthBarDropdownProps): React.JSX.Element {
   const t = useTranslations('auth');
   const [hasMultipleTenants, setHasMultipleTenants] = useState(false);
 

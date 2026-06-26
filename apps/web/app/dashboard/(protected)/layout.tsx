@@ -26,7 +26,12 @@ export default async function ProtectedLayout({
 
   return (
     <LocaleProvider locale={locale} messages={messages}>
-      <DashboardShell tenantName={tenantName} tenantSlug={tenantSlug} userName={userName} role={role}>
+      <DashboardShell
+        tenantName={tenantName}
+        tenantSlug={tenantSlug}
+        userName={userName}
+        role={role}
+      >
         {children}
       </DashboardShell>
     </LocaleProvider>
