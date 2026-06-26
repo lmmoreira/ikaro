@@ -237,7 +237,7 @@ export function SwitchTenantClient({
                 router.back();
               }
             }}
-            className="text-sm font-medium"
+            className="cursor-pointer text-sm font-medium"
             style={{ color: 'var(--ba-primary)' }}
           >
             {t('switchTenantBack')}
