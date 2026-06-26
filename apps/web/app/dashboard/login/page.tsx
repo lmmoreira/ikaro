@@ -18,7 +18,9 @@ export default async function StaffLoginPage({
             I
           </div>
           <h1 className="text-2xl font-bold text-gray-900">{t('staffHeading')}</h1>
-          <p className="mt-4 text-sm text-gray-500">{t('staffLoginViaHotsite')}</p>
+          <p className="mt-4 text-sm text-gray-500" data-testid="staff-login-via-hotsite">
+            {t('staffLoginViaHotsite')}
+          </p>
         </div>
       </main>
     );
