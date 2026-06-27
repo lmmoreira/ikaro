@@ -81,7 +81,8 @@ export async function listBookings(
       });
     }
     const query = params.toString();
-    const res = await bffServerFetch(token, `/bookings${query ? `?${query}` : ''}`);
+    const querySuffix = query ? `?${query}` : '';
+    const res = await bffServerFetch(token, `/bookings${querySuffix}`);
     if (!res.ok) throw new Error(`Failed to fetch bookings (${res.status})`);
     return res.json() as Promise<StaffBookingListResponse>;
   }

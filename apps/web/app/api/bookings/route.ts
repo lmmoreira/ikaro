@@ -14,9 +14,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     upstream.set(key, value);
   }
   const query = upstream.toString();
+  const querySuffix = query ? `?${query}` : '';
 
   try {
-    const res = await bffServerFetch(token, `/bookings${query ? `?${query}` : ''}`);
+    const res = await bffServerFetch(token, `/bookings${querySuffix}`);
 
     const contentType = res.headers.get('content-type') ?? '';
     const body =

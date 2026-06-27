@@ -17,6 +17,24 @@ export interface WeekNavProps {
   readonly activeDates?: ReadonlySet<string>;
 }
 
+function getDayButtonClass(isSelected: boolean, isToday: boolean): string {
+  if (isSelected) return 'bg-gray-950 text-white ring-2 ring-blue-200';
+  if (isToday) return 'bg-blue-600 text-white';
+  return 'text-gray-800 hover:bg-gray-100';
+}
+
+function getWeekdayClass(isSelected: boolean, isToday: boolean): string {
+  if (isSelected) return 'text-gray-200';
+  if (isToday) return 'text-blue-100';
+  return 'text-gray-400';
+}
+
+function getActivityDotClass(hasActivity: boolean, isHighlighted: boolean): string {
+  if (!hasActivity) return 'bg-transparent';
+  if (isHighlighted) return 'bg-white/80';
+  return 'bg-blue-600';
+}
+
 export function WeekNav({
   windowStart,
   windowDays,
@@ -70,6 +88,7 @@ export function WeekNav({
           const isToday = isSameDay(day, today);
           const isSelected = selectedDate === dateKey;
           const hasActivity = activeDates?.has(dateKey) ?? false;
+          const isHighlighted = isSelected || isToday;
 
           return (
             <button
@@ -83,19 +102,16 @@ export function WeekNav({
               data-selected={isSelected ? 'true' : undefined}
               className={[
                 'flex min-w-[2.5rem] flex-col items-center gap-0.5 rounded-[0.625rem] px-1.5 py-2 transition-colors',
-                isSelected
-                  ? 'bg-gray-950 text-white ring-2 ring-blue-200'
-                  : isToday
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-800 hover:bg-gray-100',
+                getDayButtonClass(isSelected, isToday),
               ]
                 .filter(Boolean)
                 .join(' ')}
             >
               <span
-                className={`text-[0.6875rem] font-semibold uppercase tracking-wide ${
-                  isSelected ? 'text-gray-200' : isToday ? 'text-blue-100' : 'text-gray-400'
-                }`}
+                className={`text-[0.6875rem] font-semibold uppercase tracking-wide ${getWeekdayClass(
+                  isSelected,
+                  isToday,
+                )}`}
               >
                 {formatWeekdayShort(day)}
               </span>
@@ -107,13 +123,10 @@ export function WeekNav({
                 {day.getDate()}
               </span>
               <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  hasActivity
-                    ? isSelected || isToday
-                      ? 'bg-white/80'
-                      : 'bg-blue-600'
-                    : 'bg-transparent'
-                }`}
+                className={`h-1.5 w-1.5 rounded-full ${getActivityDotClass(
+                  hasActivity,
+                  isHighlighted,
+                )}`}
               />
             </button>
           );

@@ -44,24 +44,20 @@ function BookingCardInner({
     COMPLETED: t('statusCompleted'),
   };
 
-  const timeLabel =
-    variant === 'today'
-      ? formatTime(scheduledAt)
-      : (() => {
-          const now = new Date();
-          const todayKey = toDateKeyInTimezone(now, timezone);
-          const tomorrowKey = toDateKeyInTimezone(addDays(now, 1), timezone);
-          const scheduledKey = toDateKeyInTimezone(scheduledAt, timezone);
+  const timeLabel = (() => {
+    if (variant === 'today') return formatTime(scheduledAt);
 
-          const prefix =
-            scheduledKey === todayKey
-              ? t('today')
-              : scheduledKey === tomorrowKey
-                ? t('tomorrow')
-                : formatDateLong(scheduledAt);
+    const now = new Date();
+    const todayKey = toDateKeyInTimezone(now, timezone);
+    const tomorrowKey = toDateKeyInTimezone(addDays(now, 1), timezone);
+    const scheduledKey = toDateKeyInTimezone(scheduledAt, timezone);
 
-          return `${prefix} · ${formatTime(scheduledAt)}`;
-        })();
+    let prefix = formatDateLong(scheduledAt);
+    if (scheduledKey === todayKey) prefix = t('today');
+    if (scheduledKey === tomorrowKey) prefix = t('tomorrow');
+
+    return `${prefix} · ${formatTime(scheduledAt)}`;
+  })();
 
   const card = (
     <Card

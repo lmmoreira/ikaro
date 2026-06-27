@@ -38,6 +38,8 @@ import {
 } from './auth.types';
 import { TenantInfoResponse } from '../shared/types/backend-responses';
 
+type StaffLoginFailureReason = 'email-mismatch' | 'staff-deactivated' | 'account-linked-elsewhere';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -302,71 +304,106 @@ export class AuthController {
     res: Response,
     frontendUrl: string,
   ): Promise<void> {
-    const tenantInfo = await this.backendHttp
-      .get<TenantInfoResponse>(`/internal/tenants/by-slug/${tenantSlug}`)
-      .catch((err: unknown) => {
-        if (err instanceof HttpException && err.getStatus() === HttpStatus.NOT_FOUND) return null;
-        throw err;
-      });
+    const tenantInfo = await this.findTenantBySlug(tenantSlug);
     if (!tenantInfo) {
       res.redirect(`${frontendUrl}/auth/error?reason=tenant-not-found`);
       return;
     }
 
-    const staffByEmail = await this.backendHttp
-      .get<StaffByEmailResponse>('/internal/staff/by-email', {
-        email: profile.email,
-        tenantId: tenantInfo.id,
-      })
-      .catch((err: unknown) => {
-        if (err instanceof HttpException && err.getStatus() === HttpStatus.NOT_FOUND) return null;
-        throw err;
-      });
-
-    const slugParam = `&tenantSlug=${encodeURIComponent(tenantSlug)}`;
-
+    const staffByEmail = await this.findStaffByEmail(profile.email, tenantInfo.id);
     if (!staffByEmail) {
-      res.redirect(`${frontendUrl}/auth/error?reason=invite-not-found${slugParam}`);
+      this.redirectStaffLoginError(res, frontendUrl, 'invite-not-found', tenantSlug);
       return;
     }
 
     if (!staffByEmail.isActive) {
-      res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated${slugParam}`);
+      this.redirectStaffLoginError(res, frontendUrl, 'staff-deactivated', tenantSlug);
       return;
     }
 
-    const alreadyLinked = staffByEmail.googleOAuthId === profile.googleOAuthId;
-
-    if (!alreadyLinked) {
-      try {
-        await this.backendHttp.post<LinkGoogleAccountResponse>(
-          `/internal/staff/${staffByEmail.staffId}/link-google`,
-          {
-            tenantId: tenantInfo.id,
-            googleOAuthId: profile.googleOAuthId,
-            email: profile.email,
-            name: profile.name,
-          },
-        );
-      } catch (err) {
-        if (err instanceof HttpException) {
-          if (err.getStatus() === HttpStatus.UNPROCESSABLE_ENTITY) {
-            res.redirect(`${frontendUrl}/auth/error?reason=email-mismatch${slugParam}`);
-            return;
-          }
-          if (err.getStatus() === HttpStatus.FORBIDDEN) {
-            res.redirect(`${frontendUrl}/auth/error?reason=staff-deactivated${slugParam}`);
-            return;
-          }
-          if (err.getStatus() === HttpStatus.CONFLICT) {
-            res.redirect(`${frontendUrl}/auth/error?reason=account-linked-elsewhere${slugParam}`);
-            return;
-          }
-        }
-        throw err;
-      }
+    const linkFailure = await this.linkStaffAccountIfNeeded(profile, staffByEmail, tenantInfo.id);
+    if (linkFailure) {
+      this.redirectStaffLoginError(res, frontendUrl, linkFailure, tenantSlug);
+      return;
     }
 
+    this.issueStaffToken(profile, staffByEmail, tenantInfo, res);
+    res.redirect(`${frontendUrl}/dashboard`);
+  }
+
+  private async findTenantBySlug(tenantSlug: string): Promise<TenantInfoResponse | null> {
+    return this.backendHttp
+      .get<TenantInfoResponse>(`/internal/tenants/by-slug/${tenantSlug}`)
+      .catch((err: unknown) => {
+        if (err instanceof HttpException && err.getStatus() === HttpStatus.NOT_FOUND) return null;
+        throw err;
+      });
+  }
+
+  private async findStaffByEmail(
+    email: string,
+    tenantId: string,
+  ): Promise<StaffByEmailResponse | null> {
+    return this.backendHttp
+      .get<StaffByEmailResponse>('/internal/staff/by-email', { email, tenantId })
+      .catch((err: unknown) => {
+        if (err instanceof HttpException && err.getStatus() === HttpStatus.NOT_FOUND) return null;
+        throw err;
+      });
+  }
+
+  private async linkStaffAccountIfNeeded(
+    profile: GoogleProfile,
+    staffByEmail: StaffByEmailResponse,
+    tenantId: string,
+  ): Promise<StaffLoginFailureReason | null> {
+    if (staffByEmail.googleOAuthId === profile.googleOAuthId) return null;
+
+    try {
+      await this.backendHttp.post<LinkGoogleAccountResponse>(
+        `/internal/staff/${staffByEmail.staffId}/link-google`,
+        {
+          tenantId,
+          googleOAuthId: profile.googleOAuthId,
+          email: profile.email,
+          name: profile.name,
+        },
+      );
+      return null;
+    } catch (err) {
+      return this.mapStaffLinkError(err);
+    }
+  }
+
+  private mapStaffLinkError(err: unknown): StaffLoginFailureReason {
+    if (err instanceof HttpException && err.getStatus() === HttpStatus.UNPROCESSABLE_ENTITY) {
+      return 'email-mismatch';
+    }
+    if (err instanceof HttpException && err.getStatus() === HttpStatus.FORBIDDEN) {
+      return 'staff-deactivated';
+    }
+    if (err instanceof HttpException && err.getStatus() === HttpStatus.CONFLICT) {
+      return 'account-linked-elsewhere';
+    }
+    throw err;
+  }
+
+  private redirectStaffLoginError(
+    res: Response,
+    frontendUrl: string,
+    reason: string,
+    tenantSlug: string,
+  ): void {
+    const slugParam = `&tenantSlug=${encodeURIComponent(tenantSlug)}`;
+    res.redirect(`${frontendUrl}/auth/error?reason=${reason}${slugParam}`);
+  }
+
+  private issueStaffToken(
+    profile: GoogleProfile,
+    staffByEmail: StaffByEmailResponse,
+    tenantInfo: TenantInfoResponse,
+    res: Response,
+  ): void {
     const token = this.jwtIssuer.issueToken({
       sub: staffByEmail.staffId,
       tenantId: tenantInfo.id,
@@ -377,7 +414,6 @@ export class AuthController {
       locale: tenantInfo.locale,
     });
     res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
-    res.redirect(`${frontendUrl}/dashboard`);
   }
 
   private async handleTenantLogin(
@@ -386,12 +422,7 @@ export class AuthController {
     res: Response,
     frontendUrl: string,
   ): Promise<void> {
-    const tenantInfo = await this.backendHttp
-      .get<TenantInfoResponse>(`/internal/tenants/by-slug/${tenantSlug}`)
-      .catch((err: unknown) => {
-        if (err instanceof HttpException && err.getStatus() === HttpStatus.NOT_FOUND) return null;
-        throw err;
-      });
+    const tenantInfo = await this.findTenantBySlug(tenantSlug);
 
     if (!tenantInfo) {
       res.redirect(`${frontendUrl}/auth/error?reason=tenant-not-found`);
