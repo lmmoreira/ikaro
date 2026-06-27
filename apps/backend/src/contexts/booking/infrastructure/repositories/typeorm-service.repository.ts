@@ -37,7 +37,7 @@ export class TypeOrmServiceRepository implements IServiceRepository {
   }
 
   async findAllByTenant(tenantId: string, filters: ServiceFilters = {}): Promise<Service[]> {
-    if (filters.ids && filters.ids.length === 0) return [];
+    if (filters.ids?.length === 0) return [];
     const query = this.repo
       .createQueryBuilder('service')
       .where('service.tenantId = :tenantId', { tenantId })

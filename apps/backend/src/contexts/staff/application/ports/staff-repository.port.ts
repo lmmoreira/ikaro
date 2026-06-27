@@ -1,5 +1,4 @@
-import { Staff } from '../../domain/staff.aggregate';
-import { StaffRole } from '../../domain/staff.aggregate';
+import { Staff, StaffRole } from '../../domain/staff.aggregate';
 
 export const STAFF_REPOSITORY = Symbol('IStaffRepository');
 

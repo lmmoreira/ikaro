@@ -53,7 +53,7 @@ export class TypeOrmTenantRepository implements ITenantRepository {
   }
 
   async findMany(filters: TenantFilters = {}): Promise<Tenant[]> {
-    if (filters.ids && filters.ids.length === 0) return [];
+    if (filters.ids?.length === 0) return [];
     const query = this.repo.createQueryBuilder('tenant').orderBy('tenant.createdAt', 'ASC');
 
     if (filters.ids) query.andWhere('tenant.id IN (:...ids)', { ids: filters.ids });

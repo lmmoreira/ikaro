@@ -45,7 +45,7 @@ export class TypeOrmStaffRepository implements IStaffRepository {
   }
 
   async findAllByTenant(tenantId: string, filters: StaffFilters): Promise<FindAllByTenantResult> {
-    if (filters.ids && filters.ids.length === 0) return { items: [], total: 0 };
+    if (filters.ids?.length === 0) return { items: [], total: 0 };
     const query = this.repo
       .createQueryBuilder('staff')
       .where('staff.tenantId = :tenantId', { tenantId })
