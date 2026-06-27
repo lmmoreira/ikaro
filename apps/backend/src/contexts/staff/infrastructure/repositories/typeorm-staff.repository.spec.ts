@@ -20,6 +20,7 @@ describe('TypeOrmStaffRepository', () => {
             findOne: jest.fn(),
             find: jest.fn(),
             findAndCount: jest.fn(),
+            createQueryBuilder: jest.fn(),
             count: jest.fn(),
             save: jest.fn(),
           },
@@ -108,17 +109,24 @@ describe('TypeOrmStaffRepository', () => {
       new StaffEntityBuilder().withId('id-1').withEmail('a@b.com').build(),
       new StaffEntityBuilder().withId('id-2').withEmail('c@d.com').build(),
     ];
-    (ormRepo as unknown as { findAndCount: jest.Mock }).findAndCount.mockResolvedValue([
-      entities,
-      2,
-    ]);
+    const query = {
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([entities, 2]),
+    };
+    ormRepo.createQueryBuilder.mockReturnValue(query as never);
 
-    const result = await repo.findAllByTenant('tenant-1', 50, 0);
+    const result = await repo.findAllByTenant('tenant-1', { limit: 50, offset: 0 });
 
     expect(result.items).toHaveLength(2);
     expect(result.items[0]).toBeInstanceOf(Staff);
     expect(result.items[1]).toBeInstanceOf(Staff);
     expect(result.total).toBe(2);
+    expect(query.where).toHaveBeenCalledWith('staff.tenantId = :tenantId', {
+      tenantId: 'tenant-1',
+    });
   });
 
   it('countActiveManagersByTenant returns count', async () => {

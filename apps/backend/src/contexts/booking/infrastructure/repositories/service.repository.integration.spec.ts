@@ -55,7 +55,7 @@ describe('TypeOrmServiceRepository (integration)', () => {
     await repo.save(active);
     await repo.save(inactive);
 
-    const results = await repo.findAllByTenant(tenantId, true);
+    const results = await repo.findAllByTenant(tenantId, { status: 'ACTIVE' });
     expect(results.every((s) => s.isActive)).toBe(true);
     expect(results.some((s) => s.name === 'Ativo')).toBe(true);
     expect(results.some((s) => s.name === 'Inativo')).toBe(false);

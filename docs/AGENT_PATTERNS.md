@@ -292,7 +292,8 @@ import { TypeOrmXxxRepository } from './infrastructure/repositories/typeorm-xxx.
     UpdateXxxUseCase,
   ],
   exports: [
-    // XxxQueryService — export only when another context's adapter injects it
+    // Export read use cases only when another context's adapter injects them.
+    // Prefer GetXxxByIdUseCase or broad GetXxxsUseCase with filter DTOs.
   ],
 })
 export class XxxModule {}

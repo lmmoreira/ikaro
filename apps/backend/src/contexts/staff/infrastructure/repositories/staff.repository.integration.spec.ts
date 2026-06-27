@@ -129,7 +129,7 @@ describe('TypeOrmStaffRepository (integration)', () => {
     await repo.save(s2);
     await repo.save(other);
 
-    const { items, total } = await repo.findAllByTenant(tenantId, 50, 0);
+    const { items, total } = await repo.findAllByTenant(tenantId, { limit: 50, offset: 0 });
     expect(items.length).toBeGreaterThanOrEqual(2);
     expect(items.every((s) => s.tenantId === tenantId)).toBe(true);
     expect(total).toBeGreaterThanOrEqual(2);
@@ -146,11 +146,11 @@ describe('TypeOrmStaffRepository (integration)', () => {
       await repo.save(s);
     }
 
-    const page1 = await repo.findAllByTenant(tenantId, 2, 0);
+    const page1 = await repo.findAllByTenant(tenantId, { limit: 2, offset: 0 });
     expect(page1.items).toHaveLength(2);
     expect(page1.total).toBe(3);
 
-    const page2 = await repo.findAllByTenant(tenantId, 2, 2);
+    const page2 = await repo.findAllByTenant(tenantId, { limit: 2, offset: 2 });
     expect(page2.items).toHaveLength(1);
     expect(page2.total).toBe(3);
   });

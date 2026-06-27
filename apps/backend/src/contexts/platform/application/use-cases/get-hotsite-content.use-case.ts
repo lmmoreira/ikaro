@@ -1,13 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
+import { Injectable } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { HotsiteNotFoundError } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
-import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
-import {
-  HOTSITE_CONFIG_REPOSITORY,
-  IHotsiteConfigRepository,
-} from '../ports/hotsite-config-repository.port';
+import { HotsiteContentReader } from '../services/hotsite-content-reader.service';
 
 export interface GetHotsiteContentUseCaseResult {
   branding: HotsiteBranding;
@@ -20,29 +14,19 @@ export interface GetHotsiteContentUseCaseResult {
 @Injectable()
 export class GetHotsiteContentUseCase {
   constructor(
-    @Inject(HOTSITE_CONFIG_REPOSITORY)
-    private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
-    @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
     private readonly tenantContext: RequestContext,
-    private readonly imageUrlResolver: HotsiteImageUrlResolver,
+    private readonly hotsiteContentReader: HotsiteContentReader,
   ) {}
 
   async execute(): Promise<GetHotsiteContentUseCaseResult> {
-    const config = await this.hotsiteConfigRepo.findByTenantId(this.tenantContext.tenantId);
-    if (!config) throw new HotsiteNotFoundError(this.tenantContext.tenantId);
-
-    const { branding, layout } = this.imageUrlResolver.resolve(
-      config.branding,
-      config.layout,
-      (storagePath) => this.storageService.getPublicUrl(storagePath),
-    );
+    const content = await this.hotsiteContentReader.readResolved(this.tenantContext.tenantId);
 
     return {
-      branding,
-      layout,
-      seo: config.seo,
-      isPublished: config.isPublished,
-      updatedAt: config.updatedAt,
+      branding: content.branding,
+      layout: content.layout,
+      seo: content.seo,
+      isPublished: content.isPublished,
+      updatedAt: content.updatedAt,
     };
   }
 }

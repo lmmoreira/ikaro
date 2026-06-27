@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ServiceQueryService } from '../../../booking/application/services/service-query.service';
+import { GetServicesUseCase } from '../../../booking/application/use-cases/get-services.use-case';
 import {
   INotificationBookingPort,
   NotificationServiceInfo,
@@ -7,14 +7,14 @@ import {
 
 @Injectable()
 export class NotificationBookingAdapter implements INotificationBookingPort {
-  constructor(private readonly serviceQueryService: ServiceQueryService) {}
+  constructor(private readonly getServices: GetServicesUseCase) {}
 
   async findServicesByIds(
     tenantId: string,
     serviceIds: string[],
   ): Promise<NotificationServiceInfo[]> {
     if (serviceIds.length === 0) return [];
-    const services = await this.serviceQueryService.findByIds(serviceIds, tenantId);
-    return services.map((s) => ({ serviceId: s.id, serviceName: s.name }));
+    const result = await this.getServices.execute({ tenantId, ids: serviceIds });
+    return result.items.map((service) => ({ serviceId: service.id, serviceName: service.name }));
   }
 }

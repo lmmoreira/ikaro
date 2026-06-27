@@ -5,8 +5,8 @@ import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { CreateServiceUseCase } from '../../application/use-cases/create-service.use-case';
 import { DeactivateServiceUseCase } from '../../application/use-cases/deactivate-service.use-case';
-import { GetServiceUseCase } from '../../application/use-cases/get-service.use-case';
-import { ListServicesUseCase } from '../../application/use-cases/list-services.use-case';
+import { GetServiceByIdUseCase } from '../../application/use-cases/get-service-by-id.use-case';
+import { GetServicesUseCase } from '../../application/use-cases/get-services.use-case';
 import { UpdateServiceUseCase } from '../../application/use-cases/update-service.use-case';
 import { ServiceController } from './service.controller';
 
@@ -35,9 +35,10 @@ describe('ServiceController', () => {
       .build();
     const txManager = new InMemoryTransactionManager();
     controller = new ServiceController(
+      ctx,
       new CreateServiceUseCase(repo, txManager, ctx),
-      new ListServicesUseCase(repo, ctx),
-      new GetServiceUseCase(repo, ctx),
+      new GetServicesUseCase(repo),
+      new GetServiceByIdUseCase(repo, ctx),
       new UpdateServiceUseCase(repo, txManager, ctx),
       new DeactivateServiceUseCase(repo, txManager, ctx),
     );

@@ -3,9 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
-import { GetTenantFormattingUseCase } from './application/use-cases/get-tenant-formatting.use-case';
-import { GetTenantBookingConfigUseCase } from './application/use-cases/get-tenant-booking-config.use-case';
-import { TenantQueryService } from './application/services/tenant-query.service';
+import { GetTenantsUseCase } from './application/use-cases/get-tenants.use-case';
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
 import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-tenant.repository';
@@ -16,16 +14,8 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     { provide: TENANT_REPOSITORY, useClass: TypeOrmTenantRepository },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },
     GetTenantByIdUseCase,
-    GetTenantFormattingUseCase,
-    GetTenantBookingConfigUseCase,
-    TenantQueryService,
+    GetTenantsUseCase,
   ],
-  exports: [
-    GetTenantByIdUseCase,
-    GetTenantFormattingUseCase,
-    GetTenantBookingConfigUseCase,
-    TenantQueryService,
-    TENANT_SETTINGS_PORT,
-  ],
+  exports: [GetTenantByIdUseCase, GetTenantsUseCase, TENANT_SETTINGS_PORT],
 })
 export class PlatformSettingsModule {}

@@ -10,14 +10,6 @@ import {
   UpdateTenantSettingsUseCase,
 } from '../../application/use-cases/update-tenant-settings.use-case';
 import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
-import {
-  GetTenantFormattingUseCase,
-  GetTenantFormattingUseCaseResult,
-} from '../../application/use-cases/get-tenant-formatting.use-case';
-import {
-  GetTenantBookingConfigUseCase,
-  GetTenantBookingConfigUseCaseResult,
-} from '../../application/use-cases/get-tenant-booking-config.use-case';
 import { TenantSettingsProps } from '../../domain/value-objects/tenant-settings.vo';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
@@ -31,18 +23,16 @@ export interface GetTenantSettingsResult {
 }
 
 @Controller('tenants')
-@UseGuards(ManagerRoleGuard)
 export class TenantSettingsController {
   constructor(
     private readonly getTenantById: GetTenantByIdUseCase,
-    private readonly getTenantFormatting: GetTenantFormattingUseCase,
-    private readonly getTenantBookingConfig: GetTenantBookingConfigUseCase,
     private readonly updateTenantSettings: UpdateTenantSettingsUseCase,
     private readonly tenantContext: RequestContext,
   ) {}
 
   @Get('settings')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
   async getSettings(): Promise<GetTenantSettingsResult> {
     const tenant = await this.getTenantById
       .execute(this.tenantContext.tenantId)
@@ -50,22 +40,9 @@ export class TenantSettingsController {
     return { tenantId: tenant.id, name: tenant.name, slug: tenant.slug, settings: tenant.settings };
   }
 
-  @Get('formatting')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(StaffOrManagerRoleGuard)
-  getFormatting(): Promise<GetTenantFormattingUseCaseResult> {
-    return this.getTenantFormatting.execute(this.tenantContext.tenantId).catch(mapPlatformError);
-  }
-
-  @Get('booking-config')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(StaffOrManagerRoleGuard)
-  getBookingConfig(): Promise<GetTenantBookingConfigUseCaseResult> {
-    return this.getTenantBookingConfig.execute(this.tenantContext.tenantId).catch(mapPlatformError);
-  }
-
   @Patch('settings')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ManagerRoleGuard)
   updateSettings(
     @Body(new ZodValidationPipe(UpdateTenantSettingsSchema)) dto: UpdateTenantSettingsDto,
   ): Promise<UpdateTenantSettingsUseCaseResult> {

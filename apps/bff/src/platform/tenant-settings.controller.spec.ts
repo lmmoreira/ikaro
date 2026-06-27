@@ -1,8 +1,4 @@
-import {
-  TenantBookingConfigResponse,
-  TenantFormattingResponse,
-  TenantSettingsResponse,
-} from '@ikaro/types';
+import { TenantSettingsResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../test/backend-http.mock';
 import {
   TenantSettingsController,
@@ -90,55 +86,6 @@ describe('TenantSettingsController', () => {
       await expect(
         controller.updateSettings({ settings: { loyalty: { expiryDays: 90 } } }),
       ).rejects.toThrow('400');
-    });
-  });
-
-  describe('getFormatting()', () => {
-    const formattingResponse: TenantFormattingResponse = {
-      locale: 'pt-BR',
-      currency: 'BRL',
-      timezone: 'America/Sao_Paulo',
-      dateFormat: 'DD/MM/YYYY',
-      timeFormat: '24h',
-    };
-
-    it('calls GET /tenants/formatting and returns the backend response', async () => {
-      const backendHttp = makeBackendHttp({
-        get: jest.fn().mockResolvedValue(formattingResponse),
-      });
-      const controller = new TenantSettingsController(backendHttp);
-
-      const result = await controller.getFormatting();
-
-      expect(backendHttp.get).toHaveBeenCalledWith('/tenants/formatting');
-      expect(result).toEqual(formattingResponse);
-    });
-
-    it('propagates errors from the backend', async () => {
-      const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('401')) });
-      const controller = new TenantSettingsController(backendHttp);
-
-      await expect(controller.getFormatting()).rejects.toThrow('401');
-    });
-  });
-
-  describe('getBookingConfig()', () => {
-    it('calls GET /tenants/booking-config and returns the backend response', async () => {
-      const configResponse: TenantBookingConfigResponse = { welcomeStaffScreenDays: 14 };
-      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(configResponse) });
-      const controller = new TenantSettingsController(backendHttp);
-
-      const result = await controller.getBookingConfig();
-
-      expect(backendHttp.get).toHaveBeenCalledWith('/tenants/booking-config');
-      expect(result).toEqual(configResponse);
-    });
-
-    it('propagates errors from the backend', async () => {
-      const backendHttp = makeBackendHttp({ get: jest.fn().mockRejectedValue(new Error('401')) });
-      const controller = new TenantSettingsController(backendHttp);
-
-      await expect(controller.getBookingConfig()).rejects.toThrow('401');
     });
   });
 

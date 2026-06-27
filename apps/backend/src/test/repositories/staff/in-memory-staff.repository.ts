@@ -1,6 +1,7 @@
 import {
   FindAllByTenantResult,
   IStaffRepository,
+  StaffFilters,
 } from '../../../contexts/staff/application/ports/staff-repository.port';
 import { Staff } from '../../../contexts/staff/domain/staff.aggregate';
 
@@ -39,14 +40,22 @@ export class InMemoryStaffRepository implements IStaffRepository {
     return staff;
   }
 
-  async findAllByTenant(
-    tenantId: string,
-    limit: number,
-    offset: number,
-  ): Promise<FindAllByTenantResult> {
-    const all = Array.from(this.store.values()).filter((s) => s.tenantId === tenantId);
+  async findAllByTenant(tenantId: string, filters: StaffFilters): Promise<FindAllByTenantResult> {
+    if (filters.ids && filters.ids.length === 0) return { items: [], total: 0 };
+    let all = Array.from(this.store.values()).filter((s) => s.tenantId === tenantId);
+    if (filters.ids) all = all.filter((s) => filters.ids!.includes(s.id));
+    if (filters.roles?.length) all = all.filter((s) => filters.roles!.includes(s.role));
+    if (filters.status === 'ACTIVE') all = all.filter((s) => s.isActive);
+    if (filters.status === 'DEACTIVATED') all = all.filter((s) => !s.isActive);
+    if (filters.search) {
+      const search = filters.search.toLowerCase();
+      all = all.filter(
+        (s) =>
+          s.email.address.toLowerCase().includes(search) || s.name?.toLowerCase().includes(search),
+      );
+    }
     const total = all.length;
-    const items = all.slice(offset, offset + limit);
+    const items = all.slice(filters.offset, filters.offset + filters.limit);
     return { items, total };
   }
 

@@ -1,11 +1,11 @@
 import { countrySpec } from '@ikaro/i18n';
-import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { Address } from '../../../../shared/value-objects/address';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
-import { Address } from '../../../../shared/value-objects/address';
-import { GetBookingUseCase } from './get-booking.use-case';
+import { GetBookingByIdUseCase } from './get-booking-by-id.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000122';
 const TENANT_B = '10000000-0000-4000-8000-000000000123';
@@ -13,7 +13,7 @@ const CUSTOMER_ID = '20000000-0000-4000-8000-000000000122';
 const OTHER_CUSTOMER_ID = '20000000-0000-4000-8000-000000000123';
 const STAFF_ID = '20000000-0000-4000-8000-000000000124';
 
-describe('GetBookingUseCase', () => {
+describe('GetBookingByIdUseCase', () => {
   let repo: InMemoryBookingRepository;
   let storageService: InMemoryStorageService;
 
@@ -23,7 +23,7 @@ describe('GetBookingUseCase', () => {
   });
 
   describe('STAFF/MANAGER role', () => {
-    let useCase: GetBookingUseCase;
+    let useCase: GetBookingByIdUseCase;
 
     beforeEach(() => {
       const ctx = new RequestContextBuilder()
@@ -31,7 +31,7 @@ describe('GetBookingUseCase', () => {
         .withActorId(STAFF_ID)
         .withActorRole('MANAGER')
         .build();
-      useCase = new GetBookingUseCase(repo, ctx, storageService);
+      useCase = new GetBookingByIdUseCase(repo, ctx, storageService);
     });
 
     it('returns booking detail for any booking in the tenant', async () => {
@@ -159,7 +159,7 @@ describe('GetBookingUseCase', () => {
   });
 
   describe('CUSTOMER role', () => {
-    let useCase: GetBookingUseCase;
+    let useCase: GetBookingByIdUseCase;
 
     beforeEach(() => {
       const ctx = new RequestContextBuilder()
@@ -168,7 +168,7 @@ describe('GetBookingUseCase', () => {
         .withActorType('CUSTOMER')
         .withActorRole('CUSTOMER')
         .build();
-      useCase = new GetBookingUseCase(repo, ctx, storageService);
+      useCase = new GetBookingByIdUseCase(repo, ctx, storageService);
     });
 
     it('returns own booking', async () => {

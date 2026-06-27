@@ -19,9 +19,9 @@ import {
   UpdateCustomerProfileSchema,
 } from '../../application/dtos/update-customer-profile.dto';
 import {
-  GetCustomerProfileUseCase,
-  GetCustomerProfileUseCaseResult,
-} from '../../application/use-cases/get-customer-profile.use-case';
+  GetCustomerByIdUseCase,
+  GetCustomerByIdUseCaseResult,
+} from '../../application/use-cases/get-customer-by-id.use-case';
 import {
   GetCustomerTenantsByIdUseCase,
   GetCustomerTenantsByIdUseCaseResult,
@@ -35,11 +35,19 @@ import {
   SearchCustomersUseCaseResult,
 } from '../../application/use-cases/search-customers.use-case';
 
+export type GetCustomerProfileResponse = {
+  customerId: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  defaultAddress: GetCustomerByIdUseCaseResult['defaultAddress'];
+};
+
 @Controller('customers')
 export class CustomerController {
   constructor(
     private readonly ctx: RequestContext,
-    private readonly getProfile: GetCustomerProfileUseCase,
+    private readonly getCustomerById: GetCustomerByIdUseCase,
     private readonly updateProfile: UpdateCustomerProfileUseCase,
     private readonly searchCustomers: SearchCustomersUseCase,
     private readonly getCustomerTenantsById: GetCustomerTenantsByIdUseCase,
@@ -59,8 +67,17 @@ export class CustomerController {
 
   @Get('me')
   @UseGuards(CustomerRoleGuard)
-  getMe(): Promise<GetCustomerProfileUseCaseResult> {
-    return this.getProfile.execute().catch(mapCustomerError);
+  getMe(): Promise<GetCustomerProfileResponse> {
+    return this.getCustomerById
+      .execute(this.ctx.actorId!, this.ctx.tenantId)
+      .then((customer) => ({
+        customerId: customer.id,
+        email: customer.email,
+        name: customer.name,
+        phone: customer.phone,
+        defaultAddress: customer.defaultAddress,
+      }))
+      .catch(mapCustomerError);
   }
 
   @Get('me/tenants')

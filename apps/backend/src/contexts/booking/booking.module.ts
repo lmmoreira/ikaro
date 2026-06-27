@@ -22,10 +22,10 @@ import { RequestBookingUseCase } from './application/use-cases/request-booking.u
 import { DeactivateServiceUseCase } from './application/use-cases/deactivate-service.use-case';
 import { GetAvailabilityUseCase } from './application/use-cases/get-availability.use-case';
 import { GetAvailabilitySummaryUseCase } from './application/use-cases/get-availability-summary.use-case';
-import { GetServiceUseCase } from './application/use-cases/get-service.use-case';
+import { GetServiceByIdUseCase } from './application/use-cases/get-service-by-id.use-case';
 import { ListClosuresUseCase } from './application/use-cases/list-closures.use-case';
 import { ListOpeningsUseCase } from './application/use-cases/list-openings.use-case';
-import { ListServicesUseCase } from './application/use-cases/list-services.use-case';
+import { GetServicesUseCase } from './application/use-cases/get-services.use-case';
 import { OpenScheduleUseCase } from './application/use-cases/open-schedule.use-case';
 import { RemoveClosureUseCase } from './application/use-cases/remove-closure.use-case';
 import { RemoveScheduleOpeningUseCase } from './application/use-cases/remove-schedule-opening.use-case';
@@ -36,15 +36,13 @@ import { RequestMoreInfoUseCase } from './application/use-cases/request-more-inf
 import { SubmitBookingInfoUseCase } from './application/use-cases/submit-booking-info.use-case';
 import { SubmitGuestBookingInfoUseCase } from './application/use-cases/submit-guest-booking-info.use-case';
 import { ListBookingsUseCase } from './application/use-cases/list-bookings.use-case';
-import { GetBookingUseCase } from './application/use-cases/get-booking.use-case';
 import { CancelBookingAsCustomerUseCase } from './application/use-cases/cancel-booking-as-customer.use-case';
 import { CancelBookingAsAdminUseCase } from './application/use-cases/cancel-booking-as-admin.use-case';
 import { RescheduleBookingUseCase } from './application/use-cases/reschedule-booking.use-case';
 import { CompleteBookingUseCase } from './application/use-cases/complete-booking.use-case';
 import { GenerateAttachmentSignedUrlUseCase } from './application/use-cases/generate-attachment-signed-url.use-case';
+import { GetBookingByIdUseCase } from './application/use-cases/get-booking-by-id.use-case';
 import { BookingAttachmentsController } from './infrastructure/controllers/booking-attachments.controller';
-import { BookingQueryService } from './application/services/booking-query.service';
-import { ServiceQueryService } from './application/services/service-query.service';
 import { BookingSlotConflictService } from './application/services/booking-slot-conflict.service';
 import { PhotoExistenceService } from './application/services/photo-existence.service';
 import { BookingEntity } from './infrastructure/entities/booking.entity';
@@ -105,15 +103,14 @@ import { AvailabilityService } from './domain/services/availability.service';
     AvailabilityService,
     BookingReminderJob,
     AdminScheduleReminderJob,
-    BookingQueryService,
-    ServiceQueryService,
     BookingSlotConflictService,
     PhotoExistenceService,
     CreateServiceUseCase,
     RequestBookingUseCase,
     RequestAuthenticatedBookingUseCase,
-    ListServicesUseCase,
-    GetServiceUseCase,
+    GetServicesUseCase,
+    GetServiceByIdUseCase,
+    GetBookingByIdUseCase,
     UpdateServiceUseCase,
     DeactivateServiceUseCase,
     CloseScheduleUseCase,
@@ -130,13 +127,12 @@ import { AvailabilityService } from './domain/services/availability.service';
     SubmitBookingInfoUseCase,
     SubmitGuestBookingInfoUseCase,
     ListBookingsUseCase,
-    GetBookingUseCase,
     CancelBookingAsCustomerUseCase,
     CancelBookingAsAdminUseCase,
     RescheduleBookingUseCase,
     CompleteBookingUseCase,
     GenerateAttachmentSignedUrlUseCase,
   ],
-  exports: [BookingQueryService, ServiceQueryService],
+  exports: [GetBookingByIdUseCase, GetServicesUseCase],
 })
 export class BookingModule {}

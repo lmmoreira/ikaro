@@ -18,7 +18,7 @@ import { RequestMoreInfoUseCase } from '../../application/use-cases/request-more
 import { SubmitBookingInfoUseCase } from '../../application/use-cases/submit-booking-info.use-case';
 import { SubmitGuestBookingInfoUseCase } from '../../application/use-cases/submit-guest-booking-info.use-case';
 import { ListBookingsUseCase } from '../../application/use-cases/list-bookings.use-case';
-import { GetBookingUseCase } from '../../application/use-cases/get-booking.use-case';
+import { GetBookingByIdUseCase } from '../../application/use-cases/get-booking-by-id.use-case';
 import { CancelBookingAsCustomerUseCase } from '../../application/use-cases/cancel-booking-as-customer.use-case';
 import { CancelBookingAsAdminUseCase } from '../../application/use-cases/cancel-booking-as-admin.use-case';
 import { RescheduleBookingUseCase } from '../../application/use-cases/reschedule-booking.use-case';
@@ -124,7 +124,7 @@ describe('BookingController', () => {
         new PhotoExistenceService(storageService),
       ),
       new ListBookingsUseCase(bookingRepo, staffCtx),
-      new GetBookingUseCase(bookingRepo, staffCtx, storageService),
+      new GetBookingByIdUseCase(bookingRepo, staffCtx, storageService),
       new CancelBookingAsCustomerUseCase(
         customerCtx,
         bookingRepo,
@@ -251,7 +251,7 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
         ),
         new ListBookingsUseCase(repoB, ctx),
-        new GetBookingUseCase(repoB, ctx, storageService),
+        new GetBookingByIdUseCase(repoB, ctx, storageService),
         new CancelBookingAsCustomerUseCase(
           customerCtxB,
           repoB,
@@ -399,7 +399,7 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
         ),
         new ListBookingsUseCase(bookingRepoB, staffCtx),
-        new GetBookingUseCase(bookingRepoB, staffCtx, storageService),
+        new GetBookingByIdUseCase(bookingRepoB, staffCtx, storageService),
         new CancelBookingAsCustomerUseCase(
           customerCtxC,
           bookingRepoB,
@@ -838,7 +838,7 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
         ),
         new ListBookingsUseCase(repoC, ctx),
-        new GetBookingUseCase(repoC, ctx, storageService),
+        new GetBookingByIdUseCase(repoC, ctx, storageService),
         new CancelBookingAsCustomerUseCase(
           ctx,
           repoC,

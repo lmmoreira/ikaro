@@ -4,7 +4,7 @@ import { In, QueryFailedError, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
-import { ITenantRepository } from '../../application/ports/tenant-repository.port';
+import { ITenantRepository, TenantFilters } from '../../application/ports/tenant-repository.port';
 import { Tenant } from '../../domain/tenant.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { TenantEntity } from '../entities/tenant.entity';
@@ -49,6 +49,25 @@ export class TypeOrmTenantRepository implements ITenantRepository {
   async findByIds(ids: string[]): Promise<Tenant[]> {
     if (ids.length === 0) return [];
     const entities = await this.repo.findBy({ id: In(ids) });
+    return entities.map((e) => this.toDomain(e));
+  }
+
+  async findMany(filters: TenantFilters = {}): Promise<Tenant[]> {
+    if (filters.ids && filters.ids.length === 0) return [];
+    const query = this.repo.createQueryBuilder('tenant').orderBy('tenant.createdAt', 'ASC');
+
+    if (filters.ids) query.andWhere('tenant.id IN (:...ids)', { ids: filters.ids });
+    if (filters.status === 'ACTIVE')
+      query.andWhere('tenant.isActive = :isActive', { isActive: true });
+    if (filters.status === 'INACTIVE') {
+      query.andWhere('tenant.isActive = :isActive', { isActive: false });
+    }
+    if (filters.name) query.andWhere('tenant.name ILIKE :name', { name: `%${filters.name}%` });
+    if (filters.slug) query.andWhere('tenant.slug = :slug', { slug: filters.slug });
+    if (filters.limit !== undefined) query.take(filters.limit);
+    if (filters.offset !== undefined) query.skip(filters.offset);
+
+    const entities = await query.getMany();
     return entities.map((e) => this.toDomain(e));
   }
 

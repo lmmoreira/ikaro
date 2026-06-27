@@ -127,6 +127,17 @@ apps/bff/src/
 
 **Frontend fetchers (`apps/web/lib/api/<name>.ts`) mirror the BFF module name** they call — e.g. `lib/api/platform.ts` ↔ `platform.public.controller.ts`, `lib/api/services.ts` ↔ `services.public.controller.ts`.
 
+### Canonical Config And Settings Reads
+
+Do not add separate read endpoints or backend use cases just to return a smaller projection of an aggregate/config already exposed by a canonical endpoint. Example anti-pattern: `GET /tenants/formatting` and `GET /tenants/booking-config` re-reading the same tenant row already returned by `GET /tenants/settings`.
+
+Use one canonical source-of-truth read path, then derive caller-specific values in the BFF mapper or web helper. This keeps caching, authorization, tests, and contract ownership centralized.
+
+A separate read endpoint is acceptable only when:
+- it enforces a materially different authorization boundary and the canonical payload would expose forbidden data;
+- it composes data from multiple sources;
+- it represents a stable public contract distinct from internal/admin configuration.
+
 ---
 
 ## Web → BFF Transport Layer (apps/web)
@@ -149,7 +160,7 @@ bffServerFetch(token: string, path: string, init?: BffServerFetchInit): Promise<
 
 Canonical callers:
 - `lib/api/dashboard/bookings.ts` → `listBookings(params, token)`
-- `lib/api/dashboard/tenants.ts` → `fetchTenantFormatting(token)`, `fetchTenantBookingConfig(token)`
+- `lib/api/dashboard/tenants.ts` → `fetchTenantSettings(token)` plus local derivation helpers
 - Route Handlers (`app/api/bookings/route.ts`, etc.) — these proxy BFF calls for React Query's client-side refetch
 
 ### `bffClient` — client-only axios instance

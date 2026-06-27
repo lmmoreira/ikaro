@@ -70,9 +70,9 @@ import {
   ListBookingsUseCaseResult,
 } from '../../application/use-cases/list-bookings.use-case';
 import {
-  GetBookingUseCase,
-  GetBookingUseCaseResult,
-} from '../../application/use-cases/get-booking.use-case';
+  GetBookingByIdUseCase,
+  GetBookingByIdUseCaseResult,
+} from '../../application/use-cases/get-booking-by-id.use-case';
 import {
   CancelBookingAsCustomerUseCase,
   CancelBookingAsCustomerUseCaseResult,
@@ -115,7 +115,7 @@ export class BookingController {
     private readonly submitBookingInfo: SubmitBookingInfoUseCase,
     private readonly submitGuestBookingInfo: SubmitGuestBookingInfoUseCase,
     private readonly listBookings: ListBookingsUseCase,
-    private readonly getBooking: GetBookingUseCase,
+    private readonly getBooking: GetBookingByIdUseCase,
     private readonly cancelBookingAsCustomer: CancelBookingAsCustomerUseCase,
     private readonly cancelBookingAsAdmin: CancelBookingAsAdminUseCase,
     private readonly rescheduleBooking: RescheduleBookingUseCase,
@@ -132,7 +132,7 @@ export class BookingController {
   @Get(':id')
   getOne(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-  ): Promise<GetBookingUseCaseResult> {
+  ): Promise<GetBookingByIdUseCaseResult> {
     return this.getBooking.execute({ bookingId: id }).catch(mapBookingError);
   }
 

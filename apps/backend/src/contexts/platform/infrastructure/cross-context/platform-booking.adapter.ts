@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { BookingQueryService } from '../../../booking/application/services/booking-query.service';
+import { GetBookingByIdUseCase } from '../../../booking/application/use-cases/get-booking-by-id.use-case';
 import {
   BookingLookupSummary,
   IPlatformBookingPort,
@@ -7,12 +7,11 @@ import {
 
 @Injectable()
 export class PlatformBookingAdapter implements IPlatformBookingPort {
-  constructor(private readonly bookingQueryService: BookingQueryService) {}
+  constructor(private readonly getBookingById: GetBookingByIdUseCase) {}
 
-  async findById(bookingId: string, tenantId: string): Promise<BookingLookupSummary | null> {
+  async findById(bookingId: string, _tenantId: string): Promise<BookingLookupSummary | null> {
     try {
-      const booking = await this.bookingQueryService.findById(bookingId, tenantId);
-      if (!booking) return null;
+      const booking = await this.getBookingById.execute({ bookingId });
       return {
         id: booking.id,
         customerId: booking.customerId,

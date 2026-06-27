@@ -111,6 +111,23 @@ A repository or adapter that reads `this.requestContext.settings` works fine whe
 
 ---
 
+## Backend read use cases for cross-context access
+
+Cross-context adapters must depend on the source context's exported read use cases, not exported `*QueryService` wrappers. Query services tend to become repository pass-throughs and create a second application API beside the use-case layer.
+
+Use this naming pattern:
+
+| Need | Pattern |
+|---|---|
+| Single aggregate lookup | `Get<Entity>ByIdUseCase` (e.g. `GetCustomerByIdUseCase`, `GetBookingByIdUseCase`) |
+| List/search read | `Get<Entities>UseCase` with a filter DTO (e.g. `GetTenantsUseCase`, `GetServicesUseCase`, `GetStaffUseCase`) |
+
+Broad read use cases should accept filters such as `ids`, `status`, `roles`, `search`, `limit`, and `offset` when those dimensions are natural for the aggregate. Avoid super-narrow readers like `GetManagerEmailsUseCase` or `GetServiceNamesUseCase`; return a stable DTO for the aggregate and let the caller map the field it needs. If the correct breadth is unclear, stop and discuss the read contract before adding a new use case.
+
+Response shaping follows the same rule: keep the canonical read use case focused on retrieving the aggregate data, then map the caller-specific view at the boundary that owns that contract. Valid boundaries are controllers, cross-context adapters, BFF mappers, and client-side helpers. Inline mapping is fine for a single caller; extract a DTO or mapper only when the shaped output is reused in more than one place or needs to be shared as a type. Example: `GetBookingByIdUseCase` stays the canonical booking read, while `booking.controller.ts` or a BFF mapper can project it into the response shape a specific caller needs.
+
+---
+
 ## Static locale/config files in workspace packages
 
 `packages/i18n/locales/**` (and any future non-TypeScript static assets in a workspace package) sit outside that package's `src/`/`tsconfig.json` `include` — they are never compiled or copied into `dist/`. Importing them via a TS `import` statement only works in the source tree and silently breaks once the consuming app runs compiled JS.

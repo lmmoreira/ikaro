@@ -2,18 +2,18 @@ import { InMemoryServiceRepository } from '../../../../test/repositories/booking
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
-import { GetServiceUseCase } from './get-service.use-case';
+import { GetServiceByIdUseCase } from './get-service-by-id.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
-describe('GetServiceUseCase', () => {
+describe('GetServiceByIdUseCase', () => {
   let repo: InMemoryServiceRepository;
-  let useCase: GetServiceUseCase;
+  let useCase: GetServiceByIdUseCase;
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    useCase = new GetServiceUseCase(
+    useCase = new GetServiceByIdUseCase(
       repo,
       new RequestContextBuilder().withTenantId(TENANT_A).build(),
     );

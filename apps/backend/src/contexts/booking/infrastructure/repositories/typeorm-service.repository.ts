@@ -7,7 +7,10 @@ import {
   TENANT_SETTINGS_PORT,
 } from '../../../../shared/ports/tenant-settings.port';
 import { Money } from '../../../../shared/value-objects/money';
-import { IServiceRepository } from '../../application/ports/service-repository.port';
+import {
+  IServiceRepository,
+  ServiceFilters,
+} from '../../application/ports/service-repository.port';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceEntity } from '../entities/service.entity';
 
@@ -33,9 +36,23 @@ export class TypeOrmServiceRepository implements IServiceRepository {
     return entities.map((e) => this.toDomain(e, currency));
   }
 
-  async findAllByTenant(tenantId: string, onlyActive = false): Promise<Service[]> {
-    const where = onlyActive ? { tenantId, isActive: true } : { tenantId };
-    const entities = await this.repo.find({ where, order: { createdAt: 'ASC' } });
+  async findAllByTenant(tenantId: string, filters: ServiceFilters = {}): Promise<Service[]> {
+    if (filters.ids && filters.ids.length === 0) return [];
+    const query = this.repo
+      .createQueryBuilder('service')
+      .where('service.tenantId = :tenantId', { tenantId })
+      .orderBy('service.createdAt', 'ASC');
+
+    if (filters.ids) query.andWhere('service.id IN (:...ids)', { ids: filters.ids });
+    if (filters.status === 'ACTIVE')
+      query.andWhere('service.isActive = :isActive', { isActive: true });
+    if (filters.status === 'INACTIVE') {
+      query.andWhere('service.isActive = :isActive', { isActive: false });
+    }
+    if (filters.search)
+      query.andWhere('service.name ILIKE :search', { search: `%${filters.search}%` });
+
+    const entities = await query.getMany();
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     return entities.map((e) => this.toDomain(e, currency));
   }

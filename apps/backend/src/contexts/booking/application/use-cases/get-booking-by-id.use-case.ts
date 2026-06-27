@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
-import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
-import { Booking } from '../../domain/booking.aggregate';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
+import { Booking } from '../../domain/booking.aggregate';
+import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
+import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 
 export interface BookingLineDetail {
   lineId: string;
@@ -26,7 +26,7 @@ export interface BookingAddressDetail {
   zipCode: string;
 }
 
-export interface GetBookingUseCaseResult {
+export interface GetBookingByIdUseCaseResult {
   id: string;
   status: string;
   type: string;
@@ -54,14 +54,14 @@ export interface GetBookingUseCaseResult {
 }
 
 @Injectable()
-export class GetBookingUseCase {
+export class GetBookingByIdUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     private readonly tenantContext: RequestContext,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
   ) {}
 
-  async execute(dto: { bookingId: string }): Promise<GetBookingUseCaseResult> {
+  async execute(dto: { bookingId: string }): Promise<GetBookingByIdUseCaseResult> {
     const { tenantId, actorId, actorRole } = this.tenantContext;
 
     const booking = await this.bookingRepo.findById(dto.bookingId, tenantId);
@@ -96,7 +96,7 @@ export class GetBookingUseCase {
     );
   }
 
-  private async toResult(booking: Booking, locale: string): Promise<GetBookingUseCaseResult> {
+  private async toResult(booking: Booking, locale: string): Promise<GetBookingByIdUseCaseResult> {
     const [beforeServicePhotoUrls, afterServicePhotoUrls] = await Promise.all([
       this.signPhotoUrls(booking.beforeServicePhotoUrls),
       this.signPhotoUrls(booking.afterServicePhotoUrls),

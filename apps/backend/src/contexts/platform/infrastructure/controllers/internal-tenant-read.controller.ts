@@ -8,9 +8,9 @@ import {
   GetTenantBySlugUseCaseResult,
 } from '../../application/use-cases/get-tenant-by-slug.use-case';
 import {
-  GetTenantsByIdsUseCase,
-  GetTenantsByIdsUseCaseResult,
-} from '../../application/use-cases/get-tenants-by-ids.use-case';
+  GetTenantsUseCase,
+  TenantItemResult,
+} from '../../application/use-cases/get-tenants.use-case';
 import {
   ListPublishedHotsitesUseCase,
   ListPublishedHotsitesUseCaseResult,
@@ -22,7 +22,7 @@ export class InternalTenantReadController {
   constructor(
     private readonly getTenantById: GetTenantByIdUseCase,
     private readonly getTenantBySlug: GetTenantBySlugUseCase,
-    private readonly getTenantsByIds: GetTenantsByIdsUseCase,
+    private readonly getTenants: GetTenantsUseCase,
     private readonly listPublishedHotsites: ListPublishedHotsitesUseCase,
   ) {}
 
@@ -40,9 +40,7 @@ export class InternalTenantReadController {
   // Batch lookup — used by BFF to resolve multiple tenant IDs in a single call.
   // Must be declared before :tenantId to avoid route shadowing.
   @Get()
-  async getTenantsByIdsRoute(
-    @Query('ids') ids: string | undefined,
-  ): Promise<GetTenantsByIdsUseCaseResult[]> {
+  async getTenantsByIdsRoute(@Query('ids') ids: string | undefined): Promise<TenantItemResult[]> {
     if (!ids?.trim()) {
       throw new BadRequestException({
         type: 'about:blank',
@@ -63,7 +61,10 @@ export class InternalTenantReadController {
         detail: 'ids query parameter is required',
       });
     }
-    return this.getTenantsByIds.execute(tenantIds).catch(mapPlatformError);
+    return this.getTenants
+      .execute({ ids: tenantIds })
+      .then((result) => result.items)
+      .catch(mapPlatformError);
   }
 
   @Get(':tenantId')

@@ -54,7 +54,7 @@ describe('CreateInitialManagerUseCase', () => {
     expect(result.staffId).toBe(existing.id);
     expect(eventBus.published).toHaveLength(0);
 
-    const all = await repo.findAllByTenant(TENANT_ID, 100, 0);
+    const all = await repo.findAllByTenant(TENANT_ID, { limit: 100, offset: 0 });
     expect(all.total).toBe(1);
   });
 

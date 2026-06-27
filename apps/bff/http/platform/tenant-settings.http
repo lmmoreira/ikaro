@@ -1,6 +1,6 @@
 # BFF — Tenant Settings (M13-S10)
 # UC-026: Admin edits tenant settings (settings JSONB only — see tenant.http for renaming)
-# Guarded by @Roles('MANAGER') — requires a manager JWT (Authorization: Bearer <token>).
+# GET is available to staff and managers; PATCH requires a manager JWT.
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -33,9 +33,15 @@ Content-Type: application/json
 # HAPPY PATH
 # ─────────────────────────────────────────────────────────────────────────────
 
-### Get current tenant settings (camelCase)
+### Manager gets current tenant settings (camelCase)
 GET {{bffUrl}}/v1/tenants/settings
 Authorization: Bearer {{managerToken}}
+
+###
+
+### Staff gets current tenant settings (canonical read path for dashboard config)
+GET {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{staffToken}}
 
 ###
 
@@ -140,12 +146,6 @@ GET {{bffUrl}}/v1/tenants/settings
 
 ###
 
-### 403 — STAFF role not allowed
-GET {{bffUrl}}/v1/tenants/settings
-Authorization: Bearer {{staffToken}}
-
-###
-
 ### 400 — Empty settings object (no-op update rejected)
 PATCH {{bffUrl}}/v1/tenants/settings
 Authorization: Bearer {{managerToken}}
@@ -176,48 +176,3 @@ Content-Type: application/json
 {
   "settings": { "businessHours": { "timezone": "Not/AZone" } }
 }
-
-###
-
-# ─── GET /v1/tenants/formatting ──────────────────────────────────────────────
-
-### 200 — Staff retrieves tenant formatting (locale, currency, timezone, dateFormat, timeFormat)
-GET {{bffUrl}}/v1/tenants/formatting
-Authorization: Bearer {{staffToken}}
-
-###
-
-### 200 — Manager retrieves tenant formatting
-GET {{bffUrl}}/v1/tenants/formatting
-Authorization: Bearer {{managerToken}}
-
-###
-
-### 401 — No auth token
-GET {{bffUrl}}/v1/tenants/formatting
-
-###
-
-### 404 — Tenant not found (token references a deleted tenant)
-# This can happen when a JWT is still valid but the tenant was removed from the database.
-GET {{bffUrl}}/v1/tenants/formatting
-Authorization: Bearer {{staffToken}}
-
-###
-
-# ─── GET /v1/tenants/booking-config ──────────────────────────────────────────
-
-### 200 — Staff retrieves tenant booking configuration
-GET {{bffUrl}}/v1/tenants/booking-config
-Authorization: Bearer {{staffToken}}
-
-###
-
-### 200 — Manager retrieves tenant booking configuration
-GET {{bffUrl}}/v1/tenants/booking-config
-Authorization: Bearer {{managerToken}}
-
-###
-
-### 401 — No auth token
-GET {{bffUrl}}/v1/tenants/booking-config

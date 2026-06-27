@@ -36,7 +36,7 @@ describe('bffServerFetch', () => {
   });
 
   it('honours an explicit cache value', async () => {
-    await bffServerFetch('tok', '/tenants/formatting', {
+    await bffServerFetch('tok', '/tenants/settings', {
       cache: 'force-cache',
       next: { revalidate: 300 },
     });

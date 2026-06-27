@@ -124,7 +124,7 @@ Authorization: Bearer {{managerToken}}
 # The seed only provisions one customer account, so this can't be run as-is against
 # the seed data. To verify manually: dev-login as a second customer (a different
 # Customer row, e.g. by inviting one via the dashboard) and request the bookingId
-# above — expect 404, not 403, per get-booking.use-case.spec.ts's documented intent.
+# above — expect 404, not 403, per the backend booking read spec's documented intent.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /v1/bookings — guest booking (public, no JWT)  UC-001

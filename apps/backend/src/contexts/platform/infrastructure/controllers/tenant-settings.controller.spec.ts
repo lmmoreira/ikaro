@@ -8,8 +8,6 @@ import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manage
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
 import { UpdateTenantSettingsUseCase } from '../../application/use-cases/update-tenant-settings.use-case';
 import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
-import { GetTenantFormattingUseCase } from '../../application/use-cases/get-tenant-formatting.use-case';
-import { GetTenantBookingConfigUseCase } from '../../application/use-cases/get-tenant-booking-config.use-case';
 import { TenantSettingsController } from './tenant-settings.controller';
 
 describe('TenantSettingsController', () => {
@@ -25,8 +23,6 @@ describe('TenantSettingsController', () => {
       controllers: [TenantSettingsController],
       providers: [
         GetTenantByIdUseCase,
-        GetTenantFormattingUseCase,
-        GetTenantBookingConfigUseCase,
         UpdateTenantSettingsUseCase,
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
         { provide: RequestContext, useValue: tenantContext },
@@ -57,34 +53,6 @@ describe('TenantSettingsController', () => {
       expect.assertions(2);
       try {
         await controller.getSettings();
-      } catch (err) {
-        expect(err).toBeInstanceOf(HttpException);
-        expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
-      }
-    });
-  });
-
-  describe('getFormatting', () => {
-    it('returns locale, currency, timezone, dateFormat, timeFormat for the tenant', async () => {
-      const tenant = new TenantBuilder().withSlug('ctrl-formatting-01').build();
-      await tenantRepo.save(tenant);
-      tenantContext.tenantId = tenant.id;
-
-      const result = await controller.getFormatting();
-
-      expect(result.locale).toBe('pt-BR');
-      expect(result.currency).toBe('BRL');
-      expect(result.timezone).toBe('America/Sao_Paulo');
-      expect(result.dateFormat).toBe('DD/MM/YYYY');
-      expect(result.timeFormat).toBe('24h');
-    });
-
-    it('maps TenantNotFoundError to 404 HttpException', async () => {
-      tenantContext.tenantId = 'non-existent-id';
-
-      expect.assertions(2);
-      try {
-        await controller.getFormatting();
       } catch (err) {
         expect(err).toBeInstanceOf(HttpException);
         expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
@@ -147,29 +115,5 @@ describe('TenantSettingsController', () => {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
     }
-  });
-
-  describe('getBookingConfig', () => {
-    it('returns welcomeStaffScreenDays for the tenant', async () => {
-      const tenant = new TenantBuilder().withSlug('ctrl-booking-config-01').build();
-      await tenantRepo.save(tenant);
-      tenantContext.tenantId = tenant.id;
-
-      const result = await controller.getBookingConfig();
-
-      expect(result.welcomeStaffScreenDays).toBe(14);
-    });
-
-    it('maps TenantNotFoundError to 404 HttpException', async () => {
-      tenantContext.tenantId = 'non-existent-id';
-
-      expect.assertions(2);
-      try {
-        await controller.getBookingConfig();
-      } catch (err) {
-        expect(err).toBeInstanceOf(HttpException);
-        expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
-      }
-    });
   });
 });

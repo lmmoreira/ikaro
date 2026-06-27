@@ -4,11 +4,20 @@ import type {
   UnpublishHotsiteResponse,
   GenerateHotsiteImageSignedUrlResponse,
   FeatureBookingPhotoResponse,
-  TenantFormattingResponse,
-  TenantBookingConfigResponse,
+  TenantSettingsResponse,
 } from '@ikaro/types';
+import { countrySpec } from '@ikaro/i18n';
+import type { DateFormat } from '@ikaro/i18n';
 import { bffClient } from '../bff-client';
 import { bffServerFetch } from '../bff-server';
+
+export interface TenantFormattingConfig {
+  readonly locale: string;
+  readonly currency: string;
+  readonly timezone: string;
+  readonly dateFormat: DateFormat;
+  readonly timeFormat: '24h' | '12h';
+}
 
 export interface UpdateHotsiteModuleRequest {
   readonly type: string;
@@ -100,19 +109,25 @@ export async function featureBookingPhoto(
 }
 
 // Server-side only — reads the auth cookie directly (called from layout server components).
-export async function fetchTenantFormatting(token: string): Promise<TenantFormattingResponse> {
-  const res = await bffServerFetch(token, '/tenants/formatting', {
+export async function fetchTenantSettings(token: string): Promise<TenantSettingsResponse> {
+  const res = await bffServerFetch(token, '/tenants/settings', {
     next: { revalidate: 300 },
   });
-  if (!res.ok) throw new Error(`Failed to fetch tenant formatting (${res.status})`);
-  return res.json() as Promise<TenantFormattingResponse>;
+  if (!res.ok) throw new Error(`Failed to fetch tenant settings (${res.status})`);
+  return res.json() as Promise<TenantSettingsResponse>;
 }
 
-// Server-side only — reads tenant booking configuration (e.g. welcomeStaffScreenDays).
-export async function fetchTenantBookingConfig(
-  token: string,
-): Promise<TenantBookingConfigResponse> {
-  const res = await bffServerFetch(token, '/tenants/booking-config');
-  if (!res.ok) throw new Error(`fetchTenantBookingConfig: ${res.status}`);
-  return res.json() as Promise<TenantBookingConfigResponse>;
+export function resolveTenantFormatting(tenant: TenantSettingsResponse): TenantFormattingConfig {
+  const spec = countrySpec(tenant.settings.localization.countryCode);
+  return {
+    locale: tenant.settings.localization.language,
+    currency: tenant.settings.localization.currency,
+    timezone: tenant.settings.businessHours.timezone,
+    dateFormat: spec.dateFormat,
+    timeFormat: spec.timeFormat,
+  };
+}
+
+export function resolveWelcomeStaffScreenDays(tenant: TenantSettingsResponse): number {
+  return tenant.settings.booking.welcomeStaffScreenDays ?? 14;
 }

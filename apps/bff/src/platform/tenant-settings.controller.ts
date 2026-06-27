@@ -1,10 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { z } from 'zod';
-import {
-  TenantBookingConfigResponse,
-  TenantFormattingResponse,
-  TenantSettingsResponse,
-} from '@ikaro/types';
+import { TenantSettingsResponse } from '@ikaro/types';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
@@ -108,29 +104,18 @@ export const UpdateTenantSettingsBodySchema = z.object({
 type UpdateTenantSettingsBody = z.infer<typeof UpdateTenantSettingsBodySchema>;
 
 @Controller('tenants')
-@Roles('MANAGER')
 export class TenantSettingsController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
   @Get('settings')
+  @Roles('STAFF', 'MANAGER')
   getSettings(): Promise<TenantSettingsResponse> {
     return this.backendHttp.get<TenantSettingsResponse>('/tenants/settings');
   }
 
-  @Get('formatting')
-  @Roles('STAFF', 'MANAGER')
-  getFormatting(): Promise<TenantFormattingResponse> {
-    return this.backendHttp.get<TenantFormattingResponse>('/tenants/formatting');
-  }
-
-  @Get('booking-config')
-  @Roles('STAFF', 'MANAGER')
-  getBookingConfig(): Promise<TenantBookingConfigResponse> {
-    return this.backendHttp.get<TenantBookingConfigResponse>('/tenants/booking-config');
-  }
-
   @Patch('settings')
   @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER')
   updateSettings(
     @Body(new ZodValidationPipe(UpdateTenantSettingsBodySchema)) body: UpdateTenantSettingsBody,
   ): Promise<TenantSettingsResponse> {

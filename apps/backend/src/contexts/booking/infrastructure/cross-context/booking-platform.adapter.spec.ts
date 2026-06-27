@@ -1,6 +1,6 @@
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { TenantBuilder } from '../../../../test/builders/platform/index';
-import { TenantQueryService } from '../../../platform/application/services/tenant-query.service';
+import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
 import { BookingPlatformAdapter } from './booking-platform.adapter';
 
 describe('BookingPlatformAdapter', () => {
@@ -9,7 +9,7 @@ describe('BookingPlatformAdapter', () => {
 
   beforeEach(() => {
     repo = new InMemoryTenantRepository();
-    adapter = new BookingPlatformAdapter(new TenantQueryService(repo));
+    adapter = new BookingPlatformAdapter(new GetTenantsUseCase(repo));
   });
 
   it('returns all active tenants with their timezones', async () => {

@@ -5,6 +5,7 @@ import { InMemoryStorageService } from '../../../../test/infrastructure/in-memor
 import { HotsiteNotFoundError } from '../../domain/errors/platform-domain.error';
 import { DEFAULT_HOTSITE_BRANDING, HotsiteBranding } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
+import { HotsiteContentReader } from '../services/hotsite-content-reader.service';
 import { GetHotsiteContentUseCase } from './get-hotsite-content.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
@@ -18,11 +19,10 @@ describe('GetHotsiteContentUseCase', () => {
   beforeEach(() => {
     repo = new InMemoryHotsiteConfigRepository();
     storageService = new InMemoryStorageService();
+    const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
     useCase = new GetHotsiteContentUseCase(
-      repo,
-      storageService,
       new RequestContextBuilder().withTenantId(TENANT_A).build(),
-      new HotsiteImageUrlResolver(),
+      reader,
     );
   });
 

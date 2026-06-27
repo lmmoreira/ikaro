@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CustomerQueryService } from '../../../customer/application/services/customer-query.service';
+import { GetCustomerByIdUseCase } from '../../../customer/application/use-cases/get-customer-by-id.use-case';
 import {
   INotificationCustomerPort,
   NotificationCustomerInfo,
@@ -7,16 +7,15 @@ import {
 
 @Injectable()
 export class NotificationCustomerAdapter implements INotificationCustomerPort {
-  constructor(private readonly customerQueryService: CustomerQueryService) {}
+  constructor(private readonly getCustomerById: GetCustomerByIdUseCase) {}
 
   async getCustomerInfo(
     customerId: string,
     tenantId: string,
   ): Promise<NotificationCustomerInfo | null> {
     try {
-      const customer = await this.customerQueryService.findById(customerId, tenantId);
-      if (!customer) return null;
-      return { email: customer.email.address, name: customer.name };
+      const customer = await this.getCustomerById.execute(customerId, tenantId);
+      return { email: customer.email, name: customer.name };
     } catch {
       return null;
     }

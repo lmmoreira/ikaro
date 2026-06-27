@@ -6,7 +6,7 @@ import { LocaleProvider } from '@/providers/locale-provider';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
-import { fetchTenantFormatting } from '@/lib/api/dashboard/tenants';
+import { fetchTenantSettings, resolveTenantFormatting } from '@/lib/api/dashboard/tenants';
 
 interface ProtectedLayoutProps {
   readonly children: React.ReactNode;
@@ -27,10 +27,11 @@ export default async function ProtectedLayout({
   const userName = payload.userName ?? null;
 
   const locale = resolveSupportedLocale(payload.locale ?? 'pt-BR');
-  const [messages, formatting] = await Promise.all([
+  const [messages, tenantSettings] = await Promise.all([
     getMessages(locale),
-    fetchTenantFormatting(token),
+    fetchTenantSettings(token),
   ]);
+  const formatting = resolveTenantFormatting(tenantSettings);
 
   return (
     <LocaleProvider locale={locale} messages={messages}>

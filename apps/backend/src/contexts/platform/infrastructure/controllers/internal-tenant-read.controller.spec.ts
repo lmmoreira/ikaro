@@ -4,7 +4,7 @@ import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/p
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantBySlugUseCase } from '../../application/use-cases/get-tenant-by-slug.use-case';
-import { GetTenantsByIdsUseCase } from '../../application/use-cases/get-tenants-by-ids.use-case';
+import { GetTenantsUseCase } from '../../application/use-cases/get-tenants.use-case';
 import { ListPublishedHotsitesUseCase } from '../../application/use-cases/list-published-hotsites.use-case';
 import { InternalTenantReadController } from './internal-tenant-read.controller';
 
@@ -19,7 +19,7 @@ describe('InternalTenantReadController', () => {
     controller = new InternalTenantReadController(
       new GetTenantByIdUseCase(repo),
       new GetTenantBySlugUseCase(repo),
-      new GetTenantsByIdsUseCase(repo),
+      new GetTenantsUseCase(repo),
       new ListPublishedHotsitesUseCase(repo, hotsiteConfigRepo),
     );
   });
@@ -95,8 +95,8 @@ describe('InternalTenantReadController', () => {
 
       expect(result).toEqual(
         expect.arrayContaining([
-          { id: a.id, slug: 'lavacar-bh', name: 'Lavacar BH', locale: 'pt-BR' },
-          { id: b.id, slug: 'autospa-sp', name: 'AutoSpa SP', locale: 'pt-BR' },
+          expect.objectContaining({ id: a.id, slug: 'lavacar-bh', name: 'Lavacar BH' }),
+          expect.objectContaining({ id: b.id, slug: 'autospa-sp', name: 'AutoSpa SP' }),
         ]),
       );
       expect(result).toHaveLength(2);
