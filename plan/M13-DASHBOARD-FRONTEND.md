@@ -1961,7 +1961,7 @@ Extend `apps/web/middleware.ts` — add protection for `/{slug}/my-account/**`:
 
 ---
 
-### M13-S17 — Booking queue page (`/dashboard/bookings`)
+### M13-S17 — Booking queue page (`/dashboard/bookings`) ✅ Done
 
 *(formerly M125-S03)*
 
