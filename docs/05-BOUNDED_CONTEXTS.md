@@ -203,6 +203,8 @@ Notification Context subscribes:
 - `@Cron('0 2 * * *')` NestJS scheduler for daily expiry
 - **Weekly cron** (Mondays 06:00 tenant-local) for `PointsExpiringSoon` warnings
 
+**MVP constraints:** No tiers, no manual bonus adjustments, no bulk expiry triggers — only the daily cron and admin-recorded redemptions.
+
 **Tenant Isolation Guarantees:**
 - ✓ Cannot read another tenant's rows — all queries filter `tenant_id`
 - ✓ Expiration window is per-tenant via `tenants.settings.loyalty.expiryDays`

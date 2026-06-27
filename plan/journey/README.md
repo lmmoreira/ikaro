@@ -559,6 +559,12 @@ The bottom nav is navigation for top-level tabs. Drill-down pages (booking detai
 
 **Fix:** Add `.bottom-nav { display: none !important; }` to the `<style>` block of every detail/drill-down page.
 
+### ❌ `.week-nav` strip missing month navigation row or FAB clearance
+
+`.week-nav` (the week navigation strip) is a prototype-local pattern — it is **not** in `tokens.css`. Agents often add the week strip without the month navigation row above it, and forget to lift the FAB above the bottom nav.
+
+**Fix:** Add a `‹ month ›` navigation row above every week strip (`›` links to the next-week page; `‹` disabled on the current week). The FAB needs `@media (max-width:1023px) { .fab { bottom: 5rem; } }` to clear the bottom nav.
+
 ### ❌ Full-width action buttons on desktop (form and confirmation pages)
 
 Using `display: flex` with `flex: 1` on save/cancel buttons inside a wide dashboard content area causes them to stretch across the full column on desktop — visually broken and inconsistent with every other dashboard detail page.

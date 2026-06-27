@@ -1,32 +1,21 @@
 # Ikaro — Agent Context (canonical)
 
-> **AGENT EDITING NOTICE:** `CLAUDE.md`, `claude.md`, and `gemini.md` are all symlinks to **`.copilot/context.md`**. If you need to edit this file, always write to `.copilot/context.md` directly — never attempt to write through the symlinks.
+> **AGENT EDITING NOTICE:** `CLAUDE.md`, `claude.md`, `AGENTS.md`, and `gemini.md` are all symlinks to **`.copilot/context.md`**. Always write to `.copilot/context.md` directly — never through the symlinks.
 
-**Symlinked as:** `claude.md`, `gemini.md`  
-**Audience:** Any AI coding agent (Claude Code, Copilot CLI, Cursor, Aider, etc.)  
-**Rule:** Read this file first on every conversation. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-06-26 (M13-S16 follow-up — added `getInitials` copy-paste anti-pattern: before writing any utility function inline in a component, grep `apps/web/lib/utils/` first; if it doesn't exist, create the file + `.spec.ts` pair there. Found when `getInitials` was duplicated across four components (`CustomerShell`, `HotsiteAuthBarDropdown`, `Topbar`, `Sidebar`) with one copy missing the null guard. Added to §8 and `docs/ANTI_PATTERNS.md`. Previously: M13-S15 follow-up #2 — added `--ba-*` branding token scope rule: tokens injected by `applyBranding()` are exclusively for the hotsite `/[slug]/` route subtree; dashboard and `my-account` shells use the fixed SaaS palette — Tailwind + shadcn, never `--ba-*`. Added to §8 anti-patterns table, `docs/ANTI_PATTERNS.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 scope boundary callout, and a new `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §2 Colour System section. Previously: M13-S15 follow-up — three new anti-patterns from the dashboard-shell implementation session: (1) new `apps/web/components/**/*.tsx` files shipped without co-located `.spec.tsx` in the same commit — SonarCloud coverage gate fires on the PR; fix is to always include specs in the same commit; (2) protected-area layout hardcoding `'pt-BR'` instead of reading `payload.locale` from JWT — locale is a per-tenant setting, must be threaded through all BFF login flows as `tenant.settings.localization.language`; (3) dashboard component implementation ignoring the story's CSS class reference table in favour of ad-hoc Tailwind/shadcn — `tokens.css` classes carry responsive/hidden behaviour that Tailwind equivalents silently break; acceptance criteria naming a specific class name must be honoured literally. Added a mandatory "read prototype HTML before writing components" note to §9 Step 2, extended the component spec rule in §7 to cover all `components/**` not just hotsite modules, and added the locale rule to code standards. Previously: 2026-06-25 (M13-S14 follow-up #5 — two new anti-patterns from the `HotsiteAuthBar` staff identity session: (1) a global `APP_GUARD` singleton changed to `Scope.REQUEST` to inject `BackendHttpService` — measurable GC pressure at high throughput; the correct fix is to keep the guard singleton and manually include `X-Internal-Key` via `this.config.getOrThrow` alongside `buildBackendHeaders(req)`; (2) a staff hotsite login link omitting `?tenantSlug=` — without it, `handleStaffLogin` only finds already-linked accounts by `googleOAuthId` and silently routes to the wrong tenant when a linked account exists elsewhere; the fix is `?tenantSlug=${slug}` on every staff hotsite link and forwarding it through the login page to the OAuth URL. Also added in this session: `GET /v1/staff/me` BFF endpoint so `HotsiteAuthBar` can show the authenticated staff member's name; `app/api/staff/me` Next.js proxy; `getHotsiteStaffProfile()` fetcher; `loginAsStaff()` E2E helper; staff-side E2E test coverage in `hotsite-auth-bar.spec.ts`; staff "Sair" button on the hotsite auth bar. Previously: 2026-06-25 (M13-S14 follow-up #4 — a real multi-tenancy correctness bug: a customer authenticated at tenant A who navigated to tenant B's hotsite was shown as logged in there too, with tenant A's identity — `GET/PATCH /customers/me` never sent `X-Tenant-Slug`, so the BFF's `TenantGuard` (which only checks the header *if present*) silently skipped its own mismatch check, even though `docs/24-BFF_ARCHITECTURE.md`'s own endpoint table already documented that header as required for those two routes. Fixed by threading the current page's slug through `getHotsiteCustomerProfile()`/`updateHotsiteCustomerProfile()`; a 403 (mismatch) is now treated the same as a 401 (not logged in to *this* tenant). The same `/switch-tenant` page that exposed this also turned out to render with neither the current tenant's branding nor its locale — both `applyBranding()` and `next-intl`'s locale resolution are scoped to the `/[slug]` layout subtree, which this top-level route isn't part of; fixed by fetching the tenant manifest once and applying both explicitly, and added `switch-tenant`/`select-staff-tenant` to `resolveLocale()`'s `STATIC_SEGMENTS` allowlist (was being treated as an unknown tenant slug, 404ing, and falling back to the hardcoded pt-BR default). Also fixed: `InformationCompletionPrompt`'s form was missing `noValidate`, so native HTML constraint validation silently blocked the `submit` event before custom JS validation ran once multiple `required` address fields existed; and `SwitchTenantClient`'s "Voltar sem trocar" used `router.back()`, which can replay a frozen pre-auth-check snapshot from the browser's back-forward cache — replaced with a direct hard navigation to the known current tenant. Separately, fixed the actual `not-a-staff-member` bug a real login attempt hit: `handleStaffLogin` (generic `/dashboard/login`, no `tenantSlug`) only ever looked up staff by `googleOAuthId`, so a freshly-invited (never-linked) staff member always failed there even with an active, correctly-invited record — added a new backend endpoint (`GET /internal/staff/by-email-all`) and a BFF fallback (`linkStaffByVerifiedEmail`) that matches by Google's own verified email across all tenants and links on first use, closing the gap `td/TD13-STAFF-INVITE-EMAIL-LINK.md`'s broken invite-link workaround existed for (downgraded TD13 to Low; added `td/TD14-BOOKING-ADDRESS-ERROR-ATTRIBUTION.md` for a related, lower-priority gap: the booking form's two addresses, pickup vs. contact, can't be distinguished from a generic backend rejection). All six lessons added to `docs/ANTI_PATTERNS.md`; corrected a stale `plan/M13-DASHBOARD-FRONTEND.md` note that had deferred all auth E2E coverage to M16-S06 over a "missing test-bypass endpoint" that turned out to already exist (`ENABLE_DEV_AUTH`'s `dev-login`, already wired into `pr-e2e.yml`) — built the E2E auth helper and coverage for these flows instead. Previously: 2026-06-25 (M13-S14 follow-up #2 — fixed the same root cause independently found in two forms, `InformationCompletionPrompt` and `BookingForm`: both only branched on a structured `violations[]` array to pick a specific error message, falling through to a fully generic one for any 400 without it. The backend produces 400s two ways for the same logical failure — Zod-pipe request validation always returns `violations`, but a domain VO's own `create()` validation (e.g. `Address.create()`'s country-specific postal/state regex, mapped by `mapCustomerError`/`mapBookingError`) returns a flat `{type,title,status,detail}` with none. Fixed both to default any non-phone 400 to the form's most likely specific message instead of the generic fallback; also fixed a related state bug in `InformationCompletionPrompt` where the red-highlight was wired to client-side validity (`!isAddressValid`), which stays true even when the server rejects an address the client already considers complete. Added to `docs/ANTI_PATTERNS.md` — any future form submitting an address through an `AddressValidationError`-mapped context is exposed to the same gap. Previously: 2026-06-25 (M13-S14 follow-up — `HotsiteAuthBar`'s staff-area link hardcoded `color: 'rgba(17,24,39,0.4)'` instead of `var(--ba-text)`, found visually (no automated check catches hardcoded hotsite colors): it rendered fine for dark-on-light tenants and went invisible the moment a tenant's `--ba-secondary` was dark. Fixed, plus closed the documentation gap that let it through: `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`'s "use only `var(--ba-*)`" rule read as scoped to the per-tenant dynamic modules, so persistent chrome like the auth bar fell outside what anyone was checking — added a clarifying note that the rule covers all hotsite-tree components, and a new `docs/ANTI_PATTERNS.md` entry for this exact failure mode. Previously: 2026-06-25 (M13-S12 PR #49 cleanup — added two anti-patterns to §8 and `docs/ANTI_PATTERNS.md`: a cross-context Port+Adapter's backing service left registered in its module's `providers`/`exports` "for future use" after the adapter itself was deleted to fix a circular module dependency (`LoyaltyQueryService` outlived `ICustomerLoyaltyPort`/`CustomerLoyaltyAdapter`, ending up with zero consumers); and a BFF/`@ikaro/types` response or list-item interface given an ad-hoc name (`BackendSearchResult`, `CustomerSearchResult`) instead of the established `<Thing>Response`/`<Thing>Item` suffix convention — "Result" specifically collides with the unrelated backend Use Case `{UseCaseClassName}Result` naming rule. Previously: 2026-06-24 (M13-S13: staff auth overhaul — §2 invariant 6 updated to multi-tenant staff; added `Staff OAuth login URL format` section to `docs/ENGINEERING_RULES.md` — `GoogleAuthGuard` reads `?type=staff`/`?tenantSlug=`, NOT `?state=__staff__`, a non-obvious trap that the prototypes got wrong; created `td/TD13-STAFF-INVITE-EMAIL-LINK.md` — `send-staff-invitation.use-case.ts` generates a broken `/${slug}/auth/staff` link, workaround is direct BFF URL; added deactivated-state account-linking guard to `docs/ANTI_PATTERNS.md`; updated `plan/M13-DASHBOARD-FRONTEND.md` — M13-S15 middleware note, open questions resolved. Previously: added a new anti-pattern surfaced by `M13-S08`: a cross-context port/use-case pre-formatting structured data into a single display string before any consumer is known — `LoyaltyBookingAdapter`'s redemption→service lookup was the concrete case, where joining (or worse, returning only `lines[0]`) inside the backend port silently cut information at the data-retrieval layer and baked a presentation decision into the wrong layer; fixed by returning `ServiceSummary[]` all the way through the port → use case → backend HTTP response, with the actual `, `-join moved into the BFF mapper, which already owns customer-facing presentation shaping. Also added to `docs/ANTI_PATTERNS.md`. Previously: added two items surfaced by the M13-S05 PR: §8's anti-patterns table now flags a second, independent `fetch(...)` call building the same BFF route URL outside its canonical `lib/api/<name>.ts` fetcher — `lib/i18n/resolve-locale.ts` had its own copy of `lib/api/platform.ts`'s manifest URL, which silently went stale after a route rename and was only caught by Playwright (the duplicate's own unit test asserted the same stale URL, so it couldn't catch it); the fix pattern is a shared low-level `fetch<X>Response()` raw-`Response` helper that each caller layers its own error handling on top of — also added to `docs/ANTI_PATTERNS.md`, which was also backfilled with two M13-S04-era entries (`@ikaro/types` collision check, BFF mapper extraction) that had only ever made it into this file's §8 table. And §9 Step 9's "verify a bot's suggestion" rule now also covers severity/security claims, not just logic suggestions — CodeRabbit's "Critical" info-disclosure label on `BackendHttpService`'s catch-all re-throw didn't hold up against the actual installed `@nestjs/core`'s default exception filter behavior (verified by reading `node_modules` directly); tracked as `td/TD10-BFF-BACKEND-UNREACHABLE-GENERIC-500.md` instead at Low priority. Previously: added two items surfaced by the M13-S04 PR: §7's BFF naming section now says to grep `@ikaro/types` for a same-named export before declaring a new request/response interface in `apps/web/lib/api/**` — `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` documents 5 BFF modules where this had already silently drifted, in both directions (web stale vs. `@ikaro/types` stale); and a rule that a BFF controller's second pure response-mapping function should be extracted into a sibling `<module>.mapper.ts` of plain functions — not a class — matching `booking-error.mapper.ts`'s precedent, with `bookings.mapper.ts` as the new reference example. Both also added to §8's anti-patterns table. Previously: added two new `docs/ENGINEERING_RULES.md` sections surfaced by the TD02-S10 PR: "Adding a new notification type" — the full 7-step file checklist (enum → mapping → both locale JSON files → migration → use case → handler → tests) plus a gotcha that's easy to miss: `copyGlobalDefaultsForTenant` only runs once at tenant-provisioning time, so a new notification key never reaches tenants provisioned *before* the migration that added it, with no backfill mechanism today; and "Authoring new i18n UI copy keys" — always touch both locale files together, namespace by existing UI area, use ICU placeholders. Routed both from §10's table. Previously: added the `next-intl` Server-vs-Client-Component rule surfaced during the TD02-S09 PR: `useTranslations()` works in Server Components, only add `'use client'` for real interactivity or a Context-based hook like `useFormatting()` — see §7, `docs/CODE_STANDARDS.md`. Also added: a mandatory "actually run the Playwright suite, don't just curl-inspect HTML" rule and a sharpened E2E selector rule (translated text may be asserted as content, never used as the selector) — see `docs/08-TESTING_STRATEGY.md`; a note on verifying a bot-suggested PR fix against the real implementation before applying it (a suggestion can itself be wrong) — see §9 Step 9; and a clarification that Playwright/E2E coverage does not feed SonarCloud's coverage gate in this repo — see `docs/08-TESTING_STRATEGY.md`. Previously: added the RequestContext eager-load pattern and its invocation-context constraint surfaced during the TD02-S04 PR's RequestContext/settings refactor: prefer eager-loading per-request-shared data into `RequestContext` over a new Port+Adapter when many contexts need it; shared infrastructure called from more than one invocation context — repositories especially — must never read `RequestContext` directly, since cron jobs and event handlers run outside the HTTP interceptor that populates it. Also added a short note on reading non-TypeScript static files from a workspace package (`packages/i18n/locales/**`) via `require.resolve` — see `docs/ENGINEERING_RULES.md`, `docs/ANTI_PATTERNS.md`. Previously: added two anti-patterns surfaced during TD02-S04 review: duplicate cross-context Port+Adapter pairs for the same context pair, and shared-VO validation errors leaking as unmapped 500s — see §7, §8, `docs/ANTI_PATTERNS.md`, `docs/ENGINEERING_RULES.md`. Previously: rebranded the SaaS/product/repo from BeloAuto to Ikaro — see td/TD04-REBRAND-IKARO.md; BeloAuto remains a valid sample tenant. Removed the resolved CVE-2026-45447 §18 Dockerfile workaround — node:22-alpine now ships the patched libcrypto3/libssl3. Also corrected the product framing from car-wash-specific to vertical-agnostic, and added a Business Context note to §1.)
+**Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`  
+**Audience:** Any AI coding agent  
+**Rule:** Read this file first. Then use §10 to load only the docs you need.  
+**Last updated:** 2026-06-27
 
 ---
 
 ## 0. Permission Protocol (non-negotiable)
 
-Before writing or editing any **documentation or architecture file** (`.md`, `.tf`, `.yml`, configs):
+**Story / TD gate — NON-NEGOTIABLE:** Before writing any code for a story or TD, run `/story-discovery M0X-SYY` first. This is the first action after entering the worktree, no exceptions. Never skip — even for "obvious" tasks.
 
-1. **Discuss** the change with the user.
-2. **Summarise** what you intend to write.
-3. **Ask:** "May I now create/update `<path>`?"
-4. **Write only after** an explicit yes.
+**Doc/config gate:** Before writing or editing any `.md`, `.tf`, `.yml`, or config file: discuss → summarise → ask "May I now create/update `<path>`?" → write only after an explicit yes. Exception: once a story is approved, `.ts`/`.spec.ts` code files can be created autonomously. Read-only ops (`Read`, `grep`, `ls`, `git status`, memory) are always free.
 
-**Exception — code files within an approved story:** Once a story spec has been discussed and agreed, create all its `.ts` source and test files autonomously without asking per-file. The permission gate applies to `.md` docs, architecture docs, Terraform, and CI/CD config — not to code within an approved implementation.
-
-Exceptions always: read-only ops (`Read`, `grep`, `ls`, `git status`, memory files).
-
-**Commit & push gate (non-negotiable):** Before every `git commit` and every `git push`, stop and ask the user: *"Ready to commit [files]. Anything else to do first, or shall I commit and push?"* The pre-push hook runs `ci:fast` (~15 s) on every push — unnecessary pushes are expensive. Batch all changes, then ask once. Never commit or push autonomously.
-
-**The same gate applies before `/pre-pr` and before `gh pr create` — never chain them automatically.** Both are expensive (`/pre-pr` re-runs full verification + integration tests; opening a PR is a visible, shared action). When an implementation/edit phase is finished, say so explicitly and ask: *"Implementation finished — anything else to commit, or shall I run `/pre-pr` and open the PR?"* Wait for explicit yes before running `/pre-pr`, and again before `gh pr create`, even if the underlying work was already approved earlier in the conversation.
-
-**Branch-or-main choice for small doc-only edits:** If the change is doc-only (this file, a `CI_TRAPS.md` entry, a TD note — no code) and you're starting from `main`, don't automatically create a feature branch and run the full PR cycle. Ask first: *"Small doc-only change — want this on a new branch with a full PR, or should I just commit it directly to main?"* `git push`'s pre-push hook runs the full `ci:fast` suite every time, and `gh pr create` triggers CodeRabbit/Copilot review bots that bill per PR — disproportionate cost for a one-line markdown edit. Does not apply to any code change, which always needs a feature branch per §9 Step 1.
+**Commit / push / PR gate — NON-NEGOTIABLE:** Before every `git commit`, explicitly ask: *"Here are the files I'm about to commit: [list]. Anything else to add before I commit?"* Before every `git push`, ask: *"Anything else to add before I push?"* Wait for an explicit yes at each step. Never commit, push, run `/pre-pr`, or open a PR without that confirmation. Never chain these steps automatically. For doc-only changes on `main`, also ask whether to use a feature branch or commit direct.
 
 ---
 
@@ -34,35 +23,20 @@ Exceptions always: read-only ops (`Read`, `grep`, `ls`, `git status`, memory fil
 
 | Fact | Value |
 |---|---|
-| **Product** | Ikaro |
-| **Type** | Multi-tenant SaaS — booking & loyalty platform for local service businesses (car wash is the flagship example vertical) |
-| **Market** | Brazil 🇧🇷 |
-| **Currency** | BRL (R$) — `Money` value object must carry currency code |
-| **Locale** | pt-BR (email templates, UI copy, date/number formats) |
-| **Default TZ** | `America/Sao_Paulo` (UTC-3); one timezone per tenant via `settings.business_hours.timezone` |
-| **Branch** | `main` · Trunk-Based Development · short-lived `feat/UC-xxx` / `fix/xxx` branches |
-| **Commits** | Conventional Commits (`feat(booking):`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`) |
-| **Languages** | TypeScript strict mode — backend + frontend |
-| **Backend** | NestJS v11 modular monolith |
-| **BFF** | Separate NestJS v11 service (`apps/bff/`) |
-| **Frontend** | Next.js 16 + React 19 |
-| **Monorepo** | pnpm workspaces (`apps/`, `packages/`) |
-| **ORM** | TypeORM v0.3+ |
-| **DB** | PostgreSQL 15 — single shared schema, `tenant_id` everywhere |
-| **DB migrations** | TypeORM migrations; run via **separate CI job** before deploy — app never auto-migrates at startup |
-| **Event bus** | GCP Pub/Sub (prod) · GCP Pub/Sub Emulator (local dev docker-compose) · behind `IEventBus` port |
-| **Auth** | Google OAuth 2.0 · JWT sessions (`sub` = backend entity UUID, `tenantId`, `tenantSlug`, `role` in payload) · BFF forwards `X-Actor-ID` / `X-Actor-Type` / `X-Actor-Role` headers to backend |
-| **Storage** | S3-compatible (GCS/S3) · paths: `tenants/<tenant_id>/bookings/<booking_id>/<file>` |
-| **Observability** | Prometheus + Grafana + OpenTelemetry + Loki + OTel Collector |
-| **Container** | Docker · GCP Cloud Run (MVP) → Kubernetes if needed |
-| **IaC** | Terraform (GCP provider MVP; cloud-agnostic adapters) |
-| **Secrets** | GCP Secret Manager (MVP) → HashiCorp Vault if multi-cloud · `PLATFORM_ADMIN_KEY` (min 32 chars) protects `POST /internal/tenants` |
-| **Errors** | RFC 9457 Problem Details on all non-2xx responses |
-| **Coverage gate** | ≥ 80% on **changed code** (differential, not global) |
-| **Rate limiting** | NestJS `@nestjs/throttler` on all public endpoints |
-| **Feature flags** | Environment variables (`FEATURE_FLAG_XYZ=true`) — no external system for MVP |
+| **Type** | Multi-tenant SaaS — booking & loyalty platform for local service businesses (car wash is the flagship vertical) |
+| **Market** | Brazil 🇧🇷 · Currency: BRL · Locale: pt-BR · Default TZ: `America/Sao_Paulo` |
+| **Branch** | `main` · Trunk-Based Development · short-lived `feat/M0X-SYY-*` / `fix/*` branches |
+| **Commits** | Conventional Commits: `feat(booking):`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:` |
+| **Stack** | TypeScript strict · NestJS v11 backend + BFF · Next.js 16 + React 19 frontend · pnpm workspaces |
+| **DB** | PostgreSQL 15 · TypeORM v0.3+ · single shared schema · `tenant_id` everywhere · migrations via separate CI job (never auto at startup) |
+| **Event bus** | GCP Pub/Sub (prod) · emulator (local) · behind `IEventBus` port |
+| **Auth** | Google OAuth 2.0 · JWT (`sub` = backend UUID, `tenantId`, `tenantSlug`, `role`) · BFF forwards `X-Actor-ID`/`X-Actor-Type`/`X-Actor-Role` |
+| **Storage** | GCS/S3-compatible · paths: `tenants/<tenant_id>/bookings/<booking_id>/<file>` |
+| **Errors** | RFC 9457 Problem Details on all non-2xx |
+| **Coverage gate** | ≥ 85% on **changed code** (differential) — enforced at pre-PR (Step 4) |
+| **Feature flags** | Env vars (`FEATURE_FLAG_XYZ=true`) — no external system for MVP |
 
-**Business context:** Ikaro is the SaaS half of a two-part business — a sister **Ikaro Consulting** offering (coaching, content, growth strategy) serves the same local-service-business customer at a higher tier; this repo only implements the Platform. Long-term, the platform is meant to grow into a business-intelligence layer over the data it collects (bookings, loyalty, customer activity) — keep that direction in mind when shaping schemas/events, rather than assuming today's MVP scope is final. (See `UC-017 | Booking analytics | Future — out of MVP` in §6.)
+**Business context:** Ikaro is a SaaS platform + sister **Ikaro Consulting** offering; this repo is the Platform only. Designed to grow into a BI layer over booking/loyalty data — keep that in mind when shaping schemas and events.
 
 ---
 
@@ -75,12 +49,12 @@ Any code that breaks these is a defect regardless of test coverage.
 3. Every domain event includes `tenantId`, `eventId` (idempotency key), `occurredAt` (ISO-8601 UTC), `correlationId`.
 4. Composite FKs use `(tenant_id, id)` to block cross-tenant references at DB level.
 5. **Customers are multi-tenant** — same Google `sub` → multiple `Customer` rows (one per tenant). No unique on `google_oauth_id` alone.
-6. **Staff can be multi-tenant** — `UNIQUE(tenant_id, google_oauth_id)` per-tenant partial index (where not null). The same Google account may be staff at more than one tenant. When `handleStaffLogin` finds multiple active staff records for a `google_oauth_id`, it issues a selection token and redirects to `/select-staff-tenant` (parallel to the customer flow). Staff is always provisioned as `is_active=true`; the invite link only *links* the Google account (`google_oauth_id`) to the existing active record — there is no separate activation step. A deactivated staff member hitting login is redirected to `/auth/error?reason=staff-deactivated`.
-7. File paths prefixed by tenant (see §1 Storage).
+6. **Staff can be multi-tenant** — `UNIQUE(tenant_id, google_oauth_id)`. Multiple active staff records → issue selection token → `/select-staff-tenant`. Staff always `is_active=true`; invite link only links `google_oauth_id` to existing record. Deactivated → `/auth/error?reason=staff-deactivated`.
+7. File paths prefixed by tenant (see Storage in §1).
 8. Logs, metrics, traces include `tenant_id`. OTel span attrs: `tenant.id`, `user.id`, `correlation.id`.
-9. Event consumers are idempotent (at-least-once delivery). Dedup via `eventId`.
+9. Event consumers are idempotent (at-least-once). Dedup via `eventId`.
 10. JWT contains `tenantId`/`tenantSlug`. BFF rejects mismatches.
-11. JWT `sub` is always the **backend entity UUID** — `staffId` for STAFF/MANAGER, `customerId` for CUSTOMER (never Google's OAuth `sub`). BFF forwards it as `X-Actor-ID`, along with `X-Actor-Type` (`STAFF`|`CUSTOMER`) and `X-Actor-Role` (`STAFF`|`MANAGER`|`CUSTOMER`). Guest requests carry none of the `X-Actor-*` headers. Backend reads these from `RequestContext`.
+11. JWT `sub` is always the **backend entity UUID** — `staffId` for STAFF/MANAGER, `customerId` for CUSTOMER. BFF forwards as `X-Actor-ID`/`X-Actor-Type`/`X-Actor-Role`. Guest requests carry none of these. Backend reads from `RequestContext`.
 
 Raise a doc bug if a UC appears to violate these — do not "make it work."
 
@@ -88,16 +62,16 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 
 ## 3. Bounded Contexts (brief — load `docs/05-BOUNDED_CONTEXTS.md` for detail)
 
-| Context | Type | Aggregates | Publishes |
-|---|---|---|---|
-| **Booking** | Core | `Booking`, `Service`, `ScheduleClosure` | `BookingRequested/Approved/Rejected/InfoRequested/InfoSubmitted/Completed/Cancelled/Rescheduled` + `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` |
-| **Customer** | Supporting | `Customer` (multi-tenant rows) | — |
-| **Staff** | Supporting | `Staff` (multi-tenant rows) | `StaffInvited`, `StaffDeactivated` |
-| **Loyalty** | Supporting | `LoyaltyEntry` (append-only), `LoyaltyBalance` (running total), `LoyaltyRedemption` (append-only) | `ServicePointsEarned`, `PointsExpiringSoon` |
-| **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` | `EmailSent`, `EmailFailed` |
-| **Platform** | Foundational | `Tenant`, `HotsiteConfig` | `TenantProvisioned` |
+| Context | Type | Aggregates |
+|---|---|---|
+| **Booking** | Core | `Booking`, `Service`, `ScheduleClosure` |
+| **Customer** | Supporting | `Customer` (multi-tenant rows) |
+| **Staff** | Supporting | `Staff` (multi-tenant rows) |
+| **Loyalty** | Supporting | `LoyaltyEntry` (append-only), `LoyaltyBalance`, `LoyaltyRedemption` (append-only) |
+| **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` |
+| **Platform** | Foundational | `Tenant`, `HotsiteConfig` |
 
-**Loyalty MVP rules:** One immutable `LoyaltyEntry` per `BookingLine` completed. Idempotent via `UNIQUE(tenant_id, booking_line_id)`. Active balance stored in `loyalty_balances.current_points` (O(1) — not a SUM). Incremented on earn, decremented on redemption or daily expiry cron (idempotent via `balance_expiry_log`). Admins record redemptions via `POST /v1/loyalty/redeem`. No tiers, no manual bonus adjustments.
+→ Aggregates, events published, cross-context communication patterns, Loyalty MVP rules: `docs/05-BOUNDED_CONTEXTS.md`
 
 ---
 
@@ -115,7 +89,7 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 }
 ```
 
-For full payload definitions → `docs/03-DOMAIN_EVENTS.md`
+→ Full payload definitions: `docs/03-DOMAIN_EVENTS.md`
 
 ---
 
@@ -125,9 +99,7 @@ For full payload definitions → `docs/03-DOMAIN_EVENTS.md`
 PENDING        → INFO_REQUESTED | APPROVED | REJECTED | CANCELLED
 INFO_REQUESTED → PENDING (customer responded) | APPROVED | REJECTED | CANCELLED
 APPROVED       → COMPLETED | CANCELLED
-COMPLETED      (terminal)
-REJECTED       (terminal)
-CANCELLED      (terminal)
+COMPLETED / REJECTED / CANCELLED  (terminal)
 ```
 
 `NO_SHOW` is **not** in MVP. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
@@ -136,423 +108,232 @@ CANCELLED      (terminal)
 
 ## 6. Use Cases Index (load `docs/04-USE_CASES.md` for detail)
 
-| UC | Title | Status |
-|---|---|---|
-| UC-001 | Guest requests booking | Active |
-| UC-002 | Authenticated customer requests booking | Active |
-| UC-003 | Admin approves booking | Active |
-| UC-004 | Admin rejects booking | Active |
-| UC-005 | Admin requests more info | Active |
-| UC-006 | Customer views & manages bookings | Active |
-| UC-007 | Customer cancels booking (48 h window from `settings`) | Active |
-| UC-008 | Admin cancels / reschedules booking | Active |
-| UC-009 | Admin marks booking complete + after-photos | Active |
-| UC-010 | Staff manages schedule closures and openings | Active |
-| UC-011 | Guest views calendar availability | Active |
-| UC-012 | Admin creates service | Active |
-| UC-013 | Admin edits / deactivates service | Active |
-| UC-014 | Customer login | **SUPERSEDED by UC-021** |
-| UC-015 | Staff login | **SUPERSEDED by UC-022** |
-| UC-016 | View customer loyalty metrics | Active |
-| UC-017 | Booking analytics | Future — out of MVP |
-| UC-018 | Admin daily schedule reminder (6 AM) | Active |
-| UC-019 | Customer reminder day-before (6 AM) | Active |
-| UC-020 | Customer reminder day-of (6 AM) | Active |
-| UC-021 | Customer login + tenant selection | Active (canonical) |
-| UC-022 | Staff login — single tenant | Active (canonical) |
-| UC-023 | Customer switches tenant | Active |
-| UC-024 | Platform operator provisions new tenant (REST API) | Active |
-| UC-025 | Admin first login / accepts invite | Active |
-| UC-026 | Admin edits tenant settings | Active |
-| UC-027 | Admin manages hotsite content | Active |
-| UC-028 | Admin invites new staff member | Active |
-| UC-029 | Admin deactivates staff member | Active |
+| UC | Title |
+|---|---|
+| UC-001 | Guest requests booking |
+| UC-002 | Authenticated customer requests booking |
+| UC-003 | Admin approves booking |
+| UC-004 | Admin rejects booking |
+| UC-005 | Admin requests more info |
+| UC-006 | Customer views & manages bookings |
+| UC-007 | Customer cancels booking (48 h window from `settings`) |
+| UC-008 | Admin cancels / reschedules booking |
+| UC-009 | Admin marks booking complete + after-photos |
+| UC-010 | Staff manages schedule closures and openings |
+| UC-011 | Guest views calendar availability |
+| UC-012 | Admin creates service |
+| UC-013 | Admin edits / deactivates service |
+| UC-014 | Customer login — **SUPERSEDED by UC-021** |
+| UC-015 | Staff login — **SUPERSEDED by UC-022** |
+| UC-016 | View customer loyalty metrics |
+| UC-017 | Booking analytics — **Future, out of MVP** |
+| UC-018 | Admin daily schedule reminder (6 AM) |
+| UC-019 | Customer reminder day-before (6 AM) |
+| UC-020 | Customer reminder day-of (6 AM) |
+| UC-021 | Customer login + tenant selection **(canonical)** |
+| UC-022 | Staff login — single tenant **(canonical)** |
+| UC-023 | Customer switches tenant |
+| UC-024 | Platform operator provisions new tenant |
+| UC-025 | Admin first login / accepts invite |
+| UC-026 | Admin edits tenant settings |
+| UC-027 | Admin manages hotsite content |
+| UC-028 | Admin invites new staff member |
+| UC-029 | Admin deactivates staff member |
 
-**Missing UCs (do not implement until documented):** Customer profile edit beyond the minimal phone-collection step (UC-021 A3 / M13-S02), audit log view, notification template management, failed-notification retry.
+**Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry.
 
 ---
 
 ## 7. Engineering Rules
 
-→ Full detail on VOs, transactions, event handlers, and test patterns: `docs/ENGINEERING_RULES.md` (load when writing any code).
+→ Full detail: `docs/ENGINEERING_RULES.md` + `docs/CODE_STANDARDS.md` (load when writing any code).
 
-### Hexagonal layers (per context)
-```
-src/contexts/<context>/
-├── domain/           # entities, value objects, domain events, domain services — zero framework deps
-├── application/      # use cases, ports (interfaces), DTOs
-└── infrastructure/   # adapters: persistence, REST controllers, event publishers, HTTP clients
-```
-Shared cross-cutting code → `src/shared/` (logger, OTel, `IEventBus` port, tenant-context).
+### Architecture
+- **Layers per context:** `domain/` (zero framework deps) → `application/` (use cases, ports, DTOs) → `infrastructure/` (adapters, controllers, persistence). Shared cross-cutting → `src/shared/`.
+- **Value objects:** Domain-validated fields in `src/shared/value-objects/`. `create()` validates from raw strings; `reconstitute()` skips validation. Never plain primitives for domain fields.
+- **Transactions:** Every `save()` wrapped in `ITransactionManager.run()`. Reads/validations happen *before* `txManager.run()`.
+- **Event handlers:** `handle()` calls exactly one use case and rethrows. Zero domain logic. Pass `event.correlationId` into the DTO — never generate a new UUID in the handler. Idempotency via DB check in the use case.
+- **Cross-context data access (in priority order):** (1) Domain events — async, preferred; (2) BFF orchestration — sync reads, preferred; (3) Port+Adapter — last resort, same process. Grep `infrastructure/cross-context/` before adding a new port — extend existing adapters. Never a SQL JOIN across contexts.
 
-### Value objects
-Domain-validated fields → `src/shared/value-objects/` (never plain primitives). Aggregate props use VO types (Option A): getters return VOs; `create()` constructs from raw strings; `reconstitute()` skips validation.
-→ Full VO catalogue + mapper patterns: `docs/ENGINEERING_RULES.md`.
+### Critical code invariants (not caught by linters)
 
-### Code standards
-
-→ Full mandatory rules: `docs/CODE_STANDARDS.md`. Critical invariants always active:
-
-- `strict: true` — no `any`, no `@ts-ignore`, no `// eslint-disable`. Functions ≤ 20 lines, classes ≤ 200.
-- Controllers call use cases only. No business logic in controllers.
-- Domain errors thrown by use cases; `mapXxxError(err: unknown): never` at HTTP layer; controller = `return this.useCase.execute(dto).catch(mapXxxError)`. Never throw `HttpException` from a use case.
-- Use case result: `{UseCaseClassName}Result`. DTO: `{Action}Dto`. Zod schema: `{Action}Schema`.
+- `mapXxxError(err: unknown): never` at HTTP layer; controller = `return this.useCase.execute(dto).catch(mapXxxError)`. Never throw `HttpException` from a use case.
 - **Aggregate-driven events:** `this.addDomainEvent()` in aggregate method; flush `clearDomainEvents()` **after** `txManager.run()`. Never publish events directly from a use case.
-- `correlationId` from `RequestContext.correlationId` (not `uuidv7()`). Domain error base class needs `Object.setPrototypeOf(this, new.target.prototype)` after `super()`.
+- `correlationId` from `RequestContext.correlationId` (not `uuidv7()`). Domain error base class needs `Object.setPrototypeOf(this, new.target.prototype)` after `super()` — otherwise `instanceof` fails silently and every mapper falls through to 500.
 - Zod v4: `z.uuid()` / `z.email()` — never `z.string().uuid()` / `z.string().email()`.
-- **`/internal/` routes are only for unauthenticated auth flows.** They bypass `RequestInterceptor` (which populates `RequestContext` from `X-Actor-ID`/`X-Actor-Type`/`X-Actor-Role`/`X-Tenant-Slug`). Use `/internal/` **only** when there is no logged-in actor yet — during OAuth callbacks before a JWT is issued (e.g. `handleStaffLogin`, `handleTenantLogin`, `findOrCreate`, `link-google`). Any endpoint called by an authenticated BFF request (JWT cookie already present, `BackendHttpService` forwarding actor headers) belongs in the regular authenticated controllers (`StaffController`, `CustomerController`, etc.) where `RequestContext` is populated normally. When in doubt: if the BFF can include actor headers, the endpoint is not internal. Before proposing a new `/internal/` endpoint, confirm there is genuinely no logged-in actor for that call.
+- **`/internal/` routes are only for unauthenticated auth flows** (OAuth callbacks before a JWT exists: `handleStaffLogin`, `findOrCreate`, `link-google`). If the BFF can include actor headers, the endpoint is not internal — put it in the regular authenticated controller.
 - `RequestModule` is not `@Global()` — import explicitly in every module whose controller injects `RequestContext`.
-- Domain events belong in the publishing context (`StaffInvited` in `staff/domain/events/`, not `platform/`).
-- **All code is English-only** — identifiers, comments, file names, commit messages, and domain error messages. Only literal strings rendered to the end user (UI copy, validation/error text, email templates) follow the tenant's locale — pt-BR for BR tenants. This applies everywhere, including milestone/story specs in `plan/` — a story's field labels and error copy are pt-BR because that's what ships in the UI, not an exception to the rule.
-- Default params must come after required params (SonarCloud S1788).
-- No barrel `index.ts` in `ports/` or `shared/domain/` — ESLint enforces. Every new REST endpoint → `.http` file.
-- `next-intl`'s `useTranslations()` works in Server Components — no `'use client'` needed, it ships a dedicated `react-server` build. Only add `'use client'` for real interactivity (state/effects/DOM APIs) or a Context-based hook like `useFormatting()`. Default hotsite/SEO-facing components to Server Components. → `docs/CODE_STANDARDS.md`.
-- **Protected-area layouts** (`app/dashboard/**`, `app/[slug]/my-account/**`) that need the tenant's locale must read `resolveSupportedLocale(payload.locale ?? 'pt-BR')` — `payload` from `decodeJwtPayload(token)`. Never hardcode `'pt-BR'` in a layout. The BFF sets `locale: tenant.settings.localization.language` in every `issueToken()` call, so the JWT always carries the right locale for that tenant.
+- **Protected-area layouts** read `resolveSupportedLocale(payload.locale ?? 'pt-BR')` from `decodeJwtPayload(token)` — never hardcode `'pt-BR'`. BFF sets `locale` in every `issueToken()` call.
 
-### Cross-context data access (priority order — follow strictly)
+### BFF naming & transport
 
-When Context A needs data owned by Context B, choose the **first** option that applies:
+**BFF modules** named after bounded context (`platform/`, not `tenants/`). Authenticated controller: `<context>.controller.ts`; public: `<context>.public.controller.ts`. Public types in `@ikaro/types` as `Hotsite<Resource>Response`/`<Resource>ListResponse`. Before new interface in `apps/web/lib/api/**`, grep `@ikaro/types` — verify against live BFF schema if shapes differ. Second mapper function → extract to `<module>.mapper.ts` (plain functions, not a class; `bookings.mapper.ts` is the reference). → `docs/24-BFF_ARCHITECTURE.md`
 
-1. **Domain events (preferred — async):** Context B publishes; Context A subscribes and projects into its own read model.
-2. **BFF orchestration (preferred — sync read):** BFF calls both contexts independently. No context knows the other.
-3. **Port + adapter (last resort — sync, same process):** Interface in Context A's `application/ports/`. Adapter injects Context B's **service** (never its repository token). Before adding a new port, grep `infrastructure/cross-context/` for an existing adapter between the same two contexts — extend it with a new method rather than creating a parallel one (TD02-S02 created `ITenantLocalizationPort` alongside the already-existing `IBookingPlatformPort`, both booking→platform — found and merged in TD02-S04).
+**Web → BFF transport:** Two helpers cover all calls — never write a raw `fetch()` URL outside them:
+- `bffServerFetch(token, path)` — server-only (`page.tsx`, `layout.tsx`, Route Handlers). Import from `@/lib/api/bff-server`. Never in `'use client'` files.
+- `bffClient` (axios, `withCredentials: true`) — client-only (React Query hooks). Import from `@/lib/api/bff-client`. Never in Server Components.
+- `useTenant()` (`apps/web/providers/tenant-provider.tsx`) — only source of `tenantId` in hooks. Server layouts decode JWT and pass to `<TenantProvider>`.
 
-**Never** a direct SQL JOIN across contexts inside a repository. A repository queries its own schema only.
+### Testing
 
-### BFF module & controller naming
-BFF modules are named after their **bounded context** (§3), never an aggregate (`platform/`, not `tenants/` — `Tenant` is one aggregate inside the Platform context). Within a module: `<context>.controller.ts` = authenticated/role-guarded (dashboard); `<context>.public.controller.ts` = `@Public()` unauthenticated (hotsite) — both may share `@Controller('<path>')` if method+path combos don't collide, and one `.public.controller.ts` may serve multiple hotsite module types. Public response types live in `@ikaro/types` as `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse`. Frontend fetchers `apps/web/lib/api/<name>.ts` mirror the BFF module name they call. Before declaring a new request/response interface in `apps/web/lib/api/**`, grep `@ikaro/types` for an export of the same or a similar name first — if one already exists but the shape looks different, verify against the live BFF schema which side is actually correct before assuming the shared package wins (`@ikaro/types` itself was the stale side in several cases found in `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md`).
+**Backend + BFF:** Unit (`.spec.ts`) · Integration (`.integration.spec.ts`) · E2E (Playwright). → `docs/08-TESTING_STRATEGY.md`
+- Builders mandatory: class + `withXxx()` / `build()`. InMemory doubles over `jest.fn()`.
+- New migration/entity → register in `integration-global-setup.ts` in the **same commit** — missing = silent test failure.
+- Integration app helpers must default-override network-calling adapters. Use `useClass` not `useExisting`.
 
-Once a controller needs a **second** pure response-mapping function (e.g. shaping the same backend data differently per actor role), extract them into a sibling `<module>.mapper.ts` as plain exported functions — never a class, matching `booking-error.mapper.ts`'s precedent — instead of letting them accumulate inline in the controller. `bookings.mapper.ts` (extracted from `bookings.controller.ts` in `M13-S04`) is the reference example; its own `.mapper.spec.ts` tests the mapping logic directly, without NestJS/HTTP mocking.
-→ Full detail: `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions.
-
-### Transactions
-Every `save()` must be wrapped in `ITransactionManager.run()` — single-aggregate writes too. Scope: reads/validations/mutations happen *before* `txManager.run()` opens; wrap only the `save()` call(s).
-→ Artifact locations, test wiring, multi-aggregate rules: `docs/ENGINEERING_RULES.md`.
-
-### Event handlers
-- **Thin by law:** `handle()` calls exactly one use case and rethrows. Zero domain logic.
-- **Idempotency in the use case** — DB check via `findByXxx`. No in-memory sets (lost on restart).
-- Pass `event.correlationId` into the DTO — never generate a new UUID in the handler.
-→ Pub/Sub naming, subscribe pattern, test wiring tables: `docs/ENGINEERING_RULES.md`.
-
-### Testing (backend + BFF)
-Three layers: **Unit** (`.spec.ts`) · **Integration** (`.integration.spec.ts`) · **E2E** (Playwright). Full patterns → `docs/08-TESTING_STRATEGY.md` + `docs/ENGINEERING_RULES.md`.
-
-- Every UC: ≥1 unit + ≥1 integration + ≥1 tenant-isolation test. SonarCloud ingests unit only — every controller/use case needs `.spec.ts`.
-- **Builders mandatory** — class + `withXxx()` / `build()`. Never factory functions. **InMemory doubles** over `jest.fn()`.
-- No `.skip()`, `.only()`, `setTimeout`. Integration DB isolation: unique inline tenant UUID for count assertions.
-- New migration/entity → register in `integration-global-setup.ts` in the **same commit**. Missing = silent integration test failure.
-- Integration app helpers must default-override network-calling adapters (e.g. `STORAGE_SERVICE`). Use `useClass` not `useExisting` in module providers.
-
-### Testing (apps/web)
-Test runner: **Vitest** (not Jest) — config at `apps/web/vitest.config.ts`. Scripts: `test`, `test:cov`, `test:watch`.
-
-#### What to test and how
-
-**`lib/**` — pure functions, fetchers, route handlers:** Vitest in `node` environment. This is the original scope.
-
-**`components/hotsite/**` — module components:** Vitest + `@testing-library/react` in `jsdom` environment. See infrastructure and per-component test table below.
-
-**`components/dashboard/**` and other non-hotsite components:** Same Vitest + `@testing-library/react` in `jsdom` environment. Every new `apps/web/components/**/*.tsx` file — hotsite AND dashboard — **must ship its `.spec.tsx` in the same commit.** The "do not test" exception below applies only to `app/**/page.tsx` and `app/**/layout.tsx`.
-
-**`app/**/page.tsx`, `app/**/layout.tsx` — server component pages/layouts:** **Do NOT unit-test.** These require the full Next.js runtime (`notFound()`, `generateMetadata`, ISR, `cookies()`, `headers()`). Tested by Playwright E2E only.
-
-**Interactive client components with complex stateful flows** (e.g. multi-step booking form): Playwright E2E. Simple `'use client'` leaf components with no async Next.js API calls are testable with `@testing-library/react`.
-
-#### Why module components are different from pages/layouts
-
-Hotsite module components (`HeroModule`, `ServiceListModule`, etc.) are **synchronous functions that receive fully-resolved props and return JSX** — no Next.js runtime APIs, no `async`, no `fetch`. The "do not test" rule applies to pages and layouts specifically because they call Next.js functions unavailable in jsdom. Module components carry none of those dependencies; they are as testable as any pure React component.
-
-#### Module component testing infrastructure (established in M12-S04)
-
-**Dependencies (`apps/web` devDependencies):**
-- `@testing-library/react` — component rendering in jsdom
-- `@testing-library/jest-dom` — DOM matchers (`toBeInTheDocument`, `toHaveAttribute`, etc.)
-- `@testing-library/user-event` — user interaction simulation (required for M12-S07 booking form)
-
-**`vitest.config.ts` additions:**
-```ts
-// resolve.alias — module-level side effects that must be globally swapped
-resolve: {
-  alias: {
-    'next/font/google': path.resolve(__dirname, '__mocks__/next-font-google.ts'),
-    'next/image':       path.resolve(__dirname, '__mocks__/next-image.ts'),  // LCP images; has same module-eval problem
-  },
-},
-```
-
-**Per-file environment declaration:** `environmentMatchGlobs` is not available in Vitest v4's TypeScript types (and did not function in testing). Each component spec file must declare its environment explicitly at line 1:
-```ts
-// @vitest-environment jsdom
-```
-`lib/**` stays in the default `node` environment — no change, no annotation needed.
-
-**`apps/web/__mocks__/next-image.ts`** (same pattern as `next-font-google.ts` — global alias, not per-file mock):
-```ts
-import React from 'react';
-const MockImage = ({
-  src, alt, fill: _, priority: __, sizes: ___, ...rest
-}: React.ImgHTMLAttributes<HTMLImageElement> & {
-  src: string; alt: string; fill?: boolean; priority?: boolean; sizes?: string;
-}) => React.createElement('img', { src, alt, ...rest });
-export default MockImage;
-```
-
-**`vitest.setup.ts`:**
-```ts
-import '@testing-library/jest-dom/vitest';
-// Global test setup — /vitest entrypoint registers types for Vitest's expect();
-// bare @testing-library/jest-dom leaves toBeInTheDocument() etc. untyped in strict mode.
-```
-
-**`next/navigation`** (`useRouter`, `usePathname`, etc.) and **`next/cache`** (`revalidatePath`) still use per-file `vi.mock()` when needed — they do not have the module-eval side-effect that requires a global alias.
-
-#### Per-component test focus (S04–S07)
-
-Every hotsite module component requires a `*.spec.tsx` alongside it. Minimum coverage per component:
-
-| Component | Key test cases |
-|---|---|
-| `HeroModule` | `variant: 'centered'` and `'left-aligned'` both render; title and optional subtitle present; `ctaTarget: 'booking'` → `href="#booking-form"`; `ctaTarget: 'service-list'` → `href="#service-list"`; no `backgroundImageUrl` → no `<img>`, primary bg applied; with `backgroundImageUrl` → `<img>` with correct `src`; `subtitle` absent → no subtitle element |
-| `ServiceListModule` | Cards rendered from mocked data; `showPrices: false` → price badge absent; `showPoints: false` → points badge absent; zero services → pt-BR empty-state message; section has `id="service-list"` |
-| `GalleryModule` | 8 images + `maxVisible: 6` → all 8 images in DOM (extras marked `data-gallery-extra`), "Ver mais" button present; clicking "Ver mais" sets `data-gallery-expanded="true"` on wrapper; `images: []` → section not rendered; `source: 'booking'` + `photoType: 'before'` → "Antes" badge; `source: 'booking'` + `photoType: 'after'` → "Depois" badge; images rendered with `loading="lazy"` |
-| `TestimonialsModule` | Items render with author name and text; `rating: 4` → 4 filled stars; no `rating` → no star elements; `layout: 'carousel'` → carousel structure present |
-| `AboutModule` | `imagePosition: 'left'` → image before text in DOM; `imagePosition: 'right'` → image after text in DOM; `imageUrl` absent → no `<img>`; markdown `body` rendered as HTML; `<script>` tag in `body` stripped (XSS) |
-| `ContactModule` | `showMap: false` → no `<iframe>`; `showWhatsapp: false` → no WhatsApp link; `showAddress: false` → no address block; WhatsApp link opens `wa.me/` with correct number |
-| `BookingCtaModule` | CTA links to `/<slug>/booking`; section has `id="booking-form"` |
-
-**Every hotsite module component spec must also include a `has no axe violations` assertion** using `jest-axe`:
-```ts
-it('has no axe violations', async () => {
-  const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
-  expect(await axe(container)).toHaveNoViolations();
-});
-```
-- `toHaveNoViolations` is registered globally in `vitest.setup.ts` via `expect.extend(toHaveNoViolations)` — no per-file setup needed.
-- The `color-contrast` axe rule is **disabled globally** in `vitest.setup.ts` (`configureAxe({ rules: { 'color-contrast': { enabled: false } } })`). Reason: jsdom cannot resolve CSS custom properties (`--ba-primary`, `--ba-hero-bg`, etc.) so the rule always false-positives on branding tokens. WCAG AA contrast correctness is covered instead by the `contrastRatio` unit tests in `apply-branding.spec.ts`.
-- `ContactModule` passes `{ iframes: false }` to `axe()` because jsdom cannot scan cross-origin `<iframe>` content (Google Maps embed) via `postMessage`.
-- This colour-contrast caveat is **hotsite-specific**. Dashboard and account components use Ikaro's fixed design system (no CSS custom property branding tokens) — their axe assertions should use the full default ruleset including `color-contrast`.
-
-#### SonarCloud configuration
-- `sonar.coverage.exclusions`: `apps/web/app/**/page.tsx`, `apps/web/app/**/layout.tsx` — **`apps/web/components/**` is NOT excluded** because module components now have Vitest tests and must contribute to the coverage gate.
-- `sonar.exclusions`: `**/vitest.config.ts`, `**/__mocks__/**`, `**/vitest.setup.ts`.
-
-#### Other standards
-- `next/font/google` calls font-loader functions at module-evaluation time — a module-level side effect. Per-file `vi.mock()` is too late. Use a **global `resolve.alias`** in `vitest.config.ts` pointing to `apps/web/__mocks__/next-font-google.ts`. Modules with runtime-only deps (`next/cache`, `next/navigation`) can use per-file `vi.mock()` normally.
-- React component props interfaces: every field must be **`readonly`** (SonarCloud S6759 — fires on every new component).
-- Import Node.js built-ins with the `node:` prefix (`node:path`, `node:fs`) — bare names are flagged by SonarCloud.
-- Functions returning CSS custom properties: declare return type as `React.CSSProperties & Record<\`--ba-${string}\`, string>` — never use `as React.CSSProperties` assertion (SonarCloud smell).
+**apps/web:** Vitest (not Jest) — config at `apps/web/vitest.config.ts`.
+- `lib/**`: `node` env · `components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only
+- **Every new `components/**/*.tsx` must ship its `.spec.tsx` in the same commit.**
+- → Vitest config, mocks, axe testing, per-component cases: `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
 
 ### CI gates (block merge)
-- ESLint + Prettier — zero warnings
-- `tsc --noEmit` — zero errors
-- All tests pass — 100%
-- Coverage ≥ 80% on changed code
-- SonarCloud Quality Gate GREEN
-- Snyk SCA — zero high/critical vulns
-- Gitleaks — zero secrets detected
-- Trivy image scan — zero high/critical
-- Checkov/Tfsec IaC scan — zero high
+ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Snyk SCA · Gitleaks · Trivy · Checkov/Tfsec
 
 ### Definition of Done
-- [ ] Matches cited UC's main + alt flows
-- [ ] Unit + integration + tenant-isolation tests pass
-- [ ] Coverage delta ≥ 80% on changed code
-- [ ] All queries filter by `tenant_id`
-- [ ] All events use standard envelope with `tenantId`, `eventId`, `correlationId`
-- [ ] No hardcoded config values — read from `tenants.settings`
-- [ ] No secrets in code
+- [ ] Matches cited UC's main + alt flows; CI passes (`pnpm lint`, `pnpm test`, `pnpm type-check`)
+- [ ] Coverage delta ≥ 80%; unit + integration + tenant-isolation tests pass
+- [ ] All queries filter `tenant_id`; all events include `tenantId`/`eventId`/`correlationId`
 - [ ] Migration is backward-compatible (expand/contract)
-- [ ] CI passes locally: `pnpm lint`, `pnpm test`, `pnpm type-check`
-- [ ] API change reflected in `docs/14-API_CONTRACTS.md` (with permission)
 - [ ] Conventional Commit + PR description links the UC
 
 ---
 
 ## 8. Anti-Patterns (BLOCK MERGE)
 
-Full list in `docs/ANTI_PATTERNS.md` (checked by `/pre-pr`). Silent-failure patterns — highest risk:
+Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-obvious patterns not covered by §2 or linters:
 
-| Pattern | Problem | Fix |
-|---|---|---|
-| `WHERE id = ?` without `tenant_id` | Cross-tenant data leak | Add `AND tenant_id = ?` |
-| Event missing `tenantId` in envelope | Can't isolate per tenant | Include in every event |
-| Throwing `HttpException` directly from a use case | Couples app layer to HTTP | Throw domain errors only; `mapXxxError` converts them |
-| Publishing events directly from a use case | Bypasses aggregate encapsulation; wrong `correlationId` | Record via `addDomainEvent()`; flush after `txManager.run()` |
-| Missing `Object.setPrototypeOf(this, new.target.prototype)` in domain error base class | `instanceof` fails silently — every error mapper falls through to 500 | Add immediately after `super()` in every `XxxDomainError extends Error` base class |
-| `RequestModule` missing from a module that injects `RequestContext` | NestJS DI fails — integration tests crash with `TypeError: Cannot read properties of undefined` | Every module with a controller injecting `RequestContext` must import `RequestModule` |
-| `useExisting` registering adapter as standalone class: `providers: [GcsSignedUrlAdapter, { provide: STORAGE_SERVICE, useExisting: GcsSignedUrlAdapter }]` | Class instantiated even when token overridden in tests — `onApplicationBootstrap` network calls run → `ECONNREFUSED` | Use `useClass`: `providers: [{ provide: STORAGE_SERVICE, useClass: GcsSignedUrlAdapter }]`; integration app helpers must also default-override the token |
-| Creating a new cross-context Port+Adapter when one already exists for the same context pair | Duplicate adapters drift apart; the new one often ships without its own `.spec.ts` | Grep `infrastructure/cross-context/` for an existing adapter between the same two contexts first; add a method to it instead |
-| Shared VO's `create()` throws a plain `Error` for a rule the DTO's Zod schema can't fully replicate (e.g. country-specific format) | `mapXxxError`'s `if (err instanceof Error) throw err` fallthrough turns it into an unhandled 500 instead of a 400 | Give the VO a typed error class; add an `instanceof` branch to every calling context's error mapper |
-| Declaring a new request/response interface in `apps/web/lib/api/**` without checking `@ikaro/types` first | Either duplicates a correct shared type (drifts silently — found in 5 BFF modules, `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md`) or, if `@ikaro/types` is itself stale, blindly importing it ships a wrong contract | Grep `@ikaro/types` for the same/similar name; if shapes differ, verify against the live BFF schema which side is correct before picking one |
-| Inline `to*` response-mapping functions accumulating in a BFF `*.controller.ts` | Controller grows untestable in isolation — mapping logic can only be exercised through full HTTP-mock setup | Once a second mapper function appears, extract both into a sibling `<module>.mapper.ts` (plain functions, not a class) with its own direct-call spec |
-| A second, independent `fetch(...)` call building the same BFF route URL outside the canonical `lib/api/<name>.ts` fetcher | Renaming/moving the route updates the canonical fetcher but silently misses the duplicate; the stale URL 404s and falls back to a default, masked because the duplicate's own unit test asserts `fetch` was called with the same stale URL — only caught by Playwright hitting the real BFF (M13-S05) | Extract a shared low-level `fetch<X>Response()` raw-`Response` helper in the canonical fetcher file; each caller layers its own error handling on top instead of building the URL independently |
-| A cross-context port/use-case pre-formats structured data into a single display string (e.g. `booking.lines.map(l => l.name).join(', ')` inside `LoyaltyBookingAdapter`, or worse, picking only `lines[0]`) | Bakes a presentation decision into the backend layer before any consumer is known; picking only the first item silently drops information at the data-retrieval layer, and even joining early removes the BFF's ability to reorder/filter/re-render differently later (M13-S08) | Return structured data (e.g. reuse `ServiceSummary[]`) all the way through the port → use case → backend HTTP response; do the actual join/format in the BFF mapper (`<module>.mapper.ts`), which already owns customer-facing presentation shaping |
-| A cross-context Port+Adapter is removed (e.g. to fix a circular module dependency) but its backing service is left registered in the owning module's `providers`/`exports` "for future use" | Dead code with zero consumers ships as if it were live infrastructure (M13-S12, PR #49: `LoyaltyQueryService` outlived the `ICustomerLoyaltyPort`/`CustomerLoyaltyAdapter` it backed) | Delete the backing service (and spec) too unless something *currently* calls it; re-add it later if a real new caller appears |
-| A BFF or `@ikaro/types` response/list-item interface given an ad-hoc name (e.g. `BackendSearchResult`) instead of the established suffix convention | Inconsistent vocabulary; "Result" also collides with the unrelated backend Use Case `{UseCaseClassName}Result` convention | Name a raw response shape `<Thing>Response` (e.g. `LoyaltyBalanceResponse`); name a list-item shape `<Thing>Item` (e.g. `LoyaltyEntryItem`); grep `@ikaro/types`/local `<module>.types.ts` first |
-| A global `APP_GUARD` singleton is changed to `Scope.REQUEST` to inject `BackendHttpService` (which is REQUEST-scoped), or `BackendHttpModule` is added to `AppModule` imports to resolve it | `Scope.REQUEST` on a global guard creates one new instance per HTTP request — measurable GC pressure at high throughput; NestJS guidance is that global guards must be singletons | Keep global guards as `@Injectable()` (singleton). Inject raw `HttpService` + `ConfigService` instead of `BackendHttpService`. Build backend headers with `buildBackendHeaders(req)` + explicit `'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY')` — this replicates exactly what `BackendHttpService.headers()` produces, without requiring REQUEST scope |
-| A staff login entry point on a tenant's hotsite links to `/dashboard/login` without `?tenantSlug=` | The OAuth callback has two paths: `handleStaffFirstLogin(tenantSlug)` links by email at the specific tenant; `handleStaffLogin` (no tenant) only finds already-linked accounts by `googleOAuthId`. Without the slug a user with an existing linked account at a *different* tenant is silently routed there — no error, just the wrong dashboard | Every staff hotsite link must carry `?tenantSlug={slug}` (`/dashboard/login?tenantSlug=${encodeURIComponent(slug)}`); the login page must read `searchParams.tenantSlug` and append it to the OAuth URL (`?type=staff&tenantSlug={slug}`); the `app/api/staff/me` proxy must forward `X-Tenant-Slug` so `TenantGuard` identifies the right identity |
-| A BFF controller method uses `@CurrentUser()` only to extract `user.sub`/`user.tenantId` to construct a backend URL (e.g. `/internal/resource/${user.sub}/tenants?tenantId=${user.tenantId}`) | Reliable signal the backend endpoint is misplaced in `/internal/` — `BackendHttpService` already forwards all actor headers (`X-Actor-ID`, `X-Actor-Type`, `X-Actor-Role`, `X-Tenant-Slug`) on every call via `buildBackendHeaders(this.req)`, so the backend can always read the actor from `RequestContext` directly; passing the ID in the URL is redundant. Backend `/internal/` routes bypass `RequestInterceptor` and are for auth-flow calls only where no actor JWT exists yet (OAuth callbacks, `findOrCreate`, `link-google`) | Move the backend endpoint to the regular authenticated controller — read `actorId`/`tenantId` from `RequestContext`, no URL/query params needed; BFF method drops `@CurrentUser()` entirely |
-| New `apps/web/components/**/*.tsx` shipped without a co-located `.spec.tsx` in the same commit | SonarCloud's coverage gate measures changed code — a component with zero test lines contributes 0% to the delta and blocks the PR gate. Found in M13-S15: six components landed spec-less; specs arrived in a separate commit, triggering a preventable CI failure | Every new component file (hotsite AND dashboard) needs its `.spec.tsx` in the same commit. Minimum: a render smoke test + role/prop variants for any conditional rendering. "Do not unit-test" applies only to `app/**/page.tsx` and `app/**/layout.tsx` |
-| A protected-area layout hardcodes a locale string (e.g. `resolveSupportedLocale('pt-BR')`) instead of reading from the JWT | Locale is a per-tenant setting — hardcoding `'pt-BR'` overrides every tenant's configured language. Found in M13-S15: dashboard layout created with hardcoded locale, requiring a full JWT enrichment exercise across the BFF and all five login flows to fix | Read `resolveSupportedLocale(payload.locale ?? 'pt-BR')` from `decodeJwtPayload(token)`. The BFF sets `locale: tenant.settings.localization.language` in every `issueToken()` call — never hardcode a locale in a layout |
-| A dashboard component story lists a CSS class reference table (`.auth-avatar`, `.bottom-nav`, `.sidebar-footer`, etc.) but the implementation uses Tailwind utilities or shadcn primitives for those roles | `tokens.css` classes carry responsive/hidden behaviour — `.topbar-avatar` is `display: none` at `≥1024px`; `.auth-avatar` is visible at all widths. Substituting Tailwind silently breaks this: the avatar disappears on desktop with no error. Found in M13-S15 — acceptance criterion "`auth-avatar` (not `topbar-avatar`)" was in the spec; the initial implementation used `<Avatar className='h-8 w-8'>` and missed it entirely | Before writing any dashboard component: read the prototype HTML AND the story's CSS class reference table. If a CSS class name appears in an AC or the reference table, that exact name must appear in the production component — either by importing `tokens.css` or by replicating its full responsive behaviour. Do not invent a Tailwind equivalent without reading the `tokens.css` definition first |
-| A dashboard or customer-account component uses a `--ba-*` CSS variable (e.g. `var(--ba-secondary)`, `var(--ba-primary)`) for colours | `--ba-*` variables are injected by `applyBranding()` inside `app/[slug]/layout.tsx` and only exist in the `/[slug]/` hotsite subtree. In the dashboard (`/dashboard/**`) and `my-account` shells they are never set — `var(--ba-secondary)` resolves to transparent/black and silently breaks the component. Found in M13-S15: `Topbar.tsx` used `border-[var(--ba-secondary)]` which rendered as a solid black line | **Hotsite tree = `--ba-*` tokens. Dashboard & account shells = Tailwind + shadcn fixed palette.** Never reference `--ba-*` outside a component that lives exclusively under `app/[slug]/` or `components/hotsite/`. See `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 and `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §2 for the full rule |
-| A pure utility function (e.g. `getInitials`, `formatDate`, `truncate`) is copy-pasted as a private function inside each component that needs it | All copies diverge silently over time — found in M13-S16: `getInitials` was duplicated identically in `CustomerShell`, `HotsiteAuthBarDropdown`, `Topbar`, and `Sidebar`; `HotsiteAuthBarDropdown`'s copy took `string` (not `string | null`), missing the null guard that the other three had | Before writing any utility function inline in a component, grep `apps/web/lib/utils/` for an existing one. If none exists, create `apps/web/lib/utils/<name>.ts` + `apps/web/lib/utils/<name>.spec.ts` as a pair. `lib/utils/` is the canonical home for all `apps/web` pure utility functions |
+| Pattern | Fix |
+|---|---|
+| `useExisting` when registering adapter token (`providers: [Adapter, { provide: TOKEN, useExisting: Adapter }]`) | Use `useClass` — `useExisting` still instantiates the class even when the token is overridden in tests |
+| New cross-context Port+Adapter when one already exists for the same context pair | Grep `infrastructure/cross-context/` first; add a method to the existing adapter instead |
+| Shared VO `create()` throws plain `Error` for validation it owns | Give VO a typed domain error; add `instanceof` branch to every calling `mapXxxError` |
+| New interface in `apps/web/lib/api/**` without checking `@ikaro/types` | Grep `@ikaro/types` first — either side may be stale; verify against live BFF schema if shapes differ |
+| Inline mapper functions accumulating in a BFF `*.controller.ts` | Extract to `<module>.mapper.ts` (plain functions, not a class) once a second mapper appears |
+| Second independent `fetch()` building the same BFF route URL outside `lib/api/<name>.ts` | Use the canonical fetcher — duplicates go stale silently (only caught by Playwright) |
+| Cross-context port returns a pre-formatted display string instead of structured data | Return typed data all the way through; join/format in BFF mapper only |
+| Port+Adapter removed but backing service left in `providers`/`exports` | Delete the backing service too — zero consumers = dead infrastructure |
+| BFF/`@ikaro/types` interface named with ad-hoc suffix (e.g. `BackendSearchResult`) | Use `<Thing>Response` / `<Thing>Item` — "Result" collides with backend Use Case naming |
+| Global `APP_GUARD` changed to `Scope.REQUEST` to inject `BackendHttpService` | Keep guards singleton; inject `HttpService` + `ConfigService` directly; use `buildBackendHeaders(req)` + explicit `X-Internal-Key` |
+| Staff hotsite login link to `/dashboard/login` without `?tenantSlug=` | Append `?tenantSlug=${encodeURIComponent(slug)}` — without it, linked accounts at another tenant are silently routed there |
+| BFF `@CurrentUser()` used only to construct a backend `/internal/` URL | Move endpoint to authenticated controller — `BackendHttpService` already forwards actor headers; `/internal/` is pre-auth only |
+| Dashboard component substitutes Tailwind for `tokens.css` class names in story's CSS reference table | Use exact CSS class name — `tokens.css` classes carry responsive/hidden behaviour Tailwind equivalents silently miss |
+| Dashboard or account component uses `--ba-*` CSS variable | `--ba-*` only exists under `app/[slug]/` (hotsite tree). Use Tailwind + shadcn in dashboard/account shells |
+| Utility function (e.g. `getInitials`) copy-pasted inline in each component | Grep `apps/web/lib/utils/` first; create `lib/utils/<name>.ts` + `.spec.ts` pair there |
+| Wrong web→BFF transport: `bffServerFetch` in client file, `bffClient` in Server Component, raw `fetch()` in hook | Server: `bffServerFetch(token, path)`. Client: `bffClient.get(path)`. Hook `tenantId`: `useTenant()` only |
 
 ---
 
-## 9. Story Implementation Workflow (mandatory — every story, no exceptions)
+## 9. Story Implementation Workflow (mandatory — every story)
 
-> ❗ **NON-NEGOTIABLE PR GATE — READ THIS BEFORE TOUCHING `gh pr create`**
->
+> ❗ **PR GATE — NON-NEGOTIABLE**
 > **`gh pr create` is FORBIDDEN until `/pre-pr` is complete.**
-> The sequence is always:
-> 1. `git push` → ci:fast pre-push hook runs (unit tests only — NOT sufficient alone)
-> 2. `/pre-pr` → all 4 steps in order — Step 4 is a hard stop: ask the user to run integration tests and wait for their pasted output
+> 1. `git push` → `ci:fast` runs (unit only — not sufficient alone)
+> 2. `/pre-pr` → all 4 steps → Step 4 is a hard stop: ask user to run integration tests, wait for pasted output
 > 3. Only after Step 4 clears → `gh pr create`
->
-> ci:fast passing does NOT mean integration tests passed. SonarCloud issues, missing .http files, VO violations, and cross-tenant leaks are only caught by `/pre-pr`. Skipping it has caused repeated CI failures and user frustration.
 
-**Before the first story of a new milestone:** ask the user whether to run `/docs-audit M0X` first, scoped to that milestone, to catch stale/inconsistent docs before implementation starts. This is an offer, not a forced block like the journey hard-stop above — proceed either way based on their answer.
+**Before the first story of a new milestone:** offer to run `/docs-audit M0X` first.
 
-### Step 1 — Create feature branch (BEFORE writing any code)
-`git checkout -b feat/M0X-SYY-<short-description>`
+### Step 0 — Run story discovery (BEFORE any code)
+Run `/story-discovery M0X-SYY` — wait for READY verdict before proceeding. Never skip for any story or TD.
 
-Never write code on `main`. If already on `main` with uncommitted changes, stash first.
+### Step 1 — Create feature branch (BEFORE any code)
+`git checkout -b feat/M0X-SYY-<short-description>` — never code on `main`.
 
-### Step 2 — Implement the story
-Write all files defined in the story spec. See §0 for permission rules.
+### Step 2 — Implement
+Write all files from the story spec. For any frontend story referencing a prototype:
+- Read the prototype HTML **before** writing components.
+- Use exact CSS class names from the story's reference table — do not substitute Tailwind for `tokens.css` names.
+- Every new `apps/web/components/**/*.tsx` needs a co-located `.spec.tsx` in the **same commit**.
 
-**For any frontend story that references a prototype:** read the prototype HTML file(s) **before** writing any component code.
-- Check the story's CSS class reference table; use those exact CSS class names in production code — do not substitute Tailwind utilities for documented `tokens.css` class names (`.auth-avatar`, `.bottom-nav`, `.sidebar-footer`, etc. carry hidden/responsive behaviour that Tailwind equivalents silently skip).
-- Verify every acceptance criterion that names a CSS class (e.g. "`auth-avatar` (not `topbar-avatar`)") — those names must literally appear in the component output.
-- Every new `apps/web/components/**/*.tsx` created in this step must have a co-located `.spec.tsx` — include both in the same commit. Do not defer specs to a later commit.
+### Steps 3–5 — Verify, commit, push
+Run type-check, lint, jest — zero errors.
 
-### Step 3 — Verify locally before committing
-Run type-check, lint, and jest for the changed context — zero errors and warnings required.
+**Before committing:** list the files you're about to stage and ask: *"Here are the files I'm about to commit: [list]. Anything else to add before I commit?"* Wait for explicit yes.
 
-### Step 4 — Commit with Conventional Commit
-> ⚠️ **ASK BEFORE COMMITTING.** Tell the user what files will be staged and ask: *"Anything else to add before I commit and push?"* Wait for explicit go-ahead. Never commit autonomously.
-
-Stage specific files only (never `git add -A` or `git add .`). Message format:
+**Before pushing:** ask: *"Anything else to add before I push?"* Wait for explicit yes. Stage specific files only (never `git add -A`). Commit format:
 ```
 feat(<context>): <description> (M0X-SYY)
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 ```
+`ci:fast` (lint + type-check + unit tests) runs automatically on push and blocks if it fails.
 
-### Step 5 — Push (pre-push hook runs `ci:fast` automatically)
-> ⚠️ **ASK BEFORE PUSHING** (if not already covered by the Step 4 ask). The pre-push hook runs `ci:fast` (lint + prettier + type-check + unit tests, ~15 s) — every unnecessary push costs time. Batch all commits first, then push once with user approval.
+### Step 6 — `ci:local` (optional)
+`pnpm ci:local` (~5 min, Docker). Only when touching Dockerfiles, infra, or integration-test paths.
 
-`git push -u origin feat/M0X-SYY-<short-description>`
-
-`ci:fast` = lint + prettier + type-check + unit tests (~15 s). If it fails the push is blocked. Fix, re-commit, re-push.
-
-### Step 6 — Run `ci:local` (optional)
-`pnpm ci:local` (~5 min, Docker required). Run only when touching Dockerfiles, infra, or integration-test paths.
-
-### Step 7 — Self-review the full diff (MANDATORY — before every PR)
-**Stop and ask before starting this step** — per §0's commit & push gate, `/pre-pr` never runs automatically after a push. Confirm with the user first.
-
-Run `/pre-pr` — must report **zero issues** before the PR is opened.
-
-> **AGENT HARD RULE — NO EXCEPTIONS:**
-> You MUST run `/pre-pr` and wait for it to report zero issues AND receive the user's integration test output (Step 4 of the `/pre-pr` skill) before calling `gh pr create`. Skipping or reordering these steps is a critical workflow violation. The pre-push hook only runs unit tests; integration tests are only caught here. Even if ci:fast passes, even if all unit tests pass — **do not open the PR until `/pre-pr` Step 4 is complete and the user has pasted passing integration test output.**
+### Step 7 — `/pre-pr` (MANDATORY before PR)
+Ask the user: *"I believe the story is complete — may I run /pre-pr?"* Wait for explicit yes. Run `/pre-pr` — it runs the script, agent checks, bad-smell-audit, unit tests + coverage (≥ 85%), and integration tests autonomously. Must report zero issues across all steps before opening the PR.
 
 ### Step 8 — Open the PR
 ```bash
 gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
-  --body "## Summary\n- <bullet>\n\n## Story\nM0X-SYY — <title>\n\n## Test plan\n- [ ] Unit tests pass\n- [ ] Type-check clean\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
+  --body "## Summary\n- <bullet>\n\n## Story\nM0X-SYY\n\n## Test plan\n- [ ] Unit tests pass\n- [ ] Type-check clean\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
   --repo lmmoreira/ikaro
 ```
 
-### Step 9 — Monitor CI; self-fix any failure
-`gh pr checks <PR-number> --repo lmmoreira/ikaro` — fix → commit → push → re-check until all green.
+### Step 9 — Monitor CI; triage bot reviews
+`gh pr checks <PR-number> --repo lmmoreira/ikaro`. Also fetch inline comments: `gh api repos/lmmoreira/ikaro/pulls/<PR-number>/comments` and reviews: `gh api repos/lmmoreira/ikaro/pulls/<PR-number>/reviews`.
 
-Also check Copilot/CodeRabbit inline review comments — they don't block merge via `gh pr checks` and won't show up there, so nothing forces you to look. Fetch them with `gh api repos/lmmoreira/ikaro/pulls/<PR-number>/comments` (inline) and `gh api repos/lmmoreira/ikaro/pulls/<PR-number>/reviews` (review bodies). Triage each: fix what's valid and in scope, skip with a stated reason what isn't (e.g. findings on a file from an unrelated commit on the same branch).
+**Verify a bot's suggested fix against the actual source before applying:**
+- Bots often flag "inconsistencies" that are deliberate (e.g. different timezone conventions in two functions)
+- Severity labels (`Critical`) are not evidence — verify against framework source (`node_modules/.pnpm/...`)
 
-**Verify a bot's suggested fix against the actual implementation before applying it — the suggestion itself can be wrong.** TD02-S09: CodeRabbit flagged a real inconsistency (two date-parsing calls in an E2E spec used different timezone handling) and suggested making both explicit UTC — but the underlying app code (`dayCarouselLabel()` vs `formatDateLong()`) deliberately uses different conventions (local time vs explicit UTC) in those two functions. Applying the suggestion as written would have "fixed" the inconsistency by making the test wrong in a different way. Read the actual source the test exercises before accepting a bot's diff, especially for anything touching dates/timezones, locale, or async ordering.
+### Step 10 — Ask user before merging
+Ask: *"All checks are green on PR #N — happy to merge?"* Then:
+`gh pr merge <PR-number> --repo lmmoreira/ikaro --squash --delete-branch && git checkout main && git pull origin main && git branch -D <branch-name>`
 
-This applies to severity/security claims too, not just logic suggestions — a bot's confidence label is not evidence. M13-S05: CodeRabbit flagged `BackendHttpService`'s catch-all re-throw as "Critical" info-disclosure (raw error messages/stack traces reaching API consumers). Reading the actual installed `@nestjs/core` source (`BaseExceptionFilter.handleUnknownError`) showed Nest's built-in filter — present even with zero custom filters registered — already returns a fixed generic `{"statusCode":500,"message":"Internal server error"}` for any non-`HttpException` error and logs the real exception server-side only. The finding wasn't fabricated (a `502` would be clearer than a generic `500`), but "Critical"/"exposes internal details to consumers" did not hold up against the framework's actual default behavior — tracked instead as `td/TD10-BFF-BACKEND-UNREACHABLE-GENERIC-500.md` at Low priority. Check the framework's own source (`node_modules/.pnpm/...`) before accepting a security severity label at face value.
+Always delete the local branch with `-D` (not `-d` — squash merges aren't recognized as fully merged).
 
-### Step 10 — Ask user before merging (MANDATORY)
-Once all CI checks are green, ask: *"All checks are green on PR #N. Have you reviewed it and are you happy to merge?"*
+### Step 11 — Mark done
+`/mark-done M0X-SYY` — updates plan file, commits to main, alerts if milestone complete.
 
-**Never merge without explicit user confirmation.** Then: `gh pr merge <PR-number> --repo lmmoreira/ikaro --squash --delete-branch && git checkout main && git pull origin main && git branch -D <branch-name>`
-
-`--delete-branch` only deletes the **remote** branch — always also delete the local branch (`git branch -D <branch-name>`, not `-d`: squash merges aren't recognized as "fully merged" by git's safe-delete check, so `-d` will refuse). Do this for every merged PR, no exceptions.
-
-### Step 11 — Mark story done (only after the squash commit is on `main`)
-Run `/mark-done M0X-SYY`. The skill updates the plan file, commits to main, and alerts if all stories in the milestone are now done.
-
-### Step 12 — Milestone complete? Create wrap-up docs
-If every story in the milestone is now `✅ Done`, see §15 item 9 for the two wrap-up files to create.
+### Step 12 — Milestone complete?
+If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10.
 
 ---
 
 ## 10. Dynamic Context Loading — Load Only What You Need
 
-**Always start with this file.** Then use the table below to load only the docs relevant to your task.
+| Task | Docs to load |
+|---|---|
+| Writing any code | `docs/CODE_STANDARDS.md` + `docs/AGENT_PATTERNS.md` + `docs/ENGINEERING_RULES.md` |
+| CI failure / pre-PR | `docs/CI_TRAPS.md` |
+| Implement a UC | `docs/04-USE_CASES.md` (UC section) + `docs/02-DOMAIN_MODEL.md` + `docs/03-DOMAIN_EVENTS.md` |
+| Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` |
+| API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC |
+| Event handler | `docs/03-DOMAIN_EVENTS.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/ENGINEERING_RULES.md` |
+| Staff OAuth login / invite link | `docs/ENGINEERING_RULES.md` § Staff OAuth login URL format + `td/TD13-STAFF-INVITE-EMAIL-LINK.md` |
+| New notification type | `docs/ENGINEERING_RULES.md` § Adding a new notification type |
+| New UI copy / locale key | `docs/ENGINEERING_RULES.md` § Authoring new i18n UI copy keys + `docs/CODE_STANDARDS.md` |
+| Hotsite / public frontend | `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` + `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` |
+| Dashboard / admin frontend | `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` |
+| BFF implementation | `docs/24-BFF_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` |
+| Web → BFF transport | `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer |
+| Architecture question | `docs/11-ARCHITECTURE.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/REPOSITORY_STRUCTURE.md` |
+| Repo layout / new file location | `docs/REPOSITORY_STRUCTURE.md` |
+| Multi-tenancy / isolation | `docs/06-TENANT_ISOLATION_STRATEGY.md` |
+| Testing patterns | `docs/08-TESTING_STRATEGY.md` + `docs/ENGINEERING_RULES.md` |
+| apps/web test infrastructure | `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure |
+| Value objects / mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES.md` |
+| CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` |
+| Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` |
+| Observability | `docs/10-OBSERVABILITY_STRATEGY.md` |
+| Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special cases: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md`, `td/TD02-LOCALIZATION.md` |
+| New journey or prototype | `plan/journey/README.md` |
 
-| Task | Docs to load | ~KB |
-|---|---|---|
-| Quick clarification | This file only | 0 |
-| Writing any code | `docs/CODE_STANDARDS.md` + `docs/AGENT_PATTERNS.md` + `docs/ENGINEERING_RULES.md` | 8 |
-| CI failure / pre-PR debugging | `docs/CI_TRAPS.md` | 1 |
-| Implement a UC | `docs/04-USE_CASES.md` (that UC's section) + `docs/02-DOMAIN_MODEL.md` (relevant aggregate) + `docs/03-DOMAIN_EVENTS.md` (relevant events) | 4–6 |
-| Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` (relevant aggregate) | 4 |
-| API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC | 3–5 |
-| Event handler | `docs/03-DOMAIN_EVENTS.md` (event) + `docs/05-BOUNDED_CONTEXTS.md` (context) + `docs/ENGINEERING_RULES.md` | 4 |
-| Staff OAuth login button / invite email link | `docs/ENGINEERING_RULES.md` § Staff OAuth login URL format (guard reads `?type=staff`, NOT `?state=__staff__`) + `td/TD13-STAFF-INVITE-EMAIL-LINK.md` (invite email `activationLink` is broken — fix tracked there) | 1 |
-| New notification type / email template | `docs/ENGINEERING_RULES.md` § Adding a new notification type (full file checklist + the existing-tenant backfill gotcha) | 1 |
-| New UI copy / locale key (`apps/web`) | `docs/ENGINEERING_RULES.md` § Authoring new i18n UI copy keys + `docs/CODE_STANDARDS.md` (next-intl Server/Client rule) | 1 |
-| Hotsite / public frontend | `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` (tenants section) + `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (folder structure) | 4 |
-| Dashboard / admin frontend | `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` | 3 |
-| BFF implementation | `docs/24-BFF_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` | 4 |
-| Architecture question | `docs/11-ARCHITECTURE.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/REPOSITORY_STRUCTURE.md` | 6 |
-| Repo layout / new file location | `docs/REPOSITORY_STRUCTURE.md` | 1 |
-| Multi-tenancy / isolation | `docs/06-TENANT_ISOLATION_STRATEGY.md` | 2 |
-| Testing patterns | `docs/08-TESTING_STRATEGY.md` + `docs/ENGINEERING_RULES.md` | 4 |
-| Value objects / aggregate mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES.md` | 2 |
-| CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` | 4 |
-| Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` | 5 |
-| Observability | `docs/10-OBSERVABILITY_STRATEGY.md` | 2 |
-| Full feature (UC + API + DB + tests) | All of the above relevant rows | 12–18 |
-| Working on M01+ (any backend/BFF/web task) | `plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` | 3 |
-| Working on M02+ (CI, Dockerfiles, deployment) | `plan/M01-CI-QUALITY-GATES_IMPLEMENTATION_DETAILS_IA.md` | 2 |
-| Working on M03+ (Platform context, TenantContext, TypeORM setup, settings, deepMerge) | `plan/M02-PLATFORM-CONTEXT_IMPLEMENTATION_DETAILS_IA.md` | 3 |
-| Working on M04+ (auth, BFF guards, OAuth flow, JWT, tenant switching, Zod validation) | `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md` | 3 |
-| Working on M05+ (Staff aggregate, Notification context, staff invite/deactivate, IDeliveryChannel) | `plan/M04-STAFF-MANAGEMENT_IMPLEMENTATION_DETAILS_IA.md` | 4 |
-| Working on M06+ (Service aggregate, PATCH partial-update, public BFF endpoints, TenantContextBuilder) | `plan/M05-SERVICE-CATALOG_IMPLEMENTATION_DETAILS_IA.md` | 3 |
-| Working on M07+ (ScheduleClosure, availability algorithm, `time` columns, calendar-date utils) | `plan/M06-CALENDAR-SCHEDULE_IMPLEMENTATION_DETAILS_IA.md` | 4 |
-| Working on M08+ (Booking aggregate, BookingLine, RequestBookingUseCase, postForPublic(), linesModified) | `plan/M07-BOOKING-CREATION_IMPLEMENTATION_DETAILS_IA.md` | 4 |
-| Working on M09+ (booking approval, slot conflict, guest info token, paginated list, role-based filtering) | `plan/M08-BOOKING-APPROVAL_IMPLEMENTATION_DETAILS_IA.md` | 4 |
-| Working on M10+ (customer/admin cancel, reschedule, BookingCancelled/Rescheduled events, BaseNotificationUseCase) | `plan/M09-CANCELLATION-RESCHEDULING_IMPLEMENTATION_DETAILS_IA.md` | 4 |
-| Working on M11+ (LoyaltyEntry/Balance/Redemption, balance expiry HTTP trigger, ILoyaltyTenantSettingsPort) | `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md` | 5 |
-| Working on M12+ (NotificationTemplate/Log, Pub/Sub DLQ, cron reminders, processed_events) | `plan/M11-NOTIFICATIONS-CRON_IMPLEMENTATION_DETAILS_IA.md` | 5 |
-| Working on M13+ (dashboard frontend; hotsite module system, branding tokens, ISR/revalidation, booking form, SEO, public/private storage) | `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_IA.md` | 11 |
-| Working on M115 (GCS signed-URL, dev-login, InternalApiGuard, `contact*` rename) | `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` | 3 |
-| Working on TD02 (localization — CountrySpec registry, Money VO, PhoneNumber E.164, address validation, next-intl, i18n locale files) | `td/TD02-LOCALIZATION.md` | 6 |
-| Writing new journeys or prototypes (`plan/journey/`) | `plan/journey/README.md` | 3 |
+**Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.  
+**Never load:** `docs/archive/` (superseded) · `plan/*_DEVELOPER.md` (written for humans, not agents).
 
-**Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.
-
-**Never load:** anything under `docs/archive/` — superseded content.  
-**Never load:** `plan/*_DEVELOPER.md` files — written for the human developer, not for agents.
-
-**Drafting a new milestone:**
-- If a milestone's stories are easier to author split across multiple working files (e.g. one per feature area), that's fine during drafting — but consolidate them into the single canonical `plan/M0X-<NAME>.md` file and add it to the table above before any story is implemented. Don't leave the split files as the permanent record; `M124`–`M129` existed as untracked drafts for weeks before being folded back into `M13`, and nobody could tell during that window that they'd superseded the original M13 draft.
-- When sequencing a full-stack milestone's stories, pull every backend/BFF-only story (no frontend-shell dependency) into one early wave regardless of which feature area it belongs to. This prevents a later frontend story from shipping before a field/endpoint it needs exists — exactly the kind of gap that ordering stories strictly within each feature area would hide.
+**Drafting a new milestone:** Consolidate into the single canonical `plan/M0X-<NAME>.md` before any story starts. Sequence backend/BFF-only stories in an early wave before any frontend story that depends on them.
 
 ---
 
 ## 11. Repository Layout
 
-→ Full directory trees, context isolation rule, guard placement: `docs/REPOSITORY_STRUCTURE.md` (load when creating files in new locations or answering architecture questions).
+→ Full directory trees and guard placement: `docs/REPOSITORY_STRUCTURE.md`
 
-Key paths:
 - Backend contexts: `apps/backend/src/contexts/<context>/{domain,application,infrastructure}/`
-- Shared utilities: `apps/backend/src/shared/` — cross-cutting only, no domain objects
+- Shared: `apps/backend/src/shared/` — cross-cutting only
 - BFF: `apps/bff/` · Frontend: `apps/web/`
 - Migrations: per-context `infrastructure/migrations/`
 - Test helpers: `apps/backend/src/test/utils/` + `src/test/infrastructure/`
@@ -563,82 +344,55 @@ Key paths:
 
 1. **Multi-location (post-MVP):** Multiple locations per tenant = separate tenants or sub-tenant model?
 
+_Note: §13, §14, §16, §18 were removed in earlier revisions. Numbers preserved to avoid breaking cross-references._
+
 ---
 
 ## 15. Self-Check Before Submitting
 
-> **BEFORE WRITING ANY CODE:** Create a feature branch first — `git checkout -b feat/M0X-SYY-<description>`. Never code directly on `main`. See §9 for the full workflow.
+1. **`/story-discovery M0X-SYY` ran and returned READY** — first action, no exceptions (§9 Step 0)
+2. **Feature branch created before any code** — `git checkout -b feat/M0X-SYY-<desc>` (§9 Step 1)
+3. **Asked user before every `git commit` and `git push`** — never autonomous (§0)
+4. **Ran `/pre-pr` and waited for user to paste passing integration test output before `gh pr create`** (§9 Step 7)
 
-1. Did I read this file at the start of the conversation? ✓
-2. Did I get permission before writing any doc/config file? ✓
-3. **Did I ask the user before every `git commit` and `git push`?** The pre-push hook runs `ci:fast` (~15 s) — never commit or push autonomously. ✓
-4. Does every query / event / log include `tenant_id`? ✓
-5. Is the change scoped to one UC cited in the PR? ✓
-6. Does the integration test include a tenant-isolation assertion? ✓
-7. Did I follow §9 workflow? (branch → implement → ci:fast → /pre-pr → PR → CI all-green → user approval → merge → /mark-done) ✓
-8. **Did I run `/pre-pr` AND wait for the user to paste passing integration test output BEFORE calling `gh pr create`?** If the answer is no — do not open the PR. Go back and run `/pre-pr` first. ✓
-9. Are ALL stories in this milestone now `✅ Done`? If yes — create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10 of this file. ✓
+If milestone is now complete: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10.
 
 ---
 
 ## 17. Project Slash Commands (Claude Code)
 
-Commands live in `.claude/commands/`. Claude Code auto-discovers them — type `/` to see the list.
+| Command | When to use |
+|---|---|
+| `/pre-pr` | **Before every PR** — all checks + bad-smell-audit. Must report zero issues. |
+| `/bad-smell-audit [backend\|bff\|web]` | Full-stack bad-smell scan on demand. |
+| `/mark-done M0X-SYY` | **After merge to main** — marks story done, alerts if milestone complete. |
+| `/story-discovery M0X-SYY` | **Before starting a story** — doc clarity, dep symbols, consistency check; emits READY/NOT READY. |
+| `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | **Before new milestone or journey file** — audits docs for staleness and inconsistency. |
 
-| Command | File | When to use |
-|---|---|---|
-| `/pre-pr` | `.claude/commands/pre-pr.md` | **Before every PR** — runs all checks + bad-smell-audit. Must report zero issues. |
-| `/bad-smell-audit [backend\|bff\|web]` | `.claude/commands/bad-smell-audit.md` | Full-stack bad-smell scan — backend VOs/builders, BFF structure, web security/props. Run on demand or scoped to one layer. |
-| `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` | **After merge to main** — marks story done, commits, alerts if milestone complete. |
-| `/story-discovery M0X-SYY` | `.claude/commands/story-discovery.md` | **Before starting a story** — checks doc clarity, dep symbols, and consistency; asks targeted questions; proposes doc patches; emits READY / NOT READY verdict. |
-| `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` | **Before drafting any `plan/journey/` file, before starting a new milestone, or any time docs may have drifted** — audits `docs/`, `plan/M0X-*.md`, `plan/journey/` (journeys + prototypes), and `CLAUDE.md` itself for staleness vs. code, internal inconsistency, and confusing/missing info; proposes doc fixes; lists IA gaps. Scope by UC, milestone, journey, or single doc to keep cost proportional — blank scope audits everything and is expensive, use deliberately. |
-
-**Adding new commands:** create `.claude/commands/<name>.md`. Use `$ARGUMENTS` for optional user-typed arguments. Document it in this table.
+Commands live in `.claude/commands/`. To add: create `.claude/commands/<name>.md`, document here.
 
 ---
 
 ## 19. Journey & Prototype Workflow Rules
 
-> **Full rules, conventions, and pitfall list:** `plan/journey/README.md` — load it whenever working on any journey `.md` file or prototype folder. §10 already lists it under "Writing new journeys or prototypes."
+> **Full rules, conventions, and CSS gotchas:** `plan/journey/README.md` — load whenever working on any journey file or prototype folder.
 
-> ❗ **NON-NEGOTIABLE HARD STOP — READ BEFORE TOUCHING ANY `plan/journey/` FILE**
->
-> **`/docs-audit` MUST run and report a clean baseline BEFORE writing any journey `.md` file or prototype HTML.**
-> The sequence is always:
-> 1. `/docs-audit <UC-XXX>` (or `/docs-audit <actor>/<slug>` once the journey already exists) → resolve every stale/conflicting finding → confirmed baseline
-> 2. Write `<actor>/<slug>.md` — mermaid flow, pages table, open questions
-> 3. Update `<actor>/use-cases.md` journey column
-> 4. Update `plan/journey/README.md` index table
-> 5. **Only then** create any file under `<actor>/prototypes/<slug>/`
->
-> Skipping `/docs-audit` and going straight to the journey file (or worse, straight to HTML) is a workflow violation. A journey built on stale UC text causes rework in both the prototype and the eventual implementation story.
-
-### Folder structure
+> ❗ **HARD STOP — READ BEFORE TOUCHING ANY `plan/journey/` FILE**
+> `/docs-audit` MUST run and report a clean baseline first. Then:
+> 1. Write `<actor>/<slug>.md` — mermaid flow, pages table, open questions
+> 2. Update `<actor>/use-cases.md` journey column
+> 3. Update `plan/journey/README.md` index table
+> 4. **Only then** create files under `<actor>/prototypes/<slug>/`
 
 ```
 plan/journey/<actor>/
-├── use-cases.md            ← UC inventory
-├── <slug>.md               ← journey spec (mermaid, pages table, gaps)
-└── prototypes/
-    └── <slug>/
-        ├── index.html      ← navigation hub + dry-run checklist
-        ├── 00-*.html … 01-*.html …
-        └── dev-notes.md    ← implementation handoff
+├── use-cases.md
+├── <slug>.md
+└── prototypes/<slug>/
+    ├── index.html  ←  navigation hub
+    ├── 00-*.html … 01-*.html …
+    └── dev-notes.md
 ```
 
-Prototype files **always** reference `../../../shared/tokens.css` — never a local copy.
-
-### `dashboard-shell.html` CSS gotchas (applies to any dashboard prototype)
-
-| Class / pattern | Behaviour in `tokens.css` | Fix when needed |
-|---|---|---|
-| `.topbar-avatar` | Hidden at `≥1024px` (sidebar takes over) | Use `.auth-avatar` instead for clickable avatars |
-| `.topbar-brand` | Hidden at `≥1024px` (sidebar replaces it) | Add `@media (min-width: 1024px) { .topbar-brand { display: flex !important; } }` for non-sidebar layouts |
-| `.bottom-nav` | Always visible by default | Keep it on **all** pages (list and form/drill-down alike). Only hide it on full-screen detail pages that need all the vertical space (e.g. booking detail with many action buttons). Always include the `<nav class="bottom-nav">` element in HTML — tokens.css styles it but does not inject it. |
-| `<nav class="bottom-nav">` | **Must be in HTML body** — tokens.css only styles it, does not inject it | Every dashboard page (list and form) must include the `<nav class="bottom-nav">` element explicitly; the manager "Mais" button + `openSheet()`/`closeSheet()` JS must also be present on every page that has it. |
-| `.week-nav` (week navigation row) | Not in tokens.css — prototype-local pattern | Add `‹ month ›` nav row above every week strip; `›` links to the next-week page; `‹` disabled on current week. FAB needs `@media (max-width:1023px) { .fab { bottom: 5rem; } }` to clear the bottom nav |
-| `.topbar-user-name` | Hidden at `≥1024px` | Add `@media (min-width: 1024px) { .topbar-user-name { display: inline !important; } }` when needed |
-| Full-width `.form-actions` on desktop | `flex: 1` buttons stretch across the full content column on wide screens | Use `detail-layout` / `detail-aside` grid: form fields left, sticky action card right. Hide `.form-actions` on desktop: `@media (min-width: 1024px) { .form-actions { display: none !important; } }`. Applies to all form, confirmation, and focused-action pages. |
-| `.bottom-sheet` on desktop | Slides up full-width from bottom — broken on wide screens | Already handled globally in `shared/tokens.css` (auto-converts to centered modal ≥1024px). Do NOT add per-file overrides. |
-| `padding-bottom` on `main-content` with bottom nav | Content scrolls behind fixed bottom nav — last form field/button hidden | Pages with bottom nav only: `padding-bottom: 5.5rem`. Pages with bottom nav **and** a fixed action bar: `padding-bottom: 9rem` (nav ~3.75rem + bar ~4.5rem). |
-| Floating toast for success states | `position: fixed; top: 1rem` overlaps the prototype banner; not the system pattern | Use the inline green banner (`background:#f0fdf4; border:1px solid #86efac`) in the page flow — same pattern used by all booking detail success states. Never use a floating toast. |
+Prototype files **always** reference `../../../shared/tokens.css` — never a local copy.  
+→ CSS class gotchas (`.topbar-avatar`, `.week-nav`, `padding-bottom`, floating toast, etc.): `plan/journey/README.md` § CSS Gotchas.

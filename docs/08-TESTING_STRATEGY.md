@@ -1090,3 +1090,79 @@ await waitFor(async () => {
 ### Controller integration spec — event bus override
 
 Override `EVENT_BUS` with `new InMemoryEventBus()` in all controller integration specs that don't need end-to-end Pub/Sub routing. Without this override, `GcpPubSubEventBusAdapter` connects to the emulator — gRPC timeouts fail every test if the emulator is unreachable.
+
+---
+
+## apps/web Testing Infrastructure
+
+Test runner: **Vitest** (not Jest) — config at `apps/web/vitest.config.ts`. Scripts: `test`, `test:cov`, `test:watch`.
+
+### Environment setup
+
+**Global mocks in `vitest.config.ts`** (module-level side effects — per-file `vi.mock()` is too late):
+```ts
+resolve: {
+  alias: {
+    'next/font/google': path.resolve(__dirname, '__mocks__/next-font-google.ts'),
+    'next/image':       path.resolve(__dirname, '__mocks__/next-image.ts'),
+  },
+},
+```
+
+**Per-file environment declaration** — each component spec file must declare at line 1:
+```ts
+// @vitest-environment jsdom
+```
+`lib/**` stays in the default `node` environment — no annotation needed. `next/navigation` and `next/cache` still use per-file `vi.mock()`.
+
+**`apps/web/__mocks__/next-image.ts`:**
+```ts
+import React from 'react';
+const MockImage = ({
+  src, alt, fill: _, priority: __, sizes: ___, ...rest
+}: React.ImgHTMLAttributes<HTMLImageElement> & {
+  src: string; alt: string; fill?: boolean; priority?: boolean; sizes?: string;
+}) => React.createElement('img', { src, alt, ...rest });
+export default MockImage;
+```
+
+**`vitest.setup.ts`:**
+```ts
+import '@testing-library/jest-dom/vitest';
+// /vitest entrypoint registers Vitest's expect() types; bare import leaves matchers untyped in strict mode.
+```
+
+### SonarCloud configuration
+- `sonar.coverage.exclusions`: `apps/web/app/**/page.tsx`, `apps/web/app/**/layout.tsx` — `apps/web/components/**` is **NOT excluded**
+- `sonar.exclusions`: `**/vitest.config.ts`, `**/__mocks__/**`, `**/vitest.setup.ts`
+
+### Code standards
+- React props interfaces: every field must be **`readonly`** (SonarCloud S6759 — fires on every new component)
+- Import Node.js built-ins with `node:` prefix (`node:path`, `node:fs`) — bare names are flagged
+- Functions returning CSS custom properties: declare return type as `React.CSSProperties & Record<\`--ba-${string}\`, string>` — never `as React.CSSProperties`
+
+### Axe accessibility testing (hotsite module components)
+
+Every hotsite module component spec must include:
+```ts
+it('has no axe violations', async () => {
+  const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
+  expect(await axe(container)).toHaveNoViolations();
+});
+```
+- `toHaveNoViolations` registered globally via `expect.extend(toHaveNoViolations)` in `vitest.setup.ts`
+- `color-contrast` rule **disabled globally** in `vitest.setup.ts` — jsdom cannot resolve CSS custom properties (`--ba-primary`, etc.), causing false-positives on branding tokens; WCAG AA correctness is covered by `contrastRatio` unit tests in `apply-branding.spec.ts`
+- `ContactModule`: pass `{ iframes: false }` to `axe()` — jsdom cannot scan cross-origin `<iframe>` (Google Maps embed)
+- **Dashboard/account components** use Ikaro's fixed design system (no `--ba-*` tokens) — use the **full** default axe ruleset including `color-contrast`
+
+### Per-component minimum test coverage
+
+| Component | Key test cases |
+|---|---|
+| `HeroModule` | `variant: 'centered'` and `'left-aligned'` render; `ctaTarget: 'booking'` → `href="#booking-form"`; `ctaTarget: 'service-list'` → `href="#service-list"`; no `backgroundImageUrl` → no `<img>`; with `backgroundImageUrl` → `<img>` correct `src`; `subtitle` absent → no subtitle element |
+| `ServiceListModule` | Cards rendered from mocked data; `showPrices: false` → price badge absent; `showPoints: false` → points badge absent; zero services → pt-BR empty-state; section has `id="service-list"` |
+| `GalleryModule` | 8 images + `maxVisible: 6` → all 8 in DOM (extras `data-gallery-extra`); "Ver mais" button present; click sets `data-gallery-expanded="true"`; `images: []` → section not rendered; `source: 'booking'` + `photoType: 'before'` → "Antes" badge; `loading="lazy"` |
+| `TestimonialsModule` | Items render with author and text; `rating: 4` → 4 filled stars; no `rating` → no stars; `layout: 'carousel'` → carousel structure |
+| `AboutModule` | `imagePosition: 'left'` → image before text; `imagePosition: 'right'` → image after text; no `imageUrl` → no `<img>`; markdown `body` rendered as HTML; `<script>` in `body` stripped (XSS) |
+| `ContactModule` | `showMap: false` → no `<iframe>`; `showWhatsapp: false` → no WhatsApp link; `showAddress: false` → no address; WhatsApp → `wa.me/` with correct number |
+| `BookingCtaModule` | CTA links to `/<slug>/booking`; section has `id="booking-form"` |

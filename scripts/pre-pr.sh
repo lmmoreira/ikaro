@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # scripts/pre-pr.sh
-# Mechanical pre-PR checks — all grep and file-existence based.
+# Mechanical pre-PR checks — grep and file-existence based.
 # Run from repo root. Exits with issue count (0 = all clear).
 #
-# Covers: pre-pr checks 1,5,6,7,11,12,14,15,16,17,18, W1 (web vitest setup),
-#         bad-smell-audit backend checks BE-2,BE-3,BE-4,BE-5,BE-7,
-#         web checks WEB-1,WEB-4,WEB-6,WEB-7,
-#         and E2E quality checks E2E-1,E2E-2,E2E-3.
-# The remaining checks require agent reasoning and are listed at the end.
+# Covers: checks 1,5,6,7,11,12,14,15,16,17,18,22,23,24,25,26,27,28
+#         W1 (web vitest setup entrypoint)
+#         WEB-1/WEB-4/WEB-5/WEB-6/WEB-7
+#         E2E-1/E2E-2/E2E-3
+#         BE-2/BE-3/BE-4/BE-5/BE-7 (changed files only — bad-smell-audit covers full codebase)
+#
+# Agent reasoning checks → pre-pr.md Step 3a
+# Structural full-codebase scan → pre-pr.md Step 3b (/bad-smell-audit per layer)
 
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -20,17 +23,22 @@ trap 'rm -f "$TMP"' EXIT
 changed=$(git diff main...HEAD --name-only 2>/dev/null || true)
 added=$(git diff main...HEAD --name-only --diff-filter=A 2>/dev/null || true)
 
-# All changed .ts/.tsx files (backend + bff + web)
+# ── File-list variables ───────────────────────────────────────────────────────
 ts_all=$(echo "$changed" | grep -E '\.(ts|tsx)$' || true)
 ts_prod=$(echo "$ts_all" | grep -vE '\.(spec|integration\.spec)\.(ts|tsx)$|[/\\]test[/\\]' || true)
 ts_domain_app=$(echo "$ts_prod" | grep -E '/domain/|/application/' || true)
 ts_controllers=$(echo "$ts_prod" | grep -E '\.controller\.ts$' || true)
 ts_tests=$(echo "$ts_all" | grep -E '\.(spec|integration\.spec)\.(ts|tsx)$' || true)
 ts_new_prod=$(echo "$added" | grep -E '\.(ts|tsx)$' | grep -vE '\.(spec|integration\.spec)\.' | grep -vE '[/\\]test[/\\]' || true)
+ts_modules=$(echo "$ts_prod" | grep -E '\.module\.ts$' || true)
+ts_use_cases=$(echo "$ts_prod" | grep -E '\.use-case\.ts$' || true)
 
-# Web-specific subsets
 web_tsx_prod=$(echo "$ts_prod" | grep '^apps/web/' | grep -E '\.tsx$' || true)
+web_tsx_all=$(echo "$ts_all" | grep '^apps/web/' | grep -E '\.tsx$' || true)
 web_spec_tsx_added=$(echo "$added" | grep '^apps/web/components/' | grep -E '\.spec\.tsx$' || true)
+web_dashboard_tsx=$(echo "$ts_prod" | grep -E '^apps/web/components/(dashboard|account)/' | grep -E '\.tsx$' || true)
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 # Write grep hits for a newline-separated file list into $TMP
 grep_into_tmp() {
@@ -39,11 +47,11 @@ grep_into_tmp() {
   [ -z "$files" ] && return
   while IFS= read -r f; do
     [ -z "$f" ] || [ ! -f "$f" ] && continue
-    grep -nE "$pattern" "$f" 2>/dev/null | sed "s|^|$f:|" >> "$TMP" || true
+    grep -nE -- "$pattern" "$f" 2>/dev/null | sed "s|^|$f:|" >> "$TMP" || true
   done <<< "$files"
 }
 
-# Report pass/fail based on $TMP content; increments ISSUES
+# Print pass/fail; increment ISSUES on fail
 run_check() {
   local label="$1"
   if [ -s "$TMP" ]; then
@@ -57,56 +65,67 @@ run_check() {
 
 printf "## Pre-PR Script — %s\n\n" "$BRANCH"
 
-# ── 1. No HTTP-layer NestJS imports in domain/application ────────────────────
-# @Injectable / @Inject are legitimate in use cases — only HTTP-layer symbols are forbidden
+# ── Architecture / layer checks ───────────────────────────────────────────────
+
+# 1. No HTTP-layer NestJS imports in domain/application
 grep_into_tmp "$ts_domain_app" \
   "HttpException|HttpStatus|from 'class-validator|from 'class-transformer|@(Get|Post|Put|Patch|Delete|Body|Param|Query|Controller)\b"
 run_check "1. No HTTP-layer imports in domain/application layers"
 
-# ── 5. No infra tokens in controllers ────────────────────────────────────────
+# 5. No infra tokens in controllers
 grep_into_tmp "$ts_controllers" \
   "@InjectRepository\(|DataSource\b|EntityManager\b|Repository<"
 run_check "5. No infra tokens injected in controllers"
 
-# ── 6. No inline safeParse / z.object in backend controllers ─────────────────
-# BFF defines Zod schemas at module level by design — only check apps/backend/
+# 6. No inline safeParse / z.object in backend controllers
 ts_backend_controllers=$(echo "$ts_controllers" | grep '^apps/backend/' || true)
 grep_into_tmp "$ts_backend_controllers" \
   "\.safeParse\(|z\.object\(|z\.string\("
 run_check "6. No inline safeParse / z.object in backend controllers"
 
-# ── 7. No \`any\` / @ts-ignore in production (backend + bff + web) ───────────
+# 7. No \`any\` / @ts-ignore in production
 grep_into_tmp "$ts_prod" \
   " as any\b|: any\b|@ts-ignore"
 run_check "7. No \`any\` / @ts-ignore in production"
 
-# ── 11. No new XxxEntity() / entity+use-case factories in tests ──────────────
-# Narrow make* to Entity/UseCase/Aggregate — service/context/handler helpers are acceptable
-grep_into_tmp "$ts_tests" \
-  "new [A-Z][a-zA-Z]+Entity\(|function make[A-Z][a-zA-Z]*(Entity|UseCase|Aggregate)\b"
-run_check "11. No new XxxEntity() or entity/use-case make* factories in tests"
+# 22. No throw new HttpException in use-case files
+grep_into_tmp "$ts_use_cases" "throw new HttpException"
+run_check "22. No throw new HttpException in use-case files (belongs in mapXxxError)"
 
-# ── 12. Zod v3 patterns / as unknown as (backend + bff + web) ────────────────
-grep_into_tmp "$ts_prod" \
-  "z\.string\(\)\.(uuid|url|email)\(\)|as unknown as"
-run_check "12. No Zod v3 / as unknown as in production (review each hit)"
+# 24. No useExisting adapter token anti-pattern in module providers
+grep_into_tmp "$ts_modules" "useExisting:"
+run_check "24. No useExisting in module providers — use useClass (CLAUDE.md §8)"
 
-# ── 16. No .skip() / .only() in tests (backend + bff + web) ─────────────────
-grep_into_tmp "$ts_tests" \
-  "it\.skip\(|test\.skip\(|describe\.skip\(|it\.only\(|test\.only\(|describe\.only\(|^xit\(|^xdescribe\("
-run_check "16. No .skip() / .only() in tests"
-
-# ── 17. No console.* in production (backend + bff + web) ─────────────────────
-grep_into_tmp "$ts_prod" \
-  "console\.(log|error|warn)\("
-run_check "17. No console.log/error/warn in production"
-
-# ── 18. No barrel imports from ports/ or shared/domain/ ──────────────────────
+# 18. No barrel imports from ports/ or shared/domain/
 grep_into_tmp "$ts_all" \
   "from '[^']*/ports'|from \"[^\"]+/ports\"|from '[^']*/shared/domain'|from \"[^\"]+/shared/domain\""
 run_check "18. No barrel imports from ports/ or shared/domain/"
 
-# ── 14. Missing .spec.ts for new use cases / controllers ─────────────────────
+# ── Code quality checks ───────────────────────────────────────────────────────
+
+# 12. No Zod v3 patterns / as unknown as
+grep_into_tmp "$ts_prod" \
+  "z\.string\(\)\.(uuid|url|email)\(\)|as unknown as"
+run_check "12. No Zod v3 / as unknown as in production (review each hit)"
+
+# 17. No console.* in production
+grep_into_tmp "$ts_prod" \
+  "console\.(log|error|warn)\("
+run_check "17. No console.log/error/warn in production"
+
+# 16. No .skip() / .only() in tests
+grep_into_tmp "$ts_tests" \
+  "it\.skip\(|test\.skip\(|describe\.skip\(|it\.only\(|test\.only\(|describe\.only\(|^xit\(|^xdescribe\("
+run_check "16. No .skip() / .only() in tests"
+
+# 11. No new XxxEntity() / entity+use-case factories in tests
+grep_into_tmp "$ts_tests" \
+  "new [A-Z][a-zA-Z]+Entity\(|function make[A-Z][a-zA-Z]*(Entity|UseCase|Aggregate)\b"
+run_check "11. No new XxxEntity() or entity/use-case make* factories in tests"
+
+# ── File existence checks ─────────────────────────────────────────────────────
+
+# 14. Missing .spec.ts for new use cases / controllers
 > "$TMP"
 while IFS= read -r f; do
   [ -z "$f" ] && continue
@@ -115,7 +134,7 @@ while IFS= read -r f; do
 done <<< "$(echo "$added" | grep -E '\.(use-case|controller)\.ts$' | grep -v '\.spec\.' || true)"
 run_check "14. All new use cases / controllers have .spec.ts"
 
-# ── 15. New @Injectable() classes registered in module ───────────────────────
+# 15. New @Injectable() classes registered in module
 > "$TMP"
 while IFS= read -r f; do
   [ -z "$f" ] || [ ! -f "$f" ] && continue
@@ -130,21 +149,30 @@ while IFS= read -r f; do
 done <<< "$ts_new_prod"
 run_check "15. All new @Injectable() classes registered in module"
 
-# ── Web checks ───────────────────────────────────────────────────────────────
+# 25. New entity files declare tenant_id column
+> "$TMP"
+while IFS= read -r f; do
+  [ -z "$f" ] || [ ! -f "$f" ] && continue
+  grep -q "tenant_id" "$f" 2>/dev/null || \
+    printf "%s — no tenant_id column found (multi-tenancy invariant)\n" "$f" >> "$TMP"
+done <<< "$(echo "$added" | grep -E '\.entity\.ts$' | grep -v '\.spec\.' || true)"
+run_check "25. New entity files declare tenant_id column"
+
+# ── Web checks ────────────────────────────────────────────────────────────────
 printf "\n### Web checks\n"
 
-# W1: vitest.setup.ts must import /vitest entrypoint, not bare jest-dom
+# W1. vitest.setup.ts uses /vitest entrypoint
 > "$TMP"
 if [ -f "apps/web/vitest.setup.ts" ]; then
   grep -n "jest-dom'" apps/web/vitest.setup.ts | grep -v "jest-dom/vitest" >> "$TMP" || true
 fi
 run_check "W1. vitest.setup.ts uses @testing-library/jest-dom/vitest (not bare)"
 
-# WEB-1: dangerouslySetInnerHTML in changed web files — always requires sanitization review
+# WEB-1. dangerouslySetInnerHTML — always requires sanitization review (agent check)
 grep_into_tmp "$web_tsx_prod" "dangerouslySetInnerHTML"
-run_check "WEB-1. dangerouslySetInnerHTML in changed files — verify sanitization (agent check)"
+run_check "WEB-1. dangerouslySetInnerHTML in changed files — verify sanitization (Step 3a)"
 
-# WEB-4: new component spec files missing // @vitest-environment jsdom on line 1
+# WEB-4. New component spec files missing // @vitest-environment jsdom on line 1
 > "$TMP"
 while IFS= read -r f; do
   [ -z "$f" ] || [ ! -f "$f" ] && continue
@@ -154,84 +182,119 @@ while IFS= read -r f; do
 done <<< "$web_spec_tsx_added"
 run_check "WEB-4. New component spec files have // @vitest-environment jsdom on line 1"
 
-# WEB-6: bare Node.js built-in imports without node: prefix in web files
+# 23. Missing .spec.tsx for new web component files
+> "$TMP"
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  spec="${f%.tsx}.spec.tsx"
+  [ ! -f "$spec" ] && printf "%s — missing %s\n" "$f" "$spec" >> "$TMP"
+done <<< "$(echo "$added" | grep '^apps/web/components/' | grep -E '\.tsx$' | grep -v '\.spec\.tsx$' || true)"
+run_check "23. All new apps/web/components .tsx files have a .spec.tsx"
+
+# WEB-5. No unit spec files sibling to page.tsx / layout.tsx (E2E only)
+> "$TMP"
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  dir=$(dirname "$f")
+  if [ -f "$dir/page.tsx" ] || [ -f "$dir/layout.tsx" ]; then
+    printf "%s — spec sibling to page/layout; test via Playwright E2E only\n" "$f" >> "$TMP"
+  fi
+done <<< "$(echo "$added" | grep '^apps/web/app/' | grep -E '\.(spec|test)\.(ts|tsx)$' || true)"
+run_check "WEB-5. No unit spec files sibling to page.tsx / layout.tsx (E2E only)"
+
+# WEB-6. Bare Node.js built-in imports without node: prefix
 grep_into_tmp "$web_tsx_prod" \
   "from '(path|fs|os|crypto|stream|util|url|events)'"
 run_check "WEB-6. No bare Node.js built-in imports in web (use node: prefix)"
 
-# WEB-7: apps/web/lib/api/** declaring a type whose name already exists in @ikaro/types
-# Can't auto-judge which side is correct (TD09 found cases both ways) — just flag for a look.
+# WEB-7. apps/web/lib/api/** type name collision with @ikaro/types
 > "$TMP"
 ikaro_types_exports=$(grep -hoE "^export (interface|type) [A-Za-z]+" packages/types/src/*.ts 2>/dev/null \
-  | awk '{print $3}' | sort -u)
+  | awk '{print $3}' | sort -u || true)
 web_api_changed=$(echo "$ts_prod" | grep '^apps/web/lib/api/' || true)
 while IFS= read -r f; do
   [ -z "$f" ] || [ ! -f "$f" ] && continue
   while IFS= read -r name; do
     [ -z "$name" ] && continue
     if echo "$ikaro_types_exports" | grep -qx "$name"; then
-      printf "%s declares '%s' — also exported by @ikaro/types; verify shapes match (see td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md)\n" "$f" "$name" >> "$TMP"
+      printf "%s declares '%s' — also in @ikaro/types; verify shapes match\n" "$f" "$name" >> "$TMP"
     fi
   done < <(grep -oE "^export (interface|type) [A-Za-z]+" "$f" 2>/dev/null | awk '{print $3}')
 done <<< "$web_api_changed"
-run_check "WEB-7. apps/web/lib/api/** type names checked against @ikaro/types for collisions"
+run_check "WEB-7. apps/web/lib/api/** type names checked against @ikaro/types"
 
-# ── E2E test quality checks ───────────────────────────────────────────────────
-# These only apply when e2e/ files are present/changed.
-e2e_specs=$(echo "$changed" | grep '^apps/web/e2e/' | grep -E '\.spec\.ts$' || true)
-web_tsx_all=$(echo "$ts_all" | grep '^apps/web/' | grep -E '\.tsx$' || true)
+# 27. No --ba-* CSS variables in dashboard/account components
+grep_into_tmp "$web_dashboard_tsx" '--ba-'
+run_check "27. No --ba-* CSS variables in dashboard/account components (hotsite-only; use Tailwind)"
 
+# 28. New entity file added → integration-global-setup.ts must also be updated
+> "$TMP"
+new_entities=$(echo "$added" | grep -E '\.entity\.ts$' | grep -v '\.spec\.' || true)
+if [ -n "$new_entities" ]; then
+  echo "$changed" | grep -q 'integration-global-setup\.ts' || \
+    printf "New entity added but integration-global-setup.ts not in changeset — register the entity or silent test failures will occur\n" >> "$TMP"
+fi
+run_check "28. integration-global-setup.ts updated when new entity added"
+
+# 26. i18n locale files updated in sync (en + pt-BR)
+> "$TMP"
+if echo "$changed" | grep -q 'packages/i18n/locales/en/web\.json'; then
+  echo "$changed" | grep -q 'packages/i18n/locales/pt-BR/web\.json' || \
+    printf "en/web.json changed but pt-BR/web.json did not — both must be updated together\n" >> "$TMP"
+elif echo "$changed" | grep -q 'packages/i18n/locales/pt-BR/web\.json'; then
+  echo "$changed" | grep -q 'packages/i18n/locales/en/web\.json' || \
+    printf "pt-BR/web.json changed but en/web.json did not — both must be updated together\n" >> "$TMP"
+fi
+run_check "26. i18n locale files updated in sync (en + pt-BR)"
+
+# ── E2E quality checks ────────────────────────────────────────────────────────
 if [ -d "apps/web/e2e" ]; then
 
-# E2E-1: no translated/locale strings in e2e/ specs
-# getByLabel / getByText couple tests to UI copy and break under i18n
+printf "\n### E2E quality checks\n"
+
+# E2E-1. No getByLabel/getByText in e2e specs (breaks under i18n)
 > "$TMP"
 if find apps/web/e2e -name "*.spec.ts" | xargs grep -lnE \
     "getByLabel\(|getByText\(" 2>/dev/null | grep -q .; then
   find apps/web/e2e -name "*.spec.ts" \
     | xargs grep -nE "getByLabel\(|getByText\(" 2>/dev/null >> "$TMP" || true
 fi
-run_check "E2E-1. No getByLabel/getByText in e2e/ — use data-testid (breaks under i18n)"
+run_check "E2E-1. No getByLabel/getByText in e2e/ — use data-testid"
 
-# E2E-2: no date/id/number embedded in data-testid values in components
+# E2E-2. No ISO date embedded in data-testid values
 grep_into_tmp "$web_tsx_all" \
   'data-testid="[^"]*[0-9]{4}-[0-9]{2}-[0-9]{2}[^"]*"'
-run_check "E2E-2. No ISO date embedded in data-testid value — use data-date attribute"
+run_check "E2E-2. No ISO date embedded in data-testid — use data-date attribute"
 
-# E2E-3: no template-literal data-testid (data-testid={\`...-${var}\`})
+# E2E-3. No template-literal data-testid
 grep_into_tmp "$web_tsx_all" \
   'data-testid=\{`'
 run_check "E2E-3. No template-literal data-testid — encode data in separate data-* attribute"
 
 fi
 
-# ── Bad-Smell Audit — Backend grep-based checks ───────────────────────────────
-printf "\n### Bad-Smell Audit — Backend (grep)\n"
+# ── Bad-Smell — Backend (changed files only) ─────────────────────────────────
+printf "\n### Bad-Smell — Backend (changed files; /bad-smell-audit covers full codebase)\n"
 
-# BE-2: duplicated isValid / inline validation outside value-objects
-grep -rn --include="*.ts" \
-  "function isValid\|const isValid\|Intl\.supportedValuesOf" \
-  apps/backend/src/contexts apps/backend/src/shared 2>/dev/null \
-  | grep -v "/value-objects/" | grep -v "\.spec\.ts:" > "$TMP" || true
-run_check "BE-2. No inline isValid outside value-objects"
+# BE-2. Inline isValid / validation outside value-objects — changed domain/application files
+> "$TMP"
+while IFS= read -r f; do
+  [ -z "$f" ] || [ ! -f "$f" ] && continue
+  echo "$f" | grep -q "/value-objects/" && continue
+  grep -nE "function isValid|const isValid|Intl\.supportedValuesOf" "$f" 2>/dev/null \
+    | sed "s|^|$f:|" >> "$TMP" || true
+done <<< "$ts_domain_app"
+run_check "BE-2. No inline isValid outside value-objects (changed domain/application files)"
 
-# BE-3: entity/use-case make* factories in specs (entire codebase)
-# Narrow to Entity/UseCase/Aggregate — service/context/handler helpers are acceptable
-grep -rn \
-  --include="*.spec.ts" --include="*.integration.spec.ts" \
-  "function make[A-Z][a-zA-Z]*Entity\b\|function make[A-Z][a-zA-Z]*UseCase\b\|function make[A-Z][a-zA-Z]*Aggregate\b" \
-  apps/backend/src 2>/dev/null > "$TMP" || true
-run_check "BE-3. No entity/use-case make* factories in spec files"
+# BE-3. entity/use-case make* factories in spec files — changed test files only
+grep_into_tmp "$ts_tests" \
+  "function make[A-Z][a-zA-Z]*Entity\b|function make[A-Z][a-zA-Z]*UseCase\b|function make[A-Z][a-zA-Z]*Aggregate\b"
+run_check "BE-3. No entity/use-case make* factories in spec files (changed test files)"
 
-# BE-5: DDL in seed files
-grep -rn --include="*.ts" \
-  "CREATE TABLE\|CREATE SCHEMA\|DROP TABLE\|DROP SCHEMA\|ensureSchemas\|createSchemas\|createTable" \
-  apps/backend/src/shared/database/ 2>/dev/null > "$TMP" || true
-run_check "BE-5. No DDL in seed files"
-
-# BE-4: every TypeORM entity has an XxxEntityBuilder
+# BE-4. New TypeORM entities must have an XxxEntityBuilder
 > "$TMP"
 while IFS= read -r entity_file; do
+  [ -z "$entity_file" ] || [ ! -f "$entity_file" ] && continue
   cls=$(grep -oE 'export class [A-Za-z]+Entity\b' "$entity_file" 2>/dev/null | head -1 | awk '{print $3}' || true)
   [ -z "$cls" ] && continue
   ctx=$(echo "$entity_file" | grep -oE 'contexts/[^/]+' | head -1 | sed 's|contexts/||' || true)
@@ -240,14 +303,22 @@ while IFS= read -r entity_file; do
   if ! find "$builder_dir" -name "*.builder.ts" 2>/dev/null \
        | xargs grep -l "$cls" 2>/dev/null \
        | grep -q .; then
-    printf "%s — no builder in %s\n" "$cls" "$builder_dir" >> "$TMP"
+    printf "%s — no builder found in %s\n" "$cls" "$builder_dir" >> "$TMP"
   fi
-done < <(find apps/backend/src -path "*/infrastructure/entities/*.entity.ts" ! -name "*.spec.ts" 2>/dev/null)
-run_check "BE-4. All TypeORM entities have an XxxEntityBuilder"
+done < <(echo "$added" | grep -E '\.entity\.ts$' | grep -v '\.spec\.' || true)
+run_check "BE-4. All new TypeORM entities have an XxxEntityBuilder"
 
-# BE-7: Builder fields without a withXxx() setter must be readonly (S2933)
+# BE-5. DDL in seed files (stable dir — full scan OK)
+grep -rn --include="*.ts" \
+  "CREATE TABLE\|CREATE SCHEMA\|DROP TABLE\|DROP SCHEMA\|ensureSchemas\|createSchemas\|createTable" \
+  apps/backend/src/shared/database/ 2>/dev/null > "$TMP" || true
+run_check "BE-5. No DDL in seed files"
+
+# BE-7. Builder fields without setter must be readonly — changed builder files only
 > "$TMP"
+changed_builders=$(echo "$changed" | grep 'apps/backend/src/test/builders' | grep -E '\.builder\.ts$' || true)
 while IFS= read -r builder_file; do
+  [ -z "$builder_file" ] || [ ! -f "$builder_file" ] && continue
   while IFS= read -r field_name; do
     [ -z "$field_name" ] && continue
     setter="with$(echo "${field_name:0:1}" | tr '[:lower:]' '[:upper:]')${field_name:1}("
@@ -255,25 +326,19 @@ while IFS= read -r builder_file; do
       printf "S2933: '%s' in %s has no setter — mark readonly\n" "$field_name" "$builder_file" >> "$TMP"
     fi
   done < <(grep -oP '(?<=private )\w+(?= =)' "$builder_file" 2>/dev/null || true)
-done < <(find apps/backend/src/test/builders -name "*.builder.ts" 2>/dev/null)
-run_check "BE-7. Builder fields without setter are readonly (S2933)"
+done <<< "$changed_builders"
+run_check "BE-7. Builder fields without setter are readonly — S2933 (changed builders)"
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 printf "\n---\n"
 if [ "$ISSUES" -eq 0 ]; then
   printf "✅ Script: 0 issues\n\n"
-  printf "   Agent checks still required:\n"
-  printf "   Step 2  type-check + lint per changed app\n"
-  printf "   2       multi-aggregate writes inside txManager.run()\n"
-  printf "   3       every new endpoint has a .http block (backend + bff)\n"
-  printf "   4       every public controller/service method has explicit return type\n"
-  printf "   8       @Global() modules have explanatory comment\n"
-  printf "   10/BE-1 aggregate fields use VO types; getters return the VO\n"
-  printf "   13      static routes declared before dynamic routes\n"
-  printf "   BE-6    no utility functions duplicated outside src/shared/utils/\n"
-  printf "   WEB-1   verify dangerouslySetInnerHTML sanitization (if flagged above)\n"
-  printf "   WEB-2   non-readonly props in changed component tsx files\n"
-  printf "   21      all new <Image fill> in changed .tsx files have a sizes prop\n"
+  printf "   Proceed to pre-pr.md Steps 2–Final:\n"
+  printf "   Step 2   type-check + lint per changed app\n"
+  printf "   Step 3a  agent reasoning checks\n"
+  printf "   Step 3b  /bad-smell-audit <layer> per changed layer\n"
+  printf "   Step 4   unit tests + coverage ≥ 85%% on changed files\n"
+  printf "   Step 5   integration + component tests\n"
 else
   printf "❌ Script: %d issue(s) — fix before running agent checks\n" "$ISSUES"
 fi
