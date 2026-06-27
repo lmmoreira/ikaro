@@ -157,7 +157,7 @@ Run unit tests with coverage for each changed app — in parallel:
 pnpm --filter @ikaro/backend test --coverage 2>&1 | tail -80
 
 # web (if changed)
-pnpm --filter @ikaro/web test --coverage 2>&1 | tail -80
+pnpm --filter @ikaro/web test:cov 2>&1 | tail -80
 ```
 
 Use a 300 000 ms timeout. After tests complete:
