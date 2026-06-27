@@ -1,6 +1,6 @@
 # BFF — Tenant Settings (M13-S10)
 # UC-026: Admin edits tenant settings (settings JSONB only — see tenant.http for renaming)
-# Guarded by @Roles('MANAGER') — requires a manager JWT (Authorization: Bearer <token>).
+# GET is available to staff and managers; PATCH requires a manager JWT.
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -33,9 +33,15 @@ Content-Type: application/json
 # HAPPY PATH
 # ─────────────────────────────────────────────────────────────────────────────
 
-### Get current tenant settings (camelCase)
+### Manager gets current tenant settings (camelCase)
 GET {{bffUrl}}/v1/tenants/settings
 Authorization: Bearer {{managerToken}}
+
+###
+
+### Staff gets current tenant settings (canonical read path for dashboard config)
+GET {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{staffToken}}
 
 ###
 
@@ -60,6 +66,19 @@ Content-Type: application/json
 {
   "settings": {
     "booking": { "cancellationWindowHours": 72, "serviceBufferMinutes": 45 }
+  }
+}
+
+###
+
+### Booking update — welcome staff screen days (M13-S17: booking queue window)
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "booking": { "welcomeStaffScreenDays": 7 }
   }
 }
 
@@ -124,12 +143,6 @@ Content-Type: application/json
 
 ### 401 — Missing token
 GET {{bffUrl}}/v1/tenants/settings
-
-###
-
-### 403 — STAFF role not allowed
-GET {{bffUrl}}/v1/tenants/settings
-Authorization: Bearer {{staffToken}}
 
 ###
 

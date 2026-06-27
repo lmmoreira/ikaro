@@ -20,6 +20,7 @@ export interface StaffByEmailResponse {
   email: string;
   role: 'STAFF' | 'MANAGER';
   isActive: boolean;
+  googleOAuthId: string | null;
 }
 
 export interface LinkGoogleAccountResponse {

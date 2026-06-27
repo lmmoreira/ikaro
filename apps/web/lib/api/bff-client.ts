@@ -1,32 +1,9 @@
 import axios from 'axios';
 import { ApiError, AuthError, ForbiddenError } from './errors';
 
-let _token = '';
-let _tenantSlug = '';
-let _tenantId = '';
-
-export function configureBffClient(cfg: {
-  token: string;
-  tenantSlug: string;
-  tenantId: string;
-}): void {
-  _token = cfg.token;
-  _tenantSlug = cfg.tenantSlug;
-  _tenantId = cfg.tenantId;
-}
-
-export function getTenantId(): string {
-  return _tenantId;
-}
-
 export const bffClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BFF_URL,
-});
-
-bffClient.interceptors.request.use((config) => {
-  if (_token) config.headers['Authorization'] = `Bearer ${_token}`;
-  if (_tenantSlug) config.headers['X-Tenant-Slug'] = _tenantSlug;
-  return config;
+  withCredentials: true,
 });
 
 bffClient.interceptors.response.use(

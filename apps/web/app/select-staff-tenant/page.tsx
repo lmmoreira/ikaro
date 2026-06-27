@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import type { StaffTenantOption } from '@ikaro/types';
+import { bffServerFetch } from '@/lib/api/bff-server';
 import { SelectStaffTenantClient } from '@/components/staff/SelectStaffTenantClient';
 
 export default async function SelectStaffTenantPage(): Promise<React.JSX.Element> {
@@ -9,10 +10,7 @@ export default async function SelectStaffTenantPage(): Promise<React.JSX.Element
 
   if (token) {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/auth/staff-tenants`, {
-        headers: { Cookie: `access_token=${token}` },
-        cache: 'no-store',
-      });
+      const res = await bffServerFetch(token, '/auth/staff-tenants');
       if (res.ok) initialOptions = (await res.json()) as StaffTenantOption[];
     } catch {
       // initialOptions stays null → client renders the error state

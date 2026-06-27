@@ -18,6 +18,7 @@ import {
 } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
+import { HotsiteContentReader } from '../services/hotsite-content-reader.service';
 import { GetHotsiteManifestUseCase } from './get-hotsite-manifest.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
@@ -33,12 +34,11 @@ describe('GetHotsiteManifestUseCase', () => {
     repo = new InMemoryHotsiteConfigRepository();
     tenantRepo = new InMemoryTenantRepository();
     storageService = new InMemoryStorageService();
+    const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
     useCase = new GetHotsiteManifestUseCase(
-      repo,
       tenantRepo,
-      storageService,
       new RequestContextBuilder().withTenantId(TENANT_A).build(),
-      new HotsiteImageUrlResolver(),
+      reader,
     );
     await tenantRepo.save(new TenantBuilder().withId(TENANT_A).build());
   });
@@ -103,12 +103,11 @@ describe('GetHotsiteManifestUseCase', () => {
   it('throws TenantNotFoundError when the tenant aggregate does not exist', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished();
     await repo.save(config);
+    const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
     const useCaseForB = new GetHotsiteManifestUseCase(
-      repo,
       tenantRepo,
-      storageService,
       new RequestContextBuilder().withTenantId(TENANT_B).build(),
-      new HotsiteImageUrlResolver(),
+      reader,
     );
 
     await expect(useCaseForB.execute()).rejects.toBeInstanceOf(TenantNotFoundError);

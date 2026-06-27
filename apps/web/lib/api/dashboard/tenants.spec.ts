@@ -1,11 +1,14 @@
 import MockAdapter from 'axios-mock-adapter';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { bffClient } from '../bff-client';
 import {
   featureBookingPhoto,
+  fetchTenantSettings,
   generateHotsiteImageSignedUrl,
   getHotsiteConfig,
   publishHotsite,
+  resolveTenantFormatting,
+  resolveWelcomeStaffScreenDays,
   unpublishHotsite,
   updateHotsiteConfig,
 } from './tenants';
@@ -16,6 +19,53 @@ beforeEach(() => mock.reset());
 afterEach(() => mock.reset());
 
 const hotsiteConfig = { id: 'h-1', branding: {}, modules: [], seo: {} };
+
+const tenantSettingsResponse = {
+  tenantId: 'tenant-1',
+  name: 'Lavacar',
+  slug: 'lavacar',
+  settings: {
+    loyalty: {
+      expiryDays: 180,
+      enableNotifications: true,
+      expiryWarningDays: 7,
+      notificationMinPoints: 50,
+      pointsPerCurrencyUnit: 0,
+    },
+    booking: {
+      cancellationWindowHours: 48,
+      autoApproveEnabled: false,
+      minBookingAdvanceHours: 0,
+      maxBookingAdvanceDays: 90,
+      serviceBufferMinutes: 60,
+      slotGranularityMinutes: 30,
+      welcomeStaffScreenDays: 21,
+    },
+    businessHours: {
+      timezone: 'America/Sao_Paulo',
+      monday: { open: '09:00', close: '18:00' },
+      tuesday: { open: '09:00', close: '18:00' },
+      wednesday: { open: '09:00', close: '18:00' },
+      thursday: { open: '09:00', close: '18:00' },
+      friday: { open: '09:00', close: '18:00' },
+      saturday: { open: '09:00', close: '17:00' },
+      sunday: null,
+    },
+    localization: {
+      countryCode: 'BR',
+      currency: 'BRL',
+      language: 'pt-BR',
+      decimalPlaces: 2,
+    },
+    notification: { fromEmail: null },
+    businessInfo: {
+      phone: null,
+      email: null,
+      address: null,
+      socialLinks: null,
+    },
+  },
+} as const;
 
 describe('getHotsiteConfig', () => {
   it('calls GET /platform/hotsite', async () => {
@@ -76,5 +126,54 @@ describe('featureBookingPhoto', () => {
       filePath: 'tenants/t-1/bookings/b-1/photo.jpg',
     });
     expect(res).toMatchObject({ success: true });
+  });
+});
+
+describe('fetchTenantSettings', () => {
+  it('fetches GET /tenants/settings with cookie header and returns tenant settings', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve(tenantSettingsResponse) });
+    vi.stubGlobal('fetch', fetchMock);
+    process.env.NEXT_PUBLIC_BFF_URL = 'http://bff.test/v1';
+
+    const res = await fetchTenantSettings('test-token');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://bff.test/v1/tenants/settings',
+      expect.objectContaining({
+        headers: { Cookie: 'access_token=test-token' },
+        next: { revalidate: 300 },
+      }),
+    );
+    expect(res).toEqual(tenantSettingsResponse);
+    vi.unstubAllGlobals();
+  });
+
+  it('throws on non-ok response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+
+    await expect(fetchTenantSettings('bad-token')).rejects.toThrow(
+      'Failed to fetch tenant settings',
+    );
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('resolveTenantFormatting', () => {
+  it('derives formatting config from canonical tenant settings', () => {
+    expect(resolveTenantFormatting(tenantSettingsResponse)).toEqual({
+      locale: 'pt-BR',
+      currency: 'BRL',
+      timezone: 'America/Sao_Paulo',
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
+    });
+  });
+});
+
+describe('resolveWelcomeStaffScreenDays', () => {
+  it('returns the configured booking queue window from tenant settings', () => {
+    expect(resolveWelcomeStaffScreenDays(tenantSettingsResponse)).toBe(21);
   });
 });

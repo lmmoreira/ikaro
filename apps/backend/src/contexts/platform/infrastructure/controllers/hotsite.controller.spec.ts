@@ -5,6 +5,7 @@ import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/p
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
+import { HotsiteContentReader } from '../../application/services/hotsite-content-reader.service';
 import { GetHotsiteManifestUseCase } from '../../application/use-cases/get-hotsite-manifest.use-case';
 import { HotsiteController } from './hotsite.controller';
 
@@ -17,14 +18,14 @@ describe('HotsiteController', () => {
   beforeEach(async () => {
     repo = new InMemoryHotsiteConfigRepository();
     const tenantRepo = new InMemoryTenantRepository();
+    const storageService = new InMemoryStorageService();
+    const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
     await tenantRepo.save(new TenantBuilder().withId(TENANT_A).build());
     controller = new HotsiteController(
       new GetHotsiteManifestUseCase(
-        repo,
         tenantRepo,
-        new InMemoryStorageService(),
         new RequestContextBuilder().withTenantId(TENANT_A).build(),
-        new HotsiteImageUrlResolver(),
+        reader,
       ),
     );
   });

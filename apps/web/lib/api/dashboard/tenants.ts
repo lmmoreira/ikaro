@@ -4,8 +4,20 @@ import type {
   UnpublishHotsiteResponse,
   GenerateHotsiteImageSignedUrlResponse,
   FeatureBookingPhotoResponse,
+  TenantSettingsResponse,
 } from '@ikaro/types';
+import { countrySpec } from '@ikaro/i18n';
+import type { DateFormat } from '@ikaro/i18n';
 import { bffClient } from '../bff-client';
+import { bffServerFetch } from '../bff-server';
+
+export interface TenantFormattingConfig {
+  readonly locale: string;
+  readonly currency: string;
+  readonly timezone: string;
+  readonly dateFormat: DateFormat;
+  readonly timeFormat: '24h' | '12h';
+}
 
 export interface UpdateHotsiteModuleRequest {
   readonly type: string;
@@ -94,4 +106,28 @@ export async function featureBookingPhoto(
     body,
   );
   return res.data;
+}
+
+// Server-side only — reads the auth cookie directly (called from layout server components).
+export async function fetchTenantSettings(token: string): Promise<TenantSettingsResponse> {
+  const res = await bffServerFetch(token, '/tenants/settings', {
+    next: { revalidate: 300 },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch tenant settings (${res.status})`);
+  return res.json() as Promise<TenantSettingsResponse>;
+}
+
+export function resolveTenantFormatting(tenant: TenantSettingsResponse): TenantFormattingConfig {
+  const spec = countrySpec(tenant.settings.localization.countryCode);
+  return {
+    locale: tenant.settings.localization.language,
+    currency: tenant.settings.localization.currency,
+    timezone: tenant.settings.businessHours.timezone,
+    dateFormat: spec.dateFormat,
+    timeFormat: spec.timeFormat,
+  };
+}
+
+export function resolveWelcomeStaffScreenDays(tenant: TenantSettingsResponse): number {
+  return tenant.settings.booking.welcomeStaffScreenDays ?? 14;
 }

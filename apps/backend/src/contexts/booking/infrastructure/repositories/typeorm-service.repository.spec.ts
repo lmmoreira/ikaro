@@ -22,6 +22,7 @@ describe('TypeOrmServiceRepository', () => {
           useValue: {
             findOne: jest.fn(),
             find: jest.fn(),
+            createQueryBuilder: jest.fn(),
             save: jest.fn(),
           },
         },
@@ -65,7 +66,7 @@ describe('TypeOrmServiceRepository', () => {
     expect(result!.isActive).toBe(true);
   });
 
-  it('findAllByTenant returns all services for tenant when onlyActive is false', async () => {
+  it('findAllByTenant returns all services for tenant when status is ANY', async () => {
     const entities = [
       new ServiceEntityBuilder().withId('id-1').withTenantId('tenant-1').withIsActive(true).build(),
       new ServiceEntityBuilder()
@@ -74,25 +75,36 @@ describe('TypeOrmServiceRepository', () => {
         .withIsActive(false)
         .build(),
     ];
-    ormRepo.find.mockResolvedValue(entities);
+    const query = {
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(entities),
+    };
+    ormRepo.createQueryBuilder.mockReturnValue(query as never);
 
-    const result = await repo.findAllByTenant('tenant-1');
+    const result = await repo.findAllByTenant('tenant-1', { status: 'ANY' });
 
     expect(result).toHaveLength(2);
     expect(result[0]).toBeInstanceOf(Service);
-    expect(ormRepo.find).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { tenantId: 'tenant-1' } }),
-    );
+    expect(query.where).toHaveBeenCalledWith('service.tenantId = :tenantId', {
+      tenantId: 'tenant-1',
+    });
   });
 
-  it('findAllByTenant filters by isActive=true when onlyActive is true', async () => {
-    ormRepo.find.mockResolvedValue([]);
+  it('findAllByTenant filters by isActive=true when status is ACTIVE', async () => {
+    const query = {
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+    ormRepo.createQueryBuilder.mockReturnValue(query as never);
 
-    await repo.findAllByTenant('tenant-1', true);
+    await repo.findAllByTenant('tenant-1', { status: 'ACTIVE' });
 
-    expect(ormRepo.find).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { tenantId: 'tenant-1', isActive: true } }),
-    );
+    expect(query.andWhere).toHaveBeenCalledWith('service.isActive = :isActive', {
+      isActive: true,
+    });
   });
 
   it('save maps domain to entity — price stored as fixed-point string', async () => {

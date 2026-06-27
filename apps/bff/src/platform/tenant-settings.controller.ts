@@ -32,6 +32,7 @@ const BookingSchema = z
     maxBookingAdvanceDays: z.number().int().min(1),
     serviceBufferMinutes: z.number().int().min(0).max(120),
     slotGranularityMinutes: z.union([z.literal(15), z.literal(30), z.literal(60)]),
+    welcomeStaffScreenDays: z.number().int().min(1).max(90),
   })
   .partial();
 
@@ -102,18 +103,19 @@ export const UpdateTenantSettingsBodySchema = z.object({
 
 type UpdateTenantSettingsBody = z.infer<typeof UpdateTenantSettingsBodySchema>;
 
-@Controller('tenants/settings')
-@Roles('MANAGER')
+@Controller('tenants')
 export class TenantSettingsController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
-  @Get()
+  @Get('settings')
+  @Roles('STAFF', 'MANAGER')
   getSettings(): Promise<TenantSettingsResponse> {
     return this.backendHttp.get<TenantSettingsResponse>('/tenants/settings');
   }
 
-  @Patch()
+  @Patch('settings')
   @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER')
   updateSettings(
     @Body(new ZodValidationPipe(UpdateTenantSettingsBodySchema)) body: UpdateTenantSettingsBody,
   ): Promise<TenantSettingsResponse> {

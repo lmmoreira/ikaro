@@ -111,7 +111,7 @@ describe('InviteStaffUseCase', () => {
     expect(eventBus.published).toHaveLength(1);
     expect((eventBus.published[0] as StaffInvited).eventName).toBe('StaffInvited');
 
-    const allStaff = await repo.findAllByTenant(TENANT_A, 100, 0);
+    const allStaff = await repo.findAllByTenant(TENANT_A, { limit: 100, offset: 0 });
     expect(allStaff.total).toBe(1);
   });
 

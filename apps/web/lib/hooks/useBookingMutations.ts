@@ -16,11 +16,12 @@ import {
   type SubmitInfoRequest,
   type AuthenticatedBookingRequest,
 } from '@/lib/api/dashboard/bookings';
-import { getTenantId } from '@/lib/api/bff-client';
+import { useTenant } from '@/providers/tenant-provider';
 
 function useInvalidateBookings() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: ['bookings', getTenantId()] });
+  const { tenantId } = useTenant();
+  return () => queryClient.invalidateQueries({ queryKey: ['bookings', tenantId] });
 }
 
 export function useApproveBooking() {

@@ -50,7 +50,7 @@ describe('TenantProvisionedHandler', () => {
     await handler.handle(makeEvent());
     await handler.handle(makeEvent());
 
-    const all = await repo.findAllByTenant(TENANT_ID, 100, 0);
+    const all = await repo.findAllByTenant(TENANT_ID, { limit: 100, offset: 0 });
     expect(all.total).toBe(1);
     expect(eventBus.published).toHaveLength(1);
   });

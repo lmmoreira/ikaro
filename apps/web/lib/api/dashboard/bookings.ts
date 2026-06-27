@@ -1,8 +1,10 @@
 import type { Address, StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
 import { bffClient } from '../bff-client';
+import { bffServerFetch } from '../bff-server';
 
 export interface BookingListFilters {
   readonly status?: string;
+  readonly date?: string;
   readonly from?: string;
   readonly to?: string;
   readonly limit?: number;
@@ -69,7 +71,21 @@ export interface CompleteBookingResponse {
 
 export async function listBookings(
   filters?: BookingListFilters,
+  token?: string,
 ): Promise<StaffBookingListResponse> {
+  if (token) {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v !== undefined) params.set(k, String(v));
+      });
+    }
+    const query = params.toString();
+    const querySuffix = query ? `?${query}` : '';
+    const res = await bffServerFetch(token, `/bookings${querySuffix}`);
+    if (!res.ok) throw new Error(`Failed to fetch bookings (${res.status})`);
+    return res.json() as Promise<StaffBookingListResponse>;
+  }
   const res = await bffClient.get<StaffBookingListResponse>('/bookings', { params: filters });
   return res.data;
 }

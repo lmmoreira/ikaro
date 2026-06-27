@@ -10,10 +10,10 @@ import {
   type HotsiteImageSignedUrlRequest,
   type UpdateHotsiteRequest,
 } from '@/lib/api/dashboard/tenants';
-import { getTenantId } from '@/lib/api/bff-client';
+import { useTenant } from '@/providers/tenant-provider';
 
 export function useHotsiteConfig() {
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['hotsite', tenantId],
     queryFn: getHotsiteConfig,
@@ -22,7 +22,7 @@ export function useHotsiteConfig() {
 
 export function useUpdateHotsiteConfig() {
   const queryClient = useQueryClient();
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (body: UpdateHotsiteRequest) => updateHotsiteConfig(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] }),
@@ -31,7 +31,7 @@ export function useUpdateHotsiteConfig() {
 
 export function usePublishHotsite() {
   const queryClient = useQueryClient();
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useMutation({
     mutationFn: publishHotsite,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] }),
@@ -40,7 +40,7 @@ export function usePublishHotsite() {
 
 export function useUnpublishHotsite() {
   const queryClient = useQueryClient();
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useMutation({
     mutationFn: unpublishHotsite,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] }),
@@ -55,7 +55,7 @@ export function useGenerateHotsiteImageSignedUrl() {
 
 export function useFeatureBookingPhoto() {
   const queryClient = useQueryClient();
-  const tenantId = getTenantId();
+  const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (body: FeatureBookingPhotoRequest) => featureBookingPhoto(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hotsite', tenantId] }),

@@ -47,9 +47,10 @@ describe('GetStaffByEmailUseCase', () => {
     expect(result.email).toBe('gerente@lavacar.com.br');
     expect(result.role).toBe('MANAGER');
     expect(result.isActive).toBe(true);
+    expect(result.googleOAuthId).toBeNull();
   });
 
-  it('returns isActive=true for a staff member with a linked Google account', async () => {
+  it('returns isActive=true and googleOAuthId for a staff member with a linked Google account', async () => {
     const staff = new StaffBuilder()
       .withTenantId('10000000-0000-4000-8000-000000000001')
       .withEmail('staff@lavacar.com.br')
@@ -63,5 +64,6 @@ describe('GetStaffByEmailUseCase', () => {
     );
 
     expect(result.isActive).toBe(true);
+    expect(result.googleOAuthId).toBe('google-sub-active');
   });
 });

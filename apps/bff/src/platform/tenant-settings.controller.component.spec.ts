@@ -79,11 +79,16 @@ describe('TenantSettingsController (component)', () => {
       expect(res.status).toBe(401);
     });
 
-    it('GET /v1/tenants/settings → 403 for STAFF role', async () => {
+    it('GET /v1/tenants/settings → 200 for STAFF role', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(settingsResponse);
+
       const res = await request(app.getHttpServer())
         .get('/v1/tenants/settings')
         .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
-      expect(res.status).toBe(403);
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.get).toHaveBeenCalledWith('/tenants/settings');
     });
 
     it('PATCH /v1/tenants/settings → 403 for CUSTOMER role', async () => {

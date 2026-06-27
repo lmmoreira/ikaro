@@ -1,24 +1,31 @@
 'use client';
 
 import { useContext } from 'react';
-import { formatDate, formatDateLong, formatTime } from './format-time';
+import { formatDate, formatDateLong, formatMonthYear, formatTime } from './format-time';
 import { formatMoney } from './format-money';
 import { FormattingContext } from './formatting-context';
 
 export interface FormattingUtils {
+  timezone: string;
   formatMoney: (amount: number) => string;
   formatDate: (date: Date) => string;
   formatDateLong: (date: Date) => string;
   formatTime: (date: Date) => string;
+  formatMonthYear: (date: Date) => string;
+  formatWeekdayShort: (date: Date) => string;
 }
 
 export function useFormatting(): FormattingUtils {
   const { locale, currency, timezone, dateFormat, timeFormat } = useContext(FormattingContext);
 
   return {
+    timezone,
     formatMoney: (amount) => formatMoney(amount, locale, currency),
     formatDate: (date) => formatDate(date, timezone, dateFormat),
     formatDateLong: (date) => formatDateLong(date, locale),
     formatTime: (date) => formatTime(date, locale, timezone, timeFormat),
+    formatMonthYear: (date) => formatMonthYear(date, locale),
+    formatWeekdayShort: (date) =>
+      new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date),
   };
 }

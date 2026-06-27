@@ -8,7 +8,7 @@ import { DeactivateStaffUseCase } from '../../application/use-cases/deactivate-s
 import { GetStaffByIdUseCase } from '../../application/use-cases/get-staff-by-id.use-case';
 import { GetStaffTenantsByIdUseCase } from '../../application/use-cases/get-staff-tenants-by-id.use-case';
 import { InviteStaffUseCase } from '../../application/use-cases/invite-staff.use-case';
-import { ListStaffUseCase } from '../../application/use-cases/list-staff.use-case';
+import { GetStaffUseCase } from '../../application/use-cases/get-staff.use-case';
 import { StaffController } from './staff.controller';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
@@ -31,7 +31,7 @@ function makeController(
   const ctx = builder.build();
   return new StaffController(
     ctx,
-    new ListStaffUseCase(repo),
+    new GetStaffUseCase(repo),
     new GetStaffByIdUseCase(repo),
     new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus, ctx),
     new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus, ctx),
@@ -184,7 +184,7 @@ describe('StaffController', () => {
       const txMgr = new InMemoryTransactionManager();
       const ctrl = new StaffController(
         ctxNoActor,
-        new ListStaffUseCase(repo),
+        new GetStaffUseCase(repo),
         new GetStaffByIdUseCase(repo),
         new InviteStaffUseCase(repo, txMgr, eventBus, ctxNoActor),
         new DeactivateStaffUseCase(repo, txMgr, eventBus, ctxNoActor),

@@ -4,7 +4,7 @@ import { InMemoryCustomerRepository } from '../../../../test/repositories/custom
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { testAddressProps } from '../../../../test/utils/address-helpers';
-import { GetCustomerProfileUseCase } from '../../application/use-cases/get-customer-profile.use-case';
+import { GetCustomerByIdUseCase } from '../../application/use-cases/get-customer-by-id.use-case';
 import { GetCustomerTenantsByIdUseCase } from '../../application/use-cases/get-customer-tenants-by-id.use-case';
 import { UpdateCustomerProfileUseCase } from '../../application/use-cases/update-customer-profile.use-case';
 import { SearchCustomersUseCase } from '../../application/use-cases/search-customers.use-case';
@@ -35,7 +35,7 @@ describe('CustomerController', () => {
 
     controller = new CustomerController(
       ctx,
-      new GetCustomerProfileUseCase(repo, ctx),
+      new GetCustomerByIdUseCase(repo),
       new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
       new SearchCustomersUseCase(repo, ctx),
       new GetCustomerTenantsByIdUseCase(repo),
@@ -59,7 +59,7 @@ describe('CustomerController', () => {
         .build();
       const ctrl = new CustomerController(
         ctx,
-        new GetCustomerProfileUseCase(repo, ctx),
+        new GetCustomerByIdUseCase(repo),
         new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
         new SearchCustomersUseCase(repo, ctx),
         new GetCustomerTenantsByIdUseCase(repo),
@@ -148,7 +148,7 @@ describe('CustomerController', () => {
         .build();
       const ctrl = new CustomerController(
         ctx,
-        new GetCustomerProfileUseCase(repo, ctx),
+        new GetCustomerByIdUseCase(repo),
         new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
         new SearchCustomersUseCase(repo, ctx),
         new GetCustomerTenantsByIdUseCase(repo),

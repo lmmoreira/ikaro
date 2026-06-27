@@ -10,6 +10,7 @@ import { InMemoryPlatformBookingPort } from '../../../../test/infrastructure/in-
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { FeatureBookingPhotoUseCase } from '../../application/use-cases/feature-booking-photo.use-case';
+import { HotsiteContentReader } from '../../application/services/hotsite-content-reader.service';
 import { GetHotsiteContentUseCase } from '../../application/use-cases/get-hotsite-content.use-case';
 import { UpdateHotsiteContentUseCase } from '../../application/use-cases/update-hotsite-content.use-case';
 import { PublishHotsiteUseCase } from '../../application/use-cases/publish-hotsite.use-case';
@@ -50,9 +51,14 @@ describe('HotsiteAdminController', () => {
     );
     const ctx = new RequestContextBuilder().withTenantId(TENANT_A).build();
     const txManager = new InMemoryTransactionManager();
+    const hotsiteContentReader = new HotsiteContentReader(
+      repo,
+      storageService,
+      new HotsiteImageUrlResolver(),
+    );
 
     controller = new HotsiteAdminController(
-      new GetHotsiteContentUseCase(repo, storageService, ctx, new HotsiteImageUrlResolver()),
+      new GetHotsiteContentUseCase(ctx, hotsiteContentReader),
       new UpdateHotsiteContentUseCase(
         repo,
         storageService,

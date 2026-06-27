@@ -6,6 +6,7 @@ import { Email } from '../../../../shared/value-objects/email.vo';
 import {
   FindAllByTenantResult,
   IStaffRepository,
+  StaffFilters,
 } from '../../application/ports/staff-repository.port';
 import { StaffAlreadyExistsError } from '../../domain/errors/staff-domain.error';
 import { Staff, StaffRole } from '../../domain/staff.aggregate';
@@ -43,17 +44,30 @@ export class TypeOrmStaffRepository implements IStaffRepository {
     return entity ? this.toDomain(entity) : null;
   }
 
-  async findAllByTenant(
-    tenantId: string,
-    limit: number,
-    offset: number,
-  ): Promise<FindAllByTenantResult> {
-    const [entities, total] = await this.repo.findAndCount({
-      where: { tenantId },
-      order: { createdAt: 'ASC' },
-      take: limit,
-      skip: offset,
-    });
+  async findAllByTenant(tenantId: string, filters: StaffFilters): Promise<FindAllByTenantResult> {
+    if (filters.ids?.length === 0) return { items: [], total: 0 };
+    const query = this.repo
+      .createQueryBuilder('staff')
+      .where('staff.tenantId = :tenantId', { tenantId })
+      .orderBy('staff.createdAt', 'ASC')
+      .take(filters.limit)
+      .skip(filters.offset);
+
+    if (filters.ids) query.andWhere('staff.id IN (:...ids)', { ids: filters.ids });
+    if (filters.roles?.length)
+      query.andWhere('staff.role IN (:...roles)', { roles: filters.roles });
+    if (filters.status === 'ACTIVE')
+      query.andWhere('staff.isActive = :isActive', { isActive: true });
+    if (filters.status === 'DEACTIVATED') {
+      query.andWhere('staff.isActive = :isActive', { isActive: false });
+    }
+    if (filters.search) {
+      query.andWhere('(staff.name ILIKE :search OR staff.email ILIKE :search)', {
+        search: `%${filters.search}%`,
+      });
+    }
+
+    const [entities, total] = await query.getManyAndCount();
     return { items: entities.map((e) => this.toDomain(e)), total };
   }
 

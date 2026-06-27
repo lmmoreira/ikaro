@@ -10,8 +10,7 @@ import { GetStaffTenantsByIdUseCase } from './application/use-cases/get-staff-te
 import { GetStaffByIdUseCase } from './application/use-cases/get-staff-by-id.use-case';
 import { GetStaffByOAuthIdUseCase } from './application/use-cases/get-staff-by-oauth-id.use-case';
 import { InviteStaffUseCase } from './application/use-cases/invite-staff.use-case';
-import { ListStaffUseCase } from './application/use-cases/list-staff.use-case';
-import { StaffQueryService } from './application/services/staff-query.service';
+import { GetStaffUseCase } from './application/use-cases/get-staff.use-case';
 import { InternalStaffController } from './infrastructure/controllers/internal-staff.controller';
 import { StaffController } from './infrastructure/controllers/staff.controller';
 import { StaffEntity } from './infrastructure/entities/staff.entity';
@@ -27,14 +26,13 @@ import { TypeOrmStaffRepository } from './infrastructure/repositories/typeorm-st
     GetStaffByEmailUseCase,
     GetStaffTenantsByIdUseCase,
     LinkGoogleAccountUseCase,
-    ListStaffUseCase,
+    GetStaffUseCase,
     GetStaffByIdUseCase,
     InviteStaffUseCase,
     DeactivateStaffUseCase,
     CreateInitialManagerUseCase,
     TenantProvisionedHandler,
-    StaffQueryService,
   ],
-  exports: [GetStaffByIdUseCase, StaffQueryService],
+  exports: [GetStaffByIdUseCase, GetStaffUseCase],
 })
 export class StaffModule {}

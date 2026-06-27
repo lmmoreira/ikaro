@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { CustomerQueryService } from '../../../customer/application/services/customer-query.service';
+import { Address } from '../../../../shared/value-objects/address';
+import { GetCustomerByIdUseCase } from '../../../customer/application/use-cases/get-customer-by-id.use-case';
 import {
   CustomerProfileDto,
   IBookingCustomerPort,
@@ -7,16 +8,21 @@ import {
 
 @Injectable()
 export class BookingCustomerAdapter implements IBookingCustomerPort {
-  constructor(private readonly customerQuery: CustomerQueryService) {}
+  constructor(private readonly getCustomerById: GetCustomerByIdUseCase) {}
 
   async findById(customerId: string, tenantId: string): Promise<CustomerProfileDto | null> {
-    const customer = await this.customerQuery.findById(customerId, tenantId);
-    if (!customer) return null;
-    return {
-      email: customer.email.address,
-      name: customer.name,
-      phone: customer.phone?.value ?? null,
-      defaultAddress: customer.defaultAddress,
-    };
+    try {
+      const customer = await this.getCustomerById.execute(customerId, tenantId);
+      return {
+        email: customer.email,
+        name: customer.name,
+        phone: customer.phone,
+        defaultAddress: customer.defaultAddress
+          ? Address.reconstitute(customer.defaultAddress)
+          : null,
+      };
+    } catch {
+      return null;
+    }
   }
 }

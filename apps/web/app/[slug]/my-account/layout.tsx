@@ -1,7 +1,9 @@
+import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
 import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
 import { LocaleProvider } from '@/providers/locale-provider';
+import { TenantProvider } from '@/providers/tenant-provider';
 import { CustomerShell } from '@/components/customer/CustomerShell';
 
 interface MyAccountLayoutProps {
@@ -19,6 +21,7 @@ async function resolveMyAccountContext(slug: string) {
   return {
     tenantName: payload.tenantName ?? '',
     tenantSlug: slug,
+    tenantId: payload.tenantId ?? '',
     userName: payload.userName ?? null,
     locale,
     messages,
@@ -30,14 +33,18 @@ export default async function MyAccountLayout({
   params,
 }: MyAccountLayoutProps): Promise<React.JSX.Element> {
   const { slug } = await params;
-  const { tenantName, tenantSlug, userName, locale, messages } =
+  const { tenantName, tenantSlug, tenantId, userName, locale, messages } =
     await resolveMyAccountContext(slug);
+
+  if (!tenantId) redirect(`/${slug}/login`);
 
   return (
     <LocaleProvider locale={locale} messages={messages}>
-      <CustomerShell tenantName={tenantName} tenantSlug={tenantSlug} userName={userName}>
-        {children}
-      </CustomerShell>
+      <TenantProvider tenantId={tenantId} tenantSlug={tenantSlug}>
+        <CustomerShell tenantName={tenantName} tenantSlug={tenantSlug} userName={userName}>
+          {children}
+        </CustomerShell>
+      </TenantProvider>
     </LocaleProvider>
   );
 }

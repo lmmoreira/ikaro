@@ -1,20 +1,45 @@
-Run a structured pre-implementation discovery session for a story. Checks doc clarity, completeness, consistency, dependency artifacts, and — for frontend stories — alignment with the validated UX prototype, before any code is written.
+Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, and — for frontend stories — alignment with the validated UX prototype, before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
 
 > **HARD RULE — NO CODE CHANGES:** This skill only reads code and updates documentation files (`.md` plan and doc files). It NEVER writes or modifies any `.ts`, `.js`, or any source/test/config file. If a gap requires a code change (e.g. enriching an event payload, adding a method to an aggregate), flag it as a recommendation in the readiness verdict and let the user decide when and how to handle it — do NOT make the change.
 
-Argument: `$ARGUMENTS` — story ID (e.g. `M09-S04`).
+Argument: `$ARGUMENTS` — story ID (e.g. `M09-S04`) or TD ID (e.g. `TD13`).
+
+---
+
+## Step 0 — Workspace state check
+
+Run these checks **before** reading any plan or doc files.
+
+**1. Detect existing branch for this story:**
+```bash
+git branch -a | grep -i "<story-id>"
+```
+If a branch already exists → **RISK**: "Branch `<branch-name>` already exists for this story — are you resuming interrupted work? Confirm before creating a new branch."
+
+**2. Detect dirty working tree:**
+```bash
+git status --short
+```
+If output is non-empty → **RISK**: "Working tree has uncommitted changes — stash or commit them before starting a new story."
+
+**3. Check if story is already done:**
+In the plan file (located in Step 1), look for `✅ Done` next to the story ID. If found → **BLOCKER**: "Story `<story-id>` is already marked ✅ Done — should not be re-implemented. Confirm with user before proceeding."
+
+Surface any findings here immediately. If a BLOCKER is found in Step 0, stop and report it — do not proceed to Step 1 without user confirmation.
 
 ---
 
 ## Step 1 — Locate the story
 
-Parse the milestone prefix (e.g. `M09` from `M09-S04`).
+**Story ID format:**
+- `M<N>-S<NN>` (e.g. `M09-S04`) → plan file: `plan/<milestone>-*.md` — exclude `*_IMPLEMENTATION_DETAILS_IA.md` and `*_IMPLEMENTATION_DETAILS_DEVELOPER.md`
+- `TD<N>` (e.g. `TD13`) → plan file: `td/TD<N>-*.md`
 
-Find the plan file: `plan/<milestone>-*.md` — exclude `*_IMPLEMENTATION_DETAILS_IA.md` and `*_IMPLEMENTATION_DETAILS_DEVELOPER.md`. **Exactly one match expected — if zero or more than one file matches, STOP and surface it as a BLOCKER instead of guessing which one is canonical:**
-> Found <N> files matching `plan/<milestone>-*.md`: <list>. This milestone's planning docs are ambiguous/fragmented — confirm with the user which file is canonical (and check CLAUDE.md §10's table for which one it actually references) before proceeding. Do not pick one silently.
+**Exactly one match expected** — if zero or more than one file matches, STOP:
+> Found <N> files matching `<pattern>`: <list>. Ambiguous — confirm with the user which file is canonical before proceeding.
 
-Read the file and find `### <story-id> —` (full `M<milestone>-S<NN>` form, e.g. `M13-S01` — not a bare `S01`). If not found, stop:
-> Story `<story-id>` not found in `plan/<file>`. Check the ID and try again.
+Read the file and find `### <story-id> —` (full `M<milestone>-S<NN>` form, e.g. `M13-S01` — not a bare `S01`). For TDs, find the primary heading or section. If not found, stop:
+> Story `<story-id>` not found in `<file>`. Check the ID and try again.
 
 Extract these fields from the story block:
 - Title, Agent target, Complexity
@@ -23,8 +48,11 @@ Extract these fields from the story block:
 - Backend use case steps (numbered list)
 - BFF endpoint spec (method, path, auth, response)
 - Acceptance criteria (all checkboxes)
-- Dependencies (story IDs)
+- Dependencies (story IDs) — note their status (Done / Pending)
 - **Prototype references** — every `plan/journey/...` path listed under a "Prototype references:", "Prototype reference:", or milestone-level "Journey prototype:" line
+- Any mention of: new DB migration/entity, new i18n keys, new env vars, new Pub/Sub topics, feature flags
+
+**Also check story status:** Look for `✅ Done` next to the story heading (Step 0 check #3).
 
 **Immediately after extracting story content — spawn one Explore agent for symbol search.**
 
@@ -48,7 +76,7 @@ For each entry in "Docs to load":
 Also load unconditionally:
 - `docs/CODE_STANDARDS.md`
 - `docs/AGENT_PATTERNS.md`
-- The matching `plan/<milestone>_IMPLEMENTATION_DETAILS_IA.md` (if it exists — older milestones have one)
+- The matching `plan/<milestone>_IMPLEMENTATION_DETAILS_IA.md` (if it exists — older milestones have one; use it to understand established patterns for this milestone)
 
 For each entry in "Prototype references":
 1. Verify the file path exists.
@@ -66,6 +94,8 @@ Collect the results from the Explore agent spawned at the end of Step 1. If the 
 The symbol vocabulary (used to brief the agent and to interpret its results):
 - **`backend-ts`/`bff-ts` dependencies:** aggregate methods, use-case class names, event names, port interface names, repository method names.
 - **`frontend-ts`/`web-ts` dependencies:** component names, page/route file paths, hook names, exported fetcher function names (e.g. `DashboardShell`, `fetchStaffBookings`, `apps/web/app/dashboard/bookings/page.tsx`) — these live under `apps/web/`, not `apps/backend/`/`apps/bff/`.
+
+Also check: do any dependency stories have status **Pending**? If a required upstream story is not done → **BLOCKER**: "Story `<dep-id>` is a dependency and is not yet marked Done."
 
 If a symbol has `found: false` → **BLOCKER — dependency artifact not found in codebase**.
 
@@ -129,21 +159,51 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 - Every "Known limitations" bullet in the prototype's `dev-notes.md` is either addressed by this story's AC or explicitly carried into the story's own open questions
 - `index.html`'s dry-run checklist questions are either answered by the story's AC or explicitly left open
 
+### 4l. Infrastructure / environment
+- Does the story introduce a new **Pub/Sub topic**? → RISK: topic must be provisioned in infra config before deployment; flag it
+- Does the story require a new **env var**? → RISK: verify naming follows `SNAKE_UPPER_CASE`; flag it for `.env.example` update
+- Does the story use a **feature flag**? → RISK: flag must follow `FEATURE_FLAG_XYZ=true` convention (CLAUDE.md §1); verify it's not wired to an external system
+
+### 4m. i18n keys
+- Does the story description or acceptance criteria mention UI copy, labels, or error messages? → Check if the story lists the exact `packages/i18n/locales/en/web.json` + `pt-BR/web.json` keys to be added
+- If UI copy is implied but no i18n keys are specified → **RISK**: "Story implies new UI copy but doesn't name i18n keys — both locale files must be updated in the same commit"
+
+### 4n. Migration / entity registration
+- Does the story add a new TypeORM entity or database migration? → **RISK**: "`integration-global-setup.ts` must be updated in the same commit — missing registration causes silent test failures"
+- Check that the migration follows expand/contract (backward-compatible) — no destructive column drops in a single step
+
 ---
 
 ## Step 5 — Print findings
 
+Start with a **Story scope summary** — a quick mental model for the agent before listing findings:
+
 ```
 ## Story Discovery — <story-id>: <title>
 
+### Scope summary
+- **Layers:** <backend | BFF | frontend | full-stack>
+- **Core pattern:** <e.g. "new use case + BFF endpoint" / "new React component consuming existing BFF route">
+- **Upstream deps:** <N> stories (<list with status>)
+- **Migration required:** yes / no
+- **i18n keys required:** yes / no
+- **Feature flag:** yes (`FEATURE_FLAG_XYZ`) / no
+```
+
+Then list findings:
+
+```
 ### Blockers (resolve before writing any code)
 1. [DOC-PATH] `docs/03-DOMAIN_EVENTS.md §BookingRescheduled` — section not found
 2. [SYMBOL] `booking.reschedule()` — no match in apps/ — M07-S03 may be incomplete
+3. [DEP] Story `M09-S02` is a dependency and is not yet marked Done
 
 ### Risks (could cause rework mid-story)
 1. [COVERAGE] No tenant-isolation acceptance criterion — CI gate will require one
 2. [API] BFF routing for shared PATCH endpoint not described — ambiguous which use case is called
 3. [JOURNEY] No prototype reference found for this frontend story — UX wasn't validated before the story was written
+4. [I18N] Story implies new UI copy but doesn't name i18n keys
+5. [MIGRATION] New entity detected — verify `integration-global-setup.ts` is updated in same commit
 
 ### Confirmations (assumed settled — flag if any are wrong)
 1. APPROVED → CANCELLED transition is valid per state machine ✓
@@ -154,15 +214,15 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 
 If zero blockers and zero risks, emit:
 ```
-✅ No issues found. Story is implementation-ready — proceed to branch creation.
+✅ No issues found. Story is implementation-ready.
 ```
-and skip Steps 6–7.
+and skip Steps 6–7, go directly to Step 8.
 
 ---
 
 ## Step 6 — Questions to the user (one shot)
 
-Collect every question that requires human input (i.e., the answer isn't derivable from the existing docs) and post them all at once in a single numbered list. Group by theme.
+Collect every question that requires human input (i.e., the answer isn't derivable from the existing docs) and post them all at once in a single numbered list. Group by theme. Distinguish blockers (must resolve before starting) from risks (can proceed with a stated default).
 
 ```
 ## Questions before we start
@@ -173,7 +233,7 @@ Please answer all at once — I'll wait for one reply before proposing any doc c
 1. [BLOCKER] `BookingRescheduled` isn't in `docs/03-DOMAIN_EVENTS.md`. Should `data` carry `previousScheduledAt` + `newScheduledAt` + `rescheduledBy`? Or a different shape?
 
 **BFF routing**
-2. [RISK] The story says one `PATCH /v1/bookings/:id/reschedule` endpoint but doesn't say how the BFF picks the backend use case. JWT role only, or also a body flag?
+2. [RISK] The story says one `PATCH /v1/bookings/:id/reschedule` endpoint but doesn't say how the BFF picks the backend use case. JWT role only, or also a body flag? (Default assumption: JWT role — confirm or override.)
 
 **Defaults**
 3. [CONFIRMATION] I'm reading "cancellation_window_hours absent → fall back to 48h" as the intent. Correct, or should a missing setting be a hard error?
@@ -195,7 +255,7 @@ If resolving the gap would also require a **code change** (e.g. enriching an eve
 ### Code changes required before implementation
 - `booking-cancelled.event.ts` — add `scheduledAt`, `lineSummary`, `totalPrice` fields to interface
 - `booking.aggregate.ts` — update `cancel()` to populate the new fields at emit time
-These changes are outside the scope of story-discovery. Implement them on the feature branch before writing M09-S04 code, or address them in a separate preparatory commit on main.
+These changes are outside the scope of story-discovery. Implement them on the feature branch before writing story code, or address them in a separate preparatory commit on main.
 ```
 
 For EACH doc change, apply §0 permission protocol:
@@ -221,8 +281,6 @@ What was clarified:
 - BFF routing: JWT role determines use case (STAFF|MANAGER → admin; CUSTOMER → customer)
 - Missing cancellation_window_hours → default 48h
 - Tenant-isolation criterion added to plan file
-
-Next step: `git checkout -b feat/M09-S04-<short-description>`
 ```
 
 or:
@@ -236,4 +294,50 @@ Remaining blockers:
 - [SYMBOL] booking.reschedule() not found in codebase — fix dependency before starting
 
 Do not start implementation until all blockers are cleared.
+```
+
+If NOT READY, stop here. Do not proceed to Step 9.
+
+---
+
+## Step 9 — Working environment setup
+
+Only reached when Step 8 verdict is ✅ READY.
+
+Ask the user:
+
+```
+## Working environment
+
+How do you want to work on this story?
+
+1. **Worktree** — isolated copy of the repo under `.claude/worktrees/`. Safe for parallel work; requires cleanup after PR merge.
+2. **Direct branch** — feature branch in the main working directory. Simpler; no cleanup needed.
+
+Reply with `1` / `worktree` or `2` / `direct`.
+```
+
+Wait for reply, then:
+
+**If worktree:**
+- Use the `EnterWorktree` tool with branch name `feat/<story-id-lowercase>-<short-description>` (e.g. `feat/m09-s04-booking-reschedule`).
+- After `EnterWorktree` completes, confirm the worktree path and branch to the user.
+- Remind: after the PR is merged, clean up with:
+  ```bash
+  git worktree remove .claude/worktrees/<name> --force
+  git branch -D <branch-name>
+  ```
+  Then verify with `git worktree list` and `ls .claude/worktrees/`.
+
+**If direct branch:**
+- Output the branch creation command for the user to run (per §9 Step 1 of CLAUDE.md):
+  ```bash
+  git checkout -b feat/M<N>-S<NN>-<short-description>
+  ```
+- Wait for the user to confirm before any code is written.
+
+Either way, end with:
+```
+Ready. Next: implement per §9 Step 2 — write all files from the story spec.
+Remember: before every `git commit`, list the files and ask "Anything else to add before I commit?" (§0).
 ```

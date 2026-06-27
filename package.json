@@ -25,8 +25,9 @@
     "db:seed": "pnpm --filter @ikaro/backend seed",
     "fix": "pnpm prettier --write . && pnpm -r run lint --fix",
     "pre-pr": "bash scripts/pre-pr.sh",
-    "ci:fast": "pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @ikaro/backend test:unit && pnpm --filter @ikaro/bff test && pnpm --filter @ikaro/web test",
-    "ci:integration": "pnpm --filter @ikaro/backend test:integration && pnpm --filter @ikaro/bff test:component",
+    "ci:fast": "pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm --filter @ikaro/backend test:unit && pnpm --filter @ikaro/bff test:unit",
+    "ci:integration": "pnpm --filter @ikaro/backend test:integration && pnpm --filter @ikaro/bff test:component && pnpm --filter @ikaro/web test",
+    "ci:full": "pnpm ci:fast && pnpm ci:integration",
     "ci:local": "bash scripts/ci-local.sh"
   },
   "workspaces": [

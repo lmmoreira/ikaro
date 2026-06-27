@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { TenantQueryService } from '../../../platform/application/services/tenant-query.service';
+import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
 import {
   ActiveTenantInfo,
   IBookingPlatformPort,
@@ -7,13 +7,13 @@ import {
 
 @Injectable()
 export class BookingPlatformAdapter implements IBookingPlatformPort {
-  constructor(private readonly tenantQueryService: TenantQueryService) {}
+  constructor(private readonly getTenants: GetTenantsUseCase) {}
 
   async findAllActive(): Promise<ActiveTenantInfo[]> {
-    const tenants = await this.tenantQueryService.findAllActive();
-    return tenants.map((t) => ({
-      id: t.id,
-      timezone: t.settings.businessHours?.timezone ?? 'UTC',
+    const result = await this.getTenants.execute({ status: 'ACTIVE' });
+    return result.items.map((tenant) => ({
+      id: tenant.id,
+      timezone: tenant.timezone,
     }));
   }
 }

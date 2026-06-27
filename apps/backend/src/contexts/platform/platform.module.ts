@@ -16,7 +16,7 @@ import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-co
 import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-manifest.use-case';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantBySlugUseCase } from './application/use-cases/get-tenant-by-slug.use-case';
-import { GetTenantsByIdsUseCase } from './application/use-cases/get-tenants-by-ids.use-case';
+import { GetTenantsUseCase } from './application/use-cases/get-tenants.use-case';
 import { ListPublishedHotsitesUseCase } from './application/use-cases/list-published-hotsites.use-case';
 import { ProvisionTenantUseCase } from './application/use-cases/provision-tenant.use-case';
 import { PublishHotsiteUseCase } from './application/use-cases/publish-hotsite.use-case';
@@ -29,7 +29,7 @@ import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
 import { PlatformBookingAdapter } from './infrastructure/cross-context/platform-booking.adapter';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
-import { TenantQueryService } from './application/services/tenant-query.service';
+import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
 import { InternalTenantController } from './infrastructure/controllers/internal-tenant.controller';
@@ -59,7 +59,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     { provide: HOTSITE_CONFIG_REPOSITORY, useClass: TypeOrmHotsiteConfigRepository },
     { provide: PLATFORM_BOOKING_PORT, useClass: PlatformBookingAdapter },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },
-    TenantQueryService,
+    HotsiteContentReader,
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },
     HotsiteImagePathsService,
     HotsiteImageUrlResolver,
@@ -69,7 +69,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetHotsiteManifestUseCase,
     GetTenantByIdUseCase,
     GetTenantBySlugUseCase,
-    GetTenantsByIdsUseCase,
+    GetTenantsUseCase,
     ListPublishedHotsitesUseCase,
     ProvisionTenantUseCase,
     PublishHotsiteUseCase,
@@ -78,6 +78,6 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     UpdateHotsiteContentUseCase,
     UpdateTenantSettingsUseCase,
   ],
-  exports: [GetTenantByIdUseCase, TenantQueryService, TENANT_SETTINGS_PORT],
+  exports: [GetTenantByIdUseCase, GetTenantsUseCase, TENANT_SETTINGS_PORT],
 })
 export class PlatformModule {}

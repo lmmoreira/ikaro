@@ -1,7 +1,10 @@
 #!/bin/bash
 # ci-local.sh — replicates the full CI pipeline locally using only Docker.
 # No tokens required. Snyk and SonarCloud run in CI only.
-# Usage: pnpm ci:local
+#
+# Usage:
+#   pnpm ci:local              — all checks except E2E
+#   RUN_E2E=true pnpm ci:local — include Playwright E2E (requires pnpm infra:up first)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -27,19 +30,37 @@ step "TypeScript"
 pnpm type-check
 ok "TypeScript"
 
-# ─── Tests ───────────────────────────────────────────────────────────────────
-step "Unit tests"
+# ─── Unit tests (ci:fast equivalent) ─────────────────────────────────────────
+step "Backend unit tests"
 pnpm --filter @ikaro/backend test:unit
+ok "Backend unit tests"
+
+step "BFF unit tests"
 pnpm --filter @ikaro/bff test:unit
-ok "Unit tests"
+ok "BFF unit tests"
 
-step "Integration tests"
+step "Web tests (Vitest)"
+pnpm --filter @ikaro/web test
+ok "Web tests (Vitest)"
+
+# ─── Integration / component tests (ci:integration equivalent) ───────────────
+step "Backend integration tests"
 pnpm --filter @ikaro/backend test:integration
-ok "Integration tests"
+ok "Backend integration tests"
 
-step "BFF Component tests"
+step "BFF component tests"
 pnpm --filter @ikaro/bff test:component
-ok "BFF Component tests"
+ok "BFF component tests"
+
+# ─── E2E (Playwright) ─────────────────────────────────────────────────────────
+step "E2E tests (Playwright)"
+if [ "${RUN_E2E:-false}" = "true" ]; then
+  pnpm --filter @ikaro/web e2e:ci
+  ok "E2E tests"
+else
+  echo -e "  Skipped — run with RUN_E2E=true pnpm ci:local to include"
+  echo -e "  Requires: pnpm infra:up + apps running"
+fi
 
 # ─── Secret scan (gitleaks via Docker — no token needed) ─────────────────────
 step "Gitleaks secret scan"

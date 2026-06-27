@@ -2,7 +2,7 @@ import {
   GetStaffByIdUseCase,
   GetStaffByIdUseCaseResult,
 } from '../../../staff/application/use-cases/get-staff-by-id.use-case';
-import { StaffQueryService } from '../../../staff/application/services/staff-query.service';
+import { GetStaffUseCase } from '../../../staff/application/use-cases/get-staff.use-case';
 import { StaffNotFoundError } from '../../../staff/domain/errors/staff-domain.error';
 import { NotificationStaffAdapter } from './notification-staff.adapter';
 
@@ -20,15 +20,15 @@ const staffResult: GetStaffByIdUseCaseResult = {
 
 describe('NotificationStaffAdapter', () => {
   let getStaffById: jest.Mocked<Pick<GetStaffByIdUseCase, 'execute'>>;
-  let staffQueryService: jest.Mocked<Pick<StaffQueryService, 'findManagersByTenant'>>;
+  let getStaff: jest.Mocked<Pick<GetStaffUseCase, 'execute'>>;
   let adapter: NotificationStaffAdapter;
 
   beforeEach(() => {
     getStaffById = { execute: jest.fn() };
-    staffQueryService = { findManagersByTenant: jest.fn() };
+    getStaff = { execute: jest.fn() };
     adapter = new NotificationStaffAdapter(
       getStaffById as unknown as GetStaffByIdUseCase,
-      staffQueryService as unknown as StaffQueryService,
+      getStaff as unknown as GetStaffUseCase,
     );
   });
 
@@ -57,15 +57,38 @@ describe('NotificationStaffAdapter', () => {
     expect(result).toBeNull();
   });
 
-  it('delegates getManagerEmails to staffQueryService', async () => {
-    staffQueryService.findManagersByTenant.mockResolvedValue([
-      'manager@lavacar.com.br',
-      'owner@lavacar.com.br',
-    ]);
+  it('maps manager staff results to email addresses', async () => {
+    getStaff.execute.mockResolvedValue({
+      items: [
+        {
+          id: 'manager-1',
+          email: 'manager@lavacar.com.br',
+          name: 'Manager',
+          role: 'MANAGER',
+          isActive: true,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'owner-1',
+          email: 'owner@lavacar.com.br',
+          name: 'Owner',
+          role: 'MANAGER',
+          isActive: true,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      pagination: { limit: 1000, offset: 0, total: 2, hasMore: false, nextOffset: null },
+    });
 
     const result = await adapter.getManagerEmails(TENANT_ID);
 
     expect(result).toEqual(['manager@lavacar.com.br', 'owner@lavacar.com.br']);
-    expect(staffQueryService.findManagersByTenant).toHaveBeenCalledWith(TENANT_ID);
+    expect(getStaff.execute).toHaveBeenCalledWith({
+      tenantId: TENANT_ID,
+      roles: ['MANAGER'],
+      status: 'ACTIVE',
+      limit: 1000,
+      offset: 0,
+    });
   });
 });

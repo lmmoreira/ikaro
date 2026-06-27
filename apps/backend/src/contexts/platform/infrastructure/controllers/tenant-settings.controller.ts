@@ -12,6 +12,7 @@ import {
 import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
 import { TenantSettingsProps } from '../../domain/value-objects/tenant-settings.vo';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
+import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapPlatformError } from '../http/platform-error.mapper';
 
 export interface GetTenantSettingsResult {
@@ -22,7 +23,6 @@ export interface GetTenantSettingsResult {
 }
 
 @Controller('tenants')
-@UseGuards(ManagerRoleGuard)
 export class TenantSettingsController {
   constructor(
     private readonly getTenantById: GetTenantByIdUseCase,
@@ -32,6 +32,7 @@ export class TenantSettingsController {
 
   @Get('settings')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
   async getSettings(): Promise<GetTenantSettingsResult> {
     const tenant = await this.getTenantById
       .execute(this.tenantContext.tenantId)
@@ -41,6 +42,7 @@ export class TenantSettingsController {
 
   @Patch('settings')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ManagerRoleGuard)
   updateSettings(
     @Body(new ZodValidationPipe(UpdateTenantSettingsSchema)) dto: UpdateTenantSettingsDto,
   ): Promise<UpdateTenantSettingsUseCaseResult> {

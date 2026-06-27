@@ -17,6 +17,7 @@ describe('TenantSettings', () => {
       expect(settings.booking.maxBookingAdvanceDays).toBe(90);
       expect(settings.booking.serviceBufferMinutes).toBe(60);
       expect(settings.booking.slotGranularityMinutes).toBe(30);
+      expect(settings.booking.welcomeStaffScreenDays).toBe(14);
       expect(settings.businessHours.timezone).toBe('America/Sao_Paulo');
       expect(settings.businessHours.monday).toEqual({ open: '09:00', close: '18:00' });
       expect(settings.businessHours.sunday).toBeNull();
@@ -113,6 +114,34 @@ describe('TenantSettings', () => {
       const props = new TenantSettingsPropsBuilder().build();
       (props.booking as { slotGranularityMinutes: number }).slotGranularityMinutes = 45;
       expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('throws for non-integer welcomeStaffScreenDays', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBooking({ welcomeStaffScreenDays: 7.5 })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('throws for welcomeStaffScreenDays below 1', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBooking({ welcomeStaffScreenDays: 0 })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('throws for welcomeStaffScreenDays above 90', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBooking({ welcomeStaffScreenDays: 91 })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+
+    it('accepts welcomeStaffScreenDays of 14 (default)', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBooking({ welcomeStaffScreenDays: 14 })
+        .build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
     });
   });
 

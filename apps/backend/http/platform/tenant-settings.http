@@ -62,6 +62,24 @@ Content-Type: application/json
 
 ###
 
+### Booking update — welcome staff screen days (M13-S17: booking queue window)
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "settings": {
+    "booking": {
+      "welcomeStaffScreenDays": 7
+    }
+  }
+}
+
+###
+
 ### Update timezone and close Sunday
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
@@ -431,7 +449,7 @@ X-Actor-Role: MANAGER
 
 ###
 
-### 403 — Get: STAFF role not allowed (ManagerRoleGuard rejects)
+### 200 — Get: STAFF role can read canonical settings
 GET {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}

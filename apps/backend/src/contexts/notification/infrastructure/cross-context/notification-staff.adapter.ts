@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { StaffQueryService } from '../../../staff/application/services/staff-query.service';
+import { GetStaffUseCase } from '../../../staff/application/use-cases/get-staff.use-case';
 import { GetStaffByIdUseCase } from '../../../staff/application/use-cases/get-staff-by-id.use-case';
 import {
   INotificationStaffPort,
@@ -10,7 +10,7 @@ import {
 export class NotificationStaffAdapter implements INotificationStaffPort {
   constructor(
     private readonly getStaffById: GetStaffByIdUseCase,
-    private readonly staffQueryService: StaffQueryService,
+    private readonly getStaff: GetStaffUseCase,
   ) {}
 
   async getStaffInfo(staffId: string, tenantId: string): Promise<NotificationStaffInfo | null> {
@@ -23,6 +23,13 @@ export class NotificationStaffAdapter implements INotificationStaffPort {
   }
 
   async getManagerEmails(tenantId: string): Promise<string[]> {
-    return this.staffQueryService.findManagersByTenant(tenantId);
+    const result = await this.getStaff.execute({
+      tenantId,
+      roles: ['MANAGER'],
+      status: 'ACTIVE',
+      limit: 1000,
+      offset: 0,
+    });
+    return result.items.map((staff) => staff.email);
   }
 }

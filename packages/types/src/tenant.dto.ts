@@ -35,6 +35,7 @@ export interface TenantBookingSettings {
   maxBookingAdvanceDays: number;
   serviceBufferMinutes: number;
   slotGranularityMinutes: 15 | 30 | 60;
+  welcomeStaffScreenDays?: number;
 }
 
 export interface TenantLocalizationSettings {

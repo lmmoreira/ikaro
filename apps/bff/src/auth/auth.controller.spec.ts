@@ -168,6 +168,7 @@ describe('AuthController', () => {
           email: 'gerente@lavacar.com.br',
           role: 'MANAGER',
           isActive: true,
+          googleOAuthId: null,
         }),
         post: jest.fn().mockResolvedValue({
           staffId: STAFF_ID_A,
@@ -205,6 +206,7 @@ describe('AuthController', () => {
           email: 'gerente@lavacar.com.br',
           role: 'MANAGER',
           isActive: true,
+          googleOAuthId: null,
         }),
         post: jest
           .fn()
@@ -262,6 +264,7 @@ describe('AuthController', () => {
           email: 'gerente@lavacar.com.br',
           role: 'MANAGER',
           isActive: false,
+          googleOAuthId: null,
         }),
       });
       const controller = new AuthController(jwtIssuer, backendHttp, configService);
@@ -282,6 +285,7 @@ describe('AuthController', () => {
           email: 'gerente@lavacar.com.br',
           role: 'MANAGER',
           isActive: true,
+          googleOAuthId: null,
         }),
         post: jest.fn().mockRejectedValue(new HttpException({ status: 422 }, 422)),
       });
@@ -303,6 +307,7 @@ describe('AuthController', () => {
           email: 'gerente@lavacar.com.br',
           role: 'MANAGER',
           isActive: true,
+          googleOAuthId: null,
         }),
         post: jest.fn().mockRejectedValue(new HttpException({ status: 403 }, 403)),
       });
@@ -324,6 +329,7 @@ describe('AuthController', () => {
           email: 'gerente@lavacar.com.br',
           role: 'MANAGER',
           isActive: true,
+          googleOAuthId: null,
         }),
         post: jest.fn().mockRejectedValue(new HttpException({ status: 409 }, 409)),
       });
@@ -335,6 +341,54 @@ describe('AuthController', () => {
       expect(res.redirect).toHaveBeenCalledWith(
         'http://localhost:3000/auth/error?reason=account-linked-elsewhere&tenantSlug=lavacar-bh',
       );
+    });
+
+    it('redirects to /auth/error?reason=account-linked-elsewhere when staff already has a different linked Google account', async () => {
+      const tenantInfo = { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' };
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValueOnce(tenantInfo).mockResolvedValueOnce({
+          staffId: STAFF_ID_A,
+          email: 'gerente@lavacar.com.br',
+          role: 'MANAGER',
+          isActive: true,
+          googleOAuthId: 'google-sub-DIFFERENT-existing-account',
+        }),
+        post: jest.fn().mockRejectedValue(new HttpException({ status: 409 }, 409)),
+      });
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
+      const res = makeRes();
+
+      await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=account-linked-elsewhere&tenantSlug=lavacar-bh',
+      );
+    });
+
+    it('skips link-google and issues token when staff is already linked with the same Google account', async () => {
+      const tenantInfo = { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' };
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValueOnce(tenantInfo).mockResolvedValueOnce({
+          staffId: STAFF_ID_A,
+          email: 'gerente@lavacar.com.br',
+          role: 'MANAGER',
+          isActive: true,
+          googleOAuthId: 'google-sub-staff-new', // matches staffProfileWithSlug.googleOAuthId
+        }),
+        post: jest.fn(),
+      });
+      const controller = new AuthController(jwtIssuer, backendHttp, configService);
+      const res = makeRes();
+
+      await controller.handleGoogleCallback(makeStaffFirstLoginReq(), res);
+
+      expect(backendHttp.post).not.toHaveBeenCalled();
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        expect.any(String),
+        expect.objectContaining({ httpOnly: true }),
+      );
+      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/dashboard');
     });
   });
 

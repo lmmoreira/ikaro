@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { CreateServiceDto, CreateServiceSchema } from '../../application/dtos/create-service.dto';
 import { UpdateServiceDto, UpdateServiceSchema } from '../../application/dtos/update-service.dto';
 import {
@@ -23,13 +24,13 @@ import {
   DeactivateServiceUseCaseResult,
 } from '../../application/use-cases/deactivate-service.use-case';
 import {
-  GetServiceUseCase,
-  GetServiceUseCaseResult,
-} from '../../application/use-cases/get-service.use-case';
+  GetServiceByIdUseCase,
+  GetServiceByIdUseCaseResult,
+} from '../../application/use-cases/get-service-by-id.use-case';
 import {
-  ListServicesUseCase,
-  ListServicesUseCaseResult,
-} from '../../application/use-cases/list-services.use-case';
+  GetServicesUseCase,
+  GetServicesUseCaseResult,
+} from '../../application/use-cases/get-services.use-case';
 import {
   UpdateServiceUseCase,
   UpdateServiceUseCaseResult,
@@ -40,24 +41,33 @@ import { mapBookingError } from '../http/booking-error.mapper';
 @Controller('services')
 export class ServiceController {
   constructor(
+    private readonly tenantContext: RequestContext,
     private readonly createService: CreateServiceUseCase,
-    private readonly listServices: ListServicesUseCase,
-    private readonly getService: GetServiceUseCase,
+    private readonly getServices: GetServicesUseCase,
+    private readonly getServiceById: GetServiceByIdUseCase,
     private readonly updateService: UpdateServiceUseCase,
     private readonly deactivateService: DeactivateServiceUseCase,
   ) {}
 
   @Get()
-  list(): Promise<ListServicesUseCaseResult> {
-    return this.listServices.execute().catch(mapBookingError);
+  list(): Promise<GetServicesUseCaseResult> {
+    const { tenantId, actorRole, settings } = this.tenantContext;
+    const isStaffOrManager = actorRole === 'MANAGER' || actorRole === 'STAFF';
+    return this.getServices
+      .execute({
+        tenantId,
+        status: isStaffOrManager ? 'ANY' : 'ACTIVE',
+        locale: settings.localization.language,
+      })
+      .catch(mapBookingError);
   }
 
   @Get(':id')
   @UseGuards(StaffOrManagerRoleGuard)
   getOne(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-  ): Promise<GetServiceUseCaseResult> {
-    return this.getService.execute(id).catch(mapBookingError);
+  ): Promise<GetServiceByIdUseCaseResult> {
+    return this.getServiceById.execute(id).catch(mapBookingError);
   }
 
   @Post()

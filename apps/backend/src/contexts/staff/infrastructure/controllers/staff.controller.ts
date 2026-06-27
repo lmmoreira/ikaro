@@ -30,9 +30,9 @@ import {
   InviteStaffUseCaseResult,
 } from '../../application/use-cases/invite-staff.use-case';
 import {
-  ListStaffUseCase,
-  ListStaffUseCaseResult,
-} from '../../application/use-cases/list-staff.use-case';
+  GetStaffUseCase,
+  GetStaffUseCaseResult,
+} from '../../application/use-cases/get-staff.use-case';
 import {
   GetStaffTenantsByIdUseCase,
   GetStaffTenantsByIdUseCaseResult,
@@ -45,7 +45,7 @@ import { mapStaffError } from '../http/staff-error.mapper';
 export class StaffController {
   constructor(
     private readonly tenantContext: RequestContext,
-    private readonly listStaff: ListStaffUseCase,
+    private readonly getStaff: GetStaffUseCase,
     private readonly getStaffById: GetStaffByIdUseCase,
     private readonly inviteStaff: InviteStaffUseCase,
     private readonly deactivateStaff: DeactivateStaffUseCase,
@@ -57,9 +57,13 @@ export class StaffController {
   list(
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
-  ): Promise<ListStaffUseCaseResult> {
-    return this.listStaff
-      .execute(this.tenantContext.tenantId, Math.min(limit, 100), offset)
+  ): Promise<GetStaffUseCaseResult> {
+    return this.getStaff
+      .execute({
+        tenantId: this.tenantContext.tenantId,
+        limit: Math.min(limit, 100),
+        offset,
+      })
       .catch(mapStaffError);
   }
 

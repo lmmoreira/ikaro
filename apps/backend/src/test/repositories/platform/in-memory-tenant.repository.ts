@@ -1,4 +1,7 @@
-import { ITenantRepository } from '../../../contexts/platform/application/ports/tenant-repository.port';
+import {
+  ITenantRepository,
+  TenantFilters,
+} from '../../../contexts/platform/application/ports/tenant-repository.port';
 import { Tenant } from '../../../contexts/platform/domain/tenant.aggregate';
 
 export class InMemoryTenantRepository implements ITenantRepository {
@@ -20,6 +23,22 @@ export class InMemoryTenantRepository implements ITenantRepository {
       const tenant = this.store.get(id);
       return tenant ? [tenant] : [];
     });
+  }
+
+  async findMany(filters: TenantFilters = {}): Promise<Tenant[]> {
+    if (filters.ids && filters.ids.length === 0) return [];
+    let tenants = Array.from(this.store.values());
+    if (filters.ids) tenants = tenants.filter((t) => filters.ids!.includes(t.id));
+    if (filters.status === 'ACTIVE') tenants = tenants.filter((t) => t.isActive);
+    if (filters.status === 'INACTIVE') tenants = tenants.filter((t) => !t.isActive);
+    if (filters.name) {
+      const search = filters.name.toLowerCase();
+      tenants = tenants.filter((t) => t.name.toLowerCase().includes(search));
+    }
+    if (filters.slug) tenants = tenants.filter((t) => t.slug.value === filters.slug);
+    const offset = filters.offset ?? 0;
+    const end = filters.limit === undefined ? undefined : offset + filters.limit;
+    return tenants.slice(offset, end);
   }
 
   async findAllActive(): Promise<Tenant[]> {

@@ -86,14 +86,14 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.settings.booking).toBeDefined();
   });
 
-  it('returns 403 on GET when X-Actor-Role is not MANAGER', async () => {
+  it('returns 200 on GET when X-Actor-Role is STAFF', async () => {
     const { body } = await request(app.getHttpServer())
       .get('/tenants/settings')
       .set('X-Tenant-ID', tenantId)
       .set('X-Actor-Role', 'STAFF')
-      .expect(403);
+      .expect(200);
 
-    expect(body.status).toBe(403);
+    expect(body.tenantId).toBe(tenantId);
   });
 
   it('returns 400 on GET when X-Tenant-ID header is missing', async () => {
@@ -105,7 +105,7 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.status).toBe(400);
   });
 
-  it('returns 403 on GET when X-Actor-Role is absent entirely (no separate 401 path on ManagerRoleGuard)', async () => {
+  it('returns 403 on GET when X-Actor-Role is absent entirely', async () => {
     const { body } = await request(app.getHttpServer())
       .get('/tenants/settings')
       .set('X-Tenant-ID', tenantId)

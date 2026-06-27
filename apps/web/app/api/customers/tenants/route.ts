@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { bffServerFetch } from '@/lib/api/bff-server';
 
 export async function GET(): Promise<NextResponse> {
   const token = (await cookies()).get('access_token')?.value;
@@ -9,9 +10,7 @@ export async function GET(): Promise<NextResponse> {
   }
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/customers/tenants`, {
-      headers: { Cookie: `access_token=${token}` },
-      cache: 'no-store',
+    const res = await bffServerFetch(token, '/customers/tenants', {
       signal: AbortSignal.timeout(5000),
     });
 

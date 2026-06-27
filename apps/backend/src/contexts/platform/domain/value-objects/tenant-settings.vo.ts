@@ -26,6 +26,7 @@ export interface BookingSettings {
   maxBookingAdvanceDays: number;
   serviceBufferMinutes: number;
   slotGranularityMinutes: 15 | 30 | 60;
+  welcomeStaffScreenDays: number;
 }
 
 export interface BusinessHours {
@@ -174,6 +175,7 @@ export class TenantSettings {
         maxBookingAdvanceDays: 90,
         serviceBufferMinutes: 60,
         slotGranularityMinutes: 30,
+        welcomeStaffScreenDays: 14,
       },
       businessHours: {
         timezone,
@@ -209,7 +211,13 @@ export class TenantSettings {
   }
 
   static reconstitute(props: TenantSettingsProps): TenantSettings {
-    return new TenantSettings(props);
+    return new TenantSettings({
+      ...props,
+      booking: {
+        ...props.booking,
+        welcomeStaffScreenDays: props.booking.welcomeStaffScreenDays ?? 14,
+      },
+    });
   }
 
   private static validate(props: TenantSettingsProps): void {
@@ -252,6 +260,12 @@ export class TenantSettings {
     }
     if (![15, 30, 60].includes(booking.slotGranularityMinutes)) {
       throw new PlatformDomainError('booking.slotGranularityMinutes must be 15, 30, or 60');
+    }
+    if (!Number.isInteger(booking.welcomeStaffScreenDays)) {
+      throw new PlatformDomainError('booking.welcomeStaffScreenDays must be an integer');
+    }
+    if (booking.welcomeStaffScreenDays < 1 || booking.welcomeStaffScreenDays > 90) {
+      throw new PlatformDomainError('booking.welcomeStaffScreenDays must be between 1 and 90');
     }
   }
 
