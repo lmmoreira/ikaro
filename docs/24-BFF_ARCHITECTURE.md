@@ -129,6 +129,68 @@ apps/bff/src/
 
 ---
 
+## Web → BFF Transport Layer (apps/web)
+
+Two transport helpers in `apps/web/lib/api/` cover **all** `apps/web` → BFF calls. Never write a raw `fetch()` URL inside a hook, component, or page outside these two — the anti-pattern of a duplicate URL going stale silently (M13-S05) is caught here.
+
+### `bffServerFetch(token, path, init?)` — server-only
+
+**File:** `apps/web/lib/api/bff-server.ts`
+
+```ts
+bffServerFetch(token: string, path: string, init?: BffServerFetchInit): Promise<Response>
+```
+
+**Use in:** Server Components, Route Handlers (`app/api/**/route.ts`), `page.tsx`, `layout.tsx`
+
+- Passes the JWT as `Cookie: access_token=<token>` — token comes from `(await cookies()).get('access_token')?.value ?? ''`
+- Default `cache: 'no-store'` — always fetches fresh data
+- **Never import in `'use client'` files** — `cookies()` is unavailable in the browser
+
+Canonical callers:
+- `lib/api/dashboard/bookings.ts` → `listBookings(params, token)`
+- `lib/api/dashboard/tenants.ts` → `fetchTenantFormatting(token)`, `fetchTenantBookingConfig(token)`
+- Route Handlers (`app/api/bookings/route.ts`, etc.) — these proxy BFF calls for React Query's client-side refetch
+
+### `bffClient` — client-only axios instance
+
+**File:** `apps/web/lib/api/bff-client.ts`
+
+**Use in:** React Query hooks (`lib/hooks/use*.ts`), client-side mutations
+
+- Browser sends the `access_token` cookie automatically via `withCredentials: true` — no token parameter needed
+- **Never import in Server Components or Route Handlers** — axios with `withCredentials` sends no cookies server-side
+
+Canonical callers: all hooks in `lib/hooks/` (`useBookings`, `useServices`, `useSchedule`, `useStaff`, `useLoyalty`, `useCustomerProfile`, `useBookingMutations`, etc.)
+
+React Query cache key shape: `[namespace, tenantId, ...params]` — `tenantId` always comes from `useTenant()`.
+
+### `TenantProvider` / `useTenant()` — tenant context for client components
+
+**File:** `apps/web/providers/tenant-provider.tsx`
+
+- Server layouts (`app/dashboard/(protected)/layout.tsx`, `app/[slug]/my-account/layout.tsx`) decode the JWT → extract `tenantId` and `tenantSlug` → wrap children in `<TenantProvider tenantId={...} tenantSlug={...}>`
+- Client hooks call `const { tenantId } = useTenant()` to scope React Query cache keys per tenant
+- Replaced the old `configureBffClient` / `getTenantId()` singleton (deleted M13-S17), which had a first-render race condition: the hook read `getTenantId()` during render but `useEffect` ran after mount, so the first render always had `tenantId = ''`
+
+### Route Handler proxy pattern
+
+Some React Query hooks call `bffClient` against a local Next.js Route Handler (`/api/**`) rather than hitting `NEXT_PUBLIC_BFF_URL` directly. The Route Handler uses `bffServerFetch` to proxy the call with the server-side cookie. Use this pattern when the hook needs server-authorised data but runs in a client component and the BFF response may need to be filtered or shaped before reaching the browser.
+
+In these cases: **the Route Handler owns the `bffServerFetch` call; the hook calls `bffClient` against the Route Handler's `/api/...` path.** Both sides must be updated together when the BFF route changes.
+
+### Decision table
+
+| Context | Helper to use | Why |
+|---|---|---|
+| `page.tsx` / `layout.tsx` | `bffServerFetch(token, path)` | Runs on server; `cookies()` available |
+| `app/api/**/route.ts` | `bffServerFetch(token, path)` | Route Handler — server context |
+| `lib/hooks/use*.ts` | `bffClient.get(path)` | Runs in browser; cookie sent automatically |
+| `lib/api/dashboard/*.ts` fetchers | `bffServerFetch(token, path)` | Called from `page.tsx` / Route Handlers |
+| `'use client'` component | `bffClient` (via a hook) | Never call `bffServerFetch` client-side |
+
+---
+
 ## Google OAuth + JWT Flow
 
 ### Step 1 — Login initiation

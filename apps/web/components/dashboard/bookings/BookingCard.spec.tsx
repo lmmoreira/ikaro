@@ -4,6 +4,37 @@ import { describe, expect, it, vi } from 'vitest';
 import type { StaffBookingCardResponse } from '@ikaro/types';
 import { BookingCard } from './BookingCard';
 
+vi.mock('next-intl', () => ({
+  useTranslations: (namespace: string) => {
+    const translations: Record<string, Record<string, string>> = {
+      'dashboard.bookingCard': {
+        statusPending: 'Pendente',
+        statusInfoRequested: 'Aguardando info',
+        statusApproved: 'Aprovado',
+        statusRejected: 'Rejeitado',
+        statusCancelled: 'Cancelado',
+        statusCompleted: 'Concluído',
+        today: 'Hoje',
+        tomorrow: 'Amanhã',
+        markCompleted: 'Marcar concluído',
+        approve: 'Aprovar',
+        viewDetails: 'Ver detalhes',
+        viewDetailsAriaLabel: 'Ver detalhes do agendamento de {name}',
+      },
+    };
+    return (key: string, params?: Record<string, unknown>) => {
+      const ns = translations[namespace] ?? {};
+      let value = ns[key] ?? key;
+      if (params) {
+        for (const [k, v] of Object.entries(params)) {
+          value = value.replace(`{${k}}`, String(v));
+        }
+      }
+      return value;
+    };
+  },
+}));
+
 vi.mock('@/lib/formatting/use-formatting', () => ({
   useFormatting: () => ({
     timezone: 'America/Sao_Paulo',

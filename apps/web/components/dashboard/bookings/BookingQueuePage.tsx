@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import type { StaffBookingListResponse } from '@ikaro/types';
 import { WeekNav } from '@/components/dashboard/WeekNav';
 import {
@@ -28,11 +29,13 @@ export function BookingQueuePage({
   tomorrow,
   welcomeStaffScreenDays,
 }: BookingQueuePageProps): React.JSX.Element {
+  const t = useTranslations('dashboard.bookingQueue');
   const windowDays = welcomeStaffScreenDays;
 
   const todayDate = useMemo(() => new Date(today + 'T00:00:00'), [today]);
 
   const [windowStart, setWindowStart] = useState(() => todayDate);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const windowEnd = useMemo(() => addDays(windowStart, windowDays - 1), [windowStart, windowDays]);
 
   const windowStartStr = toDateKey(windowStart);
@@ -72,14 +75,40 @@ export function BookingQueuePage({
     return dates;
   }, [actionNeeded, todayData, upcoming]);
 
+  const selectedUpcomingDate =
+    selectedDate && selectedDate >= upcomingFrom && selectedDate <= upcomingTo
+      ? selectedDate
+      : null;
+  const upcomingItems = useMemo(() => {
+    const items = upcoming?.items ?? [];
+    if (!selectedUpcomingDate) return items;
+    return items.filter((item) => item.scheduledAt.slice(0, 10) === selectedUpcomingDate);
+  }, [selectedUpcomingDate, upcoming]);
+
+  const handleWindowPrev = () => {
+    setSelectedDate(null);
+    setWindowStart((w) => addDays(w, -windowDays));
+  };
+
+  const handleWindowNext = () => {
+    setSelectedDate(null);
+    setWindowStart((w) => addDays(w, windowDays));
+  };
+
+  const handleSelectDate = (dateKey: string) => {
+    setSelectedDate((current) => (current === dateKey ? null : dateKey));
+  };
+
   return (
     <div>
       <WeekNav
         windowStart={windowStart}
         windowDays={windowDays}
         today={todayDate}
-        onPrev={() => setWindowStart((w) => addDays(w, -windowDays))}
-        onNext={() => setWindowStart((w) => addDays(w, windowDays))}
+        onPrev={handleWindowPrev}
+        onNext={handleWindowNext}
+        selectedDate={selectedDate}
+        onSelectDate={handleSelectDate}
         disablePrev={false}
         activeDates={activeDates}
       />
@@ -88,13 +117,12 @@ export function BookingQueuePage({
         <section className="mb-6">
           <div className="mb-3 flex items-center gap-2">
             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
-              Precisa de ação
+              {t('actionNeededTitle')}
             </h2>
             <div className="h-px flex-1 bg-gray-200" />
             {!!actionNeeded?.items.length && (
               <span className="text-[0.6875rem] font-bold text-gray-400">
-                {actionNeeded.items.length} agendamento
-                {actionNeeded.items.length !== 1 ? 's' : ''}
+                {t('bookingCount', { count: actionNeeded.items.length })}
               </span>
             )}
           </div>
@@ -103,7 +131,7 @@ export function BookingQueuePage({
               <BookingCard key={b.bookingId} booking={b} variant="action-needed" />
             ))
           ) : (
-            <p className="text-sm text-gray-400">Nenhum agendamento precisa de ação.</p>
+            <p className="text-sm text-gray-400">{t('emptyActionNeeded')}</p>
           )}
         </section>
 
@@ -111,12 +139,12 @@ export function BookingQueuePage({
           <section className="mb-6">
             <div className="mb-3 flex items-center gap-2">
               <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                Hoje — confirmados
+                {t('todayTitle')}
               </h2>
               <div className="h-px flex-1 bg-gray-200" />
               {!!todayData?.items.length && (
                 <span className="text-[0.6875rem] font-bold text-gray-400">
-                  {todayData.items.length} agendamento{todayData.items.length !== 1 ? 's' : ''}
+                  {t('bookingCount', { count: todayData.items.length })}
                 </span>
               )}
             </div>
@@ -125,7 +153,7 @@ export function BookingQueuePage({
                 <BookingCard key={b.bookingId} booking={b} variant="today" />
               ))
             ) : (
-              <p className="text-sm text-gray-400">Nenhum agendamento confirmado para hoje.</p>
+              <p className="text-sm text-gray-400">{t('emptyToday')}</p>
             )}
           </section>
         )}
@@ -134,22 +162,31 @@ export function BookingQueuePage({
           <section className="mb-6">
             <div className="mb-3 flex items-center gap-2">
               <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                Próximos dias — confirmados
+                {selectedUpcomingDate
+                  ? t('upcomingTitleFiltered', {
+                      date: `${selectedUpcomingDate.slice(8, 10)}/${selectedUpcomingDate.slice(5, 7)}`,
+                    })
+                  : t('upcomingTitle')}
               </h2>
               <div className="h-px flex-1 bg-gray-200" />
-              {!!upcoming?.items.length && (
+              {!!upcomingItems.length && (
                 <span className="text-[0.6875rem] font-bold text-gray-400">
-                  {upcoming.items.length} agendamento{upcoming.items.length !== 1 ? 's' : ''}
+                  {t('bookingCount', { count: upcomingItems.length })}
                 </span>
               )}
             </div>
-            {upcoming?.items.length ? (
-              upcoming.items.map((b) => (
-                <BookingCard key={b.bookingId} booking={b} variant="upcoming" />
+            {upcomingItems.length ? (
+              upcomingItems.map((b) => (
+                <BookingCard
+                  key={b.bookingId}
+                  booking={b}
+                  variant="upcoming"
+                  emphasized={!!selectedUpcomingDate}
+                />
               ))
             ) : (
               <p className="text-sm text-gray-400">
-                Nenhum agendamento confirmado nos próximos dias.
+                {selectedUpcomingDate ? t('emptyUpcomingFiltered') : t('emptyUpcoming')}
               </p>
             )}
           </section>

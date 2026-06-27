@@ -206,6 +206,31 @@
     }
   },
   "dashboard": {
+    "bookingCard": {
+      "statusPending": "Pending",
+      "statusInfoRequested": "Awaiting info",
+      "statusApproved": "Approved",
+      "statusRejected": "Rejected",
+      "statusCancelled": "Cancelled",
+      "statusCompleted": "Completed",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "markCompleted": "Mark completed",
+      "approve": "Approve",
+      "viewDetails": "View details",
+      "viewDetailsAriaLabel": "View booking details for {name}"
+    },
+    "bookingQueue": {
+      "actionNeededTitle": "Needs action",
+      "todayTitle": "Today — confirmed",
+      "upcomingTitle": "Upcoming days — confirmed",
+      "upcomingTitleFiltered": "Upcoming days — {date}",
+      "bookingCount": "{count, plural, one {# booking} other {# bookings}}",
+      "emptyActionNeeded": "No bookings need action.",
+      "emptyToday": "No confirmed bookings for today.",
+      "emptyUpcomingFiltered": "No confirmed bookings for the selected day.",
+      "emptyUpcoming": "No confirmed bookings in the coming days."
+    },
     "nav": {
       "bookings": "Bookings",
       "schedule": "Schedule",

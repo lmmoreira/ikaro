@@ -10,6 +10,8 @@ export interface WeekNavProps {
   readonly today: Date;
   readonly onPrev: () => void;
   readonly onNext: () => void;
+  readonly selectedDate?: string | null;
+  readonly onSelectDate?: (dateKey: string) => void;
   readonly disablePrev?: boolean;
   readonly disableNext?: boolean;
   readonly activeDates?: ReadonlySet<string>;
@@ -21,6 +23,8 @@ export function WeekNav({
   today,
   onPrev,
   onNext,
+  selectedDate,
+  onSelectDate,
   disablePrev = false,
   disableNext = false,
   activeDates,
@@ -62,38 +66,56 @@ export function WeekNav({
       {/* Day strip */}
       <div className="flex justify-evenly overflow-x-auto px-1 py-2">
         {days.map((day) => {
+          const dateKey = toDateKey(day);
           const isToday = isSameDay(day, today);
-          const hasActivity = activeDates?.has(toDateKey(day)) ?? false;
+          const isSelected = selectedDate === dateKey;
+          const hasActivity = activeDates?.has(dateKey) ?? false;
 
           return (
-            <div
-              key={toDateKey(day)}
+            <button
+              type="button"
+              key={dateKey}
+              onClick={() => onSelectDate?.(dateKey)}
+              aria-pressed={isSelected}
               data-testid="week-day"
-              data-date={toDateKey(day)}
+              data-date={dateKey}
               data-today={isToday ? 'true' : undefined}
+              data-selected={isSelected ? 'true' : undefined}
               className={[
-                'flex min-w-[2.5rem] flex-col items-center gap-0.5 rounded-[0.625rem] px-1.5 py-2',
-                isToday
-                  ? 'bg-blue-600 text-white'
-                  : 'cursor-default text-gray-800 hover:bg-gray-100',
+                'flex min-w-[2.5rem] flex-col items-center gap-0.5 rounded-[0.625rem] px-1.5 py-2 transition-colors',
+                isSelected
+                  ? 'bg-gray-950 text-white ring-2 ring-blue-200'
+                  : isToday
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-800 hover:bg-gray-100',
               ]
                 .filter(Boolean)
                 .join(' ')}
             >
               <span
-                className={`text-[0.6875rem] font-semibold uppercase tracking-wide ${isToday ? 'text-blue-100' : 'text-gray-400'}`}
+                className={`text-[0.6875rem] font-semibold uppercase tracking-wide ${
+                  isSelected ? 'text-gray-200' : isToday ? 'text-blue-100' : 'text-gray-400'
+                }`}
               >
                 {formatWeekdayShort(day)}
               </span>
-              <span className={`text-base font-bold leading-none ${isToday ? 'text-white' : ''}`}>
+              <span
+                className={`text-base font-bold leading-none ${
+                  isSelected || isToday ? 'text-white' : ''
+                }`}
+              >
                 {day.getDate()}
               </span>
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  hasActivity ? (isToday ? 'bg-white/80' : 'bg-blue-600') : 'bg-transparent'
+                  hasActivity
+                    ? isSelected || isToday
+                      ? 'bg-white/80'
+                      : 'bg-blue-600'
+                    : 'bg-transparent'
                 }`}
               />
-            </div>
+            </button>
           );
         })}
       </div>

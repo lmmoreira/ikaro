@@ -206,6 +206,31 @@
     }
   },
   "dashboard": {
+    "bookingCard": {
+      "statusPending": "Pendente",
+      "statusInfoRequested": "Aguardando info",
+      "statusApproved": "Aprovado",
+      "statusRejected": "Rejeitado",
+      "statusCancelled": "Cancelado",
+      "statusCompleted": "Concluído",
+      "today": "Hoje",
+      "tomorrow": "Amanhã",
+      "markCompleted": "Marcar concluído",
+      "approve": "Aprovar",
+      "viewDetails": "Ver detalhes",
+      "viewDetailsAriaLabel": "Ver detalhes do agendamento de {name}"
+    },
+    "bookingQueue": {
+      "actionNeededTitle": "Precisa de ação",
+      "todayTitle": "Hoje — confirmados",
+      "upcomingTitle": "Próximos dias — confirmados",
+      "upcomingTitleFiltered": "Próximos dias — {date}",
+      "bookingCount": "{count, plural, one {# agendamento} other {# agendamentos}}",
+      "emptyActionNeeded": "Nenhum agendamento precisa de ação.",
+      "emptyToday": "Nenhum agendamento confirmado para hoje.",
+      "emptyUpcomingFiltered": "Nenhum agendamento confirmado para o dia selecionado.",
+      "emptyUpcoming": "Nenhum agendamento confirmado nos próximos dias."
+    },
     "nav": {
       "bookings": "Agenda",
       "schedule": "Horários",

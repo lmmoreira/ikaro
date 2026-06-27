@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import type { StaffBookingCardResponse } from '@ikaro/types';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +14,7 @@ export type BookingCardVariant = 'action-needed' | 'today' | 'upcoming';
 export interface BookingCardProps {
   readonly booking: StaffBookingCardResponse;
   readonly variant: BookingCardVariant;
+  readonly emphasized?: boolean;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -24,18 +26,23 @@ const STATUS_BADGE: Record<string, string> = {
   COMPLETED: 'bg-slate-100 text-slate-600',
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Pendente',
-  INFO_REQUESTED: 'Aguardando info',
-  APPROVED: 'Aprovado',
-  REJECTED: 'Rejeitado',
-  CANCELLED: 'Cancelado',
-  COMPLETED: 'Concluído',
-};
-
-function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Element {
+function BookingCardInner({
+  booking,
+  variant,
+  emphasized = false,
+}: BookingCardProps): React.JSX.Element {
+  const t = useTranslations('dashboard.bookingCard');
   const { formatMoney, formatTime, formatDateLong, timezone } = useFormatting();
   const scheduledAt = new Date(booking.scheduledAt);
+
+  const STATUS_LABEL: Record<string, string> = {
+    PENDING: t('statusPending'),
+    INFO_REQUESTED: t('statusInfoRequested'),
+    APPROVED: t('statusApproved'),
+    REJECTED: t('statusRejected'),
+    CANCELLED: t('statusCancelled'),
+    COMPLETED: t('statusCompleted'),
+  };
 
   const timeLabel =
     variant === 'today'
@@ -48,9 +55,9 @@ function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Ele
 
           const prefix =
             scheduledKey === todayKey
-              ? 'Hoje'
+              ? t('today')
               : scheduledKey === tomorrowKey
-                ? 'Amanhã'
+                ? t('tomorrow')
                 : formatDateLong(scheduledAt);
 
           return `${prefix} · ${formatTime(scheduledAt)}`;
@@ -61,7 +68,8 @@ function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Ele
       className={[
         'mb-3 transition-shadow',
         booking.status === 'INFO_REQUESTED' ? 'border-l-[3px] border-l-blue-600' : '',
-        variant === 'upcoming' ? 'opacity-70' : 'hover:shadow-md',
+        emphasized ? 'border-blue-500 bg-blue-50/60 shadow-sm' : '',
+        variant === 'upcoming' && !emphasized ? 'opacity-70' : 'hover:shadow-md',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -93,7 +101,7 @@ function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Ele
               type="button"
               className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
             >
-              Marcar concluído
+              {t('markCompleted')}
             </button>
           </div>
         )}
@@ -104,13 +112,13 @@ function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Ele
               type="button"
               className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
             >
-              Aprovar
+              {t('approve')}
             </button>
             <button
               type="button"
               className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
             >
-              Ver detalhes
+              {t('viewDetails')}
             </button>
           </div>
         )}
@@ -125,7 +133,7 @@ function BookingCardInner({ booking, variant }: BookingCardProps): React.JSX.Ele
       <Link
         href={`/dashboard/bookings/${booking.bookingId}`}
         className="absolute inset-0"
-        aria-label={`Ver detalhes do agendamento de ${booking.contactName}`}
+        aria-label={t('viewDetailsAriaLabel', { name: booking.contactName })}
       />
       {card}
     </div>
