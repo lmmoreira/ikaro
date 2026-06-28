@@ -183,6 +183,9 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 - Route-scoped chrome state that must be visible in a shell header or top bar must live in a provider above both the shell and the page. Do not mirror that state in shell-local state, effect-based sync, or `key` remount workarounds.
 - Booking detail mutations should use the shared booking mutation hooks. Keep React Query invalidation in the shared hook layer, not inside page components.
 - Tenant-scoped booking queries must share the `['bookings', tenantId, ...]` prefix so a single invalidation reaches the queue, detail, and filtered booking views. If a query key shape changes, update the shared invalidation contract in the same change.
+- Booking action sheets should use native `<dialog>` semantics: open with `showModal()`, close with `close()`/`onCancel`, and keep the visual card inside an inner wrapper. If a dialog sits top-left, check for a plain `open` attribute before changing layout code.
+- React submit handlers in web components should use `SubmitEvent<HTMLFormElement>` instead of deprecated `FormEvent<HTMLFormElement>` so SonarCloud does not flag the handler type.
+- If Sonar points at a UI smell that seems to change behavior, reproduce it in the browser before applying the suggested refactor. Static analysis can identify a smell without identifying the actual runtime cause.
 
 ### Testing
 

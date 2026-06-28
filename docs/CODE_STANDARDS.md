@@ -156,3 +156,8 @@ Every component function — exported or internal helper, `function Name(...)` d
 **Lint enforcement is partial — don't rely on it alone.** `@typescript-eslint/explicit-module-boundary-types` in `apps/web/eslint.config.js` only checks `**/*.tsx` declarations that are actually `export`ed; it does not flag a missing return type on a non-exported internal helper component (e.g. a small sub-component defined above the file's main export). The convention above still applies to those — catch a missing one in code review, the same as any other style rule ESLint doesn't cover.
 
 **Exception — Next.js App Router special files are excluded** (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `template.tsx`, `default.tsx`, `not-found.tsx`, `global-error.tsx`): their default-export shape is already validated by Next's own type generation (`.next/types`) against `PageProps`/`LayoutProps` — annotating them manually fights that contract rather than reinforcing it. This is the same boundary the testing rules already draw (page/layout are Playwright-only, never unit-tested).
+
+## Next.js (`apps/web`): dialog and submit-handler conventions
+
+- Native booking action sheets should use `<dialog>` with `showModal()` / `close()` and an inner wrapper for the visible card. Do not leave a native dialog as a plain `open` element if the intended layout is a centered modal sheet.
+- Web submit handlers should type the event as `SubmitEvent<HTMLFormElement>` rather than deprecated `FormEvent<HTMLFormElement>`. SonarCloud flags the older type and the newer type matches native form submission semantics.

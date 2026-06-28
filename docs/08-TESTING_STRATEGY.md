@@ -1132,6 +1132,10 @@ import '@testing-library/jest-dom/vitest';
 // /vitest entrypoint registers Vitest's expect() types; bare import leaves matchers untyped in strict mode.
 ```
 
+**Native `<dialog>` components**
+- Mock `HTMLDialogElement.prototype.showModal` and `.close` in the spec before rendering. jsdom does not fully implement native dialog behavior, and tests that rely on the browser's modal API will otherwise fail or focus the wrong element.
+- If a dialog's accessible name is not exposed the same way as in the browser, use `getByRole('dialog', { hidden: true })` or assert on the inner content instead of treating that mismatch as a production bug.
+
 ### SonarCloud configuration
 - `sonar.coverage.exclusions`: `apps/web/app/**/page.tsx`, `apps/web/app/**/layout.tsx` — `apps/web/components/**` is **NOT excluded**
 - `sonar.exclusions`: `**/vitest.config.ts`, `**/__mocks__/**`, `**/vitest.setup.ts`
