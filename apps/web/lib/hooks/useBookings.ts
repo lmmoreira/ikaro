@@ -6,7 +6,7 @@ import { useTenant } from '@/providers/tenant-provider';
 export function useBookings(filters?: BookingListFilters) {
   const { tenantId } = useTenant();
   return useQuery({
-    queryKey: ['bookings', tenantId, filters],
+    queryKey: ['bookings', tenantId, 'list', filters ?? null],
     queryFn: () => listBookings(filters),
   });
 }
@@ -14,7 +14,7 @@ export function useBookings(filters?: BookingListFilters) {
 export function useBooking(id: string) {
   const { tenantId } = useTenant();
   return useQuery({
-    queryKey: ['bookings', tenantId, id],
+    queryKey: ['bookings', tenantId, 'detail', id],
     queryFn: () => getBooking(id),
     enabled: Boolean(id),
   });
@@ -36,7 +36,7 @@ export function useActionNeededBookings(
 ) {
   const { tenantId } = useTenant();
   return useQuery({
-    queryKey: ['bookings', 'action-needed', tenantId, from, to],
+    queryKey: ['bookings', tenantId, 'action-needed', from, to],
     queryFn: () => fetchBookingsViaProxy({ status: 'PENDING,INFO_REQUESTED', from, to }),
     initialData,
   });
@@ -45,7 +45,7 @@ export function useActionNeededBookings(
 export function useTodayBookings(date: string, initialData?: StaffBookingListResponse) {
   const { tenantId } = useTenant();
   return useQuery({
-    queryKey: ['bookings', 'today', tenantId, date],
+    queryKey: ['bookings', tenantId, 'today', date],
     queryFn: () => fetchBookingsViaProxy({ status: 'APPROVED', date }),
     initialData,
   });
@@ -59,7 +59,7 @@ export function useUpcomingBookings(
 ) {
   const { tenantId } = useTenant();
   return useQuery({
-    queryKey: ['bookings', 'upcoming', tenantId, from, to],
+    queryKey: ['bookings', tenantId, 'upcoming', from, to],
     queryFn: () => fetchBookingsViaProxy({ status: 'APPROVED', from, to }),
     initialData,
     enabled,

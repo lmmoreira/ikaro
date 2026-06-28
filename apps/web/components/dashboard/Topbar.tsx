@@ -1,10 +1,17 @@
 'use client';
 
+import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { usePathname } from 'next/navigation';
+import { ChevronLeft } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { formatTodayLabel } from '@/lib/utils/format-today';
 import { getInitials } from '@/lib/utils/initials';
+import { matchBookingDetailRoute } from '@/lib/dashboard/booking-route';
+import { BOOKING_STATUS_CLASSES, buildBookingStatusLabels } from './bookings/booking-status';
+import { useDashboardTopbarStatus } from './topbar-status-context';
 
 interface TopbarProps {
   readonly tenantName: string;
@@ -22,27 +29,72 @@ const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
 ];
 
 export function Topbar({ tenantName, userName }: TopbarProps): React.JSX.Element {
+  const commonT = useTranslations('common');
   const t = useTranslations('dashboard');
+  const bookingT = useTranslations('dashboard.bookingDetail');
   const locale = useLocale();
   const pathname = usePathname();
+  const topbarStatus = useDashboardTopbarStatus();
   const initials = getInitials(userName);
+  const bookingRouteMatch = matchBookingDetailRoute(pathname);
+  const isBookingRoute = bookingRouteMatch !== null;
   const pageTitleKey = PAGE_TITLE_KEYS.find(([path]) => pathname.startsWith(path))?.[1];
-  const pageTitle = pageTitleKey ? t(pageTitleKey) : t('topbar.defaultTitle');
+  let pageTitle = t('topbar.defaultTitle');
+  if (bookingRouteMatch) {
+    if (bookingRouteMatch.action === 'complete') {
+      pageTitle = bookingT('completeSheetTitle');
+    } else if (bookingRouteMatch.action === 'reschedule') {
+      pageTitle = bookingT('rescheduleSheetTitle');
+    } else {
+      pageTitle = bookingT('title');
+    }
+  } else if (pageTitleKey) {
+    pageTitle = t(pageTitleKey);
+  }
+  const bookingStatusLabels = buildBookingStatusLabels(bookingT);
+  const backHref = bookingRouteMatch?.action
+    ? `/dashboard/bookings/${bookingRouteMatch.bookingId}`
+    : '/dashboard/bookings';
+  const showBookingBackLink = Boolean(bookingRouteMatch);
 
   return (
     <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 lg:px-6">
-      {/* Mobile: logo mark + tenant name */}
-      <div className="flex items-center gap-2.5 lg:hidden">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-600 text-[0.8125rem] font-bold text-white">
-          {tenantName[0]?.toUpperCase() ?? 'I'}
+      {showBookingBackLink ? (
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href={backHref}
+            className="flex items-center gap-1.5 text-[0.9375rem] font-semibold text-gray-900 transition-colors hover:text-blue-700"
+          >
+            <ChevronLeft className="h-5 w-5" />
+            <span>{commonT('back')}</span>
+          </Link>
+          <h1 className="truncate text-[1.0625rem] font-bold text-gray-900">{pageTitle}</h1>
         </div>
-        <span className="truncate text-[0.9375rem] font-bold text-gray-900">{tenantName}</span>
-      </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-2.5 lg:hidden">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-600 text-[0.8125rem] font-bold text-white">
+              {tenantName[0]?.toUpperCase() ?? 'I'}
+            </div>
+            <span className="truncate text-[0.9375rem] font-bold text-gray-900">{tenantName}</span>
+          </div>
 
-      {/* Desktop: page title */}
-      <h1 className="hidden text-[1.0625rem] font-bold text-gray-900 lg:block">{pageTitle}</h1>
+          <h1 className="hidden text-[1.0625rem] font-bold text-gray-900 lg:block">{pageTitle}</h1>
+        </>
+      )}
 
       <div className="ml-auto flex items-center gap-3">
+        {topbarStatus?.bookingStatus && isBookingRoute && (
+          <Badge
+            className={cn(
+              'shrink-0 rounded-full border-0 px-3.5 py-2 text-[0.875rem] font-semibold',
+              BOOKING_STATUS_CLASSES[topbarStatus.bookingStatus] ?? 'bg-gray-100 text-gray-600',
+            )}
+          >
+            {bookingStatusLabels[topbarStatus.bookingStatus]}
+          </Badge>
+        )}
+
         {/* suppressHydrationWarning: date may differ between server TZ and client TZ at midnight */}
         <span
           suppressHydrationWarning

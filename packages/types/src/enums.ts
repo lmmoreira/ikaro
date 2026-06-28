@@ -1,10 +1,13 @@
-export type BookingStatus =
-  | 'PENDING'
-  | 'INFO_REQUESTED'
-  | 'APPROVED'
-  | 'COMPLETED'
-  | 'REJECTED'
-  | 'CANCELLED';
+export const BOOKING_STATUS = {
+  PENDING: 'PENDING',
+  INFO_REQUESTED: 'INFO_REQUESTED',
+  APPROVED: 'APPROVED',
+  COMPLETED: 'COMPLETED',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type BookingStatus = (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];
 
 export type BookingType = 'GUEST' | 'CUSTOMER';
 

@@ -238,7 +238,7 @@ describe('toStaffBookingDetail()', () => {
     expect(result.afterServicePhotoUrls).toEqual(['https://example.com/after.jpg']);
   });
 
-  it('maps lines to StaffBookingLineResponse, dropping serviceId/actualPriceCharged', () => {
+  it('maps lines to StaffBookingLineResponse, dropping actualPriceCharged', () => {
     const detail: BookingDetailResponse = {
       ...backendDetail,
       lines: [
@@ -260,6 +260,7 @@ describe('toStaffBookingDetail()', () => {
     expect(result.lines).toEqual([
       {
         lineId: 'line-1',
+        serviceId: 'service-1',
         serviceName: 'Lavagem Completa',
         priceAtBooking: { amount: 100, currency: 'BRL' },
         durationMinsAtBooking: 30,

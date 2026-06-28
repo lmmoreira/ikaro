@@ -35,7 +35,7 @@ This file replaces six previously separate draft milestone files — `M124-LOGIN
 
 **Customer account area naming:** the journey prototype folder is `plan/journey/customer/prototypes/minha-conta/` and stays pt-BR — prototypes are conceptual mockups, not code. The production route/file/component names are English: `/{slug}/my-account` (not `/{slug}/minha-conta`), per the code-standards English-only rule (`CLAUDE.md` §7). This was established in `M13-S42` (hotsite auth bar) and carried through `S16`/`S27`–`S30`. UI-facing pt-BR copy ("Minha conta", "Agendamentos", "Fidelidade") is unaffected — only identifiers and paths changed.
 
-**Booking form / calendar reuse:** the `AvailabilityCalendar` component built for the guest/customer booking flow (UC-011, M12) is reused for staff's reschedule action (`M13-S19`) — verify it's extracted in a way that doesn't pull in basket/duration-recompute logic specific to the booking flow.
+**Booking form / calendar reuse:** the guest/customer booking flow (UC-011, M12) still provides the shared availability primitives, but the shipped staff reschedule flow is a dedicated `/dashboard/bookings/[id]/reschedule` route built on `AvailabilityCarousel` + `SlotPicker`. Keep basket/duration-recompute logic out of the staff lifecycle flow.
 
 **`dashboard-shell.html` CSS classes — do not invent new ones, use what's in `shared/tokens.css`:** `.dashboard-topbar`, `.topbar-page-title`, `.topbar-date`, `.dashboard-layout`, `.sidebar`, `.sidebar-header`, `.sidebar-nav`/`.sidebar-nav-item`/`.sidebar-nav-icon`, `.sidebar-section-label`, `.sidebar-footer`, `.main-content`, `.dashboard-body`, `.bottom-nav`, `.auth-avatar` (NOT `.topbar-avatar` — hidden on desktop), `.role-badge`/`.role-badge-manager`, `.status-badge` + `.status-*`.
 
@@ -1959,6 +1959,12 @@ Extend `apps/web/middleware.ts` — add protection for `/{slug}/my-account/**`:
 
 > **Discovery note (applies to this entire phase):** Several details will only be resolved when implementation begins — particularly what BFF endpoints already exist vs. what needs adding, and which `@ikaro/types` booking types survived M12. Explicit "🔍 Discover before starting" callouts mark every assumption that must be verified before writing code. Do not skip these — acting on a wrong assumption here caused two CI failures in M12. For `M13-S19`/`M13-S20` specifically: the UC-008/UC-009 audit already confirmed `cancel-admin`, `reschedule`, and `complete` backend+BFF endpoints are fully implemented (not just planned) — these two stories are frontend-only.
 
+**Implementation session summary**
+- `M13-S18` shipped the booking detail shell and triage flows: approve, reject, request info, localized copy, slot-conflict handling, and topbar status sync.
+- `M13-S19` shipped the approved-state lifecycle shell: the detail page now exposes complete, reschedule, and cancel actions, with cancel staying inline and reschedule moving to a dedicated route.
+- `M13-S20` shipped the dedicated completion route with per-line charged-price editing, live totals, and success state. After-service photo upload is still missing.
+- Playwright coverage for this slice should focus on happy paths, validation errors, 409 conflict retries, status-specific visibility, and stale-list regressions after returning to the bookings queue.
+
 ---
 
 ### M13-S17 — Booking queue page (`/dashboard/bookings`) ✅ Done
@@ -2024,7 +2030,7 @@ fetchStaffBookings(params: { status: string; date?: string; from?: string; page?
 
 ---
 
-### M13-S18 — Booking detail page + all action flows (`/dashboard/bookings/[id]`)
+### M13-S18 — Booking detail page + all action flows (`/dashboard/bookings/[id]`) ✅ Done
 
 *(formerly M125-S05)*
 
@@ -2033,7 +2039,7 @@ fetchStaffBookings(params: { status: string; date?: string; from?: string; page?
 **Docs to load:** `docs/04-USE_CASES.md` § UC-003, UC-004, UC-005, `plan/journey/staff/prototypes/agenda/01-booking-detail.html`, `plan/journey/staff/prototypes/agenda/01b-slot-conflict.html`
 
 **Description:**
-The core of this milestone: the booking detail page where staff take action on each request. Three actions (approve / reject / request info) each have their own flow, and approval has an error branch (slot conflict). All success and error states are inline — no navigation to a separate page.
+The booking detail page where staff triage pending requests. The shipped implementation keeps the user on `/dashboard/bookings/[id]`, uses localized copy throughout, and handles approve / reject / request info inline. Approval has an error branch for slot conflict. Later lifecycle actions are split into `M13-S19` and `M13-S20`.
 
 > 🔍 **Discover before starting:** Confirm the BFF action endpoints are wired correctly: `PATCH /v1/bookings/:id/approve`, `PATCH /v1/bookings/:id/reject`, `PATCH /v1/bookings/:id/request-info`. These were built in M08/M09 and should exist. Verify their exact request bodies and error codes (409 for slot conflict, 422 for validation). Also check whether `@ikaro/types` has `ApproveBookingRequest`, `RejectBookingRequest`, `RequestMoreInfoRequest` — M12-S07 explicitly dropped these ("re-added when the dashboard story is built"). They need to be re-added here.
 
@@ -2084,88 +2090,29 @@ rejectBooking(bookingId: string, reason: string): Promise<void>
 requestMoreInfo(bookingId: string, message: string): Promise<void>
 ```
 
-**What to create:**
+**Implemented files / current shape:**
+- `apps/web/app/dashboard/(protected)/bookings/[id]/page.tsx` fetches the detail payload and renders `<BookingDetailPage />`.
+- `apps/web/components/dashboard/bookings/BookingDetailPage.tsx` coordinates triage state, topbar badge sync, and the inline success/error banners.
+- `apps/web/components/dashboard/bookings/BookingDetailMain.tsx` renders the read-only booking body.
+- `apps/web/components/dashboard/bookings/BookingActionPanel.tsx` provides the pending/info-request action buttons and mobile bottom bar.
+- `apps/web/components/dashboard/bookings/RejectBookingSheet.tsx` and `RequestInfoSheet.tsx` handle the two sheet-based actions.
+- `apps/web/components/dashboard/bookings/SlotConflictAlert.tsx` handles approve retries when the slot is no longer available.
 
-`apps/web/app/dashboard/bookings/[id]/page.tsx` — server component:
-- Calls `fetchStaffBookingDetail(id)` (with ISR off — booking state must always be fresh)
-- If not found → `notFound()`
-- Renders `<BookingDetailPage booking={data} />`
-
-`apps/web/components/dashboard/bookings/BookingDetailPage.tsx` — `'use client'` (manages action state):
-- Renders topbar status badge (changes after action)
-- Renders `<BookingDetailMain>` (customer info, lines, photos — read-only)
-- Renders `<BookingActionPanel>` on desktop right column; triggers mobile bottom sheet
-- Manages `actionState: 'idle' | 'submitting' | 'approved' | 'rejected' | 'info-requested' | 'slot-conflict'`
-- On `approved`: replaces action panel with inline green success banner
-- On `rejected`: replaces with inline red banner + reason shown
-- On `info-requested`: replaces with inline blue banner + message shown; detail page remains with updated badge
-- On `slot-conflict`: renders `<SlotConflictAlert>` with suggested slots
-
-`apps/web/components/dashboard/bookings/BookingDetailMain.tsx` — read-only detail body:
-- Customer section: avatar + name + email + phone + loyalty points badge (null → hidden)
-- Info request section (if `infoRequestMessage != null`): shows what admin asked + customer's response
-- Date/time section
-- Service lines table: name | price | duration | points per line; totals row
-- Photos grid: before-service photos (if any), `loading="lazy"`
-
-`apps/web/components/dashboard/bookings/BookingActionPanel.tsx` — action buttons:
-- "Aprovar" (primary) → calls `approveBooking()`; disabled while submitting
-- "Rejeitar" (secondary) → opens `<RejectBookingSheet>`
-- "Pedir info" (ghost) → opens `<RequestInfoSheet>`
-- Hidden once booking is in a terminal/actioned state (`actionState != 'idle'`)
-
-`apps/web/components/dashboard/bookings/RejectBookingSheet.tsx` — bottom sheet (mobile) / panel (desktop):
-- Textarea: reason, max 200 chars, required
-- Character counter: `X / 200`
-- Submit disabled until at least 1 char entered (no enforced minimum in UI — backend validates)
-- On submit: calls `rejectBooking()`; on success: parent transitions to `'rejected'`
-
-`apps/web/components/dashboard/bookings/RequestInfoSheet.tsx`:
-- Textarea: message, max 200 chars, required
-- Submit disabled when empty
-- On submit: calls `requestMoreInfo()`; on success: parent transitions to `'info-requested'`
-
-`apps/web/components/dashboard/bookings/SlotConflictAlert.tsx` — UC-003 A1:
-- Red error card: "O horário das HH:MM foi ocupado enquanto você revisava o agendamento."
-- List of `SlotConflictSuggestion` as tappable rows: "HH:MM — HH:MM" + "Aprovar neste →"
-- Clicking a slot calls `approveBooking()` with the new `scheduledAt`
-
-**Mobile vs. desktop layout (from prototype):**
-- Mobile: no sticky action panel; instead fixed `.mobile-action-bar` at bottom (`position: fixed; bottom: 0; env(safe-area-inset-bottom, 0)`)
-- Desktop (`≥1024px`): two-column grid (`1fr 22rem`); action panel in right column, `position: sticky; top: 1.5rem`
-- Bottom nav hidden on this page (`.bottom-nav { display: none !important }` — drill-down page rule)
-
-**Acceptance criteria:**
-
-*Approve (UC-003):*
-- [ ] "Aprovar" calls `PATCH /v1/bookings/:id/approve`; `200` → inline green banner "Agendamento aprovado!"; topbar badge → APROVADO; action buttons hidden
-- [ ] `409` conflict → `<SlotConflictAlert>` with suggestions; selecting a slot calls approve with the new `scheduledAt`
-- [ ] Other server error → toast "Erro ao aprovar. Tente novamente."
-
-*Reject (UC-004):*
-- [ ] "Rejeitar" opens bottom sheet; submit disabled when textarea empty
-- [ ] On confirm: calls `PATCH /v1/bookings/:id/reject { reason }`; `200` → inline red banner with reason text; badge → REJEITADO; action buttons hidden
-- [ ] Server error → sheet stays open with error message
-
-*Request info (UC-005):*
-- [ ] "Pedir info" opens bottom sheet; submit disabled when textarea empty
-- [ ] On submit: calls `PATCH /v1/bookings/:id/request-info { message }`; `200` → inline blue banner with message text; badge → INFO_SOLICITADO; "Pedir info" button hidden; "Aprovar" and "Rejeitar" remain available (UC-005 A3)
-- [ ] Server error → sheet stays open with error message
-
-*Layout:*
-- [ ] Mobile (`<1024px`): fixed action bar at bottom; main content scrollable
-- [ ] Desktop (`≥1024px`): two-column; action panel sticky on right
-- [ ] Bottom nav hidden on this page
-
-*Types:*
-- [ ] `ApproveBookingRequest`, `RejectBookingRequest`, `RequestMoreInfoRequest`, `ApproveBookingResponse`, `SlotConflictError`, `SlotConflictSuggestion` added to `packages/types/src/booking.dto.ts`
-- [ ] `tsc --noEmit` passes across monorepo
+**Acceptance criteria delivered:**
+- [x] `/dashboard/bookings/[id]` renders the detail page from the BFF payload and keeps the flow localized
+- [x] Topbar status badge follows the booking state while the page is open and resets when leaving the route
+- [x] "Aprovar" calls the approve mutation and shows the inline success state on return
+- [x] `409` approval conflicts render slot suggestions and retry with the selected slot
+- [x] "Rejeitar" opens the sheet, validates the reason, and shows the rejection success state
+- [x] "Pedir info" opens the sheet, validates the message, and shows the info-request success state
+- [x] `INFO_REQUESTED` hides the request-info action while keeping approve/reject available
+- [x] The page keeps the user on the detail route after action and exposes a back link to the queue
 
 **Dependencies:** M13-S15, M13-S04
 
 ---
 
-### M13-S19 — Booking lifecycle: cancel + reschedule (UC-008)
+### M13-S19 — Booking lifecycle: cancel + reschedule (UC-008) ✅ Done
 
 *(formerly M125-S11)*
 
@@ -2174,9 +2121,9 @@ requestMoreInfo(bookingId: string, message: string): Promise<void>
 **Docs to load:** `docs/04-USE_CASES.md` § UC-008, `plan/journey/staff/prototypes/agenda/03-booking-detail-approved.html`, `05-reschedule.html`, `05b-reschedule-conflict.html`, `dev-notes.md`
 
 **Description:**
-Extends `BookingDetailPage` (`M13-S18`) with a second action panel — `BookingLifecyclePanel` — rendered when `booking.status === 'APPROVED'` instead of `BookingActionPanel`. Staff can cancel an approved booking (optional reason, no enforced minimum) or reschedule it to a new slot. Booking stays `APPROVED` after a reschedule — it is not a status transition. Backend + BFF endpoints already exist and were verified in the 2026-06-16 UC audit (`cancel-admin`, `reschedule` — both fully implemented, not just planned).
+Approved-booking lifecycle actions. The shipped implementation keeps the same detail shell from `M13-S18`, but when `booking.status === 'APPROVED'` the action panel switches to the lifecycle actions: complete, reschedule, and cancel. Cancel stays inline as a sheet; reschedule is a dedicated route; complete routes to `M13-S20`. Booking stays `APPROVED` after a reschedule — it is not a status transition.
 
-> 🔍 **Discover before starting:** Confirm `PATCH /v1/bookings/:id/cancel` (BFF dispatches to backend `/cancel-admin` for STAFF|MANAGER) and `PATCH /v1/bookings/:id/reschedule` are wired exactly as found in the audit (`apps/bff/src/bookings/bookings.controller.ts` lines ~306–337 at time of audit — re-verify line numbers). Confirm whether the booking flow's `AvailabilityCalendar` component (built for the guest/customer booking flow, UC-011) is extracted in a way `RescheduleBookingCalendar` can reuse without pulling in basket/duration-recompute logic — reschedule duration is frozen at the existing booking's `totalDurationMins`. Decide: nested routes (`/dashboard/bookings/[id]/reschedule`) vs. a modal/sheet over `[id]` — the prototype models both cancel (sheet) and reschedule (full screen) but doesn't mandate the production routing approach.
+> 🔍 **Implementation note:** the shipped reschedule flow is the nested `/dashboard/bookings/[id]/reschedule` route. It reuses the shared availability primitives (`AvailabilityCarousel` + `SlotPicker`) and `SlotConflictAlert`; do not reintroduce a modal/sheet variant or a separate `AvailabilityCalendar`-based component here.
 
 **Prototype references:**
 - `plan/journey/staff/prototypes/agenda/03-booking-detail-approved.html` — APPROVED branch of the detail page + inline cancel sheet
@@ -2185,7 +2132,7 @@ Extends `BookingDetailPage` (`M13-S18`) with a second action panel — `BookingL
 - `plan/journey/staff/prototypes/agenda/05b-reschedule-conflict.html` — 409 conflict + adjacent slot suggestions
 - `plan/journey/staff/prototypes/agenda/05c-reschedule-success.html` — reschedule success inline state (booking stays APPROVED, panel returns)
 
-**Route:** `/dashboard/bookings/[id]` (same route as `M13-S18`, branched by status) + reschedule sub-route (TBD — see discovery)
+**Route:** `/dashboard/bookings/[id]` (same route as `M13-S18`, branched by status) + `/dashboard/bookings/[id]/reschedule`
 
 **`@ikaro/types` additions (`packages/types/src/booking.dto.ts`):**
 ```typescript
@@ -2202,40 +2149,21 @@ rescheduleBooking(bookingId: string, scheduledAt: string, adminNotes?: string): 
 // 409 → parse body as SlotConflictError (same shape as approve's 409, reused)
 ```
 
-**What to create:**
+**Implemented files / current shape:**
+- `apps/web/components/dashboard/bookings/BookingDetailPage.tsx` branches the action panel by status and routes approved actions to the nested pages.
+- `apps/web/components/dashboard/bookings/AdminCancelBookingSheet.tsx` handles the optional cancel reason inline.
+- `apps/web/components/dashboard/bookings/RescheduleBookingPage.tsx` is the dedicated route-based reschedule flow.
+- `apps/web/components/dashboard/bookings/SlotConflictAlert.tsx` is reused for reschedule conflicts as well as approve conflicts.
 
-`apps/web/components/dashboard/bookings/BookingLifecyclePanel.tsx` — Marcar concluído (primary, links into `M13-S20`) / Reagendar (secondary) / Cancelar (secondary) buttons. Renders in `BookingDetailPage`'s desktop aside / mobile action bar, replacing `BookingActionPanel` when `status === 'APPROVED'`.
+**Acceptance criteria delivered:**
+- [x] Approved bookings expose complete, reschedule, and cancel actions from the same detail shell
+- [x] Cancel opens the inline sheet; the reason is optional
+- [x] Reschedule uses the dedicated route and shows current slot, new slot picker, notes, and inline success state
+- [x] `409` reschedule conflicts fetch alternate slots and retry from the chosen suggestion
+- [x] After reschedule, booking remains `APPROVED` and the topbar badge stays synced
+- [x] The approved-state actions reuse the same dashboard shell and localization patterns as `M13-S18`
 
-`apps/web/components/dashboard/bookings/AdminCancelBookingSheet.tsx` — bottom sheet: reason textarea, **optional**, no minimum length (unlike Reject's required ≥10 chars — confirmed in the UC audit against `CancelBookingAsAdminBody`). On confirm: calls `cancelBookingAsAdmin()`; success → parent `actionState = 'cancelled'`.
-
-`apps/web/components/dashboard/bookings/RescheduleBookingCalendar.tsx` — reuses `AvailabilityCalendar` (day-pill/slot-btn UI from UC-011). "Revisar reagendamento" summary panel (De/Para slot comparison, live-updates as a new slot is picked) per the README's "Summary card" convention. On confirm: calls `rescheduleBooking()`.
-
-`apps/web/components/dashboard/bookings/RescheduleConflictAlert.tsx` — same pattern as `SlotConflictAlert` (`M13-S18`), reused for the reschedule confirm's 409 response.
-
-**`actionState` additions to `BookingDetailPage`** (extends `M13-S18`'s machine):
-```typescript
-type ActionState = /* ...existing... */
-  | 'cancelled'           // UC-008 success — red banner, terminal
-  | 'rescheduled'         // UC-008 A1 success — green banner, NOT terminal — panel buttons return (status stays APPROVED)
-  | 'reschedule-conflict' // UC-008 A1 → 409
-```
-
-**Acceptance criteria:**
-
-*Cancel:*
-- [ ] "Cancelar agendamento"/"Cancelar" opens `AdminCancelBookingSheet`; submit is never disabled (reason is optional)
-- [ ] Confirm → `PATCH /v1/bookings/:id/cancel`; `200` → inline red banner "Agendamento cancelado"; badge → CANCELADO; no further actions (terminal)
-
-*Reschedule:*
-- [ ] "Reagendar" opens calendar; summary panel shows current slot → newly selected slot, updating live as a slot is picked
-- [ ] Confirm → `PATCH /v1/bookings/:id/reschedule`; `200` → inline green banner with old/new slot; badge stays APROVADO; `BookingLifecyclePanel` buttons return (not terminal)
-- [ ] `409` → `RescheduleConflictAlert` with adjacent slot suggestions; picking one retries the reschedule
-
-*Layout:*
-- [ ] Same `detail-layout` two-column / `mobile-action-bar` shell as `M13-S18` — no bespoke layout
-- [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
-
-**Dependencies:** M13-S15, M13-S18, M12 (`AvailabilityCalendar` component — verify it exists and is reusable)
+**Dependencies:** M13-S15, M13-S18, M12 (`AvailabilityCarousel` / `SlotPicker` reuse)
 
 ---
 
@@ -2248,15 +2176,15 @@ type ActionState = /* ...existing... */
 **Docs to load:** `docs/04-USE_CASES.md` § UC-009, `plan/journey/staff/prototypes/agenda/04-mark-complete.html`, `04b-complete-success.html`
 
 **Description:**
-The "Marcar concluído" action from `BookingLifecyclePanel` (`M13-S19`) — staff confirm a completed wash, optionally adjusting the actual price charged per line (discount/waiver — defaults to the quoted `priceAtBooking`), uploading after-service photos, and adding notes. Triggers loyalty point earning server-side (computed from `pointsValueAtBooking`, unaffected by `actualPriceCharged`). Backend + BFF endpoint already exist (verified in the 2026-06-16 UC audit — `PATCH /v1/bookings/:id/complete` is fully implemented).
+The "Marcar concluído" action from the approved booking lifecycle. The shipped implementation uses a dedicated `/dashboard/bookings/[id]/complete` route rather than a popup or sheet. Staff can adjust the actual price charged per line, add notes, and confirm completion. Triggers loyalty point earning server-side (computed from `pointsValueAtBooking`, unaffected by `actualPriceCharged`).
 
-> 🔍 **Discover before starting:** Same routing question as `M13-S19` (nested route vs. modal/sheet over `[id]`) — decide once, apply to both stories consistently. Confirm the after-service photo upload reuses the same GCS signed-URL upload component/pattern as the guest/customer "before" photos (M115-S01), not a new implementation.
+> 🔍 **Discover before starting:** Confirm the after-service photo upload reuses the same GCS signed-URL upload component/pattern as the guest/customer "before" photos (M115-S01), not a new implementation. This is still missing in the current frontend shape.
 
 **Prototype references:**
 - `plan/journey/staff/prototypes/agenda/04-mark-complete.html` — per-line price editor + photo upload + notes
 - `plan/journey/staff/prototypes/agenda/04b-complete-success.html` — completion success inline state (cotado vs. cobrado summary)
 
-**Route:** `/dashboard/bookings/[id]/complete` (TBD — see `M13-S19` discovery)
+**Route:** `/dashboard/bookings/[id]/complete`
 
 **`@ikaro/types` additions (`packages/types/src/booking.dto.ts`):**
 ```typescript
@@ -2280,27 +2208,40 @@ completeBooking(body: CompleteBookingRequest): Promise<CompleteBookingResponse>
 // PATCH /v1/bookings/:id/complete
 ```
 
-**What to create:**
+**Implemented files / current shape:**
+- `apps/web/app/dashboard/(protected)/bookings/[id]/complete/page.tsx` exposes the completion route.
+- `apps/web/components/dashboard/bookings/MarkCompleteBookingPage.tsx` handles the per-line charged-price editor, totals, notes, and success state.
 
-`apps/web/components/dashboard/bookings/MarkCompleteSheet.tsx`:
-- One row per booking line: service name, quoted price (read-only), editable "charged" amount pre-filled with `priceAtBooking`
-- Live-updating total (`Total a cobrar`), recalculated on every keystroke, client-side only — no BFF round-trip
-- After-service photo upload — optional, reuses M115-S01's signed-URL upload component
-- Notes textarea — optional
-- "Confirmar conclusão" lives in the same sticky aside (desktop) / fixed bottom bar (mobile) as every other actionable screen — not inline at the end of the form
+**Acceptance criteria delivered:**
+- [x] Each line's charged amount defaults to `priceAtBooking` and updates the live total immediately
+- [x] Confirming with unchanged values submits every line explicitly, not a partial patch
+- [x] The completion route stays localized and uses the shared dashboard shell styling
+- [x] `200` shows the inline green completion summary and updates the topbar badge to `COMPLETED`
+- [x] Cancel/back navigation returns to the bookings queue without requiring a refresh
 
-**`actionState` addition to `BookingDetailPage`:**
-```typescript
-| 'completed'  // UC-009 success — green banner with cotado-vs-cobrado summary, terminal
-```
+**Remaining work:**
+- [ ] After-service photo upload is still missing and remains a follow-up for the completion flow
 
-**Acceptance criteria:**
-- [ ] Each line's "charged" input defaults to `priceAtBooking`; editing it updates the live total immediately
-- [ ] Confirming with all lines unchanged sends `actualPriceCharged === priceAtBooking` for every line (not omitted)
-- [ ] Photos are optional — confirming with zero photos succeeds (UC-009 A3)
-- [ ] `200` → inline green banner: per-line quoted-vs-charged + total quoted-vs-charged + "ganhou N pontos de fidelidade"; badge → CONCLUÍDO; no further actions (terminal)
-- [ ] Primary action button lives in sticky aside (desktop) / fixed bottom bar (mobile), matching `M13-S18`/`M13-S19`'s shell
-- [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
+**Playwright coverage to implement in M16:**
+
+| Scenario | Setup | Assertion |
+|---|---|---|
+| Approve happy path | Open a pending booking detail page | Clicking approve submits once, shows the inline approved state, and updates the status badge to `APPROVED` |
+| Approve 409 conflict | Stub the approve mutation to return a slot conflict | The page shows the conflict card, renders alternate slots, and retrying with a suggestion succeeds |
+| Reject happy path | Open a pending booking detail page | Reject sheet submits the reason, then shows the rejected success state and badge |
+| Reject validation error | Return `400` with `violations` for `reason` | The inline validation message is shown and the sheet stays open |
+| Request info happy path | Open a pending booking detail page | Request-info sheet submits, then shows the info-requested success state and badge |
+| Request info validation error | Return `400` with `violations` for `message` | The inline validation message is shown and the sheet stays open |
+| INFO_REQUESTED visibility | Open a booking already in `INFO_REQUESTED` | The request-info button is hidden; approve and reject remain visible |
+| Approved actions visible | Open an approved booking detail page | The lifecycle actions are visible and the complete/reschedule routes are reachable |
+| Cancel happy path | Open an approved booking detail page | Cancel sheet submits and shows the cancelled success state |
+| Reschedule happy path | Open the reschedule route from an approved booking | Picking a new slot and confirming shows the rescheduled success state, and status remains `APPROVED` |
+| Reschedule 409 conflict | Force a slot conflict during reschedule | The page fetches alternate slots, shows the conflict alert, and retrying with a suggestion succeeds |
+| Complete happy path | Open the complete route from an approved booking | Editing one or more line prices then confirming shows the completion success state |
+| Complete unchanged prices | Leave all line prices untouched | The request still sends every line with the original value and completes successfully |
+| Complete validation error | Stub a backend validation failure | The error message is shown and the form remains editable |
+| Queue refresh regression | Approve/reschedule/complete a booking, then navigate back to `/dashboard/bookings` | The queue reflects the new status without requiring an F5 refresh |
+| Localization smoke | Open each route in pt-BR | The page copy and action labels remain localized; no hardcoded dashboard strings appear |
 
 **Dependencies:** M13-S15, M13-S18, M13-S19 (entry point), M115-S01 (photo upload pattern)
 
@@ -2790,7 +2731,7 @@ interface Props {
 
 ---
 
-### M13-S26 — Frontend: loyalty strip in `MarkCompleteSheet` (UC-009 A6)
+### M13-S26 — Frontend: loyalty strip in completion route (UC-009 A6)
 
 *(formerly M128-S04)*
 
@@ -2799,16 +2740,16 @@ interface Props {
 **Docs to load:** `docs/04-USE_CASES.md` § UC-009 A6, `plan/journey/staff/prototypes/agenda/04-mark-complete.html`
 
 **Description:**
-Extends the `MarkCompleteSheet` component (built in `M13-S20`) with the loyalty redemption strip. Visible only when `booking.customerId != null` AND `conversionRate > 0`. Staff enters points to use (or clicks "Usar todos"), sees the BRL discount live, and the discount is included in the completion request body.
+Extends the `MarkCompleteBookingPage` component (built in `M13-S20`) with the loyalty redemption strip. Visible only when `booking.customerId != null` AND `conversionRate > 0`. Staff enters points to use (or clicks "Usar todos"), sees the BRL discount live, and the discount is included in the completion request body.
 
 > 🔍 **Discover before starting:**
-> - Confirm `M13-S20` shipped `MarkCompleteSheet`. Read it in full before adding anything.
+> - Confirm `M13-S20` shipped `MarkCompleteBookingPage`. Read it in full before adding anything.
 > - Confirm `StaffBookingDetailResponse` (from `M13-S04`) includes `loyaltyBalance: number | null` and `loyaltyConversionRate: number` (added per `M13-S04`'s note, sourced from `M13-S12`).
 > - Read `apps/web/lib/api/dashboard/bookings.ts` `completeBooking()` fetcher — confirm it accepts `CompleteBookingRequest` from `@ikaro/types` and that `discountByPoints` is now in the type (added in `M13-S12`).
 
 **Prototype reference:** `plan/journey/staff/prototypes/agenda/04-mark-complete.html` (loyalty strip section)
 
-**What to add to `MarkCompleteSheet`:**
+**What to add to `MarkCompleteBookingPage`:**
 
 Condition: `props.loyaltyBalance !== null && props.loyaltyBalance > 0 && props.conversionRate > 0`
 
@@ -2835,7 +2776,7 @@ Layout (per prototype):
 - When `pointsUsed > 0`: discount row appears below the lines total: "Desconto fidelidade (N pts): − R$X"
 - Final total = `linesTotalAmount - amountDeducted`
 
-**`MarkCompleteSheet` state additions:**
+**`MarkCompleteBookingPage` state additions:**
 ```typescript
 discountByPoints: { pointsUsed: number; amountDeducted: number } | null
 ```
@@ -2854,7 +2795,7 @@ On confirm: pass `discountByPoints` to `completeBooking()` fetcher.
 - [ ] Completion success banner shows loyalty discount row when discount was applied
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
 
-**Dependencies:** M13-S20 (base `MarkCompleteSheet`), M13-S12 (`CompleteBookingRequest` type with `discountByPoints`)
+**Dependencies:** M13-S20 (base `MarkCompleteBookingPage`), M13-S12 (`CompleteBookingRequest` type with `discountByPoints`)
 
 ---
 
@@ -4145,7 +4086,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 ### Staff booking core (Phase 4, M13-S17–M13-S20)
 
 - [x] **Does the admin stay on the detail page after approve, or navigate back to the queue?** Resolved — stays, inline banner, manual "Voltar à agenda" link. Confirmed as the system-wide convention for approve/reject/info/cancel/complete/reschedule alike (see `M13-S18`/`M13-S19`/`M13-S20`'s descriptions).
-- [ ] **Slot conflict suggestions source:** should the backend's `409` response body already include suggested alternate slots, or does the BFF need to call availability separately and compose them? Resolve before `M13-S18`.
+- [x] **Slot conflict suggestions source:** resolved — the frontend/BFF fetches availability separately and feeds the returned slots into `SlotConflictAlert`; the `409` response itself only signals the conflict.
 - [ ] **Photo URL strategy:** GCS signed read URLs generated by the BFF at detail-fetch time, or a Next.js image proxy? M115-S01's pattern used signed URLs — recommend the same here (already assumed in `M13-S04`/`M13-S18`/`M13-S20`).
 - [ ] **Real-time queue updates:** polling interval vs. WebSocket — two staff members might view the same booking simultaneously. Not scoped in `M13-S17`; decide at a Phase-4 retrospective, don't add silently.
 
@@ -4170,7 +4111,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 ### Staff loyalty (Phase 1 + Phase 6, M13-S11/M13-S12/M13-S25/M13-S26)
 
-- [x] **`loyaltyConversionRate` in booking detail response:** resolved — added to `StaffBookingDetailResponse` (`M13-S04`'s note), sourced from `M13-S12`, so `M13-S26`'s `MarkCompleteSheet` doesn't need a second BFF call on mount.
+- [x] **`loyaltyConversionRate` in booking detail response:** resolved — added to `StaffBookingDetailResponse` (`M13-S04`'s note), sourced from `M13-S12`, so `M13-S26`'s completion route doesn't need a second BFF call on mount.
 - [ ] **"Clientes recentes" query:** does `GET /v1/customers?search=&limit=5` with empty `search` return the 5 most recently active customers (sorted by last booking `completedAt`)? Confirm the backend query plan at `M13-S25`, or simplify to alphabetical sort for MVP.
 - [ ] **Redemption notes field in UI:** `LoyaltyRedemption.notes` is optional; `M13-S11`'s `CompleteBookingLoyaltyEffectsUseCase` deliberately leaves it `null` for booking-completion-triggered redemptions — hardcoding a pt-BR string like "Desconto na conclusão do agendamento" server-side would violate the English-only-code/tenant-locale rule (a non-BR tenant's customer would see Portuguese), and `bookingId` already links the redemption to its booking without needing free text. Still open for `M13-S26`: does the UI need a note at all, and if so, is it staff-entered free text or a locale-aware label generated client-side (where i18n already lives)?
 - [x] **`conversionRate` in the customer-facing balance route too:** resolved — `M13-S12` enriches both the staff (`getBalanceAdmin`) and customer (`getBalance`) routes, so `M13-S29` (customer Fidelidade page) can use the field once it ships.
@@ -4189,4 +4130,3 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 - A BFF preview-token for pixel-exact hotsite preview (`M13-S37` ships the simpler client-side version)
 - Per-module config panels for the 6 non-HERO hotsite modules (`M13-S36`)
 - Staff explicit logout button, "Bem-vindo" first-login banner, real-time queue updates (all noted above as deferred, not silently dropped)
-

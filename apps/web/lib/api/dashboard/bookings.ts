@@ -1,4 +1,12 @@
-import type { Address, StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
+import type {
+  Address,
+  ApproveBookingRequest,
+  ApproveBookingResponse,
+  RejectBookingRequest,
+  RequestMoreInfoRequest,
+  StaffBookingDetailResponse,
+  StaffBookingListResponse,
+} from '@ikaro/types';
 import { bffClient } from '../bff-client';
 import { bffServerFetch } from '../bff-server';
 
@@ -9,10 +17,6 @@ export interface BookingListFilters {
   readonly to?: string;
   readonly limit?: number;
   readonly offset?: number;
-}
-
-export interface RejectBookingRequest {
-  readonly reason: string;
 }
 
 export interface CancelBookingRequest {
@@ -33,10 +37,6 @@ export interface CompleteBookingRequest {
   readonly lines: readonly CompleteBookingLine[];
   readonly afterServicePhotoUrls?: readonly string[];
   readonly adminNotes?: string;
-}
-
-export interface RequestMoreInfoRequest {
-  readonly message: string;
 }
 
 export interface SubmitInfoRequest {
@@ -95,13 +95,36 @@ export async function getBooking(id: string): Promise<StaffBookingDetailResponse
   return res.data;
 }
 
+export class BookingDetailFetchError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'BookingDetailFetchError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export async function fetchStaffBookingDetail(
+  token: string,
+  id: string,
+): Promise<StaffBookingDetailResponse> {
+  const res = await bffServerFetch(token, `/bookings/${id}`);
+  if (!res.ok) {
+    throw new BookingDetailFetchError(
+      res.status,
+      res.status === 404 ? 'Booking not found' : `Failed to fetch booking detail (${res.status})`,
+    );
+  }
+  return res.json() as Promise<StaffBookingDetailResponse>;
+}
+
 export async function approveBooking(
   id: string,
-): Promise<{ bookingId: string; status: string; approvedAt: string }> {
-  const res = await bffClient.patch<{ bookingId: string; status: string; approvedAt: string }>(
-    `/bookings/${id}/approve`,
-    {},
-  );
+  body: ApproveBookingRequest = {},
+): Promise<ApproveBookingResponse> {
+  const res = await bffClient.patch<ApproveBookingResponse>(`/bookings/${id}/approve`, body);
   return res.data;
 }
 

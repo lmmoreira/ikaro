@@ -10,12 +10,15 @@ import {
   submitBookingInfo,
   type CancelBookingRequest,
   type CompleteBookingRequest,
-  type RejectBookingRequest,
   type RescheduleBookingRequest,
-  type RequestMoreInfoRequest,
   type SubmitInfoRequest,
   type AuthenticatedBookingRequest,
 } from '@/lib/api/dashboard/bookings';
+import type {
+  ApproveBookingRequest,
+  RejectBookingRequest,
+  RequestMoreInfoRequest,
+} from '@ikaro/types';
 import { useTenant } from '@/providers/tenant-provider';
 
 function useInvalidateBookings() {
@@ -27,7 +30,8 @@ function useInvalidateBookings() {
 export function useApproveBooking() {
   const invalidate = useInvalidateBookings();
   return useMutation({
-    mutationFn: (id: string) => approveBooking(id),
+    mutationFn: ({ id, body }: { id: string; body?: ApproveBookingRequest }) =>
+      approveBooking(id, body),
     onSuccess: invalidate,
   });
 }

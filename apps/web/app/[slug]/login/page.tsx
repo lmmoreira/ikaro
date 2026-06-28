@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/lib/api/platform';
+import { buildGoogleOAuthUrl } from '@/lib/auth/google-oauth';
+import { resolveHotsiteDisplayName } from '@/lib/hotsite/page-model';
 import { buildHotsiteMetadata } from '@/lib/hotsite/seo';
 
 export const revalidate = 300;
@@ -14,7 +16,7 @@ interface LoginPageProps {
 export async function generateMetadata({ params }: LoginPageProps): Promise<Metadata> {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
-  const displayName = manifest.branding.brandName ?? manifest.tenant.name;
+  const displayName = resolveHotsiteDisplayName(manifest);
   const t = await getTranslations('auth');
 
   return {
@@ -28,8 +30,8 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
   const { slug } = await params;
   const { error } = await searchParams;
   const manifest = await fetchManifest(slug);
-  const displayName = manifest.branding.brandName ?? manifest.tenant.name;
-  const googleHref = `${process.env.NEXT_PUBLIC_BFF_URL}/auth/google?tenantSlug=${slug}`;
+  const displayName = resolveHotsiteDisplayName(manifest);
+  const googleHref = buildGoogleOAuthUrl({ tenantSlug: slug });
   const t = await getTranslations('auth');
 
   return (

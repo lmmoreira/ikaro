@@ -1,11 +1,12 @@
 import MockAdapter from 'axios-mock-adapter';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { bffClient } from '../bff-client';
 import {
   approveBooking,
   cancelBooking,
   completeBooking,
   createAuthenticatedBooking,
+  fetchStaffBookingDetail,
   getBooking,
   listBookings,
   rejectBooking,
@@ -13,11 +14,15 @@ import {
   rescheduleBooking,
   submitBookingInfo,
 } from './bookings';
+import { fetchBookingAvailability } from './fetch-booking-availability';
 
 const mock = new MockAdapter(bffClient);
 
 beforeEach(() => mock.reset());
-afterEach(() => mock.reset());
+afterEach(() => {
+  mock.reset();
+  vi.restoreAllMocks();
+});
 
 const booking = { bookingId: 'b-1', status: 'PENDING' };
 
@@ -50,6 +55,57 @@ describe('approveBooking', () => {
       .reply(200, { bookingId: 'b-1', status: 'APPROVED', approvedAt: '' });
     const res = await approveBooking('b-1');
     expect(res.status).toBe('APPROVED');
+  });
+
+  it('forwards a retry scheduledAt body when provided', async () => {
+    mock
+      .onPatch('/bookings/b-1/approve')
+      .reply(200, { bookingId: 'b-1', status: 'APPROVED', approvedAt: '' });
+    await approveBooking('b-1', { scheduledAt: '2026-07-01T10:00:00.000Z' });
+    expect(mock.history.patch?.[0]?.data).toBe(
+      JSON.stringify({ scheduledAt: '2026-07-01T10:00:00.000Z' }),
+    );
+  });
+});
+
+describe('fetchStaffBookingDetail', () => {
+  it('calls GET /bookings/:id using the provided token', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify(booking), { status: 200 }));
+
+    const res = await fetchStaffBookingDetail('access-token', 'b-1');
+    expect(res).toMatchObject(booking);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/bookings/b-1'),
+      expect.objectContaining({
+        headers: { Cookie: 'access_token=access-token' },
+      }),
+    );
+  });
+
+  it('throws BookingDetailFetchError on 404', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status: 404 }));
+
+    await expect(fetchStaffBookingDetail('access-token', 'b-1')).rejects.toMatchObject({
+      name: 'BookingDetailFetchError',
+      status: 404,
+    });
+  });
+});
+
+describe('fetchBookingAvailability', () => {
+  it('calls GET /schedule/availability with the tenant slug header', async () => {
+    mock.onGet('/schedule/availability').reply(200, {
+      date: '2026-06-16',
+      slots: [{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }],
+      available: true,
+    });
+
+    const result = await fetchBookingAvailability('lavacar-bh', '2026-06-16', ['svc-1']);
+
+    expect(result.available).toBe(true);
+    expect(mock.history.get?.[0]?.headers).toMatchObject({ 'X-Tenant-Slug': 'lavacar-bh' });
   });
 });
 

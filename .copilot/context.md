@@ -5,7 +5,7 @@
 **Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`  
 **Audience:** Any AI coding agent  
 **Rule:** Read this file first. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-06-27
+**Last updated:** 2026-06-28
 
 ---
 
@@ -174,6 +174,16 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 - `bffClient` (axios, `withCredentials: true`) — client-only (React Query hooks). Import from `@/lib/api/bff-client`. Never in Server Components.
 - `useTenant()` (`apps/web/providers/tenant-provider.tsx`) — only source of `tenantId` in hooks. Server layouts decode JWT and pass to `<TenantProvider>`.
 
+### Web styling boundary
+
+- `DashboardShell` and `CustomerShell` are the **shared SaaS UI layer**. They may share the same colors, spacing, typography, button styles, cards, dialogs, and status treatments.
+- If a primitive or pattern is safe for both authenticated shells, place it in shared web UI code and keep it **tenant-agnostic**.
+- The **only** tenant-dynamic branding surface is the hotsite tree (`app/[slug]/`, its modules, and widgets). Do not leak `--ba-*` tokens, manifest-driven colors, or hotsite-only patterns into dashboard/customer shells.
+- If a new component needs both SaaS and hotsite variants, create separate implementations instead of trying to make one component read both branding systems.
+- Route-scoped chrome state that must be visible in a shell header or top bar must live in a provider above both the shell and the page. Do not mirror that state in shell-local state, effect-based sync, or `key` remount workarounds.
+- Booking detail mutations should use the shared booking mutation hooks. Keep React Query invalidation in the shared hook layer, not inside page components.
+- Tenant-scoped booking queries must share the `['bookings', tenantId, ...]` prefix so a single invalidation reaches the queue, detail, and filtered booking views. If a query key shape changes, update the shared invalidation contract in the same change.
+
 ### Testing
 
 **Backend + BFF:** Unit (`.spec.ts`) · Integration (`.integration.spec.ts`) · E2E (Playwright). → `docs/08-TESTING_STRATEGY.md`
@@ -183,7 +193,9 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 
 **apps/web:** Vitest (not Jest) — config at `apps/web/vitest.config.ts`.
 - `lib/**`: `node` env · `components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only
+- Keep `app/**/page.tsx` and `app/**/layout.tsx` thin. If they start owning reusable data shaping, URL construction, or render-plan logic, extract a helper under `apps/web/lib/**` and unit-test that helper in the same change.
 - **Every new `components/**/*.tsx` must ship its `.spec.tsx` in the same commit.**
+- **Every new dashboard UI component must be localization-ready from the start.** No hardcoded visible copy, helper text, error text, success banners, placeholders, `aria-label`, `alt`, or status labels/classes. If the component needs text, wire `useTranslations()` and add locale keys in both `pt-BR` and `en` in the same change.
 - → Vitest config, mocks, axe testing, per-component cases: `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
 
 ### CI gates (block merge)
@@ -209,6 +221,7 @@ Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-
 | Shared VO `create()` throws plain `Error` for validation it owns | Give VO a typed domain error; add `instanceof` branch to every calling `mapXxxError` |
 | New interface in `apps/web/lib/api/**` without checking `@ikaro/types` | Grep `@ikaro/types` first — either side may be stale; verify against live BFF schema if shapes differ |
 | Inline mapper functions accumulating in a BFF `*.controller.ts` | Extract to `<module>.mapper.ts` (plain functions, not a class) once a second mapper appears |
+| Fat route shell in `app/**/page.tsx` or `app/**/layout.tsx` with reusable logic | Extract pure helpers to `apps/web/lib/**`, unit-test them, and keep the route file to fetch + compose only |
 | Second independent `fetch()` building the same BFF route URL outside `lib/api/<name>.ts` | Use the canonical fetcher — duplicates go stale silently (only caught by Playwright) |
 | Cross-context port returns a pre-formatted display string instead of structured data | Return typed data all the way through; join/format in BFF mapper only |
 | Port+Adapter removed but backing service left in `providers`/`exports` | Delete the backing service too — zero consumers = dead infrastructure |
@@ -221,6 +234,7 @@ Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-
 | Dashboard component substitutes Tailwind for `tokens.css` class names in story's CSS reference table | Use exact CSS class name — `tokens.css` classes carry responsive/hidden behaviour Tailwind equivalents silently miss |
 | Dashboard or account component uses `--ba-*` CSS variable | `--ba-*` only exists under `app/[slug]/` (hotsite tree). Use Tailwind + shadcn in dashboard/account shells |
 | Utility function (e.g. `getInitials`) copy-pasted inline in each component | Grep `apps/web/lib/utils/` first; create `lib/utils/<name>.ts` + `.spec.ts` pair there |
+| Status-to-label or status-to-class mappings duplicated across dashboard components | Extract one shared helper next to the feature module and reuse it from all callers |
 | Wrong web→BFF transport: `bffServerFetch` in client file, `bffClient` in Server Component, raw `fetch()` in hook | Server: `bffServerFetch(token, path)`. Client: `bffClient.get(path)`. Hook `tenantId`: `useTenant()` only |
 
 ---

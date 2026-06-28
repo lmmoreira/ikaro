@@ -34,6 +34,34 @@ export interface BookingResponse {
   lines: BookingLineResponse[];
 }
 
+export interface ApproveBookingRequest {
+  scheduledAt?: string;
+}
+
+export interface ApproveBookingResponse {
+  bookingId: string;
+  status: 'APPROVED';
+  approvedAt: string;
+}
+
+export interface RejectBookingRequest {
+  reason: string;
+}
+
+export interface RequestMoreInfoRequest {
+  message: string;
+}
+
+export interface SlotConflictSuggestion {
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface SlotConflictError {
+  error: 'slot-conflict';
+  suggestions: SlotConflictSuggestion[];
+}
+
 export interface AttachmentSignedUrlRequest {
   fileName: string;
   contentType: 'image/jpeg' | 'image/png';
@@ -66,6 +94,7 @@ export interface StaffBookingListResponse {
 
 export interface StaffBookingLineResponse {
   lineId: string;
+  serviceId: string;
   serviceName: string;
   priceAtBooking: MoneyAmount;
   durationMinsAtBooking: number;

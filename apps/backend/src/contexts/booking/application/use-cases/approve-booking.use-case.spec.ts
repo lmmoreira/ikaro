@@ -10,6 +10,8 @@ import {
   BookingNotFoundError,
   BookingSlotUnavailableError,
   InvalidBookingTransitionError,
+  BookingScheduledAtInvalidError,
+  BookingScheduledInPastError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { ApproveBookingUseCase } from './approve-booking.use-case';
@@ -87,6 +89,26 @@ describe('ApproveBookingUseCase', () => {
       expect(saved!.status).toBe(BookingStatus.APPROVED);
       expect(saved!.approvedBy).toBe(STAFF_ID);
       expect(saved!.approvedAt).not.toBeNull();
+    });
+
+    it('allows approving with an alternate scheduledAt after a slot conflict', async () => {
+      const originalScheduledAt = new Date(`${futureDate(2)}T13:00:00.000Z`);
+      const retryScheduledAt = new Date(`${futureDate(2)}T14:00:00.000Z`);
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(originalScheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        scheduledAt: retryScheduledAt.toISOString(),
+      });
+
+      expect(result.status).toBe(BookingStatus.APPROVED);
+
+      const saved = await bookingRepo.findById(booking.id, TENANT_A);
+      expect(saved!.scheduledAt.toISOString()).toBe(retryScheduledAt.toISOString());
     });
 
     it('publishes BookingApproved event with serviceNameAtBooking in lineSummary', async () => {
@@ -176,6 +198,32 @@ describe('ApproveBookingUseCase', () => {
 
       const result = await useCase.execute({ bookingId: booking.id });
       expect(result.status).toBe(BookingStatus.APPROVED);
+    });
+
+    it('throws BookingScheduledInPastError when retrying with a past scheduledAt', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+
+      const pastScheduledAt = new Date(Date.now() - 60_000).toISOString();
+
+      await expect(
+        useCase.execute({ bookingId: booking.id, scheduledAt: pastScheduledAt }),
+      ).rejects.toThrow(BookingScheduledInPastError);
+    });
+
+    it('throws BookingScheduledAtInvalidError when scheduledAt is malformed', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+
+      await expect(
+        useCase.execute({ bookingId: booking.id, scheduledAt: 'not-a-date' }),
+      ).rejects.toThrow(BookingScheduledAtInvalidError);
     });
 
     it('tenant isolation: cannot approve booking from another tenant', async () => {

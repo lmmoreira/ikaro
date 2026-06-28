@@ -36,14 +36,22 @@ export async function createAttachmentSignedUrl(
   slug: string,
   fileName: string,
   contentType: 'image/jpeg' | 'image/png',
+  bookingId?: string,
 ): Promise<AttachmentSignedUrlResponse> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/bookings/attachments/signed-url`, {
+  const res = await fetch('/api/bookings/attachments/signed-url', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fileName, contentType, tenantSlug: slug }),
+    body: JSON.stringify({
+      fileName,
+      contentType,
+      tenantSlug: slug,
+      ...(bookingId ? { bookingId } : {}),
+    }),
   });
 
-  if (!res.ok) throw new Error(`Failed to create attachment signed URL for slug "${slug}"`);
+  if (!res.ok) {
+    throw new Error(`Failed to create attachment signed URL for slug "${slug}"`);
+  }
 
   return res.json() as Promise<AttachmentSignedUrlResponse>;
 }

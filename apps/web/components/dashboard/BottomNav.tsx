@@ -18,9 +18,14 @@ const NAV_ITEM_KEYS = [
   { href: '/dashboard/loyalty', labelKey: 'nav.loyalty', Icon: Star },
 ] as const;
 
-export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Element {
+export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Element | null {
   const t = useTranslations('dashboard');
   const pathname = usePathname();
+  const isBookingDetail = /^\/dashboard\/bookings\/[^/]+(?:\/(complete|reschedule))?$/.test(
+    pathname,
+  );
+
+  if (isBookingDetail) return null;
 
   const itemClass = (active: boolean) =>
     cn(
