@@ -176,7 +176,9 @@ describe('BookingDetailPage', () => {
     await userEvent.type(screen.getByRole('textbox'), 'curto');
     await userEvent.click(screen.getAllByRole('button', { name: 'Rejeitar' })[1]);
 
-    expect(await screen.findByText('Não foi possível rejeitar. Tente novamente.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Não foi possível rejeitar. Tente novamente.'),
+    ).toBeInTheDocument();
   });
 
   it('shows the backend validation message when requesting more info with a short message', async () => {

@@ -93,7 +93,11 @@ export function MarkCompleteBookingPage({
       setCompleted(true);
     } catch (err) {
       const invalidPriceMessage = t('completeInvalidPrice');
-      setError(err instanceof Error && err.message === invalidPriceMessage ? err.message : t('completeError'));
+      setError(
+        err instanceof Error && err.message === invalidPriceMessage
+          ? err.message
+          : t('completeError'),
+      );
     }
   }
 

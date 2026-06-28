@@ -41,7 +41,9 @@ describe('BookingActionSheetShell', () => {
   it('invokes the close handler from the header button', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const dialogRef = { current: document.createElement('div') } as RefObject<HTMLDivElement | null>;
+    const dialogRef = {
+      current: document.createElement('div'),
+    } as RefObject<HTMLDivElement | null>;
 
     render(
       <BookingActionSheetShell

@@ -128,7 +128,9 @@ describe('MarkCompleteBookingPage', () => {
     await user.clear(screen.getAllByRole('spinbutton')[0]);
     await user.click(screen.getAllByRole('button', { name: 'Confirmar conclusão' })[0]);
 
-    expect(await screen.findByText('Informe um valor válido para cada serviço.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Informe um valor válido para cada serviço.'),
+    ).toBeInTheDocument();
     expect(completeBookingMutateAsync).not.toHaveBeenCalled();
   });
 

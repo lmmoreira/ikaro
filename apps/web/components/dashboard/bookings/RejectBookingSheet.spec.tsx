@@ -43,7 +43,9 @@ describe('RejectBookingSheet', () => {
     await userEvent.type(screen.getByRole('textbox'), 'curto');
     await userEvent.click(screen.getByRole('button', { name: 'Rejeitar' }));
 
-    expect(await screen.findByText('Não foi possível rejeitar. Tente novamente.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Não foi possível rejeitar. Tente novamente.'),
+    ).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 });
