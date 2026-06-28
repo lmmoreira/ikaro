@@ -21,7 +21,7 @@ export function RequestInfoSheet({
   const t = useTranslations('dashboard.bookingDetail');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const dialogRef = useModalDialog(open, onClose);
+  const dialogRef = useModalDialog(open);
 
   if (!open) return null;
 

@@ -21,7 +21,7 @@ export function RejectBookingSheet({
   const t = useTranslations('dashboard.bookingDetail');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const dialogRef = useModalDialog(open, onClose);
+  const dialogRef = useModalDialog(open);
 
   if (!open) return null;
 

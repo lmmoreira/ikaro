@@ -11,17 +11,21 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
 
-export function useModalDialog(open: boolean, onClose: () => void) {
+export function useModalDialog(open: boolean) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    const dialog = dialogRef.current;
+    if (!dialog || !open) return;
+
+    if (!dialog.open) {
+      dialog.showModal();
+    }
 
     restoreFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-    const dialog = dialogRef.current;
     const firstFocusable = dialog?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? dialog;
     queueMicrotask(() => {
       firstFocusable?.focus();
@@ -37,12 +41,6 @@ export function useModalDialog(open: boolean, onClose: () => void) {
     if (!open) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
       if (event.key !== 'Tab') return;
 
       const dialog = dialogRef.current;
@@ -68,7 +66,7 @@ export function useModalDialog(open: boolean, onClose: () => void) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   return dialogRef;
 }

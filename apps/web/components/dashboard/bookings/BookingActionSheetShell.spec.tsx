@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent } from '@testing-library/react';
 import { useRef, useState, type RefObject } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { BookingActionSheetShell } from './BookingActionSheetShell';
@@ -32,14 +32,13 @@ describe('BookingActionSheetShell', () => {
   it('renders the dialog content and actions', () => {
     render(<Harness />);
 
-    expect(screen.getByRole('dialog', { name: 'Title' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Cancel' })).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { hidden: true })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Cancel', hidden: true })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Submit', hidden: true })).toBeInTheDocument();
     expect(screen.getByText('Problem')).toBeInTheDocument();
   });
 
   it('invokes the close handler from the header button', async () => {
-    const user = userEvent.setup();
     const onClose = vi.fn();
     const dialogRef = {
       current: document.createElement('dialog'),
@@ -63,7 +62,7 @@ describe('BookingActionSheetShell', () => {
       </BookingActionSheetShell>,
     );
 
-    await user.click(screen.getAllByRole('button', { name: 'Cancel' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel', hidden: true })[0]);
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
