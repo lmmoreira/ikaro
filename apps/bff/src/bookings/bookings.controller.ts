@@ -34,6 +34,7 @@ import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import {
   CustomerBookingDetailResponse,
   CustomerBookingListResponse,
+  ApproveBookingRequest,
   StaffBookingDetailResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
@@ -94,6 +95,12 @@ export const RescheduleBookingBodySchema = z.object({
   adminNotes: z.string().trim().min(1).max(500).optional(),
 });
 
+export const ApproveBookingBodySchema = z
+  .object({
+    scheduledAt: z.iso.datetime().optional(),
+  })
+  .default({});
+
 export const CompleteBookingBodySchema = z.object({
   lines: z
     .array(
@@ -118,6 +125,7 @@ export const CompleteBookingBodySchema = z.object({
 
 type CancelAsAdminBody = z.infer<typeof CancelAsAdminBodySchema>;
 type RescheduleBookingBody = z.infer<typeof RescheduleBookingBodySchema>;
+type ApproveBookingBody = ApproveBookingRequest;
 type CompleteBookingBody = z.infer<typeof CompleteBookingBodySchema>;
 
 export const RequestMoreInfoBodySchema = z.object({
@@ -412,8 +420,12 @@ export class BookingsController {
   @Roles('MANAGER', 'STAFF')
   approve(
     @Param('id') id: string,
+    @Body(new ZodValidationPipe(ApproveBookingBodySchema)) body: ApproveBookingBody,
   ): Promise<{ bookingId: string; status: string; approvedAt: string }> {
-    return this.backendHttp.patch(`/bookings/${id}/approve`, {});
+    return this.backendHttp.patch(
+      `/bookings/${id}/approve`,
+      body.scheduledAt ? { scheduledAt: body.scheduledAt } : {},
+    );
   }
 
   @Patch(':id/reschedule')

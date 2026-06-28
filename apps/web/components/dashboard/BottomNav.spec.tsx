@@ -29,6 +29,13 @@ beforeEach(() => {
 });
 
 describe('BottomNav', () => {
+  it('hides itself on booking detail routes', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123');
+    const { container } = render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('renders the 4 core nav items for STAFF', () => {
     render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
 

@@ -269,10 +269,23 @@ describe('BookingsController', () => {
       });
       const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const result = await controller.approve(BOOKING_ID);
+      const result = await controller.approve(BOOKING_ID, {});
 
       expect(backendHttp.patch).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}/approve`, {});
       expect(result).toBe(mockApproveResponse);
+    });
+
+    it('forwards scheduledAt when retrying with an alternate slot', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue(mockApproveResponse),
+      });
+      const controller = new BookingsController(backendHttp, makeConfigService());
+
+      await controller.approve(BOOKING_ID, { scheduledAt: '2026-06-15T14:00:00.000Z' });
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}/approve`, {
+        scheduledAt: '2026-06-15T14:00:00.000Z',
+      });
     });
 
     it('propagates 409 from backend when slot is unavailable', async () => {
@@ -283,7 +296,7 @@ describe('BookingsController', () => {
       });
       const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const err = await controller.approve(BOOKING_ID).catch((e: unknown) => e);
+      const err = await controller.approve(BOOKING_ID, {}).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(409);
     });
@@ -296,7 +309,7 @@ describe('BookingsController', () => {
       });
       const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const err = await controller.approve(BOOKING_ID).catch((e: unknown) => e);
+      const err = await controller.approve(BOOKING_ID, {}).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(422);
     });
@@ -309,7 +322,7 @@ describe('BookingsController', () => {
       });
       const controller = new BookingsController(backendHttp, makeConfigService());
 
-      const err = await controller.approve('unknown-id').catch((e: unknown) => e);
+      const err = await controller.approve('unknown-id', {}).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(404);
     });

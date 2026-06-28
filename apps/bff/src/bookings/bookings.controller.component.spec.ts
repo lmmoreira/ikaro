@@ -523,6 +523,23 @@ describe('BookingsController (component)', () => {
       );
     });
 
+    it('approves a booking with MANAGER JWT and a retry scheduledAt override', async () => {
+      const token = makeManagerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce(mockApproveResponse);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/bookings/${BOOKING_ID_APPROVE}/approve`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ scheduledAt: '2026-06-15T14:00:00.000Z' });
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.patch).toHaveBeenCalledWith(
+        `/bookings/${BOOKING_ID_APPROVE}/approve`,
+        { scheduledAt: '2026-06-15T14:00:00.000Z' },
+      );
+    });
+
     it('propagates 409 from backend when slot is taken', async () => {
       const { HttpException: HE } = await import('@nestjs/common');
       const token = makeManagerJwt(jwtService);

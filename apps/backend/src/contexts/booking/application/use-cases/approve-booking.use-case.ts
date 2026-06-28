@@ -8,6 +8,7 @@ import { RequestContext } from '../../../../shared/request/request-context';
 import {
   BookingNotFoundError,
   InvalidBookingTransitionError,
+  BookingScheduledInPastError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
@@ -45,13 +46,12 @@ export class ApproveBookingUseCase {
       throw new InvalidBookingTransitionError(booking.status, BookingStatus.APPROVED);
     }
 
-    await this.slotConflictService.assertSlotFree(
-      tenantId,
-      booking.scheduledAt,
-      booking.totalDurationMins,
-    );
+    const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : booking.scheduledAt;
+    if (dto.scheduledAt && scheduledAt <= new Date()) throw new BookingScheduledInPastError();
 
-    booking.approve(staffId, correlationId);
+    await this.slotConflictService.assertSlotFree(tenantId, scheduledAt, booking.totalDurationMins);
+
+    booking.approve(staffId, correlationId, dto.scheduledAt ? scheduledAt : undefined);
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);

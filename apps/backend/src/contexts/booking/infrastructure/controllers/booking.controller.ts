@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { z } from 'zod';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import {
   RequestBookingDto,
@@ -104,6 +105,14 @@ import {
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapBookingError } from '../http/booking-error.mapper';
 
+const ApproveBookingBodySchema = z
+  .object({
+    scheduledAt: z.iso.datetime().optional(),
+  })
+  .default({});
+
+type ApproveBookingBody = z.infer<typeof ApproveBookingBodySchema>;
+
 @Controller('bookings')
 export class BookingController {
   constructor(
@@ -156,8 +165,16 @@ export class BookingController {
   @Patch(':id/approve')
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
-  approve(@Param('id') id: string): Promise<ApproveBookingUseCaseResult> {
-    return this.approveBooking.execute({ bookingId: id }).catch(mapBookingError);
+  approve(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(ApproveBookingBodySchema)) body: ApproveBookingBody,
+  ): Promise<ApproveBookingUseCaseResult> {
+    return this.approveBooking
+      .execute({
+        bookingId: id,
+        ...(body.scheduledAt ? { scheduledAt: body.scheduledAt } : {}),
+      })
+      .catch(mapBookingError);
   }
 
   @Patch(':id/reject')

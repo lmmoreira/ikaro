@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Topbar } from './Topbar';
+import { DashboardTopbarStatusProvider, useDashboardTopbarStatus } from './topbar-status-context';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     const map: Record<string, string> = {
+      back: 'Voltar',
       'nav.bookings': 'Agenda',
       'nav.schedule': 'Horários',
       'nav.services': 'Serviços',
@@ -13,6 +16,12 @@ vi.mock('next-intl', () => ({
       'nav.team': 'Equipe',
       'nav.settings': 'Configurações',
       'nav.hotsite': 'Hotsite',
+      title: 'Detalhe do agendamento',
+      completeSheetTitle: 'Marcar concluído',
+      rescheduleSheetTitle: 'Reagendar',
+      statusPending: 'Pendente',
+      statusInfoRequested: 'Aguardando info',
+      statusApproved: 'Aprovado',
       'topbar.todayPrefix': 'Hoje,',
       'topbar.defaultTitle': 'Dashboard',
     };
@@ -28,6 +37,15 @@ vi.mock('@/lib/utils/format-today', () => ({
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 
 import { usePathname } from 'next/navigation';
+
+function TopbarStatusProbe(): React.JSX.Element {
+  const { setBookingStatus } = useDashboardTopbarStatus()!;
+  return (
+    <button type="button" onClick={() => setBookingStatus('APPROVED')}>
+      Marcar aprovado
+    </button>
+  );
+}
 
 beforeEach(() => {
   vi.mocked(usePathname).mockReturnValue('/dashboard/bookings');
@@ -57,6 +75,55 @@ describe('Topbar', () => {
     render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Agenda');
+  });
+
+  it('shows a back link on booking detail routes', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123');
+    render(
+      <DashboardTopbarStatusProvider initialBookingStatus="INFO_REQUESTED">
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
+      'href',
+      '/dashboard/bookings',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Detalhe do agendamento');
+    expect(screen.getByText('Aguardando info')).toBeInTheDocument();
+  });
+
+  it('shows the action title and back link on nested booking routes', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123/complete');
+    render(
+      <DashboardTopbarStatusProvider initialBookingStatus="APPROVED">
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
+      'href',
+      '/dashboard/bookings/booking-123',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Marcar concluído');
+    expect(screen.getByText('Aprovado')).toBeInTheDocument();
+  });
+
+  it('updates the badge when the provider state changes', async () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123');
+
+    render(
+      <DashboardTopbarStatusProvider initialBookingStatus="PENDING">
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+        <TopbarStatusProbe />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByText('Pendente')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Marcar aprovado' }));
+
+    expect(screen.getByText('Aprovado')).toBeInTheDocument();
   });
 
   it('falls back to "Dashboard" for an unrecognised pathname', () => {

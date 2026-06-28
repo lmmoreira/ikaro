@@ -121,10 +121,10 @@ describe('BookingCard — action-needed variant', () => {
     expect(badge.className).toContain('bg-yellow-100');
   });
 
-  it('renders Aprovar and Ver detalhes buttons', () => {
+  it('renders the Aprovar button without a Ver detalhes action', () => {
     render(<BookingCard booking={makeBooking()} variant="action-needed" />);
     expect(screen.getByRole('button', { name: 'Aprovar' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ver detalhes' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ver detalhes' })).not.toBeInTheDocument();
   });
 
   it('wraps card in a link to /dashboard/bookings/:id', () => {
@@ -167,9 +167,9 @@ describe('BookingCard — upcoming variant', () => {
     expect(screen.getByTestId('card').className).toContain('opacity-70');
   });
 
-  it('does NOT render a link', () => {
+  it('wraps the card in a link to booking detail', () => {
     render(<BookingCard booking={makeBooking({ status: 'APPROVED' })} variant="upcoming" />);
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/dashboard/bookings/b-001');
   });
 
   it('does NOT render any action buttons', () => {

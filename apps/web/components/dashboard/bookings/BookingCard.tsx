@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { StaffBookingCardResponse } from '@ikaro/types';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { addDays, toDateKeyInTimezone } from '@/lib/utils/date-utils';
+import { BOOKING_STATUS_CLASSES, buildBookingStatusLabels } from './booking-status';
 
 export type BookingCardVariant = 'action-needed' | 'today' | 'upcoming';
 
@@ -17,15 +19,6 @@ export interface BookingCardProps {
   readonly emphasized?: boolean;
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-800',
-  INFO_REQUESTED: 'bg-blue-100 text-blue-800',
-  APPROVED: 'bg-green-100 text-green-800',
-  REJECTED: 'bg-red-100 text-red-800',
-  CANCELLED: 'bg-gray-100 text-gray-600',
-  COMPLETED: 'bg-slate-100 text-slate-600',
-};
-
 function BookingCardInner({
   booking,
   variant,
@@ -34,15 +27,7 @@ function BookingCardInner({
   const t = useTranslations('dashboard.bookingCard');
   const { formatMoney, formatTime, formatDateLong, timezone } = useFormatting();
   const scheduledAt = new Date(booking.scheduledAt);
-
-  const STATUS_LABEL: Record<string, string> = {
-    PENDING: t('statusPending'),
-    INFO_REQUESTED: t('statusInfoRequested'),
-    APPROVED: t('statusApproved'),
-    REJECTED: t('statusRejected'),
-    CANCELLED: t('statusCancelled'),
-    COMPLETED: t('statusCompleted'),
-  };
+  const statusLabel = buildBookingStatusLabels(t);
 
   const timeLabel = (() => {
     if (variant === 'today') return formatTime(scheduledAt);
@@ -76,9 +61,9 @@ function BookingCardInner({
             {booking.contactName}
           </span>
           <Badge
-            className={`shrink-0 text-xs ${STATUS_BADGE[booking.status] ?? 'bg-gray-100 text-gray-600'}`}
+            className={`shrink-0 text-xs ${BOOKING_STATUS_CLASSES[booking.status] ?? 'bg-gray-100 text-gray-600'}`}
           >
-            {STATUS_LABEL[booking.status] ?? booking.status}
+            {statusLabel[booking.status] ?? booking.status}
           </Badge>
         </div>
 
@@ -92,43 +77,29 @@ function BookingCardInner({
         </div>
 
         {variant === 'today' && (
-          <div className="relative z-10 mt-3 flex gap-2">
-            <button
-              type="button"
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
-            >
+          <div className="relative z-20 mt-3 flex gap-2">
+            <Button type="button" size="sm">
               {t('markCompleted')}
-            </button>
+            </Button>
           </div>
         )}
 
         {variant === 'action-needed' && (
-          <div className="relative z-10 mt-3 flex gap-2">
-            <button
-              type="button"
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
-            >
+          <div className="relative z-20 mt-3 flex gap-2">
+            <Button type="button" size="sm">
               {t('approve')}
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-            >
-              {t('viewDetails')}
-            </button>
+            </Button>
           </div>
         )}
       </CardContent>
     </Card>
   );
 
-  if (variant === 'upcoming') return card;
-
   return (
     <div className="relative">
       <Link
         href={`/dashboard/bookings/${booking.bookingId}`}
-        className="absolute inset-0"
+        className="absolute inset-0 z-10"
         aria-label={t('viewDetailsAriaLabel', { name: booking.contactName })}
       />
       {card}

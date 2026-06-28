@@ -74,6 +74,7 @@ export function toStaffBookingDetail(
     loyaltyBalance,
     lines: detail.lines.map((l) => ({
       lineId: l.lineId,
+      serviceId: l.serviceId,
       serviceName: l.serviceNameAtBooking,
       priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
       durationMinsAtBooking: l.durationMinsAtBooking,

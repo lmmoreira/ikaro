@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { approveBooking } from '@/lib/api/dashboard/bookings';
 import {
   useApproveBooking,
   useCancelBooking,
@@ -54,8 +55,23 @@ beforeEach(() => vi.clearAllMocks());
 describe('useApproveBooking', () => {
   it('calls approveBooking on mutate', async () => {
     const { result } = renderHook(() => useApproveBooking(), { wrapper });
-    act(() => result.current.mutate('b-1'));
+    act(() => result.current.mutate({ id: 'b-1' }));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(vi.mocked(approveBooking)).toHaveBeenCalledWith('b-1', undefined);
+  });
+
+  it('forwards an optional scheduledAt body', async () => {
+    const { result } = renderHook(() => useApproveBooking(), { wrapper });
+    act(() =>
+      result.current.mutate({
+        id: 'b-1',
+        body: { scheduledAt: '2026-07-01T10:00:00.000Z' },
+      }),
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(vi.mocked(approveBooking)).toHaveBeenCalledWith('b-1', {
+      scheduledAt: '2026-07-01T10:00:00.000Z',
+    });
   });
 });
 

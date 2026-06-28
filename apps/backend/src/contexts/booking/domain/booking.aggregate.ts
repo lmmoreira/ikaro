@@ -324,12 +324,16 @@ export class Booking extends AggregateRoot {
     return booking;
   }
 
-  approve(staffId: string, correlationId: string): void {
+  approve(staffId: string, correlationId: string, scheduledAt?: Date): void {
     if (
       this.props.status !== BookingStatus.PENDING &&
       this.props.status !== BookingStatus.INFO_REQUESTED
     ) {
       throw new InvalidBookingTransitionError(this.props.status, BookingStatus.APPROVED);
+    }
+
+    if (scheduledAt) {
+      this.props.scheduledAt = scheduledAt;
     }
 
     this.props.status = BookingStatus.APPROVED;

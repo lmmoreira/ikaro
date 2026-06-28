@@ -301,15 +301,30 @@ describe('BookingController', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await controller.approve(booking.id);
+      const result = await controller.approve(booking.id, {});
       expect(result.status).toBe(BookingStatus.APPROVED);
       expect(result.bookingId).toBe(booking.id);
       expect(result.approvedAt).toBeDefined();
     });
 
+    it('approves a booking with a retry scheduledAt override', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .build();
+      await bookingRepo.save(booking);
+
+      const retryScheduledAt = new Date(`${futureDate(2)}T11:00:00.000Z`).toISOString();
+      const result = await controller.approve(booking.id, { scheduledAt: retryScheduledAt });
+
+      expect(result.status).toBe(BookingStatus.APPROVED);
+      const saved = await bookingRepo.findById(booking.id, TENANT_A);
+      expect(saved!.scheduledAt.toISOString()).toBe(retryScheduledAt);
+    });
+
     it('maps BookingNotFoundError to 404', async () => {
       const err = await controller
-        .approve('00000000-0000-4000-8000-000000009999')
+        .approve('00000000-0000-4000-8000-000000009999', {})
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
@@ -323,7 +338,7 @@ describe('BookingController', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const err = await controller.approve(booking.id).catch((e: unknown) => e);
+      const err = await controller.approve(booking.id, {}).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
     });
@@ -433,7 +448,7 @@ describe('BookingController', () => {
         .build();
       await bookingRepoB.save(booking);
 
-      const err = await ctrl.approve(booking.id).catch((e: unknown) => e);
+      const err = await ctrl.approve(booking.id, {}).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
     });
@@ -445,7 +460,7 @@ describe('BookingController', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const err = await controller.approve(booking.id).catch((e: unknown) => e);
+      const err = await controller.approve(booking.id, {}).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
