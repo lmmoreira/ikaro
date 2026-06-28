@@ -10,6 +10,7 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { DashboardTopbarStatusProvider } from '@/components/dashboard/topbar-status-context';
 import { fetchTenantSettings, resolveTenantFormatting } from '@/lib/api/dashboard/tenants';
 import { BookingDetailFetchError, fetchStaffBookingDetail } from '@/lib/api/dashboard/bookings';
+import { matchBookingDetailRoute } from '@/lib/dashboard/booking-route';
 import type { BookingStatus } from '@ikaro/types';
 
 interface ProtectedLayoutProps {
@@ -30,9 +31,7 @@ export default async function ProtectedLayout({
   const userName = payload.userName ?? null;
   const hdrs = await headers();
   const pathname = hdrs.get('x-pathname') ?? '/';
-  const bookingRouteMatch = pathname.match(
-    /^\/dashboard\/bookings\/([^/]+)(?:\/(complete|reschedule))?$/,
-  );
+  const bookingRouteMatch = matchBookingDetailRoute(pathname);
   let bookingStatus: BookingStatus | null = null;
 
   const locale = resolveSupportedLocale(payload.locale ?? 'pt-BR');
@@ -42,7 +41,7 @@ export default async function ProtectedLayout({
   ]);
   if (bookingRouteMatch) {
     try {
-      const booking = await fetchStaffBookingDetail(token, bookingRouteMatch[1]);
+      const booking = await fetchStaffBookingDetail(token, bookingRouteMatch.bookingId);
       bookingStatus = booking.status;
     } catch (err) {
       if (err instanceof BookingDetailFetchError && err.status === 404) {
@@ -64,7 +63,7 @@ export default async function ProtectedLayout({
       >
         <TenantProvider tenantId={tenantId} tenantSlug={tenantSlug}>
           <DashboardTopbarStatusProvider
-            key={bookingRouteMatch?.[1] ?? 'dashboard-shell'}
+            key={bookingRouteMatch?.bookingId ?? 'dashboard-shell'}
             initialBookingStatus={bookingStatus}
           >
             <DashboardShell

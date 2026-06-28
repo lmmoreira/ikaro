@@ -10,6 +10,7 @@ import {
   BookingNotFoundError,
   BookingSlotUnavailableError,
   InvalidBookingTransitionError,
+  BookingScheduledAtInvalidError,
   BookingScheduledInPastError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
@@ -211,6 +212,18 @@ describe('ApproveBookingUseCase', () => {
       await expect(
         useCase.execute({ bookingId: booking.id, scheduledAt: pastScheduledAt }),
       ).rejects.toThrow(BookingScheduledInPastError);
+    });
+
+    it('throws BookingScheduledAtInvalidError when scheduledAt is malformed', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+
+      await expect(
+        useCase.execute({ bookingId: booking.id, scheduledAt: 'not-a-date' }),
+      ).rejects.toThrow(BookingScheduledAtInvalidError);
     });
 
     it('tenant isolation: cannot approve booking from another tenant', async () => {

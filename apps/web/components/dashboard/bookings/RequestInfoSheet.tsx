@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { BookingActionSheetShell } from './BookingActionSheetShell';
+import { useModalDialog } from './use-modal-dialog';
 
 interface RequestInfoSheetProps {
   readonly open: boolean;
@@ -21,10 +21,11 @@ export function RequestInfoSheet({
   const t = useTranslations('dashboard.bookingDetail');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useModalDialog(open, onClose);
 
   if (!open) return null;
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = message.trim();
     if (!value) {
@@ -36,68 +37,41 @@ export function RequestInfoSheet({
     try {
       await onSubmit(value);
       onClose();
-    } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : t('requestInfoError'));
+    } catch {
+      setError(t('requestInfoError'));
     }
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-      <button
-        type="button"
-        aria-label={t('close')}
-        className="absolute inset-0 cursor-default"
-        onClick={onClose}
-      />
-      <form
-        onSubmit={handleSubmit}
-        className={cn(
-          'relative z-10 w-full border border-gray-200 bg-white p-4 shadow-2xl sm:max-w-lg sm:rounded-2xl',
-          'rounded-t-2xl',
-        )}
-      >
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-gray-900">{t('requestSheetTitle')}</p>
-            <p className="mt-1 text-sm text-gray-500">
-              {t('requestSheetDescription', { status: t('statusPending') })}
-            </p>
-          </div>
-          <button type="button" onClick={onClose} className="text-sm font-semibold text-gray-500">
-            {t('close')}
-          </button>
-        </div>
+    <BookingActionSheetShell
+      dialogRef={dialogRef}
+      titleId="request-info-sheet-title"
+      descriptionId="request-info-sheet-description"
+      title={t('requestSheetTitle')}
+      description={t('requestSheetDescription', { status: t('statusPending') })}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      cancelLabel={t('cancel')}
+      submitLabel={t('submitRequestInfo')}
+      submitDisabled={isSubmitting || !message.trim()}
+      error={error}
+    >
+      <label className="block">
+        <span className="mb-2 block text-sm font-medium text-gray-700">{t('questionLabel')}</span>
+        <textarea
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          maxLength={200}
+          rows={5}
+          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none ring-0 placeholder:text-gray-400 focus:border-blue-500"
+          placeholder={t('requestPlaceholder')}
+        />
+      </label>
 
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium text-gray-700">{t('questionLabel')}</span>
-          <textarea
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            maxLength={200}
-            rows={5}
-            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none ring-0 placeholder:text-gray-400 focus:border-blue-500"
-            placeholder={t('requestPlaceholder')}
-          />
-        </label>
-
-        <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
-          <span>{message.trim().length > 0 ? t('readyToSend') : t('required')}</span>
-          <span>{message.trim().length} / 200</span>
-        </div>
-
-        {error && (
-          <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-        )}
-
-        <div className="mt-4 flex gap-3">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-            {t('cancel')}
-          </Button>
-          <Button type="submit" className="flex-1" disabled={isSubmitting || !message.trim()}>
-            {t('submitRequestInfo')}
-          </Button>
-        </div>
-      </form>
-    </div>
+      <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
+        <span>{message.trim().length > 0 ? t('readyToSend') : t('required')}</span>
+        <span>{message.trim().length} / 200</span>
+      </div>
+    </BookingActionSheetShell>
   );
 }

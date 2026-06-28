@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   BOOKING_STATUS,
@@ -14,7 +14,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AvailabilityCarousel } from '@/components/booking/AvailabilityCarousel';
 import { SlotPicker } from '@/components/booking/SlotPicker';
 import { ApiError } from '@/lib/api/errors';
-import { fetchAvailability } from '@/lib/api/schedule';
+import { fetchBookingAvailability } from '@/lib/api/dashboard/fetch-booking-availability';
+import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { useRescheduleBooking } from '@/lib/hooks/useBookingMutations';
 import { useDashboardTopbarStatus } from '../topbar-status-context';
@@ -95,7 +96,7 @@ export function RescheduleBookingPage({
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         try {
-          const availability = await fetchAvailability(tenantSlug, selectedDate, serviceIds);
+          const availability = await fetchBookingAvailability(tenantSlug, selectedDate, serviceIds);
           setSlotSuggestions(availability.slots);
           setConflictStartsAt(startsAt);
           return;
@@ -105,13 +106,13 @@ export function RescheduleBookingPage({
         }
       }
 
-      setError(err instanceof Error && err.message ? err.message : t('rescheduleError'));
+      setError(t('rescheduleError'));
     } finally {
       setIsSubmittingLocal(false);
     }
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!selectedSlot) {
       setError(t('rescheduleRequired'));
@@ -197,8 +198,8 @@ export function RescheduleBookingPage({
                   {formatDateLong(currentStart)}
                 </p>
                 <p className="mt-1 text-sm text-gray-600">
-                  {formatTime(currentStart)} — {formatTime(currentEnd)} ({booking.totalDurationMins}{' '}
-                  min)
+                  {formatTime(currentStart)} — {formatTime(currentEnd)} (
+                  {formatDuration(booking.totalDurationMins)})
                 </p>
               </CardContent>
             </Card>

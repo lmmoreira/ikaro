@@ -8,6 +8,7 @@ import { RequestContext } from '../../../../shared/request/request-context';
 import {
   BookingNotFoundError,
   InvalidBookingTransitionError,
+  BookingScheduledAtInvalidError,
   BookingScheduledInPastError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -47,7 +48,10 @@ export class ApproveBookingUseCase {
     }
 
     const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : booking.scheduledAt;
-    if (dto.scheduledAt && scheduledAt <= new Date()) throw new BookingScheduledInPastError();
+    if (dto.scheduledAt) {
+      if (Number.isNaN(scheduledAt.getTime())) throw new BookingScheduledAtInvalidError();
+      if (scheduledAt <= new Date()) throw new BookingScheduledInPastError();
+    }
 
     await this.slotConflictService.assertSlotFree(tenantId, scheduledAt, booking.totalDurationMins);
 

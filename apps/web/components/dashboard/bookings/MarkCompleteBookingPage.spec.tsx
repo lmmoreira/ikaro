@@ -115,6 +115,23 @@ describe('MarkCompleteBookingPage', () => {
     expect(setBookingStatus).toHaveBeenCalledWith('COMPLETED');
   });
 
+  it('blocks empty charged amounts before submitting', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <MarkCompleteBookingPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-beloauto"
+        backHref="/dashboard/bookings/b-1"
+      />,
+    );
+
+    await user.clear(screen.getAllByRole('spinbutton')[0]);
+    await user.click(screen.getAllByRole('button', { name: 'Confirmar conclusão' })[0]);
+
+    expect(await screen.findByText('Informe um valor válido para cada serviço.')).toBeInTheDocument();
+    expect(completeBookingMutateAsync).not.toHaveBeenCalled();
+  });
+
   it('uploads after-service photos and includes them in the completion payload', async () => {
     const user = userEvent.setup();
     completeBookingMutateAsync.mockResolvedValue(undefined);

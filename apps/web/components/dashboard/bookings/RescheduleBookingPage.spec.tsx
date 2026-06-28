@@ -34,8 +34,8 @@ vi.mock('@/components/booking/SlotPicker', () => ({
   ),
 }));
 
-vi.mock('@/lib/api/schedule', () => ({
-  fetchAvailability: vi.fn(),
+vi.mock('@/lib/api/dashboard/fetch-booking-availability', () => ({
+  fetchBookingAvailability: vi.fn(),
 }));
 
 const rescheduleBookingMutateAsync = vi.hoisted(() => vi.fn());

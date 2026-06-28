@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Button } from '@/components/ui/button';
@@ -65,15 +65,16 @@ export function MarkCompleteBookingPage({
     [booking.lines, linePrices],
   );
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setError(null);
 
     try {
       const lines = booking.lines.map((line) => {
-        const value = Number(linePrices[line.lineId]);
-        if (!Number.isFinite(value)) {
-          throw new Error(t('completeInvalidPrice'));
+        const rawValue = linePrices[line.lineId] ?? '';
+        const value = Number(rawValue);
+        if (rawValue.trim() === '' || !Number.isFinite(value) || value < 0) {
+          throw new TypeError(t('completeInvalidPrice'));
         }
         return { lineId: line.lineId, actualPriceCharged: value };
       });
@@ -91,7 +92,8 @@ export function MarkCompleteBookingPage({
       setTopbarBookingStatus?.(BOOKING_STATUS.COMPLETED);
       setCompleted(true);
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : t('completeError'));
+      const invalidPriceMessage = t('completeInvalidPrice');
+      setError(err instanceof Error && err.message === invalidPriceMessage ? err.message : t('completeError'));
     }
   }
 

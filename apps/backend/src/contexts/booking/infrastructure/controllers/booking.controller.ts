@@ -166,7 +166,7 @@ export class BookingController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
   approve(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
     @Body(new ZodValidationPipe(ApproveBookingBodySchema)) body: ApproveBookingBody,
   ): Promise<ApproveBookingUseCaseResult> {
     return this.approveBooking

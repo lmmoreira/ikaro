@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatTodayLabel } from '@/lib/utils/format-today';
 import { getInitials } from '@/lib/utils/initials';
+import { matchBookingDetailRoute } from '@/lib/dashboard/booking-route';
 import { BOOKING_STATUS_CLASSES, buildBookingStatusLabels } from './bookings/booking-status';
 import { useDashboardTopbarStatus } from './topbar-status-context';
 
@@ -35,23 +36,24 @@ export function Topbar({ tenantName, userName }: TopbarProps): React.JSX.Element
   const pathname = usePathname();
   const topbarStatus = useDashboardTopbarStatus();
   const initials = getInitials(userName);
-  const bookingRouteMatch = pathname.match(
-    /^\/dashboard\/bookings\/([^/]+)(?:\/(complete|reschedule))?$/,
-  );
-  const isBookingRoute = Boolean(bookingRouteMatch);
+  const bookingRouteMatch = matchBookingDetailRoute(pathname);
+  const isBookingRoute = bookingRouteMatch !== null;
   const pageTitleKey = PAGE_TITLE_KEYS.find(([path]) => pathname.startsWith(path))?.[1];
-  const pageTitle = bookingRouteMatch?.[2]
-    ? bookingRouteMatch[2] === 'complete'
-      ? bookingT('completeSheetTitle')
-      : bookingT('rescheduleSheetTitle')
-    : bookingRouteMatch
-      ? bookingT('title')
-      : pageTitleKey
-        ? t(pageTitleKey)
-        : t('topbar.defaultTitle');
+  let pageTitle = t('topbar.defaultTitle');
+  if (bookingRouteMatch) {
+    if (bookingRouteMatch.action === 'complete') {
+      pageTitle = bookingT('completeSheetTitle');
+    } else if (bookingRouteMatch.action === 'reschedule') {
+      pageTitle = bookingT('rescheduleSheetTitle');
+    } else {
+      pageTitle = bookingT('title');
+    }
+  } else if (pageTitleKey) {
+    pageTitle = t(pageTitleKey);
+  }
   const bookingStatusLabels = buildBookingStatusLabels(bookingT);
-  const backHref = bookingRouteMatch?.[2]
-    ? `/dashboard/bookings/${bookingRouteMatch[1]}`
+  const backHref = bookingRouteMatch?.action
+    ? `/dashboard/bookings/${bookingRouteMatch.bookingId}`
     : '/dashboard/bookings';
   const showBookingBackLink = Boolean(bookingRouteMatch);
 

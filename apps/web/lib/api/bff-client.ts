@@ -20,7 +20,7 @@ bffClient.interceptors.response.use(
       new ApiError(
         status,
         status >= 500 ? 'Internal server error' : clientDetail,
-        err.response?.data,
+        status >= 500 ? undefined : err.response?.data,
       ),
     );
   },

@@ -243,7 +243,7 @@ describe('InformationCompletionPrompt', () => {
     await waitFor(() =>
       expect(screen.queryByTestId('information-completion-prompt')).not.toBeInTheDocument(),
     );
-  }, 15000);
+  });
 
   it('shows the address error and re-highlights fields on a defaultAddress violation', async () => {
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(profileEmpty);
@@ -268,7 +268,7 @@ describe('InformationCompletionPrompt', () => {
     expect(await screen.findByTestId('information-completion-error')).toHaveTextContent(
       'Verifique os dados do endereço e tente novamente.',
     );
-  }, 15000);
+  });
 
   it('shows the address error on a 400 with no violations array (e.g. a backend Address VO rejection)', async () => {
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(profileEmpty);

@@ -231,7 +231,7 @@
       "customerSection": "Cliente",
       "guestType": "Visitante",
       "customerType": "Cliente",
-      "pointsActive": "★ {count} pontos ativos",
+      "pointsActive": "★ {count, plural, one {# ponto ativo} other {# pontos ativos}}",
       "infoExchangeSection": "Troca de informações",
       "infoRequestedLabel": "O que foi pedido",
       "infoResponseLabel": "Resposta do cliente",

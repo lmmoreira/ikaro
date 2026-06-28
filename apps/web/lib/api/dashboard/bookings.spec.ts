@@ -14,11 +14,15 @@ import {
   rescheduleBooking,
   submitBookingInfo,
 } from './bookings';
+import { fetchBookingAvailability } from './fetch-booking-availability';
 
 const mock = new MockAdapter(bffClient);
 
 beforeEach(() => mock.reset());
-afterEach(() => mock.reset());
+afterEach(() => {
+  mock.reset();
+  vi.restoreAllMocks();
+});
 
 const booking = { bookingId: 'b-1', status: 'PENDING' };
 
@@ -78,19 +82,30 @@ describe('fetchStaffBookingDetail', () => {
         headers: { Cookie: 'access_token=access-token' },
       }),
     );
-    fetchSpy.mockRestore();
   });
 
   it('throws BookingDetailFetchError on 404', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status: 404 }));
 
     await expect(fetchStaffBookingDetail('access-token', 'b-1')).rejects.toMatchObject({
       name: 'BookingDetailFetchError',
       status: 404,
     });
-    fetchSpy.mockRestore();
+  });
+});
+
+describe('fetchBookingAvailability', () => {
+  it('calls GET /schedule/availability with the tenant slug header', async () => {
+    mock.onGet('/schedule/availability').reply(200, {
+      date: '2026-06-16',
+      slots: [{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }],
+      available: true,
+    });
+
+    const result = await fetchBookingAvailability('lavacar-bh', '2026-06-16', ['svc-1']);
+
+    expect(result.available).toBe(true);
+    expect(mock.history.get?.[0]?.headers).toMatchObject({ 'X-Tenant-Slug': 'lavacar-bh' });
   });
 });
 

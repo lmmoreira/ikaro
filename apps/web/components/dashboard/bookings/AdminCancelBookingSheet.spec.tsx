@@ -19,6 +19,7 @@ describe('AdminCancelBookingSheet', () => {
       />,
     );
 
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
     expect(screen.getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Cancelar agendamento' }));

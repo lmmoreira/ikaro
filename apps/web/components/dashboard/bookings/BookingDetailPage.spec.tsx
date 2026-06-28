@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { ApiError } from '@/lib/api/errors';
-import { fetchAvailability } from '@/lib/api/schedule';
+import { fetchBookingAvailability } from '@/lib/api/dashboard/fetch-booking-availability';
 import { BookingDetailPage } from './BookingDetailPage';
 
 vi.mock('next/link', () => ({
@@ -22,8 +22,8 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-vi.mock('@/lib/api/schedule', () => ({
-  fetchAvailability: vi.fn(),
+vi.mock('@/lib/api/dashboard/fetch-booking-availability', () => ({
+  fetchBookingAvailability: vi.fn(),
 }));
 
 const approveBookingMutateAsync = vi.hoisted(() => vi.fn());
@@ -88,7 +88,7 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
 }
 
 beforeEach(() => {
-  vi.mocked(fetchAvailability).mockReset();
+  vi.mocked(fetchBookingAvailability).mockReset();
   routerPush.mockReset();
   approveBookingMutateAsync.mockReset();
   cancelBookingMutateAsync.mockReset();
@@ -139,7 +139,7 @@ describe('BookingDetailPage', () => {
         status: 'APPROVED',
         approvedAt: '2026-06-16T09:05:00.000Z',
       });
-    vi.mocked(fetchAvailability).mockResolvedValue({
+    vi.mocked(fetchBookingAvailability).mockResolvedValue({
       date: '2026-06-16',
       slots: [{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }],
       available: true,
@@ -176,9 +176,7 @@ describe('BookingDetailPage', () => {
     await userEvent.type(screen.getByRole('textbox'), 'curto');
     await userEvent.click(screen.getAllByRole('button', { name: 'Rejeitar' })[1]);
 
-    expect(
-      await screen.findByText('Too small: expected string to have >=10 characters'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Não foi possível rejeitar. Tente novamente.')).toBeInTheDocument();
   });
 
   it('shows the backend validation message when requesting more info with a short message', async () => {
@@ -200,7 +198,7 @@ describe('BookingDetailPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Enviar' }));
 
     expect(
-      await screen.findByText('Too small: expected string to have >=20 characters'),
+      await screen.findByText('Não foi possível enviar a solicitação. Tente novamente.'),
     ).toBeInTheDocument();
   });
 

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ApiError } from '@/lib/api/errors';
-import { fetchAvailability } from '@/lib/api/schedule';
+import { fetchBookingAvailability } from '@/lib/api/dashboard/fetch-booking-availability';
 import { cn } from '@/lib/utils';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import {
@@ -134,7 +134,7 @@ export function BookingDetailPage({
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         try {
-          const availability = await fetchAvailability(
+          const availability = await fetchBookingAvailability(
             tenantSlug,
             booking.scheduledAt.slice(0, 10),
             serviceIds,
@@ -479,10 +479,10 @@ export function BookingDetailPage({
             setInlineError(null);
             try {
               await handleCancel(reason);
-            } catch (err) {
+            } catch {
               setActionState('idle');
-              setInlineError(err instanceof Error && err.message ? err.message : t('cancelError'));
-              throw err instanceof Error ? err : new Error(t('cancelError'));
+              setInlineError(t('cancelError'));
+              throw new Error(t('cancelError'));
             }
           }}
         />

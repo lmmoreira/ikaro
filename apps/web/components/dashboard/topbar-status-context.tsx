@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 import type { BookingStatus } from '@ikaro/types';
 
 interface DashboardTopbarStatusContextValue {
@@ -20,9 +20,16 @@ export function DashboardTopbarStatusProvider({
   children,
 }: DashboardTopbarStatusProviderProps): React.JSX.Element {
   const [bookingStatus, setBookingStatus] = useState<BookingStatus | null>(initialBookingStatus);
+  const value = useMemo(
+    () => ({
+      bookingStatus,
+      setBookingStatus,
+    }),
+    [bookingStatus, setBookingStatus],
+  );
 
   return (
-    <DashboardTopbarStatusContext.Provider value={{ bookingStatus, setBookingStatus }}>
+    <DashboardTopbarStatusContext.Provider value={value}>
       {children}
     </DashboardTopbarStatusContext.Provider>
   );

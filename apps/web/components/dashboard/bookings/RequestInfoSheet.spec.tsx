@@ -22,6 +22,7 @@ describe('RequestInfoSheet', () => {
       <RequestInfoSheet open={true} isSubmitting={false} onClose={onClose} onSubmit={onSubmit} />,
     );
 
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
     await userEvent.type(screen.getByRole('textbox'), 'Pode enviar mais fotos?');
     await userEvent.click(screen.getByRole('button', { name: 'Enviar' }));
 
@@ -29,7 +30,7 @@ describe('RequestInfoSheet', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('shows the backend validation message when submit fails with violations', async () => {
+  it('shows the localized fallback when submit fails', async () => {
     const onClose = vi.fn();
     const onSubmit = vi
       .fn()
@@ -43,7 +44,7 @@ describe('RequestInfoSheet', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Enviar' }));
 
     expect(
-      await screen.findByText('Too small: expected string to have >=20 characters'),
+      await screen.findByText('Não foi possível enviar a solicitação. Tente novamente.'),
     ).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });

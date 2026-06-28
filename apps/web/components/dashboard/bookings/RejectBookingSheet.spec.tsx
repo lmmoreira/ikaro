@@ -22,6 +22,7 @@ describe('RejectBookingSheet', () => {
       <RejectBookingSheet open={true} isSubmitting={false} onClose={onClose} onSubmit={onSubmit} />,
     );
 
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
     await userEvent.type(screen.getByRole('textbox'), 'Serviço indisponível');
     await userEvent.click(screen.getByRole('button', { name: 'Rejeitar' }));
 
@@ -29,7 +30,7 @@ describe('RejectBookingSheet', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('shows the backend validation message when submit fails with violations', async () => {
+  it('shows the localized fallback when submit fails', async () => {
     const onClose = vi.fn();
     const onSubmit = vi
       .fn()
@@ -42,9 +43,7 @@ describe('RejectBookingSheet', () => {
     await userEvent.type(screen.getByRole('textbox'), 'curto');
     await userEvent.click(screen.getByRole('button', { name: 'Rejeitar' }));
 
-    expect(
-      await screen.findByText('Too small: expected string to have >=10 characters'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Não foi possível rejeitar. Tente novamente.')).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 });

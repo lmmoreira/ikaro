@@ -181,6 +181,13 @@ export class BookingScheduledInPastError extends BookingDomainError {
   }
 }
 
+export class BookingScheduledAtInvalidError extends BookingDomainError {
+  constructor() {
+    super('Scheduled time must be a valid date');
+    this.name = 'BookingScheduledAtInvalidError';
+  }
+}
+
 export class CompleteBookingLinesIncompleteError extends BookingDomainError {
   constructor(missingLineIds: string[]) {
     super(`Completion request is missing entries for line(s): ${missingLineIds.join(', ')}`);
