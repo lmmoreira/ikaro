@@ -91,18 +91,56 @@ describe('createAttachmentSignedUrl', () => {
       filePath: 'tenants/tenant-1/uploads/photo.jpg',
       expiresAt: '2026-06-15T12:00:00.000Z',
     };
-    fetchSpy.mockResolvedValue(new Response(JSON.stringify(signedUrl), { status: 201 }));
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify(signedUrl), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
 
     const result = await createAttachmentSignedUrl('lavacar-beloauto', 'photo.jpg', 'image/jpeg');
 
     expect(result).toEqual(signedUrl);
-    expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/bookings/attachments/signed-url`, {
+    expect(fetchSpy).toHaveBeenCalledWith('/api/bookings/attachments/signed-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fileName: 'photo.jpg',
         contentType: 'image/jpeg',
         tenantSlug: 'lavacar-beloauto',
+      }),
+    });
+  });
+
+  it('includes bookingId when provided', async () => {
+    const signedUrl: AttachmentSignedUrlResponse = {
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/bookings/b-1/photo.jpg',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    };
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify(signedUrl), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const result = await createAttachmentSignedUrl(
+      'lavacar-beloauto',
+      'photo.jpg',
+      'image/jpeg',
+      'b-1',
+    );
+
+    expect(result).toEqual(signedUrl);
+    expect(fetchSpy).toHaveBeenCalledWith('/api/bookings/attachments/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: 'photo.jpg',
+        contentType: 'image/jpeg',
+        tenantSlug: 'lavacar-beloauto',
+        bookingId: 'b-1',
       }),
     });
   });

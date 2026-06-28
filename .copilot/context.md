@@ -193,6 +193,7 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 
 **apps/web:** Vitest (not Jest) — config at `apps/web/vitest.config.ts`.
 - `lib/**`: `node` env · `components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only
+- Keep `app/**/page.tsx` and `app/**/layout.tsx` thin. If they start owning reusable data shaping, URL construction, or render-plan logic, extract a helper under `apps/web/lib/**` and unit-test that helper in the same change.
 - **Every new `components/**/*.tsx` must ship its `.spec.tsx` in the same commit.**
 - **Every new dashboard UI component must be localization-ready from the start.** No hardcoded visible copy, helper text, error text, success banners, placeholders, `aria-label`, `alt`, or status labels/classes. If the component needs text, wire `useTranslations()` and add locale keys in both `pt-BR` and `en` in the same change.
 - → Vitest config, mocks, axe testing, per-component cases: `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
@@ -220,6 +221,7 @@ Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-
 | Shared VO `create()` throws plain `Error` for validation it owns | Give VO a typed domain error; add `instanceof` branch to every calling `mapXxxError` |
 | New interface in `apps/web/lib/api/**` without checking `@ikaro/types` | Grep `@ikaro/types` first — either side may be stale; verify against live BFF schema if shapes differ |
 | Inline mapper functions accumulating in a BFF `*.controller.ts` | Extract to `<module>.mapper.ts` (plain functions, not a class) once a second mapper appears |
+| Fat route shell in `app/**/page.tsx` or `app/**/layout.tsx` with reusable logic | Extract pure helpers to `apps/web/lib/**`, unit-test them, and keep the route file to fetch + compose only |
 | Second independent `fetch()` building the same BFF route URL outside `lib/api/<name>.ts` | Use the canonical fetcher — duplicates go stale silently (only caught by Playwright) |
 | Cross-context port returns a pre-formatted display string instead of structured data | Return typed data all the way through; join/format in BFF mapper only |
 | Port+Adapter removed but backing service left in `providers`/`exports` | Delete the backing service too — zero consumers = dead infrastructure |

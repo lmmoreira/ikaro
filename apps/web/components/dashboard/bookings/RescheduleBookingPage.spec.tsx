@@ -121,4 +121,22 @@ describe('RescheduleBookingPage', () => {
     expect(await screen.findByText('Agendamento reagendado')).toBeInTheDocument();
     expect(setBookingStatus).toHaveBeenCalledWith('APPROVED');
   });
+
+  it('renders the same boxed action pattern for desktop and mobile rails', () => {
+    const { container } = renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        backHref="/dashboard/bookings/b-1"
+      />,
+    );
+
+    const actionsLabels = screen.getAllByText('Ações');
+    expect(actionsLabels).toHaveLength(2);
+    expect(actionsLabels[0].closest('aside')).toHaveClass('hidden');
+
+    const mobileFooter = container.querySelector('.fixed.inset-x-0.bottom-0');
+    expect(mobileFooter).toHaveTextContent('Ações');
+    expect(mobileFooter?.querySelector('.rounded-lg.border')).not.toBeNull();
+  });
 });

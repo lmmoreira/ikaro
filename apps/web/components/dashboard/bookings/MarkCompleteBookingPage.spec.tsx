@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
+import { createAttachmentSignedUrl } from '@/lib/api/bookings';
 import { MarkCompleteBookingPage } from './MarkCompleteBookingPage';
 
 vi.mock('next/link', () => ({
@@ -14,9 +15,14 @@ vi.mock('next/link', () => ({
 
 const completeBookingMutateAsync = vi.hoisted(() => vi.fn());
 const setBookingStatus = vi.hoisted(() => vi.fn());
+let fetchSpy: ReturnType<typeof vi.spyOn> | null = null;
 
 vi.mock('@/lib/hooks/useBookingMutations', () => ({
   useCompleteBooking: () => ({ mutateAsync: completeBookingMutateAsync, isPending: false }),
+}));
+
+vi.mock('@/lib/api/bookings', () => ({
+  createAttachmentSignedUrl: vi.fn(),
 }));
 
 vi.mock('../topbar-status-context', () => ({
@@ -74,6 +80,9 @@ function makeBooking(): StaffBookingDetailResponse {
 beforeEach(() => {
   completeBookingMutateAsync.mockReset();
   setBookingStatus.mockReset();
+  vi.mocked(createAttachmentSignedUrl).mockReset();
+  fetchSpy?.mockRestore();
+  fetchSpy = null;
 });
 
 describe('MarkCompleteBookingPage', () => {
@@ -82,14 +91,17 @@ describe('MarkCompleteBookingPage', () => {
     completeBookingMutateAsync.mockResolvedValue(undefined);
 
     renderWithIntl(
-      <MarkCompleteBookingPage booking={makeBooking()} backHref="/dashboard/bookings/b-1" />,
+      <MarkCompleteBookingPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-beloauto"
+        backHref="/dashboard/bookings/b-1"
+      />,
     );
 
     expect(setBookingStatus).toHaveBeenCalledWith('APPROVED');
     await user.clear(screen.getAllByRole('spinbutton')[0]);
     await user.type(screen.getAllByRole('spinbutton')[0], '70');
     await user.click(screen.getAllByRole('button', { name: 'Confirmar conclusão' })[0]);
-
     expect(completeBookingMutateAsync).toHaveBeenCalledWith({
       id: 'b-1',
       body: {
@@ -101,5 +113,68 @@ describe('MarkCompleteBookingPage', () => {
     });
     expect(await screen.findByText('Serviço concluído')).toBeInTheDocument();
     expect(setBookingStatus).toHaveBeenCalledWith('COMPLETED');
+  });
+
+  it('uploads after-service photos and includes them in the completion payload', async () => {
+    const user = userEvent.setup();
+    completeBookingMutateAsync.mockResolvedValue(undefined);
+    vi.mocked(createAttachmentSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/bookings/b-1/after/photo.jpg',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 200 }));
+
+    renderWithIntl(
+      <MarkCompleteBookingPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-beloauto"
+        backHref="/dashboard/bookings/b-1"
+      />,
+    );
+
+    await user.upload(
+      screen.getByLabelText('Depois do serviço'),
+      new File(['fake-image-content'], 'photo.jpg', { type: 'image/jpeg' }),
+    );
+
+    expect(await screen.findByText('Enviada')).toBeInTheDocument();
+    expect(createAttachmentSignedUrl).toHaveBeenCalledWith(
+      'lavacar-beloauto',
+      'photo.jpg',
+      'image/jpeg',
+      'b-1',
+    );
+
+    await user.click(screen.getAllByRole('button', { name: 'Confirmar conclusão' })[0]);
+
+    expect(completeBookingMutateAsync).toHaveBeenCalledWith({
+      id: 'b-1',
+      body: {
+        lines: [
+          { lineId: 'l-1', actualPriceCharged: 60 },
+          { lineId: 'l-2', actualPriceCharged: 40 },
+        ],
+        afterServicePhotoUrls: ['tenants/tenant-1/bookings/b-1/after/photo.jpg'],
+      },
+    });
+  });
+
+  it('keeps the desktop action panel hidden on small screens', async () => {
+    const { container } = renderWithIntl(
+      <MarkCompleteBookingPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-beloauto"
+        backHref="/dashboard/bookings/b-1"
+      />,
+    );
+
+    const actionsLabels = screen.getAllByText('Ações');
+    expect(actionsLabels).toHaveLength(2);
+    expect(actionsLabels[0].closest('aside')).toHaveClass('hidden');
+
+    const mobileFooter = container.querySelector('.fixed.inset-x-0.bottom-0');
+    expect(mobileFooter).toHaveTextContent('Ações');
+    expect(mobileFooter?.querySelector('.rounded-lg.border')).not.toBeNull();
   });
 });

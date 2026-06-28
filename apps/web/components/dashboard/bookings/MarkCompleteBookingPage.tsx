@@ -8,15 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { useCompleteBooking } from '@/lib/hooks/useBookingMutations';
+import { AfterServicePhotoUpload } from './AfterServicePhotoUpload';
+import { BookingClientCard } from './BookingClientCard';
 import { useDashboardTopbarStatus } from '../topbar-status-context';
 
 interface MarkCompleteBookingPageProps {
   readonly booking: StaffBookingDetailResponse;
+  readonly tenantSlug: string;
   readonly backHref: string;
 }
 
 export function MarkCompleteBookingPage({
   booking,
+  tenantSlug,
   backHref,
 }: MarkCompleteBookingPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
@@ -25,12 +29,17 @@ export function MarkCompleteBookingPage({
   const completeBookingMutation = useCompleteBooking();
   const topbarStatus = useDashboardTopbarStatus();
   const setTopbarBookingStatus = topbarStatus?.setBookingStatus;
+  const scheduledAt = new Date(booking.scheduledAt);
+  const scheduledEnd = new Date(scheduledAt.getTime() + booking.totalDurationMins * 60_000);
   const [linePrices, setLinePrices] = useState<Record<string, string>>(
     () =>
       Object.fromEntries(
         booking.lines.map((line) => [line.lineId, String(line.priceAtBooking.amount)]),
       ) as Record<string, string>,
   );
+  const [afterServicePhotoUrls, setAfterServicePhotoUrls] = useState<readonly string[]>(() => [
+    ...booking.afterServicePhotoUrls,
+  ]);
   const [adminNotes, setAdminNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
@@ -73,6 +82,9 @@ export function MarkCompleteBookingPage({
         id: booking.bookingId,
         body: {
           lines,
+          ...(afterServicePhotoUrls.length > 0
+            ? { afterServicePhotoUrls: [...afterServicePhotoUrls] }
+            : {}),
           ...(adminNotes.trim() ? { adminNotes: adminNotes.trim() } : {}),
         },
       });
@@ -110,16 +122,10 @@ export function MarkCompleteBookingPage({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
-      <p className="text-[0.9375rem] text-gray-900/70">
-        {t('completeSheetDescription', {
-          name: booking.contactName,
-          date: formatDateLong(new Date(booking.scheduledAt)),
-          time: formatTime(new Date(booking.scheduledAt)),
-        })}
-      </p>
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-4">
+          <BookingClientCard booking={booking} />
+
           <section>
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
               {t('completeLinesSection')}
@@ -167,6 +173,42 @@ export function MarkCompleteBookingPage({
 
           <section>
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+              {t('summaryLabel')}
+            </p>
+            <Card className="border-blue-200 bg-blue-50/70">
+              <CardContent className="space-y-3 p-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
+                    {t('scheduleSection')}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {formatDateLong(scheduledAt)}
+                  </p>
+                  <p className="mt-0.5 text-sm text-gray-600">
+                    {formatTime(scheduledAt)} — {formatTime(scheduledEnd)} (
+                    {booking.totalDurationMins} min)
+                  </p>
+                </div>
+                <div className="space-y-2 border-t border-blue-100 pt-3 text-sm text-blue-900">
+                  <p>{t('summaryQuoted', { total: formatMoney(booking.totalPrice.amount) })}</p>
+                  <p>{t('summaryCharged', { total: formatMoney(totalCharged) })}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section>
+            <AfterServicePhotoUpload
+              slug={tenantSlug}
+              bookingId={booking.bookingId}
+              label={t('afterPhotosLabel')}
+              value={afterServicePhotoUrls}
+              onChange={(filePaths) => setAfterServicePhotoUrls(filePaths)}
+            />
+          </section>
+
+          <section>
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
               {t('notesSection')}
             </p>
             <label className="block">
@@ -185,44 +227,52 @@ export function MarkCompleteBookingPage({
           </section>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-6">
-          <Card className="border-blue-200 bg-blue-50/70">
-            <CardContent className="space-y-3 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-                {t('summaryLabel')}
-              </p>
-              <div className="space-y-2 text-sm text-blue-700/90">
-                <p>{t('summaryQuoted', { total: formatMoney(booking.totalPrice.amount) })}</p>
-                <p>{t('summaryCharged', { total: formatMoney(totalCharged) })}</p>
-              </div>
-            </CardContent>
-          </Card>
-
+        <aside className="hidden space-y-4 lg:block lg:sticky lg:top-6">
           {error && (
             <Card className="border-red-200 bg-red-50/80">
               <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
             </Card>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Button asChild className="border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50">
-              <Link href={backHref}>{commonT('cancel')}</Link>
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {t('submitComplete')}
-            </Button>
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+              {t('actionsSection')}
+            </p>
+            <Card>
+              <CardContent className="space-y-3 p-4">
+                <Button type="submit" disabled={isSubmitting} className="w-full">
+                  {t('submitComplete')}
+                </Button>
+                <Button
+                  asChild
+                  className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
+                >
+                  <Link href={backHref}>{commonT('cancel')}</Link>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </aside>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <div className="grid gap-3">
-          <Button asChild className="border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50">
-            <Link href={backHref}>{commonT('cancel')}</Link>
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {t('submitComplete')}
-          </Button>
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+            {t('actionsSection')}
+          </p>
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <Button type="submit" disabled={isSubmitting} className="w-full">
+                {t('submitComplete')}
+              </Button>
+              <Button
+                asChild
+                className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
+              >
+                <Link href={backHref}>{commonT('cancel')}</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </form>

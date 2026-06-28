@@ -255,7 +255,7 @@ export function RescheduleBookingPage({
           </section>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-6">
+        <aside className="hidden space-y-4 lg:block lg:sticky lg:top-6">
           <Card className="border-blue-200 bg-blue-50/70">
             <CardContent className="space-y-3 p-4">
               <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
@@ -284,25 +284,45 @@ export function RescheduleBookingPage({
             </Card>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Button asChild className="border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50">
-              <Link href={backHref}>{commonT('cancel')}</Link>
-            </Button>
-            <Button type="submit" disabled={pendingSubmit}>
-              {t('submitReschedule')}
-            </Button>
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+              {t('actionsSection')}
+            </p>
+            <Card>
+              <CardContent className="space-y-3 p-4">
+                <Button type="submit" disabled={pendingSubmit} className="w-full">
+                  {t('submitReschedule')}
+                </Button>
+                <Button
+                  asChild
+                  className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
+                >
+                  <Link href={backHref}>{commonT('cancel')}</Link>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </aside>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <div className="grid gap-3">
-          <Button asChild className="border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50">
-            <Link href={backHref}>{commonT('cancel')}</Link>
-          </Button>
-          <Button type="submit" disabled={pendingSubmit}>
-            {t('submitReschedule')}
-          </Button>
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+            {t('actionsSection')}
+          </p>
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <Button type="submit" disabled={pendingSubmit} className="w-full">
+                {t('submitReschedule')}
+              </Button>
+              <Button
+                asChild
+                className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
+              >
+                <Link href={backHref}>{commonT('cancel')}</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </form>

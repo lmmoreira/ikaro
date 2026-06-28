@@ -150,6 +150,29 @@ describe('Booking.approve()', () => {
     expect(events[0]).toBeInstanceOf(BookingApproved);
   });
 
+  it('uses the provided scheduledAt override when approving', () => {
+    const newScheduledAt = new Date('2026-07-01T14:30:00.000Z');
+    const booking = new BookingBuilder()
+      .withStatus(BookingStatus.INFO_REQUESTED)
+      .withScheduledAt(new Date('2026-07-01T13:00:00.000Z'))
+      .withTotalDurationMins(45)
+      .build();
+
+    booking.approve(STAFF_ID, CORRELATION_ID, newScheduledAt);
+
+    expect(booking.status).toBe(BookingStatus.APPROVED);
+    expect(booking.scheduledAt).toBe(newScheduledAt);
+    expect(booking.approvedBy).toBe(STAFF_ID);
+    expect(booking.approvedAt).toBeInstanceOf(Date);
+    const events = booking.domainEvents;
+    expect(events).toHaveLength(1);
+    expect(events[0]).toBeInstanceOf(BookingApproved);
+    expect((events[0] as BookingApproved).data.approvedSlot).toEqual({
+      startTime: '2026-07-01T14:30:00.000Z',
+      endTime: '2026-07-01T15:15:00.000Z',
+    });
+  });
+
   it('transitions INFO_REQUESTED → APPROVED', () => {
     const booking = new BookingBuilder().withStatus(BookingStatus.INFO_REQUESTED).build();
     booking.approve(STAFF_ID, CORRELATION_ID);

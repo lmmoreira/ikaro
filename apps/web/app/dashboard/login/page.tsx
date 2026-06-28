@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { buildGoogleOAuthUrl } from '@/lib/auth/google-oauth';
 
 export default async function StaffLoginPage({
   searchParams,
@@ -6,8 +7,6 @@ export default async function StaffLoginPage({
   readonly searchParams: Promise<{ tenantSlug?: string }>;
 }) {
   const t = await getTranslations('auth');
-  const bffUrl = process.env.NEXT_PUBLIC_BFF_URL;
-  if (!bffUrl) throw new Error('NEXT_PUBLIC_BFF_URL is required');
   const { tenantSlug } = await searchParams;
 
   if (!tenantSlug) {
@@ -26,7 +25,10 @@ export default async function StaffLoginPage({
     );
   }
 
-  const oauthUrl = `${bffUrl}/auth/google?type=staff&tenantSlug=${encodeURIComponent(tenantSlug)}`;
+  const oauthUrl = buildGoogleOAuthUrl({
+    tenantSlug,
+    type: 'staff',
+  });
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6 py-16 text-center">

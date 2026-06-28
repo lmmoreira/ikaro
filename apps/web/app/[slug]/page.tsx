@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import type { HotsiteModuleType } from '@ikaro/types';
 import { fetchManifest } from '@/lib/api/platform';
 import { fetchServices } from '@/lib/api/services';
 import { AboutModule } from '@/components/hotsite/AboutModule';
@@ -22,21 +21,13 @@ import {
   HeroModuleDataSchema,
   ServiceListModuleDataSchema,
   TestimonialsModuleDataSchema,
-  isValidModuleData,
 } from '@/lib/hotsite/module-schemas';
+import { buildHotsiteModuleRenderPlan, resolveHotsiteDisplayName } from '@/lib/hotsite/page-model';
 import { buildHotsiteMetadata, buildLocalBusinessJsonLd, toJsonLdScript } from '@/lib/hotsite/seo';
 
 // Next.js statically analyses segment config exports — imported variables are not resolved.
 // Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in lib/hotsite/revalidate.ts.
 export const revalidate = 300;
-
-// Module types that manage their own background (hero-bg / bgStyle) — they still count in the
-// alternation index so that the first content section after HERO is always the alt color.
-const NON_ALTERNATING_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
-  'HERO',
-  'BOOKING_CTA',
-  'FOOTER',
-]);
 
 interface HotsitePageProps {
   readonly params: Promise<{ slug: string }>;
@@ -66,31 +57,15 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
   const services = hasServiceList ? await fetchServices(slug) : [];
   const localBusinessJsonLd = buildLocalBusinessJsonLd({ manifest, slug });
 
-  const { branding, business, tenant } = manifest;
+  const { branding, business } = manifest;
   const alternateSectionBg = branding.alternateSectionBg ?? false;
   const dividerStyle = branding.dividerStyle ?? 'none';
   const tenantBrand = branding.brandName
     ? { name: branding.brandName, tagline: branding.brandTagline }
     : undefined;
   // Display name for footer and brand card: prefer branding.brandName, fall back to tenant name.
-  const displayName = branding.brandName ?? tenant.name;
-
-  const enabledModules = manifest.layout.filter(
-    (m) => m.enabled && isValidModuleData(m.type, m.data),
-  );
-
-  // Every module — including HERO, BOOKING_CTA, FOOTER — advances the alternation counter so
-  // that the first content section after HERO gets the alt (secondary) background.
-  let altIndex = 0;
-  const modulesWithVariant = enabledModules.map((m) => {
-    const isAlt = alternateSectionBg && altIndex % 2 === 1;
-    altIndex++;
-    const participates = !NON_ALTERNATING_TYPES.has(m.type);
-    return {
-      module: m,
-      bgVariant: participates && isAlt ? ('alt' as const) : ('default' as const),
-    };
-  });
+  const displayName = resolveHotsiteDisplayName(manifest);
+  const modulesWithVariant = buildHotsiteModuleRenderPlan(manifest.layout, alternateSectionBg);
 
   const dividerEl =
     dividerStyle === 'none' ? null : (
