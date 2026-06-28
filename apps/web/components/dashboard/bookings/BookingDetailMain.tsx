@@ -77,8 +77,8 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
             <div>
               <p className="font-semibold text-gray-900">{formatDateLong(scheduledAt)}</p>
               <p className="mt-0.5 text-sm text-gray-600">
-                {formatTime(scheduledAt)} — {formatTime(scheduledEnd)} ({booking.totalDurationMins}{' '}
-                min)
+                {formatTime(scheduledAt)} — {formatTime(scheduledEnd)} (
+                {formatDuration(booking.totalDurationMins)})
               </p>
             </div>
           </CardContent>

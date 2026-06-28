@@ -123,14 +123,16 @@ describe('BookingCard — action-needed variant', () => {
 
   it('renders the Aprovar button without a Ver detalhes action', () => {
     render(<BookingCard booking={makeBooking()} variant="action-needed" />);
-    expect(screen.getByRole('button', { name: 'Aprovar' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Ver detalhes' })).not.toBeInTheDocument();
+    const links = screen.getAllByRole('link');
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute('href', '/dashboard/bookings/b-001');
+    expect(links[1]).toHaveAttribute('href', '/dashboard/bookings/b-001');
+    expect(links[1]).toHaveTextContent('Aprovar');
   });
 
   it('wraps card in a link to /dashboard/bookings/:id', () => {
     render(<BookingCard booking={makeBooking()} variant="action-needed" />);
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/dashboard/bookings/b-001');
+    expect(screen.getAllByRole('link')[0]).toHaveAttribute('href', '/dashboard/bookings/b-001');
   });
 
   it('INFO_REQUESTED card has blue-600 left border class', () => {
@@ -151,13 +153,16 @@ describe('BookingCard — action-needed variant', () => {
 describe('BookingCard — today variant', () => {
   it('shows "Marcar concluído" button instead of Aprovar', () => {
     render(<BookingCard booking={makeBooking({ status: 'APPROVED' })} variant="today" />);
-    expect(screen.getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Marcar concluído' })).toHaveAttribute(
+      'href',
+      '/dashboard/bookings/b-001/complete',
+    );
+    expect(screen.queryByRole('link', { name: 'Aprovar' })).not.toBeInTheDocument();
   });
 
   it('wraps card in a link to booking detail', () => {
     render(<BookingCard booking={makeBooking({ status: 'APPROVED' })} variant="today" />);
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/dashboard/bookings/b-001');
+    expect(screen.getAllByRole('link')[0]).toHaveAttribute('href', '/dashboard/bookings/b-001');
   });
 });
 
@@ -169,7 +174,7 @@ describe('BookingCard — upcoming variant', () => {
 
   it('wraps the card in a link to booking detail', () => {
     render(<BookingCard booking={makeBooking({ status: 'APPROVED' })} variant="upcoming" />);
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/dashboard/bookings/b-001');
+    expect(screen.getAllByRole('link')[0]).toHaveAttribute('href', '/dashboard/bookings/b-001');
   });
 
   it('does NOT render any action buttons', () => {

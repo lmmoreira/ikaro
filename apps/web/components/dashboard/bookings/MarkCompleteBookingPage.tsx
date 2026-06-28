@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { useCompleteBooking } from '@/lib/hooks/useBookingMutations';
 import { AfterServicePhotoUpload } from './AfterServicePhotoUpload';
@@ -192,7 +193,7 @@ export function MarkCompleteBookingPage({
                   </p>
                   <p className="mt-0.5 text-sm text-gray-600">
                     {formatTime(scheduledAt)} — {formatTime(scheduledEnd)} (
-                    {booking.totalDurationMins} min)
+                    {formatDuration(booking.totalDurationMins)})
                   </p>
                 </div>
                 <div className="space-y-2 border-t border-blue-100 pt-3 text-sm text-blue-900">

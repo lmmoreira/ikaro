@@ -78,16 +78,18 @@ function BookingCardInner({
 
         {variant === 'today' && (
           <div className="relative z-20 mt-3 flex gap-2">
-            <Button type="button" size="sm">
-              {t('markCompleted')}
+            <Button asChild size="sm">
+              <Link href={`/dashboard/bookings/${booking.bookingId}/complete`}>
+                {t('markCompleted')}
+              </Link>
             </Button>
           </div>
         )}
 
         {variant === 'action-needed' && (
           <div className="relative z-20 mt-3 flex gap-2">
-            <Button type="button" size="sm">
-              {t('approve')}
+            <Button asChild size="sm">
+              <Link href={`/dashboard/bookings/${booking.bookingId}`}>{t('approve')}</Link>
             </Button>
           </div>
         )}
