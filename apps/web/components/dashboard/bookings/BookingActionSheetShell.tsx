@@ -1,17 +1,17 @@
 'use client';
 
-import type { FormEvent, ReactNode, RefObject } from 'react';
+import type { ReactNode, RefObject, SubmitEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface BookingActionSheetShellProps {
-  readonly dialogRef: RefObject<HTMLDivElement | null>;
+  readonly dialogRef: RefObject<HTMLDialogElement | null>;
   readonly titleId: string;
   readonly descriptionId: string;
   readonly title: ReactNode;
   readonly description: ReactNode;
   readonly onClose: () => void;
-  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+  readonly onSubmit: (event: SubmitEvent<HTMLFormElement>) => void | Promise<void>;
   readonly cancelLabel: string;
   readonly submitLabel: string;
   readonly submitDisabled?: boolean;
@@ -34,14 +34,14 @@ export function BookingActionSheetShell({
   children,
 }: BookingActionSheetShellProps): React.JSX.Element {
   return (
-    <div
+    <dialog
       ref={dialogRef}
-      role="dialog"
+      open
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       tabIndex={-1}
-      className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-30 m-0 flex items-end justify-center border-0 bg-black/40 p-0 sm:items-center sm:p-4"
     >
       <div aria-hidden="true" className="absolute inset-0" onClick={onClose} />
       <form
@@ -80,6 +80,6 @@ export function BookingActionSheetShell({
           </Button>
         </div>
       </form>
-    </div>
+    </dialog>
   );
 }

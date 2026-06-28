@@ -18,16 +18,10 @@ function DialogHarness({ onClose }: { readonly onClose: () => void }): React.JSX
         Open
       </button>
       {open && (
-        <div
-          ref={dialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="dialog-title"
-          tabIndex={-1}
-        >
+        <dialog ref={dialogRef} open aria-modal="true" aria-labelledby="dialog-title" tabIndex={-1}>
           <button type="button">First</button>
           <button type="button">Last</button>
-        </div>
+        </dialog>
       )}
     </div>
   );

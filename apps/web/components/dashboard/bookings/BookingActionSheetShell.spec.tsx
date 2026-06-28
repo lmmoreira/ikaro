@@ -7,7 +7,7 @@ import { BookingActionSheetShell } from './BookingActionSheetShell';
 
 function Harness(): React.JSX.Element {
   const [error, setError] = useState<string | null>('Problem');
-  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
 
   return (
     <BookingActionSheetShell
@@ -42,8 +42,8 @@ describe('BookingActionSheetShell', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     const dialogRef = {
-      current: document.createElement('div'),
-    } as RefObject<HTMLDivElement | null>;
+      current: document.createElement('dialog'),
+    } as RefObject<HTMLDialogElement | null>;
 
     render(
       <BookingActionSheetShell
