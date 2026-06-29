@@ -162,7 +162,7 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
     await useCase.execute(dto);
 
     expect(logRepo.all).toHaveLength(1);
-    expect(logRepo.all[0].recipientEmail).toBe('manager1@lavacar.com');
+    expect(logRepo.all[0].recipientEmail.address).toBe('manager1@lavacar.com');
     expect(logRepo.all[0].notificationType).toBe('admin-daily-schedule-reminder');
   });
 

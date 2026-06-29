@@ -19,7 +19,7 @@ describe('NotificationLog', () => {
       expect(log.sentAt).toBeUndefined();
       expect(log.id).toBeDefined();
       expect(log.tenantId).toBe(BASE_PROPS.tenantId);
-      expect(log.recipientEmail).toBe(BASE_PROPS.recipientEmail);
+      expect(log.recipientEmail.address).toBe(BASE_PROPS.recipientEmail);
     });
   });
 

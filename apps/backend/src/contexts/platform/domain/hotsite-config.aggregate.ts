@@ -3,6 +3,9 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { HexColor } from '../../../shared/value-objects/hex-color.vo';
 import { PlatformDomainError } from './errors/platform-domain.error';
 
+/** Validated #RRGGBB hex string. Stored as a primitive in JSONB — HexColor.isValid() enforced in validateBranding(). */
+type HexColorString = string;
+
 export type HotsiteModuleType =
   | 'HERO'
   | 'SERVICE_LIST'
@@ -128,10 +131,10 @@ export interface HotsiteModule {
 }
 
 export interface HotsiteBranding {
-  primaryColor: string;
-  secondaryColor: string;
-  backgroundColor: string;
-  textColor: string;
+  primaryColor: HexColorString;
+  secondaryColor: HexColorString;
+  backgroundColor: HexColorString;
+  textColor: HexColorString;
   headingFontFamily: string;
   bodyFontFamily: string;
   logoUrl: string;
@@ -140,9 +143,9 @@ export interface HotsiteBranding {
   spacing: 'compact' | 'comfortable' | 'spacious';
   shadowStyle: 'none' | 'subtle' | 'strong';
   /** Optional override of the button fill (filled) / hover-fill (outline, ghost) color. */
-  buttonBackgroundColor?: string;
+  buttonBackgroundColor?: HexColorString;
   /** Optional override of the button text (and outline border) color. */
-  buttonTextColor?: string;
+  buttonTextColor?: HexColorString;
   // Visual rhythm
   heroBgStyle?: 'primary' | 'background';
   alternateSectionBg?: boolean;
