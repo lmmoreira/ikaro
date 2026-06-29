@@ -10,6 +10,7 @@ import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { useCompleteBooking } from '@/lib/hooks/useBookingMutations';
 import { AfterServicePhotoUpload } from './AfterServicePhotoUpload';
+import { BookingOutcomeLayout } from './BookingDetailMain';
 import { BookingClientCard } from './BookingClientCard';
 import { useDashboardTopbarStatus } from '../topbar-status-context';
 
@@ -109,129 +110,81 @@ export function MarkCompleteBookingPage({
 
   if (completed) {
     return (
-      <div className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="space-y-4">
-            <Card className="border-green-200 bg-green-50/80">
-              <CardContent className="flex items-start gap-3 p-4">
-                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-600">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+      <BookingOutcomeLayout
+        booking={booking}
+        tone="success"
+        bannerTitle={t('completedTitle')}
+        bannerBody={
+          <>
+            <p>{t('completedBody')}</p>
+            <p className="mt-2">
+              {t('summaryQuoted', { total: formatMoney(booking.totalPrice.amount) })}
+            </p>
+            <p className="mt-2">{t('summaryCharged', { total: formatMoney(totalCharged) })}</p>
+            <div className="mt-3 space-y-2 border-t border-green-100 pt-3">
+              {booking.lines.map((line) => (
+                <div
+                  key={line.lineId}
+                  className="flex items-center justify-between gap-3 text-sm text-green-700/90"
+                >
+                  <span className="min-w-0 truncate font-medium">{line.serviceName}</span>
+                  <span className="text-right">
+                    {t('quotedPriceLabel', {
+                      price: formatMoney(line.priceAtBooking.amount),
+                    })}{' '}
+                    <span className="opacity-70">→</span> {t('chargedPriceLabel')}{' '}
+                    {formatMoney(Number(linePrices[line.lineId]) || 0)}
+                  </span>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold uppercase tracking-[0.07em] text-green-700">
-                    {t('completedTitle')}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-green-700/90">{t('completedBody')}</p>
-                  <p className="mt-2 text-sm leading-6 text-green-700/90">
-                    {t('summaryQuoted', { total: formatMoney(booking.totalPrice.amount) })}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-green-700/90">
-                    {t('summaryCharged', { total: formatMoney(totalCharged) })}
-                  </p>
-
-                  <div className="mt-3 space-y-2 border-t border-green-100 pt-3">
-                    {booking.lines.map((line) => (
-                      <div
-                        key={line.lineId}
-                        className="flex items-center justify-between gap-3 text-sm text-green-700/90"
-                      >
-                        <span className="min-w-0 truncate font-medium">{line.serviceName}</span>
-                        <span className="text-right">
-                          {t('quotedPriceLabel', {
-                            price: formatMoney(line.priceAtBooking.amount),
-                          })}{' '}
-                          <span className="opacity-70">→</span> {t('chargedPriceLabel')}{' '}
-                          {formatMoney(Number(linePrices[line.lineId]) || 0)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 rounded-lg bg-green-50/70 px-3 py-2 text-sm text-green-800">
-                    {booking.customerId !== null && (
-                      <p className="font-semibold">
-                        {t('completedPointsEarned', { count: totalEarnedPoints })}
-                      </p>
-                    )}
-                    <p className="mt-1">{t('completedEmailSummary')}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <BookingClientCard booking={booking} />
-
-            <section>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                {t('scheduleSection')}
-              </p>
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {formatDateLong(scheduledAt)}
-                  </p>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {formatTime(scheduledAt)} – {formatTime(scheduledEnd)} (
-                    {formatDuration(booking.totalDurationMins)})
-                  </p>
-                </CardContent>
-              </Card>
-            </section>
-
-            {booking.afterServicePhotoUrls.length > 0 && (
-              <section>
-                <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                  {t('afterPhotosLabel')}
+              ))}
+            </div>
+            <div className="mt-3 rounded-lg bg-green-50/70 px-3 py-2 text-sm text-green-800">
+              {booking.customerId !== null && (
+                <p className="font-semibold">
+                  {t('completedPointsEarned', { count: totalEarnedPoints })}
                 </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {booking.afterServicePhotoUrls.map((url, index) => (
-                    <img
-                      key={`${url}-${index}`}
-                      src={url}
-                      alt={t('afterPhotoAlt', { index: index + 1 })}
-                      loading="lazy"
-                      className="aspect-square w-full rounded-lg border border-gray-200 object-cover"
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-
-          <aside className="hidden space-y-4 lg:block lg:sticky lg:top-6">
-            <Card>
-              <CardContent className="space-y-3 p-4">
-                <p className="text-sm text-gray-600">{t('completedAsideBody')}</p>
-                <Button asChild className="w-full">
-                  <Link href={backHref}>{t('backToAgenda')}</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </aside>
-        </div>
-
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
+              )}
+              <p className="mt-1">{t('completedEmailSummary')}</p>
+            </div>
+          </>
+        }
+        asideBody={t('completedAsideBody')}
+        primaryAction={{ label: t('backToAgenda'), href: backHref }}
+      >
+        <section>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+            {t('scheduleSection')}
+          </p>
           <Card>
             <CardContent className="p-4">
-              <Button asChild className="w-full">
-                <Link href={backHref}>{t('backToAgenda')}</Link>
-              </Button>
+              <p className="text-sm font-semibold text-gray-900">{formatDateLong(scheduledAt)}</p>
+              <p className="mt-1 text-sm text-gray-600">
+                {formatTime(scheduledAt)} – {formatTime(scheduledEnd)} (
+                {formatDuration(booking.totalDurationMins)})
+              </p>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </section>
+
+        {booking.afterServicePhotoUrls.length > 0 && (
+          <section>
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+              {t('afterPhotosLabel')}
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {booking.afterServicePhotoUrls.map((url, index) => (
+                <img
+                  key={`${url}-${index}`}
+                  src={url}
+                  alt={t('afterPhotoAlt', { index: index + 1 })}
+                  loading="lazy"
+                  className="aspect-square w-full rounded-lg border border-gray-200 object-cover"
+                />
+              ))}
+            </div>
+          </section>
+        )}
+      </BookingOutcomeLayout>
     );
   }
 

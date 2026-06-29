@@ -54,7 +54,14 @@ vi.mock('next/link', () => ({
     children: React.ReactNode;
     className?: string;
   }) => (
-    <a href={href} className={className}>
+    <a
+      href={href}
+      className={className}
+      style={{ pointerEvents: 'none' }}
+      onClick={(event) => {
+        event.preventDefault();
+      }}
+    >
       {children}
     </a>
   ),
@@ -95,56 +102,59 @@ function makeBooking(overrides?: Partial<StaffBookingCardResponse>): StaffBookin
 
 describe('BookingCard — action-needed variant', () => {
   it('renders contact name', () => {
-    render(<BookingCard booking={makeBooking()} variant="action-needed" />);
+    render(<BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />);
     expect(screen.getByText('Maria Silva')).toBeInTheDocument();
   });
 
   it('renders service names joined by comma', () => {
-    render(<BookingCard booking={makeBooking()} variant="action-needed" />);
+    render(<BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />);
     expect(screen.getByText('Lavagem, Enceramento')).toBeInTheDocument();
   });
 
   it('renders formatted price via formatMoney', () => {
-    render(<BookingCard booking={makeBooking()} variant="action-needed" />);
+    render(<BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />);
     expect(screen.getByText(/R\$ 150\.00/)).toBeInTheDocument();
   });
 
   it('renders duration in human-readable format', () => {
-    render(<BookingCard booking={makeBooking()} variant="action-needed" />);
+    render(<BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />);
     expect(screen.getByText(/1h 30min/)).toBeInTheDocument();
   });
 
   it('renders PENDING status badge with yellow classes', () => {
-    render(<BookingCard booking={makeBooking()} variant="action-needed" />);
+    render(<BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />);
     const badge = screen.getByTestId('badge');
     expect(badge).toHaveTextContent('Pendente');
     expect(badge.className).toContain('bg-yellow-100');
   });
 
   it('renders the Aprovar button without a Ver detalhes action', () => {
-    render(<BookingCard booking={makeBooking()} variant="action-needed" />);
+    render(<BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />);
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(2);
+    expect(links).toHaveLength(1);
     expect(links[0]).toHaveAttribute('href', '/dashboard/bookings/b-001');
-    expect(links[1]).toHaveAttribute('href', '/dashboard/bookings/b-001');
-    expect(links[1]).toHaveTextContent('Aprovar');
+    expect(screen.getByRole('button', { name: 'Aprovar' })).toBeInTheDocument();
   });
 
   it('wraps card in a link to /dashboard/bookings/:id', () => {
-    render(<BookingCard booking={makeBooking()} variant="action-needed" />);
+    render(<BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />);
     expect(screen.getAllByRole('link')[0]).toHaveAttribute('href', '/dashboard/bookings/b-001');
   });
 
   it('INFO_REQUESTED card has blue-600 left border class', () => {
     render(
-      <BookingCard booking={makeBooking({ status: 'INFO_REQUESTED' })} variant="action-needed" />,
+      <BookingCard
+        booking={makeBooking({ status: 'INFO_REQUESTED' })}
+        variant="action-needed"
+        onApprove={() => {}}
+      />,
     );
     const card = screen.getByTestId('card');
     expect(card.className).toContain('border-l-blue-600');
   });
 
   it('PENDING card does NOT have the blue left border', () => {
-    render(<BookingCard booking={makeBooking()} variant="action-needed" />);
+    render(<BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />);
     const card = screen.getByTestId('card');
     expect(card.className).not.toContain('border-l-blue-600');
   });
@@ -185,7 +195,7 @@ describe('BookingCard — upcoming variant', () => {
 
 describe('BookingCard — contact name truncation', () => {
   it('contactName element has truncate class', () => {
-    render(<BookingCard booking={makeBooking()} variant="action-needed" />);
+    render(<BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />);
     const name = screen.getByText('Maria Silva');
     expect(name.className).toContain('truncate');
   });

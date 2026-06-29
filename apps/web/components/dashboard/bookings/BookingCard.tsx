@@ -13,21 +13,37 @@ import { BOOKING_STATUS_CLASSES, buildBookingStatusLabels } from './booking-stat
 
 export type BookingCardVariant = 'action-needed' | 'today' | 'upcoming';
 
-export interface BookingCardProps {
+interface BookingCardBaseProps {
   readonly booking: StaffBookingCardResponse;
-  readonly variant: BookingCardVariant;
   readonly emphasized?: boolean;
 }
 
-function BookingCardInner({
-  booking,
-  variant,
-  emphasized = false,
-}: BookingCardProps): React.JSX.Element {
+export interface ActionNeededBookingCardProps extends BookingCardBaseProps {
+  readonly variant: 'action-needed';
+  readonly onApprove: () => void | Promise<void>;
+  readonly isApproving?: boolean;
+}
+
+export interface TodayBookingCardProps extends BookingCardBaseProps {
+  readonly variant: 'today';
+}
+
+export interface UpcomingBookingCardProps extends BookingCardBaseProps {
+  readonly variant: 'upcoming';
+}
+
+export type BookingCardProps =
+  | ActionNeededBookingCardProps
+  | TodayBookingCardProps
+  | UpcomingBookingCardProps;
+
+function BookingCardInner(props: BookingCardProps): React.JSX.Element {
+  const { booking, variant, emphasized = false } = props;
   const t = useTranslations('dashboard.bookingCard');
   const { formatMoney, formatTime, formatDateLong, timezone } = useFormatting();
   const scheduledAt = new Date(booking.scheduledAt);
   const statusLabel = buildBookingStatusLabels(t);
+  const approvalPending = variant === 'action-needed' ? (props.isApproving ?? false) : false;
 
   const timeLabel = (() => {
     if (variant === 'today') return formatTime(scheduledAt);
@@ -88,8 +104,8 @@ function BookingCardInner({
 
         {variant === 'action-needed' && (
           <div className="relative z-20 mt-3 flex gap-2">
-            <Button asChild size="sm">
-              <Link href={`/dashboard/bookings/${booking.bookingId}`}>{t('approve')}</Link>
+            <Button type="button" size="sm" disabled={approvalPending} onClick={props.onApprove}>
+              {t('approve')}
             </Button>
           </div>
         )}

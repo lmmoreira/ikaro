@@ -8,6 +8,7 @@ import { BookingQueuePage } from './BookingQueuePage';
 const mockUseActionNeeded = vi.fn();
 const mockUseToday = vi.fn();
 const mockUseUpcoming = vi.fn();
+const approveBookingMutateAsync = vi.fn();
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => {
@@ -43,6 +44,13 @@ vi.mock('@/lib/hooks/useBookings', () => ({
   useUpcomingBookings: (...args: unknown[]) => mockUseUpcoming(...args),
 }));
 
+vi.mock('@/lib/hooks/useBookingMutations', () => ({
+  useApproveBooking: () => ({
+    mutateAsync: approveBookingMutateAsync,
+    isPending: false,
+  }),
+}));
+
 vi.mock('@/components/dashboard/WeekNav', () => ({
   WeekNav: ({
     windowStart,
@@ -76,10 +84,14 @@ vi.mock('./BookingCard', () => ({
     booking,
     variant,
     emphasized,
+    onApprove: _onApprove,
+    isApproving: _isApproving,
   }: {
     booking: { bookingId: string; contactName: string };
     variant: string;
     emphasized?: boolean;
+    onApprove?: () => void | Promise<void>;
+    isApproving?: boolean;
   }) => (
     <div
       data-testid="booking-card"

@@ -9,6 +9,7 @@ import {
   useTodayBookings,
   useUpcomingBookings,
 } from '@/lib/hooks/useBookings';
+import { useApproveBooking } from '@/lib/hooks/useBookingMutations';
 import { addDays, inWindow, isSameDay, toDateKey } from '@/lib/utils/date-utils';
 import { BookingCard } from './BookingCard';
 
@@ -31,6 +32,7 @@ export function BookingQueuePage({
 }: BookingQueuePageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingQueue');
   const windowDays = welcomeStaffScreenDays;
+  const approveBookingMutation = useApproveBooking();
 
   const todayDate = useMemo(() => new Date(today + 'T00:00:00'), [today]);
 
@@ -128,7 +130,17 @@ export function BookingQueuePage({
           </div>
           {actionNeeded?.items.length ? (
             actionNeeded.items.map((b) => (
-              <BookingCard key={b.bookingId} booking={b} variant="action-needed" />
+              <BookingCard
+                key={b.bookingId}
+                booking={b}
+                variant="action-needed"
+                onApprove={() =>
+                  void approveBookingMutation.mutateAsync({ id: b.bookingId }).catch(() => {
+                    return undefined;
+                  })
+                }
+                isApproving={approveBookingMutation.isPending}
+              />
             ))
           ) : (
             <p className="text-sm text-gray-400">{t('emptyActionNeeded')}</p>

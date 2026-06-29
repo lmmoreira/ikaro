@@ -2222,7 +2222,16 @@ completeBooking(body: CompleteBookingRequest): Promise<CompleteBookingResponse>
 **Remaining work:**
 - [ ] After-service photo upload is still missing and remains a follow-up for the completion flow
 
-**Playwright coverage to implement in M16:**
+**Validated Playwright coverage (`apps/web/e2e/staff-booking-lifecycle.spec.ts`):**
+- Queue card body still opens booking detail
+- Queue quick approve keeps the staff on the queue and removes the pending action
+- Reject happy path shows the inline rejection summary and the right-side action panel
+- Request info happy path shows the inline info-request summary and the right-side action panel
+- Complete success shows the centered summary and the right-side action panel
+- Reschedule success shows a full De/Para summary and the action panel on the right
+- Cancel success keeps the message centered and the back action in the right panel
+
+**Playwright coverage implemented for M13-S20:**
 
 | Scenario | Setup | Assertion |
 |---|---|---|
@@ -2240,6 +2249,8 @@ completeBooking(body: CompleteBookingRequest): Promise<CompleteBookingResponse>
 | Complete happy path | Open the complete route from an approved booking | Editing one or more line prices then confirming shows the completion success state |
 | Complete unchanged prices | Leave all line prices untouched | The request still sends every line with the original value and completes successfully |
 | Complete validation error | Stub a backend validation failure | The error message is shown and the form remains editable |
+| Queue quick approve happy path | Open `/dashboard/bookings` and click `Aprovar` on an action-needed card | The mutation runs directly from the queue, the card no longer opens detail for that action, and the booking disappears from the action-needed section after refresh/invalidation |
+| Queue card still opens detail | Open `/dashboard/bookings` and click the card body, not the button | The card continues to navigate to `/dashboard/bookings/[id]` so the shortcut does not replace the existing detail path |
 | Queue refresh regression | Approve/reschedule/complete a booking, then navigate back to `/dashboard/bookings` | The queue reflects the new status without requiring an F5 refresh |
 | Localization smoke | Open each route in pt-BR | The page copy and action labels remain localized; no hardcoded dashboard strings appear |
 

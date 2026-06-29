@@ -5,6 +5,11 @@ import type { Page } from '@playwright/test';
 // by the Playwright test-runner process itself (a separate CI step in pr-e2e.yml), so this
 // needs its own explicit default rather than reading process.env.NEXT_PUBLIC_BFF_URL directly.
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+
+if (!INTERNAL_API_KEY) {
+  throw new Error('PLAYWRIGHT/INTERNAL_API_KEY is required for dev-login E2E helpers');
+}
 
 interface DevLoginResponse {
   readonly accessToken: string;
@@ -27,6 +32,7 @@ export async function loginAsCustomer(
   tenantSlug: string,
 ): Promise<DevLoginResponse['user']> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
     data: { email, tenantSlug, type: 'customer' },
   });
   if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
@@ -49,7 +55,8 @@ export async function loginAsCustomer(
 // Logs a Playwright page in as a staff member via the BFF's dev-only /auth/dev-login endpoint.
 // The email must correspond to an existing seed staff record at the given tenant — dev-login
 // looks up by email (not find-or-create) and links the dev::email OAuth ID on first call.
-// Seed staff emails: admin@lavacar.com.br (lavacar-beloauto), admin@ikaro.com (ikaro),
+// Seed staff emails: lm.moreira@gmail.com (lavacar-beloauto manager),
+// funcionario@lavacar.com.br (lavacar-beloauto staff), admin@ikaro.com (ikaro),
 // admin@autospa.com.br (autospa-premium).
 export async function loginAsStaff(
   page: Page,
@@ -57,6 +64,7 @@ export async function loginAsStaff(
   tenantSlug: string,
 ): Promise<DevLoginResponse['user']> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
     data: { email, tenantSlug, type: 'staff' },
   });
   if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);

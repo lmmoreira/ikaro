@@ -19,6 +19,7 @@ import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { useRescheduleBooking } from '@/lib/hooks/useBookingMutations';
 import { useDashboardTopbarStatus } from '../topbar-status-context';
+import { BookingOutcomeLayout } from './BookingDetailMain';
 import { SlotConflictAlert } from './SlotConflictAlert';
 import { BookingClientCard } from './BookingClientCard';
 
@@ -128,103 +129,46 @@ export function RescheduleBookingPage({
     const newEnd = new Date(newStart.getTime() + booking.totalDurationMins * 60_000);
 
     return (
-      <div className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="space-y-4">
-            <Card className="border-green-200 bg-green-50/80">
-              <CardContent className="flex items-start gap-3 p-4">
-                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-600">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold uppercase tracking-[0.07em] text-green-700">
-                    {t('rescheduledTitle')}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-green-700/90">
-                    {t('rescheduledBodyEmail', { name: booking.contactName })}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-green-700/90">
-                    {t('rescheduledBodyStatus')}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <BookingClientCard booking={booking} />
-
-            <section>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                {t('rescheduledSummaryLabel')}
-              </p>
-              <Card>
-                <CardContent className="space-y-3 p-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                      {t('rescheduledFromLabel')}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
-                      {formatDateLong(oldStart)} · {formatTime(oldStart)}–{formatTime(oldEnd)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                      {t('rescheduledToLabel')}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
-                      {formatDateLong(newStart)} · {formatTime(newStart)}–{formatTime(newEnd)}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-          </div>
-
-          <aside className="hidden space-y-4 lg:block lg:sticky lg:top-6">
-            <Card>
-              <CardContent className="space-y-3 p-4">
-                <p className="text-sm text-gray-600">{t('rescheduledAsideBody')}</p>
-                <Button asChild className="w-full">
-                  <Link href={backHref}>{t('viewUpdatedBooking')}</Link>
-                </Button>
-                <Button
-                  asChild
-                  className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-                >
-                  <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </aside>
-        </div>
-
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
+      <BookingOutcomeLayout
+        booking={booking}
+        tone="success"
+        bannerTitle={t('rescheduledTitle')}
+        bannerBody={
+          <>
+            <p>{t('rescheduledBodyEmail', { name: booking.contactName })}</p>
+            <p className="mt-2">{t('rescheduledBodyStatus')}</p>
+          </>
+        }
+        asideBody={t('rescheduledAsideBody')}
+        primaryAction={{ label: t('viewUpdatedBooking'), href: backHref }}
+        secondaryAction={{ label: t('backToAgenda'), href: '/dashboard/bookings' }}
+      >
+        <section>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+            {t('rescheduledSummaryLabel')}
+          </p>
           <Card>
             <CardContent className="space-y-3 p-4">
-              <Button asChild className="w-full">
-                <Link href={backHref}>{t('viewUpdatedBooking')}</Link>
-              </Button>
-              <Button
-                asChild
-                className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-              >
-                <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
-              </Button>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+                  {t('rescheduledFromLabel')}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {formatDateLong(oldStart)} · {formatTime(oldStart)}–{formatTime(oldEnd)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+                  {t('rescheduledToLabel')}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {formatDateLong(newStart)} · {formatTime(newStart)}–{formatTime(newEnd)}
+                </p>
+              </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </section>
+      </BookingOutcomeLayout>
     );
   }
 

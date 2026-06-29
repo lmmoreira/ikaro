@@ -1,9 +1,11 @@
 # Dev Notes — STAFF: Agenda (Booking Queue Management + Lifecycle)
 
-> **Status:** All files in this path are new — nothing exists yet. M125-S01 through M125-S05 scope UC-003/004/005 (triage) only. **UC-008 (cancel/reschedule) and UC-009 (mark complete) are not yet assigned to any story** — this doc documents the prototype + handoff for both, to be scoped into a follow-up story before implementation.
+> **Status:** All files in this path are new — nothing exists yet. M125-S01 through M125-S05 scope UC-003/004/005 (triage) only. **UC-008 (cancel/reschedule) and UC-009 (mark complete) were later assigned to M13-S19/M13-S20** — this doc preserves the prototype + handoff notes for both lifecycle flows.
 >
 > **Prototype:** `plan/journey/staff/prototypes/agenda/`  
 > **Production target:** `apps/web/` — Next.js 16 + React 19 + shadcn/ui + Tailwind
+>
+> Validation note (2026-06-29): the shipped lifecycle coverage now exists in `apps/web/e2e/staff-booking-lifecycle.spec.ts` and covers queue detail, quick approve, reject, request info, complete success, reschedule success, and cancel success.
 
 ---
 
