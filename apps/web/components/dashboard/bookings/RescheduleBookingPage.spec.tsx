@@ -101,7 +101,7 @@ describe('RescheduleBookingPage', () => {
     const user = userEvent.setup();
     rescheduleBookingMutateAsync.mockResolvedValue(undefined);
 
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <RescheduleBookingPage
         booking={makeBooking()}
         tenantSlug="lavacar-bh"
@@ -110,8 +110,19 @@ describe('RescheduleBookingPage', () => {
     );
 
     expect(setBookingStatus).toHaveBeenCalledWith('APPROVED');
+    expect(screen.getAllByText('Cliente')).toHaveLength(2);
     await user.click(screen.getByRole('button', { name: 'choose date' }));
     await user.click(screen.getByRole('button', { name: 'choose slot' }));
+
+    const desktopAside = container.querySelector('aside.hidden');
+    expect(desktopAside).not.toBeNull();
+    const desktopAsideText = desktopAside?.textContent ?? '';
+    expect(desktopAsideText.indexOf('Ações')).toBeLessThan(desktopAsideText.indexOf('Resumo'));
+    expect(desktopAsideText).toContain('De');
+    expect(desktopAsideText).toContain('Para');
+    expect(desktopAsideText).toContain('16 de junho');
+    expect(desktopAsideText).toContain('07:00–07:30');
+
     await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
 
     expect(rescheduleBookingMutateAsync).toHaveBeenCalledWith({
@@ -119,6 +130,8 @@ describe('RescheduleBookingPage', () => {
       body: { scheduledAt: '2026-06-17T10:00:00.000Z' },
     });
     expect(await screen.findByText('Agendamento reagendado')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Ver detalhe atualizado' })).not.toHaveLength(0);
+    expect(screen.getAllByRole('link', { name: 'Voltar à agenda' })).not.toHaveLength(0);
     expect(setBookingStatus).toHaveBeenCalledWith('APPROVED');
   });
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderWithIntl } from '@/test-utils';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
@@ -225,5 +225,25 @@ describe('BookingDetailPage', () => {
     expect(screen.getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reagendar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
+  });
+
+  it('shows the cancel success state with the back-to-agenda action', async () => {
+    const user = userEvent.setup();
+    cancelBookingMutateAsync.mockResolvedValue({
+      bookingId: 'b-1',
+      status: 'CANCELLED',
+      cancelledAt: '2026-06-16T10:05:00.000Z',
+    });
+
+    renderWithIntl(
+      <BookingDetailPage booking={makeBooking({ status: 'APPROVED' })} tenantSlug="lavacar-bh" />,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: 'Cancelar agendamento' })[0]);
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar agendamento' }));
+
+    expect(await screen.findByText('Agendamento cancelado')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
   });
 });

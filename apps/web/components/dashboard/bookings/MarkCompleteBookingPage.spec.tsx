@@ -94,7 +94,7 @@ describe('MarkCompleteBookingPage', () => {
       <MarkCompleteBookingPage
         booking={makeBooking()}
         tenantSlug="lavacar-beloauto"
-        backHref="/dashboard/bookings/b-1"
+        backHref="/dashboard/bookings"
       />,
     );
 
@@ -112,6 +112,11 @@ describe('MarkCompleteBookingPage', () => {
       },
     });
     expect(await screen.findByText('Serviço concluído')).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole('link', { name: 'Voltar à agenda' })
+        .every((link) => link.getAttribute('href') === '/dashboard/bookings'),
+    ).toBe(true);
     expect(setBookingStatus).toHaveBeenCalledWith('COMPLETED');
   });
 
@@ -121,7 +126,7 @@ describe('MarkCompleteBookingPage', () => {
       <MarkCompleteBookingPage
         booking={makeBooking()}
         tenantSlug="lavacar-beloauto"
-        backHref="/dashboard/bookings/b-1"
+        backHref="/dashboard/bookings"
       />,
     );
 
@@ -148,7 +153,7 @@ describe('MarkCompleteBookingPage', () => {
       <MarkCompleteBookingPage
         booking={makeBooking()}
         tenantSlug="lavacar-beloauto"
-        backHref="/dashboard/bookings/b-1"
+        backHref="/dashboard/bookings"
       />,
     );
 

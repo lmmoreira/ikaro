@@ -56,6 +56,55 @@ interface ProblemDetailsResponse {
   readonly violations?: readonly ProblemDetailsViolation[];
 }
 
+function BannerIcon({
+  variant,
+}: {
+  readonly variant: 'success' | 'danger' | 'info';
+}): React.JSX.Element {
+  const backgroundClass =
+    variant === 'success' ? 'bg-green-600' : variant === 'danger' ? 'bg-red-600' : 'bg-blue-600';
+  const strokeColor = 'white';
+  const icon =
+    variant === 'danger' ? (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    ) : (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    );
+
+  return (
+    <div
+      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${backgroundClass}`}
+    >
+      {icon}
+    </div>
+  );
+}
+
 function buildApprovedRangeLabel(
   scheduledAt: string,
   totalDurationMins: number,
@@ -196,16 +245,19 @@ export function BookingDetailPage({
     if (actionState === 'approved') {
       return (
         <Card className="border-green-200 bg-green-50/80">
-          <CardContent className="space-y-3 p-4">
-            <p className="text-sm font-bold uppercase tracking-[0.07em] text-green-700">
-              {t('approvedTitle')}
-            </p>
-            <p className="text-sm leading-6 text-green-700/90">
-              {t('approvedBodyName', { name: booking.contactName })}
-            </p>
-            <p className="text-sm leading-6 text-green-700/90">
-              {t('approvedBodyRange', { range: approvedRangeLabel })}
-            </p>
+          <CardContent className="flex items-start gap-3 p-4">
+            <BannerIcon variant="success" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold uppercase tracking-[0.07em] text-green-700">
+                {t('approvedTitle')}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-green-700/90">
+                {t('approvedBodyName', { name: booking.contactName })}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-green-700/90">
+                {t('approvedBodyRange', { range: approvedRangeLabel })}
+              </p>
+            </div>
           </CardContent>
         </Card>
       );
@@ -214,14 +266,19 @@ export function BookingDetailPage({
     if (actionState === 'rejected') {
       return (
         <Card className="border-red-200 bg-red-50/80">
-          <CardContent className="space-y-3 p-4">
-            <p className="text-sm font-bold uppercase tracking-[0.07em] text-red-700">
-              {t('rejectedTitle')}
-            </p>
-            <p className="text-sm leading-6 text-red-700/90">
-              {t('rejectedBodyReason', { reason: booking.rejectionReason ?? '' })}
-            </p>
-            <p className="text-sm leading-6 text-red-700/90">{t('rejectedBodyNotification')}</p>
+          <CardContent className="flex items-start gap-3 p-4">
+            <BannerIcon variant="danger" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold uppercase tracking-[0.07em] text-red-700">
+                {t('rejectedTitle')}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-red-700/90">
+                {t('rejectedBodyReason', { reason: booking.rejectionReason ?? '' })}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-red-700/90">
+                {t('rejectedBodyNotification')}
+              </p>
+            </div>
           </CardContent>
         </Card>
       );
@@ -230,16 +287,19 @@ export function BookingDetailPage({
     if (actionState === 'info-requested') {
       return (
         <Card className="border-blue-200 bg-blue-50/80">
-          <CardContent className="space-y-3 p-4">
-            <p className="text-sm font-bold uppercase tracking-[0.07em] text-blue-700">
-              {t('infoRequestedTitle')}
-            </p>
-            <p className="text-sm leading-6 text-blue-700/90">
-              {t('infoRequestedBodyMessage', { message: booking.infoRequestMessage ?? '' })}
-            </p>
-            <p className="text-sm leading-6 text-blue-700/90">
-              {t('infoRequestedBodyStatus', { status: t('statusPending') })}
-            </p>
+          <CardContent className="flex items-start gap-3 p-4">
+            <BannerIcon variant="info" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold uppercase tracking-[0.07em] text-blue-700">
+                {t('infoRequestedTitle')}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-blue-700/90">
+                {t('infoRequestedBodyMessage', { message: booking.infoRequestMessage ?? '' })}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-blue-700/90">
+                {t('infoRequestedBodyStatus', { status: t('statusPending') })}
+              </p>
+            </div>
           </CardContent>
         </Card>
       );
@@ -248,11 +308,19 @@ export function BookingDetailPage({
     if (actionState === 'cancelled') {
       return (
         <Card className="border-red-200 bg-red-50/80">
-          <CardContent className="space-y-3 p-4">
-            <p className="text-sm font-bold uppercase tracking-[0.07em] text-red-700">
-              {t('cancelledTitle')}
-            </p>
-            <p className="text-sm leading-6 text-red-700/90">{t('cancelledBody')}</p>
+          <CardContent className="flex items-start gap-3 p-4">
+            <BannerIcon variant="danger" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold uppercase tracking-[0.07em] text-red-700">
+                {t('cancelledTitle')}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-red-700/90">
+                {t('cancelledBodyEmail', { name: booking.contactName })}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-red-700/90">
+                {t('cancelledBodyRange', { range: approvedRangeLabel })}
+              </p>
+            </div>
           </CardContent>
         </Card>
       );
@@ -264,37 +332,35 @@ export function BookingDetailPage({
   function renderAsideCard(): React.JSX.Element | null {
     if (actionState === 'approved') {
       return (
-        <Card className="border-green-200 bg-green-50/80">
-          <CardContent className="space-y-3 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.07em] text-green-700">
-              {t('readyLabel')}
-            </p>
-            <p className="text-sm text-green-700/90">
-              {t('readyBody', { range: approvedRangeLabel })}
-            </p>
-            <Button asChild className="w-full">
-              <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+            {t('actionsSection')}
+          </p>
+          <Card>
+            <CardContent className="p-4">
+              <Button asChild className="w-full">
+                <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       );
     }
 
     if (actionState === 'rejected') {
       return (
-        <Card className="border-red-200 bg-red-50/80">
-          <CardContent className="space-y-3 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.07em] text-red-700">
-              {t('rejectedLabel')}
-            </p>
-            <p className="text-sm text-red-700/90">
-              {t('rejectedBodyReason', { reason: booking.rejectionReason ?? '' })}
-            </p>
-            <Button asChild className="w-full">
-              <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+            {t('actionsSection')}
+          </p>
+          <Card>
+            <CardContent className="p-4">
+              <Button asChild className="w-full">
+                <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       );
     }
 
@@ -330,10 +396,6 @@ export function BookingDetailPage({
     }
 
     if (booking.status === BOOKING_STATUS.APPROVED) {
-      if (actionState === 'cancelled') {
-        return null;
-      }
-
       return (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
           <BookingActionPanel
@@ -349,15 +411,28 @@ export function BookingDetailPage({
       );
     }
 
+    if (actionState === 'cancelled') {
+      return (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <p className="text-sm text-gray-600">
+                {t('cancelledAsideBody', { name: booking.contactName })}
+              </p>
+              <Button asChild className="w-full">
+                <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     if (
       booking.status === BOOKING_STATUS.REJECTED ||
       booking.status === BOOKING_STATUS.COMPLETED ||
       booking.status === BOOKING_STATUS.CANCELLED
     ) {
-      return null;
-    }
-
-    if (actionState === 'cancelled') {
       return null;
     }
 
@@ -400,23 +475,25 @@ export function BookingDetailPage({
         </Card>
       )}
 
-      {renderMainBanner()}
-
-      {actionState === 'slot-conflict' && (
-        <SlotConflictAlert
-          requestedAt={booking.scheduledAt}
-          totalDurationMins={booking.totalDurationMins}
-          suggestions={slotSuggestions}
-          onChooseSlot={(startsAt) => void handleApprove(startsAt)}
-          onBack={() => {
-            setActionState('idle');
-            setSlotSuggestions([]);
-          }}
-        />
-      )}
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <BookingDetailMain booking={booking} />
+        <div className="space-y-4">
+          {renderMainBanner()}
+
+          {actionState === 'slot-conflict' && (
+            <SlotConflictAlert
+              requestedAt={booking.scheduledAt}
+              totalDurationMins={booking.totalDurationMins}
+              suggestions={slotSuggestions}
+              onChooseSlot={(startsAt) => void handleApprove(startsAt)}
+              onBack={() => {
+                setActionState('idle');
+                setSlotSuggestions([]);
+              }}
+            />
+          )}
+
+          <BookingDetailMain booking={booking} />
+        </div>
 
         <aside className="lg:block">
           <div className="space-y-4 lg:sticky lg:top-6">{renderAsideCard()}</div>

@@ -98,6 +98,16 @@ describe('AvailabilityCarousel', () => {
     expect(getDayOption('2026-06-15')).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('uses dashboard rounded button styling when requested', async () => {
+    const days: DaySummary[] = [{ date: '2026-06-15', available: true, slotCount: 5 }];
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue(days);
+
+    renderCarousel({ selectedDate: '2026-06-15', variant: 'dashboard' });
+
+    await screen.findAllByTestId('day-option');
+    expect(getDayOption('2026-06-15')).toHaveStyle({ borderRadius: '0.75rem' });
+  });
+
   it('shows an error message with a retry button when the fetch fails', async () => {
     vi.mocked(fetchAvailabilitySummary).mockRejectedValue(new Error('network error'));
 

@@ -120,6 +120,28 @@ describe('SlotPicker', () => {
     expect(await screen.findByText('09:00–10:00')).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('uses dashboard rounded button styling when requested', async () => {
+    const slot = { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' };
+    vi.mocked(fetchAvailability).mockResolvedValue({
+      date: '2026-06-15',
+      available: true,
+      slots: [slot],
+    });
+
+    renderWithIntl(
+      <SlotPicker
+        slug="lavacar-beloauto"
+        serviceIds={['svc-1']}
+        date="2026-06-15"
+        selectedSlot={slot}
+        onSelectSlot={vi.fn()}
+        variant="dashboard"
+      />,
+    );
+
+    expect(await screen.findByText('09:00–10:00')).toHaveStyle({ borderRadius: '0.75rem' });
+  });
+
   it('shows an error message with a retry button when the fetch fails', async () => {
     vi.mocked(fetchAvailability).mockRejectedValue(new Error('network error'));
 
