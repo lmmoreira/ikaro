@@ -44,7 +44,7 @@
 | **AUD-009** | Supply-chain CI hardening (pin actions, Dependabot, digests, concurrency, permissions) ✅ | 🟠 High | M | Now | — | §9.1, §9.2, §9.5, §10.1–10.3 |
 | **AUD-010** | Fix the brittle `multer` override (real CVE) ✅ | 🟠 High | S | Now | — | §10.6 |
 | **AUD-011** | Tenant-settings cache (in-memory LRU + TTL) | 🟡 Medium | S | Now | — | §5.1 |
-| **AUD-012** | Prototype-pollution guard in `deepMerge` | 🟡 Medium | XS | Now | — | §5.7 |
+| **AUD-012** | Prototype-pollution guard in `deepMerge` ✅ | 🟡 Medium | XS | Now | — | §5.7 |
 | **AUD-013** | Per-tenant font loading (LCP) | 🟡 Medium | S | Now | — | §8.1 |
 | **AUD-014** | Coverage floor in test runners | 🟡 Medium | XS | Now | — | §11.3 |
 | **AUD-015** | Playwright E2E in CI + expand booking flows ✅ | 🟡 Medium | M | Now | — | §9.4, §11.4 |
@@ -354,7 +354,7 @@ Put a cache in front of `ITenantSettingsPort`: an in-memory LRU + short TTL (30�
 
 ### AUD-012 — Prototype-pollution guard in `deepMerge`
 **Risk:** 🟡 Medium · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** §5.7
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 #### What's wrong
 `shared/utils/deep-merge.ts` merges admin-supplied settings JSON (`override`) into base settings via the `deepmerge` library, trusting its internals on a user-controlled merge (UC-026 makes settings admin-editable).
@@ -363,7 +363,7 @@ Put a cache in front of `ITenantSettingsPort`: an in-memory LRU + short TTL (30�
 Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `prototype` keys from `override` before merging; add a unit test with a malicious payload.
 
 #### Acceptance criteria
-- [ ] A merge with `__proto__`/`constructor`/`prototype` keys does not pollute `Object.prototype` (test).
+- [x] A merge with `__proto__`/`constructor`/`prototype` keys does not pollute `Object.prototype` (test).
 
 ---
 
