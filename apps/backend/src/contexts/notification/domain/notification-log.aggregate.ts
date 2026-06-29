@@ -87,7 +87,7 @@ export class NotificationLog extends AggregateRoot {
   static reconstitute(props: ReconstituteInput): NotificationLog {
     return new NotificationLog({
       ...props,
-      recipientEmail: Email.create(props.recipientEmail),
+      recipientEmail: Email.reconstitute(props.recipientEmail),
     });
   }
 
