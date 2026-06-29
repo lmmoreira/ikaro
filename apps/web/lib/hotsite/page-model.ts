@@ -80,6 +80,8 @@ function tryParseModule(module: HotsiteModuleResponse): HotsiteModuleParsed | nu
       return r.success ? { type: 'FOOTER', data: r.data } : null;
     }
   }
+
+  return null;
 }
 
 export function resolveHotsiteDisplayName(

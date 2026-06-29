@@ -407,8 +407,8 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **Status:** ✅ Done
 
 **What's wrong:** `app/[slug]/page.tsx` pre-filters with `isValidModuleData` then calls `Schema.parse()` in render; if they diverge, `.parse()` throws and the whole hotsite 500s instead of dropping one section.
-**Fix:** Use `safeParse` per module; skip/fallback any failing module and log it.
-**Acceptance:** ✅ A malformed module renders a skipped/fallback section, not a 500 page (test).
+**Fix:** Use `safeParse` per module; silently skip any failing module so one bad section cannot 500 the page.
+**Acceptance:** ✅ A malformed module is silently skipped from the render plan — the rest of the hotsite renders normally, not a 500-page (test).
 
 ### AUD-018 — Pub/Sub ordering keys per booking
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Now · **Depends on:** AUD-001 · **Audit ref:** §12.6

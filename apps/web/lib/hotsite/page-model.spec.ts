@@ -121,4 +121,34 @@ describe('buildHotsiteModuleRenderPlan', () => {
 
     expect(buildHotsiteModuleRenderPlan(layout, false)).toHaveLength(0);
   });
+
+  it('parses TESTIMONIALS, BOOKING_CTA, and CONTACT modules with valid data', () => {
+    const layout = [
+      makeLayoutItem({
+        type: 'TESTIMONIALS',
+        data: { items: [], layout: 'grid' },
+      }),
+      makeLayoutItem({
+        type: 'BOOKING_CTA',
+        data: { title: 'Agende agora', ctaLabel: 'Agendar' },
+      }),
+      makeLayoutItem({
+        type: 'CONTACT',
+        data: {
+          showAddress: true,
+          showPhone: true,
+          showWhatsapp: false,
+          showEmail: false,
+          showMap: false,
+        },
+      }),
+    ];
+
+    const plan = buildHotsiteModuleRenderPlan(layout, false);
+
+    expect(plan).toHaveLength(3);
+    expect(plan[0].parsed.type).toBe('TESTIMONIALS');
+    expect(plan[1].parsed.type).toBe('BOOKING_CTA');
+    expect(plan[2].parsed.type).toBe('CONTACT');
+  });
 });
