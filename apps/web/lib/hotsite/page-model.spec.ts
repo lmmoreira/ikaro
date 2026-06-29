@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HotsiteManifestResponse, HotsiteModuleResponse } from '@ikaro/types';
 import { buildHotsiteModuleRenderPlan, resolveHotsiteDisplayName } from './page-model';
 
@@ -32,25 +32,26 @@ describe('resolveHotsiteDisplayName', () => {
 });
 
 describe('buildHotsiteModuleRenderPlan', () => {
-  it('filters disabled and invalid modules and keeps the alternation contract', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('excludes disabled modules, parses valid data, and keeps the alternation contract', () => {
+    const heroData = {
+      variant: 'centered' as const,
+      title: 'Hero',
+      ctaLabel: 'Agendar',
+      ctaTarget: 'booking-form' as const,
+    };
+    const aboutData = {
+      title: 'Sobre nós',
+      body: 'Conteúdo válido',
+      imagePosition: 'left' as const,
+    };
+
     const layout = [
-      makeLayoutItem({
-        type: 'HERO',
-        data: {
-          variant: 'centered',
-          title: 'Hero',
-          ctaLabel: 'Agendar',
-          ctaTarget: 'booking-form',
-        },
-      }),
-      makeLayoutItem({
-        type: 'ABOUT',
-        data: {
-          title: 'Sobre nós',
-          body: 'Conteúdo válido',
-          imagePosition: 'left',
-        },
-      }),
+      makeLayoutItem({ type: 'HERO', data: heroData }),
+      makeLayoutItem({ type: 'ABOUT', data: aboutData }),
       makeLayoutItem({
         type: 'CONTACT',
         enabled: false,
@@ -62,21 +63,16 @@ describe('buildHotsiteModuleRenderPlan', () => {
           showMap: false,
         },
       }),
-      makeLayoutItem({
-        type: 'FOOTER',
-        data: {},
-      }),
-      makeLayoutItem({
-        type: 'GALLERY',
-        data: { layout: 'grid' },
-      }),
+      makeLayoutItem({ type: 'FOOTER', data: {} }),
+      makeLayoutItem({ type: 'GALLERY', data: { layout: 'grid' } }),
     ];
 
-    expect(buildHotsiteModuleRenderPlan(layout, true)).toEqual([
-      { module: layout[0], bgVariant: 'default' },
-      { module: layout[1], bgVariant: 'alt' },
-      { module: layout[3], bgVariant: 'default' },
-    ]);
+    const plan = buildHotsiteModuleRenderPlan(layout, true);
+
+    expect(plan).toHaveLength(3);
+    expect(plan[0]).toEqual({ parsed: { type: 'HERO', data: heroData }, bgVariant: 'default' });
+    expect(plan[1]).toEqual({ parsed: { type: 'ABOUT', data: aboutData }, bgVariant: 'alt' });
+    expect(plan[2]).toEqual({ parsed: { type: 'FOOTER', data: {} }, bgVariant: 'default' });
   });
 
   it('keeps all backgrounds default when alternation is disabled', () => {
@@ -92,11 +88,7 @@ describe('buildHotsiteModuleRenderPlan', () => {
       }),
       makeLayoutItem({
         type: 'ABOUT',
-        data: {
-          title: 'Sobre nós',
-          body: 'Conteúdo válido',
-          imagePosition: 'left',
-        },
+        data: { title: 'Sobre nós', body: 'Conteúdo válido', imagePosition: 'left' },
       }),
     ];
 
@@ -104,5 +96,57 @@ describe('buildHotsiteModuleRenderPlan', () => {
       'default',
       'default',
     ]);
+  });
+
+  it('excludes a module with malformed data instead of throwing', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const layout = [
+      makeLayoutItem({
+        type: 'HERO',
+        // missing required fields: variant, ctaLabel, ctaTarget
+        data: { title: 'Only title' },
+      }),
+      makeLayoutItem({
+        type: 'ABOUT',
+        data: { title: 'Sobre nós', body: 'Texto', imagePosition: 'right' },
+      }),
+    ];
+
+    const plan = buildHotsiteModuleRenderPlan(layout, false);
+
+    expect(plan).toHaveLength(1);
+    expect(plan[0].parsed.type).toBe('ABOUT');
+  });
+
+  it('logs console.error with module type and slug when a module is malformed', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const layout = [
+      makeLayoutItem({
+        type: 'GALLERY',
+        // missing required field: maxVisible
+        data: { images: [], layout: 'grid' },
+      }),
+    ];
+
+    buildHotsiteModuleRenderPlan(layout, false, 'lavacar-demo');
+
+    expect(errorSpy).toHaveBeenCalledOnce();
+    expect(errorSpy).toHaveBeenCalledWith('[hotsite] skipping malformed module', {
+      type: 'GALLERY',
+      slug: 'lavacar-demo',
+    });
+  });
+
+  it('returns an empty plan when every enabled module is malformed', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const layout = [
+      makeLayoutItem({ type: 'HERO', data: { title: 'no cta' } }),
+      makeLayoutItem({ type: 'SERVICE_LIST', data: {} }),
+    ];
+
+    expect(buildHotsiteModuleRenderPlan(layout, false)).toHaveLength(0);
   });
 });

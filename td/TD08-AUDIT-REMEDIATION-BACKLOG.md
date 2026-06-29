@@ -49,7 +49,7 @@
 | **AUD-014** | Coverage floor in test runners | 🟡 Medium | XS | Now | — | §11.3 |
 | **AUD-015** | Playwright E2E in CI + expand booking flows ✅ | 🟡 Medium | M | Now | — | §9.4, §11.4 |
 | **AUD-016** | API idempotency-key on mutating endpoints | 🟡 Medium | M | Pre-deploy | — | §13.9 |
-| **AUD-017** | Manifest module `safeParse` fail-soft | 🟡 Medium | S | Now | — | §8.6 |
+| **AUD-017** ✅ | Manifest module `safeParse` fail-soft | 🟡 Medium | S | Now | — | §8.6 |
 | **AUD-018** | Pub/Sub ordering keys per booking | 🟡 Medium | S | Now | AUD-001 | §12.6 |
 | **AUD-019** | DLQ replay runbook + endpoint + depth alert | 🟡 Medium | M | Pre-deploy | — | §12.7 |
 | **AUD-020** | Slim the `Booking` aggregate (event-payload factories) | 🟡 Medium | M | Now | — | §5.3 |
@@ -404,11 +404,11 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-017 — Manifest module `safeParse` fail-soft
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Now · **Audit ref:** §8.6
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 **What's wrong:** `app/[slug]/page.tsx` pre-filters with `isValidModuleData` then calls `Schema.parse()` in render; if they diverge, `.parse()` throws and the whole hotsite 500s instead of dropping one section.
 **Fix:** Use `safeParse` per module; skip/fallback any failing module and log it.
-**Acceptance:** ☐ A malformed module renders a skipped/fallback section, not a 500 page (test).
+**Acceptance:** ✅ A malformed module renders a skipped/fallback section, not a 500 page (test).
 
 ### AUD-018 — Pub/Sub ordering keys per booking
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Now · **Depends on:** AUD-001 · **Audit ref:** §12.6
