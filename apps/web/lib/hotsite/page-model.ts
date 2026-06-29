@@ -91,7 +91,6 @@ export function resolveHotsiteDisplayName(
 export function buildHotsiteModuleRenderPlan(
   layout: ReadonlyArray<HotsiteModuleResponse>,
   alternateSectionBg: boolean,
-  slug?: string,
 ): HotsiteModuleRenderPlanItem[] {
   const items: HotsiteModuleRenderPlanItem[] = [];
   let altIndex = 0;
@@ -100,11 +99,7 @@ export function buildHotsiteModuleRenderPlan(
     if (!module.enabled) continue;
 
     const parsed = tryParseModule(module);
-    if (parsed === null) {
-      // eslint-disable-next-line no-console
-      console.error('[hotsite] skipping malformed module', { type: module.type, slug });
-      continue;
-    }
+    if (parsed === null) continue;
 
     const isAlt = alternateSectionBg && altIndex % 2 === 1;
     const participates = !NON_ALTERNATING_TYPES.has(module.type);

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { HotsiteManifestResponse, HotsiteModuleResponse } from '@ikaro/types';
 import { buildHotsiteModuleRenderPlan, resolveHotsiteDisplayName } from './page-model';
 
@@ -32,10 +32,6 @@ describe('resolveHotsiteDisplayName', () => {
 });
 
 describe('buildHotsiteModuleRenderPlan', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('excludes disabled modules, parses valid data, and keeps the alternation contract', () => {
     const heroData = {
       variant: 'centered' as const,
@@ -99,8 +95,6 @@ describe('buildHotsiteModuleRenderPlan', () => {
   });
 
   it('excludes a module with malformed data instead of throwing', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
     const layout = [
       makeLayoutItem({
         type: 'HERO',
@@ -119,29 +113,7 @@ describe('buildHotsiteModuleRenderPlan', () => {
     expect(plan[0].parsed.type).toBe('ABOUT');
   });
 
-  it('logs console.error with module type and slug when a module is malformed', () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
-    const layout = [
-      makeLayoutItem({
-        type: 'GALLERY',
-        // missing required field: maxVisible
-        data: { images: [], layout: 'grid' },
-      }),
-    ];
-
-    buildHotsiteModuleRenderPlan(layout, false, 'lavacar-demo');
-
-    expect(errorSpy).toHaveBeenCalledOnce();
-    expect(errorSpy).toHaveBeenCalledWith('[hotsite] skipping malformed module', {
-      type: 'GALLERY',
-      slug: 'lavacar-demo',
-    });
-  });
-
   it('returns an empty plan when every enabled module is malformed', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
     const layout = [
       makeLayoutItem({ type: 'HERO', data: { title: 'no cta' } }),
       makeLayoutItem({ type: 'SERVICE_LIST', data: {} }),

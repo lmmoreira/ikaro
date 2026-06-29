@@ -55,11 +55,7 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
     : undefined;
   // Display name for footer and brand card: prefer branding.brandName, fall back to tenant name.
   const displayName = resolveHotsiteDisplayName(manifest);
-  const modulesWithVariant = buildHotsiteModuleRenderPlan(
-    manifest.layout,
-    alternateSectionBg,
-    slug,
-  );
+  const modulesWithVariant = buildHotsiteModuleRenderPlan(manifest.layout, alternateSectionBg);
 
   const dividerEl =
     dividerStyle === 'none' ? null : (
