@@ -197,6 +197,7 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 **apps/web:** Vitest (not Jest) — config at `apps/web/vitest.config.ts`.
 - `lib/**`: `node` env · `components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only
 - Keep `app/**/page.tsx` and `app/**/layout.tsx` thin. If they start owning reusable data shaping, URL construction, or render-plan logic, extract a helper under `apps/web/lib/**` and unit-test that helper in the same change.
+- Playwright E2E specs should contain test cases only. Reusable flows, login/setup helpers, and fixture-like actions belong in `apps/web/e2e/helpers/<feature>/**` with a folder `index.ts` barrel. Grep the helper tree before adding a new helper, and split by concern instead of building a shared `misc` helper.
 - **Every new `components/**/*.tsx` must ship its `.spec.tsx` in the same commit.**
 - **Every new dashboard UI component must be localization-ready from the start.** No hardcoded visible copy, helper text, error text, success banners, placeholders, `aria-label`, `alt`, or status labels/classes. If the component needs text, wire `useTranslations()` and add locale keys in both `pt-BR` and `en` in the same change.
 - → Vitest config, mocks, axe testing, per-component cases: `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { completeCustomerProfile, loginAsCustomer, uniqueTestEmail } from './helpers/auth';
+import { loginAsCustomer, uniqueTestEmail } from './helpers/auth';
+import { completeCustomerProfile } from './helpers/customer';
 
 test.describe('Switch tenant', () => {
   test('shows both tenants with the current one marked "Atual"', async ({ page }) => {

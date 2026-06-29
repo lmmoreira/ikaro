@@ -1,180 +1,9 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { loginAsStaff } from './helpers/auth';
+import { createAuthenticatedBooking, createFreshApprovedBooking } from './helpers/booking';
 
 const TENANT_SLUG = 'lavacar-beloauto';
 const STAFF_EMAIL = 'admin@lavacar.com.br';
-const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://127.0.0.1:3002/v1';
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
-const SERVICE_SIMPLES_ID = '00000000-0000-7000-8003-000000000001';
-
-if (!INTERNAL_API_KEY) {
-  throw new Error('INTERNAL_API_KEY is required for staff booking lifecycle E2E coverage');
-}
-
-interface DevLoginResponse {
-  readonly accessToken: string;
-  readonly user: {
-    readonly sub: string;
-    readonly tenantId: string;
-    readonly tenantSlug: string;
-    readonly role: 'CUSTOMER' | 'STAFF' | 'MANAGER';
-  };
-}
-
-async function loginAsCustomer(page: Page, email: string, tenantSlug: string): Promise<void> {
-  const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
-    data: { email, tenantSlug, type: 'customer' },
-  });
-  if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
-  const body = (await res.json()) as DevLoginResponse;
-
-  await page.context().addCookies([
-    {
-      name: 'access_token',
-      value: body.accessToken,
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-      sameSite: 'Lax',
-    },
-  ]);
-}
-
-async function loginAsStaff(page: Page, email: string, tenantSlug: string): Promise<void> {
-  const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
-    data: { email, tenantSlug, type: 'staff' },
-  });
-  if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
-  const body = (await res.json()) as DevLoginResponse;
-
-  await page.context().addCookies([
-    {
-      name: 'access_token',
-      value: body.accessToken,
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-      sameSite: 'Lax',
-    },
-  ]);
-}
-
-function uniqueTestEmail(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}@e2e.example.com`;
-}
-
-function hashSeed(value: string): number {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash;
-}
-
-async function completeCustomerProfile(page: Page, tenantSlug: string): Promise<void> {
-  await page.request.patch(`${BFF_URL}/customers/me`, {
-    headers: { 'X-Tenant-Slug': tenantSlug },
-    data: {
-      phone: '+5511999999999',
-      defaultAddress: {
-        street: 'Rua das Acácias',
-        number: '45',
-        neighborhood: 'Jardim América',
-        city: 'Belo Horizonte',
-        state: 'MG',
-        zipCode: '30130-020',
-      },
-    },
-  });
-}
-
-function parseDayOffset(daysAhead: number, seed: string): string {
-  const date = new Date();
-  date.setDate(date.getDate() + daysAhead);
-  const slotIndex = hashSeed(seed) % 12;
-  date.setHours(8 + Math.floor(slotIndex / 2), (slotIndex % 2) * 30, 0, 0);
-  return date.toISOString();
-}
-
-async function createAuthenticatedBooking(
-  page: Page,
-  options: {
-    readonly tenantSlug: string;
-    readonly emailPrefix: string;
-    readonly daysAhead: number;
-    readonly serviceIds?: readonly string[];
-    readonly notes?: string;
-  },
-): Promise<{
-  readonly bookingId: string;
-  readonly scheduledAt: string;
-  readonly contactEmail: string;
-}> {
-  const contactEmail = uniqueTestEmail(options.emailPrefix);
-  await loginAsCustomer(page, contactEmail, options.tenantSlug);
-  await completeCustomerProfile(page, options.tenantSlug);
-  const serviceIds = options.serviceIds ?? [SERVICE_SIMPLES_ID];
-  let lastError: string | null = null;
-
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    const scheduledAt = parseDayOffset(options.daysAhead, `${contactEmail}:${attempt}`);
-    const res = await page.request.post(`${BFF_URL}/bookings/authenticated`, {
-      data: {
-        scheduledAt,
-        serviceIds,
-        ...(options.notes ? { notes: options.notes } : {}),
-      },
-    });
-
-    if (res.ok()) {
-      const body = (await res.json()) as { bookingId: string; scheduledAt: string };
-      return {
-        bookingId: body.bookingId,
-        scheduledAt: body.scheduledAt,
-        contactEmail,
-      };
-    }
-
-    const errorText = await res.text();
-    if (res.status() !== 409) {
-      throw new Error(`authenticated booking setup failed: ${res.status()} ${errorText}`);
-    }
-    lastError = errorText;
-  }
-
-  throw new Error(
-    `authenticated booking setup failed after retrying available slots: ${lastError ?? '409 conflict'}`,
-  );
-}
-
-async function loginAsStaffAndApproveBooking(
-  page: Page,
-  bookingId: string,
-  staffEmail = STAFF_EMAIL,
-): Promise<void> {
-  await loginAsStaff(page, staffEmail, TENANT_SLUG);
-
-  const res = await page.request.patch(`${BFF_URL}/bookings/${bookingId}/approve`, {
-    data: {},
-  });
-
-  if (!res.ok()) {
-    throw new Error(`approve booking failed: ${res.status()} ${await res.text()}`);
-  }
-}
-
-async function createFreshApprovedBooking(page: Page, daysAhead: number) {
-  const setup = await createAuthenticatedBooking(page, {
-    tenantSlug: TENANT_SLUG,
-    emailPrefix: `lifecycle-${daysAhead}`,
-    daysAhead,
-  });
-
-  await loginAsStaffAndApproveBooking(page, setup.bookingId);
-  return setup;
-}
-
 test.describe('staff booking lifecycle coverage', () => {
   test('queue card body still opens booking detail', async ({ page }) => {
     const setup = await createAuthenticatedBooking(page, {
@@ -275,7 +104,7 @@ test.describe('staff booking lifecycle coverage', () => {
   test('complete success shows the centered summary and the right-side action panel', async ({
     page,
   }) => {
-    const setup = await createFreshApprovedBooking(page, 9);
+    const setup = await createFreshApprovedBooking(page, 9, STAFF_EMAIL);
 
     await page.goto(`/dashboard/bookings/${setup.bookingId}/complete`);
 
@@ -296,7 +125,7 @@ test.describe('staff booking lifecycle coverage', () => {
   test('reschedule success shows a full De/Para summary and the action panel on the right', async ({
     page,
   }) => {
-    const setup = await createFreshApprovedBooking(page, 10);
+    const setup = await createFreshApprovedBooking(page, 10, STAFF_EMAIL);
 
     await page.goto(`/dashboard/bookings/${setup.bookingId}/reschedule`);
 
@@ -323,7 +152,7 @@ test.describe('staff booking lifecycle coverage', () => {
   test('cancel success keeps the message centered and the back action in the right panel', async ({
     page,
   }) => {
-    const setup = await createFreshApprovedBooking(page, 11);
+    const setup = await createFreshApprovedBooking(page, 11, STAFF_EMAIL);
 
     await page.goto(`/dashboard/bookings/${setup.bookingId}`);
 

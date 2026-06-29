@@ -1,5 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { navigateToStep3 } from './helpers/booking-form';
 
 test.describe('UC-001 — Guest booking golden path', () => {
   test('guest navigates from hotsite to booking form and submits successfully', async ({
@@ -36,21 +37,6 @@ test.describe('UC-001 — Guest booking golden path', () => {
     await expect(page.locator('[data-testid="booking-success"]')).toBeVisible();
   });
 });
-
-// ── Shared helper: navigate to step 3 (personal info) ────────────────────────
-async function navigateToStep3(page: Page): Promise<void> {
-  await page.goto('/ikaro/booking');
-  await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
-
-  await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
-  await page.locator('[data-testid="step-next"]').click();
-
-  await page.locator('[data-testid="day-option"]:not([disabled])').first().click();
-  await page.locator('[data-testid="time-slot"]').first().click();
-  await page.locator('[data-testid="step-next"]').click();
-
-  await expect(page.locator('[data-testid="input-name"]')).toBeVisible();
-}
 
 test.describe('UC-001 — Booking form error paths', () => {
   test('step 3: shows validation error when required fields are empty', async ({ page }) => {

@@ -1,25 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { loginAsCustomer, uniqueTestEmail } from './helpers/auth';
-
-const validAddress = {
-  street: 'Rua das Acácias',
-  number: '45',
-  neighborhood: 'Jardim América',
-  city: 'Belo Horizonte',
-  state: 'MG',
-  zipCode: '30130-020',
-};
-
-async function fillValidAddress(page: import('@playwright/test').Page): Promise<void> {
-  await page.locator('#information-completion-address-street').fill(validAddress.street);
-  await page.locator('#information-completion-address-number').fill(validAddress.number);
-  await page
-    .locator('#information-completion-address-neighborhood')
-    .fill(validAddress.neighborhood);
-  await page.locator('#information-completion-address-city').fill(validAddress.city);
-  await page.locator('#information-completion-address-state').fill(validAddress.state);
-  await page.locator('#information-completion-address-zip-code').fill(validAddress.zipCode);
-}
+import { fillValidAddress } from './helpers/customer';
 
 test.describe('Information completion prompt (mandatory phone + address)', () => {
   test('a customer with no phone/address sees the mandatory, non-dismissible prompt', async ({
@@ -85,7 +66,7 @@ test.describe('Information completion prompt (mandatory phone + address)', () =>
     await expect(page.locator('[data-testid="information-completion-prompt"]')).toBeVisible();
 
     await page.locator('[data-testid="information-completion-phone-input"]').fill('11999999999');
-    await fillValidAddress(page);
+    await fillValidAddress(page, 'lavacar-beloauto');
     await page.locator('[data-testid="information-completion-submit"]').click();
 
     await expect(page.locator('[data-testid="information-completion-prompt"]')).not.toBeVisible();
