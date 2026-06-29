@@ -2167,7 +2167,7 @@ rescheduleBooking(bookingId: string, scheduledAt: string, adminNotes?: string): 
 
 ---
 
-### M13-S20 — Mark booking complete (UC-009)
+### M13-S20 — Mark booking complete (UC-009) ✅ Done
 
 *(formerly M125-S12)*
 
