@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { AvailableSlot } from '@ikaro/types';
 import { fetchAvailability } from '@/lib/api/schedule';
 import { useFormatting } from '@/lib/formatting/use-formatting';
+import { cn } from '@/lib/utils';
 import { ErrorAlert } from './ErrorAlert';
 
 interface SlotPickerProps {
@@ -13,6 +14,7 @@ interface SlotPickerProps {
   readonly date: string;
   readonly selectedSlot: AvailableSlot | null;
   readonly onSelectSlot: (slot: AvailableSlot) => void;
+  readonly variant?: 'hotsite' | 'dashboard';
 }
 
 export function SlotPicker({
@@ -21,6 +23,7 @@ export function SlotPicker({
   date,
   selectedSlot,
   onSelectSlot,
+  variant = 'hotsite',
 }: SlotPickerProps): React.JSX.Element {
   const t = useTranslations('booking');
   const { formatTime } = useFormatting();
@@ -63,6 +66,7 @@ export function SlotPicker({
   }
 
   const { slots } = result;
+  const isDashboardVariant = variant === 'dashboard';
 
   if (slots.length === 0) {
     return (
@@ -102,12 +106,12 @@ export function SlotPicker({
             onClick={() => onSelectSlot(slot)}
             aria-pressed={isSelected}
             data-testid="time-slot"
-            className="w-full border py-2 text-center text-sm font-medium transition-colors"
+            className={cn(
+              'w-full border py-2 text-center text-sm font-medium transition-colors',
+              getSlotButtonClassName(isSelected, isDashboardVariant),
+            )}
             style={{
-              borderRadius: 'var(--ba-radius)',
-              backgroundColor: isSelected ? 'var(--ba-primary)' : undefined,
-              borderColor: isSelected ? 'var(--ba-primary)' : 'var(--ba-secondary)',
-              color: isSelected ? 'var(--ba-btn-text)' : 'var(--ba-text)',
+              borderRadius: isDashboardVariant ? '0.75rem' : 'var(--ba-radius)',
             }}
           >
             {formatTime(new Date(slot.startsAt))}–{formatTime(new Date(slot.endsAt))}
@@ -116,4 +120,16 @@ export function SlotPicker({
       })}
     </div>
   );
+}
+
+function getSlotButtonClassName(isSelected: boolean, isDashboardVariant: boolean): string {
+  if (isSelected) {
+    return 'border-blue-600 bg-blue-600 text-white shadow-[0_1px_2px_rgba(37,99,235,0.18)]';
+  }
+
+  if (isDashboardVariant) {
+    return 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50';
+  }
+
+  return 'border-[var(--ba-secondary,rgb(191,219,254))] bg-[var(--ba-secondary,rgb(239,246,255))] text-[var(--ba-primary,#1d4ed8)] hover:bg-blue-50';
 }

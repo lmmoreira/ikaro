@@ -6,10 +6,13 @@ import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { getBooking } from '@/lib/api/dashboard/bookings';
 import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { useCompleteBooking } from '@/lib/hooks/useBookingMutations';
 import { AfterServicePhotoUpload } from './AfterServicePhotoUpload';
+import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
+import { BookingOutcomeLayout } from './BookingDetailMain';
 import { BookingClientCard } from './BookingClientCard';
 import { useDashboardTopbarStatus } from '../topbar-status-context';
 
@@ -17,12 +20,14 @@ interface MarkCompleteBookingPageProps {
   readonly booking: StaffBookingDetailResponse;
   readonly tenantSlug: string;
   readonly backHref: string;
+  readonly pointsPerCurrencyUnit: number;
 }
 
 export function MarkCompleteBookingPage({
   booking,
   tenantSlug,
   backHref,
+  pointsPerCurrencyUnit,
 }: MarkCompleteBookingPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
   const commonT = useTranslations('common');
@@ -38,12 +43,17 @@ export function MarkCompleteBookingPage({
         booking.lines.map((line) => [line.lineId, String(line.priceAtBooking.amount)]),
       ) as Record<string, string>,
   );
+  const loyaltyPointsPerCurrencyUnit = Math.max(0, pointsPerCurrencyUnit);
+  const loyaltyBalance = booking.loyaltyBalance ?? 0;
+  const showLoyaltyPanel = booking.customerId !== null && loyaltyPointsPerCurrencyUnit > 0;
+  const [rawPointsUsed, setRawPointsUsed] = useState(0);
   const [afterServicePhotoUrls, setAfterServicePhotoUrls] = useState<readonly string[]>(() => [
     ...booking.afterServicePhotoUrls,
   ]);
   const [adminNotes, setAdminNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [completedBooking, setCompletedBooking] = useState<StaffBookingDetailResponse | null>(null);
   const isSubmitting = completeBookingMutation.isPending;
 
   useEffect(() => {
@@ -65,6 +75,55 @@ export function MarkCompleteBookingPage({
       }, 0),
     [booking.lines, linePrices],
   );
+
+  const maxRedeemablePoints = useMemo(() => {
+    if (!showLoyaltyPanel) return 0;
+
+    const maxByTotal = Math.floor(totalCharged) * loyaltyPointsPerCurrencyUnit;
+    const cappedPoints = Math.max(0, Math.min(loyaltyBalance, maxByTotal));
+    return Math.floor(cappedPoints / loyaltyPointsPerCurrencyUnit) * loyaltyPointsPerCurrencyUnit;
+  }, [loyaltyBalance, loyaltyPointsPerCurrencyUnit, showLoyaltyPanel, totalCharged]);
+
+  const totalEarnedPoints = useMemo(
+    () => booking.lines.reduce((sum, line) => sum + line.pointsValueAtBooking, 0),
+    [booking.lines],
+  );
+
+  const pointsUsed = Math.min(rawPointsUsed, maxRedeemablePoints);
+  const discountAmount = useMemo(
+    () => (showLoyaltyPanel ? pointsUsed / loyaltyPointsPerCurrencyUnit : 0),
+    [loyaltyPointsPerCurrencyUnit, pointsUsed, showLoyaltyPanel],
+  );
+  const finalChargedTotal = Math.max(0, totalCharged - discountAmount);
+  const completedBookingForDisplay = useMemo(() => {
+    const bookingForDisplay = completedBooking ?? booking;
+    if (bookingForDisplay.customerId === null) return bookingForDisplay;
+
+    return {
+      ...bookingForDisplay,
+      loyaltyBalance: Math.max(0, loyaltyBalance + totalEarnedPoints - pointsUsed),
+    };
+  }, [booking, completedBooking, loyaltyBalance, pointsUsed, totalEarnedPoints]);
+  const beforePhotos = completedBookingForDisplay.beforeServicePhotoUrls;
+
+  function handlePointsChange(value: string): void {
+    if (!showLoyaltyPanel) return;
+
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setRawPointsUsed(0);
+      return;
+    }
+
+    const normalized =
+      Math.floor(parsed / loyaltyPointsPerCurrencyUnit) * loyaltyPointsPerCurrencyUnit;
+    setRawPointsUsed(Math.min(normalized, maxRedeemablePoints));
+  }
+
+  function useAllPoints(): void {
+    if (!showLoyaltyPanel) return;
+    setRawPointsUsed(maxRedeemablePoints);
+  }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -88,8 +147,18 @@ export function MarkCompleteBookingPage({
             ? { afterServicePhotoUrls: [...afterServicePhotoUrls] }
             : {}),
           ...(adminNotes.trim() ? { adminNotes: adminNotes.trim() } : {}),
+          ...(showLoyaltyPanel && pointsUsed > 0
+            ? {
+                discountByPoints: {
+                  pointsUsed,
+                  amountDeducted: discountAmount,
+                },
+              }
+            : {}),
         },
       });
+      const refreshedBooking = await getBooking(booking.bookingId);
+      setCompletedBooking(refreshedBooking);
       setTopbarBookingStatus?.(BOOKING_STATUS.COMPLETED);
       setCompleted(true);
     } catch (err) {
@@ -104,26 +173,100 @@ export function MarkCompleteBookingPage({
 
   if (completed) {
     return (
-      <div className="space-y-4">
-        <Card className="border-green-200 bg-green-50/80">
-          <CardContent className="space-y-3 p-4">
-            <p className="text-sm font-bold uppercase tracking-[0.07em] text-green-700">
-              {t('completedTitle')}
-            </p>
-            <p className="text-sm leading-6 text-green-700/90">{t('completedBody')}</p>
-            <p className="text-sm leading-6 text-green-700/90">
+      <BookingOutcomeLayout
+        booking={completedBookingForDisplay}
+        tone="success"
+        bannerTitle={t('completedTitle')}
+        bannerBody={
+          <>
+            <p>{t('completedBody')}</p>
+            <p className="mt-2">
               {t('summaryQuoted', { total: formatMoney(booking.totalPrice.amount) })}
             </p>
-            <p className="text-sm leading-6 text-green-700/90">
-              {t('summaryCharged', { total: formatMoney(totalCharged) })}
-            </p>
-          </CardContent>
-        </Card>
+            <p className="mt-2">{t('summaryCharged', { total: formatMoney(finalChargedTotal) })}</p>
+            <div className="mt-3 space-y-2 border-t border-green-100 pt-3">
+              {booking.lines.map((line) => (
+                <div
+                  key={line.lineId}
+                  className="flex items-center justify-between gap-3 text-sm text-green-700/90"
+                >
+                  <span className="min-w-0 truncate font-medium">{line.serviceName}</span>
+                  <span className="text-right">
+                    {t('quotedPriceLabel', {
+                      price: formatMoney(line.priceAtBooking.amount),
+                    })}{' '}
+                    <span className="opacity-70">→</span> {t('chargedPriceLabel')}{' '}
+                    {formatMoney(Number(linePrices[line.lineId]) || 0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 rounded-lg bg-green-50/70 px-3 py-2 text-sm text-green-800">
+              {booking.customerId !== null && (
+                <p className="font-semibold">
+                  {t('completedPointsEarned', { count: totalEarnedPoints })}
+                </p>
+              )}
+              <p className="mt-1">{t('completedEmailSummary')}</p>
+            </div>
+          </>
+        }
+        asideBody={t('completedAsideBody')}
+        primaryAction={{ label: t('backToAgenda'), href: backHref }}
+      >
+        <section>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+            {t('scheduleSection')}
+          </p>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-sm font-semibold text-gray-900">{formatDateLong(scheduledAt)}</p>
+              <p className="mt-1 text-sm text-gray-600">
+                {formatTime(scheduledAt)} – {formatTime(scheduledEnd)} (
+                {formatDuration(booking.totalDurationMins)})
+              </p>
+            </CardContent>
+          </Card>
+        </section>
 
-        <Button asChild className="w-full sm:w-auto">
-          <Link href={backHref}>{commonT('back')}</Link>
-        </Button>
-      </div>
+        {completedBookingForDisplay.afterServicePhotoUrls.length > 0 && (
+          <section>
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+              {t('afterPhotosLabel')}
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {completedBookingForDisplay.afterServicePhotoUrls.map((url, index) => (
+                <img
+                  key={`${url}-${index}`}
+                  src={url}
+                  alt={t('afterPhotoAlt', { index: index + 1 })}
+                  loading="lazy"
+                  className="aspect-square w-full rounded-lg border border-gray-200 object-cover"
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {beforePhotos.length > 0 && (
+          <section>
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+              {t('beforePhotosLabel')}
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {beforePhotos.map((url, index) => (
+                <img
+                  key={`${url}-${index}`}
+                  src={url}
+                  alt={t('beforePhotoAlt', { index: index + 1 })}
+                  loading="lazy"
+                  className="aspect-square w-full rounded-lg border border-gray-200 object-cover"
+                />
+              ))}
+            </div>
+          </section>
+        )}
+      </BookingOutcomeLayout>
     );
   }
 
@@ -132,6 +275,63 @@ export function MarkCompleteBookingPage({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-4">
           <BookingClientCard booking={booking} />
+
+          {showLoyaltyPanel && (
+            <section>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+                {t('loyaltySection')}
+              </p>
+              <Card className="border-blue-200 bg-blue-50/70">
+                <CardContent className="space-y-4 p-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {t('loyaltyAvailablePoints', { count: loyaltyBalance })}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {t('loyaltyRateHint', {
+                        points: loyaltyPointsPerCurrencyUnit,
+                        amount: formatMoney(1),
+                        maxAmount: formatMoney(maxRedeemablePoints / loyaltyPointsPerCurrencyUnit),
+                      })}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-end gap-3">
+                    <label className="block min-w-0 flex-1">
+                      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.07em] text-gray-400">
+                        {t('loyaltyPointsLabel')}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        max={maxRedeemablePoints}
+                        step={loyaltyPointsPerCurrencyUnit}
+                        value={pointsUsed}
+                        onChange={(event) => handlePointsChange(event.target.value)}
+                        className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-semibold outline-none ring-0 focus:border-blue-500"
+                      />
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={useAllPoints}
+                      disabled={maxRedeemablePoints <= 0}
+                      className="shrink-0"
+                    >
+                      {t('loyaltyUseAll')}
+                    </Button>
+                  </div>
+
+                  {pointsUsed > 0 && (
+                    <div className="border-t border-blue-100 pt-3 text-sm font-semibold text-blue-900">
+                      {t('loyaltyDiscountSummary', { amount: formatMoney(discountAmount) })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+          )}
 
           <section>
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
@@ -198,11 +398,36 @@ export function MarkCompleteBookingPage({
                 </div>
                 <div className="space-y-2 border-t border-blue-100 pt-3 text-sm text-blue-900">
                   <p>{t('summaryQuoted', { total: formatMoney(booking.totalPrice.amount) })}</p>
-                  <p>{t('summaryCharged', { total: formatMoney(totalCharged) })}</p>
+                  <p>{t('summaryCharged', { total: formatMoney(finalChargedTotal) })}</p>
+                  {booking.customerId !== null && (
+                    <p>{t('summaryPointsEarned', { count: totalEarnedPoints })}</p>
+                  )}
+                  {showLoyaltyPanel && pointsUsed > 0 && (
+                    <p>{t('loyaltyDiscountSummary', { amount: formatMoney(discountAmount) })}</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </section>
+
+          {booking.beforeServicePhotoUrls.length > 0 && (
+            <section>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+                {t('beforePhotosLabel')}
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {booking.beforeServicePhotoUrls.map((url, index) => (
+                  <img
+                    key={`${url}-${index}`}
+                    src={url}
+                    alt={t('beforePhotoAlt', { index: index + 1 })}
+                    loading="lazy"
+                    className="aspect-square w-full rounded-lg border border-gray-200 object-cover"
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
           <section>
             <AfterServicePhotoUpload
@@ -234,13 +459,15 @@ export function MarkCompleteBookingPage({
           </section>
         </div>
 
-        <aside className="hidden space-y-4 lg:block lg:sticky lg:top-6">
-          {error && (
-            <Card className="border-red-200 bg-red-50/80">
-              <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
-            </Card>
-          )}
-
+        <BookingOutcomeActionRail
+          desktopTop={
+            error ? (
+              <Card className="border-red-200 bg-red-50/80">
+                <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
+              </Card>
+            ) : null
+          }
+        >
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
               {t('actionsSection')}
@@ -259,28 +486,7 @@ export function MarkCompleteBookingPage({
               </CardContent>
             </Card>
           </div>
-        </aside>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('actionsSection')}
-          </p>
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <Button type="submit" disabled={isSubmitting} className="w-full">
-                {t('submitComplete')}
-              </Button>
-              <Button
-                asChild
-                className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-              >
-                <Link href={backHref}>{commonT('cancel')}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        </BookingOutcomeActionRail>
       </div>
     </form>
   );

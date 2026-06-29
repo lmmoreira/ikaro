@@ -19,7 +19,10 @@ import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { useRescheduleBooking } from '@/lib/hooks/useBookingMutations';
 import { useDashboardTopbarStatus } from '../topbar-status-context';
+import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
+import { BookingOutcomeLayout } from './BookingDetailMain';
 import { SlotConflictAlert } from './SlotConflictAlert';
+import { BookingClientCard } from './BookingClientCard';
 
 interface RescheduleBookingPageProps {
   readonly booking: StaffBookingDetailResponse;
@@ -27,15 +30,13 @@ interface RescheduleBookingPageProps {
   readonly backHref: string;
 }
 
-function buildRangeLabel(
-  start: string,
-  totalDurationMins: number,
+function formatRangeLine(
+  start: Date,
+  end: Date,
   formatDateLong: (date: Date) => string,
   formatTime: (date: Date) => string,
 ): string {
-  const from = new Date(start);
-  const to = new Date(from.getTime() + totalDurationMins * 60_000);
-  return `${formatDateLong(from)} · ${formatTime(from)}–${formatTime(to)}`;
+  return `${formatDateLong(start)} · ${formatTime(start)}–${formatTime(end)}`;
 }
 
 export function RescheduleBookingPage({
@@ -123,54 +124,57 @@ export function RescheduleBookingPage({
   }
 
   if (rescheduled && lastReschedule) {
-    return (
-      <div className="space-y-4">
-        <Card className="border-green-200 bg-green-50/80">
-          <CardContent className="space-y-3 p-4">
-            <p className="text-sm font-bold uppercase tracking-[0.07em] text-green-700">
-              {t('rescheduledTitle')}
-            </p>
-            <p className="text-sm leading-6 text-green-700/90">
-              {t('rescheduledBodyFrom', {
-                range: buildRangeLabel(
-                  lastReschedule.from,
-                  booking.totalDurationMins,
-                  formatDateLong,
-                  formatTime,
-                ),
-              })}
-            </p>
-            <p className="text-sm leading-6 text-green-700/90">
-              {t('rescheduledBodyTo', {
-                range: buildRangeLabel(
-                  lastReschedule.to,
-                  booking.totalDurationMins,
-                  formatDateLong,
-                  formatTime,
-                ),
-              })}
-            </p>
-            <p className="text-sm leading-6 text-green-700/90">{t('rescheduledBodyStatus')}</p>
-          </CardContent>
-        </Card>
+    const oldStart = new Date(lastReschedule.from);
+    const oldEnd = new Date(oldStart.getTime() + booking.totalDurationMins * 60_000);
+    const newStart = new Date(lastReschedule.to);
+    const newEnd = new Date(newStart.getTime() + booking.totalDurationMins * 60_000);
 
-        <Button asChild className="w-full sm:w-auto">
-          <Link href={backHref}>{commonT('back')}</Link>
-        </Button>
-      </div>
+    return (
+      <BookingOutcomeLayout
+        booking={booking}
+        tone="success"
+        bannerTitle={t('rescheduledTitle')}
+        bannerBody={
+          <>
+            <p>{t('rescheduledBodyEmail', { name: booking.contactName })}</p>
+            <p className="mt-2">{t('rescheduledBodyStatus')}</p>
+          </>
+        }
+        asideBody={t('rescheduledAsideBody')}
+        primaryAction={{ label: t('viewUpdatedBooking'), href: backHref }}
+        secondaryAction={{ label: t('backToAgenda'), href: '/dashboard/bookings' }}
+      >
+        <section>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+            {t('rescheduledSummaryLabel')}
+          </p>
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+                  {t('rescheduledFromLabel')}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {formatDateLong(oldStart)} · {formatTime(oldStart)}–{formatTime(oldEnd)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+                  {t('rescheduledToLabel')}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {formatDateLong(newStart)} · {formatTime(newStart)}–{formatTime(newEnd)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      </BookingOutcomeLayout>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
-      <p className="text-[0.9375rem] text-gray-900/70">
-        {t('rescheduleSheetDescription', {
-          name: booking.contactName,
-          date: formatDateLong(currentStart),
-          time: `${formatTime(currentStart)}–${formatTime(currentEnd)}`,
-        })}
-      </p>
-
       {conflictStartsAt && (
         <SlotConflictAlert
           requestedAt={conflictStartsAt}
@@ -188,6 +192,8 @@ export function RescheduleBookingPage({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-4">
+          <BookingClientCard booking={booking} />
+
           <section>
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
               {t('currentSlotLabel')}
@@ -198,7 +204,7 @@ export function RescheduleBookingPage({
                   {formatDateLong(currentStart)}
                 </p>
                 <p className="mt-1 text-sm text-gray-600">
-                  {formatTime(currentStart)} — {formatTime(currentEnd)} (
+                  {formatTime(currentStart)} – {formatTime(currentEnd)} (
                   {formatDuration(booking.totalDurationMins)})
                 </p>
               </CardContent>
@@ -218,6 +224,7 @@ export function RescheduleBookingPage({
                 setSelectedSlot(null);
               }}
               carouselDays={14}
+              variant="dashboard"
             />
           </section>
 
@@ -232,6 +239,7 @@ export function RescheduleBookingPage({
                 date={selectedDate}
                 selectedSlot={selectedSlot}
                 onSelectSlot={setSelectedSlot}
+                variant="dashboard"
               />
             </section>
           )}
@@ -256,35 +264,15 @@ export function RescheduleBookingPage({
           </section>
         </div>
 
-        <aside className="hidden space-y-4 lg:block lg:sticky lg:top-6">
-          <Card className="border-blue-200 bg-blue-50/70">
-            <CardContent className="space-y-3 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-                {t('summaryLabel')}
-              </p>
-              <div className="space-y-2 text-sm text-blue-700/90">
-                <p>
-                  {t('summaryCurrent', {
-                    time: `${formatTime(currentStart)}–${formatTime(currentEnd)}`,
-                  })}
-                </p>
-                <p>
-                  {t('summaryNew', {
-                    time: selectedSlot
-                      ? `${formatTime(new Date(selectedSlot.startsAt))}–${formatTime(new Date(selectedSlot.endsAt))}`
-                      : t('summaryPending'),
-                  })}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {error && (
-            <Card className="border-red-200 bg-red-50/80">
-              <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
-            </Card>
-          )}
-
+        <BookingOutcomeActionRail
+          desktopTop={
+            error ? (
+              <Card className="border-red-200 bg-red-50/80">
+                <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
+              </Card>
+            ) : null
+          }
+        >
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
               {t('actionsSection')}
@@ -303,28 +291,40 @@ export function RescheduleBookingPage({
               </CardContent>
             </Card>
           </div>
-        </aside>
-      </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('actionsSection')}
-          </p>
-          <Card>
+          <Card className="border-blue-200 bg-blue-50/70">
             <CardContent className="space-y-3 p-4">
-              <Button type="submit" disabled={pendingSubmit} className="w-full">
-                {t('submitReschedule')}
-              </Button>
-              <Button
-                asChild
-                className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-              >
-                <Link href={backHref}>{commonT('cancel')}</Link>
-              </Button>
+              <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
+                {t('summaryLabel')}
+              </p>
+              <div className="space-y-3 text-sm text-blue-700/90">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
+                    {t('rescheduledFromLabel')}
+                  </p>
+                  <p className="mt-1 font-medium">
+                    {formatRangeLine(currentStart, currentEnd, formatDateLong, formatTime)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
+                    {t('rescheduledToLabel')}
+                  </p>
+                  <p className="mt-1 font-medium">
+                    {selectedSlot
+                      ? formatRangeLine(
+                          new Date(selectedSlot.startsAt),
+                          new Date(selectedSlot.endsAt),
+                          formatDateLong,
+                          formatTime,
+                        )
+                      : t('summaryPending')}
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
-        </div>
+        </BookingOutcomeActionRail>
       </div>
     </form>
   );

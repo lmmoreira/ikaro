@@ -14,9 +14,11 @@ interface AvailabilityCarouselProps {
   readonly selectedDate: string | null;
   readonly onSelectDate: (date: string) => void;
   readonly carouselDays: number;
+  readonly variant?: 'hotsite' | 'dashboard';
 }
 
 const SCROLL_AMOUNT_PX = 240;
+const DASHBOARD_DAY_RADIUS = '0.75rem';
 
 export function AvailabilityCarousel({
   slug,
@@ -24,6 +26,7 @@ export function AvailabilityCarousel({
   selectedDate,
   onSelectDate,
   carouselDays,
+  variant = 'hotsite',
 }: AvailabilityCarouselProps): React.JSX.Element {
   const t = useTranslations('booking');
   const locale = useLocale();
@@ -75,6 +78,7 @@ export function AvailabilityCarousel({
   }
 
   const fullyBooked = days.every((d) => !d.available);
+  const isDashboardVariant = variant === 'dashboard';
 
   return (
     <div>
@@ -98,11 +102,16 @@ export function AvailabilityCarousel({
               data-testid="day-option"
               data-date={day.date}
               aria-pressed={day.date === selectedDate}
-              className="flex shrink-0 flex-col items-center border px-4 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex shrink-0 flex-col items-center border px-4 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
               style={{
-                borderRadius: 'var(--ba-radius)',
-                backgroundColor: day.date === selectedDate ? 'var(--ba-primary)' : undefined,
-                color: day.date === selectedDate ? 'var(--ba-btn-text)' : 'var(--ba-text)',
+                borderRadius: isDashboardVariant ? DASHBOARD_DAY_RADIUS : 'var(--ba-radius)',
+                backgroundColor: getDayBackgroundColor(
+                  day.date === selectedDate,
+                  isDashboardVariant,
+                ),
+                borderColor: getDayBorderColor(day.date === selectedDate, isDashboardVariant),
+                color: getDayTextColor(day.date === selectedDate, isDashboardVariant),
+                boxShadow: getDayBoxShadow(day.date === selectedDate, isDashboardVariant),
               }}
             >
               <span className="text-xs">
@@ -130,4 +139,36 @@ export function AvailabilityCarousel({
       )}
     </div>
   );
+}
+
+function getDayBackgroundColor(isSelected: boolean, isDashboardVariant: boolean): string {
+  if (isSelected) {
+    return 'var(--ba-primary, #2563eb)';
+  }
+
+  return isDashboardVariant ? '#ffffff' : 'var(--ba-secondary, rgb(239 246 255))';
+}
+
+function getDayBorderColor(isSelected: boolean, isDashboardVariant: boolean): string {
+  if (isSelected) {
+    return 'var(--ba-primary, #2563eb)';
+  }
+
+  return isDashboardVariant ? 'rgb(191 219 254)' : 'var(--ba-secondary, rgb(191 219 254))';
+}
+
+function getDayTextColor(isSelected: boolean, isDashboardVariant: boolean): string {
+  if (isSelected) {
+    return 'var(--ba-btn-text, #ffffff)';
+  }
+
+  return isDashboardVariant ? 'rgb(29 78 216)' : 'var(--ba-primary, #1d4ed8)';
+}
+
+function getDayBoxShadow(isSelected: boolean, isDashboardVariant: boolean): string {
+  if (isSelected) {
+    return '0 1px 2px rgba(37, 99, 235, 0.18)';
+  }
+
+  return isDashboardVariant ? '0 1px 2px rgba(15, 23, 42, 0.04)' : 'none';
 }

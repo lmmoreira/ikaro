@@ -1,10 +1,17 @@
+import MockAdapter from 'axios-mock-adapter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AttachmentSignedUrlResponse,
   BookingResponse,
   CreateBookingRequest,
 } from '@ikaro/types';
-import { createAttachmentSignedUrl, createBooking, CreateBookingError } from './bookings';
+import { bffClient } from './bff-client';
+import {
+  createAuthenticatedBooking,
+  createAttachmentSignedUrl,
+  createBooking,
+  CreateBookingError,
+} from './bookings';
 
 const BFF_URL = 'http://bff-test:3002';
 
@@ -70,6 +77,33 @@ describe('createBooking', () => {
     await expect(createBooking('lavacar-beloauto', makePayload())).rejects.toMatchObject({
       status: 500,
     });
+  });
+});
+
+describe('createAuthenticatedBooking', () => {
+  const mock = new MockAdapter(bffClient);
+
+  beforeEach(() => mock.reset());
+
+  afterEach(() => mock.reset());
+
+  it('calls POST /bookings/authenticated and returns the booking id + status', async () => {
+    mock
+      .onPost('/bookings/authenticated')
+      .reply(201, { bookingId: 'booking-1', status: 'PENDING' });
+
+    const result = await createAuthenticatedBooking({
+      scheduledAt: '2026-06-20T13:00:00.000Z',
+      serviceIds: ['svc-1'],
+    });
+
+    expect(result).toEqual({ bookingId: 'booking-1', status: 'PENDING' });
+    expect(mock.history.post?.[0]?.data).toBe(
+      JSON.stringify({
+        scheduledAt: '2026-06-20T13:00:00.000Z',
+        serviceIds: ['svc-1'],
+      }),
+    );
   });
 });
 

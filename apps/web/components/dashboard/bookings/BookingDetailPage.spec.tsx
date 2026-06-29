@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderWithIntl } from '@/test-utils';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
@@ -161,6 +161,28 @@ describe('BookingDetailPage', () => {
     });
   });
 
+  it('opens directly on the slot-conflict state when initialized from the queue shortcut', async () => {
+    vi.mocked(fetchBookingAvailability).mockResolvedValue({
+      date: '2026-06-16',
+      slots: [{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }],
+      available: true,
+    });
+
+    renderWithIntl(
+      <BookingDetailPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        initialActionState="slot-conflict"
+      />,
+    );
+
+    expect(await screen.findByText('Horário não disponível')).toBeInTheDocument();
+    expect(vi.mocked(fetchBookingAvailability)).toHaveBeenCalledWith('lavacar-bh', '2026-06-16', [
+      'svc-1',
+    ]);
+    expect(screen.getByText('Aprovar neste →')).toBeInTheDocument();
+  });
+
   it('shows the backend validation message when rejecting with a short reason', async () => {
     rejectBookingMutateAsync.mockRejectedValue(
       new ApiError(400, 'Request body validation failed', {
@@ -225,5 +247,109 @@ describe('BookingDetailPage', () => {
     expect(screen.getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reagendar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
+  });
+
+  it('renders the approved gallery and routes the action buttons', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(
+      <BookingDetailPage
+        booking={makeBooking({
+          status: 'APPROVED',
+          afterServicePhotoUrls: ['https://example.com/photo.jpg'],
+        })}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.getByRole('img', { name: 'Foto depois do serviço 1' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Marcar concluído' }));
+    expect(routerPush).toHaveBeenCalledWith('/dashboard/bookings/b-1/complete');
+
+    await user.click(screen.getByRole('button', { name: 'Reagendar' }));
+    expect(routerPush).toHaveBeenCalledWith('/dashboard/bookings/b-1/reschedule');
+  });
+
+  it('shows the rejection success state after a successful reject', async () => {
+    const user = userEvent.setup();
+    rejectBookingMutateAsync.mockResolvedValue(undefined);
+
+    renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
+
+    await user.click(screen.getAllByRole('button', { name: 'Rejeitar' })[0]);
+    await user.type(screen.getByRole('textbox'), 'Cliente pediu cancelamento');
+    await user.click(screen.getAllByRole('button', { name: 'Rejeitar' })[1]);
+
+    expect(await screen.findByText('Agendamento rejeitado')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+  });
+
+  it('shows the information-request success state after a successful request', async () => {
+    const user = userEvent.setup();
+    requestMoreInfoMutateAsync.mockResolvedValue(undefined);
+
+    renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
+
+    await user.click(screen.getByRole('button', { name: 'Pedir info' }));
+    await user.type(screen.getByRole('textbox'), 'Confirmar endereço de coleta');
+    await user.click(screen.getByRole('button', { name: 'Enviar' }));
+
+    expect(await screen.findByText('Solicitação de informação enviada')).toBeInTheDocument();
+    expect(screen.getByText(/Pergunta enviada:/)).toBeInTheDocument();
+  });
+
+  it('hides actions for terminal bookings', () => {
+    renderWithIntl(
+      <BookingDetailPage booking={makeBooking({ status: 'REJECTED' })} tenantSlug="lavacar-bh" />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Marcar concluído' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Ações')).not.toBeInTheDocument();
+  });
+
+  it('returns to the default state when the slot-conflict alert is dismissed', async () => {
+    const user = userEvent.setup();
+    approveBookingMutateAsync
+      .mockRejectedValueOnce(new ApiError(409, 'slot unavailable'))
+      .mockResolvedValueOnce({
+        bookingId: 'b-1',
+        status: 'APPROVED',
+        approvedAt: '2026-06-16T09:05:00.000Z',
+      });
+    vi.mocked(fetchBookingAvailability).mockResolvedValue({
+      date: '2026-06-16',
+      slots: [{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }],
+      available: true,
+    });
+
+    renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
+
+    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+
+    expect(await screen.findByText('Horário não disponível')).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: '← Voltar sem aprovar' })[0]);
+
+    expect(screen.queryByText('Horário não disponível')).not.toBeInTheDocument();
+  });
+
+  it('shows the cancel success state with the back-to-agenda action', async () => {
+    const user = userEvent.setup();
+    cancelBookingMutateAsync.mockResolvedValue({
+      bookingId: 'b-1',
+      status: 'CANCELLED',
+      cancelledAt: '2026-06-16T10:05:00.000Z',
+    });
+
+    renderWithIntl(
+      <BookingDetailPage booking={makeBooking({ status: 'APPROVED' })} tenantSlug="lavacar-bh" />,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: 'Cancelar agendamento' })[0]);
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar agendamento' }));
+
+    expect(await screen.findByText('Agendamento cancelado')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
   });
 });

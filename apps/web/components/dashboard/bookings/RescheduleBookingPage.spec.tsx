@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
+import { ApiError } from '@/lib/api/errors';
+import { fetchBookingAvailability } from '@/lib/api/dashboard/fetch-booking-availability';
 import { RescheduleBookingPage } from './RescheduleBookingPage';
 
 vi.mock('@/components/booking/AvailabilityCarousel', () => ({
@@ -101,7 +103,7 @@ describe('RescheduleBookingPage', () => {
     const user = userEvent.setup();
     rescheduleBookingMutateAsync.mockResolvedValue(undefined);
 
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <RescheduleBookingPage
         booking={makeBooking()}
         tenantSlug="lavacar-bh"
@@ -110,16 +112,102 @@ describe('RescheduleBookingPage', () => {
     );
 
     expect(setBookingStatus).toHaveBeenCalledWith('APPROVED');
+    expect(screen.getAllByText('Cliente')).toHaveLength(2);
+    await user.type(screen.getByRole('textbox'), 'Deixar carro na parte da frente');
     await user.click(screen.getByRole('button', { name: 'choose date' }));
     await user.click(screen.getByRole('button', { name: 'choose slot' }));
+
+    const desktopAside = container.querySelector('aside.hidden');
+    expect(desktopAside).not.toBeNull();
+    const desktopAsideText = desktopAside?.textContent ?? '';
+    expect(desktopAsideText.indexOf('Ações')).toBeLessThan(desktopAsideText.indexOf('Resumo'));
+    expect(desktopAsideText).toContain('De');
+    expect(desktopAsideText).toContain('Para');
+    expect(desktopAsideText).toContain('16 de junho');
+    expect(desktopAsideText).toContain('07:00–07:30');
+
     await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
 
     expect(rescheduleBookingMutateAsync).toHaveBeenCalledWith({
       id: 'b-1',
-      body: { scheduledAt: '2026-06-17T10:00:00.000Z' },
+      body: {
+        scheduledAt: '2026-06-17T10:00:00.000Z',
+        adminNotes: 'Deixar carro na parte da frente',
+      },
     });
     expect(await screen.findByText('Agendamento reagendado')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Ver detalhe atualizado' })).not.toHaveLength(0);
+    expect(screen.getAllByRole('link', { name: 'Voltar à agenda' })).not.toHaveLength(0);
     expect(setBookingStatus).toHaveBeenCalledWith('APPROVED');
+  });
+
+  it('shows an error when the form is submitted without a selected slot', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        backHref="/dashboard/bookings/b-1"
+      />,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
+
+    expect(
+      await screen.findByText('Escolha um novo horário antes de continuar.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the loading alternatives error when the conflict fallback cannot fetch slots', async () => {
+    const user = userEvent.setup();
+    rescheduleBookingMutateAsync.mockRejectedValueOnce(new ApiError(409, 'slot unavailable'));
+
+    vi.mocked(fetchBookingAvailability).mockRejectedValue(new Error('network error'));
+
+    renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        backHref="/dashboard/bookings/b-1"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'choose date' }));
+    await user.click(screen.getByRole('button', { name: 'choose slot' }));
+    await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
+
+    expect(
+      await screen.findByText('Não foi possível carregar horários alternativos.'),
+    ).toBeInTheDocument();
+  });
+
+  it('dismisses the conflict alert when the back action is used', async () => {
+    const user = userEvent.setup();
+    rescheduleBookingMutateAsync.mockRejectedValueOnce(new ApiError(409, 'slot unavailable'));
+
+    vi.mocked(fetchBookingAvailability).mockResolvedValue({
+      date: '2026-06-17',
+      available: true,
+      slots: [{ startsAt: '2026-06-17T10:00:00.000Z', endsAt: '2026-06-17T10:30:00.000Z' }],
+    });
+
+    renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        backHref="/dashboard/bookings/b-1"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'choose date' }));
+    await user.click(screen.getByRole('button', { name: 'choose slot' }));
+    await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
+
+    expect(await screen.findByText('Horário não disponível')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '← Voltar sem reagendar' }));
+
+    expect(screen.queryByText('Horário não disponível')).not.toBeInTheDocument();
   });
 
   it('renders the same boxed action pattern for desktop and mobile rails', () => {

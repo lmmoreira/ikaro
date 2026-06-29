@@ -43,6 +43,18 @@ export function isAddressFilled(address: Address, requireNeighborhood: boolean):
   );
 }
 
+export function isAddressBlank(address: Address): boolean {
+  return (
+    address.street.trim() === '' &&
+    address.number.trim() === '' &&
+    (address.complement ?? '').trim() === '' &&
+    (address.neighborhood ?? '').trim() === '' &&
+    address.city.trim() === '' &&
+    address.state.trim() === '' &&
+    address.zipCode.trim() === ''
+  );
+}
+
 /** Drops a blank neighborhood instead of sending it as an empty string — the backend's
  * Zod schema accepts an omitted neighborhood but rejects an empty one (`.min(1)`). */
 export function sanitizeAddress(address: Address): Address {

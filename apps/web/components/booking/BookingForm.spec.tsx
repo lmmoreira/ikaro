@@ -2,14 +2,17 @@
 import { renderWithIntl } from '@/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AvailabilityResponse,
+  Address,
   DaySummary,
   HotsiteAddressSpec,
   HotsiteServiceResponse,
+  CustomerProfileResponse,
 } from '@ikaro/types';
-import { CreateBookingError, createBooking } from '@/lib/api/bookings';
+import { CreateBookingError, createAuthenticatedBooking, createBooking } from '@/lib/api/bookings';
+import { getHotsiteCustomerProfile } from '@/lib/api/customers';
 import { fetchAvailability, fetchAvailabilitySummary } from '@/lib/api/schedule';
 import { BookingForm } from './BookingForm';
 
@@ -35,9 +38,14 @@ vi.mock('@/lib/api/bookings', async (importOriginal) => {
   return {
     ...actual,
     createBooking: vi.fn(),
+    createAuthenticatedBooking: vi.fn(),
     createAttachmentSignedUrl: vi.fn(),
   };
 });
+
+vi.mock('@/lib/api/customers', () => ({
+  getHotsiteCustomerProfile: vi.fn(),
+}));
 
 vi.mock('@/lib/api/schedule', () => ({
   fetchAvailabilitySummary: vi.fn(),
@@ -62,10 +70,20 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
 const day: DaySummary = { date: '2026-06-15', available: true, slotCount: 1 };
 const slot = { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' };
 const availability: AvailabilityResponse = { date: '2026-06-15', available: true, slots: [slot] };
+const pickupAddress: Address = {
+  street: 'Rua das Acácias',
+  number: '45',
+  complement: '',
+  neighborhood: 'Jardim América',
+  city: 'Belo Horizonte',
+  state: 'MG',
+  zipCode: '30130-020',
+};
 
 async function advanceToStep3(
   user: ReturnType<typeof userEvent.setup>,
   services: HotsiteServiceResponse[],
+  expectContactFields = true,
 ) {
   vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
   vi.mocked(fetchAvailability).mockResolvedValue(availability);
@@ -90,7 +108,11 @@ async function advanceToStep3(
   await user.click(await screen.findByText('09:00–10:00'));
   await user.click(screen.getByRole('button', { name: 'Próximo' }));
 
-  await screen.findByLabelText('Nome');
+  if (expectContactFields) {
+    await screen.findByLabelText('Nome');
+  } else {
+    await screen.findByText('Revisar pedido');
+  }
 }
 
 async function fillContactFields(user: ReturnType<typeof userEvent.setup>) {
@@ -101,10 +123,16 @@ async function fillContactFields(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('BookingForm', () => {
+  beforeEach(() => {
+    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(null);
+  });
+
   afterEach(() => {
     vi.mocked(fetchAvailabilitySummary).mockReset();
     vi.mocked(fetchAvailability).mockReset();
     vi.mocked(createBooking).mockReset();
+    vi.mocked(createAuthenticatedBooking).mockReset();
+    vi.mocked(getHotsiteCustomerProfile).mockReset();
   });
 
   it('renders Step 1 with the service list', () => {
@@ -189,6 +217,84 @@ describe('BookingForm', () => {
     await user.click(screen.getByRole('checkbox'));
 
     expect(screen.getByText('Endereço de coleta')).toBeInTheDocument();
+  });
+
+  it('hides the contact fields on Step 3 for an authenticated customer', async () => {
+    const user = userEvent.setup();
+    const service = makeService();
+    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue({
+      customerId: 'c-1',
+      email: 'joao@example.com',
+      name: 'João Silva',
+      phone: '+5511999999999',
+      defaultAddress: pickupAddress,
+    } satisfies CustomerProfileResponse);
+
+    await advanceToStep3(user, [service], false);
+
+    expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('E-mail')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Telefone')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('toggle-contact-address')).not.toBeInTheDocument();
+  });
+
+  it('prefills the pickup address from the authenticated customer profile', async () => {
+    const user = userEvent.setup();
+    const service = makeService({ requiresPickupAddress: true });
+    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue({
+      customerId: 'c-1',
+      email: 'joao@example.com',
+      name: 'João Silva',
+      phone: '+5511999999999',
+      defaultAddress: pickupAddress,
+    });
+
+    renderWithIntl(
+      <BookingForm
+        slug="lavacar-beloauto"
+        services={[service]}
+        carouselDays={14}
+        phonePrefix="+55"
+        addressSpec={BR_ADDRESS_SPEC}
+      />,
+    );
+
+    await user.click(screen.getByRole('checkbox'));
+
+    expect(await screen.findByDisplayValue(pickupAddress.street)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(pickupAddress.number)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(pickupAddress.neighborhood ?? '')).toBeInTheDocument();
+    expect(screen.getByDisplayValue(pickupAddress.city)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(pickupAddress.state)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(pickupAddress.zipCode)).toBeInTheDocument();
+  });
+
+  it('submits authenticated bookings without contact fields through the authenticated endpoint', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue({
+      customerId: 'c-1',
+      email: 'joao@example.com',
+      name: 'João Silva',
+      phone: '+5511999999999',
+      defaultAddress: pickupAddress,
+    } satisfies CustomerProfileResponse);
+    vi.mocked(createAuthenticatedBooking).mockResolvedValue({
+      bookingId: 'booking-1',
+      status: 'PENDING',
+    });
+
+    await advanceToStep3(user, [makeService()], false);
+
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
+
+    expect(createAuthenticatedBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scheduledAt: slot.startsAt,
+        serviceIds: ['svc-1'],
+      }),
+    );
+    expect(createBooking).not.toHaveBeenCalled();
   });
 
   it('submits the booking and shows the success message', async () => {

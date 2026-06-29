@@ -98,6 +98,16 @@ describe('AvailabilityCarousel', () => {
     expect(getDayOption('2026-06-15')).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('uses dashboard rounded button styling when requested', async () => {
+    const days: DaySummary[] = [{ date: '2026-06-15', available: true, slotCount: 5 }];
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue(days);
+
+    renderCarousel({ selectedDate: '2026-06-15', variant: 'dashboard' });
+
+    await screen.findAllByTestId('day-option');
+    expect(getDayOption('2026-06-15')).toHaveStyle({ borderRadius: '0.75rem' });
+  });
+
   it('shows an error message with a retry button when the fetch fails', async () => {
     vi.mocked(fetchAvailabilitySummary).mockRejectedValue(new Error('network error'));
 
@@ -106,7 +116,34 @@ describe('AvailabilityCarousel', () => {
     expect(
       await screen.findByText('Não foi possível carregar a disponibilidade'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    expect(fetchAvailabilitySummary).toHaveBeenCalledTimes(2);
+  });
+
+  it('scrolls the carousel when the navigation buttons are used', async () => {
+    const scrollBy = vi.fn();
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([
+      { date: '2026-06-15', available: true, slotCount: 5 },
+      { date: '2026-06-16', available: true, slotCount: 3 },
+    ]);
+
+    const { container } = renderCarousel();
+
+    await screen.findAllByTestId('day-option');
+    const scrollContainer = container.querySelector('.overflow-x-auto');
+    if (!scrollContainer) {
+      throw new Error('scroll container not found');
+    }
+    Object.defineProperty(scrollContainer, 'scrollBy', {
+      value: scrollBy,
+      configurable: true,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Dias anteriores' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Próximos dias' }));
+
+    expect(scrollBy).toHaveBeenNthCalledWith(1, { left: -240, behavior: 'smooth' });
+    expect(scrollBy).toHaveBeenNthCalledWith(2, { left: 240, behavior: 'smooth' });
   });
 
   it('shows a fully booked message when all days in the window are unavailable', async () => {

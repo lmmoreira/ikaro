@@ -37,6 +37,10 @@ export interface CompleteBookingRequest {
   readonly lines: readonly CompleteBookingLine[];
   readonly afterServicePhotoUrls?: readonly string[];
   readonly adminNotes?: string;
+  readonly discountByPoints?: {
+    readonly pointsUsed: number;
+    readonly amountDeducted: number;
+  };
 }
 
 export interface SubmitInfoRequest {

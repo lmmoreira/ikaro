@@ -1,10 +1,6 @@
 import { test, expect } from '@playwright/test';
-import {
-  completeCustomerProfile,
-  loginAsCustomer,
-  loginAsStaff,
-  uniqueTestEmail,
-} from './helpers/auth';
+import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
+import { completeCustomerProfile } from './helpers/customer';
 
 test.describe('M13-S42 — Hotsite auth bar', () => {
   test('anonymous visitor sees the localized login CTA on the hotsite and reaches the tenant-branded login page', async ({
@@ -100,7 +96,7 @@ test.describe('Hotsite auth bar — authenticated states', () => {
   });
 
   test('authenticated staff sees their name and a link to the dashboard', async ({ page }) => {
-    await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
+    await loginAsStaff(page, 'funcionario@lavacar.com.br', 'lavacar-beloauto');
 
     await page.goto('/lavacar-beloauto');
 
@@ -110,7 +106,7 @@ test.describe('Hotsite auth bar — authenticated states', () => {
   });
 
   test('authenticated staff sees a Sair button that clears the session', async ({ page }) => {
-    await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
+    await loginAsStaff(page, 'funcionario@lavacar.com.br', 'lavacar-beloauto');
 
     await page.goto('/lavacar-beloauto');
     await expect(page.locator('[data-testid="hotsite-staff-authenticated-link"]')).toBeVisible();
@@ -126,7 +122,7 @@ test.describe('Hotsite auth bar — authenticated states', () => {
   test("staff authenticated at one tenant sees the unauthenticated state on a different tenant's hotsite", async ({
     page,
   }) => {
-    await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
+    await loginAsStaff(page, 'funcionario@lavacar.com.br', 'lavacar-beloauto');
 
     await page.goto('/autospa-premium');
 

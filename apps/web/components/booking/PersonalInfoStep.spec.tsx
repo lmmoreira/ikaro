@@ -47,11 +47,13 @@ function Wrapper({
   onBack = vi.fn(),
   phonePrefix = '+55',
   addressSpec = BR_ADDRESS_SPEC,
+  hideContactFields = false,
 }: {
   readonly onNext?: () => void;
   readonly onBack?: () => void;
   readonly phonePrefix?: string;
   readonly addressSpec?: HotsiteAddressSpec;
+  readonly hideContactFields?: boolean;
 }) {
   const [value, setValue] = useState<PersonalInfoValue>(emptyPersonalInfo());
   return (
@@ -65,6 +67,7 @@ function Wrapper({
       selectedSlot={slot}
       phonePrefix={phonePrefix}
       addressSpec={addressSpec}
+      hideContactFields={hideContactFields}
       onNext={onNext}
       onBack={onBack}
     />
@@ -78,6 +81,25 @@ describe('PersonalInfoStep', () => {
     expect(screen.getByLabelText('Nome')).toBeInTheDocument();
     expect(screen.getByLabelText('E-mail')).toBeInTheDocument();
     expect(screen.getByLabelText('Telefone')).toBeInTheDocument();
+  });
+
+  it('hides contact fields and the optional address toggle for authenticated customers', () => {
+    renderWithIntl(<Wrapper hideContactFields />);
+
+    expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('E-mail')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Telefone')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('toggle-contact-address')).not.toBeInTheDocument();
+  });
+
+  it('lets authenticated customers advance without validation', async () => {
+    const user = userEvent.setup();
+    const onNext = vi.fn();
+    renderWithIntl(<Wrapper hideContactFields onNext={onNext} />);
+
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+
+    expect(onNext).toHaveBeenCalled();
   });
 
   it('keeps the contact address section collapsed until toggled', async () => {

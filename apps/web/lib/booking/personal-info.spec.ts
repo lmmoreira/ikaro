@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { emptyAddress, emptyPersonalInfo, isAddressFilled, sanitizeAddress } from './personal-info';
+import {
+  emptyAddress,
+  emptyPersonalInfo,
+  isAddressBlank,
+  isAddressFilled,
+  sanitizeAddress,
+} from './personal-info';
 
 describe('emptyAddress', () => {
   it('returns an address with all fields empty', () => {
@@ -111,6 +117,26 @@ describe('isAddressFilled', () => {
         },
         true,
       ),
+    ).toBe(false);
+  });
+});
+
+describe('isAddressBlank', () => {
+  it('returns true when every field is empty', () => {
+    expect(isAddressBlank(emptyAddress())).toBe(true);
+  });
+
+  it('returns false when any field is already filled', () => {
+    expect(
+      isAddressBlank({
+        street: 'Avenida Paulista',
+        number: '',
+        complement: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        zipCode: '',
+      }),
     ).toBe(false);
   });
 });

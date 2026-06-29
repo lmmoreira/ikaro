@@ -2,13 +2,16 @@
 
 import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import type { StaffBookingListResponse } from '@ikaro/types';
 import { WeekNav } from '@/components/dashboard/WeekNav';
+import { ApiError } from '@/lib/api/errors';
 import {
   useActionNeededBookings,
   useTodayBookings,
   useUpcomingBookings,
 } from '@/lib/hooks/useBookings';
+import { useApproveBooking } from '@/lib/hooks/useBookingMutations';
 import { addDays, inWindow, isSameDay, toDateKey } from '@/lib/utils/date-utils';
 import { BookingCard } from './BookingCard';
 
@@ -30,7 +33,9 @@ export function BookingQueuePage({
   welcomeStaffScreenDays,
 }: BookingQueuePageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingQueue');
+  const router = useRouter();
   const windowDays = welcomeStaffScreenDays;
+  const approveBookingMutation = useApproveBooking();
 
   const todayDate = useMemo(() => new Date(today + 'T00:00:00'), [today]);
 
@@ -45,6 +50,17 @@ export function BookingQueuePage({
   const upcomingFrom = todayInWindow ? tomorrow : windowStartStr;
   const upcomingTo = windowEndStr;
   const upcomingVisible = new Date(upcomingFrom + 'T00:00:00') <= windowEnd;
+  const handleApproveBooking = async (bookingId: string): Promise<void> => {
+    try {
+      await approveBookingMutation.mutateAsync({ id: bookingId });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        router.push(`/dashboard/bookings/${bookingId}?conflict=1`);
+        return;
+      }
+      // Ignore non-conflict failures; the card stays interactive and the queue refreshes on retry.
+    }
+  };
 
   const { data: actionNeeded } = useActionNeededBookings(
     windowStartStr,
@@ -128,7 +144,13 @@ export function BookingQueuePage({
           </div>
           {actionNeeded?.items.length ? (
             actionNeeded.items.map((b) => (
-              <BookingCard key={b.bookingId} booking={b} variant="action-needed" />
+              <BookingCard
+                key={b.bookingId}
+                booking={b}
+                variant="action-needed"
+                onApprove={() => handleApproveBooking(b.bookingId)}
+                isApproving={approveBookingMutation.isPending}
+              />
             ))
           ) : (
             <p className="text-sm text-gray-400">{t('emptyActionNeeded')}</p>

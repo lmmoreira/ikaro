@@ -180,6 +180,7 @@ jobs:
         run: pnpm --filter @ikaro/web e2e:ci
         env:
           PLAYWRIGHT_BASE_URL: 'http://localhost:3000'
+          INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'
 
       - name: Upload Playwright report
         if: failure()

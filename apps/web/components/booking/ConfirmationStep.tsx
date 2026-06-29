@@ -107,7 +107,7 @@ export function ConfirmationStep({
           type="button"
           onClick={onBack}
           disabled={status === 'submitting'}
-          className="border px-6 py-3 disabled:cursor-not-allowed disabled:opacity-40"
+          className="cursor-pointer border px-6 py-3 disabled:cursor-not-allowed disabled:opacity-40"
           style={{
             borderRadius: 'var(--ba-radius)',
             borderColor: 'var(--ba-secondary)',
@@ -122,7 +122,7 @@ export function ConfirmationStep({
           disabled={status === 'submitting'}
           data-testid="step-confirm"
           style={btnStyle}
-          className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="cursor-pointer border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {status === 'submitting' ? t('confirmation.sending') : t('confirmation.submit')}
         </button>

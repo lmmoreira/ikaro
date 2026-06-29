@@ -147,6 +147,7 @@ describe('completeBooking', () => {
     });
     const res = await completeBooking('b-1', {
       lines: [{ lineId: 'l-1', actualPriceCharged: 100 }],
+      discountByPoints: { pointsUsed: 200, amountDeducted: 20 },
     });
     expect(res.status).toBe('COMPLETED');
   });

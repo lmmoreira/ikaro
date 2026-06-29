@@ -4,10 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { StaffBookingListResponse } from '@ikaro/types';
 import { BookingQueuePage } from './BookingQueuePage';
+import { ApiError } from '@/lib/api/errors';
 
 const mockUseActionNeeded = vi.fn();
 const mockUseToday = vi.fn();
 const mockUseUpcoming = vi.fn();
+const approveBookingMutateAsync = vi.fn().mockResolvedValue(undefined);
+const routerPush = vi.fn();
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => {
@@ -37,10 +40,21 @@ vi.mock('next-intl', () => ({
   },
 }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: routerPush }),
+}));
+
 vi.mock('@/lib/hooks/useBookings', () => ({
   useActionNeededBookings: (...args: unknown[]) => mockUseActionNeeded(...args),
   useTodayBookings: (...args: unknown[]) => mockUseToday(...args),
   useUpcomingBookings: (...args: unknown[]) => mockUseUpcoming(...args),
+}));
+
+vi.mock('@/lib/hooks/useBookingMutations', () => ({
+  useApproveBooking: () => ({
+    mutateAsync: approveBookingMutateAsync,
+    isPending: false,
+  }),
 }));
 
 vi.mock('@/components/dashboard/WeekNav', () => ({
@@ -76,10 +90,12 @@ vi.mock('./BookingCard', () => ({
     booking,
     variant,
     emphasized,
+    onApprove,
   }: {
     booking: { bookingId: string; contactName: string };
     variant: string;
     emphasized?: boolean;
+    onApprove?: () => void | Promise<void>;
   }) => (
     <div
       data-testid="booking-card"
@@ -88,6 +104,11 @@ vi.mock('./BookingCard', () => ({
       data-emphasized={emphasized ? 'true' : undefined}
     >
       {booking.contactName}
+      {variant === 'action-needed' && onApprove ? (
+        <button type="button" onClick={onApprove}>
+          Aprovar
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -199,6 +220,25 @@ describe('BookingQueuePage — card rendering', () => {
     expect(cards).toHaveLength(2);
     expect(cards[0]).toHaveTextContent('Maria');
     expect(cards[1]).toHaveTextContent('João');
+  });
+
+  it('approves an action-needed booking from the queue card', async () => {
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria']) });
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+
+    expect(approveBookingMutateAsync).toHaveBeenCalledWith({ id: 'b-0' });
+  });
+
+  it('routes to the booking detail page when the approval shortcut hits a slot conflict', async () => {
+    approveBookingMutateAsync.mockRejectedValueOnce(new ApiError(409, 'slot unavailable'));
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria']) });
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+
+    expect(routerPush).toHaveBeenCalledWith('/dashboard/bookings/b-0?conflict=1');
   });
 
   it('renders today cards from hook data', () => {

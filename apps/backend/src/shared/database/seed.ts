@@ -47,6 +47,8 @@ const TENANT_SETTINGS_BR = {
     expiryDays: 180,
     enableNotifications: true,
     expiryWarningDays: 7,
+    notificationMinPoints: 50,
+    pointsPerCurrencyUnit: 10,
   },
   booking: {
     cancellationWindowHours: 48,

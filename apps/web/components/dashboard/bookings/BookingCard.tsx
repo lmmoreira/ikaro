@@ -13,21 +13,41 @@ import { BOOKING_STATUS_CLASSES, buildBookingStatusLabels } from './booking-stat
 
 export type BookingCardVariant = 'action-needed' | 'today' | 'upcoming';
 
-export interface BookingCardProps {
+interface BookingCardBaseProps {
   readonly booking: StaffBookingCardResponse;
-  readonly variant: BookingCardVariant;
   readonly emphasized?: boolean;
 }
 
-function BookingCardInner({
-  booking,
-  variant,
-  emphasized = false,
-}: BookingCardProps): React.JSX.Element {
+export interface ActionNeededBookingCardProps extends BookingCardBaseProps {
+  readonly variant: 'action-needed';
+  readonly onApprove: () => void | Promise<void>;
+  readonly isApproving?: boolean;
+}
+
+export interface TodayBookingCardProps extends BookingCardBaseProps {
+  readonly variant: 'today';
+}
+
+export interface UpcomingBookingCardProps extends BookingCardBaseProps {
+  readonly variant: 'upcoming';
+}
+
+export type BookingCardProps =
+  | ActionNeededBookingCardProps
+  | TodayBookingCardProps
+  | UpcomingBookingCardProps;
+
+function BookingCardInner(props: BookingCardProps): React.JSX.Element {
+  const { booking, variant, emphasized = false } = props;
   const t = useTranslations('dashboard.bookingCard');
   const { formatMoney, formatTime, formatDateLong, timezone } = useFormatting();
   const scheduledAt = new Date(booking.scheduledAt);
   const statusLabel = buildBookingStatusLabels(t);
+  const approvalPending = variant === 'action-needed' ? (props.isApproving ?? false) : false;
+  const typeLabel = booking.isCustomer ? t('customerType') : t('guestType');
+  const typeBadgeClass = booking.isCustomer
+    ? 'bg-blue-100 text-blue-800'
+    : 'bg-amber-100 text-amber-800';
 
   const timeLabel = (() => {
     if (variant === 'today') return formatTime(scheduledAt);
@@ -60,11 +80,14 @@ function BookingCardInner({
           <span className="truncate text-sm font-semibold text-gray-900">
             {booking.contactName}
           </span>
-          <Badge
-            className={`shrink-0 text-xs ${BOOKING_STATUS_CLASSES[booking.status] ?? 'bg-gray-100 text-gray-600'}`}
-          >
-            {statusLabel[booking.status] ?? booking.status}
-          </Badge>
+          <div className="flex shrink-0 flex-wrap justify-end gap-2">
+            <Badge className={`shrink-0 border-0 text-xs ${typeBadgeClass}`}>{typeLabel}</Badge>
+            <Badge
+              className={`shrink-0 text-xs ${BOOKING_STATUS_CLASSES[booking.status] ?? 'bg-gray-100 text-gray-600'}`}
+            >
+              {statusLabel[booking.status] ?? booking.status}
+            </Badge>
+          </div>
         </div>
 
         <p className="mb-1 truncate text-xs text-gray-500">{booking.serviceNames.join(', ')}</p>
@@ -88,8 +111,8 @@ function BookingCardInner({
 
         {variant === 'action-needed' && (
           <div className="relative z-20 mt-3 flex gap-2">
-            <Button asChild size="sm">
-              <Link href={`/dashboard/bookings/${booking.bookingId}`}>{t('approve')}</Link>
+            <Button type="button" size="sm" disabled={approvalPending} onClick={props.onApprove}>
+              {t('approve')}
             </Button>
           </div>
         )}

@@ -11,6 +11,7 @@ interface SlotConflictAlertProps {
   readonly requestedAt: string;
   readonly totalDurationMins: number;
   readonly suggestions: readonly SlotConflictSuggestion[];
+  readonly isLoading?: boolean;
   readonly onChooseSlot: (startsAt: string) => void;
   readonly onBack: () => void;
   readonly chooseSlotLabel?: string;
@@ -21,6 +22,7 @@ export function SlotConflictAlert({
   requestedAt,
   totalDurationMins,
   suggestions,
+  isLoading = false,
   onChooseSlot,
   onBack,
   chooseSlotLabel,
@@ -64,7 +66,11 @@ export function SlotConflictAlert({
             {t('nearbySlots', { duration: formatDuration(totalDurationMins) })}
           </p>
 
-          {suggestions.length > 0 ? (
+          {isLoading && <p className="text-sm text-red-700/80">{t('loadingAlternatives')}</p>}
+          {!isLoading && suggestions.length === 0 && (
+            <p className="text-sm text-red-700/80">{t('noAlternatives')}</p>
+          )}
+          {!isLoading && suggestions.length > 0 && (
             <div className="space-y-2">
               {suggestions.map((slot) => {
                 const start = new Date(slot.startsAt);
@@ -87,8 +93,6 @@ export function SlotConflictAlert({
                 );
               })}
             </div>
-          ) : (
-            <p className="text-sm text-red-700/80">{t('noAlternatives')}</p>
           )}
         </div>
 
