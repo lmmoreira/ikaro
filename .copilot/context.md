@@ -33,7 +33,7 @@
 | **Auth** | Google OAuth 2.0 · JWT (`sub` = backend UUID, `tenantId`, `tenantSlug`, `role`) · BFF forwards `X-Actor-ID`/`X-Actor-Type`/`X-Actor-Role` |
 | **Storage** | GCS/S3-compatible · paths: `tenants/<tenant_id>/bookings/<booking_id>/<file>` |
 | **Errors** | RFC 9457 Problem Details on all non-2xx |
-| **Coverage gate** | ≥ 85% on **changed code** (differential) — enforced at pre-PR (Step 4) |
+| **Coverage gate** | ≥ 85% on **changed code** (differential) — enforced in SonarCloud/CI |
 | **Feature flags** | Env vars (`FEATURE_FLAG_XYZ=true`) — no external system for MVP |
 
 **Business context:** Ikaro is a SaaS platform + sister **Ikaro Consulting** offering; this repo is the Platform only. Designed to grow into a BI layer over booking/loyalty data — keep that in mind when shaping schemas and events.
@@ -247,8 +247,8 @@ Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-
 > ❗ **PR GATE — NON-NEGOTIABLE**
 > **`gh pr create` is FORBIDDEN until `/pre-pr` is complete.**
 > 1. `git push` → `ci:fast` runs (unit only — not sufficient alone)
-> 2. `/pre-pr` → all 4 steps → Step 4 is a hard stop: ask user to run integration tests, wait for pasted output
-> 3. Only after Step 4 clears → `gh pr create`
+> 2. `/pre-pr` → script, agent checks, bad-smell-audit, integration tests
+> 3. Only after `/pre-pr` clears → `gh pr create`
 
 **Before the first story of a new milestone:** offer to run `/docs-audit M0X` first.
 
@@ -281,7 +281,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 `pnpm ci:local` (~5 min, Docker). Only when touching Dockerfiles, infra, or integration-test paths.
 
 ### Step 7 — `/pre-pr` (MANDATORY before PR)
-Ask the user: *"I believe the story is complete — may I run /pre-pr?"* Wait for explicit yes. Run `/pre-pr` — it runs the script, agent checks, bad-smell-audit, unit tests + coverage (≥ 85%), and integration tests autonomously. Must report zero issues across all steps before opening the PR.
+Ask the user: *"I believe the story is complete — may I run /pre-pr?"* Wait for explicit yes. Run `/pre-pr` — it runs the script, agent checks, bad-smell-audit, and integration tests autonomously. Must report zero issues across all steps before opening the PR.
 
 ### Step 8 — Open the PR
 ```bash
@@ -372,7 +372,7 @@ _Note: §13, §14, §16, §18 were removed in earlier revisions. Numbers preserv
 1. **`/story-discovery M0X-SYY` ran and returned READY** — first action, no exceptions (§9 Step 0)
 2. **Feature branch created before any code** — `git checkout -b feat/M0X-SYY-<desc>` (§9 Step 1)
 3. **Asked user before every `git commit` and `git push`** — never autonomous (§0)
-4. **Ran `/pre-pr` and waited for user to paste passing integration test output before `gh pr create`** (§9 Step 7)
+4. **Ran `/pre-pr` and waited for the integration gate to pass before `gh pr create`** (§9 Step 7)
 
 If milestone is now complete: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10.
 
@@ -382,7 +382,7 @@ If milestone is now complete: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.
 
 | Command | When to use |
 |---|---|
-| `/pre-pr` | **Before every PR** — all checks + bad-smell-audit. Must report zero issues. |
+| `/pre-pr` | **Before every PR** — all checks + bad-smell-audit + integration tests. Must report zero issues. |
 | `/bad-smell-audit [backend\|bff\|web]` | Full-stack bad-smell scan on demand. |
 | `/mark-done M0X-SYY` | **After merge to main** — marks story done, alerts if milestone complete. |
 | `/story-discovery M0X-SYY` | **Before starting a story** — doc clarity, dep symbols, consistency check; emits READY/NOT READY. |

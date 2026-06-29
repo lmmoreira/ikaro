@@ -148,41 +148,7 @@ Wait for all invocations to complete before continuing. Any FAIL from bad-smell-
 
 ---
 
-## Step 4 — Unit tests + coverage gate (85%)
-
-Run unit tests with coverage for each changed app — in parallel:
-
-```bash
-# backend (if changed)
-pnpm --filter @ikaro/backend test --coverage 2>&1 | tail -80
-
-# web (if changed)
-pnpm --filter @ikaro/web test:cov 2>&1 | tail -80
-```
-
-Use a 300 000 ms timeout. After tests complete:
-
-1. Parse the coverage table from the output.
-2. For each changed production file (exclude `*.spec.ts`, `*.spec.tsx`, test helpers), find its row in the table.
-3. Flag any file where **% Lines < 85%** as a coverage failure.
-4. If the overall summary row shows < 85%, also flag it.
-
-**If coverage fails** → report file names and current percentages. Do NOT proceed to Step 5 — fix the tests first.
-
-```
-### Step 4 — Unit tests + coverage
-✅ PASS — all suites green; all changed files ≥ 85%
-```
-or:
-```
-### Step 4 — Unit tests + coverage
-❌ FAIL — coverage below 85%:
-  apps/backend/src/contexts/booking/application/cancel-booking.use-case.ts — 72% lines
-```
-
----
-
-## Step 5 — Integration tests (autonomous)
+## Step 4 — Integration tests (autonomous)
 
 ```bash
 { pnpm --filter @ikaro/backend test:integration && pnpm --filter @ikaro/bff test:component; } 2>&1 | tail -50
@@ -191,12 +157,12 @@ or:
 Use a 600 000 ms timeout (10 min).
 
 ```
-### Step 5 — Integration tests
+### Step 4 — Integration tests
 ✅ PASS — X suites, Y tests
 ```
 or:
 ```
-### Step 5 — Integration tests
+### Step 4 — Integration tests
 ❌ FAIL — [failing suite and test names]
 Blocked: fix failures before opening the PR.
 ```
@@ -215,8 +181,7 @@ Step 1   script              ✅  0 issues
 Step 2   type-check + lint   ✅  clean
 Step 3a  agent checks        ✅  clean
 Step 3b  bad-smell-audit     ✅  clean (backend + web)
-Step 4   coverage            ✅  all changed files ≥ 85%
-Step 5   integration tests   ✅  X suites, Y tests
+Step 4   integration tests   ✅  X suites, Y tests
 
 ---
 Total issues: 0
