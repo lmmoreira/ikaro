@@ -80,9 +80,7 @@ describe('booking-route', () => {
       new BookingDetailFetchError(500, 'backend-down'),
     );
 
-    await expect(loadBookingDetailRouteData('token', 'booking-1')).rejects.toThrow(
-      'backend-down',
-    );
+    await expect(loadBookingDetailRouteData('token', 'booking-1')).rejects.toThrow('backend-down');
     expect(notFound).not.toHaveBeenCalled();
   });
 });
