@@ -32,7 +32,7 @@ export async function loginAsCustomer(
   tenantSlug: string,
 ): Promise<DevLoginResponse['user']> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
     data: { email, tenantSlug, type: 'customer' },
   });
   if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
@@ -64,7 +64,7 @@ export async function loginAsStaff(
   tenantSlug: string,
 ): Promise<DevLoginResponse['user']> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
     data: { email, tenantSlug, type: 'staff' },
   });
   if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);

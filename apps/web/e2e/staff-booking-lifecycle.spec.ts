@@ -22,7 +22,7 @@ interface DevLoginResponse {
 
 async function loginAsCustomer(page: Page, email: string, tenantSlug: string): Promise<void> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
     data: { email, tenantSlug, type: 'customer' },
   });
   if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
@@ -42,7 +42,7 @@ async function loginAsCustomer(page: Page, email: string, tenantSlug: string): P
 
 async function loginAsStaff(page: Page, email: string, tenantSlug: string): Promise<void> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
     data: { email, tenantSlug, type: 'staff' },
   });
   if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
