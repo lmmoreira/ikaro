@@ -151,7 +151,7 @@ test.describe('staff booking lifecycle coverage', () => {
     await expect(page.getByText('10 pts = R$ 1,00 · Valor máximo: R$ 1,00')).toBeVisible();
 
     await page.getByRole('button', { name: 'Usar todos' }).click();
-    await expect(page.getByRole('spinbutton', { name: 'Pontos a usar' })).toHaveValue(10);
+    await expect(page.getByRole('spinbutton', { name: 'Pontos a usar' })).toHaveValue('10');
     await expect(page.getByText('Cliente ganhará 10 pontos')).toBeVisible();
 
     const completeRequest = page.waitForRequest(

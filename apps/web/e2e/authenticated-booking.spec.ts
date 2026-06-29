@@ -14,7 +14,7 @@ function uniqueTestEmail(prefix: string): string {
 
 async function loginAsCustomer(page: Page, email: string, tenantSlug: string): Promise<void> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
     data: { email, tenantSlug, type: 'customer' },
   });
   if (!res.ok()) throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
@@ -93,6 +93,14 @@ async function setupAuthenticatedCustomer(page: Page, tenantSlug: string): Promi
   await completeCustomerProfile(page, tenantSlug);
 }
 
+interface AuthenticatedBookingRequestBody {
+  readonly scheduledAt: string;
+  readonly serviceIds: readonly unknown[];
+  readonly contactName?: string;
+  readonly contactEmail?: string;
+  readonly contactPhone?: string;
+}
+
 test.describe('UC-002 — Authenticated customer booking golden path', () => {
   test('authenticated customer sees the default pickup address on step 1', async ({ page }) => {
     await setupAuthenticatedCustomer(page, 'lavacar-beloauto');
@@ -118,7 +126,7 @@ test.describe('UC-002 — Authenticated customer booking golden path', () => {
     page,
   }) => {
     let guestBookingCalled = false;
-    let authenticatedRequestBody: Record<string, unknown> | null = null;
+    let authenticatedRequestBody: unknown = null;
 
     await page.route(/\/v1\/bookings$/, (route) => {
       if (route.request().method() !== 'POST') return route.continue();
@@ -128,7 +136,7 @@ test.describe('UC-002 — Authenticated customer booking golden path', () => {
 
     await page.route(/\/v1\/bookings\/authenticated$/, async (route) => {
       if (route.request().method() !== 'POST') return route.continue();
-      authenticatedRequestBody = route.request().postDataJSON() as Record<string, unknown>;
+      authenticatedRequestBody = route.request().postDataJSON();
       return route.fulfill({
         status: 201,
         contentType: 'application/json',
@@ -150,11 +158,11 @@ test.describe('UC-002 — Authenticated customer booking golden path', () => {
 
     await expect(page.locator('[data-testid="booking-success"]')).toBeVisible();
     expect(guestBookingCalled).toBe(false);
-    expect(authenticatedRequestBody).not.toBeNull();
-    expect(typeof authenticatedRequestBody?.scheduledAt).toBe('string');
-    expect(Array.isArray(authenticatedRequestBody?.serviceIds)).toBe(true);
-    expect(authenticatedRequestBody).not.toHaveProperty('contactName');
-    expect(authenticatedRequestBody).not.toHaveProperty('contactEmail');
-    expect(authenticatedRequestBody).not.toHaveProperty('contactPhone');
+    const requestBody = authenticatedRequestBody as AuthenticatedBookingRequestBody;
+    expect(typeof requestBody.scheduledAt).toBe('string');
+    expect(Array.isArray(requestBody.serviceIds)).toBe(true);
+    expect(requestBody).not.toHaveProperty('contactName');
+    expect(requestBody).not.toHaveProperty('contactEmail');
+    expect(requestBody).not.toHaveProperty('contactPhone');
   });
 });
