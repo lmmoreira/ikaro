@@ -128,7 +128,6 @@ export interface HotsiteModule {
 }
 
 export interface HotsiteBranding {
-  /** Validated #RRGGBB hex string — enforced by validateBranding() via HexColor.isValid(). Stored as string in JSONB. */
   primaryColor: string;
   secondaryColor: string;
   backgroundColor: string;
@@ -153,19 +152,85 @@ export interface HotsiteBranding {
   brandTagline?: string;
 }
 
+/** Internal aggregate representation — color fields held as typed VOs. */
+interface HotsiteBrandingProps {
+  primaryColor: HexColor;
+  secondaryColor: HexColor;
+  backgroundColor: HexColor;
+  textColor: HexColor;
+  headingFontFamily: string;
+  bodyFontFamily: string;
+  logoUrl: string;
+  borderRadius: 'sharp' | 'rounded' | 'pill';
+  buttonStyle: 'filled' | 'outline' | 'ghost';
+  spacing: 'compact' | 'comfortable' | 'spacious';
+  shadowStyle: 'none' | 'subtle' | 'strong';
+  buttonBackgroundColor?: HexColor;
+  buttonTextColor?: HexColor;
+  heroBgStyle?: 'primary' | 'background';
+  alternateSectionBg?: boolean;
+  dividerStyle?: 'none' | 'gradient' | 'solid';
+  brandName?: string;
+  brandTagline?: string;
+}
+
 export interface HotsiteSeo {
   title: string | null;
   description: string | null;
 }
 
-export interface HotsiteConfigProps {
+interface HotsiteConfigProps {
   id: string;
   tenantId: string;
-  branding: HotsiteBranding;
+  branding: HotsiteBrandingProps;
   layout: HotsiteModule[];
   seo: HotsiteSeo;
   isPublished: boolean;
   updatedAt: Date;
+}
+
+type ReconstituteInput = Omit<HotsiteConfigProps, 'branding'> & {
+  branding: HotsiteBranding;
+};
+
+function brandingToDomain(b: HotsiteBranding): HotsiteBrandingProps {
+  return {
+    ...b,
+    primaryColor: HexColor.create(b.primaryColor),
+    secondaryColor: HexColor.create(b.secondaryColor),
+    backgroundColor: HexColor.create(b.backgroundColor),
+    textColor: HexColor.create(b.textColor),
+    buttonBackgroundColor: b.buttonBackgroundColor
+      ? HexColor.create(b.buttonBackgroundColor)
+      : undefined,
+    buttonTextColor: b.buttonTextColor ? HexColor.create(b.buttonTextColor) : undefined,
+  };
+}
+
+function brandingReconstitute(b: HotsiteBranding): HotsiteBrandingProps {
+  return {
+    ...b,
+    primaryColor: HexColor.reconstitute(b.primaryColor),
+    secondaryColor: HexColor.reconstitute(b.secondaryColor),
+    backgroundColor: HexColor.reconstitute(b.backgroundColor),
+    textColor: HexColor.reconstitute(b.textColor),
+    buttonBackgroundColor: b.buttonBackgroundColor
+      ? HexColor.reconstitute(b.buttonBackgroundColor)
+      : undefined,
+    buttonTextColor: b.buttonTextColor ? HexColor.reconstitute(b.buttonTextColor) : undefined,
+  };
+}
+
+function brandingFromDomain(b: HotsiteBrandingProps): HotsiteBranding {
+  return {
+    ...b,
+    primaryColor: b.primaryColor.value,
+    secondaryColor: b.secondaryColor.value,
+    backgroundColor: b.backgroundColor.value,
+    textColor: b.textColor.value,
+    buttonBackgroundColor: b.buttonBackgroundColor?.value,
+    buttonTextColor: b.buttonTextColor?.value,
+  };
 }
 
 const HEX_COLOR_FIELDS = [
@@ -194,9 +259,9 @@ const MODULE_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
 ]);
 
 export const DEFAULT_HOTSITE_BRANDING: HotsiteBranding = {
-  primaryColor: '#2563eb',
-  secondaryColor: '#eff6ff',
-  backgroundColor: '#ffffff',
+  primaryColor: '#2563EB',
+  secondaryColor: '#EFF6FF',
+  backgroundColor: '#FFFFFF',
   textColor: '#111827',
   headingFontFamily: 'Inter, sans-serif',
   bodyFontFamily: 'Inter, sans-serif',
@@ -232,7 +297,7 @@ export class HotsiteConfig extends AggregateRoot {
   }
 
   get branding(): HotsiteBranding {
-    return { ...this.props.branding };
+    return brandingFromDomain(this.props.branding);
   }
 
   get layout(): HotsiteModule[] {
@@ -255,7 +320,7 @@ export class HotsiteConfig extends AggregateRoot {
     return new HotsiteConfig({
       id: uuidv7(),
       tenantId,
-      branding: { ...DEFAULT_HOTSITE_BRANDING },
+      branding: brandingToDomain(DEFAULT_HOTSITE_BRANDING),
       layout: [],
       seo: { ...DEFAULT_HOTSITE_SEO },
       isPublished: false,
@@ -263,8 +328,11 @@ export class HotsiteConfig extends AggregateRoot {
     });
   }
 
-  static reconstitute(props: HotsiteConfigProps): HotsiteConfig {
-    return new HotsiteConfig(props);
+  static reconstitute(props: ReconstituteInput): HotsiteConfig {
+    return new HotsiteConfig({
+      ...props,
+      branding: brandingReconstitute(props.branding),
+    });
   }
 
   updateContent(
@@ -275,7 +343,7 @@ export class HotsiteConfig extends AggregateRoot {
     this.validateBranding(branding);
     this.validateLayout(layout);
     this.validateSeo(seo);
-    this.props.branding = branding;
+    this.props.branding = brandingToDomain(branding);
     this.props.layout = layout;
     this.props.seo = seo;
     this.props.updatedAt = new Date();

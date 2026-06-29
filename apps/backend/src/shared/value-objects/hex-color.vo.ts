@@ -14,6 +14,10 @@ export class HexColor {
     return new HexColor(color.toUpperCase());
   }
 
+  static reconstitute(color: string): HexColor {
+    return new HexColor(color.toUpperCase());
+  }
+
   get value(): string {
     return this._value;
   }

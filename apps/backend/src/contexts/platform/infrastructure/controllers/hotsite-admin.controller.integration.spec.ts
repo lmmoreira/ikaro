@@ -100,7 +100,7 @@ describe('HotsiteAdminController (integration)', () => {
         .expect(200);
 
       expect(body.isPublished).toBe(false);
-      expect(body.branding.primaryColor).toBe('#2563eb');
+      expect(body.branding.primaryColor).toBe('#2563EB');
       expect(body.layout).toHaveLength(1);
       expect(body.layout[0].type).toBe('HERO');
       expect(body.seo).toEqual({ title: null, description: null });
@@ -161,8 +161,8 @@ describe('HotsiteAdminController (integration)', () => {
         .send({ branding: { buttonBackgroundColor: '#fbbf24', buttonTextColor: '#0f172a' } })
         .expect(200);
 
-      expect(body.branding.buttonBackgroundColor).toBe('#fbbf24');
-      expect(body.branding.buttonTextColor).toBe('#0f172a');
+      expect(body.branding.buttonBackgroundColor).toBe('#FBBF24');
+      expect(body.branding.buttonTextColor).toBe('#0F172A');
 
       const { body: getBody } = await request(app.getHttpServer())
         .get('/tenants/hotsite')
@@ -170,8 +170,8 @@ describe('HotsiteAdminController (integration)', () => {
         .set('X-Actor-Role', 'MANAGER')
         .expect(200);
 
-      expect(getBody.branding.buttonBackgroundColor).toBe('#fbbf24');
-      expect(getBody.branding.buttonTextColor).toBe('#0f172a');
+      expect(getBody.branding.buttonBackgroundColor).toBe('#FBBF24');
+      expect(getBody.branding.buttonTextColor).toBe('#0F172A');
     });
 
     it('merges and persists branding without affecting other tenants', async () => {
@@ -192,7 +192,7 @@ describe('HotsiteAdminController (integration)', () => {
       const savedB = await ds.getRepository(HotsiteConfigEntity).findOne({
         where: { tenantId: TENANT_B },
       });
-      expect(savedB!.branding.primaryColor).toBe('#2563eb');
+      expect(savedB!.branding.primaryColor).toBe('#2563EB');
     });
 
     it('persists seo title and description and round-trips via GET', async () => {
