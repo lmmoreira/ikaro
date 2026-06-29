@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { BookingDetailPage } from '@/components/dashboard/bookings/BookingDetailPage';
-import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route';
+import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route.server';
 
 interface BookingDetailRouteProps {
   readonly params: Promise<{ id: string }>;

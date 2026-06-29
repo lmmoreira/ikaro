@@ -182,6 +182,9 @@ describe('MarkCompleteBookingPage', () => {
         afterServicePhotoUrls: ['tenants/tenant-1/bookings/b-1/after/photo.jpg'],
       },
     });
+    expect(
+      await screen.findByRole('img', { name: 'Foto depois do serviço 1' }),
+    ).toBeInTheDocument();
   });
 
   it('keeps the desktop action panel hidden on small screens', async () => {

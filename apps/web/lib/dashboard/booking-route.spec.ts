@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
 import { BookingDetailFetchError, fetchStaffBookingDetail } from '@/lib/api/dashboard/bookings';
-import { loadBookingDetailRouteData, matchBookingDetailRoute } from './booking-route';
+import { loadBookingDetailRouteData } from './booking-route.server';
+import { matchBookingDetailRoute } from './booking-route';
 
 vi.mock('next/navigation', () => ({
   notFound: vi.fn(() => {

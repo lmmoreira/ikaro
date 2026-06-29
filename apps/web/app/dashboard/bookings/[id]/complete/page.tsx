@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { MarkCompleteBookingPage } from '@/components/dashboard/bookings/MarkCompleteBookingPage';
-import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route';
+import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route.server';
 
 interface BookingCompleteRouteProps {
   readonly params: Promise<{ id: string }>;

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { AvailableSlot } from '@ikaro/types';
 import { fetchAvailability } from '@/lib/api/schedule';
 import { useFormatting } from '@/lib/formatting/use-formatting';
+import { cn } from '@/lib/utils';
 import { ErrorAlert } from './ErrorAlert';
 
 interface SlotPickerProps {
@@ -105,13 +106,16 @@ export function SlotPicker({
             onClick={() => onSelectSlot(slot)}
             aria-pressed={isSelected}
             data-testid="time-slot"
-            className="w-full border py-2 text-center text-sm font-medium transition-colors hover:bg-blue-50"
+            className={cn(
+              'w-full border py-2 text-center text-sm font-medium transition-colors',
+              isSelected
+                ? 'border-blue-600 bg-blue-600 text-white shadow-[0_1px_2px_rgba(37,99,235,0.18)]'
+                : isDashboardVariant
+                  ? 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                  : 'border-[var(--ba-secondary,rgb(191,219,254))] bg-[var(--ba-secondary,rgb(239,246,255))] text-[var(--ba-primary,#1d4ed8)] hover:bg-blue-50',
+            )}
             style={{
               borderRadius: isDashboardVariant ? '0.75rem' : 'var(--ba-radius)',
-              backgroundColor: getSlotBackgroundColor(isSelected, isDashboardVariant),
-              borderColor: getSlotBorderColor(isSelected, isDashboardVariant),
-              color: getSlotTextColor(isSelected, isDashboardVariant),
-              boxShadow: getSlotBoxShadow(isSelected),
             }}
           >
             {formatTime(new Date(slot.startsAt))}–{formatTime(new Date(slot.endsAt))}
@@ -120,32 +124,4 @@ export function SlotPicker({
       })}
     </div>
   );
-}
-
-function getSlotBackgroundColor(isSelected: boolean, isDashboardVariant: boolean): string {
-  if (isSelected) {
-    return 'var(--ba-primary, #2563eb)';
-  }
-
-  return isDashboardVariant ? '#ffffff' : 'var(--ba-secondary, rgb(239 246 255))';
-}
-
-function getSlotBorderColor(isSelected: boolean, isDashboardVariant: boolean): string {
-  if (isSelected) {
-    return 'var(--ba-primary, #2563eb)';
-  }
-
-  return isDashboardVariant ? 'rgb(191 219 254)' : 'var(--ba-secondary, rgb(191 219 254))';
-}
-
-function getSlotTextColor(isSelected: boolean, isDashboardVariant: boolean): string {
-  if (isSelected) {
-    return 'var(--ba-btn-text, #ffffff)';
-  }
-
-  return isDashboardVariant ? 'rgb(29 78 216)' : 'var(--ba-primary, #1d4ed8)';
-}
-
-function getSlotBoxShadow(isSelected: boolean): string {
-  return isSelected ? '0 1px 2px rgba(37, 99, 235, 0.18)' : 'none';
 }

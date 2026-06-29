@@ -167,13 +167,13 @@ export function MarkCompleteBookingPage({
           </Card>
         </section>
 
-        {booking.afterServicePhotoUrls.length > 0 && (
+        {afterServicePhotoUrls.length > 0 && (
           <section>
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
               {t('afterPhotosLabel')}
             </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {booking.afterServicePhotoUrls.map((url, index) => (
+              {afterServicePhotoUrls.map((url, index) => (
                 <img
                   key={`${url}-${index}`}
                   src={url}

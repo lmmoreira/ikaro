@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { RescheduleBookingPage } from '@/components/dashboard/bookings/RescheduleBookingPage';
-import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route';
+import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route.server';
 
 interface BookingRescheduleRouteProps {
   readonly params: Promise<{ id: string }>;

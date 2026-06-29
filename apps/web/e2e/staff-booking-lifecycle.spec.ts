@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const TENANT_SLUG = 'lavacar-beloauto';
-const STAFF_EMAIL = 'lm.moreira@gmail.com';
+const STAFF_EMAIL = 'admin@lavacar.com.br';
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://127.0.0.1:3002/v1';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 const SERVICE_SIMPLES_ID = '00000000-0000-7000-8003-000000000001';

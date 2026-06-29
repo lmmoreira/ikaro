@@ -55,7 +55,7 @@ export async function loginAsCustomer(
 // Logs a Playwright page in as a staff member via the BFF's dev-only /auth/dev-login endpoint.
 // The email must correspond to an existing seed staff record at the given tenant — dev-login
 // looks up by email (not find-or-create) and links the dev::email OAuth ID on first call.
-// Seed staff emails: lm.moreira@gmail.com (lavacar-beloauto manager),
+// Seed staff emails: admin@lavacar.com.br (lavacar-beloauto manager),
 // funcionario@lavacar.com.br (lavacar-beloauto staff), admin@ikaro.com (ikaro),
 // admin@autospa.com.br (autospa-premium).
 export async function loginAsStaff(
