@@ -154,7 +154,9 @@ describe('RescheduleBookingPage', () => {
 
     await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
 
-    expect(await screen.findByText('Escolha um novo horário antes de continuar.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Escolha um novo horário antes de continuar.'),
+    ).toBeInTheDocument();
   });
 
   it('shows the loading alternatives error when the conflict fallback cannot fetch slots', async () => {
@@ -175,7 +177,9 @@ describe('RescheduleBookingPage', () => {
     await user.click(screen.getByRole('button', { name: 'choose slot' }));
     await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
 
-    expect(await screen.findByText('Não foi possível carregar horários alternativos.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Não foi possível carregar horários alternativos.'),
+    ).toBeInTheDocument();
   });
 
   it('dismisses the conflict alert when the back action is used', async () => {

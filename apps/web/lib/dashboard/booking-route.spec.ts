@@ -65,7 +65,9 @@ describe('booking-route', () => {
 
   it('calls notFound when the booking fetch returns 404', async () => {
     vi.mocked(decodeJwtPayload).mockReturnValue({ tenantSlug: 'lavacar-bh' });
-    vi.mocked(fetchStaffBookingDetail).mockRejectedValue(new BookingDetailFetchError(404, 'missing'));
+    vi.mocked(fetchStaffBookingDetail).mockRejectedValue(
+      new BookingDetailFetchError(404, 'missing'),
+    );
 
     await expect(loadBookingDetailRouteData('token', 'booking-1')).rejects.toThrow('not-found');
     expect(notFound).toHaveBeenCalledTimes(1);
