@@ -2,7 +2,9 @@ import type {
   AttachmentSignedUrlResponse,
   BookingResponse,
   CreateBookingRequest,
+  Address,
 } from '@ikaro/types';
+import { bffClient } from './bff-client';
 
 export class CreateBookingError extends Error {
   constructor(
@@ -30,6 +32,23 @@ export async function createBooking(
   }
 
   return res.json() as Promise<BookingResponse>;
+}
+
+export interface AuthenticatedBookingRequest {
+  readonly scheduledAt: string;
+  readonly serviceIds: readonly string[];
+  readonly pickupAddress?: Address;
+  readonly beforeServicePhotoUrls?: readonly string[];
+}
+
+export async function createAuthenticatedBooking(
+  payload: AuthenticatedBookingRequest,
+): Promise<{ bookingId: string; status: string }> {
+  const res = await bffClient.post<{ bookingId: string; status: string }>(
+    '/bookings/authenticated',
+    payload,
+  );
+  return res.data;
 }
 
 export async function createAttachmentSignedUrl(

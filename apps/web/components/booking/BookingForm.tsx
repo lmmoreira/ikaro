@@ -1,18 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type {
   AvailableSlot,
+  Address,
   CreateBookingRequest,
   HotsiteAddressSpec,
   HotsiteServiceResponse,
+  CustomerProfileResponse,
 } from '@ikaro/types';
-import { CreateBookingError, createBooking } from '@/lib/api/bookings';
+import {
+  CreateBookingError,
+  createAuthenticatedBooking,
+  createBooking,
+  type AuthenticatedBookingRequest,
+} from '@/lib/api/bookings';
+import { getHotsiteCustomerProfile } from '@/lib/api/customers';
 import {
   emptyPersonalInfo,
   isAddressFilled,
+  isAddressBlank,
   sanitizeAddress,
   type PersonalInfoValue,
 } from '@/lib/booking/personal-info';
@@ -39,6 +48,7 @@ function buildPayload(
   personalInfo: PersonalInfoValue,
   selectedServiceIds: readonly string[],
   selectedSlot: AvailableSlot,
+  pickupAddress: Address,
   requiresPickupAddress: boolean,
   requireNeighborhood: boolean,
 ): CreateBookingRequest {
@@ -51,12 +61,25 @@ function buildPayload(
     ...(isAddressFilled(personalInfo.contactAddress, requireNeighborhood)
       ? { contactAddress: sanitizeAddress(personalInfo.contactAddress) }
       : {}),
-    ...(requiresPickupAddress
-      ? { pickupAddress: sanitizeAddress(personalInfo.pickupAddress) }
-      : {}),
+    ...(requiresPickupAddress ? { pickupAddress: sanitizeAddress(pickupAddress) } : {}),
     ...(personalInfo.photoFilePaths.length > 0
       ? { beforeServicePhotoUrls: [...personalInfo.photoFilePaths] }
       : {}),
+  };
+}
+
+function buildAuthenticatedPayload(
+  selectedServiceIds: readonly string[],
+  selectedSlot: AvailableSlot,
+  pickupAddress: Address,
+  requiresPickupAddress: boolean,
+  photoFilePaths: readonly string[],
+): AuthenticatedBookingRequest {
+  return {
+    scheduledAt: selectedSlot.startsAt,
+    serviceIds: [...selectedServiceIds],
+    ...(requiresPickupAddress ? { pickupAddress: sanitizeAddress(pickupAddress) } : {}),
+    ...(photoFilePaths.length > 0 ? { beforeServicePhotoUrls: [...photoFilePaths] } : {}),
   };
 }
 
@@ -75,6 +98,10 @@ export function BookingForm({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   const [personalInfo, setPersonalInfo] = useState<PersonalInfoValue>(emptyPersonalInfo());
+  const [customerProfile, setCustomerProfile] = useState<
+    CustomerProfileResponse | null | undefined
+  >(undefined);
+  const [pickupAddressEdited, setPickupAddressEdited] = useState(false);
   const [status, setStatus] = useState<BookingSubmissionStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [step2Error, setStep2Error] = useState<string | null>(null);
@@ -82,6 +109,32 @@ export function BookingForm({
   const requiresPickupAddress = services.some(
     (service) => selectedServiceIds.includes(service.id) && service.requiresPickupAddress,
   );
+
+  useEffect(() => {
+    let active = true;
+
+    getHotsiteCustomerProfile(slug)
+      .then((profile) => {
+        if (!active) return;
+        setCustomerProfile(profile);
+      })
+      .catch(() => {
+        if (active) setCustomerProfile(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
+  const pickupAddress =
+    requiresPickupAddress &&
+    !pickupAddressEdited &&
+    isAddressBlank(personalInfo.pickupAddress) &&
+    customerProfile?.defaultAddress
+      ? customerProfile.defaultAddress
+      : personalInfo.pickupAddress;
+  const isAuthenticatedCustomer = customerProfile !== null && customerProfile !== undefined;
 
   function toggleService(serviceId: string) {
     setSelectedServiceIds((prev) =>
@@ -109,14 +162,33 @@ export function BookingForm({
     setErrorMessage(null);
 
     try {
-      const payload = buildPayload(
-        personalInfo,
-        selectedServiceIds,
-        selectedSlot,
-        requiresPickupAddress,
-        addressSpec.requireNeighborhood,
-      );
-      await createBooking(slug, payload);
+      const resolvedProfile =
+        customerProfile === undefined ? await getHotsiteCustomerProfile(slug) : customerProfile;
+      if (resolvedProfile !== customerProfile) {
+        setCustomerProfile(resolvedProfile);
+      }
+
+      if (resolvedProfile) {
+        await createAuthenticatedBooking(
+          buildAuthenticatedPayload(
+            selectedServiceIds,
+            selectedSlot,
+            pickupAddress,
+            requiresPickupAddress,
+            personalInfo.photoFilePaths,
+          ),
+        );
+      } else {
+        const payload = buildPayload(
+          personalInfo,
+          selectedServiceIds,
+          selectedSlot,
+          pickupAddress,
+          requiresPickupAddress,
+          addressSpec.requireNeighborhood,
+        );
+        await createBooking(slug, payload);
+      }
       setStatus('success');
     } catch (err) {
       if (err instanceof CreateBookingError && err.status === 409) {
@@ -156,10 +228,11 @@ export function BookingForm({
             selectedServiceIds={selectedServiceIds}
             onToggleService={toggleService}
             requiresPickupAddress={requiresPickupAddress}
-            pickupAddress={personalInfo.pickupAddress}
-            onPickupAddressChange={(address) =>
-              setPersonalInfo((prev) => ({ ...prev, pickupAddress: address }))
-            }
+            pickupAddress={pickupAddress}
+            onPickupAddressChange={(address) => {
+              setPickupAddressEdited(true);
+              setPersonalInfo((prev) => ({ ...prev, pickupAddress: address }));
+            }}
             addressSpec={addressSpec}
             onNext={() => setStep(2)}
             onBack={() => router.push(`/${slug}`)}
@@ -202,7 +275,7 @@ export function BookingForm({
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="border px-6 py-3"
+                className="cursor-pointer border px-6 py-3"
                 style={{
                   borderRadius: 'var(--ba-radius)',
                   borderColor: 'var(--ba-secondary)',
@@ -222,7 +295,7 @@ export function BookingForm({
                   borderColor: 'var(--ba-btn-border)',
                   borderRadius: 'var(--ba-radius)',
                 }}
-                className="border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                className="cursor-pointer border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {tc('next')}
               </button>
@@ -241,6 +314,7 @@ export function BookingForm({
             selectedSlot={selectedSlot}
             phonePrefix={phonePrefix}
             addressSpec={addressSpec}
+            hideContactFields={isAuthenticatedCustomer}
             onNext={() => setStep(4)}
             onBack={() => setStep(2)}
           />

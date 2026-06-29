@@ -25,11 +25,17 @@ export async function createFreshApprovedBooking(
   page: Page,
   daysAhead: number,
   staffEmail: string,
+  options: {
+    readonly contactEmail?: string;
+    readonly serviceIds?: readonly string[];
+  } = {},
 ): Promise<AuthenticatedBookingSetup> {
   const setup = await createAuthenticatedBooking(page, {
     tenantSlug: STAFF_TENANT_SLUG,
     emailPrefix: `lifecycle-${daysAhead}`,
     daysAhead,
+    ...(options.contactEmail ? { contactEmail: options.contactEmail } : {}),
+    ...(options.serviceIds ? { serviceIds: options.serviceIds } : {}),
   });
 
   await approveBookingAsStaff(page, setup.bookingId, staffEmail);

@@ -13,6 +13,7 @@ export interface CreateAuthenticatedBookingOptions {
   readonly daysAhead: number;
   readonly serviceIds?: readonly string[];
   readonly notes?: string;
+  readonly contactEmail?: string;
 }
 
 export interface AuthenticatedBookingSetup {
@@ -25,7 +26,7 @@ export async function createAuthenticatedBooking(
   page: Page,
   options: CreateAuthenticatedBookingOptions,
 ): Promise<AuthenticatedBookingSetup> {
-  const contactEmail = uniqueTestEmail(options.emailPrefix);
+  const contactEmail = options.contactEmail ?? uniqueTestEmail(options.emailPrefix);
   await loginAsCustomer(page, contactEmail, options.tenantSlug);
   await completeCustomerProfile(page, options.tenantSlug);
   const serviceIds = options.serviceIds ?? [SERVICE_SIMPLES_ID];

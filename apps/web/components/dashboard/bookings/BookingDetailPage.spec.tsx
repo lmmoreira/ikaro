@@ -161,6 +161,28 @@ describe('BookingDetailPage', () => {
     });
   });
 
+  it('opens directly on the slot-conflict state when initialized from the queue shortcut', async () => {
+    vi.mocked(fetchBookingAvailability).mockResolvedValue({
+      date: '2026-06-16',
+      slots: [{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }],
+      available: true,
+    });
+
+    renderWithIntl(
+      <BookingDetailPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        initialActionState="slot-conflict"
+      />,
+    );
+
+    expect(await screen.findByText('Horário não disponível')).toBeInTheDocument();
+    expect(vi.mocked(fetchBookingAvailability)).toHaveBeenCalledWith('lavacar-bh', '2026-06-16', [
+      'svc-1',
+    ]);
+    expect(screen.getByText('Aprovar neste →')).toBeInTheDocument();
+  });
+
   it('shows the backend validation message when rejecting with a short reason', async () => {
     rejectBookingMutateAsync.mockRejectedValue(
       new ApiError(400, 'Request body validation failed', {

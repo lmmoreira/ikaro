@@ -2,8 +2,10 @@
 
 import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import type { StaffBookingListResponse } from '@ikaro/types';
 import { WeekNav } from '@/components/dashboard/WeekNav';
+import { ApiError } from '@/lib/api/errors';
 import {
   useActionNeededBookings,
   useTodayBookings,
@@ -31,6 +33,7 @@ export function BookingQueuePage({
   welcomeStaffScreenDays,
 }: BookingQueuePageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingQueue');
+  const router = useRouter();
   const windowDays = welcomeStaffScreenDays;
   const approveBookingMutation = useApproveBooking();
 
@@ -50,8 +53,12 @@ export function BookingQueuePage({
   const handleApproveBooking = async (bookingId: string): Promise<void> => {
     try {
       await approveBookingMutation.mutateAsync({ id: bookingId });
-    } catch {
-      // Ignore queue approve failures; the card stays interactive and the queue refreshes on retry.
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        router.push(`/dashboard/bookings/${bookingId}?conflict=1`);
+        return;
+      }
+      // Ignore non-conflict failures; the card stays interactive and the queue refreshes on retry.
     }
   };
 

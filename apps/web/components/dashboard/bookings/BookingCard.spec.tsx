@@ -14,6 +14,8 @@ vi.mock('next-intl', () => ({
         statusRejected: 'Rejeitado',
         statusCancelled: 'Cancelado',
         statusCompleted: 'Concluído',
+        guestType: 'Visitante',
+        customerType: 'Cliente',
         today: 'Hoje',
         tomorrow: 'Amanhã',
         markCompleted: 'Marcar concluído',
@@ -123,9 +125,26 @@ describe('BookingCard — action-needed variant', () => {
 
   it('renders PENDING status badge with yellow classes', () => {
     render(<BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />);
-    const badge = screen.getByTestId('badge');
-    expect(badge).toHaveTextContent('Pendente');
-    expect(badge.className).toContain('bg-yellow-100');
+    const badges = screen.getAllByTestId('badge');
+    expect(badges).toHaveLength(2);
+    expect(badges[0]).toHaveTextContent('Cliente');
+    expect(badges[0].className).toContain('bg-blue-100');
+    expect(badges[1]).toHaveTextContent('Pendente');
+    expect(badges[1].className).toContain('bg-yellow-100');
+  });
+
+  it('renders the guest badge when the booking is from a visitor', () => {
+    render(
+      <BookingCard
+        booking={makeBooking({ isCustomer: false })}
+        variant="action-needed"
+        onApprove={() => {}}
+      />,
+    );
+    const badges = screen.getAllByTestId('badge');
+    expect(badges).toHaveLength(2);
+    expect(badges[0]).toHaveTextContent('Visitante');
+    expect(badges[0].className).toContain('bg-amber-100');
   });
 
   it('renders the Aprovar button without a Ver detalhes action', () => {

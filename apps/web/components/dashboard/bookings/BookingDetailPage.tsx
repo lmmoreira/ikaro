@@ -45,6 +45,7 @@ interface BookingDetailPageProps {
   readonly booking: StaffBookingDetailResponse;
   readonly tenantSlug: string;
   readonly showHeaderStatusBadge?: boolean;
+  readonly initialActionState?: ActionState;
 }
 
 interface ProblemDetailsViolation {
@@ -162,14 +163,18 @@ export function BookingDetailPage({
   booking: initialBooking,
   tenantSlug,
   showHeaderStatusBadge = true,
+  initialActionState = 'idle',
 }: BookingDetailPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
   const { formatTime } = useFormatting();
   const router = useRouter();
   const [booking, setBooking] = useState(initialBooking);
-  const [actionState, setActionState] = useState<ActionState>('idle');
+  const [actionState, setActionState] = useState<ActionState>(initialActionState);
   const [sheetState, setSheetState] = useState<SheetState>(null);
   const [slotSuggestions, setSlotSuggestions] = useState<readonly SlotConflictSuggestion[]>([]);
+  const [isLoadingSlotSuggestions, setIsLoadingSlotSuggestions] = useState(
+    initialActionState === 'slot-conflict',
+  );
   const [inlineError, setInlineError] = useState<string | null>(null);
   const approveBookingMutation = useApproveBooking();
   const cancelBookingMutation = useCancelBooking();
@@ -188,6 +193,34 @@ export function BookingDetailPage({
   useEffect(() => {
     setTopbarBookingStatus?.(booking.status);
   }, [booking.status, setTopbarBookingStatus]);
+
+  useEffect(() => {
+    if (initialActionState !== 'slot-conflict') return;
+
+    let active = true;
+
+    void (async () => {
+      try {
+        const availability = await fetchBookingAvailability(
+          tenantSlug,
+          booking.scheduledAt.slice(0, 10),
+          serviceIds,
+        );
+        if (!active) return;
+        setSlotSuggestions(availability.slots);
+      } catch {
+        if (!active) return;
+        setActionState('idle');
+        setInlineError(t('loadingAlternativesError'));
+      } finally {
+        if (active) setIsLoadingSlotSuggestions(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [booking.scheduledAt, initialActionState, serviceIds, t, tenantSlug]);
 
   useEffect(
     () => () => {
@@ -520,10 +553,12 @@ export function BookingDetailPage({
               requestedAt={booking.scheduledAt}
               totalDurationMins={booking.totalDurationMins}
               suggestions={slotSuggestions}
+              isLoading={isLoadingSlotSuggestions}
               onChooseSlot={(startsAt) => void handleApprove(startsAt)}
               onBack={() => {
                 setActionState('idle');
                 setSlotSuggestions([]);
+                setIsLoadingSlotSuggestions(false);
               }}
             />
           )}

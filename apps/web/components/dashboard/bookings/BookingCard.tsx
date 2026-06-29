@@ -44,6 +44,10 @@ function BookingCardInner(props: BookingCardProps): React.JSX.Element {
   const scheduledAt = new Date(booking.scheduledAt);
   const statusLabel = buildBookingStatusLabels(t);
   const approvalPending = variant === 'action-needed' ? (props.isApproving ?? false) : false;
+  const typeLabel = booking.isCustomer ? t('customerType') : t('guestType');
+  const typeBadgeClass = booking.isCustomer
+    ? 'bg-blue-100 text-blue-800'
+    : 'bg-amber-100 text-amber-800';
 
   const timeLabel = (() => {
     if (variant === 'today') return formatTime(scheduledAt);
@@ -76,11 +80,14 @@ function BookingCardInner(props: BookingCardProps): React.JSX.Element {
           <span className="truncate text-sm font-semibold text-gray-900">
             {booking.contactName}
           </span>
-          <Badge
-            className={`shrink-0 text-xs ${BOOKING_STATUS_CLASSES[booking.status] ?? 'bg-gray-100 text-gray-600'}`}
-          >
-            {statusLabel[booking.status] ?? booking.status}
-          </Badge>
+          <div className="flex shrink-0 flex-wrap justify-end gap-2">
+            <Badge className={`shrink-0 border-0 text-xs ${typeBadgeClass}`}>{typeLabel}</Badge>
+            <Badge
+              className={`shrink-0 text-xs ${BOOKING_STATUS_CLASSES[booking.status] ?? 'bg-gray-100 text-gray-600'}`}
+            >
+              {statusLabel[booking.status] ?? booking.status}
+            </Badge>
+          </div>
         </div>
 
         <p className="mb-1 truncate text-xs text-gray-500">{booking.serviceNames.join(', ')}</p>

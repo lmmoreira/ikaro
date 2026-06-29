@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { loginAsStaff } from './helpers/auth';
+import { loginAsStaff, uniqueTestEmail } from './helpers/auth';
 import { createAuthenticatedBooking, createFreshApprovedBooking } from './helpers/booking';
 
 const TENANT_SLUG = 'lavacar-beloauto';
 const STAFF_EMAIL = 'admin@lavacar.com.br';
+const SERVICE_COMPLETA_ID = '00000000-0000-7000-8003-000000000002';
 test.describe('staff booking lifecycle coverage', () => {
   test('queue card body still opens booking detail', async ({ page }) => {
     const setup = await createAuthenticatedBooking(page, {
@@ -120,6 +121,64 @@ test.describe('staff booking lifecycle coverage', () => {
       page.locator('main aside').getByRole('link', { name: 'Voltar à agenda' }),
     ).toBeVisible();
     await expect(page.getByText(/Email com resumo enviado/i)).toBeVisible();
+  });
+
+  test('complete loyalty flow earns points on one booking and redeems them on the next', async ({
+    page,
+  }) => {
+    const customerEmail = uniqueTestEmail('loyalty-flow');
+
+    const earnedSetup = await createFreshApprovedBooking(page, 9, STAFF_EMAIL, {
+      contactEmail: customerEmail,
+      serviceIds: [SERVICE_COMPLETA_ID],
+    });
+
+    await page.goto(`/dashboard/bookings/${earnedSetup.bookingId}/complete`);
+    await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
+
+    await expect(page.getByText('Serviço concluído')).toBeVisible();
+    await expect(page.getByText('★ 10 pontos ativos')).toBeVisible();
+
+    const redeemSetup = await createFreshApprovedBooking(page, 10, STAFF_EMAIL, {
+      contactEmail: customerEmail,
+      serviceIds: [SERVICE_COMPLETA_ID],
+    });
+
+    await page.goto(`/dashboard/bookings/${redeemSetup.bookingId}/complete`);
+
+    await expect(page.getByText('Fidelidade do cliente')).toBeVisible();
+    await expect(page.getByText('Saldo atual: 10 pontos disponíveis')).toBeVisible();
+    await expect(page.getByText('10 pts = R$ 1,00 · Valor máximo: R$ 1,00')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Usar todos' }).click();
+    await expect(page.getByRole('spinbutton', { name: 'Pontos a usar' })).toHaveValue(10);
+    await expect(page.getByText('Cliente ganhará 10 pontos')).toBeVisible();
+
+    const completeRequest = page.waitForRequest(
+      (request) =>
+        request.method() === 'PATCH' &&
+        request.url().endsWith(`/bookings/${redeemSetup.bookingId}/complete`),
+    );
+
+    await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
+
+    const request = await completeRequest;
+    const requestBody = request.postDataJSON() as {
+      readonly lines: Array<{ readonly lineId: string; readonly actualPriceCharged: number }>;
+      readonly discountByPoints?: {
+        readonly pointsUsed: number;
+        readonly amountDeducted: number;
+      };
+    };
+    expect(requestBody.lines).toHaveLength(1);
+    expect(requestBody.lines[0].actualPriceCharged).toBe(150);
+    expect(requestBody.discountByPoints).toEqual({
+      pointsUsed: 10,
+      amountDeducted: 1,
+    });
+
+    await expect(page.getByText('Serviço concluído')).toBeVisible();
+    await expect(page.getByText('★ 10 pontos ativos')).toBeVisible();
   });
 
   test('reschedule success shows a full De/Para summary and the action panel on the right', async ({

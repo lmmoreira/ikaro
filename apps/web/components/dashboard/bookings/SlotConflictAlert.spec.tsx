@@ -29,4 +29,20 @@ describe('SlotConflictAlert', () => {
     await userEvent.click(screen.getByRole('button', { name: /Voltar sem aprovar/ }));
     expect(onBack).toHaveBeenCalledOnce();
   });
+
+  it('shows the loading state while alternate slots are being fetched', () => {
+    renderWithIntl(
+      <SlotConflictAlert
+        requestedAt="2026-06-16T10:00:00.000Z"
+        totalDurationMins={30}
+        suggestions={[]}
+        isLoading
+        onChooseSlot={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Carregando horários alternativos...')).toBeInTheDocument();
+    expect(screen.queryByText('Não encontramos horários alternativos')).not.toBeInTheDocument();
+  });
 });
