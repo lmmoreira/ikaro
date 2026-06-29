@@ -12,16 +12,6 @@ import { HotsiteAuthBar } from '@/components/hotsite/HotsiteAuthBar';
 import { ServiceListModule } from '@/components/hotsite/ServiceListModule';
 import { TestimonialsModule } from '@/components/hotsite/TestimonialsModule';
 import { Unavailable } from '@/components/hotsite/Unavailable';
-import {
-  AboutModuleDataSchema,
-  BookingCtaModuleDataSchema,
-  ContactModuleDataSchema,
-  FooterModuleDataSchema,
-  GalleryModuleDataSchema,
-  HeroModuleDataSchema,
-  ServiceListModuleDataSchema,
-  TestimonialsModuleDataSchema,
-} from '@/lib/hotsite/module-schemas';
 import { buildHotsiteModuleRenderPlan, resolveHotsiteDisplayName } from '@/lib/hotsite/page-model';
 import { buildHotsiteMetadata, buildLocalBusinessJsonLd, toJsonLdScript } from '@/lib/hotsite/seo';
 
@@ -53,8 +43,6 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
     return <Unavailable />;
   }
 
-  const hasServiceList = manifest.layout.some((m) => m.enabled && m.type === 'SERVICE_LIST');
-  const services = hasServiceList ? await fetchServices(slug) : [];
   const localBusinessJsonLd = buildLocalBusinessJsonLd({ manifest, slug });
 
   const { branding, business } = manifest;
@@ -66,6 +54,8 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
   // Display name for footer and brand card: prefer branding.brandName, fall back to tenant name.
   const displayName = resolveHotsiteDisplayName(manifest);
   const modulesWithVariant = buildHotsiteModuleRenderPlan(manifest.layout, alternateSectionBg);
+  const hasServiceList = modulesWithVariant.some(({ parsed }) => parsed.type === 'SERVICE_LIST');
+  const services = hasServiceList ? await fetchServices(slug) : [];
 
   const dividerEl =
     dividerStyle === 'none' ? null : (
@@ -82,80 +72,53 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: toJsonLdScript(localBusinessJsonLd) }}
       />
-      {modulesWithVariant.map(({ module: m, bgVariant }, index) => {
-        const key = `${m.type}-${index}`;
+      {modulesWithVariant.map(({ parsed, bgVariant }, index) => {
+        const key = `${parsed.type}-${index}`;
         let moduleEl: React.ReactNode = null;
 
-        if (m.type === 'HERO') {
+        if (parsed.type === 'HERO') {
           moduleEl = (
-            <HeroModule
-              key={key}
-              data={HeroModuleDataSchema.parse(m.data)}
-              slug={slug}
-              tenantBrand={tenantBrand}
-            />
+            <HeroModule key={key} data={parsed.data} slug={slug} tenantBrand={tenantBrand} />
           );
-        } else if (m.type === 'SERVICE_LIST') {
+        } else if (parsed.type === 'SERVICE_LIST') {
           moduleEl = (
             <ServiceListModule
               key={key}
-              data={ServiceListModuleDataSchema.parse(m.data)}
+              data={parsed.data}
               slug={slug}
               services={services}
               bgVariant={bgVariant}
             />
           );
-        } else if (m.type === 'CONTACT') {
+        } else if (parsed.type === 'CONTACT') {
           moduleEl = (
             <ContactModule
               key={key}
-              data={ContactModuleDataSchema.parse(m.data)}
+              data={parsed.data}
               business={business}
               slug={slug}
               bgVariant={bgVariant}
             />
           );
-        } else if (m.type === 'BOOKING_CTA') {
+        } else if (parsed.type === 'BOOKING_CTA') {
           moduleEl = (
-            <BookingCtaModule
-              key={key}
-              data={BookingCtaModuleDataSchema.parse(m.data)}
-              slug={slug}
-              tenantBrand={tenantBrand}
-            />
+            <BookingCtaModule key={key} data={parsed.data} slug={slug} tenantBrand={tenantBrand} />
           );
-        } else if (m.type === 'GALLERY') {
+        } else if (parsed.type === 'GALLERY') {
           moduleEl = (
-            <GalleryModule
-              key={key}
-              data={GalleryModuleDataSchema.parse(m.data)}
-              slug={slug}
-              bgVariant={bgVariant}
-            />
+            <GalleryModule key={key} data={parsed.data} slug={slug} bgVariant={bgVariant} />
           );
-        } else if (m.type === 'TESTIMONIALS') {
+        } else if (parsed.type === 'TESTIMONIALS') {
           moduleEl = (
-            <TestimonialsModule
-              key={key}
-              data={TestimonialsModuleDataSchema.parse(m.data)}
-              slug={slug}
-              bgVariant={bgVariant}
-            />
+            <TestimonialsModule key={key} data={parsed.data} slug={slug} bgVariant={bgVariant} />
           );
-        } else if (m.type === 'ABOUT') {
-          moduleEl = (
-            <AboutModule
-              key={key}
-              data={AboutModuleDataSchema.parse(m.data)}
-              slug={slug}
-              bgVariant={bgVariant}
-            />
-          );
-        } else if (m.type === 'FOOTER') {
+        } else if (parsed.type === 'ABOUT') {
+          moduleEl = <AboutModule key={key} data={parsed.data} slug={slug} bgVariant={bgVariant} />;
+        } else if (parsed.type === 'FOOTER') {
           moduleEl = (
             <Footer
               key={key}
-              data={FooterModuleDataSchema.parse(m.data)}
+              data={parsed.data}
               slug={slug}
               tenantName={displayName}
               business={business}
@@ -165,7 +128,7 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
 
         return moduleEl ? (
           <div key={key}>
-            {index > 0 && m.type !== 'FOOTER' && dividerEl}
+            {index > 0 && parsed.type !== 'FOOTER' && dividerEl}
             {moduleEl}
           </div>
         ) : null;
