@@ -60,7 +60,7 @@ export class TypeOrmNotificationLogRepository implements INotificationLogReposit
     entity.eventId = log.eventId;
     entity.notificationType = log.notificationType;
     entity.channel = log.channel;
-    entity.recipientEmail = log.recipientEmail;
+    entity.recipientEmail = log.recipientEmail.address;
     entity.status = log.status;
     entity.retryCount = log.retryCount;
     entity.errorMessage = log.errorMessage ?? null;

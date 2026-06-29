@@ -173,7 +173,7 @@ describe('HotsiteController (integration)', () => {
       .expect(200);
 
     expect(body.isPublished).toBe(true);
-    expect(body.branding.primaryColor).toBe('#2563eb');
+    expect(body.branding.primaryColor).toBe('#2563EB');
     expect(body.layout).toHaveLength(1);
     expect(body.layout[0].type).toBe('HERO');
   });
@@ -231,7 +231,7 @@ describe('HotsiteController (integration)', () => {
       .set('X-Tenant-ID', TENANT_BUTTON_BRANDING)
       .expect(200);
 
-    expect(body.branding.buttonBackgroundColor).toBe('#fbbf24');
-    expect(body.branding.buttonTextColor).toBe('#0f172a');
+    expect(body.branding.buttonBackgroundColor).toBe('#FBBF24');
+    expect(body.branding.buttonTextColor).toBe('#0F172A');
   });
 });

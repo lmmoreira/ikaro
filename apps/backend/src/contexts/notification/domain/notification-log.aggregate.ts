@@ -1,5 +1,6 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
+import { Email } from '../../../shared/value-objects/email.vo';
 
 export type NotificationStatus = 'PENDING' | 'SENT' | 'FAILED';
 
@@ -9,7 +10,7 @@ export interface NotificationLogProps {
   eventId: string;
   notificationType: string;
   channel: string;
-  recipientEmail: string;
+  recipientEmail: Email;
   status: NotificationStatus;
   retryCount: number;
   errorMessage?: string;
@@ -17,13 +18,24 @@ export interface NotificationLogProps {
   createdAt: Date;
 }
 
+type CreateInput = Omit<
+  NotificationLogProps,
+  'id' | 'createdAt' | 'status' | 'retryCount' | 'recipientEmail'
+> & {
+  recipientEmail: string;
+};
+
+type ReconstituteInput = Omit<NotificationLogProps, 'recipientEmail'> & {
+  recipientEmail: string;
+};
+
 export class NotificationLog extends AggregateRoot {
   readonly id: string;
   readonly tenantId: string;
   readonly eventId: string;
   readonly notificationType: string;
   readonly channel: string;
-  readonly recipientEmail: string;
+  readonly recipientEmail: Email;
   private _status: NotificationStatus;
   private _retryCount: number;
   private _errorMessage?: string;
@@ -61,11 +73,10 @@ export class NotificationLog extends AggregateRoot {
     return this._sentAt;
   }
 
-  static create(
-    props: Omit<NotificationLogProps, 'id' | 'createdAt' | 'status' | 'retryCount'>,
-  ): NotificationLog {
+  static create(props: CreateInput): NotificationLog {
     return new NotificationLog({
       ...props,
+      recipientEmail: Email.create(props.recipientEmail),
       id: uuidv7(),
       status: 'PENDING',
       retryCount: 0,
@@ -73,8 +84,11 @@ export class NotificationLog extends AggregateRoot {
     });
   }
 
-  static reconstitute(props: NotificationLogProps): NotificationLog {
-    return new NotificationLog(props);
+  static reconstitute(props: ReconstituteInput): NotificationLog {
+    return new NotificationLog({
+      ...props,
+      recipientEmail: Email.reconstitute(props.recipientEmail),
+    });
   }
 
   markSent(): void {

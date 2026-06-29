@@ -32,4 +32,9 @@ describe('HexColor', () => {
   it('create throws for an invalid value', () => {
     expect(() => HexColor.create('not-a-color')).toThrow();
   });
+
+  it('reconstitute normalises to uppercase without validation', () => {
+    expect(HexColor.reconstitute('#eff6ff').value).toBe('#EFF6FF');
+    expect(HexColor.reconstitute('#2563EB').value).toBe('#2563EB');
+  });
 });

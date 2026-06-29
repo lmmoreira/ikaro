@@ -24,6 +24,10 @@ export class Email extends ValueObject<EmailProps> {
     return new Email({ address: address.toLowerCase().trim() });
   }
 
+  static reconstitute(address: string): Email {
+    return new Email({ address });
+  }
+
   get address(): string {
     return this.props.address;
   }
