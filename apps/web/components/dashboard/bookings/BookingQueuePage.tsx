@@ -47,6 +47,9 @@ export function BookingQueuePage({
   const upcomingFrom = todayInWindow ? tomorrow : windowStartStr;
   const upcomingTo = windowEndStr;
   const upcomingVisible = new Date(upcomingFrom + 'T00:00:00') <= windowEnd;
+  const handleApproveBooking = (bookingId: string) => {
+    return approveBookingMutation.mutateAsync({ id: bookingId }).catch(() => undefined);
+  };
 
   const { data: actionNeeded } = useActionNeededBookings(
     windowStartStr,
@@ -134,11 +137,7 @@ export function BookingQueuePage({
                 key={b.bookingId}
                 booking={b}
                 variant="action-needed"
-                onApprove={() =>
-                  void approveBookingMutation.mutateAsync({ id: b.bookingId }).catch(() => {
-                    return undefined;
-                  })
-                }
+                onApprove={() => handleApproveBooking(b.bookingId)}
                 isApproving={approveBookingMutation.isPending}
               />
             ))

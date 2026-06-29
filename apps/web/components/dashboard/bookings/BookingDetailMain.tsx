@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { BookingClientCard } from './BookingClientCard';
+import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
 
 interface BookingDetailMainProps {
   readonly booking: StaffBookingDetailResponse;
@@ -135,7 +136,7 @@ export function BookingOutcomeLayout({
           {children}
         </div>
 
-        <aside className="hidden space-y-4 lg:block lg:sticky lg:top-6">
+        <BookingOutcomeActionRail>
           <Card>
             <CardContent className="space-y-3 p-4">
               <p className="text-sm text-gray-600">{asideBody}</p>
@@ -152,25 +153,7 @@ export function BookingOutcomeLayout({
               )}
             </CardContent>
           </Card>
-        </aside>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <Card>
-          <CardContent className="space-y-3 p-4">
-            <Button asChild className="w-full">
-              <Link href={primaryAction.href}>{primaryAction.label}</Link>
-            </Button>
-            {secondaryAction && (
-              <Button
-                asChild
-                className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-              >
-                <Link href={secondaryAction.href}>{secondaryAction.label}</Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        </BookingOutcomeActionRail>
       </div>
     </div>
   );

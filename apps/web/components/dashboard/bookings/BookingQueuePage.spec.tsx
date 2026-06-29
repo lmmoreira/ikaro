@@ -8,7 +8,7 @@ import { BookingQueuePage } from './BookingQueuePage';
 const mockUseActionNeeded = vi.fn();
 const mockUseToday = vi.fn();
 const mockUseUpcoming = vi.fn();
-const approveBookingMutateAsync = vi.fn();
+const approveBookingMutateAsync = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => {
@@ -84,14 +84,12 @@ vi.mock('./BookingCard', () => ({
     booking,
     variant,
     emphasized,
-    onApprove: _onApprove,
-    isApproving: _isApproving,
+    onApprove,
   }: {
     booking: { bookingId: string; contactName: string };
     variant: string;
     emphasized?: boolean;
     onApprove?: () => void | Promise<void>;
-    isApproving?: boolean;
   }) => (
     <div
       data-testid="booking-card"
@@ -100,6 +98,11 @@ vi.mock('./BookingCard', () => ({
       data-emphasized={emphasized ? 'true' : undefined}
     >
       {booking.contactName}
+      {variant === 'action-needed' && onApprove ? (
+        <button type="button" onClick={onApprove}>
+          Aprovar
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -211,6 +214,15 @@ describe('BookingQueuePage — card rendering', () => {
     expect(cards).toHaveLength(2);
     expect(cards[0]).toHaveTextContent('Maria');
     expect(cards[1]).toHaveTextContent('João');
+  });
+
+  it('approves an action-needed booking from the queue card', async () => {
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria']) });
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+
+    expect(approveBookingMutateAsync).toHaveBeenCalledWith({ id: 'b-0' });
   });
 
   it('renders today cards from hook data', () => {

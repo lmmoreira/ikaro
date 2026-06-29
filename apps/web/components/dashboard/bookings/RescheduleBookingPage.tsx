@@ -19,6 +19,7 @@ import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { useRescheduleBooking } from '@/lib/hooks/useBookingMutations';
 import { useDashboardTopbarStatus } from '../topbar-status-context';
+import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
 import { BookingOutcomeLayout } from './BookingDetailMain';
 import { SlotConflictAlert } from './SlotConflictAlert';
 import { BookingClientCard } from './BookingClientCard';
@@ -263,13 +264,15 @@ export function RescheduleBookingPage({
           </section>
         </div>
 
-        <aside className="hidden space-y-4 lg:block lg:sticky lg:top-6">
-          {error && (
-            <Card className="border-red-200 bg-red-50/80">
-              <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
-            </Card>
-          )}
-
+        <BookingOutcomeActionRail
+          desktopTop={
+            error ? (
+              <Card className="border-red-200 bg-red-50/80">
+                <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
+              </Card>
+            ) : null
+          }
+        >
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
               {t('actionsSection')}
@@ -321,60 +324,7 @@ export function RescheduleBookingPage({
               </div>
             </CardContent>
           </Card>
-        </aside>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('actionsSection')}
-          </p>
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <Button type="submit" disabled={pendingSubmit} className="w-full">
-                {t('submitReschedule')}
-              </Button>
-              <Button
-                asChild
-                className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-              >
-                <Link href={backHref}>{commonT('cancel')}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-          <Card className="border-blue-200 bg-blue-50/70">
-            <CardContent className="space-y-3 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-                {t('summaryLabel')}
-              </p>
-              <div className="space-y-3 text-sm text-blue-700/90">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-                    {t('rescheduledFromLabel')}
-                  </p>
-                  <p className="mt-1 font-medium">
-                    {formatRangeLine(currentStart, currentEnd, formatDateLong, formatTime)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-                    {t('rescheduledToLabel')}
-                  </p>
-                  <p className="mt-1 font-medium">
-                    {selectedSlot
-                      ? formatRangeLine(
-                          new Date(selectedSlot.startsAt),
-                          new Date(selectedSlot.endsAt),
-                          formatDateLong,
-                          formatTime,
-                        )
-                      : t('summaryPending')}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        </BookingOutcomeActionRail>
       </div>
     </form>
   );
