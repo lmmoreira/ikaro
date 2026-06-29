@@ -73,4 +73,16 @@ describe('booking-route', () => {
     await expect(loadBookingDetailRouteData('token', 'booking-1')).rejects.toThrow('not-found');
     expect(notFound).toHaveBeenCalledTimes(1);
   });
+
+  it('rethrows non-404 booking fetch errors', async () => {
+    vi.mocked(decodeJwtPayload).mockReturnValue({ tenantSlug: 'lavacar-bh' });
+    vi.mocked(fetchStaffBookingDetail).mockRejectedValue(
+      new BookingDetailFetchError(500, 'backend-down'),
+    );
+
+    await expect(loadBookingDetailRouteData('token', 'booking-1')).rejects.toThrow(
+      'backend-down',
+    );
+    expect(notFound).not.toHaveBeenCalled();
+  });
 });
