@@ -18,7 +18,10 @@ export interface NotificationLogProps {
   createdAt: Date;
 }
 
-type CreateInput = Omit<NotificationLogProps, 'id' | 'createdAt' | 'status' | 'retryCount' | 'recipientEmail'> & {
+type CreateInput = Omit<
+  NotificationLogProps,
+  'id' | 'createdAt' | 'status' | 'retryCount' | 'recipientEmail'
+> & {
   recipientEmail: string;
 };
 
