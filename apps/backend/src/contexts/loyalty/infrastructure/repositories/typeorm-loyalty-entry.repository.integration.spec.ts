@@ -23,6 +23,10 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
   });
 
   afterEach(async () => {
+    await dataSource.query(
+      `DELETE FROM "loyalty"."balance_expiry_log" WHERE entry_id IN (SELECT id FROM "loyalty"."loyalty_entries" WHERE tenant_id IN ($1, $2))`,
+      [TENANT_A, TENANT_B],
+    );
     await dataSource.query(`DELETE FROM "loyalty"."loyalty_entries" WHERE tenant_id IN ($1, $2)`, [
       TENANT_A,
       TENANT_B,
