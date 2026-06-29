@@ -32,8 +32,7 @@ RUN pnpm --filter @ikaro/i18n build \
     && pnpm --filter @ikaro/observability build \
     && pnpm --filter @ikaro/env-validation build \
     && pnpm --filter @ikaro/backend build \
-    && pnpm --filter @ikaro/backend deploy --prod /standalone --legacy \
-    && rm -rf /standalone/node_modules/.pnpm/multer@2.1.1
+    && pnpm --filter @ikaro/backend deploy --prod /standalone --legacy
 
 
 # ─── Stage 2: Run ────────────────────────────────────────────────────────────

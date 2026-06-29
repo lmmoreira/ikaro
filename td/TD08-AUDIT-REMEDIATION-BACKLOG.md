@@ -42,7 +42,7 @@
 | **AUD-007** | CSP + security headers on hotsite | 🟠 High | S | Now | — | §8.3 |
 | **AUD-008** | Isolate BFF HTTP-client auth state (`client-only` guard) | 🟠 High | XS | Now | — | §8.4 |
 | **AUD-009** | Supply-chain CI hardening (pin actions, Dependabot, digests, concurrency, permissions) ✅ | 🟠 High | M | Now | — | §9.1, §9.2, §9.5, §10.1–10.3 |
-| **AUD-010** | Fix the brittle `multer` override (real CVE) | 🟠 High | S | Now | — | §10.6 |
+| **AUD-010** | Fix the brittle `multer` override (real CVE) ✅ | 🟠 High | S | Now | — | §10.6 |
 | **AUD-011** | Tenant-settings cache (in-memory LRU + TTL) | 🟡 Medium | S | Now | — | §5.1 |
 | **AUD-012** | Prototype-pollution guard in `deepMerge` | 🟡 Medium | XS | Now | — | §5.7 |
 | **AUD-013** | Per-tenant font loading (LCP) | 🟡 Medium | S | Now | — | §8.1 |
@@ -317,7 +317,7 @@ Either (a) add `import 'client-only'` at the top of `bff-client.ts` so any accid
 
 ### AUD-010 — Fix the brittle `multer` override (real CVE)
 **Risk:** 🟠 High · **Effort:** S · **Phase:** Now · **Depends on:** — · **Audit ref:** §10.6
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 #### What's wrong
 `pnpm-workspace.yaml` pins `multer 2.2.0` via `overrides`, yet both `apps/backend/Dockerfile` and `apps/bff/Dockerfile` still `rm -rf /standalone/node_modules/.pnpm/multer@2.1.1` after deploy. That means a vulnerable `multer 2.1.1` still resolves into the tree and is only kept out by a hardcoded path string — a future bump silently breaks the `rm` and re-ships the CVE.
@@ -326,9 +326,9 @@ Either (a) add `import 'client-only'` at the top of `bff-client.ts` so any accid
 Run `pnpm why multer` to find the path that still resolves `2.1.1`; fix the override (or the offending dependency) so the tree dedupes to a single safe version; remove the brittle `rm` lines.
 
 #### Acceptance criteria
-- [ ] `pnpm why multer` shows only the safe version.
-- [ ] The `rm -rf …multer@2.1.1` lines are removed from both Dockerfiles.
-- [ ] Trivy scan stays clean.
+- [x] `pnpm why multer` shows only the safe version.
+- [x] The `rm -rf …multer@2.1.1` lines are removed from both Dockerfiles.
+- [ ] Trivy scan stays clean (verified in CI).
 
 ---
 

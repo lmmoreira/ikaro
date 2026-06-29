@@ -27,8 +27,7 @@ COPY apps/bff/ apps/bff/
 RUN pnpm --filter @ikaro/observability build \
     && pnpm --filter @ikaro/env-validation build \
     && pnpm --filter @ikaro/bff build \
-    && pnpm --filter @ikaro/bff deploy --prod /standalone --legacy \
-    && rm -rf /standalone/node_modules/.pnpm/multer@2.1.1
+    && pnpm --filter @ikaro/bff deploy --prod /standalone --legacy
 
 
 # ─── Stage 2: Run ────────────────────────────────────────────────────────────
