@@ -47,8 +47,12 @@ export function BookingQueuePage({
   const upcomingFrom = todayInWindow ? tomorrow : windowStartStr;
   const upcomingTo = windowEndStr;
   const upcomingVisible = new Date(upcomingFrom + 'T00:00:00') <= windowEnd;
-  const handleApproveBooking = (bookingId: string) => {
-    return approveBookingMutation.mutateAsync({ id: bookingId }).catch(() => undefined);
+  const handleApproveBooking = async (bookingId: string): Promise<void> => {
+    try {
+      await approveBookingMutation.mutateAsync({ id: bookingId });
+    } catch {
+      // Ignore queue approve failures; the card stays interactive and the queue refreshes on retry.
+    }
   };
 
   const { data: actionNeeded } = useActionNeededBookings(
