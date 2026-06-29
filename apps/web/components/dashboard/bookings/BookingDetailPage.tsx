@@ -56,11 +56,9 @@ interface ProblemDetailsResponse {
   readonly violations?: readonly ProblemDetailsViolation[];
 }
 
-function BannerIcon({
-  variant,
-}: {
-  readonly variant: 'success' | 'danger' | 'info';
-}): React.JSX.Element {
+type BannerVariant = 'success' | 'danger' | 'info';
+
+function BannerIcon({ variant }: { readonly variant: BannerVariant }): React.JSX.Element {
   const backgroundClass = getBannerIconBackgroundClass(variant);
   const strokeColor = 'white';
   const icon = getBannerIconSvg(variant, strokeColor);
@@ -74,7 +72,7 @@ function BannerIcon({
   );
 }
 
-function getBannerIconBackgroundClass(variant: 'success' | 'danger' | 'info'): string {
+function getBannerIconBackgroundClass(variant: BannerVariant): string {
   if (variant === 'success') {
     return 'bg-green-600';
   }
@@ -86,10 +84,7 @@ function getBannerIconBackgroundClass(variant: 'success' | 'danger' | 'info'): s
   return 'bg-blue-600';
 }
 
-function getBannerIconSvg(
-  variant: 'success' | 'danger' | 'info',
-  strokeColor: string,
-): React.JSX.Element {
+function getBannerIconSvg(variant: BannerVariant, strokeColor: string): React.JSX.Element {
   if (variant === 'danger') {
     return (
       <svg
