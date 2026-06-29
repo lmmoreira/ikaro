@@ -108,11 +108,7 @@ export function SlotPicker({
             data-testid="time-slot"
             className={cn(
               'w-full border py-2 text-center text-sm font-medium transition-colors',
-              isSelected
-                ? 'border-blue-600 bg-blue-600 text-white shadow-[0_1px_2px_rgba(37,99,235,0.18)]'
-                : isDashboardVariant
-                  ? 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
-                  : 'border-[var(--ba-secondary,rgb(191,219,254))] bg-[var(--ba-secondary,rgb(239,246,255))] text-[var(--ba-primary,#1d4ed8)] hover:bg-blue-50',
+              getSlotButtonClassName(isSelected, isDashboardVariant),
             )}
             style={{
               borderRadius: isDashboardVariant ? '0.75rem' : 'var(--ba-radius)',
@@ -124,4 +120,16 @@ export function SlotPicker({
       })}
     </div>
   );
+}
+
+function getSlotButtonClassName(isSelected: boolean, isDashboardVariant: boolean): string {
+  if (isSelected) {
+    return 'border-blue-600 bg-blue-600 text-white shadow-[0_1px_2px_rgba(37,99,235,0.18)]';
+  }
+
+  if (isDashboardVariant) {
+    return 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50';
+  }
+
+  return 'border-[var(--ba-secondary,rgb(191,219,254))] bg-[var(--ba-secondary,rgb(239,246,255))] text-[var(--ba-primary,#1d4ed8)] hover:bg-blue-50';
 }
