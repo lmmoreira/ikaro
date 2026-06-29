@@ -45,43 +45,20 @@ const NON_ALTERNATING_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
   'FOOTER',
 ]);
 
-function tryParseModule(module: HotsiteModuleResponse): HotsiteModuleParsed | null {
-  switch (module.type) {
-    case 'HERO': {
-      const r = HeroModuleDataSchema.safeParse(module.data);
-      return r.success ? { type: 'HERO', data: r.data } : null;
-    }
-    case 'SERVICE_LIST': {
-      const r = ServiceListModuleDataSchema.safeParse(module.data);
-      return r.success ? { type: 'SERVICE_LIST', data: r.data } : null;
-    }
-    case 'GALLERY': {
-      const r = GalleryModuleDataSchema.safeParse(module.data);
-      return r.success ? { type: 'GALLERY', data: r.data } : null;
-    }
-    case 'TESTIMONIALS': {
-      const r = TestimonialsModuleDataSchema.safeParse(module.data);
-      return r.success ? { type: 'TESTIMONIALS', data: r.data } : null;
-    }
-    case 'BOOKING_CTA': {
-      const r = BookingCtaModuleDataSchema.safeParse(module.data);
-      return r.success ? { type: 'BOOKING_CTA', data: r.data } : null;
-    }
-    case 'ABOUT': {
-      const r = AboutModuleDataSchema.safeParse(module.data);
-      return r.success ? { type: 'ABOUT', data: r.data } : null;
-    }
-    case 'CONTACT': {
-      const r = ContactModuleDataSchema.safeParse(module.data);
-      return r.success ? { type: 'CONTACT', data: r.data } : null;
-    }
-    case 'FOOTER': {
-      const r = FooterModuleDataSchema.safeParse(module.data);
-      return r.success ? { type: 'FOOTER', data: r.data } : null;
-    }
-  }
+const MODULE_SCHEMAS = {
+  HERO: HeroModuleDataSchema,
+  SERVICE_LIST: ServiceListModuleDataSchema,
+  GALLERY: GalleryModuleDataSchema,
+  TESTIMONIALS: TestimonialsModuleDataSchema,
+  BOOKING_CTA: BookingCtaModuleDataSchema,
+  ABOUT: AboutModuleDataSchema,
+  CONTACT: ContactModuleDataSchema,
+  FOOTER: FooterModuleDataSchema,
+} satisfies Record<HotsiteModuleType, { safeParse(data: unknown): { success: boolean; data?: unknown } }>;
 
-  return null;
+function tryParseModule(module: HotsiteModuleResponse): HotsiteModuleParsed | null {
+  const r = MODULE_SCHEMAS[module.type].safeParse(module.data);
+  return r.success ? ({ type: module.type, data: r.data } as HotsiteModuleParsed) : null;
 }
 
 export function resolveHotsiteDisplayName(
