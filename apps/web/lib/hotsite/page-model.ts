@@ -54,7 +54,10 @@ const MODULE_SCHEMAS = {
   ABOUT: AboutModuleDataSchema,
   CONTACT: ContactModuleDataSchema,
   FOOTER: FooterModuleDataSchema,
-} satisfies Record<HotsiteModuleType, { safeParse(data: unknown): { success: boolean; data?: unknown } }>;
+} satisfies Record<
+  HotsiteModuleType,
+  { safeParse(data: unknown): { success: boolean; data?: unknown } }
+>;
 
 function tryParseModule(module: HotsiteModuleResponse): HotsiteModuleParsed | null {
   const r = MODULE_SCHEMAS[module.type].safeParse(module.data);
