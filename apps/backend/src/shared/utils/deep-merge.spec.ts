@@ -38,4 +38,14 @@ describe('deepMerge', () => {
     expect(result.loyalty.expiryDays).toBe(180);
     expect(result.booking.cancellationWindowHours).toBe(24);
   });
+
+  it('strips prototype-pollution keys from override without affecting Object.prototype', () => {
+    const malicious = JSON.parse('{"__proto__":{"polluted":true},"loyalty":{"expiryDays":999}}');
+    const base = { loyalty: { expiryDays: 180 } };
+
+    const result = deepMerge(base, malicious);
+
+    expect((Object.prototype as Record<string, unknown>)['polluted']).toBeUndefined();
+    expect(result.loyalty.expiryDays).toBe(999);
+  });
 });
