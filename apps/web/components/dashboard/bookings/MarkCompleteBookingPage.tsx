@@ -43,7 +43,7 @@ export function MarkCompleteBookingPage({
         booking.lines.map((line) => [line.lineId, String(line.priceAtBooking.amount)]),
       ) as Record<string, string>,
   );
-  const loyaltyPointsPerCurrencyUnit = pointsPerCurrencyUnit > 0 ? pointsPerCurrencyUnit : 0;
+  const loyaltyPointsPerCurrencyUnit = Math.max(0, pointsPerCurrencyUnit);
   const loyaltyBalance = booking.loyaltyBalance ?? 0;
   const showLoyaltyPanel = booking.customerId !== null && loyaltyPointsPerCurrencyUnit > 0;
   const [rawPointsUsed, setRawPointsUsed] = useState(0);
@@ -95,16 +95,15 @@ export function MarkCompleteBookingPage({
     [loyaltyPointsPerCurrencyUnit, pointsUsed, showLoyaltyPanel],
   );
   const finalChargedTotal = Math.max(0, totalCharged - discountAmount);
-  const completedBookingForDisplay = useMemo(
-    () =>
-      (completedBooking ?? booking).customerId !== null
-        ? {
-            ...(completedBooking ?? booking),
-            loyaltyBalance: Math.max(0, loyaltyBalance + totalEarnedPoints - pointsUsed),
-          }
-        : (completedBooking ?? booking),
-    [booking, completedBooking, loyaltyBalance, pointsUsed, totalEarnedPoints],
-  );
+  const completedBookingForDisplay = useMemo(() => {
+    const bookingForDisplay = completedBooking ?? booking;
+    if (bookingForDisplay.customerId === null) return bookingForDisplay;
+
+    return {
+      ...bookingForDisplay,
+      loyaltyBalance: Math.max(0, loyaltyBalance + totalEarnedPoints - pointsUsed),
+    };
+  }, [booking, completedBooking, loyaltyBalance, pointsUsed, totalEarnedPoints]);
   const beforePhotos = completedBookingForDisplay.beforeServicePhotoUrls;
 
   function handlePointsChange(value: string): void {

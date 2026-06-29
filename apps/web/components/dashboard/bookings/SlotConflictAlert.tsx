@@ -66,9 +66,11 @@ export function SlotConflictAlert({
             {t('nearbySlots', { duration: formatDuration(totalDurationMins) })}
           </p>
 
-          {isLoading ? (
-            <p className="text-sm text-red-700/80">{t('loadingAlternatives')}</p>
-          ) : suggestions.length > 0 ? (
+          {isLoading && <p className="text-sm text-red-700/80">{t('loadingAlternatives')}</p>}
+          {!isLoading && suggestions.length === 0 && (
+            <p className="text-sm text-red-700/80">{t('noAlternatives')}</p>
+          )}
+          {!isLoading && suggestions.length > 0 && (
             <div className="space-y-2">
               {suggestions.map((slot) => {
                 const start = new Date(slot.startsAt);
@@ -91,8 +93,6 @@ export function SlotConflictAlert({
                 );
               })}
             </div>
-          ) : (
-            <p className="text-sm text-red-700/80">{t('noAlternatives')}</p>
           )}
         </div>
 
