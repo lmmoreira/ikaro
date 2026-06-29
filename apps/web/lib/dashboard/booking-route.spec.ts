@@ -1,22 +1,73 @@
-import { describe, expect, it } from 'vitest';
-import { matchBookingDetailRoute } from './booking-route';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { notFound } from 'next/navigation';
+import type { StaffBookingDetailResponse } from '@ikaro/types';
+import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
+import { BookingDetailFetchError, fetchStaffBookingDetail } from '@/lib/api/dashboard/bookings';
+import { loadBookingDetailRouteData, matchBookingDetailRoute } from './booking-route';
 
-describe('matchBookingDetailRoute', () => {
-  it('returns the booking id for a detail route', () => {
-    expect(matchBookingDetailRoute('/dashboard/bookings/booking-123')).toEqual({
-      bookingId: 'booking-123',
+vi.mock('next/navigation', () => ({
+  notFound: vi.fn(() => {
+    throw new Error('not-found');
+  }),
+}));
+
+vi.mock('@/lib/auth/decode-jwt', () => ({
+  decodeJwtPayload: vi.fn(),
+}));
+
+vi.mock('@/lib/api/dashboard/bookings', () => ({
+  BookingDetailFetchError: class BookingDetailFetchError extends Error {
+    readonly status: number;
+
+    constructor(status: number, message: string) {
+      super(message);
+      this.name = 'BookingDetailFetchError';
+      this.status = status;
+      Object.setPrototypeOf(this, new.target.prototype);
+    }
+  },
+  fetchStaffBookingDetail: vi.fn(),
+}));
+
+beforeEach(() => {
+  vi.mocked(decodeJwtPayload).mockReset();
+  vi.mocked(fetchStaffBookingDetail).mockReset();
+  vi.mocked(notFound).mockClear();
+});
+
+describe('booking-route', () => {
+  it('matches detail, complete, and reschedule routes', () => {
+    expect(matchBookingDetailRoute('/dashboard/bookings/booking-1')).toEqual({
+      bookingId: 'booking-1',
       action: null,
     });
+    expect(matchBookingDetailRoute('/dashboard/bookings/booking-1/complete')).toEqual({
+      bookingId: 'booking-1',
+      action: 'complete',
+    });
+    expect(matchBookingDetailRoute('/dashboard/bookings/booking-1/reschedule')).toEqual({
+      bookingId: 'booking-1',
+      action: 'reschedule',
+    });
+    expect(matchBookingDetailRoute('/dashboard/bookings')).toBeNull();
   });
 
-  it('returns the nested action when present', () => {
-    expect(matchBookingDetailRoute('/dashboard/bookings/booking-123/complete')).toEqual({
-      bookingId: 'booking-123',
-      action: 'complete',
+  it('loads booking detail route data with the tenant slug from the JWT', async () => {
+    const booking = { bookingId: 'booking-1' } as StaffBookingDetailResponse;
+    vi.mocked(decodeJwtPayload).mockReturnValue({ tenantSlug: 'lavacar-bh' });
+    vi.mocked(fetchStaffBookingDetail).mockResolvedValue(booking);
+
+    await expect(loadBookingDetailRouteData('token', 'booking-1')).resolves.toEqual({
+      booking,
+      tenantSlug: 'lavacar-bh',
     });
   });
 
-  it('returns null for unrelated paths', () => {
-    expect(matchBookingDetailRoute('/dashboard/services')).toBeNull();
+  it('calls notFound when the booking fetch returns 404', async () => {
+    vi.mocked(decodeJwtPayload).mockReturnValue({ tenantSlug: 'lavacar-bh' });
+    vi.mocked(fetchStaffBookingDetail).mockRejectedValue(new BookingDetailFetchError(404, 'missing'));
+
+    await expect(loadBookingDetailRouteData('token', 'booking-1')).rejects.toThrow('not-found');
+    expect(notFound).toHaveBeenCalledTimes(1);
   });
 });
