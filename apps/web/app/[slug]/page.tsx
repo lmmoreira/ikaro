@@ -43,8 +43,6 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
     return <Unavailable />;
   }
 
-  const hasServiceList = manifest.layout.some((m) => m.enabled && m.type === 'SERVICE_LIST');
-  const services = hasServiceList ? await fetchServices(slug) : [];
   const localBusinessJsonLd = buildLocalBusinessJsonLd({ manifest, slug });
 
   const { branding, business } = manifest;
@@ -56,6 +54,8 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
   // Display name for footer and brand card: prefer branding.brandName, fall back to tenant name.
   const displayName = resolveHotsiteDisplayName(manifest);
   const modulesWithVariant = buildHotsiteModuleRenderPlan(manifest.layout, alternateSectionBg);
+  const hasServiceList = modulesWithVariant.some(({ parsed }) => parsed.type === 'SERVICE_LIST');
+  const services = hasServiceList ? await fetchServices(slug) : [];
 
   const dividerEl =
     dividerStyle === 'none' ? null : (
