@@ -61,8 +61,7 @@ function BannerIcon({
 }: {
   readonly variant: 'success' | 'danger' | 'info';
 }): React.JSX.Element {
-  const backgroundClass =
-    variant === 'success' ? 'bg-green-600' : variant === 'danger' ? 'bg-red-600' : 'bg-blue-600';
+  const backgroundClass = getBannerIconBackgroundClass(variant);
   const strokeColor = 'white';
   const icon =
     variant === 'danger' ? (
@@ -103,6 +102,18 @@ function BannerIcon({
       {icon}
     </div>
   );
+}
+
+function getBannerIconBackgroundClass(variant: 'success' | 'danger' | 'info'): string {
+  if (variant === 'success') {
+    return 'bg-green-600';
+  }
+
+  if (variant === 'danger') {
+    return 'bg-red-600';
+  }
+
+  return 'bg-blue-600';
 }
 
 function buildApprovedRangeLabel(

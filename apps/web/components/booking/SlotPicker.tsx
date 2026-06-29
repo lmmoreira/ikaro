@@ -108,22 +108,10 @@ export function SlotPicker({
             className="w-full border py-2 text-center text-sm font-medium transition-colors hover:bg-blue-50"
             style={{
               borderRadius: isDashboardVariant ? '0.75rem' : 'var(--ba-radius)',
-              backgroundColor: isSelected
-                ? 'var(--ba-primary, #2563eb)'
-                : isDashboardVariant
-                  ? '#ffffff'
-                  : 'var(--ba-secondary, rgb(239 246 255))',
-              borderColor: isSelected
-                ? 'var(--ba-primary, #2563eb)'
-                : isDashboardVariant
-                  ? 'rgb(191 219 254)'
-                  : 'var(--ba-secondary, rgb(191 219 254))',
-              color: isSelected
-                ? 'var(--ba-btn-text, #ffffff)'
-                : isDashboardVariant
-                  ? 'rgb(29 78 216)'
-                  : 'var(--ba-primary, #1d4ed8)',
-              boxShadow: isSelected ? '0 1px 2px rgba(37, 99, 235, 0.18)' : 'none',
+              backgroundColor: getSlotBackgroundColor(isSelected, isDashboardVariant),
+              borderColor: getSlotBorderColor(isSelected, isDashboardVariant),
+              color: getSlotTextColor(isSelected, isDashboardVariant),
+              boxShadow: getSlotBoxShadow(isSelected),
             }}
           >
             {formatTime(new Date(slot.startsAt))}–{formatTime(new Date(slot.endsAt))}
@@ -132,4 +120,32 @@ export function SlotPicker({
       })}
     </div>
   );
+}
+
+function getSlotBackgroundColor(isSelected: boolean, isDashboardVariant: boolean): string {
+  if (isSelected) {
+    return 'var(--ba-primary, #2563eb)';
+  }
+
+  return isDashboardVariant ? '#ffffff' : 'var(--ba-secondary, rgb(239 246 255))';
+}
+
+function getSlotBorderColor(isSelected: boolean, isDashboardVariant: boolean): string {
+  if (isSelected) {
+    return 'var(--ba-primary, #2563eb)';
+  }
+
+  return isDashboardVariant ? 'rgb(191 219 254)' : 'var(--ba-secondary, rgb(191 219 254))';
+}
+
+function getSlotTextColor(isSelected: boolean, isDashboardVariant: boolean): string {
+  if (isSelected) {
+    return 'var(--ba-btn-text, #ffffff)';
+  }
+
+  return isDashboardVariant ? 'rgb(29 78 216)' : 'var(--ba-primary, #1d4ed8)';
+}
+
+function getSlotBoxShadow(isSelected: boolean): string {
+  return isSelected ? '0 1px 2px rgba(37, 99, 235, 0.18)' : 'none';
 }
