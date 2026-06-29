@@ -66,7 +66,7 @@ test.describe('Information completion prompt (mandatory phone + address)', () =>
     await expect(page.locator('[data-testid="information-completion-prompt"]')).toBeVisible();
 
     await page.locator('[data-testid="information-completion-phone-input"]').fill('11999999999');
-    await fillValidAddress(page, 'lavacar-beloauto');
+    await fillValidAddress(page);
     await page.locator('[data-testid="information-completion-submit"]').click();
 
     await expect(page.locator('[data-testid="information-completion-prompt"]')).not.toBeVisible();
