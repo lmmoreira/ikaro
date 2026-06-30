@@ -1,4 +1,3 @@
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import {
   HotsiteConfigBuilder,
   TenantBuilder,
@@ -35,16 +34,12 @@ describe('GetHotsiteManifestUseCase', () => {
     tenantRepo = new InMemoryTenantRepository();
     storageService = new InMemoryStorageService();
     const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
-    useCase = new GetHotsiteManifestUseCase(
-      tenantRepo,
-      new RequestContextBuilder().withTenantId(TENANT_A).build(),
-      reader,
-    );
+    useCase = new GetHotsiteManifestUseCase(tenantRepo, reader);
     await tenantRepo.save(new TenantBuilder().withId(TENANT_A).build());
   });
 
   it('throws HotsiteNotFoundError when no config exists for the tenant', async () => {
-    await expect(useCase.execute()).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(HotsiteNotFoundError);
   });
 
   it('returns a minimal payload (empty layout, null business) when the hotsite is not published', async () => {
@@ -55,7 +50,7 @@ describe('GetHotsiteManifestUseCase', () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent(branding);
     await repo.save(config);
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: TENANT_A });
 
     expect(result.isPublished).toBe(false);
     expect(result.layout).toEqual([]);
@@ -78,7 +73,7 @@ describe('GetHotsiteManifestUseCase', () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished();
     await repo.save(config);
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: TENANT_A });
 
     expect(result.isPublished).toBe(true);
     expect(result.branding).toEqual(config.branding);
@@ -92,7 +87,7 @@ describe('GetHotsiteManifestUseCase', () => {
       .buildPublished();
     await repo.save(config);
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: TENANT_A });
 
     expect(result.seo).toEqual({
       title: 'Lavacar Estrela — Agendamento Online',
@@ -104,13 +99,9 @@ describe('GetHotsiteManifestUseCase', () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished();
     await repo.save(config);
     const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
-    const useCaseForB = new GetHotsiteManifestUseCase(
-      tenantRepo,
-      new RequestContextBuilder().withTenantId(TENANT_B).build(),
-      reader,
-    );
+    const useCaseForB = new GetHotsiteManifestUseCase(tenantRepo, reader);
 
-    await expect(useCaseForB.execute()).rejects.toBeInstanceOf(TenantNotFoundError);
+    await expect(useCaseForB.execute({ tenantId: TENANT_B })).rejects.toBeInstanceOf(TenantNotFoundError);
   });
 
   it('returns business resolved from tenant.settings.businessInfo', async () => {
@@ -139,7 +130,7 @@ describe('GetHotsiteManifestUseCase', () => {
     );
     await tenantRepo.save(new TenantBuilder().withId(TENANT_A).withSettings(settings).build());
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: TENANT_A });
 
     expect(result.business).toEqual({
       phone: '+5511987654321',
@@ -165,7 +156,7 @@ describe('GetHotsiteManifestUseCase', () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished();
     await repo.save(config);
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: TENANT_A });
 
     expect(result.business).toEqual({ phone: null, email: null, address: null, socialLinks: null });
   });
@@ -178,7 +169,7 @@ describe('GetHotsiteManifestUseCase', () => {
     );
     await tenantRepo.save(new TenantBuilder().withId(TENANT_A).withSettings(settings).build());
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: TENANT_A });
 
     expect(result.localization.language).toBe('en-US');
   });
@@ -209,7 +200,7 @@ describe('GetHotsiteManifestUseCase', () => {
       .buildPublished(branding, layout);
     await repo.save(config);
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: TENANT_A });
 
     expect(result.branding.logoUrl).toBe(
       storageService.getPublicUrl('tenants/tenant-a/hotsite/branding/logo.png'),
@@ -224,6 +215,6 @@ describe('GetHotsiteManifestUseCase', () => {
     const configB = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished();
     await repo.save(configB);
 
-    await expect(useCase.execute()).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(HotsiteNotFoundError);
   });
 });

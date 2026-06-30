@@ -22,11 +22,8 @@ describe('HotsiteController', () => {
     const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
     await tenantRepo.save(new TenantBuilder().withId(TENANT_A).build());
     controller = new HotsiteController(
-      new GetHotsiteManifestUseCase(
-        tenantRepo,
-        new RequestContextBuilder().withTenantId(TENANT_A).build(),
-        reader,
-      ),
+      new RequestContextBuilder().withTenantId(TENANT_A).build(),
+      new GetHotsiteManifestUseCase(tenantRepo, reader),
     );
   });
 

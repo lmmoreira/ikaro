@@ -1,6 +1,5 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { HotsiteConfigBuilder, TenantBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
@@ -27,19 +26,18 @@ describe('UnpublishHotsiteUseCase', () => {
       tenantRepo,
       frontendRevalidation,
       new InMemoryTransactionManager(),
-      new RequestContextBuilder().withTenantId(tenantA.id).build(),
     );
   });
 
   it('throws HotsiteNotFoundError when no config exists for the tenant', async () => {
-    await expect(useCase.execute()).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: tenantA.id })).rejects.toBeInstanceOf(HotsiteNotFoundError);
   });
 
   it('unpublishes a published hotsite and persists the change', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(tenantA.id).buildPublished();
     await hotsiteRepo.save(config);
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: tenantA.id });
 
     expect(result.isPublished).toBe(false);
     const saved = await hotsiteRepo.findByTenantId(tenantA.id);
@@ -50,7 +48,7 @@ describe('UnpublishHotsiteUseCase', () => {
     const config = new HotsiteConfigBuilder().withTenantId(tenantA.id).buildWithContent();
     await hotsiteRepo.save(config);
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: tenantA.id });
 
     expect(result.isPublished).toBe(false);
   });
@@ -59,7 +57,7 @@ describe('UnpublishHotsiteUseCase', () => {
     const config = new HotsiteConfigBuilder().withTenantId(tenantA.id).buildPublished();
     await hotsiteRepo.save(config);
 
-    await useCase.execute();
+    await useCase.execute({ tenantId: tenantA.id });
 
     expect(frontendRevalidation.revalidatedSlugs).toEqual([tenantA.slug.value]);
   });
@@ -72,7 +70,7 @@ describe('UnpublishHotsiteUseCase', () => {
     await hotsiteRepo.save(configA);
     await hotsiteRepo.save(configB);
 
-    await useCase.execute();
+    await useCase.execute({ tenantId: tenantA.id });
 
     const savedB = await hotsiteRepo.findByTenantId(tenantB.id);
     expect(savedB!.isPublished).toBe(true);

@@ -1,4 +1,3 @@
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryPlatformBookingPort } from '../../../../test/infrastructure/in-memory-platform-booking.port';
 import {
@@ -27,15 +26,11 @@ describe('FeatureBookingPhotoUseCase', () => {
       beforeServicePhotoUrls: [BEFORE_PHOTO],
       afterServicePhotoUrls: [AFTER_PHOTO],
     });
-    useCase = new FeatureBookingPhotoUseCase(
-      new RequestContextBuilder().withTenantId(TENANT_A).build(),
-      bookingLookup,
-      storageService,
-    );
+    useCase = new FeatureBookingPhotoUseCase(bookingLookup, storageService);
   });
 
   it('derives photoType "before" and copies the photo into the public bucket', async () => {
-    const result = await useCase.execute({ bookingId: BOOKING_ID, photoUrl: BEFORE_PHOTO });
+    const result = await useCase.execute({ tenantId: TENANT_A, bookingId: BOOKING_ID, photoUrl: BEFORE_PHOTO });
 
     expect(result.photoType).toBe('before');
     expect(result.filePath).toMatch(
@@ -49,14 +44,14 @@ describe('FeatureBookingPhotoUseCase', () => {
   });
 
   it('derives photoType "after" when the photo is in the after-service list', async () => {
-    const result = await useCase.execute({ bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO });
+    const result = await useCase.execute({ tenantId: TENANT_A, bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO });
 
     expect(result.photoType).toBe('after');
   });
 
   it('throws FeaturedBookingNotFoundError when the booking does not exist for the tenant', async () => {
     await expect(
-      useCase.execute({ bookingId: '30000000-0000-4000-8000-000000000099', photoUrl: AFTER_PHOTO }),
+      useCase.execute({ tenantId: TENANT_A, bookingId: '30000000-0000-4000-8000-000000000099', photoUrl: AFTER_PHOTO }),
     ).rejects.toThrow(FeaturedBookingNotFoundError);
   });
 
@@ -64,7 +59,7 @@ describe('FeatureBookingPhotoUseCase', () => {
     const strangerPhoto = `tenants/${TENANT_A}/bookings/${BOOKING_ID}/not-on-booking.jpg`;
 
     await expect(
-      useCase.execute({ bookingId: BOOKING_ID, photoUrl: strangerPhoto }),
+      useCase.execute({ tenantId: TENANT_A, bookingId: BOOKING_ID, photoUrl: strangerPhoto }),
     ).rejects.toThrow(PhotoNotOnBookingError);
   });
 
@@ -76,20 +71,14 @@ describe('FeatureBookingPhotoUseCase', () => {
       afterServicePhotoUrls: [AFTER_PHOTO],
     });
 
-    const result = await useCase.execute({ bookingId: BOOKING_ID, photoUrl: BEFORE_PHOTO });
+    const result = await useCase.execute({ tenantId: TENANT_A, bookingId: BOOKING_ID, photoUrl: BEFORE_PHOTO });
 
     expect(result.photoType).toBe('before');
   });
 
   it('tenant isolation: cannot feature a photo from another tenant booking', async () => {
-    const useCaseB = new FeatureBookingPhotoUseCase(
-      new RequestContextBuilder().withTenantId(TENANT_B).build(),
-      bookingLookup,
-      storageService,
-    );
-
     await expect(
-      useCaseB.execute({ bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO }),
+      useCase.execute({ tenantId: TENANT_B, bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO }),
     ).rejects.toThrow(FeaturedBookingNotFoundError);
   });
 });

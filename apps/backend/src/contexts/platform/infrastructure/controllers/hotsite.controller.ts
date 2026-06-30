@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   GetHotsiteManifestUseCase,
   GetHotsiteManifestUseCaseResult,
@@ -7,10 +8,13 @@ import { mapPlatformError } from '../http/platform-error.mapper';
 
 @Controller('hotsite')
 export class HotsiteController {
-  constructor(private readonly getHotsiteManifest: GetHotsiteManifestUseCase) {}
+  constructor(
+    private readonly ctx: RequestContext,
+    private readonly getHotsiteManifest: GetHotsiteManifestUseCase,
+  ) {}
 
   @Get()
   getManifest(): Promise<GetHotsiteManifestUseCaseResult> {
-    return this.getHotsiteManifest.execute().catch(mapPlatformError);
+    return this.getHotsiteManifest.execute({ tenantId: this.ctx.tenantId }).catch(mapPlatformError);
   }
 }

@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
 import { HotsiteContentReader } from '../services/hotsite-content-reader.service';
+
+export interface GetHotsiteContentUseCaseInput {
+  tenantId: string;
+}
 
 export interface GetHotsiteContentUseCaseResult {
   branding: HotsiteBranding;
@@ -14,12 +17,11 @@ export interface GetHotsiteContentUseCaseResult {
 @Injectable()
 export class GetHotsiteContentUseCase {
   constructor(
-    private readonly tenantContext: RequestContext,
     private readonly hotsiteContentReader: HotsiteContentReader,
   ) {}
 
-  async execute(): Promise<GetHotsiteContentUseCaseResult> {
-    const content = await this.hotsiteContentReader.readResolved(this.tenantContext.tenantId);
+  async execute({ tenantId }: GetHotsiteContentUseCaseInput): Promise<GetHotsiteContentUseCaseResult> {
+    const content = await this.hotsiteContentReader.readResolved(tenantId);
 
     return {
       branding: content.branding,

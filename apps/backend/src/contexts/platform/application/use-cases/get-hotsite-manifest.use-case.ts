@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { TenantNotFoundError } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
 import { BusinessInfo } from '../../domain/value-objects/tenant-settings.vo';
@@ -54,6 +53,10 @@ export interface HotsiteLocalization {
   address: HotsiteAddressSpec;
 }
 
+export interface GetHotsiteManifestUseCaseInput {
+  tenantId: string;
+}
+
 export interface GetHotsiteManifestUseCaseResult {
   branding: HotsiteBranding;
   layout: HotsiteModule[];
@@ -76,12 +79,10 @@ function emptyBusinessInfo(): HotsiteBusinessInfo {
 export class GetHotsiteManifestUseCase {
   constructor(
     @Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository,
-    private readonly tenantContext: RequestContext,
     private readonly hotsiteContentReader: HotsiteContentReader,
   ) {}
 
-  async execute(): Promise<GetHotsiteManifestUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
+  async execute({ tenantId }: GetHotsiteManifestUseCaseInput): Promise<GetHotsiteManifestUseCaseResult> {
     const content = await this.hotsiteContentReader.readResolved(tenantId);
 
     const tenant = await this.tenantRepo.findById(tenantId);
