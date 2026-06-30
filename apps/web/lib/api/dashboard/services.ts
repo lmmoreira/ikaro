@@ -5,10 +5,17 @@ import type {
   UpdateServiceRequest,
 } from '@ikaro/types';
 import { bffClient } from '../bff-client';
+import { bffServerFetch } from '../bff-server';
 
 export async function listServices(): Promise<StaffServiceListResponse> {
   const res = await bffClient.get<StaffServiceListResponse>('/services');
   return res.data;
+}
+
+export async function fetchStaffServices(token: string): Promise<StaffServiceListResponse> {
+  const res = await bffServerFetch(token, '/services');
+  if (!res.ok) throw new Error(`Failed to fetch services (${res.status})`);
+  return res.json() as Promise<StaffServiceListResponse>;
 }
 
 export async function getService(id: string): Promise<StaffServiceResponse> {

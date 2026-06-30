@@ -206,6 +206,19 @@
     }
   },
   "dashboard": {
+    "servicesPage": {
+      "create": "Criar serviço",
+      "tabAll": "Todos ({count})",
+      "tabActive": "Ativos ({count})",
+      "tabInactive": "Inativos ({count})",
+      "emptyAll": "Nenhum serviço cadastrado.",
+      "emptyActive": "Nenhum serviço ativo.",
+      "emptyInactive": "Nenhum serviço inativo.",
+      "statusActive": "Ativo",
+      "statusInactive": "Inativo",
+      "pickupBadge": "🚗 Coleta",
+      "pointsBadge": "{count, plural, one {# pt} other {# pts}}"
+    },
     "bookingCard": {
       "statusPending": "Pendente",
       "statusInfoRequested": "Aguardando info",
