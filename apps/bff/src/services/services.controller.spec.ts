@@ -87,6 +87,20 @@ describe('ServicesController', () => {
       expect(result.name).toBe('Lavagem Completa');
     });
 
+    it('forwards optional isActive flag when present', async () => {
+      const backendHttp = makeBackendHttp({
+        post: jest.fn().mockResolvedValue(mockServiceDetail),
+      });
+      const controller = new ServicesController(backendHttp);
+
+      await controller.create({ ...validCreateBody, isActive: false });
+
+      expect(backendHttp.post).toHaveBeenCalledWith('/services', {
+        ...validCreateBody,
+        isActive: false,
+      });
+    });
+
     it('propagates backend errors', async () => {
       const backendHttp = makeBackendHttp({ post: jest.fn().mockRejectedValue(new Error('400')) });
       const controller = new ServicesController(backendHttp);

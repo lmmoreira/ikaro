@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { getAccessToken } from '@/lib/auth/get-access-token';
 import { LocaleProvider } from '@/providers/locale-provider';
@@ -10,6 +12,8 @@ import {
   loadDashboardShellContext,
   resolveDashboardDateFormat,
 } from '@/lib/dashboard/dashboard-shell-context';
+import { loadServiceDetailRouteData } from '@/lib/dashboard/service-route.server';
+import { matchServiceRoute } from '@/lib/dashboard/service-route';
 import { getTranslations } from 'next-intl/server';
 
 interface ServicesLayoutProps {
@@ -21,9 +25,29 @@ export default async function ServicesLayout({
 }: ServicesLayoutProps): Promise<React.JSX.Element> {
   const token = await getAccessToken();
   const payload = decodeJwtPayload(token);
+  const hdrs = await headers();
+  const pathname = hdrs.get('x-pathname') ?? '/dashboard/services';
   const shell = await loadDashboardShellContext(token, payload);
   const t = await getTranslations('dashboard.servicesPage');
-  const createAction = { href: '/dashboard/services/new', label: t('create') };
+  const serviceRouteMatch = matchServiceRoute(pathname);
+  const createAction =
+    pathname === '/dashboard/services'
+      ? { href: '/dashboard/services/new', label: t('create') }
+      : null;
+  let topbarAction: React.ReactNode | null = null;
+
+  if (serviceRouteMatch?.action === 'edit') {
+    const { service } = await loadServiceDetailRouteData(token, serviceRouteMatch.serviceId);
+    topbarAction = (
+      <Badge
+        className={`shrink-0 border-0 px-3.5 py-2 text-[0.875rem] font-semibold ${
+          service.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+        }`}
+      >
+        {service.isActive ? t('statusActive') : t('statusInactive')}
+      </Badge>
+    );
+  }
 
   return (
     <LocaleProvider locale={shell.locale} messages={shell.messages}>
@@ -41,9 +65,12 @@ export default async function ServicesLayout({
             userName={shell.userName}
             role={shell.role}
             topbarAction={
-              <Button asChild size="sm" className="topbar-create-btn hidden lg:inline-flex">
-                <Link href={createAction.href}>+ {createAction.label}</Link>
-              </Button>
+              topbarAction ??
+              (createAction ? (
+                <Button asChild size="sm" className="topbar-create-btn hidden lg:inline-flex">
+                  <Link href={createAction.href}>+ {createAction.label}</Link>
+                </Button>
+              ) : null)
             }
           >
             {children}

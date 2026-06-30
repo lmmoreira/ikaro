@@ -69,6 +69,16 @@ describe('ServiceController (integration)', () => {
       expect(body.isActive).toBe(true);
     });
 
+    it('accepts isActive=false when creating a draft service', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .send({ ...validBody, isActive: false })
+        .expect(201);
+
+      expect(body.isActive).toBe(false);
+    });
+
     it('returns 403 when CUSTOMER role is used', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/services')

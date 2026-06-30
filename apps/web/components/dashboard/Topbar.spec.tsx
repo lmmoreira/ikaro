@@ -16,6 +16,9 @@ vi.mock('next-intl', () => ({
       'nav.team': 'Equipe',
       'nav.settings': 'Configurações',
       'nav.hotsite': 'Hotsite',
+      createPageTitle: 'Criar serviço',
+      editPageTitle: 'Editar serviço',
+      deactivatePageTitle: 'Desativar serviço',
       title: 'Detalhe do agendamento',
       completeSheetTitle: 'Marcar concluído',
       rescheduleSheetTitle: 'Reagendar',
@@ -77,6 +80,39 @@ describe('Topbar', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Agenda');
   });
 
+  it('renders the create title on the service creation route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/services/new');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
+      'href',
+      '/dashboard/services',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Criar serviço');
+  });
+
+  it('renders the edit title on the service edit route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/services/svc-1/edit');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('link', { name: 'Serviços' })).toHaveAttribute(
+      'href',
+      '/dashboard/services',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Editar serviço');
+  });
+
+  it('renders the deactivate title on the service deactivate route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/services/svc-1/deactivate');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('link', { name: 'Editar serviço' })).toHaveAttribute(
+      'href',
+      '/dashboard/services/svc-1/edit',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Desativar serviço');
+  });
+
   it('shows a back link on booking detail routes', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123');
     render(
@@ -87,7 +123,7 @@ describe('Topbar', () => {
 
     expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
       'href',
-      '/dashboard/bookings',
+      '/dashboard/bookings/booking-123',
     );
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Detalhe do agendamento');
     expect(screen.getByText('Aguardando info')).toBeInTheDocument();

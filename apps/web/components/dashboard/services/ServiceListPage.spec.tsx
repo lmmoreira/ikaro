@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffServiceResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { ServiceListPage } from './ServiceListPage';
+
+const routerReplace = vi.fn();
 
 vi.mock('next/link', () => ({
   default: ({
@@ -24,6 +26,10 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: routerReplace }),
+}));
+
 function makeService(overrides?: Partial<StaffServiceResponse>): StaffServiceResponse {
   return {
     serviceId: 'svc-1',
@@ -40,6 +46,22 @@ function makeService(overrides?: Partial<StaffServiceResponse>): StaffServiceRes
 }
 
 describe('ServiceListPage', () => {
+  beforeEach(() => {
+    routerReplace.mockReset();
+  });
+
+  it('shows the created banner once when requested', () => {
+    renderWithIntl(<ServiceListPage services={[]} showCreatedBanner />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Serviço criado!');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'O novo serviço já está disponível no formulário de agendamento.',
+    );
+    return waitFor(() => {
+      expect(routerReplace).toHaveBeenCalledWith('/dashboard/services', { scroll: false });
+    });
+  });
+
   it('renders all services and filters them client-side', async () => {
     const user = userEvent.setup();
     renderWithIntl(

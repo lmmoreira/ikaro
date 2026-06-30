@@ -66,6 +66,7 @@ export class Service extends AggregateRoot {
     durationMinutes: number,
     loyaltyPointsValue: number,
     requiresPickupAddress: boolean = false,
+    isActive: boolean = true,
     description?: string,
   ): Service {
     if (!tenantId) throw new BookingDomainError('tenantId is required');
@@ -91,7 +92,7 @@ export class Service extends AggregateRoot {
       durationMinutes,
       loyaltyPointsValue,
       requiresPickupAddress,
-      isActive: true,
+      isActive,
       createdAt: now,
       updatedAt: now,
     });

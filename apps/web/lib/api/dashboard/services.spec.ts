@@ -4,6 +4,8 @@ import { bffClient } from '../bff-client';
 import {
   createService,
   deactivateService,
+  fetchStaffService,
+  ServiceDetailFetchError,
   getService,
   listServices,
   updateService,
@@ -30,6 +32,21 @@ describe('getService', () => {
     mock.onGet('/services/svc-1').reply(200, service);
     const res = await getService('svc-1');
     expect(res).toMatchObject(service);
+  });
+});
+
+describe('fetchStaffService', () => {
+  it('calls GET /services/:id with the auth token and returns the service', async () => {
+    mock.onGet('/services/svc-1').reply(200, service);
+    const res = await fetchStaffService('token-123', 'svc-1');
+    expect(res).toMatchObject(service);
+  });
+
+  it('throws ServiceDetailFetchError on a non-2xx response', async () => {
+    mock.onGet('/services/svc-1').reply(404);
+    await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject(
+      new ServiceDetailFetchError(404, 'Service not found'),
+    );
   });
 });
 

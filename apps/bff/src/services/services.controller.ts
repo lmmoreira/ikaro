@@ -25,6 +25,7 @@ const CreateServiceBodySchema = z.object({
   durationMinutes: z.number().int().positive(),
   loyaltyPointsValue: z.number().int().min(0),
   requiresPickupAddress: z.boolean().optional(),
+  isActive: z.boolean().optional(),
 });
 
 const UpdateServiceBodySchema = z.object({

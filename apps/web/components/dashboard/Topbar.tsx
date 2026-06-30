@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { formatTodayLabel } from '@/lib/utils/format-today';
 import { getInitials } from '@/lib/utils/initials';
 import { matchBookingDetailRoute } from '@/lib/dashboard/booking-route';
+import { matchServiceRoute } from '@/lib/dashboard/service-route';
 import { BOOKING_STATUS_CLASSES, buildBookingStatusLabels } from './bookings/booking-status';
 import { useDashboardTopbarStatus } from './topbar-status-context';
 
@@ -32,15 +33,20 @@ const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
 export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX.Element {
   const commonT = useTranslations('common');
   const t = useTranslations('dashboard');
+  const servicesT = useTranslations('dashboard.servicesPage');
   const bookingT = useTranslations('dashboard.bookingDetail');
   const locale = useLocale();
   const pathname = usePathname();
   const topbarStatus = useDashboardTopbarStatus();
   const initials = getInitials(userName);
   const bookingRouteMatch = matchBookingDetailRoute(pathname);
+  const serviceRouteMatch = matchServiceRoute(pathname);
   const isBookingRoute = bookingRouteMatch !== null;
+  const isServicesCreateRoute = pathname === '/dashboard/services/new';
   const pageTitleKey = PAGE_TITLE_KEYS.find(([path]) => pathname.startsWith(path))?.[1];
   let pageTitle = t('topbar.defaultTitle');
+  let backHref: string | null = null;
+  let backLabel = commonT('back');
   if (bookingRouteMatch) {
     if (bookingRouteMatch.action === 'complete') {
       pageTitle = bookingT('completeSheetTitle');
@@ -49,25 +55,36 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
     } else {
       pageTitle = bookingT('title');
     }
+    backHref = `/dashboard/bookings/${bookingRouteMatch.bookingId}`;
+    backLabel = commonT('back');
+  } else if (serviceRouteMatch?.action === 'edit') {
+    pageTitle = servicesT('editPageTitle');
+    backHref = '/dashboard/services';
+    backLabel = t('nav.services');
+  } else if (serviceRouteMatch?.action === 'deactivate') {
+    pageTitle = servicesT('deactivatePageTitle');
+    backHref = `/dashboard/services/${serviceRouteMatch.serviceId}/edit`;
+    backLabel = servicesT('editPageTitle');
+  } else if (isServicesCreateRoute) {
+    pageTitle = servicesT('createPageTitle');
+    backHref = '/dashboard/services';
+    backLabel = commonT('back');
   } else if (pageTitleKey) {
     pageTitle = t(pageTitleKey);
   }
   const bookingStatusLabels = buildBookingStatusLabels(bookingT);
-  const backHref = bookingRouteMatch?.action
-    ? `/dashboard/bookings/${bookingRouteMatch.bookingId}`
-    : '/dashboard/bookings';
-  const showBookingBackLink = Boolean(bookingRouteMatch);
+  const showBackLink = Boolean(backHref);
 
   return (
     <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 lg:px-6">
-      {showBookingBackLink ? (
+      {showBackLink ? (
         <div className="flex min-w-0 items-center gap-3">
           <Link
-            href={backHref}
+            href={backHref!}
             className="flex items-center gap-1.5 text-[0.9375rem] font-semibold text-gray-900 transition-colors hover:text-blue-700"
           >
             <ChevronLeft className="h-5 w-5" />
-            <span>{commonT('back')}</span>
+            <span>{backLabel}</span>
           </Link>
           <h1 className="truncate text-[1.0625rem] font-bold text-gray-900">{pageTitle}</h1>
         </div>
