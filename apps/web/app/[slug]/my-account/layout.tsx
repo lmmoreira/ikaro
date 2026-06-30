@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
 import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
+import { getAccessToken } from '@/lib/auth/get-access-token';
 import { LocaleProvider } from '@/providers/locale-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
 import { CustomerShell } from '@/components/customer/CustomerShell';
@@ -12,8 +12,7 @@ interface MyAccountLayoutProps {
 }
 
 async function resolveMyAccountContext(slug: string) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value ?? '';
+  const token = await getAccessToken();
   const payload = decodeJwtPayload(token);
   const locale = resolveSupportedLocale(payload.locale ?? 'pt-BR');
   const messages = await getMessages(locale);

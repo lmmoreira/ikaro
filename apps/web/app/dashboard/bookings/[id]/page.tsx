@@ -1,5 +1,5 @@
-import { cookies } from 'next/headers';
 import { BookingDetailPage } from '@/components/dashboard/bookings/BookingDetailPage';
+import { getAccessToken } from '@/lib/auth/get-access-token';
 import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route.server';
 
 interface BookingDetailRouteProps {
@@ -13,8 +13,7 @@ export default async function BookingDetailRoute({
 }: BookingDetailRouteProps): Promise<React.JSX.Element> {
   const { id } = await params;
   const { conflict } = await searchParams;
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value ?? '';
+  const token = await getAccessToken();
   const { booking, tenantSlug } = await loadBookingDetailRouteData(token, id);
 
   return (

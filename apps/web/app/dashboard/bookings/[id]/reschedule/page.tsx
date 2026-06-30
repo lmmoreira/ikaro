@@ -1,5 +1,5 @@
-import { cookies } from 'next/headers';
 import { RescheduleBookingPage } from '@/components/dashboard/bookings/RescheduleBookingPage';
+import { getAccessToken } from '@/lib/auth/get-access-token';
 import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route.server';
 
 interface BookingRescheduleRouteProps {
@@ -10,8 +10,7 @@ export default async function BookingRescheduleRoute({
   params,
 }: BookingRescheduleRouteProps): Promise<React.JSX.Element> {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value ?? '';
+  const token = await getAccessToken();
   const { booking, tenantSlug } = await loadBookingDetailRouteData(token, id);
 
   return (

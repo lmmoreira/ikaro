@@ -1,6 +1,6 @@
-import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
+import { getAccessToken } from '@/lib/auth/get-access-token';
 import { fetchManifest } from '@/lib/api/platform';
 import { applyBranding } from '@/lib/hotsite/apply-branding';
 import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
@@ -17,7 +17,7 @@ import { SwitchTenantClient } from '@/components/customer/SwitchTenantClient';
 // manifest once and apply both branding and locale directly, the same way [slug]/layout.tsx
 // does, rather than rendering with the wrong tenant's (or no tenant's) styling and language.
 export default async function SwitchTenantPage(): Promise<React.JSX.Element> {
-  const token = (await cookies()).get('access_token')?.value;
+  const token = await getAccessToken();
   const { tenantSlug } = token ? decodeJwtPayload(token) : {};
 
   if (!tenantSlug) {
