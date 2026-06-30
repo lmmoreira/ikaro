@@ -1,18 +1,19 @@
 import { headers } from 'next/headers';
 import { getAccessToken } from '@/lib/auth/get-access-token';
 import { notFound } from 'next/navigation';
-import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
 import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
-import { resolveDateFormat } from '@/lib/formatting/locale-validators';
 import { LocaleProvider } from '@/providers/locale-provider';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { DashboardTopbarStatusProvider } from '@/components/dashboard/topbar-status-context';
-import { fetchTenantSettings, resolveTenantFormatting } from '@/lib/api/dashboard/tenants';
 import { BookingDetailFetchError, fetchStaffBookingDetail } from '@/lib/api/dashboard/bookings';
 import { matchBookingDetailRoute } from '@/lib/dashboard/booking-route';
 import type { BookingStatus } from '@ikaro/types';
+import {
+  loadDashboardShellContext,
+  resolveDashboardDateFormat,
+} from '@/lib/dashboard/dashboard-shell-context';
 
 interface ProtectedLayoutProps {
   readonly children: React.ReactNode;
@@ -24,21 +25,12 @@ export default async function ProtectedLayout({
   const token = await getAccessToken();
   const payload = decodeJwtPayload(token);
 
-  const role = (payload.role === 'MANAGER' ? 'MANAGER' : 'STAFF') as 'STAFF' | 'MANAGER';
-  const tenantName = payload.tenantName ?? '';
-  const tenantSlug = payload.tenantSlug ?? '';
-  const tenantId = payload.tenantId ?? '';
-  const userName = payload.userName ?? null;
   const hdrs = await headers();
   const pathname = hdrs.get('x-pathname') ?? '/';
   const bookingRouteMatch = matchBookingDetailRoute(pathname);
   let bookingStatus: BookingStatus | null = null;
 
-  const locale = resolveSupportedLocale(payload.locale ?? 'pt-BR');
-  const [messages, tenantSettings] = await Promise.all([
-    getMessages(locale),
-    fetchTenantSettings(token),
-  ]);
+  const shell = await loadDashboardShellContext(token, payload);
   if (bookingRouteMatch) {
     try {
       const booking = await fetchStaffBookingDetail(token, bookingRouteMatch.bookingId);
@@ -50,27 +42,26 @@ export default async function ProtectedLayout({
       throw err;
     }
   }
-  const formatting = resolveTenantFormatting(tenantSettings);
 
   return (
-    <LocaleProvider locale={locale} messages={messages}>
+    <LocaleProvider locale={shell.locale} messages={shell.messages}>
       <FormattingProvider
-        locale={formatting.locale}
-        currency={formatting.currency}
-        timezone={formatting.timezone}
-        dateFormat={resolveDateFormat(formatting.dateFormat)}
-        timeFormat={formatting.timeFormat}
+        locale={shell.formatting.locale}
+        currency={shell.formatting.currency}
+        timezone={shell.formatting.timezone}
+        dateFormat={resolveDashboardDateFormat(shell.formatting)}
+        timeFormat={shell.formatting.timeFormat}
       >
-        <TenantProvider tenantId={tenantId} tenantSlug={tenantSlug}>
+        <TenantProvider tenantId={shell.tenantId} tenantSlug={shell.tenantSlug}>
           <DashboardTopbarStatusProvider
             key={bookingRouteMatch?.bookingId ?? 'dashboard-shell'}
             initialBookingStatus={bookingStatus}
           >
             <DashboardShell
-              tenantName={tenantName}
-              tenantSlug={tenantSlug}
-              userName={userName}
-              role={role}
+              tenantName={shell.tenantName}
+              tenantSlug={shell.tenantSlug}
+              userName={shell.userName}
+              role={shell.role}
             >
               {children}
             </DashboardShell>

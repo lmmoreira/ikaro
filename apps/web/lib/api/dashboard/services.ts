@@ -13,7 +13,9 @@ export async function listServices(): Promise<StaffServiceListResponse> {
 }
 
 export async function fetchStaffServices(token: string): Promise<StaffServiceListResponse> {
-  const res = await bffServerFetch(token, '/services');
+  const res = await bffServerFetch(token, '/services', {
+    signal: AbortSignal.timeout(8000),
+  });
   if (!res.ok) throw new Error(`Failed to fetch services (${res.status})`);
   return res.json() as Promise<StaffServiceListResponse>;
 }

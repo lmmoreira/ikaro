@@ -43,12 +43,12 @@ export function ServiceListPage({ services }: ServiceListPageProps): React.JSX.E
     return services;
   }, [filter, services]);
 
-  const emptyMessage =
-    filter === 'active'
-      ? t('emptyActive')
-      : filter === 'inactive'
-        ? t('emptyInactive')
-        : t('emptyAll');
+  let emptyMessage = t('emptyAll');
+  if (filter === 'active') {
+    emptyMessage = t('emptyActive');
+  } else if (filter === 'inactive') {
+    emptyMessage = t('emptyInactive');
+  }
 
   return (
     <div className="space-y-4">

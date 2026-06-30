@@ -12,6 +12,10 @@
 
 The repo-wide `bad-smell-audit` pass surfaced a large set of **pre-existing** findings that are not specific to a single story branch.
 
+Scan: `bad-smell-audit`
+Snapshot: `2026-06-30`
+Repo revision: `4b4e3baa2f14d074b55c9c1bcd0aca2fbb8a5486`
+
 This TD exists so future story work can treat them as an explicit baseline instead of re-discovering the same violations during pre-PR checks.
 
 The audit reported **161 total issues** across:

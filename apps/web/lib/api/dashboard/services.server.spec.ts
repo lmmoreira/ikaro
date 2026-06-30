@@ -19,7 +19,13 @@ describe('fetchStaffServices', () => {
 
     const result = await fetchStaffServices('token-123');
 
-    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/services');
+    expect(bffServerFetch).toHaveBeenCalledWith(
+      'token-123',
+      '/services',
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
     expect(result.items).toHaveLength(1);
     expect(result.total).toBe(1);
   });
