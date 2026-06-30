@@ -9,7 +9,7 @@ import {
 } from '../../ports/notification-platform.port';
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 
-export interface SeedDefaultTemplatesDto {
+export interface SeedDefaultTemplatesUseCaseInput {
   tenantId: string;
 }
 
@@ -26,10 +26,10 @@ export class SeedDefaultTemplatesUseCase {
     private readonly platformPort: INotificationPlatformPort,
   ) {}
 
-  async execute(dto: SeedDefaultTemplatesDto): Promise<SeedDefaultTemplatesUseCaseResult> {
-    const tenantInfo = await this.platformPort.getTenantInfo(dto.tenantId);
+  async execute(input: SeedDefaultTemplatesUseCaseInput): Promise<SeedDefaultTemplatesUseCaseResult> {
+    const tenantInfo = await this.platformPort.getTenantInfo(input.tenantId);
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
-    const seeded = await this.templateRepo.copyGlobalDefaultsForTenant(dto.tenantId, locale);
+    const seeded = await this.templateRepo.copyGlobalDefaultsForTenant(input.tenantId, locale);
     return { seeded };
   }
 }

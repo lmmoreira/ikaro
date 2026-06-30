@@ -3,6 +3,10 @@ import { TenantNotFoundError } from '../../domain/errors/platform-domain.error';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
 import { TenantSettingsProps } from '../../domain/value-objects/tenant-settings.vo';
 
+export interface GetTenantByIdUseCaseInput {
+  tenantId: string;
+}
+
 export interface GetTenantByIdUseCaseResult {
   id: string;
   slug: string;
@@ -15,7 +19,8 @@ export interface GetTenantByIdUseCaseResult {
 export class GetTenantByIdUseCase {
   constructor(@Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository) {}
 
-  async execute(tenantId: string): Promise<GetTenantByIdUseCaseResult> {
+  async execute(input: GetTenantByIdUseCaseInput): Promise<GetTenantByIdUseCaseResult> {
+    const { tenantId } = input;
     const tenant = await this.tenantRepo.findById(tenantId);
     if (!tenant) throw new TenantNotFoundError(tenantId);
     return {

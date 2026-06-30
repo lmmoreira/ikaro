@@ -2,6 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { StaffNotFoundError } from '../../domain/errors/staff-domain.error';
 import { IStaffRepository, STAFF_REPOSITORY } from '../ports/staff-repository.port';
 
+export interface GetStaffByIdUseCaseInput {
+  staffId: string;
+  tenantId: string;
+}
+
 export interface GetStaffByIdUseCaseResult {
   id: string;
   email: string;
@@ -15,9 +20,10 @@ export interface GetStaffByIdUseCaseResult {
 export class GetStaffByIdUseCase {
   constructor(@Inject(STAFF_REPOSITORY) private readonly staffRepo: IStaffRepository) {}
 
-  async execute(id: string, tenantId: string): Promise<GetStaffByIdUseCaseResult> {
-    const staff = await this.staffRepo.findById(id, tenantId);
-    if (!staff) throw new StaffNotFoundError(id);
+  async execute(input: GetStaffByIdUseCaseInput): Promise<GetStaffByIdUseCaseResult> {
+    const { staffId, tenantId } = input;
+    const staff = await this.staffRepo.findById(staffId, tenantId);
+    if (!staff) throw new StaffNotFoundError(staffId);
 
     return {
       id: staff.id,

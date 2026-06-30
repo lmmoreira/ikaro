@@ -29,7 +29,7 @@ describe('NotificationCustomerAdapter', () => {
     const result = await adapter.getCustomerInfo(CUSTOMER_ID, TENANT_ID);
 
     expect(result).toEqual({ email: 'maria@example.com', name: 'Maria Silva' });
-    expect(getCustomerById.execute).toHaveBeenCalledWith(CUSTOMER_ID, TENANT_ID);
+    expect(getCustomerById.execute).toHaveBeenCalledWith({ customerId: CUSTOMER_ID, tenantId: TENANT_ID });
   });
 
   it('returns null when customer is not found', async () => {

@@ -23,7 +23,7 @@ describe('GetCustomerByIdUseCase', () => {
       .build();
     await repo.save(customer);
 
-    const result = await useCase.execute(customer.id, TENANT_A);
+    const result = await useCase.execute({ customerId: customer.id, tenantId: TENANT_A });
 
     expect(result).toMatchObject({
       id: customer.id,
@@ -34,7 +34,7 @@ describe('GetCustomerByIdUseCase', () => {
   });
 
   it('throws CustomerNotFoundError when customer does not exist', async () => {
-    await expect(useCase.execute('missing-id', TENANT_A)).rejects.toBeInstanceOf(
+    await expect(useCase.execute({ customerId: 'missing-id', tenantId: TENANT_A })).rejects.toBeInstanceOf(
       CustomerNotFoundError,
     );
   });
@@ -43,7 +43,7 @@ describe('GetCustomerByIdUseCase', () => {
     const customer = new CustomerBuilder().withTenantId(TENANT_B).build();
     await repo.save(customer);
 
-    await expect(useCase.execute(customer.id, TENANT_A)).rejects.toBeInstanceOf(
+    await expect(useCase.execute({ customerId: customer.id, tenantId: TENANT_A })).rejects.toBeInstanceOf(
       CustomerNotFoundError,
     );
   });

@@ -73,7 +73,7 @@ export class CustomerController {
   @UseGuards(CustomerRoleGuard)
   getMe(): Promise<GetCustomerProfileResponse> {
     return this.getCustomerById
-      .execute(this.ctx.actorId!, this.ctx.tenantId)
+      .execute({ customerId: this.ctx.actorId!, tenantId: this.ctx.tenantId })
       .then((customer) => ({
         customerId: customer.id,
         email: customer.email,
@@ -88,7 +88,7 @@ export class CustomerController {
   @UseGuards(CustomerRoleGuard)
   getMyTenants(): Promise<GetCustomerTenantsByIdUseCaseResult> {
     return this.getCustomerTenantsById
-      .execute(this.ctx.actorId!, this.ctx.tenantId)
+      .execute({ customerId: this.ctx.actorId!, tenantId: this.ctx.tenantId })
       .catch(mapCustomerError);
   }
 

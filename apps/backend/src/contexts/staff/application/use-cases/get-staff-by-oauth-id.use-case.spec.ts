@@ -12,7 +12,7 @@ describe('GetStaffByOAuthIdUseCase', () => {
   });
 
   it('returns empty array when no staff exists for the given googleOAuthId', async () => {
-    const result = await useCase.execute('google-sub-unknown');
+    const result = await useCase.execute({ googleOAuthId: 'google-sub-unknown' });
     expect(result).toEqual([]);
   });
 
@@ -24,7 +24,7 @@ describe('GetStaffByOAuthIdUseCase', () => {
       .build();
     await repo.save(staff);
 
-    const result = await useCase.execute('google-sub-manager');
+    const result = await useCase.execute({ googleOAuthId: 'google-sub-manager' });
 
     expect(result).toHaveLength(1);
     expect(result[0].staffId).toBe(staff.id);
@@ -42,7 +42,7 @@ describe('GetStaffByOAuthIdUseCase', () => {
     staff.deactivate('other-staff-id', 'corr-test');
     await repo.save(staff);
 
-    const result = await useCase.execute('google-sub-deactivated');
+    const result = await useCase.execute({ googleOAuthId: 'google-sub-deactivated' });
 
     expect(result).toHaveLength(1);
     expect(result[0].isActive).toBe(false);
@@ -61,7 +61,7 @@ describe('GetStaffByOAuthIdUseCase', () => {
     await repo.save(staff1);
     await repo.save(staff2);
 
-    const result = await useCase.execute('google-sub-multi');
+    const result = await useCase.execute({ googleOAuthId: 'google-sub-multi' });
 
     expect(result).toHaveLength(2);
     expect(result.map((r) => r.tenantId)).toContain('10000000-0000-4000-8000-000000000001');
@@ -72,7 +72,7 @@ describe('GetStaffByOAuthIdUseCase', () => {
     const invited = new StaffBuilder().withTenantId('10000000-0000-4000-8000-000000000003').build();
     await repo.save(invited);
 
-    const result = await useCase.execute('any-sub');
+    const result = await useCase.execute({ googleOAuthId: 'any-sub' });
     expect(result).toEqual([]);
   });
 });

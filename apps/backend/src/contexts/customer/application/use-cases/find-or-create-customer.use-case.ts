@@ -7,6 +7,8 @@ import { Customer } from '../../domain/customer.aggregate';
 import { FindOrCreateCustomerDto } from '../dtos/find-or-create-customer.dto';
 import { CUSTOMER_REPOSITORY, ICustomerRepository } from '../ports/customer-repository.port';
 
+export type FindOrCreateCustomerUseCaseInput = FindOrCreateCustomerDto;
+
 export interface FindOrCreateCustomerUseCaseResult {
   customerId: string;
   created: boolean;
@@ -19,14 +21,14 @@ export class FindOrCreateCustomerUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(dto: FindOrCreateCustomerDto): Promise<FindOrCreateCustomerUseCaseResult> {
+  async execute(input: FindOrCreateCustomerUseCaseInput): Promise<FindOrCreateCustomerUseCaseResult> {
     const existing = await this.customerRepo.findByTenantAndOAuthId(
-      dto.tenantId,
-      dto.googleOAuthId,
+      input.tenantId,
+      input.googleOAuthId,
     );
     if (existing) return { customerId: existing.id, created: false };
 
-    const customer = Customer.create(dto.tenantId, dto.googleOAuthId, dto.email, dto.name);
+    const customer = Customer.create(input.tenantId, input.googleOAuthId, input.email, input.name);
     await this.txManager.run(async () => {
       await this.customerRepo.save(customer);
     });

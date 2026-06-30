@@ -2,6 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { StaffRole } from '../../domain/staff.aggregate';
 import { IStaffRepository, STAFF_REPOSITORY } from '../ports/staff-repository.port';
 
+export interface GetStaffByOAuthIdUseCaseInput {
+  googleOAuthId: string;
+}
+
 export interface GetStaffByOAuthIdUseCaseResult {
   staffId: string;
   tenantId: string;
@@ -13,7 +17,8 @@ export interface GetStaffByOAuthIdUseCaseResult {
 export class GetStaffByOAuthIdUseCase {
   constructor(@Inject(STAFF_REPOSITORY) private readonly staffRepo: IStaffRepository) {}
 
-  async execute(googleOAuthId: string): Promise<GetStaffByOAuthIdUseCaseResult[]> {
+  async execute(input: GetStaffByOAuthIdUseCaseInput): Promise<GetStaffByOAuthIdUseCaseResult[]> {
+    const { googleOAuthId } = input;
     const staffList = await this.staffRepo.findAllByGoogleOAuthId(googleOAuthId);
     return staffList.map((staff) => ({
       staffId: staff.id,

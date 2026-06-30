@@ -6,6 +6,7 @@ import {
   UpdateTenantSettingsSchema,
 } from '../../application/dtos/update-tenant-settings.dto';
 import {
+  UpdateTenantSettingsUseCaseInput,
   UpdateTenantSettingsUseCaseResult,
   UpdateTenantSettingsUseCase,
 } from '../../application/use-cases/update-tenant-settings.use-case';
@@ -35,7 +36,7 @@ export class TenantSettingsController {
   @UseGuards(StaffOrManagerRoleGuard)
   async getSettings(): Promise<GetTenantSettingsResult> {
     const tenant = await this.getTenantById
-      .execute(this.tenantContext.tenantId)
+      .execute({ tenantId: this.tenantContext.tenantId })
       .catch(mapPlatformError);
     return { tenantId: tenant.id, name: tenant.name, slug: tenant.slug, settings: tenant.settings };
   }
@@ -46,8 +47,10 @@ export class TenantSettingsController {
   updateSettings(
     @Body(new ZodValidationPipe(UpdateTenantSettingsSchema)) dto: UpdateTenantSettingsDto,
   ): Promise<UpdateTenantSettingsUseCaseResult> {
-    return this.updateTenantSettings
-      .execute(this.tenantContext.tenantId, dto)
-      .catch(mapPlatformError);
+    const input: UpdateTenantSettingsUseCaseInput = {
+      tenantId: this.tenantContext.tenantId,
+      settings: dto.settings as UpdateTenantSettingsUseCaseInput['settings'],
+    };
+    return this.updateTenantSettings.execute(input).catch(mapPlatformError);
   }
 }

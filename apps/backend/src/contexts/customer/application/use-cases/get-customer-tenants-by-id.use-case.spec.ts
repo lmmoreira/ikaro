@@ -14,7 +14,7 @@ describe('GetCustomerTenantsByIdUseCase', () => {
 
   it('throws CustomerNotFoundError when customerId does not exist in the given tenant', async () => {
     await expect(
-      useCase.execute('non-existent-id', '10000000-0000-4000-8000-000000000001'),
+      useCase.execute({ customerId: 'non-existent-id', tenantId: '10000000-0000-4000-8000-000000000001' }),
     ).rejects.toThrow(CustomerNotFoundError);
   });
 
@@ -26,7 +26,7 @@ describe('GetCustomerTenantsByIdUseCase', () => {
     await repo.save(customer);
 
     await expect(
-      useCase.execute(customer.id, '10000000-0000-4000-8000-000000000002'),
+      useCase.execute({ customerId: customer.id, tenantId: '10000000-0000-4000-8000-000000000002' }),
     ).rejects.toThrow(CustomerNotFoundError);
   });
 
@@ -40,7 +40,7 @@ describe('GetCustomerTenantsByIdUseCase', () => {
     await repo.save(customerA);
     await repo.save(customerB);
 
-    const result = await useCase.execute(customerA.id, tenantA);
+    const result = await useCase.execute({ customerId: customerA.id, tenantId: tenantA });
 
     expect(result).toHaveLength(2);
     const tenantIds = result.map((r) => r.tenantId);
@@ -56,7 +56,7 @@ describe('GetCustomerTenantsByIdUseCase', () => {
       .build();
     await repo.save(customer);
 
-    const result = await useCase.execute(customer.id, tenantA);
+    const result = await useCase.execute({ customerId: customer.id, tenantId: tenantA });
 
     expect(result).toHaveLength(1);
     expect(result[0].tenantId).toBe(tenantA);

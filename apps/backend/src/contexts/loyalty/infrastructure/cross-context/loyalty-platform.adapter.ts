@@ -17,7 +17,7 @@ export class LoyaltyPlatformAdapter implements ILoyaltyPlatformPort {
 
   async getLoyaltySettings(tenantId: string): Promise<LoyaltyTenantSettings> {
     try {
-      const result = await this.getTenantById.execute(tenantId);
+      const result = await this.getTenantById.execute({ tenantId });
       return {
         expiryDays: result.settings.loyalty.expiryDays,
         notificationMinPoints: result.settings.loyalty.notificationMinPoints,

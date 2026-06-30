@@ -8,12 +8,12 @@ import {
   LOYALTY_ENTRY_REPOSITORY,
 } from '../../ports/loyalty-entry-repository.port';
 
-export interface GetLoyaltyBalanceDto {
+export interface GetLoyaltyBalanceUseCaseInput {
   tenantId: string;
   customerId: string;
 }
 
-export interface GetLoyaltyBalanceResult {
+export interface GetLoyaltyBalanceUseCaseResult {
   currentPoints: number;
   nextExpiryDate: string | null;
   nextExpiryPoints: number | null;
@@ -26,7 +26,7 @@ export class GetLoyaltyBalanceUseCase {
     @Inject(LOYALTY_ENTRY_REPOSITORY) private readonly entryRepo: ILoyaltyEntryRepository,
   ) {}
 
-  async execute(dto: GetLoyaltyBalanceDto): Promise<GetLoyaltyBalanceResult> {
+  async execute(dto: GetLoyaltyBalanceUseCaseInput): Promise<GetLoyaltyBalanceUseCaseResult> {
     const [balance, nextExpiry] = await Promise.all([
       this.balanceRepo.findByCustomer(dto.tenantId, dto.customerId),
       this.entryRepo.findNextExpiry(dto.tenantId, dto.customerId),

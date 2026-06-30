@@ -33,6 +33,8 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER;
 
+export type SendBookingApprovedNotificationUseCaseInput = SendBookingApprovedNotificationDto;
+
 export interface SendBookingApprovedNotificationUseCaseResult {
   emailSent: boolean;
 }
@@ -54,35 +56,35 @@ export class SendBookingApprovedNotificationUseCase extends BaseNotificationUseC
   }
 
   async execute(
-    dto: SendBookingApprovedNotificationDto,
+    input: SendBookingApprovedNotificationUseCaseInput,
   ): Promise<SendBookingApprovedNotificationUseCaseResult> {
-    const templates = await this.templateRepo.findAllByTriggerEvent(dto.tenantId, TRIGGER);
+    const templates = await this.templateRepo.findAllByTriggerEvent(input.tenantId, TRIGGER);
     if (templates.length === 0) {
       this.logger.warn('No template found — skipping', {
-        tenantId: dto.tenantId,
+        tenantId: input.tenantId,
         triggerEvent: TRIGGER,
       });
       return { emailSent: false };
     }
 
-    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
-    const startDate = new Date(dto.approvedSlot.startTime);
+    const startDate = new Date(input.approvedSlot.startTime);
     const localDate = utcDateToLocalDate(startDate, timezone);
     const localTime = utcDateToLocalHHMM(startDate, timezone);
-    const serviceNames = dto.lineSummary.map((l) => l.serviceNameAtBooking).join(', ');
-    const formattedTotal = formatMoney(dto.totalPrice.amount, locale, dto.totalPrice.currency);
-    const lineItems = dto.lineSummary
+    const serviceNames = input.lineSummary.map((l) => l.serviceNameAtBooking).join(', ');
+    const formattedTotal = formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency);
+    const lineItems = input.lineSummary
       .map(
         (l) =>
           `${l.serviceNameAtBooking}: ${formatMoney(l.priceAtBooking.amount, locale, l.priceAtBooking.currency)}`,
       )
       .join(', ');
 
-    const emailSent = await this.dispatchTemplates(templates, dto, dto.contactEmail, {
-      contactName: dto.contactName,
+    const emailSent = await this.dispatchTemplates(templates, input, input.contactEmail, {
+      contactName: input.contactName,
       localDate,
       localTime,
       serviceNames,

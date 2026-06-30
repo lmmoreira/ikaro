@@ -27,7 +27,10 @@ import {
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { BaseBookingReminderNotificationUseCase } from '../base-booking-reminder-notification.use-case';
 
-export { BookingReminderNotificationUseCaseResult as SendBookingReminderDueNotificationUseCaseResult } from '../base-booking-reminder-notification.use-case';
+export {
+  BookingReminderNotificationUseCaseInput as SendBookingReminderDueNotificationUseCaseInput,
+  BookingReminderNotificationUseCaseResult as SendBookingReminderDueNotificationUseCaseResult,
+} from '../base-booking-reminder-notification.use-case';
 
 @Injectable()
 export class SendBookingReminderDueNotificationUseCase extends BaseBookingReminderNotificationUseCase {

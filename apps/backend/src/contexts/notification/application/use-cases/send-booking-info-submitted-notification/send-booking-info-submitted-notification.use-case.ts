@@ -36,6 +36,8 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN;
 
+export type SendBookingInfoSubmittedNotificationUseCaseInput = SendBookingInfoSubmittedNotificationDto;
+
 export interface SendBookingInfoSubmittedNotificationUseCaseResult {
   emailSent: boolean;
 }
@@ -59,32 +61,32 @@ export class SendBookingInfoSubmittedNotificationUseCase extends BaseNotificatio
   }
 
   async execute(
-    dto: SendBookingInfoSubmittedNotificationDto,
+    input: SendBookingInfoSubmittedNotificationUseCaseInput,
   ): Promise<SendBookingInfoSubmittedNotificationUseCaseResult> {
-    const templates = await this.templateRepo.findAllByTriggerEvent(dto.tenantId, TRIGGER);
+    const templates = await this.templateRepo.findAllByTriggerEvent(input.tenantId, TRIGGER);
     if (templates.length === 0) {
       this.logger.warn('No template found — skipping', {
-        tenantId: dto.tenantId,
+        tenantId: input.tenantId,
         triggerEvent: TRIGGER,
       });
       return { emailSent: false };
     }
 
-    const managerEmails = await this.staffPort.getManagerEmails(dto.tenantId);
+    const managerEmails = await this.staffPort.getManagerEmails(input.tenantId);
     if (managerEmails.length === 0) return { emailSent: false };
 
-    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
-    const bookingLink = `${frontendUrl}/dashboard/bookings/${dto.bookingId}`;
+    const bookingLink = `${frontendUrl}/dashboard/bookings/${input.bookingId}`;
     const customerResponse =
-      typeof dto.infoPayload['notes'] === 'string' ? dto.infoPayload['notes'] : '';
+      typeof input.infoPayload['notes'] === 'string' ? input.infoPayload['notes'] : '';
 
-    const emailSent = await this.dispatchTemplatesToMany(templates, dto, managerEmails, {
-      submittedByEmail: dto.submittedByEmail,
-      bookingId: dto.bookingId,
+    const emailSent = await this.dispatchTemplatesToMany(templates, input, managerEmails, {
+      submittedByEmail: input.submittedByEmail,
+      bookingId: input.bookingId,
       customerResponse,
       bookingLink,
     });

@@ -11,6 +11,8 @@ import { ILocalizationPort } from '../ports/localization.port';
 import { DEFAULT_LOCALE } from '../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from './base-notification.use-case';
 
+export type BookingReminderNotificationUseCaseInput = SendBookingReminderDueNotificationDto;
+
 export interface BookingReminderNotificationUseCaseResult {
   emailSent: boolean;
 }
@@ -31,31 +33,31 @@ export abstract class BaseBookingReminderNotificationUseCase extends BaseNotific
   }
 
   async execute(
-    dto: SendBookingReminderDueNotificationDto,
+    input: BookingReminderNotificationUseCaseInput,
   ): Promise<BookingReminderNotificationUseCaseResult> {
     const templates = await this.templateRepo.findAllByTriggerEvent(
-      dto.tenantId,
+      input.tenantId,
       this.reminderTemplateKey,
     );
     if (templates.length === 0) {
       this.logger.warn('No template found — skipping', {
-        tenantId: dto.tenantId,
+        tenantId: input.tenantId,
         triggerEvent: this.reminderTemplateKey,
       });
       return { emailSent: false };
     }
 
-    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
-    const start = new Date(dto.scheduledAt);
+    const start = new Date(input.scheduledAt);
     const localDate = utcDateToLocalDate(start, timezone);
     const localTime = utcDateToLocalHHMM(start, timezone);
-    const serviceNames = dto.lines.map((l) => l.serviceName).join(', ');
+    const serviceNames = input.lines.map((l) => l.serviceName).join(', ');
 
-    const emailSent = await this.dispatchTemplates(templates, dto, dto.recipientEmail, {
-      customerName: dto.customerName,
+    const emailSent = await this.dispatchTemplates(templates, input, input.recipientEmail, {
+      customerName: input.customerName,
       localDate,
       localTime,
       serviceNames,

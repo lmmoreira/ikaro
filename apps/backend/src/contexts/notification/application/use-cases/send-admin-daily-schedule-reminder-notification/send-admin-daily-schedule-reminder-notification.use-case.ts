@@ -38,6 +38,9 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 const TRIGGER = NotificationTemplateKey.ADMIN_DAILY_SCHEDULE_REMINDER;
 const TABLE_KEY = 'adminDailySchedule';
 
+export type SendAdminDailyScheduleReminderNotificationUseCaseInput =
+  SendAdminDailyScheduleReminderNotificationDto;
+
 export interface SendAdminDailyScheduleReminderNotificationUseCaseResult {
   emailSent: boolean;
   recipientCount: number;
@@ -61,39 +64,39 @@ export class SendAdminDailyScheduleReminderNotificationUseCase extends BaseNotif
   }
 
   async execute(
-    dto: SendAdminDailyScheduleReminderNotificationDto,
+    input: SendAdminDailyScheduleReminderNotificationUseCaseInput,
   ): Promise<SendAdminDailyScheduleReminderNotificationUseCaseResult> {
-    const templates = await this.templateRepo.findAllByTriggerEvent(dto.tenantId, TRIGGER);
+    const templates = await this.templateRepo.findAllByTriggerEvent(input.tenantId, TRIGGER);
     if (templates.length === 0) {
       this.logger.warn('No template found — skipping', {
-        tenantId: dto.tenantId,
+        tenantId: input.tenantId,
         triggerEvent: TRIGGER,
       });
       return { emailSent: false, recipientCount: 0 };
     }
 
-    const managerEmails = await this.staffPort.getManagerEmails(dto.tenantId);
+    const managerEmails = await this.staffPort.getManagerEmails(input.tenantId);
     if (managerEmails.length === 0) {
       return { emailSent: false, recipientCount: 0 };
     }
 
-    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
     const headers = this.localizationPort.getEmailTableHeaders(TABLE_KEY, locale);
-    const bookingsHtml = this.buildBookingsHtml(dto.bookingsToday, timezone, headers);
+    const bookingsHtml = this.buildBookingsHtml(input.bookingsToday, timezone, headers);
 
-    const emailSent = await this.dispatchTemplatesToMany(templates, dto, managerEmails, {
-      localDate: dto.localDate,
-      totalBookingsToday: String(dto.totalBookingsToday),
+    const emailSent = await this.dispatchTemplatesToMany(templates, input, managerEmails, {
+      localDate: input.localDate,
+      totalBookingsToday: String(input.totalBookingsToday),
       bookingsHtml,
     });
     return { emailSent, recipientCount: emailSent ? managerEmails.length : 0 };
   }
 
   private buildBookingsHtml(
-    bookingsToday: SendAdminDailyScheduleReminderNotificationDto['bookingsToday'],
+    bookingsToday: SendAdminDailyScheduleReminderNotificationUseCaseInput['bookingsToday'],
     timezone: string,
     headers: Record<string, string>,
   ): string {

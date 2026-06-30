@@ -76,7 +76,7 @@ export class StaffController {
   @UseGuards(StaffOrManagerRoleGuard)
   getMyTenants(): Promise<GetStaffTenantsByIdUseCaseResult[]> {
     return this.getStaffTenantsById
-      .execute(this.tenantContext.actorId!, this.tenantContext.tenantId)
+      .execute({ staffId: this.tenantContext.actorId!, tenantId: this.tenantContext.tenantId })
       .catch(mapStaffError);
   }
 
@@ -85,7 +85,7 @@ export class StaffController {
   getById(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<GetStaffByIdUseCaseResult> {
-    return this.getStaffById.execute(id, this.tenantContext.tenantId).catch(mapStaffError);
+    return this.getStaffById.execute({ staffId: id, tenantId: this.tenantContext.tenantId }).catch(mapStaffError);
   }
 
   @Post('invite')

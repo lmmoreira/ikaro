@@ -35,6 +35,8 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
+export type SendBookingRescheduledNotificationUseCaseInput = SendBookingRescheduledNotificationDto;
+
 export interface SendBookingRescheduledNotificationUseCaseResult {
   customerEmailSent: boolean;
   adminEmailSent: boolean;
@@ -58,27 +60,27 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
   }
 
   async execute(
-    dto: SendBookingRescheduledNotificationDto,
+    input: SendBookingRescheduledNotificationUseCaseInput,
   ): Promise<SendBookingRescheduledNotificationUseCaseResult> {
-    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
-    const previousStart = new Date(dto.previousSlot.startTime);
-    const newStart = new Date(dto.newSlot.startTime);
+    const previousStart = new Date(input.previousSlot.startTime);
+    const newStart = new Date(input.newSlot.startTime);
     const previousLocalDate = utcDateToLocalDate(previousStart, timezone);
     const previousLocalTime = utcDateToLocalHHMM(previousStart, timezone);
     const newLocalDate = utcDateToLocalDate(newStart, timezone);
     const newLocalTime = utcDateToLocalHHMM(newStart, timezone);
-    const serviceNames = dto.lineSummary.map((l) => l.serviceNameAtBooking).join(', ');
-    const formattedTotal = formatMoney(dto.totalPrice.amount, locale, dto.totalPrice.currency);
+    const serviceNames = input.lineSummary.map((l) => l.serviceNameAtBooking).join(', ');
+    const formattedTotal = formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency);
 
     const [customerTemplates, adminTemplates] = await Promise.all([
       this.templateRepo.findAllByTriggerEvent(
-        dto.tenantId,
+        input.tenantId,
         NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER,
       ),
       this.templateRepo.findAllByTriggerEvent(
-        dto.tenantId,
+        input.tenantId,
         NotificationTemplateKey.BOOKING_RESCHEDULED_ADMIN,
       ),
     ]);
@@ -86,7 +88,7 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
     this.localizeTemplates(adminTemplates, this.localizationPort, locale);
 
     const variables: Record<string, string> = {
-      contactName: dto.contactName,
+      contactName: input.contactName,
       serviceNames,
       totalPrice: formattedTotal,
       previousLocalDate,
@@ -97,15 +99,15 @@ export class SendBookingRescheduledNotificationUseCase extends BaseNotificationU
 
     const customerEmailSent = await this.dispatchTemplates(
       customerTemplates,
-      dto,
-      dto.contactEmail,
+      input,
+      input.contactEmail,
       variables,
     );
 
-    const managerEmails = await this.staffPort.getManagerEmails(dto.tenantId);
+    const managerEmails = await this.staffPort.getManagerEmails(input.tenantId);
     const adminEmailSent =
       managerEmails.length > 0
-        ? await this.dispatchTemplatesToMany(adminTemplates, dto, managerEmails, variables)
+        ? await this.dispatchTemplatesToMany(adminTemplates, input, managerEmails, variables)
         : false;
 
     return { customerEmailSent, adminEmailSent };

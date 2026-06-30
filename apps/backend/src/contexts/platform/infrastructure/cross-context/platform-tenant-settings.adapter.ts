@@ -8,7 +8,7 @@ export class PlatformTenantSettingsAdapter implements ITenantSettingsPort {
   constructor(private readonly getTenantById: GetTenantByIdUseCase) {}
 
   async getSettings(tenantId: string): Promise<TenantSettingsProps> {
-    const { settings } = await this.getTenantById.execute(tenantId);
+    const { settings } = await this.getTenantById.execute({ tenantId });
     return settings;
   }
 }

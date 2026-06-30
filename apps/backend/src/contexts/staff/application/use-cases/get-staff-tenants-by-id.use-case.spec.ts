@@ -16,7 +16,7 @@ describe('GetStaffTenantsByIdUseCase', () => {
 
   it('throws StaffNotFoundError when staffId does not exist', async () => {
     await expect(
-      useCase.execute('00000000-0000-4000-8000-000000000099', TENANT_A),
+      useCase.execute({ staffId: '00000000-0000-4000-8000-000000000099', tenantId: TENANT_A }),
     ).rejects.toMatchObject({ name: 'StaffNotFoundError' });
   });
 
@@ -24,7 +24,7 @@ describe('GetStaffTenantsByIdUseCase', () => {
     const staff = new StaffBuilder().withTenantId(TENANT_A).withRole('MANAGER').build();
     await repo.save(staff);
 
-    const result = await useCase.execute(staff.id, TENANT_A);
+    const result = await useCase.execute({ staffId: staff.id, tenantId: TENANT_A });
 
     expect(result).toHaveLength(1);
     expect(result[0].staffId).toBe(staff.id);
@@ -47,7 +47,7 @@ describe('GetStaffTenantsByIdUseCase', () => {
     await repo.save(staff1);
     await repo.save(staff2);
 
-    const result = await useCase.execute(staff1.id, TENANT_A);
+    const result = await useCase.execute({ staffId: staff1.id, tenantId: TENANT_A });
 
     expect(result).toHaveLength(2);
     expect(result.map((r) => r.tenantId)).toEqual(expect.arrayContaining([TENANT_A, TENANT_B]));
@@ -66,7 +66,7 @@ describe('GetStaffTenantsByIdUseCase', () => {
     await repo.save(staff1);
     await repo.save(staff2);
 
-    const result = await useCase.execute(staff1.id, TENANT_A);
+    const result = await useCase.execute({ staffId: staff1.id, tenantId: TENANT_A });
 
     expect(result).toHaveLength(2);
     const tenantBResult = result.find((r) => r.tenantId === TENANT_B);

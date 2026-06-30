@@ -39,6 +39,8 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.SERVICE_POINTS_EARNED;
 
+export type SendServicePointsEarnedNotificationUseCaseInput = SendServicePointsEarnedNotificationDto;
+
 export interface SendServicePointsEarnedNotificationUseCaseResult {
   emailSent: boolean;
 }
@@ -62,34 +64,34 @@ export class SendServicePointsEarnedNotificationUseCase extends BaseNotification
   }
 
   async execute(
-    dto: SendServicePointsEarnedNotificationDto,
+    input: SendServicePointsEarnedNotificationUseCaseInput,
   ): Promise<SendServicePointsEarnedNotificationUseCaseResult> {
-    const templates = await this.templateRepo.findAllByTriggerEvent(dto.tenantId, TRIGGER);
+    const templates = await this.templateRepo.findAllByTriggerEvent(input.tenantId, TRIGGER);
     if (templates.length === 0) {
       this.logger.warn('No template found — skipping', {
-        tenantId: dto.tenantId,
+        tenantId: input.tenantId,
         triggerEvent: TRIGGER,
       });
       return { emailSent: false };
     }
 
-    const customer = await this.customerPort.getCustomerInfo(dto.customerId, dto.tenantId);
+    const customer = await this.customerPort.getCustomerInfo(input.customerId, input.tenantId);
     if (!customer) return { emailSent: false };
 
-    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
-    const serviceIds = dto.lines.map((l) => l.serviceId);
-    const serviceInfos = await this.servicePort.findServicesByIds(dto.tenantId, serviceIds);
+    const serviceIds = input.lines.map((l) => l.serviceId);
+    const serviceInfos = await this.servicePort.findServicesByIds(input.tenantId, serviceIds);
     const nameById = new Map(serviceInfos.map((s) => [s.serviceId, s.serviceName]));
-    const serviceNames = dto.lines.map((l) => nameById.get(l.serviceId) ?? l.serviceId).join(', ');
+    const serviceNames = input.lines.map((l) => nameById.get(l.serviceId) ?? l.serviceId).join(', ');
 
-    const emailSent = await this.dispatchTemplates(templates, dto, customer.email, {
+    const emailSent = await this.dispatchTemplates(templates, input, customer.email, {
       customerName: customer.name,
-      totalPointsEarned: String(dto.totalPointsEarned),
+      totalPointsEarned: String(input.totalPointsEarned),
       serviceNames,
-      currentBalance: String(dto.currentBalance),
+      currentBalance: String(input.currentBalance),
     });
     return { emailSent };
   }
