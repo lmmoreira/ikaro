@@ -2432,7 +2432,7 @@ export interface CreateOpeningRequest {
 
 ---
 
-### M13-S22 — Serviços: service list page (`/dashboard/services`)
+### M13-S22 — Serviços: service list page (`/dashboard/services`) ✅ Done
 
 *(formerly M125-S08)*
 

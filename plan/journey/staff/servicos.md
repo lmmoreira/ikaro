@@ -53,7 +53,7 @@ flowchart TD
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/services` | `ServiceListPage` | TBD | 📋 Gap |
+| `/dashboard/services` | `ServiceListPage` | M13-S22 | ✅ Done |
 | `/dashboard/services/new` | `ServiceFormPage` (create mode) | TBD | 📋 Gap |
 | `/dashboard/services/[id]/edit` | `ServiceFormPage` (edit mode) | TBD | 📋 Gap |
 | Deactivate confirmation | `DeactivateServiceSheet` or sub-route | TBD | 📋 Gap |
