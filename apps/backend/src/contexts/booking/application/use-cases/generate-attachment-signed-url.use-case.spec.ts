@@ -34,8 +34,16 @@ describe('GenerateAttachmentSignedUrlUseCase', () => {
     });
 
     it('generates a unique upload folder each call', async () => {
-      const r1 = await useCase.execute({ fileName: 'a.jpg', contentType: 'image/jpeg', tenantId: TENANT_A });
-      const r2 = await useCase.execute({ fileName: 'a.jpg', contentType: 'image/jpeg', tenantId: TENANT_A });
+      const r1 = await useCase.execute({
+        fileName: 'a.jpg',
+        contentType: 'image/jpeg',
+        tenantId: TENANT_A,
+      });
+      const r2 = await useCase.execute({
+        fileName: 'a.jpg',
+        contentType: 'image/jpeg',
+        tenantId: TENANT_A,
+      });
       expect(r1.filePath).not.toBe(r2.filePath);
     });
   });

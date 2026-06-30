@@ -93,7 +93,13 @@ describe('UpdateServiceUseCase', () => {
 
   it('throws ServiceNotFoundError when service does not exist', async () => {
     await expect(
-      useCase.execute({ id: 'non-existent-id', tenantId: TENANT_A, currency: 'BRL', locale: 'pt-BR', name: 'X' }),
+      useCase.execute({
+        id: 'non-existent-id',
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        name: 'X',
+      }),
     ).rejects.toThrow(ServiceNotFoundError);
   });
 
@@ -102,7 +108,13 @@ describe('UpdateServiceUseCase', () => {
     await repo.save(service);
 
     await expect(
-      useCase.execute({ id: service.id, tenantId: TENANT_A, currency: 'BRL', locale: 'pt-BR', name: 'X' }),
+      useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        name: 'X',
+      }),
     ).rejects.toThrow(ServiceNotFoundError);
   });
 
@@ -112,7 +124,13 @@ describe('UpdateServiceUseCase', () => {
     await repo.save(service);
 
     await expect(
-      useCase.execute({ id: service.id, tenantId: TENANT_A, currency: 'BRL', locale: 'pt-BR', name: 'X' }),
+      useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        name: 'X',
+      }),
     ).rejects.toThrow(ServiceDeactivatedError);
   });
 
@@ -121,7 +139,13 @@ describe('UpdateServiceUseCase', () => {
     await repo.save(service);
 
     await expect(
-      useCase.execute({ id: service.id, tenantId: TENANT_A, currency: 'BRL', locale: 'pt-BR', priceAmount: 0 }),
+      useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        priceAmount: 0,
+      }),
     ).rejects.toThrow(BookingDomainError);
   });
 });

@@ -44,8 +44,8 @@ describe('RemoveScheduleOpeningUseCase', () => {
       .build();
     await repo.save(opening);
 
-    await expect(
-      useCase.execute({ id: opening.id, tenantId: TENANT_ID }),
-    ).rejects.toThrow(ScheduleOpeningNotFoundError);
+    await expect(useCase.execute({ id: opening.id, tenantId: TENANT_ID })).rejects.toThrow(
+      ScheduleOpeningNotFoundError,
+    );
   });
 });

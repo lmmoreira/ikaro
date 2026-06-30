@@ -14,7 +14,10 @@ describe('GetCustomerTenantsByIdUseCase', () => {
 
   it('throws CustomerNotFoundError when customerId does not exist in the given tenant', async () => {
     await expect(
-      useCase.execute({ customerId: 'non-existent-id', tenantId: '10000000-0000-4000-8000-000000000001' }),
+      useCase.execute({
+        customerId: 'non-existent-id',
+        tenantId: '10000000-0000-4000-8000-000000000001',
+      }),
     ).rejects.toThrow(CustomerNotFoundError);
   });
 
@@ -26,7 +29,10 @@ describe('GetCustomerTenantsByIdUseCase', () => {
     await repo.save(customer);
 
     await expect(
-      useCase.execute({ customerId: customer.id, tenantId: '10000000-0000-4000-8000-000000000002' }),
+      useCase.execute({
+        customerId: customer.id,
+        tenantId: '10000000-0000-4000-8000-000000000002',
+      }),
     ).rejects.toThrow(CustomerNotFoundError);
   });
 

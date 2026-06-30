@@ -14,7 +14,10 @@ describe('GetStaffByEmailUseCase', () => {
 
   it('throws StaffNotFoundError when no staff exists for the given email + tenantId', async () => {
     await expect(
-      useCase.execute({ email: 'unknown@lavacar.com.br', tenantId: '10000000-0000-4000-8000-000000000001' }),
+      useCase.execute({
+        email: 'unknown@lavacar.com.br',
+        tenantId: '10000000-0000-4000-8000-000000000001',
+      }),
     ).rejects.toThrow(StaffNotFoundError);
   });
 
@@ -26,7 +29,10 @@ describe('GetStaffByEmailUseCase', () => {
     await repo.save(staff);
 
     await expect(
-      useCase.execute({ email: 'staff@lavacar.com.br', tenantId: '10000000-0000-4000-8000-000000000002' }),
+      useCase.execute({
+        email: 'staff@lavacar.com.br',
+        tenantId: '10000000-0000-4000-8000-000000000002',
+      }),
     ).rejects.toThrow(StaffNotFoundError);
   });
 

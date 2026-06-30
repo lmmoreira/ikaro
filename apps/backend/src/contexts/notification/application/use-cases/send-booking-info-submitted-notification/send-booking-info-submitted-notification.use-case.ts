@@ -36,7 +36,8 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_SUBMITTED_ADMIN;
 
-export type SendBookingInfoSubmittedNotificationUseCaseInput = SendBookingInfoSubmittedNotificationDto;
+export type SendBookingInfoSubmittedNotificationUseCaseInput =
+  SendBookingInfoSubmittedNotificationDto;
 
 export interface SendBookingInfoSubmittedNotificationUseCaseResult {
   emailSent: boolean;

@@ -16,10 +16,7 @@ import {
 } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
-import {
-  InviteStaffBodyDto,
-  InviteStaffSchema,
-} from '../../application/dtos/invite-staff.dto';
+import { InviteStaffBodyDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
 import {
   DeactivateStaffUseCase,
   DeactivateStaffUseCaseInput,
@@ -85,7 +82,9 @@ export class StaffController {
   getById(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<GetStaffByIdUseCaseResult> {
-    return this.getStaffById.execute({ staffId: id, tenantId: this.tenantContext.tenantId }).catch(mapStaffError);
+    return this.getStaffById
+      .execute({ staffId: id, tenantId: this.tenantContext.tenantId })
+      .catch(mapStaffError);
   }
 
   @Post('invite')

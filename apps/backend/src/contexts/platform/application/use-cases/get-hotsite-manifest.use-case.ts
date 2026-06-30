@@ -82,7 +82,9 @@ export class GetHotsiteManifestUseCase {
     private readonly hotsiteContentReader: HotsiteContentReader,
   ) {}
 
-  async execute({ tenantId }: GetHotsiteManifestUseCaseInput): Promise<GetHotsiteManifestUseCaseResult> {
+  async execute({
+    tenantId,
+  }: GetHotsiteManifestUseCaseInput): Promise<GetHotsiteManifestUseCaseResult> {
     const content = await this.hotsiteContentReader.readResolved(tenantId);
 
     const tenant = await this.tenantRepo.findById(tenantId);

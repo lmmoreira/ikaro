@@ -21,7 +21,9 @@ export class FindOrCreateCustomerUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: FindOrCreateCustomerUseCaseInput): Promise<FindOrCreateCustomerUseCaseResult> {
+  async execute(
+    input: FindOrCreateCustomerUseCaseInput,
+  ): Promise<FindOrCreateCustomerUseCaseResult> {
     const existing = await this.customerRepo.findByTenantAndOAuthId(
       input.tenantId,
       input.googleOAuthId,

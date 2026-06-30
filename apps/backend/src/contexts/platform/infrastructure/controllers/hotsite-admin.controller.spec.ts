@@ -60,7 +60,12 @@ describe('HotsiteAdminController', () => {
     controller = new HotsiteAdminController(
       ctx,
       new GetHotsiteContentUseCase(hotsiteContentReader),
-      new UpdateHotsiteContentUseCase(repo, storageService, txManager, new HotsiteImagePathsService()),
+      new UpdateHotsiteContentUseCase(
+        repo,
+        storageService,
+        txManager,
+        new HotsiteImagePathsService(),
+      ),
       new PublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
       new UnpublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
       new GenerateHotsiteImageSignedUrlUseCase(storageService),

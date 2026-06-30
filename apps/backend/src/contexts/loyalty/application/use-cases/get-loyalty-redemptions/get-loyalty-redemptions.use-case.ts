@@ -39,7 +39,9 @@ export class GetLoyaltyRedemptionsUseCase {
     @Inject(LOYALTY_BOOKING_PORT) private readonly bookingCatalog: ILoyaltyBookingPort,
   ) {}
 
-  async execute(dto: GetLoyaltyRedemptionsUseCaseInput): Promise<GetLoyaltyRedemptionsUseCaseResult> {
+  async execute(
+    dto: GetLoyaltyRedemptionsUseCaseInput,
+  ): Promise<GetLoyaltyRedemptionsUseCaseResult> {
     const { items, total } = await this.redemptionRepo.findByCustomer(
       dto.tenantId,
       dto.customerId,

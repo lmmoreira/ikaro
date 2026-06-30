@@ -72,7 +72,9 @@ export class HotsiteAdminController {
   updateContent(
     @Body(new ZodValidationPipe(UpdateHotsiteContentSchema)) dto: UpdateHotsiteContentDto,
   ): Promise<UpdateHotsiteContentUseCaseResult> {
-    return this.updateHotsiteContent.execute({ ...dto, tenantId: this.ctx.tenantId }).catch(mapPlatformError);
+    return this.updateHotsiteContent
+      .execute({ ...dto, tenantId: this.ctx.tenantId })
+      .catch(mapPlatformError);
   }
 
   @Post('publish')
@@ -93,7 +95,9 @@ export class HotsiteAdminController {
     @Body(new ZodValidationPipe(GenerateHotsiteImageSignedUrlSchema))
     dto: GenerateHotsiteImageSignedUrlDto,
   ): Promise<GenerateHotsiteImageSignedUrlUseCaseResult> {
-    return this.generateHotsiteImageSignedUrl.execute({ ...dto, tenantId: this.ctx.tenantId }).catch(mapPlatformError);
+    return this.generateHotsiteImageSignedUrl
+      .execute({ ...dto, tenantId: this.ctx.tenantId })
+      .catch(mapPlatformError);
   }
 
   @Post('gallery/feature-booking-photo')
@@ -101,6 +105,8 @@ export class HotsiteAdminController {
   featureBookingPhoto(
     @Body(new ZodValidationPipe(FeatureBookingPhotoSchema)) dto: FeatureBookingPhotoDto,
   ): Promise<FeatureBookingPhotoUseCaseResult> {
-    return this.featureHotsiteBookingPhoto.execute({ ...dto, tenantId: this.ctx.tenantId }).catch(mapPlatformError);
+    return this.featureHotsiteBookingPhoto
+      .execute({ ...dto, tenantId: this.ctx.tenantId })
+      .catch(mapPlatformError);
   }
 }

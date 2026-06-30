@@ -31,16 +31,19 @@ describe('UpdateHotsiteContentUseCase', () => {
   });
 
   it('throws HotsiteNotFoundError when no config exists for the tenant', async () => {
-    await expect(useCase.execute({ tenantId: TENANT_A, branding: { primaryColor: '#FF5733' } })).rejects.toBeInstanceOf(
-      HotsiteNotFoundError,
-    );
+    await expect(
+      useCase.execute({ tenantId: TENANT_A, branding: { primaryColor: '#FF5733' } }),
+    ).rejects.toBeInstanceOf(HotsiteNotFoundError);
   });
 
   it('merges partial branding into the existing branding without wiping other fields', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
 
-    const result = await useCase.execute({ tenantId: TENANT_A, branding: { primaryColor: '#FF5733' } });
+    const result = await useCase.execute({
+      tenantId: TENANT_A,
+      branding: { primaryColor: '#FF5733' },
+    });
 
     expect(result.branding.primaryColor).toBe('#FF5733');
     expect(result.branding.secondaryColor).toBe(DEFAULT_HOTSITE_BRANDING.secondaryColor);
@@ -90,7 +93,9 @@ describe('UpdateHotsiteContentUseCase', () => {
 
     const layout = [{ type: 'UNKNOWN' as unknown as 'HERO', enabled: true, data: {} }];
 
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(PlatformDomainError);
+    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
+      PlatformDomainError,
+    );
   });
 
   it('verifies the branding logoUrl exists in storage before persisting', async () => {
@@ -98,9 +103,9 @@ describe('UpdateHotsiteContentUseCase', () => {
     await repo.save(config);
     const logoPath = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
 
-    await expect(useCase.execute({ tenantId: TENANT_A, branding: { logoUrl: logoPath } })).rejects.toBeInstanceOf(
-      HotsiteImageNotUploadedError,
-    );
+    await expect(
+      useCase.execute({ tenantId: TENANT_A, branding: { logoUrl: logoPath } }),
+    ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
 
     storageService.markAsUploaded(logoPath);
     const result = await useCase.execute({ tenantId: TENANT_A, branding: { logoUrl: logoPath } });
@@ -126,7 +131,9 @@ describe('UpdateHotsiteContentUseCase', () => {
       },
     ];
 
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
+      HotsiteImageNotUploadedError,
+    );
 
     storageService.markAsUploaded(imagePath);
     const result = await useCase.execute({ tenantId: TENANT_A, layout });
@@ -150,7 +157,9 @@ describe('UpdateHotsiteContentUseCase', () => {
       },
     ];
 
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
+      HotsiteImageNotUploadedError,
+    );
 
     storageService.markAsUploaded(avatarPath);
     await expect(useCase.execute({ tenantId: TENANT_A, layout })).resolves.toBeDefined();
@@ -177,10 +186,14 @@ describe('UpdateHotsiteContentUseCase', () => {
       },
     ];
 
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
+      HotsiteImageNotUploadedError,
+    );
 
     storageService.markAsUploaded(uploadedPath);
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
+      HotsiteImageNotUploadedError,
+    );
 
     storageService.markAsUploaded(featuredPath);
     await expect(useCase.execute({ tenantId: TENANT_A, layout })).resolves.toBeDefined();
@@ -213,7 +226,8 @@ describe('UpdateHotsiteContentUseCase', () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
 
-    const result = await useCase.execute({ tenantId: TENANT_A,
+    const result = await useCase.execute({
+      tenantId: TENANT_A,
       seo: { title: 'Lavacar Estrela — Agendamento Online', description: 'Agende sua lavagem.' },
     });
 
@@ -240,17 +254,17 @@ describe('UpdateHotsiteContentUseCase', () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
 
-    await expect(useCase.execute({ tenantId: TENANT_A, seo: { title: 'a'.repeat(71) } })).rejects.toBeInstanceOf(
-      PlatformDomainError,
-    );
+    await expect(
+      useCase.execute({ tenantId: TENANT_A, seo: { title: 'a'.repeat(71) } }),
+    ).rejects.toBeInstanceOf(PlatformDomainError);
   });
 
   it('throws PlatformDomainError when seo.description exceeds 160 characters', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
 
-    await expect(useCase.execute({ tenantId: TENANT_A, seo: { description: 'a'.repeat(161) } })).rejects.toBeInstanceOf(
-      PlatformDomainError,
-    );
+    await expect(
+      useCase.execute({ tenantId: TENANT_A, seo: { description: 'a'.repeat(161) } }),
+    ).rejects.toBeInstanceOf(PlatformDomainError);
   });
 });

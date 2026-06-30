@@ -16,7 +16,9 @@ describe('GetStaffByIdUseCase', () => {
   });
 
   it('throws StaffNotFoundError when no staff with that id exists', async () => {
-    await expect(useCase.execute({ staffId: 'non-existent', tenantId: TENANT_A })).rejects.toThrow(StaffNotFoundError);
+    await expect(useCase.execute({ staffId: 'non-existent', tenantId: TENANT_A })).rejects.toThrow(
+      StaffNotFoundError,
+    );
   });
 
   it('returns the staff member with correct shape', async () => {
@@ -60,6 +62,8 @@ describe('GetStaffByIdUseCase', () => {
       .build();
     await repo.save(staff);
 
-    await expect(useCase.execute({ staffId: staff.id, tenantId: TENANT_B })).rejects.toThrow(StaffNotFoundError);
+    await expect(useCase.execute({ staffId: staff.id, tenantId: TENANT_B })).rejects.toThrow(
+      StaffNotFoundError,
+    );
   });
 });

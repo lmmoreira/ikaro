@@ -20,12 +20,14 @@ export interface SearchCustomersUseCaseResult {
 
 @Injectable()
 export class SearchCustomersUseCase {
-  constructor(
-    @Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository,
-  ) {}
+  constructor(@Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository) {}
 
   async execute(dto: SearchCustomersUseCaseInput): Promise<SearchCustomersUseCaseResult> {
-    const { rows, total } = await this.customerRepo.searchByTenant(dto.tenantId, dto.search, dto.limit);
+    const { rows, total } = await this.customerRepo.searchByTenant(
+      dto.tenantId,
+      dto.search,
+      dto.limit,
+    );
     return { items: rows, total };
   }
 }

@@ -30,7 +30,9 @@ describe('UnpublishHotsiteUseCase', () => {
   });
 
   it('throws HotsiteNotFoundError when no config exists for the tenant', async () => {
-    await expect(useCase.execute({ tenantId: tenantA.id })).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: tenantA.id })).rejects.toBeInstanceOf(
+      HotsiteNotFoundError,
+    );
   });
 
   it('unpublishes a published hotsite and persists the change', async () => {

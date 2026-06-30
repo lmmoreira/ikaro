@@ -15,9 +15,7 @@ export interface GenerateHotsiteImageSignedUrlUseCaseResult {
 
 @Injectable()
 export class GenerateHotsiteImageSignedUrlUseCase {
-  constructor(
-    @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
-  ) {}
+  constructor(@Inject(STORAGE_SERVICE) private readonly storageService: IStorageService) {}
 
   async execute(
     dto: GenerateHotsiteImageSignedUrlUseCaseInput,

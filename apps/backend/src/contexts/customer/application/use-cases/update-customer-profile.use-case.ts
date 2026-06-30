@@ -30,7 +30,9 @@ export class UpdateCustomerProfileUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(dto: UpdateCustomerProfileUseCaseInput): Promise<UpdateCustomerProfileUseCaseResult> {
+  async execute(
+    dto: UpdateCustomerProfileUseCaseInput,
+  ): Promise<UpdateCustomerProfileUseCaseResult> {
     const customer = await this.customerRepo.findById(dto.customerId, dto.tenantId);
     if (!customer) throw new CustomerNotFoundError(dto.customerId);
 

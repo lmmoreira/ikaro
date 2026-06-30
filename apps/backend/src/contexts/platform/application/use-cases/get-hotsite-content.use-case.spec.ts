@@ -23,7 +23,9 @@ describe('GetHotsiteContentUseCase', () => {
   });
 
   it('throws HotsiteNotFoundError when no config exists for the tenant', async () => {
-    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(
+      HotsiteNotFoundError,
+    );
   });
 
   it('returns branding, layout, seo, isPublished, and updatedAt regardless of publish status', async () => {
@@ -58,6 +60,8 @@ describe('GetHotsiteContentUseCase', () => {
     const configB = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished();
     await repo.save(configB);
 
-    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(
+      HotsiteNotFoundError,
+    );
   });
 });

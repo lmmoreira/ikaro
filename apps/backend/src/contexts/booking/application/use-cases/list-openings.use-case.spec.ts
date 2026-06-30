@@ -21,7 +21,11 @@ describe('ListOpeningsUseCase', () => {
       new ScheduleOpeningBuilder().withTenantId(TENANT_ID).withDate('2026-12-21').build(),
     );
 
-    const result = await useCase.execute({ from: '2026-12-01', to: '2026-12-31', tenantId: TENANT_ID });
+    const result = await useCase.execute({
+      from: '2026-12-01',
+      to: '2026-12-31',
+      tenantId: TENANT_ID,
+    });
 
     expect(result.items).toHaveLength(2);
     expect(result.items[0].date).toBe('2026-12-21');
@@ -29,7 +33,11 @@ describe('ListOpeningsUseCase', () => {
   });
 
   it('returns empty list when no openings in range', async () => {
-    const result = await useCase.execute({ from: '2026-11-01', to: '2026-11-30', tenantId: TENANT_ID });
+    const result = await useCase.execute({
+      from: '2026-11-01',
+      to: '2026-11-30',
+      tenantId: TENANT_ID,
+    });
     expect(result.items).toHaveLength(0);
   });
 
@@ -41,7 +49,11 @@ describe('ListOpeningsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute({ from: '2026-12-01', to: '2026-12-31', tenantId: TENANT_ID });
+    const result = await useCase.execute({
+      from: '2026-12-01',
+      to: '2026-12-31',
+      tenantId: TENANT_ID,
+    });
     expect(result.items).toHaveLength(0);
   });
 });

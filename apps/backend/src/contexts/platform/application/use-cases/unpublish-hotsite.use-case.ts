@@ -36,7 +36,9 @@ export class UnpublishHotsiteUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute({ tenantId }: UnpublishHotsiteUseCaseInput): Promise<UnpublishHotsiteUseCaseResult> {
+  async execute({
+    tenantId,
+  }: UnpublishHotsiteUseCaseInput): Promise<UnpublishHotsiteUseCaseResult> {
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
 

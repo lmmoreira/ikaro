@@ -59,7 +59,13 @@ describe('BookingSlotConflictService', () => {
     const OTHER_ID = 'bbbbbbbb-0000-4000-8000-000000000002';
     availabilityPort.setSlots([{ id: OTHER_ID, scheduledAt, totalDurationMins: 60 }]);
     await expect(
-      service.assertSlotFree(TENANT_ID, scheduledAt, 30, TZ, 'aaaaaaaa-0000-4000-8000-000000000001'),
+      service.assertSlotFree(
+        TENANT_ID,
+        scheduledAt,
+        30,
+        TZ,
+        'aaaaaaaa-0000-4000-8000-000000000001',
+      ),
     ).rejects.toThrow(BookingSlotUnavailableError);
   });
 });

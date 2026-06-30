@@ -38,9 +38,7 @@ export interface ListBookingsUseCaseResult {
 
 @Injectable()
 export class ListBookingsUseCase {
-  constructor(
-    @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-  ) {}
+  constructor(@Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository) {}
 
   async execute(input: ListBookingsInput): Promise<ListBookingsUseCaseResult> {
     const { tenantId, locale, customerId } = input;

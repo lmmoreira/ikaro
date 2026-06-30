@@ -17,7 +17,9 @@ export type GetCustomerTenantsByIdUseCaseResult = CustomerTenantSummary[];
 export class GetCustomerTenantsByIdUseCase {
   constructor(@Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository) {}
 
-  async execute(input: GetCustomerTenantsByIdUseCaseInput): Promise<GetCustomerTenantsByIdUseCaseResult> {
+  async execute(
+    input: GetCustomerTenantsByIdUseCaseInput,
+  ): Promise<GetCustomerTenantsByIdUseCaseResult> {
     const { customerId, tenantId } = input;
     const customer = await this.customerRepo.findById(customerId, tenantId);
     if (!customer) throw new CustomerNotFoundError(customerId);

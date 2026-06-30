@@ -27,7 +27,8 @@ describe('UpdateTenantSettingsUseCase', () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
-    const result = await useCase.execute({ tenantId: tenant.id,
+    const result = await useCase.execute({
+      tenantId: tenant.id,
       settings: { loyalty: { expiryDays: 90 } },
     });
 
@@ -41,7 +42,8 @@ describe('UpdateTenantSettingsUseCase', () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
-    const result = await useCase.execute({ tenantId: tenant.id,
+    const result = await useCase.execute({
+      tenantId: tenant.id,
       settings: { booking: { cancellationWindowHours: 24 } },
     });
 
@@ -54,7 +56,8 @@ describe('UpdateTenantSettingsUseCase', () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
-    const result = await useCase.execute({ tenantId: tenant.id,
+    const result = await useCase.execute({
+      tenantId: tenant.id,
       settings: { businessHours: { timezone: 'America/Manaus' } },
     });
 
@@ -66,7 +69,8 @@ describe('UpdateTenantSettingsUseCase', () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
-    const result = await useCase.execute({ tenantId: tenant.id,
+    const result = await useCase.execute({
+      tenantId: tenant.id,
       settings: { businessHours: { saturday: null } },
     });
 
@@ -78,7 +82,8 @@ describe('UpdateTenantSettingsUseCase', () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
-    const result = await useCase.execute({ tenantId: tenant.id,
+    const result = await useCase.execute({
+      tenantId: tenant.id,
       settings: { businessInfo: { phone: '+5511987654321' } },
     });
 
@@ -95,7 +100,8 @@ describe('UpdateTenantSettingsUseCase', () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
-    const result = await useCase.execute({ tenantId: tenant.id,
+    const result = await useCase.execute({
+      tenantId: tenant.id,
       settings: {
         businessInfo: {
           socialLinks: {
@@ -119,7 +125,8 @@ describe('UpdateTenantSettingsUseCase', () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
-    await useCase.execute({ tenantId: tenant.id,
+    await useCase.execute({
+      tenantId: tenant.id,
       settings: {
         businessInfo: {
           socialLinks: {
@@ -131,7 +138,8 @@ describe('UpdateTenantSettingsUseCase', () => {
       },
     });
 
-    const result = await useCase.execute({ tenantId: tenant.id,
+    const result = await useCase.execute({
+      tenantId: tenant.id,
       settings: { businessInfo: { socialLinks: { whatsapp: '+5511999999999' } } },
     });
 
@@ -147,9 +155,7 @@ describe('UpdateTenantSettingsUseCase', () => {
     await tenantRepo.save(tenant);
 
     await expect(
-      useCase.execute({ tenantId: tenant.id,
-        settings: { businessInfo: { phone: '123' } },
-      }),
+      useCase.execute({ tenantId: tenant.id, settings: { businessInfo: { phone: '123' } } }),
     ).rejects.toThrow(PlatformDomainError);
   });
 
@@ -158,7 +164,8 @@ describe('UpdateTenantSettingsUseCase', () => {
     await tenantRepo.save(tenant);
 
     await expect(
-      useCase.execute({ tenantId: tenant.id,
+      useCase.execute({
+        tenantId: tenant.id,
         settings: { businessHours: { timezone: 'Not/AZone' } },
       }),
     ).rejects.toThrow(PlatformDomainError);
@@ -169,9 +176,7 @@ describe('UpdateTenantSettingsUseCase', () => {
     await tenantRepo.save(tenant);
 
     await expect(
-      useCase.execute({ tenantId: tenant.id,
-        settings: { loyalty: { expiryWarningDays: 180 } },
-      }),
+      useCase.execute({ tenantId: tenant.id, settings: { loyalty: { expiryWarningDays: 180 } } }),
     ).rejects.toThrow(PlatformDomainError);
   });
 
@@ -179,9 +184,7 @@ describe('UpdateTenantSettingsUseCase', () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
-    await useCase.execute({ tenantId: tenant.id,
-      settings: { loyalty: { expiryDays: 365 } },
-    });
+    await useCase.execute({ tenantId: tenant.id, settings: { loyalty: { expiryDays: 365 } } });
 
     const reloaded = await tenantRepo.findById(tenant.id);
     expect(reloaded!.settings.loyalty.expiryDays).toBe(365);
@@ -193,9 +196,7 @@ describe('UpdateTenantSettingsUseCase', () => {
     await tenantRepo.save(tenantA);
     await tenantRepo.save(tenantB);
 
-    await useCase.execute({ tenantId: tenantA.id,
-      settings: { loyalty: { expiryDays: 100 } },
-    });
+    await useCase.execute({ tenantId: tenantA.id, settings: { loyalty: { expiryDays: 100 } } });
 
     const reloadedB = await tenantRepo.findById(tenantB.id);
     expect(reloadedB!.settings.loyalty.expiryDays).toBe(180);

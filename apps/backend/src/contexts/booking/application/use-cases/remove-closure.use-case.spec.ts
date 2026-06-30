@@ -42,8 +42,8 @@ describe('RemoveClosureUseCase', () => {
       .build();
     await repo.save(closure);
 
-    await expect(
-      useCase.execute({ id: closure.id, tenantId: TENANT_ID }),
-    ).rejects.toThrow(ScheduleClosureNotFoundError);
+    await expect(useCase.execute({ id: closure.id, tenantId: TENANT_ID })).rejects.toThrow(
+      ScheduleClosureNotFoundError,
+    );
   });
 });

@@ -30,7 +30,11 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.id).toBe(booking.id);
       expect(result.status).toBe(booking.status);
@@ -65,7 +69,11 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.contactAddress).toEqual({
         street: 'Rua das Flores',
@@ -88,7 +96,11 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.contactAddress).toBeNull();
       expect(result.approvedAt).toBeNull();
@@ -104,7 +116,11 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.notes).toBe('Carro está na garagem do prédio');
     });
@@ -120,7 +136,11 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.beforeServicePhotoUrls).toEqual([
         `http://fake-gcs/bucket/${beforePath}?sig=test&op=read`,
@@ -133,7 +153,11 @@ describe('GetBookingByIdUseCase', () => {
 
     it('throws BookingNotFoundError when booking does not exist', async () => {
       await expect(
-        useCase.execute({ bookingId: '00000000-0000-4000-8000-000000009999', tenantId: TENANT_A, locale: 'pt-BR' }),
+        useCase.execute({
+          bookingId: '00000000-0000-4000-8000-000000009999',
+          tenantId: TENANT_A,
+          locale: 'pt-BR',
+        }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
 
@@ -155,14 +179,22 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.id).toBe(booking.id);
     });
 
     it('throws BookingNotFoundError for non-existent booking', async () => {
       await expect(
-        useCase.execute({ bookingId: '00000000-0000-4000-8000-000000009998', tenantId: TENANT_A, locale: 'pt-BR' }),
+        useCase.execute({
+          bookingId: '00000000-0000-4000-8000-000000009998',
+          tenantId: TENANT_A,
+          locale: 'pt-BR',
+        }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
   });

@@ -33,14 +33,18 @@ describe('PublishHotsiteUseCase', () => {
   });
 
   it('throws HotsiteNotFoundError when no config exists for the tenant', async () => {
-    await expect(useCase.execute({ tenantId: tenantA.id })).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: tenantA.id })).rejects.toBeInstanceOf(
+      HotsiteNotFoundError,
+    );
   });
 
   it('throws PlatformDomainError when the layout has no enabled modules', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(tenantA.id).build();
     await hotsiteRepo.save(config);
 
-    await expect(useCase.execute({ tenantId: tenantA.id })).rejects.toBeInstanceOf(PlatformDomainError);
+    await expect(useCase.execute({ tenantId: tenantA.id })).rejects.toBeInstanceOf(
+      PlatformDomainError,
+    );
   });
 
   it('publishes the hotsite and persists the change', async () => {

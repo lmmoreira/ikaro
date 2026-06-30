@@ -76,7 +76,12 @@ export class RequestBookingUseCase {
       0,
     );
 
-    await this.slotConflictService.assertSlotFree(tenantId, scheduledAt, totalDurationMins, timezone);
+    await this.slotConflictService.assertSlotFree(
+      tenantId,
+      scheduledAt,
+      totalDurationMins,
+      timezone,
+    );
     await this.photoExistenceService.assertPhotosUploaded(
       input.beforeServicePhotoUrls ?? [],
       tenantId,

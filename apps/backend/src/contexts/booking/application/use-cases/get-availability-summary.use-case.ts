@@ -48,9 +48,7 @@ export class GetAvailabilitySummaryUseCase {
     private readonly availabilityService: AvailabilityService,
   ) {}
 
-  async execute(
-    input: GetAvailabilitySummaryInput,
-  ): Promise<GetAvailabilitySummaryUseCaseResult> {
+  async execute(input: GetAvailabilitySummaryInput): Promise<GetAvailabilitySummaryUseCaseResult> {
     const {
       tenantId,
       businessHours,

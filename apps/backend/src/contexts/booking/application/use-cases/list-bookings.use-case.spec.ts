@@ -81,7 +81,12 @@ describe('ListBookingsUseCase', () => {
         await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
       }
 
-      const result = await useCase.execute({ limit: 3, offset: 0, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({
+        limit: 3,
+        offset: 0,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.items).toHaveLength(3);
       expect(result.pagination.total).toBe(5);
@@ -93,7 +98,12 @@ describe('ListBookingsUseCase', () => {
         await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
       }
 
-      const result = await useCase.execute({ limit: 3, offset: 3, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({
+        limit: 3,
+        offset: 3,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.items).toHaveLength(2);
       expect(result.pagination.hasMore).toBe(false);

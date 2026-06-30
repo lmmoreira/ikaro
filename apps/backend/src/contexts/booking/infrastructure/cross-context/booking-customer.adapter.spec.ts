@@ -40,7 +40,10 @@ describe('BookingCustomerAdapter', () => {
       phone: '31999999999',
     });
     expect(result?.defaultAddress).toBeInstanceOf(Address);
-    expect(getCustomerById.execute).toHaveBeenCalledWith({ customerId: CUSTOMER_ID, tenantId: TENANT_ID });
+    expect(getCustomerById.execute).toHaveBeenCalledWith({
+      customerId: CUSTOMER_ID,
+      tenantId: TENANT_ID,
+    });
   });
 
   it('returns null when customer is not found', async () => {

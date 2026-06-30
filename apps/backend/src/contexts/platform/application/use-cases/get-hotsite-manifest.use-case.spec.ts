@@ -39,7 +39,9 @@ describe('GetHotsiteManifestUseCase', () => {
   });
 
   it('throws HotsiteNotFoundError when no config exists for the tenant', async () => {
-    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(
+      HotsiteNotFoundError,
+    );
   });
 
   it('returns a minimal payload (empty layout, null business) when the hotsite is not published', async () => {
@@ -101,7 +103,9 @@ describe('GetHotsiteManifestUseCase', () => {
     const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
     const useCaseForB = new GetHotsiteManifestUseCase(tenantRepo, reader);
 
-    await expect(useCaseForB.execute({ tenantId: TENANT_B })).rejects.toBeInstanceOf(TenantNotFoundError);
+    await expect(useCaseForB.execute({ tenantId: TENANT_B })).rejects.toBeInstanceOf(
+      TenantNotFoundError,
+    );
   });
 
   it('returns business resolved from tenant.settings.businessInfo', async () => {
@@ -215,6 +219,8 @@ describe('GetHotsiteManifestUseCase', () => {
     const configB = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished();
     await repo.save(configB);
 
-    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(
+      HotsiteNotFoundError,
+    );
   });
 });

@@ -41,7 +41,12 @@ describe('DeactivateStaffUseCase', () => {
     await repo.save(manager);
     await repo.save(staff);
 
-    const result = await useCase.execute({ staffId: staff.id, tenantId: TENANT_A, deactivatedBy: manager.id, correlationId: CORRELATION_ID });
+    const result = await useCase.execute({
+      staffId: staff.id,
+      tenantId: TENANT_A,
+      deactivatedBy: manager.id,
+      correlationId: CORRELATION_ID,
+    });
 
     expect(result.staffId).toBe(staff.id);
     expect(result.isActive).toBe(false);
@@ -74,7 +79,12 @@ describe('DeactivateStaffUseCase', () => {
     await repo.save(manager1);
     await repo.save(manager2);
 
-    const result = await useCase.execute({ staffId: manager2.id, tenantId: TENANT_A, deactivatedBy: manager1.id, correlationId: CORRELATION_ID });
+    const result = await useCase.execute({
+      staffId: manager2.id,
+      tenantId: TENANT_A,
+      deactivatedBy: manager1.id,
+      correlationId: CORRELATION_ID,
+    });
 
     expect(result.isActive).toBe(false);
     expect(eventBus.published).toHaveLength(1);
@@ -82,7 +92,12 @@ describe('DeactivateStaffUseCase', () => {
 
   it('throws StaffNotFoundError when staff does not exist', async () => {
     await expect(
-      useCase.execute({ staffId: 'non-existent-id', tenantId: TENANT_A, deactivatedBy: 'any-actor', correlationId: CORRELATION_ID }),
+      useCase.execute({
+        staffId: 'non-existent-id',
+        tenantId: TENANT_A,
+        deactivatedBy: 'any-actor',
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(StaffNotFoundError);
     expect(eventBus.published).toHaveLength(0);
   });
@@ -97,7 +112,12 @@ describe('DeactivateStaffUseCase', () => {
     await repo.save(manager);
 
     await expect(
-      useCase.execute({ staffId: manager.id, tenantId: TENANT_A, deactivatedBy: manager.id, correlationId: CORRELATION_ID }),
+      useCase.execute({
+        staffId: manager.id,
+        tenantId: TENANT_A,
+        deactivatedBy: manager.id,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(StaffSelfDeactivationError);
     expect(eventBus.published).toHaveLength(0);
   });
@@ -121,7 +141,12 @@ describe('DeactivateStaffUseCase', () => {
     await repo.save(actor);
 
     await expect(
-      useCase.execute({ staffId: manager.id, tenantId: TENANT_A, deactivatedBy: actor.id, correlationId: CORRELATION_ID }),
+      useCase.execute({
+        staffId: manager.id,
+        tenantId: TENANT_A,
+        deactivatedBy: actor.id,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(LastActiveManagerError);
     expect(eventBus.published).toHaveLength(0);
   });
@@ -136,7 +161,12 @@ describe('DeactivateStaffUseCase', () => {
     await repo.save(staff);
 
     await expect(
-      useCase.execute({ staffId: staff.id, tenantId: TENANT_B, deactivatedBy: 'any-actor', correlationId: CORRELATION_ID }),
+      useCase.execute({
+        staffId: staff.id,
+        tenantId: TENANT_B,
+        deactivatedBy: 'any-actor',
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(StaffNotFoundError);
     expect(eventBus.published).toHaveLength(0);
   });

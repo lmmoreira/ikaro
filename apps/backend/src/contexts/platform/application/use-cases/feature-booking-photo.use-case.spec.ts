@@ -30,7 +30,11 @@ describe('FeatureBookingPhotoUseCase', () => {
   });
 
   it('derives photoType "before" and copies the photo into the public bucket', async () => {
-    const result = await useCase.execute({ tenantId: TENANT_A, bookingId: BOOKING_ID, photoUrl: BEFORE_PHOTO });
+    const result = await useCase.execute({
+      tenantId: TENANT_A,
+      bookingId: BOOKING_ID,
+      photoUrl: BEFORE_PHOTO,
+    });
 
     expect(result.photoType).toBe('before');
     expect(result.filePath).toMatch(
@@ -44,14 +48,22 @@ describe('FeatureBookingPhotoUseCase', () => {
   });
 
   it('derives photoType "after" when the photo is in the after-service list', async () => {
-    const result = await useCase.execute({ tenantId: TENANT_A, bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO });
+    const result = await useCase.execute({
+      tenantId: TENANT_A,
+      bookingId: BOOKING_ID,
+      photoUrl: AFTER_PHOTO,
+    });
 
     expect(result.photoType).toBe('after');
   });
 
   it('throws FeaturedBookingNotFoundError when the booking does not exist for the tenant', async () => {
     await expect(
-      useCase.execute({ tenantId: TENANT_A, bookingId: '30000000-0000-4000-8000-000000000099', photoUrl: AFTER_PHOTO }),
+      useCase.execute({
+        tenantId: TENANT_A,
+        bookingId: '30000000-0000-4000-8000-000000000099',
+        photoUrl: AFTER_PHOTO,
+      }),
     ).rejects.toThrow(FeaturedBookingNotFoundError);
   });
 
@@ -71,7 +83,11 @@ describe('FeatureBookingPhotoUseCase', () => {
       afterServicePhotoUrls: [AFTER_PHOTO],
     });
 
-    const result = await useCase.execute({ tenantId: TENANT_A, bookingId: BOOKING_ID, photoUrl: BEFORE_PHOTO });
+    const result = await useCase.execute({
+      tenantId: TENANT_A,
+      bookingId: BOOKING_ID,
+      photoUrl: BEFORE_PHOTO,
+    });
 
     expect(result.photoType).toBe('before');
   });

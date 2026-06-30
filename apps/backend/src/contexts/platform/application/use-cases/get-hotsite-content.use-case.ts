@@ -16,11 +16,11 @@ export interface GetHotsiteContentUseCaseResult {
 
 @Injectable()
 export class GetHotsiteContentUseCase {
-  constructor(
-    private readonly hotsiteContentReader: HotsiteContentReader,
-  ) {}
+  constructor(private readonly hotsiteContentReader: HotsiteContentReader) {}
 
-  async execute({ tenantId }: GetHotsiteContentUseCaseInput): Promise<GetHotsiteContentUseCaseResult> {
+  async execute({
+    tenantId,
+  }: GetHotsiteContentUseCaseInput): Promise<GetHotsiteContentUseCaseResult> {
     const content = await this.hotsiteContentReader.readResolved(tenantId);
 
     return {

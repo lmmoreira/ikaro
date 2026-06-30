@@ -17,9 +17,9 @@ describe('RenameTenantUseCase', () => {
   });
 
   it('throws TenantNotFoundError when the tenant does not exist', async () => {
-    await expect(useCase.execute({ tenantId: 'non-existent-id', name: 'Novo Nome' })).rejects.toThrow(
-      TenantNotFoundError,
-    );
+    await expect(
+      useCase.execute({ tenantId: 'non-existent-id', name: 'Novo Nome' }),
+    ).rejects.toThrow(TenantNotFoundError);
   });
 
   it('updates the tenant name', async () => {

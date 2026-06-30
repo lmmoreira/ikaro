@@ -19,7 +19,9 @@ export interface GetStaffTenantsByIdUseCaseResult {
 export class GetStaffTenantsByIdUseCase {
   constructor(@Inject(STAFF_REPOSITORY) private readonly staffRepo: IStaffRepository) {}
 
-  async execute(input: GetStaffTenantsByIdUseCaseInput): Promise<GetStaffTenantsByIdUseCaseResult[]> {
+  async execute(
+    input: GetStaffTenantsByIdUseCaseInput,
+  ): Promise<GetStaffTenantsByIdUseCaseResult[]> {
     const { staffId, tenantId } = input;
     const staff = await this.staffRepo.findById(staffId, tenantId);
     if (!staff) throw new StaffNotFoundError(staffId);

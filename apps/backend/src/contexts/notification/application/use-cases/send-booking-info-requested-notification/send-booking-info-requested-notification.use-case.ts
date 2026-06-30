@@ -34,7 +34,8 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER;
 const GUEST_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-export type SendBookingInfoRequestedNotificationUseCaseInput = SendBookingInfoRequestedNotificationDto;
+export type SendBookingInfoRequestedNotificationUseCaseInput =
+  SendBookingInfoRequestedNotificationDto;
 
 export interface SendBookingInfoRequestedNotificationUseCaseResult {
   emailSent: boolean;

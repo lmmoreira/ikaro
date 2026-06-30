@@ -13,7 +13,9 @@ describe('GetTenantBySlugUseCase', () => {
   });
 
   it('throws TenantNotFoundError when slug does not exist', async () => {
-    await expect(useCase.execute({ slug: 'no-such-slug' })).rejects.toBeInstanceOf(TenantNotFoundError);
+    await expect(useCase.execute({ slug: 'no-such-slug' })).rejects.toBeInstanceOf(
+      TenantNotFoundError,
+    );
   });
 
   it('returns id, slug, and name for a known slug', async () => {

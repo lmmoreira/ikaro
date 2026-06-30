@@ -32,15 +32,14 @@ export class UpdateTenantSettingsUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(input: UpdateTenantSettingsUseCaseInput): Promise<UpdateTenantSettingsUseCaseResult> {
+  async execute(
+    input: UpdateTenantSettingsUseCaseInput,
+  ): Promise<UpdateTenantSettingsUseCaseResult> {
     const { tenantId, settings } = input;
     const tenant = await this.tenantRepo.findById(tenantId);
     if (!tenant) throw new TenantNotFoundError(tenantId);
 
-    const merged = deepMerge(
-      tenant.settings.toJSON(),
-      settings as Partial<TenantSettingsProps>,
-    );
+    const merged = deepMerge(tenant.settings.toJSON(), settings as Partial<TenantSettingsProps>);
     tenant.updateSettings(TenantSettings.create(merged));
 
     await this.txManager.run(async () => {

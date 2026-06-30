@@ -22,9 +22,7 @@ export interface GetServiceByIdUseCaseResult {
 
 @Injectable()
 export class GetServiceByIdUseCase {
-  constructor(
-    @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
-  ) {}
+  constructor(@Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository) {}
 
   async execute(input: GetServiceByIdInput): Promise<GetServiceByIdUseCaseResult> {
     const { id, tenantId, locale } = input;

@@ -34,17 +34,17 @@ describe('GetCustomerByIdUseCase', () => {
   });
 
   it('throws CustomerNotFoundError when customer does not exist', async () => {
-    await expect(useCase.execute({ customerId: 'missing-id', tenantId: TENANT_A })).rejects.toBeInstanceOf(
-      CustomerNotFoundError,
-    );
+    await expect(
+      useCase.execute({ customerId: 'missing-id', tenantId: TENANT_A }),
+    ).rejects.toBeInstanceOf(CustomerNotFoundError);
   });
 
   it('tenant isolation: throws when customer belongs to another tenant', async () => {
     const customer = new CustomerBuilder().withTenantId(TENANT_B).build();
     await repo.save(customer);
 
-    await expect(useCase.execute({ customerId: customer.id, tenantId: TENANT_A })).rejects.toBeInstanceOf(
-      CustomerNotFoundError,
-    );
+    await expect(
+      useCase.execute({ customerId: customer.id, tenantId: TENANT_A }),
+    ).rejects.toBeInstanceOf(CustomerNotFoundError);
   });
 });

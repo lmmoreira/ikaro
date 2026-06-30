@@ -56,7 +56,12 @@ export class ScheduleOpeningController {
   ): Promise<OpenScheduleUseCaseResult> {
     const { tenantId, actorId: createdBy, settings } = this.ctx;
     return this.openSchedule
-      .execute({ ...body, tenantId, createdBy: createdBy ?? '', businessHours: settings.businessHours })
+      .execute({
+        ...body,
+        tenantId,
+        createdBy: createdBy ?? '',
+        businessHours: settings.businessHours,
+      })
       .catch(mapBookingError);
   }
 

@@ -39,7 +39,8 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.SERVICE_POINTS_EARNED;
 
-export type SendServicePointsEarnedNotificationUseCaseInput = SendServicePointsEarnedNotificationDto;
+export type SendServicePointsEarnedNotificationUseCaseInput =
+  SendServicePointsEarnedNotificationDto;
 
 export interface SendServicePointsEarnedNotificationUseCaseResult {
   emailSent: boolean;
@@ -85,7 +86,9 @@ export class SendServicePointsEarnedNotificationUseCase extends BaseNotification
     const serviceIds = input.lines.map((l) => l.serviceId);
     const serviceInfos = await this.servicePort.findServicesByIds(input.tenantId, serviceIds);
     const nameById = new Map(serviceInfos.map((s) => [s.serviceId, s.serviceName]));
-    const serviceNames = input.lines.map((l) => nameById.get(l.serviceId) ?? l.serviceId).join(', ');
+    const serviceNames = input.lines
+      .map((l) => nameById.get(l.serviceId) ?? l.serviceId)
+      .join(', ');
 
     const emailSent = await this.dispatchTemplates(templates, input, customer.email, {
       customerName: customer.name,
