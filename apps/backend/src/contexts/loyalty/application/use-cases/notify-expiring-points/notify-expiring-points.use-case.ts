@@ -11,7 +11,7 @@ import {
 
 const DEFAULT_EXPIRY_WARNING_DAYS = 7;
 
-export interface NotifyExpiringPointsResult {
+export interface NotifyExpiringPointsUseCaseResult {
   customersNotified: number;
 }
 
@@ -23,7 +23,7 @@ export class NotifyExpiringPointsUseCase {
     @Inject(LOYALTY_PLATFORM_PORT) private readonly settingsPort: ILoyaltyPlatformPort,
   ) {}
 
-  async execute(warningDays = DEFAULT_EXPIRY_WARNING_DAYS): Promise<NotifyExpiringPointsResult> {
+  async execute(warningDays = DEFAULT_EXPIRY_WARNING_DAYS): Promise<NotifyExpiringPointsUseCaseResult> {
     const correlationId = uuidv7();
     const now = new Date();
     const to = new Date(now.getTime() + warningDays * 24 * 60 * 60 * 1000);

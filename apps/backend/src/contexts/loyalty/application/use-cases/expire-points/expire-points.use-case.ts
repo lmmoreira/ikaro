@@ -17,7 +17,7 @@ import {
   LOYALTY_ENTRY_REPOSITORY,
 } from '../../ports/loyalty-entry-repository.port';
 
-export interface ExpirePointsResult {
+export interface ExpirePointsUseCaseResult {
   processedEntries: number;
   affectedCustomers: number;
   totalPointsExpired: number;
@@ -33,7 +33,7 @@ export class ExpirePointsUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(): Promise<ExpirePointsResult> {
+  async execute(): Promise<ExpirePointsUseCaseResult> {
     const expired = await this.entryRepo.findExpiringBefore(new Date());
 
     const unprocessed: LoyaltyEntry[] = [];

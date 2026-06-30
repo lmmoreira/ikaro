@@ -9,7 +9,7 @@ export type GenerateAttachmentSignedUrlInput = GenerateAttachmentSignedUrlDto & 
   tenantId: string;
 };
 
-export interface GenerateAttachmentSignedUrlResult {
+export interface GenerateAttachmentSignedUrlUseCaseResult {
   signedUrl: string;
   filePath: string;
   expiresAt: string;
@@ -24,7 +24,7 @@ export class GenerateAttachmentSignedUrlUseCase {
 
   async execute(
     input: GenerateAttachmentSignedUrlInput,
-  ): Promise<GenerateAttachmentSignedUrlResult> {
+  ): Promise<GenerateAttachmentSignedUrlUseCaseResult> {
     const { tenantId } = input;
 
     let filePath: string;

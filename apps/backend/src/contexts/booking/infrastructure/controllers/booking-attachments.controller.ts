@@ -6,7 +6,7 @@ import {
   GenerateAttachmentSignedUrlSchema,
 } from '../../application/dtos/generate-attachment-signed-url.dto';
 import {
-  GenerateAttachmentSignedUrlResult,
+  GenerateAttachmentSignedUrlUseCaseResult,
   GenerateAttachmentSignedUrlUseCase,
 } from '../../application/use-cases/generate-attachment-signed-url.use-case';
 import { mapBookingError } from '../http/booking-error.mapper';
@@ -23,7 +23,7 @@ export class BookingAttachmentsController {
   generateAttachmentSignedUrl(
     @Body(new ZodValidationPipe(GenerateAttachmentSignedUrlSchema))
     body: GenerateAttachmentSignedUrlBody,
-  ): Promise<GenerateAttachmentSignedUrlResult> {
+  ): Promise<GenerateAttachmentSignedUrlUseCaseResult> {
     return this.generateSignedUrl
       .execute({ ...body, tenantId: this.ctx.tenantId })
       .catch(mapBookingError);
