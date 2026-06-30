@@ -138,4 +138,19 @@ describe('Topbar', () => {
 
     expect(screen.getByText('L')).toBeInTheDocument();
   });
+
+  it('renders a route-specific action when provided', () => {
+    render(
+      <Topbar
+        tenantName="Lavacar BH"
+        userName="Ana"
+        action={<a href="/dashboard/services/new">+ Criar serviço</a>}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: '+ Criar serviço' })).toHaveAttribute(
+      'href',
+      '/dashboard/services/new',
+    );
+  });
 });

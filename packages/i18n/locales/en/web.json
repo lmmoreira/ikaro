@@ -206,6 +206,19 @@
     }
   },
   "dashboard": {
+    "servicesPage": {
+      "create": "Create service",
+      "tabAll": "All ({count})",
+      "tabActive": "Active ({count})",
+      "tabInactive": "Inactive ({count})",
+      "emptyAll": "No services registered.",
+      "emptyActive": "No active services.",
+      "emptyInactive": "No inactive services.",
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "pickupBadge": "🚗 Pickup",
+      "pointsBadge": "{count, plural, one {# point} other {# points}}"
+    },
     "bookingCard": {
       "statusPending": "Pending",
       "statusInfoRequested": "Awaiting info",

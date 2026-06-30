@@ -16,6 +16,7 @@ import { useDashboardTopbarStatus } from './topbar-status-context';
 interface TopbarProps {
   readonly tenantName: string;
   readonly userName: string | null;
+  readonly action?: React.ReactNode;
 }
 
 const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
@@ -28,7 +29,7 @@ const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
   ['/dashboard/hotsite', 'nav.hotsite'],
 ];
 
-export function Topbar({ tenantName, userName }: TopbarProps): React.JSX.Element {
+export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX.Element {
   const commonT = useTranslations('common');
   const t = useTranslations('dashboard');
   const bookingT = useTranslations('dashboard.bookingDetail');
@@ -84,6 +85,7 @@ export function Topbar({ tenantName, userName }: TopbarProps): React.JSX.Element
       )}
 
       <div className="ml-auto flex items-center gap-3">
+        {action}
         {topbarStatus?.bookingStatus && isBookingRoute && (
           <Badge
             className={cn(
