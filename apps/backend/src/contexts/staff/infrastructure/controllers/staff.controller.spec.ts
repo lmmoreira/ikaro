@@ -33,8 +33,8 @@ function makeController(
     ctx,
     new GetStaffUseCase(repo),
     new GetStaffByIdUseCase(repo),
-    new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus, ctx),
-    new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus, ctx),
+    new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
+    new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
     new GetStaffTenantsByIdUseCase(repo),
   );
 }
@@ -186,8 +186,8 @@ describe('StaffController', () => {
         ctxNoActor,
         new GetStaffUseCase(repo),
         new GetStaffByIdUseCase(repo),
-        new InviteStaffUseCase(repo, txMgr, eventBus, ctxNoActor),
-        new DeactivateStaffUseCase(repo, txMgr, eventBus, ctxNoActor),
+        new InviteStaffUseCase(repo, txMgr, eventBus),
+        new DeactivateStaffUseCase(repo, txMgr, eventBus),
         new GetStaffTenantsByIdUseCase(repo),
       );
       const err = await ctrl

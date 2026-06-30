@@ -16,9 +16,13 @@ import {
 } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
-import { InviteStaffBodyDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
+import {
+  InviteStaffBodyDto,
+  InviteStaffSchema,
+} from '../../application/dtos/invite-staff.dto';
 import {
   DeactivateStaffUseCase,
+  DeactivateStaffUseCaseInput,
   DeactivateStaffUseCaseResult,
 } from '../../application/use-cases/deactivate-staff.use-case';
 import {
@@ -27,6 +31,7 @@ import {
 } from '../../application/use-cases/get-staff-by-id.use-case';
 import {
   InviteStaffUseCase,
+  InviteStaffUseCaseInput,
   InviteStaffUseCaseResult,
 } from '../../application/use-cases/invite-staff.use-case';
 import {
@@ -89,16 +94,16 @@ export class StaffController {
   invite(
     @Body(new ZodValidationPipe(InviteStaffSchema)) body: InviteStaffBodyDto,
   ): Promise<InviteStaffUseCaseResult> {
-    return this.inviteStaff
-      .execute({
-        tenantId: this.tenantContext.tenantId,
-        email: body.email,
-        firstName: body.firstName,
-        lastName: body.lastName,
-        role: body.role,
-        invitedBy: this.tenantContext.actorId ?? null,
-      })
-      .catch(mapStaffError);
+    const input: InviteStaffUseCaseInput = {
+      tenantId: this.tenantContext.tenantId,
+      email: body.email,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      role: body.role,
+      invitedBy: this.tenantContext.actorId ?? null,
+      correlationId: this.tenantContext.correlationId,
+    };
+    return this.inviteStaff.execute(input).catch(mapStaffError);
   }
 
   @Patch(':id/deactivate')
@@ -121,8 +126,12 @@ export class StaffController {
         ),
       );
     }
-    return this.deactivateStaff
-      .execute(id, this.tenantContext.tenantId, actorId)
-      .catch(mapStaffError);
+    const input: DeactivateStaffUseCaseInput = {
+      staffId: id,
+      tenantId: this.tenantContext.tenantId,
+      deactivatedBy: actorId,
+      correlationId: this.tenantContext.correlationId,
+    };
+    return this.deactivateStaff.execute(input).catch(mapStaffError);
   }
 }

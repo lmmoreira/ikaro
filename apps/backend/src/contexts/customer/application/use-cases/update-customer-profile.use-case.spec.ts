@@ -5,7 +5,6 @@ import {
 import { CustomerBuilder } from '../../../../test/builders/customer/customer.builder';
 import { InMemoryCustomerRepository } from '../../../../test/repositories/customer/in-memory-customer.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { UpdateCustomerProfileUseCase } from './update-customer-profile.use-case';
 
 const validAddress = {
@@ -18,6 +17,7 @@ const validAddress = {
 };
 
 const TENANT_A = '10000000-0000-4000-8000-000000000130';
+const COUNTRY_CODE = 'BR';
 
 describe('UpdateCustomerProfileUseCase', () => {
   let useCase: UpdateCustomerProfileUseCase;
@@ -33,68 +33,61 @@ describe('UpdateCustomerProfileUseCase', () => {
       .build();
     await repo.save(customer);
     customerId = customer.id;
-
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withActorId(customerId)
-      .withActorType('CUSTOMER')
-      .build();
-    useCase = new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx);
+    useCase = new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager());
   });
 
   it('updates name when provided', async () => {
-    const result = await useCase.execute({ name: 'New Name' });
+    const result = await useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, name: 'New Name' });
     expect(result.name).toBe('New Name');
     expect(result.email).toBe('original@example.com');
   });
 
   it('updates phone when provided', async () => {
-    const result = await useCase.execute({ phone: '+5531999999999' });
+    const result = await useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, phone: '+5531999999999' });
     expect(result.phone).toBe('+5531999999999');
   });
 
   it('clears phone when set to null', async () => {
-    await useCase.execute({ phone: '+5531999999999' });
-    const result = await useCase.execute({ phone: null });
+    await useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, phone: '+5531999999999' });
+    const result = await useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, phone: null });
     expect(result.phone).toBeNull();
   });
 
   it('updates defaultAddress when provided', async () => {
-    const result = await useCase.execute({ defaultAddress: validAddress });
+    const result = await useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, defaultAddress: validAddress });
     expect(result.defaultAddress).not.toBeNull();
     expect(result.defaultAddress!.city).toBe(validAddress.city);
   });
 
   it('clears defaultAddress when set to null', async () => {
-    await useCase.execute({ defaultAddress: validAddress });
-    const result = await useCase.execute({ defaultAddress: null });
+    await useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, defaultAddress: validAddress });
+    const result = await useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, defaultAddress: null });
     expect(result.defaultAddress).toBeNull();
   });
 
   it('leaves unchanged fields untouched on partial update', async () => {
-    await useCase.execute({ phone: '+5531988888888' });
-    const result = await useCase.execute({ name: 'Updated Name' });
+    await useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, phone: '+5531988888888' });
+    const result = await useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, name: 'Updated Name' });
     expect(result.name).toBe('Updated Name');
     expect(result.phone).toBe('+5531988888888');
   });
 
-  it('throws CustomerNotFoundError when actorId has no matching customer', async () => {
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withActorId('00000000-0000-4000-8000-000000009998')
-      .withActorType('CUSTOMER')
-      .build();
-    const uc = new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx);
-    await expect(uc.execute({ name: 'X' })).rejects.toBeInstanceOf(CustomerNotFoundError);
+  it('throws CustomerNotFoundError when customerId has no matching customer', async () => {
+    const unknownId = '00000000-0000-4000-8000-000000009998';
+    await expect(
+      useCase.execute({ tenantId: TENANT_A, customerId: unknownId, countryCode: COUNTRY_CODE, name: 'X' }),
+    ).rejects.toBeInstanceOf(CustomerNotFoundError);
   });
 
   it('throws CustomerDomainError for invalid phone', async () => {
-    await expect(useCase.execute({ phone: '123' })).rejects.toBeInstanceOf(CustomerDomainError);
+    await expect(
+      useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, phone: '123' }),
+    ).rejects.toBeInstanceOf(CustomerDomainError);
   });
 
   it('throws for invalid zipCode in address (VO validation)', async () => {
     await expect(
-      useCase.execute({ defaultAddress: { ...validAddress, zipCode: '123' } }),
+      useCase.execute({ tenantId: TENANT_A, customerId, countryCode: COUNTRY_CODE, defaultAddress: { ...validAddress, zipCode: '123' } }),
     ).rejects.toThrow();
   });
 });

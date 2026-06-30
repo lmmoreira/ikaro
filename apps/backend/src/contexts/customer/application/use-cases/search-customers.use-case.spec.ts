@@ -1,6 +1,5 @@
 import { CustomerBuilder } from '../../../../test/builders/customer/customer.builder';
 import { InMemoryCustomerRepository } from '../../../../test/repositories/customer/in-memory-customer.repository';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { SearchCustomersUseCase } from './search-customers.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000130';
@@ -8,15 +7,12 @@ const TENANT_B = '10000000-0000-4000-8000-000000000131';
 
 describe('SearchCustomersUseCase', () => {
   let repo: InMemoryCustomerRepository;
+  let useCase: SearchCustomersUseCase;
 
   beforeEach(() => {
     repo = new InMemoryCustomerRepository();
+    useCase = new SearchCustomersUseCase(repo);
   });
-
-  function makeUseCase(tenantId: string) {
-    const ctx = new RequestContextBuilder().withTenantId(tenantId).withActorType('STAFF').build();
-    return new SearchCustomersUseCase(repo, ctx);
-  }
 
   it('returns all customers in tenant when search is omitted', async () => {
     const c1 = new CustomerBuilder()
@@ -32,7 +28,7 @@ describe('SearchCustomersUseCase', () => {
     await repo.save(c1);
     await repo.save(c2);
 
-    const result = await makeUseCase(TENANT_A).execute({ limit: 20 });
+    const result = await useCase.execute({ tenantId: TENANT_A, limit: 20 });
 
     expect(result.total).toBe(2);
     expect(result.items).toHaveLength(2);
@@ -52,7 +48,7 @@ describe('SearchCustomersUseCase', () => {
     await repo.save(c1);
     await repo.save(c2);
 
-    const result = await makeUseCase(TENANT_A).execute({ search: 'João', limit: 20 });
+    const result = await useCase.execute({ tenantId: TENANT_A, search: 'João', limit: 20 });
 
     expect(result.total).toBe(1);
     expect(result.items[0]?.name).toBe('João Silva');
@@ -72,7 +68,7 @@ describe('SearchCustomersUseCase', () => {
     await repo.save(c1);
     await repo.save(c2);
 
-    const result = await makeUseCase(TENANT_A).execute({ search: 'acme', limit: 20 });
+    const result = await useCase.execute({ tenantId: TENANT_A, search: 'acme', limit: 20 });
 
     expect(result.total).toBe(1);
     expect(result.items[0]?.email).toBe('alice@acme.com');
@@ -92,7 +88,7 @@ describe('SearchCustomersUseCase', () => {
     await repo.save(cA);
     await repo.save(cB);
 
-    const result = await makeUseCase(TENANT_A).execute({ limit: 20 });
+    const result = await useCase.execute({ tenantId: TENANT_A, limit: 20 });
 
     expect(result.total).toBe(1);
     expect(result.items[0]?.name).toBe('Alice');
@@ -109,7 +105,7 @@ describe('SearchCustomersUseCase', () => {
       );
     }
 
-    const result = await makeUseCase(TENANT_A).execute({ limit: 3 });
+    const result = await useCase.execute({ tenantId: TENANT_A, limit: 3 });
 
     expect(result.items).toHaveLength(3);
     expect(result.total).toBe(5);

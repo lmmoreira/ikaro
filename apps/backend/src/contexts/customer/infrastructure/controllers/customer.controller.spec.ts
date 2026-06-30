@@ -36,8 +36,8 @@ describe('CustomerController', () => {
     controller = new CustomerController(
       ctx,
       new GetCustomerByIdUseCase(repo),
-      new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
-      new SearchCustomersUseCase(repo, ctx),
+      new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager()),
+      new SearchCustomersUseCase(repo),
       new GetCustomerTenantsByIdUseCase(repo),
     );
   });
@@ -60,8 +60,8 @@ describe('CustomerController', () => {
       const ctrl = new CustomerController(
         ctx,
         new GetCustomerByIdUseCase(repo),
-        new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
-        new SearchCustomersUseCase(repo, ctx),
+        new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager()),
+        new SearchCustomersUseCase(repo),
         new GetCustomerTenantsByIdUseCase(repo),
       );
       const err = await ctrl.getMe().catch((e: unknown) => e);
@@ -149,8 +149,8 @@ describe('CustomerController', () => {
       const ctrl = new CustomerController(
         ctx,
         new GetCustomerByIdUseCase(repo),
-        new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager(), ctx),
-        new SearchCustomersUseCase(repo, ctx),
+        new UpdateCustomerProfileUseCase(repo, new InMemoryTransactionManager()),
+        new SearchCustomersUseCase(repo),
         new GetCustomerTenantsByIdUseCase(repo),
       );
       const err = await ctrl.getMyTenants().catch((e: unknown) => e);

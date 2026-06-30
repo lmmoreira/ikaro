@@ -2,7 +2,6 @@ import { StaffBuilder } from '../../../../test/builders/staff';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { StaffDeactivated } from '../../domain/events/staff-deactivated.event';
 import {
   LastActiveManagerError,
@@ -23,12 +22,7 @@ describe('DeactivateStaffUseCase', () => {
   beforeEach(() => {
     repo = new InMemoryStaffRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new DeactivateStaffUseCase(
-      repo,
-      new InMemoryTransactionManager(),
-      eventBus,
-      new RequestContextBuilder().withTenantId(TENANT_A).withCorrelationId(CORRELATION_ID).build(),
-    );
+    useCase = new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus);
   });
 
   it('deactivates a STAFF member — stores deactivatedBy and publishes StaffDeactivated', async () => {
@@ -47,7 +41,7 @@ describe('DeactivateStaffUseCase', () => {
     await repo.save(manager);
     await repo.save(staff);
 
-    const result = await useCase.execute(staff.id, TENANT_A, manager.id);
+    const result = await useCase.execute({ staffId: staff.id, tenantId: TENANT_A, deactivatedBy: manager.id, correlationId: CORRELATION_ID });
 
     expect(result.staffId).toBe(staff.id);
     expect(result.isActive).toBe(false);
@@ -80,16 +74,16 @@ describe('DeactivateStaffUseCase', () => {
     await repo.save(manager1);
     await repo.save(manager2);
 
-    const result = await useCase.execute(manager2.id, TENANT_A, manager1.id);
+    const result = await useCase.execute({ staffId: manager2.id, tenantId: TENANT_A, deactivatedBy: manager1.id, correlationId: CORRELATION_ID });
 
     expect(result.isActive).toBe(false);
     expect(eventBus.published).toHaveLength(1);
   });
 
   it('throws StaffNotFoundError when staff does not exist', async () => {
-    await expect(useCase.execute('non-existent-id', TENANT_A, 'any-actor')).rejects.toThrow(
-      StaffNotFoundError,
-    );
+    await expect(
+      useCase.execute({ staffId: 'non-existent-id', tenantId: TENANT_A, deactivatedBy: 'any-actor', correlationId: CORRELATION_ID }),
+    ).rejects.toThrow(StaffNotFoundError);
     expect(eventBus.published).toHaveLength(0);
   });
 
@@ -102,9 +96,9 @@ describe('DeactivateStaffUseCase', () => {
       .build();
     await repo.save(manager);
 
-    await expect(useCase.execute(manager.id, TENANT_A, manager.id)).rejects.toThrow(
-      StaffSelfDeactivationError,
-    );
+    await expect(
+      useCase.execute({ staffId: manager.id, tenantId: TENANT_A, deactivatedBy: manager.id, correlationId: CORRELATION_ID }),
+    ).rejects.toThrow(StaffSelfDeactivationError);
     expect(eventBus.published).toHaveLength(0);
   });
 
@@ -126,9 +120,9 @@ describe('DeactivateStaffUseCase', () => {
     actor.deactivate(manager.id, 'corr-setup');
     await repo.save(actor);
 
-    await expect(useCase.execute(manager.id, TENANT_A, actor.id)).rejects.toThrow(
-      LastActiveManagerError,
-    );
+    await expect(
+      useCase.execute({ staffId: manager.id, tenantId: TENANT_A, deactivatedBy: actor.id, correlationId: CORRELATION_ID }),
+    ).rejects.toThrow(LastActiveManagerError);
     expect(eventBus.published).toHaveLength(0);
   });
 
@@ -141,9 +135,9 @@ describe('DeactivateStaffUseCase', () => {
       .build();
     await repo.save(staff);
 
-    await expect(useCase.execute(staff.id, TENANT_B, 'any-actor')).rejects.toThrow(
-      StaffNotFoundError,
-    );
+    await expect(
+      useCase.execute({ staffId: staff.id, tenantId: TENANT_B, deactivatedBy: 'any-actor', correlationId: CORRELATION_ID }),
+    ).rejects.toThrow(StaffNotFoundError);
     expect(eventBus.published).toHaveLength(0);
   });
 });
