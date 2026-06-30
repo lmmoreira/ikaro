@@ -207,7 +207,9 @@ export function MarkCompleteBookingPage({
                   {t('completedPointsEarned', { count: totalEarnedPoints })}
                 </p>
               )}
-              <p className="mt-1">{t('completedEmailSummary')}</p>
+              <p data-testid="complete-email-summary" className="mt-1">
+                {t('completedEmailSummary')}
+              </p>
             </div>
           </>
         }
@@ -278,16 +280,22 @@ export function MarkCompleteBookingPage({
 
           {showLoyaltyPanel && (
             <section>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+              <p
+                data-testid="complete-loyalty-section-title"
+                className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400"
+              >
                 {t('loyaltySection')}
               </p>
               <Card className="border-blue-200 bg-blue-50/70">
                 <CardContent className="space-y-4 p-4">
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p
+                      data-testid="complete-loyalty-available-points"
+                      className="text-sm font-semibold text-gray-900"
+                    >
                       {t('loyaltyAvailablePoints', { count: loyaltyBalance })}
                     </p>
-                    <p className="text-xs text-gray-600">
+                    <p data-testid="complete-loyalty-rate-hint" className="text-xs text-gray-600">
                       {t('loyaltyRateHint', {
                         points: loyaltyPointsPerCurrencyUnit,
                         amount: formatMoney(1),
@@ -345,7 +353,10 @@ export function MarkCompleteBookingPage({
                     className="grid gap-3 border-t border-gray-100 px-4 py-4 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_11rem]"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-gray-900">
+                      <p
+                        data-testid="complete-line-name"
+                        className="truncate text-sm font-semibold text-gray-900"
+                      >
                         {line.serviceName}
                       </p>
                       <p className="mt-1 text-xs text-gray-500">
@@ -397,10 +408,16 @@ export function MarkCompleteBookingPage({
                   </p>
                 </div>
                 <div className="space-y-2 border-t border-blue-100 pt-3 text-sm text-blue-900">
-                  <p>{t('summaryQuoted', { total: formatMoney(booking.totalPrice.amount) })}</p>
-                  <p>{t('summaryCharged', { total: formatMoney(finalChargedTotal) })}</p>
+                  <p data-testid="complete-summary-quoted">
+                    {t('summaryQuoted', { total: formatMoney(booking.totalPrice.amount) })}
+                  </p>
+                  <p data-testid="complete-summary-charged">
+                    {t('summaryCharged', { total: formatMoney(finalChargedTotal) })}
+                  </p>
                   {booking.customerId !== null && (
-                    <p>{t('summaryPointsEarned', { count: totalEarnedPoints })}</p>
+                    <p data-testid="complete-summary-points-earned">
+                      {t('summaryPointsEarned', { count: totalEarnedPoints })}
+                    </p>
                   )}
                   {showLoyaltyPanel && pointsUsed > 0 && (
                     <p>{t('loyaltyDiscountSummary', { amount: formatMoney(discountAmount) })}</p>

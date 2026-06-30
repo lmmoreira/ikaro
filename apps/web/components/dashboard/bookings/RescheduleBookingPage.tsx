@@ -136,7 +136,9 @@ export function RescheduleBookingPage({
         bannerTitle={t('rescheduledTitle')}
         bannerBody={
           <>
-            <p>{t('rescheduledBodyEmail', { name: booking.contactName })}</p>
+            <p data-testid="reschedule-body-email">
+              {t('rescheduledBodyEmail', { name: booking.contactName })}
+            </p>
             <p className="mt-2">{t('rescheduledBodyStatus')}</p>
           </>
         }

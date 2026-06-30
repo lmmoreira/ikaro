@@ -48,7 +48,10 @@ export function BookingClientCard({
             <p className="mt-0.5 text-sm text-gray-500">{booking.contactEmail}</p>
             <p className="mt-0.5 text-sm text-gray-500">{booking.contactPhone}</p>
             {showLoyaltyBalance && booking.loyaltyBalance !== null && (
-              <p className="mt-1 text-xs font-semibold text-blue-700">
+              <p
+                data-testid="booking-loyalty-points-active"
+                className="mt-1 text-xs font-semibold text-blue-700"
+              >
                 {t('pointsActive', { count: booking.loyaltyBalance })}
               </p>
             )}
