@@ -16,6 +16,9 @@ overrides:
   # 5.0.7 still carries the dep. No newer google-gax exists. rimraf@6 uses glob@11
   # (brace-expansion@5, not vulnerable) and is API-compatible with v5.
   'google-gax>rimraf': '6.1.3'
+  # rimraf@6 chains to brace-expansion@5.0.6 via glob@13>minimatch@10; Snyk marks
+  # brace-expansion@5.0.7 as the patched release for SNYK-JS-BRACEEXPANSION-17706650.
+  'brace-expansion': '5.0.7'
 allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': true
