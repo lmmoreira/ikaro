@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   GenerateAttachmentSignedUrlBody,
   GenerateAttachmentSignedUrlSchema,
@@ -9,9 +10,13 @@ import {
   GenerateAttachmentSignedUrlUseCase,
 } from '../../application/use-cases/generate-attachment-signed-url.use-case';
 import { mapBookingError } from '../http/booking-error.mapper';
+
 @Controller('bookings/attachments')
 export class BookingAttachmentsController {
-  constructor(private readonly generateSignedUrl: GenerateAttachmentSignedUrlUseCase) {}
+  constructor(
+    private readonly ctx: RequestContext,
+    private readonly generateSignedUrl: GenerateAttachmentSignedUrlUseCase,
+  ) {}
 
   @Post('signed-url')
   @HttpCode(HttpStatus.CREATED)
@@ -19,6 +24,8 @@ export class BookingAttachmentsController {
     @Body(new ZodValidationPipe(GenerateAttachmentSignedUrlSchema))
     body: GenerateAttachmentSignedUrlBody,
   ): Promise<GenerateAttachmentSignedUrlResult> {
-    return this.generateSignedUrl.execute(body).catch(mapBookingError);
+    return this.generateSignedUrl
+      .execute({ ...body, tenantId: this.ctx.tenantId })
+      .catch(mapBookingError);
   }
 }

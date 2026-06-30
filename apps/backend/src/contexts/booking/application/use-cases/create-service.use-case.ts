@@ -3,11 +3,16 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { Money } from '../../../../shared/value-objects/money';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { CreateServiceDto } from '../dtos/create-service.dto';
 import { Service } from '../../domain/service.aggregate';
+
+export type CreateServiceInput = CreateServiceDto & {
+  tenantId: string;
+  currency: string;
+  locale: string;
+};
 
 export interface CreateServiceUseCaseResult {
   id: string;
@@ -26,22 +31,20 @@ export class CreateServiceUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(dto: CreateServiceDto): Promise<CreateServiceUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
-    const { currency, language: locale } = this.tenantContext.settings.localization;
-    const price = Money.from(dto.priceAmount, currency);
+  async execute(input: CreateServiceInput): Promise<CreateServiceUseCaseResult> {
+    const { tenantId, currency, locale } = input;
+    const price = Money.from(input.priceAmount, currency);
 
     const service = Service.create(
       tenantId,
-      dto.name,
+      input.name,
       price,
-      dto.durationMinutes,
-      dto.loyaltyPointsValue,
-      dto.requiresPickupAddress ?? false,
-      dto.description,
+      input.durationMinutes,
+      input.loyaltyPointsValue,
+      input.requiresPickupAddress ?? false,
+      input.description,
     );
 
     await this.txManager.run(async () => {

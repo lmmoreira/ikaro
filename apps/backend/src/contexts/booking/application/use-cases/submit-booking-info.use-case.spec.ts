@@ -3,7 +3,6 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -34,15 +33,7 @@ describe('SubmitBookingInfoUseCase', () => {
     bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
     storageService = new InMemoryStorageService();
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withCorrelationId(CORRELATION_ID)
-      .withActorId(CUSTOMER_ID)
-      .withActorType('CUSTOMER')
-      .withActorRole('CUSTOMER')
-      .build();
     useCase = new SubmitBookingInfoUseCase(
-      ctx,
       bookingRepo,
       new InMemoryTransactionManager(),
       eventBus,
@@ -59,7 +50,13 @@ describe('SubmitBookingInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    const result = await useCase.execute({ bookingId: booking.id, response: VALID_RESPONSE });
+    const result = await useCase.execute({
+      bookingId: booking.id,
+      response: VALID_RESPONSE,
+      tenantId: TENANT_A,
+      customerId: CUSTOMER_ID,
+      correlationId: CORRELATION_ID,
+    });
 
     expect(result.status).toBe(BookingStatus.PENDING);
     expect(result.bookingId).toBe(booking.id);
@@ -75,7 +72,13 @@ describe('SubmitBookingInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await useCase.execute({ bookingId: booking.id, response: VALID_RESPONSE });
+    await useCase.execute({
+      bookingId: booking.id,
+      response: VALID_RESPONSE,
+      tenantId: TENANT_A,
+      customerId: CUSTOMER_ID,
+      correlationId: CORRELATION_ID,
+    });
 
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.infoResponseMessage).toBe(VALID_RESPONSE);
@@ -96,7 +99,14 @@ describe('SubmitBookingInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await useCase.execute({ bookingId: booking.id, response: VALID_RESPONSE, photoUrls });
+    await useCase.execute({
+      bookingId: booking.id,
+      response: VALID_RESPONSE,
+      photoUrls,
+      tenantId: TENANT_A,
+      customerId: CUSTOMER_ID,
+      correlationId: CORRELATION_ID,
+    });
 
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.beforeServicePhotoUrls).toEqual(expect.arrayContaining(photoUrls));
@@ -116,6 +126,9 @@ describe('SubmitBookingInfoUseCase', () => {
         bookingId: booking.id,
         response: VALID_RESPONSE,
         photoUrls: [`tenants/${TENANT_A}/uploads/upload-1/missing.jpg`],
+        tenantId: TENANT_A,
+        customerId: CUSTOMER_ID,
+        correlationId: CORRELATION_ID,
       }),
     ).rejects.toBeInstanceOf(BookingPhotoNotUploadedError);
   });
@@ -130,7 +143,13 @@ describe('SubmitBookingInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await useCase.execute({ bookingId: booking.id, response: VALID_RESPONSE });
+    await useCase.execute({
+      bookingId: booking.id,
+      response: VALID_RESPONSE,
+      tenantId: TENANT_A,
+      customerId: CUSTOMER_ID,
+      correlationId: CORRELATION_ID,
+    });
 
     expect(eventBus.published).toHaveLength(1);
     expect(eventBus.published[0].eventName).toBe('BookingInfoSubmitted');
@@ -154,7 +173,13 @@ describe('SubmitBookingInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, response: VALID_RESPONSE }),
+      useCase.execute({
+        bookingId: booking.id,
+        response: VALID_RESPONSE,
+        tenantId: TENANT_A,
+        customerId: CUSTOMER_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(BookingForbiddenError);
   });
 
@@ -168,7 +193,13 @@ describe('SubmitBookingInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, response: VALID_RESPONSE }),
+      useCase.execute({
+        bookingId: booking.id,
+        response: VALID_RESPONSE,
+        tenantId: TENANT_A,
+        customerId: CUSTOMER_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(BookingForbiddenError);
   });
 
@@ -181,7 +212,13 @@ describe('SubmitBookingInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, response: VALID_RESPONSE }),
+      useCase.execute({
+        bookingId: booking.id,
+        response: VALID_RESPONSE,
+        tenantId: TENANT_A,
+        customerId: CUSTOMER_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(InvalidBookingTransitionError);
   });
 
@@ -195,7 +232,13 @@ describe('SubmitBookingInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, response: VALID_RESPONSE }),
+      useCase.execute({
+        bookingId: booking.id,
+        response: VALID_RESPONSE,
+        tenantId: TENANT_A,
+        customerId: CUSTOMER_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(InvalidBookingTransitionError);
   });
 
@@ -204,6 +247,9 @@ describe('SubmitBookingInfoUseCase', () => {
       useCase.execute({
         bookingId: '00000000-0000-4000-8000-000000000000',
         response: VALID_RESPONSE,
+        tenantId: TENANT_A,
+        customerId: CUSTOMER_ID,
+        correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingNotFoundError);
   });
@@ -218,7 +264,13 @@ describe('SubmitBookingInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, response: VALID_RESPONSE }),
+      useCase.execute({
+        bookingId: booking.id,
+        response: VALID_RESPONSE,
+        tenantId: TENANT_A,
+        customerId: CUSTOMER_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(BookingNotFoundError);
   });
 });

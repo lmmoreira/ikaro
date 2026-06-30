@@ -4,7 +4,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import {
   BookingNotFoundError,
   InvalidBookingTransitionError,
@@ -12,6 +11,12 @@ import {
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { RejectBookingDto } from '../dtos/reject-booking.dto';
+
+export type RejectBookingInput = RejectBookingDto & {
+  tenantId: string;
+  staffId: string;
+  correlationId: string;
+};
 
 export interface RejectBookingUseCaseResult {
   bookingId: string;
@@ -22,19 +27,16 @@ export interface RejectBookingUseCaseResult {
 @Injectable()
 export class RejectBookingUseCase {
   constructor(
-    private readonly tenantContext: RequestContext,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
   ) {}
 
-  async execute(dto: RejectBookingDto): Promise<RejectBookingUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
-    const staffId = this.tenantContext.actorId!;
-    const correlationId = this.tenantContext.correlationId;
+  async execute(input: RejectBookingInput): Promise<RejectBookingUseCaseResult> {
+    const { tenantId, staffId, correlationId } = input;
 
-    const booking = await this.bookingRepo.findById(dto.bookingId, tenantId);
-    if (!booking) throw new BookingNotFoundError(dto.bookingId);
+    const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
+    if (!booking) throw new BookingNotFoundError(input.bookingId);
 
     if (
       booking.status !== BookingStatus.PENDING &&
@@ -43,7 +45,7 @@ export class RejectBookingUseCase {
       throw new InvalidBookingTransitionError(booking.status, BookingStatus.REJECTED);
     }
 
-    booking.reject(staffId, dto.reason, correlationId);
+    booking.reject(staffId, input.reason, correlationId);
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);
@@ -60,3 +62,4 @@ export class RejectBookingUseCase {
     };
   }
 }
+

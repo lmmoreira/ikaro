@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { todayUTC } from '../../../../shared/utils/calendar-date';
-import { RequestContext } from '../../../../shared/request/request-context';
+import type { BusinessHours } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   AvailabilityDateInPastError,
@@ -21,6 +21,13 @@ import {
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { GetAvailabilityDto } from '../dtos/get-availability.dto';
 
+export type GetAvailabilityInput = GetAvailabilityDto & {
+  tenantId: string;
+  businessHours: BusinessHours;
+  slotGranularityMinutes: 15 | 30 | 60;
+  serviceBufferMinutes: number;
+};
+
 export interface AvailableSlotResult {
   startsAt: string;
   endsAt: string;
@@ -35,7 +42,6 @@ export interface GetAvailabilityUseCaseResult {
 @Injectable()
 export class GetAvailabilityUseCase {
   constructor(
-    private readonly tenantContext: RequestContext,
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
     @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
@@ -44,17 +50,15 @@ export class GetAvailabilityUseCase {
     private readonly availabilityService: AvailabilityService,
   ) {}
 
-  async execute(dto: GetAvailabilityDto): Promise<GetAvailabilityUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
+  async execute(input: GetAvailabilityInput): Promise<GetAvailabilityUseCaseResult> {
+    const { tenantId, businessHours, slotGranularityMinutes, serviceBufferMinutes } = input;
 
     const today = todayUTC();
-    if (dto.date < today) throw new AvailabilityDateInPastError();
+    if (input.date < today) throw new AvailabilityDateInPastError();
 
-    const { businessHours, booking: bookingSettings } = this.tenantContext.settings;
+    const services = await this.serviceRepo.findByIds(input.serviceIds, tenantId);
 
-    const services = await this.serviceRepo.findByIds(dto.serviceIds, tenantId);
-
-    for (const requestedId of dto.serviceIds) {
+    for (const requestedId of input.serviceIds) {
       const service = services.find((s) => s.id === requestedId);
       if (!service) {
         throw new BookingDomainError(`Service not found: ${requestedId}`);
@@ -65,22 +69,22 @@ export class GetAvailabilityUseCase {
     }
 
     const [closures, opening, existingBookings] = await Promise.all([
-      this.closureRepo.findByTenantAndDate(tenantId, dto.date),
-      this.openingRepo.findByTenantAndDate(tenantId, dto.date),
-      this.bookingPort.findApprovedByTenantAndDate(tenantId, dto.date),
+      this.closureRepo.findByTenantAndDate(tenantId, input.date),
+      this.openingRepo.findByTenantAndDate(tenantId, input.date),
+      this.bookingPort.findApprovedByTenantAndDate(tenantId, input.date),
     ]);
 
     const slots = this.availabilityService.calculate({
-      date: dto.date,
+      date: input.date,
       services: services.map((s) => ({ durationMinutes: s.durationMinutes })),
       businessHours,
-      slotGranularityMinutes: bookingSettings.slotGranularityMinutes,
-      serviceBufferMinutes: bookingSettings.serviceBufferMinutes,
+      slotGranularityMinutes,
+      serviceBufferMinutes,
       closures,
       opening: opening ?? null,
       existingBookings,
     });
 
-    return { date: dto.date, slots, available: slots.length > 0 };
+    return { date: input.date, slots, available: slots.length > 0 };
   }
 }

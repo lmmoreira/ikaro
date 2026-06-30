@@ -2,7 +2,6 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -28,18 +27,7 @@ describe('RequestMoreInfoUseCase', () => {
   beforeEach(() => {
     bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withCorrelationId(CORRELATION_ID)
-      .withActorId(STAFF_ID)
-      .withActorRole('MANAGER')
-      .build();
-    useCase = new RequestMoreInfoUseCase(
-      ctx,
-      bookingRepo,
-      new InMemoryTransactionManager(),
-      eventBus,
-    );
+    useCase = new RequestMoreInfoUseCase(bookingRepo, new InMemoryTransactionManager(), eventBus);
   });
 
   it('transitions PENDING → INFO_REQUESTED and returns result with infoRequestedAt', async () => {
@@ -49,7 +37,13 @@ describe('RequestMoreInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    const result = await useCase.execute({ bookingId: booking.id, message: VALID_MESSAGE });
+    const result = await useCase.execute({
+      bookingId: booking.id,
+      message: VALID_MESSAGE,
+      tenantId: TENANT_A,
+      staffId: STAFF_ID,
+      correlationId: CORRELATION_ID,
+    });
 
     expect(result.status).toBe(BookingStatus.INFO_REQUESTED);
     expect(result.bookingId).toBe(booking.id);
@@ -63,7 +57,13 @@ describe('RequestMoreInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await useCase.execute({ bookingId: booking.id, message: VALID_MESSAGE });
+    await useCase.execute({
+      bookingId: booking.id,
+      message: VALID_MESSAGE,
+      tenantId: TENANT_A,
+      staffId: STAFF_ID,
+      correlationId: CORRELATION_ID,
+    });
 
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.infoRequestMessage).toBe(VALID_MESSAGE);
@@ -78,7 +78,13 @@ describe('RequestMoreInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await useCase.execute({ bookingId: booking.id, message: VALID_MESSAGE });
+    await useCase.execute({
+      bookingId: booking.id,
+      message: VALID_MESSAGE,
+      tenantId: TENANT_A,
+      staffId: STAFF_ID,
+      correlationId: CORRELATION_ID,
+    });
 
     expect(eventBus.published).toHaveLength(1);
     expect(eventBus.published[0].eventName).toBe('BookingInfoRequested');
@@ -97,7 +103,13 @@ describe('RequestMoreInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await useCase.execute({ bookingId: booking.id, message: `  ${VALID_MESSAGE}  ` });
+    await useCase.execute({
+      bookingId: booking.id,
+      message: `  ${VALID_MESSAGE}  `,
+      tenantId: TENANT_A,
+      staffId: STAFF_ID,
+      correlationId: CORRELATION_ID,
+    });
 
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.infoRequestMessage).toBe(VALID_MESSAGE);
@@ -110,9 +122,15 @@ describe('RequestMoreInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await expect(useCase.execute({ bookingId: booking.id, message: 'Too short' })).rejects.toThrow(
-      BookingInfoMessageTooShortError,
-    );
+    await expect(
+      useCase.execute({
+        bookingId: booking.id,
+        message: 'Too short',
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+      }),
+    ).rejects.toThrow(BookingInfoMessageTooShortError);
   });
 
   it('throws BookingInfoMessageTooShortError when message is empty', async () => {
@@ -122,9 +140,15 @@ describe('RequestMoreInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await expect(useCase.execute({ bookingId: booking.id, message: '' })).rejects.toThrow(
-      BookingInfoMessageTooShortError,
-    );
+    await expect(
+      useCase.execute({
+        bookingId: booking.id,
+        message: '',
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+      }),
+    ).rejects.toThrow(BookingInfoMessageTooShortError);
   });
 
   it('throws BookingInfoMessageTooShortError even when booking is not PENDING (length checked first)', async () => {
@@ -135,9 +159,15 @@ describe('RequestMoreInfoUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await expect(useCase.execute({ bookingId: booking.id, message: 'short' })).rejects.toThrow(
-      BookingInfoMessageTooShortError,
-    );
+    await expect(
+      useCase.execute({
+        bookingId: booking.id,
+        message: 'short',
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+      }),
+    ).rejects.toThrow(BookingInfoMessageTooShortError);
   });
 
   it('throws BookingNotFoundError when booking does not exist', async () => {
@@ -145,6 +175,9 @@ describe('RequestMoreInfoUseCase', () => {
       useCase.execute({
         bookingId: '00000000-0000-4000-8000-000000000000',
         message: VALID_MESSAGE,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingNotFoundError);
   });
@@ -158,7 +191,13 @@ describe('RequestMoreInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, message: VALID_MESSAGE }),
+      useCase.execute({
+        bookingId: booking.id,
+        message: VALID_MESSAGE,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(InvalidBookingTransitionError);
   });
 
@@ -171,7 +210,13 @@ describe('RequestMoreInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, message: VALID_MESSAGE }),
+      useCase.execute({
+        bookingId: booking.id,
+        message: VALID_MESSAGE,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(InvalidBookingTransitionError);
   });
 
@@ -184,7 +229,13 @@ describe('RequestMoreInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, message: VALID_MESSAGE }),
+      useCase.execute({
+        bookingId: booking.id,
+        message: VALID_MESSAGE,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(InvalidBookingTransitionError);
   });
 
@@ -197,7 +248,13 @@ describe('RequestMoreInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, message: VALID_MESSAGE }),
+      useCase.execute({
+        bookingId: booking.id,
+        message: VALID_MESSAGE,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(InvalidBookingTransitionError);
   });
 
@@ -210,7 +267,13 @@ describe('RequestMoreInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, message: VALID_MESSAGE }),
+      useCase.execute({
+        bookingId: booking.id,
+        message: VALID_MESSAGE,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(InvalidBookingTransitionError);
   });
 
@@ -222,7 +285,13 @@ describe('RequestMoreInfoUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute({ bookingId: booking.id, message: VALID_MESSAGE }),
+      useCase.execute({
+        bookingId: booking.id,
+        message: VALID_MESSAGE,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toThrow(BookingNotFoundError);
   });
 });

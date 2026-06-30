@@ -21,9 +21,10 @@ describe('ScheduleOpeningController', () => {
     const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build();
     const tx = new InMemoryTransactionManager();
     controller = new ScheduleOpeningController(
-      new OpenScheduleUseCase(repo, tx, ctx),
-      new RemoveScheduleOpeningUseCase(repo, tx, ctx),
-      new ListOpeningsUseCase(repo, ctx),
+      ctx,
+      new OpenScheduleUseCase(repo, tx),
+      new RemoveScheduleOpeningUseCase(repo, tx),
+      new ListOpeningsUseCase(repo),
     );
   });
 

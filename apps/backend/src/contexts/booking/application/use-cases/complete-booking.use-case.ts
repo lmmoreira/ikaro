@@ -4,7 +4,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { Money } from '../../../../shared/value-objects/money';
 import { Booking } from '../../domain/booking.aggregate';
 import {
@@ -18,6 +17,14 @@ import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-reposit
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { CompleteBookingDto } from '../dtos/complete-booking.dto';
 
+export type CompleteBookingInput = CompleteBookingDto & {
+  tenantId: string;
+  staffId: string;
+  correlationId: string;
+  currency: string;
+  pointsPerCurrencyUnit: number;
+};
+
 export interface CompleteBookingUseCaseResult {
   bookingId: string;
   status: string;
@@ -28,23 +35,19 @@ export interface CompleteBookingUseCaseResult {
 @Injectable()
 export class CompleteBookingUseCase {
   constructor(
-    private readonly tenantContext: RequestContext,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     private readonly photoExistenceService: PhotoExistenceService,
   ) {}
 
-  async execute(dto: CompleteBookingDto): Promise<CompleteBookingUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
-    const staffId = this.tenantContext.actorId!;
-    const correlationId = this.tenantContext.correlationId;
+  async execute(input: CompleteBookingInput): Promise<CompleteBookingUseCaseResult> {
+    const { tenantId, staffId, correlationId, currency } = input;
 
-    const booking = await this.bookingRepo.findById(dto.bookingId, tenantId);
-    if (!booking) throw new BookingNotFoundError(dto.bookingId);
+    const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
+    if (!booking) throw new BookingNotFoundError(input.bookingId);
 
-    const { currency } = this.tenantContext.settings.localization;
-    const requestLineIds = new Set(dto.lines.map((l) => l.lineId));
+    const requestLineIds = new Set(input.lines.map((l) => l.lineId));
     const missingLineIds = booking.lines
       .filter((l) => !requestLineIds.has(l.lineId))
       .map((l) => l.lineId);
@@ -52,21 +55,21 @@ export class CompleteBookingUseCase {
       throw new CompleteBookingLinesIncompleteError(missingLineIds);
     }
 
-    await this.photoExistenceService.assertPhotosUploaded(dto.afterServicePhotoUrls, tenantId);
+    await this.photoExistenceService.assertPhotosUploaded(input.afterServicePhotoUrls, tenantId);
 
-    this.validateDiscount(dto, booking);
+    this.validateDiscount(input, booking);
 
     const lineActualPrices = new Map(
-      dto.lines.map((l) => [l.lineId, Money.from(l.actualPriceCharged, currency)]),
+      input.lines.map((l) => [l.lineId, Money.from(l.actualPriceCharged, currency)]),
     );
 
     booking.complete(
       staffId,
       lineActualPrices,
-      dto.afterServicePhotoUrls,
+      input.afterServicePhotoUrls,
       correlationId,
-      dto.adminNotes,
-      dto.discountByPoints,
+      input.adminNotes,
+      input.discountByPoints,
     );
 
     await this.txManager.run(async () => {
@@ -88,18 +91,18 @@ export class CompleteBookingUseCase {
     };
   }
 
-  private validateDiscount(dto: CompleteBookingDto, booking: Booking): void {
-    if (!dto.discountByPoints) return;
+  private validateDiscount(input: CompleteBookingInput, booking: Booking): void {
+    if (!input.discountByPoints) return;
 
     if (booking.customerId === null) throw new BookingDiscountNotAvailableError();
 
-    const { pointsPerCurrencyUnit } = this.tenantContext.settings.loyalty;
+    const { pointsPerCurrencyUnit } = input;
     if (pointsPerCurrencyUnit === 0) throw new BookingDiscountDisabledError();
 
     const expectedAmountDeducted = Math.floor(
-      dto.discountByPoints.pointsUsed / pointsPerCurrencyUnit,
+      input.discountByPoints.pointsUsed / pointsPerCurrencyUnit,
     );
-    const roundedAmountDeducted = Math.round(dto.discountByPoints.amountDeducted * 100) / 100;
+    const roundedAmountDeducted = Math.round(input.discountByPoints.amountDeducted * 100) / 100;
     if (roundedAmountDeducted !== expectedAmountDeducted) {
       throw new BookingDiscountMismatchError();
     }

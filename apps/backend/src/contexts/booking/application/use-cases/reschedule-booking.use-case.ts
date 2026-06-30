@@ -4,7 +4,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import {
   BookingNotFoundError,
   BookingScheduledInPastError,
@@ -12,6 +11,13 @@ import {
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { RescheduleBookingDto } from '../dtos/reschedule-booking.dto';
+
+export type RescheduleBookingInput = RescheduleBookingDto & {
+  tenantId: string;
+  staffId: string;
+  correlationId: string;
+  timezone: string;
+};
 
 export interface RescheduleBookingUseCaseResult {
   bookingId: string;
@@ -22,32 +28,30 @@ export interface RescheduleBookingUseCaseResult {
 @Injectable()
 export class RescheduleBookingUseCase {
   constructor(
-    private readonly tenantContext: RequestContext,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     private readonly slotConflictService: BookingSlotConflictService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
   ) {}
 
-  async execute(dto: RescheduleBookingDto): Promise<RescheduleBookingUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
-    const staffId = this.tenantContext.actorId!;
-    const correlationId = this.tenantContext.correlationId;
+  async execute(input: RescheduleBookingInput): Promise<RescheduleBookingUseCaseResult> {
+    const { tenantId, staffId, correlationId, timezone } = input;
 
-    const booking = await this.bookingRepo.findById(dto.bookingId, tenantId);
-    if (!booking) throw new BookingNotFoundError(dto.bookingId);
+    const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
+    if (!booking) throw new BookingNotFoundError(input.bookingId);
 
-    const newScheduledAt = new Date(dto.scheduledAt);
+    const newScheduledAt = new Date(input.scheduledAt);
     if (newScheduledAt <= new Date()) throw new BookingScheduledInPastError();
 
     await this.slotConflictService.assertSlotFree(
       tenantId,
       newScheduledAt,
       booking.totalDurationMins,
+      timezone,
       booking.id,
     );
 
-    booking.reschedule(staffId, newScheduledAt, correlationId, dto.adminNotes);
+    booking.reschedule(staffId, newScheduledAt, correlationId, input.adminNotes);
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);

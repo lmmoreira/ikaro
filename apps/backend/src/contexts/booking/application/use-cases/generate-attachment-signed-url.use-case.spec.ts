@@ -1,13 +1,11 @@
 import { BookingBuilder } from '../../../../test/builders/booking/booking.builder';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { GenerateAttachmentSignedUrlUseCase } from './generate-attachment-signed-url.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000301';
 const TENANT_B = '10000000-0000-4000-8000-000000000302';
-const STAFF_ID = '20000000-0000-4000-8000-000000000301';
 const BOOKING_ID = '30000000-0000-4000-8000-000000000301';
 
 describe('GenerateAttachmentSignedUrlUseCase', () => {
@@ -18,15 +16,7 @@ describe('GenerateAttachmentSignedUrlUseCase', () => {
   beforeEach(() => {
     bookingRepo = new InMemoryBookingRepository();
     storageService = new InMemoryStorageService();
-
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withCorrelationId('corr-storage-test')
-      .withActorId(STAFF_ID)
-      .withActorRole('MANAGER')
-      .build();
-
-    useCase = new GenerateAttachmentSignedUrlUseCase(ctx, bookingRepo, storageService);
+    useCase = new GenerateAttachmentSignedUrlUseCase(bookingRepo, storageService);
   });
 
   describe('without bookingId (pre-upload path)', () => {
@@ -34,6 +24,7 @@ describe('GenerateAttachmentSignedUrlUseCase', () => {
       const result = await useCase.execute({
         fileName: 'car-front.jpg',
         contentType: 'image/jpeg',
+        tenantId: TENANT_A,
       });
 
       expect(result.signedUrl).toContain('http://fake-gcs/bucket/');
@@ -43,8 +34,8 @@ describe('GenerateAttachmentSignedUrlUseCase', () => {
     });
 
     it('generates a unique upload folder each call', async () => {
-      const r1 = await useCase.execute({ fileName: 'a.jpg', contentType: 'image/jpeg' });
-      const r2 = await useCase.execute({ fileName: 'a.jpg', contentType: 'image/jpeg' });
+      const r1 = await useCase.execute({ fileName: 'a.jpg', contentType: 'image/jpeg', tenantId: TENANT_A });
+      const r2 = await useCase.execute({ fileName: 'a.jpg', contentType: 'image/jpeg', tenantId: TENANT_A });
       expect(r1.filePath).not.toBe(r2.filePath);
     });
   });
@@ -60,6 +51,7 @@ describe('GenerateAttachmentSignedUrlUseCase', () => {
         fileName: 'after.jpg',
         contentType: 'image/jpeg',
         bookingId: BOOKING_ID,
+        tenantId: TENANT_A,
       });
 
       expect(result.filePath).toBe(`tenants/${TENANT_A}/bookings/${BOOKING_ID}/after.jpg`);
@@ -71,6 +63,7 @@ describe('GenerateAttachmentSignedUrlUseCase', () => {
           fileName: 'after.jpg',
           contentType: 'image/jpeg',
           bookingId: '99999999-0000-4000-8000-000000000000',
+          tenantId: TENANT_A,
         }),
       ).rejects.toThrow(BookingNotFoundError);
     });
@@ -86,6 +79,7 @@ describe('GenerateAttachmentSignedUrlUseCase', () => {
           fileName: 'after.jpg',
           contentType: 'image/jpeg',
           bookingId: BOOKING_ID,
+          tenantId: TENANT_A,
         }),
       ).rejects.toThrow(BookingNotFoundError);
     });

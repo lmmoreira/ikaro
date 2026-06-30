@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { todayUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
-import { RequestContext } from '../../../../shared/request/request-context';
+import type { BusinessHours } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   AvailabilityRangeInvalidError,
@@ -21,6 +21,14 @@ import {
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { GetAvailabilitySummaryDto } from '../dtos/get-availability-summary.dto';
 
+export type GetAvailabilitySummaryInput = GetAvailabilitySummaryDto & {
+  tenantId: string;
+  businessHours: BusinessHours;
+  slotGranularityMinutes: 15 | 30 | 60;
+  serviceBufferMinutes: number;
+  maxBookingAdvanceDays: number;
+};
+
 export interface DaySummary {
   date: string;
   available: boolean;
@@ -32,7 +40,6 @@ export type GetAvailabilitySummaryUseCaseResult = DaySummary[];
 @Injectable()
 export class GetAvailabilitySummaryUseCase {
   constructor(
-    private readonly tenantContext: RequestContext,
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
     @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
@@ -41,40 +48,46 @@ export class GetAvailabilitySummaryUseCase {
     private readonly availabilityService: AvailabilityService,
   ) {}
 
-  async execute(dto: GetAvailabilitySummaryDto): Promise<GetAvailabilitySummaryUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
+  async execute(
+    input: GetAvailabilitySummaryInput,
+  ): Promise<GetAvailabilitySummaryUseCaseResult> {
+    const {
+      tenantId,
+      businessHours,
+      slotGranularityMinutes,
+      serviceBufferMinutes,
+      maxBookingAdvanceDays,
+    } = input;
 
-    if (dto.from > dto.to) {
+    if (input.from > input.to) {
       throw new AvailabilityRangeInvalidError('from must not be after to');
     }
 
-    const { businessHours, booking: bookingSettings } = this.tenantContext.settings;
-
-    const rangeDays = this.daysBetween(dto.from, dto.to);
-    if (rangeDays > bookingSettings.maxBookingAdvanceDays) {
+    const rangeDays = this.daysBetween(input.from, input.to);
+    if (rangeDays > maxBookingAdvanceDays) {
       throw new AvailabilityRangeInvalidError(
-        `range exceeds maxBookingAdvanceDays (${bookingSettings.maxBookingAdvanceDays})`,
+        `range exceeds maxBookingAdvanceDays (${maxBookingAdvanceDays})`,
       );
     }
 
-    const services = await this.serviceRepo.findByIds(dto.serviceIds, tenantId);
-    for (const requestedId of dto.serviceIds) {
+    const services = await this.serviceRepo.findByIds(input.serviceIds, tenantId);
+    for (const requestedId of input.serviceIds) {
       const service = services.find((s) => s.id === requestedId);
       if (!service) throw new BookingDomainError(`Service not found: ${requestedId}`);
       if (!service.isActive) throw new BookingDomainError(`Service is not active: ${requestedId}`);
     }
 
     const [closures, openings, bookings] = await Promise.all([
-      this.closureRepo.findByTenantAndDateRange(tenantId, dto.from, dto.to),
-      this.openingRepo.findByTenantAndDateRange(tenantId, dto.from, dto.to),
-      this.bookingPort.findApprovedByTenantAndDateRange(tenantId, dto.from, dto.to),
+      this.closureRepo.findByTenantAndDateRange(tenantId, input.from, input.to),
+      this.openingRepo.findByTenantAndDateRange(tenantId, input.from, input.to),
+      this.bookingPort.findApprovedByTenantAndDateRange(tenantId, input.from, input.to),
     ]);
 
     const today = todayUTC();
     const results: GetAvailabilitySummaryUseCaseResult = [];
     const tz = businessHours.timezone;
 
-    for (const date of this.dateRange(dto.from, dto.to)) {
+    for (const date of this.dateRange(input.from, input.to)) {
       if (date < today) {
         results.push({ date, available: false, slotCount: 0 });
         continue;
@@ -88,8 +101,8 @@ export class GetAvailabilitySummaryUseCase {
         date,
         services: services.map((s) => ({ durationMinutes: s.durationMinutes })),
         businessHours,
-        slotGranularityMinutes: bookingSettings.slotGranularityMinutes,
-        serviceBufferMinutes: bookingSettings.serviceBufferMinutes,
+        slotGranularityMinutes,
+        serviceBufferMinutes,
         closures: dayClosures,
         opening: dayOpening,
         existingBookings: dayBookings,

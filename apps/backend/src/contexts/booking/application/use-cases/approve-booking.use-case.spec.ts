@@ -3,7 +3,6 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -20,8 +19,11 @@ const TENANT_A = '10000000-0000-4000-8000-000000000201';
 const TENANT_B = '10000000-0000-4000-8000-000000000202';
 const STAFF_ID = '20000000-0000-4000-8000-000000000201';
 const CORRELATION_ID = 'corr-approve-test';
+const TZ = 'America/Sao_Paulo';
 
 const scheduledAt = new Date(`${futureDate(2)}T13:00:00.000Z`);
+
+const ctx = { tenantId: TENANT_A, staffId: STAFF_ID, correlationId: CORRELATION_ID, timezone: TZ };
 
 describe('ApproveBookingUseCase', () => {
   describe('approve()', () => {
@@ -34,16 +36,9 @@ describe('ApproveBookingUseCase', () => {
       bookingRepo = new InMemoryBookingRepository();
       eventBus = new InMemoryEventBus();
       availabilityPort = new InMemoryBookingAvailabilityPort();
-      const ctx = new RequestContextBuilder()
-        .withTenantId(TENANT_A)
-        .withCorrelationId(CORRELATION_ID)
-        .withActorId(STAFF_ID)
-        .withActorRole('MANAGER')
-        .build();
       useCase = new ApproveBookingUseCase(
-        ctx,
         bookingRepo,
-        new BookingSlotConflictService(availabilityPort, ctx),
+        new BookingSlotConflictService(availabilityPort),
         new InMemoryTransactionManager(),
         eventBus,
       );
@@ -56,7 +51,7 @@ describe('ApproveBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({ bookingId: booking.id, ...ctx });
 
       expect(result.status).toBe(BookingStatus.APPROVED);
       expect(result.bookingId).toBe(booking.id);
@@ -71,7 +66,7 @@ describe('ApproveBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({ bookingId: booking.id, ...ctx });
 
       expect(result.status).toBe(BookingStatus.APPROVED);
     });
@@ -83,7 +78,7 @@ describe('ApproveBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await useCase.execute({ bookingId: booking.id });
+      await useCase.execute({ bookingId: booking.id, ...ctx });
 
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
       expect(saved!.status).toBe(BookingStatus.APPROVED);
@@ -103,6 +98,7 @@ describe('ApproveBookingUseCase', () => {
       const result = await useCase.execute({
         bookingId: booking.id,
         scheduledAt: retryScheduledAt.toISOString(),
+        ...ctx,
       });
 
       expect(result.status).toBe(BookingStatus.APPROVED);
@@ -118,7 +114,7 @@ describe('ApproveBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await useCase.execute({ bookingId: booking.id });
+      await useCase.execute({ bookingId: booking.id, ...ctx });
 
       const events = eventBus.published;
       expect(events).toHaveLength(1);
@@ -129,7 +125,7 @@ describe('ApproveBookingUseCase', () => {
 
     it('throws BookingNotFoundError when booking does not exist', async () => {
       await expect(
-        useCase.execute({ bookingId: '00000000-0000-4000-8000-000000000000' }),
+        useCase.execute({ bookingId: '00000000-0000-4000-8000-000000000000', ...ctx }),
       ).rejects.toThrow(BookingNotFoundError);
     });
 
@@ -141,7 +137,7 @@ describe('ApproveBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         InvalidBookingTransitionError,
       );
     });
@@ -154,7 +150,7 @@ describe('ApproveBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         InvalidBookingTransitionError,
       );
     });
@@ -167,7 +163,7 @@ describe('ApproveBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         InvalidBookingTransitionError,
       );
     });
@@ -180,7 +176,7 @@ describe('ApproveBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         BookingSlotUnavailableError,
       );
     });
@@ -196,7 +192,7 @@ describe('ApproveBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({ bookingId: booking.id, ...ctx });
       expect(result.status).toBe(BookingStatus.APPROVED);
     });
 
@@ -210,7 +206,7 @@ describe('ApproveBookingUseCase', () => {
       const pastScheduledAt = new Date(Date.now() - 60_000).toISOString();
 
       await expect(
-        useCase.execute({ bookingId: booking.id, scheduledAt: pastScheduledAt }),
+        useCase.execute({ bookingId: booking.id, scheduledAt: pastScheduledAt, ...ctx }),
       ).rejects.toThrow(BookingScheduledInPastError);
     });
 
@@ -222,7 +218,7 @@ describe('ApproveBookingUseCase', () => {
       await bookingRepo.save(booking);
 
       await expect(
-        useCase.execute({ bookingId: booking.id, scheduledAt: 'not-a-date' }),
+        useCase.execute({ bookingId: booking.id, scheduledAt: 'not-a-date', ...ctx }),
       ).rejects.toThrow(BookingScheduledAtInvalidError);
     });
 
@@ -233,7 +229,7 @@ describe('ApproveBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         BookingNotFoundError,
       );
     });

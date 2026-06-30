@@ -170,7 +170,8 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 
 - `mapXxxError(err: unknown): never` at HTTP layer; controller = `return this.useCase.execute(dto).catch(mapXxxError)`. Never throw `HttpException` from a use case.
 - **Aggregate-driven events:** `this.addDomainEvent()` in aggregate method; flush `clearDomainEvents()` **after** `txManager.run()`. Never publish events directly from a use case.
-- `correlationId` from `RequestContext.correlationId` (not `uuidv7()`). Domain error base class needs `Object.setPrototypeOf(this, new.target.prototype)` after `super()` — otherwise `instanceof` fails silently and every mapper falls through to 500.
+- `correlationId` — controllers read from `RequestContext.correlationId` and pass via DTO. Use cases receive it as `dto.correlationId` — never inject `RequestContext`, never call `uuidv7()`. Domain error base class needs `Object.setPrototypeOf(this, new.target.prototype)` after `super()` — otherwise `instanceof` fails silently and every mapper falls through to 500.
+- **Use cases never inject `RequestContext`.** Extract `tenantId`, `actorId`, `correlationId`, and any `settings.*` fields in the controller, then forward them in the DTO. Use cases are pure functions of their input — safe to call from event handlers and cross-context adapters.
 - Zod v4: `z.uuid()` / `z.email()` — never `z.string().uuid()` / `z.string().email()`.
 - **`/internal/` routes are only for unauthenticated auth flows** (OAuth callbacks before a JWT exists: `handleStaffLogin`, `findOrCreate`, `link-google`). If the BFF can include actor headers, the endpoint is not internal — put it in the regular authenticated controller.
 - `RequestModule` is not `@Global()` — import explicitly in every module whose controller injects `RequestContext`.

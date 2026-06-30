@@ -1,6 +1,5 @@
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { GetServiceByIdUseCase } from './get-service-by-id.use-case';
 
@@ -13,10 +12,7 @@ describe('GetServiceByIdUseCase', () => {
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    useCase = new GetServiceByIdUseCase(
-      repo,
-      new RequestContextBuilder().withTenantId(TENANT_A).build(),
-    );
+    useCase = new GetServiceByIdUseCase(repo);
   });
 
   it('returns the service with pt-BR formatted price', async () => {
@@ -26,7 +22,7 @@ describe('GetServiceByIdUseCase', () => {
       .build();
     await repo.save(service);
 
-    const result = await useCase.execute(service.id);
+    const result = await useCase.execute({ id: service.id, tenantId: TENANT_A, locale: 'pt-BR' });
 
     expect(result.id).toBe(service.id);
     expect(result.name).toBe('Lavagem Completa');
@@ -38,19 +34,23 @@ describe('GetServiceByIdUseCase', () => {
     service.deactivate();
     await repo.save(service);
 
-    const result = await useCase.execute(service.id);
+    const result = await useCase.execute({ id: service.id, tenantId: TENANT_A, locale: 'pt-BR' });
 
     expect(result.isActive).toBe(false);
   });
 
   it('throws ServiceNotFoundError when service does not exist', async () => {
-    await expect(useCase.execute('non-existent-id')).rejects.toBeInstanceOf(ServiceNotFoundError);
+    await expect(
+      useCase.execute({ id: 'non-existent-id', tenantId: TENANT_A, locale: 'pt-BR' }),
+    ).rejects.toBeInstanceOf(ServiceNotFoundError);
   });
 
   it('tenant isolation: throws ServiceNotFoundError when service belongs to a different tenant', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_B).build();
     await repo.save(service);
 
-    await expect(useCase.execute(service.id)).rejects.toBeInstanceOf(ServiceNotFoundError);
+    await expect(
+      useCase.execute({ id: service.id, tenantId: TENANT_A, locale: 'pt-BR' }),
+    ).rejects.toBeInstanceOf(ServiceNotFoundError);
   });
 });

@@ -1,9 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { Booking } from '../../domain/booking.aggregate';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
+
+export type GetBookingByIdInput = {
+  bookingId: string;
+  tenantId: string;
+  locale: string;
+};
 
 export interface BookingLineDetail {
   lineId: string;
@@ -57,22 +62,15 @@ export interface GetBookingByIdUseCaseResult {
 export class GetBookingByIdUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-    private readonly tenantContext: RequestContext,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
   ) {}
 
-  async execute(dto: { bookingId: string }): Promise<GetBookingByIdUseCaseResult> {
-    const { tenantId, actorId, actorRole } = this.tenantContext;
+  async execute(input: GetBookingByIdInput): Promise<GetBookingByIdUseCaseResult> {
+    const { tenantId, locale } = input;
 
-    const booking = await this.bookingRepo.findById(dto.bookingId, tenantId);
-    if (!booking) throw new BookingNotFoundError(dto.bookingId);
+    const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
+    if (!booking) throw new BookingNotFoundError(input.bookingId);
 
-    const isStaffOrManager = actorRole === 'MANAGER' || actorRole === 'STAFF';
-    if (!isStaffOrManager && booking.customerId !== actorId) {
-      throw new BookingNotFoundError(dto.bookingId);
-    }
-
-    const { language: locale } = this.tenantContext.settings.localization;
     return this.toResult(booking, locale);
   }
 

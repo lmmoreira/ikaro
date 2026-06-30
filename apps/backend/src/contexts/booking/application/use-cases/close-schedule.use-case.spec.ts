@@ -2,7 +2,6 @@ import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import {
   ClosureDateInPastError,
   ScheduleAlreadyClosedError,
@@ -13,23 +12,22 @@ import { CloseScheduleUseCase } from './close-schedule.use-case';
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const ACTOR_ID = '00000000-0000-7000-8000-000000000002';
 
+const ctx = { tenantId: TENANT_ID, createdBy: ACTOR_ID };
+
 describe('CloseScheduleUseCase', () => {
   let repo: InMemoryScheduleClosureRepository;
   let useCase: CloseScheduleUseCase;
 
   beforeEach(() => {
     repo = new InMemoryScheduleClosureRepository();
-    useCase = new CloseScheduleUseCase(
-      repo,
-      new InMemoryTransactionManager(),
-      new RequestContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build(),
-    );
+    useCase = new CloseScheduleUseCase(repo, new InMemoryTransactionManager());
   });
 
   it('creates a full-day closure and returns the result', async () => {
     const result = await useCase.execute({
       date: futureDate(5),
       reason: ClosureReason.HOLIDAY,
+      ...ctx,
     });
 
     expect(result.id).toBeDefined();
@@ -45,6 +43,7 @@ describe('CloseScheduleUseCase', () => {
       reason: ClosureReason.MAINTENANCE,
       startTime: '10:00',
       endTime: '12:00',
+      ...ctx,
     });
 
     expect(result.startTime).toBe('10:00');
@@ -53,7 +52,7 @@ describe('CloseScheduleUseCase', () => {
 
   it('throws ClosureDateInPastError for a past date', async () => {
     await expect(
-      useCase.execute({ date: pastDate(1), reason: ClosureReason.HOLIDAY }),
+      useCase.execute({ date: pastDate(1), reason: ClosureReason.HOLIDAY, ...ctx }),
     ).rejects.toThrow(ClosureDateInPastError);
   });
 
@@ -61,7 +60,7 @@ describe('CloseScheduleUseCase', () => {
     const date = futureDate(5);
     await repo.save(new ScheduleClosureBuilder().withTenantId(TENANT_ID).withDate(date).build());
 
-    await expect(useCase.execute({ date, reason: ClosureReason.HOLIDAY })).rejects.toThrow(
+    await expect(useCase.execute({ date, reason: ClosureReason.HOLIDAY, ...ctx })).rejects.toThrow(
       ScheduleAlreadyClosedError,
     );
   });
@@ -83,6 +82,7 @@ describe('CloseScheduleUseCase', () => {
         reason: ClosureReason.MAINTENANCE,
         startTime: '11:00',
         endTime: '13:00',
+        ...ctx,
       }),
     ).rejects.toThrow(ScheduleAlreadyClosedError);
   });
@@ -103,6 +103,7 @@ describe('CloseScheduleUseCase', () => {
       reason: ClosureReason.MAINTENANCE,
       startTime: '14:00',
       endTime: '16:00',
+      ...ctx,
     });
 
     expect(result.id).toBeDefined();
@@ -118,13 +119,14 @@ describe('CloseScheduleUseCase', () => {
         reason: ClosureReason.MAINTENANCE,
         startTime: '10:00',
         endTime: '12:00',
+        ...ctx,
       }),
     ).rejects.toThrow(ScheduleAlreadyClosedError);
   });
 
   it('persists the closure to the repository', async () => {
     const date = futureDate(7);
-    const result = await useCase.execute({ date, reason: ClosureReason.STAFF_DAY_OFF });
+    const result = await useCase.execute({ date, reason: ClosureReason.STAFF_DAY_OFF, ...ctx });
 
     const stored = await repo.findById(result.id, TENANT_ID);
     expect(stored).not.toBeNull();
@@ -140,7 +142,7 @@ describe('CloseScheduleUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute({ date, reason: ClosureReason.HOLIDAY });
+    const result = await useCase.execute({ date, reason: ClosureReason.HOLIDAY, ...ctx });
     expect(result.id).toBeDefined();
   });
 });

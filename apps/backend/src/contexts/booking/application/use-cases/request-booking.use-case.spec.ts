@@ -7,7 +7,6 @@ import { PhotoExistenceService } from '../services/photo-existence.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { testAddress } from '../../../../test/utils/address-helpers';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import {
@@ -38,25 +37,20 @@ describe('RequestBookingUseCase', () => {
     eventBus = new InMemoryEventBus();
     storageService = new InMemoryStorageService();
     const txManager = new InMemoryTransactionManager();
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withCorrelationId(CORRELATION_ID)
-      .build();
     useCase = new RequestBookingUseCase(
       serviceRepo,
-      new BookingSlotConflictService(availabilityPort, ctx),
+      new BookingSlotConflictService(availabilityPort),
       new PhotoExistenceService(storageService),
       bookingRepo,
       txManager,
       eventBus,
-      ctx,
     );
     const service = new ServiceBuilder().withTenantId(TENANT_A).withName('Lavagem Simples').build();
     await serviceRepo.save(service);
     serviceId = service.id;
   });
 
-  const baseDto = () => ({
+  const baseInput = () => ({
     contactEmail: 'joao@example.com',
     contactName: 'João Silva',
     contactPhone: '+5531999999999',
@@ -65,10 +59,14 @@ describe('RequestBookingUseCase', () => {
     beforeServicePhotoUrls: undefined as string[] | undefined,
     contactAddress: undefined,
     pickupAddress: undefined,
+    tenantId: TENANT_A,
+    correlationId: CORRELATION_ID,
+    countryCode: 'BR',
+    timezone: 'America/Sao_Paulo',
   });
 
   it('creates a PENDING guest booking and saves it', async () => {
-    const result = await useCase.execute(baseDto());
+    const result = await useCase.execute(baseInput());
 
     expect(result.status).toBe(BookingStatus.PENDING);
     expect(result.bookingId).toBeDefined();
@@ -83,7 +81,7 @@ describe('RequestBookingUseCase', () => {
   });
 
   it('publishes BookingRequested event after commit', async () => {
-    await useCase.execute(baseDto());
+    await useCase.execute(baseInput());
     expect(eventBus.published).toHaveLength(1);
     expect(eventBus.published[0].eventName).toBe('BookingRequested');
     expect((eventBus.published[0] as { tenantId: string }).tenantId).toBe(TENANT_A);
@@ -94,7 +92,7 @@ describe('RequestBookingUseCase', () => {
     storageService.markAsUploaded(photoPath);
 
     const result = await useCase.execute({
-      ...baseDto(),
+      ...baseInput(),
       beforeServicePhotoUrls: [photoPath],
     });
     const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
@@ -104,7 +102,7 @@ describe('RequestBookingUseCase', () => {
   it('throws BookingPhotoNotUploadedError when a photo path does not exist in storage', async () => {
     await expect(
       useCase.execute({
-        ...baseDto(),
+        ...baseInput(),
         beforeServicePhotoUrls: [`tenants/${TENANT_A}/uploads/upload-1/missing.jpg`],
       }),
     ).rejects.toBeInstanceOf(BookingPhotoNotUploadedError);
@@ -119,20 +117,20 @@ describe('RequestBookingUseCase', () => {
       state: 'MG',
       zipCode: '30100000',
     };
-    const result = await useCase.execute({ ...baseDto(), contactAddress: addr });
+    const result = await useCase.execute({ ...baseInput(), contactAddress: addr });
     const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
     expect(saved!.contactAddress).not.toBeNull();
     expect(saved!.contactAddress!.city).toBe('BH');
   });
 
   it('stores optional notes when provided', async () => {
-    const result = await useCase.execute({ ...baseDto(), notes: 'Carro está sujo de lama' });
+    const result = await useCase.execute({ ...baseInput(), notes: 'Carro está sujo de lama' });
     const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
     expect(saved!.notes).toBe('Carro está sujo de lama');
   });
 
   it('defaults notes to null when not provided', async () => {
-    const result = await useCase.execute(baseDto());
+    const result = await useCase.execute(baseInput());
     const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
     expect(saved!.notes).toBeNull();
   });
@@ -145,7 +143,7 @@ describe('RequestBookingUseCase', () => {
     await serviceRepo.save(pickupSvc);
     const addr = testAddress();
     const result = await useCase.execute({
-      ...baseDto(),
+      ...baseInput(),
       serviceIds: [pickupSvc.id],
       pickupAddress: {
         street: addr.street,
@@ -170,14 +168,14 @@ describe('RequestBookingUseCase', () => {
       },
     ]);
 
-    await expect(useCase.execute(baseDto())).rejects.toBeInstanceOf(BookingSlotUnavailableError);
+    await expect(useCase.execute(baseInput())).rejects.toBeInstanceOf(BookingSlotUnavailableError);
   });
 
   it('throws BookingServiceNotInTenantError when a serviceId is not found', async () => {
     const { BookingServiceNotInTenantError } =
       await import('../../domain/errors/booking-domain.error');
     await expect(
-      useCase.execute({ ...baseDto(), serviceIds: ['00000000-0000-4000-8000-000000009999'] }),
+      useCase.execute({ ...baseInput(), serviceIds: ['00000000-0000-4000-8000-000000009999'] }),
     ).rejects.toBeInstanceOf(BookingServiceNotInTenantError);
   });
 
@@ -188,13 +186,13 @@ describe('RequestBookingUseCase', () => {
     inactive.deactivate();
     await serviceRepo.save(inactive);
     await expect(
-      useCase.execute({ ...baseDto(), serviceIds: [inactive.id] }),
+      useCase.execute({ ...baseInput(), serviceIds: [inactive.id] }),
     ).rejects.toBeInstanceOf(BookingServiceNotActiveError);
   });
 
   it('builds lines preserving order — including duplicates', async () => {
     const result = await useCase.execute({
-      ...baseDto(),
+      ...baseInput(),
       serviceIds: [serviceId, serviceId],
     });
     expect(result.lines).toHaveLength(2);
@@ -204,7 +202,7 @@ describe('RequestBookingUseCase', () => {
 
   it('result totalPrice equals sum of priceAtBooking across lines', async () => {
     const result = await useCase.execute({
-      ...baseDto(),
+      ...baseInput(),
       serviceIds: [serviceId, serviceId],
     });
     const sum = result.lines.reduce((acc, l) => acc + l.priceAtBooking.amount, 0);

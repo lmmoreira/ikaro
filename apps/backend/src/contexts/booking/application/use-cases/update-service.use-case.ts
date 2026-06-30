@@ -3,11 +3,17 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { Money } from '../../../../shared/value-objects/money';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { UpdateServiceDto } from '../dtos/update-service.dto';
+
+export type UpdateServiceInput = UpdateServiceDto & {
+  id: string;
+  tenantId: string;
+  currency: string;
+  locale: string;
+};
 
 export interface UpdateServiceUseCaseResult {
   id: string;
@@ -26,22 +32,20 @@ export class UpdateServiceUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(id: string, dto: UpdateServiceDto): Promise<UpdateServiceUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
+  async execute(input: UpdateServiceInput): Promise<UpdateServiceUseCaseResult> {
+    const { id, tenantId, currency, locale } = input;
     const service = await this.serviceRepo.findById(id, tenantId);
     if (!service) throw new ServiceNotFoundError(id);
 
-    const { currency, language: locale } = this.tenantContext.settings.localization;
-    const name = dto.name ?? service.name;
-    const description = dto.description === undefined ? service.description : dto.description;
+    const name = input.name ?? service.name;
+    const description = input.description === undefined ? service.description : input.description;
     const price =
-      dto.priceAmount === undefined ? service.price : Money.from(dto.priceAmount, currency);
-    const durationMinutes = dto.durationMinutes ?? service.durationMinutes;
-    const loyaltyPointsValue = dto.loyaltyPointsValue ?? service.loyaltyPointsValue;
-    const requiresPickupAddress = dto.requiresPickupAddress ?? service.requiresPickupAddress;
+      input.priceAmount === undefined ? service.price : Money.from(input.priceAmount, currency);
+    const durationMinutes = input.durationMinutes ?? service.durationMinutes;
+    const loyaltyPointsValue = input.loyaltyPointsValue ?? service.loyaltyPointsValue;
+    const requiresPickupAddress = input.requiresPickupAddress ?? service.requiresPickupAddress;
 
     service.update(
       name,

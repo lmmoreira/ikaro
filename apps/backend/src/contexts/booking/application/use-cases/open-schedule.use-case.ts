@@ -3,7 +3,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
+import type { BusinessHours } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import {
   DayAlreadyOpenInSettingsError,
@@ -16,6 +16,12 @@ import {
 } from '../ports/schedule-opening-repository.port';
 import { getUtcWeekDayName, todayUTC } from '../../../../shared/utils/calendar-date';
 import { OpenScheduleDto } from '../dtos/open-schedule.dto';
+
+export type OpenScheduleInput = OpenScheduleDto & {
+  tenantId: string;
+  createdBy: string;
+  businessHours: BusinessHours;
+};
 
 export interface OpenScheduleUseCaseResult {
   id: string;
@@ -33,31 +39,28 @@ export class OpenScheduleUseCase {
     @Inject(SCHEDULE_OPENING_REPOSITORY)
     private readonly openingRepo: IScheduleOpeningRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(dto: OpenScheduleDto): Promise<OpenScheduleUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
-    const createdBy = this.tenantContext.actorId ?? '';
+  async execute(input: OpenScheduleInput): Promise<OpenScheduleUseCaseResult> {
+    const { tenantId, createdBy, businessHours } = input;
 
     const today = todayUTC();
-    if (dto.date < today) throw new OpeningDateInPastError();
+    if (input.date < today) throw new OpeningDateInPastError();
 
-    const businessHours = this.tenantContext.settings.businessHours;
-    if (businessHours[getUtcWeekDayName(dto.date)] !== null) {
-      throw new DayAlreadyOpenInSettingsError(dto.date);
+    if (businessHours[getUtcWeekDayName(input.date)] !== null) {
+      throw new DayAlreadyOpenInSettingsError(input.date);
     }
 
-    const existing = await this.openingRepo.findByTenantAndDate(tenantId, dto.date);
-    if (existing) throw new ScheduleOpeningAlreadyExistsError(dto.date);
+    const existing = await this.openingRepo.findByTenantAndDate(tenantId, input.date);
+    if (existing) throw new ScheduleOpeningAlreadyExistsError(input.date);
 
     const opening = ScheduleOpening.open(
       tenantId,
-      dto.date,
-      dto.startTime,
-      dto.endTime,
+      input.date,
+      input.startTime,
+      input.endTime,
       createdBy,
-      dto.notes,
+      input.notes,
     );
 
     await this.txManager.run(async () => {

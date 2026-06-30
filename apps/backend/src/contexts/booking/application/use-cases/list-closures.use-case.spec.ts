@@ -1,6 +1,5 @@
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { ListClosuresUseCase } from './list-closures.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -12,10 +11,7 @@ describe('ListClosuresUseCase', () => {
 
   beforeEach(() => {
     repo = new InMemoryScheduleClosureRepository();
-    useCase = new ListClosuresUseCase(
-      repo,
-      new RequestContextBuilder().withTenantId(TENANT_ID).build(),
-    );
+    useCase = new ListClosuresUseCase(repo);
   });
 
   it('returns closures in the requested date range sorted by date', async () => {
@@ -26,7 +22,7 @@ describe('ListClosuresUseCase', () => {
       new ScheduleClosureBuilder().withTenantId(TENANT_ID).withDate('2026-12-20').build(),
     );
 
-    const { items } = await useCase.execute({ from: '2026-12-01', to: '2026-12-31' });
+    const { items } = await useCase.execute({ from: '2026-12-01', to: '2026-12-31', tenantId: TENANT_ID });
 
     expect(items).toHaveLength(2);
     expect(items[0].date).toBe('2026-12-20');
@@ -34,7 +30,7 @@ describe('ListClosuresUseCase', () => {
   });
 
   it('returns empty list when no closures in range', async () => {
-    const { items } = await useCase.execute({ from: '2026-11-01', to: '2026-11-30' });
+    const { items } = await useCase.execute({ from: '2026-11-01', to: '2026-11-30', tenantId: TENANT_ID });
     expect(items).toHaveLength(0);
   });
 
@@ -43,7 +39,7 @@ describe('ListClosuresUseCase', () => {
       new ScheduleClosureBuilder().withTenantId(TENANT_ID).withDate('2026-12-25').build(),
     );
 
-    const { items } = await useCase.execute({ from: '2026-11-01', to: '2026-11-30' });
+    const { items } = await useCase.execute({ from: '2026-11-01', to: '2026-11-30', tenantId: TENANT_ID });
     expect(items).toHaveLength(0);
   });
 
@@ -52,7 +48,7 @@ describe('ListClosuresUseCase', () => {
       new ScheduleClosureBuilder().withTenantId(OTHER_TENANT).withDate('2026-12-25').build(),
     );
 
-    const { items } = await useCase.execute({ from: '2026-12-01', to: '2026-12-31' });
+    const { items } = await useCase.execute({ from: '2026-12-01', to: '2026-12-31', tenantId: TENANT_ID });
     expect(items).toHaveLength(0);
   });
 
@@ -66,7 +62,7 @@ describe('ListClosuresUseCase', () => {
         .build(),
     );
 
-    const { items } = await useCase.execute({ from: '2026-12-01', to: '2026-12-31' });
+    const { items } = await useCase.execute({ from: '2026-12-01', to: '2026-12-31', tenantId: TENANT_ID });
     expect(items[0].startTime).toBe('10:00');
     expect(items[0].endTime).toBe('12:00');
   });
@@ -76,7 +72,7 @@ describe('ListClosuresUseCase', () => {
       new ScheduleClosureBuilder().withTenantId(TENANT_ID).withDate('2026-12-25').build(),
     );
 
-    const { items } = await useCase.execute({ from: '2026-12-01', to: '2026-12-31' });
+    const { items } = await useCase.execute({ from: '2026-12-01', to: '2026-12-31', tenantId: TENANT_ID });
     expect(items[0].startTime).toBeNull();
     expect(items[0].endTime).toBeNull();
   });

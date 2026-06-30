@@ -6,7 +6,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { Booking } from '../../domain/booking.aggregate';
 import {
   BookingServiceNotActiveError,
@@ -18,6 +17,13 @@ import { BookingSlotConflictService } from '../services/booking-slot-conflict.se
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RequestBookingDto } from '../dtos/request-booking.dto';
 import { buildLineInputs, toBookingResult, BookingRequestResult } from './booking-request.helpers';
+
+export type RequestBookingInput = RequestBookingDto & {
+  tenantId: string;
+  correlationId: string;
+  countryCode: string;
+  timezone: string;
+};
 
 export interface BookingLineResult {
   lineId: string;
@@ -49,64 +55,61 @@ export class RequestBookingUseCase {
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
-    private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(dto: RequestBookingDto): Promise<RequestBookingUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
-    const correlationId = this.tenantContext.correlationId;
-    const { countryCode } = this.tenantContext.settings.localization;
+  async execute(input: RequestBookingInput): Promise<RequestBookingUseCaseResult> {
+    const { tenantId, correlationId, countryCode, timezone } = input;
     const addressSpec = countrySpec(countryCode).address;
 
-    const services = await this.serviceRepo.findByIds(dto.serviceIds, tenantId);
+    const services = await this.serviceRepo.findByIds(input.serviceIds, tenantId);
     const serviceMap = new Map(services.map((s) => [s.id, s]));
-    const uniqueIds = [...new Set(dto.serviceIds)];
+    const uniqueIds = [...new Set(input.serviceIds)];
     for (const serviceId of uniqueIds) {
       const service = serviceMap.get(serviceId);
       if (!service) throw new BookingServiceNotInTenantError(serviceId);
       if (!service.isActive) throw new BookingServiceNotActiveError(serviceId);
     }
 
-    const scheduledAt = new Date(dto.scheduledAt);
-    const totalDurationMins = dto.serviceIds.reduce(
+    const scheduledAt = new Date(input.scheduledAt);
+    const totalDurationMins = input.serviceIds.reduce(
       (sum, id) => sum + (serviceMap.get(id)?.durationMinutes ?? 0),
       0,
     );
 
-    await this.slotConflictService.assertSlotFree(tenantId, scheduledAt, totalDurationMins);
+    await this.slotConflictService.assertSlotFree(tenantId, scheduledAt, totalDurationMins, timezone);
     await this.photoExistenceService.assertPhotosUploaded(
-      dto.beforeServicePhotoUrls ?? [],
+      input.beforeServicePhotoUrls ?? [],
       tenantId,
     );
 
-    const lineInputs = buildLineInputs(dto.serviceIds, serviceMap);
+    const lineInputs = buildLineInputs(input.serviceIds, serviceMap);
 
-    const contactAddress = dto.contactAddress
+    const contactAddress = input.contactAddress
       ? Address.create(
-          { ...dto.contactAddress, complement: dto.contactAddress.complement ?? undefined },
+          { ...input.contactAddress, complement: input.contactAddress.complement ?? undefined },
           addressSpec,
         )
       : undefined;
-    const pickupAddress = dto.pickupAddress
+    const pickupAddress = input.pickupAddress
       ? Address.create(
-          { ...dto.pickupAddress, complement: dto.pickupAddress.complement ?? undefined },
+          { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
           addressSpec,
         )
       : undefined;
 
     const booking = Booking.requestBooking({
       tenantId,
-      contactEmail: dto.contactEmail,
-      contactName: dto.contactName,
-      contactPhone: dto.contactPhone,
+      contactEmail: input.contactEmail,
+      contactName: input.contactName,
+      contactPhone: input.contactPhone,
       scheduledAt,
       lineInputs,
       type: 'GUEST',
       correlationId,
       contactAddress,
       pickupAddress,
-      notes: dto.notes,
-      beforeServicePhotoUrls: dto.beforeServicePhotoUrls,
+      notes: input.notes,
+      beforeServicePhotoUrls: input.beforeServicePhotoUrls,
     });
 
     await this.txManager.run(async () => {

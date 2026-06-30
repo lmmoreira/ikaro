@@ -5,9 +5,9 @@ import { InMemoryServiceRepository } from '../../../../test/repositories/booking
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
 import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
+import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { GetAvailabilitySummaryUseCase } from './get-availability-summary.use-case';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -21,13 +21,14 @@ describe('GetAvailabilitySummaryUseCase', () => {
   let closureRepo: InMemoryScheduleClosureRepository;
   let openingRepo: InMemoryScheduleOpeningRepository;
   let useCase: GetAvailabilitySummaryUseCase;
+  let settings: TenantSettings;
 
   beforeEach(() => {
     serviceRepo = new InMemoryServiceRepository();
     closureRepo = new InMemoryScheduleClosureRepository();
     openingRepo = new InMemoryScheduleOpeningRepository();
+    settings = TenantSettings.default();
     useCase = new GetAvailabilitySummaryUseCase(
-      new RequestContextBuilder().withTenantId(TENANT_ID).build(),
       serviceRepo,
       closureRepo,
       openingRepo,
@@ -42,7 +43,16 @@ describe('GetAvailabilitySummaryUseCase', () => {
     const from = monday;
     const to = addDays(monday, 6);
 
-    const result = await useCase.execute({ from, to, serviceIds: [service.id] });
+    const result = await useCase.execute({
+      from,
+      to,
+      serviceIds: [service.id],
+      tenantId: TENANT_ID,
+      businessHours: settings.businessHours,
+      slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+      serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+    });
 
     expect(result).toHaveLength(7);
     expect(result[0].date).toBe(from);
@@ -53,7 +63,16 @@ describe('GetAvailabilitySummaryUseCase', () => {
     const service = new ServiceBuilder().withTenantId(TENANT_ID).build();
     await serviceRepo.save(service);
 
-    const result = await useCase.execute({ from: monday, to: monday, serviceIds: [service.id] });
+    const result = await useCase.execute({
+      from: monday,
+      to: monday,
+      serviceIds: [service.id],
+      tenantId: TENANT_ID,
+      businessHours: settings.businessHours,
+      slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+      serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+    });
 
     expect(result[0].available).toBe(true);
     expect(result[0].slotCount).toBeGreaterThan(0);
@@ -63,7 +82,16 @@ describe('GetAvailabilitySummaryUseCase', () => {
     const service = new ServiceBuilder().withTenantId(TENANT_ID).build();
     await serviceRepo.save(service);
 
-    const result = await useCase.execute({ from: sunday, to: sunday, serviceIds: [service.id] });
+    const result = await useCase.execute({
+      from: sunday,
+      to: sunday,
+      serviceIds: [service.id],
+      tenantId: TENANT_ID,
+      businessHours: settings.businessHours,
+      slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+      serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+    });
 
     expect(result[0].available).toBe(false);
     expect(result[0].slotCount).toBe(0);
@@ -76,7 +104,16 @@ describe('GetAvailabilitySummaryUseCase', () => {
       new ScheduleClosureBuilder().withTenantId(TENANT_ID).withDate(monday).build(),
     );
 
-    const result = await useCase.execute({ from: monday, to: monday, serviceIds: [service.id] });
+    const result = await useCase.execute({
+      from: monday,
+      to: monday,
+      serviceIds: [service.id],
+      tenantId: TENANT_ID,
+      businessHours: settings.businessHours,
+      slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+      serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+    });
 
     expect(result[0].available).toBe(false);
     expect(result[0].slotCount).toBe(0);
@@ -94,7 +131,16 @@ describe('GetAvailabilitySummaryUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute({ from: sunday, to: sunday, serviceIds: [service.id] });
+    const result = await useCase.execute({
+      from: sunday,
+      to: sunday,
+      serviceIds: [service.id],
+      tenantId: TENANT_ID,
+      businessHours: settings.businessHours,
+      slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+      serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+    });
 
     expect(result[0].available).toBe(true);
     expect(result[0].slotCount).toBeGreaterThan(0);
@@ -105,7 +151,16 @@ describe('GetAvailabilitySummaryUseCase', () => {
     await serviceRepo.save(service);
 
     await expect(
-      useCase.execute({ from: addDays(monday, 1), to: monday, serviceIds: [service.id] }),
+      useCase.execute({
+        from: addDays(monday, 1),
+        to: monday,
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      }),
     ).rejects.toMatchObject({ name: 'AvailabilityRangeInvalidError' });
   });
 
@@ -114,7 +169,16 @@ describe('GetAvailabilitySummaryUseCase', () => {
     await serviceRepo.save(service);
 
     await expect(
-      useCase.execute({ from: monday, to: addDays(monday, 91), serviceIds: [service.id] }),
+      useCase.execute({
+        from: monday,
+        to: addDays(monday, 91),
+        serviceIds: [service.id],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      }),
     ).rejects.toMatchObject({ name: 'AvailabilityRangeInvalidError' });
   });
 
@@ -122,7 +186,16 @@ describe('GetAvailabilitySummaryUseCase', () => {
     const unknownId = '00000000-0000-7000-8000-000000000099';
 
     await expect(
-      useCase.execute({ from: monday, to: monday, serviceIds: [unknownId] }),
+      useCase.execute({
+        from: monday,
+        to: monday,
+        serviceIds: [unknownId],
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+        serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+        maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
+      }),
     ).rejects.toMatchObject({ name: 'BookingDomainError' });
   });
 
@@ -136,6 +209,11 @@ describe('GetAvailabilitySummaryUseCase', () => {
       from: past,
       to: pastPlusOne,
       serviceIds: [service.id],
+      tenantId: TENANT_ID,
+      businessHours: settings.businessHours,
+      slotGranularityMinutes: settings.booking.slotGranularityMinutes,
+      serviceBufferMinutes: settings.booking.serviceBufferMinutes,
+      maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
     });
 
     expect(result).toHaveLength(2);

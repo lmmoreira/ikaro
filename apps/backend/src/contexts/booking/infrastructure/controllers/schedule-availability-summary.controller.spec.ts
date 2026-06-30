@@ -20,8 +20,8 @@ describe('ScheduleAvailabilitySummaryController', () => {
   beforeEach(() => {
     serviceRepo = new InMemoryServiceRepository();
     controller = new ScheduleAvailabilitySummaryController(
+      new RequestContextBuilder().withTenantId(TENANT_ID).build(),
       new GetAvailabilitySummaryUseCase(
-        new RequestContextBuilder().withTenantId(TENANT_ID).build(),
         serviceRepo,
         new InMemoryScheduleClosureRepository(),
         new InMemoryScheduleOpeningRepository(),

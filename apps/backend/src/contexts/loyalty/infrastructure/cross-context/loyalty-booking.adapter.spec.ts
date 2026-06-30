@@ -95,7 +95,7 @@ describe('LoyaltyBookingAdapter', () => {
       { serviceId: 'cccccccc-0000-4000-8000-000000000001', serviceName: 'Lavagem Completa' },
       { serviceId: 'cccccccc-0000-4000-8000-000000000002', serviceName: 'Busca e Entrega' },
     ]);
-    expect(getBookingById.execute).toHaveBeenCalledWith({ bookingId: BOOKING_ID });
+    expect(getBookingById.execute).toHaveBeenCalledWith({ bookingId: BOOKING_ID, tenantId: TENANT_ID, locale: 'pt-BR' });
   });
 
   it('returns an empty array when the booking does not exist', async () => {

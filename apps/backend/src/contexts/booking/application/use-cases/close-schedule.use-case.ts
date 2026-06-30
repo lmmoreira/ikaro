@@ -3,7 +3,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { ScheduleClosure } from '../../domain/schedule-closure.aggregate';
 import { ScheduleAlreadyClosedError } from '../../domain/errors/booking-domain.error';
 import {
@@ -11,6 +10,11 @@ import {
   SCHEDULE_CLOSURE_REPOSITORY,
 } from '../ports/schedule-closure-repository.port';
 import { CloseScheduleDto } from '../dtos/close-schedule.dto';
+
+export type CloseScheduleInput = CloseScheduleDto & {
+  tenantId: string;
+  createdBy: string;
+};
 
 export interface CloseScheduleUseCaseResult {
   id: string;
@@ -29,26 +33,24 @@ export class CloseScheduleUseCase {
     @Inject(SCHEDULE_CLOSURE_REPOSITORY)
     private readonly closureRepo: IScheduleClosureRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(dto: CloseScheduleDto): Promise<CloseScheduleUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
-    const createdBy = this.tenantContext.actorId ?? '';
+  async execute(input: CloseScheduleInput): Promise<CloseScheduleUseCaseResult> {
+    const { tenantId, createdBy } = input;
 
     const closure = ScheduleClosure.close(
       tenantId,
-      dto.date,
-      dto.reason,
+      input.date,
+      input.reason,
       createdBy,
-      dto.startTime,
-      dto.endTime,
-      dto.notes,
+      input.startTime,
+      input.endTime,
+      input.notes,
     );
 
-    const existing = await this.closureRepo.findByTenantAndDate(tenantId, dto.date);
+    const existing = await this.closureRepo.findByTenantAndDate(tenantId, input.date);
     if (existing.some((c) => c.overlaps(closure.startTime, closure.endTime))) {
-      throw new ScheduleAlreadyClosedError(dto.date);
+      throw new ScheduleAlreadyClosedError(input.date);
     }
 
     await this.txManager.run(async () => {

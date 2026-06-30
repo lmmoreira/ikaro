@@ -1,40 +1,29 @@
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { ListBookingsUseCase } from './list-bookings.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000120';
 const TENANT_B = '10000000-0000-4000-8000-000000000121';
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000120';
-const STAFF_ID = '20000000-0000-4000-8000-000000000121';
 
 const defaultDto = { limit: 25, offset: 0 };
 
 describe('ListBookingsUseCase', () => {
   let repo: InMemoryBookingRepository;
+  let useCase: ListBookingsUseCase;
 
   beforeEach(() => {
     repo = new InMemoryBookingRepository();
+    useCase = new ListBookingsUseCase(repo);
   });
 
   describe('STAFF/MANAGER role', () => {
-    let useCase: ListBookingsUseCase;
-
-    beforeEach(() => {
-      const ctx = new RequestContextBuilder()
-        .withTenantId(TENANT_A)
-        .withActorId(STAFF_ID)
-        .withActorRole('MANAGER')
-        .build();
-      useCase = new ListBookingsUseCase(repo, ctx);
-    });
-
     it('returns all tenant bookings when no filters applied', async () => {
       await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
       await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
 
-      const result = await useCase.execute(defaultDto);
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A, locale: 'pt-BR' });
 
       expect(result.items).toHaveLength(2);
       expect(result.pagination.total).toBe(2);
@@ -49,7 +38,12 @@ describe('ListBookingsUseCase', () => {
       await repo.save(approved);
       await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
 
-      const result = await useCase.execute({ ...defaultDto, status: [BookingStatus.APPROVED] });
+      const result = await useCase.execute({
+        ...defaultDto,
+        status: [BookingStatus.APPROVED],
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].status).toBe('APPROVED');
@@ -72,6 +66,8 @@ describe('ListBookingsUseCase', () => {
       const result = await useCase.execute({
         ...defaultDto,
         status: [BookingStatus.PENDING, BookingStatus.INFO_REQUESTED],
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
       });
 
       expect(result.items).toHaveLength(2);
@@ -85,7 +81,7 @@ describe('ListBookingsUseCase', () => {
         await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
       }
 
-      const result = await useCase.execute({ limit: 3, offset: 0 });
+      const result = await useCase.execute({ limit: 3, offset: 0, tenantId: TENANT_A, locale: 'pt-BR' });
 
       expect(result.items).toHaveLength(3);
       expect(result.pagination.total).toBe(5);
@@ -97,7 +93,7 @@ describe('ListBookingsUseCase', () => {
         await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
       }
 
-      const result = await useCase.execute({ limit: 3, offset: 3 });
+      const result = await useCase.execute({ limit: 3, offset: 3, tenantId: TENANT_A, locale: 'pt-BR' });
 
       expect(result.items).toHaveLength(2);
       expect(result.pagination.hasMore).toBe(false);
@@ -107,7 +103,7 @@ describe('ListBookingsUseCase', () => {
       const booking = new BookingBuilder().withTenantId(TENANT_A).build();
       await repo.save(booking);
 
-      const result = await useCase.execute(defaultDto);
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A, locale: 'pt-BR' });
 
       const item = result.items[0];
       expect(item.id).toBe(booking.id);
@@ -131,7 +127,7 @@ describe('ListBookingsUseCase', () => {
       await repo.save(customerBooking);
       await repo.save(guestBooking);
 
-      const result = await useCase.execute(defaultDto);
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A, locale: 'pt-BR' });
 
       expect(result.items).toHaveLength(2);
     });
@@ -140,26 +136,14 @@ describe('ListBookingsUseCase', () => {
       await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
       await repo.save(new BookingBuilder().withTenantId(TENANT_B).build());
 
-      const result = await useCase.execute(defaultDto);
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A, locale: 'pt-BR' });
 
       expect(result.items).toHaveLength(1);
     });
   });
 
   describe('CUSTOMER role', () => {
-    let useCase: ListBookingsUseCase;
-
-    beforeEach(() => {
-      const ctx = new RequestContextBuilder()
-        .withTenantId(TENANT_A)
-        .withActorId(CUSTOMER_ID)
-        .withActorType('CUSTOMER')
-        .withActorRole('CUSTOMER')
-        .build();
-      useCase = new ListBookingsUseCase(repo, ctx);
-    });
-
-    it('returns only own bookings', async () => {
+    it('returns only own bookings when customerId is passed', async () => {
       const ownBooking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withCustomerId(CUSTOMER_ID)
@@ -171,14 +155,24 @@ describe('ListBookingsUseCase', () => {
       await repo.save(ownBooking);
       await repo.save(otherBooking);
 
-      const result = await useCase.execute(defaultDto);
+      const result = await useCase.execute({
+        ...defaultDto,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+        customerId: CUSTOMER_ID,
+      });
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].id).toBe(ownBooking.id);
     });
 
     it('returns empty list when customer has no bookings', async () => {
-      const result = await useCase.execute(defaultDto);
+      const result = await useCase.execute({
+        ...defaultDto,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+        customerId: CUSTOMER_ID,
+      });
       expect(result.items).toHaveLength(0);
       expect(result.pagination.total).toBe(0);
     });

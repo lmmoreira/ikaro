@@ -97,7 +97,8 @@ Every `save()` in every use case must be wrapped in `ITransactionManager.run()` 
 A repository or adapter that reads `this.requestContext.settings` works fine when called from a use case (always HTTP-request-scoped) but throws `Cannot read properties of undefined (reading 'settings')` the moment it's reached from a cron job or an event handler's cross-context adapter call chain — and both paths exist for the same shared repositories (`TypeOrmBookingRepository`, `TypeOrmServiceRepository`).
 
 **Rule:**
-- **Use cases** — single invocation context (HTTP) — may inject `RequestContext` directly and read `.settings`, `.tenantId`, etc.
+- **Controllers** — the only layer that may inject `RequestContext`. Extract `tenantId`, `actorId`, `correlationId`, and any `settings.*` fields needed, then forward them as explicit DTO fields to the use case. **Use cases must never inject `RequestContext`.**
+- **Use cases and application services** — must not inject `RequestContext`. All caller context is passed via the input DTO. This keeps use cases callable from event handlers, scheduled jobs, and cross-context adapters without an HTTP request in scope.
 - **Shared infrastructure** (repositories, anything called from more than one invocation context) — must take `tenantId` as an explicit method parameter and read settings via a `tenantId`-parameterized port (`ITenantSettingsPort.getSettings(tenantId)`), never ambient context.
 
 | Artifact | Location |

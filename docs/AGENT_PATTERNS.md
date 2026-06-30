@@ -126,12 +126,20 @@ Canonical examples: `approve-booking.dto.ts`, `cancel-booking-as-customer.dto.ts
 
 ### 5. Use Case — Read (no write)
 
+> **Naming:** Input type = `{UseCaseName}Input` · Output type = `{UseCaseName}Result` — both defined in the use case file. HTTP request/query schemas stay in `dtos/` as `{Action}Schema` + `{Action}Dto` (HTTP-layer only). Never pass a Zod-inferred DTO directly as the use case input type.
+>
+> **No `RequestContext` in use cases.** The controller extracts `tenantId`, `actorId`, `correlationId`, and any `settings.*` fields from `RequestContext` and forwards them as plain DTO fields. Use cases are pure functions of their input — safe to call from event handlers, scheduled jobs, and cross-context adapters.
+
 ```typescript
 // src/contexts/<ctx>/application/use-cases/get-xxx.use-case.ts
 import { Inject, Injectable } from '@nestjs/common';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { XxxNotFoundError } from '../../domain/errors/xxx-domain.error';
 import { IXxxRepository, XXX_REPOSITORY } from '../ports/xxx-repository.port';
+
+export type GetXxxUseCaseInput = {
+  tenantId: string;
+  actorId: string;
+};
 
 export type GetXxxUseCaseResult = {
   id: string;
@@ -143,13 +151,11 @@ export type GetXxxUseCaseResult = {
 export class GetXxxUseCase {
   constructor(
     @Inject(XXX_REPOSITORY) private readonly repo: IXxxRepository,
-    private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(): Promise<GetXxxUseCaseResult> {
-    const { tenantId, actorId } = this.tenantContext;
-    const entity = await this.repo.findById(actorId!, tenantId);
-    if (!entity) throw new XxxNotFoundError(actorId!);
+  async execute(dto: GetXxxUseCaseInput): Promise<GetXxxUseCaseResult> {
+    const entity = await this.repo.findById(dto.actorId, dto.tenantId);
+    if (!entity) throw new XxxNotFoundError(dto.actorId);
     return {
       id: entity.id,
       tenantId: entity.tenantId,
@@ -168,11 +174,18 @@ Canonical example: `apps/backend/src/contexts/customer/application/use-cases/get
 ```typescript
 // src/contexts/<ctx>/application/use-cases/update-xxx.use-case.ts
 import { Inject, Injectable } from '@nestjs/common';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { ITransactionManager, TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
 import { XxxNotFoundError } from '../../domain/errors/xxx-domain.error';
 import { IXxxRepository, XXX_REPOSITORY } from '../ports/xxx-repository.port';
-import { UpdateXxxDto } from '../dtos/update-xxx.dto';
+
+export type UpdateXxxUseCaseInput = {
+  tenantId: string;
+  actorId: string;
+  correlationId: string;
+  // ... HTTP body fields merged in by the controller (never add these to the Zod schema)
+  name?: string;
+  field?: string | null;
+};
 
 export type UpdateXxxUseCaseResult = { id: string /* ... */ };
 
@@ -181,16 +194,13 @@ export class UpdateXxxUseCase {
   constructor(
     @Inject(XXX_REPOSITORY) private readonly repo: IXxxRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: RequestContext,
     // @Inject(EVENT_BUS) private readonly eventBus: IEventBus,  // add if aggregate emits events
   ) {}
 
-  async execute(dto: UpdateXxxDto): Promise<UpdateXxxUseCaseResult> {
-    const { tenantId, actorId } = this.tenantContext;
-
+  async execute(dto: UpdateXxxUseCaseInput): Promise<UpdateXxxUseCaseResult> {
     // 1. Load BEFORE the transaction (reads are outside txManager.run)
-    const entity = await this.repo.findById(actorId!, tenantId);
-    if (!entity) throw new XxxNotFoundError(actorId!);
+    const entity = await this.repo.findById(dto.actorId, dto.tenantId);
+    if (!entity) throw new XxxNotFoundError(dto.actorId);
 
     // 2. Partial-update pattern (when fields are optional)
     const name = dto.name ?? entity.name;
@@ -225,6 +235,7 @@ Canonical example: `apps/backend/src/contexts/customer/application/use-cases/upd
 ```typescript
 // src/contexts/<ctx>/infrastructure/controllers/xxx.controller.ts
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { mapXxxError } from '../http/xxx-error.mapper';
 import { UpdateXxxDto, UpdateXxxSchema } from '../../application/dtos/update-xxx.dto';
@@ -236,25 +247,31 @@ export class XxxController {
   constructor(
     private readonly getXxx: GetXxxUseCase,
     private readonly updateXxx: UpdateXxxUseCase,
+    private readonly ctx: RequestContext,  // controller extracts context; use cases never inject it
   ) {}
 
   @Get('me')
   getMe(): Promise<GetXxxUseCaseResult> {
-    return this.getXxx.execute().catch(mapXxxError);
+    const { tenantId, actorId } = this.ctx;
+    return this.getXxx.execute({ tenantId, actorId: actorId! }).catch(mapXxxError);
   }
 
   @Patch('me')
   @HttpCode(HttpStatus.OK)
   updateMe(
-    @Body(new ZodValidationPipe(UpdateXxxSchema)) dto: UpdateXxxDto,
+    @Body(new ZodValidationPipe(UpdateXxxSchema)) body: UpdateXxxDto,
   ): Promise<UpdateXxxUseCaseResult> {
-    return this.updateXxx.execute(dto).catch(mapXxxError);
+    const { tenantId, actorId, correlationId } = this.ctx;
+    return this.updateXxx
+      .execute({ ...body, tenantId, actorId: actorId!, correlationId })
+      .catch(mapXxxError);
   }
 }
 ```
 
 **Controller rules (non-negotiable):**
-- One-liner method body: `return this.useCase.execute(dto).catch(mapXxxError)`
+- Controller is the **only** layer that injects `RequestContext`. Extract `tenantId`, `actorId`, `correlationId`, and any `settings.*` values here; forward as DTO fields to the use case.
+- One-liner method body: `return this.useCase.execute(input).catch(mapXxxError)`
 - Never `throw` inside a controller method — synchronous `throw` bypasses `.catch(mapXxxError)`
 - No business logic — controllers call use cases only
 
@@ -503,7 +520,6 @@ export class InMemoryXxxRepository implements IXxxRepository {
 import { XxxNotFoundError } from '../../domain/errors/xxx-domain.error';
 import { XxxBuilder } from '../../../../test/builders/<ctx>/xxx.builder';
 import { InMemoryXxxRepository } from '../../../../test/repositories/<ctx>/in-memory-xxx.repository';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { GetXxxUseCase } from './get-xxx.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000011'; // unique across ALL spec files in the project
@@ -511,39 +527,32 @@ const TENANT_A = '10000000-0000-4000-8000-000000000011'; // unique across ALL sp
 describe('GetXxxUseCase', () => {
   let useCase: GetXxxUseCase;
   let repo: InMemoryXxxRepository;
+  let entityId: string;
 
   beforeEach(async () => {
     repo = new InMemoryXxxRepository();
     const entity = new XxxBuilder().withTenantId(TENANT_A).build();
     await repo.save(entity);
-
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withActorId(entity.id)
-      .withActorType('CUSTOMER')
-      .build();
-    useCase = new GetXxxUseCase(repo, ctx);
+    entityId = entity.id;
+    useCase = new GetXxxUseCase(repo); // no RequestContext — pass context fields via DTO
   });
 
   it('returns the entity for the actor', async () => {
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: TENANT_A, actorId: entityId });
     expect(result.id).toBeDefined();
   });
 
   it('throws XxxNotFoundError when actor has no matching entity', async () => {
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withActorId('00000000-0000-4000-8000-000000009999')
-      .build();
-    await expect(new GetXxxUseCase(repo, ctx).execute()).rejects.toBeInstanceOf(XxxNotFoundError);
+    await expect(
+      useCase.execute({ tenantId: TENANT_A, actorId: '00000000-0000-4000-8000-000000009999' }),
+    ).rejects.toBeInstanceOf(XxxNotFoundError);
   });
 
   it('throws XxxNotFoundError when tenantId does not match (tenant isolation)', async () => {
     const TENANT_B = '10000000-0000-4000-8000-000000000012';
-    const entity = new XxxBuilder().withTenantId(TENANT_A).build();
-    await repo.save(entity);
-    const ctx = new RequestContextBuilder().withTenantId(TENANT_B).withActorId(entity.id).build();
-    await expect(new GetXxxUseCase(repo, ctx).execute()).rejects.toBeInstanceOf(XxxNotFoundError);
+    await expect(
+      useCase.execute({ tenantId: TENANT_B, actorId: entityId }),
+    ).rejects.toBeInstanceOf(XxxNotFoundError);
   });
 });
 ```
@@ -583,9 +592,11 @@ describe('XxxController', () => {
       .build();
 
     // Construct controller directly — no Test.createTestingModule needed for unit specs
+    // Use cases receive no RequestContext — ctx goes to the controller, which extracts fields into DTOs
     controller = new XxxController(
-      new GetXxxUseCase(repo, ctx),
-      new UpdateXxxUseCase(repo, new InMemoryTransactionManager(), ctx),
+      new GetXxxUseCase(repo),
+      new UpdateXxxUseCase(repo, new InMemoryTransactionManager()),
+      ctx,
     );
   });
 
@@ -600,8 +611,9 @@ describe('XxxController', () => {
       .withActorId('00000000-0000-4000-8000-000000009998')
       .build();
     const ctrl = new XxxController(
-      new GetXxxUseCase(repo, ctx),
-      new UpdateXxxUseCase(repo, new InMemoryTransactionManager(), ctx),
+      new GetXxxUseCase(repo),
+      new UpdateXxxUseCase(repo, new InMemoryTransactionManager()),
+      ctx,
     );
     const err = await ctrl.getMe().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(HttpException);

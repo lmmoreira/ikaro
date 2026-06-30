@@ -22,9 +22,10 @@ describe('ScheduleClosureController', () => {
     const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).withActorId(ACTOR_ID).build();
     const tx = new InMemoryTransactionManager();
     controller = new ScheduleClosureController(
-      new CloseScheduleUseCase(repo, tx, ctx),
-      new RemoveClosureUseCase(repo, tx, ctx),
-      new ListClosuresUseCase(repo, ctx),
+      ctx,
+      new CloseScheduleUseCase(repo, tx),
+      new RemoveClosureUseCase(repo, tx),
+      new ListClosuresUseCase(repo),
     );
   });
 

@@ -16,9 +16,9 @@ export class LoyaltyBookingAdapter implements ILoyaltyBookingPort {
     return result.items.map((service) => ({ serviceId: service.id, serviceName: service.name }));
   }
 
-  async findBookingServices(_tenantId: string, bookingId: string): Promise<ServiceSummary[]> {
+  async findBookingServices(tenantId: string, bookingId: string): Promise<ServiceSummary[]> {
     try {
-      const booking = await this.getBookingById.execute({ bookingId });
+      const booking = await this.getBookingById.execute({ bookingId, tenantId, locale: 'pt-BR' });
       return booking.lines.map((line) => ({
         serviceId: line.serviceId,
         serviceName: line.serviceNameAtBooking,

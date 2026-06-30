@@ -9,9 +9,9 @@ import {
 export class PlatformBookingAdapter implements IPlatformBookingPort {
   constructor(private readonly getBookingById: GetBookingByIdUseCase) {}
 
-  async findById(bookingId: string, _tenantId: string): Promise<BookingLookupSummary | null> {
+  async findById(bookingId: string, tenantId: string): Promise<BookingLookupSummary | null> {
     try {
-      const booking = await this.getBookingById.execute({ bookingId });
+      const booking = await this.getBookingById.execute({ bookingId, tenantId, locale: 'pt-BR' });
       return {
         id: booking.id,
         customerId: booking.customerId,
