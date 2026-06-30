@@ -11,11 +11,14 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { z } from 'zod';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { AnyAuthenticatedRoleGuard } from '../../../../shared/guards/any-authenticated-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
+import {
+  CrossTenantQueryDto,
+  CrossTenantQuerySchema,
+} from '../../application/dtos/cross-tenant-query.dto';
 import { PaginationDto, PaginationSchema } from '../../application/dtos/pagination.dto';
 import { RedeemPointsDto, RedeemPointsSchema } from '../../application/dtos/redeem-points.dto';
 import {
@@ -106,8 +109,8 @@ export class LoyaltyController {
   @UseGuards(AnyAuthenticatedRoleGuard)
   getBalanceAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
-    @Query(new ZodValidationPipe(z.object({ tenantId: z.uuid().optional() })))
-    { tenantId }: { tenantId?: string },
+    @Query(new ZodValidationPipe(CrossTenantQuerySchema))
+    { tenantId }: CrossTenantQueryDto,
   ): Promise<GetLoyaltyBalanceUseCaseResult> {
     const { actorRole, actorId, tenantId: contextTenantId } = this.tenantContext;
     const effectiveTenantId = tenantId ?? contextTenantId;
