@@ -120,6 +120,7 @@ export function BookingOutcomeLayout({
               <OutcomeIcon tone={tone} />
               <div className="min-w-0 flex-1">
                 <p
+                  data-testid="outcome-banner-title"
                   className={`text-sm font-bold uppercase tracking-[0.07em] ${getOutcomeTitleClass(tone)}`}
                 >
                   {bannerTitle}

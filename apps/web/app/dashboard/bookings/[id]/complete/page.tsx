@@ -1,5 +1,5 @@
-import { cookies } from 'next/headers';
 import { MarkCompleteBookingPage } from '@/components/dashboard/bookings/MarkCompleteBookingPage';
+import { getAccessToken } from '@/lib/auth/get-access-token';
 import { fetchTenantSettings } from '@/lib/api/dashboard/tenants';
 import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route.server';
 
@@ -11,8 +11,7 @@ export default async function BookingCompleteRoute({
   params,
 }: BookingCompleteRouteProps): Promise<React.JSX.Element> {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value ?? '';
+  const token = await getAccessToken();
   const [routeData, tenantSettings] = await Promise.all([
     loadBookingDetailRouteData(token, id),
     fetchTenantSettings(token),

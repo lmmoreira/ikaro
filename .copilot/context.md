@@ -148,6 +148,17 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 
 → Full detail: `docs/ENGINEERING_RULES.md` + `docs/CODE_STANDARDS.md` (load when writing any code).
 
+### No workarounds — best long-term solution only (NON-NEGOTIABLE)
+
+**Never apply workarounds, overrides, or short-term hacks when a proper fix exists.** Always fix the root cause with the best, most solid, long-term solution — even when it requires a major dependency upgrade or more work.
+
+Examples of what this means in practice:
+- A vulnerable transitive dependency → upgrade the direct dependency that pulls it in, not pin the transitive one via overrides.
+- A TypeScript API change in a major version → migrate the call sites, not suppress with `as unknown as`.
+- A CI gate failing due to a pre-existing issue → fix the issue in the same branch, not skip or ignore it.
+
+If the proper fix genuinely cannot be done in the current branch (e.g. no upstream patch exists yet), say so explicitly with a rationale — never silently apply a workaround as if it were a real fix. The CI test suite is the safety net for major upgrades: trust it.
+
 ### Architecture
 - **Layers per context:** `domain/` (zero framework deps) → `application/` (use cases, ports, DTOs) → `infrastructure/` (adapters, controllers, persistence). Shared cross-cutting → `src/shared/`.
 - **Value objects:** Domain-validated fields in `src/shared/value-objects/`. `create()` validates from raw strings; `reconstitute()` skips validation. Never plain primitives for domain fields.

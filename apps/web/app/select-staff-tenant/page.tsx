@@ -1,10 +1,10 @@
-import { cookies } from 'next/headers';
 import type { StaffTenantOption } from '@ikaro/types';
+import { getAccessToken } from '@/lib/auth/get-access-token';
 import { bffServerFetch } from '@/lib/api/bff-server';
 import { SelectStaffTenantClient } from '@/components/staff/SelectStaffTenantClient';
 
 export default async function SelectStaffTenantPage(): Promise<React.JSX.Element> {
-  const token = (await cookies()).get('access_token')?.value;
+  const token = await getAccessToken();
 
   let initialOptions: StaffTenantOption[] | null = null;
 

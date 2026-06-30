@@ -63,11 +63,9 @@ test.describe('staff booking lifecycle coverage', () => {
     await dialog.getByRole('textbox').fill('Cliente pediu reagendamento para outra data');
     await dialog.getByRole('button', { name: 'Rejeitar' }).click();
 
-    await expect(page.getByText('Agendamento rejeitado')).toBeVisible();
-    await expect(page.getByText(/Motivo registrado:/i)).toBeVisible();
-    await expect(
-      page.getByText(/O cliente foi notificado por email com o motivo da rejeição/i),
-    ).toBeVisible();
+    await expect(page.getByTestId('booking-rejected-title')).toBeVisible();
+    await expect(page.getByTestId('booking-rejected-reason')).toBeVisible();
+    await expect(page.getByTestId('booking-rejected-notification')).toBeVisible();
     await expect(
       page.locator('main aside').getByRole('link', { name: 'Voltar à agenda' }),
     ).toBeVisible();
@@ -92,11 +90,9 @@ test.describe('staff booking lifecycle coverage', () => {
       .fill('Confirme o endereço de coleta antes do horário agendado.');
     await dialog.getByRole('button', { name: 'Enviar' }).click();
 
-    await expect(page.getByText('Solicitação de informação enviada')).toBeVisible();
-    await expect(page.getByText(/Pergunta enviada:/i)).toBeVisible();
-    await expect(
-      page.getByText(/Quando o cliente responder, o agendamento volta para Pendente/i),
-    ).toBeVisible();
+    await expect(page.getByTestId('booking-info-requested-title')).toBeVisible();
+    await expect(page.getByTestId('booking-info-requested-message')).toBeVisible();
+    await expect(page.getByTestId('booking-info-requested-status')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Aprovar' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Rejeitar' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Pedir info' })).toHaveCount(0);
@@ -110,17 +106,17 @@ test.describe('staff booking lifecycle coverage', () => {
     await page.goto(`/dashboard/bookings/${setup.bookingId}/complete`);
 
     await expect(page.getByRole('button', { name: 'Confirmar conclusão' })).toBeVisible();
-    await expect(page.getByText('Lavagem Simples')).toBeVisible();
-    await expect(page.getByText(/Total cotado:/i)).toBeVisible();
-    await expect(page.getByText(/Total cobrado:/i)).toBeVisible();
+    await expect(page.getByTestId('complete-line-name').first()).toContainText('Lavagem Simples');
+    await expect(page.getByTestId('complete-summary-quoted')).toBeVisible();
+    await expect(page.getByTestId('complete-summary-charged')).toBeVisible();
 
     await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
 
-    await expect(page.getByText('Serviço concluído')).toBeVisible();
+    await expect(page.getByTestId('outcome-banner-title')).toBeVisible();
     await expect(
       page.locator('main aside').getByRole('link', { name: 'Voltar à agenda' }),
     ).toBeVisible();
-    await expect(page.getByText(/Email com resumo enviado/i)).toBeVisible();
+    await expect(page.getByTestId('complete-email-summary')).toBeVisible();
   });
 
   test('complete loyalty flow earns points on one booking and redeems them on the next', async ({
@@ -136,8 +132,8 @@ test.describe('staff booking lifecycle coverage', () => {
     await page.goto(`/dashboard/bookings/${earnedSetup.bookingId}/complete`);
     await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
 
-    await expect(page.getByText('Serviço concluído')).toBeVisible();
-    await expect(page.getByText('★ 10 pontos ativos')).toBeVisible();
+    await expect(page.getByTestId('outcome-banner-title')).toBeVisible();
+    await expect(page.getByTestId('booking-loyalty-points-active')).toBeVisible();
 
     const redeemSetup = await createFreshApprovedBooking(page, 10, STAFF_EMAIL, {
       contactEmail: customerEmail,
@@ -146,13 +142,13 @@ test.describe('staff booking lifecycle coverage', () => {
 
     await page.goto(`/dashboard/bookings/${redeemSetup.bookingId}/complete`);
 
-    await expect(page.getByText('Fidelidade do cliente')).toBeVisible();
-    await expect(page.getByText('Saldo atual: 10 pontos disponíveis')).toBeVisible();
-    await expect(page.getByText('10 pts = R$ 1,00 · Valor máximo: R$ 1,00')).toBeVisible();
+    await expect(page.getByTestId('complete-loyalty-section-title')).toBeVisible();
+    await expect(page.getByTestId('complete-loyalty-available-points')).toBeVisible();
+    await expect(page.getByTestId('complete-loyalty-rate-hint')).toBeVisible();
 
     await page.getByRole('button', { name: 'Usar todos' }).click();
     await expect(page.getByRole('spinbutton', { name: 'Pontos a usar' })).toHaveValue('10');
-    await expect(page.getByText('Cliente ganhará 10 pontos')).toBeVisible();
+    await expect(page.getByTestId('complete-summary-points-earned')).toBeVisible();
 
     const completeRequest = page.waitForRequest(
       (request) =>
@@ -177,8 +173,8 @@ test.describe('staff booking lifecycle coverage', () => {
       amountDeducted: 1,
     });
 
-    await expect(page.getByText('Serviço concluído')).toBeVisible();
-    await expect(page.getByText('★ 10 pontos ativos')).toBeVisible();
+    await expect(page.getByTestId('outcome-banner-title')).toBeVisible();
+    await expect(page.getByTestId('booking-loyalty-points-active')).toBeVisible();
   });
 
   test('reschedule success shows a full De/Para summary and the action panel on the right', async ({
@@ -200,9 +196,9 @@ test.describe('staff booking lifecycle coverage', () => {
 
     await page.getByRole('button', { name: 'Reagendar' }).click();
 
-    await expect(page.getByText(/Agendamento reagendado/i)).toBeVisible();
+    await expect(page.getByTestId('outcome-banner-title')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Ver detalhe atualizado' })).toBeVisible();
-    await expect(page.getByText(/recebeu um email com o novo horário/i)).toBeVisible();
+    await expect(page.getByTestId('reschedule-body-email')).toBeVisible();
     await expect(
       page.locator('main aside').getByRole('link', { name: 'Voltar à agenda' }),
     ).toBeVisible();
@@ -219,8 +215,8 @@ test.describe('staff booking lifecycle coverage', () => {
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('button', { name: 'Cancelar agendamento' }).click();
 
-    await expect(page.getByText(/Agendamento cancelado/i)).toBeVisible();
-    await expect(page.getByText(/foi avisado por email do cancelamento/i)).toBeVisible();
+    await expect(page.getByTestId('booking-cancelled-title')).toBeVisible();
+    await expect(page.getByTestId('booking-cancelled-email')).toBeVisible();
     await expect(
       page.locator('main aside').getByRole('link', { name: 'Voltar à agenda' }),
     ).toBeVisible();

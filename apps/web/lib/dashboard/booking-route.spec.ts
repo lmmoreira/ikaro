@@ -53,6 +53,14 @@ describe('booking-route', () => {
     expect(matchBookingDetailRoute('/dashboard/bookings')).toBeNull();
   });
 
+  it('returns null for an unknown sub-action path', () => {
+    expect(matchBookingDetailRoute('/dashboard/bookings/booking-1/other')).toBeNull();
+  });
+
+  it('returns null for unrelated routes', () => {
+    expect(matchBookingDetailRoute('/dashboard/settings')).toBeNull();
+  });
+
   it('loads booking detail route data with the tenant slug from the JWT', async () => {
     const booking = { bookingId: 'booking-1' } as StaffBookingDetailResponse;
     vi.mocked(decodeJwtPayload).mockReturnValue({ tenantSlug: 'lavacar-bh' });
@@ -82,5 +90,24 @@ describe('booking-route', () => {
 
     await expect(loadBookingDetailRouteData('token', 'booking-1')).rejects.toThrow('backend-down');
     expect(notFound).not.toHaveBeenCalled();
+  });
+
+  it('rethrows non-BookingDetailFetchError errors', async () => {
+    vi.mocked(decodeJwtPayload).mockReturnValue({ tenantSlug: 'lavacar-bh' });
+    vi.mocked(fetchStaffBookingDetail).mockRejectedValue(new Error('network-error'));
+
+    await expect(loadBookingDetailRouteData('token', 'booking-1')).rejects.toThrow('network-error');
+    expect(notFound).not.toHaveBeenCalled();
+  });
+
+  it('defaults tenantSlug to empty string when missing from JWT', async () => {
+    const booking = { bookingId: 'booking-1' } as StaffBookingDetailResponse;
+    vi.mocked(decodeJwtPayload).mockReturnValue({});
+    vi.mocked(fetchStaffBookingDetail).mockResolvedValue(booking);
+
+    await expect(loadBookingDetailRouteData('token', 'booking-1')).resolves.toEqual({
+      booking,
+      tenantSlug: '',
+    });
   });
 });

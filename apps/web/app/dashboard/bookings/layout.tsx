@@ -1,4 +1,5 @@
-import { cookies, headers } from 'next/headers';
+import { headers } from 'next/headers';
+import { getAccessToken } from '@/lib/auth/get-access-token';
 import { notFound } from 'next/navigation';
 import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
 import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
@@ -20,8 +21,7 @@ interface ProtectedLayoutProps {
 export default async function ProtectedLayout({
   children,
 }: ProtectedLayoutProps): Promise<React.JSX.Element> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value ?? '';
+  const token = await getAccessToken();
   const payload = decodeJwtPayload(token);
 
   const role = (payload.role === 'MANAGER' ? 'MANAGER' : 'STAFF') as 'STAFF' | 'MANAGER';

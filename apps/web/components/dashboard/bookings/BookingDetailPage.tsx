@@ -338,13 +338,22 @@ export function BookingDetailPage({
           <CardContent className="flex items-start gap-3 p-4">
             <BannerIcon variant="danger" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold uppercase tracking-[0.07em] text-red-700">
+              <p
+                data-testid="booking-rejected-title"
+                className="text-sm font-bold uppercase tracking-[0.07em] text-red-700"
+              >
                 {t('rejectedTitle')}
               </p>
-              <p className="mt-2 text-sm leading-6 text-red-700/90">
+              <p
+                data-testid="booking-rejected-reason"
+                className="mt-2 text-sm leading-6 text-red-700/90"
+              >
                 {t('rejectedBodyReason', { reason: booking.rejectionReason ?? '' })}
               </p>
-              <p className="mt-2 text-sm leading-6 text-red-700/90">
+              <p
+                data-testid="booking-rejected-notification"
+                className="mt-2 text-sm leading-6 text-red-700/90"
+              >
                 {t('rejectedBodyNotification')}
               </p>
             </div>
@@ -359,13 +368,22 @@ export function BookingDetailPage({
           <CardContent className="flex items-start gap-3 p-4">
             <BannerIcon variant="info" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold uppercase tracking-[0.07em] text-blue-700">
+              <p
+                data-testid="booking-info-requested-title"
+                className="text-sm font-bold uppercase tracking-[0.07em] text-blue-700"
+              >
                 {t('infoRequestedTitle')}
               </p>
-              <p className="mt-2 text-sm leading-6 text-blue-700/90">
+              <p
+                data-testid="booking-info-requested-message"
+                className="mt-2 text-sm leading-6 text-blue-700/90"
+              >
                 {t('infoRequestedBodyMessage', { message: booking.infoRequestMessage ?? '' })}
               </p>
-              <p className="mt-2 text-sm leading-6 text-blue-700/90">
+              <p
+                data-testid="booking-info-requested-status"
+                className="mt-2 text-sm leading-6 text-blue-700/90"
+              >
                 {t('infoRequestedBodyStatus', { status: t('statusPending') })}
               </p>
             </div>
@@ -380,10 +398,16 @@ export function BookingDetailPage({
           <CardContent className="flex items-start gap-3 p-4">
             <BannerIcon variant="danger" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold uppercase tracking-[0.07em] text-red-700">
+              <p
+                data-testid="booking-cancelled-title"
+                className="text-sm font-bold uppercase tracking-[0.07em] text-red-700"
+              >
                 {t('cancelledTitle')}
               </p>
-              <p className="mt-2 text-sm leading-6 text-red-700/90">
+              <p
+                data-testid="booking-cancelled-email"
+                className="mt-2 text-sm leading-6 text-red-700/90"
+              >
                 {t('cancelledBodyEmail', { name: booking.contactName })}
               </p>
               <p className="mt-2 text-sm leading-6 text-red-700/90">
