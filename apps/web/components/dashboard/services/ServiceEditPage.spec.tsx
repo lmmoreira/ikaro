@@ -106,7 +106,9 @@ describe('ServiceEditPage', () => {
 
   it('shows the duplicate-name error inline on the name field', async () => {
     const user = userEvent.setup();
-    mockUpdateService.mockRejectedValue(new ApiError(409, 'Conflict', {}));
+    mockUpdateService.mockRejectedValue(
+      new ApiError(409, 'Service with this name already exists in this tenant', {}),
+    );
 
     renderWithIntl(<ServiceEditPage service={service} />);
 
@@ -118,6 +120,24 @@ describe('ServiceEditPage', () => {
       await screen.findByText('Já existe um serviço com este nome. Escolha outro nome.'),
     ).toBeInTheDocument();
     expect(screen.getByLabelText('Nome do serviço')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('shows a generic edit error for unrelated conflicts', async () => {
+    const user = userEvent.setup();
+    mockUpdateService.mockRejectedValue(new ApiError(409, 'Conflict', {}));
+
+    renderWithIntl(<ServiceEditPage service={service} />);
+
+    await user.clear(screen.getByLabelText('Nome do serviço'));
+    await user.type(screen.getByLabelText('Nome do serviço'), 'Lavagem Premium');
+    await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
+
+    expect(
+      await screen.findByText('Erro ao salvar alterações. Tente novamente.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Já existe um serviço com este nome. Escolha outro nome.'),
+    ).not.toBeInTheDocument();
   });
 
   it('shows an activate action for inactive services and updates the top bar after activation', async () => {

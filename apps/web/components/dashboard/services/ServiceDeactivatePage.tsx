@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import type { StaffServiceResponse } from '@ikaro/types';
-import { ApiError } from '@/lib/api/errors';
 import { useDeactivateService } from '@/lib/hooks/useServices';
 import { formatDuration } from '@/lib/formatting/format-duration';
 import { useFormatting } from '@/lib/formatting/use-formatting';
@@ -18,9 +17,34 @@ interface ServiceDeactivatePageProps {
   readonly service: StaffServiceResponse;
 }
 
-export function ServiceDeactivatePage({ service }: ServiceDeactivatePageProps): React.JSX.Element {
+interface ServiceDeactivateActionsProps {
+  readonly serviceId: string;
+  readonly isSubmitting: boolean;
+  readonly className: string;
+}
+
+function ServiceDeactivateActions({
+  serviceId,
+  isSubmitting,
+  className,
+}: ServiceDeactivateActionsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const commonT = useTranslations('common');
+
+  return (
+    <div className={className}>
+      <Button variant="destructive" type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? commonT('loading') : t('deactivateConfirm')}
+      </Button>
+      <Button asChild variant="outline" className="w-full">
+        <Link href={`/dashboard/services/${serviceId}/edit`}>{t('createCancel')}</Link>
+      </Button>
+    </div>
+  );
+}
+
+export function ServiceDeactivatePage({ service }: ServiceDeactivatePageProps): React.JSX.Element {
+  const t = useTranslations('dashboard.servicesPage');
   const { formatMoney } = useFormatting();
   const router = useRouter();
   const deactivateServiceMutation = useDeactivateService();
@@ -44,12 +68,7 @@ export function ServiceDeactivatePage({ service }: ServiceDeactivatePageProps): 
       await deactivateServiceMutation.mutateAsync(service.serviceId);
       setTopbarServiceStatus?.('INACTIVE');
       router.push('/dashboard/services');
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setSubmitError(t('deactivateFailed'));
-        return;
-      }
-
+    } catch {
       setSubmitError(t('deactivateFailed'));
     } finally {
       setIsSubmittingLocal(false);
@@ -100,33 +119,22 @@ export function ServiceDeactivatePage({ service }: ServiceDeactivatePageProps): 
           <Card>
             <CardContent className="space-y-4 p-4">
               <p className="text-sm leading-6 text-gray-600">{t('deactivateIntro')}</p>
-              <Button
-                variant="destructive"
-                type="submit"
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? commonT('loading') : t('deactivateConfirm')}
-              </Button>
-              <Button asChild variant="outline" className="w-full">
-                <Link href={`/dashboard/services/${service.serviceId}/edit`}>
-                  {t('createCancel')}
-                </Link>
-              </Button>
+              <ServiceDeactivateActions
+                serviceId={service.serviceId}
+                isSubmitting={isSubmitting}
+                className="space-y-4"
+              />
             </CardContent>
           </Card>
         </aside>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <div className="space-y-3">
-          <Button variant="destructive" type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? commonT('loading') : t('deactivateConfirm')}
-          </Button>
-          <Button asChild variant="outline" className="w-full">
-            <Link href={`/dashboard/services/${service.serviceId}/edit`}>{t('createCancel')}</Link>
-          </Button>
-        </div>
+        <ServiceDeactivateActions
+          serviceId={service.serviceId}
+          isSubmitting={isSubmitting}
+          className="space-y-3"
+        />
       </div>
     </form>
   );

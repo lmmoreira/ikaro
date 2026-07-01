@@ -18,13 +18,19 @@ interface ServiceEditPageProps {
   readonly service: StaffServiceResponse;
 }
 
+const DEACTIVATED_SERVICE_CONFLICT_DETAIL = 'cannot update a deactivated service';
+const NAME_CONFLICT_DETAIL = 'already exists';
+
 function mapSubmitErrors(err: unknown, t: ServiceFormTranslator): ServiceFormErrors {
   if (err instanceof ApiError && err.status === 409) {
-    if (err.detail.includes('Cannot update a deactivated service')) {
+    const detail = err.detail.toLowerCase();
+    if (detail.includes(DEACTIVATED_SERVICE_CONFLICT_DETAIL)) {
       return { submit: t('editInactiveUpdateBlocked') };
     }
 
-    return { name: t('createDuplicateName') };
+    if (detail.includes(NAME_CONFLICT_DETAIL)) {
+      return { name: t('createDuplicateName') };
+    }
   }
 
   return { submit: t('editFailed') };
@@ -77,6 +83,46 @@ interface ServiceEditActionPanelsProps {
   readonly onActivate: () => void;
 }
 
+interface ServiceEditPrimaryActionProps extends ServiceEditActionPanelsProps {
+  readonly testIdPrefix: string;
+}
+
+function ServiceEditPrimaryAction({
+  isActive,
+  isSubmitting,
+  isActivating,
+  onActivate,
+  testIdPrefix,
+}: ServiceEditPrimaryActionProps): React.JSX.Element {
+  const t = useTranslations('dashboard.servicesPage');
+  const commonT = useTranslations('common');
+
+  if (isActive) {
+    return (
+      <Button
+        type="submit"
+        data-testid={`${testIdPrefix}-save-button`}
+        className="w-full"
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? commonT('loading') : t('editSave')}
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      data-testid={`${testIdPrefix}-activate-button`}
+      className="w-full"
+      disabled={isActivating}
+      onClick={onActivate}
+    >
+      {isActivating ? commonT('loading') : t('editActivate')}
+    </Button>
+  );
+}
+
 function ServiceEditActionPanels({
   isActive,
   isSubmitting,
@@ -84,7 +130,6 @@ function ServiceEditActionPanels({
   onActivate,
 }: ServiceEditActionPanelsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
-  const commonT = useTranslations('common');
 
   return (
     <>
@@ -95,26 +140,13 @@ function ServiceEditActionPanels({
               <p className="text-sm leading-6 text-gray-600">{t('editInactiveDescription')}</p>
             )}
 
-            {isActive ? (
-              <Button
-                type="submit"
-                data-testid="service-save-desktop-button"
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? commonT('loading') : t('editSave')}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                data-testid="service-activate-desktop-button"
-                className="w-full"
-                disabled={isActivating}
-                onClick={onActivate}
-              >
-                {isActivating ? commonT('loading') : t('editActivate')}
-              </Button>
-            )}
+            <ServiceEditPrimaryAction
+              isActive={isActive}
+              isSubmitting={isSubmitting}
+              isActivating={isActivating}
+              onActivate={onActivate}
+              testIdPrefix="service-desktop"
+            />
 
             <Button asChild variant="outline" className="w-full">
               <Link data-testid="service-cancel-desktop-link" href="/dashboard/services">
@@ -132,26 +164,13 @@ function ServiceEditActionPanels({
               {t('createCancel')}
             </Link>
           </Button>
-          {isActive ? (
-            <Button
-              type="submit"
-              data-testid="service-save-mobile-button"
-              className="w-full"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? commonT('loading') : t('editSave')}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              data-testid="service-activate-mobile-button"
-              className="w-full"
-              disabled={isActivating}
-              onClick={onActivate}
-            >
-              {isActivating ? commonT('loading') : t('editActivate')}
-            </Button>
-          )}
+          <ServiceEditPrimaryAction
+            isActive={isActive}
+            isSubmitting={isSubmitting}
+            isActivating={isActivating}
+            onActivate={onActivate}
+            testIdPrefix="service-mobile"
+          />
         </div>
       </div>
     </>
