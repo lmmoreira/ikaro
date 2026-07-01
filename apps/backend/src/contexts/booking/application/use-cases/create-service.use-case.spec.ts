@@ -74,7 +74,7 @@ describe('CreateServiceUseCase', () => {
   });
 
   it('creates an inactive service when isActive=false is requested', async () => {
-    const result = await useCase.execute({ ...baseDto, isActive: false });
+    const result = await useCase.execute({ ...baseDto, isActive: false, ...ctx });
     expect(result.isActive).toBe(false);
   });
 

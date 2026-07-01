@@ -39,10 +39,10 @@ describe('ServiceController', () => {
       ctx,
       new CreateServiceUseCase(repo, txManager),
       new GetServicesUseCase(repo),
-      new GetServiceByIdUseCase(repo, ctx),
+      new GetServiceByIdUseCase(repo),
       new ActivateServiceUseCase(repo, txManager, ctx),
-      new UpdateServiceUseCase(repo, txManager, ctx),
-      new DeactivateServiceUseCase(repo, txManager, ctx),
+      new UpdateServiceUseCase(repo, txManager),
+      new DeactivateServiceUseCase(repo, txManager),
     );
   });
 
