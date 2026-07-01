@@ -1,6 +1,5 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { ActivateServiceUseCase } from './activate-service.use-case';
@@ -17,7 +16,6 @@ describe('ActivateServiceUseCase', () => {
     useCase = new ActivateServiceUseCase(
       repo,
       new InMemoryTransactionManager(),
-      new RequestContextBuilder().withTenantId(TENANT_A).build(),
     );
   });
 
@@ -26,7 +24,7 @@ describe('ActivateServiceUseCase', () => {
     service.deactivate();
     await repo.save(service);
 
-    const result = await useCase.execute(service.id);
+    const result = await useCase.execute({ id: service.id, tenantId: TENANT_A });
 
     expect(result.id).toBe(service.id);
     expect(result.isActive).toBe(true);
@@ -40,14 +38,16 @@ describe('ActivateServiceUseCase', () => {
     service.deactivate();
     await repo.save(service);
 
-    await useCase.execute(service.id);
+    await useCase.execute({ id: service.id, tenantId: TENANT_A });
 
     const persisted = await repo.findById(service.id, TENANT_A);
     expect(persisted).not.toBeNull();
   });
 
   it('throws ServiceNotFoundError when service does not exist', async () => {
-    await expect(useCase.execute('non-existent-id')).rejects.toThrow(ServiceNotFoundError);
+    await expect(
+      useCase.execute({ id: 'non-existent-id', tenantId: TENANT_A }),
+    ).rejects.toThrow(ServiceNotFoundError);
   });
 
   it('throws ServiceNotFoundError when service belongs to a different tenant', async () => {
@@ -55,14 +55,16 @@ describe('ActivateServiceUseCase', () => {
     service.deactivate();
     await repo.save(service);
 
-    await expect(useCase.execute(service.id)).rejects.toThrow(ServiceNotFoundError);
+    await expect(
+      useCase.execute({ id: service.id, tenantId: TENANT_A }),
+    ).rejects.toThrow(ServiceNotFoundError);
   });
 
   it('is idempotent — activating an already-active service does not throw', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await repo.save(service);
 
-    const result = await useCase.execute(service.id);
+    const result = await useCase.execute({ id: service.id, tenantId: TENANT_A });
     expect(result.isActive).toBe(true);
   });
 });

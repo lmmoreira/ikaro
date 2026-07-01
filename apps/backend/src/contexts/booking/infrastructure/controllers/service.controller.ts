@@ -121,7 +121,12 @@ export class ServiceController {
   activate(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<ActivateServiceUseCaseResult> {
-    return this.activateService.execute(id).catch(mapBookingError);
+    return this.activateService
+      .execute({
+        id,
+        tenantId: this.tenantContext.tenantId,
+      })
+      .catch(mapBookingError);
   }
 
   @Delete(':id')
