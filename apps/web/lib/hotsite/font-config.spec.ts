@@ -65,13 +65,13 @@ describe('getActiveFontVariables', () => {
     expect(result).toEqual(['--font-inter']);
   });
 
-  it('falls back gracefully for unknown font names', () => {
+  it('falls back to Inter for an unknown heading font, matching applyBranding fallback', () => {
     const result = getActiveFontVariables('UnknownFont', 'Roboto');
-    expect(result).toEqual(['--font-roboto']);
+    expect(result).toEqual(['--font-inter', '--font-roboto']);
   });
 
-  it('returns empty array when both fonts are unknown', () => {
+  it('falls back to Inter when both fonts are unknown, deduplicating to one entry', () => {
     const result = getActiveFontVariables('Unknown', 'AlsoUnknown');
-    expect(result).toEqual([]);
+    expect(result).toEqual(['--font-inter']);
   });
 });
