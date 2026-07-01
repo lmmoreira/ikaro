@@ -16,6 +16,7 @@ import { BookingSlotConflictService } from '../services/booking-slot-conflict.se
 import { ApproveBookingDto } from '../dtos/approve-booking.dto';
 
 export type ApproveBookingInput = ApproveBookingDto & {
+  bookingId: string;
   tenantId: string;
   staffId: string;
   correlationId: string;

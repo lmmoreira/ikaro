@@ -2,7 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
-  GenerateAttachmentSignedUrlBody,
+  GenerateAttachmentSignedUrlDto,
   GenerateAttachmentSignedUrlSchema,
 } from '../../application/dtos/generate-attachment-signed-url.dto';
 import {
@@ -22,7 +22,7 @@ export class BookingAttachmentsController {
   @HttpCode(HttpStatus.CREATED)
   generateAttachmentSignedUrl(
     @Body(new ZodValidationPipe(GenerateAttachmentSignedUrlSchema))
-    body: GenerateAttachmentSignedUrlBody,
+    body: GenerateAttachmentSignedUrlDto,
   ): Promise<GenerateAttachmentSignedUrlUseCaseResult> {
     return this.generateSignedUrl
       .execute({ ...body, tenantId: this.ctx.tenantId })

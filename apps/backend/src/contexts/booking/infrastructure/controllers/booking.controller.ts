@@ -11,7 +11,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { z } from 'zod';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
@@ -23,8 +22,12 @@ import {
   RequestAuthenticatedBookingSchema,
 } from '../../application/dtos/request-authenticated-booking.dto';
 import {
-  RejectBookingBody,
-  RejectBookingBodySchema,
+  ApproveBookingDto,
+  ApproveBookingSchema,
+} from '../../application/dtos/approve-booking.dto';
+import {
+  RejectBookingDto,
+  RejectBookingSchema,
 } from '../../application/dtos/reject-booking.dto';
 import {
   RequestBookingUseCase,
@@ -84,20 +87,20 @@ import {
   CancelBookingAsAdminUseCaseResult,
 } from '../../application/use-cases/cancel-booking-as-admin.use-case';
 import {
-  CancelBookingAsAdminBody,
-  CancelBookingAsAdminBodySchema,
+  CancelBookingAsAdminDto,
+  CancelBookingAsAdminSchema,
 } from '../../application/dtos/cancel-booking-as-admin.dto';
 import {
   RescheduleBookingUseCase,
   RescheduleBookingUseCaseResult,
 } from '../../application/use-cases/reschedule-booking.use-case';
 import {
-  RescheduleBookingBody,
-  RescheduleBookingBodySchema,
+  RescheduleBookingDto,
+  RescheduleBookingSchema,
 } from '../../application/dtos/reschedule-booking.dto';
 import {
-  CompleteBookingBody,
-  CompleteBookingBodySchema,
+  CompleteBookingDto,
+  CompleteBookingSchema,
 } from '../../application/dtos/complete-booking.dto';
 import {
   CompleteBookingUseCase,
@@ -106,14 +109,6 @@ import {
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { mapBookingError } from '../http/booking-error.mapper';
-
-const ApproveBookingBodySchema = z
-  .object({
-    scheduledAt: z.iso.datetime().optional(),
-  })
-  .default({});
-
-type ApproveBookingBody = z.infer<typeof ApproveBookingBodySchema>;
 
 @Controller('bookings')
 export class BookingController {
@@ -206,7 +201,7 @@ export class BookingController {
   @UseGuards(StaffOrManagerRoleGuard)
   approve(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-    @Body(new ZodValidationPipe(ApproveBookingBodySchema)) body: ApproveBookingBody,
+    @Body(new ZodValidationPipe(ApproveBookingSchema)) body: ApproveBookingDto,
   ): Promise<ApproveBookingUseCaseResult> {
     const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;
     return this.approveBooking
@@ -226,7 +221,7 @@ export class BookingController {
   @UseGuards(StaffOrManagerRoleGuard)
   reject(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(RejectBookingBodySchema)) body: RejectBookingBody,
+    @Body(new ZodValidationPipe(RejectBookingSchema)) body: RejectBookingDto,
   ): Promise<RejectBookingUseCaseResult> {
     const { tenantId, actorId: staffId, correlationId } = this.ctx;
     return this.rejectBooking
@@ -290,7 +285,7 @@ export class BookingController {
   @UseGuards(StaffOrManagerRoleGuard)
   cancelAsAdmin(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-    @Body(new ZodValidationPipe(CancelBookingAsAdminBodySchema)) body: CancelBookingAsAdminBody,
+    @Body(new ZodValidationPipe(CancelBookingAsAdminSchema)) body: CancelBookingAsAdminDto,
   ): Promise<CancelBookingAsAdminUseCaseResult> {
     const { tenantId, actorId: staffId, correlationId } = this.ctx;
     return this.cancelBookingAsAdmin
@@ -303,7 +298,7 @@ export class BookingController {
   @UseGuards(StaffOrManagerRoleGuard)
   reschedule(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-    @Body(new ZodValidationPipe(RescheduleBookingBodySchema)) body: RescheduleBookingBody,
+    @Body(new ZodValidationPipe(RescheduleBookingSchema)) body: RescheduleBookingDto,
   ): Promise<RescheduleBookingUseCaseResult> {
     const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;
     return this.rescheduleBooking
@@ -324,7 +319,7 @@ export class BookingController {
   @UseGuards(StaffOrManagerRoleGuard)
   complete(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-    @Body(new ZodValidationPipe(CompleteBookingBodySchema)) body: CompleteBookingBody,
+    @Body(new ZodValidationPipe(CompleteBookingSchema)) body: CompleteBookingDto,
   ): Promise<CompleteBookingUseCaseResult> {
     const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;
     return this.completeBooking

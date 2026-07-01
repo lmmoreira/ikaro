@@ -5,6 +5,33 @@ Optional argument: `$ARGUMENTS`
 - `bff` — restrict to BFF only
 - `web` — restrict to web only
 - blank — scan all three layers
+- Append `--pr` to any of the above to scope checks to PR-changed files only (e.g. `backend --pr`, `web --pr`)
+
+---
+
+## PR mode (`--pr` flag)
+
+When `--pr` is present, do **not** scan the full layer directory. Instead:
+
+1. Compute the changed file list for the relevant layer:
+```bash
+# backend --pr
+git diff origin/main...HEAD --name-only | grep "^apps/backend/"
+
+# bff --pr
+git diff origin/main...HEAD --name-only | grep "^apps/bff/"
+
+# web --pr
+git diff origin/main...HEAD --name-only | grep "^apps/web/"
+```
+
+2. Pass this file list to the Explore agent as its explicit scope — the agent greps and reads **only those files**, not the full directory tree.
+
+3. **BE-4 is skipped in `--pr` mode** — checking for missing entity builders requires scanning the full `src/test/builders/` tree against all entity files; this is a full-codebase check that the pre-PR script (Step 1, check 28) already covers for new entities added in the PR.
+
+4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–7) run normally but scoped to the changed file list.
+
+If the `git diff` for a layer returns zero files, skip that layer entirely and report `(no changed files in this layer)`.
 
 ---
 
@@ -14,9 +41,9 @@ Spawn three Explore agents in parallel, one per layer. Give each agent the full 
 
 | Agent | Scope | Checks to pass |
 |---|---|---|
-| Backend | `apps/backend/src/` | Backend checks section (BE-1 through BE-7) |
-| BFF | `apps/bff/src/` | BFF checks section (BFF-1 through BFF-4) |
-| Web | `apps/web/` | Web checks section (WEB-1 through WEB-7) |
+| Backend | `apps/backend/src/` (full) or changed files list (--pr) | Backend checks section (BE-1 through BE-7; skip BE-4 in --pr mode) |
+| BFF | `apps/bff/src/` (full) or changed files list (--pr) | BFF checks section (BFF-1 through BFF-4) |
+| Web | `apps/web/` (full) or changed files list (--pr) | Web checks section (WEB-1 through WEB-7) |
 
 If `$ARGUMENTS` restricts to a single layer or a specific context path, spawn only the relevant agent.
 

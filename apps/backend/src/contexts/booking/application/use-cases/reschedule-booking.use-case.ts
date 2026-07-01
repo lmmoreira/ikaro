@@ -13,6 +13,7 @@ import { BookingSlotConflictService } from '../services/booking-slot-conflict.se
 import { RescheduleBookingDto } from '../dtos/reschedule-booking.dto';
 
 export type RescheduleBookingInput = RescheduleBookingDto & {
+  bookingId: string;
   tenantId: string;
   staffId: string;
   correlationId: string;

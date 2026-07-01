@@ -11,9 +11,8 @@ import {
 } from '../../domain/errors/booking-domain.error';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
-import { CancelBookingAsCustomerDto } from '../dtos/cancel-booking-as-customer.dto';
-
-export type CancelBookingAsCustomerInput = CancelBookingAsCustomerDto & {
+export type CancelBookingAsCustomerInput = {
+  bookingId: string;
   tenantId: string;
   customerId: string;
   correlationId: string;

@@ -13,6 +13,7 @@ import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-reposit
 import { RejectBookingDto } from '../dtos/reject-booking.dto';
 
 export type RejectBookingInput = RejectBookingDto & {
+  bookingId: string;
   tenantId: string;
   staffId: string;
   correlationId: string;

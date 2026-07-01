@@ -18,6 +18,7 @@ import { PhotoExistenceService } from '../services/photo-existence.service';
 import { CompleteBookingDto } from '../dtos/complete-booking.dto';
 
 export type CompleteBookingInput = CompleteBookingDto & {
+  bookingId: string;
   tenantId: string;
   staffId: string;
   correlationId: string;

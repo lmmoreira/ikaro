@@ -9,6 +9,7 @@ import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-reposit
 import { CancelBookingAsAdminDto } from '../dtos/cancel-booking-as-admin.dto';
 
 export type CancelBookingAsAdminInput = CancelBookingAsAdminDto & {
+  bookingId: string;
   tenantId: string;
   staffId: string;
   correlationId: string;
