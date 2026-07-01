@@ -13,10 +13,7 @@ describe('ActivateServiceUseCase', () => {
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    useCase = new ActivateServiceUseCase(
-      repo,
-      new InMemoryTransactionManager(),
-    );
+    useCase = new ActivateServiceUseCase(repo, new InMemoryTransactionManager());
   });
 
   it('sets isActive=true and returns { id, isActive: true }', async () => {
@@ -45,9 +42,9 @@ describe('ActivateServiceUseCase', () => {
   });
 
   it('throws ServiceNotFoundError when service does not exist', async () => {
-    await expect(
-      useCase.execute({ id: 'non-existent-id', tenantId: TENANT_A }),
-    ).rejects.toThrow(ServiceNotFoundError);
+    await expect(useCase.execute({ id: 'non-existent-id', tenantId: TENANT_A })).rejects.toThrow(
+      ServiceNotFoundError,
+    );
   });
 
   it('throws ServiceNotFoundError when service belongs to a different tenant', async () => {
@@ -55,9 +52,9 @@ describe('ActivateServiceUseCase', () => {
     service.deactivate();
     await repo.save(service);
 
-    await expect(
-      useCase.execute({ id: service.id, tenantId: TENANT_A }),
-    ).rejects.toThrow(ServiceNotFoundError);
+    await expect(useCase.execute({ id: service.id, tenantId: TENANT_A })).rejects.toThrow(
+      ServiceNotFoundError,
+    );
   });
 
   it('is idempotent — activating an already-active service does not throw', async () => {
