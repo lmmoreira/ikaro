@@ -1,4 +1,9 @@
-import { ForbiddenException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
@@ -120,6 +125,255 @@ describe('AuthControllerFlowService', () => {
         'http://localhost:3000/auth/error?reason=no-tenant',
       );
     });
+
+    it('issues a staff token and redirects to the dashboard', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: TENANT_ID_A,
+            slug: 'lavacar-bh',
+            name: 'Lavacar BH',
+            locale: 'pt-BR',
+          })
+          .mockResolvedValueOnce({
+            staffId: STAFF_ID_A,
+            email: 'gerente@lavacar.com.br',
+            role: 'MANAGER',
+            isActive: true,
+            googleOAuthId: 'google-sub-staff-123',
+          }),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      await service.handleGoogleCallback(
+        {
+          googleOAuthId: 'google-sub-staff-123',
+          email: 'gerente@lavacar.com.br',
+          name: 'Carlos Gerente',
+          tenantSlug: 'lavacar-bh',
+          loginType: 'staff',
+        } as GoogleProfile,
+        res,
+      );
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        expect.any(String),
+        expect.objectContaining({ httpOnly: true }),
+      );
+      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/dashboard');
+      expect(backendHttp.post).not.toHaveBeenCalled();
+    });
+
+    it('redirects staff logins to tenant-not-found when the tenant is missing', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockRejectedValueOnce(new NotFoundException()),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      await service.handleGoogleCallback(
+        {
+          googleOAuthId: 'google-sub-staff-123',
+          email: 'gerente@lavacar.com.br',
+          name: 'Carlos Gerente',
+          tenantSlug: 'lavacar-bh',
+          loginType: 'staff',
+        } as GoogleProfile,
+        res,
+      );
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=tenant-not-found',
+      );
+    });
+
+    it('redirects staff logins to invite-not-found when no staff record exists', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: TENANT_ID_A,
+            slug: 'lavacar-bh',
+            name: 'Lavacar BH',
+            locale: 'pt-BR',
+          })
+          .mockRejectedValueOnce(new NotFoundException()),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      await service.handleGoogleCallback(
+        {
+          googleOAuthId: 'google-sub-staff-123',
+          email: 'gerente@lavacar.com.br',
+          name: 'Carlos Gerente',
+          tenantSlug: 'lavacar-bh',
+          loginType: 'staff',
+        } as GoogleProfile,
+        res,
+      );
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=invite-not-found&tenantSlug=lavacar-bh',
+      );
+    });
+
+    it('redirects staff logins to staff-deactivated when the record is inactive', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: TENANT_ID_A,
+            slug: 'lavacar-bh',
+            name: 'Lavacar BH',
+            locale: 'pt-BR',
+          })
+          .mockResolvedValueOnce({
+            staffId: STAFF_ID_A,
+            email: 'gerente@lavacar.com.br',
+            role: 'MANAGER',
+            isActive: false,
+            googleOAuthId: null,
+          }),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      await service.handleGoogleCallback(
+        {
+          googleOAuthId: 'google-sub-staff-123',
+          email: 'gerente@lavacar.com.br',
+          name: 'Carlos Gerente',
+          tenantSlug: 'lavacar-bh',
+          loginType: 'staff',
+        } as GoogleProfile,
+        res,
+      );
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=staff-deactivated&tenantSlug=lavacar-bh',
+      );
+    });
+
+    it('redirects staff logins to email-mismatch when Google linking fails with 422', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: TENANT_ID_A,
+            slug: 'lavacar-bh',
+            name: 'Lavacar BH',
+            locale: 'pt-BR',
+          })
+          .mockResolvedValueOnce({
+            staffId: STAFF_ID_A,
+            email: 'gerente@lavacar.com.br',
+            role: 'MANAGER',
+            isActive: true,
+            googleOAuthId: 'different-google-sub',
+          }),
+        post: jest.fn().mockRejectedValueOnce(new UnprocessableEntityException()),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      await service.handleGoogleCallback(
+        {
+          googleOAuthId: 'google-sub-staff-123',
+          email: 'gerente@lavacar.com.br',
+          name: 'Carlos Gerente',
+          tenantSlug: 'lavacar-bh',
+          loginType: 'staff',
+        } as GoogleProfile,
+        res,
+      );
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=email-mismatch&tenantSlug=lavacar-bh',
+      );
+    });
+
+    it('redirects staff logins to account-linked-elsewhere when Google linking fails with 409', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: TENANT_ID_A,
+            slug: 'lavacar-bh',
+            name: 'Lavacar BH',
+            locale: 'pt-BR',
+          })
+          .mockResolvedValueOnce({
+            staffId: STAFF_ID_A,
+            email: 'gerente@lavacar.com.br',
+            role: 'MANAGER',
+            isActive: true,
+            googleOAuthId: 'different-google-sub',
+          }),
+        post: jest.fn().mockRejectedValueOnce(new ConflictException()),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      await service.handleGoogleCallback(
+        {
+          googleOAuthId: 'google-sub-staff-123',
+          email: 'gerente@lavacar.com.br',
+          name: 'Carlos Gerente',
+          tenantSlug: 'lavacar-bh',
+          loginType: 'staff',
+        } as GoogleProfile,
+        res,
+      );
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=account-linked-elsewhere&tenantSlug=lavacar-bh',
+      );
+    });
+
+    it('redirects customer logins to no-tenant when tenantSlug is missing', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn() });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      await service.handleGoogleCallback(
+        {
+          googleOAuthId: 'google-sub-123',
+          email: 'joao@lavacar.com.br',
+          name: 'João Silva',
+        } as GoogleProfile,
+        res,
+      );
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=no-tenant',
+      );
+    });
+
+    it('redirects customer logins to tenant-not-found when the tenant is missing', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockRejectedValueOnce(new NotFoundException()),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      await service.handleGoogleCallback(
+        {
+          googleOAuthId: 'google-sub-123',
+          email: 'joao@lavacar.com.br',
+          name: 'João Silva',
+          tenantSlug: 'lavacar-bh',
+        } as GoogleProfile,
+        res,
+      );
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/auth/error?reason=tenant-not-found',
+      );
+    });
   });
 
   describe('logout()', () => {
@@ -134,6 +388,24 @@ describe('AuthControllerFlowService', () => {
         expect.objectContaining({ httpOnly: true }),
       );
       expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/lavacar-bh');
+    });
+
+    it('redirects to the frontend root when tenantSlug is missing', () => {
+      const service = makeService();
+      const res = makeRes();
+
+      service.logout(undefined, res);
+
+      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000');
+    });
+
+    it('redirects to the frontend root when tenantSlug is invalid', () => {
+      const service = makeService();
+      const res = makeRes();
+
+      service.logout('invalid slug', res);
+
+      expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000');
     });
   });
 
@@ -161,6 +433,35 @@ describe('AuthControllerFlowService', () => {
           role: 'MANAGER',
         },
       ]);
+    });
+
+    it('returns an empty list when the staff member has no active assignments', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: false },
+          ]),
+      });
+      const service = makeService(backendHttp);
+
+      await expect(service.getStaffTenants()).resolves.toEqual([]);
+    });
+
+    it('throws when a tenant batch response misses a referenced tenant', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
+          ])
+          .mockResolvedValueOnce([]),
+      });
+      const service = makeService(backendHttp);
+
+      await expect(service.getStaffTenants()).rejects.toThrow(
+        `Tenant ${TENANT_ID_A} missing from batch response`,
+      );
     });
   });
 
@@ -192,6 +493,18 @@ describe('AuthControllerFlowService', () => {
         'access_token',
         expect.any(String),
         expect.objectContaining({ httpOnly: true }),
+      );
+    });
+
+    it('throws ForbiddenException when the customer is not registered in the target tenant', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValueOnce([]),
+      });
+      const service = makeService(backendHttp);
+      const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_B };
+
+      await expect(service.switchTenant(dto, currentUser, makeRes())).rejects.toBeInstanceOf(
+        ForbiddenException,
       );
     });
   });
@@ -226,6 +539,22 @@ describe('AuthControllerFlowService', () => {
           .fn()
           .mockResolvedValue([
             { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: false },
+          ]),
+      });
+      const service = makeService(backendHttp);
+      const dto: SwitchStaffTenantDto = { staffId: STAFF_ID_A };
+
+      await expect(service.switchStaffTenant(dto, currentUser, makeRes())).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('throws ForbiddenException when no matching staff record exists', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([
+            { staffId: 'other-staff', tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
           ]),
       });
       const service = makeService(backendHttp);
@@ -272,6 +601,117 @@ describe('AuthControllerFlowService', () => {
       const decoded = jwtService.decode(token) as Record<string, unknown>;
       expect(decoded['sub']).toBe(CUSTOMER_ID_A);
       expect(decoded['tenantSlug']).toBe('lavacar-bh');
+    });
+
+    it('returns a staff token when dev auth resolves an existing staff account', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: TENANT_ID_A,
+            slug: 'lavacar-bh',
+            name: 'Lavacar BH',
+            locale: 'pt-BR',
+          })
+          .mockResolvedValueOnce([
+            {
+              staffId: STAFF_ID_A,
+              tenantId: TENANT_ID_A,
+              role: 'MANAGER',
+              isActive: true,
+              googleOAuthId: 'dev::gerente@lavacar.com.br',
+            },
+          ]),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      const result = await service.devLogin(
+        {
+          email: 'gerente@lavacar.com.br',
+          tenantSlug: 'lavacar-bh',
+          type: 'staff',
+        },
+        res,
+      );
+
+      expect(result.user).toEqual({
+        sub: STAFF_ID_A,
+        tenantId: TENANT_ID_A,
+        tenantSlug: 'lavacar-bh',
+        role: 'MANAGER',
+      });
+      expect(backendHttp.post).not.toHaveBeenCalled();
+    });
+
+    it('links a staff account when the dev OAuth ID is new', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: TENANT_ID_A,
+            slug: 'lavacar-bh',
+            name: 'Lavacar BH',
+            locale: 'pt-BR',
+          })
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce({
+            staffId: STAFF_ID_A,
+            email: 'gerente@lavacar.com.br',
+            role: 'MANAGER',
+            isActive: true,
+            googleOAuthId: null,
+          }),
+        post: jest.fn().mockResolvedValueOnce({
+          staffId: STAFF_ID_A,
+          tenantId: TENANT_ID_A,
+          role: 'MANAGER',
+        }),
+      });
+      const service = makeService(backendHttp);
+      const res = makeRes();
+
+      const result = await service.devLogin(
+        {
+          email: 'gerente@lavacar.com.br',
+          tenantSlug: 'lavacar-bh',
+          type: 'staff',
+        },
+        res,
+      );
+
+      expect(result.user.role).toBe('MANAGER');
+      expect(backendHttp.post).toHaveBeenCalledWith(
+        '/internal/staff/30000000-0000-4000-8000-000000000001/link-google',
+        expect.objectContaining({
+          tenantId: TENANT_ID_A,
+          googleOAuthId: 'dev::gerente@lavacar.com.br',
+        }),
+      );
+    });
+
+    it('throws ForbiddenException when dev auth is enabled in production', async () => {
+      const service = makeService(makeBackendHttp(), makeConfigService({ nodeEnv: 'production' }));
+      const dto: DevLoginDto = {
+        email: 'admin@lavacar.com.br',
+        tenantSlug: 'lavacar-bh',
+        type: 'staff',
+      };
+
+      await expect(service.devLogin(dto, makeRes())).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects emails too long for the dev OAuth identifier', async () => {
+      const service = makeService();
+      const dto: DevLoginDto = {
+        email: `${'a'.repeat(260)}@example.com`,
+        tenantSlug: 'lavacar-bh',
+        type: 'customer',
+      };
+
+      await expect(service.devLogin(dto, makeRes())).rejects.toMatchObject({
+        status: 400,
+      });
     });
 
     it('throws ForbiddenException when dev auth is disabled', async () => {
