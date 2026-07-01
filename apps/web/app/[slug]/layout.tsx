@@ -38,7 +38,10 @@ export default async function HotsiteLayout({
     <div
       id="hotsite-root"
       style={{ ...brandingStyles, fontFamily: 'var(--ba-body-font)' }}
-      className={getActiveFontVariables(manifest.branding.headingFontFamily, manifest.branding.bodyFontFamily).join(' ')}
+      className={getActiveFontVariables(
+        manifest.branding.headingFontFamily,
+        manifest.branding.bodyFontFamily,
+      ).join(' ')}
     >
       <LocaleProvider locale={locale} messages={messages}>
         <FormattingProvider

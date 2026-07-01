@@ -63,7 +63,5 @@ export const FONT_CLASS_MAP: Record<string, string> = {
 };
 
 export function getActiveFontVariables(heading: string, body: string): string[] {
-  return [...new Set([heading, body])]
-    .map((name) => FONT_CLASS_MAP[name])
-    .filter(Boolean);
+  return [...new Set([heading, body])].map((name) => FONT_CLASS_MAP[name]).filter(Boolean);
 }
