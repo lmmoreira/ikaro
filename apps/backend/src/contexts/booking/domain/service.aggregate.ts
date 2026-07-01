@@ -17,6 +17,17 @@ export interface ServiceProps {
   updatedAt: Date;
 }
 
+export interface CreateServiceProps {
+  tenantId: string;
+  name: string;
+  price: Money;
+  durationMinutes: number;
+  loyaltyPointsValue: number;
+  requiresPickupAddress?: boolean;
+  isActive?: boolean;
+  description?: string;
+}
+
 export class Service extends AggregateRoot {
   private readonly props: ServiceProps;
 
@@ -59,16 +70,16 @@ export class Service extends AggregateRoot {
     return this.props.updatedAt;
   }
 
-  static create(
-    tenantId: string,
-    name: string,
-    price: Money,
-    durationMinutes: number,
-    loyaltyPointsValue: number,
-    requiresPickupAddress: boolean = false,
-    isActive: boolean = true,
-    description?: string,
-  ): Service {
+  static create({
+    tenantId,
+    name,
+    price,
+    durationMinutes,
+    loyaltyPointsValue,
+    requiresPickupAddress = false,
+    isActive = true,
+    description,
+  }: CreateServiceProps): Service {
     if (!tenantId) throw new BookingDomainError('tenantId is required');
     const trimmedName = name?.trim();
     if (!trimmedName) throw new BookingDomainError('name is required');

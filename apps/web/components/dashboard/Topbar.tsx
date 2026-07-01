@@ -55,7 +55,10 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
     } else {
       pageTitle = bookingT('title');
     }
-    backHref = `/dashboard/bookings/${bookingRouteMatch.bookingId}`;
+    backHref =
+      bookingRouteMatch.action === null
+        ? '/dashboard/bookings'
+        : `/dashboard/bookings/${bookingRouteMatch.bookingId}`;
     backLabel = commonT('back');
   } else if (serviceRouteMatch?.action === 'edit') {
     pageTitle = servicesT('editPageTitle');

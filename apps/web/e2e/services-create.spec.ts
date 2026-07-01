@@ -1,52 +1,10 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
-
-const TENANT_SLUG = 'lavacar-beloauto';
-const STAFF_EMAIL = 'admin@lavacar.com.br';
-const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://127.0.0.1:3002/v1';
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
-
-if (!INTERNAL_API_KEY) {
-  throw new Error('PLAYWRIGHT/INTERNAL_API_KEY is required for service e2e tests');
-}
-
-function makeUniqueServiceName(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-}
-
-async function loginAsStaff(page: Page): Promise<void> {
-  const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
-    data: { email: STAFF_EMAIL, tenantSlug: TENANT_SLUG, type: 'staff' },
-  });
-
-  if (!res.ok()) {
-    throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
-  }
-
-  const body = (await res.json()) as { readonly accessToken: string };
-  await page.context().addCookies([
-    {
-      name: 'access_token',
-      value: body.accessToken,
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-      sameSite: 'Lax',
-    },
-    {
-      name: 'access_token',
-      value: body.accessToken,
-      domain: '127.0.0.1',
-      path: '/',
-      httpOnly: true,
-      sameSite: 'Lax',
-    },
-  ]);
-}
+import { loginAsStaff } from './helpers/auth';
+import { makeUniqueServiceName } from './helpers/services';
 
 async function openCreateService(page: Page): Promise<void> {
-  await loginAsStaff(page);
+  await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
   await page.goto('/dashboard/services/new');
 }
 
@@ -94,7 +52,7 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page.getByRole('status')).toContainText('Serviço criado!');
+    await expect(page.locator('output')).toContainText('Serviço criado!');
     await expect(page.getByRole('link', { name: new RegExp(serviceName) })).toBeVisible();
     await expect(page.getByRole('link', { name: new RegExp(serviceName) })).toContainText('Ativo');
   });
@@ -117,7 +75,7 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page.getByRole('status')).toContainText('Serviço criado!');
+    await expect(page.locator('output')).toContainText('Serviço criado!');
     const card = page.getByRole('link', { name: new RegExp(serviceName) });
     await expect(card).toBeVisible();
     await expect(card).toContainText('Inativo');
@@ -151,7 +109,7 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page.getByRole('status')).toContainText('Serviço criado!');
+    await expect(page.locator('output')).toContainText('Serviço criado!');
     await expect(page.getByRole('link', { name: new RegExp(serviceName) })).toBeVisible();
   });
 

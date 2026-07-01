@@ -55,7 +55,7 @@ describe('ServiceListPage', () => {
     vi.useFakeTimers();
     renderWithIntl(<ServiceListPage services={[]} showCreatedBanner />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Serviço criado!');
+    expect(screen.getByText('Serviço criado!')).toBeInTheDocument();
     expect(routerReplace).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1800);
@@ -67,8 +67,9 @@ describe('ServiceListPage', () => {
   it('shows the created banner once when requested', () => {
     renderWithIntl(<ServiceListPage services={[]} showCreatedBanner />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Serviço criado!');
-    expect(screen.getByRole('status')).toHaveTextContent(
+    const banner = screen.getByText('Serviço criado!').closest('output');
+    expect(banner).not.toBeNull();
+    expect(banner).toHaveTextContent(
       'O novo serviço já está disponível no formulário de agendamento.',
     );
   });

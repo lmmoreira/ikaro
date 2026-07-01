@@ -157,7 +157,7 @@ describe('Topbar', () => {
 
     expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
       'href',
-      '/dashboard/bookings/booking-123',
+      '/dashboard/bookings',
     );
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Detalhe do agendamento');
     expect(screen.getByText('Aguardando info')).toBeInTheDocument();

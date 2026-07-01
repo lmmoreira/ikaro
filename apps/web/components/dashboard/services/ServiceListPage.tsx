@@ -36,11 +36,11 @@ export function ServiceListPage({
 
   useEffect(() => {
     if (!showCreatedBanner) return;
-    const timeoutId = window.setTimeout(() => {
+    const timeoutId = globalThis.setTimeout(() => {
       router.replace('/dashboard/services', { scroll: false });
     }, 1800);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => globalThis.clearTimeout(timeoutId);
   }, [router, showCreatedBanner]);
 
   const counts = useMemo(
@@ -68,13 +68,13 @@ export function ServiceListPage({
   return (
     <div className="space-y-4">
       {showCreatedBanner && (
-        <div
-          className="mx-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4"
-          role="status"
+        <output
+          aria-live="polite"
+          className="mx-4 block rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4"
         >
           <p className="text-[0.9375rem] font-bold text-emerald-800">{t('createdSuccessTitle')}</p>
           <p className="mt-1 text-sm text-emerald-700">{t('createdSuccessBody')}</p>
-        </div>
+        </output>
       )}
 
       <div className="flex flex-wrap gap-2 px-4 pb-1">

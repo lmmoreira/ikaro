@@ -232,6 +232,7 @@
       "createPointsHint": "Points awarded to the customer when the service is completed.",
       "createPickupLabel": "Pickup and delivery",
       "createPickupHint": "Requires a pickup address at booking time",
+      "servicesOptionsTitle": "Options",
       "createActiveLabel": "Create as active",
       "createActiveHint": "Disable it to save as a draft",
       "createCancel": "Cancel",

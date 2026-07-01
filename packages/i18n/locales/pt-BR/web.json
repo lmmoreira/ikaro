@@ -232,6 +232,7 @@
       "createPointsHint": "Pontos concedidos ao cliente quando o serviço é concluído.",
       "createPickupLabel": "Coleta e entrega",
       "createPickupHint": "Exige endereço de coleta no agendamento",
+      "servicesOptionsTitle": "Opções",
       "createActiveLabel": "Criar como ativo",
       "createActiveHint": "Desative para salvar como rascunho",
       "createCancel": "Cancelar",

@@ -1,70 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
-
-const TENANT_SLUG = 'lavacar-beloauto';
-const STAFF_EMAIL = 'admin@lavacar.com.br';
-const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://127.0.0.1:3002/v1';
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
-
-if (!INTERNAL_API_KEY) {
-  throw new Error('PLAYWRIGHT/INTERNAL_API_KEY is required for service e2e tests');
-}
-
-function makeUniqueServiceName(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-}
-
-async function loginAsStaff(page: Page): Promise<void> {
-  const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
-    data: { email: STAFF_EMAIL, tenantSlug: TENANT_SLUG, type: 'staff' },
-  });
-
-  if (!res.ok()) {
-    throw new Error(`dev-login failed: ${res.status()} ${await res.text()}`);
-  }
-
-  const body = (await res.json()) as { readonly accessToken: string };
-  await page.context().addCookies([
-    {
-      name: 'access_token',
-      value: body.accessToken,
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-      sameSite: 'Lax',
-    },
-    {
-      name: 'access_token',
-      value: body.accessToken,
-      domain: '127.0.0.1',
-      path: '/',
-      httpOnly: true,
-      sameSite: 'Lax',
-    },
-  ]);
-}
-
-async function createService(
-  page: Page,
-  body: {
-    readonly name: string;
-    readonly description: string;
-    readonly priceAmount: number;
-    readonly durationMinutes: number;
-    readonly loyaltyPointsValue: number;
-    readonly requiresPickupAddress: boolean;
-    readonly isActive: boolean;
-  },
-): Promise<{ readonly serviceId: string; readonly name: string }> {
-  const res = await page.request.post(`${BFF_URL}/services`, { data: body });
-
-  if (!res.ok()) {
-    throw new Error(`create service failed: ${res.status()} ${await res.text()}`);
-  }
-
-  return (await res.json()) as { readonly serviceId: string; readonly name: string };
-}
+import { loginAsStaff } from './helpers/auth';
+import { createService, makeUniqueServiceName } from './helpers/services';
 
 async function openEditPage(page: Page, serviceId: string): Promise<void> {
   await page.goto(`/dashboard/services/${serviceId}/edit`);
@@ -100,7 +37,7 @@ async function seedEditableService(
 
 test.describe('service management flows', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsStaff(page);
+    await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
   });
 
   test('edits an active service and returns to the list with the updated values', async ({

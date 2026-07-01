@@ -109,7 +109,13 @@ describe('TypeOrmServiceRepository', () => {
 
   it('save maps domain to entity — price stored as fixed-point string', async () => {
     ormRepo.save.mockResolvedValue(new ServiceEntityBuilder().build());
-    const service = Service.create('tenant-1', 'Lavagem', Money.from(150, 'BRL'), 60, 10);
+    const service = Service.create({
+      tenantId: 'tenant-1',
+      name: 'Lavagem',
+      price: Money.from(150, 'BRL'),
+      durationMinutes: 60,
+      loyaltyPointsValue: 10,
+    });
 
     await repo.save(service);
 
