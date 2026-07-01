@@ -30,6 +30,75 @@ const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
   ['/dashboard/hotsite', 'nav.hotsite'],
 ];
 
+interface TopbarRouteState {
+  readonly pageTitle: string;
+  readonly backHref: string | null;
+  readonly backLabel: string;
+  readonly isBookingRoute: boolean;
+  readonly isServicesCreateRoute: boolean;
+}
+
+function resolveTopbarRouteState({
+  pathname,
+  commonBackLabel,
+  dashboardT,
+  servicesT,
+  bookingT,
+}: {
+  readonly pathname: string;
+  readonly commonBackLabel: string;
+  readonly dashboardT: ReturnType<typeof useTranslations>;
+  readonly servicesT: ReturnType<typeof useTranslations>;
+  readonly bookingT: ReturnType<typeof useTranslations>;
+}): TopbarRouteState {
+  const bookingRouteMatch = matchBookingDetailRoute(pathname);
+  const serviceRouteMatch = matchServiceRoute(pathname);
+  const isBookingRoute = bookingRouteMatch !== null;
+  const isServicesCreateRoute = pathname === '/dashboard/services/new';
+  const pageTitleKey = PAGE_TITLE_KEYS.find(([path]) => pathname.startsWith(path))?.[1];
+  let pageTitle = dashboardT('topbar.defaultTitle');
+  let backHref: string | null = null;
+  let backLabel = commonBackLabel;
+
+  if (bookingRouteMatch) {
+    if (bookingRouteMatch.action === 'complete') {
+      pageTitle = bookingT('completeSheetTitle');
+    } else if (bookingRouteMatch.action === 'reschedule') {
+      pageTitle = bookingT('rescheduleSheetTitle');
+    } else {
+      pageTitle = bookingT('title');
+    }
+
+    backHref =
+      bookingRouteMatch.action === null
+        ? '/dashboard/bookings'
+        : `/dashboard/bookings/${bookingRouteMatch.bookingId}`;
+    backLabel = commonBackLabel;
+  } else if (serviceRouteMatch?.action === 'edit') {
+    pageTitle = servicesT('editPageTitle');
+    backHref = '/dashboard/services';
+    backLabel = dashboardT('nav.services');
+  } else if (serviceRouteMatch?.action === 'deactivate') {
+    pageTitle = servicesT('deactivatePageTitle');
+    backHref = `/dashboard/services/${serviceRouteMatch.serviceId}/edit`;
+    backLabel = servicesT('editPageTitle');
+  } else if (isServicesCreateRoute) {
+    pageTitle = servicesT('createPageTitle');
+    backHref = '/dashboard/services';
+    backLabel = commonBackLabel;
+  } else if (pageTitleKey) {
+    pageTitle = dashboardT(pageTitleKey);
+  }
+
+  return {
+    pageTitle,
+    backHref,
+    backLabel,
+    isBookingRoute,
+    isServicesCreateRoute,
+  };
+}
+
 export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX.Element {
   const commonT = useTranslations('common');
   const t = useTranslations('dashboard');
@@ -39,42 +108,15 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
   const pathname = usePathname();
   const topbarStatus = useDashboardTopbarStatus();
   const initials = getInitials(userName);
-  const bookingRouteMatch = matchBookingDetailRoute(pathname);
   const serviceRouteMatch = matchServiceRoute(pathname);
-  const isBookingRoute = bookingRouteMatch !== null;
-  const isServicesCreateRoute = pathname === '/dashboard/services/new';
-  const pageTitleKey = PAGE_TITLE_KEYS.find(([path]) => pathname.startsWith(path))?.[1];
-  let pageTitle = t('topbar.defaultTitle');
-  let backHref: string | null = null;
-  let backLabel = commonT('back');
-  if (bookingRouteMatch) {
-    if (bookingRouteMatch.action === 'complete') {
-      pageTitle = bookingT('completeSheetTitle');
-    } else if (bookingRouteMatch.action === 'reschedule') {
-      pageTitle = bookingT('rescheduleSheetTitle');
-    } else {
-      pageTitle = bookingT('title');
-    }
-    backHref =
-      bookingRouteMatch.action === null
-        ? '/dashboard/bookings'
-        : `/dashboard/bookings/${bookingRouteMatch.bookingId}`;
-    backLabel = commonT('back');
-  } else if (serviceRouteMatch?.action === 'edit') {
-    pageTitle = servicesT('editPageTitle');
-    backHref = '/dashboard/services';
-    backLabel = t('nav.services');
-  } else if (serviceRouteMatch?.action === 'deactivate') {
-    pageTitle = servicesT('deactivatePageTitle');
-    backHref = `/dashboard/services/${serviceRouteMatch.serviceId}/edit`;
-    backLabel = servicesT('editPageTitle');
-  } else if (isServicesCreateRoute) {
-    pageTitle = servicesT('createPageTitle');
-    backHref = '/dashboard/services';
-    backLabel = commonT('back');
-  } else if (pageTitleKey) {
-    pageTitle = t(pageTitleKey);
-  }
+  const { pageTitle, backHref, backLabel, isBookingRoute, isServicesCreateRoute } =
+    resolveTopbarRouteState({
+      pathname,
+      commonBackLabel: commonT('back'),
+      dashboardT: t,
+      servicesT,
+      bookingT,
+    });
   const bookingStatusLabels = buildBookingStatusLabels(bookingT);
   const showBackLink = Boolean(backHref);
 
