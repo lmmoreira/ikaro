@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateServiceRequest, UpdateServiceRequest } from '@ikaro/types';
 import {
+  activateService,
   createService,
   deactivateService,
   listServices,
@@ -31,6 +32,15 @@ export function useUpdateService() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: UpdateServiceRequest }) =>
       updateService(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['services', tenantId] }),
+  });
+}
+
+export function useActivateService() {
+  const queryClient = useQueryClient();
+  const { tenantId } = useTenant();
+  return useMutation({
+    mutationFn: (id: string) => activateService(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['services', tenantId] }),
   });
 }

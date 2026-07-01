@@ -3,7 +3,14 @@ import { fetchStaffServices } from '@/lib/api/dashboard/services';
 import { ServiceListPage } from '@/components/dashboard/services/ServiceListPage';
 import type { StaffServiceListResponse } from '@ikaro/types';
 
-export default async function ServicesPage(): Promise<React.JSX.Element> {
+interface ServicesPageProps {
+  readonly searchParams: Promise<{ created?: string }>;
+}
+
+export default async function ServicesPage({
+  searchParams,
+}: ServicesPageProps): Promise<React.JSX.Element> {
+  const { created } = await searchParams;
   const token = await getAccessToken();
   let services: StaffServiceListResponse['items'] = [];
 
@@ -13,5 +20,5 @@ export default async function ServicesPage(): Promise<React.JSX.Element> {
     services = [];
   }
 
-  return <ServiceListPage services={services} />;
+  return <ServiceListPage services={services} showCreatedBanner={created === '1'} />;
 }

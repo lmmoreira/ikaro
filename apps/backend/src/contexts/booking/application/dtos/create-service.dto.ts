@@ -7,6 +7,7 @@ export const CreateServiceSchema = z.object({
   durationMinutes: z.number().int().positive(),
   loyaltyPointsValue: z.number().int().min(0),
   requiresPickupAddress: z.boolean().optional(),
+  isActive: z.boolean().optional(),
 });
 
 export type CreateServiceDto = z.infer<typeof CreateServiceSchema>;

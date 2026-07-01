@@ -35,17 +35,35 @@ describe('Service', () => {
     });
 
     it('defaults requiresPickupAddress to false when omitted', () => {
-      const service = Service.create(TENANT, 'Lavagem', PRICE, DURATION, POINTS);
+      const service = Service.create({
+        tenantId: TENANT,
+        name: 'Lavagem',
+        price: PRICE,
+        durationMinutes: DURATION,
+        loyaltyPointsValue: POINTS,
+      });
       expect(service.requiresPickupAddress).toBe(false);
     });
 
     it('defaults description to null when omitted', () => {
-      const service = Service.create(TENANT, 'Lavagem', PRICE, DURATION, POINTS);
+      const service = Service.create({
+        tenantId: TENANT,
+        name: 'Lavagem',
+        price: PRICE,
+        durationMinutes: DURATION,
+        loyaltyPointsValue: POINTS,
+      });
       expect(service.description).toBeNull();
     });
 
     it('trims whitespace from name', () => {
-      const service = Service.create(TENANT, '  Lavagem Completa  ', PRICE, DURATION, POINTS);
+      const service = Service.create({
+        tenantId: TENANT,
+        name: '  Lavagem Completa  ',
+        price: PRICE,
+        durationMinutes: DURATION,
+        loyaltyPointsValue: POINTS,
+      });
       expect(service.name).toBe('Lavagem Completa');
     });
 
@@ -60,51 +78,109 @@ describe('Service', () => {
     });
 
     it('throws when tenantId is empty', () => {
-      expect(() => Service.create('', 'Lavagem', PRICE, DURATION, POINTS)).toThrow(
-        BookingDomainError,
-      );
+      expect(() =>
+        Service.create({
+          tenantId: '',
+          name: 'Lavagem',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+        }),
+      ).toThrow(BookingDomainError);
     });
 
     it('throws when name is empty', () => {
-      expect(() => Service.create(TENANT, '', PRICE, DURATION, POINTS)).toThrow(BookingDomainError);
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: '',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+        }),
+      ).toThrow(BookingDomainError);
     });
 
     it('throws when name is whitespace-only', () => {
-      expect(() => Service.create(TENANT, '   ', PRICE, DURATION, POINTS)).toThrow(
-        BookingDomainError,
-      );
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: '   ',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+        }),
+      ).toThrow(BookingDomainError);
     });
 
     it('throws when price amount is zero', () => {
       expect(() =>
-        Service.create(TENANT, 'Lavagem', Money.from(0, 'BRL'), DURATION, POINTS),
+        Service.create({
+          tenantId: TENANT,
+          name: 'Lavagem',
+          price: Money.from(0, 'BRL'),
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+        }),
       ).toThrow(BookingDomainError);
     });
 
     it('throws when price amount is negative', () => {
       expect(() =>
-        Service.create(TENANT, 'Lavagem', Money.from(-10, 'BRL'), DURATION, POINTS),
+        Service.create({
+          tenantId: TENANT,
+          name: 'Lavagem',
+          price: Money.from(-10, 'BRL'),
+          durationMinutes: DURATION,
+          loyaltyPointsValue: POINTS,
+        }),
       ).toThrow(BookingDomainError);
     });
 
     it('throws when durationMinutes is zero', () => {
-      expect(() => Service.create(TENANT, 'Lavagem', PRICE, 0, POINTS)).toThrow(BookingDomainError);
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Lavagem',
+          price: PRICE,
+          durationMinutes: 0,
+          loyaltyPointsValue: POINTS,
+        }),
+      ).toThrow(BookingDomainError);
     });
 
     it('throws when durationMinutes is negative', () => {
-      expect(() => Service.create(TENANT, 'Lavagem', PRICE, -5, POINTS)).toThrow(
-        BookingDomainError,
-      );
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Lavagem',
+          price: PRICE,
+          durationMinutes: -5,
+          loyaltyPointsValue: POINTS,
+        }),
+      ).toThrow(BookingDomainError);
     });
 
     it('throws when loyaltyPointsValue is negative', () => {
-      expect(() => Service.create(TENANT, 'Lavagem', PRICE, DURATION, -1)).toThrow(
-        BookingDomainError,
-      );
+      expect(() =>
+        Service.create({
+          tenantId: TENANT,
+          name: 'Lavagem',
+          price: PRICE,
+          durationMinutes: DURATION,
+          loyaltyPointsValue: -1,
+        }),
+      ).toThrow(BookingDomainError);
     });
 
     it('allows loyaltyPointsValue of zero', () => {
-      const service = Service.create(TENANT, 'Lavagem', PRICE, DURATION, 0);
+      const service = Service.create({
+        tenantId: TENANT,
+        name: 'Lavagem',
+        price: PRICE,
+        durationMinutes: DURATION,
+        loyaltyPointsValue: 0,
+      });
       expect(service.loyaltyPointsValue).toBe(0);
     });
   });

@@ -18,15 +18,15 @@ flowchart TD
     List --> EditClick(("Click serviço existente"))
 
     %% UC-012 — Create
-    CreateBtn --> CreateForm["❓ GAP: /dashboard/services/new<br/>Create Service Form"]
+    CreateBtn --> CreateForm["✅ ServiceCreatePage<br/>/dashboard/services/new"]
     CreateForm --> CreateSubmit(("Click 'Criar serviço'"))
     CreateSubmit --> NameCheck{"Nome único?"}
-    NameCheck -- "não → 409" --> NameError["❓ GAP: estado de erro inline<br/>Campo nome em vermelho"]
+    NameCheck -- "não → 409" --> NameError["✅ Inline duplicate-name error<br/>Campo nome em vermelho"]
     NameError --> CreateForm
     NameCheck -- "sim" --> PriceCheck{"Preço e duração válidos?"}
-    PriceCheck -- "não" --> ValError["❓ GAP: validação inline<br/>campos inválidos em vermelho"]
+    PriceCheck -- "não" --> ValError["✅ Inline validation<br/>campos inválidos em vermelho"]
     ValError --> CreateForm
-    PriceCheck -- "sim → 201" --> CreateSuccess["❓ GAP: Lista com toast verde<br/>Serviço criado"]
+    PriceCheck -- "sim → 201" --> CreateSuccess["✅ List banner + redirect<br/>Serviço criado"]
 
     %% UC-013 — Edit
     EditClick --> EditForm["❓ GAP: /dashboard/services/[id]/edit<br/>Edit Service Form"]
@@ -46,7 +46,7 @@ flowchart TD
     EditSuccess --> List
     DeactivateSuccess --> List
 
-    class List,CreateForm,EditForm,DeactivateConfirm,NameError,ValError,CreateSuccess,EditSuccess,DeactivateSuccess gap
+    class List,EditForm,DeactivateConfirm,EditSuccess,DeactivateSuccess gap
 ```
 
 ## Pages referenced
@@ -54,14 +54,14 @@ flowchart TD
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
 | `/dashboard/services` | `ServiceListPage` | M13-S22 | ✅ Done |
-| `/dashboard/services/new` | `ServiceFormPage` (create mode) | TBD | 📋 Gap |
+| `/dashboard/services/new` | `ServiceCreatePage` | M13-S23 | ✅ Done |
 | `/dashboard/services/[id]/edit` | `ServiceFormPage` (edit mode) | TBD | 📋 Gap |
 | Deactivate confirmation | `DeactivateServiceSheet` or sub-route | TBD | 📋 Gap |
 
 ## Open questions / gaps
 
 - [x] **Route location** — are service pages under `/dashboard/services/` or `/[slug]/dashboard/services/`? — **Resolved.** `/dashboard/services` (no slug) — `M13-S22`/`M13-S23`/`M13-S24` all use this, consistent with every other M13 dashboard route.
-- [ ] **Create as inactive** — UC-012 field list includes `isActive` (default: true). Does the create form expose a toggle to create a service as inactive from the start? Useful for drafting services before publishing.
+- [x] **Create as inactive** — UC-012 field list includes `isActive` (default: true). The create form now exposes the toggle and defaults it to ON.
 - [ ] **Deactivate UX** — prototype uses a dedicated confirmation page. Production could use a bottom sheet on the edit form instead. Confirm preference.
 - [ ] **Reactivate** — UC-013 covers deactivation but not reactivation. Can staff toggle `isActive = true` on an inactive service via the edit form? The PATCH endpoint supports it (same `update()` method). Clarify if reactivation is in scope.
 - [ ] **Service ordering** — does the service list have a drag-to-reorder or fixed sort (e.g. alphabetical, creation date)? Affects the list page design.

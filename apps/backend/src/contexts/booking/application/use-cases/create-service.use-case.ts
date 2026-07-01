@@ -37,15 +37,16 @@ export class CreateServiceUseCase {
     const { tenantId, currency, locale } = input;
     const price = Money.from(input.priceAmount, currency);
 
-    const service = Service.create(
+    const service = Service.create({
       tenantId,
-      input.name,
+      name: input.name,
       price,
-      input.durationMinutes,
-      input.loyaltyPointsValue,
-      input.requiresPickupAddress ?? false,
-      input.description,
-    );
+      durationMinutes: input.durationMinutes,
+      loyaltyPointsValue: input.loyaltyPointsValue,
+      requiresPickupAddress: input.requiresPickupAddress ?? false,
+      isActive: input.isActive ?? true,
+      description: input.description,
+    });
 
     await this.txManager.run(async () => {
       await this.serviceRepo.save(service);

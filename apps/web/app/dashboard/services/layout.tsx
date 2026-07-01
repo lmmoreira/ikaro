@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import { Button } from '@/components/ui/button';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { getAccessToken } from '@/lib/auth/get-access-token';
@@ -10,6 +11,9 @@ import {
   loadDashboardShellContext,
   resolveDashboardDateFormat,
 } from '@/lib/dashboard/dashboard-shell-context';
+import { loadServiceDetailRouteData } from '@/lib/dashboard/service-route.server';
+import { matchServiceRoute } from '@/lib/dashboard/service-route';
+import { DashboardTopbarStatusProvider } from '@/components/dashboard/topbar-status-context';
 import { getTranslations } from 'next-intl/server';
 
 interface ServicesLayoutProps {
@@ -21,9 +25,22 @@ export default async function ServicesLayout({
 }: ServicesLayoutProps): Promise<React.JSX.Element> {
   const token = await getAccessToken();
   const payload = decodeJwtPayload(token);
+  const hdrs = await headers();
+  const pathname = hdrs.get('x-pathname') ?? '/dashboard/services';
   const shell = await loadDashboardShellContext(token, payload);
   const t = await getTranslations('dashboard.servicesPage');
-  const createAction = { href: '/dashboard/services/new', label: t('create') };
+  const serviceRouteMatch = matchServiceRoute(pathname);
+  let initialServiceStatus: 'ACTIVE' | 'INACTIVE' | null =
+    pathname === '/dashboard/services/new' ? 'ACTIVE' : null;
+  const createAction =
+    pathname === '/dashboard/services'
+      ? { href: '/dashboard/services/new', label: t('create') }
+      : null;
+
+  if (serviceRouteMatch) {
+    const { service } = await loadServiceDetailRouteData(token, serviceRouteMatch.serviceId);
+    initialServiceStatus = service.isActive ? 'ACTIVE' : 'INACTIVE';
+  }
 
   return (
     <LocaleProvider locale={shell.locale} messages={shell.messages}>
@@ -35,19 +52,26 @@ export default async function ServicesLayout({
         timeFormat={shell.formatting.timeFormat}
       >
         <TenantProvider tenantId={shell.tenantId} tenantSlug={shell.tenantSlug}>
-          <DashboardShell
-            tenantName={shell.tenantName}
-            tenantSlug={shell.tenantSlug}
-            userName={shell.userName}
-            role={shell.role}
-            topbarAction={
-              <Button asChild size="sm" className="topbar-create-btn hidden lg:inline-flex">
-                <Link href={createAction.href}>+ {createAction.label}</Link>
-              </Button>
-            }
+          <DashboardTopbarStatusProvider
+            key={serviceRouteMatch?.serviceId ?? 'dashboard-shell'}
+            initialServiceStatus={initialServiceStatus}
           >
-            {children}
-          </DashboardShell>
+            <DashboardShell
+              tenantName={shell.tenantName}
+              tenantSlug={shell.tenantSlug}
+              userName={shell.userName}
+              role={shell.role}
+              topbarAction={
+                createAction ? (
+                  <Button asChild size="sm" className="topbar-create-btn hidden lg:inline-flex">
+                    <Link href={createAction.href}>+ {createAction.label}</Link>
+                  </Button>
+                ) : null
+              }
+            >
+              {children}
+            </DashboardShell>
+          </DashboardTopbarStatusProvider>
         </TenantProvider>
       </FormattingProvider>
     </LocaleProvider>

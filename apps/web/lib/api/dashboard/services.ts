@@ -25,6 +25,28 @@ export async function getService(id: string): Promise<StaffServiceResponse> {
   return res.data;
 }
 
+export class ServiceDetailFetchError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ServiceDetailFetchError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export async function fetchStaffService(token: string, id: string): Promise<StaffServiceResponse> {
+  const res = await bffServerFetch(token, `/services/${id}`);
+  if (!res.ok) {
+    throw new ServiceDetailFetchError(
+      res.status,
+      res.status === 404 ? 'Service not found' : `Failed to fetch service detail (${res.status})`,
+    );
+  }
+  return res.json() as Promise<StaffServiceResponse>;
+}
+
 export async function createService(body: CreateServiceRequest): Promise<StaffServiceResponse> {
   const res = await bffClient.post<StaffServiceResponse>('/services', body);
   return res.data;
@@ -36,6 +58,10 @@ export async function updateService(
 ): Promise<StaffServiceResponse> {
   const res = await bffClient.patch<StaffServiceResponse>(`/services/${id}`, body);
   return res.data;
+}
+
+export async function activateService(id: string): Promise<void> {
+  await bffClient.patch(`/services/${id}/activate`, {});
 }
 
 export async function deactivateService(id: string): Promise<void> {

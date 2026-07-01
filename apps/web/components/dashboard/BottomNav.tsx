@@ -24,8 +24,9 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
   const isBookingDetail = /^\/dashboard\/bookings\/[^/]+(?:\/(complete|reschedule))?$/.test(
     pathname,
   );
+  const isServiceDetailAction = /^\/dashboard\/services\/[^/]+\/(edit|deactivate)$/.test(pathname);
 
-  if (isBookingDetail) return null;
+  if (isBookingDetail || isServiceDetailAction) return null;
 
   const itemClass = (active: boolean) =>
     cn(

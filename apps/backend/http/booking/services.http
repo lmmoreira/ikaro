@@ -1,5 +1,5 @@
 # Booking — Service endpoints
-# UC-012 (create), UC-013 (update, deactivate), list (public)
+# UC-012 (create), UC-013 (update, activate, deactivate), list (public)
 # TenantContext is populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
 #
 # Prerequisites:
@@ -96,8 +96,17 @@ X-Actor-Role: MANAGER
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# HAPPY PATH — deactivate service (UC-013)
+# HAPPY PATH — activate/deactivate service (UC-013)
 # ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Activate a deactivated service
+PATCH {{baseUrl}}/services/{{serviceId}}/activate
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
 
 ###
 

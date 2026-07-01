@@ -73,6 +73,11 @@ describe('CreateServiceUseCase', () => {
     expect(result.loyaltyPointsValue).toBe(0);
   });
 
+  it('creates an inactive service when isActive=false is requested', async () => {
+    const result = await useCase.execute({ ...baseDto, isActive: false, ...ctx });
+    expect(result.isActive).toBe(false);
+  });
+
   it('throws BookingDomainError when priceAmount is zero', async () => {
     await expect(useCase.execute({ ...baseDto, priceAmount: 0, ...ctx })).rejects.toThrow(
       BookingDomainError,

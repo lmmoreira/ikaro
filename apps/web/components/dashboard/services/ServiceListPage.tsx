@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { StaffServiceResponse } from '@ikaro/types';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ type ServiceFilter = 'all' | 'active' | 'inactive';
 
 interface ServiceListPageProps {
   readonly services: readonly StaffServiceResponse[];
+  readonly showCreatedBanner?: boolean;
 }
 
 function buildFilterClass(active: boolean): string {
@@ -24,9 +26,22 @@ function buildFilterClass(active: boolean): string {
   );
 }
 
-export function ServiceListPage({ services }: ServiceListPageProps): React.JSX.Element {
+export function ServiceListPage({
+  services,
+  showCreatedBanner = false,
+}: ServiceListPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const router = useRouter();
   const [filter, setFilter] = useState<ServiceFilter>('all');
+
+  useEffect(() => {
+    if (!showCreatedBanner) return;
+    const timeoutId = globalThis.setTimeout(() => {
+      router.replace('/dashboard/services', { scroll: false });
+    }, 1800);
+
+    return () => globalThis.clearTimeout(timeoutId);
+  }, [router, showCreatedBanner]);
 
   const counts = useMemo(
     () => ({
@@ -52,6 +67,16 @@ export function ServiceListPage({ services }: ServiceListPageProps): React.JSX.E
 
   return (
     <div className="space-y-4">
+      {showCreatedBanner && (
+        <output
+          aria-live="polite"
+          className="mx-4 block rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4"
+        >
+          <p className="text-[0.9375rem] font-bold text-emerald-800">{t('createdSuccessTitle')}</p>
+          <p className="mt-1 text-sm text-emerald-700">{t('createdSuccessBody')}</p>
+        </output>
+      )}
+
       <div className="flex flex-wrap gap-2 px-4 pb-1">
         <button
           type="button"

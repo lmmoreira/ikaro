@@ -2,6 +2,7 @@ import MockAdapter from 'axios-mock-adapter';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { bffClient } from '../bff-client';
 import {
+  activateService,
   createService,
   deactivateService,
   getService,
@@ -43,6 +44,13 @@ describe('createService', () => {
       loyaltyPointsValue: 10,
     });
     expect(res).toMatchObject(service);
+  });
+});
+
+describe('activateService', () => {
+  it('calls PATCH /services/:id/activate', async () => {
+    mock.onPatch('/services/svc-1/activate').reply(200, { id: 'svc-1', isActive: true });
+    await expect(activateService('svc-1')).resolves.toBeUndefined();
   });
 });
 

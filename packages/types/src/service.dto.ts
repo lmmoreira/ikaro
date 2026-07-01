@@ -7,6 +7,7 @@ export interface CreateServiceRequest {
   durationMinutes: number;
   loyaltyPointsValue: number;
   requiresPickupAddress?: boolean;
+  isActive?: boolean;
 }
 
 export interface UpdateServiceRequest {

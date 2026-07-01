@@ -87,6 +87,20 @@ describe('ServicesController', () => {
       expect(result.name).toBe('Lavagem Completa');
     });
 
+    it('forwards optional isActive flag when present', async () => {
+      const backendHttp = makeBackendHttp({
+        post: jest.fn().mockResolvedValue(mockServiceDetail),
+      });
+      const controller = new ServicesController(backendHttp);
+
+      await controller.create({ ...validCreateBody, isActive: false });
+
+      expect(backendHttp.post).toHaveBeenCalledWith('/services', {
+        ...validCreateBody,
+        isActive: false,
+      });
+    });
+
     it('propagates backend errors', async () => {
       const backendHttp = makeBackendHttp({ post: jest.fn().mockRejectedValue(new Error('400')) });
       const controller = new ServicesController(backendHttp);
@@ -117,6 +131,20 @@ describe('ServicesController', () => {
       const controller = new ServicesController(backendHttp);
 
       await expect(controller.update(SERVICE_ID, { name: 'X' })).rejects.toThrow('404');
+    });
+  });
+
+  describe('activate()', () => {
+    it('calls PATCH /services/:id/activate and returns nothing', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue({ id: SERVICE_ID, isActive: true }),
+      });
+      const controller = new ServicesController(backendHttp);
+
+      const result = await controller.activate(SERVICE_ID);
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(`/services/${SERVICE_ID}/activate`, {});
+      expect(result).toBeUndefined();
     });
   });
 

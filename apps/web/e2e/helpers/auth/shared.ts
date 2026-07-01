@@ -22,14 +22,14 @@ export interface DevLoginResponse {
 }
 
 export async function addDevLoginCookie(page: Page, accessToken: string): Promise<void> {
-  await page.context().addCookies([
-    {
+  await page.context().addCookies(
+    ['localhost', '127.0.0.1'].map((domain) => ({
       name: 'access_token',
       value: accessToken,
-      domain: 'localhost',
+      domain,
       path: '/',
       httpOnly: true,
-      sameSite: 'Lax',
-    },
-  ]);
+      sameSite: 'Lax' as const,
+    })),
+  );
 }

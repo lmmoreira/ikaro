@@ -16,6 +16,11 @@ vi.mock('next-intl', () => ({
       'nav.team': 'Equipe',
       'nav.settings': 'Configurações',
       'nav.hotsite': 'Hotsite',
+      createPageTitle: 'Criar serviço',
+      editPageTitle: 'Editar serviço',
+      deactivatePageTitle: 'Desativar serviço',
+      statusActive: 'Ativo',
+      statusInactive: 'Inativo',
       title: 'Detalhe do agendamento',
       completeSheetTitle: 'Marcar concluído',
       rescheduleSheetTitle: 'Reagendar',
@@ -39,11 +44,16 @@ vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 import { usePathname } from 'next/navigation';
 
 function TopbarStatusProbe(): React.JSX.Element {
-  const { setBookingStatus } = useDashboardTopbarStatus()!;
+  const { setBookingStatus, setServiceStatus } = useDashboardTopbarStatus()!;
   return (
-    <button type="button" onClick={() => setBookingStatus('APPROVED')}>
-      Marcar aprovado
-    </button>
+    <div>
+      <button type="button" onClick={() => setBookingStatus('APPROVED')}>
+        Marcar aprovado
+      </button>
+      <button type="button" onClick={() => setServiceStatus('ACTIVE')}>
+        Ativar serviço
+      </button>
+    </div>
   );
 }
 
@@ -75,6 +85,66 @@ describe('Topbar', () => {
     render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Agenda');
+  });
+
+  it('renders the create title on the service creation route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/services/new');
+    render(
+      <DashboardTopbarStatusProvider initialServiceStatus="ACTIVE">
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
+      'href',
+      '/dashboard/services',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Criar serviço');
+    expect(screen.getByText('Ativo')).toBeInTheDocument();
+  });
+
+  it('renders the edit title on the service edit route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/services/svc-1/edit');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('link', { name: 'Serviços' })).toHaveAttribute(
+      'href',
+      '/dashboard/services',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Editar serviço');
+  });
+
+  it('renders the deactivate title on the service deactivate route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/services/svc-1/deactivate');
+    render(
+      <DashboardTopbarStatusProvider initialServiceStatus="INACTIVE">
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Editar serviço' })).toHaveAttribute(
+      'href',
+      '/dashboard/services/svc-1/edit',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Desativar serviço');
+    expect(screen.getByText('Inativo')).toBeInTheDocument();
+  });
+
+  it('renders the service status badge on the edit route and keeps it in sync', async () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/services/svc-1/edit');
+
+    render(
+      <DashboardTopbarStatusProvider initialServiceStatus="INACTIVE">
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+        <TopbarStatusProbe />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByText('Inativo')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ativar serviço' }));
+
+    expect(screen.getByText('Ativo')).toBeInTheDocument();
   });
 
   it('shows a back link on booking detail routes', () => {

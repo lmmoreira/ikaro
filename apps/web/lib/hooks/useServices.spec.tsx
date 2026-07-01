@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  useActivateService,
   useCreateService,
   useDeactivateService,
   useServices,
@@ -14,6 +15,7 @@ vi.mock('@/lib/api/dashboard/services', () => ({
   listServices: vi.fn().mockResolvedValue({ items: [] }),
   createService: vi.fn().mockResolvedValue({ id: 'svc-1', name: 'Lavagem' }),
   updateService: vi.fn().mockResolvedValue({ id: 'svc-1', name: 'Lavagem Premium' }),
+  activateService: vi.fn().mockResolvedValue({ id: 'svc-1', isActive: true }),
   deactivateService: vi.fn().mockResolvedValue({ id: 'svc-1', isActive: false }),
 }));
 
@@ -55,6 +57,14 @@ describe('useUpdateService', () => {
   it('mutates successfully', async () => {
     const { result } = renderHook(() => useUpdateService(), { wrapper });
     act(() => result.current.mutate({ id: 'svc-1', body: { name: 'Lavagem Premium' } }));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+});
+
+describe('useActivateService', () => {
+  it('mutates successfully', async () => {
+    const { result } = renderHook(() => useActivateService(), { wrapper });
+    act(() => result.current.mutate('svc-1'));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
 });

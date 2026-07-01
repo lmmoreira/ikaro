@@ -2491,7 +2491,7 @@ fetchStaffServices(): Promise<StaffServiceListResponse>
 
 ---
 
-### M13-S23 — Serviços: create service page (`/dashboard/services/new`)
+### M13-S23 — Serviços: create service page (`/dashboard/services/new`) ✅ Done
 
 *(formerly M125-S09)*
 

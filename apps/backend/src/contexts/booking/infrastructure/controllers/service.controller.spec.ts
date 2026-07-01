@@ -3,6 +3,7 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
+import { ActivateServiceUseCase } from '../../application/use-cases/activate-service.use-case';
 import { CreateServiceUseCase } from '../../application/use-cases/create-service.use-case';
 import { DeactivateServiceUseCase } from '../../application/use-cases/deactivate-service.use-case';
 import { GetServiceByIdUseCase } from '../../application/use-cases/get-service-by-id.use-case';
@@ -39,6 +40,7 @@ describe('ServiceController', () => {
       new CreateServiceUseCase(repo, txManager),
       new GetServicesUseCase(repo),
       new GetServiceByIdUseCase(repo),
+      new ActivateServiceUseCase(repo, txManager),
       new UpdateServiceUseCase(repo, txManager),
       new DeactivateServiceUseCase(repo, txManager),
     );
@@ -125,6 +127,24 @@ describe('ServiceController', () => {
       const err = await controller.update(service.id, { name: 'X' }).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
+    });
+  });
+
+  describe('activate()', () => {
+    it('sets isActive=true and returns { id, isActive: true }', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      service.deactivate();
+      await repo.save(service);
+
+      const result = await controller.activate(service.id);
+      expect(result.id).toBe(service.id);
+      expect(result.isActive).toBe(true);
+    });
+
+    it('maps ServiceNotFoundError to 404', async () => {
+      const err = await controller.activate('non-existent-id').catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
   });
 
