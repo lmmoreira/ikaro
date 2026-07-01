@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
+import { basename } from 'node:path';
 
 const ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png'] as const;
 
@@ -24,11 +25,16 @@ export class UploadsController {
       );
     }
 
-    const key = `uploads/${Date.now()}-${body.filename}`;
+    const key = `uploads/${Date.now()}-${sanitizeUploadFilename(body.filename)}`;
     return {
       uploadUrl: `http://localhost:4443/ikaro-local/${key}`,
       key,
       expiresIn: 900,
     };
   }
+}
+
+function sanitizeUploadFilename(filename: string): string {
+  const base = basename(filename).replace(/[^a-zA-Z0-9.-]+/g, '_');
+  return base.length > 0 ? base : 'file';
 }

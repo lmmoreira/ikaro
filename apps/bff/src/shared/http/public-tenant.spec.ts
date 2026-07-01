@@ -29,6 +29,20 @@ describe('withPublicTenant', () => {
     expect(result).toBe('ok');
   });
 
+  it('encodes reserved characters in the tenant slug before lookup', async () => {
+    const backendHttp = makeBackendHttp({
+      get: jest.fn().mockResolvedValue({
+        id: 'tenant-uuid',
+        slug: 'lavacar/bh?x=1',
+        name: 'Lavacar BH',
+      }),
+    });
+
+    await withPublicTenant(backendHttp, 'lavacar/bh?x=1', jest.fn());
+
+    expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar%2Fbh%3Fx%3D1');
+  });
+
   it('propagates backend errors when tenant lookup fails', async () => {
     const backendHttp = makeBackendHttp({
       get: jest.fn().mockRejectedValue(new Error('backend down')),

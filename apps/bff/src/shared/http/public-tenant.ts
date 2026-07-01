@@ -20,7 +20,7 @@ export async function withPublicTenant<T>(
   }
 
   const tenant = await backendHttp.get<TenantInfoResponse>(
-    `/internal/tenants/by-slug/${tenantSlug}`,
+    `/internal/tenants/by-slug/${encodeURIComponent(tenantSlug)}`,
   );
   return run(tenant.id);
 }

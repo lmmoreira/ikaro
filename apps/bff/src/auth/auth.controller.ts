@@ -56,6 +56,7 @@ export class AuthController {
 
   @Post('switch-tenant')
   @Roles('CUSTOMER')
+  @HttpCode(200)
   switchTenant(
     @Body(new ZodValidationPipe(SwitchTenantSchema)) dto: SwitchTenantDto,
     @CurrentUser() currentUser: CurrentUserPayload,

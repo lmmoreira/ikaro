@@ -22,6 +22,21 @@ describe('UploadsController', () => {
     });
   });
 
+  it('sanitizes filename path segments before building the storage key', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1712345678901);
+    const controller = new UploadsController();
+
+    const result = controller.getSignedUrl({
+      contentType: 'image/png',
+      filename: '../unsafe/../car?.png',
+    });
+
+    expect(result.key).toBe('uploads/1712345678901-car_.png');
+    expect(result.uploadUrl).toBe(
+      'http://localhost:4443/ikaro-local/uploads/1712345678901-car_.png',
+    );
+  });
+
   it('throws BadRequestException for unsupported content types', () => {
     const controller = new UploadsController();
 

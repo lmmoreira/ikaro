@@ -2,7 +2,7 @@ import { TenantProvisioned } from '../../../contexts/platform/domain/events/tena
 
 export class TenantProvisionedEventBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000000001';
-  private correlationId = 'corr-tenant-provisioned-1';
+  private correlationId = '00000000-0000-4000-8000-000000000001';
   private name = 'Lava Car';
   private slug = 'lavacar';
   private adminEmail = 'admin@lavacar.com.br';
