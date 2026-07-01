@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 // next/font/google is aliased to __mocks__/next-font-google.ts in vitest.config.ts
-import { FONT_MAP, FONT_VARIABLES } from './font-config';
+import { FONT_CLASS_MAP, FONT_MAP, FONT_VARIABLES, getActiveFontVariables } from './font-config';
 
 const SUPPORTED_FONTS = [
   'Inter',
@@ -37,5 +37,41 @@ describe('FONT_MAP', () => {
     expect(FONT_MAP['Inter']).toBe('var(--font-inter)');
     expect(FONT_MAP['Playfair Display']).toBe('var(--font-playfair-display)');
     expect(FONT_MAP['Roboto']).toBe('var(--font-roboto)');
+  });
+});
+
+describe('FONT_CLASS_MAP', () => {
+  it('contains an entry for every supported font', () => {
+    for (const name of SUPPORTED_FONTS) {
+      expect(FONT_CLASS_MAP).toHaveProperty(name);
+    }
+  });
+
+  it('values are CSS variable class strings', () => {
+    expect(FONT_CLASS_MAP['Inter']).toBe('--font-inter');
+    expect(FONT_CLASS_MAP['Poppins']).toBe('--font-poppins');
+    expect(FONT_CLASS_MAP['Playfair Display']).toBe('--font-playfair-display');
+  });
+});
+
+describe('getActiveFontVariables', () => {
+  it('returns the class variables for heading and body fonts', () => {
+    const result = getActiveFontVariables('Poppins', 'Lato');
+    expect(result).toEqual(['--font-poppins', '--font-lato']);
+  });
+
+  it('deduplicates when heading and body are the same font', () => {
+    const result = getActiveFontVariables('Inter', 'Inter');
+    expect(result).toEqual(['--font-inter']);
+  });
+
+  it('falls back gracefully for unknown font names', () => {
+    const result = getActiveFontVariables('UnknownFont', 'Roboto');
+    expect(result).toEqual(['--font-roboto']);
+  });
+
+  it('returns empty array when both fonts are unknown', () => {
+    const result = getActiveFontVariables('Unknown', 'AlsoUnknown');
+    expect(result).toEqual([]);
   });
 });

@@ -50,3 +50,20 @@ export const FONT_MAP: Record<string, string> = {
   Lato: 'var(--font-lato)',
   Roboto: 'var(--font-roboto)',
 };
+
+export const FONT_CLASS_MAP: Record<string, string> = {
+  Inter: inter.variable,
+  Poppins: poppins.variable,
+  'Playfair Display': playfairDisplay.variable,
+  Montserrat: montserrat.variable,
+  Raleway: raleway.variable,
+  Oswald: oswald.variable,
+  Lato: lato.variable,
+  Roboto: roboto.variable,
+};
+
+export function getActiveFontVariables(heading: string, body: string): string[] {
+  return [...new Set([heading, body])]
+    .map((name) => FONT_CLASS_MAP[name])
+    .filter(Boolean);
+}
