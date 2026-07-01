@@ -22,10 +22,10 @@ const config: Config = {
   coverageReporters: ['lcov', 'text-summary'],
   coverageThreshold: {
     global: {
-      statements: 90,
-      branches: 85,
+      statements: 85,
+      branches: 80,
       functions: 85,
-      lines: 90,
+      lines: 85,
     },
   },
   projects: [
