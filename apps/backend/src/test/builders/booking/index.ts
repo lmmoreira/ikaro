@@ -10,3 +10,4 @@ export { BookingLineInputBuilder } from './booking-line-input.builder';
 export { BookingEntityBuilder } from './booking-entity.builder';
 export { BookingLineEntityBuilder } from './booking-line-entity.builder';
 export { BookingRequestedEventBuilder } from './booking-requested-event.builder';
+export { BookingCompletedEventBuilder } from './booking-completed-event.builder';

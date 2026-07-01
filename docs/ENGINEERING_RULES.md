@@ -112,6 +112,15 @@ A repository or adapter that reads `this.requestContext.settings` works fine whe
 
 ---
 
+## Controller, Route, and Shared-UI Boundaries
+
+- Controllers and route files are composition layers only. They may parse input and choose the use case/helper, but branching policy and response shaping belong in the owning slice.
+- Feature-specific transport helpers should live with the feature or capability that owns them. Generic buckets are for cross-cutting code only.
+- Shared UI primitives should expose readonly props where practical, so consumers cannot mutate shared contracts by accident.
+- Any `dangerouslySetInnerHTML` usage must go through a controlled helper or component with an explicit sanitization path; never inline raw HTML injection in a page or reusable component.
+
+---
+
 ## Backend read use cases for cross-context access
 
 Cross-context adapters must depend on the source context's exported read use cases, not exported `*QueryService` wrappers. Query services tend to become repository pass-throughs and create a second application API beside the use-case layer.

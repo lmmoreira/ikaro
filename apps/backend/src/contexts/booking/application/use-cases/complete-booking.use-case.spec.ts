@@ -3,7 +3,6 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { BookingLineBuilder } from '../../../../test/builders/booking/booking-line.builder';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
   BookingDiscountDisabledError,
@@ -17,7 +16,6 @@ import {
 } from '../../domain/errors/booking-domain.error';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { CompleteBookingUseCase } from './complete-booking.use-case';
-import { Money } from '../../../../shared/value-objects/money';
 
 const CUSTOMER_ID = '40000000-0000-4000-8000-000000000301';
 
@@ -35,27 +33,6 @@ const baseCtx = {
   currency: 'BRL',
   pointsPerCurrencyUnit: 0,
 };
-
-function makeApprovedBooking(
-  tenantId = TENANT_A,
-  lineIds = [LINE_ID_1],
-  customerId: string | null = null,
-) {
-  const lines = lineIds.map((lineId) =>
-    new BookingLineBuilder()
-      .withLineId(lineId)
-      .withPriceAtBooking(Money.from(100, 'BRL'))
-      .withPointsValueAtBooking(10)
-      .build(),
-  );
-  return new BookingBuilder()
-    .withTenantId(tenantId)
-    .withStatus(BookingStatus.APPROVED)
-    .withCustomerId(customerId)
-    .withLines(lines)
-    .withTotalPrice(Money.from(lineIds.length * 100, 'BRL'))
-    .build();
-}
 
 function makeDto(
   bookingId: string,
@@ -94,7 +71,7 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('transitions APPROVED → COMPLETED and returns result', async () => {
-    const booking = makeApprovedBooking();
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1]).build();
     await bookingRepo.save(booking);
 
     const result = await useCase.execute({ ...makeDto(booking.id), ...baseCtx });
@@ -107,7 +84,7 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('persists actualPriceCharged per line and completedBy', async () => {
-    const booking = makeApprovedBooking();
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1]).build();
     await bookingRepo.save(booking);
 
     await useCase.execute({ ...makeDto(booking.id), ...baseCtx });
@@ -120,7 +97,7 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('persists adminNotes when provided', async () => {
-    const booking = makeApprovedBooking();
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1]).build();
     await bookingRepo.save(booking);
 
     await useCase.execute({
@@ -133,7 +110,7 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('persists afterServicePhotoUrls', async () => {
-    const booking = makeApprovedBooking();
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1]).build();
     await bookingRepo.save(booking);
     const photos = [`tenants/${TENANT_A}/bookings/${booking.id}/after1.jpg`];
     photos.forEach((path) => storageService.markAsUploaded(path));
@@ -148,7 +125,7 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('throws BookingPhotoNotUploadedError when a photo path does not exist in storage', async () => {
-    const booking = makeApprovedBooking();
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1]).build();
     await bookingRepo.save(booking);
 
     await expect(
@@ -162,7 +139,7 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('publishes BookingCompleted event with full line payload', async () => {
-    const booking = makeApprovedBooking();
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1]).build();
     await bookingRepo.save(booking);
 
     await useCase.execute({ ...makeDto(booking.id), ...baseCtx });
@@ -182,7 +159,7 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('uses priceAtBooking as default for lines not in the request when all lines present', async () => {
-    const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1, LINE_ID_2]);
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1, LINE_ID_2]).build();
     await bookingRepo.save(booking);
 
     const result = await useCase.execute({
@@ -199,7 +176,7 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('throws CompleteBookingLinesIncompleteError when a booking line is missing from request', async () => {
-    const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1, LINE_ID_2]);
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1, LINE_ID_2]).build();
     await bookingRepo.save(booking);
 
     await expect(
@@ -208,11 +185,7 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('throws InvalidBookingTransitionError when booking is PENDING', async () => {
-    const booking = new BookingBuilder()
-      .withTenantId(TENANT_A)
-      .withStatus(BookingStatus.PENDING)
-      .withLines([new BookingLineBuilder().withLineId(LINE_ID_1).build()])
-      .build();
+    const booking = BookingBuilder.forStatus(TENANT_A, BookingStatus.PENDING, [LINE_ID_1]).build();
     await bookingRepo.save(booking);
 
     await expect(useCase.execute({ ...makeDto(booking.id), ...baseCtx })).rejects.toThrow(
@@ -221,11 +194,9 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('throws InvalidBookingTransitionError when booking is CANCELLED', async () => {
-    const booking = new BookingBuilder()
-      .withTenantId(TENANT_A)
-      .withStatus(BookingStatus.CANCELLED)
-      .withLines([new BookingLineBuilder().withLineId(LINE_ID_1).build()])
-      .build();
+    const booking = BookingBuilder.forStatus(TENANT_A, BookingStatus.CANCELLED, [
+      LINE_ID_1,
+    ]).build();
     await bookingRepo.save(booking);
 
     await expect(useCase.execute({ ...makeDto(booking.id), ...baseCtx })).rejects.toThrow(
@@ -240,7 +211,7 @@ describe('CompleteBookingUseCase', () => {
   });
 
   it('tenant isolation: cannot complete booking from another tenant', async () => {
-    const booking = makeApprovedBooking(TENANT_B);
+    const booking = BookingBuilder.approved(TENANT_B, [LINE_ID_1]).build();
     await bookingRepo.save(booking);
 
     await expect(
@@ -250,7 +221,7 @@ describe('CompleteBookingUseCase', () => {
 
   describe('discountByPoints', () => {
     it('applies the discount and persists it on the booking when valid', async () => {
-      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1], CUSTOMER_ID).build();
       await bookingRepo.save(booking);
 
       const result = await useCase.execute({
@@ -268,7 +239,7 @@ describe('CompleteBookingUseCase', () => {
     });
 
     it('throws BookingDiscountNotAvailableError for a guest booking (no customerId)', async () => {
-      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], null);
+      const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1], null).build();
       await bookingRepo.save(booking);
 
       await expect(
@@ -283,7 +254,7 @@ describe('CompleteBookingUseCase', () => {
     });
 
     it('throws BookingDiscountDisabledError when pointsPerCurrencyUnit is 0', async () => {
-      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1], CUSTOMER_ID).build();
       await bookingRepo.save(booking);
 
       await expect(
@@ -298,7 +269,7 @@ describe('CompleteBookingUseCase', () => {
     });
 
     it('throws BookingDiscountMismatchError when amountDeducted does not reconcile', async () => {
-      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1], CUSTOMER_ID).build();
       await bookingRepo.save(booking);
 
       await expect(
@@ -313,7 +284,7 @@ describe('CompleteBookingUseCase', () => {
     });
 
     it('throws BookingDiscountMismatchError for a sub-cent amountDeducted that would round up to a different value', async () => {
-      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1], CUSTOMER_ID).build();
       await bookingRepo.save(booking);
 
       await expect(
@@ -328,7 +299,7 @@ describe('CompleteBookingUseCase', () => {
     });
 
     it('throws BookingDiscountExceedsTotalError when amountDeducted exceeds the lines total', async () => {
-      const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
+      const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1], CUSTOMER_ID).build();
       await bookingRepo.save(booking);
 
       await expect(

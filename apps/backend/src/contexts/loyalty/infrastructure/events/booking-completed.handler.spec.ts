@@ -1,4 +1,4 @@
-import { BookingCompleted } from '../../../booking/domain/events/booking-completed.event';
+import { BookingCompletedEventBuilder } from '../../../../test/builders/booking';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { CompleteBookingLoyaltyEffectsUseCase } from '../../application/use-cases/complete-booking-loyalty-effects/complete-booking-loyalty-effects.use-case';
 import { BookingCompletedHandler } from './booking-completed.handler';
@@ -7,31 +7,6 @@ const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const CORRELATION_ID = '00000000-0000-7000-8000-000000000099';
 const BOOKING_ID = '00000000-0000-7000-8000-000000000020';
 const CUSTOMER_ID = '00000000-0000-7000-8000-000000000030';
-
-function makeEvent(customerId: string | null = CUSTOMER_ID): BookingCompleted {
-  return new BookingCompleted(TENANT_ID, CORRELATION_ID, {
-    bookingId: BOOKING_ID,
-    customerId,
-    contactEmail: 'test@example.com',
-    contactName: 'Test User',
-    completedSlot: { startTime: '2026-06-01T10:00:00Z', endTime: '2026-06-01T11:00:00Z' },
-    completedBy: '00000000-0000-7000-8000-000000000050',
-    afterServicePhotoUrls: [],
-    adminNotes: null,
-    pickupAddress: null,
-    totalPrice: { amount: '100.00', currency: 'BRL' },
-    totalActualPrice: { amount: '100.00', currency: 'BRL' },
-    lines: [
-      {
-        lineId: '00000000-0000-7000-8000-000000000060',
-        serviceId: '00000000-0000-7000-8000-000000000070',
-        priceAtBooking: { amount: '100.00', currency: 'BRL' },
-        actualPriceCharged: { amount: '100.00', currency: 'BRL' },
-        pointsValueAtBooking: 10,
-      },
-    ],
-  });
-}
 
 describe('BookingCompletedHandler', () => {
   let handler: BookingCompletedHandler;
@@ -57,7 +32,12 @@ describe('BookingCompletedHandler', () => {
   });
 
   it('delegates to CompleteBookingLoyaltyEffectsUseCase with correct DTO', async () => {
-    const event = makeEvent();
+    const event = new BookingCompletedEventBuilder()
+      .withTenantId(TENANT_ID)
+      .withCorrelationId(CORRELATION_ID)
+      .withBookingId(BOOKING_ID)
+      .withCustomerId(CUSTOMER_ID)
+      .build();
     await handler.handle(event);
 
     expect(useCase.execute).toHaveBeenCalledWith({
@@ -79,10 +59,16 @@ describe('BookingCompletedHandler', () => {
   });
 
   it('passes discountByPoints through when present on the event', async () => {
-    const event = new BookingCompleted(TENANT_ID, CORRELATION_ID, {
-      ...makeEvent().data,
-      discountByPoints: { pointsUsed: 200, amountDeducted: { amount: '20.00', currency: 'BRL' } },
-    });
+    const event = new BookingCompletedEventBuilder()
+      .withTenantId(TENANT_ID)
+      .withCorrelationId(CORRELATION_ID)
+      .withBookingId(BOOKING_ID)
+      .withCustomerId(CUSTOMER_ID)
+      .withDiscountByPoints({
+        pointsUsed: 200,
+        amountDeducted: { amount: '20.00', currency: 'BRL' },
+      })
+      .build();
     await handler.handle(event);
 
     expect(useCase.execute).toHaveBeenCalledWith(
@@ -94,6 +80,15 @@ describe('BookingCompletedHandler', () => {
 
   it('rethrows use case errors so Pub/Sub nacks and retries', async () => {
     useCase.execute.mockRejectedValue(new Error('db failure'));
-    await expect(handler.handle(makeEvent())).rejects.toThrow('db failure');
+    await expect(
+      handler.handle(
+        new BookingCompletedEventBuilder()
+          .withTenantId(TENANT_ID)
+          .withCorrelationId(CORRELATION_ID)
+          .withBookingId(BOOKING_ID)
+          .withCustomerId(CUSTOMER_ID)
+          .build(),
+      ),
+    ).rejects.toThrow('db failure');
   });
 });

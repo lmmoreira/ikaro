@@ -3,6 +3,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
+import { Email } from '../../../../shared/value-objects/email.vo';
 import { LinkGoogleAccountDto } from '../dtos/link-google-account.dto';
 import {
   StaffDeactivatedError,
@@ -33,7 +34,9 @@ export class LinkGoogleAccountUseCase {
     const staff = await this.staffRepo.findById(staffId, dto.tenantId);
     if (!staff) throw new StaffNotFoundError(staffId);
     if (!staff.isActive) throw new StaffDeactivatedError();
-    if (staff.email.address !== dto.email.toLowerCase().trim()) throw new StaffEmailMismatchError();
+    if (staff.email.address !== Email.create(dto.email).address) {
+      throw new StaffEmailMismatchError();
+    }
 
     const conflicting = await this.staffRepo.findByTenantAndOAuthId(
       dto.tenantId,

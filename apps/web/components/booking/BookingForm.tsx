@@ -17,7 +17,7 @@ import {
   createBooking,
   type AuthenticatedBookingRequest,
 } from '@/lib/api/bookings';
-import { getHotsiteCustomerProfile } from '@/lib/api/customers';
+import { getHotsiteCustomerProfile } from '@/lib/api/hotsite/customers';
 import {
   emptyPersonalInfo,
   isAddressFilled,

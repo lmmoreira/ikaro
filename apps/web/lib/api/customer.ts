@@ -1,4 +1,4 @@
-import { bffClient } from '../bff-client';
+import { bffClient } from './bff-client';
 
 export interface CustomerAddressResponse {
   readonly street: string;

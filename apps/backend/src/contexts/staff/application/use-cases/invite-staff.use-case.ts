@@ -4,6 +4,8 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
+import { Email } from '../../../../shared/value-objects/email.vo';
+import { normalizeText } from '../../../../shared/utils/text-normalization';
 import { StaffAlreadyExistsError } from '../../domain/errors/staff-domain.error';
 import { Staff } from '../../domain/staff.aggregate';
 import { IStaffRepository, STAFF_REPOSITORY } from '../ports/staff-repository.port';
@@ -35,8 +37,8 @@ export class InviteStaffUseCase {
 
   async execute(dto: InviteStaffUseCaseInput): Promise<InviteStaffUseCaseResult> {
     const { tenantId, email, firstName, lastName, role, invitedBy, correlationId } = dto;
-    const normalizedEmail = email.toLowerCase().trim();
-    const name = `${firstName} ${lastName}`.trim();
+    const normalizedEmail = Email.create(email).address;
+    const name = normalizeText(`${firstName} ${lastName}`);
 
     const existing = await this.staffRepo.findByTenantAndEmail(tenantId, normalizedEmail);
 

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/lib/api/platform';
-import { fetchServices } from '@/lib/api/services';
+import { fetchServices } from '@/lib/api/hotsite/services';
 import { BookingForm } from '@/components/booking/BookingForm';
 import { HotsiteAuthBar } from '@/components/hotsite/HotsiteAuthBar';
 import { Unavailable } from '@/components/hotsite/Unavailable';

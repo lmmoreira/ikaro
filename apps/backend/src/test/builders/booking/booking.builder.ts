@@ -52,6 +52,37 @@ export class BookingBuilder {
   private readonly createdAt = new Date();
   private linesModified = true;
 
+  static forStatus(
+    tenantId: string,
+    status: BookingStatus,
+    lineIds: string[] = [uuidv7()],
+    customerId: string | null = null,
+  ): BookingBuilder {
+    const lines = lineIds.map((lineId) =>
+      new BookingLineBuilder()
+        .withLineId(lineId)
+        .withPriceAtBooking(Money.from(100, 'BRL'))
+        .withPointsValueAtBooking(10)
+        .build(),
+    );
+
+    return new BookingBuilder()
+      .withTenantId(tenantId)
+      .withStatus(status)
+      .withType(customerId ? 'CUSTOMER' : 'GUEST')
+      .withCustomerId(customerId)
+      .withLines(lines)
+      .withTotalPrice(Money.from(lineIds.length * 100, 'BRL'));
+  }
+
+  static approved(
+    tenantId: string,
+    lineIds: string[] = [uuidv7()],
+    customerId: string | null = null,
+  ): BookingBuilder {
+    return BookingBuilder.forStatus(tenantId, BookingStatus.APPROVED, lineIds, customerId);
+  }
+
   withId(id: string): this {
     this.id = id;
     return this;
