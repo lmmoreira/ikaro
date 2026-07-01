@@ -113,6 +113,20 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
             {bookingStatusLabels[topbarStatus.bookingStatus]}
           </Badge>
         )}
+        {topbarStatus?.serviceStatus && (serviceRouteMatch || isServicesCreateRoute) && (
+          <Badge
+            className={cn(
+              'shrink-0 rounded-full border-0 px-3.5 py-2 text-[0.875rem] font-semibold',
+              topbarStatus.serviceStatus === 'ACTIVE'
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-slate-100 text-slate-600',
+            )}
+          >
+            {topbarStatus.serviceStatus === 'ACTIVE'
+              ? servicesT('statusActive')
+              : servicesT('statusInactive')}
+          </Badge>
+        )}
 
         {/* suppressHydrationWarning: date may differ between server TZ and client TZ at midnight */}
         <span

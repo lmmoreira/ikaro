@@ -60,6 +60,10 @@ export async function updateService(
   return res.data;
 }
 
+export async function activateService(id: string): Promise<void> {
+  await bffClient.patch(`/services/${id}/activate`, {});
+}
+
 export async function deactivateService(id: string): Promise<void> {
   await bffClient.delete(`/services/${id}`);
 }

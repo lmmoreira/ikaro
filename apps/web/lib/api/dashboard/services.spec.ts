@@ -2,10 +2,9 @@ import MockAdapter from 'axios-mock-adapter';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { bffClient } from '../bff-client';
 import {
+  activateService,
   createService,
   deactivateService,
-  fetchStaffService,
-  ServiceDetailFetchError,
   getService,
   listServices,
   updateService,
@@ -35,21 +34,6 @@ describe('getService', () => {
   });
 });
 
-describe('fetchStaffService', () => {
-  it('calls GET /services/:id with the auth token and returns the service', async () => {
-    mock.onGet('/services/svc-1').reply(200, service);
-    const res = await fetchStaffService('token-123', 'svc-1');
-    expect(res).toMatchObject(service);
-  });
-
-  it('throws ServiceDetailFetchError on a non-2xx response', async () => {
-    mock.onGet('/services/svc-1').reply(404);
-    await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject(
-      new ServiceDetailFetchError(404, 'Service not found'),
-    );
-  });
-});
-
 describe('createService', () => {
   it('calls POST /services with body', async () => {
     mock.onPost('/services').reply(201, service);
@@ -60,6 +44,13 @@ describe('createService', () => {
       loyaltyPointsValue: 10,
     });
     expect(res).toMatchObject(service);
+  });
+});
+
+describe('activateService', () => {
+  it('calls PATCH /services/:id/activate', async () => {
+    mock.onPatch('/services/svc-1/activate').reply(200, { id: 'svc-1', isActive: true });
+    await expect(activateService('svc-1')).resolves.toBeUndefined();
   });
 });
 

@@ -136,4 +136,9 @@ export class Service extends AggregateRoot {
     this.props.isActive = false;
     this.props.updatedAt = new Date();
   }
+
+  activate(): void {
+    this.props.isActive = true;
+    this.props.updatedAt = new Date();
+  }
 }

@@ -8,6 +8,7 @@ import { ServiceCreatePage } from './ServiceCreatePage';
 
 const routerPush = vi.fn();
 const mockCreateService = vi.fn();
+const mockSetServiceStatus = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: routerPush }),
@@ -20,10 +21,21 @@ vi.mock('@/lib/hooks/useServices', () => ({
   }),
 }));
 
+vi.mock('../topbar-status-context', () => ({
+  useDashboardTopbarStatus: () => ({
+    setServiceStatus: mockSetServiceStatus,
+  }),
+}));
+
 describe('ServiceCreatePage', () => {
+  function getPrimaryCreateButton() {
+    return screen.getAllByRole('button', { name: 'Criar serviço' })[0];
+  }
+
   beforeEach(() => {
     routerPush.mockReset();
     mockCreateService.mockReset();
+    mockSetServiceStatus.mockReset();
   });
 
   it('renders the create form with the expected defaults', () => {
@@ -42,13 +54,24 @@ describe('ServiceCreatePage', () => {
       'aria-checked',
       'true',
     );
+    expect(mockSetServiceStatus).toHaveBeenCalledWith('ACTIVE');
+  });
+
+  it('keeps the topbar service status in sync with the active toggle', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(<ServiceCreatePage />);
+
+    await user.click(screen.getByRole('switch', { name: /Criar como ativo/i }));
+
+    expect(mockSetServiceStatus).toHaveBeenLastCalledWith('INACTIVE');
   });
 
   it('validates required fields inline', async () => {
     const user = userEvent.setup();
     renderWithIntl(<ServiceCreatePage />);
 
-    await user.click(screen.getByRole('button', { name: 'Criar serviço' }));
+    await user.click(getPrimaryCreateButton());
 
     expect(screen.getByText('Informe o nome do serviço.')).toBeInTheDocument();
     expect(screen.getByText('Informe o preço do serviço.')).toBeInTheDocument();
@@ -68,7 +91,7 @@ describe('ServiceCreatePage', () => {
     await user.type(screen.getByLabelText('Duração'), '60');
     await user.clear(screen.getByLabelText('Pontos de fidelidade'));
     await user.type(screen.getByLabelText('Pontos de fidelidade'), '15');
-    await user.click(screen.getByRole('button', { name: 'Criar serviço' }));
+    await user.click(getPrimaryCreateButton());
 
     expect(mockCreateService).toHaveBeenCalledWith({
       name: 'Lavagem Premium',
@@ -91,7 +114,7 @@ describe('ServiceCreatePage', () => {
     await user.type(screen.getByLabelText('Nome do serviço'), 'Lavagem Premium');
     await user.type(screen.getByLabelText('Preço'), '180');
     await user.type(screen.getByLabelText('Duração'), '60');
-    await user.click(screen.getByRole('button', { name: 'Criar serviço' }));
+    await user.click(getPrimaryCreateButton());
 
     expect(
       await screen.findByText('Já existe um serviço com este nome. Escolha outro nome.'),

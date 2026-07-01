@@ -79,6 +79,13 @@ export class ServicesController {
     return toStaffServiceResponse(result);
   }
 
+  @Patch(':id/activate')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER', 'STAFF')
+  async activate(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.backendHttp.patch(`/services/${id}/activate`, {});
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles('MANAGER', 'STAFF')

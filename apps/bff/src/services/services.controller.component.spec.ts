@@ -267,6 +267,47 @@ describe('ServicesController (component)', () => {
     });
   });
 
+  // ─── PATCH /v1/services/:id/activate ────────────────────────────────────────
+
+  describe('PATCH /v1/services/:id/activate', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer()).patch(`/v1/services/${SERVICE_ID}/activate`);
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/activate`)
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200, calls PATCH /services/:id/activate', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce({ id: SERVICE_ID, isActive: true });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/activate`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.patch).toHaveBeenCalledWith(`/services/${SERVICE_ID}/activate`, {});
+    });
+
+    it('propagates 404 from backend', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockRejectedValueOnce(
+        new HttpException({ title: 'Not Found', status: 404 }, 404),
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/activate`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(404);
+    });
+  });
+
   // ─── DELETE /v1/services/:id ─────────────────────────────────────────────────
 
   describe('DELETE /v1/services/:id', () => {

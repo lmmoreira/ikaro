@@ -10,8 +10,12 @@ function Probe(): React.JSX.Element {
   return (
     <div>
       <p>{status?.bookingStatus ?? 'none'}</p>
+      <p>{status?.serviceStatus ?? 'none'}</p>
       <button type="button" onClick={() => status?.setBookingStatus('APPROVED')}>
-        update
+        booking
+      </button>
+      <button type="button" onClick={() => status?.setServiceStatus('ACTIVE')}>
+        service
       </button>
     </div>
   );
@@ -28,6 +32,16 @@ describe('DashboardTopbarStatusProvider', () => {
     expect(screen.getByText('INFO_REQUESTED')).toBeInTheDocument();
   });
 
+  it('exposes the initial service status to consumers', () => {
+    render(
+      <DashboardTopbarStatusProvider initialServiceStatus="INACTIVE">
+        <Probe />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByText('INACTIVE')).toBeInTheDocument();
+  });
+
   it('lets consumers update the booking status', async () => {
     render(
       <DashboardTopbarStatusProvider initialBookingStatus="PENDING">
@@ -35,8 +49,20 @@ describe('DashboardTopbarStatusProvider', () => {
       </DashboardTopbarStatusProvider>,
     );
 
-    await userEvent.click(screen.getByRole('button', { name: 'update' }));
+    await userEvent.click(screen.getByRole('button', { name: 'booking' }));
 
     expect(screen.getByText('APPROVED')).toBeInTheDocument();
+  });
+
+  it('lets consumers update the service status', async () => {
+    render(
+      <DashboardTopbarStatusProvider initialServiceStatus="INACTIVE">
+        <Probe />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'service' }));
+
+    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
   });
 });

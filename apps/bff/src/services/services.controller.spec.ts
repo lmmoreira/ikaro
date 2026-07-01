@@ -134,6 +134,20 @@ describe('ServicesController', () => {
     });
   });
 
+  describe('activate()', () => {
+    it('calls PATCH /services/:id/activate and returns nothing', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue({ id: SERVICE_ID, isActive: true }),
+      });
+      const controller = new ServicesController(backendHttp);
+
+      const result = await controller.activate(SERVICE_ID);
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(`/services/${SERVICE_ID}/activate`, {});
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe('deactivate()', () => {
     it('calls DELETE /services/:id and returns nothing (204)', async () => {
       const backendHttp = makeBackendHttp({

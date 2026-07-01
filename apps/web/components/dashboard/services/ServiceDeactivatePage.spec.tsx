@@ -51,10 +51,9 @@ describe('ServiceDeactivatePage', () => {
     );
     expect(meta).toHaveTextContent('1h');
     expect(meta).toHaveTextContent('20 pts');
-    expect(screen.getByRole('link', { name: 'Cancelar' })).toHaveAttribute(
-      'href',
-      '/dashboard/services/svc-1/edit',
-    );
+    const cancelLinks = screen.getAllByRole('link', { name: 'Cancelar' });
+    expect(cancelLinks).toHaveLength(2);
+    expect(cancelLinks[0]).toHaveAttribute('href', '/dashboard/services/svc-1/edit');
   });
 
   it('submits the deactivation and redirects back to the list', async () => {
@@ -63,7 +62,7 @@ describe('ServiceDeactivatePage', () => {
 
     renderWithIntl(<ServiceDeactivatePage service={service} />);
 
-    await user.click(screen.getByRole('button', { name: 'Confirmar desativação' }));
+    await user.click(screen.getAllByRole('button', { name: 'Confirmar desativação' })[0]);
 
     expect(mockDeactivateService).toHaveBeenCalledWith('svc-1');
     expect(routerPush).toHaveBeenCalledWith('/dashboard/services');
@@ -75,7 +74,7 @@ describe('ServiceDeactivatePage', () => {
 
     renderWithIntl(<ServiceDeactivatePage service={service} />);
 
-    await user.click(screen.getByRole('button', { name: 'Confirmar desativação' }));
+    await user.click(screen.getAllByRole('button', { name: 'Confirmar desativação' })[0]);
 
     expect(
       await screen.findByText('Erro ao desativar serviço. Tente novamente.'),

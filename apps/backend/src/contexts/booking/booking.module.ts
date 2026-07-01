@@ -16,6 +16,7 @@ import { SERVICE_REPOSITORY } from './application/ports/service-repository.port'
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
 import { CloseScheduleUseCase } from './application/use-cases/close-schedule.use-case';
+import { ActivateServiceUseCase } from './application/use-cases/activate-service.use-case';
 import { CreateServiceUseCase } from './application/use-cases/create-service.use-case';
 import { RequestAuthenticatedBookingUseCase } from './application/use-cases/request-authenticated-booking.use-case';
 import { RequestBookingUseCase } from './application/use-cases/request-booking.use-case';
@@ -105,6 +106,7 @@ import { AvailabilityService } from './domain/services/availability.service';
     AdminScheduleReminderJob,
     BookingSlotConflictService,
     PhotoExistenceService,
+    ActivateServiceUseCase,
     CreateServiceUseCase,
     RequestBookingUseCase,
     RequestAuthenticatedBookingUseCase,

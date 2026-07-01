@@ -237,6 +237,47 @@ describe('ServiceController (integration)', () => {
     });
   });
 
+  // ─── PATCH /services/:id/activate ───────────────────────────────────────────
+
+  describe('PATCH /services/:id/activate', () => {
+    it('reactivates a deactivated service', async () => {
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .send({ ...validBody, name: 'Para Reativar' })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .delete(`/services/${created.id}`)
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .expect(200);
+
+      const { body: result } = await request(app.getHttpServer())
+        .patch(`/services/${created.id}/activate`)
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .expect(200);
+
+      expect(result.id).toBe(created.id);
+      expect(result.isActive).toBe(true);
+
+      const row = await ds.getRepository(ServiceEntity).findOne({ where: { id: created.id } });
+      expect(row).not.toBeNull();
+      expect(row!.isActive).toBe(true);
+    });
+
+    it('returns 404 for service belonging to a different tenant', async () => {
+      const entity = new ServiceEntityBuilder().withTenantId(tenantB).withIsActive(false).build();
+      await ds.getRepository(ServiceEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/services/${entity.id}/activate`)
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+  });
+
   // ─── DELETE /services/:id ────────────────────────────────────────────────────
 
   describe('DELETE /services/:id', () => {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffServiceResponse } from '@ikaro/types';
@@ -47,7 +47,21 @@ function makeService(overrides?: Partial<StaffServiceResponse>): StaffServiceRes
 
 describe('ServiceListPage', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     routerReplace.mockReset();
+  });
+
+  it('shows the created banner and clears the query after a short delay', async () => {
+    vi.useFakeTimers();
+    renderWithIntl(<ServiceListPage services={[]} showCreatedBanner />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Serviço criado!');
+    expect(routerReplace).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1800);
+
+    expect(routerReplace).toHaveBeenCalledWith('/dashboard/services', { scroll: false });
+    vi.useRealTimers();
   });
 
   it('shows the created banner once when requested', () => {
@@ -57,9 +71,6 @@ describe('ServiceListPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'O novo serviço já está disponível no formulário de agendamento.',
     );
-    return waitFor(() => {
-      expect(routerReplace).toHaveBeenCalledWith('/dashboard/services', { scroll: false });
-    });
   });
 
   it('renders all services and filters them client-side', async () => {

@@ -16,6 +16,10 @@ import { RequestContext } from '../../../../shared/request/request-context';
 import { CreateServiceDto, CreateServiceSchema } from '../../application/dtos/create-service.dto';
 import { UpdateServiceDto, UpdateServiceSchema } from '../../application/dtos/update-service.dto';
 import {
+  ActivateServiceUseCase,
+  ActivateServiceUseCaseResult,
+} from '../../application/use-cases/activate-service.use-case';
+import {
   CreateServiceUseCase,
   CreateServiceUseCaseResult,
 } from '../../application/use-cases/create-service.use-case';
@@ -45,6 +49,7 @@ export class ServiceController {
     private readonly createService: CreateServiceUseCase,
     private readonly getServices: GetServicesUseCase,
     private readonly getServiceById: GetServiceByIdUseCase,
+    private readonly activateService: ActivateServiceUseCase,
     private readonly updateService: UpdateServiceUseCase,
     private readonly deactivateService: DeactivateServiceUseCase,
   ) {}
@@ -108,6 +113,15 @@ export class ServiceController {
         locale: this.tenantContext.settings.localization.language,
       })
       .catch(mapBookingError);
+  }
+
+  @Patch(':id/activate')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(StaffOrManagerRoleGuard)
+  activate(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+  ): Promise<ActivateServiceUseCaseResult> {
+    return this.activateService.execute(id).catch(mapBookingError);
   }
 
   @Delete(':id')

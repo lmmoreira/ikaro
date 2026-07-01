@@ -36,7 +36,11 @@ export function ServiceListPage({
 
   useEffect(() => {
     if (!showCreatedBanner) return;
-    router.replace('/dashboard/services', { scroll: false });
+    const timeoutId = window.setTimeout(() => {
+      router.replace('/dashboard/services', { scroll: false });
+    }, 1800);
+
+    return () => window.clearTimeout(timeoutId);
   }, [router, showCreatedBanner]);
 
   const counts = useMemo(

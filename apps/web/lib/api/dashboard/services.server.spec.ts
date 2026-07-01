@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchStaffService, fetchStaffServices } from './services';
+import { fetchStaffService, fetchStaffServices, ServiceDetailFetchError } from './services';
 import { bffServerFetch } from '../bff-server';
 
 vi.mock('../bff-server', () => ({
@@ -44,5 +44,17 @@ describe('fetchStaffService', () => {
 
     expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/services/svc-1');
     expect(result.serviceId).toBe('svc-1');
+  });
+
+  it('throws ServiceDetailFetchError on a non-2xx response', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(null, {
+        status: 404,
+      }),
+    );
+
+    await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject(
+      new ServiceDetailFetchError(404, 'Service not found'),
+    );
   });
 });
