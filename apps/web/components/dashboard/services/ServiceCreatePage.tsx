@@ -130,6 +130,7 @@ export function ServiceCreatePage(): React.JSX.Element {
                 </label>
                 <input
                   id="service-name"
+                  data-testid="service-name-input"
                   type="text"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
@@ -140,7 +141,11 @@ export function ServiceCreatePage(): React.JSX.Element {
                   className="w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50"
                 />
                 {fieldErrors.name && (
-                  <p id="service-name-error" className="mt-1.5 text-sm text-red-600">
+                  <p
+                    id="service-name-error"
+                    data-testid="service-name-error"
+                    className="mt-1.5 text-sm text-red-600"
+                  >
                     {fieldErrors.name}
                   </p>
                 )}
@@ -155,6 +160,7 @@ export function ServiceCreatePage(): React.JSX.Element {
                 </label>
                 <textarea
                   id="service-description"
+                  data-testid="service-description-input"
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   maxLength={500}
@@ -162,7 +168,12 @@ export function ServiceCreatePage(): React.JSX.Element {
                   className="min-h-24 w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
                 {fieldErrors.description && (
-                  <p className="mt-1.5 text-sm text-red-600">{fieldErrors.description}</p>
+                  <p
+                    data-testid="service-description-error"
+                    className="mt-1.5 text-sm text-red-600"
+                  >
+                    {fieldErrors.description}
+                  </p>
                 )}
               </div>
 
@@ -180,6 +191,7 @@ export function ServiceCreatePage(): React.JSX.Element {
                     </span>
                     <input
                       id="service-price"
+                      data-testid="service-price-input"
                       type="number"
                       inputMode="decimal"
                       min="0"
@@ -195,7 +207,11 @@ export function ServiceCreatePage(): React.JSX.Element {
                     />
                   </div>
                   {fieldErrors.priceAmount ? (
-                    <p id="service-price-error" className="mt-1.5 text-sm text-red-600">
+                    <p
+                      id="service-price-error"
+                      data-testid="service-price-error"
+                      className="mt-1.5 text-sm text-red-600"
+                    >
                       {fieldErrors.priceAmount}
                     </p>
                   ) : (
@@ -219,6 +235,7 @@ export function ServiceCreatePage(): React.JSX.Element {
                   <div className="relative">
                     <input
                       id="service-duration"
+                      data-testid="service-duration-input"
                       type="number"
                       inputMode="numeric"
                       min="1"
@@ -237,7 +254,11 @@ export function ServiceCreatePage(): React.JSX.Element {
                     </span>
                   </div>
                   {fieldErrors.durationMinutes && (
-                    <p id="service-duration-error" className="mt-1.5 text-sm text-red-600">
+                    <p
+                      id="service-duration-error"
+                      data-testid="service-duration-error"
+                      className="mt-1.5 text-sm text-red-600"
+                    >
                       {fieldErrors.durationMinutes}
                     </p>
                   )}
@@ -253,6 +274,7 @@ export function ServiceCreatePage(): React.JSX.Element {
                 </label>
                 <input
                   id="service-points"
+                  data-testid="service-points-input"
                   type="number"
                   inputMode="numeric"
                   min="0"
@@ -267,7 +289,11 @@ export function ServiceCreatePage(): React.JSX.Element {
                   className="w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50"
                 />
                 {fieldErrors.loyaltyPointsValue ? (
-                  <p id="service-points-error" className="mt-1.5 text-sm text-red-600">
+                  <p
+                    id="service-points-error"
+                    data-testid="service-points-error"
+                    className="mt-1.5 text-sm text-red-600"
+                  >
                     {fieldErrors.loyaltyPointsValue}
                   </p>
                 ) : (
@@ -283,6 +309,7 @@ export function ServiceCreatePage(): React.JSX.Element {
               <button
                 type="button"
                 role="switch"
+                data-testid="service-pickup-switch"
                 aria-checked={requiresPickupAddress}
                 onClick={() => setRequiresPickupAddress((value) => !value)}
                 className="flex w-full items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-left transition-colors hover:bg-slate-100"
@@ -311,6 +338,7 @@ export function ServiceCreatePage(): React.JSX.Element {
               <button
                 type="button"
                 role="switch"
+                data-testid="service-active-switch"
                 aria-checked={isActive}
                 onClick={() => setIsActive((value) => !value)}
                 className="flex w-full items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-left transition-colors hover:bg-slate-100"
@@ -338,7 +366,10 @@ export function ServiceCreatePage(): React.JSX.Element {
             </section>
 
             {fieldErrors.submit && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div
+                data-testid="service-submit-error"
+                className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+              >
                 {fieldErrors.submit}
               </div>
             )}

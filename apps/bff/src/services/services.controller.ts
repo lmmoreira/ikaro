@@ -28,14 +28,16 @@ const CreateServiceBodySchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-const UpdateServiceBodySchema = z.object({
-  name: z.string().min(1).optional(),
-  description: z.string().nullable().optional(),
-  priceAmount: z.number().positive().optional(),
-  durationMinutes: z.number().int().positive().optional(),
-  loyaltyPointsValue: z.number().int().min(0).optional(),
-  requiresPickupAddress: z.boolean().optional(),
-});
+const UpdateServiceBodySchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    description: z.string().nullable().optional(),
+    priceAmount: z.number().positive().optional(),
+    durationMinutes: z.number().int().positive().optional(),
+    loyaltyPointsValue: z.number().int().min(0).optional(),
+    requiresPickupAddress: z.boolean().optional(),
+  })
+  .default({});
 
 type CreateServiceBody = z.infer<typeof CreateServiceBodySchema>;
 type UpdateServiceBody = z.infer<typeof UpdateServiceBodySchema>;

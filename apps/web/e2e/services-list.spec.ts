@@ -16,7 +16,7 @@ function makeUniqueServiceName(prefix: string): string {
 
 async function loginAsStaff(page: Page): Promise<void> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
     data: { email: STAFF_EMAIL, tenantSlug: TENANT_SLUG, type: 'staff' },
   });
 

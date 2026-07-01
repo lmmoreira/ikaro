@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { APIResponse, Page } from '@playwright/test';
 import type {
   CreateServiceRequest,
   StaffServiceResponse,
@@ -15,7 +15,10 @@ export function makeUniqueServiceName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
 
-async function readServiceResponse(res: Response, action: string): Promise<StaffServiceResponse> {
+async function readServiceResponse(
+  res: APIResponse,
+  action: string,
+): Promise<StaffServiceResponse> {
   if (!res.ok()) {
     throw new Error(`${action} failed: ${res.status()} ${await res.text()}`);
   }

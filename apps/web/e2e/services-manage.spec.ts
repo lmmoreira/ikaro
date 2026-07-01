@@ -16,7 +16,7 @@ function makeUniqueServiceName(prefix: string): string {
 
 async function loginAsStaff(page: Page): Promise<void> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
     data: { email: STAFF_EMAIL, tenantSlug: TENANT_SLUG, type: 'staff' },
   });
 
@@ -110,12 +110,12 @@ test.describe('service management flows', () => {
     const updatedName = `${service.name}-updated`;
 
     await openEditPage(page, service.serviceId);
-    await page.getByLabel('Nome do serviço').fill(updatedName);
-    await page.getByLabel('Descrição').fill('Serviço atualizado via Playwright');
-    await page.getByLabel('Preço').fill('210');
-    await page.getByLabel('Duração').fill('75');
-    await page.getByLabel('Pontos de fidelidade').fill('12');
-    await page.getByRole('switch', { name: 'Coleta e entrega' }).click();
+    await page.getByTestId('service-name-input').fill(updatedName);
+    await page.getByTestId('service-description-input').fill('Serviço atualizado via Playwright');
+    await page.getByTestId('service-price-input').fill('210');
+    await page.getByTestId('service-duration-input').fill('75');
+    await page.getByTestId('service-points-input').fill('12');
+    await page.getByTestId('service-pickup-switch').click();
 
     await page.getByRole('button', { name: 'Salvar alterações' }).click();
 

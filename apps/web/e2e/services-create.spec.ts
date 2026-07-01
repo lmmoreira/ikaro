@@ -16,7 +16,7 @@ function makeUniqueServiceName(prefix: string): string {
 
 async function loginAsStaff(page: Page): Promise<void> {
   const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
     data: { email: STAFF_EMAIL, tenantSlug: TENANT_SLUG, type: 'staff' },
   });
 
@@ -62,18 +62,18 @@ async function fillCreateServiceForm(
     readonly active?: boolean;
   },
 ): Promise<void> {
-  await page.getByLabel('Nome do serviço').fill(values.name);
-  await page.getByLabel('Descrição').fill(values.description);
-  await page.getByLabel('Preço').fill(values.price);
-  await page.getByLabel('Duração').fill(values.duration);
-  await page.getByLabel('Pontos de fidelidade').fill(values.points);
+  await page.getByTestId('service-name-input').fill(values.name);
+  await page.getByTestId('service-description-input').fill(values.description);
+  await page.getByTestId('service-price-input').fill(values.price);
+  await page.getByTestId('service-duration-input').fill(values.duration);
+  await page.getByTestId('service-points-input').fill(values.points);
 
   if (values.requiresPickup) {
-    await page.getByRole('switch', { name: 'Coleta e entrega' }).click();
+    await page.getByTestId('service-pickup-switch').click();
   }
 
   if (values.active === false) {
-    await page.getByRole('switch', { name: 'Criar como ativo' }).click();
+    await page.getByTestId('service-active-switch').click();
   }
 }
 
@@ -128,9 +128,9 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page.getByText('Informe o nome do serviço.')).toBeVisible();
-    await expect(page.getByText('Informe o preço do serviço.')).toBeVisible();
-    await expect(page.getByText('Informe a duração do serviço.')).toBeVisible();
+    await expect(page.getByTestId('service-name-error')).toBeVisible();
+    await expect(page.getByTestId('service-price-error')).toBeVisible();
+    await expect(page.getByTestId('service-duration-error')).toBeVisible();
   });
 
   test('accepts boundary values at the form limits', async ({ page }) => {
