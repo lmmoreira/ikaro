@@ -14,6 +14,14 @@ const config: Config = {
   ],
   coverageDirectory: '../coverage',
   coverageReporters: ['lcov', 'text-summary'],
+  coverageThreshold: {
+    global: {
+      statements: 95,
+      branches: 90,
+      functions: 90,
+      lines: 95,
+    },
+  },
   moduleFileExtensions: ['js', 'json', 'ts'],
   testRegex: '.*\\.spec\\.ts$',
   testEnvironment: 'node',

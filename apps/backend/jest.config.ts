@@ -20,6 +20,14 @@ const config: Config = {
   ],
   coverageDirectory: '../coverage',
   coverageReporters: ['lcov', 'text-summary'],
+  coverageThreshold: {
+    global: {
+      statements: 90,
+      branches: 85,
+      functions: 85,
+      lines: 90,
+    },
+  },
   projects: [
     {
       displayName: 'unit',

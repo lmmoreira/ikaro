@@ -46,7 +46,7 @@
 | **AUD-011** | Tenant-settings cache (in-memory LRU + TTL) | 🟡 Medium | S | Now | — | §5.1 |
 | **AUD-012** | Prototype-pollution guard in `deepMerge` ✅ | 🟡 Medium | XS | Now | — | §5.7 |
 | **AUD-013** | Per-tenant font loading (LCP) | 🟡 Medium | S | Now | — | §8.1 |
-| **AUD-014** | Coverage floor in test runners | 🟡 Medium | XS | Now | — | §11.3 |
+| **AUD-014** | Coverage floor in test runners ✅ | 🟡 Medium | XS | Now | — | §11.3 |
 | **AUD-015** | Playwright E2E in CI + expand booking flows ✅ | 🟡 Medium | M | Now | — | §9.4, §11.4 |
 | **AUD-016** | API idempotency-key on mutating endpoints | 🟡 Medium | M | Pre-deploy | — | §13.9 |
 | **AUD-017** ✅ | Manifest module `safeParse` fail-soft | 🟡 Medium | S | Now | — | §8.6 |
@@ -379,11 +379,11 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-014 — Coverage floor in test runners
 **Risk:** 🟡 Medium · **Effort:** XS · **Phase:** Now · **Audit ref:** §11.3
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 **What's wrong:** Neither `apps/backend/jest.config.ts` (`coverageThreshold` absent) nor `apps/web/vitest.config.ts` (`coverage.thresholds` absent) sets a floor — SonarCloud's differential gate is the only enforcement, so global decay is invisible.
 **Fix:** Add a `coverageThreshold`/`thresholds` block (e.g. 80/75/80/80) to jest and vitest (and BFF jest). Tune to current levels so it doesn't break the build, then ratchet up.
-**Acceptance:** ☐ Test runners fail locally/CI if coverage drops below the floor.
+**Acceptance:** ✅ Test runners fail locally/CI if coverage drops below the floor.
 
 ### AUD-015 — Playwright E2E in CI + expand booking flows
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Now · **Audit ref:** §9.4, §11.4
