@@ -25,10 +25,7 @@ import {
   ApproveBookingDto,
   ApproveBookingSchema,
 } from '../../application/dtos/approve-booking.dto';
-import {
-  RejectBookingDto,
-  RejectBookingSchema,
-} from '../../application/dtos/reject-booking.dto';
+import { RejectBookingDto, RejectBookingSchema } from '../../application/dtos/reject-booking.dto';
 import {
   RequestBookingUseCase,
   RequestBookingUseCaseResult,
