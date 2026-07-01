@@ -12,7 +12,7 @@ import {
   StaffTenantOption,
 } from './auth.types';
 import { GoogleProfile } from './strategies/google.strategy';
-import { JwtIssuerService } from './jwt-issuer.service';
+import { JwtIssuerService, JwtRole } from './jwt-issuer.service';
 import { isValidSlug } from './oauth-state';
 import { TenantInfoResponse } from '../shared/types/backend-responses';
 import { CurrentUserPayload } from '../shared/decorators/current-user.decorator';
@@ -97,7 +97,7 @@ export class AuthControllerFlowService {
       sub: string;
       tenantId: string;
       tenantSlug: string;
-      role: 'CUSTOMER' | 'STAFF' | 'MANAGER';
+      role: JwtRole;
     };
   }> {
     return devLogin(this.backendHttp, this.jwtIssuer, this.config, dto, res);
@@ -254,7 +254,7 @@ async function devLogin(
   );
 
   let actorId: string;
-  let role: 'CUSTOMER' | 'STAFF' | 'MANAGER';
+  let role: JwtRole;
 
   if (dto.type === 'staff') {
     const staffList = await backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {

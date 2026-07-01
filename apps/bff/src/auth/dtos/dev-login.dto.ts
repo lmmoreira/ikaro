@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { JwtRole } from '../jwt-issuer.service';
 
 export const DevLoginSchema = z.object({
   email: z.email(),
@@ -16,6 +17,6 @@ export interface DevLoginResponse {
     sub: string;
     tenantId: string;
     tenantSlug: string;
-    role: 'CUSTOMER' | 'STAFF' | 'MANAGER';
+    role: JwtRole;
   };
 }
