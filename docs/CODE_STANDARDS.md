@@ -61,14 +61,17 @@ export class XxxDomainError extends Error {
 
 | Artifact | Pattern | Example |
 |---|---|---|
-| Use case result type | `{UseCaseClassName}Result` | `ApproveBookingUseCaseResult` |
-| Input DTO | `{Action}Dto` | `ApproveBookingDto` |
+| Use case input type | `{UseCaseName}Input` | `ApproveBookingUseCaseInput` |
+| Use case result type | `{UseCaseName}Result` | `ApproveBookingUseCaseResult` |
+| HTTP request body/query schema | `{Action}Schema` + `{Action}Dto` | `ApproveBookingSchema`, `ApproveBookingDto` |
 | Zod schema | `{Action}Schema` | `ApproveBookingSchema` |
 | Public hotsite response type (`@ikaro/types`) | `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` | `HotsiteManifestResponse`, `HotsiteServiceResponse` / `HotsiteServiceListResponse` |
 
+Both `{UseCaseName}Input` and `{UseCaseName}Result` are defined in the use case file. HTTP Zod schemas stay in `dtos/` and are **not** reused as use case input types — the controller validates HTTP input with the Zod schema, constructs the `{UseCaseName}Input` (adding context-derived fields), then calls `execute(input)`.
+
 - Never `*RequestDto`, `*InputDto`, `*Info`.
-- When a path param must be combined with a request body, pass them as **separate arguments**: `execute(staffId, dto)` — never merge into a composite DTO.
-- One DTO per use case.
+- One `{UseCaseName}Input` per use case. Use cases with genuinely no input (e.g. global scheduled jobs) may keep `execute()` with no arguments — do not create a dummy `{}` type.
+- When a path param must be combined with a request body, merge them into the `{UseCaseName}Input` — the controller assembles it from `@Param`, `@Body`, and `RequestContext`.
 
 ---
 
@@ -76,7 +79,7 @@ export class XxxDomainError extends Error {
 
 - **Aggregate-driven events:** Aggregates record events via `this.addDomainEvent()` inside their domain methods — including system-initiated factory methods. Use cases flush via `aggregate.clearDomainEvents()` **after** `txManager.run()` completes.
 - **Never** construct or publish events directly from a use case.
-- **`correlationId`** must come from `RequestContext.correlationId`, not from a fresh `uuidv7()`. For `/internal` routes (no RequestContext), generate one `uuidv7()` at the top of the use case and pass it through.
+- **`correlationId`** — the **controller** reads it from `RequestContext.correlationId` and passes it as `dto.correlationId`. Use cases receive it via the input DTO and must never inject `RequestContext` or call `uuidv7()` to generate it. For `/internal` routes (no RequestContext), the controller generates one `uuidv7()` and includes it in the DTO.
 - **Domain events belong in the publishing context.** `StaffInvited` in `staff/domain/events/`, not in `platform/`. Duplicate class definitions cause SonarCloud failures.
 - **Thin vs fat events:** if data is persistently stored on the entity, the event carries only the ID. If data is transient (not stored, or represents point-in-time state), it must be in the payload.
 

@@ -3,6 +3,11 @@ import { StaffNotFoundError } from '../../domain/errors/staff-domain.error';
 import { StaffRole } from '../../domain/staff.aggregate';
 import { IStaffRepository, STAFF_REPOSITORY } from '../ports/staff-repository.port';
 
+export interface GetStaffTenantsByIdUseCaseInput {
+  staffId: string;
+  tenantId: string;
+}
+
 export interface GetStaffTenantsByIdUseCaseResult {
   staffId: string;
   tenantId: string;
@@ -14,7 +19,10 @@ export interface GetStaffTenantsByIdUseCaseResult {
 export class GetStaffTenantsByIdUseCase {
   constructor(@Inject(STAFF_REPOSITORY) private readonly staffRepo: IStaffRepository) {}
 
-  async execute(staffId: string, tenantId: string): Promise<GetStaffTenantsByIdUseCaseResult[]> {
+  async execute(
+    input: GetStaffTenantsByIdUseCaseInput,
+  ): Promise<GetStaffTenantsByIdUseCaseResult[]> {
+    const { staffId, tenantId } = input;
     const staff = await this.staffRepo.findById(staffId, tenantId);
     if (!staff) throw new StaffNotFoundError(staffId);
 

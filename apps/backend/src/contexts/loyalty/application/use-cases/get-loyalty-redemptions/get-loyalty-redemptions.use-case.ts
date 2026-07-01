@@ -9,7 +9,7 @@ import {
   ServiceSummary,
 } from '../../ports/loyalty-booking.port';
 
-export interface GetLoyaltyRedemptionsDto {
+export interface GetLoyaltyRedemptionsUseCaseInput {
   tenantId: string;
   customerId: string;
   page: number;
@@ -26,7 +26,7 @@ export interface LoyaltyRedemptionItem {
   bookingServices: ServiceSummary[];
 }
 
-export interface GetLoyaltyRedemptionsResult {
+export interface GetLoyaltyRedemptionsUseCaseResult {
   redemptions: LoyaltyRedemptionItem[];
   pagination: { page: number; limit: number; total: number };
 }
@@ -39,7 +39,9 @@ export class GetLoyaltyRedemptionsUseCase {
     @Inject(LOYALTY_BOOKING_PORT) private readonly bookingCatalog: ILoyaltyBookingPort,
   ) {}
 
-  async execute(dto: GetLoyaltyRedemptionsDto): Promise<GetLoyaltyRedemptionsResult> {
+  async execute(
+    dto: GetLoyaltyRedemptionsUseCaseInput,
+  ): Promise<GetLoyaltyRedemptionsUseCaseResult> {
     const { items, total } = await this.redemptionRepo.findByCustomer(
       dto.tenantId,
       dto.customerId,

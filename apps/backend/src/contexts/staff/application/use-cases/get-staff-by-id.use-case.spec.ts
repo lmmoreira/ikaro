@@ -16,7 +16,9 @@ describe('GetStaffByIdUseCase', () => {
   });
 
   it('throws StaffNotFoundError when no staff with that id exists', async () => {
-    await expect(useCase.execute('non-existent', TENANT_A)).rejects.toThrow(StaffNotFoundError);
+    await expect(useCase.execute({ staffId: 'non-existent', tenantId: TENANT_A })).rejects.toThrow(
+      StaffNotFoundError,
+    );
   });
 
   it('returns the staff member with correct shape', async () => {
@@ -29,7 +31,7 @@ describe('GetStaffByIdUseCase', () => {
       .build();
     await repo.save(staff);
 
-    const result = await useCase.execute(staff.id, TENANT_A);
+    const result = await useCase.execute({ staffId: staff.id, tenantId: TENANT_A });
 
     expect(result.id).toBe(staff.id);
     expect(result.email).toBe('gerente@lavacar.com.br');
@@ -47,7 +49,7 @@ describe('GetStaffByIdUseCase', () => {
       .build();
     await repo.save(invited);
 
-    const result = await useCase.execute(invited.id, TENANT_A);
+    const result = await useCase.execute({ staffId: invited.id, tenantId: TENANT_A });
 
     expect(result.name).toBe('Test User');
     expect(result.isActive).toBe(true);
@@ -60,6 +62,8 @@ describe('GetStaffByIdUseCase', () => {
       .build();
     await repo.save(staff);
 
-    await expect(useCase.execute(staff.id, TENANT_B)).rejects.toThrow(StaffNotFoundError);
+    await expect(useCase.execute({ staffId: staff.id, tenantId: TENANT_B })).rejects.toThrow(
+      StaffNotFoundError,
+    );
   });
 });

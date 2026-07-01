@@ -53,7 +53,7 @@ describe('LoyaltyPlatformAdapter', () => {
       notificationMinPoints: 20,
       pointsPerCurrencyUnit: 10,
     });
-    expect(getTenantById.execute).toHaveBeenCalledWith(TENANT_ID);
+    expect(getTenantById.execute).toHaveBeenCalledWith({ tenantId: TENANT_ID });
   });
 
   it('returns defaults when tenant is not found', async () => {

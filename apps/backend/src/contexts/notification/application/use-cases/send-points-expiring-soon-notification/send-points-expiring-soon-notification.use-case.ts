@@ -35,6 +35,8 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.POINTS_EXPIRING_SOON;
 
+export type SendPointsExpiringSoonNotificationUseCaseInput = SendPointsExpiringSoonNotificationDto;
+
 export interface SendPointsExpiringSoonNotificationUseCaseResult {
   emailSent: boolean;
 }
@@ -57,28 +59,28 @@ export class SendPointsExpiringSoonNotificationUseCase extends BaseNotificationU
   }
 
   async execute(
-    dto: SendPointsExpiringSoonNotificationDto,
+    input: SendPointsExpiringSoonNotificationUseCaseInput,
   ): Promise<SendPointsExpiringSoonNotificationUseCaseResult> {
-    const templates = await this.templateRepo.findAllByTriggerEvent(dto.tenantId, TRIGGER);
+    const templates = await this.templateRepo.findAllByTriggerEvent(input.tenantId, TRIGGER);
     if (templates.length === 0) {
       this.logger.warn('No template found — skipping', {
-        tenantId: dto.tenantId,
+        tenantId: input.tenantId,
         triggerEvent: TRIGGER,
       });
       return { emailSent: false };
     }
 
-    const customer = await this.customerPort.getCustomerInfo(dto.customerId, dto.tenantId);
+    const customer = await this.customerPort.getCustomerInfo(input.customerId, input.tenantId);
     if (!customer) return { emailSent: false };
 
-    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
-    const emailSent = await this.dispatchTemplates(templates, dto, customer.email, {
+    const emailSent = await this.dispatchTemplates(templates, input, customer.email, {
       customerName: customer.name,
-      pointsExpiringSoon: String(dto.pointsExpiringSoon),
-      earliestExpiresAt: dto.earliestExpiresAt,
+      pointsExpiringSoon: String(input.pointsExpiringSoon),
+      earliestExpiresAt: input.earliestExpiresAt,
     });
     return { emailSent };
   }

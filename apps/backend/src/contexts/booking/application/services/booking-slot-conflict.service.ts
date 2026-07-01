@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { BookingSlotUnavailableError } from '../../domain/errors/booking-domain.error';
 import {
@@ -12,16 +11,15 @@ export class BookingSlotConflictService {
   constructor(
     @Inject(BOOKING_AVAILABILITY_PORT)
     private readonly availabilityPort: IBookingAvailabilityPort,
-    private readonly tenantContext: RequestContext,
   ) {}
 
   async assertSlotFree(
     tenantId: string,
     scheduledAt: Date,
     totalDurationMins: number,
+    timezone: string,
     excludeBookingId?: string,
   ): Promise<void> {
-    const { timezone } = this.tenantContext.settings.businessHours;
     const localDate = utcDateToLocalDate(scheduledAt, timezone);
     const existing = await this.availabilityPort.findApprovedByTenantAndDate(tenantId, localDate);
     const slots = excludeBookingId ? existing.filter((s) => s.id !== excludeBookingId) : existing;

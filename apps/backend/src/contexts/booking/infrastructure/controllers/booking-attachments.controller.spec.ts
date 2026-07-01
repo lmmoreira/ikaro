@@ -27,8 +27,8 @@ describe('BookingAttachmentsController', () => {
       .withActorRole('MANAGER')
       .build();
 
-    const useCase = new GenerateAttachmentSignedUrlUseCase(ctx, bookingRepo, storageService);
-    controller = new BookingAttachmentsController(useCase);
+    const useCase = new GenerateAttachmentSignedUrlUseCase(bookingRepo, storageService);
+    controller = new BookingAttachmentsController(ctx, useCase);
   });
 
   describe('POST /bookings/attachments/signed-url', () => {

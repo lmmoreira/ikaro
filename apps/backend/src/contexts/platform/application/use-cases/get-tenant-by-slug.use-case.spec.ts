@@ -13,14 +13,16 @@ describe('GetTenantBySlugUseCase', () => {
   });
 
   it('throws TenantNotFoundError when slug does not exist', async () => {
-    await expect(useCase.execute('no-such-slug')).rejects.toBeInstanceOf(TenantNotFoundError);
+    await expect(useCase.execute({ slug: 'no-such-slug' })).rejects.toBeInstanceOf(
+      TenantNotFoundError,
+    );
   });
 
   it('returns id, slug, and name for a known slug', async () => {
     const tenant = new TenantBuilder().withSlug('lavacar-bh').withName('Lavacar BH').build();
     await repo.save(tenant);
 
-    const result = await useCase.execute('lavacar-bh');
+    const result = await useCase.execute({ slug: 'lavacar-bh' });
 
     expect(result.id).toBe(tenant.id);
     expect(result.slug).toBe('lavacar-bh');

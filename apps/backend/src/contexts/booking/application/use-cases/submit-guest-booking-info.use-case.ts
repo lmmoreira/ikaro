@@ -4,7 +4,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import {
   BookingForbiddenError,
   BookingNotFoundError,
@@ -12,6 +11,11 @@ import {
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { SubmitGuestBookingInfoDto } from '../dtos/submit-guest-booking-info.dto';
+
+export type SubmitGuestBookingInfoInput = SubmitGuestBookingInfoDto & {
+  tenantId: string;
+  correlationId: string;
+};
 
 export interface SubmitGuestBookingInfoUseCaseResult {
   bookingId: string;
@@ -22,29 +26,27 @@ export interface SubmitGuestBookingInfoUseCaseResult {
 @Injectable()
 export class SubmitGuestBookingInfoUseCase {
   constructor(
-    private readonly tenantContext: RequestContext,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     private readonly photoExistenceService: PhotoExistenceService,
   ) {}
 
-  async execute(dto: SubmitGuestBookingInfoDto): Promise<SubmitGuestBookingInfoUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
-    const correlationId = this.tenantContext.correlationId;
+  async execute(input: SubmitGuestBookingInfoInput): Promise<SubmitGuestBookingInfoUseCaseResult> {
+    const { tenantId, correlationId } = input;
 
-    const booking = await this.bookingRepo.findById(dto.bookingId, tenantId);
-    if (!booking) throw new BookingNotFoundError(dto.bookingId);
+    const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
+    if (!booking) throw new BookingNotFoundError(input.bookingId);
 
     if (booking.customerId !== null) throw new BookingForbiddenError();
 
-    await this.photoExistenceService.assertPhotosUploaded(dto.photoUrls ?? [], tenantId);
+    await this.photoExistenceService.assertPhotosUploaded(input.photoUrls ?? [], tenantId);
 
     booking.submitInformation(
-      dto.contactEmail,
-      { notes: dto.response },
+      input.contactEmail,
+      { notes: input.response },
       correlationId,
-      dto.photoUrls ?? [],
+      input.photoUrls ?? [],
     );
 
     await this.txManager.run(async () => {

@@ -12,10 +12,4 @@ export const GenerateAttachmentSignedUrlSchema = z.object({
   bookingId: z.uuid().optional(),
 });
 
-export type GenerateAttachmentSignedUrlBody = z.infer<typeof GenerateAttachmentSignedUrlSchema>;
-
-export interface GenerateAttachmentSignedUrlDto {
-  fileName: string;
-  contentType: 'image/jpeg' | 'image/png';
-  bookingId?: string;
-}
+export type GenerateAttachmentSignedUrlDto = z.infer<typeof GenerateAttachmentSignedUrlSchema>;

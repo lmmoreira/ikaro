@@ -4,7 +4,6 @@ import { InMemoryStorageService } from '../../../../test/infrastructure/in-memor
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { BookingLineBuilder } from '../../../../test/builders/booking/booking-line.builder';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
   BookingDiscountDisabledError,
@@ -19,21 +18,23 @@ import {
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { CompleteBookingUseCase } from './complete-booking.use-case';
 import { Money } from '../../../../shared/value-objects/money';
-import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
-import type { TenantSettingsProps } from '../../../platform/domain/value-objects/tenant-settings.vo';
 
 const CUSTOMER_ID = '40000000-0000-4000-8000-000000000301';
-
-function settingsWithPointsPerCurrencyUnit(rate: number): TenantSettingsProps {
-  const defaults = TenantSettings.default().toJSON();
-  return { ...defaults, loyalty: { ...defaults.loyalty, pointsPerCurrencyUnit: rate } };
-}
 
 const TENANT_A = '10000000-0000-4000-8000-000000000301';
 const TENANT_B = '10000000-0000-4000-8000-000000000302';
 const STAFF_ID = '20000000-0000-4000-8000-000000000301';
+const CORRELATION_ID = 'corr-complete-test';
 const LINE_ID_1 = '30000000-0000-4000-8000-000000000301';
 const LINE_ID_2 = '30000000-0000-4000-8000-000000000302';
+
+const baseCtx = {
+  tenantId: TENANT_A,
+  staffId: STAFF_ID,
+  correlationId: CORRELATION_ID,
+  currency: 'BRL',
+  pointsPerCurrencyUnit: 0,
+};
 
 function makeApprovedBooking(
   tenantId = TENANT_A,
@@ -80,34 +81,23 @@ describe('CompleteBookingUseCase', () => {
   let storageService: InMemoryStorageService;
   let useCase: CompleteBookingUseCase;
 
-  function makeUseCase(pointsPerCurrencyUnit = 0): CompleteBookingUseCase {
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withActorId(STAFF_ID)
-      .withActorRole('MANAGER')
-      .withSettings(settingsWithPointsPerCurrencyUnit(pointsPerCurrencyUnit))
-      .build();
-    return new CompleteBookingUseCase(
-      ctx,
+  beforeEach(() => {
+    bookingRepo = new InMemoryBookingRepository();
+    eventBus = new InMemoryEventBus();
+    storageService = new InMemoryStorageService();
+    useCase = new CompleteBookingUseCase(
       bookingRepo,
       new InMemoryTransactionManager(),
       eventBus,
       new PhotoExistenceService(storageService),
     );
-  }
-
-  beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
-    eventBus = new InMemoryEventBus();
-    storageService = new InMemoryStorageService();
-    useCase = makeUseCase();
   });
 
   it('transitions APPROVED → COMPLETED and returns result', async () => {
     const booking = makeApprovedBooking();
     await bookingRepo.save(booking);
 
-    const result = await useCase.execute(makeDto(booking.id));
+    const result = await useCase.execute({ ...makeDto(booking.id), ...baseCtx });
 
     expect(result.status).toBe(BookingStatus.COMPLETED);
     expect(result.bookingId).toBe(booking.id);
@@ -120,7 +110,7 @@ describe('CompleteBookingUseCase', () => {
     const booking = makeApprovedBooking();
     await bookingRepo.save(booking);
 
-    await useCase.execute(makeDto(booking.id));
+    await useCase.execute({ ...makeDto(booking.id), ...baseCtx });
 
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.status).toBe(BookingStatus.COMPLETED);
@@ -133,7 +123,10 @@ describe('CompleteBookingUseCase', () => {
     const booking = makeApprovedBooking();
     await bookingRepo.save(booking);
 
-    await useCase.execute(makeDto(booking.id, [LINE_ID_1], { adminNotes: 'Extra shine applied' }));
+    await useCase.execute({
+      ...makeDto(booking.id, [LINE_ID_1], { adminNotes: 'Extra shine applied' }),
+      ...baseCtx,
+    });
 
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.adminNotes).toBe('Extra shine applied');
@@ -145,7 +138,10 @@ describe('CompleteBookingUseCase', () => {
     const photos = [`tenants/${TENANT_A}/bookings/${booking.id}/after1.jpg`];
     photos.forEach((path) => storageService.markAsUploaded(path));
 
-    await useCase.execute(makeDto(booking.id, [LINE_ID_1], { afterServicePhotoUrls: photos }));
+    await useCase.execute({
+      ...makeDto(booking.id, [LINE_ID_1], { afterServicePhotoUrls: photos }),
+      ...baseCtx,
+    });
 
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.afterServicePhotoUrls).toEqual(photos);
@@ -156,11 +152,12 @@ describe('CompleteBookingUseCase', () => {
     await bookingRepo.save(booking);
 
     await expect(
-      useCase.execute(
-        makeDto(booking.id, [LINE_ID_1], {
+      useCase.execute({
+        ...makeDto(booking.id, [LINE_ID_1], {
           afterServicePhotoUrls: [`tenants/${TENANT_A}/bookings/${booking.id}/missing.jpg`],
         }),
-      ),
+        ...baseCtx,
+      }),
     ).rejects.toBeInstanceOf(BookingPhotoNotUploadedError);
   });
 
@@ -168,7 +165,7 @@ describe('CompleteBookingUseCase', () => {
     const booking = makeApprovedBooking();
     await bookingRepo.save(booking);
 
-    await useCase.execute(makeDto(booking.id));
+    await useCase.execute({ ...makeDto(booking.id), ...baseCtx });
 
     expect(eventBus.published).toHaveLength(1);
     expect(eventBus.published[0].eventName).toBe('BookingCompleted');
@@ -195,6 +192,7 @@ describe('CompleteBookingUseCase', () => {
         { lineId: LINE_ID_2, actualPriceCharged: 100 },
       ],
       afterServicePhotoUrls: [],
+      ...baseCtx,
     });
 
     expect(result.totalActualPrice.amount).toBe(150);
@@ -204,9 +202,9 @@ describe('CompleteBookingUseCase', () => {
     const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1, LINE_ID_2]);
     await bookingRepo.save(booking);
 
-    await expect(useCase.execute(makeDto(booking.id, [LINE_ID_1]))).rejects.toThrow(
-      CompleteBookingLinesIncompleteError,
-    );
+    await expect(
+      useCase.execute({ ...makeDto(booking.id, [LINE_ID_1]), ...baseCtx }),
+    ).rejects.toThrow(CompleteBookingLinesIncompleteError);
   });
 
   it('throws InvalidBookingTransitionError when booking is PENDING', async () => {
@@ -217,7 +215,7 @@ describe('CompleteBookingUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await expect(useCase.execute(makeDto(booking.id))).rejects.toThrow(
+    await expect(useCase.execute({ ...makeDto(booking.id), ...baseCtx })).rejects.toThrow(
       InvalidBookingTransitionError,
     );
   });
@@ -230,35 +228,38 @@ describe('CompleteBookingUseCase', () => {
       .build();
     await bookingRepo.save(booking);
 
-    await expect(useCase.execute(makeDto(booking.id))).rejects.toThrow(
+    await expect(useCase.execute({ ...makeDto(booking.id), ...baseCtx })).rejects.toThrow(
       InvalidBookingTransitionError,
     );
   });
 
   it('throws BookingNotFoundError when booking does not exist', async () => {
-    await expect(useCase.execute(makeDto('00000000-0000-4000-8000-000000000000'))).rejects.toThrow(
-      BookingNotFoundError,
-    );
+    await expect(
+      useCase.execute({ ...makeDto('00000000-0000-4000-8000-000000000000'), ...baseCtx }),
+    ).rejects.toThrow(BookingNotFoundError);
   });
 
   it('tenant isolation: cannot complete booking from another tenant', async () => {
     const booking = makeApprovedBooking(TENANT_B);
     await bookingRepo.save(booking);
 
-    await expect(useCase.execute(makeDto(booking.id))).rejects.toThrow(BookingNotFoundError);
+    await expect(
+      useCase.execute({ ...makeDto(booking.id), ...baseCtx, tenantId: TENANT_A }),
+    ).rejects.toThrow(BookingNotFoundError);
   });
 
   describe('discountByPoints', () => {
     it('applies the discount and persists it on the booking when valid', async () => {
       const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
       await bookingRepo.save(booking);
-      const discountUseCase = makeUseCase(10);
 
-      const result = await discountUseCase.execute(
-        makeDto(booking.id, [LINE_ID_1], {
+      const result = await useCase.execute({
+        ...makeDto(booking.id, [LINE_ID_1], {
           discountByPoints: { pointsUsed: 200, amountDeducted: 20 },
         }),
-      );
+        ...baseCtx,
+        pointsPerCurrencyUnit: 10,
+      });
 
       expect(result.totalActualPrice.amount).toBe(60);
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
@@ -269,14 +270,15 @@ describe('CompleteBookingUseCase', () => {
     it('throws BookingDiscountNotAvailableError for a guest booking (no customerId)', async () => {
       const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], null);
       await bookingRepo.save(booking);
-      const discountUseCase = makeUseCase(10);
 
       await expect(
-        discountUseCase.execute(
-          makeDto(booking.id, [LINE_ID_1], {
+        useCase.execute({
+          ...makeDto(booking.id, [LINE_ID_1], {
             discountByPoints: { pointsUsed: 200, amountDeducted: 20 },
           }),
-        ),
+          ...baseCtx,
+          pointsPerCurrencyUnit: 10,
+        }),
       ).rejects.toThrow(BookingDiscountNotAvailableError);
     });
 
@@ -285,54 +287,58 @@ describe('CompleteBookingUseCase', () => {
       await bookingRepo.save(booking);
 
       await expect(
-        useCase.execute(
-          makeDto(booking.id, [LINE_ID_1], {
+        useCase.execute({
+          ...makeDto(booking.id, [LINE_ID_1], {
             discountByPoints: { pointsUsed: 200, amountDeducted: 20 },
           }),
-        ),
+          ...baseCtx,
+          pointsPerCurrencyUnit: 0,
+        }),
       ).rejects.toThrow(BookingDiscountDisabledError);
     });
 
     it('throws BookingDiscountMismatchError when amountDeducted does not reconcile', async () => {
       const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
       await bookingRepo.save(booking);
-      const discountUseCase = makeUseCase(10);
 
       await expect(
-        discountUseCase.execute(
-          makeDto(booking.id, [LINE_ID_1], {
+        useCase.execute({
+          ...makeDto(booking.id, [LINE_ID_1], {
             discountByPoints: { pointsUsed: 200, amountDeducted: 25 },
           }),
-        ),
+          ...baseCtx,
+          pointsPerCurrencyUnit: 10,
+        }),
       ).rejects.toThrow(BookingDiscountMismatchError);
     });
 
     it('throws BookingDiscountMismatchError for a sub-cent amountDeducted that would round up to a different value', async () => {
       const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
       await bookingRepo.save(booking);
-      const discountUseCase = makeUseCase(10);
 
-      // 200 pts / 10 = 20 exactly; 20.009 rounds to 20.01, which must not slip through.
       await expect(
-        discountUseCase.execute(
-          makeDto(booking.id, [LINE_ID_1], {
+        useCase.execute({
+          ...makeDto(booking.id, [LINE_ID_1], {
             discountByPoints: { pointsUsed: 200, amountDeducted: 20.009 },
           }),
-        ),
+          ...baseCtx,
+          pointsPerCurrencyUnit: 10,
+        }),
       ).rejects.toThrow(BookingDiscountMismatchError);
     });
 
     it('throws BookingDiscountExceedsTotalError when amountDeducted exceeds the lines total', async () => {
       const booking = makeApprovedBooking(TENANT_A, [LINE_ID_1], CUSTOMER_ID);
       await bookingRepo.save(booking);
-      const discountUseCase = makeUseCase(1);
 
       await expect(
-        discountUseCase.execute(
-          makeDto(booking.id, [LINE_ID_1], {
+        useCase.execute({
+          ...makeDto(booking.id, [LINE_ID_1], {
             discountByPoints: { pointsUsed: 90, amountDeducted: 90 },
           }),
-        ),
+          ...baseCtx,
+          pointsPerCurrencyUnit: 1,
+        }),
       ).rejects.toThrow(BookingDiscountExceedsTotalError);
     });
   });

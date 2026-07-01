@@ -11,8 +11,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { z } from 'zod';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   RequestBookingDto,
   RequestBookingSchema,
@@ -22,9 +22,10 @@ import {
   RequestAuthenticatedBookingSchema,
 } from '../../application/dtos/request-authenticated-booking.dto';
 import {
-  RejectBookingBody,
-  RejectBookingBodySchema,
-} from '../../application/dtos/reject-booking.dto';
+  ApproveBookingDto,
+  ApproveBookingSchema,
+} from '../../application/dtos/approve-booking.dto';
+import { RejectBookingDto, RejectBookingSchema } from '../../application/dtos/reject-booking.dto';
 import {
   RequestBookingUseCase,
   RequestBookingUseCaseResult,
@@ -83,39 +84,33 @@ import {
   CancelBookingAsAdminUseCaseResult,
 } from '../../application/use-cases/cancel-booking-as-admin.use-case';
 import {
-  CancelBookingAsAdminBody,
-  CancelBookingAsAdminBodySchema,
+  CancelBookingAsAdminDto,
+  CancelBookingAsAdminSchema,
 } from '../../application/dtos/cancel-booking-as-admin.dto';
 import {
   RescheduleBookingUseCase,
   RescheduleBookingUseCaseResult,
 } from '../../application/use-cases/reschedule-booking.use-case';
 import {
-  RescheduleBookingBody,
-  RescheduleBookingBodySchema,
+  RescheduleBookingDto,
+  RescheduleBookingSchema,
 } from '../../application/dtos/reschedule-booking.dto';
 import {
-  CompleteBookingBody,
-  CompleteBookingBodySchema,
+  CompleteBookingDto,
+  CompleteBookingSchema,
 } from '../../application/dtos/complete-booking.dto';
 import {
   CompleteBookingUseCase,
   CompleteBookingUseCaseResult,
 } from '../../application/use-cases/complete-booking.use-case';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
+import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { mapBookingError } from '../http/booking-error.mapper';
-
-const ApproveBookingBodySchema = z
-  .object({
-    scheduledAt: z.iso.datetime().optional(),
-  })
-  .default({});
-
-type ApproveBookingBody = z.infer<typeof ApproveBookingBodySchema>;
 
 @Controller('bookings')
 export class BookingController {
   constructor(
+    private readonly ctx: RequestContext,
     private readonly requestBooking: RequestBookingUseCase,
     private readonly requestAuthenticatedBooking: RequestAuthenticatedBookingUseCase,
     private readonly approveBooking: ApproveBookingUseCase,
@@ -135,14 +130,31 @@ export class BookingController {
   list(
     @Query(new ZodValidationPipe(ListBookingsSchema)) query: ListBookingsDto,
   ): Promise<ListBookingsUseCaseResult> {
-    return this.listBookings.execute(query).catch(mapBookingError);
+    const { tenantId, actorType, actorId, settings } = this.ctx;
+    return this.listBookings
+      .execute({
+        ...query,
+        tenantId,
+        locale: settings.localization.language,
+        customerId: actorType === 'CUSTOMER' ? actorId : undefined,
+      })
+      .catch(mapBookingError);
   }
 
   @Get(':id')
   getOne(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<GetBookingByIdUseCaseResult> {
-    return this.getBooking.execute({ bookingId: id }).catch(mapBookingError);
+    const { tenantId, actorType, actorId, settings } = this.ctx;
+    return this.getBooking
+      .execute({ bookingId: id, tenantId, locale: settings.localization.language })
+      .then((result) => {
+        if (actorType === 'CUSTOMER' && result.customerId !== actorId) {
+          throw new BookingNotFoundError(id);
+        }
+        return result;
+      })
+      .catch(mapBookingError);
   }
 
   @Post()
@@ -150,7 +162,16 @@ export class BookingController {
   create(
     @Body(new ZodValidationPipe(RequestBookingSchema)) body: RequestBookingDto,
   ): Promise<RequestBookingUseCaseResult> {
-    return this.requestBooking.execute(body).catch(mapBookingError);
+    const { tenantId, correlationId, settings } = this.ctx;
+    return this.requestBooking
+      .execute({
+        ...body,
+        tenantId,
+        correlationId,
+        countryCode: settings.localization.countryCode,
+        timezone: settings.businessHours.timezone,
+      })
+      .catch(mapBookingError);
   }
 
   @Post('authenticated')
@@ -159,7 +180,17 @@ export class BookingController {
     @Body(new ZodValidationPipe(RequestAuthenticatedBookingSchema))
     body: RequestAuthenticatedBookingDto,
   ): Promise<RequestAuthenticatedBookingUseCaseResult> {
-    return this.requestAuthenticatedBooking.execute(body).catch(mapBookingError);
+    const { tenantId, correlationId, actorId: customerId, settings } = this.ctx;
+    return this.requestAuthenticatedBooking
+      .execute({
+        ...body,
+        tenantId,
+        correlationId,
+        customerId: customerId!,
+        countryCode: settings.localization.countryCode,
+        timezone: settings.businessHours.timezone,
+      })
+      .catch(mapBookingError);
   }
 
   @Patch(':id/approve')
@@ -167,12 +198,17 @@ export class BookingController {
   @UseGuards(StaffOrManagerRoleGuard)
   approve(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-    @Body(new ZodValidationPipe(ApproveBookingBodySchema)) body: ApproveBookingBody,
+    @Body(new ZodValidationPipe(ApproveBookingSchema)) body: ApproveBookingDto,
   ): Promise<ApproveBookingUseCaseResult> {
+    const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;
     return this.approveBooking
       .execute({
         bookingId: id,
         ...(body.scheduledAt ? { scheduledAt: body.scheduledAt } : {}),
+        tenantId,
+        staffId: staffId!,
+        correlationId,
+        timezone: settings.businessHours.timezone,
       })
       .catch(mapBookingError);
   }
@@ -182,10 +218,11 @@ export class BookingController {
   @UseGuards(StaffOrManagerRoleGuard)
   reject(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(RejectBookingBodySchema)) body: RejectBookingBody,
+    @Body(new ZodValidationPipe(RejectBookingSchema)) body: RejectBookingDto,
   ): Promise<RejectBookingUseCaseResult> {
+    const { tenantId, actorId: staffId, correlationId } = this.ctx;
     return this.rejectBooking
-      .execute({ bookingId: id, reason: body.reason })
+      .execute({ bookingId: id, reason: body.reason, tenantId, staffId: staffId!, correlationId })
       .catch(mapBookingError);
   }
 
@@ -197,8 +234,9 @@ export class BookingController {
     @Body(new ZodValidationPipe(RequestMoreInfoBodySchema.omit({ bookingId: true })))
     body: Omit<RequestMoreInfoDto, 'bookingId'>,
   ): Promise<RequestMoreInfoUseCaseResult> {
+    const { tenantId, actorId: staffId, correlationId } = this.ctx;
     return this.requestMoreInfo
-      .execute({ bookingId: id, message: body.message })
+      .execute({ bookingId: id, message: body.message, tenantId, staffId: staffId!, correlationId })
       .catch(mapBookingError);
   }
 
@@ -209,8 +247,16 @@ export class BookingController {
     @Body(new ZodValidationPipe(SubmitBookingInfoBodySchema.omit({ bookingId: true })))
     body: Omit<SubmitBookingInfoDto, 'bookingId'>,
   ): Promise<SubmitBookingInfoUseCaseResult> {
+    const { tenantId, actorId: customerId, correlationId } = this.ctx;
     return this.submitBookingInfo
-      .execute({ bookingId: id, response: body.response, photoUrls: body.photoUrls })
+      .execute({
+        bookingId: id,
+        response: body.response,
+        photoUrls: body.photoUrls,
+        tenantId,
+        customerId: customerId!,
+        correlationId,
+      })
       .catch(mapBookingError);
   }
 
@@ -219,7 +265,16 @@ export class BookingController {
   cancelAsCustomer(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<CancelBookingAsCustomerUseCaseResult> {
-    return this.cancelBookingAsCustomer.execute({ bookingId: id }).catch(mapBookingError);
+    const { tenantId, actorId: customerId, correlationId, settings } = this.ctx;
+    return this.cancelBookingAsCustomer
+      .execute({
+        bookingId: id,
+        tenantId,
+        customerId: customerId!,
+        correlationId,
+        cancellationWindowHours: settings.booking.cancellationWindowHours,
+      })
+      .catch(mapBookingError);
   }
 
   @Patch(':id/cancel-admin')
@@ -227,10 +282,11 @@ export class BookingController {
   @UseGuards(StaffOrManagerRoleGuard)
   cancelAsAdmin(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-    @Body(new ZodValidationPipe(CancelBookingAsAdminBodySchema)) body: CancelBookingAsAdminBody,
+    @Body(new ZodValidationPipe(CancelBookingAsAdminSchema)) body: CancelBookingAsAdminDto,
   ): Promise<CancelBookingAsAdminUseCaseResult> {
+    const { tenantId, actorId: staffId, correlationId } = this.ctx;
     return this.cancelBookingAsAdmin
-      .execute({ bookingId: id, reason: body.reason })
+      .execute({ bookingId: id, reason: body.reason, tenantId, staffId: staffId!, correlationId })
       .catch(mapBookingError);
   }
 
@@ -239,10 +295,19 @@ export class BookingController {
   @UseGuards(StaffOrManagerRoleGuard)
   reschedule(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-    @Body(new ZodValidationPipe(RescheduleBookingBodySchema)) body: RescheduleBookingBody,
+    @Body(new ZodValidationPipe(RescheduleBookingSchema)) body: RescheduleBookingDto,
   ): Promise<RescheduleBookingUseCaseResult> {
+    const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;
     return this.rescheduleBooking
-      .execute({ bookingId: id, scheduledAt: body.scheduledAt, adminNotes: body.adminNotes })
+      .execute({
+        bookingId: id,
+        scheduledAt: body.scheduledAt,
+        adminNotes: body.adminNotes,
+        tenantId,
+        staffId: staffId!,
+        correlationId,
+        timezone: settings.businessHours.timezone,
+      })
       .catch(mapBookingError);
   }
 
@@ -251,8 +316,9 @@ export class BookingController {
   @UseGuards(StaffOrManagerRoleGuard)
   complete(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-    @Body(new ZodValidationPipe(CompleteBookingBodySchema)) body: CompleteBookingBody,
+    @Body(new ZodValidationPipe(CompleteBookingSchema)) body: CompleteBookingDto,
   ): Promise<CompleteBookingUseCaseResult> {
+    const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;
     return this.completeBooking
       .execute({
         bookingId: id,
@@ -260,6 +326,11 @@ export class BookingController {
         afterServicePhotoUrls: body.afterServicePhotoUrls,
         adminNotes: body.adminNotes,
         discountByPoints: body.discountByPoints,
+        tenantId,
+        staffId: staffId!,
+        correlationId,
+        currency: settings.localization.currency,
+        pointsPerCurrencyUnit: settings.loyalty.pointsPerCurrencyUnit,
       })
       .catch(mapBookingError);
   }
@@ -271,12 +342,15 @@ export class BookingController {
     @Body(new ZodValidationPipe(SubmitGuestBookingInfoBodySchema.omit({ bookingId: true })))
     body: Omit<SubmitGuestBookingInfoDto, 'bookingId'>,
   ): Promise<SubmitGuestBookingInfoUseCaseResult> {
+    const { tenantId, correlationId } = this.ctx;
     return this.submitGuestBookingInfo
       .execute({
         bookingId: id,
         contactEmail: body.contactEmail,
         response: body.response,
         photoUrls: body.photoUrls,
+        tenantId,
+        correlationId,
       })
       .catch(mapBookingError);
   }

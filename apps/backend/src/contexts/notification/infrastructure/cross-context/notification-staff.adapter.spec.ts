@@ -38,7 +38,7 @@ describe('NotificationStaffAdapter', () => {
     const result = await adapter.getStaffInfo(STAFF_ID, TENANT_ID);
 
     expect(result).toEqual({ id: STAFF_ID, email: 'maria@lavacar.com.br', name: 'Maria' });
-    expect(getStaffById.execute).toHaveBeenCalledWith(STAFF_ID, TENANT_ID);
+    expect(getStaffById.execute).toHaveBeenCalledWith({ staffId: STAFF_ID, tenantId: TENANT_ID });
   });
 
   it('returns null when staff is not found', async () => {

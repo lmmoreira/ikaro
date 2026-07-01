@@ -37,6 +37,7 @@ const CORRELATION_ID = 'corr-booking-ctrl-test';
 
 describe('BookingController', () => {
   let controller: BookingController;
+  let customerController: BookingController;
   let serviceRepo: InMemoryServiceRepository;
   let bookingRepo: InMemoryBookingRepository;
   let storageService: InMemoryStorageService;
@@ -46,9 +47,11 @@ describe('BookingController', () => {
     serviceRepo = new InMemoryServiceRepository();
     bookingRepo = new InMemoryBookingRepository();
     storageService = new InMemoryStorageService();
-    const guestCtx = new RequestContextBuilder()
+    const staffCtx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
       .withCorrelationId(CORRELATION_ID)
+      .withActorId(STAFF_ID)
+      .withActorRole('MANAGER')
       .build();
     const customerCtx = new RequestContextBuilder()
       .withTenantId(TENANT_A)
@@ -57,12 +60,6 @@ describe('BookingController', () => {
       .withActorType('CUSTOMER')
       .withActorRole('CUSTOMER')
       .build();
-    const staffCtx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withCorrelationId(CORRELATION_ID)
-      .withActorId(STAFF_ID)
-      .withActorRole('MANAGER')
-      .build();
     const customerProfilePort = new InMemoryBookingCustomerPort();
     customerProfilePort.setProfile(CUSTOMER_ID, {
       email: 'cliente@example.com',
@@ -70,87 +67,112 @@ describe('BookingController', () => {
       phone: '+5531988888888',
       defaultAddress: null,
     });
-    controller = new BookingController(
-      new RequestBookingUseCase(
+
+    const makeUseCases = (repo: InMemoryBookingRepository) => ({
+      requestBooking: new RequestBookingUseCase(
         serviceRepo,
-        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), guestCtx),
+        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
         new PhotoExistenceService(storageService),
-        bookingRepo,
+        repo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
-        guestCtx,
       ),
-      new RequestAuthenticatedBookingUseCase(
+      requestAuthenticatedBooking: new RequestAuthenticatedBookingUseCase(
         customerProfilePort,
         serviceRepo,
-        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), customerCtx),
+        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
         new PhotoExistenceService(storageService),
-        bookingRepo,
-        new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
-        customerCtx,
-      ),
-      new ApproveBookingUseCase(
-        staffCtx,
-        bookingRepo,
-        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtx),
+        repo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
-      new RejectBookingUseCase(
-        staffCtx,
-        bookingRepo,
+      approveBooking: new ApproveBookingUseCase(
+        repo,
+        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
-      new RequestMoreInfoUseCase(
-        staffCtx,
-        bookingRepo,
+      rejectBooking: new RejectBookingUseCase(
+        repo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
-      new SubmitBookingInfoUseCase(
-        customerCtx,
-        bookingRepo,
+      requestMoreInfo: new RequestMoreInfoUseCase(
+        repo,
+        new InMemoryTransactionManager(),
+        new InMemoryEventBus(),
+      ),
+      submitBookingInfo: new SubmitBookingInfoUseCase(
+        repo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
         new PhotoExistenceService(storageService),
       ),
-      new SubmitGuestBookingInfoUseCase(
-        guestCtx,
-        bookingRepo,
+      submitGuestBookingInfo: new SubmitGuestBookingInfoUseCase(
+        repo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
         new PhotoExistenceService(storageService),
       ),
-      new ListBookingsUseCase(bookingRepo, staffCtx),
-      new GetBookingByIdUseCase(bookingRepo, staffCtx, storageService),
-      new CancelBookingAsCustomerUseCase(
-        customerCtx,
-        bookingRepo,
+      listBookings: new ListBookingsUseCase(repo),
+      getBooking: new GetBookingByIdUseCase(repo, storageService),
+      cancelBookingAsCustomer: new CancelBookingAsCustomerUseCase(
+        repo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
-      new CancelBookingAsAdminUseCase(
-        staffCtx,
-        bookingRepo,
+      cancelBookingAsAdmin: new CancelBookingAsAdminUseCase(
+        repo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
-      new RescheduleBookingUseCase(
-        staffCtx,
-        bookingRepo,
-        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtx),
+      rescheduleBooking: new RescheduleBookingUseCase(
+        repo,
+        new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
       ),
-      new CompleteBookingUseCase(
-        staffCtx,
-        bookingRepo,
+      completeBooking: new CompleteBookingUseCase(
+        repo,
         new InMemoryTransactionManager(),
         new InMemoryEventBus(),
         new PhotoExistenceService(storageService),
       ),
+    });
+
+    const uc = makeUseCases(bookingRepo);
+    controller = new BookingController(
+      staffCtx,
+      uc.requestBooking,
+      uc.requestAuthenticatedBooking,
+      uc.approveBooking,
+      uc.rejectBooking,
+      uc.requestMoreInfo,
+      uc.submitBookingInfo,
+      uc.submitGuestBookingInfo,
+      uc.listBookings,
+      uc.getBooking,
+      uc.cancelBookingAsCustomer,
+      uc.cancelBookingAsAdmin,
+      uc.rescheduleBooking,
+      uc.completeBooking,
+    );
+    const ucC = makeUseCases(bookingRepo);
+    customerController = new BookingController(
+      customerCtx,
+      ucC.requestBooking,
+      ucC.requestAuthenticatedBooking,
+      ucC.approveBooking,
+      ucC.rejectBooking,
+      ucC.requestMoreInfo,
+      ucC.submitBookingInfo,
+      ucC.submitGuestBookingInfo,
+      ucC.listBookings,
+      ucC.getBooking,
+      ucC.cancelBookingAsCustomer,
+      ucC.cancelBookingAsAdmin,
+      ucC.rescheduleBooking,
+      ucC.completeBooking,
     );
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await serviceRepo.save(service);
@@ -186,93 +208,65 @@ describe('BookingController', () => {
         .withTenantId(TENANT_A)
         .withCorrelationId(CORRELATION_ID)
         .build();
-      const staffCtxB = new RequestContextBuilder()
-        .withTenantId(TENANT_A)
-        .withActorId(STAFF_ID)
-        .build();
       const repoB = new InMemoryBookingRepository();
-      const customerCtxB = new RequestContextBuilder()
-        .withTenantId(TENANT_A)
-        .withActorId(CUSTOMER_ID)
-        .withActorType('CUSTOMER')
-        .withActorRole('CUSTOMER')
-        .build();
       const ctrl = new BookingController(
+        ctx,
         new RequestBookingUseCase(
           serviceRepo,
-          new BookingSlotConflictService(conflictPort, ctx),
+          new BookingSlotConflictService(conflictPort),
           new PhotoExistenceService(storageService),
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          ctx,
         ),
         new RequestAuthenticatedBookingUseCase(
           new InMemoryBookingCustomerPort(),
           serviceRepo,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), ctx),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new PhotoExistenceService(storageService),
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          ctx,
         ),
         new ApproveBookingUseCase(
-          staffCtxB,
           repoB,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtxB),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
-        new RejectBookingUseCase(
-          staffCtxB,
-          repoB,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
-        new RequestMoreInfoUseCase(
-          staffCtxB,
-          repoB,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
+        new RejectBookingUseCase(repoB, new InMemoryTransactionManager(), new InMemoryEventBus()),
+        new RequestMoreInfoUseCase(repoB, new InMemoryTransactionManager(), new InMemoryEventBus()),
         new SubmitBookingInfoUseCase(
-          customerCtxB,
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
         new SubmitGuestBookingInfoUseCase(
-          ctx,
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
-        new ListBookingsUseCase(repoB, ctx),
-        new GetBookingByIdUseCase(repoB, ctx, storageService),
+        new ListBookingsUseCase(repoB),
+        new GetBookingByIdUseCase(repoB, storageService),
         new CancelBookingAsCustomerUseCase(
-          customerCtxB,
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new CancelBookingAsAdminUseCase(
-          staffCtxB,
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new RescheduleBookingUseCase(
-          staffCtxB,
           repoB,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtxB),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new CompleteBookingUseCase(
-          staffCtxB,
           repoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
@@ -354,88 +348,72 @@ describe('BookingController', () => {
         .withActorRole('MANAGER')
         .build();
       const bookingRepoB = new InMemoryBookingRepository();
-      const customerCtxC = new RequestContextBuilder()
-        .withTenantId(TENANT_A)
-        .withActorId(CUSTOMER_ID)
-        .withActorType('CUSTOMER')
-        .withActorRole('CUSTOMER')
-        .build();
       const ctrl = new BookingController(
+        staffCtx,
         new RequestBookingUseCase(
           serviceRepo,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtx),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new PhotoExistenceService(storageService),
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          new RequestContextBuilder().withTenantId(TENANT_A).build(),
         ),
         new RequestAuthenticatedBookingUseCase(
           new InMemoryBookingCustomerPort(),
           serviceRepo,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtx),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new PhotoExistenceService(storageService),
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          new RequestContextBuilder().withTenantId(TENANT_A).build(),
         ),
         new ApproveBookingUseCase(
-          staffCtx,
           bookingRepoB,
-          new BookingSlotConflictService(conflictPort, staffCtx),
+          new BookingSlotConflictService(conflictPort),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new RejectBookingUseCase(
-          staffCtx,
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new RequestMoreInfoUseCase(
-          staffCtx,
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new SubmitBookingInfoUseCase(
-          customerCtxC,
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
         new SubmitGuestBookingInfoUseCase(
-          new RequestContextBuilder().withTenantId(TENANT_A).build(),
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
-        new ListBookingsUseCase(bookingRepoB, staffCtx),
-        new GetBookingByIdUseCase(bookingRepoB, staffCtx, storageService),
+        new ListBookingsUseCase(bookingRepoB),
+        new GetBookingByIdUseCase(bookingRepoB, storageService),
         new CancelBookingAsCustomerUseCase(
-          customerCtxC,
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new CancelBookingAsAdminUseCase(
-          staffCtx,
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new RescheduleBookingUseCase(
-          staffCtx,
           bookingRepoB,
-          new BookingSlotConflictService(conflictPort, staffCtx),
+          new BookingSlotConflictService(conflictPort),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new CompleteBookingUseCase(
-          staffCtx,
           bookingRepoB,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
@@ -624,7 +602,7 @@ describe('BookingController', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await controller.submitInfo(booking.id, { response: validResponse });
+      const result = await customerController.submitInfo(booking.id, { response: validResponse });
       expect(result.status).toBe(BookingStatus.PENDING);
       expect(result.bookingId).toBe(booking.id);
       expect(result.infoSubmittedAt).toBeDefined();
@@ -663,7 +641,7 @@ describe('BookingController', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const err = await controller
+      const err = await customerController
         .submitInfo(booking.id, { response: validResponse })
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
@@ -773,7 +751,7 @@ describe('BookingController', () => {
     });
 
     it('creates a CUSTOMER booking and returns 201 shape', async () => {
-      const result = await controller.createAuthenticated(authBody());
+      const result = await customerController.createAuthenticated(authBody());
       expect(result.bookingId).toBeDefined();
       expect(result.status).toBe('PENDING');
       expect(result.lines).toHaveLength(1);
@@ -794,87 +772,65 @@ describe('BookingController', () => {
         .withActorId(CUSTOMER_ID)
         .withActorType('CUSTOMER')
         .build();
-      const staffCtxC = new RequestContextBuilder()
-        .withTenantId(TENANT_A)
-        .withActorId(STAFF_ID)
-        .build();
       const repoC = new InMemoryBookingRepository();
       const ctrl = new BookingController(
+        ctx,
         new RequestBookingUseCase(
           serviceRepo,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), ctx),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new PhotoExistenceService(storageService),
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          ctx,
         ),
         new RequestAuthenticatedBookingUseCase(
           noPhonePort,
           serviceRepo,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), ctx),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new PhotoExistenceService(storageService),
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
-          ctx,
         ),
         new ApproveBookingUseCase(
-          staffCtxC,
           repoC,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtxC),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
-        new RejectBookingUseCase(
-          staffCtxC,
-          repoC,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
-        new RequestMoreInfoUseCase(
-          staffCtxC,
-          repoC,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
+        new RejectBookingUseCase(repoC, new InMemoryTransactionManager(), new InMemoryEventBus()),
+        new RequestMoreInfoUseCase(repoC, new InMemoryTransactionManager(), new InMemoryEventBus()),
         new SubmitBookingInfoUseCase(
-          ctx,
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
         new SubmitGuestBookingInfoUseCase(
-          ctx,
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
-        new ListBookingsUseCase(repoC, ctx),
-        new GetBookingByIdUseCase(repoC, ctx, storageService),
+        new ListBookingsUseCase(repoC),
+        new GetBookingByIdUseCase(repoC, storageService),
         new CancelBookingAsCustomerUseCase(
-          ctx,
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new CancelBookingAsAdminUseCase(
-          staffCtxC,
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new RescheduleBookingUseCase(
-          staffCtxC,
           repoC,
-          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort(), staffCtxC),
+          new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),
         ),
         new CompleteBookingUseCase(
-          staffCtxC,
           repoC,
           new InMemoryTransactionManager(),
           new InMemoryEventBus(),

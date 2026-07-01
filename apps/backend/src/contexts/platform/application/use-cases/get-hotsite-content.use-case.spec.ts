@@ -1,4 +1,3 @@
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
@@ -20,21 +19,20 @@ describe('GetHotsiteContentUseCase', () => {
     repo = new InMemoryHotsiteConfigRepository();
     storageService = new InMemoryStorageService();
     const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
-    useCase = new GetHotsiteContentUseCase(
-      new RequestContextBuilder().withTenantId(TENANT_A).build(),
-      reader,
-    );
+    useCase = new GetHotsiteContentUseCase(reader);
   });
 
   it('throws HotsiteNotFoundError when no config exists for the tenant', async () => {
-    await expect(useCase.execute()).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(
+      HotsiteNotFoundError,
+    );
   });
 
   it('returns branding, layout, seo, isPublished, and updatedAt regardless of publish status', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: TENANT_A });
 
     expect(result.isPublished).toBe(false);
     expect(result.branding).toEqual(config.branding);
@@ -51,7 +49,7 @@ describe('GetHotsiteContentUseCase', () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent(branding);
     await repo.save(config);
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ tenantId: TENANT_A });
 
     expect(result.branding.logoUrl).toBe(
       storageService.getPublicUrl('tenants/tenant-a/hotsite/branding/logo.png'),
@@ -62,6 +60,8 @@ describe('GetHotsiteContentUseCase', () => {
     const configB = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished();
     await repo.save(configB);
 
-    await expect(useCase.execute()).rejects.toBeInstanceOf(HotsiteNotFoundError);
+    await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(
+      HotsiteNotFoundError,
+    );
   });
 });

@@ -58,18 +58,18 @@ describe('HotsiteAdminController', () => {
     );
 
     controller = new HotsiteAdminController(
-      new GetHotsiteContentUseCase(ctx, hotsiteContentReader),
+      ctx,
+      new GetHotsiteContentUseCase(hotsiteContentReader),
       new UpdateHotsiteContentUseCase(
         repo,
         storageService,
         txManager,
-        ctx,
         new HotsiteImagePathsService(),
       ),
-      new PublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager, ctx),
-      new UnpublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager, ctx),
-      new GenerateHotsiteImageSignedUrlUseCase(ctx, storageService),
-      new FeatureBookingPhotoUseCase(ctx, bookingLookup, storageService),
+      new PublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
+      new UnpublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
+      new GenerateHotsiteImageSignedUrlUseCase(storageService),
+      new FeatureBookingPhotoUseCase(bookingLookup, storageService),
     );
   });
 

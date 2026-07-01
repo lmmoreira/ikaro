@@ -14,7 +14,10 @@ describe('GetStaffByEmailUseCase', () => {
 
   it('throws StaffNotFoundError when no staff exists for the given email + tenantId', async () => {
     await expect(
-      useCase.execute('unknown@lavacar.com.br', '10000000-0000-4000-8000-000000000001'),
+      useCase.execute({
+        email: 'unknown@lavacar.com.br',
+        tenantId: '10000000-0000-4000-8000-000000000001',
+      }),
     ).rejects.toThrow(StaffNotFoundError);
   });
 
@@ -26,7 +29,10 @@ describe('GetStaffByEmailUseCase', () => {
     await repo.save(staff);
 
     await expect(
-      useCase.execute('staff@lavacar.com.br', '10000000-0000-4000-8000-000000000002'),
+      useCase.execute({
+        email: 'staff@lavacar.com.br',
+        tenantId: '10000000-0000-4000-8000-000000000002',
+      }),
     ).rejects.toThrow(StaffNotFoundError);
   });
 
@@ -38,10 +44,10 @@ describe('GetStaffByEmailUseCase', () => {
       .build();
     await repo.save(staff);
 
-    const result = await useCase.execute(
-      'gerente@lavacar.com.br',
-      '10000000-0000-4000-8000-000000000001',
-    );
+    const result = await useCase.execute({
+      email: 'gerente@lavacar.com.br',
+      tenantId: '10000000-0000-4000-8000-000000000001',
+    });
 
     expect(result.staffId).toBe(staff.id);
     expect(result.email).toBe('gerente@lavacar.com.br');
@@ -58,10 +64,10 @@ describe('GetStaffByEmailUseCase', () => {
       .build();
     await repo.save(staff);
 
-    const result = await useCase.execute(
-      'staff@lavacar.com.br',
-      '10000000-0000-4000-8000-000000000001',
-    );
+    const result = await useCase.execute({
+      email: 'staff@lavacar.com.br',
+      tenantId: '10000000-0000-4000-8000-000000000001',
+    });
 
     expect(result.isActive).toBe(true);
     expect(result.googleOAuthId).toBe('google-sub-active');

@@ -1,4 +1,3 @@
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { GenerateHotsiteImageSignedUrlUseCase } from './generate-hotsite-image-signed-url.use-case';
 
@@ -11,14 +10,12 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
 
   beforeEach(() => {
     storageService = new InMemoryStorageService();
-    useCase = new GenerateHotsiteImageSignedUrlUseCase(
-      new RequestContextBuilder().withTenantId(TENANT_A).build(),
-      storageService,
-    );
+    useCase = new GenerateHotsiteImageSignedUrlUseCase(storageService);
   });
 
   it('builds a filePath scoped to the tenant and the requested purpose', async () => {
     const result = await useCase.execute({
+      tenantId: TENANT_A,
       fileName: 'logo.png',
       contentType: 'image/png',
       purpose: 'branding',
@@ -31,6 +28,7 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
 
   it('returns the signedUrl and expiresAt from the storage service', async () => {
     const result = await useCase.execute({
+      tenantId: TENANT_A,
       fileName: 'hero.jpg',
       contentType: 'image/jpeg',
       purpose: 'hero',
@@ -42,6 +40,7 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
 
   it('targets the public bucket — hotsite images are permanent public marketing assets', async () => {
     const result = await useCase.execute({
+      tenantId: TENANT_A,
       fileName: 'hero.jpg',
       contentType: 'image/jpeg',
       purpose: 'hero',
@@ -51,12 +50,8 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
   });
 
   it('scopes the generated path to the requesting tenant', async () => {
-    const useCaseB = new GenerateHotsiteImageSignedUrlUseCase(
-      new RequestContextBuilder().withTenantId(TENANT_B).build(),
-      storageService,
-    );
-
-    const result = await useCaseB.execute({
+    const result = await useCase.execute({
+      tenantId: TENANT_B,
       fileName: 'about.png',
       contentType: 'image/png',
       purpose: 'about',

@@ -3,6 +3,11 @@ import { AddressProps } from '../../../../shared/value-objects/address';
 import { CustomerNotFoundError } from '../../domain/errors/customer-domain.error';
 import { CUSTOMER_REPOSITORY, ICustomerRepository } from '../ports/customer-repository.port';
 
+export interface GetCustomerByIdUseCaseInput {
+  customerId: string;
+  tenantId: string;
+}
+
 export interface GetCustomerByIdUseCaseResult {
   id: string;
   tenantId: string;
@@ -16,7 +21,8 @@ export interface GetCustomerByIdUseCaseResult {
 export class GetCustomerByIdUseCase {
   constructor(@Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository) {}
 
-  async execute(customerId: string, tenantId: string): Promise<GetCustomerByIdUseCaseResult> {
+  async execute(input: GetCustomerByIdUseCaseInput): Promise<GetCustomerByIdUseCaseResult> {
+    const { customerId, tenantId } = input;
     const customer = await this.customerRepo.findById(customerId, tenantId);
     if (!customer) throw new CustomerNotFoundError(customerId);
     return {

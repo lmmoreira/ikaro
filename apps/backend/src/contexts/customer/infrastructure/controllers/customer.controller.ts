@@ -28,10 +28,12 @@ import {
 } from '../../application/use-cases/get-customer-tenants-by-id.use-case';
 import {
   UpdateCustomerProfileUseCase,
+  UpdateCustomerProfileUseCaseInput,
   UpdateCustomerProfileUseCaseResult,
 } from '../../application/use-cases/update-customer-profile.use-case';
 import {
   SearchCustomersUseCase,
+  SearchCustomersUseCaseInput,
   SearchCustomersUseCaseResult,
 } from '../../application/use-cases/search-customers.use-case';
 
@@ -59,17 +61,19 @@ export class CustomerController {
     @Query('search') search?: string,
     @Query('limit', new DefaultValuePipe(20)) limit?: string,
   ): Promise<SearchCustomersUseCaseResult> {
-    return this.searchCustomers.execute({
+    const input: SearchCustomersUseCaseInput = {
+      tenantId: this.ctx.tenantId,
       search: search || undefined,
       limit: Math.max(1, Math.min(Math.trunc(Number(limit) || 20), 100)),
-    });
+    };
+    return this.searchCustomers.execute(input);
   }
 
   @Get('me')
   @UseGuards(CustomerRoleGuard)
   getMe(): Promise<GetCustomerProfileResponse> {
     return this.getCustomerById
-      .execute(this.ctx.actorId!, this.ctx.tenantId)
+      .execute({ customerId: this.ctx.actorId!, tenantId: this.ctx.tenantId })
       .then((customer) => ({
         customerId: customer.id,
         email: customer.email,
@@ -84,7 +88,7 @@ export class CustomerController {
   @UseGuards(CustomerRoleGuard)
   getMyTenants(): Promise<GetCustomerTenantsByIdUseCaseResult> {
     return this.getCustomerTenantsById
-      .execute(this.ctx.actorId!, this.ctx.tenantId)
+      .execute({ customerId: this.ctx.actorId!, tenantId: this.ctx.tenantId })
       .catch(mapCustomerError);
   }
 
@@ -92,8 +96,14 @@ export class CustomerController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(CustomerRoleGuard)
   updateMe(
-    @Body(new ZodValidationPipe(UpdateCustomerProfileSchema)) dto: UpdateCustomerProfileDto,
+    @Body(new ZodValidationPipe(UpdateCustomerProfileSchema)) body: UpdateCustomerProfileDto,
   ): Promise<UpdateCustomerProfileUseCaseResult> {
-    return this.updateProfile.execute(dto).catch(mapCustomerError);
+    const input: UpdateCustomerProfileUseCaseInput = {
+      ...body,
+      tenantId: this.ctx.tenantId,
+      customerId: this.ctx.actorId!,
+      countryCode: this.ctx.settings.localization.countryCode,
+    };
+    return this.updateProfile.execute(input).catch(mapCustomerError);
   }
 }

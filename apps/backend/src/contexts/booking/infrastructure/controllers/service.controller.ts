@@ -67,7 +67,13 @@ export class ServiceController {
   getOne(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<GetServiceByIdUseCaseResult> {
-    return this.getServiceById.execute(id).catch(mapBookingError);
+    return this.getServiceById
+      .execute({
+        id,
+        tenantId: this.tenantContext.tenantId,
+        locale: this.tenantContext.settings.localization.language,
+      })
+      .catch(mapBookingError);
   }
 
   @Post()
@@ -76,7 +82,14 @@ export class ServiceController {
   create(
     @Body(new ZodValidationPipe(CreateServiceSchema)) body: CreateServiceDto,
   ): Promise<CreateServiceUseCaseResult> {
-    return this.createService.execute(body).catch(mapBookingError);
+    return this.createService
+      .execute({
+        ...body,
+        tenantId: this.tenantContext.tenantId,
+        currency: this.tenantContext.settings.localization.currency,
+        locale: this.tenantContext.settings.localization.language,
+      })
+      .catch(mapBookingError);
   }
 
   @Patch(':id')
@@ -86,7 +99,15 @@ export class ServiceController {
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
     @Body(new ZodValidationPipe(UpdateServiceSchema)) body: UpdateServiceDto,
   ): Promise<UpdateServiceUseCaseResult> {
-    return this.updateService.execute(id, body).catch(mapBookingError);
+    return this.updateService
+      .execute({
+        id,
+        ...body,
+        tenantId: this.tenantContext.tenantId,
+        currency: this.tenantContext.settings.localization.currency,
+        locale: this.tenantContext.settings.localization.language,
+      })
+      .catch(mapBookingError);
   }
 
   @Delete(':id')
@@ -95,6 +116,8 @@ export class ServiceController {
   deactivate(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<DeactivateServiceUseCaseResult> {
-    return this.deactivateService.execute(id).catch(mapBookingError);
+    return this.deactivateService
+      .execute({ id, tenantId: this.tenantContext.tenantId })
+      .catch(mapBookingError);
   }
 }

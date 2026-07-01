@@ -17,3 +17,6 @@ plan/
 # Generated / vendor files
 pnpm-lock.yaml
 **/next-env.d.ts
+
+# Worktrees (git-ignored; exclude from prettier check)
+.claude/worktrees/

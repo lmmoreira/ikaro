@@ -136,13 +136,15 @@ Check changed files for:
 
 ## Step 3b — bad-smell-audit (mandatory, per changed layer)
 
-Identify which layers have changed files, then invoke bad-smell-audit for each in parallel:
+Identify which layers have changed files, then invoke bad-smell-audit in PR mode for each in parallel:
 
 ```
-apps/backend/ changed  →  /bad-smell-audit backend
-apps/bff/ changed      →  /bad-smell-audit bff
-apps/web/ changed      →  /bad-smell-audit web
+apps/backend/ changed  →  /bad-smell-audit backend --pr
+apps/bff/ changed      →  /bad-smell-audit bff --pr
+apps/web/ changed      →  /bad-smell-audit web --pr
 ```
+
+The `--pr` flag scopes the audit to files changed in this branch only (skips BE-4). Use `/bad-smell-audit backend` (no flag) for a full codebase audit on demand.
 
 Wait for all invocations to complete before continuing. Any FAIL from bad-smell-audit blocks Step 4.
 

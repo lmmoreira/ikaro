@@ -3,7 +3,6 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -33,15 +32,8 @@ describe('RescheduleBookingUseCase', () => {
     bookingRepo = new InMemoryBookingRepository();
     availabilityPort = new InMemoryBookingAvailabilityPort();
     eventBus = new InMemoryEventBus();
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withCorrelationId(CORRELATION_ID)
-      .withActorId(STAFF_ID)
-      .withActorRole('MANAGER')
-      .build();
-    const slotConflictService = new BookingSlotConflictService(availabilityPort, ctx);
+    const slotConflictService = new BookingSlotConflictService(availabilityPort);
     useCase = new RescheduleBookingUseCase(
-      ctx,
       bookingRepo,
       slotConflictService,
       new InMemoryTransactionManager(),
@@ -58,7 +50,14 @@ describe('RescheduleBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id, scheduledAt: newFutureSlot });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        scheduledAt: newFutureSlot,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+        timezone: 'America/Sao_Paulo',
+      });
 
       expect(result.bookingId).toBe(booking.id);
       expect(result.status).toBe(BookingStatus.APPROVED);
@@ -73,7 +72,14 @@ describe('RescheduleBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await useCase.execute({ bookingId: booking.id, scheduledAt: newFutureSlot });
+      await useCase.execute({
+        bookingId: booking.id,
+        scheduledAt: newFutureSlot,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+        timezone: 'America/Sao_Paulo',
+      });
 
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
       expect(saved!.scheduledAt.toISOString()).toBe(new Date(newFutureSlot).toISOString());
@@ -91,6 +97,10 @@ describe('RescheduleBookingUseCase', () => {
         bookingId: booking.id,
         scheduledAt: newFutureSlot,
         adminNotes: 'Customer requested earlier slot',
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+        timezone: 'America/Sao_Paulo',
       });
 
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
@@ -109,7 +119,14 @@ describe('RescheduleBookingUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await useCase.execute({ bookingId: booking.id, scheduledAt: newFutureSlot });
+      await useCase.execute({
+        bookingId: booking.id,
+        scheduledAt: newFutureSlot,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+        timezone: 'America/Sao_Paulo',
+      });
 
       expect(eventBus.published).toHaveLength(1);
       expect(eventBus.published[0].eventName).toBe('BookingRescheduled');
@@ -141,7 +158,14 @@ describe('RescheduleBookingUseCase', () => {
       ]);
 
       await expect(
-        useCase.execute({ bookingId: booking.id, scheduledAt: newFutureSlot }),
+        useCase.execute({
+          bookingId: booking.id,
+          scheduledAt: newFutureSlot,
+          tenantId: TENANT_A,
+          staffId: STAFF_ID,
+          correlationId: CORRELATION_ID,
+          timezone: 'America/Sao_Paulo',
+        }),
       ).rejects.toThrow(BookingSlotUnavailableError);
     });
 
@@ -160,7 +184,14 @@ describe('RescheduleBookingUseCase', () => {
       availabilityPort.setSlots([{ id: booking.id, scheduledAt: original, totalDurationMins: 60 }]);
 
       await expect(
-        useCase.execute({ bookingId: booking.id, scheduledAt: overlapping }),
+        useCase.execute({
+          bookingId: booking.id,
+          scheduledAt: overlapping,
+          tenantId: TENANT_A,
+          staffId: STAFF_ID,
+          correlationId: CORRELATION_ID,
+          timezone: 'America/Sao_Paulo',
+        }),
       ).resolves.toBeDefined();
     });
   });
@@ -171,6 +202,10 @@ describe('RescheduleBookingUseCase', () => {
         useCase.execute({
           bookingId: '00000000-0000-4000-8000-000000000000',
           scheduledAt: newFutureSlot,
+          tenantId: TENANT_A,
+          staffId: STAFF_ID,
+          correlationId: CORRELATION_ID,
+          timezone: 'America/Sao_Paulo',
         }),
       ).rejects.toThrow(BookingNotFoundError);
     });
@@ -187,6 +222,10 @@ describe('RescheduleBookingUseCase', () => {
         useCase.execute({
           bookingId: booking.id,
           scheduledAt: `${pastDate(1)}T10:00:00.000Z`,
+          tenantId: TENANT_A,
+          staffId: STAFF_ID,
+          correlationId: CORRELATION_ID,
+          timezone: 'America/Sao_Paulo',
         }),
       ).rejects.toThrow(BookingScheduledInPastError);
     });
@@ -200,7 +239,14 @@ describe('RescheduleBookingUseCase', () => {
       await bookingRepo.save(booking);
 
       await expect(
-        useCase.execute({ bookingId: booking.id, scheduledAt: newFutureSlot }),
+        useCase.execute({
+          bookingId: booking.id,
+          scheduledAt: newFutureSlot,
+          tenantId: TENANT_A,
+          staffId: STAFF_ID,
+          correlationId: CORRELATION_ID,
+          timezone: 'America/Sao_Paulo',
+        }),
       ).rejects.toThrow(InvalidBookingTransitionError);
     });
 
@@ -213,7 +259,14 @@ describe('RescheduleBookingUseCase', () => {
       await bookingRepo.save(booking);
 
       await expect(
-        useCase.execute({ bookingId: booking.id, scheduledAt: newFutureSlot }),
+        useCase.execute({
+          bookingId: booking.id,
+          scheduledAt: newFutureSlot,
+          tenantId: TENANT_A,
+          staffId: STAFF_ID,
+          correlationId: CORRELATION_ID,
+          timezone: 'America/Sao_Paulo',
+        }),
       ).rejects.toThrow(InvalidBookingTransitionError);
     });
 
@@ -226,7 +279,14 @@ describe('RescheduleBookingUseCase', () => {
       await bookingRepo.save(booking);
 
       await expect(
-        useCase.execute({ bookingId: booking.id, scheduledAt: newFutureSlot }),
+        useCase.execute({
+          bookingId: booking.id,
+          scheduledAt: newFutureSlot,
+          tenantId: TENANT_A,
+          staffId: STAFF_ID,
+          correlationId: CORRELATION_ID,
+          timezone: 'America/Sao_Paulo',
+        }),
       ).rejects.toThrow(BookingNotFoundError);
     });
   });

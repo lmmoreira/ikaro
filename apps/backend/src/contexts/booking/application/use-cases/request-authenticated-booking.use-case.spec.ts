@@ -8,7 +8,6 @@ import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { testAddress } from '../../../../test/utils/address-helpers';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import {
@@ -44,23 +43,15 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     customerProfilePort = new InMemoryBookingCustomerPort();
     storageService = new InMemoryStorageService();
     const txManager = new InMemoryTransactionManager();
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withCorrelationId(CORRELATION_ID)
-      .withActorId(CUSTOMER_ID)
-      .withActorType('CUSTOMER')
-      .withActorRole('CUSTOMER')
-      .build();
 
     useCase = new RequestAuthenticatedBookingUseCase(
       customerProfilePort,
       serviceRepo,
-      new BookingSlotConflictService(availabilityPort, ctx),
+      new BookingSlotConflictService(availabilityPort),
       new PhotoExistenceService(storageService),
       bookingRepo,
       txManager,
       eventBus,
-      ctx,
     );
 
     const service = new ServiceBuilder().withTenantId(TENANT_A).withName('Lavagem Simples').build();
@@ -75,15 +66,20 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     });
   });
 
-  const baseDto = () => ({
+  const baseInput = () => ({
     scheduledAt,
     serviceIds: [serviceId],
     pickupAddress: undefined,
     beforeServicePhotoUrls: undefined as string[] | undefined,
+    tenantId: TENANT_A,
+    correlationId: CORRELATION_ID,
+    customerId: CUSTOMER_ID,
+    countryCode: 'BR',
+    timezone: 'America/Sao_Paulo',
   });
 
   it('creates a PENDING CUSTOMER booking with customerId set', async () => {
-    const result = await useCase.execute(baseDto());
+    const result = await useCase.execute(baseInput());
 
     expect(result.status).toBe(BookingStatus.PENDING);
     expect(result.bookingId).toBeDefined();
@@ -98,7 +94,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
   });
 
   it('publishes BookingRequested event after commit', async () => {
-    await useCase.execute(baseDto());
+    await useCase.execute(baseInput());
 
     expect(eventBus.published).toHaveLength(1);
     expect(eventBus.published[0].eventName).toBe('BookingRequested');
@@ -109,7 +105,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     storageService.markAsUploaded(photoPath);
 
     const result = await useCase.execute({
-      ...baseDto(),
+      ...baseInput(),
       beforeServicePhotoUrls: [photoPath],
     });
 
@@ -119,44 +115,40 @@ describe('RequestAuthenticatedBookingUseCase', () => {
   it('throws BookingPhotoNotUploadedError when a photo path does not exist in storage', async () => {
     await expect(
       useCase.execute({
-        ...baseDto(),
+        ...baseInput(),
         beforeServicePhotoUrls: [`tenants/${TENANT_A}/uploads/upload-1/missing.jpg`],
       }),
     ).rejects.toBeInstanceOf(BookingPhotoNotUploadedError);
   });
 
   it('stores optional notes when provided', async () => {
-    const result = await useCase.execute({ ...baseDto(), notes: 'Carro está sujo de lama' });
+    const result = await useCase.execute({ ...baseInput(), notes: 'Carro está sujo de lama' });
     const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
     expect(saved!.notes).toBe('Carro está sujo de lama');
   });
 
   it('defaults notes to null when not provided', async () => {
-    const result = await useCase.execute(baseDto());
+    const result = await useCase.execute(baseInput());
     const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
     expect(saved!.notes).toBeNull();
   });
 
   it('throws BookingCustomerNotFoundError when customer does not exist', async () => {
     const emptyPort = new InMemoryBookingCustomerPort();
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withCorrelationId(CORRELATION_ID)
-      .withActorId('00000000-0000-4000-8000-000000000999')
-      .withActorType('CUSTOMER')
-      .build();
+    const unknownCustomerId = '00000000-0000-4000-8000-000000000999';
     const uc = new RequestAuthenticatedBookingUseCase(
       emptyPort,
       serviceRepo,
-      new BookingSlotConflictService(availabilityPort, ctx),
+      new BookingSlotConflictService(availabilityPort),
       new PhotoExistenceService(storageService),
       bookingRepo,
       new InMemoryTransactionManager(),
       new InMemoryEventBus(),
-      ctx,
     );
 
-    await expect(uc.execute(baseDto())).rejects.toBeInstanceOf(BookingCustomerNotFoundError);
+    await expect(
+      uc.execute({ ...baseInput(), customerId: unknownCustomerId }),
+    ).rejects.toBeInstanceOf(BookingCustomerNotFoundError);
   });
 
   it('throws CustomerPhoneNotSetError when customer has no phone', async () => {
@@ -167,7 +159,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       defaultAddress: null,
     });
 
-    await expect(useCase.execute(baseDto())).rejects.toBeInstanceOf(CustomerPhoneNotSetError);
+    await expect(useCase.execute(baseInput())).rejects.toBeInstanceOf(CustomerPhoneNotSetError);
   });
 
   it('falls back to Customer.defaultAddress for pickupAddress when service requires pickup and body omits it', async () => {
@@ -185,7 +177,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       defaultAddress: addr,
     });
 
-    const result = await useCase.execute({ ...baseDto(), serviceIds: [pickupService.id] });
+    const result = await useCase.execute({ ...baseInput(), serviceIds: [pickupService.id] });
 
     expect(result.pickupAddress).not.toBeNull();
     expect(result.pickupAddress!.city).toBe(addr.city);
@@ -206,7 +198,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     });
 
     const result = await useCase.execute({
-      ...baseDto(),
+      ...baseInput(),
       serviceIds: [pickupService.id],
       pickupAddress: {
         street: 'Rua Nova',
@@ -226,6 +218,6 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       { id: 'slot-test-id', scheduledAt: new Date(scheduledAt), totalDurationMins: 60 },
     ]);
 
-    await expect(useCase.execute(baseDto())).rejects.toBeInstanceOf(BookingSlotUnavailableError);
+    await expect(useCase.execute(baseInput())).rejects.toBeInstanceOf(BookingSlotUnavailableError);
   });
 });

@@ -8,7 +8,7 @@ import { InMemoryProcessedEventRepository } from '../../../../../test/infrastruc
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { LoyaltyBalance } from '../../../domain/loyalty-balance.aggregate';
 import {
-  CompleteBookingLoyaltyEffectsDto,
+  CompleteBookingLoyaltyEffectsUseCaseInput,
   CompleteBookingLoyaltyEffectsUseCase,
 } from './complete-booking-loyalty-effects.use-case';
 
@@ -21,8 +21,8 @@ const CORRELATION_ID = '00000000-0000-7000-8000-000000000011';
 const STAFF_ID = '00000000-0000-7000-8000-000000000050';
 
 function makeDto(
-  overrides: Partial<CompleteBookingLoyaltyEffectsDto> = {},
-): CompleteBookingLoyaltyEffectsDto {
+  overrides: Partial<CompleteBookingLoyaltyEffectsUseCaseInput> = {},
+): CompleteBookingLoyaltyEffectsUseCaseInput {
   return {
     tenantId: TENANT_ID,
     eventId: EVENT_ID,

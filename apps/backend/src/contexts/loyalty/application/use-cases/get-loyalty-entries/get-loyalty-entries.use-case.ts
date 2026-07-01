@@ -5,7 +5,7 @@ import {
 } from '../../ports/loyalty-entry-repository.port';
 import { ILoyaltyBookingPort, LOYALTY_BOOKING_PORT } from '../../ports/loyalty-booking.port';
 
-export interface GetLoyaltyEntriesDto {
+export interface GetLoyaltyEntriesUseCaseInput {
   tenantId: string;
   customerId: string;
   page: number;
@@ -22,7 +22,7 @@ export interface LoyaltyEntryItem {
   isActive: boolean;
 }
 
-export interface GetLoyaltyEntriesResult {
+export interface GetLoyaltyEntriesUseCaseResult {
   entries: LoyaltyEntryItem[];
   pagination: { page: number; limit: number; total: number };
 }
@@ -34,7 +34,7 @@ export class GetLoyaltyEntriesUseCase {
     @Inject(LOYALTY_BOOKING_PORT) private readonly serviceCatalog: ILoyaltyBookingPort,
   ) {}
 
-  async execute(dto: GetLoyaltyEntriesDto): Promise<GetLoyaltyEntriesResult> {
+  async execute(dto: GetLoyaltyEntriesUseCaseInput): Promise<GetLoyaltyEntriesUseCaseResult> {
     const { items, total } = await this.entryRepo.findByCustomerPaginated(
       dto.tenantId,
       dto.customerId,

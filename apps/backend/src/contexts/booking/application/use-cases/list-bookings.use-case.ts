@@ -1,8 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { ListBookingsDto } from '../dtos/list-bookings.dto';
 import { Booking } from '../../domain/booking.aggregate';
+
+export type ListBookingsInput = ListBookingsDto & {
+  tenantId: string;
+  locale: string;
+  customerId?: string;
+};
 
 export interface BookingLineSummary {
   lineId: string;
@@ -33,34 +38,27 @@ export interface ListBookingsUseCaseResult {
 
 @Injectable()
 export class ListBookingsUseCase {
-  constructor(
-    @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-    private readonly tenantContext: RequestContext,
-  ) {}
+  constructor(@Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository) {}
 
-  async execute(dto: ListBookingsDto): Promise<ListBookingsUseCaseResult> {
-    const { tenantId, actorId, actorRole } = this.tenantContext;
-
-    const isStaffOrManager = actorRole === 'MANAGER' || actorRole === 'STAFF';
-    const customerId = isStaffOrManager ? undefined : (actorId ?? undefined);
+  async execute(input: ListBookingsInput): Promise<ListBookingsUseCaseResult> {
+    const { tenantId, locale, customerId } = input;
 
     const { items, total } = await this.bookingRepo.findAllByTenantPaginated(tenantId, {
-      status: dto.status,
+      status: input.status,
       customerId,
-      scheduledAfter: dto.from ? new Date(dto.from) : undefined,
-      scheduledBefore: dto.to ? new Date(dto.to) : undefined,
-      limit: dto.limit,
-      offset: dto.offset,
+      scheduledAfter: input.from ? new Date(input.from) : undefined,
+      scheduledBefore: input.to ? new Date(input.to) : undefined,
+      limit: input.limit,
+      offset: input.offset,
     });
 
-    const { language: locale } = this.tenantContext.settings.localization;
     return {
       items: items.map((b) => this.toListItem(b, locale)),
       pagination: {
-        limit: dto.limit,
-        offset: dto.offset,
+        limit: input.limit,
+        offset: input.offset,
         total,
-        hasMore: dto.offset + dto.limit < total,
+        hasMore: input.offset + input.limit < total,
       },
     };
   }

@@ -1,7 +1,6 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import {
   BookingDomainError,
   ServiceDeactivatedError,
@@ -18,11 +17,7 @@ describe('UpdateServiceUseCase', () => {
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    useCase = new UpdateServiceUseCase(
-      repo,
-      new InMemoryTransactionManager(),
-      new RequestContextBuilder().withTenantId(TENANT_A).build(),
-    );
+    useCase = new UpdateServiceUseCase(repo, new InMemoryTransactionManager());
   });
 
   it('updates only the provided fields; unspecified fields remain unchanged', async () => {
@@ -34,7 +29,13 @@ describe('UpdateServiceUseCase', () => {
       .build();
     await repo.save(service);
 
-    const result = await useCase.execute(service.id, { name: 'Novo Nome' });
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      name: 'Novo Nome',
+    });
 
     expect(result.name).toBe('Novo Nome');
     expect(result.durationMinutes).toBe(30);
@@ -48,7 +49,13 @@ describe('UpdateServiceUseCase', () => {
       .build();
     await repo.save(service);
 
-    const result = await useCase.execute(service.id, { description: null });
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      description: null,
+    });
 
     expect(result.description).toBeNull();
   });
@@ -57,7 +64,13 @@ describe('UpdateServiceUseCase', () => {
     const service = new ServiceBuilder().withTenantId(TENANT_A).withDescription('Mantida').build();
     await repo.save(service);
 
-    const result = await useCase.execute(service.id, { name: 'Novo Nome' });
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      name: 'Novo Nome',
+    });
 
     expect(result.description).toBe('Mantida');
   });
@@ -66,23 +79,43 @@ describe('UpdateServiceUseCase', () => {
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await repo.save(service);
 
-    const result = await useCase.execute(service.id, { name: 'Lavagem Premium' });
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      name: 'Lavagem Premium',
+    });
 
     expect(result.price.formatted).toMatch(/^R\$/);
     expect(result.isActive).toBe(true);
   });
 
   it('throws ServiceNotFoundError when service does not exist', async () => {
-    await expect(useCase.execute('non-existent-id', { name: 'X' })).rejects.toThrow(
-      ServiceNotFoundError,
-    );
+    await expect(
+      useCase.execute({
+        id: 'non-existent-id',
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        name: 'X',
+      }),
+    ).rejects.toThrow(ServiceNotFoundError);
   });
 
   it('throws ServiceNotFoundError when service belongs to a different tenant', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_B).build();
     await repo.save(service);
 
-    await expect(useCase.execute(service.id, { name: 'X' })).rejects.toThrow(ServiceNotFoundError);
+    await expect(
+      useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        name: 'X',
+      }),
+    ).rejects.toThrow(ServiceNotFoundError);
   });
 
   it('throws ServiceDeactivatedError when updating a deactivated service', async () => {
@@ -90,17 +123,29 @@ describe('UpdateServiceUseCase', () => {
     service.deactivate();
     await repo.save(service);
 
-    await expect(useCase.execute(service.id, { name: 'X' })).rejects.toThrow(
-      ServiceDeactivatedError,
-    );
+    await expect(
+      useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        name: 'X',
+      }),
+    ).rejects.toThrow(ServiceDeactivatedError);
   });
 
   it('throws BookingDomainError when updated price is zero', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await repo.save(service);
 
-    await expect(useCase.execute(service.id, { priceAmount: 0 })).rejects.toThrow(
-      BookingDomainError,
-    );
+    await expect(
+      useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        currency: 'BRL',
+        locale: 'pt-BR',
+        priceAmount: 0,
+      }),
+    ).rejects.toThrow(BookingDomainError);
   });
 });

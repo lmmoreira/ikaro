@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const CompleteBookingBodySchema = z.object({
+export const CompleteBookingSchema = z.object({
   lines: z
     .array(
       z.object({
@@ -22,12 +22,4 @@ export const CompleteBookingBodySchema = z.object({
     .optional(),
 });
 
-export type CompleteBookingBody = z.infer<typeof CompleteBookingBodySchema>;
-
-export interface CompleteBookingDto {
-  bookingId: string;
-  lines: { lineId: string; actualPriceCharged: number }[];
-  afterServicePhotoUrls: string[];
-  adminNotes?: string;
-  discountByPoints?: { pointsUsed: number; amountDeducted: number };
-}
+export type CompleteBookingDto = z.infer<typeof CompleteBookingSchema>;

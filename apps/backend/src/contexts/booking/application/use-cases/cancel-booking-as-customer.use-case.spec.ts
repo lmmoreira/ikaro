@@ -2,8 +2,6 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
-import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -20,31 +18,26 @@ const CUSTOMER_ID = '20000000-0000-4000-8000-000000000301';
 const OTHER_CUSTOMER_ID = '20000000-0000-4000-8000-000000000302';
 const CORRELATION_ID = 'corr-cancel-customer-test';
 
+const ctx = {
+  tenantId: TENANT_A,
+  customerId: CUSTOMER_ID,
+  correlationId: CORRELATION_ID,
+  cancellationWindowHours: 48,
+};
+
 describe('CancelBookingAsCustomerUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
   let eventBus: InMemoryEventBus;
   let useCase: CancelBookingAsCustomerUseCase;
 
-  function makeUseCase(settings = TenantSettings.default().toJSON()) {
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withCorrelationId(CORRELATION_ID)
-      .withActorId(CUSTOMER_ID)
-      .withActorRole('CUSTOMER')
-      .withSettings(settings)
-      .build();
-    return new CancelBookingAsCustomerUseCase(
-      ctx,
+  beforeEach(() => {
+    bookingRepo = new InMemoryBookingRepository();
+    eventBus = new InMemoryEventBus();
+    useCase = new CancelBookingAsCustomerUseCase(
       bookingRepo,
       new InMemoryTransactionManager(),
       eventBus,
     );
-  }
-
-  beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
-    eventBus = new InMemoryEventBus();
-    useCase = makeUseCase();
   });
 
   describe('cancelling an APPROVED booking', () => {
@@ -58,7 +51,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({ bookingId: booking.id, ...ctx });
 
       expect(result.status).toBe(BookingStatus.CANCELLED);
       expect(result.bookingId).toBe(booking.id);
@@ -74,7 +67,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await useCase.execute({ bookingId: booking.id });
+      await useCase.execute({ bookingId: booking.id, ...ctx });
 
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
       expect(saved!.status).toBe(BookingStatus.CANCELLED);
@@ -92,7 +85,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await useCase.execute({ bookingId: booking.id });
+      await useCase.execute({ bookingId: booking.id, ...ctx });
 
       const events = eventBus.published;
       expect(events).toHaveLength(1);
@@ -103,7 +96,6 @@ describe('CancelBookingAsCustomerUseCase', () => {
     });
 
     it('throws CancellationWindowExpiredError when scheduledAt is inside the window', async () => {
-      // scheduled in 1h — inside the default 48h window
       const scheduledAt = new Date(Date.now() + 60 * 60_000);
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
@@ -113,18 +105,12 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         CancellationWindowExpiredError,
       );
     });
 
     it('respects a custom 24h cancellation window from tenant settings', async () => {
-      const settings = TenantSettings.default().toJSON();
-      useCase = makeUseCase({
-        ...settings,
-        booking: { ...settings.booking, cancellationWindowHours: 24 },
-      });
-
       // scheduled in 25h — outside a 24h window, should succeed
       const scheduledAt = new Date(Date.now() + 25 * 60 * 60_000);
       const booking = new BookingBuilder()
@@ -135,14 +121,17 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        ...ctx,
+        cancellationWindowHours: 24,
+      });
       expect(result.status).toBe(BookingStatus.CANCELLED);
     });
   });
 
   describe('cancelling a PENDING booking', () => {
     it('cancels a PENDING booking with no time restriction', async () => {
-      // scheduled in 30 minutes — inside any reasonable window, but PENDING so no check
       const scheduledAt = new Date(Date.now() + 30 * 60_000);
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
@@ -151,7 +140,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({ bookingId: booking.id, ...ctx });
 
       expect(result.status).toBe(BookingStatus.CANCELLED);
     });
@@ -168,7 +157,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({ bookingId: booking.id, ...ctx });
 
       expect(result.status).toBe(BookingStatus.CANCELLED);
     });
@@ -177,7 +166,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
   describe('error cases', () => {
     it('throws BookingNotFoundError when booking does not exist', async () => {
       await expect(
-        useCase.execute({ bookingId: '00000000-0000-4000-8000-000000000000' }),
+        useCase.execute({ bookingId: '00000000-0000-4000-8000-000000000000', ...ctx }),
       ).rejects.toThrow(BookingNotFoundError);
     });
 
@@ -188,7 +177,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         BookingForbiddenError,
       );
     });
@@ -201,7 +190,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         InvalidBookingTransitionError,
       );
     });
@@ -214,7 +203,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         InvalidBookingTransitionError,
       );
     });
@@ -227,7 +216,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         InvalidBookingTransitionError,
       );
     });
@@ -239,7 +228,7 @@ describe('CancelBookingAsCustomerUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         BookingNotFoundError,
       );
     });

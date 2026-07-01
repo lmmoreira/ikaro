@@ -3,7 +3,6 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { BookingBuilder } from '../../../../test/builders/booking/booking.builder';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
   BookingForbiddenError,
@@ -14,6 +13,8 @@ import { PhotoExistenceService } from '../services/photo-existence.service';
 import { SubmitGuestBookingInfoUseCase } from './submit-guest-booking-info.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000021';
+const TENANT_B = '10000000-0000-4000-8000-000000000022';
+const CORRELATION_ID = 'corr-guest-info-test';
 
 describe('SubmitGuestBookingInfoUseCase', () => {
   let repo: InMemoryBookingRepository;
@@ -38,9 +39,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
     guestBookingId = guestBooking.id;
     await repo.save(guestBooking);
 
-    const ctx = new RequestContextBuilder().withTenantId(TENANT_A).build();
     useCase = new SubmitGuestBookingInfoUseCase(
-      ctx,
       repo,
       txManager,
       eventBus,
@@ -53,6 +52,8 @@ describe('SubmitGuestBookingInfoUseCase', () => {
       bookingId: guestBookingId,
       contactEmail: 'joao@example.com',
       response: 'Segue a foto do carro',
+      tenantId: TENANT_A,
+      correlationId: CORRELATION_ID,
     });
 
     expect(result.status).toBe('PENDING');
@@ -65,6 +66,8 @@ describe('SubmitGuestBookingInfoUseCase', () => {
       bookingId: guestBookingId,
       contactEmail: 'joao@example.com',
       response: 'Aqui está a foto',
+      tenantId: TENANT_A,
+      correlationId: CORRELATION_ID,
     });
 
     const published = eventBus.published;
@@ -81,6 +84,8 @@ describe('SubmitGuestBookingInfoUseCase', () => {
         bookingId: '00000000-0000-4000-8000-999999999999',
         contactEmail: 'x@example.com',
         response: 'ok',
+        tenantId: TENANT_A,
+        correlationId: CORRELATION_ID,
       }),
     ).rejects.toBeInstanceOf(BookingNotFoundError);
   });
@@ -99,23 +104,21 @@ describe('SubmitGuestBookingInfoUseCase', () => {
         bookingId: customerBooking.id,
         contactEmail: 'x@example.com',
         response: 'ok',
+        tenantId: TENANT_A,
+        correlationId: CORRELATION_ID,
       }),
     ).rejects.toBeInstanceOf(BookingForbiddenError);
   });
 
   it('tenant isolation: returns BookingNotFoundError for booking in another tenant', async () => {
-    const TENANT_B = '10000000-0000-4000-8000-000000000022';
-    const ctx = new RequestContextBuilder().withTenantId(TENANT_B).build();
-    const uc = new SubmitGuestBookingInfoUseCase(
-      ctx,
-      repo,
-      txManager,
-      eventBus,
-      new PhotoExistenceService(storageService),
-    );
-
     await expect(
-      uc.execute({ bookingId: guestBookingId, contactEmail: 'x@example.com', response: 'ok' }),
+      useCase.execute({
+        bookingId: guestBookingId,
+        contactEmail: 'x@example.com',
+        response: 'ok',
+        tenantId: TENANT_B,
+        correlationId: CORRELATION_ID,
+      }),
     ).rejects.toBeInstanceOf(BookingNotFoundError);
   });
 
@@ -126,6 +129,8 @@ describe('SubmitGuestBookingInfoUseCase', () => {
         contactEmail: 'joao@example.com',
         response: 'Segue a foto do carro',
         photoUrls: [`tenants/${TENANT_A}/uploads/upload-1/missing.jpg`],
+        tenantId: TENANT_A,
+        correlationId: CORRELATION_ID,
       }),
     ).rejects.toBeInstanceOf(BookingPhotoNotUploadedError);
   });

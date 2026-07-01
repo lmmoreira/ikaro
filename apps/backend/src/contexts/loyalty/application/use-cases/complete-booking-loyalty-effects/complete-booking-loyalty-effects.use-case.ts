@@ -32,7 +32,7 @@ export interface BookingCompletedLine {
   pointsValueAtBooking: number;
 }
 
-export interface CompleteBookingLoyaltyEffectsDto {
+export interface CompleteBookingLoyaltyEffectsUseCaseInput {
   tenantId: string;
   eventId: string;
   correlationId: string;
@@ -43,14 +43,14 @@ export interface CompleteBookingLoyaltyEffectsDto {
   discountByPoints?: { pointsUsed: number; amountDeducted: number };
 }
 
-export interface CompleteBookingLoyaltyEffectsResult {
+export interface CompleteBookingLoyaltyEffectsUseCaseResult {
   skipped: boolean;
   entriesCreated: number;
   totalPointsEarned: number;
   pointsRedeemed: number;
 }
 
-const SKIPPED_RESULT: CompleteBookingLoyaltyEffectsResult = {
+const SKIPPED_RESULT: CompleteBookingLoyaltyEffectsUseCaseResult = {
   skipped: true,
   entriesCreated: 0,
   totalPointsEarned: 0,
@@ -80,8 +80,8 @@ export class CompleteBookingLoyaltyEffectsUseCase {
   ) {}
 
   async execute(
-    dto: CompleteBookingLoyaltyEffectsDto,
-  ): Promise<CompleteBookingLoyaltyEffectsResult> {
+    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
+  ): Promise<CompleteBookingLoyaltyEffectsUseCaseResult> {
     if (dto.customerId === null) return SKIPPED_RESULT;
 
     const alreadyProcessed = await this.processedEventRepo.hasBeenProcessed(

@@ -14,7 +14,7 @@ export class NotificationCustomerAdapter implements INotificationCustomerPort {
     tenantId: string,
   ): Promise<NotificationCustomerInfo | null> {
     try {
-      const customer = await this.getCustomerById.execute(customerId, tenantId);
+      const customer = await this.getCustomerById.execute({ customerId, tenantId });
       return { email: customer.email, name: customer.name };
     } catch {
       return null;

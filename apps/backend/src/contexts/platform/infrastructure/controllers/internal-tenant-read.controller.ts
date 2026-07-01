@@ -29,7 +29,7 @@ export class InternalTenantReadController {
   // Static routes must be declared before the dynamic :tenantId route
   @Get('by-slug/:slug')
   getTenantBySlugRoute(@Param('slug') slug: string): Promise<GetTenantBySlugUseCaseResult> {
-    return this.getTenantBySlug.execute(slug).catch(mapPlatformError);
+    return this.getTenantBySlug.execute({ slug }).catch(mapPlatformError);
   }
 
   @Get('published-hotsites')
@@ -71,6 +71,6 @@ export class InternalTenantReadController {
   getTenant(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
   ): Promise<GetTenantByIdUseCaseResult> {
-    return this.getTenantById.execute(tenantId).catch(mapPlatformError);
+    return this.getTenantById.execute({ tenantId }).catch(mapPlatformError);
   }
 }

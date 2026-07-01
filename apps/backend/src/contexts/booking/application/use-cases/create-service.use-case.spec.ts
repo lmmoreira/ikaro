@@ -1,12 +1,12 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingDomainError } from '../../domain/errors/booking-domain.error';
 import { CreateServiceUseCase } from './create-service.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
-const CORRELATION_ID = 'corr-create-svc-test';
+
+const ctx = { tenantId: TENANT_A, currency: 'BRL', locale: 'pt-BR' };
 
 const baseDto = {
   name: 'Lavagem Completa',
@@ -23,28 +23,18 @@ describe('CreateServiceUseCase', () => {
 
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
-    useCase = new CreateServiceUseCase(
-      repo,
-      new InMemoryTransactionManager(),
-      new RequestContextBuilder()
-        .withTenantId(TENANT_A)
-        .withCorrelationId(CORRELATION_ID)
-        .withActorId('20000000-0000-4000-8000-000000000001')
-        .withActorType('STAFF')
-        .withActorRole('MANAGER')
-        .build(),
-    );
+    useCase = new CreateServiceUseCase(repo, new InMemoryTransactionManager());
   });
 
   it('creates a service and returns the full result DTO', async () => {
-    const result = await useCase.execute(baseDto);
+    const result = await useCase.execute({ ...baseDto, ...ctx });
 
     expect(result.id).toBeDefined();
     expect(result.name).toBe('Lavagem Completa');
     expect(result.description).toBe('Lavagem exterior e interior');
     expect(result.price.amount).toBe(150);
     expect(result.price.currency).toBe('BRL');
-    expect(result.price.formatted).toBe('R$\u00A0150,00');
+    expect(result.price.formatted).toBe('R$ 150,00');
     expect(result.durationMinutes).toBe(60);
     expect(result.loyaltyPointsValue).toBe(10);
     expect(result.requiresPickupAddress).toBe(false);
@@ -52,8 +42,8 @@ describe('CreateServiceUseCase', () => {
     expect(result.createdAt).toBeDefined();
   });
 
-  it('persists the service scoped to RequestContext tenantId', async () => {
-    const result = await useCase.execute(baseDto);
+  it('persists the service scoped to tenantId', async () => {
+    const result = await useCase.execute({ ...baseDto, ...ctx });
 
     const saved = await repo.findById(result.id, TENANT_A);
     expect(saved).not.toBeNull();
@@ -61,7 +51,7 @@ describe('CreateServiceUseCase', () => {
   });
 
   it('service is not visible to a different tenant', async () => {
-    const result = await useCase.execute(baseDto);
+    const result = await useCase.execute({ ...baseDto, ...ctx });
 
     const fromOtherTenant = await repo.findById(result.id, TENANT_B);
     expect(fromOtherTenant).toBeNull();
@@ -73,29 +63,30 @@ describe('CreateServiceUseCase', () => {
       priceAmount: baseDto.priceAmount,
       durationMinutes: baseDto.durationMinutes,
       loyaltyPointsValue: baseDto.loyaltyPointsValue,
+      ...ctx,
     });
     expect(result.requiresPickupAddress).toBe(false);
   });
 
   it('allows loyaltyPointsValue of zero', async () => {
-    const result = await useCase.execute({ ...baseDto, loyaltyPointsValue: 0 });
+    const result = await useCase.execute({ ...baseDto, loyaltyPointsValue: 0, ...ctx });
     expect(result.loyaltyPointsValue).toBe(0);
   });
 
   it('throws BookingDomainError when priceAmount is zero', async () => {
-    await expect(useCase.execute({ ...baseDto, priceAmount: 0 })).rejects.toThrow(
+    await expect(useCase.execute({ ...baseDto, priceAmount: 0, ...ctx })).rejects.toThrow(
       BookingDomainError,
     );
   });
 
   it('throws BookingDomainError when durationMinutes is zero', async () => {
-    await expect(useCase.execute({ ...baseDto, durationMinutes: 0 })).rejects.toThrow(
+    await expect(useCase.execute({ ...baseDto, durationMinutes: 0, ...ctx })).rejects.toThrow(
       BookingDomainError,
     );
   });
 
   it('throws BookingDomainError when loyaltyPointsValue is negative', async () => {
-    await expect(useCase.execute({ ...baseDto, loyaltyPointsValue: -1 })).rejects.toThrow(
+    await expect(useCase.execute({ ...baseDto, loyaltyPointsValue: -1, ...ctx })).rejects.toThrow(
       BookingDomainError,
     );
   });

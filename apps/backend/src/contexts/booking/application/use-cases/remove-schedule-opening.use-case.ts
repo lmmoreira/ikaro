@@ -3,12 +3,16 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { ScheduleOpeningNotFoundError } from '../../domain/errors/booking-domain.error';
 import {
   IScheduleOpeningRepository,
   SCHEDULE_OPENING_REPOSITORY,
 } from '../ports/schedule-opening-repository.port';
+
+export type RemoveScheduleOpeningInput = {
+  id: string;
+  tenantId: string;
+};
 
 @Injectable()
 export class RemoveScheduleOpeningUseCase {
@@ -16,16 +20,15 @@ export class RemoveScheduleOpeningUseCase {
     @Inject(SCHEDULE_OPENING_REPOSITORY)
     private readonly openingRepo: IScheduleOpeningRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(id: string): Promise<void> {
-    const tenantId = this.tenantContext.tenantId;
+  async execute(input: RemoveScheduleOpeningInput): Promise<void> {
+    const { id, tenantId } = input;
     const opening = await this.openingRepo.findById(id, tenantId);
     if (!opening) throw new ScheduleOpeningNotFoundError(id);
 
     await this.txManager.run(async () => {
-      await this.openingRepo.delete(id, tenantId);
+      await this.openingRepo.delete(input.id, tenantId);
     });
   }
 }

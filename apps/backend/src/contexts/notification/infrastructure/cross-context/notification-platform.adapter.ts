@@ -11,7 +11,7 @@ export class NotificationPlatformAdapter implements INotificationPlatformPort {
 
   async getTenantInfo(tenantId: string): Promise<NotificationTenantInfo | null> {
     try {
-      const result = await this.getTenantById.execute(tenantId);
+      const result = await this.getTenantById.execute({ tenantId });
       return {
         id: result.id,
         name: result.name,

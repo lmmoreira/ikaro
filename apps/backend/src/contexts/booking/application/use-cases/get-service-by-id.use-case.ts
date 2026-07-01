@@ -1,7 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+
+export type GetServiceByIdInput = {
+  id: string;
+  tenantId: string;
+  locale: string;
+};
 
 export interface GetServiceByIdUseCaseResult {
   id: string;
@@ -17,17 +22,12 @@ export interface GetServiceByIdUseCaseResult {
 
 @Injectable()
 export class GetServiceByIdUseCase {
-  constructor(
-    @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
-    private readonly tenantContext: RequestContext,
-  ) {}
+  constructor(@Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository) {}
 
-  async execute(id: string): Promise<GetServiceByIdUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
+  async execute(input: GetServiceByIdInput): Promise<GetServiceByIdUseCaseResult> {
+    const { id, tenantId, locale } = input;
     const service = await this.serviceRepo.findById(id, tenantId);
     if (!service) throw new ServiceNotFoundError(id);
-
-    const { language: locale } = this.tenantContext.settings.localization;
 
     return {
       id: service.id,

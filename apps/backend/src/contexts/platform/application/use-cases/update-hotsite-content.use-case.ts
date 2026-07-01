@@ -4,7 +4,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import {
   HotsiteImageNotUploadedError,
   HotsiteNotFoundError,
@@ -22,6 +21,8 @@ import {
 } from '../ports/hotsite-config-repository.port';
 import { UpdateHotsiteContentDto } from '../dtos/update-hotsite-content.dto';
 
+export type UpdateHotsiteContentUseCaseInput = UpdateHotsiteContentDto & { tenantId: string };
+
 export interface UpdateHotsiteContentUseCaseResult {
   branding: HotsiteBranding;
   layout: HotsiteModule[];
@@ -36,12 +37,11 @@ export class UpdateHotsiteContentUseCase {
     private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: RequestContext,
     private readonly imagePathsService: HotsiteImagePathsService,
   ) {}
 
-  async execute(dto: UpdateHotsiteContentDto): Promise<UpdateHotsiteContentUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
+  async execute(dto: UpdateHotsiteContentUseCaseInput): Promise<UpdateHotsiteContentUseCaseResult> {
+    const { tenantId } = dto;
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
 
@@ -51,7 +51,7 @@ export class UpdateHotsiteContentUseCase {
     const layout: HotsiteModule[] = dto.layout ? this.toDomainLayout(dto.layout) : config.layout;
     const seo: HotsiteSeo = dto.seo ? { ...config.seo, ...dto.seo } : config.seo;
 
-    await this.verifyImagesExist(branding, layout);
+    await this.verifyImagesExist(branding, layout, tenantId);
 
     config.updateContent(branding, layout, seo);
 
@@ -70,8 +70,9 @@ export class UpdateHotsiteContentUseCase {
   private async verifyImagesExist(
     branding: HotsiteBranding,
     layout: HotsiteModule[],
+    tenantId: string,
   ): Promise<void> {
-    const tenantPrefix = `tenants/${this.tenantContext.tenantId}/`;
+    const tenantPrefix = `tenants/${tenantId}/`;
     for (const path of this.imagePathsService.collect(branding, layout)) {
       if (!path.startsWith(tenantPrefix)) throw new HotsiteImageNotUploadedError(path);
       const exists = await this.storageService.exists(path, 'public');

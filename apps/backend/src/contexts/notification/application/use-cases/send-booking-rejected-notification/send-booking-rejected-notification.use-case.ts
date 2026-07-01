@@ -31,6 +31,8 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 
 const TRIGGER = NotificationTemplateKey.BOOKING_REJECTED_CUSTOMER;
 
+export type SendBookingRejectedNotificationUseCaseInput = SendBookingRejectedNotificationDto;
+
 export interface SendBookingRejectedNotificationUseCaseResult {
   emailSent: boolean;
 }
@@ -52,24 +54,24 @@ export class SendBookingRejectedNotificationUseCase extends BaseNotificationUseC
   }
 
   async execute(
-    dto: SendBookingRejectedNotificationDto,
+    input: SendBookingRejectedNotificationUseCaseInput,
   ): Promise<SendBookingRejectedNotificationUseCaseResult> {
-    const templates = await this.templateRepo.findAllByTriggerEvent(dto.tenantId, TRIGGER);
+    const templates = await this.templateRepo.findAllByTriggerEvent(input.tenantId, TRIGGER);
     if (templates.length === 0) {
       this.logger.warn('No template found — skipping', {
-        tenantId: dto.tenantId,
+        tenantId: input.tenantId,
         triggerEvent: TRIGGER,
       });
       return { emailSent: false };
     }
 
-    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
-    const emailSent = await this.dispatchTemplates(templates, dto, dto.contactEmail, {
-      contactName: dto.contactName,
-      reason: dto.reason,
+    const emailSent = await this.dispatchTemplates(templates, input, input.contactEmail, {
+      contactName: input.contactName,
+      reason: input.reason,
     });
     return { emailSent };
   }

@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { CUSTOMER_REPOSITORY, ICustomerRepository } from '../ports/customer-repository.port';
 
-export interface SearchCustomersDto {
+export interface SearchCustomersUseCaseInput {
+  tenantId: string;
   search?: string;
   limit: number;
 }
@@ -20,14 +20,14 @@ export interface SearchCustomersUseCaseResult {
 
 @Injectable()
 export class SearchCustomersUseCase {
-  constructor(
-    @Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository,
-    private readonly tenantContext: RequestContext,
-  ) {}
+  constructor(@Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository) {}
 
-  async execute(dto: SearchCustomersDto): Promise<SearchCustomersUseCaseResult> {
-    const { tenantId } = this.tenantContext;
-    const { rows, total } = await this.customerRepo.searchByTenant(tenantId, dto.search, dto.limit);
+  async execute(dto: SearchCustomersUseCaseInput): Promise<SearchCustomersUseCaseResult> {
+    const { rows, total } = await this.customerRepo.searchByTenant(
+      dto.tenantId,
+      dto.search,
+      dto.limit,
+    );
     return { items: rows, total };
   }
 }

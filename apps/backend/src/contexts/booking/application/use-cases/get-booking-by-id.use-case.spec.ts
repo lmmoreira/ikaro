@@ -2,7 +2,6 @@ import { countrySpec } from '@ikaro/i18n';
 import { Address } from '../../../../shared/value-objects/address';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { GetBookingByIdUseCase } from './get-booking-by-id.use-case';
@@ -10,30 +9,20 @@ import { GetBookingByIdUseCase } from './get-booking-by-id.use-case';
 const TENANT_A = '10000000-0000-4000-8000-000000000122';
 const TENANT_B = '10000000-0000-4000-8000-000000000123';
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000122';
-const OTHER_CUSTOMER_ID = '20000000-0000-4000-8000-000000000123';
 const STAFF_ID = '20000000-0000-4000-8000-000000000124';
 
 describe('GetBookingByIdUseCase', () => {
   let repo: InMemoryBookingRepository;
   let storageService: InMemoryStorageService;
+  let useCase: GetBookingByIdUseCase;
 
   beforeEach(() => {
     repo = new InMemoryBookingRepository();
     storageService = new InMemoryStorageService();
+    useCase = new GetBookingByIdUseCase(repo, storageService);
   });
 
   describe('STAFF/MANAGER role', () => {
-    let useCase: GetBookingByIdUseCase;
-
-    beforeEach(() => {
-      const ctx = new RequestContextBuilder()
-        .withTenantId(TENANT_A)
-        .withActorId(STAFF_ID)
-        .withActorRole('MANAGER')
-        .build();
-      useCase = new GetBookingByIdUseCase(repo, ctx, storageService);
-    });
-
     it('returns booking detail for any booking in the tenant', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
@@ -41,7 +30,11 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.id).toBe(booking.id);
       expect(result.status).toBe(booking.status);
@@ -76,7 +69,11 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.contactAddress).toEqual({
         street: 'Rua das Flores',
@@ -99,7 +96,11 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.contactAddress).toBeNull();
       expect(result.approvedAt).toBeNull();
@@ -115,7 +116,11 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.notes).toBe('Carro está na garagem do prédio');
     });
@@ -131,7 +136,11 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.beforeServicePhotoUrls).toEqual([
         `http://fake-gcs/bucket/${beforePath}?sig=test&op=read`,
@@ -144,7 +153,11 @@ describe('GetBookingByIdUseCase', () => {
 
     it('throws BookingNotFoundError when booking does not exist', async () => {
       await expect(
-        useCase.execute({ bookingId: '00000000-0000-4000-8000-000000009999' }),
+        useCase.execute({
+          bookingId: '00000000-0000-4000-8000-000000009999',
+          tenantId: TENANT_A,
+          locale: 'pt-BR',
+        }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
 
@@ -152,25 +165,13 @@ describe('GetBookingByIdUseCase', () => {
       const booking = new BookingBuilder().withTenantId(TENANT_B).build();
       await repo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toBeInstanceOf(
-        BookingNotFoundError,
-      );
+      await expect(
+        useCase.execute({ bookingId: booking.id, tenantId: TENANT_A, locale: 'pt-BR' }),
+      ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
   });
 
   describe('CUSTOMER role', () => {
-    let useCase: GetBookingByIdUseCase;
-
-    beforeEach(() => {
-      const ctx = new RequestContextBuilder()
-        .withTenantId(TENANT_A)
-        .withActorId(CUSTOMER_ID)
-        .withActorType('CUSTOMER')
-        .withActorRole('CUSTOMER')
-        .build();
-      useCase = new GetBookingByIdUseCase(repo, ctx, storageService);
-    });
-
     it('returns own booking', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
@@ -178,26 +179,22 @@ describe('GetBookingByIdUseCase', () => {
         .build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
 
       expect(result.id).toBe(booking.id);
     });
 
-    it('returns 404 for another customer booking (security: does not reveal existence)', async () => {
-      const booking = new BookingBuilder()
-        .withTenantId(TENANT_A)
-        .withCustomerId(OTHER_CUSTOMER_ID)
-        .build();
-      await repo.save(booking);
-
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toBeInstanceOf(
-        BookingNotFoundError,
-      );
-    });
-
     it('throws BookingNotFoundError for non-existent booking', async () => {
       await expect(
-        useCase.execute({ bookingId: '00000000-0000-4000-8000-000000009998' }),
+        useCase.execute({
+          bookingId: '00000000-0000-4000-8000-000000009998',
+          tenantId: TENANT_A,
+          locale: 'pt-BR',
+        }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
   });

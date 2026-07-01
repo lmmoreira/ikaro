@@ -12,7 +12,7 @@ export class BookingCustomerAdapter implements IBookingCustomerPort {
 
   async findById(customerId: string, tenantId: string): Promise<CustomerProfileDto | null> {
     try {
-      const customer = await this.getCustomerById.execute(customerId, tenantId);
+      const customer = await this.getCustomerById.execute({ customerId, tenantId });
       return {
         email: customer.email,
         name: customer.name,

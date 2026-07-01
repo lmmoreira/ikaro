@@ -11,24 +11,27 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { z } from 'zod';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { AnyAuthenticatedRoleGuard } from '../../../../shared/guards/any-authenticated-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
+import {
+  CrossTenantQueryDto,
+  CrossTenantQuerySchema,
+} from '../../application/dtos/cross-tenant-query.dto';
 import { PaginationDto, PaginationSchema } from '../../application/dtos/pagination.dto';
 import { RedeemPointsDto, RedeemPointsSchema } from '../../application/dtos/redeem-points.dto';
 import {
   GetLoyaltyBalanceUseCase,
-  GetLoyaltyBalanceResult,
+  GetLoyaltyBalanceUseCaseResult,
 } from '../../application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
 import {
   GetLoyaltyEntriesUseCase,
-  GetLoyaltyEntriesResult,
+  GetLoyaltyEntriesUseCaseResult,
 } from '../../application/use-cases/get-loyalty-entries/get-loyalty-entries.use-case';
 import {
   GetLoyaltyRedemptionsUseCase,
-  GetLoyaltyRedemptionsResult,
+  GetLoyaltyRedemptionsUseCaseResult,
 } from '../../application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
 import {
   RedeemPointsUseCase,
@@ -51,7 +54,7 @@ export class LoyaltyController {
 
   @Get('loyalty/balance')
   @UseGuards(CustomerRoleGuard)
-  getBalance(): Promise<GetLoyaltyBalanceResult> {
+  getBalance(): Promise<GetLoyaltyBalanceUseCaseResult> {
     const { tenantId, actorId } = this.tenantContext;
     return this.getLoyaltyBalance
       .execute({ tenantId, customerId: actorId! })
@@ -62,7 +65,7 @@ export class LoyaltyController {
   @UseGuards(CustomerRoleGuard)
   getEntries(
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationDto,
-  ): Promise<GetLoyaltyEntriesResult> {
+  ): Promise<GetLoyaltyEntriesUseCaseResult> {
     const { tenantId, actorId } = this.tenantContext;
     return this.getLoyaltyEntries
       .execute({ tenantId, customerId: actorId!, ...query })
@@ -73,7 +76,7 @@ export class LoyaltyController {
   @UseGuards(CustomerRoleGuard)
   getRedemptions(
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationDto,
-  ): Promise<GetLoyaltyRedemptionsResult> {
+  ): Promise<GetLoyaltyRedemptionsUseCaseResult> {
     const { tenantId, actorId } = this.tenantContext;
     return this.getLoyaltyRedemptions
       .execute({ tenantId, customerId: actorId!, ...query })
@@ -106,9 +109,9 @@ export class LoyaltyController {
   @UseGuards(AnyAuthenticatedRoleGuard)
   getBalanceAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
-    @Query(new ZodValidationPipe(z.object({ tenantId: z.uuid().optional() })))
-    { tenantId }: { tenantId?: string },
-  ): Promise<GetLoyaltyBalanceResult> {
+    @Query(new ZodValidationPipe(CrossTenantQuerySchema))
+    { tenantId }: CrossTenantQueryDto,
+  ): Promise<GetLoyaltyBalanceUseCaseResult> {
     const { actorRole, actorId, tenantId: contextTenantId } = this.tenantContext;
     const effectiveTenantId = tenantId ?? contextTenantId;
     // Cross-tenant calls (tenantId query param ≠ JWT tenant) come from the BFF's getTenants()
@@ -128,7 +131,7 @@ export class LoyaltyController {
   getEntriesAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationDto,
-  ): Promise<GetLoyaltyEntriesResult> {
+  ): Promise<GetLoyaltyEntriesUseCaseResult> {
     return this.getLoyaltyEntries
       .execute({ tenantId: this.tenantContext.tenantId, customerId, ...query })
       .catch(mapLoyaltyError);
@@ -139,7 +142,7 @@ export class LoyaltyController {
   getRedemptionsAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationDto,
-  ): Promise<GetLoyaltyRedemptionsResult> {
+  ): Promise<GetLoyaltyRedemptionsUseCaseResult> {
     return this.getLoyaltyRedemptions
       .execute({ tenantId: this.tenantContext.tenantId, customerId, ...query })
       .catch(mapLoyaltyError);

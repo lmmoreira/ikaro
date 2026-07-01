@@ -3,6 +3,7 @@ import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { RenameTenantDto, RenameTenantSchema } from '../../application/dtos/rename-tenant.dto';
 import {
+  RenameTenantUseCaseInput,
   RenameTenantUseCaseResult,
   RenameTenantUseCase,
 } from '../../application/use-cases/rename-tenant.use-case';
@@ -22,6 +23,10 @@ export class TenantController {
   rename(
     @Body(new ZodValidationPipe(RenameTenantSchema)) dto: RenameTenantDto,
   ): Promise<RenameTenantUseCaseResult> {
-    return this.renameTenant.execute(this.tenantContext.tenantId, dto).catch(mapPlatformError);
+    const input: RenameTenantUseCaseInput = {
+      tenantId: this.tenantContext.tenantId,
+      name: dto.name,
+    };
+    return this.renameTenant.execute(input).catch(mapPlatformError);
   }
 }

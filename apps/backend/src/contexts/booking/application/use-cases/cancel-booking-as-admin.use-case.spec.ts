@@ -2,7 +2,6 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
-import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
   BookingNotFoundError,
@@ -15,6 +14,8 @@ const TENANT_B = '10000000-0000-4000-8000-000000000402';
 const STAFF_ID = '20000000-0000-4000-8000-000000000401';
 const CORRELATION_ID = 'corr-cancel-admin-test';
 
+const ctx = { tenantId: TENANT_A, staffId: STAFF_ID, correlationId: CORRELATION_ID };
+
 describe('CancelBookingAsAdminUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
   let eventBus: InMemoryEventBus;
@@ -23,14 +24,7 @@ describe('CancelBookingAsAdminUseCase', () => {
   beforeEach(() => {
     bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
-    const ctx = new RequestContextBuilder()
-      .withTenantId(TENANT_A)
-      .withCorrelationId(CORRELATION_ID)
-      .withActorId(STAFF_ID)
-      .withActorRole('MANAGER')
-      .build();
     useCase = new CancelBookingAsAdminUseCase(
-      ctx,
       bookingRepo,
       new InMemoryTransactionManager(),
       eventBus,
@@ -42,7 +36,7 @@ describe('CancelBookingAsAdminUseCase', () => {
       const booking = new BookingBuilder().withTenantId(TENANT_A).build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({ bookingId: booking.id, ...ctx });
 
       expect(result.status).toBe(BookingStatus.CANCELLED);
       expect(result.bookingId).toBe(booking.id);
@@ -52,7 +46,7 @@ describe('CancelBookingAsAdminUseCase', () => {
       const booking = new BookingBuilder().withTenantId(TENANT_A).build();
       await bookingRepo.save(booking);
 
-      await useCase.execute({ bookingId: booking.id });
+      await useCase.execute({ bookingId: booking.id, ...ctx });
 
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
       expect(saved!.status).toBe(BookingStatus.CANCELLED);
@@ -63,7 +57,6 @@ describe('CancelBookingAsAdminUseCase', () => {
 
   describe('cancelling an APPROVED booking', () => {
     it('cancels an APPROVED booking scheduled in 1 hour — no window constraint', async () => {
-      // Admins bypass the cancellation window — any future booking is cancellable
       const nearFuture = new Date(Date.now() + 60 * 60_000);
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
@@ -72,7 +65,7 @@ describe('CancelBookingAsAdminUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({ bookingId: booking.id, ...ctx });
 
       expect(result.status).toBe(BookingStatus.CANCELLED);
     });
@@ -86,7 +79,7 @@ describe('CancelBookingAsAdminUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      const result = await useCase.execute({ bookingId: booking.id });
+      const result = await useCase.execute({ bookingId: booking.id, ...ctx });
 
       expect(result.status).toBe(BookingStatus.CANCELLED);
     });
@@ -97,7 +90,7 @@ describe('CancelBookingAsAdminUseCase', () => {
       const booking = new BookingBuilder().withTenantId(TENANT_A).build();
       await bookingRepo.save(booking);
 
-      await useCase.execute({ bookingId: booking.id });
+      await useCase.execute({ bookingId: booking.id, ...ctx });
 
       const events = eventBus.published;
       expect(events).toHaveLength(1);
@@ -115,7 +108,7 @@ describe('CancelBookingAsAdminUseCase', () => {
       const booking = new BookingBuilder().withTenantId(TENANT_A).build();
       await bookingRepo.save(booking);
 
-      await useCase.execute({ bookingId: booking.id, reason: 'Staff unavailable' });
+      await useCase.execute({ bookingId: booking.id, reason: 'Staff unavailable', ...ctx });
 
       const events = eventBus.published;
       const data = events[0].data as { reason: string | null };
@@ -126,7 +119,7 @@ describe('CancelBookingAsAdminUseCase', () => {
       const booking = new BookingBuilder().withTenantId(TENANT_A).build();
       await bookingRepo.save(booking);
 
-      await useCase.execute({ bookingId: booking.id });
+      await useCase.execute({ bookingId: booking.id, ...ctx });
 
       const events = eventBus.published;
       const data = events[0].data as { reason: string | null };
@@ -137,7 +130,7 @@ describe('CancelBookingAsAdminUseCase', () => {
   describe('error cases', () => {
     it('throws BookingNotFoundError when booking does not exist', async () => {
       await expect(
-        useCase.execute({ bookingId: '00000000-0000-4000-8000-000000000000' }),
+        useCase.execute({ bookingId: '00000000-0000-4000-8000-000000000000', ...ctx }),
       ).rejects.toThrow(BookingNotFoundError);
     });
 
@@ -148,7 +141,7 @@ describe('CancelBookingAsAdminUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         InvalidBookingTransitionError,
       );
     });
@@ -160,7 +153,7 @@ describe('CancelBookingAsAdminUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         InvalidBookingTransitionError,
       );
     });
@@ -172,7 +165,7 @@ describe('CancelBookingAsAdminUseCase', () => {
         .build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         InvalidBookingTransitionError,
       );
     });
@@ -181,7 +174,7 @@ describe('CancelBookingAsAdminUseCase', () => {
       const booking = new BookingBuilder().withTenantId(TENANT_B).build();
       await bookingRepo.save(booking);
 
-      await expect(useCase.execute({ bookingId: booking.id })).rejects.toThrow(
+      await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
         BookingNotFoundError,
       );
     });

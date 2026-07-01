@@ -1,13 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { PLATFORM_BOOKING_PORT, IPlatformBookingPort } from '../ports/platform-booking.port';
 import {
   FeaturedBookingNotFoundError,
   PhotoNotOnBookingError,
 } from '../../domain/errors/platform-domain.error';
 import { FeatureBookingPhotoDto } from '../dtos/feature-booking-photo.dto';
+
+export type FeatureBookingPhotoUseCaseInput = FeatureBookingPhotoDto & { tenantId: string };
 
 export interface FeatureBookingPhotoUseCaseResult {
   filePath: string;
@@ -18,13 +19,12 @@ export interface FeatureBookingPhotoUseCaseResult {
 @Injectable()
 export class FeatureBookingPhotoUseCase {
   constructor(
-    private readonly tenantContext: RequestContext,
     @Inject(PLATFORM_BOOKING_PORT) private readonly bookingLookup: IPlatformBookingPort,
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
   ) {}
 
-  async execute(dto: FeatureBookingPhotoDto): Promise<FeatureBookingPhotoUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
+  async execute(dto: FeatureBookingPhotoUseCaseInput): Promise<FeatureBookingPhotoUseCaseResult> {
+    const { tenantId } = dto;
 
     const booking = await this.bookingLookup.findById(dto.bookingId, tenantId);
     if (!booking) throw new FeaturedBookingNotFoundError(dto.bookingId);

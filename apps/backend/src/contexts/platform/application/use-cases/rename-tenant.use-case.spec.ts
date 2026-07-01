@@ -17,16 +17,16 @@ describe('RenameTenantUseCase', () => {
   });
 
   it('throws TenantNotFoundError when the tenant does not exist', async () => {
-    await expect(useCase.execute('non-existent-id', { name: 'Novo Nome' })).rejects.toThrow(
-      TenantNotFoundError,
-    );
+    await expect(
+      useCase.execute({ tenantId: 'non-existent-id', name: 'Novo Nome' }),
+    ).rejects.toThrow(TenantNotFoundError);
   });
 
   it('updates the tenant name', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
-    const result = await useCase.execute(tenant.id, { name: 'Novo Nome Lavacar' });
+    const result = await useCase.execute({ tenantId: tenant.id, name: 'Novo Nome Lavacar' });
 
     expect(result.name).toBe('Novo Nome Lavacar');
     const saved = await tenantRepo.findById(tenant.id);
@@ -39,7 +39,7 @@ describe('RenameTenantUseCase', () => {
     await tenantRepo.save(tenantA);
     await tenantRepo.save(tenantB);
 
-    await useCase.execute(tenantA.id, { name: 'Tenant A Renamed' });
+    await useCase.execute({ tenantId: tenantA.id, name: 'Tenant A Renamed' });
 
     const reloadedB = await tenantRepo.findById(tenantB.id);
     expect(reloadedB!.name).not.toBe('Tenant A Renamed');
@@ -50,7 +50,7 @@ describe('RenameTenantUseCase', () => {
     tenant.deactivate();
     await tenantRepo.save(tenant);
 
-    await expect(useCase.execute(tenant.id, { name: 'Novo Nome' })).rejects.toThrow(
+    await expect(useCase.execute({ tenantId: tenant.id, name: 'Novo Nome' })).rejects.toThrow(
       TenantInactiveError,
     );
   });

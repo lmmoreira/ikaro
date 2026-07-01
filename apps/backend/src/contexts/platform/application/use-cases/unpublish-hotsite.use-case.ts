@@ -3,7 +3,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import {
   HotsiteNotFoundError,
   TenantNotFoundError,
@@ -18,6 +17,10 @@ import {
 } from '../ports/hotsite-config-repository.port';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
 
+export interface UnpublishHotsiteUseCaseInput {
+  tenantId: string;
+}
+
 export interface UnpublishHotsiteUseCaseResult {
   isPublished: boolean;
 }
@@ -31,11 +34,11 @@ export class UnpublishHotsiteUseCase {
     @Inject(FRONTEND_REVALIDATION_PORT)
     private readonly frontendRevalidation: IFrontendRevalidationPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(): Promise<UnpublishHotsiteUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
+  async execute({
+    tenantId,
+  }: UnpublishHotsiteUseCaseInput): Promise<UnpublishHotsiteUseCaseResult> {
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
 

@@ -51,7 +51,7 @@ export class InternalStaffController {
         detail: 'googleOAuthId query parameter is required',
       });
     }
-    return this.getStaffByOAuthId.execute(googleOAuthId);
+    return this.getStaffByOAuthId.execute({ googleOAuthId });
   }
 
   @Get('by-email')
@@ -68,7 +68,7 @@ export class InternalStaffController {
         detail: 'email and tenantId query parameters are required',
       });
     }
-    return this.getStaffByEmail.execute(email, tenantId).catch(mapStaffError);
+    return this.getStaffByEmail.execute({ email, tenantId }).catch(mapStaffError);
   }
 
   @Post(':staffId/link-google')

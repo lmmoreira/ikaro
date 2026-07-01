@@ -36,11 +36,11 @@ describe('ServiceController', () => {
     const txManager = new InMemoryTransactionManager();
     controller = new ServiceController(
       ctx,
-      new CreateServiceUseCase(repo, txManager, ctx),
+      new CreateServiceUseCase(repo, txManager),
       new GetServicesUseCase(repo),
-      new GetServiceByIdUseCase(repo, ctx),
-      new UpdateServiceUseCase(repo, txManager, ctx),
-      new DeactivateServiceUseCase(repo, txManager, ctx),
+      new GetServiceByIdUseCase(repo),
+      new UpdateServiceUseCase(repo, txManager),
+      new DeactivateServiceUseCase(repo, txManager),
     );
   });
 

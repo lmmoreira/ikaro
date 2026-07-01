@@ -1,10 +1,10 @@
 import { Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
-  ExpirePointsResult,
+  ExpirePointsUseCaseResult,
   ExpirePointsUseCase,
 } from '../../application/use-cases/expire-points/expire-points.use-case';
 import {
-  NotifyExpiringPointsResult,
+  NotifyExpiringPointsUseCaseResult,
   NotifyExpiringPointsUseCase,
 } from '../../application/use-cases/notify-expiring-points/notify-expiring-points.use-case';
 import { mapLoyaltyError } from '../http/loyalty-error.mapper';
@@ -20,13 +20,13 @@ export class CronLoyaltyController {
 
   @Post('loyalty-expiry')
   @HttpCode(HttpStatus.OK)
-  runExpiry(): Promise<ExpirePointsResult> {
+  runExpiry(): Promise<ExpirePointsUseCaseResult> {
     return this.expirePoints.execute().catch(mapLoyaltyError);
   }
 
   @Post('loyalty-expiry-warning')
   @HttpCode(HttpStatus.OK)
-  runExpiryWarning(): Promise<NotifyExpiringPointsResult> {
+  runExpiryWarning(): Promise<NotifyExpiringPointsUseCaseResult> {
     return this.notifyExpiringPoints.execute().catch(mapLoyaltyError);
   }
 }

@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { countrySpec } from '@ikaro/i18n';
 import { Address, AddressProps } from '../../../../shared/value-objects/address';
-import { RequestContext } from '../../../../shared/request/request-context';
 import {
   TRANSACTION_MANAGER,
   ITransactionManager,
@@ -9,6 +8,12 @@ import {
 import { CustomerNotFoundError } from '../../domain/errors/customer-domain.error';
 import { CUSTOMER_REPOSITORY, ICustomerRepository } from '../ports/customer-repository.port';
 import { UpdateCustomerProfileDto } from '../dtos/update-customer-profile.dto';
+
+export type UpdateCustomerProfileUseCaseInput = UpdateCustomerProfileDto & {
+  tenantId: string;
+  customerId: string;
+  countryCode: string;
+};
 
 export type UpdateCustomerProfileUseCaseResult = {
   customerId: string;
@@ -23,15 +28,13 @@ export class UpdateCustomerProfileUseCase {
   constructor(
     @Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(dto: UpdateCustomerProfileDto): Promise<UpdateCustomerProfileUseCaseResult> {
-    const customerId = this.tenantContext.actorId!;
-    const { tenantId } = this.tenantContext;
-
-    const customer = await this.customerRepo.findById(customerId, tenantId);
-    if (!customer) throw new CustomerNotFoundError(customerId);
+  async execute(
+    dto: UpdateCustomerProfileUseCaseInput,
+  ): Promise<UpdateCustomerProfileUseCaseResult> {
+    const customer = await this.customerRepo.findById(dto.customerId, dto.tenantId);
+    if (!customer) throw new CustomerNotFoundError(dto.customerId);
 
     const name = dto.name ?? customer.name;
     const phone = dto.phone === undefined ? (customer.phone?.value ?? null) : dto.phone;
@@ -42,10 +45,9 @@ export class UpdateCustomerProfileUseCase {
     } else if (dto.defaultAddress === null) {
       defaultAddress = null;
     } else {
-      const countryCode = this.tenantContext.settings.localization.countryCode;
       defaultAddress = Address.create(
         { ...dto.defaultAddress, complement: dto.defaultAddress.complement ?? undefined },
-        countrySpec(countryCode).address,
+        countrySpec(dto.countryCode).address,
       );
     }
 

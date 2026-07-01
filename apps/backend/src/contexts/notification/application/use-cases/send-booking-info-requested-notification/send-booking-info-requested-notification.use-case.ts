@@ -34,6 +34,9 @@ import { BaseNotificationUseCase } from '../base-notification.use-case';
 const TRIGGER = NotificationTemplateKey.BOOKING_INFO_REQUESTED_CUSTOMER;
 const GUEST_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 
+export type SendBookingInfoRequestedNotificationUseCaseInput =
+  SendBookingInfoRequestedNotificationDto;
+
 export interface SendBookingInfoRequestedNotificationUseCaseResult {
   emailSent: boolean;
 }
@@ -56,44 +59,44 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
   }
 
   async execute(
-    dto: SendBookingInfoRequestedNotificationDto,
+    input: SendBookingInfoRequestedNotificationUseCaseInput,
   ): Promise<SendBookingInfoRequestedNotificationUseCaseResult> {
-    const templates = await this.templateRepo.findAllByTriggerEvent(dto.tenantId, TRIGGER);
+    const templates = await this.templateRepo.findAllByTriggerEvent(input.tenantId, TRIGGER);
     if (templates.length === 0) {
       this.logger.warn('No template found — skipping', {
-        tenantId: dto.tenantId,
+        tenantId: input.tenantId,
         triggerEvent: TRIGGER,
       });
       return { emailSent: false };
     }
 
-    const tenantInfo = await this.tenantPort.getTenantInfo(dto.tenantId);
+    const tenantInfo = await this.tenantPort.getTenantInfo(input.tenantId);
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
-    const respondLink = this.buildRespondLink(dto);
+    const respondLink = this.buildRespondLink(input);
 
-    const emailSent = await this.dispatchTemplates(templates, dto, dto.contactEmail, {
-      contactName: dto.contactName,
-      informationNeeded: dto.informationNeeded,
+    const emailSent = await this.dispatchTemplates(templates, input, input.contactEmail, {
+      contactName: input.contactName,
+      informationNeeded: input.informationNeeded,
       respondLink,
     });
     return { emailSent };
   }
 
-  private buildRespondLink(dto: SendBookingInfoRequestedNotificationDto): string {
+  private buildRespondLink(input: SendBookingInfoRequestedNotificationUseCaseInput): string {
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
 
-    if (dto.customerId !== null) {
-      return `${frontendUrl}/dashboard/bookings/${dto.bookingId}`;
+    if (input.customerId !== null) {
+      return `${frontendUrl}/dashboard/bookings/${input.bookingId}`;
     }
 
     const secret = this.config.getOrThrow<string>('JWT_SECRET');
     const token = jwt.sign(
-      { bookingId: dto.bookingId, tenantId: dto.tenantId, contactEmail: dto.contactEmail },
+      { bookingId: input.bookingId, tenantId: input.tenantId, contactEmail: input.contactEmail },
       secret,
       { expiresIn: GUEST_TOKEN_TTL_SECONDS },
     );
-    return `${frontendUrl}/bookings/${dto.bookingId}/responder?token=${token}`;
+    return `${frontendUrl}/bookings/${input.bookingId}/responder?token=${token}`;
   }
 }

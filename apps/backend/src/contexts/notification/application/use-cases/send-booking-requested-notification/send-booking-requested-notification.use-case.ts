@@ -35,6 +35,8 @@ import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.p
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
 import { BaseNotificationUseCase } from '../base-notification.use-case';
 
+export type SendBookingRequestedNotificationUseCaseInput = SendBookingRequestedNotificationDto;
+
 export interface SendBookingRequestedNotificationUseCaseResult {
   adminEmailSent: boolean;
   customerEmailSent: boolean;
@@ -58,52 +60,52 @@ export class SendBookingRequestedNotificationUseCase extends BaseNotificationUse
   }
 
   async execute(
-    dto: SendBookingRequestedNotificationDto,
+    input: SendBookingRequestedNotificationUseCaseInput,
   ): Promise<SendBookingRequestedNotificationUseCaseResult> {
-    const serviceNames = dto.lines.map((l) => l.serviceNameAtBooking).join(', ');
+    const serviceNames = input.lines.map((l) => l.serviceNameAtBooking).join(', ');
 
     const [adminTemplates, customerTemplates, managerEmails, tenantInfo] = await Promise.all([
       this.templateRepo.findAllByTriggerEvent(
-        dto.tenantId,
+        input.tenantId,
         NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
       ),
       this.templateRepo.findAllByTriggerEvent(
-        dto.tenantId,
+        input.tenantId,
         NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
       ),
-      this.staffPort.getManagerEmails(dto.tenantId),
-      this.tenantPort.getTenantInfo(dto.tenantId),
+      this.staffPort.getManagerEmails(input.tenantId),
+      this.tenantPort.getTenantInfo(input.tenantId),
     ]);
 
     const timezone = tenantInfo?.timezone ?? 'UTC';
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(adminTemplates, this.localizationPort, locale);
     this.localizeTemplates(customerTemplates, this.localizationPort, locale);
-    const formattedPrice = formatMoney(dto.totalPrice.amount, locale, dto.totalPrice.currency);
-    const scheduledDate = new Date(dto.scheduledAt);
+    const formattedPrice = formatMoney(input.totalPrice.amount, locale, input.totalPrice.currency);
+    const scheduledDate = new Date(input.scheduledAt);
     const localDate = utcDateToLocalDate(scheduledDate, timezone);
     const localTime = utcDateToLocalHHMM(scheduledDate, timezone);
     const [year, month, day] = localDate.split('-') as [string, string, string];
     const formattedScheduledAt = `${day}/${month}/${year} às ${localTime}`;
 
     const variables: Record<string, string> = {
-      contactName: dto.contactName,
+      contactName: input.contactName,
       scheduledAt: formattedScheduledAt,
       serviceNames,
       totalPrice: formattedPrice,
-      pickupAddress: dto.pickupAddress ? JSON.stringify(dto.pickupAddress) : '',
+      pickupAddress: input.pickupAddress ? JSON.stringify(input.pickupAddress) : '',
       tenantName: tenantInfo?.name ?? '',
     };
 
     const adminEmailSent =
       managerEmails.length > 0
-        ? await this.dispatchTemplatesToMany(adminTemplates, dto, managerEmails, variables)
+        ? await this.dispatchTemplatesToMany(adminTemplates, input, managerEmails, variables)
         : false;
 
     const customerEmailSent = await this.dispatchTemplates(
       customerTemplates,
-      dto,
-      dto.contactEmail,
+      input,
+      input.contactEmail,
       variables,
     );
 

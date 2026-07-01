@@ -45,7 +45,7 @@ describe('NotificationPlatformAdapter', () => {
       locale: tenantResult.settings.localization.language,
       fromEmail: 'hello@ikaro.example',
     });
-    expect(getTenantById.execute).toHaveBeenCalledWith(TENANT_ID);
+    expect(getTenantById.execute).toHaveBeenCalledWith({ tenantId: TENANT_ID });
   });
 
   it('returns null fromEmail when fromEmail is null', async () => {

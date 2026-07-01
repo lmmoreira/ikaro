@@ -52,7 +52,11 @@ describe('PlatformBookingAdapter', () => {
       beforeServicePhotoUrls: ['before.jpg'],
       afterServicePhotoUrls: ['after.jpg'],
     });
-    expect(getBookingById.execute).toHaveBeenCalledWith({ bookingId: BOOKING_ID });
+    expect(getBookingById.execute).toHaveBeenCalledWith({
+      bookingId: BOOKING_ID,
+      tenantId: TENANT_ID,
+      locale: 'pt-BR',
+    });
   });
 
   it('returns null when the booking does not exist', async () => {

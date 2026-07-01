@@ -15,7 +15,7 @@ export class NotificationStaffAdapter implements INotificationStaffPort {
 
   async getStaffInfo(staffId: string, tenantId: string): Promise<NotificationStaffInfo | null> {
     try {
-      const result = await this.getStaffById.execute(staffId, tenantId);
+      const result = await this.getStaffById.execute({ staffId, tenantId });
       return { id: result.id, email: result.email, name: result.name };
     } catch {
       return null;

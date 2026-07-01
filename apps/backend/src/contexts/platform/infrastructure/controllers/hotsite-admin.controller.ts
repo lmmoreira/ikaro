@@ -8,6 +8,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import {
@@ -52,6 +53,7 @@ import { mapPlatformError } from '../http/platform-error.mapper';
 @UseGuards(ManagerRoleGuard)
 export class HotsiteAdminController {
   constructor(
+    private readonly ctx: RequestContext,
     private readonly getHotsiteContent: GetHotsiteContentUseCase,
     private readonly updateHotsiteContent: UpdateHotsiteContentUseCase,
     private readonly publishHotsite: PublishHotsiteUseCase,
@@ -62,7 +64,7 @@ export class HotsiteAdminController {
 
   @Get()
   getContent(): Promise<GetHotsiteContentUseCaseResult> {
-    return this.getHotsiteContent.execute().catch(mapPlatformError);
+    return this.getHotsiteContent.execute({ tenantId: this.ctx.tenantId }).catch(mapPlatformError);
   }
 
   @Patch()
@@ -70,19 +72,21 @@ export class HotsiteAdminController {
   updateContent(
     @Body(new ZodValidationPipe(UpdateHotsiteContentSchema)) dto: UpdateHotsiteContentDto,
   ): Promise<UpdateHotsiteContentUseCaseResult> {
-    return this.updateHotsiteContent.execute(dto).catch(mapPlatformError);
+    return this.updateHotsiteContent
+      .execute({ ...dto, tenantId: this.ctx.tenantId })
+      .catch(mapPlatformError);
   }
 
   @Post('publish')
   @HttpCode(HttpStatus.OK)
   publish(): Promise<PublishHotsiteUseCaseResult> {
-    return this.publishHotsite.execute().catch(mapPlatformError);
+    return this.publishHotsite.execute({ tenantId: this.ctx.tenantId }).catch(mapPlatformError);
   }
 
   @Post('unpublish')
   @HttpCode(HttpStatus.OK)
   unpublish(): Promise<UnpublishHotsiteUseCaseResult> {
-    return this.unpublishHotsite.execute().catch(mapPlatformError);
+    return this.unpublishHotsite.execute({ tenantId: this.ctx.tenantId }).catch(mapPlatformError);
   }
 
   @Post('images/signed-url')
@@ -91,7 +95,9 @@ export class HotsiteAdminController {
     @Body(new ZodValidationPipe(GenerateHotsiteImageSignedUrlSchema))
     dto: GenerateHotsiteImageSignedUrlDto,
   ): Promise<GenerateHotsiteImageSignedUrlUseCaseResult> {
-    return this.generateHotsiteImageSignedUrl.execute(dto).catch(mapPlatformError);
+    return this.generateHotsiteImageSignedUrl
+      .execute({ ...dto, tenantId: this.ctx.tenantId })
+      .catch(mapPlatformError);
   }
 
   @Post('gallery/feature-booking-photo')
@@ -99,6 +105,8 @@ export class HotsiteAdminController {
   featureBookingPhoto(
     @Body(new ZodValidationPipe(FeatureBookingPhotoSchema)) dto: FeatureBookingPhotoDto,
   ): Promise<FeatureBookingPhotoUseCaseResult> {
-    return this.featureHotsiteBookingPhoto.execute(dto).catch(mapPlatformError);
+    return this.featureHotsiteBookingPhoto
+      .execute({ ...dto, tenantId: this.ctx.tenantId })
+      .catch(mapPlatformError);
   }
 }

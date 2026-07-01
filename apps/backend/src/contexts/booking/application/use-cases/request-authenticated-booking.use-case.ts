@@ -6,7 +6,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { Booking } from '../../domain/booking.aggregate';
 import {
   BookingCustomerNotFoundError,
@@ -22,6 +21,14 @@ import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RequestAuthenticatedBookingDto } from '../dtos/request-authenticated-booking.dto';
 import { buildLineInputs, toBookingResult, BookingRequestResult } from './booking-request.helpers';
 
+export type RequestAuthenticatedBookingInput = RequestAuthenticatedBookingDto & {
+  tenantId: string;
+  correlationId: string;
+  customerId: string;
+  countryCode: string;
+  timezone: string;
+};
+
 export type RequestAuthenticatedBookingUseCaseResult = BookingRequestResult;
 
 @Injectable()
@@ -34,55 +41,56 @@ export class RequestAuthenticatedBookingUseCase {
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
-    private readonly tenantContext: RequestContext,
   ) {}
 
   async execute(
-    dto: RequestAuthenticatedBookingDto,
+    input: RequestAuthenticatedBookingInput,
   ): Promise<RequestAuthenticatedBookingUseCaseResult> {
-    const tenantId = this.tenantContext.tenantId;
-    const correlationId = this.tenantContext.correlationId;
-    const customerId = this.tenantContext.actorId!;
+    const { tenantId, correlationId, customerId, countryCode, timezone } = input;
 
     const customer = await this.customerProfilePort.findById(customerId, tenantId);
     if (!customer) throw new BookingCustomerNotFoundError(customerId);
     if (!customer.phone) throw new CustomerPhoneNotSetError();
 
-    const services = await this.serviceRepo.findByIds(dto.serviceIds, tenantId);
+    const services = await this.serviceRepo.findByIds(input.serviceIds, tenantId);
     const serviceMap = new Map(services.map((s) => [s.id, s]));
-    const uniqueIds = [...new Set(dto.serviceIds)];
+    const uniqueIds = [...new Set(input.serviceIds)];
     for (const serviceId of uniqueIds) {
       const service = serviceMap.get(serviceId);
       if (!service) throw new BookingServiceNotInTenantError(serviceId);
       if (!service.isActive) throw new BookingServiceNotActiveError(serviceId);
     }
 
-    const requiresPickup = dto.serviceIds.some((id) => serviceMap.get(id)?.requiresPickupAddress);
+    const requiresPickup = input.serviceIds.some((id) => serviceMap.get(id)?.requiresPickupAddress);
 
     let pickupAddress: Address | undefined;
-    if (dto.pickupAddress) {
-      const { countryCode } = this.tenantContext.settings.localization;
+    if (input.pickupAddress) {
       pickupAddress = Address.create(
-        { ...dto.pickupAddress, complement: dto.pickupAddress.complement ?? undefined },
+        { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
         countrySpec(countryCode).address,
       );
     } else if (requiresPickup && customer.defaultAddress) {
       pickupAddress = customer.defaultAddress;
     }
 
-    const scheduledAt = new Date(dto.scheduledAt);
-    const totalDurationMins = dto.serviceIds.reduce(
+    const scheduledAt = new Date(input.scheduledAt);
+    const totalDurationMins = input.serviceIds.reduce(
       (sum, id) => sum + (serviceMap.get(id)?.durationMinutes ?? 0),
       0,
     );
 
-    await this.slotConflictService.assertSlotFree(tenantId, scheduledAt, totalDurationMins);
+    await this.slotConflictService.assertSlotFree(
+      tenantId,
+      scheduledAt,
+      totalDurationMins,
+      timezone,
+    );
     await this.photoExistenceService.assertPhotosUploaded(
-      dto.beforeServicePhotoUrls ?? [],
+      input.beforeServicePhotoUrls ?? [],
       tenantId,
     );
 
-    const lineInputs = buildLineInputs(dto.serviceIds, serviceMap);
+    const lineInputs = buildLineInputs(input.serviceIds, serviceMap);
 
     const contactAddress = customer.defaultAddress ?? undefined;
 
@@ -98,8 +106,8 @@ export class RequestAuthenticatedBookingUseCase {
       customerId,
       contactAddress,
       pickupAddress,
-      notes: dto.notes,
-      beforeServicePhotoUrls: dto.beforeServicePhotoUrls,
+      notes: input.notes,
+      beforeServicePhotoUrls: input.beforeServicePhotoUrls,
     });
 
     await this.txManager.run(async () => {

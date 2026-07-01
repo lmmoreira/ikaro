@@ -4,11 +4,19 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { RequestContext } from '../../../../shared/request/request-context';
 import { StaffAlreadyExistsError } from '../../domain/errors/staff-domain.error';
 import { Staff } from '../../domain/staff.aggregate';
-import { InviteStaffDto } from '../dtos/invite-staff.dto';
 import { IStaffRepository, STAFF_REPOSITORY } from '../ports/staff-repository.port';
+
+export interface InviteStaffUseCaseInput {
+  tenantId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: 'MANAGER' | 'STAFF';
+  invitedBy: string | null;
+  correlationId: string;
+}
 
 export interface InviteStaffUseCaseResult {
   staffId: string;
@@ -23,14 +31,12 @@ export class InviteStaffUseCase {
     @Inject(STAFF_REPOSITORY) private readonly staffRepo: IStaffRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
-    private readonly tenantContext: RequestContext,
   ) {}
 
-  async execute(dto: InviteStaffDto): Promise<InviteStaffUseCaseResult> {
-    const { tenantId, email, firstName, lastName, role, invitedBy } = dto;
+  async execute(dto: InviteStaffUseCaseInput): Promise<InviteStaffUseCaseResult> {
+    const { tenantId, email, firstName, lastName, role, invitedBy, correlationId } = dto;
     const normalizedEmail = email.toLowerCase().trim();
     const name = `${firstName} ${lastName}`.trim();
-    const correlationId = this.tenantContext.correlationId;
 
     const existing = await this.staffRepo.findByTenantAndEmail(tenantId, normalizedEmail);
 

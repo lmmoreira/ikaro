@@ -5,7 +5,11 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { TenantNotFoundError } from '../../domain/errors/platform-domain.error';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
-import { RenameTenantDto } from '../dtos/rename-tenant.dto';
+
+export interface RenameTenantUseCaseInput {
+  tenantId: string;
+  name: string;
+}
 
 export interface RenameTenantUseCaseResult {
   tenantId: string;
@@ -19,11 +23,12 @@ export class RenameTenantUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(tenantId: string, dto: RenameTenantDto): Promise<RenameTenantUseCaseResult> {
+  async execute(input: RenameTenantUseCaseInput): Promise<RenameTenantUseCaseResult> {
+    const { tenantId, name } = input;
     const tenant = await this.tenantRepo.findById(tenantId);
     if (!tenant) throw new TenantNotFoundError(tenantId);
 
-    tenant.updateName(dto.name);
+    tenant.updateName(name);
 
     await this.txManager.run(async () => {
       await this.tenantRepo.save(tenant);

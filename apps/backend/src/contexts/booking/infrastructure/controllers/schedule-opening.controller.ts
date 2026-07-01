@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { RequestContext } from '../../../../shared/request/request-context';
 import {
   ListOpeningsDto,
   ListOpeningsSchema,
@@ -34,6 +35,7 @@ import { mapBookingError } from '../http/booking-error.mapper';
 @UseGuards(StaffOrManagerRoleGuard)
 export class ScheduleOpeningController {
   constructor(
+    private readonly ctx: RequestContext,
     private readonly openSchedule: OpenScheduleUseCase,
     private readonly removeOpening: RemoveScheduleOpeningUseCase,
     private readonly listOpenings: ListOpeningsUseCase,
@@ -43,7 +45,8 @@ export class ScheduleOpeningController {
   list(
     @Query(new ZodValidationPipe(ListOpeningsSchema)) query: ListOpeningsDto,
   ): Promise<ListOpeningsUseCaseResult> {
-    return this.listOpenings.execute(query).catch(mapBookingError);
+    const { tenantId } = this.ctx;
+    return this.listOpenings.execute({ ...query, tenantId }).catch(mapBookingError);
   }
 
   @Post()
@@ -51,7 +54,15 @@ export class ScheduleOpeningController {
   create(
     @Body(new ZodValidationPipe(OpenScheduleSchema)) body: OpenScheduleDto,
   ): Promise<OpenScheduleUseCaseResult> {
-    return this.openSchedule.execute(body).catch(mapBookingError);
+    const { tenantId, actorId: createdBy, settings } = this.ctx;
+    return this.openSchedule
+      .execute({
+        ...body,
+        tenantId,
+        createdBy: createdBy ?? '',
+        businessHours: settings.businessHours,
+      })
+      .catch(mapBookingError);
   }
 
   @Delete(':id')
@@ -59,6 +70,7 @@ export class ScheduleOpeningController {
   remove(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<void> {
-    return this.removeOpening.execute(id).catch(mapBookingError);
+    const { tenantId } = this.ctx;
+    return this.removeOpening.execute({ id, tenantId }).catch(mapBookingError);
   }
 }
