@@ -45,7 +45,7 @@
 | **AUD-010** | Fix the brittle `multer` override (real CVE) ✅ | 🟠 High | S | Now | — | §10.6 |
 | **AUD-011** | Tenant-settings cache (in-memory LRU + TTL) | 🟡 Medium | S | Now | — | §5.1 |
 | **AUD-012** | Prototype-pollution guard in `deepMerge` ✅ | 🟡 Medium | XS | Now | — | §5.7 |
-| **AUD-013** | Per-tenant font loading (LCP) | 🟡 Medium | S | Now | — | §8.1 |
+| **AUD-013** | Per-tenant font loading (LCP) ✅ | 🟡 Medium | S | Now | — | §8.1 |
 | **AUD-014** | Coverage floor in test runners ✅ | 🟡 Medium | XS | Now | — | §11.3 |
 | **AUD-015** | Playwright E2E in CI + expand booking flows ✅ | 🟡 Medium | M | Now | — | §9.4, §11.4 |
 | **AUD-016** | API idempotency-key on mutating endpoints | 🟡 Medium | M | Pre-deploy | — | §13.9 |
@@ -371,11 +371,11 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-013 — Per-tenant font loading (LCP)
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Now · **Audit ref:** §8.1
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 **What's wrong:** `lib/hotsite/font-config.ts` instantiates 8 Google font families and `[slug]/layout.tsx:38` attaches all of `FONT_VARIABLES` to the root, so Next preloads all 8 (several with multiple weights) on every hotsite — but each tenant uses only `headingFontFamily` + `bodyFontFamily`. Direct LCP regression on the highest-conversion page.
 **Fix:** Load only the 1–2 fonts the tenant's branding selects (dynamic map keyed by branding), or set `preload: false` on non-selected families.
-**Acceptance:** ☐ A rendered hotsite preloads only the tenant's selected fonts; verify via the emitted `<link rel=preload>` set / Lighthouse.
+**Acceptance:** ✅ A rendered hotsite preloads only the tenant's selected fonts; verify via the emitted `<link rel=preload>` set / Lighthouse.
 
 ### AUD-014 — Coverage floor in test runners
 **Risk:** 🟡 Medium · **Effort:** XS · **Phase:** Now · **Audit ref:** §11.3

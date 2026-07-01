@@ -1,6 +1,6 @@
 import { fetchManifest } from '@/lib/api/platform';
 import { applyBranding } from '@/lib/hotsite/apply-branding';
-import { FONT_VARIABLES } from '@/lib/hotsite/font-config';
+import { getActiveFontVariables } from '@/lib/hotsite/font-config';
 import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
 import { isValidTimezone, resolveDateFormat } from '@/lib/formatting/locale-validators';
 import { FormattingProvider } from '@/providers/formatting-provider';
@@ -38,7 +38,10 @@ export default async function HotsiteLayout({
     <div
       id="hotsite-root"
       style={{ ...brandingStyles, fontFamily: 'var(--ba-body-font)' }}
-      className={FONT_VARIABLES.join(' ')}
+      className={getActiveFontVariables(
+        manifest.branding.headingFontFamily,
+        manifest.branding.bodyFontFamily,
+      ).join(' ')}
     >
       <LocaleProvider locale={locale} messages={messages}>
         <FormattingProvider
