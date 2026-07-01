@@ -2555,7 +2555,7 @@ createService(body: CreateServiceRequest): Promise<StaffServiceResponse>
 
 ---
 
-### M13-S24 — Serviços: edit + deactivate service (`/dashboard/services/[id]/edit`)
+### M13-S24 — Serviços: edit + deactivate service (`/dashboard/services/[id]/edit`) ✅ Done
 
 *(formerly M125-S10)*
 
