@@ -1,6 +1,6 @@
 import type { Address, CustomerProfileResponse } from '@ikaro/types';
 
-// Distinct from lib/api/dashboard/customers.ts's getCustomerProfile()/updateCustomerProfile():
+// Distinct from lib/api/customer.ts's getCustomerProfile()/updateCustomerProfile():
 // those call the Bearer-token bffClient (only configured inside an authenticated dashboard
 // shell). These read/write the httpOnly cookie server-side via the /api/customers/me proxy —
 // for contexts like the public hotsite where no dashboard shell (and no in-memory token)

@@ -87,7 +87,7 @@ describe('AuthController (component) — non-OAuth routes', () => {
       });
     });
 
-    it('201 — sets access_token cookie and returns { tenantSlug, expiresIn }', async () => {
+    it('200 — sets access_token cookie and returns { tenantSlug, expiresIn }', async () => {
       const targetCustomerId = '20000000-0000-4000-8000-000000000002';
       backendHttpService.get
         .mockResolvedValueOnce([
@@ -101,7 +101,7 @@ describe('AuthController (component) — non-OAuth routes', () => {
         .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
         .send({ targetTenantId: TENANT_ID_2 });
 
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(200);
       expect(res.headers['set-cookie']).toBeDefined();
       expect(res.body.tenantSlug).toBe('lavacar-sp');
       expect(res.body.expiresIn).toBe('7d');

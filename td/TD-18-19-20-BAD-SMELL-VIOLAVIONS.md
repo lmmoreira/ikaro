@@ -1,6 +1,7 @@
 # TD18-19-20 - Consolidated Bad-Smell Violations
 
 ## Status
+- **State**: Resolved (2026-07-01)
 - **Type**: Technical Debt / Consolidated Audit Baseline
 - **Priority**: Medium
 - **Scope**: whole repo - `apps/backend`, `apps/bff`, `apps/web`
@@ -406,7 +407,7 @@ Success criteria:
 
 These stories are intended to be executed as one cleanup effort, but each story can still be reviewed and landed independently.
 
-### Story 1 - Booking validation and booking spec preset
+### Story 1 - Booking validation and booking spec preset ✅ Done
 
 Scope:
 - TD19 BE-B2
@@ -446,7 +447,7 @@ Definition of done:
 - `complete-booking.use-case.spec.ts` no longer owns a local approved-booking factory.
 - Tests continue to pass with the new builder preset.
 
-### Story 2 - Backend fixture and domain cleanup
+### Story 2 - Backend fixture and domain cleanup ✅ Done
 
 Scope:
 - TD18 BE-B1
@@ -496,7 +497,7 @@ Definition of done:
 - The missing entity builders exist and are used in tests.
 - Normalization logic is no longer duplicated across multiple use cases and aggregates.
 
-### Story 3 - Backend spec-helper cleanup
+### Story 3 - Backend spec-helper cleanup ✅ Done
 
 Scope:
 - TD18/TD20 BE-B3
@@ -543,7 +544,7 @@ Definition of done:
 - Spec files read as behavior tests instead of fixture factories.
 - The backend test style is more uniform across contexts.
 
-### Story 4 - BFF controller thinning and module naming
+### Story 4 - BFF controller thinning and module naming ✅ Done
 
 Scope:
 - TD18/20 BFF-B1
@@ -586,7 +587,7 @@ Definition of done:
 - Role branching, token handling, and pagination shaping are not done directly in controller bodies.
 - Module naming matches the repo’s bounded-context convention.
 
-### Story 5 - Web safety and fetcher naming
+### Story 5 - Web safety and fetcher naming ✅ Done
 
 Scope:
 - TD18 WEB-W1
@@ -639,11 +640,11 @@ Definition of done:
 
 ## Acceptance Criteria
 
-- [ ] Duplicate entries from TD18, TD19, and TD20 are consolidated into the canonical items above.
-- [ ] Historical items are clearly marked when they were only present in an earlier snapshot.
-- [ ] Low-risk fixes are grouped first, followed by larger refactors.
-- [ ] The plan is split into story-sized waves that can be implemented and reviewed independently.
-- [ ] Future smell-audit updates can point at this file as the single baseline source.
+- [x] Duplicate entries from TD18, TD19, and TD20 are consolidated into the canonical items above.
+- [x] Historical items are clearly marked when they were only present in an earlier snapshot.
+- [x] Low-risk fixes are grouped first, followed by larger refactors.
+- [x] The plan is split into story-sized waves that can be implemented and reviewed independently.
+- [x] Future smell-audit updates can point at this file as the single baseline source.
 
 ## Notes
 

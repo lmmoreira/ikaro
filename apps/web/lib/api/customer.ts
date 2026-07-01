@@ -1,22 +1,7 @@
-import { bffClient } from '../bff-client';
+import { bffClient } from './bff-client';
+import type { Address, CustomerProfileResponse } from '@ikaro/types';
 
-export interface CustomerAddressResponse {
-  readonly street: string;
-  readonly number: string;
-  readonly complement?: string | null;
-  readonly neighborhood: string;
-  readonly city: string;
-  readonly state: string;
-  readonly zipCode: string;
-}
-
-export interface CustomerProfileResponse {
-  readonly customerId: string;
-  readonly email: string;
-  readonly name: string;
-  readonly phone: string | null;
-  readonly defaultAddress: CustomerAddressResponse | null;
-}
+export type CustomerAddressResponse = Address;
 
 export interface UpdateCustomerProfileRequest {
   readonly name?: string;

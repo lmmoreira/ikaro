@@ -4,11 +4,11 @@ import { CustomerProfileResponse, CustomerSearchListResponse, TenantOption } fro
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../shared/http/backend-http.service';
-import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
-import { CustomerSearchResponse } from './customers.types';
 import { CustomerTenantSummaryResponse } from '../auth/auth.types';
 import { TenantInfoResponse } from '../shared/types/backend-responses';
 import { toTenantOption } from './customers.mapper';
+import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
+import { CustomerSearchResponse } from './customers.types';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -50,17 +50,19 @@ export class CustomersController {
   ): Promise<CustomerSearchListResponse> {
     const params = new URLSearchParams({ limit: String(query.limit) });
     if (query.search) params.set('search', query.search);
+
     const { items, total } = await this.backendHttp.get<CustomerSearchResponse>(
       `/customers?${params}`,
     );
     const enriched = await Promise.all(
-      items.map(async (c) => {
+      items.map(async (customer) => {
         const balance = await this.backendHttp.get<LoyaltyBalanceResponse>(
-          `/customers/${c.customerId}/loyalty/balance`,
+          `/customers/${customer.customerId}/loyalty/balance`,
         );
-        return { ...c, currentPoints: balance.currentPoints };
+        return { ...customer, currentPoints: balance.currentPoints };
       }),
     );
+
     return { items: enriched, total };
   }
 

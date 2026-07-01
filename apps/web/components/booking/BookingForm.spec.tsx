@@ -12,8 +12,8 @@ import type {
   CustomerProfileResponse,
 } from '@ikaro/types';
 import { CreateBookingError, createAuthenticatedBooking, createBooking } from '@/lib/api/bookings';
-import { getHotsiteCustomerProfile } from '@/lib/api/customers';
-import { fetchAvailability, fetchAvailabilitySummary } from '@/lib/api/schedule';
+import { getHotsiteCustomerProfile } from '@/lib/api/hotsite/customers';
+import { fetchAvailability, fetchAvailabilitySummary } from '@/lib/api/hotsite/schedule';
 import { BookingForm } from './BookingForm';
 
 const BR_ADDRESS_SPEC: HotsiteAddressSpec = {
@@ -43,11 +43,11 @@ vi.mock('@/lib/api/bookings', async (importOriginal) => {
   };
 });
 
-vi.mock('@/lib/api/customers', () => ({
+vi.mock('@/lib/api/hotsite/customers', () => ({
   getHotsiteCustomerProfile: vi.fn(),
 }));
 
-vi.mock('@/lib/api/schedule', () => ({
+vi.mock('@/lib/api/hotsite/schedule', () => ({
   fetchAvailabilitySummary: vi.fn(),
   fetchAvailability: vi.fn(),
 }));

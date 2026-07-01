@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Email } from '../../../../shared/value-objects/email.vo';
 import { StaffNotFoundError } from '../../domain/errors/staff-domain.error';
 import { StaffRole } from '../../domain/staff.aggregate';
 import { IStaffRepository, STAFF_REPOSITORY } from '../ports/staff-repository.port';
@@ -22,7 +23,7 @@ export class GetStaffByEmailUseCase {
 
   async execute(input: GetStaffByEmailUseCaseInput): Promise<GetStaffByEmailUseCaseResult> {
     const { email, tenantId } = input;
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = Email.create(email).address;
     const staff = await this.staffRepo.findByTenantAndEmail(tenantId, normalizedEmail);
     if (!staff) throw new StaffNotFoundError(normalizedEmail);
     return {

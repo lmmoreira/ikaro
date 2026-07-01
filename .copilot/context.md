@@ -5,7 +5,7 @@
 **Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`  
 **Audience:** Any AI coding agent  
 **Rule:** Read this file first. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-06-28
+**Last updated:** 2026-07-01
 
 ---
 
@@ -172,6 +172,8 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 - **Aggregate-driven events:** `this.addDomainEvent()` in aggregate method; flush `clearDomainEvents()` **after** `txManager.run()`. Never publish events directly from a use case.
 - `correlationId` — controllers read from `RequestContext.correlationId` and pass via DTO. Use cases receive it as `dto.correlationId` — never inject `RequestContext`, never call `uuidv7()`. Domain error base class needs `Object.setPrototypeOf(this, new.target.prototype)` after `super()` — otherwise `instanceof` fails silently and every mapper falls through to 500.
 - **Use cases never inject `RequestContext`.** Extract `tenantId`, `actorId`, `correlationId`, and any `settings.*` fields in the controller, then forward them in the DTO. Use cases are pure functions of their input — safe to call from event handlers and cross-context adapters.
+- **Controllers and route files are composition layers only.** They may parse input and choose the use case/helper, but branching policy and response shaping belong in the owning slice, not in the controller/page body.
+- **Feature-owned transport helpers stay with the feature.** Generic buckets are for cross-cutting code only; if a helper belongs to one capability or surface, keep it next to that ownership boundary.
 - Zod v4: `z.uuid()` / `z.email()` — never `z.string().uuid()` / `z.string().email()`.
 - **`/internal/` routes are only for unauthenticated auth flows** (OAuth callbacks before a JWT exists: `handleStaffLogin`, `findOrCreate`, `link-google`). If the BFF can include actor headers, the endpoint is not internal — put it in the regular authenticated controller.
 - `RequestModule` is not `@Global()` — import explicitly in every module whose controller injects `RequestContext`.
@@ -192,6 +194,8 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 - If a primitive or pattern is safe for both authenticated shells, place it in shared web UI code and keep it **tenant-agnostic**.
 - The **only** tenant-dynamic branding surface is the hotsite tree (`app/[slug]/`, its modules, and widgets). Do not leak `--ba-*` tokens, manifest-driven colors, or hotsite-only patterns into dashboard/customer shells.
 - If a new component needs both SaaS and hotsite variants, create separate implementations instead of trying to make one component read both branding systems.
+- Shared UI primitives should expose readonly props where practical, so consumers do not mutate shared contracts by accident.
+- Any `dangerouslySetInnerHTML` usage must go through a controlled helper/component with an explicit sanitization path; never inline raw HTML injection in a page or reusable component.
 - Route-scoped chrome state that must be visible in a shell header or top bar must live in a provider above both the shell and the page. Do not mirror that state in shell-local state, effect-based sync, or `key` remount workarounds.
 - Booking detail mutations should use the shared booking mutation hooks. Keep React Query invalidation in the shared hook layer, not inside page components.
 - Tenant-scoped booking queries must share the `['bookings', tenantId, ...]` prefix so a single invalidation reaches the queue, detail, and filtered booking views. If a query key shape changes, update the shared invalidation contract in the same change.

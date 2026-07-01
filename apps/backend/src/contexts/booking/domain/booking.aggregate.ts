@@ -4,6 +4,7 @@ import { Address } from '../../../shared/value-objects/address';
 import { Email } from '../../../shared/value-objects/email.vo';
 import { Money } from '../../../shared/value-objects/money';
 import { PhoneNumber } from '../../../shared/value-objects/phone-number.vo';
+import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text-normalization';
 import { BookingLine, BookingLineInput } from './booking-line.entity';
 import {
   BookingDiscountExceedsTotalError,
@@ -256,11 +257,11 @@ export class Booking extends AggregateRoot {
       type,
       customerId: customerId ?? null,
       contactEmail: Email.create(contactEmail),
-      contactName: contactName.trim(),
+      contactName: normalizeText(contactName),
       contactPhone: PhoneNumber.create(contactPhone),
       contactAddress: contactAddress ?? null,
       pickupAddress: pickupAddress ?? null,
-      notes: notes?.trim() || null,
+      notes: normalizeOptionalText(notes),
       scheduledAt,
       totalDurationMins,
       totalPrice,
@@ -297,7 +298,7 @@ export class Booking extends AggregateRoot {
         type,
         customerId: customerId ?? null,
         contactEmail,
-        contactName: contactName.trim(),
+        contactName: normalizeText(contactName),
         contactPhone,
         contactAddress: Booking.toAddressPayload(contactAddress ?? null),
         scheduledAt: scheduledAt.toISOString(),
@@ -362,7 +363,7 @@ export class Booking extends AggregateRoot {
   }
 
   reject(staffId: string, reason: string, correlationId: string): void {
-    const normalizedReason = reason.trim();
+    const normalizedReason = normalizeText(reason);
     if (normalizedReason.length < 10) {
       throw new BookingRejectionReasonTooShortError();
     }
@@ -391,7 +392,7 @@ export class Booking extends AggregateRoot {
   }
 
   requestMoreInfo(staffId: string, message: string, correlationId: string): void {
-    const normalizedMessage = message.trim();
+    const normalizedMessage = normalizeText(message);
     if (normalizedMessage.length < 20) {
       throw new BookingInfoMessageTooShortError();
     }
@@ -485,7 +486,7 @@ export class Booking extends AggregateRoot {
     this.props.discountPointsUsed = discountByPoints?.pointsUsed ?? null;
     this.props.discountAmount = discountAmount;
     this.props.afterServicePhotoUrls = [...afterPhotos];
-    if (adminNotes !== undefined) this.props.adminNotes = adminNotes.trim() || null;
+    if (adminNotes !== undefined) this.props.adminNotes = normalizeOptionalText(adminNotes);
 
     const endTime = new Date(
       this.props.scheduledAt.getTime() + this.props.totalDurationMins * 60_000,
@@ -591,7 +592,7 @@ export class Booking extends AggregateRoot {
     };
 
     this.props.scheduledAt = newScheduledAt;
-    if (adminNotes !== undefined) this.props.adminNotes = adminNotes.trim() || null;
+    if (adminNotes !== undefined) this.props.adminNotes = normalizeOptionalText(adminNotes);
 
     this.addDomainEvent(
       new BookingRescheduled(this.props.tenantId, correlationId, {

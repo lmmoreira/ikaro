@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/lib/api/platform';
-import { fetchServices } from '@/lib/api/services';
 import { AboutModule } from '@/components/hotsite/AboutModule';
 import { BookingCtaModule } from '@/components/hotsite/BookingCtaModule';
 import { ContactModule } from '@/components/hotsite/ContactModule';
+import { JsonLdScript } from '@/components/hotsite/JsonLdScript';
 import { Footer } from '@/components/hotsite/Footer';
 import { GalleryModule } from '@/components/hotsite/GalleryModule';
 import { HeroModule } from '@/components/hotsite/HeroModule';
@@ -13,7 +13,8 @@ import { ServiceListModule } from '@/components/hotsite/ServiceListModule';
 import { TestimonialsModule } from '@/components/hotsite/TestimonialsModule';
 import { Unavailable } from '@/components/hotsite/Unavailable';
 import { buildHotsiteModuleRenderPlan, resolveHotsiteDisplayName } from '@/lib/hotsite/page-model';
-import { buildHotsiteMetadata, buildLocalBusinessJsonLd, toJsonLdScript } from '@/lib/hotsite/seo';
+import { buildHotsiteMetadata, buildLocalBusinessJsonLd } from '@/lib/hotsite/seo';
+import { fetchServices } from '@/lib/api/hotsite/services';
 
 // Next.js statically analyses segment config exports — imported variables are not resolved.
 // Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in lib/hotsite/revalidate.ts.
@@ -68,10 +69,7 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
   return (
     <main>
       <HotsiteAuthBar slug={slug} />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: toJsonLdScript(localBusinessJsonLd) }}
-      />
+      <JsonLdScript data={localBusinessJsonLd} />
       {modulesWithVariant.map(({ parsed, bgVariant }, index) => {
         const key = `${parsed.type}-${index}`;
         let moduleEl: React.ReactNode = null;

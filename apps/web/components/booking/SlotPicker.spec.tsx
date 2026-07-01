@@ -4,10 +4,10 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AvailabilityResponse } from '@ikaro/types';
-import { fetchAvailability } from '@/lib/api/schedule';
+import { fetchAvailability } from '@/lib/api/hotsite/schedule';
 import { SlotPicker } from './SlotPicker';
 
-vi.mock('@/lib/api/schedule', () => ({
+vi.mock('@/lib/api/hotsite/schedule', () => ({
   fetchAvailabilitySummary: vi.fn(),
   fetchAvailability: vi.fn(),
 }));

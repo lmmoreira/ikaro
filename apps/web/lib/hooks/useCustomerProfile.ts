@@ -3,7 +3,7 @@ import {
   getCustomerProfile,
   updateCustomerProfile,
   type UpdateCustomerProfileRequest,
-} from '@/lib/api/dashboard/customers';
+} from '@/lib/api/customer';
 import { useTenant } from '@/providers/tenant-provider';
 
 export function useCustomerProfile() {

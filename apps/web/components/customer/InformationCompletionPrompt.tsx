@@ -11,7 +11,7 @@ import {
   getHotsiteCustomerProfile,
   updateHotsiteCustomerProfile,
   UpdateHotsiteCustomerProfileError,
-} from '@/lib/api/customers';
+} from '@/lib/api/hotsite/customers';
 import { AddressFields } from '../booking/AddressFields';
 import { ErrorAlert } from '../booking/ErrorAlert';
 

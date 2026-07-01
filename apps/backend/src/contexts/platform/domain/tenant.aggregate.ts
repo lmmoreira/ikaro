@@ -1,6 +1,7 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Slug } from '../../../shared/value-objects/slug.vo';
+import { normalizeText } from '../../../shared/utils/text-normalization';
 import { TenantProvisioned } from './events/tenant-provisioned.event';
 import { PlatformDomainError, TenantInactiveError } from './errors/platform-domain.error';
 import { TenantSettings } from './value-objects/tenant-settings.vo';
@@ -59,7 +60,8 @@ export class Tenant extends AggregateRoot {
     timezone = 'America/Sao_Paulo',
     countryCode = 'BR',
   ): Tenant {
-    if (!name || name.trim().length === 0) {
+    const normalizedName = normalizeText(name);
+    if (!normalizedName) {
       throw new PlatformDomainError('Tenant name must not be empty');
     }
     if (!Slug.isValid(slug)) {
@@ -70,7 +72,7 @@ export class Tenant extends AggregateRoot {
     const now = new Date();
     const tenant = new Tenant({
       id: uuidv7(),
-      name: name.trim(),
+      name: normalizedName,
       slug: Slug.create(slug),
       settings: TenantSettings.default(timezone, countryCode),
       isActive: true,
@@ -102,10 +104,11 @@ export class Tenant extends AggregateRoot {
 
   updateName(name: string): void {
     if (!this.props.isActive) throw new TenantInactiveError(this.props.id);
-    if (!name || name.trim().length === 0) {
+    const normalizedName = normalizeText(name);
+    if (!normalizedName) {
       throw new PlatformDomainError('Tenant name must not be empty');
     }
-    this.props.name = name.trim();
+    this.props.name = normalizedName;
     this.props.updatedAt = new Date();
   }
 

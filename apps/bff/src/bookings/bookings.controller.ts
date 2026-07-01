@@ -20,7 +20,7 @@ import { Public } from '../shared/decorators/public.decorator';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../shared/http/backend-http.service';
-import { TenantInfoResponse } from '../shared/types/backend-responses';
+import { withPublicTenant } from '../shared/http/public-tenant';
 import {
   AttachmentSignedUrlResponse,
   BookingResponse,
@@ -277,24 +277,12 @@ export class BookingsController {
     }
 
     // Scenario 2 — anonymous guest, tenantSlug in body
-    if (!body.tenantSlug) {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Bad Request',
-          status: 400,
-          detail: 'tenantSlug is required for guest uploads',
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-    const tenant = await this.backendHttp.get<TenantInfoResponse>(
-      `/internal/tenants/by-slug/${body.tenantSlug}`,
-    );
-    return this.backendHttp.postForPublic<AttachmentSignedUrlResponse>(
-      '/bookings/attachments/signed-url',
-      { fileName: body.fileName, contentType: body.contentType },
-      tenant.id,
+    return withPublicTenant(this.backendHttp, body.tenantSlug, (tenantId) =>
+      this.backendHttp.postForPublic<AttachmentSignedUrlResponse>(
+        '/bookings/attachments/signed-url',
+        { fileName: body.fileName, contentType: body.contentType },
+        tenantId,
+      ),
     );
   }
 
@@ -373,23 +361,9 @@ export class BookingsController {
     @Headers('x-tenant-slug') tenantSlug: string | undefined,
     @Body(new ZodValidationPipe(RequestBookingBodySchema)) body: RequestBookingBody,
   ): Promise<BookingResponse> {
-    if (!tenantSlug) {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Bad Request',
-          status: HttpStatus.BAD_REQUEST,
-          detail: 'X-Tenant-Slug header is required',
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    const tenant = await this.backendHttp.get<TenantInfoResponse>(
-      `/internal/tenants/by-slug/${tenantSlug}`,
+    return withPublicTenant(this.backendHttp, tenantSlug, (tenantId) =>
+      this.backendHttp.postForPublic<BookingResponse>('/bookings', body, tenantId),
     );
-
-    return this.backendHttp.postForPublic<BookingResponse>('/bookings', body, tenant.id);
   }
 
   @Post('authenticated')

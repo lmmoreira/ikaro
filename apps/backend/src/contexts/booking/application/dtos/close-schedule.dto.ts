@@ -1,17 +1,15 @@
 import { z } from 'zod';
 import { ClosureReason } from '../../domain/schedule-closure.aggregate';
+import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 
 export const CloseScheduleSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
   reason: z.enum([ClosureReason.STAFF_DAY_OFF, ClosureReason.MAINTENANCE, ClosureReason.HOLIDAY]),
   startTime: z
     .string()
-    .regex(/^\d{2}:\d{2}$/, 'startTime must be HH:MM')
+    .refine(TimeOfDay.isValid, { message: 'startTime must be HH:MM' })
     .optional(),
-  endTime: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/, 'endTime must be HH:MM')
-    .optional(),
+  endTime: z.string().refine(TimeOfDay.isValid, { message: 'endTime must be HH:MM' }).optional(),
   notes: z.string().optional(),
 });
 

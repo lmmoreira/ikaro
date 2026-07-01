@@ -5,7 +5,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCustomerProfile, useUpdateCustomerProfile } from './useCustomerProfile';
 
-vi.mock('@/lib/api/dashboard/customers', () => ({
+vi.mock('@/lib/api/customer', () => ({
   getCustomerProfile: vi.fn().mockResolvedValue({
     customerId: 'c-1',
     email: 'maria@example.com',

@@ -1,7 +1,7 @@
 import MockAdapter from 'axios-mock-adapter';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { bffClient } from '../bff-client';
-import { getCustomerProfile, updateCustomerProfile } from './customers';
+import { bffClient } from './bff-client';
+import { getCustomerProfile, updateCustomerProfile } from './customer';
 
 const mock = new MockAdapter(bffClient);
 

@@ -7,11 +7,11 @@ import {
   getHotsiteCustomerProfile,
   updateHotsiteCustomerProfile,
   UpdateHotsiteCustomerProfileError,
-} from '@/lib/api/customers';
+} from '@/lib/api/hotsite/customers';
 import { renderWithIntl } from '@/test-utils';
 import { InformationCompletionPrompt } from './InformationCompletionPrompt';
 
-vi.mock('@/lib/api/customers', () => ({
+vi.mock('@/lib/api/hotsite/customers', () => ({
   getHotsiteCustomerProfile: vi.fn(),
   updateHotsiteCustomerProfile: vi.fn(),
   UpdateHotsiteCustomerProfileError: class extends Error {

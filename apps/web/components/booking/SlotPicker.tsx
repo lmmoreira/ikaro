@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { AvailableSlot } from '@ikaro/types';
-import { fetchAvailability } from '@/lib/api/schedule';
+import { fetchAvailability } from '@/lib/api/hotsite/schedule';
 import { useFormatting } from '@/lib/formatting/use-formatting';
 import { cn } from '@/lib/utils';
 import { ErrorAlert } from './ErrorAlert';

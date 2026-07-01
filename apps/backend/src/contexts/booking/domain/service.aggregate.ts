@@ -1,6 +1,7 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Money } from '../../../shared/value-objects/money';
+import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text-normalization';
 import { BookingDomainError, ServiceDeactivatedError } from './errors/booking-domain.error';
 
 export interface ServiceProps {
@@ -81,8 +82,8 @@ export class Service extends AggregateRoot {
     description,
   }: CreateServiceProps): Service {
     if (!tenantId) throw new BookingDomainError('tenantId is required');
-    const trimmedName = name?.trim();
-    if (!trimmedName) throw new BookingDomainError('name is required');
+    const normalizedName = normalizeText(name);
+    if (!normalizedName) throw new BookingDomainError('name is required');
     if (price.amount.isNegative() || price.amount.isZero()) {
       throw new BookingDomainError('price must be greater than zero');
     }
@@ -97,8 +98,8 @@ export class Service extends AggregateRoot {
     return new Service({
       id: uuidv7(),
       tenantId,
-      name: trimmedName,
-      description: description?.trim() ?? null,
+      name: normalizedName,
+      description: normalizeOptionalText(description),
       price,
       durationMinutes,
       loyaltyPointsValue,
@@ -122,8 +123,8 @@ export class Service extends AggregateRoot {
     requiresPickupAddress: boolean,
   ): void {
     if (!this.props.isActive) throw new ServiceDeactivatedError();
-    const trimmedName = name?.trim();
-    if (!trimmedName) throw new BookingDomainError('name is required');
+    const normalizedName = normalizeText(name);
+    if (!normalizedName) throw new BookingDomainError('name is required');
     if (price.amount.isNegative() || price.amount.isZero()) {
       throw new BookingDomainError('price must be greater than zero');
     }
@@ -134,8 +135,8 @@ export class Service extends AggregateRoot {
       throw new BookingDomainError('loyaltyPointsValue must be non-negative');
     }
 
-    this.props.name = trimmedName;
-    this.props.description = description?.trim() ?? null;
+    this.props.name = normalizedName;
+    this.props.description = normalizeOptionalText(description);
     this.props.price = price;
     this.props.durationMinutes = durationMinutes;
     this.props.loyaltyPointsValue = loyaltyPointsValue;

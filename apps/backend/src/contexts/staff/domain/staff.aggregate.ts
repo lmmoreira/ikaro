@@ -2,6 +2,7 @@ import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { SYSTEM_ACTOR_ID } from '../../../shared/domain/system-actor';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Email } from '../../../shared/value-objects/email.vo';
+import { normalizeText } from '../../../shared/utils/text-normalization';
 import { StaffDeactivated } from './events/staff-deactivated.event';
 import { StaffInvited } from './events/staff-invited.event';
 import {
@@ -81,7 +82,7 @@ export class Staff extends AggregateRoot {
     if (role !== 'MANAGER' && role !== 'STAFF') {
       throw new StaffDomainError('role must be MANAGER or STAFF');
     }
-    const trimmedName = name?.trim();
+    const trimmedName = normalizeText(name);
     if (!trimmedName) throw new StaffDomainError('name is required to invite staff');
 
     const now = new Date();
@@ -134,7 +135,7 @@ export class Staff extends AggregateRoot {
 
   linkGoogleAccount(googleOAuthId: string, name: string): void {
     if (!googleOAuthId) throw new StaffDomainError('googleOAuthId is required');
-    const trimmedName = name?.trim();
+    const trimmedName = normalizeText(name);
     if (!trimmedName) throw new StaffDomainError('name is required');
     if (this.props.googleOAuthId && this.props.googleOAuthId !== googleOAuthId) {
       throw new StaffGoogleAccountConflictError();
@@ -145,7 +146,7 @@ export class Staff extends AggregateRoot {
   }
 
   reinvite(role: StaffRole, name: string, invitedBy: string | null, correlationId: string): void {
-    const trimmedName = name?.trim();
+    const trimmedName = normalizeText(name);
     if (!trimmedName) throw new StaffDomainError('name is required to reinvite staff');
     this.props.role = role;
     this.props.name = trimmedName;
