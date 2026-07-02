@@ -1,7 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import { FormattingContext, type FormattingState } from '@/lib/formatting/formatting-context';
+import {
+  FormattingContext,
+  type FormattingState,
+} from '@/shared/lib/formatting/formatting-context';
 
 interface FormattingProviderProps extends FormattingState {
   readonly children: React.ReactNode;

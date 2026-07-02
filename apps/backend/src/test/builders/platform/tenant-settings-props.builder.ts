@@ -1,6 +1,5 @@
 import {
   BookingSettings,
-  BusinessHours,
   BusinessInfo,
   LocalizationSettings,
   LoyaltySettings,
@@ -9,6 +8,7 @@ import {
   TenantSettings,
   TenantSettingsProps,
 } from '../../../contexts/platform/domain/value-objects/tenant-settings.vo';
+import type { BusinessHours } from '../../../shared/value-objects/business-hours.vo';
 
 export class TenantSettingsPropsBuilder {
   private readonly props: TenantSettingsProps;

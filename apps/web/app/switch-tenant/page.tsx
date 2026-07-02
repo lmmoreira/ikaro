@@ -1,10 +1,10 @@
 import { NextIntlClientProvider } from 'next-intl';
-import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
-import { getAccessToken } from '@/lib/auth/get-access-token';
-import { fetchManifest } from '@/lib/api/platform';
-import { applyBranding } from '@/lib/hotsite/apply-branding';
-import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
-import { SwitchTenantClient } from '@/components/customer/SwitchTenantClient';
+import { decodeJwtPayload } from '@/features/auth/decode-jwt';
+import { getAccessToken } from '@/features/auth/get-access-token';
+import { fetchManifest } from '@/features/platform/api';
+import { applyBranding } from '@/features/platform/hotsite/apply-branding';
+import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { SwitchTenantClient } from '@/features/customer/components/SwitchTenantClient';
 
 // SwitchTenantClient renders with the *current* tenant's hotsite branding AND locale (the
 // prototype it's based on, plan/journey/customer/prototypes/login/01-select-tenant.html, is

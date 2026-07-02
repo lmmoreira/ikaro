@@ -1,97 +1,33 @@
-import { AddressSpec, countrySpec } from '@ikaro/i18n';
+import { countrySpec } from '@ikaro/i18n';
 import { Email } from '../../../../shared/value-objects/email.vo';
+import type { BusinessHours, DayHours } from '../../../../shared/value-objects/business-hours.vo';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
+import type {
+  BusinessInfo,
+  BusinessInfoAddress,
+  BookingSettings,
+  LocalizationSettings,
+  LoyaltySettings,
+  NotificationSettings,
+  ResolvedLocalization,
+  SocialLinks,
+  TenantSettingsData,
+} from '../../../../shared/value-objects/tenant-settings-data';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
 import { PlatformDomainError } from '../errors/platform-domain.error';
 
-export type DayHours = { open: string; close: string } | null;
-
-export interface NotificationSettings {
-  fromEmail: string | null;
-}
-
-export interface LoyaltySettings {
-  expiryDays: number;
-  enableNotifications: boolean;
-  expiryWarningDays: number;
-  notificationMinPoints: number;
-  pointsPerCurrencyUnit: number;
-}
-
-export interface BookingSettings {
-  cancellationWindowHours: number;
-  autoApproveEnabled: boolean;
-  minBookingAdvanceHours: number;
-  maxBookingAdvanceDays: number;
-  serviceBufferMinutes: number;
-  slotGranularityMinutes: 15 | 30 | 60;
-  welcomeStaffScreenDays: number;
-}
-
-export interface BusinessHours {
-  timezone: string;
-  monday: DayHours;
-  tuesday: DayHours;
-  wednesday: DayHours;
-  thursday: DayHours;
-  friday: DayHours;
-  saturday: DayHours;
-  sunday: DayHours;
-}
-
-export interface LocalizationSettings {
-  countryCode: string;
-  currency: string;
-  currencySymbol?: string;
-  language: string;
-  decimalPlaces: number;
-}
-
-export interface ResolvedLocalization {
-  countryCode: string;
-  language: string;
-  currency: string;
-  decimalPlaces: number;
-  phonePrefix: string;
-  dateFormat: string;
-  timeFormat: '24h' | '12h';
-  numberFormat: string;
-  firstDayOfWeek: 0 | 1;
-  address: AddressSpec;
-}
-
-export interface BusinessInfoAddress {
-  street: string;
-  number: string;
-  complement?: string;
-  neighborhood: string;
-  city: string;
-  state: string;
-  zipCode: string;
-}
-
-export interface SocialLinks {
-  whatsapp: string | null;
-  instagram: string | null;
-  facebook: string | null;
-}
-
-export interface BusinessInfo {
-  phone: string | null;
-  email: string | null;
-  address: BusinessInfoAddress | null;
-  socialLinks: SocialLinks | null;
-}
-
-export interface TenantSettingsProps {
-  loyalty: LoyaltySettings;
-  booking: BookingSettings;
-  businessHours: BusinessHours;
-  localization: LocalizationSettings;
-  notification?: NotificationSettings;
-  businessInfo?: BusinessInfo;
-}
+export type {
+  BookingSettings,
+  BusinessInfo,
+  BusinessInfoAddress,
+  LocalizationSettings,
+  LoyaltySettings,
+  NotificationSettings,
+  ResolvedLocalization,
+  SocialLinks,
+};
+export type TenantSettingsProps = TenantSettingsData;
 
 export class TenantSettings {
   private readonly props: TenantSettingsProps;

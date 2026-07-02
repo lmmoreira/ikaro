@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { useContext } from 'react';
 import { describe, expect, it } from 'vitest';
-import { FormattingContext } from '@/lib/formatting/formatting-context';
+import { FormattingContext } from '@/shared/lib/formatting/formatting-context';
 import { FormattingProvider } from './formatting-provider';
 
 function Consumer(): React.JSX.Element {

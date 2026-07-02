@@ -1,7 +1,7 @@
-import type { TenantSettingsProps } from '../../contexts/platform/domain/value-objects/tenant-settings.vo';
+import type { TenantSettingsData } from '../value-objects/tenant-settings-data';
 
 export const TENANT_SETTINGS_PORT = Symbol('ITenantSettingsPort');
 
 export interface ITenantSettingsPort {
-  getSettings(tenantId: string): Promise<TenantSettingsProps>;
+  getSettings(tenantId: string): Promise<TenantSettingsData>;
 }

@@ -1,7 +1,7 @@
 # TD21 - Separation Repository Into Domain Slices
 
 ## Status
-- **State**: Draft
+- **State**: Resolved (2026-07-02)
 - **Type**: Technical Debt / Repository Structure Migration Plan
 - **Priority**: Medium
 - **Scope**: `apps/backend`, `apps/bff`, `apps/web`

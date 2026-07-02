@@ -10,7 +10,7 @@ Ikaro is designed as a **Modular Monolith** using **Hexagonal Architecture (Port
 
 ```mermaid
 graph TD
-    subgraph "Web Layer (Next.js 14 — apps/web)"
+    subgraph "Web Layer (Next.js 16 — apps/web)"
         Hotsite[Hotsite Render Engine<br/>public, unauthenticated]
         Dashboard[Dashboard Backoffice<br/>authenticated - Customer & Staff]
     end
@@ -57,13 +57,22 @@ graph TD
 
 ---
 
+## Repository Slice Orientation
+
+- **Backend:** canonical bounded contexts live under `apps/backend/src/contexts/<context>/`.
+- **BFF:** business-owned code lives in `apps/bff/src/features/<capability>/`; `auth` and `uploads` are technical slices.
+- **Web:** business-owned code lives in `apps/web/features/<domain>/`; `dashboard` and `hotsite` are shell slices.
+- **Shared code:** `shared/` is cross-cutting only; it must not become a dumping ground for feature-owned logic.
+
+---
+
 ## 4. Hotsite & Dashboard Logic
 
 ### **Hotsite Manifest (UC-001, UC-011)**
-The BFF serves a dynamic `Hotsite Manifest` (JSON) to the Web Layer. This manifest defines the branding (colors, logo) and the layout (which modules to render) for a specific tenant slug.
+The BFF serves a dynamic `Hotsite Manifest` (JSON) to the web hotsite shell. The manifest defines the branding (colors, logo) and the layout (which modules to render) for a specific tenant slug, while the route composition stays in `apps/web/shells/hotsite/` and the hotsite page model lives in `apps/web/features/platform/hotsite/`.
 
 ### **Role-Based Dashboard (UC-003+ )**
-The Dashboard shell uses the JWT role (`STAFF` or `CUSTOMER`) to load the appropriate UI modules and enforce client-side permissions.
+The Dashboard shell uses the JWT role (`STAFF` or `CUSTOMER`) to load the appropriate UI modules and enforce client-side permissions. Composition stays in `apps/web/shells/dashboard/`; domain-owned booking, customer, staff, and platform logic stays in the matching feature slice.
 
 ---
 
@@ -124,7 +133,7 @@ src/contexts/booking/
 ## Communication Patterns
 
 ### **1. Synchronous (Internal API)**
-- When the BFF needs data from multiple contexts, it calls their Application Services directly.
+- When the BFF needs data from multiple contexts, it orchestrates those reads through the owning feature slice and the relevant backend read use cases.
 - **Rule:** Contexts should rarely call each other synchronously to avoid tight coupling.
 
 ### **2. Asynchronous (Domain Events)**

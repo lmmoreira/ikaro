@@ -35,11 +35,11 @@ The `layout` array is **ordered and fully controlled by the admin**. The admin c
 
 > **Scope boundary — read this before writing any component that uses colour.**
 >
-> `--ba-*` CSS custom properties are **hotsite-only**. They are injected by `applyBranding()` inside `app/[slug]/layout.tsx` and are valid exclusively within the `/[slug]/` route subtree — public hotsite pages and all hotsite module components (`components/hotsite/**`).
+> `--ba-*` CSS custom properties are **hotsite-only**. They are injected by `applyBranding()` inside `app/[slug]/layout.tsx` and are valid exclusively within the `/[slug]/` route subtree — public hotsite pages and all hotsite module components (`shells/hotsite/components/**`).
 >
 > They are **never** available in:
-> - The staff dashboard (`app/dashboard/**`, `components/dashboard/**`)
-> - The customer logged-in area (`app/[slug]/my-account/**`, `components/customer/**`)
+> - The staff dashboard (`app/dashboard/**`, `shells/dashboard/components/**`)
+> - The customer logged-in area (`app/[slug]/my-account/**`, `features/customer/components/**`)
 >
 > Both of those shells belong to the **SaaS product** whose colours are fixed and not per-tenant — they use Tailwind utility classes and shadcn/ui design tokens (`--primary`, `--secondary`, etc.), not the hotsite branding palette. When in doubt: if a component is visible to a logged-in staff member or inside a protected shell, it does not use `--ba-*`.
 
@@ -74,7 +74,7 @@ interface HotsiteBranding {
 
 ### Font Allow-List
 
-Fonts are pre-loaded at build time via `next/font/google` in `apps/web/lib/hotsite/font-config.ts`. The manifest stores a font key (e.g. `"Playfair Display"`); `applyBranding()` resolves it to the matching CSS variable. No runtime CDN link, no LGPD exposure.
+Fonts are pre-loaded at build time via `next/font/google` in `apps/web/features/platform/hotsite/font-config.ts`. The manifest stores a font key (e.g. `"Playfair Display"`); `applyBranding()` resolves it to the matching CSS variable. No runtime CDN link, no LGPD exposure.
 
 | Manifest key | Font | Personality |
 |---|---|---|
@@ -94,7 +94,7 @@ Fonts are pre-loaded at build time via `next/font/google` in `apps/web/lib/hotsi
 The `applyBranding(branding)` helper (called in `app/[slug]/layout.tsx`) resolves semantic choices to CSS variables. Takes `HotsiteBrandingResponse` from `@ikaro/types`.
 
 ```typescript
-// apps/web/lib/hotsite/apply-branding.ts
+// apps/web/features/platform/hotsite/apply-branding.ts
 
 const BORDER_RADIUS = { sharp: '0px', rounded: '8px', pill: '9999px' };
 const SECTION_PY    = { compact: '3rem', comfortable: '5rem', spacious: '8rem' };
@@ -365,9 +365,9 @@ https://<ikaro-domain>/dashboard             → app/dashboard/ (requires auth)
 **`app/[slug]/layout.tsx`** — fetches manifest and applies full branding token set:
 
 ```typescript
-import { fetchManifest } from '@/lib/api/platform';
-import { applyBranding } from '@/lib/hotsite/apply-branding';
-import { FONT_VARIABLES } from '@/lib/hotsite/font-config';
+import { fetchManifest } from '@/features/platform/hotsite/api/platform';
+import { applyBranding } from '@/features/platform/hotsite/apply-branding';
+import { FONT_VARIABLES } from '@/features/platform/hotsite/font-config';
 
 export default async function HotsiteLayout({
   children,
@@ -395,7 +395,7 @@ export default async function HotsiteLayout({
 **`app/[slug]/page.tsx`** — renders enabled modules in manifest order. `MODULE_MAP` starts empty and grows as each module story (M12-S04–S06) lands:
 
 ```typescript
-import { Footer } from '@/components/hotsite/Footer';
+import { Footer } from '@/shells/hotsite/components/Footer';
 import { HotsiteModuleType } from '@ikaro/types';
 
 // Each module story registers its component here
@@ -425,7 +425,7 @@ export default async function HotsitePage({
 
 ### Unpublished state (M12-S08)
 
-When `manifest.isPublished === false`, `page.tsx` renders `<Unavailable />` (`apps/web/components/hotsite/Unavailable.tsx`) instead of the module list — a generic "Em breve" placeholder. Because `app/[slug]/layout.tsx` has already applied `applyBranding(manifest.branding)`, `<Unavailable />` inherits the tenant's `var(--ba-*)` tokens automatically — for a freshly-provisioned tenant these resolve to `DEFAULT_HOTSITE_BRANDING`, so no special-casing is needed.
+When `manifest.isPublished === false`, `page.tsx` renders `<Unavailable />` (`apps/web/shells/hotsite/components/Unavailable.tsx`) instead of the module list — a generic "Em breve" placeholder. Because `app/[slug]/layout.tsx` has already applied `applyBranding(manifest.branding)`, `<Unavailable />` inherits the tenant's `var(--ba-*)` tokens automatically — for a freshly-provisioned tenant these resolve to `DEFAULT_HOTSITE_BRANDING`, so no special-casing is needed.
 
 This differs from the **unknown-slug** case (`app/not-found.tsx`, root-level, M12-S08): there, `fetchManifest()` calls `notFound()` inside `app/[slug]/layout.tsx` before it ever renders, so no manifest/branding is available and the 404 page uses static Ikaro styling instead of `var(--ba-*)` tokens. The page must live at the `app/` root rather than `app/[slug]/` because Next.js does not let a segment's own `not-found.tsx` catch a `notFound()` thrown by that segment's own `layout.tsx`.
 
@@ -438,23 +438,23 @@ Next.js has **two independent caches** for hotsite requests:
 - **Full Route Cache** (`export const revalidate` on the page/layout) — caches the final rendered HTML
 - **Data Cache** (`next: { revalidate: N }` on individual `fetch()` calls) — caches individual API responses
 
-Both must use the **same TTL** or they diverge. Use the shared constant from `apps/web/lib/hotsite/revalidate.ts`:
+Both must use the **same TTL** or they diverge. Use the shared constant from `apps/web/features/platform/hotsite/revalidate.ts`:
 
 ```typescript
-// apps/web/lib/hotsite/revalidate.ts
+// apps/web/features/platform/hotsite/revalidate.ts
 export const HOTSITE_REVALIDATE_SECONDS = 300;
 ```
 
 ```typescript
 // apps/web/app/[slug]/page.tsx  (and layout.tsx)
 // Next.js statically analyses segment config exports — imported variables are not resolved.
-// Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in lib/hotsite/revalidate.ts.
+// Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in features/platform/hotsite/revalidate.ts.
 export const revalidate = 300;
 ```
 
 ```typescript
-// apps/web/lib/api/platform.ts
-import { HOTSITE_REVALIDATE_SECONDS } from '@/lib/hotsite/revalidate';
+// apps/web/features/platform/api.ts
+import { HOTSITE_REVALIDATE_SECONDS } from '@/features/platform/hotsite/revalidate';
 
 export async function fetchManifest(slug: string): Promise<HotsiteManifestResponse> {
   const isDev = process.env.NODE_ENV === 'development';
@@ -479,7 +479,7 @@ The `isDev ? 0` guard disables caching in `NODE_ENV=development` so local edits 
 - Admin publishes/unpublishes (UC-027) → triggers on-demand revalidation (`revalidatePath('/[slug]')` via a secured `/api/revalidate` route, M12-S10) — changes go live immediately rather than waiting for the 5-minute ISR window
 - Image URLs embedded in the manifest (`branding.logoUrl`, module `*Url`, `GalleryImage.url`) are **permanent public addresses** (M12-S10 — see §4 "Image hosting & URL resolution"), not expiring signed URLs — this is what makes caching the manifest payload itself safe; nothing inside it can go stale mid-window
 
-**Rule:** Never hardcode `300` or any revalidation number in a `fetch()` call or page export — always import from `lib/hotsite/revalidate.ts` so all TTLs move together.
+**Rule:** Never hardcode `300` or any revalidation number in a `fetch()` call or page export — always import from `features/platform/hotsite/revalidate.ts` so all TTLs move together.
 
 **Session-aware widgets must not break this cache (M13-S42).** Any UI that needs to know whether the current visitor is logged in (e.g. `HotsiteAuthBar`) must be a `'use client'` component that fetches its own auth state *after* hydration — via a same-origin proxy route, see `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §4 — and must **never** call `cookies()` from `next/headers` anywhere in the `[slug]` page/layout server-render tree. Calling `cookies()` there forces Next.js to treat the whole route as dynamic per-request, silently disabling the ISR cache above for every visitor, not just logged-in ones.
 
@@ -495,7 +495,7 @@ Add the TypeScript interface to `packages/types/src/hotsite.ts`. Add the new typ
 
 **2. Build the React component**
 
-Create `apps/web/components/hotsite/XxxModule.tsx`. Rules:
+Create `apps/web/shells/hotsite/components/XxxModule.tsx`. Rules:
 - Use **only** `var(--ba-*)` CSS variables for colors, fonts, radius, spacing, shadows — never hardcode visual values
 - Mobile-first responsive layout (Tailwind breakpoints: `sm`, `md`, `lg`)
 - Accessible (WCAG 2.1 AA) — semantic HTML, `aria-label` where needed, sufficient color contrast
@@ -514,7 +514,7 @@ Create `apps/web/components/hotsite/XxxModule.tsx`. Rules:
 
 **3. Add a Zod schema to `module-schemas.ts`**
 
-Add a `XxxModuleDataSchema` to `apps/web/lib/hotsite/module-schemas.ts` and register it in `MODULE_DATA_SCHEMAS`. Without this, `isValidModuleData('XXX', data)` returns `true` for any data including structurally invalid payloads — a malformed module will reach the component and may crash the page. Every `HotsiteModuleType` must have a schema registered before its story ships.
+Add a `XxxModuleDataSchema` to `apps/web/features/platform/hotsite/module-schemas.ts` and register it in `MODULE_DATA_SCHEMAS`. Without this, `isValidModuleData('XXX', data)` returns `true` for any data including structurally invalid payloads — a malformed module will reach the component and may crash the page. Every `HotsiteModuleType` must have a schema registered before its story ships.
 
 **4. Register in MODULE_MAP**
 
@@ -576,11 +576,11 @@ The manifest pattern is designed to grow without rework:
 
 ### Site URL
 
-`apps/web/lib/hotsite/seo.ts` exports `SITE_URL`, read from `NEXT_PUBLIC_SITE_URL` (`https://<ikaro-domain>` in production, `http://localhost:3000` in local dev). Every absolute URL used for canonical links, Open Graph, JSON-LD, and the sitemap is built from this constant — never hardcode `https://<ikaro-domain>`.
+`apps/web/features/platform/hotsite/seo.ts` exports `SITE_URL`, read from `NEXT_PUBLIC_SITE_URL` (`https://<ikaro-domain>` in production, `http://localhost:3000` in local dev). Every absolute URL used for canonical links, Open Graph, JSON-LD, and the sitemap is built from this constant — never hardcode `https://<ikaro-domain>`.
 
 ### Per-page metadata
 
-`buildHotsiteMetadata({ manifest, slug, path? })` (also in `lib/hotsite/seo.ts`) builds a `Metadata` object (title, description, Open Graph, `robots`, `alternates.canonical`) from the manifest. Each route calls it from its own `generateMetadata` — **not** `app/[slug]/layout.tsx`. The layout is shared by `/[slug]` and `/[slug]/booking`, and Next.js does not deep-merge nested `openGraph`/`alternates` fields between a layout's and a page's `generateMetadata` — a layout-level canonical/OG `url` would leak into the booking page unchanged.
+`buildHotsiteMetadata({ manifest, slug, path? })` (also in `features/platform/hotsite/seo.ts`) builds a `Metadata` object (title, description, Open Graph, `robots`, `alternates.canonical`) from the manifest. Each route calls it from its own `generateMetadata` — **not** `app/[slug]/layout.tsx`. The layout is shared by `/[slug]` and `/[slug]/booking`, and Next.js does not deep-merge nested `openGraph`/`alternates` fields between a layout's and a page's `generateMetadata` — a layout-level canonical/OG `url` would leak into the booking page unchanged.
 
 - `app/[slug]/page.tsx` — `buildHotsiteMetadata({ manifest, slug })`; canonical = `${SITE_URL}/${slug}`; `robots` follows `manifest.isPublished`
 - `app/[slug]/booking/page.tsx` — `buildHotsiteMetadata({ manifest, slug, path: '/booking' })`, with `title` overridden (`'Agendar serviço'` / `'Em breve — Ikaro'`) and `robots: { index: false, follow: false }` **always** — the booking flow is never indexed, regardless of publish status

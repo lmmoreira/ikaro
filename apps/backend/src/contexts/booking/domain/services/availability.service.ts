@@ -1,8 +1,4 @@
-import {
-  BookingSettings,
-  BusinessHours,
-  DayHours,
-} from '../../../../contexts/platform/domain/value-objects/tenant-settings.vo';
+import { BusinessHours, DayHours } from '../../../../shared/value-objects/business-hours.vo';
 import {
   getUtcWeekDayName,
   localDateTimeToUTCIso,
@@ -21,7 +17,7 @@ export interface AvailabilityInput {
   date: string; // YYYY-MM-DD in tenant timezone
   services: ServiceDuration[];
   businessHours: BusinessHours;
-  slotGranularityMinutes: BookingSettings['slotGranularityMinutes'];
+  slotGranularityMinutes: 15 | 30 | 60;
   serviceBufferMinutes: number;
   closures: ScheduleClosure[];
   opening: ScheduleOpening | null;

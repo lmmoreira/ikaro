@@ -1,7 +1,7 @@
 import type { StaffTenantOption } from '@ikaro/types';
-import { getAccessToken } from '@/lib/auth/get-access-token';
-import { bffServerFetch } from '@/lib/api/bff-server';
-import { SelectStaffTenantClient } from '@/components/staff/SelectStaffTenantClient';
+import { getAccessToken } from '@/features/auth/get-access-token';
+import { bffServerFetch } from '@/shared/lib/api/bff-server';
+import { SelectStaffTenantClient } from '@/features/staff/components/SelectStaffTenantClient';
 
 export default async function SelectStaffTenantPage(): Promise<React.JSX.Element> {
   const token = await getAccessToken();

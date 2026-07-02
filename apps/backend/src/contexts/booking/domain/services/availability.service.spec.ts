@@ -1,7 +1,7 @@
-import { BusinessHours } from '../../../../contexts/platform/domain/value-objects/tenant-settings.vo';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
 import { ScheduleOpeningBuilder } from '../../../../test/builders/booking/schedule-opening.builder';
 import { nextWeekday } from '../../../../test/utils/date-helpers';
+import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { BookedSlot } from '../booked-slot';
 import { AvailabilityInput, AvailabilityService } from './availability.service';
 

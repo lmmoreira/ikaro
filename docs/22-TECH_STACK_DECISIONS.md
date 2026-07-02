@@ -322,10 +322,10 @@ export class CompleteBookingController {
 
 ---
 
-## 3. FRONTEND: Next.js with React 18
+## 3. FRONTEND: Next.js with React 19
 
 ### Decision
-**Next.js 14+** with **React 18**  
+**Next.js 16+** with **React 19**  
 **Deployment:** GCP Cloud Run container (same pattern as backend and BFF — NOT Vercel, NOT GCS static export)
 
 ### Why Next.js
@@ -385,7 +385,7 @@ This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` - Client enforces tenant
 The frontend (`apps/web/`) calls the **separate NestJS BFF** (`apps/bff/`), not the backend directly. The BFF validates the JWT, injects `tenantId`, and aggregates data from backend contexts.
 
 ```typescript
-// apps/web/lib/api/bookings.ts — API client in Next.js
+// apps/web/features/booking/api/bookings.ts — API client in Next.js
 export async function getBooking(id: string, jwt: string, tenantSlug: string) {
   const res = await fetch(`${process.env.BFF_URL}/bookings/${id}`, {
     headers: {
@@ -421,18 +421,18 @@ Ikaro's Next.js app requires **server-side rendering** — GCS static export is 
 
 **Why NOT Vercel:** Vendor lock-in, $20/month floor, and incompatible with the GCP-native infrastructure already in place. The BFF URL, IAM, and VPC are all GCP — Vercel would sit outside that trust boundary.
 
-**Why NOT GCS + CDN static export:** Requires `output: 'export'` in `next.config.js`, which disables middleware, SSR, and server components. Every feature that makes Next.js 14 worth using depends on the Node.js runtime.
+**Why NOT GCS + CDN static export:** Requires `output: 'export'` in `next.config.js`, which disables middleware, SSR, and server components. Every feature that makes Next.js 16 worth using depends on the Node.js runtime.
 
-### React 18 Choice
+### React 19 Choice
 
-| Criterion | React 18 | React 19 |
-|-----------|----------|----------|
-| **Stability** | ⭐⭐⭐⭐⭐ Battle-tested | ⭐⭐⭐⭐ Newer |
-| **Ecosystem** | ⭐⭐⭐⭐⭐ All libraries support | 🟡 Some pre-release |
-| **Performance** | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐⭐⭐ Marginal gains |
-| **Team Familiarity** | ⭐⭐⭐⭐⭐ Standard | 🟡 New patterns |
+| Criterion | Previous baseline | Current baseline |
+|-----------|-------------------|-----------------|
+| **Stability** | ⭐⭐⭐⭐⭐ Battle-tested | ⭐⭐⭐⭐⭐ Stable baseline |
+| **Ecosystem** | ⭐⭐⭐⭐⭐ All libraries support | ⭐⭐⭐⭐⭐ All libraries support |
+| **Performance** | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐⭐⭐ Excellent |
+| **Team Familiarity** | ⭐⭐⭐⭐⭐ Standard | ⭐⭐⭐⭐⭐ Standard |
 
-**Decision:** React 18 (proven, stable, no downside)
+**Decision:** React 19 (current repo baseline; no migration penalty)
 
 ### Performance Targets
 
@@ -440,7 +440,7 @@ Per `docs/10-OBSERVABILITY_STRATEGY.md`, Next.js optimizations help:
 
 ```
 - Largest Contentful Paint (LCP): < 2.5s (automatic with next/image)
-- First Input Delay (FID): < 100ms (React 18 concurrent rendering)
+- First Input Delay (FID): < 100ms (React 19 concurrent rendering)
 - Cumulative Layout Shift (CLS): < 0.1 (next/image prevents layout shift)
 ```
 
@@ -1425,4 +1425,3 @@ Before development begins, confirm:
 **Last Updated:** 2026-05-12  
 **Next Review:** 2026-08-12 (post-MVP)  
 **Status:** Approved for development
-

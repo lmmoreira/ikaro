@@ -1,0 +1,30 @@
+import { cn } from '@/shared/utils/cn';
+
+export function Card({
+  className,
+  ...props
+}: Readonly<React.HTMLAttributes<HTMLDivElement>>): React.JSX.Element {
+  return (
+    <div
+      className={cn(
+        'rounded-lg border border-border bg-card text-card-foreground shadow-sm',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function CardContent({
+  className,
+  ...props
+}: Readonly<React.HTMLAttributes<HTMLDivElement>>): React.JSX.Element {
+  return <div className={cn('p-6 pt-0', className)} {...props} />;
+}
+
+export function CardHeader({
+  className,
+  ...props
+}: Readonly<React.HTMLAttributes<HTMLDivElement>>): React.JSX.Element {
+  return <div className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />;
+}

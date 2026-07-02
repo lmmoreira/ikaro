@@ -11,7 +11,7 @@ import { Observable } from 'rxjs';
 import { uuidv7 } from '../domain/uuid-v7';
 import { ProblemDetail } from '../http/problem-detail';
 import { ITenantSettingsPort, TENANT_SETTINGS_PORT } from '../ports/tenant-settings.port';
-import type { TenantSettingsProps } from '../../contexts/platform/domain/value-objects/tenant-settings.vo';
+import type { TenantSettingsData } from '../value-objects/tenant-settings-data';
 import { runWithRequestContext } from './request-context';
 
 @Injectable()
@@ -44,7 +44,7 @@ export class RequestInterceptor implements NestInterceptor {
       throw new HttpException(body, HttpStatus.BAD_REQUEST);
     }
 
-    let settings: TenantSettingsProps;
+    let settings: TenantSettingsData;
     try {
       settings = await this.settingsPort.getSettings(tenantId);
     } catch {

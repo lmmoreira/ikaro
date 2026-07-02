@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
-import { fetchManifest } from '@/lib/api/platform';
-import { buildGoogleOAuthUrl } from '@/lib/auth/google-oauth';
-import { resolveHotsiteDisplayName } from '@/lib/hotsite/page-model';
-import { buildHotsiteMetadata } from '@/lib/hotsite/seo';
+import { fetchManifest } from '@/features/platform/api';
+import { buildGoogleOAuthUrl } from '@/features/auth/google-oauth';
+import { resolveHotsiteDisplayName } from '@/features/platform/hotsite/page-model';
+import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
 
 export const revalidate = 300;
 

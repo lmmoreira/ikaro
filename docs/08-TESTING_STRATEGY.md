@@ -1139,7 +1139,7 @@ import '@testing-library/jest-dom/vitest';
 - If a dialog's accessible name is not exposed the same way as in the browser, use `getByRole('dialog', { hidden: true })` or assert on the inner content instead of treating that mismatch as a production bug.
 
 ### SonarCloud configuration
-- `sonar.coverage.exclusions`: `apps/web/app/**/page.tsx`, `apps/web/app/**/layout.tsx` — `apps/web/components/**` is **NOT excluded**
+- `sonar.coverage.exclusions`: `apps/web/app/**/page.tsx`, `apps/web/app/**/layout.tsx` — `apps/web/features/**`, `apps/web/shells/**`, and `apps/web/shared/components/**` are **NOT excluded**
 - `sonar.exclusions`: `**/vitest.config.ts`, `**/__mocks__/**`, `**/vitest.setup.ts`
 
 ### Code standards

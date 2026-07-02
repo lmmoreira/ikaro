@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
-import { fetchPublishedHotsiteSlugs } from '@/lib/api/platform';
-import { SITE_URL } from '@/lib/hotsite/seo';
+import { fetchPublishedHotsiteSlugs } from '@/features/platform/api';
+import { SITE_URL } from '@/features/platform/hotsite/seo';
 
 // NEXT_PUBLIC_BFF_URL is unset during the Docker build (env vars are runtime-only),
 // so this route must not be statically generated at build time.

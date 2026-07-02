@@ -12,21 +12,21 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 
 > **Naming note:** the customer area's pt-BR *concept* "Minha Conta" keeps that name in UI copy and in the prototype folder (`plan/journey/customer/prototypes/minha-conta/` — prototypes are conceptual mockups, kept pt-BR on purpose). The production route/file/component names are English (`my-account`, not `minha-conta`) per the code-standards English-only rule (`CLAUDE.md` §7) — established in `M13-S42`.
 
-### **Staff/Manager Shell — `/dashboard/**` (M13-S15; UC-003, UC-004, UC-005, UC-008, UC-009, UC-010, UC-012, UC-013)**
+### **Staff/Manager Shell — `/dashboard/**` (UC-003, UC-004, UC-005, UC-008, UC-009, UC-010, UC-012, UC-013)**
 - **Focus:** Efficiency and task management for STAFF and MANAGER roles.
 - **Route protection:** `apps/web/middleware.ts` reads the JWT from the `httpOnly` cookie; redirects to `/dashboard/login` if missing or if role is not `STAFF`/`MANAGER`.
 - **Layout:** `apps/web/app/dashboard/layout.tsx` (server component) reads `{ tenantId, tenantSlug, role }` from the JWT via `cookies()`, and renders `<DashboardShell>`. The JWT payload is only `{ sub, tenantId, tenantSlug, role }` (see `JwtIssuerService`) — it does **not** carry `tenantName`/`userName`; S15 must source those from a separate profile/tenant-info fetch, not by destructuring the JWT.
-- **Key components (`apps/web/components/dashboard/`):**
+- **Key components (`apps/web/shells/dashboard/components/`):**
   - `DashboardShell.tsx` — `'use client'` shell wrapper: sidebar (desktop, `≥1024px`) + topbar + bottom nav (mobile, `<1024px`); conditionally renders manager-only nav based on `role`.
   - `Sidebar.tsx` — logo block, nav items (Agenda, Horários, Serviços, Fidelidade), and a "Somente Gerente" section (Equipe, Configurações, Hotsite) shown only when `role === 'MANAGER'`.
   - `Topbar.tsx` — back arrow + title on drill-down pages, page title on list pages, avatar + date on desktop.
   - `BottomNav.tsx` — mobile-only tab bar mirroring the sidebar's nav items, role-aware.
 
-### **Customer Shell — `/{slug}/my-account/**` (M13-S16; UC-006, UC-007, UC-016, UC-023)**
+### **Customer Shell — `/{slug}/my-account/**` (UC-006, UC-007, UC-016, UC-023)**
 - **Focus:** Personal booking history and loyalty for the `CUSTOMER` role.
 - **Route protection:** `apps/web/middleware.ts` extends the same file with a check for `/{slug}/my-account/**` — redirects to `/{slug}/login` if the JWT is missing/expired, if the role is not `CUSTOMER` (staff must not reach the customer area), or if the JWT's `tenantSlug` does not match the `[slug]` path segment.
 - **Layout:** `apps/web/app/[slug]/my-account/layout.tsx` (server component) reads `{ tenantId, tenantSlug, role }` from the JWT via `cookies()`, and renders `<CustomerShell>`. As with the staff shell, the JWT carries no `userName`/`tenantName` — fetch the customer's name via `GET /api/customers/me` (the proxy route added in `M13-S42`, also used by the hotsite auth bar) and the tenant's display name via the manifest already fetched by the parent `[slug]/layout.tsx`.
-- **Key component (`apps/web/components/customer/`):**
+- **Key component (`apps/web/features/customer/components/`):**
   - `CustomerShell.tsx` — `'use client'`: topbar (tenant brand + "+ Novo agendamento" desktop shortcut + avatar dropdown with "Sair"/"Site Ikaro"), a desktop-only horizontal tab nav (Início | Agendamentos | Fidelidade, `≥1024px`), a `main-content` slot, and a mobile-only bottom nav with the same three tabs (`<1024px`).
 
 ---
@@ -82,8 +82,8 @@ Since we are following **Trunk-Based Development**, the frontend must have a "Bu
 - **API Client:** Specialized Axios wrapper that automatically attaches the `Authorization: Bearer <JWT>` and `X-Tenant-Slug` headers.
 
 **Two auth-transport patterns exist — pick by context, not by habit (clarified in M13-S42):**
-- **Inside an authenticated shell** (dashboard or `/{slug}/my-account`, once it exists): use the Bearer-token `bffClient` (`apps/web/lib/api/bff-client.ts`), configured once via `configureBffClient({ token, tenantSlug, tenantId })` after login. This is what `apps/web/lib/api/dashboard/*.ts` and the `useXxx` hooks use.
-- **On the public hotsite, or any client component mounted outside a shell** (e.g. `HotsiteAuthBar`): there is no in-memory token to configure, and the JWT lives in an `httpOnly` cookie that client JS can never read — and even if it could, `SameSite: 'lax'` (`apps/bff/src/auth/cookie-options.ts`) blocks the browser from attaching it to a cross-origin `fetch()`/XHR anyway (only top-level navigations are allowed). The only way to use the session here is a **same-origin Next.js route handler** that reads the cookie server-side and forwards it manually as a `Cookie` header to the BFF (see `apps/web/app/api/customers/me/route.ts`). Client components then call that same-origin route (`fetch('/api/customers/me')`), never the BFF directly.
+- **Inside an authenticated shell** (dashboard or `/{slug}/my-account`): use the Bearer-token `bffClient` (`apps/web/shared/lib/api/bff-client.ts`) through feature-owned API helpers and hooks. The old `configureBffClient({ token, tenantSlug, tenantId })` singleton is gone; `tenantId` now comes from `useTenant()` in client hooks.
+- **On the public hotsite, or any client component mounted outside a shell** (e.g. `HotsiteAuthBar`): there is no in-memory token to configure, and the JWT lives in an `httpOnly` cookie that client JS can never read — and even if it could, `SameSite: 'lax'` (`apps/bff/src/features/auth/cookie-options.ts`) blocks the browser from attaching it to a cross-origin `fetch()`/XHR anyway (only top-level navigations are allowed). The only way to use the session here is a **same-origin Next.js route handler** that reads the cookie server-side and forwards it manually as a `Cookie` header to the BFF (see `apps/web/app/api/customers/me/route.ts`). Client components then call that same-origin route (`fetch('/api/customers/me')`), never the BFF directly.
 
 Don't reach for `bffClient` outside a shell context, and don't try to add `credentials: 'include'` to a direct BFF call from the public hotsite expecting it to carry the cookie — it won't.
 
@@ -91,88 +91,63 @@ Don't reach for `bffClient` outside a shell context, and don't try to add `crede
 
 ## 5. Folder Structure (`apps/web/`)
 
-> **Target structure — not yet built.** `M13` (`plan/M13-DASHBOARD-FRONTEND.md`) is in progress: as of this writing, `apps/web/components/dashboard/` is empty and none of the `apps/web/app/dashboard/**` subroutes listed below exist yet (only a `page.tsx` stub at `apps/web/app/dashboard/`). The tree below is what M13's stories build toward, not the current state of the repo — check the M13 plan's story status before assuming any of this exists.
-
-Next.js 16 App Router. The same Next.js app serves both the public hotsite (`/[slug]`) and the authenticated dashboard (`/dashboard`). Middleware separates them at the routing layer.
+The tree below reflects the current folder structure. Route files stay thin; feature code lives under `features/`, shell composition lives under `shells/`, and shared helpers live under `shared/`.
 
 ```
 apps/web/
 ├── app/
-│   ├── [slug]/                     ← public hotsite — one route per tenant slug
-│   │   ├── layout.tsx              ← fetches manifest, applies CSS branding variables
-│   │   ├── page.tsx                ← renders modules array from manifest (HERO, SERVICE_LIST, etc.)
-│   │   ├── booking/
-│   │   │   └── page.tsx            ← booking form (UC-001, UC-002)
-│   │   └── my-account/             ← customer area (requires valid JWT, role CUSTOMER — M13-S16)
-│   │       ├── layout.tsx          ← reads JWT via cookies(), renders <CustomerShell>
-│   │       ├── page.tsx            ← "Início" — booking history overview
-│   │       ├── bookings/
-│   │       │   └── page.tsx        ← own bookings list + detail (UC-006, UC-007)
-│   │       └── loyalty/
-│   │           └── page.tsx        ← loyalty metrics (UC-016)
-│   ├── dashboard/                  ← staff/manager area (requires valid JWT, role STAFF|MANAGER — M13-S15)
-│   │   ├── layout.tsx              ← reads JWT via cookies(), renders <DashboardShell>
-│   │   ├── bookings/
-│   │   │   ├── page.tsx            ← booking queue (Staff/Manager — all tenant bookings)
-│   │   │   └── [id]/page.tsx       ← booking detail
-│   │   ├── services/
-│   │   │   └── page.tsx            ← service management (Staff/Manager only — UC-012, UC-013)
-│   │   ├── schedule/
-│   │   │   └── page.tsx            ← schedule closures calendar (UC-010)
-│   │   ├── loyalty/
-│   │   │   └── page.tsx            ← loyalty metrics (UC-016)
-│   │   ├── team/
-│   │   │   └── page.tsx            ← staff management (Manager only — UC-028, UC-029)
-│   │   ├── settings/
-│   │   │   └── page.tsx            ← tenant settings (Manager only — UC-026)
+│   ├── [slug]/
+│   ├── dashboard/
+│   ├── auth/
+│   ├── select-staff-tenant/
+│   ├── switch-tenant/
+│   └── api/
+├── features/
+│   ├── auth/
+│   ├── booking/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── model/
+│   │   └── utils/
+│   ├── customer/
+│   │   ├── api/
+│   │   ├── components/
+│   │   └── hooks/
+│   ├── loyalty/
+│   ├── platform/
 │   │   └── hotsite/
-│   │       └── page.tsx            ← hotsite content management (Manager only — UC-027)
-│   ├── auth/
-│   │   ├── login/page.tsx          ← "Login with Google" button → /auth/google on BFF
-│   │   └── callback/page.tsx       ← handles post-OAuth redirect, stores JWT
-│   ├── select-tenant/
-│   │   └── page.tsx                ← UC-021 tenant selection screen (customers with multiple tenants)
-│   ├── layout.tsx                  ← root layout: TanStack Query provider, RequestContext
-│   └── page.tsx                    ← root redirect: → /dashboard if authenticated, else → /auth/login
-│
-├── components/
-│   ├── hotsite/                    ← public hotsite modules
-│   │   ├── HeroModule.tsx
-│   │   ├── ServiceListModule.tsx
-│   │   ├── GalleryModule.tsx
-│   │   ├── TestimonialsModule.tsx
-│   │   └── BookingCtaModule.tsx
-│   ├── dashboard/                  ← staff/manager shell components (M13-S15)
-│   │   ├── DashboardShell.tsx      ← sidebar (desktop) + topbar + bottom nav (mobile) wrapper
-│   │   ├── Sidebar.tsx             ← nav items + "Somente Gerente" section
-│   │   ├── Topbar.tsx              ← page title / back arrow + avatar + date
-│   │   └── BottomNav.tsx           ← mobile tab bar, role-aware
-│   ├── customer/                   ← customer shell components (M13-S16)
-│   │   └── CustomerShell.tsx       ← topbar + desktop tab nav + mobile bottom nav wrapper
-│   └── shared/                     ← shadcn/ui base components + shared business components
-│       ├── ui/                     ← Button, Input, Dialog, Toast, Card, etc. (shadcn/ui copied in)
-│       ├── BookingForm.tsx         ← booking form used in both hotsite and dashboard
-│       └── ServiceCard.tsx         ← service display used in both hotsite service list and admin
-│
-├── lib/
-│   ├── api/                        ← typed BFF API client functions (one file per domain)
-│   │   ├── bookings.ts             ← getBooking(), createBooking(), updateBookingStatus(), etc.
-│   │   ├── services.ts
-│   │   ├── loyalty.ts
-│   │   ├── schedule.ts
-│   │   └── tenant.ts               ← getTenantManifest() (used by hotsite layout)
-│   ├── auth/
-│   │   ├── session.ts              ← JWT storage (httpOnly cookie via BFF) + getSession()
-│   │   └── permissions.ts          ← canAccess(role, action) helper
-│   └── hooks/                      ← TanStack Query hooks wrapping lib/api functions
-│       ├── useBookings.ts
-│       ├── useLoyaltyBalance.ts
-│       └── useServices.ts
-│
-├── middleware.ts                    ← Next.js edge middleware: redirects /dashboard/** → /dashboard/login if no STAFF|MANAGER JWT; redirects /{slug}/my-account/** → /{slug}/login if no CUSTOMER JWT
-├── next.config.js                   ← rewrites, env vars, image domains
+│   │       ├── api/
+│   │       ├── model/
+│   │       └── utils/
+│   ├── staff/
+│   │   ├── api/
+│   │   ├── components/
+│   │   └── hooks/
+│   └── uploads/
+├── shells/
+│   ├── dashboard/
+│   │   ├── components/
+│   │   ├── model/
+│   │   └── utils/
+│   └── hotsite/
+│       ├── components/
+│       └── utils/
+├── shared/
+│   ├── components/
+│   │   └── ui/
+│   ├── lib/
+│   │   ├── api/
+│   │   ├── formatting/
+│   │   └── i18n/
+│   └── utils/
+├── providers/
+├── i18n/
+│   └── request.ts
+├── middleware.ts
+├── next.config.js
 └── public/
-    └── fonts/                       ← self-hosted fonts (no external font requests)
+    └── fonts/
 ```
 
 ---

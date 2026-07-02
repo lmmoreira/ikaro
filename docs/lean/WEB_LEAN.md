@@ -1000,7 +1000,7 @@ If these have different values, you get inconsistent behavior. The HTML might be
 **Our solution — one shared constant:**
 
 ```ts
-// apps/web/lib/hotsite/revalidate.ts
+// apps/web/shared/lib/hotsite/revalidate.ts
 export const HOTSITE_REVALIDATE_SECONDS = 300;
 ```
 
@@ -1008,11 +1008,11 @@ export const HOTSITE_REVALIDATE_SECONDS = 300;
 
 ```ts
 // page.tsx — MUST be a literal, not an imported variable
-// Keep in sync with HOTSITE_REVALIDATE_SECONDS in lib/hotsite/revalidate.ts manually.
+// Keep in sync with HOTSITE_REVALIDATE_SECONDS in shared/lib/hotsite/revalidate.ts manually.
 export const revalidate = 300;
 
-// lib/api/platform.ts — fetch() is runtime code, so the constant works fine here
-import { HOTSITE_REVALIDATE_SECONDS } from '@/lib/hotsite/revalidate';
+// features/platform/hotsite/api/platform.ts — fetch() is runtime code, so the constant works fine here
+import { HOTSITE_REVALIDATE_SECONDS } from '@/shared/lib/hotsite/revalidate';
 fetch(url, { next: { revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS } });
 ```
 
@@ -2012,7 +2012,7 @@ const handleSubmit = useCallback(() => {
 
 ```tsx
 import { useQuery } from '@tanstack/react-query';
-import { fetchStaffBookings } from '@/lib/api/dashboard/bookings';
+import { fetchStaffBookings } from '@/shells/dashboard/api/bookings';
 
 function BookingQueue() {
   const { data, isLoading, isError } = useQuery({
@@ -2824,4 +2824,3 @@ export function isValidTimezone(tz: string): boolean {
 `Intl.DateTimeFormat` itself is used to test the timezone — if the timezone string is invalid, the constructor throws. This is the fastest, zero-dependency way to validate an IANA timezone in JavaScript.
 
 **General principle:** Any field arriving from the DB via `reconstitute()` should be validated at the web boundary before use in a strict API. This is the web equivalent of the NestJS "validate at the boundary" rule — the difference is that the boundary here is "data from the server" rather than "data from the user".
-

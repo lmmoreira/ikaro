@@ -21,87 +21,18 @@ The BFF (Backend-for-Frontend) is a **separate NestJS service** (`apps/bff/`) th
 
 ```
 apps/bff/src/
-├── auth/
-│   ├── auth.module.ts
-│   ├── auth.controller.ts        ← /auth/google, /auth/google/callback, /auth/token, /auth/tenants, /auth/switch-tenant
-│   ├── auth.types.ts
-│   ├── cookie-options.ts
-│   ├── jwt-issuer.service.ts     ← JWT signing/issuance
-│   ├── selection-token.service.ts ← short-lived tenant-selection token (UC-021 case B)
-│   └── oauth-state.ts            ← stateless signed OAuth state nonce
-│
-├── bookings/
-│   ├── bookings.module.ts
-│   ├── bookings.controller.ts    ← /bookings, /bookings/:id, /bookings/:id/cancel, /approve, /reject,
-│   │                                /request-info, /submit-info, /submit-info/guest, /reschedule, /complete,
-│   │                                /bookings/attachments/signed-url — calls BackendHttpService directly, no .service.ts
-│   ├── bookings.types.ts
-│   └── guest-token.util.ts       ← signs/verifies the guest info-request token
-│
-├── customers/
-│   ├── customers.module.ts
-│   ├── customers.controller.ts   ← /customers, /customers/:id, /customers/me
-│   └── customers.types.ts
-│
-├── loyalty/
-│   ├── loyalty.module.ts
-│   ├── loyalty.controller.ts     ← /loyalty/balance, /loyalty/entries, /loyalty/redemptions, /loyalty/redeem
-│   └── loyalty.types.ts
-│
-├── platform/
-│   ├── platform.module.ts
-│   ├── platform.public.controller.ts  ← /platform/manifest/:slug, /platform/published-hotsites (public, no auth required)
-│   └── hotsite-admin.controller.ts    ← /tenants/hotsite, /tenants/hotsite/publish|unpublish|images|gallery (MANAGER only)
-│
-├── services/
-│   ├── services.module.ts
-│   ├── services.controller.ts         ← /services, /services/:id (POST/PATCH/DELETE — admin CRUD, MANAGER|STAFF)
-│   └── services.public.controller.ts  ← /services (GET — hotsite service list, public, no auth required)
-│
-├── schedule/
-│   ├── schedule.module.ts
-│   ├── schedule.controller.ts                    ← /schedule/closures
-│   ├── schedule-opening.controller.ts             ← /schedule/openings
-│   ├── schedule-availability.controller.ts        ← /schedule/availability (day detail)
-│   ├── schedule-availability-summary.controller.ts ← /schedule/availability/summary (range overview)
-│   └── schedule.types.ts
-│
-├── staff/
-│   ├── staff.module.ts
-│   ├── staff.controller.ts       ← /staff, /staff/:id (MANAGER role only)
-│   └── staff.types.ts
-│
-├── uploads/
-│   ├── uploads.module.ts
-│   └── uploads.controller.ts     ← /uploads/signed-url
-│
-├── health/
-│   └── health.controller.ts      ← /health
-│
+├── features/
+│   ├── auth/                 ← technical slice: OAuth, JWT issuance, tenant selection
+│   ├── booking/              ← domain slice: bookings, schedule, services, attachments
+│   ├── customer/             ← domain slice
+│   ├── loyalty/              ← domain slice
+│   ├── platform/             ← domain slice: hotsite, tenant settings, manifest
+│   ├── staff/                ← domain slice
+│   └── uploads/              ← technical slice only if the signed-url flow is genuinely shared
+├── shared/                   ← cross-cutting transport and infra helpers only
 ├── config/
-│   └── env.validation.ts         ← startup env-var validation (Zod)
-│
-├── shared/
-│   ├── guards/
-│   │   ├── jwt-auth.guard.ts     ← validates Bearer JWT; attached to all protected routes
-│   │   ├── tenant.guard.ts       ← validates X-Tenant-Slug matches JWT tenantSlug
-│   │   ├── roles.guard.ts        ← validates JWT role against @Roles() decorator
-│   │   └── active-staff.guard.ts ← rejects deactivated staff
-│   ├── interceptors/
-│   │   ├── correlation.interceptor.ts  ← generates X-Correlation-ID if absent; propagates to backend
-│   │   └── error.interceptor.ts        ← catches backend HTTP errors, re-emits as RFC 9457
-│   ├── decorators/
-│   │   ├── current-user.decorator.ts   ← @CurrentUser() extracts JWT payload from request
-│   │   ├── public.decorator.ts         ← @Public() skips JwtAuthGuard
-│   │   └── roles.decorator.ts          ← @Roles('MANAGER', 'STAFF') route-level role requirement
-│   ├── http/
-│   │   ├── backend-http.service.ts     ← typed wrapper around Axios; injects tenant + correlation headers
-│   │   ├── backend-headers.ts
-│   │   └── zod-validation.pipe.ts
-│   └── types/
-│       └── backend-responses.ts
-│
-├── test/                          ← shared test helpers (mocks, component-test harness)
+├── health/
+├── test/                     ← shared test helpers (mocks, component-test harness)
 └── app.module.ts
 ```
 
@@ -125,7 +56,7 @@ apps/bff/src/
 
 **Response types for `.public.controller.ts` endpoints** live in `@ikaro/types` (`packages/types/src/hotsite.ts`), named `Hotsite<Resource>Response` / `Hotsite<Resource>ListResponse` (e.g. `HotsiteManifestResponse`, `HotsiteServiceResponse` / `HotsiteServiceListResponse`). Authenticated/staff response types use a `Staff<Resource>Response` / `Staff<Resource>ListResponse` naming (e.g. `StaffServiceResponse` / `StaffServiceListResponse` in `service.dto.ts`, `StaffBookingDetailResponse` in `booking.dto.ts`) since they aren't part of the public hotsite contract — see CLAUDE.md §7 "BFF module & controller naming" for the `<module>.mapper.ts` convention that translates the backend-internal shape into these public types.
 
-**Frontend fetchers (`apps/web/lib/api/<name>.ts`) mirror the BFF module name** they call — e.g. `lib/api/platform.ts` ↔ `platform.public.controller.ts`, `lib/api/services.ts` ↔ `services.public.controller.ts`.
+**Frontend fetchers (`apps/web/features/<domain>/api/<name>.ts` or `apps/web/shells/<surface>/...`) mirror the BFF feature slice name** they call — e.g. `features/platform/hotsite/api/services.ts` ↔ `platform.public.controller.ts`.
 
 ### Canonical Config And Settings Reads
 
@@ -142,11 +73,11 @@ A separate read endpoint is acceptable only when:
 
 ## Web → BFF Transport Layer (apps/web)
 
-Two transport helpers in `apps/web/lib/api/` cover **all** `apps/web` → BFF calls. Never write a raw `fetch()` URL inside a hook, component, or page outside these two — the anti-pattern of a duplicate URL going stale silently (M13-S05) is caught here.
+Two transport helpers in `apps/web/shared/lib/api/` cover **all** `apps/web` → BFF calls. Never write a raw `fetch()` URL inside a hook, component, or page outside these two — the anti-pattern of a duplicate URL going stale silently (M13-S05) is caught here.
 
 ### `bffServerFetch(token, path, init?)` — server-only
 
-**File:** `apps/web/lib/api/bff-server.ts`
+**File:** `apps/web/shared/lib/api/bff-server.ts`
 
 ```ts
 bffServerFetch(token: string, path: string, init?: BffServerFetchInit): Promise<Response>
@@ -159,20 +90,20 @@ bffServerFetch(token: string, path: string, init?: BffServerFetchInit): Promise<
 - **Never import in `'use client'` files** — `cookies()` is unavailable in the browser
 
 Canonical callers:
-- `lib/api/dashboard/bookings.ts` → `listBookings(params, token)`
-- `lib/api/dashboard/tenants.ts` → `fetchTenantSettings(token)` plus local derivation helpers
+- feature-owned API helpers such as `features/booking/api/*.ts`, `features/customer/api/*.ts`, and `features/platform/hotsite/api/*.ts`
+- shell-owned route helpers under `shells/dashboard/**` when server-side composition needs BFF data
 - Route Handlers (`app/api/bookings/route.ts`, etc.) — these proxy BFF calls for React Query's client-side refetch
 
 ### `bffClient` — client-only axios instance
 
-**File:** `apps/web/lib/api/bff-client.ts`
+**File:** `apps/web/shared/lib/api/bff-client.ts`
 
-**Use in:** React Query hooks (`lib/hooks/use*.ts`), client-side mutations
+**Use in:** React Query hooks (`features/**/hooks/use*.ts`), client-side mutations
 
 - Browser sends the `access_token` cookie automatically via `withCredentials: true` — no token parameter needed
 - **Never import in Server Components or Route Handlers** — axios with `withCredentials` sends no cookies server-side
 
-Canonical callers: all hooks in `lib/hooks/` (`useBookings`, `useServices`, `useSchedule`, `useStaff`, `useLoyalty`, `useCustomerProfile`, `useBookingMutations`, etc.)
+Canonical callers: feature-owned client hooks and mutations under `features/<domain>/hooks/` or shell-owned hooks under `shells/<surface>/hooks/`
 
 React Query cache key shape: `[namespace, tenantId, ...params]` — `tenantId` always comes from `useTenant()`.
 
@@ -196,8 +127,8 @@ In these cases: **the Route Handler owns the `bffServerFetch` call; the hook cal
 |---|---|---|
 | `page.tsx` / `layout.tsx` | `bffServerFetch(token, path)` | Runs on server; `cookies()` available |
 | `app/api/**/route.ts` | `bffServerFetch(token, path)` | Route Handler — server context |
-| `lib/hooks/use*.ts` | `bffClient.get(path)` | Runs in browser; cookie sent automatically |
-| `lib/api/dashboard/*.ts` fetchers | `bffServerFetch(token, path)` | Called from `page.tsx` / Route Handlers |
+| `features/**/hooks/use*.ts` | `bffClient.get(path)` | Runs in browser; cookie sent automatically |
+| `features/**/api/*.ts` fetchers | `bffServerFetch(token, path)` | Called from `page.tsx` / Route Handlers |
 | `'use client'` component | `bffClient` (via a hook) | Never call `bffServerFetch` client-side |
 
 ---

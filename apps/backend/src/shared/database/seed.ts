@@ -41,7 +41,7 @@ const IDS = {
   loyaltyEntry: '00000000-0000-7000-8007-000000000001',
 };
 
-// Matches TenantSettingsProps exactly — camelCase keys, null for closed days
+// Matches TenantSettingsData exactly — camelCase keys, null for closed days
 const TENANT_SETTINGS_BR = {
   loyalty: {
     expiryDays: 180,
