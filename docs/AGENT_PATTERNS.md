@@ -910,7 +910,7 @@ export class XxxsController {
 
 **`BackendHttpService` methods:** `.get<T>(path)` · `.post<T>(path, body)` · `.patch<T>(path, body)` · `.delete<T>(path)` · `.getForPublic<T>(path)` (no auth headers forwarded) · `.postForPublic<T>(path, body)`
 
-Canonical example: `apps/bff/src/customers/customers.controller.ts`
+Canonical example: `apps/bff/src/features/customer/customers.controller.ts`
 
 ---
 
@@ -944,7 +944,7 @@ describe('XxxsController', () => {
 });
 ```
 
-Canonical example: `apps/bff/src/customers/customers.controller.spec.ts`
+Canonical example: `apps/bff/src/features/customer/customers.controller.spec.ts`
 
 ---
 
@@ -1024,4 +1024,4 @@ describe('XxxsController (component)', () => {
 - `makeManagerJwt(jwtService, { role: 'STAFF' })` produces a STAFF JWT (pass `role` override)
 - `setupActiveGuardMock(httpService)` must be called before any request that goes through the active-staff guard
 
-Canonical example: `apps/bff/src/customers/customers.controller.component.spec.ts`
+Canonical example: `apps/bff/src/features/customer/customers.controller.component.spec.ts`

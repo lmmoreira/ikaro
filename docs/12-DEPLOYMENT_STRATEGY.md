@@ -10,7 +10,7 @@
 
 | Layer | Service | Notes |
 |---|---|---|
-| **Frontend** | GCP Cloud Run (`ikaro-web`) | Next.js 14 SSR container; public HTTPS |
+| **Frontend** | GCP Cloud Run (`ikaro-web`) | Next.js 16 SSR container; public HTTPS |
 | **BFF** | GCP Cloud Run (`ikaro-bff`) | NestJS BFF; public HTTPS; sole entry point for the web layer |
 | **Backend** | GCP Cloud Run (`ikaro-backend`) | NestJS modular monolith; internal only (not public) |
 | **Database** | GCP Cloud SQL PostgreSQL 15 | Private IP inside VPC; automated backups; no public exposure |

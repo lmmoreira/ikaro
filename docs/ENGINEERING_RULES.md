@@ -5,6 +5,16 @@
 
 ---
 
+## Repository slice ownership
+
+- **Backend:** bounded-context first. Canonical roots live under `apps/backend/src/contexts/<context>/`.
+- **BFF:** feature first. Business-owned code lives under `apps/bff/src/features/<capability>/`; `auth` and `uploads` are technical slices, not bounded contexts.
+- **Web:** domain feature first. Business-owned code lives under `apps/web/features/<domain>/`; `dashboard` and `hotsite` are shell slices only.
+- **Shared:** `shared/` is cross-cutting only. If a file has slice-specific policy, it belongs next to the owning feature or shell.
+- **Transitional roots:** current flat capability folders and generic buckets are allowed only while the TD21 migration is in flight. New code should land in the target slice path.
+
+---
+
 ## Value Objects
 
 Fields with domain validation → `src/shared/value-objects/` (never plain primitives):
@@ -305,13 +315,13 @@ Two test files per controller: `.spec.ts` (unit) + `.component.spec.ts` (compone
 
 ---
 
-## Web — Formatting Utilities (`apps/web`)
+## Web — Shared Helpers (`apps/web`)
 
-### All format functions belong in `lib/formatting/`
+### Shared format functions belong in `shared/lib/formatting/`
 
-Any function that takes `locale`, `currency`, `timezone`, or `dateFormat` as a parameter belongs in `apps/web/lib/formatting/` — not in a domain-scoped folder like `lib/booking/` or `lib/hotsite/`. The boundary test: *if the function would work identically in the booking flow and the hotsite, it's a formatter, not a domain function.*
+Any function that takes `locale`, `currency`, `timezone`, or `dateFormat` as a parameter belongs in `apps/web/shared/lib/formatting/` — not in a feature-owned folder like `features/booking/` or `features/platform/hotsite/`. The boundary test: *if the function would work identically in the booking flow and the hotsite, it's shared formatting, not domain logic.*
 
-Current `lib/formatting/` inventory:
+Current `shared/lib/formatting/` inventory:
 
 | File | Exports |
 |---|---|
@@ -322,6 +332,13 @@ Current `lib/formatting/` inventory:
 | `locale-validators.ts` | `isValidTimezone`, `resolveDateFormat` |
 | `formatting-context.ts` | `FormattingContext`, `FormattingState` |
 | `use-formatting.ts` | `useFormatting()` hook |
+
+### Other shared web helpers
+
+- `apps/web/shared/lib/api/` owns the browser/server BFF transport helpers that multiple features need.
+- `apps/web/shared/lib/i18n/` owns the shared Next Intl request helpers and locale resolution logic.
+- `apps/web/shared/utils/` owns pure helpers like phone formatting, date math, and initials.
+- Feature-specific helpers should live under `apps/web/features/<domain>/...`; shell-specific helpers should live under `apps/web/shells/<surface>/...`.
 
 ### `DateFormat` and `TimeFormat` types — use `@ikaro/i18n`
 

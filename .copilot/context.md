@@ -181,11 +181,11 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 
 ### BFF naming & transport
 
-**BFF modules** named after bounded context (`platform/`, not `tenants/`). Authenticated controller: `<context>.controller.ts`; public: `<context>.public.controller.ts`. Public types in `@ikaro/types` as `Hotsite<Resource>Response`/`<Resource>ListResponse`. Before new interface in `apps/web/lib/api/**`, grep `@ikaro/types` — verify against live BFF schema if shapes differ. Second mapper function → extract to `<module>.mapper.ts` (plain functions, not a class; `bookings.mapper.ts` is the reference). → `docs/24-BFF_ARCHITECTURE.md`
+**BFF modules** named after bounded context (`platform/`, not `tenants/`). Authenticated controller: `<context>.controller.ts`; public: `<context>.public.controller.ts`. Public types in `@ikaro/types` as `Hotsite<Resource>Response`/`<Resource>ListResponse`. Before adding a new request/response interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**`, grep `@ikaro/types` first — verify against the live BFF schema if shapes differ. Second mapper function → extract to `<module>.mapper.ts` (plain functions, not a class; `bookings.mapper.ts` is the reference). → `docs/24-BFF_ARCHITECTURE.md`
 
 **Web → BFF transport:** Two helpers cover all calls — never write a raw `fetch()` URL outside them:
-- `bffServerFetch(token, path)` — server-only (`page.tsx`, `layout.tsx`, Route Handlers). Import from `@/lib/api/bff-server`. Never in `'use client'` files.
-- `bffClient` (axios, `withCredentials: true`) — client-only (React Query hooks). Import from `@/lib/api/bff-client`. Never in Server Components.
+- `bffServerFetch(token, path)` — server-only (`page.tsx`, `layout.tsx`, Route Handlers). Import from `@/shared/lib/api/bff-server`. Never in `'use client'` files.
+- `bffClient` (axios, `withCredentials: true`) — client-only (React Query hooks). Import from `@/shared/lib/api/bff-client`. Never in Server Components.
 - `useTenant()` (`apps/web/providers/tenant-provider.tsx`) — only source of `tenantId` in hooks. Server layouts decode JWT and pass to `<TenantProvider>`.
 
 ### Web styling boundary
@@ -210,11 +210,11 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 - New migration/entity → register in `integration-global-setup.ts` in the **same commit** — missing = silent test failure.
 - Integration app helpers must default-override network-calling adapters. Use `useClass` not `useExisting`.
 
-**apps/web:** Vitest (not Jest) — config at `apps/web/vitest.config.ts`.
-- `lib/**`: `node` env · `components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only
-- Keep `app/**/page.tsx` and `app/**/layout.tsx` thin. If they start owning reusable data shaping, URL construction, or render-plan logic, extract a helper under `apps/web/lib/**` and unit-test that helper in the same change.
+- **apps/web:** Vitest (not Jest) — config at `apps/web/vitest.config.ts`.
+- `shared/lib/**`: `node` env · `features/**/components/**`, `shells/**/components/**`, `shared/components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only
+- Keep `app/**/page.tsx` and `app/**/layout.tsx` thin. If they start owning reusable data shaping, URL construction, or render-plan logic, extract a helper under `apps/web/shared/lib/**` and unit-test that helper in the same change.
 - Playwright E2E specs should contain test cases only. Reusable flows, login/setup helpers, and fixture-like actions belong in `apps/web/e2e/helpers/<feature>/**` with a folder `index.ts` barrel. Grep the helper tree before adding a new helper, and split by concern instead of building a shared `misc` helper.
-- **Every new `components/**/*.tsx` must ship its `.spec.tsx` in the same commit.**
+- **Every new `features/**/components/**/*.tsx`, `shells/**/components/**/*.tsx`, or `shared/components/**/*.tsx` must ship its `.spec.tsx` in the same commit.**
 - **Every new dashboard UI component must be localization-ready from the start.** No hardcoded visible copy, helper text, error text, success banners, placeholders, `aria-label`, `alt`, or status labels/classes. If the component needs text, wire `useTranslations()` and add locale keys in both `pt-BR` and `en` in the same change.
 - → Vitest config, mocks, axe testing, per-component cases: `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
 
@@ -239,10 +239,10 @@ Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-
 | `useExisting` when registering adapter token (`providers: [Adapter, { provide: TOKEN, useExisting: Adapter }]`) | Use `useClass` — `useExisting` still instantiates the class even when the token is overridden in tests |
 | New cross-context Port+Adapter when one already exists for the same context pair | Grep `infrastructure/cross-context/` first; add a method to the existing adapter instead |
 | Shared VO `create()` throws plain `Error` for validation it owns | Give VO a typed domain error; add `instanceof` branch to every calling `mapXxxError` |
-| New interface in `apps/web/lib/api/**` without checking `@ikaro/types` | Grep `@ikaro/types` first — either side may be stale; verify against live BFF schema if shapes differ |
+| New interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**` without checking `@ikaro/types` | Grep `@ikaro/types` first — either side may be stale; verify against live BFF schema if shapes differ |
 | Inline mapper functions accumulating in a BFF `*.controller.ts` | Extract to `<module>.mapper.ts` (plain functions, not a class) once a second mapper appears |
-| Fat route shell in `app/**/page.tsx` or `app/**/layout.tsx` with reusable logic | Extract pure helpers to `apps/web/lib/**`, unit-test them, and keep the route file to fetch + compose only |
-| Second independent `fetch()` building the same BFF route URL outside `lib/api/<name>.ts` | Use the canonical fetcher — duplicates go stale silently (only caught by Playwright) |
+| Fat route shell in `app/**/page.tsx` or `app/**/layout.tsx` with reusable logic | Extract pure helpers to `apps/web/shared/lib/**`, unit-test them, and keep the route file to fetch + compose only |
+| Second independent `fetch()` building the same BFF route URL outside the canonical slice API helper | Use the canonical fetcher — duplicates go stale silently (only caught by Playwright) |
 | Cross-context port returns a pre-formatted display string instead of structured data | Return typed data all the way through; join/format in BFF mapper only |
 | Port+Adapter removed but backing service left in `providers`/`exports` | Delete the backing service too — zero consumers = dead infrastructure |
 | Duplicate read endpoints/use cases for projections of the same aggregate/config (e.g. `/tenants/formatting` beside `/tenants/settings`) | Keep one canonical read endpoint/use case for the source of truth; derive caller-specific values in BFF mapper or web helper. Split only for real auth/data-boundary differences |
@@ -253,7 +253,7 @@ Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-
 | BFF `@CurrentUser()` used only to construct a backend `/internal/` URL | Move endpoint to authenticated controller — `BackendHttpService` already forwards actor headers; `/internal/` is pre-auth only |
 | Dashboard component substitutes Tailwind for `tokens.css` class names in story's CSS reference table | Use exact CSS class name — `tokens.css` classes carry responsive/hidden behaviour Tailwind equivalents silently miss |
 | Dashboard or account component uses `--ba-*` CSS variable | `--ba-*` only exists under `app/[slug]/` (hotsite tree). Use Tailwind + shadcn in dashboard/account shells |
-| Utility function (e.g. `getInitials`) copy-pasted inline in each component | Grep `apps/web/lib/utils/` first; create `lib/utils/<name>.ts` + `.spec.ts` pair there |
+| Utility function (e.g. `getInitials`) copy-pasted inline in each component | Grep `apps/web/shared/utils/` first; create `shared/utils/<name>.ts` + `.spec.ts` pair there |
 | Status-to-label or status-to-class mappings duplicated across dashboard components | Extract one shared helper next to the feature module and reuse it from all callers |
 | Wrong web→BFF transport: `bffServerFetch` in client file, `bffClient` in Server Component, raw `fetch()` in hook | Server: `bffServerFetch(token, path)`. Client: `bffClient.get(path)`. Hook `tenantId`: `useTenant()` only |
 
@@ -279,7 +279,7 @@ Run `/story-discovery M0X-SYY` — wait for READY verdict before proceeding. Nev
 Write all files from the story spec. For any frontend story referencing a prototype:
 - Read the prototype HTML **before** writing components.
 - Use exact CSS class names from the story's reference table — do not substitute Tailwind for `tokens.css` names.
-- Every new `apps/web/components/**/*.tsx` needs a co-located `.spec.tsx` in the **same commit**.
+- Every new `apps/web/features/**/components/**/*.tsx`, `apps/web/shells/**/components/**/*.tsx`, or `apps/web/shared/components/**/*.tsx` needs a co-located `.spec.tsx` in the **same commit**.
 
 ### Steps 3–5 — Verify, commit, push
 Run type-check, lint, jest — zero errors.

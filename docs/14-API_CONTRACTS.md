@@ -30,7 +30,7 @@ All endpoints are served by the **BFF** (`apps/bff/`) — the frontend never cal
 
 #### **Pattern A — Offset-based, `items` key, no `nextOffset`**
 
-Used by `GET /bookings` (`BookingListResponse`, `apps/bff/src/bookings/bookings.types.ts`).
+Used by `GET /bookings` (`BookingListResponse`, `apps/bff/src/features/booking/bookings.types.ts`).
 
 ```
 GET /bookings?status=APPROVED&limit=10&offset=0
@@ -51,7 +51,7 @@ Response:
 
 #### **Pattern B — Offset-based, `items` key, with `nextOffset`**
 
-Used by `GET /staff` (`StaffListResponse`, `apps/bff/src/staff/staff.types.ts`).
+Used by `GET /staff` (`StaffListResponse`, `apps/bff/src/features/staff/staff.types.ts`).
 
 ```
 GET /staff?limit=25&offset=0
@@ -66,7 +66,7 @@ Same fields as Pattern A, plus `pagination.nextOffset` (convenience: `offset + l
 
 #### **Pattern C — Page-based, custom item key, no `hasMore`/`nextOffset`**
 
-Used by `GET /loyalty/entries` and `GET /loyalty/redemptions` (`LoyaltyEntriesResponse` / `LoyaltyRedemptionsResponse`, `apps/bff/src/loyalty/loyalty.types.ts`). The item array key matches the resource name (`entries`, `redemptions`) rather than a generic `items`/`data`.
+Used by `GET /loyalty/entries` and `GET /loyalty/redemptions` (`LoyaltyEntriesResponse` / `LoyaltyRedemptionsResponse`, `apps/bff/src/features/loyalty/loyalty.types.ts`). The item array key matches the resource name (`entries`, `redemptions`) rather than a generic `items`/`data`.
 
 ```
 GET /customers/:id/loyalty/entries?page=1&limit=20
@@ -560,7 +560,7 @@ See `PATCH /bookings/:id/submit-info` in the Booking Management section above.
     "adminNotes": "Extra shine applied"
   }
   ```
-  - `lines` is **required**, minimum 1 entry — every line on the booking must be listed with its actual charged price (`CompleteBookingBodySchema`, `apps/bff/src/bookings/bookings.controller.ts`). There is no "omit lines charged at full price" shortcut.
+  - `lines` is **required**, minimum 1 entry — every line on the booking must be listed with its actual charged price (`CompleteBookingBodySchema`, `apps/bff/src/features/booking/bookings.controller.ts`). There is no "omit lines charged at full price" shortcut.
   - `actualPriceCharged` must be `>= 0`. Zero is valid (waived service).
   - `afterServicePhotoUrls` optional, defaults to `[]`. Paths must match `tenants/<tenantId>/bookings/<bookingId>/...`.
   - `adminNotes` optional, 1–500 chars.
@@ -574,7 +574,7 @@ See `PATCH /bookings/:id/submit-info` in the Booking Management section above.
     "totalActualPrice": { "amount": 80.00, "currency": "BRL" }
   }
   ```
-  The response is flat — no per-line breakdown (`CompleteBookingResponse`, `apps/bff/src/bookings/bookings.types.ts`). Per-line `actualPriceCharged` is persisted but only surfaced later via `GET /bookings/:id` (`BookingLineDetail`).
+  The response is flat — no per-line breakdown (`CompleteBookingResponse`, `apps/bff/src/features/booking/bookings.types.ts`). Per-line `actualPriceCharged` is persisted but only surfaced later via `GET /bookings/:id` (`BookingLineDetail`).
 
 - **Errors:**
   - `400 invalid-line-id` — a `lineId` in `lines` does not belong to this booking.
