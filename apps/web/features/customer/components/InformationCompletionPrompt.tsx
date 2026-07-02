@@ -6,7 +6,11 @@ import type React from 'react';
 import type { Address, HotsiteAddressSpec } from '@ikaro/types';
 import { buildContactPhone } from '@/shared/utils/contact-phone';
 import { digitsOnly } from '@/shared/utils/digits-only';
-import { formatPhoneForDisplay, phonePlaceholder, sanitizePhoneInput } from '@/shared/utils/phone-format';
+import {
+  formatPhoneForDisplay,
+  phonePlaceholder,
+  sanitizePhoneInput,
+} from '@/shared/utils/phone-format';
 import {
   emptyAddress,
   isAddressFilled,

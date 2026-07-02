@@ -6,7 +6,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ErrorAlert } from './ErrorAlert';
 import type { DaySummary } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
-import { addDays, dayCarouselLabel, dayNumber, toISODate } from '@/shared/lib/formatting/date-utils';
+import {
+  addDays,
+  dayCarouselLabel,
+  dayNumber,
+  toISODate,
+} from '@/shared/lib/formatting/date-utils';
 
 interface AvailabilityCarouselProps {
   readonly slug: string;

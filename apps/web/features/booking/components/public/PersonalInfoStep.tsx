@@ -7,7 +7,11 @@ import { z } from 'zod';
 import type { AvailableSlot, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import type { PersonalInfoValue } from '@/features/booking/model/personal-info';
 import { buildContactPhone } from '@/shared/utils/contact-phone';
-import { formatPhoneForDisplay, phonePlaceholder, sanitizePhoneInput } from '@/shared/utils/phone-format';
+import {
+  formatPhoneForDisplay,
+  phonePlaceholder,
+  sanitizePhoneInput,
+} from '@/shared/utils/phone-format';
 import { AddressFields } from './AddressFields';
 import { BookingSummaryCard } from './BookingSummaryCard';
 import { ErrorAlert } from './ErrorAlert';
