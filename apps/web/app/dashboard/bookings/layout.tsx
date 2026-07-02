@@ -1,19 +1,19 @@
 import { headers } from 'next/headers';
-import { getAccessToken } from '@/lib/auth/get-access-token';
+import { getAccessToken } from '@/features/auth/get-access-token';
 import { notFound } from 'next/navigation';
-import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
+import { decodeJwtPayload } from '@/features/auth/decode-jwt';
 import { LocaleProvider } from '@/providers/locale-provider';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
-import { DashboardShell } from '@/components/dashboard/DashboardShell';
-import { DashboardTopbarStatusProvider } from '@/components/dashboard/topbar-status-context';
-import { BookingDetailFetchError, fetchStaffBookingDetail } from '@/lib/api/dashboard/bookings';
-import { matchBookingDetailRoute } from '@/lib/dashboard/booking-route';
+import { DashboardShell } from '@/shells/dashboard/components/DashboardShell';
+import { DashboardTopbarStatusProvider } from '@/shells/dashboard/components/topbar-status-context';
+import { BookingDetailFetchError, fetchStaffBookingDetail } from '@/features/booking/api/staff';
+import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
 import type { BookingStatus } from '@ikaro/types';
 import {
   loadDashboardShellContext,
   resolveDashboardDateFormat,
-} from '@/lib/dashboard/dashboard-shell-context';
+} from '@/shells/dashboard/model/dashboard-shell-context';
 
 interface ProtectedLayoutProps {
   readonly children: React.ReactNode;

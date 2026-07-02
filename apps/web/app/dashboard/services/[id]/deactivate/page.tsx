@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
-import { getAccessToken } from '@/lib/auth/get-access-token';
-import { loadServiceDetailRouteData } from '@/lib/dashboard/service-route.server';
-import { ServiceDeactivatePage } from '@/components/dashboard/services/ServiceDeactivatePage';
+import { getAccessToken } from '@/features/auth/get-access-token';
+import { loadServiceDetailRouteData } from '@/shells/dashboard/model/service-route.server';
+import { ServiceDeactivatePage } from '@/features/booking/components/dashboard/services/ServiceDeactivatePage';
 
 interface ServiceDeactivateRouteProps {
   readonly params: Promise<{ id: string }>;

@@ -1,20 +1,23 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { fetchManifest } from '@/lib/api/platform';
-import { AboutModule } from '@/components/hotsite/AboutModule';
-import { BookingCtaModule } from '@/components/hotsite/BookingCtaModule';
-import { ContactModule } from '@/components/hotsite/ContactModule';
-import { JsonLdScript } from '@/components/hotsite/JsonLdScript';
-import { Footer } from '@/components/hotsite/Footer';
-import { GalleryModule } from '@/components/hotsite/GalleryModule';
-import { HeroModule } from '@/components/hotsite/HeroModule';
-import { HotsiteAuthBar } from '@/components/hotsite/HotsiteAuthBar';
-import { ServiceListModule } from '@/components/hotsite/ServiceListModule';
-import { TestimonialsModule } from '@/components/hotsite/TestimonialsModule';
-import { Unavailable } from '@/components/hotsite/Unavailable';
-import { buildHotsiteModuleRenderPlan, resolveHotsiteDisplayName } from '@/lib/hotsite/page-model';
-import { buildHotsiteMetadata, buildLocalBusinessJsonLd } from '@/lib/hotsite/seo';
-import { fetchServices } from '@/lib/api/hotsite/services';
+import { fetchManifest } from '@/features/platform/api';
+import { AboutModule } from '@/shells/hotsite/components/AboutModule';
+import { BookingCtaModule } from '@/shells/hotsite/components/BookingCtaModule';
+import { ContactModule } from '@/shells/hotsite/components/ContactModule';
+import { JsonLdScript } from '@/shells/hotsite/components/JsonLdScript';
+import { Footer } from '@/shells/hotsite/components/Footer';
+import { GalleryModule } from '@/shells/hotsite/components/GalleryModule';
+import { HeroModule } from '@/shells/hotsite/components/HeroModule';
+import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
+import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
+import { TestimonialsModule } from '@/shells/hotsite/components/TestimonialsModule';
+import { Unavailable } from '@/shells/hotsite/components/Unavailable';
+import {
+  buildHotsiteModuleRenderPlan,
+  resolveHotsiteDisplayName,
+} from '@/features/platform/hotsite/page-model';
+import { buildHotsiteMetadata, buildLocalBusinessJsonLd } from '@/features/platform/hotsite/seo';
+import { fetchServices } from '@/features/platform/hotsite/api/services';
 
 // Next.js statically analyses segment config exports — imported variables are not resolved.
 // Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in lib/hotsite/revalidate.ts.

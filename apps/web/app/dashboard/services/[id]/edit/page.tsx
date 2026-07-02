@@ -1,6 +1,6 @@
-import { getAccessToken } from '@/lib/auth/get-access-token';
-import { loadServiceDetailRouteData } from '@/lib/dashboard/service-route.server';
-import { ServiceEditPage } from '@/components/dashboard/services/ServiceEditPage';
+import { getAccessToken } from '@/features/auth/get-access-token';
+import { loadServiceDetailRouteData } from '@/shells/dashboard/model/service-route.server';
+import { ServiceEditPage } from '@/features/booking/components/dashboard/services/ServiceEditPage';
 
 interface ServiceEditRouteProps {
   readonly params: Promise<{ id: string }>;

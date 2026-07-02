@@ -1,11 +1,11 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Injectable } from '@nestjs/common';
-import type { TenantSettingsProps } from '../../contexts/platform/domain/value-objects/tenant-settings.vo';
+import type { TenantSettingsData } from '../value-objects/tenant-settings-data';
 
 interface RequestStore {
   tenantId: string;
   correlationId: string;
-  settings: TenantSettingsProps;
+  settings: TenantSettingsData;
   actorId?: string;
   actorType?: 'STAFF' | 'CUSTOMER';
   actorRole?: string;
@@ -26,7 +26,7 @@ export function getRequestStore(): RequestStore | undefined {
 export function runWithRequestContext<T>(
   tenantId: string,
   correlationId: string,
-  settings: TenantSettingsProps,
+  settings: TenantSettingsData,
   fn: () => T,
   actor?: ActorInfo,
 ): T {
@@ -43,7 +43,7 @@ export class RequestContext {
     return requestStorage.getStore()!.correlationId;
   }
 
-  get settings(): TenantSettingsProps {
+  get settings(): TenantSettingsData {
     return requestStorage.getStore()!.settings;
   }
 

@@ -28,7 +28,7 @@ export async function runLocalizationCheck(page: Page, c: LocalizationCase): Pro
   await page.locator('[data-testid="step-next"]').click();
 
   // Weekday abbreviation on the 2nd carousel day (index 0 is the translated "Today" label).
-  // dayCarouselLabel() (lib/formatting/date-utils.ts) parses/formats in the browser's local
+  // dayCarouselLabel() (shared/lib/formatting/date-utils.ts) parses/formats in the browser's local
   // timezone (no explicit UTC) — match that here, unlike the UTC-explicit check below for
   // formatDateLong(), which the app itself always pins to 'UTC'.
   const secondDay = page.locator('[data-testid="day-option"]').nth(1);
@@ -62,7 +62,7 @@ export async function runLocalizationCheck(page: Page, c: LocalizationCase): Pro
   }
 
   // Step 4: confirmation — the long-form locale date for the day selected above.
-  // formatDateLong() (lib/formatting/format-time.ts) upper-cases the first letter — match that.
+  // formatDateLong() (shared/lib/formatting/format-time.ts) upper-cases the first letter — match that.
   await page.locator('[data-testid="step-next"]').click();
   const rawDateLong = new Intl.DateTimeFormat(c.intlLocale, {
     weekday: 'long',

@@ -1,11 +1,11 @@
-import { fetchManifest } from '@/lib/api/platform';
-import { applyBranding } from '@/lib/hotsite/apply-branding';
-import { getActiveFontVariables } from '@/lib/hotsite/font-config';
-import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
-import { isValidTimezone, resolveDateFormat } from '@/lib/formatting/locale-validators';
+import { fetchManifest } from '@/features/platform/api';
+import { applyBranding } from '@/features/platform/hotsite/apply-branding';
+import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
+import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { isValidTimezone, resolveDateFormat } from '@/shared/lib/formatting/locale-validators';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import { LocaleProvider } from '@/providers/locale-provider';
-import { InformationCompletionPrompt } from '@/components/customer/InformationCompletionPrompt';
+import { InformationCompletionPrompt } from '@/features/customer/components/InformationCompletionPrompt';
 
 interface HotsiteLayoutProps {
   readonly children: React.ReactNode;

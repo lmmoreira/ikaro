@@ -1,7 +1,7 @@
 import { getRequestConfig } from 'next-intl/server';
 import { headers } from 'next/headers';
-import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
-import { resolveLocale } from '@/lib/i18n/resolve-locale';
+import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { resolveLocale } from '@/shared/lib/i18n/resolve-locale';
 
 export default getRequestConfig(async () => {
   const hdrs = await headers();

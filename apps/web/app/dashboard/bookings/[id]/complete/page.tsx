@@ -1,7 +1,7 @@
-import { MarkCompleteBookingPage } from '@/components/dashboard/bookings/MarkCompleteBookingPage';
-import { getAccessToken } from '@/lib/auth/get-access-token';
-import { fetchTenantSettings } from '@/lib/api/dashboard/tenants';
-import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route.server';
+import { MarkCompleteBookingPage } from '@/features/booking/components/dashboard/bookings/MarkCompleteBookingPage';
+import { getAccessToken } from '@/features/auth/get-access-token';
+import { fetchTenantSettings } from '@/features/platform/tenant-settings';
+import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-route.server';
 
 interface BookingCompleteRouteProps {
   readonly params: Promise<{ id: string }>;

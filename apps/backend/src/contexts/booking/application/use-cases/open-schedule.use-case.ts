@@ -3,7 +3,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import type { BusinessHours } from '../../../platform/domain/value-objects/tenant-settings.vo';
+import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import {
   DayAlreadyOpenInSettingsError,

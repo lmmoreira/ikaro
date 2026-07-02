@@ -1,0 +1,140 @@
+'use client';
+
+import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import type { StaffBookingCardResponse } from '@ikaro/types';
+import { Button } from '@/shared/components/ui/button';
+import { Badge } from '@/shared/components/ui/badge';
+import { Card, CardContent } from '@/shared/components/ui/card';
+import { formatDuration } from '@/shared/lib/formatting/format-duration';
+import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { addDays, toDateKeyInTimezone } from '@/shared/utils/date-utils';
+import {
+  BOOKING_STATUS_CLASSES,
+  buildBookingStatusLabels,
+} from '@/features/booking/model/booking-status';
+
+export type BookingCardVariant = 'action-needed' | 'today' | 'upcoming';
+
+interface BookingCardBaseProps {
+  readonly booking: StaffBookingCardResponse;
+  readonly emphasized?: boolean;
+}
+
+export interface ActionNeededBookingCardProps extends BookingCardBaseProps {
+  readonly variant: 'action-needed';
+  readonly onApprove: () => void | Promise<void>;
+  readonly isApproving?: boolean;
+}
+
+export interface TodayBookingCardProps extends BookingCardBaseProps {
+  readonly variant: 'today';
+}
+
+export interface UpcomingBookingCardProps extends BookingCardBaseProps {
+  readonly variant: 'upcoming';
+}
+
+export type BookingCardProps =
+  | ActionNeededBookingCardProps
+  | TodayBookingCardProps
+  | UpcomingBookingCardProps;
+
+function BookingCardInner(props: BookingCardProps): React.JSX.Element {
+  const { booking, variant, emphasized = false } = props;
+  const t = useTranslations('dashboard.bookingCard');
+  const { formatMoney, formatTime, formatDateLong, timezone } = useFormatting();
+  const scheduledAt = new Date(booking.scheduledAt);
+  const statusLabel = buildBookingStatusLabels(t);
+  const approvalPending = variant === 'action-needed' ? (props.isApproving ?? false) : false;
+  const typeLabel = booking.isCustomer ? t('customerType') : t('guestType');
+  const typeBadgeClass = booking.isCustomer
+    ? 'bg-blue-100 text-blue-800'
+    : 'bg-amber-100 text-amber-800';
+
+  const timeLabel = (() => {
+    if (variant === 'today') return formatTime(scheduledAt);
+
+    const now = new Date();
+    const todayKey = toDateKeyInTimezone(now, timezone);
+    const tomorrowKey = toDateKeyInTimezone(addDays(now, 1), timezone);
+    const scheduledKey = toDateKeyInTimezone(scheduledAt, timezone);
+
+    let prefix = formatDateLong(scheduledAt);
+    if (scheduledKey === todayKey) prefix = t('today');
+    if (scheduledKey === tomorrowKey) prefix = t('tomorrow');
+
+    return `${prefix} · ${formatTime(scheduledAt)}`;
+  })();
+
+  const card = (
+    <Card
+      className={[
+        'mb-3 transition-shadow',
+        booking.status === 'INFO_REQUESTED' ? 'border-l-[3px] border-l-blue-600' : '',
+        emphasized ? 'border-blue-500 bg-blue-50/60 shadow-sm' : '',
+        variant === 'upcoming' && !emphasized ? 'opacity-70' : 'hover:shadow-md',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <CardContent className="p-4">
+        <div className="mb-1 flex items-start justify-between gap-2">
+          <span className="truncate text-sm font-semibold text-gray-900">
+            {booking.contactName}
+          </span>
+          <div className="flex shrink-0 flex-wrap justify-end gap-2">
+            <Badge className={`shrink-0 border-0 text-xs ${typeBadgeClass}`}>{typeLabel}</Badge>
+            <Badge
+              className={`shrink-0 text-xs ${BOOKING_STATUS_CLASSES[booking.status] ?? 'bg-gray-100 text-gray-600'}`}
+            >
+              {statusLabel[booking.status] ?? booking.status}
+            </Badge>
+          </div>
+        </div>
+
+        <p className="mb-1 truncate text-xs text-gray-500">{booking.serviceNames.join(', ')}</p>
+
+        <div className="flex items-center justify-between text-xs text-gray-600">
+          <span>{timeLabel}</span>
+          <span>
+            {formatMoney(booking.totalPrice.amount)} · {formatDuration(booking.totalDurationMins)}
+          </span>
+        </div>
+
+        {variant === 'today' && (
+          <div className="relative z-20 mt-3 flex gap-2">
+            <Button asChild size="sm">
+              <Link href={`/dashboard/bookings/${booking.bookingId}/complete`}>
+                {t('markCompleted')}
+              </Link>
+            </Button>
+          </div>
+        )}
+
+        {variant === 'action-needed' && (
+          <div className="relative z-20 mt-3 flex gap-2">
+            <Button type="button" size="sm" disabled={approvalPending} onClick={props.onApprove}>
+              {t('approve')}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="relative">
+      <Link
+        href={`/dashboard/bookings/${booking.bookingId}`}
+        className="absolute inset-0 z-10"
+        aria-label={t('viewDetailsAriaLabel', { name: booking.contactName })}
+      />
+      {card}
+    </div>
+  );
+}
+
+export function BookingCard(props: BookingCardProps): React.JSX.Element {
+  return <BookingCardInner {...props} />;
+}

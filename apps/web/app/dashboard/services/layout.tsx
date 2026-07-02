@@ -1,19 +1,19 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { Button } from '@/components/ui/button';
-import { DashboardShell } from '@/components/dashboard/DashboardShell';
-import { getAccessToken } from '@/lib/auth/get-access-token';
+import { Button } from '@/shared/components/ui/button';
+import { DashboardShell } from '@/shells/dashboard/components/DashboardShell';
+import { getAccessToken } from '@/features/auth/get-access-token';
 import { LocaleProvider } from '@/providers/locale-provider';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
-import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
+import { decodeJwtPayload } from '@/features/auth/decode-jwt';
 import {
   loadDashboardShellContext,
   resolveDashboardDateFormat,
-} from '@/lib/dashboard/dashboard-shell-context';
-import { loadServiceDetailRouteData } from '@/lib/dashboard/service-route.server';
-import { matchServiceRoute } from '@/lib/dashboard/service-route';
-import { DashboardTopbarStatusProvider } from '@/components/dashboard/topbar-status-context';
+} from '@/shells/dashboard/model/dashboard-shell-context';
+import { loadServiceDetailRouteData } from '@/shells/dashboard/model/service-route.server';
+import { matchServiceRoute } from '@/shells/dashboard/model/service-route';
+import { DashboardTopbarStatusProvider } from '@/shells/dashboard/components/topbar-status-context';
 import { getTranslations } from 'next-intl/server';
 
 interface ServicesLayoutProps {

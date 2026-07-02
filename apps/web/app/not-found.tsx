@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { SITE_URL } from '@/lib/hotsite/seo';
+import { SITE_URL } from '@/features/platform/hotsite/seo';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('notFound');

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { todayUTC } from '../../../../shared/utils/calendar-date';
-import type { BusinessHours } from '../../../platform/domain/value-objects/tenant-settings.vo';
+import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   AvailabilityDateInPastError,

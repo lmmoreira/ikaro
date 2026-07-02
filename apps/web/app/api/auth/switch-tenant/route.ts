@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { bffServerFetch } from '@/lib/api/bff-server';
+import { bffServerFetch } from '@/shared/lib/api/bff-server';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const token = (await cookies()).get('access_token')?.value;

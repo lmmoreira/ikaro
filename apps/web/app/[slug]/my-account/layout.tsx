@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
-import { getMessages, resolveSupportedLocale } from '@/lib/i18n/get-messages';
-import { decodeJwtPayload } from '@/lib/auth/decode-jwt';
-import { getAccessToken } from '@/lib/auth/get-access-token';
+import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { decodeJwtPayload } from '@/features/auth/decode-jwt';
+import { getAccessToken } from '@/features/auth/get-access-token';
 import { LocaleProvider } from '@/providers/locale-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
-import { CustomerShell } from '@/components/customer/CustomerShell';
+import { CustomerShell } from '@/features/customer/components/CustomerShell';
 
 interface MyAccountLayoutProps {
   readonly children: React.ReactNode;

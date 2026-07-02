@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { buildGoogleOAuthUrl } from '@/lib/auth/google-oauth';
+import { buildGoogleOAuthUrl } from '@/features/auth/google-oauth';
 
 export default async function StaffLoginPage({
   searchParams,

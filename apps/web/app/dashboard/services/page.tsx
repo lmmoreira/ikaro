@@ -1,6 +1,6 @@
-import { getAccessToken } from '@/lib/auth/get-access-token';
-import { fetchStaffServices } from '@/lib/api/dashboard/services';
-import { ServiceListPage } from '@/components/dashboard/services/ServiceListPage';
+import { getAccessToken } from '@/features/auth/get-access-token';
+import { fetchStaffServices } from '@/features/booking/services/api';
+import { ServiceListPage } from '@/features/booking/components/dashboard/services/ServiceListPage';
 import type { StaffServiceListResponse } from '@ikaro/types';
 
 interface ServicesPageProps {

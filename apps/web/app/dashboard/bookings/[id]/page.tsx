@@ -1,6 +1,6 @@
-import { BookingDetailPage } from '@/components/dashboard/bookings/BookingDetailPage';
-import { getAccessToken } from '@/lib/auth/get-access-token';
-import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route.server';
+import { BookingDetailPage } from '@/features/booking/components/dashboard/bookings/BookingDetailPage';
+import { getAccessToken } from '@/features/auth/get-access-token';
+import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-route.server';
 
 interface BookingDetailRouteProps {
   readonly params: Promise<{ id: string }>;

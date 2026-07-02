@@ -1,6 +1,6 @@
-import { RescheduleBookingPage } from '@/components/dashboard/bookings/RescheduleBookingPage';
-import { getAccessToken } from '@/lib/auth/get-access-token';
-import { loadBookingDetailRouteData } from '@/lib/dashboard/booking-route.server';
+import { RescheduleBookingPage } from '@/features/booking/components/dashboard/bookings/RescheduleBookingPage';
+import { getAccessToken } from '@/features/auth/get-access-token';
+import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-route.server';
 
 interface BookingRescheduleRouteProps {
   readonly params: Promise<{ id: string }>;

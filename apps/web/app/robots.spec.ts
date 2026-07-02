@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SITE_URL } from '@/lib/hotsite/seo';
+import { SITE_URL } from '@/features/platform/hotsite/seo';
 import robots from './robots';
 
 describe('robots', () => {

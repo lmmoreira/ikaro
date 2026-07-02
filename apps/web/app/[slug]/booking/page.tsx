@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { fetchManifest } from '@/lib/api/platform';
-import { fetchServices } from '@/lib/api/hotsite/services';
-import { BookingForm } from '@/components/booking/BookingForm';
-import { HotsiteAuthBar } from '@/components/hotsite/HotsiteAuthBar';
-import { Unavailable } from '@/components/hotsite/Unavailable';
-import { buildHotsiteMetadata } from '@/lib/hotsite/seo';
-import { BookingCtaModuleDataSchema } from '@/lib/hotsite/module-schemas';
+import { fetchManifest } from '@/features/platform/api';
+import { fetchServices } from '@/features/platform/hotsite/api/services';
+import { BookingForm } from '@/features/booking/components/public/BookingForm';
+import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
+import { Unavailable } from '@/shells/hotsite/components/Unavailable';
+import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
+import { BookingCtaModuleDataSchema } from '@/features/platform/hotsite/module-schemas';
 
 export const revalidate = 300;
 
