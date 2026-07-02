@@ -1,7 +1,4 @@
-import {
-  BusinessHours,
-  DayHours,
-} from '../../../../shared/value-objects/business-hours.vo';
+import { BusinessHours, DayHours } from '../../../../shared/value-objects/business-hours.vo';
 import {
   getUtcWeekDayName,
   localDateTimeToUTCIso,
