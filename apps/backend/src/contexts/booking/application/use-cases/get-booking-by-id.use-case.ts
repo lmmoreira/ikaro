@@ -45,6 +45,8 @@ export interface GetBookingByIdUseCaseResult {
   totalDurationMins: number;
   totalPrice: { amount: number; currency: string; formatted: string };
   totalActualPrice: { amount: number; currency: string; formatted: string } | null;
+  discountPointsUsed: number | null;
+  discountAmount: { amount: number; currency: string; formatted: string } | null;
   pickupAddress: BookingAddressDetail | null;
   lines: BookingLineDetail[];
   beforeServicePhotoUrls: string[];
@@ -54,6 +56,7 @@ export interface GetBookingByIdUseCaseResult {
   infoResponseMessage: string | null;
   approvedAt: string | null;
   approvedBy: string | null;
+  completedAt: string | null;
   rejectionReason: string | null;
   createdAt: string;
 }
@@ -124,6 +127,14 @@ export class GetBookingByIdUseCase {
             formatted: booking.totalActualPrice.format(locale),
           }
         : null,
+      discountPointsUsed: booking.discountPointsUsed,
+      discountAmount: booking.discountAmount
+        ? {
+            amount: booking.discountAmount.amount.toNumber(),
+            currency: booking.discountAmount.currency,
+            formatted: booking.discountAmount.format(locale),
+          }
+        : null,
       pickupAddress: this.toAddressDetail(booking.pickupAddress),
       lines: booking.lines.map((l) => ({
         lineId: l.lineId,
@@ -152,6 +163,7 @@ export class GetBookingByIdUseCase {
       infoResponseMessage: booking.infoResponseMessage,
       approvedAt: booking.approvedAt?.toISOString() ?? null,
       approvedBy: booking.approvedBy,
+      completedAt: booking.completedAt?.toISOString() ?? null,
       rejectionReason: booking.rejectionReason,
       createdAt: booking.createdAt.toISOString(),
     };

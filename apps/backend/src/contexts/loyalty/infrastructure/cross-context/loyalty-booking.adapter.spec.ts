@@ -67,6 +67,8 @@ describe('LoyaltyBookingAdapter', () => {
       totalDurationMins: 30,
       totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
       totalActualPrice: null,
+      discountPointsUsed: null,
+      discountAmount: null,
       pickupAddress: null,
       lines: [
         {
@@ -85,6 +87,7 @@ describe('LoyaltyBookingAdapter', () => {
       infoResponseMessage: null,
       approvedAt: null,
       approvedBy: null,
+      completedAt: null,
       rejectionReason: null,
       createdAt: '2026-01-01T10:00:00.000Z',
     });

@@ -20,6 +20,9 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
     loyaltyBalance: 240,
     lines: [],
     totalPrice: { amount: 0, currency: 'BRL' },
+    totalActualPrice: null,
+    discountPointsUsed: null,
+    discountAmount: null,
     totalDurationMins: 0,
     beforeServicePhotoUrls: [],
     afterServicePhotoUrls: [],
@@ -27,6 +30,7 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
     infoResponseMessage: null,
     approvedAt: null,
     approvedBy: null,
+    completedAt: null,
     rejectionReason: null,
     ...overrides,
   };

@@ -2768,11 +2768,13 @@ interface Props {
 
 ---
 
-### M13-S26 — Frontend: loyalty strip in completion route (UC-009 A6)
+### M13-S26 — Frontend: loyalty strip in completion route (UC-009 A6) ✅ Done
 
 *(formerly M128-S04)*
 
-**Agent:** `frontend-ts`
+**Implementation note:** the loyalty redemption strip shipped inline in `MarkCompleteBookingPage.tsx` as part of the `M13-S20` PR (`feat(booking): refine booking completion and reschedule flows`, subcommit "extend loyalty completion flow") — this story's own branch/commit never happened, so it stayed unmarked here despite being live in `main`. Discovered and closed out via `feat/M13-S26-loyalty-discount-row`, which added an explicit "Desconto fidelidade: −R$X" row to the completion success banner, and — found while validating that fix — closed a bigger gap where reopening an already-completed booking showed no charge/discount info at all (see "Extended scope" below).
+
+**Agent:** `frontend-ts` (extended scope also touched `backend-ts` + `bff-ts` — read-path/mapper fields only, no migration; see "Extended scope" below)
 **Complexity:** S
 **Docs to load:** `docs/04-USE_CASES.md` § UC-009 A6, `plan/journey/staff/prototypes/agenda/04-mark-complete.html`
 
@@ -2820,17 +2822,35 @@ discountByPoints: { pointsUsed: number; amountDeducted: number } | null
 
 On confirm: pass `discountByPoints` to `completeBooking()` fetcher.
 
-**Acceptance criteria:**
-- [ ] Loyalty strip not rendered for guest bookings (`loyaltyBalance === null`)
-- [ ] Loyalty strip not rendered when `conversionRate === 0`
-- [ ] Points input accepts integer values; "Usar todos" fills maximum valid amount
-- [ ] `amountDeducted` live-updates as user types points
-- [ ] Discount is capped at lines total (cannot go below R$0)
-- [ ] Discount row appears in the totals section when `pointsUsed > 0`
-- [ ] On confirm: `completeBooking()` called with `discountByPoints` when points are applied
-- [ ] On confirm: `completeBooking()` called without `discountByPoints` when strip is unused
-- [ ] Completion success banner shows loyalty discount row when discount was applied
-- [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
+**Acceptance criteria delivered:**
+- [x] Loyalty strip not rendered for guest bookings (`customerId === null` ⇒ `loyaltyBalance` is always `null`)
+- [x] Loyalty strip not rendered when `pointsPerCurrencyUnit === 0`
+- [x] Points input accepts integer values; "Usar todos" fills maximum valid amount
+- [x] `amountDeducted` live-updates as user types points
+- [x] Discount is capped at lines total (cannot go below R$0)
+- [x] Discount row appears in the totals section when `pointsUsed > 0`
+- [x] On confirm: `completeBooking()` called with `discountByPoints` when points are applied
+- [x] On confirm: `completeBooking()` called without `discountByPoints` when strip is unused
+- [x] Completion success banner shows loyalty discount row when discount was applied (added on `feat/M13-S26-loyalty-discount-row`)
+- [x] `tsc --noEmit` passes; `pnpm lint` zero warnings
+
+**Extended scope (found and fixed while validating this story):** reopening an already-`COMPLETED` booking later (e.g. from the loyalty redemptions tab on the customer page) showed no charge/discount info at all — `BookingDetailPage`'s `renderMainBanner()`/`renderAsideCard()` both returned `null` for `COMPLETED`, because `StaffBookingDetailResponse` never carried `actualPriceCharged`, the final charged total, or redemption info. The underlying data was already fully persisted on the `Booking` aggregate (`totalActualPrice`, `discountPointsUsed`, `discountAmount`, `completedAt`, per-line `actualPriceCharged` — all shipped with `M13-S20`/`M13-S12`); it just never made it through the read path. Closed the gap end-to-end:
+- Backend: `GetBookingByIdUseCase` now returns `completedAt`, `discountPointsUsed`, `discountAmount` (per-line `actualPriceCharged` and `totalActualPrice` were already returned).
+- BFF: `bookings.types.ts`/`bookings.mapper.ts` forward `totalActualPrice`, per-line `actualPriceCharged`, `discountPointsUsed`, `discountAmount`, `completedAt` into `StaffBookingDetailResponse`.
+- `@ikaro/types`: `StaffBookingLineResponse.actualPriceCharged` and `StaffBookingDetailResponse.{totalActualPrice,discountPointsUsed,discountAmount,completedAt}` added.
+- Frontend: extracted the quoted-vs-charged/discount-row/points-earned JSX from `MarkCompleteBookingPage`'s post-submit view into a shared `BookingCompletionSummary` component; `BookingDetailPage` now renders it (banner + "Voltar à agenda" aside) whenever `booking.status === 'COMPLETED'`, fed from the persisted fields instead of local form state.
+- No migration needed — this was purely a read-path/mapper gap, not a schema gap.
+
+**Implemented files:**
+- `apps/backend/.../use-cases/get-booking-by-id.use-case.ts` (+ `.spec.ts`), `apps/backend/src/test/builders/booking/booking.builder.ts` (`withCompletedAt`)
+- `apps/bff/src/features/booking/bookings.types.ts`, `bookings.mapper.ts` (+ `.spec.ts`)
+- `packages/types/src/booking.dto.ts`
+- `apps/web/features/booking/components/dashboard/bookings/BookingCompletionSummary.tsx` (+ `.spec.tsx`) — new shared component
+- `apps/web/features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx` — loyalty section (form) + refactored to reuse `BookingCompletionSummary` for its success banner
+- `apps/web/features/booking/components/dashboard/bookings/BookingDetailPage.tsx` — new `COMPLETED`-status banner/aside branch reusing `BookingCompletionSummary`
+
+**Validated Playwright coverage (`apps/web/e2e/staff-booking-lifecycle.spec.ts`):**
+- "complete loyalty flow earns points on one booking and redeems them on the next" — earns points on booking A, redeems them on booking B, asserts the `discountByPoints` request body, the success-banner discount row, and (reopening the booking's plain detail page afterward) the persisted charge/discount summary
 
 **Dependencies:** M13-S20 (base `MarkCompleteBookingPage`), M13-S12 (`CompleteBookingRequest` type with `discountByPoints`)
 
@@ -4150,7 +4170,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 - [x] **`loyaltyConversionRate` in booking detail response:** resolved — added to `StaffBookingDetailResponse` (`M13-S04`'s note), sourced from `M13-S12`, so `M13-S26`'s completion route doesn't need a second BFF call on mount.
 - [ ] **"Clientes recentes" query:** does `GET /v1/customers?search=&limit=5` with empty `search` return the 5 most recently active customers (sorted by last booking `completedAt`)? Confirm the backend query plan at `M13-S25`, or simplify to alphabetical sort for MVP.
-- [ ] **Redemption notes field in UI:** `LoyaltyRedemption.notes` is optional; `M13-S11`'s `CompleteBookingLoyaltyEffectsUseCase` deliberately leaves it `null` for booking-completion-triggered redemptions — hardcoding a pt-BR string like "Desconto na conclusão do agendamento" server-side would violate the English-only-code/tenant-locale rule (a non-BR tenant's customer would see Portuguese), and `bookingId` already links the redemption to its booking without needing free text. Still open for `M13-S26`: does the UI need a note at all, and if so, is it staff-entered free text or a locale-aware label generated client-side (where i18n already lives)?
+- [x] **Redemption notes field in UI:** resolved — `M13-S26` shipped without a staff-entered notes field; `LoyaltyRedemption.notes` stays server-side `null` for booking-completion-triggered redemptions, and `bookingId` links the redemption to its booking without needing free text.
 - [x] **`conversionRate` in the customer-facing balance route too:** resolved — `M13-S12` enriches both the staff (`getBalanceAdmin`) and customer (`getBalance`) routes, so `M13-S29` (customer Fidelidade page) can use the field once it ships.
 
 ### Guest submit-info (Phase 9, M13-S38–M13-S40)

@@ -11,6 +11,7 @@ import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useCompleteBooking } from '@/features/booking/hooks/useBookingMutations';
 import { AfterServicePhotoUpload } from './AfterServicePhotoUpload';
+import { BookingCompletionSummary } from './BookingCompletionSummary';
 import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
 import { BookingOutcomeLayout } from './BookingDetailMain';
 import { BookingClientCard } from './BookingClientCard';
@@ -178,40 +179,20 @@ export function MarkCompleteBookingPage({
         tone="success"
         bannerTitle={t('completedTitle')}
         bannerBody={
-          <>
-            <p>{t('completedBody')}</p>
-            <p className="mt-2">
-              {t('summaryQuoted', { total: formatMoney(booking.totalPrice.amount) })}
-            </p>
-            <p className="mt-2">{t('summaryCharged', { total: formatMoney(finalChargedTotal) })}</p>
-            <div className="mt-3 space-y-2 border-t border-green-100 pt-3">
-              {booking.lines.map((line) => (
-                <div
-                  key={line.lineId}
-                  className="flex items-center justify-between gap-3 text-sm text-green-700/90"
-                >
-                  <span className="min-w-0 truncate font-medium">{line.serviceName}</span>
-                  <span className="text-right">
-                    {t('quotedPriceLabel', {
-                      price: formatMoney(line.priceAtBooking.amount),
-                    })}{' '}
-                    <span className="opacity-70">→</span> {t('chargedPriceLabel')}{' '}
-                    {formatMoney(Number(linePrices[line.lineId]) || 0)}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 rounded-lg bg-green-50/70 px-3 py-2 text-sm text-green-800">
-              {booking.customerId !== null && (
-                <p className="font-semibold">
-                  {t('completedPointsEarned', { count: totalEarnedPoints })}
-                </p>
-              )}
-              <p data-testid="complete-email-summary" className="mt-1">
-                {t('completedEmailSummary')}
-              </p>
-            </div>
-          </>
+          <BookingCompletionSummary
+            quotedTotal={booking.totalPrice.amount}
+            chargedTotal={finalChargedTotal}
+            lines={booking.lines.map((line) => ({
+              lineId: line.lineId,
+              serviceName: line.serviceName,
+              quotedPrice: line.priceAtBooking.amount,
+              chargedPrice: Number(linePrices[line.lineId]) || 0,
+            }))}
+            discount={
+              showLoyaltyPanel && pointsUsed > 0 ? { pointsUsed, amount: discountAmount } : null
+            }
+            pointsEarned={booking.customerId !== null ? totalEarnedPoints : null}
+          />
         }
         asideBody={t('completedAsideBody')}
         primaryAction={{ label: t('backToAgenda'), href: backHref }}

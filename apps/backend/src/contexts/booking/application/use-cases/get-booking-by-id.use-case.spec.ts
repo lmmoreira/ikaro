@@ -1,8 +1,10 @@
 import { countrySpec } from '@ikaro/i18n';
 import { Address } from '../../../../shared/value-objects/address';
+import { Money } from '../../../../shared/value-objects/money';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { GetBookingByIdUseCase } from './get-booking-by-id.use-case';
 
@@ -149,6 +151,58 @@ describe('GetBookingByIdUseCase', () => {
         `http://fake-gcs/bucket/${afterPath}?sig=test&op=read`,
       ]);
       expect(storageService.readSignedPaths).toEqual([beforePath, afterPath]);
+    });
+
+    it('returns totalActualPrice, discount and completedAt for a completed booking', async () => {
+      const completedAt = new Date('2026-06-01T15:00:00.000Z');
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withStatus(BookingStatus.COMPLETED)
+        .withTotalActualPrice(Money.from(76, 'BRL'))
+        .withDiscountPointsUsed(240)
+        .withDiscountAmount(Money.from(24, 'BRL'))
+        .withCompletedAt(completedAt)
+        .build();
+      await repo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
+
+      expect(result.totalActualPrice).toEqual({
+        amount: 76,
+        currency: 'BRL',
+        formatted: expect.stringMatching(/^R\$/),
+      });
+      expect(result.discountPointsUsed).toBe(240);
+      expect(result.discountAmount).toEqual({
+        amount: 24,
+        currency: 'BRL',
+        formatted: expect.stringMatching(/^R\$/),
+      });
+      expect(result.completedAt).toBe(completedAt.toISOString());
+    });
+
+    it('returns null totalActualPrice, discount and completedAt when booking is not completed', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .build();
+      await repo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
+
+      expect(result.totalActualPrice).toBeNull();
+      expect(result.discountPointsUsed).toBeNull();
+      expect(result.discountAmount).toBeNull();
+      expect(result.completedAt).toBeNull();
     });
 
     it('throws BookingNotFoundError when booking does not exist', async () => {

@@ -80,8 +80,18 @@ export function toStaffBookingDetail(
       durationMinsAtBooking: l.durationMinsAtBooking,
       pointsValueAtBooking: l.pointsValueAtBooking,
       requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
+      actualPriceCharged: l.actualPriceCharged
+        ? { amount: l.actualPriceCharged.amount, currency: l.actualPriceCharged.currency }
+        : null,
     })),
     totalPrice: { amount: detail.totalPrice.amount, currency: detail.totalPrice.currency },
+    totalActualPrice: detail.totalActualPrice
+      ? { amount: detail.totalActualPrice.amount, currency: detail.totalActualPrice.currency }
+      : null,
+    discountPointsUsed: detail.discountPointsUsed,
+    discountAmount: detail.discountAmount
+      ? { amount: detail.discountAmount.amount, currency: detail.discountAmount.currency }
+      : null,
     totalDurationMins: detail.totalDurationMins,
     beforeServicePhotoUrls: detail.beforeServicePhotoUrls,
     afterServicePhotoUrls: detail.afterServicePhotoUrls,
@@ -89,6 +99,7 @@ export function toStaffBookingDetail(
     infoResponseMessage: detail.infoResponseMessage,
     approvedAt: detail.approvedAt,
     approvedBy: detail.approvedBy,
+    completedAt: detail.completedAt,
     rejectionReason: detail.rejectionReason,
   };
 }

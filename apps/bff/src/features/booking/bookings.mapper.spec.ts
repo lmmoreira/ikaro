@@ -146,6 +146,8 @@ describe('toStaffBookingDetail()', () => {
     totalDurationMins: 30,
     totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
     totalActualPrice: null,
+    discountPointsUsed: null,
+    discountAmount: null,
     pickupAddress: null,
     lines: [],
     beforeServicePhotoUrls: [],
@@ -155,6 +157,7 @@ describe('toStaffBookingDetail()', () => {
     infoResponseMessage: null,
     approvedAt: null,
     approvedBy: null,
+    completedAt: null,
     rejectionReason: null,
     createdAt: '2026-01-01T00:00:00.000Z',
   };
@@ -176,6 +179,9 @@ describe('toStaffBookingDetail()', () => {
       loyaltyBalance: null,
       lines: [],
       totalPrice: { amount: 100, currency: 'BRL' },
+      totalActualPrice: null,
+      discountPointsUsed: null,
+      discountAmount: null,
       totalDurationMins: 30,
       beforeServicePhotoUrls: [],
       afterServicePhotoUrls: [],
@@ -183,8 +189,26 @@ describe('toStaffBookingDetail()', () => {
       infoResponseMessage: null,
       approvedAt: null,
       approvedBy: null,
+      completedAt: null,
       rejectionReason: null,
     });
+  });
+
+  it('maps totalActualPrice, discount and completedAt for a completed booking', () => {
+    const detail: BookingDetailResponse = {
+      ...backendDetail,
+      totalActualPrice: { amount: 76, currency: 'BRL', formatted: 'R$ 76,00' },
+      discountPointsUsed: 240,
+      discountAmount: { amount: 24, currency: 'BRL', formatted: 'R$ 24,00' },
+      completedAt: '2026-06-01T15:00:00.000Z',
+    };
+
+    const result = toStaffBookingDetail(detail, null);
+
+    expect(result.totalActualPrice).toEqual({ amount: 76, currency: 'BRL' });
+    expect(result.discountPointsUsed).toBe(240);
+    expect(result.discountAmount).toEqual({ amount: 24, currency: 'BRL' });
+    expect(result.completedAt).toBe('2026-06-01T15:00:00.000Z');
   });
 
   it('passes through the given loyaltyBalance value', () => {
@@ -238,7 +262,7 @@ describe('toStaffBookingDetail()', () => {
     expect(result.afterServicePhotoUrls).toEqual(['https://example.com/after.jpg']);
   });
 
-  it('maps lines to StaffBookingLineResponse, dropping actualPriceCharged', () => {
+  it('maps lines to StaffBookingLineResponse with a null actualPriceCharged when unset', () => {
     const detail: BookingDetailResponse = {
       ...backendDetail,
       lines: [
@@ -266,8 +290,31 @@ describe('toStaffBookingDetail()', () => {
         durationMinsAtBooking: 30,
         pointsValueAtBooking: 10,
         requiresPickupAddressAtBooking: false,
+        actualPriceCharged: null,
       },
     ]);
+  });
+
+  it('maps lines to StaffBookingLineResponse forwarding actualPriceCharged when set', () => {
+    const detail: BookingDetailResponse = {
+      ...backendDetail,
+      lines: [
+        {
+          lineId: 'line-1',
+          serviceId: 'service-1',
+          serviceNameAtBooking: 'Lavagem Completa',
+          priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+          durationMinsAtBooking: 30,
+          pointsValueAtBooking: 10,
+          requiresPickupAddressAtBooking: false,
+          actualPriceCharged: { amount: 90, currency: 'BRL', formatted: 'R$ 90,00' },
+        },
+      ],
+    };
+
+    const result = toStaffBookingDetail(detail, null);
+
+    expect(result.lines[0].actualPriceCharged).toEqual({ amount: 90, currency: 'BRL' });
   });
 });
 
@@ -286,6 +333,8 @@ describe('toCustomerBookingDetail()', () => {
     totalDurationMins: 30,
     totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
     totalActualPrice: null,
+    discountPointsUsed: null,
+    discountAmount: null,
     pickupAddress: null,
     lines: [],
     beforeServicePhotoUrls: [],
@@ -295,6 +344,7 @@ describe('toCustomerBookingDetail()', () => {
     infoResponseMessage: null,
     approvedAt: '2026-05-01T10:00:00.000Z',
     approvedBy: '20000000-0000-4000-8000-000000000099',
+    completedAt: null,
     rejectionReason: null,
     createdAt: '2026-01-01T00:00:00.000Z',
   };

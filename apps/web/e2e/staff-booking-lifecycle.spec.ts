@@ -175,6 +175,18 @@ test.describe('staff booking lifecycle coverage', () => {
 
     await expect(page.getByTestId('outcome-banner-title')).toBeVisible();
     await expect(page.getByTestId('booking-loyalty-points-active')).toBeVisible();
+    await expect(page.getByTestId('complete-loyalty-discount-applied')).toHaveText(
+      'Desconto fidelidade: -R$ 1,00',
+    );
+
+    await page.goto(`/dashboard/bookings/${redeemSetup.bookingId}`);
+
+    await expect(page.getByTestId('booking-completed-title')).toBeVisible();
+    await expect(page.getByText('Total cobrado: R$ 149,00')).toBeVisible();
+    await expect(page.getByTestId('complete-loyalty-discount-applied')).toHaveText(
+      'Desconto fidelidade: -R$ 1,00',
+    );
+    await expect(page.getByRole('link', { name: 'Voltar à agenda' })).toBeVisible();
   });
 
   test('reschedule success shows a full De/Para summary and the action panel on the right', async ({

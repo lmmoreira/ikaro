@@ -41,7 +41,7 @@ export class BookingBuilder {
   private readonly infoSubmittedAt: Date | null = null;
   private approvedAt: Date | null = null;
   private approvedBy: string | null = null;
-  private readonly completedAt: Date | null = null;
+  private completedAt: Date | null = null;
   private readonly completedBy: string | null = null;
   private readonly cancelledAt: Date | null = null;
   private readonly cancelledBy: string | null = null;
@@ -161,6 +161,10 @@ export class BookingBuilder {
   }
   withApprovedBy(by: string | null): this {
     this.approvedBy = by;
+    return this;
+  }
+  withCompletedAt(at: Date | null): this {
+    this.completedAt = at;
     return this;
   }
   withAdminNotes(notes: string | null): this {

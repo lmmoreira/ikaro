@@ -100,6 +100,7 @@ export interface StaffBookingLineResponse {
   durationMinsAtBooking: number;
   pointsValueAtBooking: number;
   requiresPickupAddressAtBooking: boolean;
+  actualPriceCharged: MoneyAmount | null;
 }
 
 export interface CustomerBookingLineItem {
@@ -144,6 +145,9 @@ export interface StaffBookingDetailResponse {
   // Lines
   lines: StaffBookingLineResponse[];
   totalPrice: MoneyAmount;
+  totalActualPrice: MoneyAmount | null; // populated once COMPLETED
+  discountPointsUsed: number | null; // loyalty redemption applied at completion
+  discountAmount: MoneyAmount | null;
   totalDurationMins: number;
 
   // Media
@@ -155,6 +159,7 @@ export interface StaffBookingDetailResponse {
   infoResponseMessage: string | null; // UC-005 A2: what customer answered
   approvedAt: string | null;
   approvedBy: string | null; // staffId UUID
+  completedAt: string | null;
   rejectionReason: string | null;
 }
 
