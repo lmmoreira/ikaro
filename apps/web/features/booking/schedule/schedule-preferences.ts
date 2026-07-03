@@ -36,12 +36,12 @@ export function createSchedulePreferencesStore(
 
 export function useSchedulePreferences(): SchedulePreferencesState {
   const store = useMemo(() => createSchedulePreferencesStore(), []);
-  const [viewMode, setViewModeState] = useState<ScheduleViewMode | null>(() => store.getViewMode());
+  const [viewMode, setViewMode] = useState<ScheduleViewMode | null>(() => store.getViewMode());
 
-  function setViewMode(nextViewMode: ScheduleViewMode): void {
-    setViewModeState(nextViewMode);
+  function updateViewMode(nextViewMode: ScheduleViewMode): void {
+    setViewMode(nextViewMode);
     store.setViewMode(nextViewMode);
   }
 
-  return { viewMode, setViewMode };
+  return { viewMode, setViewMode: updateViewMode };
 }

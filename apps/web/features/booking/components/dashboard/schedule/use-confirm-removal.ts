@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 
 interface UseConfirmRemovalOptions {
@@ -24,8 +24,12 @@ export function useConfirmRemoval({
   const dialogRef = useModalDialog(open);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isSubmittingRef = useRef(false);
 
   async function confirmRemoval(id: string): Promise<void> {
+    if (isSubmittingRef.current) return;
+
+    isSubmittingRef.current = true;
     setError(null);
     setIsSubmitting(true);
     try {
@@ -34,6 +38,7 @@ export function useConfirmRemoval({
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   }

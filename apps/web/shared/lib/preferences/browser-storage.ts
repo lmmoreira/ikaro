@@ -19,7 +19,7 @@ function createNoopStoragePort(): BrowserStoragePort {
 }
 
 function getWindowStorage(): Storage | null {
-  if (typeof globalThis.window === 'undefined') return null;
+  if (globalThis.window === undefined) return null;
   try {
     return globalThis.window.localStorage;
   } catch {

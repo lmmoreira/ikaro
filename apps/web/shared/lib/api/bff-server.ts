@@ -31,9 +31,7 @@ export async function bffServerFetch(
     requestInit.next = next;
   }
 
-  if (!requestInit.signal) {
-    requestInit.signal = AbortSignal.timeout(8000);
-  }
+  requestInit.signal ??= AbortSignal.timeout(8000);
 
   return fetch(`${process.env.NEXT_PUBLIC_BFF_URL}${path}`, requestInit);
 }

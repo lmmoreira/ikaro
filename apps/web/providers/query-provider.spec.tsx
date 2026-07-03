@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type React from 'react';
 import { render, screen } from '@testing-library/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';

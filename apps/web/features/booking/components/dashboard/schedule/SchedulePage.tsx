@@ -146,17 +146,22 @@ function toLocalDate(dateKey: string): Date {
 }
 
 function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false);
+  const [matches, setMatches] = useState(() => {
+    const browserWindow = globalThis.window;
+    if (browserWindow === undefined || browserWindow.matchMedia === undefined) {
+      return false;
+    }
+
+    return browserWindow.matchMedia(query).matches;
+  });
 
   useEffect(() => {
-    if (
-      typeof globalThis.window === 'undefined' ||
-      typeof globalThis.window.matchMedia !== 'function'
-    ) {
+    const browserWindow = globalThis.window;
+    if (browserWindow === undefined || browserWindow.matchMedia === undefined) {
       return;
     }
 
-    const mediaQuery = globalThis.window.matchMedia(query);
+    const mediaQuery = browserWindow.matchMedia(query);
     const updateMatches = () => setMatches(mediaQuery.matches);
 
     updateMatches();
@@ -1147,16 +1152,19 @@ export function SchedulePage({
               const timeline = weekTimelineCards[index];
               const isSelected = day.dateKey === selectedDateKey;
               const isToday = day.dateKey === todayKey;
-              const dayWeekdayClass = isSelected
-                ? 'text-white/80'
-                : isToday
-                  ? 'text-blue-600'
-                  : 'text-gray-400';
-              const dayNumberClass = isSelected
-                ? 'text-white'
-                : isToday
-                  ? 'text-blue-600'
-                  : 'text-gray-900';
+              let dayWeekdayClass = 'text-gray-400';
+              if (isSelected) {
+                dayWeekdayClass = 'text-white/80';
+              } else if (isToday) {
+                dayWeekdayClass = 'text-blue-600';
+              }
+
+              let dayNumberClass = 'text-gray-900';
+              if (isSelected) {
+                dayNumberClass = 'text-white';
+              } else if (isToday) {
+                dayNumberClass = 'text-blue-600';
+              }
               let dayBadgeClass = 'bg-blue-100 text-blue-800';
               let dayBadgeLabel = t('statusRegularOpen');
 

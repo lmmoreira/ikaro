@@ -2318,7 +2318,7 @@ type ScheduleState = {
 }
 ```
 
-`apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` — native `<dialog>` action sheet with `showModal()` semantics:
+`apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` — native `<dialog>` confirmation/action shell with `showModal()` semantics:
 
 | Field | Component | Validation |
 |---|---|---|
@@ -2341,7 +2341,7 @@ Error messages (pt-BR):
 - "Remover bloqueio" button — destructive red
 - `DELETE /v1/schedule/closures/:id` → 204 → close sheet, remove from local state
 
-`apps/web/features/booking/components/dashboard/schedule/OpeningFormSheet.tsx` — native `<dialog>` action sheet with `showModal()` semantics, UC-010c:
+`apps/web/features/booking/components/dashboard/schedule/OpeningFormSheet.tsx` — native `<dialog>` confirmation/action shell with `showModal()` semantics, UC-010c:
 
 | Field | Component | Validation |
 |---|---|---|
@@ -2358,6 +2358,7 @@ Error messages (pt-BR):
 `apps/web/features/booking/components/dashboard/schedule/RemoveOpeningDialog.tsx` — same native `<dialog>` pattern as `RemoveClosureDialog`. "Remover abertura" — destructive. 204 → revert day to closed state.
 
 `apps/web/features/booking/schedule/api.ts`:
+
 ```typescript
 listClosures(from: string, to: string): Promise<{ closures: ScheduleClosure[] }>
 createClosure(body: CreateClosureRequest): Promise<ScheduleClosure>
@@ -2366,6 +2367,7 @@ listOpenings(from: string, to: string): Promise<{ openings: ScheduleOpening[] }>
 createOpening(body: CreateOpeningRequest): Promise<ScheduleOpening>
 removeOpening(id: string): Promise<void>
 ```
+
 Extend this module with server-capable fetch helpers for the schedule page, following the same client/server split used by `apps/web/features/booking/services/api.ts`:
 - `fetchScheduleClosures(token, from, to)`
 - `fetchScheduleOpenings(token, from, to)`
