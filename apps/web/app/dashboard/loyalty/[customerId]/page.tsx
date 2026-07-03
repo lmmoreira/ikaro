@@ -5,12 +5,15 @@ import { CustomerLoyaltyPage } from '@/features/loyalty/components/dashboard/Cus
 
 interface CustomerLoyaltyRouteProps {
   readonly params: Promise<{ customerId: string }>;
+  readonly searchParams: Promise<{ tab?: string }>;
 }
 
 export default async function CustomerLoyaltyRoute({
   params,
+  searchParams,
 }: CustomerLoyaltyRouteProps): Promise<React.JSX.Element> {
   const { customerId } = await params;
+  const { tab } = await searchParams;
   const token = await getAccessToken();
 
   const result = await getCustomerLoyaltyDetail(token, customerId);
@@ -25,6 +28,7 @@ export default async function CustomerLoyaltyRoute({
       balance={result.data.balance}
       entries={result.data.entries}
       redemptions={result.data.redemptions}
+      initialActiveTab={tab === 'redemptions' ? 'redemptions' : 'entries'}
     />
   );
 }

@@ -5,6 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { ClosureFormSheet } from './ClosureFormSheet';
 
+function getHiddenTimeSelects(container: HTMLElement): HTMLSelectElement[] {
+  return Array.from(
+    container.querySelectorAll('select[aria-hidden="true"]'),
+  ) as HTMLSelectElement[];
+}
+
 vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShell', () => ({
   BookingActionSheetShell: ({
     children,
@@ -46,7 +52,7 @@ describe('ClosureFormSheet', () => {
     const onSubmit = vi.fn().mockResolvedValue({ id: 'closure-1' });
     const onClose = vi.fn();
 
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <ClosureFormSheet
         open
         initialDate="2026-07-04"
@@ -61,10 +67,11 @@ describe('ClosureFormSheet', () => {
     expect(screen.getByRole('button', { name: 'Data' })).toHaveTextContent(/4 de julho/i);
 
     await user.selectOptions(screen.getByLabelText('Motivo'), 'MAINTENANCE');
-    await user.click(screen.getByRole('combobox', { name: 'Hora inicial' }));
-    await user.click(screen.getByRole('option', { name: '09:00' }));
-    await user.click(screen.getByRole('combobox', { name: 'Hora final' }));
-    await user.click(screen.getByRole('option', { name: '12:00' }));
+    const [startTimeSelect, endTimeSelect] = getHiddenTimeSelects(container);
+    expect(startTimeSelect).toBeDefined();
+    expect(endTimeSelect).toBeDefined();
+    fireEvent.change(startTimeSelect, { target: { value: '09:00' } });
+    fireEvent.change(endTimeSelect, { target: { value: '12:00' } });
     fireEvent.change(screen.getByLabelText('Observações'), {
       target: { value: 'Manutenção preventiva' },
     });
@@ -105,7 +112,7 @@ describe('ClosureFormSheet', () => {
   it('shows a validation error when only one time is selected', async () => {
     const user = userEvent.setup();
 
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <ClosureFormSheet
         open
         initialDate="2026-07-04"
@@ -117,8 +124,9 @@ describe('ClosureFormSheet', () => {
       />,
     );
 
-    await user.click(screen.getByRole('combobox', { name: 'Hora inicial' }));
-    await user.click(screen.getByRole('option', { name: '09:00' }));
+    const [startTimeSelect] = getHiddenTimeSelects(container);
+    expect(startTimeSelect).toBeDefined();
+    fireEvent.change(startTimeSelect, { target: { value: '09:00' } });
     await user.click(screen.getByRole('button', { name: 'Bloquear' }));
 
     expect(screen.getByText('Informe o horário inicial e final juntos.')).toBeInTheDocument();

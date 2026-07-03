@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import type { FormEvent, ReactNode } from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { ScheduleDateTimeRangeSheet } from './ScheduleDateTimeRangeSheet';
@@ -43,10 +42,8 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('ScheduleDateTimeRangeSheet', () => {
   it('submits the collected form values', async () => {
-    const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue({ id: 'item-1' });
-
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <ScheduleDateTimeRangeSheet<
         { date: string; startTime: string; endTime: string; notes?: string },
         { id: string }
@@ -78,14 +75,14 @@ describe('ScheduleDateTimeRangeSheet', () => {
       />,
     );
 
-    await user.click(screen.getByRole('combobox', { name: 'Hora inicial' }));
-    await user.click(screen.getByRole('option', { name: '09:00' }));
-    await user.click(screen.getByRole('combobox', { name: 'Hora final' }));
-    await user.click(screen.getByRole('option', { name: '12:00' }));
+    const hiddenTimeSelects = container.querySelectorAll('select[aria-hidden="true"]');
+    expect(hiddenTimeSelects).toHaveLength(2);
+    fireEvent.change(hiddenTimeSelects[0], { target: { value: '09:00' } });
+    fireEvent.change(hiddenTimeSelects[1], { target: { value: '12:00' } });
     fireEvent.change(screen.getByLabelText('Observações'), {
       target: { value: 'Teste' },
     });
-    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
@@ -98,9 +95,7 @@ describe('ScheduleDateTimeRangeSheet', () => {
   });
 
   it('shows a validation error from the provided validator', async () => {
-    const user = userEvent.setup();
-
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <ScheduleDateTimeRangeSheet<
         { date: string; startTime: string; endTime: string },
         { id: string }
@@ -128,11 +123,11 @@ describe('ScheduleDateTimeRangeSheet', () => {
       />,
     );
 
-    await user.click(screen.getByRole('combobox', { name: 'Hora inicial' }));
-    await user.click(screen.getByRole('option', { name: '12:00' }));
-    await user.click(screen.getByRole('combobox', { name: 'Hora final' }));
-    await user.click(screen.getByRole('option', { name: '09:00' }));
-    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    const hiddenTimeSelects = container.querySelectorAll('select[aria-hidden="true"]');
+    expect(hiddenTimeSelects).toHaveLength(2);
+    fireEvent.change(hiddenTimeSelects[0], { target: { value: '12:00' } });
+    fireEvent.change(hiddenTimeSelects[1], { target: { value: '09:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
     expect(screen.getByText('Horário inválido')).toBeInTheDocument();
   });

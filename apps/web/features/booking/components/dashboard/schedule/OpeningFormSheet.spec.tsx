@@ -5,6 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { OpeningFormSheet } from './OpeningFormSheet';
 
+function getHiddenTimeSelects(container: HTMLElement): HTMLSelectElement[] {
+  return Array.from(
+    container.querySelectorAll('select[aria-hidden="true"]'),
+  ) as HTMLSelectElement[];
+}
+
 vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShell', () => ({
   BookingActionSheetShell: ({
     children,
@@ -46,7 +52,7 @@ describe('OpeningFormSheet', () => {
     const onSubmit = vi.fn().mockResolvedValue({ id: 'opening-1' });
     const onClose = vi.fn();
 
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <OpeningFormSheet
         open
         initialDate="2026-07-05"
@@ -60,10 +66,11 @@ describe('OpeningFormSheet', () => {
 
     expect(screen.getByRole('button', { name: 'Data' })).toHaveTextContent(/5 de julho/i);
 
-    await user.click(screen.getByRole('combobox', { name: 'Hora inicial' }));
-    await user.click(screen.getByRole('option', { name: '09:00' }));
-    await user.click(screen.getByRole('combobox', { name: 'Hora final' }));
-    await user.click(screen.getByRole('option', { name: '14:00' }));
+    const [startTimeSelect, endTimeSelect] = getHiddenTimeSelects(container);
+    expect(startTimeSelect).toBeDefined();
+    expect(endTimeSelect).toBeDefined();
+    fireEvent.change(startTimeSelect, { target: { value: '09:00' } });
+    fireEvent.change(endTimeSelect, { target: { value: '14:00' } });
     fireEvent.change(screen.getByLabelText('Observações'), {
       target: { value: 'Horário especial' },
     });

@@ -145,4 +145,22 @@ describe('CustomerLoyaltyPage', () => {
     );
     expect(await screen.findByText('Lavagem Completa')).toBeInTheDocument();
   });
+
+  it('links redemption rows back to the redemptions tab on booking detail return', async () => {
+    renderWithIntl(
+      <CustomerLoyaltyPage
+        customer={customer}
+        balance={balance}
+        entries={entries}
+        redemptions={redemptions}
+        initialActiveTab="redemptions"
+      />,
+    );
+
+    const bookingLink = await screen.findByRole('link', { name: 'Agendamento booking-' });
+    expect(bookingLink).toHaveAttribute(
+      'href',
+      '/dashboard/bookings/booking-1?returnTo=%2Fdashboard%2Floyalty%2Fc-1%3Ftab%3Dredemptions',
+    );
+  });
 });

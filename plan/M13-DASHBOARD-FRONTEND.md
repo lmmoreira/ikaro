@@ -2684,6 +2684,8 @@ deactivateService(serviceId: string): Promise<void>
 Two pages under a new `/dashboard/loyalty` route. The search page lets staff find any customer by name/email; the detail page shows their active balance (with currency equivalent), earning history tab (active vs. expired entries), and redemption history tab.
 
 > **Architecture note:** the web layer stays composition-only. Do not fan out to multiple BFF/backend reads from the page or a client helper and then merge the results in `apps/web`. If the screen needs a composite view, the BFF owns that aggregation and returns a single contract for the page to render.
+>
+> **Route-shell note:** any authenticated dashboard section under `app/dashboard/<section>/` must have a sibling `layout.tsx` that wraps `DashboardShell` plus the locale/formatting/tenant providers. A standalone `page.tsx` there is wrong even if the data contract is correct.
 
 > 🔍 **Discover before starting:**
 > - Confirm `M13-S12` has shipped: `GET /v1/customers?search=` and enriched balance response exist.

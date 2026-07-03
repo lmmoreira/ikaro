@@ -88,11 +88,13 @@ Since we are following **Trunk-Based Development**, the frontend must have a "Bu
 Don't reach for `bffClient` outside a shell context, and don't try to add `credentials: 'include'` to a direct BFF call from the public hotsite expecting it to carry the cookie — it won't.
 Likewise, do not fan out across multiple BFF calls inside a page or route file and merge the responses in `apps/web`; if the screen needs composite data, add or extend the BFF contract so the web layer consumes one response and stays composition-only.
 
+**Dashboard section routes must be shell-wrapped.** Any authenticated dashboard area under `app/dashboard/<section>/` needs a sibling `layout.tsx` that loads `DashboardShell` plus the locale/formatting/tenant providers. A bare `page.tsx` under `app/dashboard/<section>/` is a bug: it renders outside the staff shell and breaks the sidebar/topbar/bottom-nav contract.
+
 ---
 
 ## 5. Folder Structure (`apps/web/`)
 
-The tree below reflects the current folder structure. Route files stay thin; feature code lives under `features/`, shell composition lives under `shells/`, and shared helpers live under `shared/`. Route files and pages may fetch and render, but they should not orchestrate multi-call data joins or response merging.
+The tree below reflects the current folder structure. Route files stay thin; feature code lives under `features/`, shell composition lives under `shells/`, and shared helpers live under `shared/`. Route files and pages may fetch and render, but they should not orchestrate multi-call data joins or response merging. Dashboard section routes additionally require a `layout.tsx` sibling to mount the shell.
 
 ```
 apps/web/

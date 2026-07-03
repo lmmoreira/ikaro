@@ -14,6 +14,13 @@ import { getInitials } from '@/shared/utils/initials';
 
 const RECENT_LIMIT = 5;
 const SEARCH_LIMIT = 20;
+const AVATAR_FALLBACK_CLASSES = [
+  'bg-blue-600',
+  'bg-violet-600',
+  'bg-cyan-600',
+  'bg-amber-600',
+  'bg-pink-600',
+] as const;
 
 function LoyaltySearchSkeleton(): React.JSX.Element {
   return (
@@ -45,8 +52,8 @@ function LoyaltySearchEmptyState({
   readonly body: string;
 }): React.JSX.Element {
   return (
-    <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-10 text-center">
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
         <Search className="h-5 w-5" aria-hidden="true" />
       </div>
       <p className="text-sm font-semibold text-gray-900">{title}</p>
@@ -57,18 +64,22 @@ function LoyaltySearchEmptyState({
 
 function CustomerRow({
   customer,
+  index,
   pointsBadge,
 }: {
   readonly customer: CustomerSearchListResponse['items'][number];
+  readonly index: number;
   readonly pointsBadge: (count: number) => string;
 }): React.JSX.Element {
+  const avatarClassName = AVATAR_FALLBACK_CLASSES[index % AVATAR_FALLBACK_CLASSES.length];
+
   return (
     <Link
       href={`/dashboard/loyalty/${customer.customerId}`}
-      className="flex items-center gap-3 border-b border-gray-100 px-4 py-4 transition-colors hover:bg-gray-50 last:border-b-0"
+      className="flex items-center gap-3 border-b border-gray-200 px-4 py-3.5 transition-colors hover:bg-gray-50 last:border-b-0"
     >
       <Avatar className="h-10 w-10 shrink-0">
-        <AvatarFallback className="bg-blue-600 text-xs font-bold text-white">
+        <AvatarFallback className={cn('text-xs font-bold text-white', avatarClassName)}>
           {getInitials(customer.name)}
         </AvatarFallback>
       </Avatar>
@@ -80,7 +91,7 @@ function CustomerRow({
 
       <Badge
         className={cn(
-          'shrink-0 border-0 px-3 py-1 text-xs font-semibold',
+          'shrink-0 border-0 px-3 py-1 text-xs font-bold',
           customer.currentPoints > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400',
         )}
       >
@@ -143,28 +154,33 @@ export function LoyaltySearchPage(): React.JSX.Element {
   const isEmptyResults = !isRecent && !isLoading && !isError && customers.length === 0;
 
   return (
-    <section className="mx-auto max-w-4xl space-y-4">
-      <div className="relative">
+    <section className="w-full space-y-0">
+      <div className="relative mb-6">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <input
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('searchPlaceholder')}
-          className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="h-11 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 shadow-none outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
       </div>
 
-      <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">{heading}</p>
+      <p className="mb-2 text-xs font-bold uppercase tracking-[0.06em] text-gray-400">{heading}</p>
 
       {isLoading ? (
         <LoyaltySearchSkeleton />
       ) : isError ? (
         <LoyaltySearchEmptyState title={t('searchErrorTitle')} body={t('searchErrorBody')} />
       ) : customers.length > 0 ? (
-        <Card className="overflow-hidden">
-          {customers.map((customer) => (
-            <CustomerRow key={customer.customerId} customer={customer} pointsBadge={pointsBadge} />
+        <Card className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-none">
+          {customers.map((customer, index) => (
+            <CustomerRow
+              key={customer.customerId}
+              customer={customer}
+              index={index}
+              pointsBadge={pointsBadge}
+            />
           ))}
         </Card>
       ) : isEmptyRecent ? (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import type {
   CustomerProfileResponse,
@@ -19,12 +20,14 @@ import {
   getCustomerLoyaltyEntries,
   getCustomerLoyaltyRedemptions,
 } from '@/features/loyalty/dashboard-api';
+import { appendReturnTo } from '@/features/booking/model/booking-navigation';
 
 interface CustomerLoyaltyPageProps {
   readonly customer: CustomerProfileResponse;
   readonly balance: EnrichedLoyaltyBalanceResponse;
   readonly entries: PaginatedLoyaltyEntriesResponse;
   readonly redemptions: PaginatedLoyaltyRedemptionsResponse;
+  readonly initialActiveTab?: 'entries' | 'redemptions';
 }
 
 const PAGE_SIZE_STEP = 20;
@@ -55,7 +58,7 @@ function HistoryTabs({
         type="button"
         onClick={() => onChange('entries')}
         className={cn(
-          'mb-[-2px] border-b-2 px-4 py-2 text-sm font-semibold transition-colors',
+          'mb-[-2px] border-b-2 px-4 pb-3 pt-2 text-sm font-semibold transition-colors',
           activeTab === 'entries'
             ? 'border-blue-600 text-blue-600'
             : 'border-transparent text-gray-400',
@@ -67,7 +70,7 @@ function HistoryTabs({
         type="button"
         onClick={() => onChange('redemptions')}
         className={cn(
-          'mb-[-2px] border-b-2 px-4 py-2 text-sm font-semibold transition-colors',
+          'mb-[-2px] border-b-2 px-4 pb-3 pt-2 text-sm font-semibold transition-colors',
           activeTab === 'redemptions'
             ? 'border-blue-600 text-blue-600'
             : 'border-transparent text-gray-400',
@@ -131,8 +134,8 @@ function EmptyState({
   readonly body: string;
 }): React.JSX.Element {
   return (
-    <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-10 text-center">
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
         {icon}
       </div>
       <p className="text-sm font-semibold text-gray-900">{title}</p>
@@ -146,6 +149,7 @@ export function CustomerLoyaltyPage({
   balance,
   entries: initialEntries,
   redemptions: initialRedemptions,
+  initialActiveTab = 'entries',
 }: CustomerLoyaltyPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.loyaltyPage');
   const dashboardT = useTranslations('dashboard');
@@ -155,7 +159,7 @@ export function CustomerLoyaltyPage({
   const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
   const setPageTitleOverride = topbarStatus?.setPageTitleOverride;
-  const [activeTab, setActiveTab] = useState<'entries' | 'redemptions'>('entries');
+  const [activeTab, setActiveTab] = useState<'entries' | 'redemptions'>(initialActiveTab);
   const [entries, setEntries] = useState(initialEntries);
   const [redemptions, setRedemptions] = useState(initialRedemptions);
   const [isLoadingEntries, setIsLoadingEntries] = useState(false);
@@ -185,6 +189,9 @@ export function CustomerLoyaltyPage({
   const balanceCardClassName = hasPoints
     ? 'bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white'
     : 'bg-gray-100 text-gray-900';
+  const returnToHref = `/dashboard/loyalty/${customer.customerId}${
+    activeTab === 'redemptions' ? '?tab=redemptions' : ''
+  }`;
 
   async function loadMoreEntries(): Promise<void> {
     if (isLoadingEntries || entries.items.length >= entries.total) return;
@@ -219,52 +226,67 @@ export function CustomerLoyaltyPage({
   }
 
   return (
-    <section className="mx-auto max-w-4xl space-y-5">
-      <header className="flex items-center gap-4">
-        <Avatar className="h-12 w-12 shrink-0">
-          <AvatarFallback className="bg-blue-600 text-sm font-bold text-white">
-            {getInitials(customer.name)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0">
-          <p className="truncate text-lg font-bold text-gray-900">{customer.name}</p>
-          <p className="truncate text-sm text-gray-500">{customer.email}</p>
-        </div>
-      </header>
+    <section className="w-full space-y-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <header className="flex items-center gap-4">
+          <Avatar className="h-12 w-12 shrink-0">
+            <AvatarFallback className="bg-blue-600 text-sm font-bold text-white">
+              {getInitials(customer.name)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-bold text-gray-900">{customer.name}</p>
+            <p className="truncate text-sm text-gray-500">{customer.email}</p>
+          </div>
+        </header>
 
-      <Card className={cn('overflow-hidden rounded-3xl border-0 shadow-sm', balanceCardClassName)}>
-        <div className="p-6">
-          <p className="text-5xl font-extrabold leading-none">{initialPoints}</p>
-          <p className="mt-2 text-sm font-medium opacity-80">
-            {hasPoints ? t('balanceLabelActive') : t('balanceLabelEmpty')}
-          </p>
+        <Card
+          className={cn(
+            'w-full max-w-md overflow-hidden rounded-2xl border-0 shadow-none lg:self-center',
+            balanceCardClassName,
+          )}
+        >
+          <div className="p-3.5 sm:p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-3xl font-extrabold leading-none sm:text-[2.25rem]">
+                  {initialPoints}
+                </p>
+                <p className="mt-1 text-xs font-medium uppercase tracking-[0.06em] opacity-80">
+                  {hasPoints ? t('balanceLabelActive') : t('balanceLabelEmpty')}
+                </p>
+              </div>
 
-          {hasPoints && nextExpiryLabel && balance.nextExpiryPoints !== null && (
-            <div className="mt-4 inline-flex max-w-full rounded-xl bg-white/15 px-3 py-2 text-sm font-medium">
-              <span className="mr-2 shrink-0">⚠️</span>
-              <span className="min-w-0">
-                {t('balanceExpiryLine', {
-                  count: balance.nextExpiryPoints,
-                  date: nextExpiryLabel,
-                })}
-              </span>
+              <div className="space-y-1.5 sm:max-w-[16rem] sm:text-right">
+                {hasPoints && nextExpiryLabel && balance.nextExpiryPoints !== null && (
+                  <div className="inline-flex max-w-full items-start rounded-xl bg-white/15 px-2.5 py-1.5 text-left text-xs font-medium sm:ml-auto sm:text-sm">
+                    <span className="mr-2 shrink-0">⚠️</span>
+                    <span className="min-w-0">
+                      {t('balanceExpiryLine', {
+                        count: balance.nextExpiryPoints,
+                        date: nextExpiryLabel,
+                      })}
+                    </span>
+                  </div>
+                )}
+
+                {hasPoints && balance.conversionRate > 0 && (
+                  <p className="text-xs font-medium opacity-90 sm:text-sm">
+                    {t('balanceRateLine', {
+                      pointsPerCurrencyUnit: balance.conversionRate,
+                      price: formatMoney(1),
+                      totalLabel: t('balanceTotalLabel'),
+                      total: formatMoney(totalValue),
+                    })}
+                  </p>
+                )}
+              </div>
             </div>
-          )}
+          </div>
+        </Card>
+      </div>
 
-          {hasPoints && balance.conversionRate > 0 && (
-            <p className="mt-3 text-sm font-medium opacity-90">
-              {t('balanceRateLine', {
-                pointsPerCurrencyUnit: balance.conversionRate,
-                price: formatMoney(1),
-                totalLabel: t('balanceTotalLabel'),
-                total: formatMoney(totalValue),
-              })}
-            </p>
-          )}
-        </div>
-      </Card>
-
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-none">
         <div className="px-4 py-4 sm:px-5">
           <HistoryTabs
             activeTab={activeTab}
@@ -280,7 +302,7 @@ export function CustomerLoyaltyPage({
                   {entries.items.map((entry) => (
                     <div
                       key={entry.id}
-                      className="flex items-center gap-3 border-b border-gray-100 py-3 last:border-b-0"
+                      className="flex items-center gap-3 border-b border-gray-200 py-3.5 last:border-b-0"
                     >
                       <EntryIcon expired={!entry.isActive} />
                       <div className="min-w-0 flex-1">
@@ -357,7 +379,7 @@ export function CustomerLoyaltyPage({
                 {redemptions.items.map((redemption) => (
                   <div
                     key={redemption.id}
-                    className="flex items-center gap-3 border-b border-gray-100 py-3 last:border-b-0"
+                    className="flex items-center gap-3 border-b border-gray-200 py-3.5 last:border-b-0"
                   >
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700"
@@ -385,11 +407,17 @@ export function CustomerLoyaltyPage({
                         {formatDateLong(new Date(redemption.redeemedAt))}
                       </p>
                       {redemption.bookingId && (
-                        <p className="mt-0.5 truncate text-xs text-gray-400">
+                        <Link
+                          href={appendReturnTo(
+                            `/dashboard/bookings/${redemption.bookingId}`,
+                            returnToHref,
+                          )}
+                          className="mt-0.5 inline-flex truncate text-xs text-gray-400 transition-colors hover:text-blue-700"
+                        >
                           {t('redemptionBookingLabel', {
                             bookingId: redemption.bookingId.slice(0, 8),
                           })}
-                        </p>
+                        </Link>
                       )}
                     </div>
                     <span className="shrink-0 text-sm font-semibold text-rose-700">
