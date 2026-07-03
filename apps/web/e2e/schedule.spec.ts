@@ -18,9 +18,11 @@ function installHydrationGuard(page: Page): string[] {
 
   function record(message: string): void {
     if (
-      message.includes('Hydration failed because the server rendered HTML didn\'t match the client')
-      || message.includes("didn't match the client")
-      || message.includes('hydration mismatch')
+      message.includes(
+        "Hydration failed because the server rendered HTML didn't match the client",
+      ) ||
+      message.includes("didn't match the client") ||
+      message.includes('hydration mismatch')
     ) {
       hydrationErrors.push(message);
     }
