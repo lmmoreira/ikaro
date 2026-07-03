@@ -25,8 +25,9 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
     pathname,
   );
   const isServiceDetailAction = /^\/dashboard\/services\/[^/]+\/(edit|deactivate)$/.test(pathname);
+  const isLoyaltyDetail = /^\/dashboard\/loyalty\/[^/]+$/.test(pathname);
 
-  if (isBookingDetail || isServiceDetailAction) return null;
+  if (isBookingDetail || isServiceDetailAction || isLoyaltyDetail) return null;
 
   const itemClass = (active: boolean) =>
     cn(

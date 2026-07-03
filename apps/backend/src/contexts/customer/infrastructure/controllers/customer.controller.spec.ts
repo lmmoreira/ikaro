@@ -70,6 +70,24 @@ describe('CustomerController', () => {
     });
   });
 
+  describe('getById()', () => {
+    it('returns the customer profile for the requested id', async () => {
+      const result = await controller.getById(customerId);
+      expect(result.customerId).toBe(customerId);
+      expect(result.email).toBe('ctrl@example.com');
+      expect(result.name).toBe('Test Customer');
+      expect(result.phone).toBeNull();
+    });
+
+    it('maps CustomerNotFoundError to 404', async () => {
+      const err = await controller
+        .getById('00000000-0000-4000-8000-000000009997')
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
   describe('updateMe()', () => {
     it('returns the updated profile', async () => {
       const result = await controller.updateMe({ name: 'Updated', phone: '+5531988888888' });

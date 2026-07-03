@@ -1,0 +1,447 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import type {
+  CustomerProfileResponse,
+  EnrichedLoyaltyBalanceResponse,
+  PaginatedLoyaltyEntriesResponse,
+  PaginatedLoyaltyRedemptionsResponse,
+} from '@ikaro/types';
+import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar';
+import { Button } from '@/shared/components/ui/button';
+import { Card } from '@/shared/components/ui/card';
+import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
+import { cn } from '@/shared/utils/cn';
+import { getInitials } from '@/shared/utils/initials';
+import {
+  getCustomerLoyaltyEntries,
+  getCustomerLoyaltyRedemptions,
+} from '@/features/loyalty/dashboard-api';
+
+interface CustomerLoyaltyPageProps {
+  readonly customer: CustomerProfileResponse;
+  readonly balance: EnrichedLoyaltyBalanceResponse;
+  readonly entries: PaginatedLoyaltyEntriesResponse;
+  readonly redemptions: PaginatedLoyaltyRedemptionsResponse;
+}
+
+const PAGE_SIZE_STEP = 20;
+
+function formatShortDateLabel(date: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(date));
+}
+
+function HistoryTabs({
+  activeTab,
+  onChange,
+  entriesLabel,
+  redemptionsLabel,
+}: {
+  readonly activeTab: 'entries' | 'redemptions';
+  readonly onChange: (tab: 'entries' | 'redemptions') => void;
+  readonly entriesLabel: string;
+  readonly redemptionsLabel: string;
+}): React.JSX.Element {
+  return (
+    <div className="mb-4 flex border-b-2 border-gray-200">
+      <button
+        type="button"
+        onClick={() => onChange('entries')}
+        className={cn(
+          'mb-[-2px] border-b-2 px-4 py-2 text-sm font-semibold transition-colors',
+          activeTab === 'entries'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-gray-400',
+        )}
+      >
+        {entriesLabel}
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('redemptions')}
+        className={cn(
+          'mb-[-2px] border-b-2 px-4 py-2 text-sm font-semibold transition-colors',
+          activeTab === 'redemptions'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-gray-400',
+        )}
+      >
+        {redemptionsLabel}
+      </button>
+    </div>
+  );
+}
+
+function EntryIcon({ expired }: { readonly expired: boolean }): React.JSX.Element {
+  return (
+    <div
+      className={cn(
+        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+        expired ? 'bg-gray-100 text-gray-400' : 'bg-emerald-100 text-emerald-700',
+      )}
+      aria-hidden="true"
+    >
+      {expired ? (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="6 8 2 12 6 16" />
+          <line x1="22" y1="12" x2="2" y2="12" />
+        </svg>
+      ) : (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="18 8 22 12 18 16" />
+          <line x1="2" y1="12" x2="22" y2="12" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  body,
+}: {
+  readonly icon: React.ReactNode;
+  readonly title: string;
+  readonly body: string;
+}): React.JSX.Element {
+  return (
+    <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-10 text-center">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+        {icon}
+      </div>
+      <p className="text-sm font-semibold text-gray-900">{title}</p>
+      <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">{body}</p>
+    </div>
+  );
+}
+
+export function CustomerLoyaltyPage({
+  customer,
+  balance,
+  entries: initialEntries,
+  redemptions: initialRedemptions,
+}: CustomerLoyaltyPageProps): React.JSX.Element {
+  const t = useTranslations('dashboard.loyaltyPage');
+  const dashboardT = useTranslations('dashboard');
+  const { formatMoney, formatDateLong } = useFormatting();
+  const locale = useLocale();
+  const topbarStatus = useDashboardTopbarStatus();
+  const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
+  const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
+  const setPageTitleOverride = topbarStatus?.setPageTitleOverride;
+  const [activeTab, setActiveTab] = useState<'entries' | 'redemptions'>('entries');
+  const [entries, setEntries] = useState(initialEntries);
+  const [redemptions, setRedemptions] = useState(initialRedemptions);
+  const [isLoadingEntries, setIsLoadingEntries] = useState(false);
+  const [isLoadingRedemptions, setIsLoadingRedemptions] = useState(false);
+
+  useEffect(() => {
+    setBackHrefOverride?.('/dashboard/loyalty');
+    setBackLabelOverride?.(dashboardT('nav.loyalty'));
+    setPageTitleOverride?.(customer.name);
+
+    return () => {
+      setBackHrefOverride?.(null);
+      setBackLabelOverride?.(null);
+      setPageTitleOverride?.(null);
+    };
+  }, [customer.name, dashboardT, setBackHrefOverride, setBackLabelOverride, setPageTitleOverride]);
+
+  const initialPoints = balance.currentPoints;
+  const hasPoints = initialPoints > 0;
+  const totalValue = useMemo(
+    () => (balance.conversionRate > 0 ? initialPoints / balance.conversionRate : 0),
+    [balance.conversionRate, initialPoints],
+  );
+  const nextExpiryLabel = balance.nextExpiryDate
+    ? formatDateLong(new Date(balance.nextExpiryDate))
+    : null;
+  const balanceCardClassName = hasPoints
+    ? 'bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white'
+    : 'bg-gray-100 text-gray-900';
+
+  async function loadMoreEntries(): Promise<void> {
+    if (isLoadingEntries || entries.items.length >= entries.total) return;
+    setIsLoadingEntries(true);
+    try {
+      const next = await getCustomerLoyaltyEntries(customer.customerId, {
+        page: 1,
+        limit: entries.limit + PAGE_SIZE_STEP,
+      });
+      setEntries(next);
+    } catch {
+      // Keep the current page when loading more fails; the user can retry.
+    } finally {
+      setIsLoadingEntries(false);
+    }
+  }
+
+  async function loadMoreRedemptions(): Promise<void> {
+    if (isLoadingRedemptions || redemptions.items.length >= redemptions.total) return;
+    setIsLoadingRedemptions(true);
+    try {
+      const next = await getCustomerLoyaltyRedemptions(customer.customerId, {
+        page: 1,
+        limit: redemptions.limit + PAGE_SIZE_STEP,
+      });
+      setRedemptions(next);
+    } catch {
+      // Keep the current page when loading more fails; the user can retry.
+    } finally {
+      setIsLoadingRedemptions(false);
+    }
+  }
+
+  return (
+    <section className="mx-auto max-w-4xl space-y-5">
+      <header className="flex items-center gap-4">
+        <Avatar className="h-12 w-12 shrink-0">
+          <AvatarFallback className="bg-blue-600 text-sm font-bold text-white">
+            {getInitials(customer.name)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p className="truncate text-lg font-bold text-gray-900">{customer.name}</p>
+          <p className="truncate text-sm text-gray-500">{customer.email}</p>
+        </div>
+      </header>
+
+      <Card className={cn('overflow-hidden rounded-3xl border-0 shadow-sm', balanceCardClassName)}>
+        <div className="p-6">
+          <p className="text-5xl font-extrabold leading-none">{initialPoints}</p>
+          <p className="mt-2 text-sm font-medium opacity-80">
+            {hasPoints ? t('balanceLabelActive') : t('balanceLabelEmpty')}
+          </p>
+
+          {hasPoints && nextExpiryLabel && balance.nextExpiryPoints !== null && (
+            <div className="mt-4 inline-flex max-w-full rounded-xl bg-white/15 px-3 py-2 text-sm font-medium">
+              <span className="mr-2 shrink-0">⚠️</span>
+              <span className="min-w-0">
+                {t('balanceExpiryLine', {
+                  count: balance.nextExpiryPoints,
+                  date: nextExpiryLabel,
+                })}
+              </span>
+            </div>
+          )}
+
+          {hasPoints && balance.conversionRate > 0 && (
+            <p className="mt-3 text-sm font-medium opacity-90">
+              {t('balanceRateLine', {
+                pointsPerCurrencyUnit: balance.conversionRate,
+                price: formatMoney(1),
+                totalLabel: t('balanceTotalLabel'),
+                total: formatMoney(totalValue),
+              })}
+            </p>
+          )}
+        </div>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <div className="px-4 py-4 sm:px-5">
+          <HistoryTabs
+            activeTab={activeTab}
+            onChange={setActiveTab}
+            entriesLabel={t('entriesTab')}
+            redemptionsLabel={t('redemptionsTab')}
+          />
+
+          {activeTab === 'entries' ? (
+            entries.items.length > 0 ? (
+              <>
+                <div>
+                  {entries.items.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex items-center gap-3 border-b border-gray-100 py-3 last:border-b-0"
+                    >
+                      <EntryIcon expired={!entry.isActive} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-gray-900">
+                          {entry.serviceName}{' '}
+                          <span
+                            className={cn(
+                              'ml-2 rounded-full px-2 py-0.5 text-[0.7rem] font-semibold',
+                              entry.isActive
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-gray-100 text-gray-500',
+                            )}
+                          >
+                            {entry.isActive ? t('entryActiveBadge') : t('entryExpiredBadge')}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          {formatDateLong(new Date(entry.earnedAt))} ·{' '}
+                          {t('entryExpiryLine', {
+                            expiresAt: formatShortDateLabel(entry.expiresAt, locale),
+                          })}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold text-emerald-700">
+                        {t('earnedPointsBadge', { count: entry.points })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 flex flex-col items-center gap-3">
+                  <p className="text-center text-xs text-gray-400">
+                    {t('showingEntries', {
+                      shown: entries.items.length,
+                      total: entries.total,
+                    })}
+                  </p>
+                  {entries.items.length < entries.total && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={loadMoreEntries}
+                      disabled={isLoadingEntries}
+                    >
+                      {t('loadMoreEntries')}
+                    </Button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <EmptyState
+                icon={
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                }
+                title={t('entriesEmptyTitle')}
+                body={t('entriesEmptyBody')}
+              />
+            )
+          ) : redemptions.items.length > 0 ? (
+            <>
+              <div>
+                {redemptions.items.map((redemption) => (
+                  <div
+                    key={redemption.id}
+                    className="flex items-center gap-3 border-b border-gray-100 py-3 last:border-b-0"
+                  >
+                    <div
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700"
+                      aria-hidden="true"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="6 8 2 12 6 16" />
+                        <line x1="22" y1="12" x2="2" y2="12" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-900">
+                        {redemption.notes?.trim() || t('redemptionDefaultTitle')}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {formatDateLong(new Date(redemption.redeemedAt))}
+                      </p>
+                      {redemption.bookingId && (
+                        <p className="mt-0.5 truncate text-xs text-gray-400">
+                          {t('redemptionBookingLabel', {
+                            bookingId: redemption.bookingId.slice(0, 8),
+                          })}
+                        </p>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-rose-700">
+                      {t('redeemedPointsBadge', { count: redemption.pointsRedeemed })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex flex-col items-center gap-3">
+                <p className="text-center text-xs text-gray-400">
+                  {t('showingRedemptions', {
+                    shown: redemptions.items.length,
+                    total: redemptions.total,
+                  })}
+                </p>
+                {redemptions.items.length < redemptions.total && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={loadMoreRedemptions}
+                    disabled={isLoadingRedemptions}
+                  >
+                    {t('loadMoreRedemptions')}
+                  </Button>
+                )}
+              </div>
+            </>
+          ) : (
+            <EmptyState
+              icon={
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9 12h6" />
+                </svg>
+              }
+              title={t('redemptionsEmptyTitle')}
+              body={t('redemptionsEmptyBody')}
+            />
+          )}
+        </div>
+      </Card>
+    </section>
+  );
+}

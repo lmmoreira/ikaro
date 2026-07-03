@@ -96,6 +96,10 @@ function resolveTopbarRouteState({
     pageTitle = dashboardT(pageTitleKey);
   }
 
+  if (returnTo && backHref === null) {
+    backHref = returnTo;
+  }
+
   return {
     pageTitle,
     backHref,
@@ -116,6 +120,8 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
   const initials = getInitials(userName);
   const serviceRouteMatch = matchServiceRoute(pathname);
   const returnTo = topbarStatus?.backHrefOverride ?? null;
+  const backLabelOverride = topbarStatus?.backLabelOverride ?? null;
+  const pageTitleOverride = topbarStatus?.pageTitleOverride ?? null;
   const { pageTitle, backHref, backLabel, isBookingRoute, isServicesCreateRoute } =
     resolveTopbarRouteState({
       pathname,
@@ -127,6 +133,8 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
     });
   const bookingStatusLabels = buildBookingStatusLabels(bookingT);
   const showBackLink = Boolean(backHref);
+  const effectivePageTitle = pageTitleOverride ?? pageTitle;
+  const effectiveBackLabel = backLabelOverride ?? backLabel;
 
   return (
     <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 lg:px-6">
@@ -137,9 +145,11 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
             className="flex items-center gap-1.5 text-[0.9375rem] font-semibold text-gray-900 transition-colors hover:text-blue-700"
           >
             <ChevronLeft className="h-5 w-5" />
-            <span>{backLabel}</span>
+            <span>{effectiveBackLabel}</span>
           </Link>
-          <h1 className="truncate text-[1.0625rem] font-bold text-gray-900">{pageTitle}</h1>
+          <h1 className="truncate text-[1.0625rem] font-bold text-gray-900">
+            {effectivePageTitle}
+          </h1>
         </div>
       ) : (
         <>
@@ -150,7 +160,9 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
             <span className="truncate text-[0.9375rem] font-bold text-gray-900">{tenantName}</span>
           </div>
 
-          <h1 className="hidden text-[1.0625rem] font-bold text-gray-900 lg:block">{pageTitle}</h1>
+          <h1 className="hidden text-[1.0625rem] font-bold text-gray-900 lg:block">
+            {effectivePageTitle}
+          </h1>
         </>
       )}
 

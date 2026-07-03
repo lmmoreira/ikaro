@@ -84,6 +84,62 @@ describe('CustomersController (component)', () => {
     });
   });
 
+  describe('GET /v1/customers/:customerId', () => {
+    it('returns 401 when no JWT is provided', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/customers/c-1');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 when JWT role is CUSTOMER (not STAFF/MANAGER)', async () => {
+      const token = makeCustomerJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers/20000000-0000-4000-8000-000000000001')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 200 with the customer profile for a valid STAFF JWT', async () => {
+      const token = makeStaffJwt(jwtService);
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValue(mockProfile);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers/20000000-0000-4000-8000-000000000001')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockProfile);
+      expect(backendHttpService.get).toHaveBeenCalledWith(
+        '/customers/20000000-0000-4000-8000-000000000001',
+      );
+    });
+
+    it('returns 400 when customerId is not a UUID', async () => {
+      const token = makeStaffJwt(jwtService);
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers/not-a-uuid')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(400);
+    });
+
+    it('propagates backend 404 error', async () => {
+      const token = makeStaffJwt(jwtService);
+      const { HttpException: HE } = await import('@nestjs/common');
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockRejectedValue(new HE({ status: 404 }, 404));
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers/20000000-0000-4000-8000-000000000001')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(404);
+    });
+  });
+
   describe('PATCH /v1/customers/me', () => {
     const validBody = { name: 'New Name', phone: '+5531988888888' };
 
@@ -190,12 +246,12 @@ describe('CustomersController (component)', () => {
       expect(res.status).toBe(200);
     });
 
-    it('returns 400 when search param is shorter than 5 chars', async () => {
+    it('returns 400 when search param is empty', async () => {
       setupActiveGuardMock(httpService);
       const token = makeStaffJwt(jwtService);
 
       const res = await request(app.getHttpServer())
-        .get('/v1/customers?search=jo')
+        .get('/v1/customers?search=')
         .set('Cookie', `access_token=${token}`)
         .set('x-tenant-id', TENANT_ID);
 

@@ -12,6 +12,10 @@ interface DashboardTopbarStatusContextValue {
   readonly setServiceStatus: (status: DashboardServiceStatus | null) => void;
   readonly backHrefOverride: string | null;
   readonly setBackHrefOverride: (href: string | null) => void;
+  readonly backLabelOverride: string | null;
+  readonly setBackLabelOverride: (label: string | null) => void;
+  readonly pageTitleOverride: string | null;
+  readonly setPageTitleOverride: (title: string | null) => void;
 }
 
 interface DashboardTopbarStatusProviderProps {
@@ -32,6 +36,8 @@ export function DashboardTopbarStatusProvider({
     initialServiceStatus,
   );
   const [backHrefOverride, setBackHrefOverride] = useState<string | null>(null);
+  const [backLabelOverride, setBackLabelOverride] = useState<string | null>(null);
+  const [pageTitleOverride, setPageTitleOverride] = useState<string | null>(null);
   const value = useMemo(
     () => ({
       bookingStatus,
@@ -40,8 +46,23 @@ export function DashboardTopbarStatusProvider({
       setServiceStatus,
       backHrefOverride,
       setBackHrefOverride,
+      backLabelOverride,
+      setBackLabelOverride,
+      pageTitleOverride,
+      setPageTitleOverride,
     }),
-    [backHrefOverride, bookingStatus, serviceStatus, setBookingStatus, setServiceStatus],
+    [
+      backHrefOverride,
+      backLabelOverride,
+      bookingStatus,
+      pageTitleOverride,
+      serviceStatus,
+      setBookingStatus,
+      setBackHrefOverride,
+      setBackLabelOverride,
+      setPageTitleOverride,
+      setServiceStatus,
+    ],
   );
 
   return (

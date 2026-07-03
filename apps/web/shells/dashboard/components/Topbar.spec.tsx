@@ -61,12 +61,19 @@ function TopbarStatusProbe(): React.JSX.Element {
 }
 
 function TopbarSetter({ href }: { readonly href: string }): React.JSX.Element {
-  const { setBackHrefOverride } = useDashboardTopbarStatus()!;
+  const { setBackHrefOverride, setBackLabelOverride, setPageTitleOverride } =
+    useDashboardTopbarStatus()!;
 
   useEffect(() => {
     setBackHrefOverride(href);
-    return () => setBackHrefOverride(null);
-  }, [href, setBackHrefOverride]);
+    setBackLabelOverride('Fidelidade');
+    setPageTitleOverride('João Silva');
+    return () => {
+      setBackHrefOverride(null);
+      setBackLabelOverride(null);
+      setPageTitleOverride(null);
+    };
+  }, [href, setBackHrefOverride, setBackLabelOverride, setPageTitleOverride]);
 
   return <></>;
 }
@@ -177,6 +184,22 @@ describe('Topbar', () => {
     expect(screen.getByText('Aguardando info')).toBeInTheDocument();
   });
 
+  it('uses explicit overrides on custom detail pages', async () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/loyalty/c-1');
+    render(
+      <DashboardTopbarStatusProvider>
+        <TopbarSetter href="/dashboard/loyalty" />
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(await screen.findByRole('link', { name: 'Fidelidade' })).toHaveAttribute(
+      'href',
+      '/dashboard/loyalty',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('João Silva');
+  });
+
   it('prefers returnTo for booking routes opened from schedule', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123');
 
@@ -187,7 +210,7 @@ describe('Topbar', () => {
       </DashboardTopbarStatusProvider>,
     );
 
-    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Fidelidade' })).toHaveAttribute(
       'href',
       '/dashboard/schedule?weekStart=2026-06-29&date=2026-06-29',
     );
