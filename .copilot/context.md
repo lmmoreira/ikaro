@@ -223,7 +223,7 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 ### CI gates (block merge)
 ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Snyk SCA · Gitleaks · Trivy · Checkov/Tfsec
 
-- When SonarCloud is failing or a bot mentions Sonar, inspect the live Sonar issue list and the current Sonar job before editing code. Never "fix Sonar" from stale CI logs alone, and never claim a Sonar fix is done without verifying the live Sonar stage/issue list after the change.
+- When SonarCloud is failing or a bot mentions Sonar, inspect the live Sonar issue list, the quality gate metric/summary, and the current Sonar job before editing code. Never "fix Sonar" from stale CI logs alone, and never claim a Sonar fix is done without verifying the live Sonar stage, issue list, and quality gate after the change.
 
 ### Definition of Done
 - [ ] Matches cited UC's main + alt flows; CI passes (`pnpm lint`, `pnpm test`, `pnpm type-check`)
@@ -260,7 +260,7 @@ Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-
 | Utility function (e.g. `getInitials`) copy-pasted inline in each component | Grep `apps/web/shared/utils/` first; create `shared/utils/<name>.ts` + `.spec.ts` pair there |
 | Status-to-label or status-to-class mappings duplicated across dashboard components | Extract one shared helper next to the feature module and reuse it from all callers |
 | Dashboard schedule timeline uses the generic booking badge palette in tests or components | Use `SCHEDULE_BOOKING_TIMELINE_CLASSES` for schedule timeline cards; reserve `BOOKING_STATUS_CLASSES` for generic booking badges and lists |
-| SonarCloud is failing and only stale CI logs were checked | Inspect the live Sonar issue list and current Sonar job first, then fix the reported rule and verify the live Sonar stage again before declaring it resolved |
+| SonarCloud is failing and only stale CI logs were checked | Inspect the live Sonar issue list, quality gate metrics, and current Sonar job first, then fix the reported rule and verify the live Sonar stage, issue list, and quality gate again before declaring it resolved |
 | Wrong web→BFF transport: `bffServerFetch` in client file, `bffClient` in Server Component, raw `fetch()` in hook | Server: `bffServerFetch(token, path)`. Client: `bffClient.get(path)`. Hook `tenantId`: `useTenant()` only |
 
 ---

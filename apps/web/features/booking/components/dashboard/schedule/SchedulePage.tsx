@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type {
@@ -147,21 +147,13 @@ function toLocalDate(dateKey: string): Date {
 
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() => {
-    const browserWindow = globalThis.window;
-    if (browserWindow === undefined || browserWindow.matchMedia === undefined) {
-      return false;
-    }
-
-    return browserWindow.matchMedia(query).matches;
+    return globalThis.window?.matchMedia?.(query)?.matches ?? false;
   });
 
   useEffect(() => {
-    const browserWindow = globalThis.window;
-    if (browserWindow === undefined || browserWindow.matchMedia === undefined) {
-      return;
-    }
+    const mediaQuery = globalThis.window?.matchMedia?.(query);
+    if (!mediaQuery) return;
 
-    const mediaQuery = browserWindow.matchMedia(query);
     const updateMatches = () => setMatches(mediaQuery.matches);
 
     updateMatches();
@@ -433,6 +425,73 @@ function buildBlockStyle(
   };
 }
 
+interface TimelineBlockShellProps {
+  readonly compact: boolean;
+  readonly className: string;
+  readonly style: CSSProperties;
+  readonly href?: string;
+  readonly onClick?: () => void;
+  readonly ariaLabel?: string;
+  readonly icon?: ReactNode;
+  readonly title: string;
+  readonly subtitle: string;
+  readonly footer?: ReactNode;
+  readonly trailing?: ReactNode;
+}
+
+function TimelineBlockShell({
+  compact,
+  className,
+  style,
+  href,
+  onClick,
+  ariaLabel,
+  icon,
+  title,
+  subtitle,
+  footer,
+  trailing,
+}: TimelineBlockShellProps): React.JSX.Element {
+  const content = (
+    <div className="flex h-full flex-col gap-1">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-start gap-2">
+          {icon}
+          <div className="min-w-0">
+            <p className={cn('truncate font-semibold', compact ? 'text-xs' : 'text-sm')}>{title}</p>
+            <p className={cn('truncate opacity-80', compact ? 'text-[0.65rem]' : 'text-xs')}>
+              {subtitle}
+            </p>
+          </div>
+        </div>
+        {trailing}
+      </div>
+      {footer}
+    </div>
+  );
+
+  const shellClassName = cn(
+    compact
+      ? 'absolute overflow-hidden rounded-xl px-2 py-1.5 shadow-sm'
+      : 'absolute overflow-hidden rounded-2xl px-3 py-2 shadow-sm',
+    className,
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={shellClassName} style={style} aria-label={ariaLabel}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} className={shellClassName} style={style}>
+      {content}
+    </button>
+  );
+}
+
 function getClosureReasonLabel(
   t: (key: 'reasonDayOff' | 'reasonMaintenance' | 'reasonHoliday') => string,
   reason: ScheduleClosure['reason'],
@@ -636,6 +695,19 @@ export function SchedulePage({
     timelineTitle = t('statusClosed');
   }
 
+  function resetInteractiveState(): void {
+    setClosureWarning(null);
+    setClosureSheetOpen(false);
+    setOpeningSheetOpen(false);
+    setStatusFilterOpen(false);
+  }
+
+  function syncWeekAndDate(weekKey: string, dateKey: string): void {
+    setWeekStartKey(weekKey);
+    setSelectedDateKey(dateKey);
+    resetInteractiveState();
+  }
+
   async function handleCreateClosure(body: CreateClosureRequest): Promise<ScheduleClosure> {
     const dayHours = getDayHoursForDate(body.date, businessHours);
     const created = await createClosureMutation.mutateAsync(body);
@@ -649,8 +721,7 @@ export function SchedulePage({
       return overlaps(bookingStart, bookingEnd, timeToMinutes(start), timeToMinutes(end));
     }).length;
 
-    setWeekStartKey(getWeekStartKey(body.date));
-    setSelectedDateKey(body.date);
+    syncWeekAndDate(getWeekStartKey(body.date), body.date);
     setClosureWarning(overlapCount > 0 ? t('closureWarning', { count: overlapCount }) : null);
     setClosureSheetOpen(false);
     return created;
@@ -658,8 +729,7 @@ export function SchedulePage({
 
   async function handleCreateOpening(body: CreateOpeningRequest): Promise<ScheduleOpening> {
     const created = await createOpeningMutation.mutateAsync(body);
-    setWeekStartKey(getWeekStartKey(body.date));
-    setSelectedDateKey(body.date);
+    syncWeekAndDate(getWeekStartKey(body.date), body.date);
     setOpeningSheetOpen(false);
     return created;
   }
@@ -676,32 +746,17 @@ export function SchedulePage({
 
   function handlePrevWeek(): void {
     const nextWeekStartKey = buildWeekShift(weekStartKey, -7);
-    setWeekStartKey(nextWeekStartKey);
-    setSelectedDateKey(nextWeekStartKey);
-    setClosureWarning(null);
-    setClosureSheetOpen(false);
-    setOpeningSheetOpen(false);
-    setStatusFilterOpen(false);
+    syncWeekAndDate(nextWeekStartKey, nextWeekStartKey);
   }
 
   function handleNextWeek(): void {
     const nextWeekStartKey = buildWeekShift(weekStartKey, 7);
-    setWeekStartKey(nextWeekStartKey);
-    setSelectedDateKey(nextWeekStartKey);
-    setClosureWarning(null);
-    setClosureSheetOpen(false);
-    setOpeningSheetOpen(false);
-    setStatusFilterOpen(false);
+    syncWeekAndDate(nextWeekStartKey, nextWeekStartKey);
   }
 
   function handleGoToToday(): void {
     const currentWeekStartKey = getWeekStartKey(todayKey);
-    setWeekStartKey(currentWeekStartKey);
-    setSelectedDateKey(todayKey);
-    setClosureWarning(null);
-    setClosureSheetOpen(false);
-    setOpeningSheetOpen(false);
-    setStatusFilterOpen(false);
+    syncWeekAndDate(currentWeekStartKey, todayKey);
   }
 
   function handleToggleStatus(status: BookingStatus): void {
@@ -748,15 +803,10 @@ export function SchedulePage({
     const laneLeft = laneWidth * event.laneIndex;
 
     return (
-      <Link
+      <TimelineBlockShell
         key={event.id}
-        href={`/dashboard/bookings/${event.booking.bookingId}?returnTo=${encodeURIComponent(
-          scheduleReturnTo,
-        )}`}
+        compact={compact}
         className={cn(
-          compact
-            ? 'absolute overflow-hidden rounded-xl px-2 py-1.5 shadow-sm'
-            : 'absolute overflow-hidden rounded-2xl px-3 py-2 shadow-sm',
           'z-20 hover:shadow-md',
           event.warning
             ? 'border-orange-300 bg-orange-50 text-orange-950'
@@ -767,34 +817,30 @@ export function SchedulePage({
           left: `${laneLeft}%`,
           width: `${laneWidth}%`,
         }}
-        aria-label={event.booking.contactName}
-      >
-        <div className="flex h-full flex-col gap-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex min-w-0 items-start gap-2">
-              {event.warning ? (
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
-              ) : null}
-              <div className="min-w-0">
-                <p className={cn('truncate font-semibold', compact ? 'text-xs' : 'text-sm')}>
-                  {event.title}
-                </p>
-                <p className={cn('truncate opacity-80', compact ? 'text-[0.65rem]' : 'text-xs')}>
-                  {event.subtitle}
-                </p>
-              </div>
-            </div>
-            <Badge
-              variant="outline"
-              className={cn(
-                'shrink-0 border-0',
-                compact ? 'text-[0.62rem]' : 'text-[0.6875rem]',
-                SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
-              )}
-            >
-              {statusLabels[event.booking.status]}
-            </Badge>
-          </div>
+        href={`/dashboard/bookings/${event.booking.bookingId}?returnTo=${encodeURIComponent(
+          scheduleReturnTo,
+        )}`}
+        ariaLabel={event.booking.contactName}
+        icon={
+          event.warning ? (
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
+          ) : null
+        }
+        title={event.title}
+        subtitle={event.subtitle}
+        trailing={
+          <Badge
+            variant="outline"
+            className={cn(
+              'shrink-0 border-0',
+              compact ? 'text-[0.62rem]' : 'text-[0.6875rem]',
+              SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
+            )}
+          >
+            {statusLabels[event.booking.status]}
+          </Badge>
+        }
+        footer={
           <div className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}>
             {formatEventRange(
               getLocalTimeKey(new Date(event.booking.scheduledAt), timezone),
@@ -807,8 +853,8 @@ export function SchedulePage({
               ),
             )}
           </div>
-        </div>
-      </Link>
+        }
+      />
     );
   }
 
@@ -827,31 +873,18 @@ export function SchedulePage({
     );
 
     return (
-      <button
+      <TimelineBlockShell
         key={event.id}
-        type="button"
-        onClick={() => setRemoveOpeningTarget(event.opening)}
-        className={cn(
-          compact
-            ? 'absolute overflow-hidden rounded-xl px-2 py-1.5 shadow-sm'
-            : 'absolute overflow-hidden rounded-2xl px-3 py-2 shadow-sm',
-          'z-10 border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100',
-        )}
+        compact={compact}
+        className="z-10 border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
         style={blockStyle}
-      >
-        <div className="flex h-full items-start gap-2">
-          <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-          <div className="min-w-0 text-left">
-            <p className={cn('truncate font-semibold', compact ? 'text-xs' : 'text-sm')}>
-              {t('specialOpeningBadge')}
-            </p>
-            <p className={cn('truncate opacity-80', compact ? 'text-[0.625rem]' : 'text-xs')}>
-              {event.opening.notes ??
-                formatEventRange(event.opening.startTime, event.opening.endTime)}
-            </p>
-          </div>
-        </div>
-      </button>
+        onClick={() => setRemoveOpeningTarget(event.opening)}
+        icon={<CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />}
+        title={t('specialOpeningBadge')}
+        subtitle={
+          event.opening.notes ?? formatEventRange(event.opening.startTime, event.opening.endTime)
+        }
+      />
     );
   }
 
@@ -870,36 +903,24 @@ export function SchedulePage({
     );
 
     return (
-      <button
+      <TimelineBlockShell
         key={event.id}
-        type="button"
-        onClick={() => setRemoveClosureTarget(event.closure)}
-        className={cn(
-          compact
-            ? 'absolute overflow-hidden rounded-xl px-2 py-1.5 shadow-sm'
-            : 'absolute overflow-hidden rounded-2xl px-3 py-2 shadow-sm',
-          'z-10 border-slate-200 text-slate-900 hover:bg-slate-100',
-        )}
+        compact={compact}
+        className="z-10 border-slate-200 text-slate-900 hover:bg-slate-100"
         style={{
           ...blockStyle,
           backgroundImage:
             'repeating-linear-gradient(135deg, rgba(148,163,184,0.18) 0, rgba(148,163,184,0.18) 8px, rgba(248,250,252,0.95) 8px, rgba(248,250,252,0.95) 16px)',
         }}
-      >
-        <div className="flex h-full items-start gap-2">
-          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
-          <div className="min-w-0 text-left">
-            <p className={cn('truncate font-semibold', compact ? 'text-xs' : 'text-sm')}>
-              {getClosureReasonLabel(t, event.closure.reason)}
-            </p>
-            <p className={cn('truncate opacity-80', compact ? 'text-[0.625rem]' : 'text-xs')}>
-              {event.closure.startTime && event.closure.endTime
-                ? formatEventRange(event.closure.startTime, event.closure.endTime)
-                : t('allDay')}
-            </p>
-          </div>
-        </div>
-      </button>
+        onClick={() => setRemoveClosureTarget(event.closure)}
+        icon={<Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />}
+        title={getClosureReasonLabel(t, event.closure.reason)}
+        subtitle={
+          event.closure.startTime && event.closure.endTime
+            ? formatEventRange(event.closure.startTime, event.closure.endTime)
+            : t('allDay')
+        }
+      />
     );
   }
 
