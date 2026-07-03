@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { middleware } from './middleware';
 
 // Build a minimal base64url-encoded JWT payload (no real signature — middleware only decodes)
@@ -204,5 +204,122 @@ describe('middleware', () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');
+  });
+
+  // ── Security headers ──────────────────────────────────────────────────────
+
+  describe('security headers', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('sets baseline security headers on every response, including redirects', () => {
+      const response = middleware(makeRequest('/dashboard/bookings'));
+
+      expect(response.headers.get('Strict-Transport-Security')).toBe(
+        'max-age=63072000; includeSubDomains; preload',
+      );
+      expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      expect(response.headers.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
+      expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+      expect(response.headers.get('Content-Security-Policy')).toContain("frame-ancestors 'none'");
+    });
+
+    it('allows inline scripts (Next.js hydration payload) on every route, but does not relax frame-src for dashboard', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const response = middleware(makeRequest('/dashboard/bookings', validStaffToken));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+      expect(csp).toContain("frame-src 'none'");
+    });
+
+    it('does not relax frame-src for the root path', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const response = middleware(makeRequest('/'));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+      expect(csp).toContain("frame-src 'none'");
+    });
+
+    it('allows the inline JSON-LD script and the Google Maps embed on hotsite routes', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const response = middleware(makeRequest('/lavacar-beloauto'));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+      expect(csp).toContain('frame-src https://maps.google.com');
+    });
+
+    it('extends the Maps frame-src relaxation to booking, login, and my-account sub-routes', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+
+      for (const path of [
+        '/lavacar-beloauto/booking',
+        '/lavacar-beloauto/login',
+        '/lavacar-beloauto/my-account',
+      ]) {
+        const response = middleware(makeRequest(path));
+        const csp = response.headers.get('Content-Security-Policy') ?? '';
+        expect(csp).toContain('frame-src https://maps.google.com');
+      }
+    });
+
+    it('allows the configured BFF origin in connect-src', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('NEXT_PUBLIC_BFF_URL', 'https://bff.ikaro.example/v1');
+
+      const response = middleware(makeRequest('/lavacar-beloauto'));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).toContain("connect-src 'self' https://bff.ikaro.example");
+    });
+
+    it('allows blob: and the configured storage origin in img-src', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv(
+        'NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL',
+        'https://storage.googleapis.com/ikaro-bucket',
+      );
+
+      const response = middleware(makeRequest('/dashboard/bookings', validStaffToken));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).toContain("img-src 'self' blob: https://storage.googleapis.com");
+    });
+
+    it('falls back to self-only connect-src/img-src when the env vars are unset', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('NEXT_PUBLIC_BFF_URL', '');
+      vi.stubEnv('NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL', '');
+
+      const response = middleware(makeRequest('/lavacar-beloauto'));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).toContain("connect-src 'self'");
+      expect(csp).not.toMatch(/connect-src 'self' \S/);
+      expect(csp).toContain("img-src 'self' blob:");
+    });
+
+    it('adds the dev-only unsafe-eval and HMR websocket allowance outside production', () => {
+      vi.stubEnv('NODE_ENV', 'development');
+
+      const response = middleware(makeRequest('/lavacar-beloauto'));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
+      expect(csp).toContain('ws://localhost:*');
+    });
+
+    it('omits the dev-only allowances in production', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+
+      const response = middleware(makeRequest('/lavacar-beloauto'));
+      const csp = response.headers.get('Content-Security-Policy') ?? '';
+
+      expect(csp).not.toContain('unsafe-eval');
+      expect(csp).not.toContain('ws://localhost');
+    });
   });
 });

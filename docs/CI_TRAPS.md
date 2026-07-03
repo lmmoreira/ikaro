@@ -183,6 +183,31 @@ cd - && git worktree remove /tmp/<name>-main-test --force
 
 ---
 
+## `middleware.ts` unit tests passing does not mean the CSP actually works in a browser
+
+`middleware.spec.ts` calls `middleware(request)` directly and asserts on the returned `Content-Security-Policy` header string — this proves the header-building logic is correct, it does **not** prove the policy actually permits everything the rendered page needs. Discovered in AUD-007 (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md`): 28/28 unit tests green, `tsc`/`eslint` clean, and `script-src` was still wrong — scoping `'unsafe-inline'` to only the hotsite route (reasoning: "dashboard has no developer-authored inline `<script>` tag") missed that **Next.js injects its own inline hydration/RSC-payload `<script>` tags into every server-rendered page**, hotsite or not. `/dashboard/login` was actually broken (real CSP violations blocking hydration) until this was caught by loading the page in an actual browser.
+
+Any CSP/security-header change must be verified against a running dev stack before it's considered done, not just against the unit test suite:
+
+```bash
+# 1. Headers are actually being sent
+curl -sD - -o /dev/null http://localhost:3000/<route> | grep -i content-security-policy
+
+# 2. No console violations when the page actually renders (needs @playwright/test — not the bare
+#    `playwright` package name, which pnpm's strict node_modules won't resolve from apps/web directly)
+node -e "
+import('@playwright/test').then(async ({ chromium }) => {
+  const page = await (await chromium.launch({ args: ['--no-sandbox'] })).newPage();
+  page.on('console', m => m.type() === 'error' && /content security policy/i.test(m.text()) && console.log(m.text()));
+  await page.goto('http://localhost:3000/<route>', { waitUntil: 'networkidle' });
+});
+"
+```
+
+Check at least one route from every distinct policy branch the middleware produces (e.g. hotsite vs. dashboard vs. auth), not just one representative route — a per-route-group CSP difference is exactly the kind of branch a unit test can assert on paper while still being wrong about what the browser actually needs.
+
+---
+
 ## Web test binary resolution (`npx vitest` vs `pnpm exec vitest`)
 
 `ci:fast` runs web tests via `pnpm --filter @ikaro/web test`, which resolves the Vitest binary from the workspace's own `node_modules`. Running tests via `npx --prefix apps/web vitest run` can resolve to a completely different binary — different version, different plugin chain — producing results that don't match CI.
