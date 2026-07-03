@@ -96,7 +96,11 @@ export class GetBookingByIdUseCase {
 
   private toMoneyDetail(money: Money | null, locale: string): MoneyDetail | null {
     if (!money) return null;
-    return { amount: money.amount.toNumber(), currency: money.currency, formatted: money.format(locale) };
+    return {
+      amount: money.amount.toNumber(),
+      currency: money.currency,
+      formatted: money.format(locale),
+    };
   }
 
   private signPhotoUrls(paths: string[]): Promise<string[]> {
