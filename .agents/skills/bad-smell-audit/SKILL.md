@@ -1,0 +1,1 @@
+/home/leonardo/Projetos/leonardo/ikaro/.claude/commands/bad-smell-audit.md

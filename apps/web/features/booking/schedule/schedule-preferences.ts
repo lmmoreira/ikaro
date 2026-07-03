@@ -1,4 +1,4 @@
-import { useMemo, useState, type SetStateAction } from 'react';
+import { useEffect, useMemo, useState, type SetStateAction } from 'react';
 import type { BookingStatus } from '@ikaro/types';
 import {
   createBrowserPreferenceStore,
@@ -78,10 +78,15 @@ export function createSchedulePreferencesStore(
 
 export function useSchedulePreferences(): SchedulePreferencesState {
   const store = useMemo(() => createSchedulePreferencesStore(), []);
-  const [viewMode, setViewMode] = useState<ScheduleViewMode | null>(() => store.getViewMode());
-  const [selectedStatuses, setSelectedStatuses] = useState<readonly BookingStatus[]>(() =>
-    store.getSelectedStatuses(),
+  const [viewMode, setViewMode] = useState<ScheduleViewMode | null>(null);
+  const [selectedStatuses, setSelectedStatuses] = useState<readonly BookingStatus[]>(
+    SCHEDULE_BOOKING_STATUS_DEFAULT,
   );
+
+  useEffect(() => {
+    setViewMode(store.getViewMode());
+    setSelectedStatuses(store.getSelectedStatuses());
+  }, [store]);
 
   function updateViewMode(nextViewMode: ScheduleViewMode): void {
     setViewMode(nextViewMode);

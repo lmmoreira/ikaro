@@ -3,6 +3,7 @@ import { createFreshApprovedBooking } from '../booking';
 
 const STAFF_TENANT_SLUG = 'lavacar-beloauto';
 const SERVICE_COMPLETA_ID = '00000000-0000-7000-8003-000000000002';
+const SERVICE_SIMPLES_ID = '00000000-0000-7000-8003-000000000001';
 
 export interface CompletedLoyaltyFlowSetup {
   readonly customerEmail: string;
@@ -26,7 +27,8 @@ export async function createCompletedLoyaltyFlow(
 
   const redeemSetup = await createFreshApprovedBooking(page, 10, staffEmail, {
     contactEmail: customerEmail,
-    serviceIds: [SERVICE_COMPLETA_ID],
+    // Use a different service so the E2E label check does not collide with the earned row.
+    serviceIds: [SERVICE_SIMPLES_ID],
   });
 
   await page.goto(`/dashboard/bookings/${redeemSetup.bookingId}/complete`);

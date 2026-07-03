@@ -18,17 +18,21 @@ test.describe('loyalty screen coverage', () => {
     await loginAsStaff(page, STAFF_EMAIL, LOYALTY_STAFF_TENANT_SLUG);
 
     const detailPath = await openCustomerLoyaltyDetailByEmail(page, customerEmail);
+    const earnedBookingLink = page.locator(
+      `a[href*="/dashboard/bookings/${setup.earnedBookingId}"]`,
+    );
+    const redeemBookingLink = page.locator(
+      `a[href*="/dashboard/bookings/${setup.redeemBookingId}"]`,
+    );
 
     await expect(page.locator('aside').getByRole('link', { name: 'Fidelidade' })).toBeVisible();
     await expect(page.getByText('Lavagem Completa')).toBeVisible();
     await expect(page.getByText('pontos ativos')).toBeVisible();
-    await expect(
-      page.getByRole('link', { name: new RegExp(setup.earnedBookingId.slice(0, 8)) }),
-    ).toBeVisible();
+    await expect(earnedBookingLink).toBeVisible();
 
-    await page.getByRole('link', { name: new RegExp(setup.earnedBookingId.slice(0, 8)) }).click();
+    await earnedBookingLink.click();
     await expect(page).toHaveURL(new RegExp(`/dashboard/bookings/${setup.earnedBookingId}`));
-    const bookingBackLink = page.locator('header').getByRole('link', { name: 'Fidelidade' });
+    const bookingBackLink = page.locator('header').getByRole('link', { name: 'Voltar' });
     await expect(bookingBackLink).toBeVisible();
     await expect(bookingBackLink).toHaveAttribute('href', detailPath);
 
@@ -37,11 +41,9 @@ test.describe('loyalty screen coverage', () => {
 
     await page.getByRole('button', { name: 'Resgates' }).click();
     await expect(page.getByText('Resgate no agendamento')).toBeVisible();
-    await expect(
-      page.getByRole('link', { name: new RegExp(setup.redeemBookingId.slice(0, 8)) }),
-    ).toBeVisible();
+    await expect(redeemBookingLink).toBeVisible();
 
-    await page.getByRole('link', { name: new RegExp(setup.redeemBookingId.slice(0, 8)) }).click();
+    await redeemBookingLink.click();
     await expect(page).toHaveURL(new RegExp(`/dashboard/bookings/${setup.redeemBookingId}`));
     await expect(bookingBackLink).toBeVisible();
     await expect(bookingBackLink).toHaveAttribute('href', `${detailPath}?tab=redemptions`);
