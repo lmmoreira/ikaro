@@ -20,7 +20,8 @@ describe('Hotsite not found page', () => {
         ({
           title: 'Não encontrado — Ikaro',
           tenantNotFound: 'Tenant não encontrado',
-          tenantNotFoundDescription: 'O tenant que você está procurando não existe ou foi removido.',
+          tenantNotFoundDescription:
+            'O tenant que você está procurando não existe ou foi removido.',
           backToHome: 'Voltar para o Ikaro',
         })[key] ?? key) as Awaited<ReturnType<typeof getTranslations>>,
     );
@@ -39,7 +40,9 @@ describe('Hotsite not found page', () => {
     render(element);
 
     expect(screen.getByRole('heading', { name: 'Tenant não encontrado' })).toBeInTheDocument();
-    expect(screen.getByText('O tenant que você está procurando não existe ou foi removido.')).toBeInTheDocument();
+    expect(
+      screen.getByText('O tenant que você está procurando não existe ou foi removido.'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Voltar para o Ikaro' })).toHaveAttribute(
       'href',
       'https://example.com',

@@ -63,13 +63,10 @@ describe('useScheduleClosures', () => {
 
   it('refetches when the range changes even with initial data', async () => {
     const initialData = { items: [] };
-    const { rerender } = renderHook(
-      ({ from, to }) => useScheduleClosures(from, to, initialData),
-      {
-        wrapper,
-        initialProps: { from: '2026-07-01', to: '2026-07-07' },
-      },
-    );
+    const { rerender } = renderHook(({ from, to }) => useScheduleClosures(from, to, initialData), {
+      wrapper,
+      initialProps: { from: '2026-07-01', to: '2026-07-07' },
+    });
 
     await waitFor(() => expect(scheduleApi.listClosures).toHaveBeenCalledTimes(1));
 
@@ -138,13 +135,10 @@ describe('useWeekBookings', () => {
 
   it('refetches when the range changes even with initial data', async () => {
     const initialData = { items: [], total: 0, page: 1, limit: 25 };
-    const { rerender } = renderHook(
-      ({ from, to }) => useWeekBookings(from, to, initialData),
-      {
-        wrapper,
-        initialProps: { from: '2026-07-01', to: '2026-07-07' },
-      },
-    );
+    const { rerender } = renderHook(({ from, to }) => useWeekBookings(from, to, initialData), {
+      wrapper,
+      initialProps: { from: '2026-07-01', to: '2026-07-07' },
+    });
 
     await waitFor(() => expect(staffApi.listBookings).toHaveBeenCalledTimes(1));
 

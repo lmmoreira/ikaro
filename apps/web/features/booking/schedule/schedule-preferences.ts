@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   createBrowserPreferenceStore,
   type BrowserPreferenceStore,
@@ -36,11 +36,7 @@ export function createSchedulePreferencesStore(
 
 export function useSchedulePreferences(): SchedulePreferencesState {
   const store = useMemo(() => createSchedulePreferencesStore(), []);
-  const [viewMode, setViewModeState] = useState<ScheduleViewMode | null>(null);
-
-  useEffect(() => {
-    setViewModeState(store.getViewMode());
-  }, [store]);
+  const [viewMode, setViewModeState] = useState<ScheduleViewMode | null>(() => store.getViewMode());
 
   function setViewMode(nextViewMode: ScheduleViewMode): void {
     setViewModeState(nextViewMode);
