@@ -72,9 +72,13 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
         durationMinsAtBooking: 30,
         pointsValueAtBooking: 5,
         requiresPickupAddressAtBooking: false,
+        actualPriceCharged: null,
       },
     ],
     totalPrice: { amount: 100, currency: 'BRL' },
+    totalActualPrice: null,
+    discountPointsUsed: null,
+    discountAmount: null,
     totalDurationMins: 30,
     beforeServicePhotoUrls: [],
     afterServicePhotoUrls: [],
@@ -82,6 +86,7 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
     infoResponseMessage: null,
     approvedAt: null,
     approvedBy: null,
+    completedAt: null,
     rejectionReason: null,
     ...overrides,
   };
@@ -325,6 +330,49 @@ describe('BookingDetailPage', () => {
 
     expect(screen.queryByRole('button', { name: 'Marcar concluído' })).not.toBeInTheDocument();
     expect(screen.queryByText('Ações')).not.toBeInTheDocument();
+  });
+
+  it('shows the charge and loyalty discount summary when reopening a completed booking', () => {
+    renderWithIntl(
+      <BookingDetailPage
+        booking={makeBooking({
+          status: 'COMPLETED',
+          totalActualPrice: { amount: 76, currency: 'BRL' },
+          discountPointsUsed: 240,
+          discountAmount: { amount: 24, currency: 'BRL' },
+          lines: [
+            {
+              lineId: 'l-1',
+              serviceId: 'svc-1',
+              serviceName: 'Lavagem Simples',
+              priceAtBooking: { amount: 100, currency: 'BRL' },
+              durationMinsAtBooking: 30,
+              pointsValueAtBooking: 5,
+              requiresPickupAddressAtBooking: false,
+              actualPriceCharged: { amount: 76, currency: 'BRL' },
+            },
+          ],
+        })}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.getByTestId('booking-completed-title')).toBeInTheDocument();
+    expect(screen.getByText('Total cotado: R$ 100,00')).toBeInTheDocument();
+    expect(screen.getByText('Total cobrado: R$ 76,00')).toBeInTheDocument();
+    expect(screen.getByTestId('complete-loyalty-discount-applied')).toHaveTextContent(
+      'Desconto fidelidade: -R$ 24,00',
+    );
+    expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+  });
+
+  it('falls back to the quoted total when a completed booking has no discount', () => {
+    renderWithIntl(
+      <BookingDetailPage booking={makeBooking({ status: 'COMPLETED' })} tenantSlug="lavacar-bh" />,
+    );
+
+    expect(screen.getByTestId('booking-completed-title')).toBeInTheDocument();
+    expect(screen.queryByTestId('complete-loyalty-discount-applied')).not.toBeInTheDocument();
   });
 
   it('returns to the default state when the slot-conflict alert is dismissed', async () => {

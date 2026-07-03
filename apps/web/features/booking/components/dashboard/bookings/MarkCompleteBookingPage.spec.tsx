@@ -59,6 +59,7 @@ function makeBooking(): StaffBookingDetailResponse {
         durationMinsAtBooking: 30,
         pointsValueAtBooking: 5,
         requiresPickupAddressAtBooking: false,
+        actualPriceCharged: null,
       },
       {
         lineId: 'l-2',
@@ -68,9 +69,13 @@ function makeBooking(): StaffBookingDetailResponse {
         durationMinsAtBooking: 20,
         pointsValueAtBooking: 3,
         requiresPickupAddressAtBooking: false,
+        actualPriceCharged: null,
       },
     ],
     totalPrice: { amount: 100, currency: 'BRL' },
+    totalActualPrice: null,
+    discountPointsUsed: null,
+    discountAmount: null,
     totalDurationMins: 50,
     beforeServicePhotoUrls: ['https://cdn.example.com/before.jpg'],
     afterServicePhotoUrls: [],
@@ -78,6 +83,7 @@ function makeBooking(): StaffBookingDetailResponse {
     infoResponseMessage: null,
     approvedAt: null,
     approvedBy: null,
+    completedAt: null,
     rejectionReason: null,
   };
 }
@@ -292,5 +298,8 @@ describe('MarkCompleteBookingPage', () => {
       },
     });
     expect(await screen.findByText('★ 8 pontos ativos')).toBeInTheDocument();
+    expect(await screen.findByTestId('complete-loyalty-discount-applied')).toHaveTextContent(
+      'Desconto fidelidade: -R$ 24,00',
+    );
   });
 });

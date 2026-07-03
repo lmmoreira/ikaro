@@ -1,8 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
+import { Money } from '../../../../shared/value-objects/money';
 import { Booking } from '../../domain/booking.aggregate';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
+
+type MoneyDetail = { amount: number; currency: string; formatted: string };
 
 export type GetBookingByIdInput = {
   bookingId: string;
@@ -45,6 +48,8 @@ export interface GetBookingByIdUseCaseResult {
   totalDurationMins: number;
   totalPrice: { amount: number; currency: string; formatted: string };
   totalActualPrice: { amount: number; currency: string; formatted: string } | null;
+  discountPointsUsed: number | null;
+  discountAmount: { amount: number; currency: string; formatted: string } | null;
   pickupAddress: BookingAddressDetail | null;
   lines: BookingLineDetail[];
   beforeServicePhotoUrls: string[];
@@ -54,6 +59,7 @@ export interface GetBookingByIdUseCaseResult {
   infoResponseMessage: string | null;
   approvedAt: string | null;
   approvedBy: string | null;
+  completedAt: string | null;
   rejectionReason: string | null;
   createdAt: string;
 }
@@ -88,6 +94,15 @@ export class GetBookingByIdUseCase {
     };
   }
 
+  private toMoneyDetail(money: Money | null, locale: string): MoneyDetail | null {
+    if (!money) return null;
+    return {
+      amount: money.amount.toNumber(),
+      currency: money.currency,
+      formatted: money.format(locale),
+    };
+  }
+
   private signPhotoUrls(paths: string[]): Promise<string[]> {
     return Promise.all(
       paths.map(async (path) => (await this.storageService.generateReadSignedUrl(path)).signedUrl),
@@ -117,13 +132,9 @@ export class GetBookingByIdUseCase {
         currency: booking.totalPrice.currency,
         formatted: booking.totalPrice.format(locale),
       },
-      totalActualPrice: booking.totalActualPrice
-        ? {
-            amount: booking.totalActualPrice.amount.toNumber(),
-            currency: booking.totalActualPrice.currency,
-            formatted: booking.totalActualPrice.format(locale),
-          }
-        : null,
+      totalActualPrice: this.toMoneyDetail(booking.totalActualPrice, locale),
+      discountPointsUsed: booking.discountPointsUsed,
+      discountAmount: this.toMoneyDetail(booking.discountAmount, locale),
       pickupAddress: this.toAddressDetail(booking.pickupAddress),
       lines: booking.lines.map((l) => ({
         lineId: l.lineId,
@@ -137,13 +148,7 @@ export class GetBookingByIdUseCase {
         durationMinsAtBooking: l.durationMinsAtBooking,
         pointsValueAtBooking: l.pointsValueAtBooking,
         requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
-        actualPriceCharged: l.actualPriceCharged
-          ? {
-              amount: l.actualPriceCharged.amount.toNumber(),
-              currency: l.actualPriceCharged.currency,
-              formatted: l.actualPriceCharged.format(locale),
-            }
-          : null,
+        actualPriceCharged: this.toMoneyDetail(l.actualPriceCharged, locale),
       })),
       beforeServicePhotoUrls,
       afterServicePhotoUrls,
@@ -152,6 +157,7 @@ export class GetBookingByIdUseCase {
       infoResponseMessage: booking.infoResponseMessage,
       approvedAt: booking.approvedAt?.toISOString() ?? null,
       approvedBy: booking.approvedBy,
+      completedAt: booking.completedAt?.toISOString() ?? null,
       rejectionReason: booking.rejectionReason,
       createdAt: booking.createdAt.toISOString(),
     };

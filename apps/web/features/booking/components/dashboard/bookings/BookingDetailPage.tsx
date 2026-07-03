@@ -23,6 +23,7 @@ import {
   useRequestMoreInfo,
 } from '@/features/booking/hooks/useBookingMutations';
 import { BookingActionPanel } from './BookingActionPanel';
+import { BookingCompletionSummary } from './BookingCompletionSummary';
 import { BookingDetailMain } from './BookingDetailMain';
 import { AdminCancelBookingSheet } from './AdminCancelBookingSheet';
 import { RejectBookingSheet } from './RejectBookingSheet';
@@ -434,42 +435,76 @@ export function BookingDetailPage({
       );
     }
 
+    if (booking.status === BOOKING_STATUS.COMPLETED) {
+      return (
+        <Card className="border-green-200 bg-green-50/80">
+          <CardContent className="flex items-start gap-3 p-4">
+            <BannerIcon variant="success" />
+            <div className="min-w-0 flex-1">
+              <p
+                data-testid="booking-completed-title"
+                className="text-sm font-bold uppercase tracking-[0.07em] text-green-700"
+              >
+                {t('completedTitle')}
+              </p>
+              <div className="mt-2 text-sm leading-6 text-green-700/90">
+                <BookingCompletionSummary
+                  quotedTotal={booking.totalPrice.amount}
+                  chargedTotal={booking.totalActualPrice?.amount ?? booking.totalPrice.amount}
+                  lines={booking.lines.map((line) => ({
+                    lineId: line.lineId,
+                    serviceName: line.serviceName,
+                    quotedPrice: line.priceAtBooking.amount,
+                    chargedPrice: line.actualPriceCharged?.amount ?? line.priceAtBooking.amount,
+                  }))}
+                  discount={
+                    booking.discountAmount !== null && booking.discountPointsUsed !== null
+                      ? {
+                          pointsUsed: booking.discountPointsUsed,
+                          amount: booking.discountAmount.amount,
+                        }
+                      : null
+                  }
+                  pointsEarned={
+                    booking.customerId === null
+                      ? null
+                      : booking.lines.reduce((sum, line) => sum + line.pointsValueAtBooking, 0)
+                  }
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
     return null;
+  }
+
+  function renderBackToAgendaActionsCard(): React.JSX.Element {
+    return (
+      <div className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+          {t('actionsSection')}
+        </p>
+        <Card>
+          <CardContent className="p-4">
+            <Button asChild className="w-full">
+              <Link href={backHref}>{t('backToAgenda')}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   function renderAsideCard(): React.JSX.Element | null {
     if (actionState === 'approved') {
-      return (
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('actionsSection')}
-          </p>
-          <Card>
-            <CardContent className="p-4">
-              <Button asChild className="w-full">
-                <Link href={backHref}>{t('backToAgenda')}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      );
+      return renderBackToAgendaActionsCard();
     }
 
     if (actionState === 'rejected') {
-      return (
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('actionsSection')}
-          </p>
-          <Card>
-            <CardContent className="p-4">
-              <Button asChild className="w-full">
-                <Link href={backHref}>{t('backToAgenda')}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      );
+      return renderBackToAgendaActionsCard();
     }
 
     if (actionState === 'slot-conflict') {
@@ -542,11 +577,11 @@ export function BookingDetailPage({
       );
     }
 
-    if (
-      booking.status === BOOKING_STATUS.REJECTED ||
-      booking.status === BOOKING_STATUS.COMPLETED ||
-      booking.status === BOOKING_STATUS.CANCELLED
-    ) {
+    if (booking.status === BOOKING_STATUS.COMPLETED) {
+      return renderBackToAgendaActionsCard();
+    }
+
+    if (booking.status === BOOKING_STATUS.REJECTED || booking.status === BOOKING_STATUS.CANCELLED) {
       return null;
     }
 

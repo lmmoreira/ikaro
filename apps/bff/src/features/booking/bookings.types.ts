@@ -104,6 +104,8 @@ export interface BookingDetailResponse {
   totalDurationMins: number;
   totalPrice: { amount: number; currency: string; formatted: string };
   totalActualPrice: { amount: number; currency: string; formatted: string } | null;
+  discountPointsUsed: number | null;
+  discountAmount: { amount: number; currency: string; formatted: string } | null;
   pickupAddress: AddressResponse | null;
   lines: BookingLineDetail[];
   beforeServicePhotoUrls: string[];
@@ -113,6 +115,7 @@ export interface BookingDetailResponse {
   infoResponseMessage: string | null;
   approvedAt: string | null;
   approvedBy: string | null;
+  completedAt: string | null;
   rejectionReason: string | null;
   createdAt: string;
 }

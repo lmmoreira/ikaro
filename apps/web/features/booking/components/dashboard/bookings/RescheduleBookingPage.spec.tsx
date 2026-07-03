@@ -79,9 +79,13 @@ function makeBooking(): StaffBookingDetailResponse {
         durationMinsAtBooking: 30,
         pointsValueAtBooking: 5,
         requiresPickupAddressAtBooking: false,
+        actualPriceCharged: null,
       },
     ],
     totalPrice: { amount: 60, currency: 'BRL' },
+    totalActualPrice: null,
+    discountPointsUsed: null,
+    discountAmount: null,
     totalDurationMins: 30,
     beforeServicePhotoUrls: [],
     afterServicePhotoUrls: [],
@@ -89,6 +93,7 @@ function makeBooking(): StaffBookingDetailResponse {
     infoResponseMessage: null,
     approvedAt: null,
     approvedBy: null,
+    completedAt: null,
     rejectionReason: null,
   };
 }
