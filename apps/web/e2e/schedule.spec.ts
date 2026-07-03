@@ -5,6 +5,7 @@ const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 const TENANT_SLUG = 'lavacar-beloauto';
 const STAFF_EMAIL = 'lm.moreira@gmail.com';
 const DEFAULT_SERVICE_ID = '00000000-0000-7000-8003-000000000001';
+const REQUIRED_INTERNAL_API_KEY = INTERNAL_API_KEY;
 
 if (!INTERNAL_API_KEY) {
   throw new Error('PLAYWRIGHT/INTERNAL_API_KEY is required for schedule E2E helpers');
@@ -96,7 +97,7 @@ async function addAccessTokenCookie(page: Page, accessToken: string): Promise<vo
 
 async function loginAsStaff(page: Page, email: string, tenantSlug: string): Promise<void> {
   const response = await page.request.post(`${BFF_URL}/auth/dev-login`, {
-    headers: { 'X-Internal-Key': INTERNAL_API_KEY },
+    headers: { 'X-Internal-Key': REQUIRED_INTERNAL_API_KEY },
     data: { email, tenantSlug, type: 'staff' },
   });
 
