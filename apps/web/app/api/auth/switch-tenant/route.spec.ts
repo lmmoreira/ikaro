@@ -62,6 +62,7 @@ describe('POST /api/auth/switch-tenant', () => {
         headers: { Cookie: 'access_token=signed-jwt', 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetTenantId: 't-2' }),
         cache: 'no-store',
+        signal: expect.any(AbortSignal),
       }),
     );
     expect(response.status).toBe(200);

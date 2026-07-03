@@ -5,7 +5,7 @@ const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://127.0.0.1:3002/v1';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 
 export const SCHEDULE_TENANT_SLUG = 'lavacar-beloauto';
-export const SCHEDULE_STAFF_EMAIL = 'lm.moreira@gmail.com';
+export const SCHEDULE_STAFF_EMAIL = 'admin@lavacar.com.br';
 export const SCHEDULE_DEFAULT_SERVICE_ID = '00000000-0000-7000-8003-000000000001';
 
 if (!INTERNAL_API_KEY) {

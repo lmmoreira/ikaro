@@ -10,7 +10,7 @@ import type {
 } from '@ikaro/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
-import { BOOKING_STATUS_CLASSES } from '@/features/booking/model/booking-status';
+import { SCHEDULE_BOOKING_TIMELINE_CLASSES } from '@/features/booking/model/booking-status';
 import { SchedulePage } from './SchedulePage';
 
 const scheduleHooks = vi.hoisted(() => ({
@@ -308,18 +308,20 @@ describe('SchedulePage', () => {
     );
 
     expect(screen.queryByText('Pendente')).not.toBeInTheDocument();
-    expect(screen.getByText('Aprovado')).toHaveClass(...BOOKING_STATUS_CLASSES.APPROVED.split(' '));
+    expect(screen.getByText('Aprovado')).toHaveClass(
+      ...SCHEDULE_BOOKING_TIMELINE_CLASSES.APPROVED.split(' '),
+    );
     expect(screen.getByText('Aguardando info')).toHaveClass(
-      ...BOOKING_STATUS_CLASSES.INFO_REQUESTED.split(' '),
+      ...SCHEDULE_BOOKING_TIMELINE_CLASSES.INFO_REQUESTED.split(' '),
     );
     expect(screen.getByText('Rejeitado')).toHaveClass(
-      ...BOOKING_STATUS_CLASSES.REJECTED.split(' '),
+      ...SCHEDULE_BOOKING_TIMELINE_CLASSES.REJECTED.split(' '),
     );
     expect(screen.getByText('Cancelado')).toHaveClass(
-      ...BOOKING_STATUS_CLASSES.CANCELLED.split(' '),
+      ...SCHEDULE_BOOKING_TIMELINE_CLASSES.CANCELLED.split(' '),
     );
     expect(screen.getByText('Concluído')).toHaveClass(
-      ...BOOKING_STATUS_CLASSES.COMPLETED.split(' '),
+      ...SCHEDULE_BOOKING_TIMELINE_CLASSES.COMPLETED.split(' '),
     );
   });
 

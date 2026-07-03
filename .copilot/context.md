@@ -5,7 +5,7 @@
 **Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`  
 **Audience:** Any AI coding agent  
 **Rule:** Read this file first. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-07-01
+**Last updated:** 2026-07-03
 
 ---
 
@@ -215,6 +215,7 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 - `shared/lib/**`: `node` env · `features/**/components/**`, `shells/**/components/**`, `shared/components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only
 - Keep `app/**/page.tsx` and `app/**/layout.tsx` thin. If they start owning reusable data shaping, URL construction, or render-plan logic, extract a helper under `apps/web/shared/lib/**` and unit-test that helper in the same change.
 - Playwright E2E specs should contain test cases only. Reusable flows, login/setup helpers, and fixture-like actions belong in `apps/web/e2e/helpers/<feature>/**` with a folder `index.ts` barrel. Grep the helper tree before adding a new helper, and split by concern instead of building a shared `misc` helper.
+- Playwright login helpers must use repository-seeded accounts when they exist. Do not hardcode personal or ad-hoc emails in E2E helpers if the scenario can run against a seeded tenant staff/customer user.
 - **Every new `features/**/components/**/*.tsx`, `shells/**/components/**/*.tsx`, or `shared/components/**/*.tsx` must ship its `.spec.tsx` in the same commit.**
 - **Every new dashboard UI component must be localization-ready from the start.** No hardcoded visible copy, helper text, error text, success banners, placeholders, `aria-label`, `alt`, or status labels/classes. If the component needs text, wire `useTranslations()` and add locale keys in both `pt-BR` and `en` in the same change.
 - → Vitest config, mocks, axe testing, per-component cases: `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
@@ -256,6 +257,7 @@ Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-
 | Dashboard or account component uses `--ba-*` CSS variable | `--ba-*` only exists under `app/[slug]/` (hotsite tree). Use Tailwind + shadcn in dashboard/account shells |
 | Utility function (e.g. `getInitials`) copy-pasted inline in each component | Grep `apps/web/shared/utils/` first; create `shared/utils/<name>.ts` + `.spec.ts` pair there |
 | Status-to-label or status-to-class mappings duplicated across dashboard components | Extract one shared helper next to the feature module and reuse it from all callers |
+| Dashboard schedule timeline uses the generic booking badge palette in tests or components | Use `SCHEDULE_BOOKING_TIMELINE_CLASSES` for schedule timeline cards; reserve `BOOKING_STATUS_CLASSES` for generic booking badges and lists |
 | Wrong web→BFF transport: `bffServerFetch` in client file, `bffClient` in Server Component, raw `fetch()` in hook | Server: `bffServerFetch(token, path)`. Client: `bffClient.get(path)`. Hook `tenantId`: `useTenant()` only |
 
 ---
