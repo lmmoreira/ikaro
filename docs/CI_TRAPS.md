@@ -190,16 +190,29 @@ cd - && git worktree remove /tmp/<name>-main-test --force
 Any CSP/security-header change must be verified against a running dev stack before it's considered done, not just against the unit test suite:
 
 ```bash
+ROUTE=/dashboard/login
+
 # 1. Headers are actually being sent
-curl -sD - -o /dev/null http://localhost:3000/<route> | grep -i content-security-policy
+curl -sD - -o /dev/null "http://localhost:3000${ROUTE}" | grep -i content-security-policy
 
 # 2. No console violations when the page actually renders (needs @playwright/test — not the bare
-#    `playwright` package name, which pnpm's strict node_modules won't resolve from apps/web directly)
+#    `playwright` package name, which pnpm's strict node_modules won't resolve from apps/web directly).
+#    Closes the browser and exits non-zero if a CSP violation was seen, so this fails loudly instead
+#    of hanging or silently exiting 0.
 node -e "
 import('@playwright/test').then(async ({ chromium }) => {
-  const page = await (await chromium.launch({ args: ['--no-sandbox'] })).newPage();
-  page.on('console', m => m.type() === 'error' && /content security policy/i.test(m.text()) && console.log(m.text()));
-  await page.goto('http://localhost:3000/<route>', { waitUntil: 'networkidle' });
+  const browser = await chromium.launch({ args: ['--no-sandbox'] });
+  const page = await browser.newPage();
+  let sawViolation = false;
+  page.on('console', m => {
+    if (m.type() === 'error' && /content security policy/i.test(m.text())) {
+      console.log(m.text());
+      sawViolation = true;
+    }
+  });
+  await page.goto(\`http://localhost:3000\${process.env.ROUTE}\`, { waitUntil: 'networkidle' });
+  await browser.close();
+  if (sawViolation) process.exitCode = 1;
 });
 "
 ```

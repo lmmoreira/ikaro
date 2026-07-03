@@ -84,8 +84,11 @@ function buildContentSecurityPolicy(pathname: string): string {
     (v): v is string => Boolean(v),
   );
   const imgSrc = ["'self'", 'blob:', storageOrigin].filter((v): v is string => Boolean(v));
-  const connectSrc = ["'self'", bffOrigin, isDev && 'ws://localhost:*'].filter((v): v is string =>
-    Boolean(v),
+  // Booking/after-service photo uploads PUT directly to a signed storage URL from the browser
+  // (PhotoUpload.tsx, AfterServicePhotoUpload.tsx) — connect-src needs the same storage origin
+  // img-src already allows, or uploads are silently blocked in production.
+  const connectSrc = ["'self'", bffOrigin, storageOrigin, isDev && 'ws://localhost:*'].filter(
+    (v): v is string => Boolean(v),
   );
   const frameSrc = isHotsite ? 'https://maps.google.com' : "'none'";
 

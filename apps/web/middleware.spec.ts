@@ -266,14 +266,20 @@ describe('middleware', () => {
       }
     });
 
-    it('allows the configured BFF origin in connect-src', () => {
+    it('allows the configured BFF origin and storage origin in connect-src (direct-to-storage photo uploads PUT from the browser)', () => {
       vi.stubEnv('NODE_ENV', 'production');
       vi.stubEnv('NEXT_PUBLIC_BFF_URL', 'https://bff.ikaro.example/v1');
+      vi.stubEnv(
+        'NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL',
+        'https://storage.googleapis.com/ikaro-bucket',
+      );
 
       const response = middleware(makeRequest('/lavacar-beloauto'));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
-      expect(csp).toContain("connect-src 'self' https://bff.ikaro.example");
+      expect(csp).toContain(
+        "connect-src 'self' https://bff.ikaro.example https://storage.googleapis.com",
+      );
     });
 
     it('allows blob: and the configured storage origin in img-src', () => {
