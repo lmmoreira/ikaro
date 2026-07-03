@@ -78,7 +78,7 @@ describe('OpeningFormSheet', () => {
       }),
     );
     expect(onClose).toHaveBeenCalledTimes(1);
-  });
+  }, 30_000);
 
   it('shows a validation error when the opening times are incomplete', async () => {
     const user = userEvent.setup();

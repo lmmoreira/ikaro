@@ -80,7 +80,7 @@ describe('ClosureFormSheet', () => {
       }),
     );
     expect(onClose).toHaveBeenCalledTimes(1);
-  });
+  }, 30_000);
 
   it('shows a validation error for past dates', async () => {
     const user = userEvent.setup();

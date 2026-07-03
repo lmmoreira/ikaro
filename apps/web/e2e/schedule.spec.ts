@@ -183,4 +183,26 @@ test.describe('schedule page coverage', () => {
     await page.locator(`a[href="${expectedReturnTo}"]`).click();
     await expect(page).toHaveURL(expectedReturnTo);
   });
+
+  test('navigating to the next week loads that week schedule data', async ({ page }) => {
+    await loginAsScheduleStaff(page);
+
+    const contactName = uniqueLabel('next-week');
+    const booking = await createUniqueScheduleBooking(
+      page,
+      {
+        contactName,
+        contactEmail: uniqueTestEmail('schedule-next-week'),
+        approved: true,
+        time: '11:00',
+      },
+      7,
+    );
+
+    await page.goto('/dashboard/schedule');
+    await page.getByRole('button', { name: 'Próximo período' }).click();
+
+    await expect(page.getByRole('link', { name: contactName })).toBeVisible();
+    await expect(page.getByTestId('week-day').filter({ hasText: booking.dateKey.slice(8, 10) })).toBeVisible();
+  });
 });

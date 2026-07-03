@@ -38,6 +38,10 @@ import {
   SCHEDULE_BOOKING_STATUS_OPTIONS,
 } from '@/features/booking/model/booking-status';
 import {
+  type ScheduleViewMode,
+  useSchedulePreferences,
+} from '@/features/booking/schedule/schedule-preferences';
+import {
   useCreateClosure,
   useCreateOpening,
   useRemoveClosure,
@@ -131,12 +135,7 @@ function toLocalDate(dateKey: string): Date {
 }
 
 function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return false;
-    }
-    return window.matchMedia(query).matches;
-  });
+  const [matches, setMatches] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -442,6 +441,8 @@ export function SchedulePage({
   const createOpeningMutation = useCreateOpening();
   const removeClosureMutation = useRemoveClosure();
   const removeOpeningMutation = useRemoveOpening();
+  const { viewMode: persistedViewMode, setViewMode: setPersistedViewMode } =
+    useSchedulePreferences();
 
   const [weekStartKey, setWeekStartKey] = useState(initialWeekStartKey);
   const [selectedDateKey, setSelectedDateKey] = useState(initialSelectedDateKey ?? todayKey);
@@ -450,7 +451,6 @@ export function SchedulePage({
   const [closureWarning, setClosureWarning] = useState<string | null>(null);
   const [removeClosureTarget, setRemoveClosureTarget] = useState<ScheduleClosure | null>(null);
   const [removeOpeningTarget, setRemoveOpeningTarget] = useState<ScheduleOpening | null>(null);
-  const [viewModeOverride, setViewModeOverride] = useState<'day' | 'week' | null>(null);
   const [selectedStatuses, setSelectedStatuses] = useState<readonly BookingStatus[]>(
     SCHEDULE_BOOKING_STATUS_DEFAULT,
   );
@@ -459,21 +459,22 @@ export function SchedulePage({
 
   const weekEndKey = useMemo(() => getWeekEndKey(weekStartKey), [weekStartKey]);
   const weekDates = useMemo(() => getWeekDates(weekStartKey), [weekStartKey]);
+  const isInitialWeek = weekStartKey === initialWeekStartKey;
 
   const { data: closures = initialClosures } = useScheduleClosures(
     weekStartKey,
     weekEndKey,
-    initialClosures,
+    isInitialWeek ? initialClosures : undefined,
   );
   const { data: openings = initialOpenings } = useScheduleOpenings(
     weekStartKey,
     weekEndKey,
-    initialOpenings,
+    isInitialWeek ? initialOpenings : undefined,
   );
   const { data: bookings = initialBookings } = useWeekBookings(
     weekStartKey,
     weekEndKey,
-    initialBookings,
+    isInitialWeek ? initialBookings : undefined,
   );
 
   const visibleClosures = closures.items;
@@ -540,7 +541,7 @@ export function SchedulePage({
   );
   const isDesktopSchedule = useMediaQuery('(min-width: 1024px)');
   const defaultViewMode = isDesktopSchedule ? 'week' : 'day';
-  const scheduleViewMode = viewModeOverride ?? defaultViewMode;
+  const scheduleViewMode = persistedViewMode ?? defaultViewMode;
   const isWeekView = scheduleViewMode === 'week';
 
   const selectedDayTimeline = useMemo(
@@ -999,7 +1000,7 @@ export function SchedulePage({
             <Select
               value={scheduleViewMode}
               onValueChange={(value) => {
-                setViewModeOverride(value as 'day' | 'week');
+                setPersistedViewMode(value as ScheduleViewMode);
               }}
             >
               <SelectTrigger aria-label={t('viewModeLabel')} className="h-9 w-28 rounded-full">

@@ -29,7 +29,6 @@ export function useScheduleClosures(
     queryFn: () => listClosures(from, to),
     enabled: Boolean(from && to),
     initialData,
-    refetchOnMount: false,
   });
 }
 
@@ -64,7 +63,6 @@ export function useScheduleOpenings(
     queryFn: () => listOpenings(from, to),
     enabled: Boolean(from && to),
     initialData,
-    refetchOnMount: false,
   });
 }
 
@@ -95,6 +93,5 @@ export function useWeekBookings(from: string, to: string, initialData?: StaffBoo
     queryFn: () => listBookings({ status: SCHEDULE_BOOKING_STATUS_ALL, from, to, limit: 100 }),
     enabled: Boolean(from && to),
     initialData,
-    refetchOnMount: false,
   });
 }
