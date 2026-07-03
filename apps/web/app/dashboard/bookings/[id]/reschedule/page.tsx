@@ -1,15 +1,11 @@
 import { RescheduleBookingPage } from '@/features/booking/components/dashboard/bookings/RescheduleBookingPage';
 import { getAccessToken } from '@/features/auth/get-access-token';
+import { appendReturnTo, resolveReturnTo } from '@/features/booking/model/booking-navigation';
 import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-route.server';
 
 interface BookingRescheduleRouteProps {
   readonly params: Promise<{ id: string }>;
   readonly searchParams: Promise<{ returnTo?: string }>;
-}
-
-function resolveReturnTo(returnTo: string | undefined): string | null {
-  if (typeof returnTo !== 'string') return null;
-  return returnTo.startsWith('/dashboard/') ? returnTo : null;
 }
 
 export default async function BookingRescheduleRoute({
@@ -27,11 +23,7 @@ export default async function BookingRescheduleRoute({
     <RescheduleBookingPage
       booking={booking}
       tenantSlug={tenantSlug}
-      backHref={
-        returnHref
-          ? `/dashboard/bookings/${id}?returnTo=${encodeURIComponent(returnHref)}`
-          : `/dashboard/bookings/${id}`
-      }
+      backHref={appendReturnTo(`/dashboard/bookings/${id}`, returnHref)}
       agendaHref={agendaHref}
     />
   );

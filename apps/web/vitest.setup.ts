@@ -32,28 +32,37 @@ if (typeof URL.createObjectURL === 'undefined') {
   URL.revokeObjectURL = vi.fn();
 }
 
-if (!HTMLElement.prototype.hasOwnProperty('hasPointerCapture')) {
+if (
+  typeof HTMLElement !== 'undefined' &&
+  !HTMLElement.prototype.hasOwnProperty('hasPointerCapture')
+) {
   Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
     configurable: true,
     value: () => false,
   });
 }
 
-if (!HTMLElement.prototype.hasOwnProperty('setPointerCapture')) {
+if (
+  typeof HTMLElement !== 'undefined' &&
+  !HTMLElement.prototype.hasOwnProperty('setPointerCapture')
+) {
   Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
     configurable: true,
     value: () => undefined,
   });
 }
 
-if (!HTMLElement.prototype.hasOwnProperty('releasePointerCapture')) {
+if (
+  typeof HTMLElement !== 'undefined' &&
+  !HTMLElement.prototype.hasOwnProperty('releasePointerCapture')
+) {
   Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', {
     configurable: true,
     value: () => undefined,
   });
 }
 
-if (!HTMLElement.prototype.hasOwnProperty('scrollIntoView')) {
+if (typeof HTMLElement !== 'undefined' && !HTMLElement.prototype.hasOwnProperty('scrollIntoView')) {
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
     configurable: true,
     value: () => undefined,

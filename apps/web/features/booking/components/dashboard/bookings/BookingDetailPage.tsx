@@ -32,6 +32,7 @@ import {
   BOOKING_STATUS_CLASSES,
   buildBookingStatusLabels,
 } from '@/features/booking/model/booking-status';
+import { appendReturnTo } from '@/features/booking/model/booking-navigation';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 
 type ActionState =
@@ -188,7 +189,6 @@ export function BookingDetailPage({
   const topbarStatus = useDashboardTopbarStatus();
   const setTopbarBookingStatus = topbarStatus?.setBookingStatus;
   const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
-  const returnToQuery = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
   const backHref = returnTo ?? '/dashboard/bookings';
 
   const serviceIds = useMemo(() => booking.lines.map((line) => line.serviceId), [booking.lines]);
@@ -510,10 +510,14 @@ export function BookingDetailPage({
             bookingStatus={BOOKING_STATUS.APPROVED}
             isSubmitting={actionState === 'submitting'}
             onOpenComplete={() =>
-              router.push(`/dashboard/bookings/${booking.bookingId}/complete${returnToQuery}`)
+              router.push(
+                appendReturnTo(`/dashboard/bookings/${booking.bookingId}/complete`, returnTo),
+              )
             }
             onOpenReschedule={() =>
-              router.push(`/dashboard/bookings/${booking.bookingId}/reschedule${returnToQuery}`)
+              router.push(
+                appendReturnTo(`/dashboard/bookings/${booking.bookingId}/reschedule`, returnTo),
+              )
             }
             onOpenCancel={() => setSheetState('cancel')}
           />

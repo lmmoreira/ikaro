@@ -32,8 +32,8 @@ import { cn } from '@/shared/utils/cn';
 import { toDateKeyInTimezone } from '@/shared/utils/date-utils';
 import { WeekNav } from '@/shells/dashboard/components/WeekNav';
 import {
-  BOOKING_STATUS_CLASSES,
   buildBookingStatusLabels,
+  SCHEDULE_BOOKING_TIMELINE_CLASSES,
   SCHEDULE_BOOKING_STATUS_DEFAULT,
   SCHEDULE_BOOKING_STATUS_OPTIONS,
 } from '@/features/booking/model/booking-status';
@@ -131,10 +131,15 @@ function toLocalDate(dateKey: string): Date {
 }
 
 function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false);
+  const [matches, setMatches] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia(query).matches;
+  });
 
   useEffect(() => {
-    if (typeof window.matchMedia !== 'function') {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
       return;
     }
 
@@ -248,6 +253,7 @@ function buildTimelineEvents(
   const selectedOpening = openings.find((opening) => opening.date === selectedDateKey) ?? null;
   const regularHours = getDayHoursForDate(selectedDateKey, businessHours);
   const activeHours = selectedOpening ?? regularHours;
+  const selectedDayClosures = closures.filter((closure) => closure.date === selectedDateKey);
 
   if (!activeHours) {
     return {
@@ -276,7 +282,7 @@ function buildTimelineEvents(
         const { startTime, endTime } = getBookingTimeKey(booking, timezone);
         const startMinutes = timeToMinutes(startTime);
         const endMinutes = timeToMinutes(endTime);
-        const warning = closures.some((closure) => {
+        const warning = selectedDayClosures.some((closure) => {
           const closureStart = closure.startTime ?? activeStartTime;
           const closureEnd = closure.endTime ?? activeEndTime;
           return overlaps(
@@ -302,22 +308,20 @@ function buildTimelineEvents(
       }),
   );
 
-  const closureEvents = closures
-    .filter((closure) => closure.date === selectedDateKey)
-    .map<ClosureTimelineEvent>((closure) => {
-      const startTime = closure.startTime ?? activeStartTime;
-      const endTime = closure.endTime ?? activeEndTime;
+  const closureEvents = selectedDayClosures.map<ClosureTimelineEvent>((closure) => {
+    const startTime = closure.startTime ?? activeStartTime;
+    const endTime = closure.endTime ?? activeEndTime;
 
-      return {
-        kind: 'closure',
-        id: closure.id,
-        startMinutes: timeToMinutes(startTime),
-        endMinutes: timeToMinutes(endTime),
-        title: closure.reason,
-        subtitle: closure.notes ?? '',
-        closure,
-      };
-    });
+    return {
+      kind: 'closure',
+      id: closure.id,
+      startMinutes: timeToMinutes(startTime),
+      endMinutes: timeToMinutes(endTime),
+      title: closure.reason,
+      subtitle: closure.notes ?? '',
+      closure,
+    };
+  });
 
   const openingEvents: OpeningTimelineEvent[] = selectedOpening
     ? [
@@ -386,11 +390,15 @@ function buildBlockStyle(
   startMinutes: number,
   endMinutes: number,
   timelineStartMinutes: number,
+  timelineEndMinutes: number,
   slotGranularityMinutes: number,
   slotHeight: number,
 ): { top: string; height: string } {
   const clampedStart = Math.max(startMinutes, timelineStartMinutes);
-  const clampedEnd = Math.max(clampedStart + slotGranularityMinutes, endMinutes);
+  const clampedEnd = Math.min(
+    timelineEndMinutes,
+    Math.max(clampedStart + slotGranularityMinutes, endMinutes),
+  );
   const top = ((clampedStart - timelineStartMinutes) / slotGranularityMinutes) * slotHeight;
   const height =
     getEventMinutes(clampedStart, clampedEnd, slotGranularityMinutes) / slotGranularityMinutes;
@@ -414,15 +422,6 @@ function normalizeScheduleStatuses(statuses: readonly BookingStatus[]): readonly
   const selected = new Set(statuses);
   return SCHEDULE_BOOKING_STATUS_OPTIONS.filter((status) => selected.has(status));
 }
-
-const BOOKING_TIMELINE_CLASSES: Record<BookingStatus, string> = {
-  PENDING: 'bg-yellow-50 text-yellow-950',
-  INFO_REQUESTED: 'bg-blue-50 text-blue-950',
-  APPROVED: 'bg-green-50 text-green-950',
-  REJECTED: 'bg-red-50 text-red-950',
-  CANCELLED: 'bg-gray-100 text-gray-700',
-  COMPLETED: 'bg-slate-100 text-slate-700',
-};
 
 export function SchedulePage({
   initialClosures,
@@ -714,6 +713,7 @@ export function SchedulePage({
       event.startMinutes,
       event.endMinutes,
       timeline.timelineStartMinutes,
+      timeline.timelineEndMinutes,
       slotGranularityMinutes,
       timeline.slotHeight,
     );
@@ -735,7 +735,7 @@ export function SchedulePage({
             'z-20 hover:shadow-md',
             event.warning
               ? 'border-orange-300 bg-orange-50 text-orange-950'
-              : BOOKING_TIMELINE_CLASSES[event.booking.status],
+              : SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
           )}
           style={{
             ...blockStyle,
@@ -764,7 +764,7 @@ export function SchedulePage({
                 className={cn(
                   'shrink-0 border-0',
                   compact ? 'text-[0.62rem]' : 'text-[0.6875rem]',
-                  BOOKING_STATUS_CLASSES[event.booking.status],
+                  SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
                 )}
               >
                 {statusLabels[event.booking.status]}

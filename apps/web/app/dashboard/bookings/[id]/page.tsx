@@ -1,15 +1,11 @@
 import { BookingDetailPage } from '@/features/booking/components/dashboard/bookings/BookingDetailPage';
 import { getAccessToken } from '@/features/auth/get-access-token';
+import { resolveReturnTo } from '@/features/booking/model/booking-navigation';
 import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-route.server';
 
 interface BookingDetailRouteProps {
   readonly params: Promise<{ id: string }>;
   readonly searchParams: Promise<{ conflict?: string; returnTo?: string }>;
-}
-
-function resolveReturnTo(returnTo: string | undefined): string | null {
-  if (typeof returnTo !== 'string') return null;
-  return returnTo.startsWith('/dashboard/') ? returnTo : null;
 }
 
 export default async function BookingDetailRoute({

@@ -13,13 +13,22 @@ describe('Calendar', () => {
     expect(screen.getByText(/julho 2026/i)).toBeInTheDocument();
   });
 
+  it('follows the active system locale', () => {
+    renderWithIntl(
+      <Calendar mode="single" month={new Date(2026, 6, 1)} selected={new Date(2026, 6, 13)} />,
+      { locale: 'en' },
+    );
+
+    expect(screen.getByText(/july 2026/i)).toBeInTheDocument();
+  });
+
   it('renders selected days with white text', () => {
     const { container } = renderWithIntl(
       <Calendar mode="single" month={new Date(2026, 6, 1)} selected={new Date(2026, 6, 13)} />,
     );
 
     expect(container.querySelector('[data-day="2026-07-13"][data-selected="true"]')).toHaveClass(
-      'text-white',
+      '!text-white',
     );
   });
 });

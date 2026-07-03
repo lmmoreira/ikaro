@@ -4,15 +4,15 @@ import { listBookings } from '@/features/booking/api/staff';
 import { fetchScheduleClosures, fetchScheduleOpenings } from '@/features/booking/schedule/api';
 import { SchedulePage } from '@/features/booking/components/dashboard/schedule/SchedulePage';
 import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
-import { getWeekEndKey, getWeekStartKey } from '@/features/booking/schedule/date-utils';
+import {
+  getWeekEndKey,
+  getWeekStartKey,
+  isValidDateKey,
+} from '@/features/booking/schedule/date-utils';
 import { toDateKeyInTimezone } from '@/shared/utils/date-utils';
 
 interface ScheduleRouteProps {
   readonly searchParams: Promise<{ weekStart?: string; date?: string }>;
-}
-
-function isDateKey(value: string | undefined): value is string {
-  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 export default async function ScheduleRoute({
@@ -23,10 +23,11 @@ export default async function ScheduleRoute({
   const timezone = tenantSettings.settings.businessHours.timezone;
   const todayKey = toDateKeyInTimezone(new Date(), timezone);
   const { weekStart, date } = await searchParams;
-  const selectedDateKey = isDateKey(date) ? date : todayKey;
-  const weekStartKey = isDateKey(weekStart)
-    ? getWeekStartKey(weekStart)
-    : getWeekStartKey(selectedDateKey);
+  const selectedDateKey = date && isValidDateKey(date) ? date : todayKey;
+  const weekStartKey =
+    weekStart && isValidDateKey(weekStart)
+      ? getWeekStartKey(weekStart)
+      : getWeekStartKey(selectedDateKey);
   const weekEndKey = getWeekEndKey(weekStartKey);
   const slotGranularityMinutes = tenantSettings.settings.booking.slotGranularityMinutes;
 

@@ -9,6 +9,7 @@ export async function bffServerFetch(
   init: BffServerFetchInit = {},
 ): Promise<Response> {
   const { headers: extraHeaders, cache, next, ...rest } = init;
+  const hasRevalidate = next?.revalidate !== undefined;
   const requestInit: RequestInit & { next?: BffServerFetchInit['next'] } = {
     ...rest,
     headers: {
@@ -17,14 +18,18 @@ export async function bffServerFetch(
     },
   };
 
-  if (cache) {
+  if (cache && !hasRevalidate) {
     requestInit.cache = cache;
-  } else if (next?.revalidate === undefined) {
+  } else if (!cache && !hasRevalidate) {
     requestInit.cache = 'no-store';
   }
 
   if (next) {
     requestInit.next = next;
+  }
+
+  if (!requestInit.signal) {
+    requestInit.signal = AbortSignal.timeout(8000);
   }
 
   return fetch(`${process.env.NEXT_PUBLIC_BFF_URL}${path}`, requestInit);

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, type SubmitEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ScheduleClosure } from '@ikaro/types';
 import { ApiError } from '@/shared/lib/api/errors';
 import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
-import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { ScheduleRemovalSummary } from './ScheduleRemovalSummary';
+import { useConfirmRemoval } from './use-confirm-removal';
 
 interface RemoveClosureDialogProps {
   readonly open: boolean;
@@ -30,9 +31,13 @@ export function RemoveClosureDialog({
   const t = useTranslations('dashboard.schedule');
   const commonT = useTranslations('common');
   const { formatDateLong } = useFormatting();
-  const dialogRef = useModalDialog(open);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { dialogRef, isSubmitting, error, confirmRemoval } = useConfirmRemoval({
+    open,
+    onClose,
+    onSubmit,
+    getErrorMessage: (err) =>
+      err instanceof ApiError && err.detail ? err.detail : t('errors.submitFailed'),
+  });
 
   if (!open || !target) return null;
   const closure = target;
@@ -43,16 +48,7 @@ export function RemoveClosureDialog({
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      await onSubmit(closure.id);
-      onClose();
-    } catch (err) {
-      setError(err instanceof ApiError && err.detail ? err.detail : t('errors.submitFailed'));
-    } finally {
-      setIsSubmitting(false);
-    }
+    await confirmRemoval(closure.id);
   }
 
   return (
@@ -70,21 +66,13 @@ export function RemoveClosureDialog({
       submitDisabled={isSubmitting}
       error={error}
     >
-      <div className="space-y-3">
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-          <p className="text-sm font-semibold text-gray-900">{getReasonLabel(t, target.reason)}</p>
-          <p className="mt-1 text-sm text-gray-600">{dateLabel}</p>
-          <p className="mt-1 text-sm text-gray-600">{rangeLabel}</p>
-          {target.notes ? (
-            <div className="mt-3 border-t border-gray-200 pt-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">
-                {t('notesLabel')}
-              </p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{target.notes}</p>
-            </div>
-          ) : null}
-        </div>
-      </div>
+      <ScheduleRemovalSummary
+        title={getReasonLabel(t, target.reason)}
+        dateLabel={dateLabel}
+        rangeLabel={rangeLabel}
+        notesLabel={t('notesLabel')}
+        notes={target.notes}
+      />
     </BookingActionSheetShell>
   );
 }

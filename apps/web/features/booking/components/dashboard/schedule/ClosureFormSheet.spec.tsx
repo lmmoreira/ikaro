@@ -102,6 +102,54 @@ describe('ClosureFormSheet', () => {
     expect(screen.getByText('Escolha hoje ou uma data futura para bloquear.')).toBeInTheDocument();
   });
 
+  it('shows a validation error when only one time is selected', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(
+      <ClosureFormSheet
+        open
+        initialDate="2026-07-04"
+        todayKey="2026-07-01"
+        timezone="America/Sao_Paulo"
+        slotGranularityMinutes={30}
+        onClose={vi.fn()}
+        onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
+      />,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Hora inicial' }));
+    await user.click(screen.getByRole('option', { name: '09:00' }));
+    await user.click(screen.getByRole('button', { name: 'Bloquear' }));
+
+    expect(screen.getByText('Informe o horário inicial e final juntos.')).toBeInTheDocument();
+  });
+
+  it('shows a validation error when the time range is inverted', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(
+      <ClosureFormSheet
+        open
+        initialDate="2026-07-04"
+        todayKey="2026-07-01"
+        timezone="America/Sao_Paulo"
+        slotGranularityMinutes={30}
+        onClose={vi.fn()}
+        onSubmit={vi.fn().mockResolvedValue({ id: 'closure-1' })}
+      />,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Hora inicial' }));
+    await user.click(screen.getByRole('option', { name: '12:00' }));
+    await user.click(screen.getByRole('combobox', { name: 'Hora final' }));
+    await user.click(screen.getByRole('option', { name: '09:00' }));
+    await user.click(screen.getByRole('button', { name: 'Bloquear' }));
+
+    expect(
+      screen.getByText('O horário inicial precisa ser anterior ao final.'),
+    ).toBeInTheDocument();
+  });
+
   it('resets the date when the sheet is reopened for a different day', () => {
     const { unmount } = renderWithIntl(
       <ClosureFormSheet

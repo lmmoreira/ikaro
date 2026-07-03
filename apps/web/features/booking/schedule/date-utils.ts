@@ -18,6 +18,20 @@ export function parseDateKey(dateKey: string): Date {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
+export function isValidDateKey(dateKey: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return false;
+  }
+
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const parsed = parseDateKey(dateKey);
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
 export function getWeekStartKey(dateKey: string): string {
   const date = parseDateKey(dateKey);
   const offset = (date.getUTCDay() + 6) % 7;

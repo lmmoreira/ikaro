@@ -35,10 +35,25 @@ describe('bffServerFetch', () => {
     );
   });
 
-  it('honours an explicit cache value', async () => {
+  it('adds a default timeout signal when none is provided', async () => {
+    await bffServerFetch('tok', '/bookings');
+    const requestInit = fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(requestInit?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('prefers next.revalidate over cache when both are provided', async () => {
     await bffServerFetch('tok', '/tenants/settings', {
       cache: 'force-cache',
       next: { revalidate: 300 },
+    });
+    const requestInit = fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(requestInit?.cache).toBeUndefined();
+    expect(requestInit?.next).toEqual({ revalidate: 300 });
+  });
+
+  it('honours an explicit cache value when next.revalidate is absent', async () => {
+    await bffServerFetch('tok', '/tenants/settings', {
+      cache: 'force-cache',
     });
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.any(String),

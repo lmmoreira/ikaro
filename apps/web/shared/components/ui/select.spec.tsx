@@ -6,27 +6,6 @@ import { describe, expect, it } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 
-if (!HTMLElement.prototype.hasOwnProperty('hasPointerCapture')) {
-  Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
-    configurable: true,
-    value: () => false,
-  });
-}
-
-if (!HTMLElement.prototype.hasOwnProperty('setPointerCapture')) {
-  Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
-    configurable: true,
-    value: () => undefined,
-  });
-}
-
-if (!HTMLElement.prototype.hasOwnProperty('releasePointerCapture')) {
-  Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', {
-    configurable: true,
-    value: () => undefined,
-  });
-}
-
 describe('Select', () => {
   it('renders the selected value and allows changing it', async () => {
     const user = userEvent.setup();

@@ -6,6 +6,7 @@ import {
   getWeekDates,
   getWeekEndKey,
   getWeekStartKey,
+  isValidDateKey,
   getWeekdayKey,
   minutesToTime,
   overlaps,
@@ -41,11 +42,18 @@ describe('schedule date utils', () => {
 
   it('maps a date to the matching business-hours day', () => {
     expect(getWeekdayKey('2026-07-06')).toBe('monday');
+    expect(getWeekdayKey('2026-07-12')).toBe('sunday');
     expect(getDayHoursForDate('2026-07-06', businessHours)).toEqual({
       open: '09:00',
       close: '18:00',
     });
     expect(getDayHoursForDate('2026-07-07', businessHours)).toBeNull();
+  });
+
+  it('validates real calendar dates instead of only the date-key shape', () => {
+    expect(isValidDateKey('2026-07-06')).toBe(true);
+    expect(isValidDateKey('2026-07-32')).toBe(false);
+    expect(isValidDateKey('2026-02-30')).toBe(false);
   });
 
   it('converts minutes and local time keys consistently', () => {

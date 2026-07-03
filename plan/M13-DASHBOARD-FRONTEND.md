@@ -2299,7 +2299,7 @@ The page is a weekly schedule view where staff can see approved bookings on a ti
   - holds `ScheduleState` (see below)
   - week strip: Mon–Sun day buttons; selected day shown in the time grid below
   - time grid: slots from `businessHours[dayOfWeek].open` to `.close`; closed days → empty state + "Abrir dia especial" CTA
-  - booking blocks: blue left border + `--ba-secondary` bg; link to `/dashboard/bookings/[id]`
+  - booking blocks: blue-tinted block with status badge; link to `/dashboard/bookings/[id]`
   - closure blocks: grey hatch (`repeating-linear-gradient 135deg`); click opens `RemoveClosureDialog`
   - booking inside a closure window: orange tint + warning icon (UC-010a A4)
   - open days: FAB `+ Bloquear período` → opens `ClosureFormSheet`
@@ -2318,7 +2318,7 @@ type ScheduleState = {
 }
 ```
 
-`apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` — shadcn `<Sheet side="bottom">` (desktop: `side="right"`):
+`apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` — native `<dialog>` action sheet with `showModal()` semantics:
 
 | Field | Component | Validation |
 |---|---|---|
@@ -2336,12 +2336,12 @@ Error messages (pt-BR):
 - 422 past date → "Não é possível bloquear datas passadas."
 - 201 + bookings exist (UC-010a A4) → non-blocking inline warning banner after close: "X agendamento(s) aprovado(s) existe(m) nesse período. Reagende ou cancele manualmente."
 
-`apps/web/features/booking/components/dashboard/schedule/RemoveClosureDialog.tsx` — shadcn `<Sheet side="bottom">`, compact confirmation:
+`apps/web/features/booking/components/dashboard/schedule/RemoveClosureDialog.tsx` — native `<dialog>` confirmation using the shared booking action sheet shell:
 - Shows: reason label + formatted date + time range
 - "Remover bloqueio" button — destructive red
 - `DELETE /v1/schedule/closures/:id` → 204 → close sheet, remove from local state
 
-`apps/web/features/booking/components/dashboard/schedule/OpeningFormSheet.tsx` — UC-010c:
+`apps/web/features/booking/components/dashboard/schedule/OpeningFormSheet.tsx` — native `<dialog>` action sheet with `showModal()` semantics, UC-010c:
 
 | Field | Component | Validation |
 |---|---|---|
@@ -2355,7 +2355,7 @@ Error messages (pt-BR):
 - 422 past date → "Não é possível abrir datas passadas."
 - 422 day already open → "Esse dia já está aberto nas configurações regulares. Ajuste os horários de funcionamento."
 
-`apps/web/features/booking/components/dashboard/schedule/RemoveOpeningDialog.tsx` — same pattern as `RemoveClosureDialog`. "Remover abertura" — destructive. 204 → revert day to closed state.
+`apps/web/features/booking/components/dashboard/schedule/RemoveOpeningDialog.tsx` — same native `<dialog>` pattern as `RemoveClosureDialog`. "Remover abertura" — destructive. 204 → revert day to closed state.
 
 `apps/web/features/booking/schedule/api.ts`:
 ```typescript

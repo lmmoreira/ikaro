@@ -1,16 +1,12 @@
 import { MarkCompleteBookingPage } from '@/features/booking/components/dashboard/bookings/MarkCompleteBookingPage';
 import { getAccessToken } from '@/features/auth/get-access-token';
+import { resolveReturnTo } from '@/features/booking/model/booking-navigation';
 import { fetchTenantSettings } from '@/features/platform/tenant-settings';
 import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-route.server';
 
 interface BookingCompleteRouteProps {
   readonly params: Promise<{ id: string }>;
   readonly searchParams: Promise<{ returnTo?: string }>;
-}
-
-function resolveReturnTo(returnTo: string | undefined): string | null {
-  if (typeof returnTo !== 'string') return null;
-  return returnTo.startsWith('/dashboard/') ? returnTo : null;
 }
 
 export default async function BookingCompleteRoute({
