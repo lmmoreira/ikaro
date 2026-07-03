@@ -74,14 +74,12 @@ describe('SelectStaffTenantClient', () => {
     );
 
     expect(screen.getByRole('button', { name: /Lavacar BeloAuto/ })).toHaveTextContent('Gerente');
-    expect(screen.getByRole('button', { name: /Lavacar Centro/ })).toHaveTextContent(
-      'Funcionário',
-    );
+    expect(screen.getByRole('button', { name: /Lavacar Centro/ })).toHaveTextContent('Funcionário');
   });
 
   it('selects the tenant and navigates to the dashboard on success', async () => {
     const user = userEvent.setup();
-    vi.mocked(switchStaffTenant).mockResolvedValue(undefined);
+    vi.mocked(switchStaffTenant).mockResolvedValue({ tenantSlug: 'lavacar-beloauto' });
 
     render(<SelectStaffTenantClient initialOptions={[makeOption()]} />);
 
