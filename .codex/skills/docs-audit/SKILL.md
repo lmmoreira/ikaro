@@ -1,1 +1,0 @@
-/home/leonardo/Projetos/leonardo/ikaro/.claude/commands/docs-audit.md

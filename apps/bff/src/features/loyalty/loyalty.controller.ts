@@ -26,8 +26,8 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
   LoyaltyBalanceResponse,
-  LoyaltyEntriesResponse,
-  LoyaltyRedemptionsResponse,
+  BackendLoyaltyEntriesResponse,
+  BackendLoyaltyRedemptionsResponse,
   RedeemPointsResponse,
 } from './loyalty.types';
 import {
@@ -52,6 +52,30 @@ const RedeemPointsSchema = z.object({
 });
 
 type RedeemPointsBody = z.infer<typeof RedeemPointsSchema>;
+
+type Pagination = {
+  readonly page: number;
+  readonly limit: number;
+  readonly total: number;
+};
+
+function toPaginatedResponse<TSource, TResult>(
+  payload: { readonly pagination: Pagination },
+  items: readonly TSource[],
+  mapItem: (item: TSource) => TResult,
+): {
+  readonly items: TResult[];
+  readonly total: number;
+  readonly page: number;
+  readonly limit: number;
+} {
+  return {
+    items: items.map(mapItem),
+    total: payload.pagination.total,
+    page: payload.pagination.page,
+    limit: payload.pagination.limit,
+  };
+}
 
 @Controller()
 export class LoyaltyController {
@@ -83,13 +107,11 @@ export class LoyaltyController {
   async getEntries(
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
   ): Promise<CustomerLoyaltyEntriesResponse> {
-    const backend = await this.backendHttp.get<LoyaltyEntriesResponse>('/loyalty/entries', query);
-    return {
-      items: backend.entries.map(toCustomerLoyaltyEntry),
-      total: backend.pagination.total,
-      page: backend.pagination.page,
-      limit: backend.pagination.limit,
-    };
+    const backend = await this.backendHttp.get<BackendLoyaltyEntriesResponse>(
+      '/loyalty/entries',
+      query,
+    );
+    return toPaginatedResponse(backend, backend.entries, toCustomerLoyaltyEntry);
   }
 
   @Get('loyalty/redemptions')
@@ -97,16 +119,11 @@ export class LoyaltyController {
   async getRedemptions(
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
   ): Promise<CustomerLoyaltyRedemptionsResponse> {
-    const backend = await this.backendHttp.get<LoyaltyRedemptionsResponse>(
+    const backend = await this.backendHttp.get<BackendLoyaltyRedemptionsResponse>(
       '/loyalty/redemptions',
       query,
     );
-    return {
-      items: backend.redemptions.map(toCustomerLoyaltyRedemption),
-      total: backend.pagination.total,
-      page: backend.pagination.page,
-      limit: backend.pagination.limit,
-    };
+    return toPaginatedResponse(backend, backend.redemptions, toCustomerLoyaltyRedemption);
   }
 
   // ── Admin routes ──────────────────────────────────────────────────────────
@@ -134,16 +151,11 @@ export class LoyaltyController {
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
   ): Promise<PaginatedLoyaltyEntriesResponse> {
-    const backend = await this.backendHttp.get<LoyaltyEntriesResponse>(
+    const backend = await this.backendHttp.get<BackendLoyaltyEntriesResponse>(
       `/customers/${customerId}/loyalty/entries`,
       query,
     );
-    return {
-      items: backend.entries.map(toStaffLoyaltyEntry),
-      total: backend.pagination.total,
-      page: backend.pagination.page,
-      limit: backend.pagination.limit,
-    };
+    return toPaginatedResponse(backend, backend.entries, toStaffLoyaltyEntry);
   }
 
   @Get('customers/:customerId/loyalty/redemptions')
@@ -152,16 +164,11 @@ export class LoyaltyController {
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
   ): Promise<PaginatedLoyaltyRedemptionsResponse> {
-    const backend = await this.backendHttp.get<LoyaltyRedemptionsResponse>(
+    const backend = await this.backendHttp.get<BackendLoyaltyRedemptionsResponse>(
       `/customers/${customerId}/loyalty/redemptions`,
       query,
     );
-    return {
-      items: backend.redemptions.map(toStaffLoyaltyRedemption),
-      total: backend.pagination.total,
-      page: backend.pagination.page,
-      limit: backend.pagination.limit,
-    };
+    return toPaginatedResponse(backend, backend.redemptions, toStaffLoyaltyRedemption);
   }
 
   @Get('customers/:customerId/loyalty')
@@ -172,11 +179,14 @@ export class LoyaltyController {
     const [customer, balance, entries, redemptions] = await Promise.all([
       this.backendHttp.get<CustomerProfileResponse>(`/customers/${customerId}`),
       this.getEnrichedBalance(`/customers/${customerId}/loyalty/balance`),
-      this.backendHttp.get<LoyaltyEntriesResponse>(`/customers/${customerId}/loyalty/entries`, {
-        page: 1,
-        limit: 20,
-      }),
-      this.backendHttp.get<LoyaltyRedemptionsResponse>(
+      this.backendHttp.get<BackendLoyaltyEntriesResponse>(
+        `/customers/${customerId}/loyalty/entries`,
+        {
+          page: 1,
+          limit: 20,
+        },
+      ),
+      this.backendHttp.get<BackendLoyaltyRedemptionsResponse>(
         `/customers/${customerId}/loyalty/redemptions`,
         {
           page: 1,
@@ -188,18 +198,12 @@ export class LoyaltyController {
     return {
       customer,
       balance,
-      entries: {
-        items: entries.entries.map(toStaffLoyaltyEntry),
-        total: entries.pagination.total,
-        page: entries.pagination.page,
-        limit: entries.pagination.limit,
-      },
-      redemptions: {
-        items: redemptions.redemptions.map(toStaffLoyaltyRedemption),
-        total: redemptions.pagination.total,
-        page: redemptions.pagination.page,
-        limit: redemptions.pagination.limit,
-      },
+      entries: toPaginatedResponse(entries, entries.entries, toStaffLoyaltyEntry),
+      redemptions: toPaginatedResponse(
+        redemptions,
+        redemptions.redemptions,
+        toStaffLoyaltyRedemption,
+      ),
     };
   }
 }

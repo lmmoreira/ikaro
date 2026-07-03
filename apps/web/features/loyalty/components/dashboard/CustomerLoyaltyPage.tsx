@@ -30,8 +30,6 @@ interface CustomerLoyaltyPageProps {
   readonly initialActiveTab?: 'entries' | 'redemptions';
 }
 
-const PAGE_SIZE_STEP = 20;
-
 function formatShortDateLabel(date: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
@@ -144,6 +142,261 @@ function EmptyState({
   );
 }
 
+function LoyaltyHistoryRow({
+  icon,
+  title,
+  meta,
+  link,
+  points,
+}: {
+  readonly icon: React.ReactNode;
+  readonly title: React.ReactNode;
+  readonly meta: React.ReactNode;
+  readonly link?: React.ReactNode;
+  readonly points: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="flex items-center gap-3 border-b border-gray-200 py-3.5 last:border-b-0">
+      {icon}
+      <div className="min-w-0 flex-1">
+        {title}
+        <div className="mt-0.5 text-xs text-gray-500">{meta}</div>
+        {link}
+      </div>
+      {points}
+    </div>
+  );
+}
+
+function renderEntriesTabContent({
+  entries,
+  locale,
+  formatDateLong,
+  isLoadingEntries,
+  loadMoreEntries,
+  returnToHref,
+  t,
+}: {
+  readonly entries: PaginatedLoyaltyEntriesResponse;
+  readonly locale: string;
+  readonly formatDateLong: (date: Date) => string;
+  readonly isLoadingEntries: boolean;
+  readonly loadMoreEntries: () => Promise<void>;
+  readonly returnToHref: string;
+  readonly t: ReturnType<typeof useTranslations>;
+}): React.JSX.Element {
+  if (entries.items.length === 0) {
+    return (
+      <EmptyState
+        icon={
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        }
+        title={t('entriesEmptyTitle')}
+        body={t('entriesEmptyBody')}
+      />
+    );
+  }
+
+  return (
+    <>
+      <div>
+        {entries.items.map((entry) => (
+          <LoyaltyHistoryRow
+            key={entry.id}
+            icon={<EntryIcon expired={!entry.isActive} />}
+            title={
+              <p className="truncate text-sm font-semibold text-gray-900">
+                {entry.serviceName}{' '}
+                <span
+                  className={cn(
+                    'ml-2 rounded-full px-2 py-0.5 text-[0.7rem] font-semibold',
+                    entry.isActive
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-gray-100 text-gray-500',
+                  )}
+                >
+                  {entry.isActive ? t('entryActiveBadge') : t('entryExpiredBadge')}
+                </span>
+              </p>
+            }
+            meta={
+              <>
+                {formatDateLong(new Date(entry.earnedAt))} ·{' '}
+                {t('entryExpiryLine', {
+                  expiresAt: formatShortDateLabel(entry.expiresAt, locale),
+                })}
+              </>
+            }
+            link={
+              entry.bookingId ? (
+                <Link
+                  href={appendReturnTo(`/dashboard/bookings/${entry.bookingId}`, returnToHref)}
+                  className="mt-0.5 inline-flex truncate text-xs text-gray-400 transition-colors hover:text-blue-700"
+                >
+                  {t('redemptionBookingLabel', {
+                    bookingId: entry.bookingId.slice(0, 8),
+                  })}
+                </Link>
+              ) : undefined
+            }
+            points={
+              <span className="shrink-0 text-sm font-semibold text-emerald-700">
+                {t('earnedPointsBadge', { count: entry.points })}
+              </span>
+            }
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 flex flex-col items-center gap-3">
+        <p className="text-center text-xs text-gray-400">
+          {t('showingEntries', {
+            shown: entries.items.length,
+            total: entries.total,
+          })}
+        </p>
+        {entries.items.length < entries.total && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={loadMoreEntries}
+            disabled={isLoadingEntries}
+          >
+            {t('loadMoreEntries')}
+          </Button>
+        )}
+      </div>
+    </>
+  );
+}
+
+function renderRedemptionsTabContent({
+  redemptions,
+  formatDateLong,
+  isLoadingRedemptions,
+  loadMoreRedemptions,
+  returnToHref,
+  t,
+}: {
+  readonly redemptions: PaginatedLoyaltyRedemptionsResponse;
+  readonly formatDateLong: (date: Date) => string;
+  readonly isLoadingRedemptions: boolean;
+  readonly loadMoreRedemptions: () => Promise<void>;
+  readonly returnToHref: string;
+  readonly t: ReturnType<typeof useTranslations>;
+}): React.JSX.Element {
+  if (redemptions.items.length === 0) {
+    return (
+      <EmptyState
+        icon={
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9 12h6" />
+          </svg>
+        }
+        title={t('redemptionsEmptyTitle')}
+        body={t('redemptionsEmptyBody')}
+      />
+    );
+  }
+
+  return (
+    <>
+      <div>
+        {redemptions.items.map((redemption) => (
+          <LoyaltyHistoryRow
+            key={redemption.id}
+            icon={
+              <div
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700"
+                aria-hidden="true"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 8 2 12 6 16" />
+                  <line x1="22" y1="12" x2="2" y2="12" />
+                </svg>
+              </div>
+            }
+            title={
+              <p className="truncate text-sm font-semibold text-gray-900">
+                {redemption.notes?.trim() || t('redemptionDefaultTitle')}
+              </p>
+            }
+            meta={formatDateLong(new Date(redemption.redeemedAt))}
+            link={
+              redemption.bookingId ? (
+                <Link
+                  href={appendReturnTo(`/dashboard/bookings/${redemption.bookingId}`, returnToHref)}
+                  className="mt-0.5 inline-flex truncate text-xs text-gray-400 transition-colors hover:text-blue-700"
+                >
+                  {t('redemptionBookingLabel', {
+                    bookingId: redemption.bookingId.slice(0, 8),
+                  })}
+                </Link>
+              ) : undefined
+            }
+            points={
+              <span className="shrink-0 text-sm font-semibold text-rose-700">
+                {t('redeemedPointsBadge', { count: redemption.pointsRedeemed })}
+              </span>
+            }
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 flex flex-col items-center gap-3">
+        <p className="text-center text-xs text-gray-400">
+          {t('showingRedemptions', {
+            shown: redemptions.items.length,
+            total: redemptions.total,
+          })}
+        </p>
+        {redemptions.items.length < redemptions.total && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={loadMoreRedemptions}
+            disabled={isLoadingRedemptions}
+          >
+            {t('loadMoreRedemptions')}
+          </Button>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function CustomerLoyaltyPage({
   customer,
   balance,
@@ -192,16 +445,40 @@ export function CustomerLoyaltyPage({
   const returnToHref = `/dashboard/loyalty/${customer.customerId}${
     activeTab === 'redemptions' ? '?tab=redemptions' : ''
   }`;
+  let activeTabContent: React.JSX.Element;
+  if (activeTab === 'entries') {
+    activeTabContent = renderEntriesTabContent({
+      entries,
+      locale,
+      formatDateLong,
+      isLoadingEntries,
+      loadMoreEntries,
+      returnToHref,
+      t,
+    });
+  } else {
+    activeTabContent = renderRedemptionsTabContent({
+      redemptions,
+      formatDateLong,
+      isLoadingRedemptions,
+      loadMoreRedemptions,
+      returnToHref,
+      t,
+    });
+  }
 
   async function loadMoreEntries(): Promise<void> {
     if (isLoadingEntries || entries.items.length >= entries.total) return;
     setIsLoadingEntries(true);
     try {
       const next = await getCustomerLoyaltyEntries(customer.customerId, {
-        page: 1,
-        limit: entries.limit + PAGE_SIZE_STEP,
+        page: entries.page + 1,
+        limit: entries.limit,
       });
-      setEntries(next);
+      setEntries((current) => ({
+        ...next,
+        items: [...current.items, ...next.items],
+      }));
     } catch {
       // Keep the current page when loading more fails; the user can retry.
     } finally {
@@ -214,10 +491,13 @@ export function CustomerLoyaltyPage({
     setIsLoadingRedemptions(true);
     try {
       const next = await getCustomerLoyaltyRedemptions(customer.customerId, {
-        page: 1,
-        limit: redemptions.limit + PAGE_SIZE_STEP,
+        page: redemptions.page + 1,
+        limit: redemptions.limit,
       });
-      setRedemptions(next);
+      setRedemptions((current) => ({
+        ...next,
+        items: [...current.items, ...next.items],
+      }));
     } catch {
       // Keep the current page when loading more fails; the user can retry.
     } finally {
@@ -295,192 +575,7 @@ export function CustomerLoyaltyPage({
             redemptionsLabel={t('redemptionsTab')}
           />
 
-          {activeTab === 'entries' ? (
-            entries.items.length > 0 ? (
-              <>
-                <div>
-                  {entries.items.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-center gap-3 border-b border-gray-200 py-3.5 last:border-b-0"
-                    >
-                      <EntryIcon expired={!entry.isActive} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-gray-900">
-                          {entry.serviceName}{' '}
-                          <span
-                            className={cn(
-                              'ml-2 rounded-full px-2 py-0.5 text-[0.7rem] font-semibold',
-                              entry.isActive
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-gray-100 text-gray-500',
-                            )}
-                          >
-                            {entry.isActive ? t('entryActiveBadge') : t('entryExpiredBadge')}
-                          </span>
-                        </p>
-                        <p className="mt-0.5 text-xs text-gray-500">
-                          {formatDateLong(new Date(entry.earnedAt))} ·{' '}
-                          {t('entryExpiryLine', {
-                            expiresAt: formatShortDateLabel(entry.expiresAt, locale),
-                          })}
-                        </p>
-                        {entry.bookingId && (
-                          <Link
-                            href={appendReturnTo(
-                              `/dashboard/bookings/${entry.bookingId}`,
-                              returnToHref,
-                            )}
-                            className="mt-0.5 inline-flex truncate text-xs text-gray-400 transition-colors hover:text-blue-700"
-                          >
-                            {t('redemptionBookingLabel', {
-                              bookingId: entry.bookingId.slice(0, 8),
-                            })}
-                          </Link>
-                        )}
-                      </div>
-                      <span className="shrink-0 text-sm font-semibold text-emerald-700">
-                        {t('earnedPointsBadge', { count: entry.points })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 flex flex-col items-center gap-3">
-                  <p className="text-center text-xs text-gray-400">
-                    {t('showingEntries', {
-                      shown: entries.items.length,
-                      total: entries.total,
-                    })}
-                  </p>
-                  {entries.items.length < entries.total && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={loadMoreEntries}
-                      disabled={isLoadingEntries}
-                    >
-                      {t('loadMoreEntries')}
-                    </Button>
-                  )}
-                </div>
-              </>
-            ) : (
-              <EmptyState
-                icon={
-                  <svg
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                  </svg>
-                }
-                title={t('entriesEmptyTitle')}
-                body={t('entriesEmptyBody')}
-              />
-            )
-          ) : redemptions.items.length > 0 ? (
-            <>
-              <div>
-                {redemptions.items.map((redemption) => (
-                  <div
-                    key={redemption.id}
-                    className="flex items-center gap-3 border-b border-gray-200 py-3.5 last:border-b-0"
-                  >
-                    <div
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700"
-                      aria-hidden="true"
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="6 8 2 12 6 16" />
-                        <line x1="22" y1="12" x2="2" y2="12" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-gray-900">
-                        {redemption.notes?.trim() || t('redemptionDefaultTitle')}
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        {formatDateLong(new Date(redemption.redeemedAt))}
-                      </p>
-                      {redemption.bookingId && (
-                        <Link
-                          href={appendReturnTo(
-                            `/dashboard/bookings/${redemption.bookingId}`,
-                            returnToHref,
-                          )}
-                          className="mt-0.5 inline-flex truncate text-xs text-gray-400 transition-colors hover:text-blue-700"
-                        >
-                          {t('redemptionBookingLabel', {
-                            bookingId: redemption.bookingId.slice(0, 8),
-                          })}
-                        </Link>
-                      )}
-                    </div>
-                    <span className="shrink-0 text-sm font-semibold text-rose-700">
-                      {t('redeemedPointsBadge', { count: redemption.pointsRedeemed })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 flex flex-col items-center gap-3">
-                <p className="text-center text-xs text-gray-400">
-                  {t('showingRedemptions', {
-                    shown: redemptions.items.length,
-                    total: redemptions.total,
-                  })}
-                </p>
-                {redemptions.items.length < redemptions.total && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={loadMoreRedemptions}
-                    disabled={isLoadingRedemptions}
-                  >
-                    {t('loadMoreRedemptions')}
-                  </Button>
-                )}
-              </div>
-            </>
-          ) : (
-            <EmptyState
-              icon={
-                <svg
-                  width="48"
-                  height="48"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9 12h6" />
-                </svg>
-              }
-              title={t('redemptionsEmptyTitle')}
-              body={t('redemptionsEmptyBody')}
-            />
-          )}
+          {activeTabContent}
         </div>
       </Card>
     </section>

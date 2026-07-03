@@ -60,20 +60,28 @@ function TopbarStatusProbe(): React.JSX.Element {
   );
 }
 
-function TopbarSetter({ href }: { readonly href: string }): React.JSX.Element {
+function TopbarSetter({
+  href,
+  backLabel,
+  pageTitle,
+}: {
+  readonly href: string;
+  readonly backLabel: string;
+  readonly pageTitle: string;
+}): React.JSX.Element {
   const { setBackHrefOverride, setBackLabelOverride, setPageTitleOverride } =
     useDashboardTopbarStatus()!;
 
   useEffect(() => {
     setBackHrefOverride(href);
-    setBackLabelOverride('Fidelidade');
-    setPageTitleOverride('João Silva');
+    setBackLabelOverride(backLabel);
+    setPageTitleOverride(pageTitle);
     return () => {
       setBackHrefOverride(null);
       setBackLabelOverride(null);
       setPageTitleOverride(null);
     };
-  }, [href, setBackHrefOverride, setBackLabelOverride, setPageTitleOverride]);
+  }, [backLabel, href, pageTitle, setBackHrefOverride, setBackLabelOverride, setPageTitleOverride]);
 
   return <></>;
 }
@@ -188,7 +196,7 @@ describe('Topbar', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/loyalty/c-1');
     render(
       <DashboardTopbarStatusProvider>
-        <TopbarSetter href="/dashboard/loyalty" />
+        <TopbarSetter href="/dashboard/loyalty" backLabel="Fidelidade" pageTitle="João Silva" />
         <Topbar tenantName="Lavacar BH" userName="Ana" />
       </DashboardTopbarStatusProvider>,
     );
@@ -205,7 +213,11 @@ describe('Topbar', () => {
 
     render(
       <DashboardTopbarStatusProvider initialBookingStatus="INFO_REQUESTED">
-        <TopbarSetter href="/dashboard/schedule?weekStart=2026-06-29&date=2026-06-29" />
+        <TopbarSetter
+          href="/dashboard/schedule?weekStart=2026-06-29&date=2026-06-29"
+          backLabel="Fidelidade"
+          pageTitle="João Silva"
+        />
         <Topbar tenantName="Lavacar BH" userName="Ana" />
       </DashboardTopbarStatusProvider>,
     );

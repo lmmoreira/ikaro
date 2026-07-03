@@ -29,7 +29,7 @@ Response: { items: CustomerSearchResult[], total: number }
 > 🔍 **Verify before starting:** `GET /v1/customers?search=` is scoped and resolved by `M13-S12` (`apps/bff/src/customers/customers.controller.ts`, Part A — staff-facing customer search). Confirm `M13-S12` has shipped before starting this story (per `M13-S25`'s discovery step) rather than treating the endpoint as an open question.
 
 **States:**
-- Default (no search): show "Clientes recentes" — last 5 customers who had bookings, from cache or a `GET /v1/customers?recent=true&limit=5` call
+- Default (no search): show "Clientes recentes" — `GET /v1/customers?search=&limit=5` with the current backend ordering (name ASC today)
 - Results: customer rows with name, email, active points badge
 - No results: empty state with message (see `01c-no-results.html`)
 
@@ -86,14 +86,17 @@ fetchCustomerLoyaltyRedemptions(customerId: string, page?: number): Promise<Pagi
 // GET /v1/customers/:customerId/loyalty/redemptions?page=:page&limit=20
 ```
 
-## @ikaro/types — stale shape (fix required before implementing)
+## `@ikaro/types` — current shape
 
-`packages/types/src/loyalty.dto.ts` exports `LoyaltyBalanceResponse` with shape `{ tenantId, customerId, activePoints, entries[] }` — this is **stale**. The actual BFF response is `{ currentPoints, nextExpiryDate, nextExpiryPoints }`. The BFF currently defines its own `LoyaltyBalanceResponse` in `apps/bff/src/loyalty/loyalty.types.ts`. Before building the frontend:
-1. Update `packages/types/src/loyalty.dto.ts` to match the actual BFF shape
-2. Remove `LoyaltyEntryResponse` from the shared types (BFF has a richer `LoyaltyEntryItem` with `serviceName` and `isActive`) or extend it
+`packages/types/src/loyalty.dto.ts` already matches the BFF staff-facing loyalty responses used by this story:
+- `EnrichedLoyaltyBalanceResponse` exposes `currentPoints`, `nextExpiryDate`, `nextExpiryPoints`, and `conversionRate`
+- `PaginatedLoyaltyEntriesResponse` exposes `items[]` with `serviceName`, `points`, `earnedAt`, `expiresAt`, and `isActive`
+- `PaginatedLoyaltyRedemptionsResponse` exposes `items[]` with `amountDeducted`, `bookingId`, and `notes`
+
+No type-shape reconciliation is needed before implementing this page.
 
 ## Known limitations / open questions
 
-- **Customer search endpoint:** not confirmed to exist in the BFF. Must verify before starting. If missing, add `GET /v1/customers?search=` to the customer or staff BFF module (simple ILIKE query on `name` + `email`, scoped to `tenantId`, requires `STAFF|MANAGER`).
-- **`conversionRate` in balance response:** the frontend needs `points_per_currency_unit` to show "= R$ X". Confirm whether BFF includes it in the balance response or whether a separate settings call is needed.
+- **Customer search endpoint:** confirmed via `M13-S12`; no extra BFF work is needed for `GET /v1/customers?search=`.
+- **`conversionRate` in balance response:** confirmed via `M13-S12`; the BFF enriches balance responses with the live `pointsPerCurrencyUnit` value.
 - **Entry into this page from booking detail:** UC-003 already shows the customer's balance in the booking detail card. A "Ver histórico completo →" link pointing to `/dashboard/loyalty?customerId=:id` would make this page more discoverable — add to M125-S05 scope or this story.

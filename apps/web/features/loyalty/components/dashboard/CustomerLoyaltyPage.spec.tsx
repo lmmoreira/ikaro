@@ -59,7 +59,6 @@ const entries = {
 const entriesNextPage = {
   ...entries,
   items: [
-    ...entries.items,
     {
       id: 'e-2',
       bookingId: 'booking-3',
@@ -70,7 +69,8 @@ const entriesNextPage = {
       isActive: true,
     },
   ],
-  limit: 40,
+  page: 2,
+  limit: 20,
 };
 
 const redemptions = {
@@ -84,8 +84,25 @@ const redemptions = {
       notes: 'Resgate no agendamento',
     },
   ],
-  total: 1,
+  total: 2,
   page: 1,
+  limit: 20,
+};
+
+const redemptionsNextPage = {
+  ...redemptions,
+  items: [
+    {
+      id: 'r-2',
+      pointsRedeemed: 50,
+      amountDeducted: 5,
+      redeemedAt: '2026-06-01T00:00:00.000Z',
+      bookingId: null,
+      notes: 'Resgate adicional',
+    },
+  ],
+  total: 2,
+  page: 2,
   limit: 20,
 };
 
@@ -96,7 +113,7 @@ beforeEach(() => {
   getCustomerLoyaltyEntries.mockReset();
   getCustomerLoyaltyRedemptions.mockReset();
   getCustomerLoyaltyEntries.mockResolvedValue(entriesNextPage);
-  getCustomerLoyaltyRedemptions.mockResolvedValue(redemptions);
+  getCustomerLoyaltyRedemptions.mockResolvedValue(redemptionsNextPage);
 });
 
 describe('CustomerLoyaltyPage', () => {
@@ -145,11 +162,60 @@ describe('CustomerLoyaltyPage', () => {
 
     await waitFor(() =>
       expect(getCustomerLoyaltyEntries).toHaveBeenCalledWith('c-1', {
-        page: 1,
-        limit: 40,
+        page: 2,
+        limit: 20,
       }),
     );
     expect(await screen.findByText('Lavagem Completa')).toBeInTheDocument();
+  });
+
+  it('loads more redemptions when the button is clicked', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(
+      <CustomerLoyaltyPage
+        customer={customer}
+        balance={balance}
+        entries={entries}
+        redemptions={redemptions}
+        initialActiveTab="redemptions"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Carregar mais resgates' }));
+
+    await waitFor(() =>
+      expect(getCustomerLoyaltyRedemptions).toHaveBeenCalledWith('c-1', {
+        page: 2,
+        limit: 20,
+      }),
+    );
+    expect(await screen.findByText('Resgate adicional')).toBeInTheDocument();
+  });
+
+  it('keeps the current entries when loading more fails', async () => {
+    const user = userEvent.setup();
+    getCustomerLoyaltyEntries.mockRejectedValueOnce(new Error('network error'));
+
+    renderWithIntl(
+      <CustomerLoyaltyPage
+        customer={customer}
+        balance={balance}
+        entries={entries}
+        redemptions={redemptions}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Carregar mais entradas' }));
+
+    await waitFor(() =>
+      expect(getCustomerLoyaltyEntries).toHaveBeenCalledWith('c-1', {
+        page: 2,
+        limit: 20,
+      }),
+    );
+    expect(screen.getByText('Lavagem Simples')).toBeInTheDocument();
+    expect(screen.queryByText('Lavagem Completa')).not.toBeInTheDocument();
   });
 
   it('links redemption rows back to the redemptions tab on booking detail return', async () => {

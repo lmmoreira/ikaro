@@ -14,6 +14,7 @@ import { getInitials } from '@/shared/utils/initials';
 
 const RECENT_LIMIT = 5;
 const SEARCH_LIMIT = 20;
+const SKELETON_ROW_KEYS = ['top', 'middle', 'bottom'] as const;
 const AVATAR_FALLBACK_CLASSES = [
   'bg-blue-600',
   'bg-violet-600',
@@ -26,9 +27,9 @@ function LoyaltySearchSkeleton(): React.JSX.Element {
   return (
     <Card className="overflow-hidden">
       <div className="space-y-0">
-        {Array.from({ length: 3 }).map((_, index) => (
+        {SKELETON_ROW_KEYS.map((key) => (
           <div
-            key={index}
+            key={key}
             className="flex items-center gap-3 border-b border-gray-100 px-4 py-4 last:border-b-0"
           >
             <div className="h-10 w-10 rounded-full bg-gray-100" />
@@ -101,57 +102,95 @@ function CustomerRow({
   );
 }
 
+function LoyaltySearchResults({
+  customers,
+  isLoading,
+  isError,
+  isRecent,
+  pointsBadge,
+  t,
+}: {
+  readonly customers: CustomerSearchListResponse['items'];
+  readonly isLoading: boolean;
+  readonly isError: boolean;
+  readonly isRecent: boolean;
+  readonly pointsBadge: (count: number) => string;
+  readonly t: ReturnType<typeof useTranslations>;
+}): React.JSX.Element {
+  if (isLoading) {
+    return <LoyaltySearchSkeleton />;
+  }
+
+  if (isError) {
+    return <LoyaltySearchEmptyState title={t('searchErrorTitle')} body={t('searchErrorBody')} />;
+  }
+
+  if (customers.length > 0) {
+    return (
+      <Card className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-none">
+        {customers.map((customer, index) => (
+          <CustomerRow
+            key={customer.customerId}
+            customer={customer}
+            index={index}
+            pointsBadge={pointsBadge}
+          />
+        ))}
+      </Card>
+    );
+  }
+
+  if (isRecent) {
+    return <LoyaltySearchEmptyState title={t('noCustomersTitle')} body={t('noCustomersBody')} />;
+  }
+
+  return <LoyaltySearchEmptyState title={t('noResultsTitle')} body={t('noResultsBody')} />;
+}
+
 export function LoyaltySearchPage(): React.JSX.Element {
   const t = useTranslations('dashboard.loyaltyPage');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [customers, setCustomers] = useState<CustomerSearchListResponse['items']>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
+  const [resolvedSearch, setResolvedSearch] = useState<string | null>(null);
+  const [errorSearch, setErrorSearch] = useState<string | null>(null);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
+    const timeout = globalThis.setTimeout(() => {
       setDebouncedSearch(search.trim());
     }, 300);
-    return () => window.clearTimeout(timeout);
+    return () => globalThis.clearTimeout(timeout);
   }, [search]);
 
   useEffect(() => {
     let active = true;
-    const timeout = window.setTimeout(() => {
-      setIsLoading(true);
-      setIsError(false);
-
-      void searchCustomers(
-        debouncedSearch || undefined,
-        debouncedSearch ? SEARCH_LIMIT : RECENT_LIMIT,
-      )
-        .then((response) => {
-          if (!active) return;
-          setCustomers(response.items);
-        })
-        .catch(() => {
-          if (!active) return;
-          setIsError(true);
-          setCustomers([]);
-        })
-        .finally(() => {
-          if (!active) return;
-          setIsLoading(false);
-        });
-    }, 300);
+    void searchCustomers(
+      debouncedSearch || undefined,
+      debouncedSearch ? SEARCH_LIMIT : RECENT_LIMIT,
+    )
+      .then((response) => {
+        if (!active) return;
+        setCustomers(response.items);
+        setResolvedSearch(debouncedSearch);
+        setErrorSearch(null);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCustomers([]);
+        setResolvedSearch(debouncedSearch);
+        setErrorSearch(debouncedSearch);
+      });
 
     return () => {
       active = false;
-      window.clearTimeout(timeout);
     };
   }, [debouncedSearch]);
 
+  const isLoading = resolvedSearch !== debouncedSearch;
+  const isError = errorSearch === debouncedSearch;
   const isRecent = debouncedSearch.length === 0;
   const heading = isRecent ? t('recentCustomers') : t('resultsFor', { term: debouncedSearch });
   const pointsBadge = (count: number) => t('pointsBadge', { count });
-  const isEmptyRecent = isRecent && !isLoading && !isError && customers.length === 0;
-  const isEmptyResults = !isRecent && !isLoading && !isError && customers.length === 0;
 
   return (
     <section className="w-full space-y-0">
@@ -162,34 +201,21 @@ export function LoyaltySearchPage(): React.JSX.Element {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('searchPlaceholder')}
+          aria-label={t('searchPlaceholder')}
           className="h-11 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 shadow-none outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
       </div>
 
       <p className="mb-2 text-xs font-bold uppercase tracking-[0.06em] text-gray-400">{heading}</p>
 
-      {isLoading ? (
-        <LoyaltySearchSkeleton />
-      ) : isError ? (
-        <LoyaltySearchEmptyState title={t('searchErrorTitle')} body={t('searchErrorBody')} />
-      ) : customers.length > 0 ? (
-        <Card className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-none">
-          {customers.map((customer, index) => (
-            <CustomerRow
-              key={customer.customerId}
-              customer={customer}
-              index={index}
-              pointsBadge={pointsBadge}
-            />
-          ))}
-        </Card>
-      ) : isEmptyRecent ? (
-        <LoyaltySearchEmptyState title={t('noCustomersTitle')} body={t('noCustomersBody')} />
-      ) : isEmptyResults ? (
-        <LoyaltySearchEmptyState title={t('noResultsTitle')} body={t('noResultsBody')} />
-      ) : (
-        <LoyaltySearchSkeleton />
-      )}
+      <LoyaltySearchResults
+        customers={customers}
+        isLoading={isLoading}
+        isError={isError}
+        isRecent={isRecent}
+        pointsBadge={pointsBadge}
+        t={t}
+      />
     </section>
   );
 }

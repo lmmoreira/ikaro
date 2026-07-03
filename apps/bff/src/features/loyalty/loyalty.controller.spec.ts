@@ -3,8 +3,8 @@ import { makeBackendHttp } from '../../test/backend-http.mock';
 import { LoyaltyController } from './loyalty.controller';
 import {
   LoyaltyBalanceResponse,
-  LoyaltyEntriesResponse,
-  LoyaltyRedemptionsResponse,
+  BackendLoyaltyEntriesResponse,
+  BackendLoyaltyRedemptionsResponse,
   RedeemPointsResponse,
 } from './loyalty.types';
 
@@ -50,7 +50,7 @@ const mockSettings: TenantSettingsResponse = {
   },
 };
 
-const mockEntries: LoyaltyEntriesResponse = {
+const mockEntries: BackendLoyaltyEntriesResponse = {
   entries: [
     {
       entryId: 'e1111111-0000-4000-8000-000000000001',
@@ -66,7 +66,7 @@ const mockEntries: LoyaltyEntriesResponse = {
   pagination: { page: 1, limit: 20, total: 1 },
 };
 
-const mockRedemptions: LoyaltyRedemptionsResponse = {
+const mockRedemptions: BackendLoyaltyRedemptionsResponse = {
   redemptions: [
     {
       redemptionId: 'r1111111-0000-4000-8000-000000000001',

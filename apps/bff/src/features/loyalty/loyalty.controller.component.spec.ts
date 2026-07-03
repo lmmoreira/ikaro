@@ -13,8 +13,8 @@ import {
 } from '../../test/component-test.helpers';
 import {
   LoyaltyBalanceResponse,
-  LoyaltyEntriesResponse,
-  LoyaltyRedemptionsResponse,
+  BackendLoyaltyEntriesResponse,
+  BackendLoyaltyRedemptionsResponse,
   RedeemPointsResponse,
 } from './loyalty.types';
 
@@ -26,12 +26,12 @@ const mockBalance: LoyaltyBalanceResponse = {
   nextExpiryPoints: 30,
 };
 
-const mockEntries: LoyaltyEntriesResponse = {
+const mockEntries: BackendLoyaltyEntriesResponse = {
   entries: [],
   pagination: { page: 1, limit: 20, total: 0 },
 };
 
-const mockRedemptions: LoyaltyRedemptionsResponse = {
+const mockRedemptions: BackendLoyaltyRedemptionsResponse = {
   redemptions: [],
   pagination: { page: 1, limit: 20, total: 0 },
 };
@@ -275,6 +275,39 @@ describe('LoyaltyController (component)', () => {
       expect(res.body.balance.currentPoints).toBe(75);
       expect(res.body.entries.items).toHaveLength(0);
       expect(res.body.redemptions.items).toHaveLength(0);
+    });
+
+    it('returns 403 for CUSTOMER JWT', async () => {
+      setupActiveGuardMock(httpService);
+      const token = makeCustomerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/customers/${OTHER_CUSTOMER_ID}/loyalty`)
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 401 without JWT', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/v1/customers/${OTHER_CUSTOMER_ID}/loyalty`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(401);
+    });
+
+    it('propagates backend failures as 500 responses', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockRejectedValueOnce(new Error('backend unavailable'));
+      const token = makeManagerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/customers/${OTHER_CUSTOMER_ID}/loyalty`)
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(500);
     });
   });
 

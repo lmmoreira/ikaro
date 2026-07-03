@@ -1,4 +1,4 @@
-import { LoyaltyEntryItem, LoyaltyRedemptionItem } from './loyalty.types';
+import { BackendLoyaltyEntryItem, BackendLoyaltyRedemptionItem } from './loyalty.types';
 import {
   toCustomerLoyaltyEntry,
   toCustomerLoyaltyRedemption,
@@ -7,7 +7,7 @@ import {
 } from './loyalty.mapper';
 
 describe('toCustomerLoyaltyEntry()', () => {
-  const backendItem: LoyaltyEntryItem = {
+  const backendItem: BackendLoyaltyEntryItem = {
     entryId: 'e1111111-0000-4000-8000-000000000001',
     bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
     serviceId: 'cccccccc-0000-4000-8000-000000000001',
@@ -38,7 +38,7 @@ describe('toCustomerLoyaltyEntry()', () => {
 });
 
 describe('toCustomerLoyaltyRedemption()', () => {
-  const backendItem: LoyaltyRedemptionItem = {
+  const backendItem: BackendLoyaltyRedemptionItem = {
     redemptionId: 'r1111111-0000-4000-8000-000000000001',
     pointsRedeemed: 85,
     pointsPerCurrencyUnit: 10,
