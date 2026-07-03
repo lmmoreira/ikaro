@@ -5,11 +5,16 @@ const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 const TENANT_SLUG = 'lavacar-beloauto';
 const STAFF_EMAIL = 'lm.moreira@gmail.com';
 const DEFAULT_SERVICE_ID = '00000000-0000-7000-8003-000000000001';
-const REQUIRED_INTERNAL_API_KEY = INTERNAL_API_KEY;
 
 if (!INTERNAL_API_KEY) {
   throw new Error('PLAYWRIGHT/INTERNAL_API_KEY is required for schedule E2E helpers');
 }
+
+function getRequiredInternalApiKey(): string {
+  return INTERNAL_API_KEY!;
+}
+
+const REQUIRED_INTERNAL_API_KEY = getRequiredInternalApiKey();
 
 function uniqueTestEmail(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}@e2e.example.com`;
