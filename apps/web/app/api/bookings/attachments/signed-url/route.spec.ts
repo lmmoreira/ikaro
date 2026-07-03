@@ -69,6 +69,7 @@ describe('POST /api/bookings/attachments/signed-url', () => {
         bookingId: 'b-1',
       }),
       cache: 'no-store',
+      signal: expect.any(AbortSignal),
     });
     expect(response.status).toBe(201);
     expect(body).toEqual(signedUrl);

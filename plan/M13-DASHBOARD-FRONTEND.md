@@ -2268,12 +2268,20 @@ completeBooking(body: CompleteBookingRequest): Promise<CompleteBookingResponse>
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-010, `plan/journey/staff/prototypes/horarios/dev-notes.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-010, `plan/journey/staff/prototypes/horarios/dev-notes.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/CODE_STANDARDS.md`
 
 **Description:**
-Implement the Horários section of the staff dashboard — a weekly schedule view where staff can see approved bookings on a time grid and manage schedule closures (UC-010a, UC-010b) and special openings (UC-010c, UC-010d). All backend and BFF endpoints for this section are already implemented; this is a **frontend-only story**.
+Implement the Horários section of the staff dashboard. This is a **frontend-only story**, but it must follow the current repository conventions:
 
-> 🔍 **Discover before starting:** Verify that `GET /v1/schedule/closures`, `POST /v1/schedule/closures`, `DELETE /v1/schedule/closures/:id`, `GET /v1/schedule/openings`, `POST /v1/schedule/openings`, and `DELETE /v1/schedule/openings/:id` exist in `apps/bff/src/` and return the shapes described below. Check `GET /v1/bookings?status=APPROVED&from=...&to=...` — this likely exists from `M13-S03`; confirm the `from`/`to` filter params work for a date range. Verify `apps/bff/http/schedule/` exists; if `schedule-openings.http` or `availability.http` are missing, create them as part of this story.
+- use the same fixed SaaS branding as the bookings queue and the rest of the dashboard shell
+- reuse the existing `WeekNav` from `apps/web/shells/dashboard/components/WeekNav.tsx`
+- reuse the current schedule API layer under `apps/web/features/booking/schedule/`
+- reuse the existing schedule hooks under `apps/web/features/booking/schedule/useSchedule.ts`
+- reuse the existing staff bookings list helper from `apps/web/features/booking/api/staff.ts`
+
+The page is a weekly schedule view where staff can see approved bookings on a time grid and manage schedule closures (UC-010a, UC-010b) and special openings (UC-010c, UC-010d). The top calendar and mobile navigation should feel like the existing bookings pages, not like a new visual system.
+
+> 🔍 **Discover before starting:** Verify that `GET /v1/schedule/closures`, `POST /v1/schedule/closures`, `DELETE /v1/schedule/closures/:id`, `GET /v1/schedule/openings`, `POST /v1/schedule/openings`, and `DELETE /v1/schedule/openings/:id` exist in `apps/bff/src/features/booking/` and return the shapes described below. Check `GET /v1/bookings?status=APPROVED&from=...&to=...` through the existing `listBookings(...)` helper in `apps/web/features/booking/api/staff.ts`; confirm the `from`/`to` filter params work for a date range. Verify `apps/bff/http/schedule/` exists; if `schedule-openings.http` or `availability.http` are missing, create them as part of this story.
 
 **Prototype reference:** `plan/journey/staff/prototypes/horarios/` (10 screens — `00-schedule.html` through `06-remove-opening.html`)
 **Route:** `/dashboard/schedule`
@@ -2281,22 +2289,23 @@ Implement the Horários section of the staff dashboard — a weekly schedule vie
 **What to create:**
 
 `apps/web/app/dashboard/schedule/page.tsx` — server component:
-- Fetches closures, openings, and approved bookings for current week (Mon–Sun)
-- Reads `businessHours` from tenant settings
-- Renders `<ScheduleView initialClosures={...} initialOpenings={...} initialBookings={...} businessHours={...} tenantSlug={...} />`
+  - fetches tenant settings and reads `businessHours` plus the tenant timezone
+  - fetches closures, openings, and approved bookings for the current week (Mon–Sun)
+  - renders `<SchedulePage initialClosures={...} initialOpenings={...} initialBookings={...} businessHours={...} tenantSlug={...} />`
 
-`apps/web/components/schedule/ScheduleView.tsx` — `'use client'`:
-- Holds `ScheduleState` (see below)
-- Renders `<WeekNav>` (imported from `components/dashboard/WeekNav.tsx` — created in `M13-S17`) above the week strip
-- Week strip: Mon–Sun day buttons; selected day shown in time grid below
-- Time grid: slots from `businessHours[dayOfWeek].open` to `.close`; closed days → empty state + "Abrir dia especial" CTA
-- Booking blocks: blue left border + `--ba-secondary` bg; link to `/dashboard/bookings/[id]`
-- Closure blocks: grey hatch (`repeating-linear-gradient 135deg`); click opens `RemoveClosureDialog`
-- Booking inside a closure window: orange tint + warning icon (UC-010a A4)
-- Open days: FAB `+ Bloquear período` → opens `ClosureFormSheet`
-- Closed (business-hours) days: FAB replaced with "Abrir dia especial" CTA → opens `OpeningFormSheet`
-- Week strip dots: green dot per day with ≥1 approved booking or a ScheduleOpening; closed days at 40% opacity
-- Advancing a week: set `startOfWeek + 7 days`, re-fetch all three lists via client-side BFF calls
+`apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` — `'use client'`:
+  - same fixed dashboard palette and shell rhythm as `BookingQueuePage`
+  - reuses `<WeekNav>` from `apps/web/shells/dashboard/components/WeekNav.tsx`
+  - holds `ScheduleState` (see below)
+  - week strip: Mon–Sun day buttons; selected day shown in the time grid below
+  - time grid: slots from `businessHours[dayOfWeek].open` to `.close`; closed days → empty state + "Abrir dia especial" CTA
+  - booking blocks: blue-tinted block with status badge; link to `/dashboard/bookings/[id]`
+  - closure blocks: grey hatch (`repeating-linear-gradient 135deg`); click opens `RemoveClosureDialog`
+  - booking inside a closure window: orange tint + warning icon (UC-010a A4)
+  - open days: FAB `+ Bloquear período` → opens `ClosureFormSheet`
+  - closed (business-hours) days: FAB replaced with "Abrir dia especial" CTA → opens `OpeningFormSheet`
+  - week strip dots: green dot per day with ≥1 approved booking or a `ScheduleOpening`; closed days at 40% opacity
+  - advancing a week: set `startOfWeek + 7 days`, re-fetch all three lists via the existing BFF helpers
 
 ```ts
 type ScheduleState = {
@@ -2309,7 +2318,7 @@ type ScheduleState = {
 }
 ```
 
-`apps/web/components/schedule/ClosureFormSheet.tsx` — shadcn `<Sheet side="bottom">` (desktop: `side="right"`):
+`apps/web/features/booking/components/dashboard/schedule/ClosureFormSheet.tsx` — native `<dialog>` confirmation/action shell with `showModal()` semantics:
 
 | Field | Component | Validation |
 |---|---|---|
@@ -2327,12 +2336,12 @@ Error messages (pt-BR):
 - 422 past date → "Não é possível bloquear datas passadas."
 - 201 + bookings exist (UC-010a A4) → non-blocking inline warning banner after close: "X agendamento(s) aprovado(s) existe(m) nesse período. Reagende ou cancele manualmente."
 
-`apps/web/components/schedule/RemoveClosureDialog.tsx` — shadcn `<Sheet side="bottom">`, compact confirmation:
+`apps/web/features/booking/components/dashboard/schedule/RemoveClosureDialog.tsx` — native `<dialog>` confirmation using the shared booking action sheet shell:
 - Shows: reason label + formatted date + time range
 - "Remover bloqueio" button — destructive red
 - `DELETE /v1/schedule/closures/:id` → 204 → close sheet, remove from local state
 
-`apps/web/components/schedule/OpeningFormSheet.tsx` — UC-010c:
+`apps/web/features/booking/components/dashboard/schedule/OpeningFormSheet.tsx` — native `<dialog>` confirmation/action shell with `showModal()` semantics, UC-010c:
 
 | Field | Component | Validation |
 |---|---|---|
@@ -2346,22 +2355,37 @@ Error messages (pt-BR):
 - 422 past date → "Não é possível abrir datas passadas."
 - 422 day already open → "Esse dia já está aberto nas configurações regulares. Ajuste os horários de funcionamento."
 
-`apps/web/components/schedule/RemoveOpeningDialog.tsx` — same pattern as `RemoveClosureDialog`. "Remover abertura" — destructive. 204 → revert day to closed state.
+`apps/web/features/booking/components/dashboard/schedule/RemoveOpeningDialog.tsx` — same native `<dialog>` pattern as `RemoveClosureDialog`. "Remover abertura" — destructive. 204 → revert day to closed state.
 
-`apps/web/lib/api/schedule.ts`:
+`apps/web/features/booking/schedule/api.ts`:
+
 ```typescript
-fetchClosures(params: { from: string; to: string }): Promise<{ closures: ScheduleClosure[] }>
+listClosures(from: string, to: string): Promise<{ closures: ScheduleClosure[] }>
 createClosure(body: CreateClosureRequest): Promise<ScheduleClosure>
-deleteClosure(id: string): Promise<void>
-fetchOpenings(params: { from: string; to: string }): Promise<{ openings: ScheduleOpening[] }>
+removeClosure(id: string): Promise<void>
+listOpenings(from: string, to: string): Promise<{ openings: ScheduleOpening[] }>
 createOpening(body: CreateOpeningRequest): Promise<ScheduleOpening>
-deleteOpening(id: string): Promise<void>
+removeOpening(id: string): Promise<void>
 ```
-Approved bookings for the schedule grid reuse `fetchStaffBookings({ status: 'APPROVED', from, to })` from `lib/api/bookings-staff.ts` (`M13-S03`).
+
+Extend this module with server-capable fetch helpers for the schedule page, following the same client/server split used by `apps/web/features/booking/services/api.ts`:
+- `fetchScheduleClosures(token, from, to)`
+- `fetchScheduleOpenings(token, from, to)`
+
+`apps/web/features/booking/hooks/useBookings.ts`:
+- add `useWeekBookings(from, to, initialData?)` for approved bookings if the client page needs hydrated data, mirroring the current `useActionNeededBookings` / `useTodayBookings` / `useUpcomingBookings` initial-data pattern
+
+`apps/web/features/booking/components/dashboard/schedule/*.spec.tsx`:
+- one co-located spec per new component, same commit
 
 **BFF `.http` gaps (create in this story if missing):**
 - `apps/bff/http/schedule/schedule-openings.http` — `POST` and `DELETE /v1/schedule/openings` request blocks
 - `apps/bff/http/schedule/availability.http` — `GET /v1/schedule/availability/summary` request block
+
+**i18n keys (create in this story):**
+- `packages/i18n/locales/pt-BR/web.json`
+- `packages/i18n/locales/en/web.json`
+- add a new `dashboard.schedule` namespace for all visible labels, empty states, CTA text, and inline errors
 
 **`@ikaro/types` additions (new file or extend existing):**
 ```typescript
@@ -2424,11 +2448,13 @@ export interface CreateOpeningRequest {
 - [ ] "Remover abertura" → 204 → day reverts to closed
 
 *Layout:*
+- [ ] Schedule page uses the same dashboard shell, bottom nav, and `WeekNav` styling/branding as the bookings queue; no tenant-branded chrome
 - [ ] BottomNav visible (top-level page)
 - [ ] Horários item active in sidebar and bottom nav
+- [ ] All visible copy, empty states, CTAs, and inline errors come from `dashboard.schedule` keys in both locale files
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
 
-**Dependencies:** M13-S15 (shell), M13-S03 (`fetchStaffBookings` with APPROVED filter), M13-S17 (`WeekNav` component)
+**Dependencies:** M13-S15 (shell), M13-S03 (`listBookings` with APPROVED filter), M13-S17 (`WeekNav` component)
 
 ---
 

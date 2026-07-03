@@ -62,6 +62,7 @@ describe('POST /api/auth/switch-staff-tenant', () => {
         headers: { Cookie: 'access_token=signed-jwt', 'Content-Type': 'application/json' },
         body: JSON.stringify({ staffId: 'staff-uuid' }),
         cache: 'no-store',
+        signal: expect.any(AbortSignal),
       }),
     );
     expect(response.status).toBe(200);

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useEffect } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Topbar } from './Topbar';
 import { DashboardTopbarStatusProvider, useDashboardTopbarStatus } from './topbar-status-context';
@@ -39,7 +40,9 @@ vi.mock('@/shells/dashboard/utils/format-today', () => ({
   formatTodayLabel: (_locale: string, prefix: string) => `${prefix} 26 de junho de 2026`,
 }));
 
-vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
+vi.mock('next/navigation', () => ({
+  usePathname: vi.fn(),
+}));
 
 import { usePathname } from 'next/navigation';
 
@@ -55,6 +58,17 @@ function TopbarStatusProbe(): React.JSX.Element {
       </button>
     </div>
   );
+}
+
+function TopbarSetter({ href }: { readonly href: string }): React.JSX.Element {
+  const { setBackHrefOverride } = useDashboardTopbarStatus()!;
+
+  useEffect(() => {
+    setBackHrefOverride(href);
+    return () => setBackHrefOverride(null);
+  }, [href, setBackHrefOverride]);
+
+  return <></>;
 }
 
 beforeEach(() => {
@@ -161,6 +175,22 @@ describe('Topbar', () => {
     );
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Detalhe do agendamento');
     expect(screen.getByText('Aguardando info')).toBeInTheDocument();
+  });
+
+  it('prefers returnTo for booking routes opened from schedule', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123');
+
+    render(
+      <DashboardTopbarStatusProvider initialBookingStatus="INFO_REQUESTED">
+        <TopbarSetter href="/dashboard/schedule?weekStart=2026-06-29&date=2026-06-29" />
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
+      'href',
+      '/dashboard/schedule?weekStart=2026-06-29&date=2026-06-29',
+    );
   });
 
   it('shows the action title and back link on nested booking routes', () => {

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle } from 'lucide-react';
 import type { ServiceFormErrors } from '@/features/booking/services/service-form';
+import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 
 interface ServiceFormFieldsProps {
   readonly name: string;
@@ -39,6 +40,7 @@ export function ServiceFormFields({
   children,
 }: ServiceFormFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const { currencySymbol } = useFormatting();
 
   return (
     <>
@@ -106,7 +108,7 @@ export function ServiceFormFields({
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-500">
-                R$
+                {currencySymbol}
               </span>
               <input
                 id="service-price"

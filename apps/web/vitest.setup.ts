@@ -31,3 +31,40 @@ if (typeof URL.createObjectURL === 'undefined') {
   URL.createObjectURL = vi.fn(() => `blob:mock-${++objectUrlCount}`);
   URL.revokeObjectURL = vi.fn();
 }
+
+if (
+  typeof HTMLElement !== 'undefined' &&
+  !HTMLElement.prototype.hasOwnProperty('hasPointerCapture')
+) {
+  Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
+    configurable: true,
+    value: () => false,
+  });
+}
+
+if (
+  typeof HTMLElement !== 'undefined' &&
+  !HTMLElement.prototype.hasOwnProperty('setPointerCapture')
+) {
+  Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
+    configurable: true,
+    value: () => undefined,
+  });
+}
+
+if (
+  typeof HTMLElement !== 'undefined' &&
+  !HTMLElement.prototype.hasOwnProperty('releasePointerCapture')
+) {
+  Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', {
+    configurable: true,
+    value: () => undefined,
+  });
+}
+
+if (typeof HTMLElement !== 'undefined' && !HTMLElement.prototype.hasOwnProperty('scrollIntoView')) {
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: () => undefined,
+  });
+}

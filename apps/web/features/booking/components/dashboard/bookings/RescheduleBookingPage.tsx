@@ -28,6 +28,7 @@ interface RescheduleBookingPageProps {
   readonly booking: StaffBookingDetailResponse;
   readonly tenantSlug: string;
   readonly backHref: string;
+  readonly agendaHref: string;
 }
 
 function formatRangeLine(
@@ -43,6 +44,7 @@ export function RescheduleBookingPage({
   booking,
   tenantSlug,
   backHref,
+  agendaHref,
 }: RescheduleBookingPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
   const commonT = useTranslations('common');
@@ -144,7 +146,7 @@ export function RescheduleBookingPage({
         }
         asideBody={t('rescheduledAsideBody')}
         primaryAction={{ label: t('viewUpdatedBooking'), href: backHref }}
-        secondaryAction={{ label: t('backToAgenda'), href: '/dashboard/bookings' }}
+        secondaryAction={{ label: t('backToAgenda'), href: agendaHref }}
       >
         <section>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">

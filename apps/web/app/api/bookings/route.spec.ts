@@ -54,6 +54,7 @@ describe('GET /api/bookings', () => {
       `${BFF_URL}/bookings`,
       expect.objectContaining({
         headers: expect.objectContaining({ Cookie: 'access_token=signed-jwt' }),
+        signal: expect.any(AbortSignal),
       }),
     );
     expect(response.status).toBe(200);

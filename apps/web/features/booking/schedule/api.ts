@@ -1,49 +1,31 @@
+import type {
+  CreateClosureRequest,
+  CreateOpeningRequest,
+  ScheduleClosure,
+  ScheduleClosureListResponse,
+  ScheduleOpening,
+  ScheduleOpeningListResponse,
+} from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
+import { bffServerFetch } from '@/shared/lib/api/bff-server';
 
-export type ClosureReason = 'STAFF_DAY_OFF' | 'MAINTENANCE' | 'HOLIDAY';
+export type {
+  CreateClosureRequest,
+  CreateOpeningRequest,
+  ScheduleClosure,
+  ScheduleClosureListResponse,
+  ScheduleOpening,
+  ScheduleOpeningListResponse,
+};
 
-export interface ScheduleClosureResponse {
-  readonly id: string;
-  readonly date: string;
-  readonly startTime: string | null;
-  readonly endTime: string | null;
-  readonly reason: ClosureReason;
-  readonly notes: string | null;
-  readonly createdBy: string;
-  readonly createdAt: string;
+function buildRangeQuery(from: string, to: string): string {
+  return new URLSearchParams({ from, to }).toString();
 }
 
-export interface ScheduleClosureListResponse {
-  readonly items: readonly ScheduleClosureResponse[];
-}
-
-export interface CreateClosureRequest {
-  readonly date: string;
-  readonly reason: ClosureReason;
-  readonly startTime?: string;
-  readonly endTime?: string;
-  readonly notes?: string;
-}
-
-export interface ScheduleOpeningResponse {
-  readonly id: string;
-  readonly date: string;
-  readonly startTime: string;
-  readonly endTime: string;
-  readonly notes: string | null;
-  readonly createdBy: string;
-  readonly createdAt: string;
-}
-
-export interface ScheduleOpeningListResponse {
-  readonly items: readonly ScheduleOpeningResponse[];
-}
-
-export interface CreateOpeningRequest {
-  readonly date: string;
-  readonly startTime: string;
-  readonly endTime: string;
-  readonly notes?: string;
+async function fetchScheduleResponse<T>(token: string, path: string): Promise<T> {
+  const res = await bffServerFetch(token, path);
+  if (!res.ok) throw new Error(`Failed to fetch ${path} (${res.status})`);
+  return res.json() as Promise<T>;
 }
 
 export async function listClosures(from: string, to: string): Promise<ScheduleClosureListResponse> {
@@ -53,8 +35,19 @@ export async function listClosures(from: string, to: string): Promise<ScheduleCl
   return res.data;
 }
 
-export async function createClosure(body: CreateClosureRequest): Promise<ScheduleClosureResponse> {
-  const res = await bffClient.post<ScheduleClosureResponse>('/schedule/closures', body);
+export async function fetchScheduleClosures(
+  token: string,
+  from: string,
+  to: string,
+): Promise<ScheduleClosureListResponse> {
+  return fetchScheduleResponse<ScheduleClosureListResponse>(
+    token,
+    `/schedule/closures?${buildRangeQuery(from, to)}`,
+  );
+}
+
+export async function createClosure(body: CreateClosureRequest): Promise<ScheduleClosure> {
+  const res = await bffClient.post<ScheduleClosure>('/schedule/closures', body);
   return res.data;
 }
 
@@ -69,8 +62,19 @@ export async function listOpenings(from: string, to: string): Promise<ScheduleOp
   return res.data;
 }
 
-export async function createOpening(body: CreateOpeningRequest): Promise<ScheduleOpeningResponse> {
-  const res = await bffClient.post<ScheduleOpeningResponse>('/schedule/openings', body);
+export async function fetchScheduleOpenings(
+  token: string,
+  from: string,
+  to: string,
+): Promise<ScheduleOpeningListResponse> {
+  return fetchScheduleResponse<ScheduleOpeningListResponse>(
+    token,
+    `/schedule/openings?${buildRangeQuery(from, to)}`,
+  );
+}
+
+export async function createOpening(body: CreateOpeningRequest): Promise<ScheduleOpening> {
+  const res = await bffClient.post<ScheduleOpening>('/schedule/openings', body);
   return res.data;
 }
 

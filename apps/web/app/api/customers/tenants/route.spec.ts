@@ -50,6 +50,7 @@ describe('GET /api/customers/tenants', () => {
       expect.objectContaining({
         headers: { Cookie: 'access_token=signed-jwt' },
         cache: 'no-store',
+        signal: expect.any(AbortSignal),
       }),
     );
     expect(response.status).toBe(200);

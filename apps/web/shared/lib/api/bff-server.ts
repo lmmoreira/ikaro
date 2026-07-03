@@ -1,6 +1,11 @@
-interface BffServerFetchInit extends Omit<RequestInit, 'headers'> {
+interface BffServerFetchNextInit {
+  readonly revalidate?: number | false;
+  readonly tags?: string[];
+}
+
+interface BffServerFetchInit extends Omit<RequestInit, 'headers' | 'next'> {
   readonly headers?: Record<string, string>;
-  readonly next?: { readonly revalidate?: number | false; readonly tags?: string[] };
+  readonly next?: BffServerFetchNextInit;
 }
 
 export async function bffServerFetch(
@@ -8,13 +13,25 @@ export async function bffServerFetch(
   path: string,
   init: BffServerFetchInit = {},
 ): Promise<Response> {
-  const { headers: extraHeaders, cache, ...rest } = init;
-  return fetch(`${process.env.NEXT_PUBLIC_BFF_URL}${path}`, {
+  const { headers: extraHeaders, cache, next, ...rest } = init;
+  const hasRevalidate = next?.revalidate !== undefined;
+  const requestInit: RequestInit & { next?: BffServerFetchNextInit } = {
     ...rest,
     headers: {
       Cookie: `access_token=${token}`,
       ...extraHeaders,
     },
-    cache: cache ?? 'no-store',
-  });
+  };
+
+  if (!hasRevalidate) {
+    requestInit.cache ??= cache ?? 'no-store';
+  }
+
+  if (next) {
+    requestInit.next = next;
+  }
+
+  requestInit.signal ??= AbortSignal.timeout(8000);
+
+  return fetch(`${process.env.NEXT_PUBLIC_BFF_URL}${path}`, requestInit);
 }

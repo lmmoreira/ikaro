@@ -66,6 +66,7 @@ describe('GET /api/customers/me', () => {
     expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/customers/me`, {
       headers: { Cookie: 'access_token=signed-jwt', 'X-Tenant-Slug': 'lavacar-beloauto' },
       cache: 'no-store',
+      signal: expect.any(AbortSignal),
     });
     expect(response.status).toBe(200);
     expect(body).toEqual(profile);
@@ -85,6 +86,7 @@ describe('GET /api/customers/me', () => {
     expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/customers/me`, {
       headers: { Cookie: 'access_token=signed-jwt' },
       cache: 'no-store',
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -188,6 +190,7 @@ describe('PATCH /api/customers/me', () => {
       },
       body: JSON.stringify({ phone: '+5511999999999' }),
       cache: 'no-store',
+      signal: expect.any(AbortSignal),
     });
     expect(response.status).toBe(200);
     expect(body).toEqual(profile);

@@ -47,12 +47,14 @@ function resolveTopbarRouteState({
   dashboardT,
   servicesT,
   bookingT,
+  returnTo,
 }: {
   readonly pathname: string;
   readonly commonBackLabel: string;
   readonly dashboardT: ReturnType<typeof useTranslations>;
   readonly servicesT: ReturnType<typeof useTranslations>;
   readonly bookingT: ReturnType<typeof useTranslations>;
+  readonly returnTo: string | null;
 }): TopbarRouteState {
   const bookingRouteMatch = matchBookingDetailRoute(pathname);
   const serviceRouteMatch = matchServiceRoute(pathname);
@@ -73,9 +75,10 @@ function resolveTopbarRouteState({
     }
 
     backHref =
-      bookingRouteMatch.action === null
+      returnTo ??
+      (bookingRouteMatch.action === null
         ? '/dashboard/bookings'
-        : `/dashboard/bookings/${bookingRouteMatch.bookingId}`;
+        : `/dashboard/bookings/${bookingRouteMatch.bookingId}`);
     backLabel = commonBackLabel;
   } else if (serviceRouteMatch?.action === 'edit') {
     pageTitle = servicesT('editPageTitle');
@@ -112,6 +115,7 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
   const topbarStatus = useDashboardTopbarStatus();
   const initials = getInitials(userName);
   const serviceRouteMatch = matchServiceRoute(pathname);
+  const returnTo = topbarStatus?.backHrefOverride ?? null;
   const { pageTitle, backHref, backLabel, isBookingRoute, isServicesCreateRoute } =
     resolveTopbarRouteState({
       pathname,
@@ -119,6 +123,7 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
       dashboardT: t,
       servicesT,
       bookingT,
+      returnTo,
     });
   const bookingStatusLabels = buildBookingStatusLabels(bookingT);
   const showBackLink = Boolean(backHref);

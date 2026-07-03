@@ -1,37 +1,14 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import type { AbstractIntlMessages } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
+import ptBRMessages from '@ikaro/i18n/locales/pt-BR/web.json';
+import { renderWithIntl } from '@/test-utils';
 import { ServiceFormFields } from './ServiceFormFields';
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      createNameLabel: 'Nome do serviço',
-      createNamePlaceholder: 'Digite o nome',
-      createDescriptionLabel: 'Descrição',
-      createDescriptionPlaceholder: 'Digite a descrição',
-      createPriceLabel: 'Preço',
-      createPricePlaceholder: '0,00',
-      createDurationLabel: 'Duração',
-      createDurationPlaceholder: '60',
-      createPointsLabel: 'Pontos de fidelidade',
-      createPointsPlaceholder: '0',
-      createPointsHint: 'Use 0 para não pontuar',
-      createPickupLabel: 'Coleta e entrega',
-      createPickupHint: 'Marque para exigir endereço',
-      servicesOptionsTitle: 'Opções',
-      editPriceWarning: 'O preço é obrigatório',
-      createNameRequired: 'Informe o nome do serviço.',
-      createPriceRequired: 'Informe o preço do serviço.',
-      createDurationRequired: 'Informe a duração do serviço.',
-    };
-    return map[key] ?? key;
-  },
-}));
 
 describe('ServiceFormFields', () => {
   it('renders the shared service fields and optional content', () => {
-    render(
+    renderWithIntl(
       <ServiceFormFields
         name=""
         description=""
@@ -49,6 +26,13 @@ describe('ServiceFormFields', () => {
       >
         <p>Extra</p>
       </ServiceFormFields>,
+      {
+        locale: 'en',
+        messages: ptBRMessages as AbstractIntlMessages,
+        formattingOverrides: {
+          currency: 'USD',
+        },
+      },
     );
 
     expect(screen.getByLabelText('Nome do serviço')).toBeInTheDocument();
@@ -59,5 +43,6 @@ describe('ServiceFormFields', () => {
     expect(screen.getByTestId('service-pickup-switch')).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByText('Opções')).toBeInTheDocument();
     expect(screen.getByText('Extra')).toBeInTheDocument();
+    expect(screen.getByText('$')).toBeInTheDocument();
   });
 });

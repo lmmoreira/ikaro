@@ -15,6 +15,7 @@ export interface WeekNavProps {
   readonly disablePrev?: boolean;
   readonly disableNext?: boolean;
   readonly activeDates?: ReadonlySet<string>;
+  readonly dimmedDates?: ReadonlySet<string>;
 }
 
 function getDayButtonClass(isSelected: boolean, isToday: boolean): string {
@@ -46,6 +47,7 @@ export function WeekNav({
   disablePrev = false,
   disableNext = false,
   activeDates,
+  dimmedDates,
 }: WeekNavProps): React.JSX.Element {
   const { formatMonthYear, formatWeekdayShort } = useFormatting();
   const days: Date[] = Array.from({ length: windowDays }, (_, i) => addDays(windowStart, i));
@@ -88,6 +90,7 @@ export function WeekNav({
           const isToday = isSameDay(day, today);
           const isSelected = selectedDate === dateKey;
           const hasActivity = activeDates?.has(dateKey) ?? false;
+          const isDimmed = dimmedDates?.has(dateKey) ?? false;
           const isHighlighted = isSelected || isToday;
 
           return (
@@ -102,6 +105,7 @@ export function WeekNav({
               data-selected={isSelected ? 'true' : undefined}
               className={[
                 'flex min-w-[2.5rem] flex-col items-center gap-0.5 rounded-[0.625rem] px-1.5 py-2 transition-colors',
+                isDimmed ? 'opacity-40' : '',
                 getDayButtonClass(isSelected, isToday),
               ]
                 .filter(Boolean)

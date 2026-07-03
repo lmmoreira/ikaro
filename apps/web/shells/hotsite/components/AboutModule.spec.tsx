@@ -73,6 +73,25 @@ describe('AboutModule', () => {
     expect(container.querySelector('script')).not.toBeInTheDocument();
   });
 
+  it('renders markdown headings, lists, and links with the custom components', () => {
+    const { container } = render(
+      <AboutModule
+        data={makeData({
+          body: `# Um título\n\n## Um subtítulo\n\n### Uma seção\n\n- Item 1\n- Item 2\n\n1. Passo 1\n2. Passo 2\n\n[Site oficial](https://example.com)`,
+        })}
+        slug="tenant"
+      />,
+    );
+
+    expect(container.querySelectorAll('h3')).toHaveLength(3);
+    expect(container.querySelector('ul')).toBeInTheDocument();
+    expect(container.querySelector('ol')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Site oficial' })).toHaveAttribute(
+      'href',
+      'https://example.com',
+    );
+  });
+
   describe('eyebrow', () => {
     it('renders eyebrow when provided', () => {
       render(<AboutModule data={makeData({ eyebrow: 'Nossa história' })} slug="tenant" />);

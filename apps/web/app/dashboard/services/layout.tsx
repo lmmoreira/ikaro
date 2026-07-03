@@ -14,7 +14,7 @@ import {
 import { loadServiceDetailRouteData } from '@/shells/dashboard/model/service-route.server';
 import { matchServiceRoute } from '@/shells/dashboard/model/service-route';
 import { DashboardTopbarStatusProvider } from '@/shells/dashboard/components/topbar-status-context';
-import { getTranslations } from 'next-intl/server';
+import { createTranslator } from 'next-intl';
 
 interface ServicesLayoutProps {
   readonly children: React.ReactNode;
@@ -28,7 +28,11 @@ export default async function ServicesLayout({
   const hdrs = await headers();
   const pathname = hdrs.get('x-pathname') ?? '/dashboard/services';
   const shell = await loadDashboardShellContext(token, payload);
-  const t = await getTranslations('dashboard.servicesPage');
+  const t = createTranslator<IntlMessages, 'dashboard.servicesPage'>({
+    locale: shell.locale,
+    messages: shell.messages as IntlMessages,
+    namespace: 'dashboard.servicesPage',
+  });
   const serviceRouteMatch = matchServiceRoute(pathname);
   let initialServiceStatus: 'ACTIVE' | 'INACTIVE' | null =
     pathname === '/dashboard/services/new' ? 'ACTIVE' : null;

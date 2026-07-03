@@ -183,6 +183,25 @@ describe('BookingDetailPage', () => {
     expect(screen.getByText('Aprovar neste →')).toBeInTheDocument();
   });
 
+  it('preserves the schedule return target when opening complete flow actions', async () => {
+    const user = userEvent.setup();
+    const returnTo = '/dashboard/schedule?weekStart=2026-07-01&date=2026-07-02';
+
+    renderWithIntl(
+      <BookingDetailPage
+        booking={makeBooking({ status: 'APPROVED' })}
+        tenantSlug="lavacar-bh"
+        returnTo={returnTo}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Marcar concluído' }));
+
+    expect(routerPush).toHaveBeenCalledWith(
+      `/dashboard/bookings/b-1/complete?returnTo=${encodeURIComponent(returnTo)}`,
+    );
+  });
+
   it('shows the backend validation message when rejecting with a short reason', async () => {
     rejectBookingMutateAsync.mockRejectedValue(
       new ApiError(400, 'Request body validation failed', {

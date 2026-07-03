@@ -54,6 +54,7 @@ describe('GET /api/staff/me', () => {
     expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/staff/me`, {
       headers: { Cookie: 'access_token=signed-jwt', 'X-Tenant-Slug': 'lavacar-beloauto' },
       cache: 'no-store',
+      signal: expect.any(AbortSignal),
     });
     expect(response.status).toBe(200);
     expect(body).toEqual(staff);
@@ -73,6 +74,7 @@ describe('GET /api/staff/me', () => {
     expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/staff/me`, {
       headers: { Cookie: 'access_token=signed-jwt' },
       cache: 'no-store',
+      signal: expect.any(AbortSignal),
     });
   });
 

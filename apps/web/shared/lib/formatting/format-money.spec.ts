@@ -1,5 +1,6 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { formatMoney } from './format-money';
+import { formatCurrencySymbol, formatMoney } from './format-money';
 
 describe('formatMoney', () => {
   it('formats BRL with pt-BR locale', () => {
@@ -22,5 +23,10 @@ describe('formatMoney', () => {
 
   it('formats zero', () => {
     expect(formatMoney(0, 'pt-BR', 'BRL')).toBe('R$ 0,00');
+  });
+
+  it('extracts the currency symbol for the locale', () => {
+    expect(formatCurrencySymbol('pt-BR', 'BRL')).toBe('R$');
+    expect(formatCurrencySymbol('en', 'USD')).toBe('$');
   });
 });

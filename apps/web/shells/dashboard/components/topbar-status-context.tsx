@@ -10,6 +10,8 @@ interface DashboardTopbarStatusContextValue {
   readonly setBookingStatus: (status: BookingStatus | null) => void;
   readonly serviceStatus: DashboardServiceStatus | null;
   readonly setServiceStatus: (status: DashboardServiceStatus | null) => void;
+  readonly backHrefOverride: string | null;
+  readonly setBackHrefOverride: (href: string | null) => void;
 }
 
 interface DashboardTopbarStatusProviderProps {
@@ -29,14 +31,17 @@ export function DashboardTopbarStatusProvider({
   const [serviceStatus, setServiceStatus] = useState<DashboardServiceStatus | null>(
     initialServiceStatus,
   );
+  const [backHrefOverride, setBackHrefOverride] = useState<string | null>(null);
   const value = useMemo(
     () => ({
       bookingStatus,
       setBookingStatus,
       serviceStatus,
       setServiceStatus,
+      backHrefOverride,
+      setBackHrefOverride,
     }),
-    [bookingStatus, serviceStatus, setBookingStatus, setServiceStatus],
+    [backHrefOverride, bookingStatus, serviceStatus, setBookingStatus, setServiceStatus],
   );
 
   return (
