@@ -7,7 +7,7 @@
 
 > **Purpose:** Turn every audit finding into a **discrete, self-contained story** you can implement one at a time, ordered by **risk/urgency first, effort second**.
 > **Audience:** This document is written to be read by **AI coding agents**. Each story is self-contained — problem, evidence, why it's wrong, the fix, and acceptance criteria — so a future agent can plan and implement it without re-reading the whole audit. Always cross-reference the cited `OPUS_AUDITORY.md §x.y` for the long-form rationale.
-> **Note on scope vs. other TDs:** unlike TD01–TD07 (each a single focused debt), TD08 is an **umbrella backlog** of 42 stories spanning the whole audit. Treat each `AUD-NNN` story as an independently shippable unit; this file is the index and the context, not a single PR.
+> **Note on scope vs. other TDs:** unlike TD01–TD07 (each a single focused debt), TD08 is an **umbrella backlog** of 43 stories spanning the whole audit. Treat each `AUD-NNN` story as an independently shippable unit; this file is the index and the context, not a single PR.
 
 ---
 
@@ -39,7 +39,7 @@
 | **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
 | **AUD-005** | Graceful shutdown hooks (backend + BFF) ✅ | 🟠 High | XS | Now | — | §5.2 |
 | **AUD-006** | Helmet / security headers on BFF ✅ | 🟠 High | XS | Now | — | §5.6 |
-| **AUD-007** | CSP + security headers on hotsite | 🟠 High | S | Now | — | §8.3 |
+| **AUD-007** | CSP + security headers across apps/web ✅ | 🟠 High | S | Now | — | §8.3 |
 | **AUD-008** | Isolate BFF HTTP-client auth state (`client-only` guard) | 🟠 High | XS | Now | — | §8.4 |
 | **AUD-009** | Supply-chain CI hardening (pin actions, Dependabot, digests, concurrency, permissions) ✅ | 🟠 High | M | Now | — | §9.1, §9.2, §9.5, §10.1–10.3 |
 | **AUD-010** | Fix the brittle `multer` override (real CVE) ✅ | 🟠 High | S | Now | — | §10.6 |
@@ -76,6 +76,7 @@
 | **AUD-040** | Abuse/bot protection on public booking | 🟡 Medium | S | Infra/Deploy | AUD-032 | §13.10 |
 | **AUD-041** | Load / throughput regression tests (k6) | 🟡 Medium | M | Infra/Deploy | AUD-030 | §11.6 |
 | **AUD-042** | RUM / Core Web Vitals field monitoring | 🔵 Low | S | Infra/Deploy | — | §13.10 |
+| **AUD-043** | Rename `apps/web/middleware.ts` → `proxy.ts` (Next.js 16 deprecation) | 🔵 Low | XS | Now | — | (not in original audit — found during AUD-007) |
 
 ### Suggested execution order (the critical path)
 
@@ -246,25 +247,35 @@ Add `helmet()` to the BFF bootstrap. Tune as needed (the BFF serves JSON, so def
 
 ---
 
-### AUD-007 — CSP + security headers on hotsite
+### AUD-007 — CSP + security headers across apps/web
 **Risk:** 🟠 High · **Effort:** S · **Phase:** Now · **Depends on:** — · **Audit ref:** §8.3
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 #### What's wrong
-`apps/web/next.config.ts` defines no `headers()` — public, tenant-themed hotsites (rendering tenant markdown, image URLs, an inline JSON-LD `<script>`) ship with no CSP, HSTS, `frame-ancestors`, `X-Content-Type-Options`, or `Referrer-Policy`.
+`apps/web/next.config.ts` defines no `headers()` and `middleware.ts` sets none either — every route in `apps/web` (public hotsite `app/[slug]/`, authenticated `app/dashboard/`, authenticated customer `my-account`) ships with no CSP, HSTS, `frame-ancestors`, `X-Content-Type-Options`, or `Referrer-Policy`. The public hotsite is the sharper edge (renders tenant markdown, tenant image URLs, an inline JSON-LD `<script>`), but the gap is app-wide, not hotsite-only.
 
 #### Why it matters (risk/impact)
-XSS is mitigated at the React layer (`rehype-sanitize`, JSON-LD `<` escaping), but CSP is the defense-in-depth that catches the *next* injection bug plus clickjacking — important for worldwide public pages.
+XSS is mitigated at the React layer (`rehype-sanitize`, JSON-LD `<` escaping) and there is no `dangerouslySetInnerHTML` anywhere in `apps/web`, but CSP is the defense-in-depth that catches the *next* injection bug plus clickjacking. Scoping the fix to hotsite only would leave the authenticated dashboard/customer surfaces — which also render tenant- and customer-supplied text — without the same backstop, for no real savings in effort.
 
 #### What needs to be fixed (solution)
-Add a `headers()` block (or middleware) with a CSP. The inline JSON-LD script needs a nonce (Next supports nonce via middleware) or a hash; inline branding styles need `'unsafe-inline'` for `style-src` (acceptable). Add HSTS, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `frame-ancestors 'none'`.
+Extend `middleware.ts` (which already runs on every non-`api`/`_next`/favicon path via its existing matcher, and already branches on `pathname` for the staff/customer auth checks) to also set CSP + security headers on every response:
+- **Baseline policy (all routes):** HSTS, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `frame-ancestors 'none'`, `style-src 'self' 'unsafe-inline'` (inline `style={{}}` props appear repo-wide — e.g. `shells/dashboard/components/BottomNav.tsx`'s `env(safe-area-inset-bottom, 0)` — and CSP nonces don't apply to inline `style` attributes at all, only to `<script>`/`<style>` elements), `script-src 'self' 'unsafe-inline'` on every route (see rationale below — this is **not** hotsite-only), `connect-src 'self' <NEXT_PUBLIC_BFF_URL origin>` (both the dashboard/customer `bffClient` hooks **and** the public guest-booking client components — `BookingForm.tsx`, `SlotPicker.tsx`, `AvailabilityCarousel.tsx` — call the BFF origin directly from the browser; a same-origin-only `connect-src` breaks the entire guest booking flow, not just an API call), `img-src 'self' blob: <NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL origin>` (dashboard's booking-photo review — `BookingDetailMain.tsx`, `MarkCompleteBookingPage.tsx` — uses raw `<img src={signedUrl}>`, not `next/image`, and both dashboard and public photo upload — `AfterServicePhotoUpload.tsx`, `PhotoUpload.tsx` — preview via `URL.createObjectURL()`/`blob:`, so this needs to be baseline; the storage-origin env var covers both public hotsite images and signed booking-photo URLs since they're the same GCS/S3-compatible backend).
+- **Hotsite-only relaxation (`app/[slug]/` tree — home, `/booking`, `/login`, `/my-account`):** `frame-src https://maps.google.com` for `ContactModule.tsx`'s address-map `<iframe>` (baseline elsewhere is `frame-src 'none'`, this is the only `<iframe>` in the app).
+- **Why `script-src 'unsafe-inline'` is universal, not just a hotsite carve-out for the JSON-LD script:** Next.js injects its own inline hydration/RSC-payload `<script>` tags into **every** server-rendered page, not just the hotsite's `JsonLdScript.tsx`. Live-browser verification (Playwright against a running dev stack) confirmed real CSP violations blocking `/dashboard/login` once `'unsafe-inline'` was scoped to hotsite only — dashboard has no *developer-authored* inline script, but Next's own internal ones still need the same allowance. A per-request nonce was considered for both cases: the hotsite home page is ISR-cached (`export const revalidate = 300`, documented in `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`) and meant to be CDN-cacheable in a future deploy, so a nonce there would require reading `headers()`, forcing the route dynamic and silently disabling that cache (the same class of problem that doc already documents for `cookies()`); dashboard/auth/customer routes aren't provably dynamic either (most don't call `cookies()`/`headers()` in their own render tree), so a nonce there risks the identical staleness bug without auditing every route's rendering mode — a much bigger undertaking than this story's scope. A hash-based exception doesn't work for the hotsite case since the JSON-LD content is per-tenant and can't be known by `middleware.ts` (which runs pre-render) without a precomputed hash store (KV/Redis, keyed by slug, refreshed on publish) — real infrastructure beyond this story; worth a follow-up TD item if stronger script-src protection is wanted later. `'unsafe-inline'` universally is the pragmatic, verified-working baseline instead.
+- **Dev-mode carve-out:** `script-src` gets `'unsafe-eval'`, `connect-src` gets the HMR websocket origin, when `NODE_ENV !== 'production'` — or `pnpm dev` breaks under the new policy.
+- Ships enforcing (`Content-Security-Policy`, not `-Report-Only`) — no live prod traffic yet at this phase, nothing to hedge against.
+- `apps/bff` is a separate service and already covered by **AUD-006** (helmet) — out of scope here.
 
 #### Acceptance criteria
-- [ ] Hotsite responses carry a CSP that permits the JSON-LD script (nonce/hash) and tenant images, plus HSTS/nosniff/referrer/frame-ancestors.
-- [ ] No CSP violations in the browser console on a representative published hotsite.
+- [x] All `apps/web` responses (hotsite, dashboard, customer `my-account`) carry HSTS/nosniff/referrer-policy/frame-ancestors. Verified via `curl -D-` against a running dev stack.
+- [x] Hotsite responses additionally carry a CSP that permits the JSON-LD script, tenant images, and the Google Maps iframe; dashboard responses do not relax `frame-src`.
+- [x] `connect-src`/`img-src` allow the configured BFF origin and storage origin (plus `blob:`) on every route group.
+- [x] The guest booking flow (service selection step) renders and loads services from the BFF end-to-end in a real headless-browser check — not just a `middleware.spec.ts` unit-test pass.
+- [x] The hotsite page and a dashboard page were loaded in a real browser (Playwright) with zero CSP console violations after the `script-src` fix above; `frame-src` origin for the Maps iframe verified to not redirect cross-origin.
+- [x] `pnpm dev` still works — the entire live browser verification above ran against `pnpm --filter @ikaro/web dev` (Turbopack), which serves the dev-mode CSP (`'unsafe-eval'` + `ws://localhost:*`) and rendered every page correctly; HMR's websocket reconnect specifically wasn't exercised (no file edit was made while the dev server was running against a loaded page).
 
 #### Affected areas
-`next.config.ts`, possibly `middleware.ts` (nonce), `app/[slug]/page.tsx` (JSON-LD nonce wiring).
+`middleware.ts` (CSP + header injection, branching on route group).
 
 ---
 
@@ -587,6 +598,16 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **What's wrong:** Only build-time perf is covered; no real-user field data (LCP/INP by region) for worldwide hotsites.
 **Fix:** Add a RUM/Web-Vitals beacon (Next's `useReportWebVitals` → analytics) segmented by region/tenant.
 **Acceptance:** ☐ Field Web Vitals are collected and viewable by region.
+
+---
+
+### AUD-043 — Rename `apps/web/middleware.ts` → `proxy.ts` (Next.js 16 deprecation)
+**Risk:** 🔵 Low · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — noticed incidentally in `pnpm dev` output while verifying AUD-007 live
+**Status:** ☐ Not started
+
+**What's wrong:** Every `pnpm --filter @ikaro/web dev`/build run logs: `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.` The file already carries real logic — staff/customer auth guards and (after AUD-007) CSP/security headers — that needs to keep working once the old convention is removed in a future Next.js major version.
+**Fix:** Rename `apps/web/middleware.ts` → `apps/web/proxy.ts` (and `middleware.spec.ts` → `proxy.spec.ts`) per Next.js's migration guidance, adjusting exported names/config if the new convention requires it. Update every doc reference to `middleware.ts` (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/CI_TRAPS.md`, this file's AUD-007/AUD-008 entries) in the same change.
+**Acceptance:** ☐ No deprecation warning on `pnpm dev`/`pnpm build` for `apps/web`. ☐ All existing test cases pass unchanged (behavior-preserving rename, not a rewrite). ☐ Every doc reference to `middleware.ts` updated to the new file name.
 
 ---
 

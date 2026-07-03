@@ -483,6 +483,8 @@ The `isDev ? 0` guard disables caching in `NODE_ENV=development` so local edits 
 
 **Session-aware widgets must not break this cache (M13-S42).** Any UI that needs to know whether the current visitor is logged in (e.g. `HotsiteAuthBar`) must be a `'use client'` component that fetches its own auth state *after* hydration — via a same-origin proxy route, see `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §4 — and must **never** call `cookies()` from `next/headers` anywhere in the `[slug]` page/layout server-render tree. Calling `cookies()` there forces Next.js to treat the whole route as dynamic per-request, silently disabling the ISR cache above for every visitor, not just logged-in ones.
 
+**`headers()` is the same trap as `cookies()`.** Both are Next.js "Dynamic APIs" — calling either one anywhere in the `[slug]` page/layout server-render tree forces the whole route dynamic, silently disabling ISR (and any future CDN cache) the same way. This surfaced concretely in AUD-007 (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md`): a per-request CSP nonce for the JSON-LD script (`shells/hotsite/components/JsonLdScript.tsx`) would require reading the nonce via `headers()` in `app/[slug]/page.tsx` — which would have quietly killed this page's ISR cache. The nonce was dropped in favor of a scoped `script-src 'unsafe-inline'` CSP exception instead; see that story for the full rationale. Treat any future need to read `headers()` (or `cookies()`) in this route tree as a caching regression to solve around, not a one-line addition.
+
 ---
 
 ## 7. Adding a New Module (Developer Checklist)
