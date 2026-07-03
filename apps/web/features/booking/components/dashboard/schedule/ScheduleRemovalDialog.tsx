@@ -11,8 +11,8 @@ import { useConfirmRemoval } from './use-confirm-removal';
 export interface ScheduleRemovalTarget {
   readonly id: string;
   readonly date: string;
-  readonly startTime: string;
-  readonly endTime: string;
+  readonly startTime: string | null;
+  readonly endTime: string | null;
   readonly notes?: string | null;
 }
 
@@ -60,11 +60,12 @@ export function ScheduleRemovalDialog({
 
   if (!open || !target) return null;
 
+  const removalTarget = target;
   const dateLabel = formatDateLong(new Date(`${target.date}T00:00:00Z`));
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    await confirmRemoval(target.id);
+    await confirmRemoval(removalTarget.id);
   }
 
   return (
@@ -87,7 +88,7 @@ export function ScheduleRemovalDialog({
         dateLabel={dateLabel}
         rangeLabel={rangeLabel}
         notesLabel={notesLabel}
-        notes={target.notes}
+        notes={removalTarget.notes}
       />
     </BookingActionSheetShell>
   );
