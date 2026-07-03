@@ -466,9 +466,9 @@ export function BookingDetailPage({
                       : null
                   }
                   pointsEarned={
-                    booking.customerId !== null
-                      ? booking.lines.reduce((sum, line) => sum + line.pointsValueAtBooking, 0)
-                      : null
+                    booking.customerId === null
+                      ? null
+                      : booking.lines.reduce((sum, line) => sum + line.pointsValueAtBooking, 0)
                   }
                 />
               </div>
@@ -481,39 +481,30 @@ export function BookingDetailPage({
     return null;
   }
 
+  function renderBackToAgendaActionsCard(): React.JSX.Element {
+    return (
+      <div className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+          {t('actionsSection')}
+        </p>
+        <Card>
+          <CardContent className="p-4">
+            <Button asChild className="w-full">
+              <Link href={backHref}>{t('backToAgenda')}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   function renderAsideCard(): React.JSX.Element | null {
     if (actionState === 'approved') {
-      return (
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('actionsSection')}
-          </p>
-          <Card>
-            <CardContent className="p-4">
-              <Button asChild className="w-full">
-                <Link href={backHref}>{t('backToAgenda')}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      );
+      return renderBackToAgendaActionsCard();
     }
 
     if (actionState === 'rejected') {
-      return (
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('actionsSection')}
-          </p>
-          <Card>
-            <CardContent className="p-4">
-              <Button asChild className="w-full">
-                <Link href={backHref}>{t('backToAgenda')}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      );
+      return renderBackToAgendaActionsCard();
     }
 
     if (actionState === 'slot-conflict') {
@@ -587,20 +578,7 @@ export function BookingDetailPage({
     }
 
     if (booking.status === BOOKING_STATUS.COMPLETED) {
-      return (
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('actionsSection')}
-          </p>
-          <Card>
-            <CardContent className="p-4">
-              <Button asChild className="w-full">
-                <Link href={backHref}>{t('backToAgenda')}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      );
+      return renderBackToAgendaActionsCard();
     }
 
     if (booking.status === BOOKING_STATUS.REJECTED || booking.status === BOOKING_STATUS.CANCELLED) {

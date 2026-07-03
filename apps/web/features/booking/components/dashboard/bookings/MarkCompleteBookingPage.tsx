@@ -191,7 +191,7 @@ export function MarkCompleteBookingPage({
             discount={
               showLoyaltyPanel && pointsUsed > 0 ? { pointsUsed, amount: discountAmount } : null
             }
-            pointsEarned={booking.customerId !== null ? totalEarnedPoints : null}
+            pointsEarned={booking.customerId === null ? null : totalEarnedPoints}
           />
         }
         asideBody={t('completedAsideBody')}
