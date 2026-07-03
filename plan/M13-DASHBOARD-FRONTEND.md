@@ -2262,7 +2262,7 @@ completeBooking(body: CompleteBookingRequest): Promise<CompleteBookingResponse>
 
 ---
 
-### M13-S21 — Horários: schedule management page + closure/opening flows
+### M13-S21 — Horários: schedule management page + closure/opening flows ✅ Done
 
 *(formerly M125-S06)*
 

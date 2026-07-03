@@ -224,6 +224,9 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Snyk SCA · Gitleaks · Trivy · Checkov/Tfsec
 
 - When SonarCloud is failing or a bot mentions Sonar, inspect the live Sonar issue list, the quality gate metric/summary, and the current Sonar job before editing code. Never "fix Sonar" from stale CI logs alone, and never claim a Sonar fix is done without verifying the live Sonar stage, issue list, and quality gate after the change.
+- For `new_duplicated_lines_density` or any duplication-related Sonar failure, query the exact file/block report first, then remove the duplicate by extracting shared code or deleting one side. Do not shuffle the same code into another file and call it fixed.
+- If a Sonar edit does not move the failing metric, stop and re-query the live analysis before making another change. Blind iteration wastes time and usually hides the real duplicate or coverage gap.
+- Treat the live Sonar metric as the source of truth: record the exact failing metric, the file(s) involved, and the post-push result before declaring a fix complete.
 
 ### Definition of Done
 - [ ] Matches cited UC's main + alt flows; CI passes (`pnpm lint`, `pnpm test`, `pnpm type-check`)

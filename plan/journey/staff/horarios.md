@@ -3,7 +3,7 @@
 **Actor(s):** STAFF | MANAGER  
 **Goal:** View the calendar of approved bookings and manage schedule closures and openings  
 **UCs covered:** UC-010a, UC-010b, UC-010c, UC-010d  
-**Status:** Draft
+**Status:** Done
 
 ## Flow
 
