@@ -51,6 +51,7 @@ export function toCustomerLoyaltyRedemption(
 export function toStaffLoyaltyEntry(item: LoyaltyEntryItem): StaffLoyaltyEntryItem {
   return {
     id: item.entryId,
+    bookingId: item.bookingId,
     serviceName: item.serviceName,
     points: item.points,
     earnedAt: item.earnedAt,

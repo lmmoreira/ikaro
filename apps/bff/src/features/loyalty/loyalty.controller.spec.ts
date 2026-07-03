@@ -54,6 +54,7 @@ const mockEntries: LoyaltyEntriesResponse = {
   entries: [
     {
       entryId: 'e1111111-0000-4000-8000-000000000001',
+      bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
       serviceId: 'cccccccc-0000-4000-8000-000000000001',
       serviceName: 'Lavagem Completa',
       points: 10,
@@ -266,6 +267,7 @@ describe('LoyaltyController (BFF)', () => {
           items: [
             {
               id: 'e1111111-0000-4000-8000-000000000001',
+              bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
               serviceName: 'Lavagem Completa',
               points: 10,
               earnedAt: '2026-05-28T14:00:00.000Z',
@@ -310,6 +312,7 @@ describe('LoyaltyController (BFF)', () => {
       });
       expect(result.items[0]).toEqual({
         id: 'e1111111-0000-4000-8000-000000000001',
+        bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
         serviceName: 'Lavagem Completa',
         points: 10,
         earnedAt: '2026-05-28T14:00:00.000Z',

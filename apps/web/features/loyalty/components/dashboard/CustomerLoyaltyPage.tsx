@@ -325,6 +325,19 @@ export function CustomerLoyaltyPage({
                             expiresAt: formatShortDateLabel(entry.expiresAt, locale),
                           })}
                         </p>
+                        {entry.bookingId && (
+                          <Link
+                            href={appendReturnTo(
+                              `/dashboard/bookings/${entry.bookingId}`,
+                              returnToHref,
+                            )}
+                            className="mt-0.5 inline-flex truncate text-xs text-gray-400 transition-colors hover:text-blue-700"
+                          >
+                            {t('redemptionBookingLabel', {
+                              bookingId: entry.bookingId.slice(0, 8),
+                            })}
+                          </Link>
+                        )}
                       </div>
                       <span className="shrink-0 text-sm font-semibold text-emerald-700">
                         {t('earnedPointsBadge', { count: entry.points })}

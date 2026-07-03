@@ -43,6 +43,7 @@ const entries = {
   items: [
     {
       id: 'e-1',
+      bookingId: 'booking-2',
       serviceName: 'Lavagem Simples',
       points: 60,
       earnedAt: '2026-06-10T00:00:00.000Z',
@@ -61,6 +62,7 @@ const entriesNextPage = {
     ...entries.items,
     {
       id: 'e-2',
+      bookingId: 'booking-3',
       serviceName: 'Lavagem Completa',
       points: 120,
       earnedAt: '2026-05-22T00:00:00.000Z',
@@ -114,6 +116,10 @@ describe('CustomerLoyaltyPage', () => {
     expect(screen.getByText('joao@example.com')).toBeInTheDocument();
     expect(screen.getByText('350')).toBeInTheDocument();
     expect(screen.getByText('Lavagem Simples')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Agendamento booking-' })).toHaveAttribute(
+      'href',
+      '/dashboard/bookings/booking-2?returnTo=%2Fdashboard%2Floyalty%2Fc-1',
+    );
 
     await waitFor(() => expect(setBackHrefOverride).toHaveBeenCalledWith('/dashboard/loyalty'));
     expect(setBackLabelOverride).toHaveBeenCalledWith('Fidelidade');

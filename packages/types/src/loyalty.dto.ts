@@ -16,6 +16,7 @@ export interface EnrichedLoyaltyBalanceResponse extends LoyaltyBalanceResponse {
 
 export interface LoyaltyEntryItem {
   readonly id: string;
+  readonly bookingId: string;
   readonly serviceName: string;
   readonly points: number;
   readonly earnedAt: string; // ISO-8601

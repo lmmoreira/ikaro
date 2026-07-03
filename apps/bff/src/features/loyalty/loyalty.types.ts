@@ -6,6 +6,7 @@ export interface LoyaltyBalanceResponse {
 
 export interface LoyaltyEntryItem {
   entryId: string;
+  bookingId: string;
   serviceId: string;
   serviceName: string;
   points: number;

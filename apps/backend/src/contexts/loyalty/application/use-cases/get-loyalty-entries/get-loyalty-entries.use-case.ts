@@ -14,6 +14,7 @@ export interface GetLoyaltyEntriesUseCaseInput {
 
 export interface LoyaltyEntryItem {
   entryId: string;
+  bookingId: string;
   serviceId: string;
   serviceName: string;
   points: number;
@@ -49,6 +50,7 @@ export class GetLoyaltyEntriesUseCase {
     const now = new Date();
     const entries: LoyaltyEntryItem[] = items.map((entry) => ({
       entryId: entry.id,
+      bookingId: entry.bookingId,
       serviceId: entry.serviceId,
       serviceName: nameMap.get(entry.serviceId) ?? entry.serviceId,
       points: entry.points,
