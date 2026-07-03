@@ -36,8 +36,12 @@ export function BookingCompletionSummary({
   return (
     <>
       <p>{t('completedBody')}</p>
-      <p className="mt-2">{t('summaryQuoted', { total: formatMoney(quotedTotal) })}</p>
-      <p className="mt-2">{t('summaryCharged', { total: formatMoney(chargedTotal) })}</p>
+      <p data-testid="complete-summary-quoted" className="mt-2">
+        {t('summaryQuoted', { total: formatMoney(quotedTotal) })}
+      </p>
+      <p data-testid="complete-summary-charged" className="mt-2">
+        {t('summaryCharged', { total: formatMoney(chargedTotal) })}
+      </p>
       {discount && (
         <p data-testid="complete-loyalty-discount-applied" className="mt-2">
           {t('loyaltyDiscountSummary', { amount: formatMoney(discount.amount) })}

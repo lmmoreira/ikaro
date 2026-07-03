@@ -182,7 +182,9 @@ test.describe('staff booking lifecycle coverage', () => {
     await page.goto(`/dashboard/bookings/${redeemSetup.bookingId}`);
 
     await expect(page.getByTestId('booking-completed-title')).toBeVisible();
-    await expect(page.getByText('Total cobrado: R$ 149,00')).toBeVisible();
+    await expect(page.getByTestId('complete-summary-charged')).toHaveText(
+      'Total cobrado: R$ 149,00',
+    );
     await expect(page.getByTestId('complete-loyalty-discount-applied')).toHaveText(
       'Desconto fidelidade: -R$ 1,00',
     );
