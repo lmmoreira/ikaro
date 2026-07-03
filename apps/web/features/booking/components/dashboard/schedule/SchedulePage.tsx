@@ -525,8 +525,12 @@ export function SchedulePage({
   const createOpeningMutation = useCreateOpening();
   const removeClosureMutation = useRemoveClosure();
   const removeOpeningMutation = useRemoveOpening();
-  const { viewMode: persistedViewMode, setViewMode: setPersistedViewMode } =
-    useSchedulePreferences();
+  const {
+    viewMode: persistedViewMode,
+    setViewMode: setPersistedViewMode,
+    selectedStatuses,
+    setSelectedStatuses,
+  } = useSchedulePreferences();
 
   const [weekStartKey, setWeekStartKey] = useState(initialWeekStartKey);
   const [selectedDateKey, setSelectedDateKey] = useState(initialSelectedDateKey ?? todayKey);
@@ -535,9 +539,6 @@ export function SchedulePage({
   const [closureWarning, setClosureWarning] = useState<string | null>(null);
   const [removeClosureTarget, setRemoveClosureTarget] = useState<ScheduleClosure | null>(null);
   const [removeOpeningTarget, setRemoveOpeningTarget] = useState<ScheduleOpening | null>(null);
-  const [selectedStatuses, setSelectedStatuses] = useState<readonly BookingStatus[]>(
-    SCHEDULE_BOOKING_STATUS_DEFAULT,
-  );
   const [statusFilterOpen, setStatusFilterOpen] = useState(false);
   const statusFilterRef = useRef<HTMLDivElement>(null);
 

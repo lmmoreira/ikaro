@@ -124,10 +124,8 @@ describe('ClosureFormSheet', () => {
     expect(screen.getByText('Informe o horário inicial e final juntos.')).toBeInTheDocument();
   });
 
-  it('shows a validation error when the time range is inverted', async () => {
-    const user = userEvent.setup();
-
-    renderWithIntl(
+  it('shows a validation error when the time range is inverted', () => {
+    const { container } = renderWithIntl(
       <ClosureFormSheet
         open
         initialDate="2026-07-04"
@@ -139,11 +137,12 @@ describe('ClosureFormSheet', () => {
       />,
     );
 
-    await user.click(screen.getByRole('combobox', { name: 'Hora inicial' }));
-    await user.click(screen.getByRole('option', { name: '12:00' }));
-    await user.click(screen.getByRole('combobox', { name: 'Hora final' }));
-    await user.click(screen.getByRole('option', { name: '09:00' }));
-    await user.click(screen.getByRole('button', { name: 'Bloquear' }));
+    const timeSelects = container.querySelectorAll('select[aria-hidden="true"]');
+    expect(timeSelects).toHaveLength(2);
+
+    fireEvent.change(timeSelects[0], { target: { value: '12:00' } });
+    fireEvent.change(timeSelects[1], { target: { value: '09:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Bloquear' }));
 
     expect(
       screen.getByText('O horário inicial precisa ser anterior ao final.'),

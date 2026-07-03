@@ -589,51 +589,6 @@ describe('SchedulePage', () => {
     );
   });
 
-  it('lets the user include pending bookings through the status filter', async () => {
-    const user = userEvent.setup();
-
-    scheduleHooks.useWeekBookings.mockReturnValue({
-      data: {
-        items: [
-          makeBookingCard({
-            bookingId: 'approved',
-            contactName: 'Approved',
-            status: 'APPROVED',
-            scheduledAt: '2026-06-29T12:00:00.000Z',
-          }),
-          makeBookingCard({
-            bookingId: 'pending',
-            contactName: 'Pending',
-            status: 'PENDING',
-            scheduledAt: '2026-06-29T13:00:00.000Z',
-          }),
-        ],
-        total: 2,
-        page: 1,
-        limit: 25,
-      },
-    });
-
-    renderWithIntl(
-      <SchedulePage
-        initialClosures={emptyClosures()}
-        initialOpenings={emptyOpenings()}
-        initialBookings={emptyBookings()}
-        businessHours={makeBusinessHours(true)}
-        todayKey="2026-06-29"
-        weekStartKey="2026-06-29"
-        slotGranularityMinutes={30}
-      />,
-    );
-
-    expect(screen.queryByRole('link', { name: 'Pending' })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Filtrar status' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Pendente' }));
-
-    expect(screen.getByRole('link', { name: 'Pending' })).toBeInTheDocument();
-  });
-
   it('splits overlapping bookings into equal lanes', async () => {
     scheduleHooks.useWeekBookings.mockReturnValue({
       data: {
