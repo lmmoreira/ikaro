@@ -38,7 +38,7 @@
 | **AUD-003** | Adversarial concurrency + event-failure test suite | 🔴 Critical | M | Now | AUD-001, AUD-002 | §11.1, §11.2 |
 | **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
 | **AUD-005** | Graceful shutdown hooks (backend + BFF) ✅ | 🟠 High | XS | Now | — | §5.2 |
-| **AUD-006** | Helmet / security headers on BFF | 🟠 High | XS | Now | — | §5.6 |
+| **AUD-006** | Helmet / security headers on BFF ✅ | 🟠 High | XS | Now | — | §5.6 |
 | **AUD-007** | CSP + security headers on hotsite | 🟠 High | S | Now | — | §8.3 |
 | **AUD-008** | Isolate BFF HTTP-client auth state (`client-only` guard) | 🟠 High | XS | Now | — | §8.4 |
 | **AUD-009** | Supply-chain CI hardening (pin actions, Dependabot, digests, concurrency, permissions) ✅ | 🟠 High | M | Now | — | §9.1, §9.2, §9.5, §10.1–10.3 |
@@ -233,7 +233,7 @@ Add `app.enableShutdownHooks()` in both bootstraps; ensure SIGTERM drains the HT
 
 ### AUD-006 — Helmet / security headers on BFF
 **Risk:** 🟠 High · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** §5.6
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 #### What's wrong
 `apps/bff/src/main.ts` sets CORS + body limits but no `helmet()` — the public-facing API ships no security headers (HSTS, `X-Content-Type-Options`, frame options, etc.).
@@ -242,7 +242,7 @@ Add `app.enableShutdownHooks()` in both bootstraps; ensure SIGTERM drains the HT
 Add `helmet()` to the BFF bootstrap. Tune as needed (the BFF serves JSON, so defaults are largely fine).
 
 #### Acceptance criteria
-- [ ] `helmet()` is applied; responses carry standard security headers (verify with a request).
+- [x] `helmet()` is applied; responses carry standard security headers (verify with a request).
 
 ---
 

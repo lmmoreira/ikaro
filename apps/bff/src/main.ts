@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { AppLogger } from './shared/observability/app-logger';
+import { applySecurityHeaders } from './shared/http/security-headers';
 export { JWT_COOKIE_OPTIONS } from './features/auth/cookie-options';
 
 async function bootstrap(): Promise<void> {
@@ -12,6 +13,8 @@ async function bootstrap(): Promise<void> {
   app.useLogger(logger);
 
   const config = app.get(ConfigService);
+
+  applySecurityHeaders(app);
 
   // Body size limits — 10 MB covers high-quality phone photos
   app.use(json({ limit: '10mb' }));

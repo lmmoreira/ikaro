@@ -8,6 +8,7 @@ import { INestApplication } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { JwtService } from '@nestjs/jwt';
 import { AppModule } from '../app.module';
+import { applySecurityHeaders } from '../shared/http/security-headers';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { MockBackendHttpService } from './backend-http.mock';
 
@@ -76,6 +77,7 @@ export async function createTestApp(): Promise<{
     .compile();
 
   const app = module.createNestApplication();
+  applySecurityHeaders(app);
   app.setGlobalPrefix('v1');
   await app.init();
 
