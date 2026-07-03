@@ -5,24 +5,34 @@ import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-rou
 
 interface BookingCompleteRouteProps {
   readonly params: Promise<{ id: string }>;
+  readonly searchParams: Promise<{ returnTo?: string }>;
+}
+
+function resolveReturnTo(returnTo: string | undefined): string | null {
+  if (typeof returnTo !== 'string') return null;
+  return returnTo.startsWith('/dashboard/') ? returnTo : null;
 }
 
 export default async function BookingCompleteRoute({
   params,
+  searchParams,
 }: BookingCompleteRouteProps): Promise<React.JSX.Element> {
   const { id } = await params;
+  const { returnTo } = await searchParams;
   const token = await getAccessToken();
   const [routeData, tenantSettings] = await Promise.all([
     loadBookingDetailRouteData(token, id),
     fetchTenantSettings(token),
   ]);
   const { booking, tenantSlug } = routeData;
+  const returnHref = resolveReturnTo(returnTo);
+  const agendaHref = returnHref ?? '/dashboard/bookings';
 
   return (
     <MarkCompleteBookingPage
       booking={booking}
       tenantSlug={tenantSlug}
-      backHref="/dashboard/bookings"
+      backHref={agendaHref}
       pointsPerCurrencyUnit={tenantSettings.settings.loyalty.pointsPerCurrencyUnit}
     />
   );

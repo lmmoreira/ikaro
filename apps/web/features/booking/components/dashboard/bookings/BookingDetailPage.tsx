@@ -49,6 +49,7 @@ interface BookingDetailPageProps {
   readonly tenantSlug: string;
   readonly showHeaderStatusBadge?: boolean;
   readonly initialActionState?: ActionState;
+  readonly returnTo?: string | null;
 }
 
 interface ProblemDetailsViolation {
@@ -167,6 +168,7 @@ export function BookingDetailPage({
   tenantSlug,
   showHeaderStatusBadge = true,
   initialActionState = 'idle',
+  returnTo = null,
 }: BookingDetailPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
   const { formatTime } = useFormatting();
@@ -185,6 +187,9 @@ export function BookingDetailPage({
   const requestMoreInfoMutation = useRequestMoreInfo();
   const topbarStatus = useDashboardTopbarStatus();
   const setTopbarBookingStatus = topbarStatus?.setBookingStatus;
+  const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
+  const returnToQuery = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
+  const backHref = returnTo ?? '/dashboard/bookings';
 
   const serviceIds = useMemo(() => booking.lines.map((line) => line.serviceId), [booking.lines]);
   const approvedRangeLabel = useMemo(
@@ -196,6 +201,13 @@ export function BookingDetailPage({
   useEffect(() => {
     setTopbarBookingStatus?.(booking.status);
   }, [booking.status, setTopbarBookingStatus]);
+
+  useEffect(() => {
+    setBackHrefOverride?.(returnTo);
+    return () => {
+      setBackHrefOverride?.(null);
+    };
+  }, [returnTo, setBackHrefOverride]);
 
   useEffect(() => {
     if (initialActionState !== 'slot-conflict') return;
@@ -435,7 +447,7 @@ export function BookingDetailPage({
           <Card>
             <CardContent className="p-4">
               <Button asChild className="w-full">
-                <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
+                <Link href={backHref}>{t('backToAgenda')}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -452,7 +464,7 @@ export function BookingDetailPage({
           <Card>
             <CardContent className="p-4">
               <Button asChild className="w-full">
-                <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
+                <Link href={backHref}>{t('backToAgenda')}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -497,9 +509,11 @@ export function BookingDetailPage({
           <BookingActionPanel
             bookingStatus={BOOKING_STATUS.APPROVED}
             isSubmitting={actionState === 'submitting'}
-            onOpenComplete={() => router.push(`/dashboard/bookings/${booking.bookingId}/complete`)}
+            onOpenComplete={() =>
+              router.push(`/dashboard/bookings/${booking.bookingId}/complete${returnToQuery}`)
+            }
             onOpenReschedule={() =>
-              router.push(`/dashboard/bookings/${booking.bookingId}/reschedule`)
+              router.push(`/dashboard/bookings/${booking.bookingId}/reschedule${returnToQuery}`)
             }
             onOpenCancel={() => setSheetState('cancel')}
           />
@@ -516,7 +530,7 @@ export function BookingDetailPage({
                 {t('cancelledAsideBody', { name: booking.contactName })}
               </p>
               <Button asChild className="w-full">
-                <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
+                <Link href={backHref}>{t('backToAgenda')}</Link>
               </Button>
             </CardContent>
           </Card>

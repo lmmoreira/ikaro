@@ -19,6 +19,22 @@ export const BOOKING_STATUS_CLASSES: Record<BookingStatus, string> = {
   [BOOKING_STATUS.COMPLETED]: 'bg-slate-100 text-slate-600',
 };
 
+export const SCHEDULE_BOOKING_STATUS_DEFAULT: readonly BookingStatus[] = [
+  BOOKING_STATUS.INFO_REQUESTED,
+  BOOKING_STATUS.APPROVED,
+  BOOKING_STATUS.REJECTED,
+  BOOKING_STATUS.CANCELLED,
+  BOOKING_STATUS.COMPLETED,
+];
+
+export const SCHEDULE_BOOKING_STATUS_OPTIONS: readonly BookingStatus[] = [
+  BOOKING_STATUS.PENDING,
+  ...SCHEDULE_BOOKING_STATUS_DEFAULT,
+];
+
+export const SCHEDULE_BOOKING_STATUS_FILTER = SCHEDULE_BOOKING_STATUS_DEFAULT.join(',');
+export const SCHEDULE_BOOKING_STATUS_ALL = SCHEDULE_BOOKING_STATUS_OPTIONS.join(',');
+
 export function buildBookingStatusLabels(t: TranslateFn): Record<BookingStatus, string> {
   return {
     [BOOKING_STATUS.PENDING]: t('statusPending'),

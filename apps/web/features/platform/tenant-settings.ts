@@ -14,6 +14,7 @@ import { bffServerFetch } from '@/shared/lib/api/bff-server';
 export interface TenantFormattingConfig {
   readonly locale: string;
   readonly currency: string;
+  readonly currencySymbol?: string;
   readonly timezone: string;
   readonly dateFormat: DateFormat;
   readonly timeFormat: '24h' | '12h';
@@ -122,6 +123,7 @@ export function resolveTenantFormatting(tenant: TenantSettingsResponse): TenantF
   return {
     locale: tenant.settings.localization.language,
     currency: tenant.settings.localization.currency,
+    currencySymbol: tenant.settings.localization.currencySymbol,
     timezone: tenant.settings.businessHours.timezone,
     dateFormat: spec.dateFormat,
     timeFormat: spec.timeFormat,

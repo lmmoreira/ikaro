@@ -192,6 +192,7 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 
 - `DashboardShell` and `CustomerShell` are the **shared SaaS UI layer**. They may share the same colors, spacing, typography, button styles, cards, dialogs, and status treatments.
 - If a primitive or pattern is safe for both authenticated shells, place it in shared web UI code and keep it **tenant-agnostic**.
+- Prefer `shadcn/ui` primitives and composition patterns when they are a good fit for the UI problem. Use bespoke components only when the user experience or layout clearly needs something custom.
 - The **only** tenant-dynamic branding surface is the hotsite tree (`app/[slug]/`, its modules, and widgets). Do not leak `--ba-*` tokens, manifest-driven colors, or hotsite-only patterns into dashboard/customer shells.
 - If a new component needs both SaaS and hotsite variants, create separate implementations instead of trying to make one component read both branding systems.
 - Shared UI primitives should expose readonly props where practical, so consumers do not mutate shared contracts by accident.

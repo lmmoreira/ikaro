@@ -10,7 +10,13 @@ import {
   useRemoveOpening,
   useScheduleClosures,
   useScheduleOpenings,
+  useWeekBookings,
 } from './useSchedule';
+import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
+
+const staffApi = vi.hoisted(() => ({
+  listBookings: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 25 }),
+}));
 
 vi.mock('@/features/booking/schedule/api', () => ({
   listClosures: vi.fn().mockResolvedValue({ items: [] }),
@@ -19,7 +25,10 @@ vi.mock('@/features/booking/schedule/api', () => ({
   listOpenings: vi.fn().mockResolvedValue({ items: [] }),
   createOpening: vi.fn().mockResolvedValue({ id: 'o-1' }),
   removeOpening: vi.fn().mockResolvedValue(undefined),
+  listBookings: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 25 }),
 }));
+
+vi.mock('@/features/booking/api/staff', () => staffApi);
 
 vi.mock('@/providers/tenant-provider', () => ({
   useTenant: vi.fn().mockReturnValue({ tenantId: 't-1', tenantSlug: 'lavacar-bh' }),
@@ -86,5 +95,21 @@ describe('useRemoveOpening', () => {
     const { result } = renderHook(() => useRemoveOpening(), { wrapper });
     act(() => result.current.mutate('o-1'));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+});
+
+describe('useWeekBookings', () => {
+  it('fetches bookings for the requested week', async () => {
+    const { result } = renderHook(() => useWeekBookings('2026-07-01', '2026-07-31'), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.items).toHaveLength(0);
+    expect(staffApi.listBookings).toHaveBeenCalledWith({
+      status: SCHEDULE_BOOKING_STATUS_ALL,
+      from: '2026-07-01',
+      to: '2026-07-31',
+      limit: 100,
+    });
   });
 });

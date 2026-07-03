@@ -4,6 +4,7 @@ import type { DateFormat } from '@ikaro/i18n';
 export interface FormattingState {
   readonly locale: string;
   readonly currency: string;
+  readonly currencySymbol?: string;
   readonly timezone: string;
   readonly dateFormat: DateFormat;
   readonly timeFormat: '24h' | '12h';

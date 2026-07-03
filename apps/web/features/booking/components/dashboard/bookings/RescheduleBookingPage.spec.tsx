@@ -108,6 +108,7 @@ describe('RescheduleBookingPage', () => {
         booking={makeBooking()}
         tenantSlug="lavacar-bh"
         backHref="/dashboard/bookings/b-1"
+        agendaHref="/dashboard/schedule?weekStart=2026-06-16&date=2026-06-16"
       />,
     );
 
@@ -149,6 +150,7 @@ describe('RescheduleBookingPage', () => {
         booking={makeBooking()}
         tenantSlug="lavacar-bh"
         backHref="/dashboard/bookings/b-1"
+        agendaHref="/dashboard/schedule?weekStart=2026-06-16&date=2026-06-16"
       />,
     );
 
@@ -170,6 +172,7 @@ describe('RescheduleBookingPage', () => {
         booking={makeBooking()}
         tenantSlug="lavacar-bh"
         backHref="/dashboard/bookings/b-1"
+        agendaHref="/dashboard/schedule?weekStart=2026-06-16&date=2026-06-16"
       />,
     );
 
@@ -197,6 +200,7 @@ describe('RescheduleBookingPage', () => {
         booking={makeBooking()}
         tenantSlug="lavacar-bh"
         backHref="/dashboard/bookings/b-1"
+        agendaHref="/dashboard/schedule?weekStart=2026-06-16&date=2026-06-16"
       />,
     );
 
@@ -216,6 +220,7 @@ describe('RescheduleBookingPage', () => {
         booking={makeBooking()}
         tenantSlug="lavacar-bh"
         backHref="/dashboard/bookings/b-1"
+        agendaHref="/dashboard/schedule?weekStart=2026-06-16&date=2026-06-16"
       />,
     );
 
