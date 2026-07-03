@@ -18,7 +18,6 @@ describe('getCustomerLoyaltyBalance', () => {
       currentPoints: 100,
       nextExpiryDate: null,
       nextExpiryPoints: null,
-      conversionRate: 10,
     });
 
     const res = await getCustomerLoyaltyBalance('c-1');
@@ -36,7 +35,7 @@ describe('getCustomerLoyaltyEntries', () => {
       limit: 20,
     });
 
-    const res = await getCustomerLoyaltyEntries('c-1', { page: 1, limit: 20 });
+    const res = await getCustomerLoyaltyEntries('c-1');
 
     expect(res.items).toHaveLength(0);
   });

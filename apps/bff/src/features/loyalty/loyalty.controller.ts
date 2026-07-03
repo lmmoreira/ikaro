@@ -12,11 +12,13 @@ import {
 import { z } from 'zod';
 import {
   CustomerLoyaltyBalanceResponse,
+  CustomerProfileResponse,
   CustomerLoyaltyEntriesResponse,
   CustomerLoyaltyRedemptionsResponse,
   EnrichedLoyaltyBalanceResponse,
   PaginatedLoyaltyEntriesResponse,
   PaginatedLoyaltyRedemptionsResponse,
+  StaffCustomerLoyaltyDetailResponse,
   TenantSettingsResponse,
 } from '@ikaro/types';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
@@ -55,13 +57,9 @@ type RedeemPointsBody = z.infer<typeof RedeemPointsSchema>;
 export class LoyaltyController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
-  // ── Customer routes ────────────────────────────────────────────────────────
-
-  @Get('loyalty/balance')
-  @Roles('CUSTOMER')
-  async getBalance(): Promise<CustomerLoyaltyBalanceResponse> {
+  private async getEnrichedBalance(balancePath: string): Promise<EnrichedLoyaltyBalanceResponse> {
     const [balance, settings] = await Promise.all([
-      this.backendHttp.get<LoyaltyBalanceResponse>('/loyalty/balance'),
+      this.backendHttp.get<LoyaltyBalanceResponse>(balancePath),
       this.backendHttp.get<TenantSettingsResponse>('/tenants/settings'),
     ]);
     return {
@@ -70,6 +68,14 @@ export class LoyaltyController {
       nextExpiryPoints: balance.nextExpiryPoints,
       conversionRate: settings.settings.loyalty.pointsPerCurrencyUnit,
     };
+  }
+
+  // ── Customer routes ────────────────────────────────────────────────────────
+
+  @Get('loyalty/balance')
+  @Roles('CUSTOMER')
+  async getBalance(): Promise<CustomerLoyaltyBalanceResponse> {
+    return this.getEnrichedBalance('/loyalty/balance');
   }
 
   @Get('loyalty/entries')
@@ -119,16 +125,7 @@ export class LoyaltyController {
   async getBalanceAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
   ): Promise<EnrichedLoyaltyBalanceResponse> {
-    const [balance, settings] = await Promise.all([
-      this.backendHttp.get<LoyaltyBalanceResponse>(`/customers/${customerId}/loyalty/balance`),
-      this.backendHttp.get<TenantSettingsResponse>('/tenants/settings'),
-    ]);
-    return {
-      currentPoints: balance.currentPoints,
-      nextExpiryDate: balance.nextExpiryDate,
-      nextExpiryPoints: balance.nextExpiryPoints,
-      conversionRate: settings.settings.loyalty.pointsPerCurrencyUnit,
-    };
+    return this.getEnrichedBalance(`/customers/${customerId}/loyalty/balance`);
   }
 
   @Get('customers/:customerId/loyalty/entries')
@@ -164,6 +161,45 @@ export class LoyaltyController {
       total: backend.pagination.total,
       page: backend.pagination.page,
       limit: backend.pagination.limit,
+    };
+  }
+
+  @Get('customers/:customerId/loyalty')
+  @Roles('MANAGER', 'STAFF')
+  async getCustomerLoyaltyDetail(
+    @Param('customerId', ParseUUIDPipe) customerId: string,
+  ): Promise<StaffCustomerLoyaltyDetailResponse> {
+    const [customer, balance, entries, redemptions] = await Promise.all([
+      this.backendHttp.get<CustomerProfileResponse>(`/customers/${customerId}`),
+      this.getEnrichedBalance(`/customers/${customerId}/loyalty/balance`),
+      this.backendHttp.get<LoyaltyEntriesResponse>(`/customers/${customerId}/loyalty/entries`, {
+        page: 1,
+        limit: 20,
+      }),
+      this.backendHttp.get<LoyaltyRedemptionsResponse>(
+        `/customers/${customerId}/loyalty/redemptions`,
+        {
+          page: 1,
+          limit: 20,
+        },
+      ),
+    ]);
+
+    return {
+      customer,
+      balance,
+      entries: {
+        items: entries.entries.map(toStaffLoyaltyEntry),
+        total: entries.pagination.total,
+        page: entries.pagination.page,
+        limit: entries.pagination.limit,
+      },
+      redemptions: {
+        items: redemptions.redemptions.map(toStaffLoyaltyRedemption),
+        total: redemptions.pagination.total,
+        page: redemptions.pagination.page,
+        limit: redemptions.pagination.limit,
+      },
     };
   }
 }

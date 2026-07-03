@@ -86,12 +86,13 @@ Since we are following **Trunk-Based Development**, the frontend must have a "Bu
 - **On the public hotsite, or any client component mounted outside a shell** (e.g. `HotsiteAuthBar`): there is no in-memory token to configure, and the JWT lives in an `httpOnly` cookie that client JS can never read — and even if it could, `SameSite: 'lax'` (`apps/bff/src/features/auth/cookie-options.ts`) blocks the browser from attaching it to a cross-origin `fetch()`/XHR anyway (only top-level navigations are allowed). The only way to use the session here is a **same-origin Next.js route handler** that reads the cookie server-side and forwards it manually as a `Cookie` header to the BFF (see `apps/web/app/api/customers/me/route.ts`). Client components then call that same-origin route (`fetch('/api/customers/me')`), never the BFF directly.
 
 Don't reach for `bffClient` outside a shell context, and don't try to add `credentials: 'include'` to a direct BFF call from the public hotsite expecting it to carry the cookie — it won't.
+Likewise, do not fan out across multiple BFF calls inside a page or route file and merge the responses in `apps/web`; if the screen needs composite data, add or extend the BFF contract so the web layer consumes one response and stays composition-only.
 
 ---
 
 ## 5. Folder Structure (`apps/web/`)
 
-The tree below reflects the current folder structure. Route files stay thin; feature code lives under `features/`, shell composition lives under `shells/`, and shared helpers live under `shared/`.
+The tree below reflects the current folder structure. Route files stay thin; feature code lives under `features/`, shell composition lives under `shells/`, and shared helpers live under `shared/`. Route files and pages may fetch and render, but they should not orchestrate multi-call data joins or response merging.
 
 ```
 apps/web/

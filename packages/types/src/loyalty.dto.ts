@@ -1,3 +1,5 @@
+import type { CustomerProfileResponse } from './customer.dto';
+
 // ── Base backend shape (raw response from backend loyalty endpoints) ──────────
 
 export interface LoyaltyBalanceResponse {
@@ -82,4 +84,11 @@ export interface CustomerLoyaltyRedemptionsResponse {
   total: number;
   page: number;
   limit: number;
+}
+
+export interface StaffCustomerLoyaltyDetailResponse {
+  readonly customer: CustomerProfileResponse;
+  readonly balance: EnrichedLoyaltyBalanceResponse;
+  readonly entries: PaginatedLoyaltyEntriesResponse;
+  readonly redemptions: PaginatedLoyaltyRedemptionsResponse;
 }

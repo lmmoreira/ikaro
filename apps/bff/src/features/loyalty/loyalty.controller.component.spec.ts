@@ -240,6 +240,43 @@ describe('LoyaltyController (component)', () => {
 
   // ── Admin: GET /v1/customers/:customerId/loyalty/* ────────────────────────
 
+  describe('GET /v1/customers/:customerId/loyalty', () => {
+    it('returns the customer loyalty detail payload for MANAGER JWT', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockImplementation((path: string) => {
+        if (path === `/customers/${OTHER_CUSTOMER_ID}`)
+          return Promise.resolve({
+            customerId: OTHER_CUSTOMER_ID,
+            email: 'customer@example.com',
+            name: 'Customer One',
+            phone: '+5531999999999',
+            defaultAddress: null,
+          });
+        if (path === `/customers/${OTHER_CUSTOMER_ID}/loyalty/balance`)
+          return Promise.resolve(mockBalance);
+        if (path === '/tenants/settings')
+          return Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 10 } } });
+        if (path === `/customers/${OTHER_CUSTOMER_ID}/loyalty/entries`)
+          return Promise.resolve(mockEntries);
+        if (path === `/customers/${OTHER_CUSTOMER_ID}/loyalty/redemptions`)
+          return Promise.resolve(mockRedemptions);
+        throw new Error(`Unexpected GET: ${path}`);
+      });
+      const token = makeManagerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/customers/${OTHER_CUSTOMER_ID}/loyalty`)
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(200);
+      expect(res.body.customer.customerId).toBe(OTHER_CUSTOMER_ID);
+      expect(res.body.balance.currentPoints).toBe(75);
+      expect(res.body.entries.items).toHaveLength(0);
+      expect(res.body.redemptions.items).toHaveLength(0);
+    });
+  });
+
   describe('GET /v1/customers/:customerId/loyalty/balance', () => {
     it('returns 200 with enriched balance for MANAGER JWT', async () => {
       setupActiveGuardMock(httpService);

@@ -1,9 +1,9 @@
+import { bffClient } from '@/shared/lib/api/bff-client';
 import type {
   EnrichedLoyaltyBalanceResponse,
   PaginatedLoyaltyEntriesResponse,
   PaginatedLoyaltyRedemptionsResponse,
 } from '@ikaro/types';
-import { bffClient } from '@/shared/lib/api/bff-client';
 
 export interface LoyaltyPaginationQuery {
   readonly page?: number;

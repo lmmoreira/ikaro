@@ -58,6 +58,8 @@ apps/bff/src/
 
 **Frontend fetchers (`apps/web/features/<domain>/api/<name>.ts` or `apps/web/shells/<surface>/...`) mirror the BFF feature slice name** they call — e.g. `features/platform/hotsite/api/services.ts` ↔ `platform.public.controller.ts`.
 
+**Web-facing composite views belong in the BFF, not in `apps/web`.** If a dashboard screen needs multiple backend reads, response merging, or display shaping across endpoints, expose one BFF contract that owns that fan-out and aggregation. Pages, route files, and feature helpers in `apps/web` should consume a single BFF response and render it; they should not orchestrate multiple BFF calls and merge the results themselves.
+
 ### Canonical Config And Settings Reads
 
 Do not add separate read endpoints or backend use cases just to return a smaller projection of an aggregate/config already exposed by a canonical endpoint. Example anti-pattern: `GET /tenants/formatting` and `GET /tenants/booking-config` re-reading the same tenant row already returned by `GET /tenants/settings`.
