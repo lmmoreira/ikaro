@@ -116,6 +116,17 @@ interface TimelineDayData {
   readonly events: TimelineEvent[];
 }
 
+interface TimelineLayoutInput {
+  readonly selectedDateKey: string;
+  readonly timezone: string;
+  readonly slotGranularityMinutes: number;
+  readonly businessHours: TenantBusinessHours;
+  readonly bookings: readonly StaffBookingCardResponse[];
+  readonly closures: readonly ScheduleClosure[];
+  readonly openings: readonly ScheduleOpening[];
+  readonly slotHeightScale?: number;
+}
+
 function getSlotHeight(slotGranularityMinutes: number, scale = 1): number {
   return Math.max(18, Math.round((slotGranularityMinutes / 30) * 48 * scale));
 }
@@ -138,22 +149,20 @@ function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    if (
+      typeof globalThis.window === 'undefined' ||
+      typeof globalThis.window.matchMedia !== 'function'
+    ) {
       return;
     }
 
-    const mediaQuery = window.matchMedia(query);
+    const mediaQuery = globalThis.window.matchMedia(query);
     const updateMatches = () => setMatches(mediaQuery.matches);
 
     updateMatches();
 
-    if (typeof mediaQuery.addEventListener === 'function') {
-      mediaQuery.addEventListener('change', updateMatches);
-      return () => mediaQuery.removeEventListener('change', updateMatches);
-    }
-
-    mediaQuery.addListener(updateMatches);
-    return () => mediaQuery.removeListener(updateMatches);
+    mediaQuery.addEventListener('change', updateMatches);
+    return () => mediaQuery.removeEventListener('change', updateMatches);
   }, [query]);
 
   return matches;
@@ -182,19 +191,88 @@ function getBookingDateKey(booking: StaffBookingCardResponse, timezone: string):
   return toDateKeyInTimezone(new Date(booking.scheduledAt), timezone);
 }
 
-function assignBookingLanes(bookings: readonly BookingTimelineEvent[]): BookingTimelineEvent[] {
-  if (bookings.length === 0) return [];
+function buildBookingTimelineEvent(
+  booking: StaffBookingCardResponse,
+  timezone: string,
+  selectedDayClosures: readonly ScheduleClosure[],
+  activeStartTime: string,
+  activeEndTime: string,
+): BookingTimelineEvent {
+  const { startTime, endTime } = getBookingTimeKey(booking, timezone);
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = timeToMinutes(endTime);
+  const warning = selectedDayClosures.some((closure) => {
+    const closureStart = closure.startTime ?? activeStartTime;
+    const closureEnd = closure.endTime ?? activeEndTime;
+    return overlaps(
+      startMinutes,
+      endMinutes,
+      timeToMinutes(closureStart),
+      timeToMinutes(closureEnd),
+    );
+  });
 
-  const sorted = [...bookings].sort(
-    (left, right) => left.startMinutes - right.startMinutes || left.endMinutes - right.endMinutes,
-  );
+  return {
+    kind: 'booking',
+    id: booking.bookingId,
+    startMinutes,
+    endMinutes,
+    title: booking.contactName,
+    subtitle: booking.serviceNames.join(', '),
+    booking,
+    warning,
+    laneIndex: 0,
+    laneCount: 1,
+  };
+}
 
+function buildClosureTimelineEvent(
+  closure: ScheduleClosure,
+  activeStartTime: string,
+  activeEndTime: string,
+): ClosureTimelineEvent {
+  const startTime = closure.startTime ?? activeStartTime;
+  const endTime = closure.endTime ?? activeEndTime;
+
+  return {
+    kind: 'closure',
+    id: closure.id,
+    startMinutes: timeToMinutes(startTime),
+    endMinutes: timeToMinutes(endTime),
+    title: closure.reason,
+    subtitle: closure.notes ?? '',
+    closure,
+  };
+}
+
+function buildOpeningTimelineEvent(
+  selectedOpening: ScheduleOpening | null,
+): OpeningTimelineEvent | null {
+  if (!selectedOpening) return null;
+
+  return {
+    kind: 'opening',
+    id: selectedOpening.id,
+    startMinutes: timeToMinutes(selectedOpening.startTime),
+    endMinutes: timeToMinutes(selectedOpening.endTime),
+    title: selectedOpening.notes ?? '',
+    subtitle: '',
+    opening: selectedOpening,
+  };
+}
+
+function groupOverlappingBookings(
+  bookings: readonly BookingTimelineEvent[],
+): BookingTimelineEvent[][] {
   const grouped: BookingTimelineEvent[][] = [];
   let currentGroup: BookingTimelineEvent[] = [];
   let currentGroupEnd = -Infinity;
 
-  for (const booking of sorted) {
-    if (currentGroup.length === 0 || booking.startMinutes >= currentGroupEnd) {
+  for (const booking of [...bookings].sort(
+    (left, right) => left.startMinutes - right.startMinutes || left.endMinutes - right.endMinutes,
+  )) {
+    const startsNewGroup = currentGroup.length === 0 || booking.startMinutes >= currentGroupEnd;
+    if (startsNewGroup) {
       if (currentGroup.length > 0) grouped.push(currentGroup);
       currentGroup = [booking];
       currentGroupEnd = booking.endMinutes;
@@ -206,43 +284,43 @@ function assignBookingLanes(bookings: readonly BookingTimelineEvent[]): BookingT
   }
 
   if (currentGroup.length > 0) grouped.push(currentGroup);
-
-  const laidOut: BookingTimelineEvent[] = [];
-
-  for (const group of grouped) {
-    const laneEnds: number[] = [];
-    const laneAssignments = new Map<string, number>();
-
-    for (const booking of group) {
-      const laneIndex = laneEnds.findIndex((endMinutes) => endMinutes <= booking.startMinutes);
-      const resolvedLaneIndex = laneIndex === -1 ? laneEnds.length : laneIndex;
-      laneEnds[resolvedLaneIndex] = booking.endMinutes;
-      laneAssignments.set(booking.id, resolvedLaneIndex);
-    }
-
-    const laneCount = laneEnds.length;
-    for (const booking of group) {
-      laidOut.push({
-        ...booking,
-        laneIndex: laneAssignments.get(booking.id) ?? 0,
-        laneCount,
-      });
-    }
-  }
-
-  return laidOut;
+  return grouped;
 }
 
-function buildTimelineEvents(
-  selectedDateKey: string,
-  timezone: string,
-  slotGranularityMinutes: number,
-  businessHours: TenantBusinessHours,
-  bookings: readonly StaffBookingCardResponse[],
-  closures: readonly ScheduleClosure[],
-  openings: readonly ScheduleOpening[],
+function assignLanesToBookingGroup(group: readonly BookingTimelineEvent[]): BookingTimelineEvent[] {
+  const laneEnds: number[] = [];
+  const laneAssignments = new Map<string, number>();
+
+  for (const booking of group) {
+    const laneIndex = laneEnds.findIndex((endMinutes) => endMinutes <= booking.startMinutes);
+    const resolvedLaneIndex = laneIndex === -1 ? laneEnds.length : laneIndex;
+    laneEnds[resolvedLaneIndex] = booking.endMinutes;
+    laneAssignments.set(booking.id, resolvedLaneIndex);
+  }
+
+  const laneCount = laneEnds.length;
+  return group.map((booking) => ({
+    ...booking,
+    laneIndex: laneAssignments.get(booking.id) ?? 0,
+    laneCount,
+  }));
+}
+
+function assignBookingLanes(bookings: readonly BookingTimelineEvent[]): BookingTimelineEvent[] {
+  if (bookings.length === 0) return [];
+  return groupOverlappingBookings(bookings).flatMap(assignLanesToBookingGroup);
+}
+
+function buildTimelineEvents({
+  selectedDateKey,
+  timezone,
+  slotGranularityMinutes,
+  businessHours,
+  bookings,
+  closures,
+  openings,
   slotHeightScale = 1,
-): {
+}: TimelineLayoutInput): {
   readonly timelineStartMinutes: number;
   readonly timelineEndMinutes: number;
   readonly slotCount: number;
@@ -277,64 +355,23 @@ function buildTimelineEvents(
   const bookingEvents = assignBookingLanes(
     bookings
       .filter((booking) => getBookingDateKey(booking, timezone) === selectedDateKey)
-      .map<BookingTimelineEvent>((booking) => {
-        const { startTime, endTime } = getBookingTimeKey(booking, timezone);
-        const startMinutes = timeToMinutes(startTime);
-        const endMinutes = timeToMinutes(endTime);
-        const warning = selectedDayClosures.some((closure) => {
-          const closureStart = closure.startTime ?? activeStartTime;
-          const closureEnd = closure.endTime ?? activeEndTime;
-          return overlaps(
-            startMinutes,
-            endMinutes,
-            timeToMinutes(closureStart),
-            timeToMinutes(closureEnd),
-          );
-        });
-
-        return {
-          kind: 'booking',
-          id: booking.bookingId,
-          startMinutes,
-          endMinutes,
-          title: booking.contactName,
-          subtitle: booking.serviceNames.join(', '),
+      .map((booking) =>
+        buildBookingTimelineEvent(
           booking,
-          warning,
-          laneIndex: 0,
-          laneCount: 1,
-        };
-      }),
+          timezone,
+          selectedDayClosures,
+          activeStartTime,
+          activeEndTime,
+        ),
+      ),
   );
 
-  const closureEvents = selectedDayClosures.map<ClosureTimelineEvent>((closure) => {
-    const startTime = closure.startTime ?? activeStartTime;
-    const endTime = closure.endTime ?? activeEndTime;
+  const closureEvents = selectedDayClosures.map((closure) =>
+    buildClosureTimelineEvent(closure, activeStartTime, activeEndTime),
+  );
 
-    return {
-      kind: 'closure',
-      id: closure.id,
-      startMinutes: timeToMinutes(startTime),
-      endMinutes: timeToMinutes(endTime),
-      title: closure.reason,
-      subtitle: closure.notes ?? '',
-      closure,
-    };
-  });
-
-  const openingEvents: OpeningTimelineEvent[] = selectedOpening
-    ? [
-        {
-          kind: 'opening',
-          id: selectedOpening.id,
-          startMinutes: timeToMinutes(selectedOpening.startTime),
-          endMinutes: timeToMinutes(selectedOpening.endTime),
-          title: selectedOpening.notes ?? '',
-          subtitle: '',
-          opening: selectedOpening,
-        },
-      ]
-    : [];
+  const openingEvent = buildOpeningTimelineEvent(selectedOpening);
+  const openingEvents: OpeningTimelineEvent[] = openingEvent ? [openingEvent] : [];
 
   const events: TimelineEvent[] = [...closureEvents, ...openingEvents, ...bookingEvents].sort(
     (left, right) => left.startMinutes - right.startMinutes || right.endMinutes - left.endMinutes,
@@ -349,29 +386,12 @@ function buildTimelineEvents(
   };
 }
 
-function buildTimelineDayData(
-  dateKey: string,
-  timezone: string,
-  slotGranularityMinutes: number,
-  businessHours: TenantBusinessHours,
-  bookings: readonly StaffBookingCardResponse[],
-  closures: readonly ScheduleClosure[],
-  openings: readonly ScheduleOpening[],
-  slotHeightScale = 1,
-): TimelineDayData {
-  const selectedOpening = openings.find((opening) => opening.date === dateKey) ?? null;
-  const selectedDayHours = getDayHoursForDate(dateKey, businessHours);
+function buildTimelineDayData(layout: TimelineLayoutInput): TimelineDayData {
+  const { selectedDateKey, openings, businessHours } = layout;
+  const selectedOpening = openings.find((opening) => opening.date === selectedDateKey) ?? null;
+  const selectedDayHours = getDayHoursForDate(selectedDateKey, businessHours);
   const selectedDayClosed = !selectedDayHours && !selectedOpening;
-  const timeline = buildTimelineEvents(
-    dateKey,
-    timezone,
-    slotGranularityMinutes,
-    businessHours,
-    bookings,
-    closures,
-    openings,
-    slotHeightScale,
-  );
+  const timeline = buildTimelineEvents(layout);
 
   return {
     selectedOpening,
@@ -546,15 +566,15 @@ export function SchedulePage({
 
   const selectedDayTimeline = useMemo(
     () =>
-      buildTimelineDayData(
+      buildTimelineDayData({
         selectedDateKey,
         timezone,
         slotGranularityMinutes,
         businessHours,
-        visibleBookings,
-        visibleClosures,
-        visibleOpenings,
-      ),
+        bookings: visibleBookings,
+        closures: visibleClosures,
+        openings: visibleOpenings,
+      }),
     [
       businessHours,
       selectedDateKey,
@@ -569,16 +589,16 @@ export function SchedulePage({
   const weekTimelineCards = useMemo(
     () =>
       weekDayInfo.map((day) =>
-        buildTimelineDayData(
-          day.dateKey,
+        buildTimelineDayData({
+          selectedDateKey: day.dateKey,
           timezone,
           slotGranularityMinutes,
           businessHours,
-          visibleBookings,
-          visibleClosures,
-          visibleOpenings,
-          0.45,
-        ),
+          bookings: visibleBookings,
+          closures: visibleClosures,
+          openings: visibleOpenings,
+          slotHeightScale: 0.45,
+        }),
       ),
     [
       businessHours,
@@ -604,11 +624,12 @@ export function SchedulePage({
 
   const bookingEvents = events.filter((event) => event.kind === 'booking');
   const hasBookingInSelectedDay = bookingEvents.length > 0;
-  const timelineTitle = selectedOpening
-    ? t('specialOpeningBadge')
-    : selectedDayClosed
-      ? t('statusClosed')
-      : t('statusRegularOpen');
+  let timelineTitle = t('statusRegularOpen');
+  if (selectedOpening) {
+    timelineTitle = t('specialOpeningBadge');
+  } else if (selectedDayClosed) {
+    timelineTitle = t('statusClosed');
+  }
 
   async function handleCreateClosure(body: CreateClosureRequest): Promise<ScheduleClosure> {
     const dayHours = getDayHoursForDate(body.date, businessHours);
@@ -705,10 +726,10 @@ export function SchedulePage({
     weekStartKey,
   )}&date=${encodeURIComponent(selectedDateKey)}`;
 
-  function renderTimelineEvent(
-    event: TimelineEvent,
-    timeline: TimelineDayData,
+  function renderBookingTimelineEvent(
+    event: BookingTimelineEvent,
     compact: boolean,
+    timeline: TimelineDayData,
   ): React.JSX.Element {
     const blockStyle = buildBlockStyle(
       event.startMinutes,
@@ -718,110 +739,142 @@ export function SchedulePage({
       slotGranularityMinutes,
       timeline.slotHeight,
     );
-    const commonClass = compact
-      ? 'absolute overflow-hidden rounded-xl px-2 py-1.5 shadow-sm'
-      : 'absolute overflow-hidden rounded-2xl px-3 py-2 shadow-sm';
+    const laneWidth = 100 / event.laneCount;
+    const laneLeft = laneWidth * event.laneIndex;
 
-    if (event.kind === 'booking') {
-      const laneWidth = 100 / event.laneCount;
-      const laneLeft = laneWidth * event.laneIndex;
-      return (
-        <Link
-          key={event.id}
-          href={`/dashboard/bookings/${event.booking.bookingId}?returnTo=${encodeURIComponent(
-            scheduleReturnTo,
-          )}`}
-          className={cn(
-            commonClass,
-            'z-20 hover:shadow-md',
-            event.warning
-              ? 'border-orange-300 bg-orange-50 text-orange-950'
-              : SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
-          )}
-          style={{
-            ...blockStyle,
-            left: `${laneLeft}%`,
-            width: `${laneWidth}%`,
-          }}
-          aria-label={event.booking.contactName}
-        >
-          <div className="flex h-full flex-col gap-1">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex min-w-0 items-start gap-2">
-                {event.warning ? (
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
-                ) : null}
-                <div className="min-w-0">
-                  <p className={cn('truncate font-semibold', compact ? 'text-xs' : 'text-sm')}>
-                    {event.title}
-                  </p>
-                  <p className={cn('truncate opacity-80', compact ? 'text-[0.65rem]' : 'text-xs')}>
-                    {event.subtitle}
-                  </p>
-                </div>
+    return (
+      <Link
+        key={event.id}
+        href={`/dashboard/bookings/${event.booking.bookingId}?returnTo=${encodeURIComponent(
+          scheduleReturnTo,
+        )}`}
+        className={cn(
+          compact
+            ? 'absolute overflow-hidden rounded-xl px-2 py-1.5 shadow-sm'
+            : 'absolute overflow-hidden rounded-2xl px-3 py-2 shadow-sm',
+          'z-20 hover:shadow-md',
+          event.warning
+            ? 'border-orange-300 bg-orange-50 text-orange-950'
+            : SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
+        )}
+        style={{
+          ...blockStyle,
+          left: `${laneLeft}%`,
+          width: `${laneWidth}%`,
+        }}
+        aria-label={event.booking.contactName}
+      >
+        <div className="flex h-full flex-col gap-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 items-start gap-2">
+              {event.warning ? (
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
+              ) : null}
+              <div className="min-w-0">
+                <p className={cn('truncate font-semibold', compact ? 'text-xs' : 'text-sm')}>
+                  {event.title}
+                </p>
+                <p className={cn('truncate opacity-80', compact ? 'text-[0.65rem]' : 'text-xs')}>
+                  {event.subtitle}
+                </p>
               </div>
-              <Badge
-                variant="outline"
-                className={cn(
-                  'shrink-0 border-0',
-                  compact ? 'text-[0.62rem]' : 'text-[0.6875rem]',
-                  SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
-                )}
-              >
-                {statusLabels[event.booking.status]}
-              </Badge>
             </div>
-            <div className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}>
-              {formatEventRange(
-                getLocalTimeKey(new Date(event.booking.scheduledAt), timezone),
-                getLocalTimeKey(
-                  new Date(
-                    new Date(event.booking.scheduledAt).getTime() +
-                      event.booking.totalDurationMins * 60_000,
-                  ),
-                  timezone,
-                ),
+            <Badge
+              variant="outline"
+              className={cn(
+                'shrink-0 border-0',
+                compact ? 'text-[0.62rem]' : 'text-[0.6875rem]',
+                SCHEDULE_BOOKING_TIMELINE_CLASSES[event.booking.status],
               )}
-            </div>
+            >
+              {statusLabels[event.booking.status]}
+            </Badge>
           </div>
-        </Link>
-      );
-    }
+          <div className={cn('opacity-80', compact ? 'text-[0.625rem]' : 'text-[0.6875rem]')}>
+            {formatEventRange(
+              getLocalTimeKey(new Date(event.booking.scheduledAt), timezone),
+              getLocalTimeKey(
+                new Date(
+                  new Date(event.booking.scheduledAt).getTime() +
+                    event.booking.totalDurationMins * 60_000,
+                ),
+                timezone,
+              ),
+            )}
+          </div>
+        </div>
+      </Link>
+    );
+  }
 
-    if (event.kind === 'opening') {
-      return (
-        <button
-          key={event.id}
-          type="button"
-          onClick={() => setRemoveOpeningTarget(event.opening)}
-          className={cn(
-            commonClass,
-            'z-10 border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100',
-          )}
-          style={blockStyle}
-        >
-          <div className="flex h-full items-start gap-2">
-            <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-            <div className="min-w-0 text-left">
-              <p className={cn('truncate font-semibold', compact ? 'text-xs' : 'text-sm')}>
-                {t('specialOpeningBadge')}
-              </p>
-              <p className={cn('truncate opacity-80', compact ? 'text-[0.625rem]' : 'text-xs')}>
-                {event.opening.notes ??
-                  formatEventRange(event.opening.startTime, event.opening.endTime)}
-              </p>
-            </div>
+  function renderOpeningTimelineEvent(
+    event: OpeningTimelineEvent,
+    compact: boolean,
+    timeline: TimelineDayData,
+  ): React.JSX.Element {
+    const blockStyle = buildBlockStyle(
+      event.startMinutes,
+      event.endMinutes,
+      timeline.timelineStartMinutes,
+      timeline.timelineEndMinutes,
+      slotGranularityMinutes,
+      timeline.slotHeight,
+    );
+
+    return (
+      <button
+        key={event.id}
+        type="button"
+        onClick={() => setRemoveOpeningTarget(event.opening)}
+        className={cn(
+          compact
+            ? 'absolute overflow-hidden rounded-xl px-2 py-1.5 shadow-sm'
+            : 'absolute overflow-hidden rounded-2xl px-3 py-2 shadow-sm',
+          'z-10 border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100',
+        )}
+        style={blockStyle}
+      >
+        <div className="flex h-full items-start gap-2">
+          <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+          <div className="min-w-0 text-left">
+            <p className={cn('truncate font-semibold', compact ? 'text-xs' : 'text-sm')}>
+              {t('specialOpeningBadge')}
+            </p>
+            <p className={cn('truncate opacity-80', compact ? 'text-[0.625rem]' : 'text-xs')}>
+              {event.opening.notes ??
+                formatEventRange(event.opening.startTime, event.opening.endTime)}
+            </p>
           </div>
-        </button>
-      );
-    }
+        </div>
+      </button>
+    );
+  }
+
+  function renderClosureTimelineEvent(
+    event: ClosureTimelineEvent,
+    compact: boolean,
+    timeline: TimelineDayData,
+  ): React.JSX.Element {
+    const blockStyle = buildBlockStyle(
+      event.startMinutes,
+      event.endMinutes,
+      timeline.timelineStartMinutes,
+      timeline.timelineEndMinutes,
+      slotGranularityMinutes,
+      timeline.slotHeight,
+    );
 
     return (
       <button
         key={event.id}
         type="button"
         onClick={() => setRemoveClosureTarget(event.closure)}
-        className={cn(commonClass, 'z-10 border-slate-200 text-slate-900 hover:bg-slate-100')}
+        className={cn(
+          compact
+            ? 'absolute overflow-hidden rounded-xl px-2 py-1.5 shadow-sm'
+            : 'absolute overflow-hidden rounded-2xl px-3 py-2 shadow-sm',
+          'z-10 border-slate-200 text-slate-900 hover:bg-slate-100',
+        )}
         style={{
           ...blockStyle,
           backgroundImage:
@@ -845,96 +898,112 @@ export function SchedulePage({
     );
   }
 
-  function renderTimelineBoard(timeline: TimelineDayData, compact: boolean): React.JSX.Element {
+  function renderTimelineEvent(
+    event: TimelineEvent,
+    timeline: TimelineDayData,
+    compact: boolean,
+  ): React.JSX.Element {
+    if (event.kind === 'booking') {
+      return renderBookingTimelineEvent(event, compact, timeline);
+    }
+
+    if (event.kind === 'opening') {
+      return renderOpeningTimelineEvent(event, compact, timeline);
+    }
+
+    return renderClosureTimelineEvent(event, compact, timeline);
+  }
+
+  function renderTimelineEmptyState(compact: boolean): React.JSX.Element {
+    return (
+      <div
+        className={cn(
+          'flex items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 text-center',
+          compact ? 'min-h-[10rem]' : 'min-h-[14rem] p-6',
+        )}
+      >
+        <div className="space-y-2">
+          <div
+            className={cn(
+              'mx-auto flex items-center justify-center rounded-full bg-gray-100 text-gray-500',
+              compact ? 'h-8 w-8' : 'mb-3 h-11 w-11',
+            )}
+          >
+            <Unlock className={cn(compact ? 'h-4 w-4' : 'h-5 w-5')} />
+          </div>
+          <p className={cn('font-semibold text-gray-900', compact ? 'text-xs' : 'text-sm')}>
+            {t('statusClosed')}
+          </p>
+          <p className={cn('text-gray-500', compact ? 'text-[0.625rem]' : 'text-sm')}>
+            {t('closedDayEmpty')}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  function renderTimelineCompactBoard(timeline: TimelineDayData): React.JSX.Element {
     const timelineHeight = timeline.slotCount * timeline.slotHeight;
     const bookingCount = timeline.events.filter((event) => event.kind === 'booking').length;
-    const hasHours = !timeline.selectedDayClosed;
+    const compactLabelStep = Math.max(1, Math.round(60 / slotGranularityMinutes));
+    const compactLabelIndexes = Array.from({ length: timeline.slotCount }, (_, index) => index)
+      .filter((index) => index % compactLabelStep === 0)
+      .filter((index, position, indexes) => indexes.indexOf(index) === position);
 
-    if (!hasHours) {
-      return (
-        <div
-          className={cn(
-            'flex items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 text-center',
-            compact ? 'min-h-[10rem]' : 'min-h-[14rem] p-6',
-          )}
-        >
-          <div className="space-y-2">
-            <div
-              className={cn(
-                'mx-auto flex items-center justify-center rounded-full bg-gray-100 text-gray-500',
-                compact ? 'h-8 w-8' : 'mb-3 h-11 w-11',
-              )}
-            >
-              <Unlock className={cn(compact ? 'h-4 w-4' : 'h-5 w-5')} />
-            </div>
-            <p className={cn('font-semibold text-gray-900', compact ? 'text-xs' : 'text-sm')}>
-              {t('statusClosed')}
-            </p>
-            <p className={cn('text-gray-500', compact ? 'text-[0.625rem]' : 'text-sm')}>
-              {t('closedDayEmpty')}
-            </p>
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Badge
+            className={cn(
+              'border-0',
+              timeline.selectedOpening
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-gray-100 text-gray-700',
+            )}
+          >
+            {timeline.selectedOpening ? t('specialOpeningBadge') : t('statusRegularOpen')}
+          </Badge>
+          {bookingCount > 0 ? (
+            <span className="text-[0.625rem] font-medium uppercase tracking-[0.08em] text-gray-500">
+              {t('bookingsOnDay', { count: bookingCount })}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-0">
+          <div className="relative" style={{ height: `${timelineHeight}px` }}>
+            {compactLabelIndexes.map((index) => (
+              <div
+                key={`compact-label-${timeline.timelineStartMinutes}-${index}`}
+                className="absolute left-0 -translate-y-1/2 pr-2 text-[0.625rem] font-semibold text-gray-400"
+                style={{ top: `${index * timeline.slotHeight}px` }}
+              >
+                {minutesToTime(timeline.timelineStartMinutes + index * slotGranularityMinutes)}
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="relative rounded-2xl border border-gray-200 bg-gray-50"
+            style={{ height: `${timelineHeight}px` }}
+          >
+            {Array.from({ length: timeline.slotCount }, (_, index) => (
+              <div
+                key={`compact-line-${timeline.timelineStartMinutes}-${index}`}
+                className="absolute inset-x-0 border-t border-gray-200"
+                style={{ top: `${index * timeline.slotHeight}px` }}
+              />
+            ))}
+
+            {timeline.events.map((event) => renderTimelineEvent(event, timeline, true))}
           </div>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    if (compact) {
-      const compactLabelStep = Math.max(1, Math.round(60 / slotGranularityMinutes));
-      const compactLabelIndexes = Array.from({ length: timeline.slotCount }, (_, index) => index)
-        .filter((index) => index % compactLabelStep === 0)
-        .filter((index, position, indexes) => indexes.indexOf(index) === position);
-
-      return (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Badge
-              className={cn(
-                'border-0',
-                timeline.selectedOpening
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-gray-100 text-gray-700',
-              )}
-            >
-              {timeline.selectedOpening ? t('specialOpeningBadge') : t('statusRegularOpen')}
-            </Badge>
-            {bookingCount > 0 ? (
-              <span className="text-[0.625rem] font-medium uppercase tracking-[0.08em] text-gray-500">
-                {t('bookingsOnDay', { count: bookingCount })}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-0">
-            <div className="relative" style={{ height: `${timelineHeight}px` }}>
-              {compactLabelIndexes.map((index) => (
-                <div
-                  key={`compact-label-${timeline.timelineStartMinutes}-${index}`}
-                  className="absolute left-0 -translate-y-1/2 pr-2 text-[0.625rem] font-semibold text-gray-400"
-                  style={{ top: `${index * timeline.slotHeight}px` }}
-                >
-                  {minutesToTime(timeline.timelineStartMinutes + index * slotGranularityMinutes)}
-                </div>
-              ))}
-            </div>
-
-            <div
-              className="relative rounded-2xl border border-gray-200 bg-gray-50"
-              style={{ height: `${timelineHeight}px` }}
-            >
-              {Array.from({ length: timeline.slotCount }, (_, index) => (
-                <div
-                  key={`compact-line-${timeline.timelineStartMinutes}-${index}`}
-                  className="absolute inset-x-0 border-t border-gray-200"
-                  style={{ top: `${index * timeline.slotHeight}px` }}
-                />
-              ))}
-
-              {timeline.events.map((event) => renderTimelineEvent(event, timeline, true))}
-            </div>
-          </div>
-        </div>
-      );
-    }
+  function renderTimelineDesktopBoard(timeline: TimelineDayData): React.JSX.Element {
+    const timelineHeight = timeline.slotCount * timeline.slotHeight;
 
     return (
       <div className="grid grid-cols-[4.75rem_minmax(0,1fr)] gap-0">
@@ -966,6 +1035,20 @@ export function SchedulePage({
         </div>
       </div>
     );
+  }
+
+  function renderTimelineBoard(timeline: TimelineDayData, compact: boolean): React.JSX.Element {
+    const hasHours = !timeline.selectedDayClosed;
+
+    if (!hasHours) {
+      return renderTimelineEmptyState(compact);
+    }
+
+    if (compact) {
+      return renderTimelineCompactBoard(timeline);
+    }
+
+    return renderTimelineDesktopBoard(timeline);
   }
 
   return (
@@ -1064,6 +1147,26 @@ export function SchedulePage({
               const timeline = weekTimelineCards[index];
               const isSelected = day.dateKey === selectedDateKey;
               const isToday = day.dateKey === todayKey;
+              const dayWeekdayClass = isSelected
+                ? 'text-white/80'
+                : isToday
+                  ? 'text-blue-600'
+                  : 'text-gray-400';
+              const dayNumberClass = isSelected
+                ? 'text-white'
+                : isToday
+                  ? 'text-blue-600'
+                  : 'text-gray-900';
+              let dayBadgeClass = 'bg-blue-100 text-blue-800';
+              let dayBadgeLabel = t('statusRegularOpen');
+
+              if (timeline.selectedOpening) {
+                dayBadgeClass = 'bg-emerald-100 text-emerald-800';
+                dayBadgeLabel = t('specialOpeningBadge');
+              } else if (day.isClosed) {
+                dayBadgeClass = 'bg-gray-100 text-gray-700';
+                dayBadgeLabel = t('statusClosed');
+              }
 
               return (
                 <section
@@ -1089,39 +1192,17 @@ export function SchedulePage({
                       <p
                         className={cn(
                           'text-[0.6875rem] font-semibold uppercase tracking-wide',
-                          isToday ? 'text-blue-600' : 'text-gray-400',
+                          dayWeekdayClass,
                         )}
                       >
                         {formatWeekdayShort(toLocalDate(day.dateKey))}
                       </p>
-                      <p
-                        className={cn(
-                          'text-sm font-semibold leading-none',
-                          isSelected
-                            ? 'text-blue-700'
-                            : isToday
-                              ? 'text-blue-600'
-                              : 'text-gray-900',
-                        )}
-                      >
+                      <p className={cn('text-sm font-semibold leading-none', dayNumberClass)}>
                         {toLocalDate(day.dateKey).getDate()}
                       </p>
                     </div>
-                    <Badge
-                      className={cn(
-                        'shrink-0 border-0 text-[0.625rem]',
-                        timeline.selectedOpening
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : day.isClosed
-                            ? 'bg-gray-100 text-gray-700'
-                            : 'bg-blue-100 text-blue-800',
-                      )}
-                    >
-                      {timeline.selectedOpening
-                        ? t('specialOpeningBadge')
-                        : day.isClosed
-                          ? t('statusClosed')
-                          : t('statusRegularOpen')}
+                    <Badge className={cn('shrink-0 border-0 text-[0.625rem]', dayBadgeClass)}>
+                      {dayBadgeLabel}
                     </Badge>
                   </button>
 

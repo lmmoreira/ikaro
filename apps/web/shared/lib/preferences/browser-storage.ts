@@ -19,9 +19,9 @@ function createNoopStoragePort(): BrowserStoragePort {
 }
 
 function getWindowStorage(): Storage | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof globalThis.window === 'undefined') return null;
   try {
-    return window.localStorage;
+    return globalThis.window.localStorage;
   } catch {
     return null;
   }
@@ -43,8 +43,6 @@ export function createBrowserPreferenceStore(
   storage: BrowserStoragePort = createBrowserStoragePort(),
 ): BrowserPreferenceStore {
   const storageKey = `ikaro:${namespace}`;
-  const hasOwn = (object: Record<string, unknown>, key: string): boolean =>
-    Object.prototype.hasOwnProperty.call(object, key);
 
   function readNamespace(): Record<string, unknown> {
     const raw = storage.getItem(storageKey);
@@ -76,7 +74,7 @@ export function createBrowserPreferenceStore(
   return {
     get<T>(key: string): T | null {
       const values = readNamespace();
-      return hasOwn(values, key) ? (values[key] as T) : null;
+      return Object.hasOwn(values, key) ? (values[key] as T) : null;
     },
     set<T>(key: string, value: T): void {
       const values = readNamespace();
@@ -85,7 +83,7 @@ export function createBrowserPreferenceStore(
     },
     remove(key: string): void {
       const values = readNamespace();
-      if (!hasOwn(values, key)) return;
+      if (!Object.hasOwn(values, key)) return;
       delete values[key];
       writeNamespace(values);
     },

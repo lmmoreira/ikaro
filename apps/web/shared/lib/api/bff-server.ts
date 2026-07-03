@@ -1,6 +1,11 @@
-interface BffServerFetchInit extends Omit<RequestInit, 'headers'> {
+interface BffServerFetchNextInit {
+  readonly revalidate?: number | false;
+  readonly tags?: string[];
+}
+
+interface BffServerFetchInit extends Omit<RequestInit, 'headers' | 'next'> {
   readonly headers?: Record<string, string>;
-  readonly next?: { readonly revalidate?: number | false; readonly tags?: string[] };
+  readonly next?: BffServerFetchNextInit;
 }
 
 export async function bffServerFetch(
@@ -10,7 +15,7 @@ export async function bffServerFetch(
 ): Promise<Response> {
   const { headers: extraHeaders, cache, next, ...rest } = init;
   const hasRevalidate = next?.revalidate !== undefined;
-  const requestInit: RequestInit & { next?: BffServerFetchInit['next'] } = {
+  const requestInit: RequestInit & { next?: BffServerFetchNextInit } = {
     ...rest,
     headers: {
       Cookie: `access_token=${token}`,
@@ -18,10 +23,8 @@ export async function bffServerFetch(
     },
   };
 
-  if (cache && !hasRevalidate) {
-    requestInit.cache = cache;
-  } else if (!cache && !hasRevalidate) {
-    requestInit.cache = 'no-store';
+  if (!hasRevalidate) {
+    requestInit.cache ??= cache ?? 'no-store';
   }
 
   if (next) {
