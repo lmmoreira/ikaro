@@ -32,6 +32,7 @@ export default defineConfig({
         '**/.next/**',
         '**/app/**/page.tsx',
         '**/app/**/layout.tsx',
+        'playwright.config.ts',
       ],
     },
   },
