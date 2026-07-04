@@ -2672,7 +2672,7 @@ deactivateService(serviceId: string): Promise<void>
 
 ---
 
-### M13-S25 — Frontend: `/dashboard/loyalty` — customer search + loyalty detail pages
+### M13-S25 — Frontend: `/dashboard/loyalty` — customer search + loyalty detail pages ✅ Done
 
 *(formerly M128-S03)*
 
