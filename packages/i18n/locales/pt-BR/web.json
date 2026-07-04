@@ -290,6 +290,22 @@
       "contactNote": "Precisa cancelar mesmo assim? Entre em contato diretamente com o estabelecimento.",
       "whatsappCta": "Contato via WhatsApp",
       "backButton": "Voltar ao agendamento"
+    },
+    "loyalty": {
+      "title": "Minha Fidelidade",
+      "pointsActiveLabel": "pontos ativos",
+      "expiryWarning": "⚠ {points} pts expiram em {date}",
+      "conversionRow": "{rate} pts = {unit} · Valor total: {total}",
+      "emptyTitle": "Nenhum ponto acumulado ainda",
+      "emptyBody": "Complete um agendamento para começar a acumular pontos e trocar por descontos.",
+      "emptyCta": "Agendar agora",
+      "tabEntries": "Histórico de ganhos",
+      "tabRedemptions": "Resgates",
+      "expiredBadge": "Expirado",
+      "noRedemptions": "Nenhum resgate realizado ainda",
+      "redemptionLabel": "Resgate — {reference}",
+      "redemptionLabelGeneric": "Resgate",
+      "savingsLabel": "Economia: {amount}"
     }
   },
   "dashboard": {

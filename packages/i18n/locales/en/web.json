@@ -290,6 +290,22 @@
       "contactNote": "Need to cancel anyway? Contact the business directly.",
       "whatsappCta": "Contact via WhatsApp",
       "backButton": "Back to booking"
+    },
+    "loyalty": {
+      "title": "My Loyalty",
+      "pointsActiveLabel": "active points",
+      "expiryWarning": "⚠ {points} pts expire on {date}",
+      "conversionRow": "{rate} pts = {unit} · Total value: {total}",
+      "emptyTitle": "No points earned yet",
+      "emptyBody": "Complete a booking to start earning points and redeeming discounts.",
+      "emptyCta": "Book now",
+      "tabEntries": "Earning history",
+      "tabRedemptions": "Redemptions",
+      "expiredBadge": "Expired",
+      "noRedemptions": "No redemptions yet",
+      "redemptionLabel": "Redemption — {reference}",
+      "redemptionLabelGeneric": "Redemption",
+      "savingsLabel": "Savings: {amount}"
     }
   },
   "dashboard": {
