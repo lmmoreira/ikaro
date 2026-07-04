@@ -1,4 +1,8 @@
-import type { CustomerBookingListResponse, CustomerLoyaltyBalanceResponse } from '@ikaro/types';
+import type {
+  CustomerBookingDetailResponse,
+  CustomerBookingListResponse,
+  CustomerLoyaltyBalanceResponse,
+} from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 
 // GET /v1/bookings defaults to status=PENDING,INFO_REQUESTED and limit=20 — both params
@@ -20,4 +24,29 @@ export async function fetchLoyaltyBalance(token: string): Promise<CustomerLoyalt
   const res = await bffServerFetch(token, '/loyalty/balance');
   if (!res.ok) throw new Error(`Failed to fetch loyalty balance (${res.status})`);
   return res.json() as Promise<CustomerLoyaltyBalanceResponse>;
+}
+
+export class CustomerBookingDetailFetchError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'CustomerBookingDetailFetchError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export async function fetchCustomerBookingDetail(
+  token: string,
+  bookingId: string,
+): Promise<CustomerBookingDetailResponse> {
+  const res = await bffServerFetch(token, `/bookings/${bookingId}`);
+  if (!res.ok) {
+    throw new CustomerBookingDetailFetchError(
+      res.status,
+      res.status === 404 ? 'Booking not found' : `Failed to fetch booking detail (${res.status})`,
+    );
+  }
+  return res.json() as Promise<CustomerBookingDetailResponse>;
 }

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { Money } from '../../../../shared/value-objects/money';
-import { Booking } from '../../domain/booking.aggregate';
+import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 
@@ -11,6 +11,7 @@ export type GetBookingByIdInput = {
   bookingId: string;
   tenantId: string;
   locale: string;
+  cancellationWindowHours: number;
 };
 
 export interface BookingLineDetail {
@@ -62,6 +63,8 @@ export interface GetBookingByIdUseCaseResult {
   completedAt: string | null;
   rejectionReason: string | null;
   createdAt: string;
+  // Customer self-cancellation deadline (UC-007) — non-null only for APPROVED bookings.
+  cancellableUntil: string | null;
 }
 
 @Injectable()
@@ -72,12 +75,12 @@ export class GetBookingByIdUseCase {
   ) {}
 
   async execute(input: GetBookingByIdInput): Promise<GetBookingByIdUseCaseResult> {
-    const { tenantId, locale } = input;
+    const { tenantId, locale, cancellationWindowHours } = input;
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(input.bookingId);
 
-    return this.toResult(booking, locale);
+    return this.toResult(booking, locale, cancellationWindowHours);
   }
 
   private toAddressDetail(address: Booking['contactAddress']): BookingAddressDetail | null {
@@ -109,7 +112,11 @@ export class GetBookingByIdUseCase {
     );
   }
 
-  private async toResult(booking: Booking, locale: string): Promise<GetBookingByIdUseCaseResult> {
+  private async toResult(
+    booking: Booking,
+    locale: string,
+    cancellationWindowHours: number,
+  ): Promise<GetBookingByIdUseCaseResult> {
     const [beforeServicePhotoUrls, afterServicePhotoUrls] = await Promise.all([
       this.signPhotoUrls(booking.beforeServicePhotoUrls),
       this.signPhotoUrls(booking.afterServicePhotoUrls),
@@ -160,6 +167,10 @@ export class GetBookingByIdUseCase {
       completedAt: booking.completedAt?.toISOString() ?? null,
       rejectionReason: booking.rejectionReason,
       createdAt: booking.createdAt.toISOString(),
+      cancellableUntil:
+        booking.status === BookingStatus.APPROVED
+          ? booking.cancellableUntil(cancellationWindowHours).toISOString()
+          : null,
     };
   }
 }

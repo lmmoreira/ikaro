@@ -245,6 +245,51 @@
       "title": "We couldn't load your data",
       "body": "Please try again in a moment.",
       "retry": "Try again"
+    },
+    "bookingDetail": {
+      "backToBookings": "Bookings",
+      "dateTimeTitle": "Date and time",
+      "scheduledAtPending": "To be confirmed after approval",
+      "servicesTitle": "Services",
+      "total": "Total",
+      "totalCharged": "Amount charged",
+      "quotedPrice": "Quoted: {amount}",
+      "discountApplied": "Discount applied: {points} pts (−{amount})",
+      "notesTitle": "Your notes",
+      "yourResponseTitle": "Your response",
+      "beforePhotosTitle": "Before-service photos",
+      "beforePhotoAlt": "Photo {index} before service",
+      "afterPhotosTitle": "After-service photos",
+      "afterPhotoAlt": "Photo {index} after service",
+      "pointsEarnedBanner": "+{points} loyalty points",
+      "cancelWindowNote": "Free cancellation until {date} at {time}",
+      "cancelButton": "Cancel booking",
+      "cancelRequestButton": "Cancel request",
+      "responseSentConfirmation": "Response sent! Our team will review and confirm your booking shortly.",
+      "newBookingCta": "Make a new booking"
+    },
+    "infoSubmit": {
+      "label": "Message",
+      "submit": "Send response",
+      "submitting": "Sending...",
+      "retry": "Try again",
+      "validationError": "Enter your response before sending.",
+      "submitError": "We couldn't send your response. Check your connection and try again."
+    },
+    "cancelConfirm": {
+      "title": "Cancel this booking?",
+      "irreversibleNote": "This action cannot be undone.",
+      "confirmButton": "Confirm cancellation",
+      "confirming": "Cancelling...",
+      "backButton": "Back"
+    },
+    "cancelError": {
+      "title": "Cancellation window closed",
+      "body": "Approved bookings can only be cancelled with a minimum notice period.",
+      "deadlineNote": "The cancellation window closed on {date} at {time}.",
+      "contactNote": "Need to cancel anyway? Contact the business directly.",
+      "whatsappCta": "Contact via WhatsApp",
+      "backButton": "Back to booking"
     }
   },
   "dashboard": {

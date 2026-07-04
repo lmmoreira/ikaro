@@ -11,7 +11,14 @@ export class PlatformBookingAdapter implements IPlatformBookingPort {
 
   async findById(bookingId: string, tenantId: string): Promise<BookingLookupSummary | null> {
     try {
-      const booking = await this.getBookingById.execute({ bookingId, tenantId, locale: 'pt-BR' });
+      // cancellationWindowHours only affects the response's cancellableUntil field, which this
+      // adapter never reads (it maps id/customerId/photo URLs only) — 0 is a safe unused placeholder.
+      const booking = await this.getBookingById.execute({
+        bookingId,
+        tenantId,
+        locale: 'pt-BR',
+        cancellationWindowHours: 0,
+      });
       return {
         id: booking.id,
         customerId: booking.customerId,

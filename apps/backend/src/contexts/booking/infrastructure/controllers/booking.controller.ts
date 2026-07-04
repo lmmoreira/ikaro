@@ -148,7 +148,12 @@ export class BookingController {
   ): Promise<GetBookingByIdUseCaseResult> {
     const { tenantId, actorType, actorId, settings } = this.ctx;
     return this.getBooking
-      .execute({ bookingId: id, tenantId, locale: settings.localization.language })
+      .execute({
+        bookingId: id,
+        tenantId,
+        locale: settings.localization.language,
+        cancellationWindowHours: settings.booking.cancellationWindowHours,
+      })
       .then((result) => {
         if (actorType === 'CUSTOMER' && result.customerId !== actorId) {
           throw new BookingNotFoundError(id);

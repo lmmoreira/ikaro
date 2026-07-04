@@ -18,7 +18,14 @@ export class LoyaltyBookingAdapter implements ILoyaltyBookingPort {
 
   async findBookingServices(tenantId: string, bookingId: string): Promise<ServiceSummary[]> {
     try {
-      const booking = await this.getBookingById.execute({ bookingId, tenantId, locale: 'pt-BR' });
+      // cancellationWindowHours only affects the response's cancellableUntil field, which this
+      // adapter never reads (it maps line service names only) — 0 is a safe unused placeholder.
+      const booking = await this.getBookingById.execute({
+        bookingId,
+        tenantId,
+        locale: 'pt-BR',
+        cancellationWindowHours: 0,
+      });
       return booking.lines.map((line) => ({
         serviceId: line.serviceId,
         serviceName: line.serviceNameAtBooking,

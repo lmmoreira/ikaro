@@ -87,6 +87,7 @@ function makeItem(overrides: Partial<CustomerBookingListItem> = {}): CustomerBoo
         serviceName: 'Lavagem Completa',
         durationMinsAtBooking: 60,
         priceAtBooking: { amount: 180, currency: 'BRL' },
+        actualPriceCharged: null,
       },
     ],
     totalPrice: { amount: 180, currency: 'BRL' },

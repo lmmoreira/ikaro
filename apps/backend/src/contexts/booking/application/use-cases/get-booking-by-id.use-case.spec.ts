@@ -36,6 +36,7 @@ describe('GetBookingByIdUseCase', () => {
         bookingId: booking.id,
         tenantId: TENANT_A,
         locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.id).toBe(booking.id);
@@ -75,6 +76,7 @@ describe('GetBookingByIdUseCase', () => {
         bookingId: booking.id,
         tenantId: TENANT_A,
         locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.contactAddress).toEqual({
@@ -102,6 +104,7 @@ describe('GetBookingByIdUseCase', () => {
         bookingId: booking.id,
         tenantId: TENANT_A,
         locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.contactAddress).toBeNull();
@@ -122,6 +125,7 @@ describe('GetBookingByIdUseCase', () => {
         bookingId: booking.id,
         tenantId: TENANT_A,
         locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.notes).toBe('Carro está na garagem do prédio');
@@ -142,6 +146,7 @@ describe('GetBookingByIdUseCase', () => {
         bookingId: booking.id,
         tenantId: TENANT_A,
         locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.beforeServicePhotoUrls).toEqual([
@@ -170,6 +175,7 @@ describe('GetBookingByIdUseCase', () => {
         bookingId: booking.id,
         tenantId: TENANT_A,
         locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.totalActualPrice).toEqual({
@@ -197,6 +203,7 @@ describe('GetBookingByIdUseCase', () => {
         bookingId: booking.id,
         tenantId: TENANT_A,
         locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.totalActualPrice).toBeNull();
@@ -205,12 +212,51 @@ describe('GetBookingByIdUseCase', () => {
       expect(result.completedAt).toBeNull();
     });
 
+    it('sets cancellableUntil to scheduledAt minus the cancellation window for APPROVED bookings', async () => {
+      const scheduledAt = new Date('2026-08-10T14:00:00.000Z');
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await repo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+        cancellationWindowHours: 48,
+      });
+
+      expect(result.cancellableUntil).toBe('2026-08-08T14:00:00.000Z');
+    });
+
+    it('sets cancellableUntil to null for non-APPROVED bookings', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withStatus(BookingStatus.PENDING)
+        .build();
+      await repo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+        cancellationWindowHours: 48,
+      });
+
+      expect(result.cancellableUntil).toBeNull();
+    });
+
     it('throws BookingNotFoundError when booking does not exist', async () => {
       await expect(
         useCase.execute({
           bookingId: '00000000-0000-4000-8000-000000009999',
           tenantId: TENANT_A,
           locale: 'pt-BR',
+          cancellationWindowHours: 48,
         }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
@@ -220,7 +266,12 @@ describe('GetBookingByIdUseCase', () => {
       await repo.save(booking);
 
       await expect(
-        useCase.execute({ bookingId: booking.id, tenantId: TENANT_A, locale: 'pt-BR' }),
+        useCase.execute({
+          bookingId: booking.id,
+          tenantId: TENANT_A,
+          locale: 'pt-BR',
+          cancellationWindowHours: 48,
+        }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
   });
@@ -237,6 +288,7 @@ describe('GetBookingByIdUseCase', () => {
         bookingId: booking.id,
         tenantId: TENANT_A,
         locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.id).toBe(booking.id);
@@ -248,6 +300,7 @@ describe('GetBookingByIdUseCase', () => {
           bookingId: '00000000-0000-4000-8000-000000009998',
           tenantId: TENANT_A,
           locale: 'pt-BR',
+          cancellationWindowHours: 48,
         }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });

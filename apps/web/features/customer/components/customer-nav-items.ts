@@ -17,3 +17,12 @@ export function isCustomerNavActive(pathname: string, href: string, homeHref: st
   if (href === homeHref) return pathname === homeHref;
   return pathname.startsWith(href);
 }
+
+// The three tab routes only — /{slug}/my-account, /{slug}/my-account/bookings,
+// /{slug}/my-account/loyalty. Anything deeper (booking detail, cancel, cancel/error) is a
+// drill-down page and hides the bottom nav, per M13-S28.
+const TAB_ROUTE_PATTERN = /^\/[^/]+\/my-account(\/bookings|\/loyalty)?$/;
+
+export function shouldShowCustomerBottomNav(pathname: string): boolean {
+  return TAB_ROUTE_PATTERN.test(pathname);
+}

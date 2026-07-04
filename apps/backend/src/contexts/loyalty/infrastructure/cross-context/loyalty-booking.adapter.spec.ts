@@ -90,6 +90,7 @@ describe('LoyaltyBookingAdapter', () => {
       completedAt: null,
       rejectionReason: null,
       createdAt: '2026-01-01T10:00:00.000Z',
+      cancellableUntil: null,
     });
 
     const result = await adapter.findBookingServices(TENANT_ID, BOOKING_ID);
@@ -102,6 +103,7 @@ describe('LoyaltyBookingAdapter', () => {
       bookingId: BOOKING_ID,
       tenantId: TENANT_ID,
       locale: 'pt-BR',
+      cancellationWindowHours: 0,
     });
   });
 

@@ -33,8 +33,8 @@ describe('CustomerBottomNav', () => {
     );
   });
 
-  it('marks bookings as active when on a nested bookings route', () => {
-    vi.mocked(usePathname).mockReturnValue('/lavacar-bh/my-account/bookings/detail');
+  it('marks bookings as active on the bookings tab route', () => {
+    vi.mocked(usePathname).mockReturnValue('/lavacar-bh/my-account/bookings');
     render(<CustomerBottomNav tenantSlug="lavacar-bh" />);
 
     const nav = screen.getByRole('navigation', { name: 'customer-bottom-nav' });
@@ -46,7 +46,22 @@ describe('CustomerBottomNav', () => {
     );
   });
 
+  it('renders nothing on a booking detail drill-down route (M13-S28)', () => {
+    vi.mocked(usePathname).mockReturnValue('/lavacar-bh/my-account/bookings/booking-id');
+    const { container } = render(<CustomerBottomNav tenantSlug="lavacar-bh" />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders nothing on the cancel confirmation drill-down route (M13-S28)', () => {
+    vi.mocked(usePathname).mockReturnValue('/lavacar-bh/my-account/bookings/booking-id/cancel');
+    const { container } = render(<CustomerBottomNav tenantSlug="lavacar-bh" />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('uses the provided tenantSlug in all href values', () => {
+    vi.mocked(usePathname).mockReturnValue('/outro-tenant/my-account');
     render(<CustomerBottomNav tenantSlug="outro-tenant" />);
 
     const nav = screen.getByRole('navigation', { name: 'customer-bottom-nav' });

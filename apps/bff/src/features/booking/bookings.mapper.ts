@@ -16,6 +16,9 @@ export function toCustomerBookingListItem(item: BookingListItem): CustomerBookin
       serviceName: l.serviceNameAtBooking,
       durationMinsAtBooking: l.durationMinsAtBooking,
       priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
+      // The list summary never carries actualPriceCharged (see BookingLineSummary) —
+      // the detail response (toCustomerBookingDetail below) does.
+      actualPriceCharged: null,
     })),
     totalPrice: { amount: item.totalPrice.amount, currency: item.totalPrice.currency },
     cancellableUntil: item.cancellableUntil,
@@ -38,6 +41,7 @@ export function toStaffBookingCard(item: BookingListItem): StaffBookingCardRespo
 export function toCustomerBookingDetail(
   detail: BookingDetailResponse,
 ): CustomerBookingDetailResponse {
+  const isCompleted = detail.status === 'COMPLETED';
   return {
     bookingId: detail.id,
     status: detail.status as CustomerBookingDetailResponse['status'],
@@ -47,13 +51,28 @@ export function toCustomerBookingDetail(
       serviceName: l.serviceNameAtBooking,
       durationMinsAtBooking: l.durationMinsAtBooking,
       priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
+      actualPriceCharged: l.actualPriceCharged
+        ? { amount: l.actualPriceCharged.amount, currency: l.actualPriceCharged.currency }
+        : null,
     })),
     totalPrice: { amount: detail.totalPrice.amount, currency: detail.totalPrice.currency },
     notes: detail.notes,
+    cancellableUntil: detail.cancellableUntil,
     infoRequestMessage: detail.infoRequestMessage,
     infoResponseMessage: detail.infoResponseMessage,
     beforeServicePhotoUrls: detail.beforeServicePhotoUrls,
     afterServicePhotoUrls: detail.afterServicePhotoUrls,
+    completedAt: detail.completedAt,
+    totalActualPrice: detail.totalActualPrice
+      ? { amount: detail.totalActualPrice.amount, currency: detail.totalActualPrice.currency }
+      : null,
+    discountPointsUsed: detail.discountPointsUsed,
+    discountAmount: detail.discountAmount
+      ? { amount: detail.discountAmount.amount, currency: detail.discountAmount.currency }
+      : null,
+    pointsEarned: isCompleted
+      ? detail.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0)
+      : null,
   };
 }
 

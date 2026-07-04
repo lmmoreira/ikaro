@@ -245,6 +245,51 @@
       "title": "Não foi possível carregar seus dados",
       "body": "Tente novamente em instantes.",
       "retry": "Tentar novamente"
+    },
+    "bookingDetail": {
+      "backToBookings": "Agendamentos",
+      "dateTimeTitle": "Data e horário",
+      "scheduledAtPending": "A confirmar após aprovação",
+      "servicesTitle": "Serviços",
+      "total": "Total",
+      "totalCharged": "Valor cobrado",
+      "quotedPrice": "Cotado: {amount}",
+      "discountApplied": "Desconto aplicado: {points} pts (−{amount})",
+      "notesTitle": "Suas observações",
+      "yourResponseTitle": "Sua resposta",
+      "beforePhotosTitle": "Fotos antes do serviço",
+      "beforePhotoAlt": "Foto {index} antes do serviço",
+      "afterPhotosTitle": "Fotos após o serviço",
+      "afterPhotoAlt": "Foto {index} após o serviço",
+      "pointsEarnedBanner": "+{points} pontos de fidelidade",
+      "cancelWindowNote": "Cancelamento gratuito até {date} às {time}",
+      "cancelButton": "Cancelar agendamento",
+      "cancelRequestButton": "Cancelar solicitação",
+      "responseSentConfirmation": "Resposta enviada! Nossa equipe vai analisar e confirmar seu agendamento em breve.",
+      "newBookingCta": "Fazer novo agendamento"
+    },
+    "infoSubmit": {
+      "label": "Mensagem",
+      "submit": "Enviar resposta",
+      "submitting": "Enviando...",
+      "retry": "Tentar novamente",
+      "validationError": "Informe sua resposta antes de enviar.",
+      "submitError": "Não foi possível enviar sua resposta. Verifique sua conexão e tente novamente."
+    },
+    "cancelConfirm": {
+      "title": "Cancelar agendamento?",
+      "irreversibleNote": "Esta ação não pode ser desfeita.",
+      "confirmButton": "Confirmar cancelamento",
+      "confirming": "Cancelando...",
+      "backButton": "Voltar"
+    },
+    "cancelError": {
+      "title": "Cancelamento fora do prazo",
+      "body": "Agendamentos aprovados só podem ser cancelados com antecedência mínima.",
+      "deadlineNote": "O prazo de cancelamento encerrou em {date} às {time}.",
+      "contactNote": "Precisa cancelar mesmo assim? Entre em contato diretamente com o estabelecimento.",
+      "whatsappCta": "Contato via WhatsApp",
+      "backButton": "Voltar ao agendamento"
     }
   },
   "dashboard": {

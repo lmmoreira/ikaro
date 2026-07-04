@@ -4,17 +4,25 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/shared/utils/cn';
-import { getCustomerNavItems, isCustomerNavActive } from './customer-nav-items';
+import {
+  getCustomerNavItems,
+  isCustomerNavActive,
+  shouldShowCustomerBottomNav,
+} from './customer-nav-items';
 
 interface CustomerBottomNavProps {
   readonly tenantSlug: string;
 }
 
-export function CustomerBottomNav({ tenantSlug }: CustomerBottomNavProps): React.JSX.Element {
+export function CustomerBottomNav({
+  tenantSlug,
+}: CustomerBottomNavProps): React.JSX.Element | null {
   const t = useTranslations('customer');
   const pathname = usePathname();
   const navItems = getCustomerNavItems(tenantSlug);
   const homeHref = navItems[0].href;
+
+  if (!shouldShowCustomerBottomNav(pathname)) return null;
 
   const itemClass = (active: boolean) =>
     cn(
