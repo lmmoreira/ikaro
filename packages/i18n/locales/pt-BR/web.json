@@ -217,7 +217,8 @@
     },
     "bookings": {
       "title": "Meus Agendamentos",
-      "pointsActive": "{points} pts ativos",
+      "pointsValue": "{points} pts",
+      "pointsActiveLabel": "pontos ativos",
       "expiryStrip": "{points} pts expiram em {date}",
       "sectionUpcoming": "Próximos ({count})",
       "sectionPending": "Pendentes ({count})",
@@ -249,6 +250,9 @@
     "bookingDetail": {
       "backToBookings": "Agendamentos",
       "dateTimeTitle": "Data e horário",
+      "dateLabel": "Data",
+      "timeLabel": "Horário",
+      "timeWithDuration": "{time} — duração estimada {minutes} min",
       "scheduledAtPending": "A confirmar após aprovação",
       "servicesTitle": "Serviços",
       "total": "Total",
@@ -266,7 +270,9 @@
       "cancelButton": "Cancelar agendamento",
       "cancelRequestButton": "Cancelar solicitação",
       "responseSentConfirmation": "Resposta enviada! Nossa equipe vai analisar e confirmar seu agendamento em breve.",
-      "newBookingCta": "Fazer novo agendamento"
+      "completedNote": "Serviço concluído. Pontos de fidelidade já foram adicionados à sua conta.",
+      "newBookingCta": "Fazer novo agendamento",
+      "viewPointsCta": "Ver meus pontos →"
     },
     "infoSubmit": {
       "label": "Mensagem",

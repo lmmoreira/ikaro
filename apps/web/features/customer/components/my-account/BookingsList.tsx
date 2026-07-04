@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { ChevronRight } from 'lucide-react';
 import type { CustomerBookingListItem, CustomerLoyaltyBalanceResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { splitBookingSections } from '../../booking-sections';
@@ -44,24 +45,30 @@ export function BookingsList({
   const isEmpty = upcoming.length === 0 && pending.length === 0 && history.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="w-full">
       <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
 
       <Link
         href={`/${tenantSlug}/my-account/loyalty`}
-        className="mt-3 flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm hover:bg-blue-100"
+        className="mt-3 flex items-center justify-between rounded-xl border border-blue-50 bg-white px-4 py-3 shadow-sm"
       >
-        <span className="font-semibold text-blue-900">
-          {t('pointsActive', { points: loyaltyBalance.currentPoints })}
-        </span>
-        {loyaltyBalance.nextExpiryDate !== null && loyaltyBalance.nextExpiryPoints !== null && (
-          <span className="text-xs text-blue-700">
-            {t('expiryStrip', {
-              points: loyaltyBalance.nextExpiryPoints,
-              date: formatDate(new Date(loyaltyBalance.nextExpiryDate)),
-            })}
-          </span>
-        )}
+        <div>
+          <p className="text-lg font-extrabold text-gray-900">
+            {t('pointsValue', { points: loyaltyBalance.currentPoints })}
+          </p>
+          <p className="text-xs text-gray-500">{t('pointsActiveLabel')}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {loyaltyBalance.nextExpiryDate !== null && loyaltyBalance.nextExpiryPoints !== null && (
+            <span className="rounded text-xs text-amber-800 bg-amber-100 px-2 py-0.5">
+              {t('expiryStrip', {
+                points: loyaltyBalance.nextExpiryPoints,
+                date: formatDate(new Date(loyaltyBalance.nextExpiryDate)),
+              })}
+            </span>
+          )}
+          <ChevronRight className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+        </div>
       </Link>
 
       {isEmpty ? (

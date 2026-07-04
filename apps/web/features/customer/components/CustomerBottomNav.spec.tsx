@@ -28,7 +28,7 @@ describe('CustomerBottomNav', () => {
     render(<CustomerBottomNav tenantSlug="lavacar-bh" />);
 
     const nav = screen.getByRole('navigation', { name: 'customer-bottom-nav' });
-    expect(nav.querySelector('a[href="/lavacar-bh/my-account"]')?.className).toContain(
+    expect(nav.querySelector('a[href="/lavacar-bh/my-account"] span')?.className).toContain(
       'text-blue-600',
     );
   });
@@ -38,10 +38,10 @@ describe('CustomerBottomNav', () => {
     render(<CustomerBottomNav tenantSlug="lavacar-bh" />);
 
     const nav = screen.getByRole('navigation', { name: 'customer-bottom-nav' });
-    expect(nav.querySelector('a[href="/lavacar-bh/my-account/bookings"]')?.className).toContain(
-      'text-blue-600',
-    );
-    expect(nav.querySelector('a[href="/lavacar-bh/my-account"]')?.className).toContain(
+    expect(
+      nav.querySelector('a[href="/lavacar-bh/my-account/bookings"] span')?.className,
+    ).toContain('text-blue-600');
+    expect(nav.querySelector('a[href="/lavacar-bh/my-account"] span')?.className).toContain(
       'text-gray-900/40',
     );
   });

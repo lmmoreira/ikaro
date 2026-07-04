@@ -10,6 +10,7 @@ import {
 } from '@/features/booking/model/booking-status';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { canCancelBooking } from '../../booking-sections';
+import { BookingStatusIcon } from './BookingStatusIcon';
 
 interface BookingListItemProps {
   readonly item: CustomerBookingListItemDto;
@@ -28,8 +29,9 @@ export function BookingListItem({ item, tenantSlug }: BookingListItemProps): Rea
   const cancellable = canCancelBooking(item);
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-      <div className="min-w-0">
+    <li className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <BookingStatusIcon status={item.status} />
+      <div className="min-w-0 flex-1">
         <Link
           href={detailHref}
           className="block truncate text-sm font-semibold text-gray-900 hover:underline"

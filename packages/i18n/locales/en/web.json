@@ -217,7 +217,8 @@
     },
     "bookings": {
       "title": "My Bookings",
-      "pointsActive": "{points} active pts",
+      "pointsValue": "{points} pts",
+      "pointsActiveLabel": "active points",
       "expiryStrip": "{points} pts expire on {date}",
       "sectionUpcoming": "Upcoming ({count})",
       "sectionPending": "Pending ({count})",
@@ -249,6 +250,9 @@
     "bookingDetail": {
       "backToBookings": "Bookings",
       "dateTimeTitle": "Date and time",
+      "dateLabel": "Date",
+      "timeLabel": "Time",
+      "timeWithDuration": "{time} — estimated duration {minutes} min",
       "scheduledAtPending": "To be confirmed after approval",
       "servicesTitle": "Services",
       "total": "Total",
@@ -266,7 +270,9 @@
       "cancelButton": "Cancel booking",
       "cancelRequestButton": "Cancel request",
       "responseSentConfirmation": "Response sent! Our team will review and confirm your booking shortly.",
-      "newBookingCta": "Make a new booking"
+      "completedNote": "Service completed. Loyalty points have already been added to your account.",
+      "newBookingCta": "Make a new booking",
+      "viewPointsCta": "View my points →"
     },
     "infoSubmit": {
       "label": "Message",

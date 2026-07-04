@@ -24,11 +24,9 @@ export function CustomerBottomNav({
 
   if (!shouldShowCustomerBottomNav(pathname)) return null;
 
-  const itemClass = (active: boolean) =>
-    cn(
-      'flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[0.625rem] font-semibold tracking-[0.02em] transition-colors',
-      active ? 'text-blue-600' : 'text-gray-900/40',
-    );
+  const linkClass =
+    'flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[0.625rem] font-semibold tracking-[0.02em] transition-opacity';
+  const labelClass = (active: boolean) => (active ? 'text-blue-600' : 'text-gray-900/40');
 
   return (
     <nav
@@ -36,16 +34,22 @@ export function CustomerBottomNav({
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
       aria-label="customer-bottom-nav"
     >
-      {navItems.map(({ href, labelKey, Icon }) => (
-        <Link
-          key={href}
-          href={href}
-          className={itemClass(isCustomerNavActive(pathname, href, homeHref))}
-        >
-          <Icon className="h-[1.375rem] w-[1.375rem] shrink-0" aria-hidden="true" />
-          {t(labelKey)}
-        </Link>
-      ))}
+      {navItems.map(({ href, labelKey, Icon, iconColorClass }) => {
+        const active = isCustomerNavActive(pathname, href, homeHref);
+        return (
+          <Link key={href} href={href} className={linkClass}>
+            <Icon
+              className={cn(
+                'h-[1.375rem] w-[1.375rem] shrink-0',
+                iconColorClass,
+                active ? 'opacity-100' : 'opacity-60',
+              )}
+              aria-hidden="true"
+            />
+            <span className={labelClass(active)}>{t(labelKey)}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

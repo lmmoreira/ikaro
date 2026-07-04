@@ -34,35 +34,38 @@ export function LoyaltyPage({
     balance.conversionRate > 0 ? balance.currentPoints / balance.conversionRate : 0;
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="w-full">
       <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
 
       <div
-        className={`mt-4 rounded-2xl p-5 text-white ${
+        className={`mt-4 flex items-center gap-4 rounded-xl p-4 text-white ${
           isEmpty ? 'bg-gray-300' : 'bg-gradient-to-br from-blue-600 to-blue-700'
         }`}
       >
-        <p className="text-3xl font-bold">{balance.currentPoints}</p>
-        <p className="text-sm font-medium opacity-90">{t('pointsActiveLabel')}</p>
+        <p className="text-3xl font-extrabold leading-none">{balance.currentPoints}</p>
 
-        {!isEmpty && balance.nextExpiryDate !== null && balance.nextExpiryPoints !== null && (
-          <p className="mt-3 text-xs font-medium opacity-90">
-            {t('expiryWarning', {
-              points: balance.nextExpiryPoints,
-              date: formatDate(new Date(balance.nextExpiryDate)),
-            })}
-          </p>
-        )}
+        <div className="min-w-0 flex-1 border-l border-white/20 pl-4">
+          <p className="text-xs font-medium opacity-90">{t('pointsActiveLabel')}</p>
 
-        {!isEmpty && balance.conversionRate > 0 && (
-          <p className="mt-2 text-xs opacity-90">
-            {t('conversionRow', {
-              rate: balance.conversionRate,
-              unit: formatMoney(1),
-              total: formatMoney(conversionTotal),
-            })}
-          </p>
-        )}
+          {!isEmpty && balance.nextExpiryDate !== null && balance.nextExpiryPoints !== null && (
+            <p className="mt-1 text-xs opacity-80">
+              {t('expiryWarning', {
+                points: balance.nextExpiryPoints,
+                date: formatDate(new Date(balance.nextExpiryDate)),
+              })}
+            </p>
+          )}
+
+          {!isEmpty && balance.conversionRate > 0 && (
+            <p className="mt-1 text-xs opacity-80">
+              {t('conversionRow', {
+                rate: balance.conversionRate,
+                unit: formatMoney(1),
+                total: formatMoney(conversionTotal),
+              })}
+            </p>
+          )}
+        </div>
       </div>
 
       {isEmpty ? (

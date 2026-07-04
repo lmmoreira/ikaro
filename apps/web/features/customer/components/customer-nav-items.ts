@@ -1,15 +1,23 @@
 import { Home, Calendar, Star } from 'lucide-react';
 
+// Fixed per-tab accent — always visible, independent of active/inactive state (only opacity
+// changes for that). Matches the always-colorful look of the prototype's emoji nav (🏠📅⭐).
 export function getCustomerNavItems(tenantSlug: string) {
   const homeHref = `/${tenantSlug}/my-account`;
   return [
-    { href: homeHref, labelKey: 'nav.home' as const, Icon: Home },
+    { href: homeHref, labelKey: 'nav.home' as const, Icon: Home, iconColorClass: 'text-blue-600' },
     {
       href: `/${tenantSlug}/my-account/bookings`,
       labelKey: 'nav.bookings' as const,
       Icon: Calendar,
+      iconColorClass: 'text-blue-600',
     },
-    { href: `/${tenantSlug}/my-account/loyalty`, labelKey: 'nav.loyalty' as const, Icon: Star },
+    {
+      href: `/${tenantSlug}/my-account/loyalty`,
+      labelKey: 'nav.loyalty' as const,
+      Icon: Star,
+      iconColorClass: 'text-amber-500',
+    },
   ];
 }
 

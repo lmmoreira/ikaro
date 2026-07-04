@@ -11,13 +11,18 @@ vi.mock('next-intl', () => ({
       'customer.bookingDetail': {
         backToBookings: 'Agendamentos',
         dateTimeTitle: 'Data e horário',
+        dateLabel: 'Data',
+        timeLabel: 'Horário',
+        timeWithDuration: '{time} — duração estimada {minutes} min',
         servicesTitle: 'Serviços',
         total: 'Total',
         cancelWindowNote: 'Cancelamento gratuito até {date} às {time}',
         cancelButton: 'Cancelar agendamento',
         cancelRequestButton: 'Cancelar solicitação',
         responseSentConfirmation: 'Resposta enviada! Nossa equipe vai analisar em breve.',
+        completedNote: 'Serviço concluído. Pontos já adicionados.',
         newBookingCta: 'Fazer novo agendamento',
+        viewPointsCta: 'Ver meus pontos →',
       },
       'customer.bookingItem': {
         statusPending: 'Aguardando',
@@ -126,7 +131,8 @@ describe('BookingDetailPage', () => {
       />,
     );
 
-    expect(screen.getByRole('link', { name: 'Cancelar agendamento' })).toBeInTheDocument();
+    // Rendered twice: once inline for mobile, once in the sticky desktop sidebar.
+    expect(screen.getAllByRole('link', { name: 'Cancelar agendamento' })).toHaveLength(2);
   });
 
   it('APPROVED outside window: hides the cancel action', () => {
@@ -201,10 +207,10 @@ describe('BookingDetailPage', () => {
     );
 
     expect(screen.queryByRole('link', { name: 'Cancelar agendamento' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Fazer novo agendamento' })).toHaveAttribute(
-      'href',
-      '/lavacar-bh/booking',
-    );
+    // Rendered twice: once inline for mobile, once in the sticky desktop sidebar.
+    const ctas = screen.getAllByRole('link', { name: 'Fazer novo agendamento' });
+    expect(ctas).toHaveLength(2);
+    ctas.forEach((cta) => expect(cta).toHaveAttribute('href', '/lavacar-bh/booking'));
   });
 
   it('CANCELLED/REJECTED: no cancel action, no new-booking CTA', () => {

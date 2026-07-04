@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { Calendar, Star } from 'lucide-react';
 import type { CustomerBookingListItem, CustomerLoyaltyBalanceResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { countActiveBookings, selectHomePreview } from '../../booking-sections';
@@ -26,23 +27,33 @@ export function HomeDashboard({
   const preview = selectHomePreview([...bookings]);
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="w-full">
       {userName !== null && (
         <h1 className="text-lg font-bold text-gray-900">{t('greeting', { name: userName })}</h1>
       )}
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-500">{t('points')}</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
-            {t('pointsValue', { points: loyaltyBalance.currentPoints })}
-          </p>
+        <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3.5 shadow-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+            <Star className="h-[18px] w-[18px] fill-amber-500 text-amber-500" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[0.6875rem] font-semibold text-gray-500">{t('points')}</p>
+            <p className="text-[1.1875rem] font-bold leading-tight text-gray-900">
+              {t('pointsValue', { points: loyaltyBalance.currentPoints })}
+            </p>
+          </div>
         </div>
-        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-500">{t('bookings')}</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
-            {t('bookingsTotal', { count: countActiveBookings(bookings) })}
-          </p>
+        <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3.5 shadow-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+            <Calendar className="h-[18px] w-[18px] text-blue-600" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[0.6875rem] font-semibold text-gray-500">{t('bookings')}</p>
+            <p className="text-[1.1875rem] font-bold leading-tight text-gray-900">
+              {t('bookingsTotal', { count: countActiveBookings(bookings) })}
+            </p>
+          </div>
         </div>
       </div>
 

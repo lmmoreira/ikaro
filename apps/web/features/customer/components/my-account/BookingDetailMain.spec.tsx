@@ -9,6 +9,9 @@ vi.mock('next-intl', () => ({
     const translations: Record<string, string> = {
       pointsEarnedBanner: '+{points} pontos de fidelidade',
       dateTimeTitle: 'Data e horário',
+      dateLabel: 'Data',
+      timeLabel: 'Horário',
+      timeWithDuration: '{time} — duração estimada {minutes} min',
       scheduledAtPending: 'A confirmar após aprovação',
       servicesTitle: 'Serviços',
       total: 'Total',
@@ -80,6 +83,21 @@ describe('BookingDetailMain', () => {
     expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
     // The single line's price and the total both render R$ 180.00.
     expect(screen.getAllByText('R$ 180.00')).toHaveLength(2);
+  });
+
+  it('renders separate Data and Horário rows with the estimated duration', () => {
+    render(<BookingDetailMain booking={makeBooking()} />);
+
+    expect(screen.getByText('Data')).toBeInTheDocument();
+    expect(screen.getByText('Horário')).toBeInTheDocument();
+    expect(screen.getByText('10:00 — duração estimada 60 min')).toBeInTheDocument();
+  });
+
+  it('drops the duration suffix on the time row once COMPLETED', () => {
+    render(<BookingDetailMain booking={makeBooking({ status: 'COMPLETED' })} />);
+
+    expect(screen.getByText('10:00')).toBeInTheDocument();
+    expect(screen.queryByText(/duração estimada/)).not.toBeInTheDocument();
   });
 
   it('shows "a confirmar" when scheduledAt is null', () => {

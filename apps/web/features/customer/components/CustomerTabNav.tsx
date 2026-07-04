@@ -16,29 +16,35 @@ export function CustomerTabNav({ tenantSlug }: CustomerTabNavProps): React.JSX.E
   const navItems = getCustomerNavItems(tenantSlug);
   const homeHref = navItems[0].href;
 
-  const itemClass = (active: boolean) =>
+  const linkClass = (active: boolean) =>
     cn(
-      'flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors',
-      active
-        ? 'border-blue-600 text-blue-600'
-        : 'border-transparent text-gray-900/40 hover:text-gray-900/70',
+      'group flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors',
+      active ? 'border-blue-600' : 'border-transparent',
     );
+  const labelClass = (active: boolean) =>
+    cn(active ? 'text-blue-600' : 'text-gray-900/40 group-hover:text-gray-900/70');
 
   return (
     <nav
       className="sticky top-[3.375rem] z-[5] hidden border-b border-gray-100 bg-white px-6 lg:flex"
       aria-label="customer-tabs"
     >
-      {navItems.map(({ href, labelKey, Icon }) => (
-        <Link
-          key={href}
-          href={href}
-          className={itemClass(isCustomerNavActive(pathname, href, homeHref))}
-        >
-          <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {t(labelKey)}
-        </Link>
-      ))}
+      {navItems.map(({ href, labelKey, Icon, iconColorClass }) => {
+        const active = isCustomerNavActive(pathname, href, homeHref);
+        return (
+          <Link key={href} href={href} className={linkClass(active)}>
+            <Icon
+              className={cn(
+                'h-4 w-4 shrink-0',
+                iconColorClass,
+                active ? 'opacity-100' : 'opacity-60',
+              )}
+              aria-hidden="true"
+            />
+            <span className={labelClass(active)}>{t(labelKey)}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

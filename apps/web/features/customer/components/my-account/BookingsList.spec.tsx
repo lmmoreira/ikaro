@@ -9,7 +9,8 @@ vi.mock('next-intl', () => ({
     const translations: Record<string, Record<string, string>> = {
       'customer.bookings': {
         title: 'Meus Agendamentos',
-        pointsActive: '{points} pts ativos',
+        pointsValue: '{points} pts',
+        pointsActiveLabel: 'pontos ativos',
         expiryStrip: '{points} pts expiram em {date}',
         sectionUpcoming: 'Próximos ({count})',
         sectionPending: 'Pendentes ({count})',
@@ -140,7 +141,7 @@ describe('BookingsList', () => {
   it('renders the loyalty strip with points and expiry, linking to the loyalty page', () => {
     render(<BookingsList bookings={[]} loyaltyBalance={balance} tenantSlug="lavacar-bh" />);
 
-    const strip = screen.getByRole('link', { name: /120 pts ativos/ });
+    const strip = screen.getByRole('link', { name: /120 pts[\s\S]*pontos ativos/ });
     expect(strip).toHaveAttribute('href', '/lavacar-bh/my-account/loyalty');
     expect(screen.getByText('12 pts expiram em 2026-08-15')).toBeInTheDocument();
   });

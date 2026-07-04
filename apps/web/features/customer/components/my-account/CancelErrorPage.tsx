@@ -25,7 +25,7 @@ export function CancelErrorPage({
   const deadline = booking.cancellableUntil !== null ? new Date(booking.cancellableUntil) : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
       <p className="text-sm text-gray-700">{t('body')}</p>
       {deadline !== null && (
