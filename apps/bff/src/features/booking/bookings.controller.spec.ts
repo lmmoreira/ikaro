@@ -775,6 +775,7 @@ describe('BookingsController', () => {
       rejectionReason: null,
       createdAt: '2026-01-01T00:00:00.000Z',
       cancellableUntil: null,
+      pointsEarned: null,
     };
 
     it('CUSTOMER: calls GET /bookings/:id and returns CustomerBookingDetailResponse, dropping staff-only fields', async () => {

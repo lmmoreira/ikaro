@@ -46,6 +46,7 @@ describe('PlatformBookingAdapter', () => {
       rejectionReason: null,
       createdAt: '2026-01-01T10:00:00.000Z',
       cancellableUntil: null,
+      pointsEarned: null,
     });
 
     const result = await adapter.findById(BOOKING_ID, TENANT_ID);

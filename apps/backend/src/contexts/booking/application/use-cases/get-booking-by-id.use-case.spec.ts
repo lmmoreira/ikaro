@@ -1,7 +1,7 @@
 import { countrySpec } from '@ikaro/i18n';
 import { Address } from '../../../../shared/value-objects/address';
 import { Money } from '../../../../shared/value-objects/money';
-import { BookingBuilder } from '../../../../test/builders/booking/index';
+import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -192,6 +192,28 @@ describe('GetBookingByIdUseCase', () => {
       expect(result.completedAt).toBe(completedAt.toISOString());
     });
 
+    it('sets pointsEarned to the sum of the lines pointsValueAtBooking for a completed booking', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withStatus(BookingStatus.COMPLETED)
+        .withLines([
+          new BookingLineBuilder().withPointsValueAtBooking(10).build(),
+          new BookingLineBuilder().withPointsValueAtBooking(5).build(),
+        ])
+        .build();
+      await repo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+        cancellationWindowHours: 48,
+      });
+
+      expect(result.pointsEarned).toBe(15);
+    });
+
     it('returns null totalActualPrice, discount and completedAt when booking is not completed', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
@@ -210,6 +232,7 @@ describe('GetBookingByIdUseCase', () => {
       expect(result.discountPointsUsed).toBeNull();
       expect(result.discountAmount).toBeNull();
       expect(result.completedAt).toBeNull();
+      expect(result.pointsEarned).toBeNull();
     });
 
     it('sets cancellableUntil to scheduledAt minus the cancellation window for APPROVED bookings', async () => {

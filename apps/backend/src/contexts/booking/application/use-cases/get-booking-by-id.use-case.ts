@@ -65,6 +65,8 @@ export interface GetBookingByIdUseCaseResult {
   createdAt: string;
   // Customer self-cancellation deadline (UC-007) — non-null only for APPROVED bookings.
   cancellableUntil: string | null;
+  // Sum of lines' pointsValueAtBooking — non-null only once COMPLETED.
+  pointsEarned: number | null;
 }
 
 @Injectable()
@@ -170,6 +172,10 @@ export class GetBookingByIdUseCase {
       cancellableUntil:
         booking.status === BookingStatus.APPROVED
           ? booking.cancellableUntil(cancellationWindowHours).toISOString()
+          : null,
+      pointsEarned:
+        booking.status === BookingStatus.COMPLETED
+          ? booking.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0)
           : null,
     };
   }

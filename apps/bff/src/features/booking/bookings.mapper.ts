@@ -41,7 +41,6 @@ export function toStaffBookingCard(item: BookingListItem): StaffBookingCardRespo
 export function toCustomerBookingDetail(
   detail: BookingDetailResponse,
 ): CustomerBookingDetailResponse {
-  const isCompleted = detail.status === 'COMPLETED';
   return {
     bookingId: detail.id,
     status: detail.status as CustomerBookingDetailResponse['status'],
@@ -70,9 +69,7 @@ export function toCustomerBookingDetail(
     discountAmount: detail.discountAmount
       ? { amount: detail.discountAmount.amount, currency: detail.discountAmount.currency }
       : null,
-    pointsEarned: isCompleted
-      ? detail.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0)
-      : null,
+    pointsEarned: detail.pointsEarned,
   };
 }
 

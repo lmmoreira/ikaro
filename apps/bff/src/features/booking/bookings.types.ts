@@ -121,4 +121,5 @@ export interface BookingDetailResponse {
   rejectionReason: string | null;
   createdAt: string;
   cancellableUntil: string | null;
+  pointsEarned: number | null;
 }

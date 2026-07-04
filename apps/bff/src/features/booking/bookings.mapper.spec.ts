@@ -174,6 +174,7 @@ describe('toStaffBookingDetail()', () => {
     rejectionReason: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     cancellableUntil: null,
+    pointsEarned: null,
   };
 
   it('maps backend booking detail fields and the given loyaltyBalance to StaffBookingDetailResponse', () => {
@@ -362,6 +363,7 @@ describe('toCustomerBookingDetail()', () => {
     rejectionReason: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     cancellableUntil: null,
+    pointsEarned: null,
   };
 
   it('maps backend booking detail fields to CustomerBookingDetailResponse', () => {
@@ -477,6 +479,9 @@ describe('toCustomerBookingDetail()', () => {
       totalActualPrice: { amount: 76, currency: 'BRL', formatted: 'R$ 76,00' },
       discountPointsUsed: 240,
       discountAmount: { amount: 24, currency: 'BRL', formatted: 'R$ 24,00' },
+      // Pre-computed by the backend (sum of lines' pointsValueAtBooking) — the BFF mapper
+      // only passes this through, it does not sum the lines itself.
+      pointsEarned: 15,
       lines: [
         {
           lineId: 'line-1',
