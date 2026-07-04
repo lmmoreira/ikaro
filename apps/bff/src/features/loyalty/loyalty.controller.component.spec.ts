@@ -24,6 +24,7 @@ const mockBalance: LoyaltyBalanceResponse = {
   currentPoints: 75,
   nextExpiryDate: '2026-11-15T00:00:00.000Z',
   nextExpiryPoints: 30,
+  conversionRate: 10,
 };
 
 const mockEntries: BackendLoyaltyEntriesResponse = {
@@ -63,8 +64,6 @@ describe('LoyaltyController (component)', () => {
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockImplementation((path: string) => {
         if (path === '/loyalty/balance') return Promise.resolve(mockBalance);
-        if (path === '/tenants/settings')
-          return Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 10 } } });
         throw new Error(`Unexpected GET: ${path}`);
       });
       const token = makeCustomerJwt(jwtService);
@@ -255,8 +254,6 @@ describe('LoyaltyController (component)', () => {
           });
         if (path === `/customers/${OTHER_CUSTOMER_ID}/loyalty/balance`)
           return Promise.resolve(mockBalance);
-        if (path === '/tenants/settings')
-          return Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 10 } } });
         if (path === `/customers/${OTHER_CUSTOMER_ID}/loyalty/entries`)
           return Promise.resolve(mockEntries);
         if (path === `/customers/${OTHER_CUSTOMER_ID}/loyalty/redemptions`)
@@ -317,8 +314,6 @@ describe('LoyaltyController (component)', () => {
       backendHttpService.get.mockImplementation((path: string) => {
         if (path === `/customers/${OTHER_CUSTOMER_ID}/loyalty/balance`)
           return Promise.resolve(mockBalance);
-        if (path === '/tenants/settings')
-          return Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 10 } } });
         throw new Error(`Unexpected GET: ${path}`);
       });
       const token = makeManagerJwt(jwtService);
@@ -338,8 +333,6 @@ describe('LoyaltyController (component)', () => {
       backendHttpService.get.mockImplementation((path: string) => {
         if (path === `/customers/${OTHER_CUSTOMER_ID}/loyalty/balance`)
           return Promise.resolve(mockBalance);
-        if (path === '/tenants/settings')
-          return Promise.resolve({ settings: { loyalty: { pointsPerCurrencyUnit: 0 } } });
         throw new Error(`Unexpected GET: ${path}`);
       });
       const token = makeStaffJwt(jwtService);

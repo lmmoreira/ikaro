@@ -1,4 +1,4 @@
-import { CustomerProfileResponse, TenantSettingsResponse } from '@ikaro/types';
+import { CustomerProfileResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { LoyaltyController } from './loyalty.controller';
 import {
@@ -14,40 +14,7 @@ const mockBalance: LoyaltyBalanceResponse = {
   currentPoints: 75,
   nextExpiryDate: '2026-11-15T00:00:00.000Z',
   nextExpiryPoints: 30,
-};
-
-const mockSettings: TenantSettingsResponse = {
-  tenantId: 'test-tenant',
-  name: 'Test',
-  slug: 'test',
-  settings: {
-    loyalty: {
-      pointsPerCurrencyUnit: 10,
-      expiryDays: 180,
-      enableNotifications: true,
-      expiryWarningDays: 7,
-      notificationMinPoints: 50,
-    },
-    booking: {
-      cancellationWindowHours: 48,
-      autoApproveEnabled: false,
-      minBookingAdvanceHours: 0,
-      maxBookingAdvanceDays: 90,
-      serviceBufferMinutes: 60,
-      slotGranularityMinutes: 30,
-    },
-    businessHours: {
-      timezone: 'America/Sao_Paulo',
-      monday: null,
-      tuesday: null,
-      wednesday: null,
-      thursday: null,
-      friday: null,
-      saturday: null,
-      sunday: null,
-    },
-    localization: { countryCode: 'BR', currency: 'BRL', language: 'pt-BR', decimalPlaces: 2 },
-  },
+  conversionRate: 10,
 };
 
 const mockEntries: BackendLoyaltyEntriesResponse = {
@@ -95,11 +62,10 @@ describe('LoyaltyController (BFF)', () => {
   afterEach(() => jest.resetAllMocks());
 
   describe('getBalance()', () => {
-    it('enriches balance with conversionRate from tenant settings', async () => {
+    it('passes through the backend-enriched balance without calling /tenants/settings', async () => {
       const backendHttp = makeBackendHttp();
       backendHttp.get.mockImplementation((path: string) => {
         if (path === '/loyalty/balance') return Promise.resolve(mockBalance);
-        if (path === '/tenants/settings') return Promise.resolve(mockSettings);
         throw new Error(`Unexpected GET path: ${path}`);
       });
       const controller = new LoyaltyController(backendHttp);
@@ -107,7 +73,8 @@ describe('LoyaltyController (BFF)', () => {
       const result = await controller.getBalance();
 
       expect(backendHttp.get).toHaveBeenCalledWith('/loyalty/balance');
-      expect(backendHttp.get).toHaveBeenCalledWith('/tenants/settings');
+      // /tenants/settings is STAFF/MANAGER-only on the backend and would 403 a CUSTOMER caller.
+      expect(backendHttp.get).not.toHaveBeenCalledWith('/tenants/settings');
       expect(result).toEqual({
         currentPoints: 75,
         nextExpiryDate: '2026-11-15T00:00:00.000Z',
@@ -116,20 +83,19 @@ describe('LoyaltyController (BFF)', () => {
       });
     });
 
-    it('returns conversionRate 0 when pointsPerCurrencyUnit is 0', async () => {
+    it('returns conversionRate 0 when the backend reports 0 (redemption disabled)', async () => {
       const backendHttp = makeBackendHttp();
-      const settingsDisabled: TenantSettingsResponse = {
-        ...mockSettings,
-        settings: {
-          ...mockSettings.settings,
-          loyalty: { ...mockSettings.settings.loyalty, pointsPerCurrencyUnit: 0 },
-        },
-      };
-      backendHttp.get.mockImplementation((path: string) => {
-        if (path === '/loyalty/balance') return Promise.resolve(mockBalance);
-        if (path === '/tenants/settings') return Promise.resolve(settingsDisabled);
-        throw new Error(`Unexpected GET path: ${path}`);
-      });
+      backendHttp.get.mockResolvedValue({ ...mockBalance, conversionRate: 0 });
+      const controller = new LoyaltyController(backendHttp);
+
+      const result = await controller.getBalance();
+
+      expect(result.conversionRate).toBe(0);
+    });
+
+    it('coalesces a null backend conversionRate to 0', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockResolvedValue({ ...mockBalance, conversionRate: null });
       const controller = new LoyaltyController(backendHttp);
 
       const result = await controller.getBalance();
@@ -218,12 +184,11 @@ describe('LoyaltyController (BFF)', () => {
   });
 
   describe('getBalanceAdmin()', () => {
-    it('enriches admin balance with conversionRate from tenant settings', async () => {
+    it('passes through the backend-enriched admin balance', async () => {
       const backendHttp = makeBackendHttp();
       backendHttp.get.mockImplementation((path: string) => {
         if (path === `/customers/${CUSTOMER_ID}/loyalty/balance`)
           return Promise.resolve(mockBalance);
-        if (path === '/tenants/settings') return Promise.resolve(mockSettings);
         throw new Error(`Unexpected GET path: ${path}`);
       });
       const controller = new LoyaltyController(backendHttp);
@@ -231,7 +196,6 @@ describe('LoyaltyController (BFF)', () => {
       const result = await controller.getBalanceAdmin(CUSTOMER_ID);
 
       expect(backendHttp.get).toHaveBeenCalledWith(`/customers/${CUSTOMER_ID}/loyalty/balance`);
-      expect(backendHttp.get).toHaveBeenCalledWith('/tenants/settings');
       expect(result.currentPoints).toBe(75);
       expect(result.conversionRate).toBe(10);
     });
@@ -244,7 +208,6 @@ describe('LoyaltyController (BFF)', () => {
         if (path === `/customers/${CUSTOMER_ID}`) return Promise.resolve(mockProfile);
         if (path === `/customers/${CUSTOMER_ID}/loyalty/balance`)
           return Promise.resolve(mockBalance);
-        if (path === '/tenants/settings') return Promise.resolve(mockSettings);
         if (path === `/customers/${CUSTOMER_ID}/loyalty/entries`)
           return Promise.resolve(mockEntries);
         if (path === `/customers/${CUSTOMER_ID}/loyalty/redemptions`)

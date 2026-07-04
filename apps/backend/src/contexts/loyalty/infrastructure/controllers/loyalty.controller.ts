@@ -40,6 +40,13 @@ import {
 import { CustomerRoleGuard } from '../../../../shared/guards/customer-role.guard';
 import { mapLoyaltyError } from '../http/loyalty-error.mapper';
 
+// conversionRate is tenant config (settings.loyalty.pointsPerCurrencyUnit) attached at the
+// composition layer; null when the balance was read cross-tenant, where the request context
+// carries the actor's home-tenant settings, not the effective tenant's.
+export type EnrichedLoyaltyBalanceResult = GetLoyaltyBalanceUseCaseResult & {
+  readonly conversionRate: number | null;
+};
+
 @Controller()
 export class LoyaltyController {
   constructor(
@@ -54,11 +61,12 @@ export class LoyaltyController {
 
   @Get('loyalty/balance')
   @UseGuards(CustomerRoleGuard)
-  getBalance(): Promise<GetLoyaltyBalanceUseCaseResult> {
-    const { tenantId, actorId } = this.tenantContext;
-    return this.getLoyaltyBalance
+  async getBalance(): Promise<EnrichedLoyaltyBalanceResult> {
+    const { tenantId, actorId, settings } = this.tenantContext;
+    const balance = await this.getLoyaltyBalance
       .execute({ tenantId, customerId: actorId! })
       .catch(mapLoyaltyError);
+    return { ...balance, conversionRate: settings.loyalty.pointsPerCurrencyUnit };
   }
 
   @Get('loyalty/entries')
@@ -107,12 +115,12 @@ export class LoyaltyController {
 
   @Get('customers/:customerId/loyalty/balance')
   @UseGuards(AnyAuthenticatedRoleGuard)
-  getBalanceAdmin(
+  async getBalanceAdmin(
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(CrossTenantQuerySchema))
     { tenantId }: CrossTenantQueryDto,
-  ): Promise<GetLoyaltyBalanceUseCaseResult> {
-    const { actorRole, actorId, tenantId: contextTenantId } = this.tenantContext;
+  ): Promise<EnrichedLoyaltyBalanceResult> {
+    const { actorRole, actorId, tenantId: contextTenantId, settings } = this.tenantContext;
     const effectiveTenantId = tenantId ?? contextTenantId;
     // Cross-tenant calls (tenantId query param ≠ JWT tenant) come from the BFF's getTenants()
     // which already validated the tenant list via /customers/me/tenants. Within the actor's
@@ -121,9 +129,13 @@ export class LoyaltyController {
     if (actorRole === 'CUSTOMER' && !isCrossTenantCall && actorId !== customerId) {
       throw new ForbiddenException();
     }
-    return this.getLoyaltyBalance
+    const balance = await this.getLoyaltyBalance
       .execute({ tenantId: effectiveTenantId, customerId })
       .catch(mapLoyaltyError);
+    return {
+      ...balance,
+      conversionRate: isCrossTenantCall ? null : settings.loyalty.pointsPerCurrencyUnit,
+    };
   }
 
   @Get('customers/:customerId/loyalty/entries')
