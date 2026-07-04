@@ -89,8 +89,10 @@ export function LoyaltyPage({
           <div className="mt-5 flex border-b border-gray-100" role="tablist">
             <button
               type="button"
+              id="loyalty-tab-entries"
               role="tab"
               aria-selected={activeTab === 'entries'}
+              aria-controls="loyalty-panel-entries"
               onClick={() => setActiveTab('entries')}
               className={`flex-1 border-b-2 pb-3 text-sm font-semibold transition-colors ${
                 activeTab === 'entries'
@@ -102,8 +104,10 @@ export function LoyaltyPage({
             </button>
             <button
               type="button"
+              id="loyalty-tab-redemptions"
               role="tab"
               aria-selected={activeTab === 'redemptions'}
+              aria-controls="loyalty-panel-redemptions"
               onClick={() => setActiveTab('redemptions')}
               className={`flex-1 border-b-2 pb-3 text-sm font-semibold transition-colors ${
                 activeTab === 'redemptions'
@@ -116,7 +120,12 @@ export function LoyaltyPage({
           </div>
 
           {activeTab === 'entries' ? (
-            <ul className="mt-3 flex flex-col gap-2">
+            <ul
+              id="loyalty-panel-entries"
+              role="tabpanel"
+              aria-labelledby="loyalty-tab-entries"
+              className="mt-3 flex flex-col gap-2"
+            >
               {entries.items.map((entry) => (
                 <li
                   key={entry.entryId}
@@ -145,7 +154,12 @@ export function LoyaltyPage({
               ))}
             </ul>
           ) : (
-            <ul className="mt-3 flex flex-col gap-2">
+            <ul
+              id="loyalty-panel-redemptions"
+              role="tabpanel"
+              aria-labelledby="loyalty-tab-redemptions"
+              className="mt-3 flex flex-col gap-2"
+            >
               {redemptions.items.length === 0 ? (
                 <li className="rounded-xl border border-gray-100 bg-white p-4 text-center text-sm text-gray-500">
                   {t('noRedemptions')}

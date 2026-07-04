@@ -14,6 +14,7 @@ vi.mock('next-intl', () => ({
       timeWithDuration: '{time} — duração estimada {minutes} min',
       scheduledAtPending: 'A confirmar após aprovação',
       servicesTitle: 'Serviços',
+      lineDurationMinutes: '{minutes} min',
       total: 'Total',
       totalCharged: 'Valor cobrado',
       quotedPrice: 'Cotado: {amount}',
@@ -81,6 +82,7 @@ describe('BookingDetailMain', () => {
 
     expect(screen.getByText('Sábado, 20 de junho')).toBeInTheDocument();
     expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
+    expect(screen.getByText('60 min')).toBeInTheDocument();
     // The single line's price and the total both render R$ 180.00.
     expect(screen.getAllByText('R$ 180.00')).toHaveLength(2);
   });

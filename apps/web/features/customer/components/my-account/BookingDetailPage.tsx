@@ -9,6 +9,7 @@ import {
   buildBookingStatusLabels,
   BOOKING_STATUS_CLASSES,
 } from '@/features/booking/model/booking-status';
+import { canCancelBooking } from '../../booking-sections';
 import { BookingDetailMain } from './BookingDetailMain';
 import { CancelAction } from './CancelAction';
 import { InfoSubmitForm } from './InfoSubmitForm';
@@ -54,10 +55,7 @@ export function BookingDetailPage({
 
   const statusLabels = buildBookingStatusLabels(statusLabelsT);
   const isInfoRequested = status === BOOKING_STATUS.INFO_REQUESTED;
-  const showCancel =
-    status === BOOKING_STATUS.PENDING ||
-    isInfoRequested ||
-    (status === BOOKING_STATUS.APPROVED && booking.cancellableUntil !== null);
+  const showCancel = canCancelBooking({ status, cancellableUntil: booking.cancellableUntil });
   const showInfoForm =
     isInfoRequested && booking.infoResponseMessage === null && !infoJustSubmitted;
   // INFO_REQUESTED's cancel button stays inline below the form — the prototype has no

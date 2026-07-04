@@ -47,7 +47,7 @@ export function BookingsList({
 }: BookingsListProps): React.JSX.Element {
   const t = useTranslations('customer.bookings');
   const { formatDate } = useFormatting();
-  const { upcoming, pending, history } = splitBookingSections([...bookings]);
+  const { upcoming, pending, history } = splitBookingSections(bookings);
   const isEmpty = upcoming.length === 0 && pending.length === 0 && history.length === 0;
 
   return (

@@ -64,7 +64,10 @@ export function countActiveBookings(items: readonly CustomerBookingListItem[]): 
  * window and is non-null only for APPROVED bookings. PENDING/INFO_REQUESTED requests can
  * always be cancelled (UC-007 has no time restriction on them).
  */
-export function canCancelBooking(item: CustomerBookingListItem, now: Date = new Date()): boolean {
+export function canCancelBooking(
+  item: Pick<CustomerBookingListItem, 'status' | 'cancellableUntil'>,
+  now: Date = new Date(),
+): boolean {
   if (item.status === BOOKING_STATUS.PENDING || item.status === BOOKING_STATUS.INFO_REQUESTED) {
     return true;
   }

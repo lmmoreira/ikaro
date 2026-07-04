@@ -126,7 +126,10 @@ describe('BookingDetailPage', () => {
   it('APPROVED within window: shows the cancel action, no info form', () => {
     render(
       <BookingDetailPage
-        booking={makeBooking({ status: 'APPROVED', cancellableUntil: '2026-06-18T10:00:00.000Z' })}
+        booking={makeBooking({
+          status: 'APPROVED',
+          cancellableUntil: new Date(Date.now() + 24 * 3_600_000).toISOString(),
+        })}
         tenantSlug="lavacar-bh"
       />,
     );
@@ -139,6 +142,20 @@ describe('BookingDetailPage', () => {
     render(
       <BookingDetailPage
         booking={makeBooking({ status: 'APPROVED', cancellableUntil: null })}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.queryByRole('link', { name: 'Cancelar agendamento' })).not.toBeInTheDocument();
+  });
+
+  it('APPROVED with a cancellableUntil already in the past: hides the cancel action', () => {
+    render(
+      <BookingDetailPage
+        booking={makeBooking({
+          status: 'APPROVED',
+          cancellableUntil: new Date(Date.now() - 3_600_000).toISOString(),
+        })}
         tenantSlug="lavacar-bh"
       />,
     );

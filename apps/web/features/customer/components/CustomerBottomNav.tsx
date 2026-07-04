@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { cn } from '@/shared/utils/cn';
 import {
   getCustomerNavItems,
+  getNavIconClass,
   isCustomerNavActive,
   shouldShowCustomerBottomNav,
 } from './customer-nav-items';
@@ -39,11 +39,7 @@ export function CustomerBottomNav({
         return (
           <Link key={href} href={href} className={linkClass}>
             <Icon
-              className={cn(
-                'h-[1.375rem] w-[1.375rem] shrink-0',
-                iconColorClass,
-                active ? 'opacity-100' : 'opacity-60',
-              )}
+              className={getNavIconClass('h-[1.375rem] w-[1.375rem]', iconColorClass, active)}
               aria-hidden="true"
             />
             <span className={labelClass(active)}>{t(labelKey)}</span>

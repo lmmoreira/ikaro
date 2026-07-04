@@ -14,6 +14,7 @@ vi.mock('next-intl', () => ({
       confirmButton: 'Confirmar cancelamento',
       confirming: 'Cancelando...',
       backButton: 'Voltar',
+      genericError: 'Não foi possível cancelar o agendamento. Tente novamente.',
     };
     return translations[key] ?? key;
   },
@@ -103,6 +104,20 @@ describe('CancelConfirmPage', () => {
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith('/lavacar-bh/my-account/bookings/b1/cancel/error'),
     );
+  });
+
+  it('a non-422 failure shows a visible error message and re-enables the button', async () => {
+    cancelBookingMock.mockRejectedValue(new Error('network error'));
+    const user = userEvent.setup();
+    render(<CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar cancelamento' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível cancelar o agendamento. Tente novamente.',
+    );
+    expect(screen.getByRole('button', { name: 'Confirmar cancelamento' })).not.toBeDisabled();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it('"Voltar" calls router.back()', async () => {

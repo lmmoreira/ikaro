@@ -24,7 +24,7 @@ export function HomeDashboard({
 }: HomeDashboardProps): React.JSX.Element {
   const t = useTranslations('customer.home');
   const { formatDate } = useFormatting();
-  const preview = selectHomePreview([...bookings]);
+  const preview = selectHomePreview(bookings);
 
   return (
     <div className="w-full">

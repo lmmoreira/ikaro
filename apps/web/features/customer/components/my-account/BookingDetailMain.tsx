@@ -96,7 +96,7 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
               <div>
                 <p className="text-[0.9375rem] font-semibold text-gray-900">{line.serviceName}</p>
                 <p className="mt-0.5 text-[0.8125rem] text-gray-500">
-                  {line.durationMinsAtBooking} min
+                  {t('lineDurationMinutes', { minutes: line.durationMinsAtBooking })}
                 </p>
               </div>
               <span className="shrink-0 text-[0.9375rem] font-bold text-gray-900">

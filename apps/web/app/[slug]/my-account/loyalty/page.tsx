@@ -3,6 +3,7 @@ import {
   fetchLoyaltyBalance,
   fetchLoyaltyEntries,
   fetchLoyaltyRedemptions,
+  withAuthRedirect,
 } from '@/features/customer/api.server';
 import { LoyaltyPage } from '@/features/customer/components/my-account/LoyaltyPage';
 
@@ -17,9 +18,9 @@ export default async function MyAccountLoyaltyPage({
   const token = await getAccessToken();
 
   const [balance, entries, redemptions] = await Promise.all([
-    fetchLoyaltyBalance(token),
-    fetchLoyaltyEntries(token),
-    fetchLoyaltyRedemptions(token),
+    withAuthRedirect(fetchLoyaltyBalance(token), slug),
+    withAuthRedirect(fetchLoyaltyEntries(token), slug),
+    withAuthRedirect(fetchLoyaltyRedemptions(token), slug),
   ]);
 
   return (

@@ -231,6 +231,22 @@ describe('LoyaltyPage', () => {
     expect(screen.getByText('−85 pts')).toBeInTheDocument();
   });
 
+  it('wires each tab to its panel via aria-controls/aria-labelledby', () => {
+    render(
+      <LoyaltyPage
+        balance={makeBalance()}
+        entries={makeEntries()}
+        redemptions={makeRedemptions()}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    const entriesTab = screen.getByRole('tab', { name: 'Histórico de ganhos' });
+    const entriesPanel = screen.getByRole('tabpanel');
+    expect(entriesTab).toHaveAttribute('aria-controls', entriesPanel.id);
+    expect(entriesPanel).toHaveAttribute('aria-labelledby', entriesTab.id);
+  });
+
   it('shows the empty-redemptions message when there are none', async () => {
     const user = userEvent.setup();
     render(

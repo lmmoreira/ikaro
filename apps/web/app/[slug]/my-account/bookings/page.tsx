@@ -1,5 +1,9 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { fetchCustomerBookings, fetchLoyaltyBalance } from '@/features/customer/api.server';
+import {
+  fetchCustomerBookings,
+  fetchLoyaltyBalance,
+  withAuthRedirect,
+} from '@/features/customer/api.server';
 import { BookingsList } from '@/features/customer/components/my-account/BookingsList';
 
 interface MyAccountBookingsPageProps {
@@ -13,8 +17,8 @@ export default async function MyAccountBookingsPage({
   const token = await getAccessToken();
 
   const [bookings, loyaltyBalance] = await Promise.all([
-    fetchCustomerBookings(token),
-    fetchLoyaltyBalance(token),
+    withAuthRedirect(fetchCustomerBookings(token), slug),
+    withAuthRedirect(fetchLoyaltyBalance(token), slug),
   ]);
 
   return (

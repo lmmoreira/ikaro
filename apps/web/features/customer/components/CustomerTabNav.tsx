@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/shared/utils/cn';
-import { getCustomerNavItems, isCustomerNavActive } from './customer-nav-items';
+import { getCustomerNavItems, getNavIconClass, isCustomerNavActive } from './customer-nav-items';
 
 interface CustomerTabNavProps {
   readonly tenantSlug: string;
@@ -34,11 +34,7 @@ export function CustomerTabNav({ tenantSlug }: CustomerTabNavProps): React.JSX.E
         return (
           <Link key={href} href={href} className={linkClass(active)}>
             <Icon
-              className={cn(
-                'h-4 w-4 shrink-0',
-                iconColorClass,
-                active ? 'opacity-100' : 'opacity-60',
-              )}
+              className={getNavIconClass('h-4 w-4', iconColorClass, active)}
               aria-hidden="true"
             />
             <span className={labelClass(active)}>{t(labelKey)}</span>

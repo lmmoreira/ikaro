@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { ListBookingsDto } from '../dtos/list-bookings.dto';
-import { Booking, BookingStatus } from '../../domain/booking.aggregate';
+import { Booking } from '../../domain/booking.aggregate';
 
 export type ListBookingsInput = ListBookingsDto & {
   tenantId: string;
@@ -98,10 +98,7 @@ export class ListBookingsUseCase {
         },
       })),
       createdAt: booking.createdAt.toISOString(),
-      cancellableUntil:
-        booking.status === BookingStatus.APPROVED
-          ? booking.cancellableUntil(cancellationWindowHours).toISOString()
-          : null,
+      cancellableUntil: booking.cancellableUntilIso(cancellationWindowHours),
     };
   }
 }

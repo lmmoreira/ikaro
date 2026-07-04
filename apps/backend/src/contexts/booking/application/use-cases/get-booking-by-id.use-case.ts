@@ -169,14 +169,8 @@ export class GetBookingByIdUseCase {
       completedAt: booking.completedAt?.toISOString() ?? null,
       rejectionReason: booking.rejectionReason,
       createdAt: booking.createdAt.toISOString(),
-      cancellableUntil:
-        booking.status === BookingStatus.APPROVED
-          ? booking.cancellableUntil(cancellationWindowHours).toISOString()
-          : null,
-      pointsEarned:
-        booking.status === BookingStatus.COMPLETED
-          ? booking.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0)
-          : null,
+      cancellableUntil: booking.cancellableUntilIso(cancellationWindowHours),
+      pointsEarned: booking.status === BookingStatus.COMPLETED ? booking.pointsEarned() : null,
     };
   }
 }

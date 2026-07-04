@@ -1,6 +1,10 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { fetchCustomerBookings, fetchLoyaltyBalance } from '@/features/customer/api.server';
+import {
+  fetchCustomerBookings,
+  fetchLoyaltyBalance,
+  withAuthRedirect,
+} from '@/features/customer/api.server';
 import { HomeDashboard } from '@/features/customer/components/my-account/HomeDashboard';
 
 interface MyAccountHomePageProps {
@@ -15,8 +19,8 @@ export default async function MyAccountHomePage({
   const { userName } = decodeJwtPayload(token);
 
   const [bookings, loyaltyBalance] = await Promise.all([
-    fetchCustomerBookings(token),
-    fetchLoyaltyBalance(token),
+    withAuthRedirect(fetchCustomerBookings(token), slug),
+    withAuthRedirect(fetchLoyaltyBalance(token), slug),
   ]);
 
   return (

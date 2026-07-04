@@ -30,7 +30,9 @@ describe('BookingStatusIcon', () => {
   it('renders a red square for CANCELLED and REJECTED', () => {
     const cancelled = render(<BookingStatusIcon status="CANCELLED" />);
     expect(cancelled.container.querySelector('.bg-red-50')).toBeInTheDocument();
+    expect(cancelled.container.querySelector('.text-red-600')).toBeInTheDocument();
     const rejected = render(<BookingStatusIcon status="REJECTED" />);
     expect(rejected.container.querySelector('.bg-red-50')).toBeInTheDocument();
+    expect(rejected.container.querySelector('.text-red-600')).toBeInTheDocument();
   });
 });

@@ -6,6 +6,12 @@ import {
 } from '@ikaro/types';
 import { BookingDetailResponse, BookingListItem } from './bookings.types';
 
+function toMoneyOrNull(
+  money: { amount: number; currency: string } | null,
+): { amount: number; currency: string } | null {
+  return money ? { amount: money.amount, currency: money.currency } : null;
+}
+
 export function toCustomerBookingListItem(item: BookingListItem): CustomerBookingListItem {
   return {
     bookingId: item.id,
@@ -50,9 +56,7 @@ export function toCustomerBookingDetail(
       serviceName: l.serviceNameAtBooking,
       durationMinsAtBooking: l.durationMinsAtBooking,
       priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
-      actualPriceCharged: l.actualPriceCharged
-        ? { amount: l.actualPriceCharged.amount, currency: l.actualPriceCharged.currency }
-        : null,
+      actualPriceCharged: toMoneyOrNull(l.actualPriceCharged),
     })),
     totalPrice: { amount: detail.totalPrice.amount, currency: detail.totalPrice.currency },
     notes: detail.notes,
@@ -62,13 +66,9 @@ export function toCustomerBookingDetail(
     beforeServicePhotoUrls: detail.beforeServicePhotoUrls,
     afterServicePhotoUrls: detail.afterServicePhotoUrls,
     completedAt: detail.completedAt,
-    totalActualPrice: detail.totalActualPrice
-      ? { amount: detail.totalActualPrice.amount, currency: detail.totalActualPrice.currency }
-      : null,
+    totalActualPrice: toMoneyOrNull(detail.totalActualPrice),
     discountPointsUsed: detail.discountPointsUsed,
-    discountAmount: detail.discountAmount
-      ? { amount: detail.discountAmount.amount, currency: detail.discountAmount.currency }
-      : null,
+    discountAmount: toMoneyOrNull(detail.discountAmount),
     pointsEarned: detail.pointsEarned,
   };
 }
@@ -97,18 +97,12 @@ export function toStaffBookingDetail(
       durationMinsAtBooking: l.durationMinsAtBooking,
       pointsValueAtBooking: l.pointsValueAtBooking,
       requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
-      actualPriceCharged: l.actualPriceCharged
-        ? { amount: l.actualPriceCharged.amount, currency: l.actualPriceCharged.currency }
-        : null,
+      actualPriceCharged: toMoneyOrNull(l.actualPriceCharged),
     })),
     totalPrice: { amount: detail.totalPrice.amount, currency: detail.totalPrice.currency },
-    totalActualPrice: detail.totalActualPrice
-      ? { amount: detail.totalActualPrice.amount, currency: detail.totalActualPrice.currency }
-      : null,
+    totalActualPrice: toMoneyOrNull(detail.totalActualPrice),
     discountPointsUsed: detail.discountPointsUsed,
-    discountAmount: detail.discountAmount
-      ? { amount: detail.discountAmount.amount, currency: detail.discountAmount.currency }
-      : null,
+    discountAmount: toMoneyOrNull(detail.discountAmount),
     totalDurationMins: detail.totalDurationMins,
     beforeServicePhotoUrls: detail.beforeServicePhotoUrls,
     afterServicePhotoUrls: detail.afterServicePhotoUrls,
