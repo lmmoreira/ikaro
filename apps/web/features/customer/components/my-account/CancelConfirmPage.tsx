@@ -23,7 +23,7 @@ export function CancelConfirmPage({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const serviceNames = booking.lines.map((line) => line.serviceName).join(', ');
-  const scheduledAt = booking.scheduledAt !== null ? new Date(booking.scheduledAt) : null;
+  const scheduledAt = booking.scheduledAt === null ? null : new Date(booking.scheduledAt);
 
   async function handleConfirm(): Promise<void> {
     setIsSubmitting(true);

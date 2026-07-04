@@ -21,8 +21,8 @@ export function CancelErrorPage({
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
 
   const serviceNames = booking.lines.map((line) => line.serviceName).join(', ');
-  const scheduledAt = booking.scheduledAt !== null ? new Date(booking.scheduledAt) : null;
-  const deadline = booking.cancellableUntil !== null ? new Date(booking.cancellableUntil) : null;
+  const scheduledAt = booking.scheduledAt === null ? null : new Date(booking.scheduledAt);
+  const deadline = booking.cancellableUntil === null ? null : new Date(booking.cancellableUntil);
 
   return (
     <div className="flex w-full flex-col gap-4">

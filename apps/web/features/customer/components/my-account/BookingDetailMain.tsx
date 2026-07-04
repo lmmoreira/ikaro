@@ -44,7 +44,7 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
 
   const isCompleted = booking.status === BOOKING_STATUS.COMPLETED;
-  const scheduledAt = booking.scheduledAt !== null ? new Date(booking.scheduledAt) : null;
+  const scheduledAt = booking.scheduledAt === null ? null : new Date(booking.scheduledAt);
   const totalDurationMins = booking.lines.reduce((sum, l) => sum + l.durationMinsAtBooking, 0);
   const iconClass = 'h-3.5 w-3.5 text-blue-600';
 
@@ -62,7 +62,7 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
           <DetailRow
             icon={<Calendar className={iconClass} aria-hidden="true" />}
             label={t('dateLabel')}
-            value={scheduledAt !== null ? formatDateLong(scheduledAt) : t('scheduledAtPending')}
+            value={scheduledAt === null ? t('scheduledAtPending') : formatDateLong(scheduledAt)}
           />
           {scheduledAt !== null && (
             <DetailRow

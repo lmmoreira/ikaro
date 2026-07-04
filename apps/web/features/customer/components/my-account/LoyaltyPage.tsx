@@ -152,9 +152,9 @@ export function LoyaltyPage({
                   >
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {redemption.bookingReference !== null
-                          ? t('redemptionLabel', { reference: redemption.bookingReference })
-                          : t('redemptionLabelGeneric')}
+                        {redemption.bookingReference === null
+                          ? t('redemptionLabelGeneric')
+                          : t('redemptionLabel', { reference: redemption.bookingReference })}
                       </p>
                       <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
                         <span>{formatDate(new Date(redemption.redeemedAt))}</span>

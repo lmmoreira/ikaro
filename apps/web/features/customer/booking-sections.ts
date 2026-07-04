@@ -6,11 +6,11 @@ export interface BookingSections {
   readonly history: CustomerBookingListItem[];
 }
 
-const HISTORY_STATUSES: readonly string[] = [
+const HISTORY_STATUSES: ReadonlySet<string> = new Set([
   BOOKING_STATUS.COMPLETED,
   BOOKING_STATUS.CANCELLED,
   BOOKING_STATUS.REJECTED,
-];
+]);
 
 function startOfDay(date: Date): Date {
   const day = new Date(date);
@@ -37,7 +37,7 @@ export function splitBookingSections(
       )
       .sort(byScheduledAtAsc),
     history: items
-      .filter((b) => HISTORY_STATUSES.includes(b.status))
+      .filter((b) => HISTORY_STATUSES.has(b.status))
       .sort((a, b) => byScheduledAtAsc(b, a)),
   };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { submitInfo } from '../../api';
 
@@ -12,6 +12,12 @@ interface InfoSubmitFormProps {
 
 type FormState = 'idle' | 'submitting' | 'error';
 
+function submitLabel(state: FormState, t: (key: string) => string): string {
+  if (state === 'submitting') return t('submitting');
+  if (state === 'error') return t('retry');
+  return t('submit');
+}
+
 export function InfoSubmitForm({
   bookingId,
   infoRequestMessage,
@@ -22,7 +28,7 @@ export function InfoSubmitForm({
   const [state, setState] = useState<FormState>('idle');
   const [validationError, setValidationError] = useState(false);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (message.trim().length === 0) {
       setValidationError(true);
@@ -80,7 +86,7 @@ export function InfoSubmitForm({
         disabled={state === 'submitting'}
         className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
       >
-        {state === 'submitting' ? t('submitting') : state === 'error' ? t('retry') : t('submit')}
+        {submitLabel(state, t)}
       </button>
     </form>
   );
