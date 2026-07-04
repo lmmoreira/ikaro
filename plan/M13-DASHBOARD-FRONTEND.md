@@ -2690,7 +2690,7 @@ Two pages under a new `/dashboard/loyalty` route. The search page lets staff fin
 > 🔍 **Discover before starting:**
 > - Confirm `M13-S12` has shipped: `GET /v1/customers?search=` and enriched balance response exist.
 > - Check `apps/web/app/dashboard/` structure — place new route at `loyalty/`.
-> - Confirm `apps/web/lib/api/dashboard/` convention (flat files or per-module folders).
+> - Confirm `apps/web/features/loyalty/` helper convention (`dashboard-api.ts` / `dashboard-api.server.ts`).
 > - The shared loyalty DTOs in `@ikaro/types` already match the current BFF shapes for this story; no type-drift fix is needed before implementing the page.
 
 **Prototype references:**
@@ -2701,7 +2701,7 @@ Two pages under a new `/dashboard/loyalty` route. The search page lets staff fin
 
 ---
 
-**`apps/web/lib/api/dashboard/loyalty.ts`:**
+**`apps/web/features/loyalty/dashboard-api.ts` / `apps/web/features/loyalty/dashboard-api.server.ts`:**
 ```typescript
 searchCustomers(term: string): Promise<CustomerSearchListResponse>
 // GET /v1/customers?search=:term&limit=20
@@ -2724,7 +2724,7 @@ fetchCustomerLoyaltyRedemptions(customerId: string, page?: number): Promise<Pagi
 - If `customerId` present: fetches the staff detail contract from the BFF and renders `<CustomerLoyaltyPage balance={...} entries={...} redemptions={...} />`
 - 404 if `customerId` given but backend returns 404
 
-**`apps/web/components/dashboard/loyalty/LoyaltySearchPage.tsx`** — `'use client'`:
+**`apps/web/features/loyalty/components/dashboard/LoyaltySearchPage.tsx`** — `'use client'`:
 - Search input with debounce (300ms)
 - On empty: "Clientes recentes" — `GET /v1/customers?search=&limit=5` (prototype copy is kept, but the current backend search path orders results by customer name; recency ordering would require a backend change)
 - On search: live results as user types
@@ -2733,7 +2733,7 @@ fetchCustomerLoyaltyRedemptions(customerId: string, page?: number): Promise<Pagi
 
 > **Discovery result (2026-07-03):** the current `GET /v1/customers` implementation sorts by `name ASC`. The UI can still label the empty state as "Clientes recentes" to match the prototype, but that label should not be read as a recency guarantee unless the backend ordering changes in a separate story.
 
-**`apps/web/components/dashboard/loyalty/CustomerLoyaltyPage.tsx`** — `'use client'` (manages tab state):
+**`apps/web/features/loyalty/components/dashboard/CustomerLoyaltyPage.tsx`** — `'use client'` (manages tab state):
 - Customer header: avatar + name + email
 - **Balance card** (blue gradient per prototype):
   - `currentPoints` (large number)

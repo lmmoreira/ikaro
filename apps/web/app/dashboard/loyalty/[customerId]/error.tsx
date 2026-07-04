@@ -9,12 +9,11 @@ interface CustomerLoyaltyRouteErrorProps {
 }
 
 export default function CustomerLoyaltyRouteError({
-  error,
+  error: _error,
   reset,
 }: CustomerLoyaltyRouteErrorProps): React.JSX.Element {
   const t = useTranslations('dashboard.loyaltyPage');
   const bookingT = useTranslations('booking');
-  void error;
 
   return (
     <section className="flex min-h-[40vh] w-full items-center justify-center px-4 py-10">

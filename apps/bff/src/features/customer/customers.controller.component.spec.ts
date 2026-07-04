@@ -233,6 +233,21 @@ describe('CustomersController (component)', () => {
       expect(res.body.items[0].currentPoints).toBe(50);
     });
 
+    it('returns 200 with a short non-empty search for STAFF JWT', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(backendItems).mockResolvedValueOnce(mockBalance);
+      const token = makeStaffJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/customers?search=jo&limit=20')
+        .set('Cookie', `access_token=${token}`)
+        .set('x-tenant-id', TENANT_ID);
+
+      expect(res.status).toBe(200);
+      expect(res.body.total).toBe(1);
+      expect(backendHttpService.get).toHaveBeenCalledWith('/customers?limit=20&search=jo');
+    });
+
     it('returns 200 with all customers when search is omitted', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockResolvedValue({ items: [], total: 0 });
