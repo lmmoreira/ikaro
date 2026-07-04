@@ -23,6 +23,8 @@ import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
+import { toStaffListResponse } from './staff.mapper';
+import { StaffItemListResponse } from './staff.types';
 
 const InviteStaffBodySchema = z.object({
   email: z.email(),
@@ -56,7 +58,9 @@ export class StaffController {
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ): Promise<StaffListResponse> {
-    return this.backendHttp.get<StaffListResponse>('/staff', { limit, offset });
+    return this.backendHttp
+      .get<StaffItemListResponse>('/staff', { limit, offset })
+      .then(toStaffListResponse);
   }
 
   // Declared before ':id' — NestJS resolves routes in declaration order, and a dynamic

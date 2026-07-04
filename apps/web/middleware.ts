@@ -27,6 +27,16 @@ function isValidStaffToken(token: string): boolean {
   return true;
 }
 
+// Shared manager-only route list for /dashboard — M13-S31/S32 own this single edit;
+// M13-S35 (hotsite editor) reuses it. STAFF hitting these is sent back to the dashboard home.
+const MANAGER_ONLY_ROUTES = ['/dashboard/settings', '/dashboard/team', '/dashboard/hotsite'];
+
+function isManagerOnlyRoute(pathname: string): boolean {
+  return MANAGER_ONLY_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+}
+
 // Matches /<slug>/my-account and /<slug>/my-account/* — captures the slug.
 const MY_ACCOUNT_PATTERN = /^\/([^/]+)\/my-account(?:\/.*)?$/;
 
@@ -124,6 +134,12 @@ export function middleware(request: NextRequest): NextResponse {
     if (!token || !isValidStaffToken(token)) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL('/dashboard/login', request.url)),
+        pathname,
+      );
+    }
+    if (isManagerOnlyRoute(pathname) && decodeJwtClaims(token).role !== 'MANAGER') {
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL('/dashboard', request.url)),
         pathname,
       );
     }

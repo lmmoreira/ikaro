@@ -8,6 +8,10 @@ export interface StaffItemResult {
   name: string | null;
   role: 'MANAGER' | 'STAFF';
   isActive: boolean;
+  // Set once at UC-025 activation, never cleared by deactivate() — null means the
+  // invite was never accepted. The BFF derives a display status from it (M13-S32)
+  // and strips it from the frontend response.
+  googleOAuthId: string | null;
   createdAt: string;
 }
 
@@ -54,6 +58,7 @@ export class GetStaffUseCase {
         name: s.name,
         role: s.role,
         isActive: s.isActive,
+        googleOAuthId: s.googleOAuthId,
         createdAt: s.createdAt.toISOString(),
       })),
       pagination: {

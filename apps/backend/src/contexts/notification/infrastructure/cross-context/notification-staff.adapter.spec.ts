@@ -66,6 +66,7 @@ describe('NotificationStaffAdapter', () => {
           name: 'Manager',
           role: 'MANAGER',
           isActive: true,
+          googleOAuthId: 'google-manager-1',
           createdAt: '2026-01-01T00:00:00.000Z',
         },
         {
@@ -74,6 +75,7 @@ describe('NotificationStaffAdapter', () => {
           name: 'Owner',
           role: 'MANAGER',
           isActive: true,
+          googleOAuthId: 'google-owner-1',
           createdAt: '2026-01-01T00:00:00.000Z',
         },
       ],
