@@ -52,7 +52,9 @@ export function BookingListItem({ item, tenantSlug }: BookingListItemProps): Rea
             </Link>
           )}
           {item.status === BOOKING_STATUS.APPROVED && !cancellable && (
-            <span className="text-gray-400">{t('windowClosed')}</span>
+            <span data-testid="booking-window-closed-note" className="text-gray-400">
+              {t('windowClosed')}
+            </span>
           )}
           {item.status === BOOKING_STATUS.PENDING && (
             <Link href={cancelHref} className="font-medium text-red-600 hover:underline">
@@ -67,6 +69,7 @@ export function BookingListItem({ item, tenantSlug }: BookingListItemProps): Rea
         </div>
       </div>
       <span
+        data-testid="booking-status-badge"
         className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${BOOKING_STATUS_CLASSES[item.status]}`}
       >
         {statusLabels[item.status]}

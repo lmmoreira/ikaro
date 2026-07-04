@@ -51,7 +51,10 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
   return (
     <div className="flex flex-col gap-5">
       {isCompleted && booking.pointsEarned !== null && booking.pointsEarned > 0 && (
-        <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
+        <div
+          data-testid="points-earned-banner"
+          className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800"
+        >
           {t('pointsEarnedBanner', { points: booking.pointsEarned })}
         </div>
       )}
@@ -107,7 +110,10 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
             <span className="text-sm font-bold text-gray-500">
               {isCompleted ? t('totalCharged') : t('total')}
             </span>
-            <span className="text-base font-extrabold text-gray-900">
+            <span
+              data-testid="booking-total-value"
+              className="text-base font-extrabold text-gray-900"
+            >
               {isCompleted && booking.totalActualPrice !== null
                 ? formatMoney(booking.totalActualPrice.amount)
                 : formatMoney(booking.totalPrice.amount)}

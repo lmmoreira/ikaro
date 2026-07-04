@@ -39,7 +39,10 @@ export function HomeDashboard({
           </div>
           <div className="min-w-0">
             <p className="text-[0.6875rem] font-semibold text-gray-500">{t('points')}</p>
-            <p className="text-[1.1875rem] font-bold leading-tight text-gray-900">
+            <p
+              data-testid="home-points-value"
+              className="text-[1.1875rem] font-bold leading-tight text-gray-900"
+            >
               {t('pointsValue', { points: loyaltyBalance.currentPoints })}
             </p>
           </div>
@@ -50,7 +53,10 @@ export function HomeDashboard({
           </div>
           <div className="min-w-0">
             <p className="text-[0.6875rem] font-semibold text-gray-500">{t('bookings')}</p>
-            <p className="text-[1.1875rem] font-bold leading-tight text-gray-900">
+            <p
+              data-testid="home-bookings-value"
+              className="text-[1.1875rem] font-bold leading-tight text-gray-900"
+            >
               {t('bookingsTotal', { count: countActiveBookings(bookings) })}
             </p>
           </div>

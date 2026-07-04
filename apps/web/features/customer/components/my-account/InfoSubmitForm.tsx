@@ -77,7 +77,9 @@ export function InfoSubmitForm({
           className="mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
         />
         {validationError && (
-          <p className="mt-1 text-xs font-medium text-red-600">{t('validationError')}</p>
+          <p data-testid="info-validation-error" className="mt-1 text-xs font-medium text-red-600">
+            {t('validationError')}
+          </p>
         )}
       </div>
 

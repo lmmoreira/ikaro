@@ -16,14 +16,20 @@ interface BookingsListProps {
 }
 
 interface BookingSectionProps {
+  readonly testId: 'section-upcoming' | 'section-pending' | 'section-history';
   readonly title: string;
   readonly items: readonly CustomerBookingListItem[];
   readonly tenantSlug: string;
 }
 
-function BookingSection({ title, items, tenantSlug }: BookingSectionProps): React.JSX.Element {
+function BookingSection({
+  testId,
+  title,
+  items,
+  tenantSlug,
+}: BookingSectionProps): React.JSX.Element {
   return (
-    <section className="mt-6 first:mt-0">
+    <section data-testid={testId} className="mt-6 first:mt-0">
       <h2 className="text-sm font-semibold text-gray-500">{title}</h2>
       <ul className="mt-2 flex flex-col gap-2">
         {items.map((item) => (
@@ -79,6 +85,7 @@ export function BookingsList({
         <div className="mt-4">
           {upcoming.length > 0 && (
             <BookingSection
+              testId="section-upcoming"
               title={t('sectionUpcoming', { count: upcoming.length })}
               items={upcoming}
               tenantSlug={tenantSlug}
@@ -86,6 +93,7 @@ export function BookingsList({
           )}
           {pending.length > 0 && (
             <BookingSection
+              testId="section-pending"
               title={t('sectionPending', { count: pending.length })}
               items={pending}
               tenantSlug={tenantSlug}
@@ -93,6 +101,7 @@ export function BookingsList({
           )}
           {history.length > 0 && (
             <BookingSection
+              testId="section-history"
               title={t('sectionHistory', { count: history.length })}
               items={history}
               tenantSlug={tenantSlug}

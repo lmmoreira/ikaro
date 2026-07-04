@@ -88,6 +88,7 @@ export function BookingDetailPage({
           ← {t('backToBookings')}
         </Link>
         <span
+          data-testid="booking-detail-status-badge"
           className={`rounded-full px-2.5 py-1 text-xs font-semibold ${BOOKING_STATUS_CLASSES[status]}`}
         >
           {statusLabels[status]}
@@ -130,11 +131,17 @@ export function BookingDetailPage({
             />
           )}
 
-          {hasSidebarAction && <div className="lg:hidden">{renderActionPane()}</div>}
+          {hasSidebarAction && (
+            <div data-testid="action-pane-mobile" className="lg:hidden">
+              {renderActionPane()}
+            </div>
+          )}
         </div>
 
         {hasSidebarAction && (
-          <div className="hidden lg:sticky lg:top-6 lg:block">{renderActionPane()}</div>
+          <div data-testid="action-pane-desktop" className="hidden lg:sticky lg:top-6 lg:block">
+            {renderActionPane()}
+          </div>
         )}
       </div>
     </div>

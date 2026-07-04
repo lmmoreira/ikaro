@@ -42,7 +42,9 @@ export function LoyaltyPage({
           isEmpty ? 'bg-gray-300' : 'bg-gradient-to-br from-blue-600 to-blue-700'
         }`}
       >
-        <p className="text-3xl font-extrabold leading-none">{balance.currentPoints}</p>
+        <p data-testid="loyalty-balance-points" className="text-3xl font-extrabold leading-none">
+          {balance.currentPoints}
+        </p>
 
         <div className="min-w-0 flex-1 border-l border-white/20 pl-4">
           <p className="text-xs font-medium opacity-90">{t('pointsActiveLabel')}</p>
@@ -69,7 +71,10 @@ export function LoyaltyPage({
       </div>
 
       {isEmpty ? (
-        <div className="mt-6 flex flex-col items-center rounded-2xl border border-gray-100 bg-white px-6 py-12 text-center">
+        <div
+          data-testid="loyalty-empty-state"
+          className="mt-6 flex flex-col items-center rounded-2xl border border-gray-100 bg-white px-6 py-12 text-center"
+        >
           <p className="text-base font-semibold text-gray-900">{t('emptyTitle')}</p>
           <p className="mt-1 max-w-sm text-sm text-gray-500">{t('emptyBody')}</p>
           <Link
@@ -115,6 +120,7 @@ export function LoyaltyPage({
               {entries.items.map((entry) => (
                 <li
                   key={entry.entryId}
+                  data-testid="loyalty-entry-row"
                   className={`flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4 ${
                     entry.expired ? 'opacity-40' : ''
                   }`}
@@ -148,6 +154,7 @@ export function LoyaltyPage({
                 redemptions.items.map((redemption) => (
                   <li
                     key={redemption.redemptionId}
+                    data-testid="loyalty-redemption-row"
                     className="flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4"
                   >
                     <div>
