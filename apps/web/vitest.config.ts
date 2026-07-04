@@ -25,7 +25,7 @@ export default defineConfig({
         functions: 90,
         lines: 90,
       },
-      include: ['lib/**', 'app/**', 'components/**', 'providers/**'],
+      include: ['lib/**', 'app/**', 'components/**', 'providers/**', 'features/**', 'playwright.config.ts'],
       exclude: [
         '**/*.spec.*',
         '**/node_modules/**',
