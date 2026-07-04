@@ -17,6 +17,8 @@
 
 **Commit / push / PR gate — NON-NEGOTIABLE:** Before every `git commit`, explicitly ask: *"Here are the files I'm about to commit: [list]. Anything else to add before I commit?"* Before every `git push`, ask: *"Anything else to add before I push?"* Wait for an explicit yes at each step. Never commit, push, run `/pre-pr`, or open a PR without that confirmation. Never chain these steps automatically. For doc-only changes on `main`, also ask whether to use a feature branch or commit direct.
 
+**Workspace ownership gate:** Never run root-owned or containerized installs against the mounted workspace, and never use privileged cleanup on repo files unless the user explicitly approves it. If `node_modules` ownership is broken, stop and ask before repairing it.
+
 ---
 
 ## 1. Project Facts

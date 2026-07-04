@@ -1,5 +1,5 @@
 import { bffClient } from '@/shared/lib/api/bff-client';
-import type { Address, CustomerProfileResponse } from '@ikaro/types';
+import type { Address, CustomerProfileResponse, CustomerSearchListResponse } from '@ikaro/types';
 
 export type CustomerAddressResponse = Address;
 
@@ -11,6 +11,21 @@ export interface UpdateCustomerProfileRequest {
 
 export async function getCustomerProfile(): Promise<CustomerProfileResponse> {
   const res = await bffClient.get<CustomerProfileResponse>('/customers/me');
+  return res.data;
+}
+
+export async function getCustomerById(customerId: string): Promise<CustomerProfileResponse> {
+  const res = await bffClient.get<CustomerProfileResponse>(`/customers/${customerId}`);
+  return res.data;
+}
+
+export async function searchCustomers(
+  search?: string,
+  limit = 20,
+): Promise<CustomerSearchListResponse> {
+  const res = await bffClient.get<CustomerSearchListResponse>('/customers', {
+    params: search ? { search, limit } : { limit },
+  });
   return res.data;
 }
 

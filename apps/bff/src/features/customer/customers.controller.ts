@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { z } from 'zod';
 import { CustomerProfileResponse, CustomerSearchListResponse, TenantOption } from '@ikaro/types';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
@@ -33,7 +43,7 @@ export const UpdateCustomerProfileBodySchema = z.object({
 export type UpdateCustomerProfileBody = z.infer<typeof UpdateCustomerProfileBodySchema>;
 
 const CustomerSearchQuerySchema = z.object({
-  search: z.string().min(5).optional(),
+  search: z.string().trim().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
@@ -109,5 +119,13 @@ export class CustomersController {
       if (!tenantInfo) throw new Error(`Tenant ${t.tenantId} missing from batch response`);
       return toTenantOption(t, tenantInfo, balances[i]);
     });
+  }
+
+  @Get(':customerId')
+  @Roles('STAFF', 'MANAGER')
+  getCustomer(
+    @Param('customerId', ParseUUIDPipe) customerId: string,
+  ): Promise<CustomerProfileResponse> {
+    return this.backendHttp.get<CustomerProfileResponse>(`/customers/${customerId}`);
   }
 }

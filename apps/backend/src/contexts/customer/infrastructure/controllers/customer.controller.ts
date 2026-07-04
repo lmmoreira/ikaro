@@ -5,6 +5,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
   Patch,
   Query,
   UseGuards,
@@ -74,6 +76,23 @@ export class CustomerController {
   getMe(): Promise<GetCustomerProfileResponse> {
     return this.getCustomerById
       .execute({ customerId: this.ctx.actorId!, tenantId: this.ctx.tenantId })
+      .then((customer) => ({
+        customerId: customer.id,
+        email: customer.email,
+        name: customer.name,
+        phone: customer.phone,
+        defaultAddress: customer.defaultAddress,
+      }))
+      .catch(mapCustomerError);
+  }
+
+  @Get(':customerId')
+  @UseGuards(StaffOrManagerRoleGuard)
+  getById(
+    @Param('customerId', ParseUUIDPipe) customerId: string,
+  ): Promise<GetCustomerProfileResponse> {
+    return this.getCustomerById
+      .execute({ customerId, tenantId: this.ctx.tenantId })
       .then((customer) => ({
         customerId: customer.id,
         email: customer.email,

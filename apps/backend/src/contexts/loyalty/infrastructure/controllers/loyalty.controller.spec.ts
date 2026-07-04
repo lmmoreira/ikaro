@@ -110,6 +110,7 @@ describe('LoyaltyController', () => {
 
       const result = await controller.getEntries({ page: 1, limit: 20 });
       expect(result.entries[0].serviceName).toBe('Lavagem Completa');
+      expect(result.entries[0].bookingId).toBeDefined();
     });
   });
 
@@ -324,6 +325,7 @@ describe('LoyaltyController', () => {
 
       const result = await controller.getEntriesAdmin(CUSTOMER_ID, { page: 1, limit: 20 });
       expect(result.entries[0].points).toBe(15);
+      expect(result.entries[0].bookingId).toBeDefined();
     });
   });
 

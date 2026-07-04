@@ -214,6 +214,14 @@ describe('Story: booking completion with a loyalty points discount (integration)
     expect(redemptions[0].pointsRedeemed).toBe(200);
     expect(redemptions[0].bookingId).toBe(bookingId);
     expect(redemptions[0].redeemedBy).toBe(staffId);
+
+    const entries = await ds.getRepository(LoyaltyEntryEntity).find({
+      where: { tenantId, customerId, bookingId },
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].serviceId).toBe(serviceId);
+    expect(entries[0].points).toBe(10);
+    expect(entries[0].bookingLineId).toBeDefined();
   });
 
   it('is idempotent — redelivering the BookingCompleted event does not double-redeem', async () => {
@@ -245,6 +253,11 @@ describe('Story: booking completion with a loyalty points discount (integration)
       where: { tenantId, customerId },
     });
     expect(redemptions).toHaveLength(1);
+
+    const entries = await ds.getRepository(LoyaltyEntryEntity).find({
+      where: { tenantId, customerId },
+    });
+    expect(entries).toHaveLength(1);
   });
 
   it('tenant isolation: completing tenant A booking with a discount does not touch tenant B loyalty data', async () => {
@@ -276,5 +289,10 @@ describe('Story: booking completion with a loyalty points discount (integration)
       .getRepository(LoyaltyRedemptionEntity)
       .find({ where: { tenantId: tenantB.tenantId } });
     expect(tenantBRedemptions).toHaveLength(0);
+
+    const tenantBEntries = await ds
+      .getRepository(LoyaltyEntryEntity)
+      .find({ where: { tenantId: tenantB.tenantId } });
+    expect(tenantBEntries).toHaveLength(0);
   });
 });

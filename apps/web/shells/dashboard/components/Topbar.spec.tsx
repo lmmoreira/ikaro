@@ -60,13 +60,28 @@ function TopbarStatusProbe(): React.JSX.Element {
   );
 }
 
-function TopbarSetter({ href }: { readonly href: string }): React.JSX.Element {
-  const { setBackHrefOverride } = useDashboardTopbarStatus()!;
+function TopbarSetter({
+  href,
+  backLabel,
+  pageTitle,
+}: {
+  readonly href: string;
+  readonly backLabel: string;
+  readonly pageTitle: string;
+}): React.JSX.Element {
+  const { setBackHrefOverride, setBackLabelOverride, setPageTitleOverride } =
+    useDashboardTopbarStatus()!;
 
   useEffect(() => {
     setBackHrefOverride(href);
-    return () => setBackHrefOverride(null);
-  }, [href, setBackHrefOverride]);
+    setBackLabelOverride(backLabel);
+    setPageTitleOverride(pageTitle);
+    return () => {
+      setBackHrefOverride(null);
+      setBackLabelOverride(null);
+      setPageTitleOverride(null);
+    };
+  }, [backLabel, href, pageTitle, setBackHrefOverride, setBackLabelOverride, setPageTitleOverride]);
 
   return <></>;
 }
@@ -177,17 +192,37 @@ describe('Topbar', () => {
     expect(screen.getByText('Aguardando info')).toBeInTheDocument();
   });
 
+  it('uses explicit overrides on custom detail pages', async () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/loyalty/c-1');
+    render(
+      <DashboardTopbarStatusProvider>
+        <TopbarSetter href="/dashboard/loyalty" backLabel="Fidelidade" pageTitle="João Silva" />
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(await screen.findByRole('link', { name: 'Fidelidade' })).toHaveAttribute(
+      'href',
+      '/dashboard/loyalty',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('João Silva');
+  });
+
   it('prefers returnTo for booking routes opened from schedule', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123');
 
     render(
       <DashboardTopbarStatusProvider initialBookingStatus="INFO_REQUESTED">
-        <TopbarSetter href="/dashboard/schedule?weekStart=2026-06-29&date=2026-06-29" />
+        <TopbarSetter
+          href="/dashboard/schedule?weekStart=2026-06-29&date=2026-06-29"
+          backLabel="Fidelidade"
+          pageTitle="João Silva"
+        />
         <Topbar tenantName="Lavacar BH" userName="Ana" />
       </DashboardTopbarStatusProvider>,
     );
 
-    expect(screen.getByRole('link', { name: 'Voltar' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Fidelidade' })).toHaveAttribute(
       'href',
       '/dashboard/schedule?weekStart=2026-06-29&date=2026-06-29',
     );

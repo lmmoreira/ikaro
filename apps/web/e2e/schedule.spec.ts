@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   createUniqueScheduleBooking,
   createUniqueScheduleClosure,
@@ -12,6 +12,34 @@ import {
   weekDayIndex,
 } from '@/e2e/helpers/schedule';
 import { uniqueTestEmail } from '@/e2e/helpers/auth';
+
+function installHydrationGuard(page: Page): string[] {
+  const hydrationErrors: string[] = [];
+
+  function record(message: string): void {
+    if (
+      message.includes(
+        "Hydration failed because the server rendered HTML didn't match the client",
+      ) ||
+      message.includes("didn't match the client") ||
+      message.includes('hydration mismatch')
+    ) {
+      hydrationErrors.push(message);
+    }
+  }
+
+  page.on('pageerror', (error) => {
+    record(error.message);
+  });
+
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      record(message.text());
+    }
+  });
+
+  return hydrationErrors;
+}
 
 test.describe('schedule page coverage', () => {
   test('desktop browsers default to week view and can switch to day view', async ({ page }) => {
@@ -38,6 +66,17 @@ test.describe('schedule page coverage', () => {
 
     await expect(page.getByTestId('schedule-mobile-view')).toBeVisible();
     await expect(page.getByTestId('schedule-week-view')).toHaveCount(0);
+  });
+
+  test('schedule route hydrates without mismatch errors', async ({ page }) => {
+    const hydrationErrors = installHydrationGuard(page);
+
+    await page.setViewportSize({ width: 1440, height: 1100 });
+    await loginAsScheduleStaff(page);
+    await page.goto('/dashboard/schedule');
+
+    await expect(page.getByTestId('schedule-week-view')).toBeVisible();
+    expect(hydrationErrors, hydrationErrors.join('\n')).toEqual([]);
   });
 
   test('manager can block and then remove a closure on an open day', async ({ page }) => {
@@ -136,6 +175,7 @@ test.describe('schedule page coverage', () => {
     await expect(page.getByRole('link', { name: pendingName })).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Filtrar status' }).click();
+    await expect(page.getByRole('checkbox', { name: 'Pendente' })).toBeVisible();
     await page.getByRole('checkbox', { name: 'Pendente' }).click();
 
     await expect(page.getByRole('link', { name: pendingName })).toBeVisible();
@@ -184,7 +224,7 @@ test.describe('schedule page coverage', () => {
     await expect(page).toHaveURL(expectedReturnTo);
   });
 
-  test('navigating to the next week loads that week schedule data', async ({ page }) => {
+  test('loading a later week schedule route shows that week schedule data', async ({ page }) => {
     await loginAsScheduleStaff(page);
 
     const contactName = uniqueLabel('next-week');
@@ -194,14 +234,17 @@ test.describe('schedule page coverage', () => {
         contactName,
         contactEmail: uniqueTestEmail('schedule-next-week'),
         approved: true,
-        time: '11:00',
+        time: '14:30',
       },
-      7,
+      14,
     );
 
-    await page.goto('/dashboard/schedule');
-    await page.getByRole('button', { name: 'Próximo período' }).click();
+    await page.goto(scheduleRoute(booking.dateKey));
 
+    await expect(page.getByRole('link', { name: contactName })).toHaveAttribute(
+      'href',
+      new RegExp(`/dashboard/bookings/${booking.bookingId}\\?returnTo=`),
+    );
     await expect(page.getByRole('link', { name: contactName })).toBeVisible();
     await expect(
       page.getByTestId('week-day').filter({ hasText: booking.dateKey.slice(8, 10) }),

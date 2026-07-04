@@ -4,8 +4,9 @@ export interface LoyaltyBalanceResponse {
   nextExpiryPoints: number | null;
 }
 
-export interface LoyaltyEntryItem {
+export interface BackendLoyaltyEntryItem {
   entryId: string;
+  bookingId: string;
   serviceId: string;
   serviceName: string;
   points: number;
@@ -14,8 +15,8 @@ export interface LoyaltyEntryItem {
   isActive: boolean;
 }
 
-export interface LoyaltyEntriesResponse {
-  entries: LoyaltyEntryItem[];
+export interface BackendLoyaltyEntriesResponse {
+  entries: BackendLoyaltyEntryItem[];
   pagination: { page: number; limit: number; total: number };
 }
 
@@ -24,7 +25,7 @@ export interface LoyaltyBookingServiceSummary {
   serviceName: string;
 }
 
-export interface LoyaltyRedemptionItem {
+export interface BackendLoyaltyRedemptionItem {
   redemptionId: string;
   pointsRedeemed: number;
   pointsPerCurrencyUnit: number;
@@ -34,8 +35,8 @@ export interface LoyaltyRedemptionItem {
   bookingServices: LoyaltyBookingServiceSummary[];
 }
 
-export interface LoyaltyRedemptionsResponse {
-  redemptions: LoyaltyRedemptionItem[];
+export interface BackendLoyaltyRedemptionsResponse {
+  redemptions: BackendLoyaltyRedemptionItem[];
   pagination: { page: number; limit: number; total: number };
 }
 

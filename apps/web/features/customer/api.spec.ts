@@ -1,7 +1,7 @@
 import MockAdapter from 'axios-mock-adapter';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { bffClient } from '@/shared/lib/api/bff-client';
-import { getCustomerProfile, updateCustomerProfile } from './api';
+import { getCustomerById, getCustomerProfile, searchCustomers, updateCustomerProfile } from './api';
 
 const mock = new MockAdapter(bffClient);
 
@@ -21,6 +21,22 @@ describe('getCustomerProfile', () => {
     mock.onGet('/customers/me').reply(200, profile);
     const res = await getCustomerProfile();
     expect(res.customerId).toBe('c-1');
+  });
+});
+
+describe('getCustomerById', () => {
+  it('calls GET /customers/:id', async () => {
+    mock.onGet('/customers/c-1').reply(200, profile);
+    const res = await getCustomerById('c-1');
+    expect(res.customerId).toBe('c-1');
+  });
+});
+
+describe('searchCustomers', () => {
+  it('calls GET /customers with params', async () => {
+    mock.onGet('/customers').reply(200, { items: [], total: 0 });
+    const res = await searchCustomers('jo', 5);
+    expect(res.items).toHaveLength(0);
   });
 });
 

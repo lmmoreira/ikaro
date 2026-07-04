@@ -4,7 +4,7 @@ import {
   LoyaltyEntryItem as StaffLoyaltyEntryItem,
   LoyaltyRedemptionItem as StaffLoyaltyRedemptionItem,
 } from '@ikaro/types';
-import { LoyaltyEntryItem, LoyaltyRedemptionItem } from './loyalty.types';
+import { BackendLoyaltyEntryItem, BackendLoyaltyRedemptionItem } from './loyalty.types';
 
 const BRL_FORMATTER = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -21,7 +21,9 @@ function computeAmountDeducted(pointsRedeemed: number, pointsPerCurrencyUnit: nu
   return pointsPerCurrencyUnit > 0 ? pointsRedeemed / pointsPerCurrencyUnit : 0;
 }
 
-export function toCustomerLoyaltyEntry(item: LoyaltyEntryItem): CustomerLoyaltyEntryResponse {
+export function toCustomerLoyaltyEntry(
+  item: BackendLoyaltyEntryItem,
+): CustomerLoyaltyEntryResponse {
   return {
     entryId: item.entryId,
     serviceName: item.serviceName,
@@ -33,7 +35,7 @@ export function toCustomerLoyaltyEntry(item: LoyaltyEntryItem): CustomerLoyaltyE
 }
 
 export function toCustomerLoyaltyRedemption(
-  item: LoyaltyRedemptionItem,
+  item: BackendLoyaltyRedemptionItem,
 ): CustomerLoyaltyRedemptionResponse {
   const amountSaved = computeAmountDeducted(item.pointsRedeemed, item.pointsPerCurrencyUnit);
   return {
@@ -48,9 +50,10 @@ export function toCustomerLoyaltyRedemption(
   };
 }
 
-export function toStaffLoyaltyEntry(item: LoyaltyEntryItem): StaffLoyaltyEntryItem {
+export function toStaffLoyaltyEntry(item: BackendLoyaltyEntryItem): StaffLoyaltyEntryItem {
   return {
     id: item.entryId,
+    bookingId: item.bookingId,
     serviceName: item.serviceName,
     points: item.points,
     earnedAt: item.earnedAt,
@@ -59,7 +62,9 @@ export function toStaffLoyaltyEntry(item: LoyaltyEntryItem): StaffLoyaltyEntryIt
   };
 }
 
-export function toStaffLoyaltyRedemption(item: LoyaltyRedemptionItem): StaffLoyaltyRedemptionItem {
+export function toStaffLoyaltyRedemption(
+  item: BackendLoyaltyRedemptionItem,
+): StaffLoyaltyRedemptionItem {
   return {
     id: item.redemptionId,
     pointsRedeemed: item.pointsRedeemed,

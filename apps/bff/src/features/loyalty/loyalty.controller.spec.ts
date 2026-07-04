@@ -1,10 +1,10 @@
-import { TenantSettingsResponse } from '@ikaro/types';
+import { CustomerProfileResponse, TenantSettingsResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { LoyaltyController } from './loyalty.controller';
 import {
   LoyaltyBalanceResponse,
-  LoyaltyEntriesResponse,
-  LoyaltyRedemptionsResponse,
+  BackendLoyaltyEntriesResponse,
+  BackendLoyaltyRedemptionsResponse,
   RedeemPointsResponse,
 } from './loyalty.types';
 
@@ -50,10 +50,11 @@ const mockSettings: TenantSettingsResponse = {
   },
 };
 
-const mockEntries: LoyaltyEntriesResponse = {
+const mockEntries: BackendLoyaltyEntriesResponse = {
   entries: [
     {
       entryId: 'e1111111-0000-4000-8000-000000000001',
+      bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
       serviceId: 'cccccccc-0000-4000-8000-000000000001',
       serviceName: 'Lavagem Completa',
       points: 10,
@@ -65,7 +66,7 @@ const mockEntries: LoyaltyEntriesResponse = {
   pagination: { page: 1, limit: 20, total: 1 },
 };
 
-const mockRedemptions: LoyaltyRedemptionsResponse = {
+const mockRedemptions: BackendLoyaltyRedemptionsResponse = {
   redemptions: [
     {
       redemptionId: 'r1111111-0000-4000-8000-000000000001',
@@ -80,6 +81,14 @@ const mockRedemptions: LoyaltyRedemptionsResponse = {
     },
   ],
   pagination: { page: 1, limit: 20, total: 1 },
+};
+
+const mockProfile: CustomerProfileResponse = {
+  customerId: CUSTOMER_ID,
+  email: 'customer@example.com',
+  name: 'Customer One',
+  phone: '+5531999999999',
+  defaultAddress: null,
 };
 
 describe('LoyaltyController (BFF)', () => {
@@ -228,6 +237,67 @@ describe('LoyaltyController (BFF)', () => {
     });
   });
 
+  describe('getCustomerLoyaltyDetail()', () => {
+    it('returns the customer, balance, entries and redemptions in one response', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockImplementation((path: string) => {
+        if (path === `/customers/${CUSTOMER_ID}`) return Promise.resolve(mockProfile);
+        if (path === `/customers/${CUSTOMER_ID}/loyalty/balance`)
+          return Promise.resolve(mockBalance);
+        if (path === '/tenants/settings') return Promise.resolve(mockSettings);
+        if (path === `/customers/${CUSTOMER_ID}/loyalty/entries`)
+          return Promise.resolve(mockEntries);
+        if (path === `/customers/${CUSTOMER_ID}/loyalty/redemptions`)
+          return Promise.resolve(mockRedemptions);
+        throw new Error(`Unexpected GET path: ${path}`);
+      });
+      const controller = new LoyaltyController(backendHttp);
+
+      const result = await controller.getCustomerLoyaltyDetail(CUSTOMER_ID);
+
+      expect(result).toEqual({
+        customer: mockProfile,
+        balance: {
+          currentPoints: 75,
+          nextExpiryDate: '2026-11-15T00:00:00.000Z',
+          nextExpiryPoints: 30,
+          conversionRate: 10,
+        },
+        entries: {
+          items: [
+            {
+              id: 'e1111111-0000-4000-8000-000000000001',
+              bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
+              serviceName: 'Lavagem Completa',
+              points: 10,
+              earnedAt: '2026-05-28T14:00:00.000Z',
+              expiresAt: '2026-11-24T14:00:00.000Z',
+              isActive: true,
+            },
+          ],
+          total: 1,
+          page: 1,
+          limit: 20,
+        },
+        redemptions: {
+          items: [
+            {
+              id: 'r1111111-0000-4000-8000-000000000001',
+              pointsRedeemed: 50,
+              amountDeducted: 0,
+              redeemedAt: '2026-05-10T10:00:00.000Z',
+              bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
+              notes: 'Free basic wash',
+            },
+          ],
+          total: 1,
+          page: 1,
+          limit: 20,
+        },
+      });
+    });
+  });
+
   describe('getEntriesAdmin()', () => {
     it('maps backend entries to staff LoyaltyEntryItem shape', async () => {
       const backendHttp = makeBackendHttp();
@@ -242,6 +312,7 @@ describe('LoyaltyController (BFF)', () => {
       });
       expect(result.items[0]).toEqual({
         id: 'e1111111-0000-4000-8000-000000000001',
+        bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
         serviceName: 'Lavagem Completa',
         points: 10,
         earnedAt: '2026-05-28T14:00:00.000Z',

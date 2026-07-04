@@ -1,4 +1,4 @@
-import { useMemo, useState, type SetStateAction } from 'react';
+import { useMemo, useSyncExternalStore, type SetStateAction } from 'react';
 import type { BookingStatus } from '@ikaro/types';
 import {
   createBrowserPreferenceStore,
@@ -28,6 +28,7 @@ interface SchedulePreferencesShape {
 const SCHEDULE_PREFERENCES_NAMESPACE = 'schedule';
 const VIEW_MODE_KEY = 'viewMode';
 const SELECTED_STATUSES_KEY = 'selectedStatuses';
+const PREFERENCES_CHANGED_EVENT = 'ikaro:schedule-preferences-changed';
 
 function normalizeSelectedStatuses(
   selectedStatuses: readonly BookingStatus[] | undefined,
@@ -78,28 +79,58 @@ export function createSchedulePreferencesStore(
 
 export function useSchedulePreferences(): SchedulePreferencesState {
   const store = useMemo(() => createSchedulePreferencesStore(), []);
-  const [viewMode, setViewMode] = useState<ScheduleViewMode | null>(() => store.getViewMode());
-  const [selectedStatuses, setSelectedStatuses] = useState<readonly BookingStatus[]>(() =>
-    store.getSelectedStatuses(),
+  const viewMode = useSyncExternalStore(
+    (onStoreChange) => {
+      globalThis.window?.addEventListener('storage', onStoreChange);
+      globalThis.window?.addEventListener(PREFERENCES_CHANGED_EVENT, onStoreChange);
+      return () => {
+        globalThis.window?.removeEventListener('storage', onStoreChange);
+        globalThis.window?.removeEventListener(PREFERENCES_CHANGED_EVENT, onStoreChange);
+      };
+    },
+    () => store.getViewMode(),
+    () => null,
   );
+  const selectedStatusesSnapshot = useSyncExternalStore(
+    (onStoreChange) => {
+      globalThis.window?.addEventListener('storage', onStoreChange);
+      globalThis.window?.addEventListener(PREFERENCES_CHANGED_EVENT, onStoreChange);
+      return () => {
+        globalThis.window?.removeEventListener('storage', onStoreChange);
+        globalThis.window?.removeEventListener(PREFERENCES_CHANGED_EVENT, onStoreChange);
+      };
+    },
+    () => JSON.stringify(store.getSelectedStatuses()),
+    () => JSON.stringify(SCHEDULE_BOOKING_STATUS_DEFAULT),
+  );
+  const selectedStatuses = useMemo(() => {
+    try {
+      const parsed = JSON.parse(selectedStatusesSnapshot) as unknown;
+      if (Array.isArray(parsed)) {
+        return normalizeSelectedStatuses(parsed as readonly BookingStatus[]);
+      }
+    } catch {
+      return SCHEDULE_BOOKING_STATUS_DEFAULT;
+    }
+
+    return SCHEDULE_BOOKING_STATUS_DEFAULT;
+  }, [selectedStatusesSnapshot]);
 
   function updateViewMode(nextViewMode: ScheduleViewMode): void {
-    setViewMode(nextViewMode);
     store.setViewMode(nextViewMode);
+    globalThis.window?.dispatchEvent(new Event(PREFERENCES_CHANGED_EVENT));
   }
 
   function updateSelectedStatuses(
     nextSelectedStatuses: SetStateAction<readonly BookingStatus[]>,
   ): void {
-    setSelectedStatuses((currentSelectedStatuses) => {
-      const resolvedSelectedStatuses =
-        typeof nextSelectedStatuses === 'function'
-          ? nextSelectedStatuses(currentSelectedStatuses)
-          : nextSelectedStatuses;
+    const resolvedSelectedStatuses =
+      typeof nextSelectedStatuses === 'function'
+        ? nextSelectedStatuses(selectedStatuses)
+        : nextSelectedStatuses;
 
-      store.setSelectedStatuses(resolvedSelectedStatuses);
-      return resolvedSelectedStatuses;
-    });
+    store.setSelectedStatuses(resolvedSelectedStatuses);
+    globalThis.window?.dispatchEvent(new Event(PREFERENCES_CHANGED_EVENT));
   }
 
   return {

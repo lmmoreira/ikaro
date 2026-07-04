@@ -30,14 +30,29 @@ export async function createFreshApprovedBooking(
     readonly serviceIds?: readonly string[];
   } = {},
 ): Promise<AuthenticatedBookingSetup> {
-  const setup = await createAuthenticatedBooking(page, {
-    tenantSlug: STAFF_TENANT_SLUG,
-    emailPrefix: `lifecycle-${daysAhead}`,
-    daysAhead,
-    ...(options.contactEmail ? { contactEmail: options.contactEmail } : {}),
-    ...(options.serviceIds ? { serviceIds: options.serviceIds } : {}),
-  });
+  let lastError: string | null = null;
 
-  await approveBookingAsStaff(page, setup.bookingId, staffEmail);
-  return setup;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const setup = await createAuthenticatedBooking(page, {
+      tenantSlug: STAFF_TENANT_SLUG,
+      emailPrefix: `lifecycle-${daysAhead}`,
+      daysAhead: daysAhead + attempt,
+      ...(options.contactEmail ? { contactEmail: options.contactEmail } : {}),
+      ...(options.serviceIds ? { serviceIds: options.serviceIds } : {}),
+    });
+
+    try {
+      await approveBookingAsStaff(page, setup.bookingId, staffEmail);
+      return setup;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+      if (!lastError.includes('409')) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error(
+    `approved booking setup failed after retrying available slots: ${lastError ?? '409 conflict'}`,
+  );
 }

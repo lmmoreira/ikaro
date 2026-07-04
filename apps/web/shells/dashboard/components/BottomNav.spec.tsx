@@ -57,6 +57,13 @@ describe('BottomNav', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('hides itself on loyalty detail routes', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/loyalty/c-1');
+    const { container } = render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('renders the 4 core nav items for STAFF', () => {
     render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
 

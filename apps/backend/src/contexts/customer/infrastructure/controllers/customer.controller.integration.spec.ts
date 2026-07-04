@@ -95,6 +95,52 @@ describe('CustomerController (integration)', () => {
     });
   });
 
+  describe('GET /customers/:customerId', () => {
+    let customerId: string;
+
+    beforeAll(async () => {
+      const entity = new CustomerEntityBuilder()
+        .withTenantId(tenantAId)
+        .withGoogleOAuthId(`google-staff-${uuidv7()}`)
+        .withEmail('staff-view@profile.test')
+        .withName('Staff View Customer')
+        .withPhone('+5531988888888')
+        .build();
+      await ds.getRepository(CustomerEntity).save(entity);
+      customerId = entity.id;
+    });
+
+    it('returns the customer profile for a staff actor in the same tenant', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get(`/customers/${customerId}`)
+        .set(actorHeaders(tenantAId, '00000000-0000-4000-8000-000000009995', 'STAFF'))
+        .expect(200);
+
+      expect(body.customerId).toBe(customerId);
+      expect(body.email).toBe('staff-view@profile.test');
+      expect(body.name).toBe('Staff View Customer');
+      expect(body.phone).toBe('+5531988888888');
+    });
+
+    it('returns 404 when the customer id does not exist', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/customers/00000000-0000-4000-8000-000000009994')
+        .set(actorHeaders(tenantAId, '00000000-0000-4000-8000-000000009995', 'STAFF'))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('tenant isolation: customer from tenant A is not found under tenant B context', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get(`/customers/${customerId}`)
+        .set(actorHeaders(tenantBId, '00000000-0000-4000-8000-000000009995', 'STAFF'))
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+  });
+
   describe('PATCH /customers/me', () => {
     let customerId: string;
 

@@ -146,9 +146,7 @@ function toLocalDate(dateKey: string): Date {
 }
 
 function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() => {
-    return globalThis.window?.matchMedia?.(query)?.matches ?? false;
-  });
+  const [matches, setMatches] = useState(false);
 
   useEffect(() => {
     const mediaQuery = globalThis.window?.matchMedia?.(query);

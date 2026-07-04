@@ -3,7 +3,7 @@
 set -euo pipefail
 
 CLAUDE_DIR=".claude/commands"
-CODEX_DIR=".codex/skills"
+CODEX_DIR=".agents/skills"
 
 if [[ ! -d "$CLAUDE_DIR" ]]; then
   echo "No Claude commands directory found at '$CLAUDE_DIR'. Nothing to do."

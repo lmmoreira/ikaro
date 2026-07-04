@@ -2683,11 +2683,15 @@ deactivateService(serviceId: string): Promise<void>
 **Description:**
 Two pages under a new `/dashboard/loyalty` route. The search page lets staff find any customer by name/email; the detail page shows their active balance (with currency equivalent), earning history tab (active vs. expired entries), and redemption history tab.
 
+> **Architecture note:** the web layer stays composition-only. Do not fan out to multiple BFF/backend reads from the page or a client helper and then merge the results in `apps/web`. If the screen needs a composite view, the BFF owns that aggregation and returns a single contract for the page to render.
+>
+> **Route-shell note:** any authenticated dashboard section under `app/dashboard/<section>/` must have a sibling `layout.tsx` that wraps `DashboardShell` plus the locale/formatting/tenant providers. A standalone `page.tsx` there is wrong even if the data contract is correct.
+
 > 🔍 **Discover before starting:**
 > - Confirm `M13-S12` has shipped: `GET /v1/customers?search=` and enriched balance response exist.
 > - Check `apps/web/app/dashboard/` structure — place new route at `loyalty/`.
-> - Confirm `apps/web/lib/api/dashboard/` convention (flat files or per-module folders).
-> - `apps/web/lib/api/dashboard/loyalty.ts`'s local `LoyaltyBalanceResponse` (`currentPoints`/`nextExpiryDate`) does **not** match `@ikaro/types`'s same-named export (`tenantId`/`activePoints`/`entries` — verified dead, zero real consumers). Fix `@ikaro/types` first, don't blindly import it — see `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md`.
+> - Confirm `apps/web/features/loyalty/` helper convention (`dashboard-api.ts` / `dashboard-api.server.ts`).
+> - The shared loyalty DTOs in `@ikaro/types` already match the current BFF shapes for this story; no type-drift fix is needed before implementing the page.
 
 **Prototype references:**
 - `plan/journey/staff/prototypes/fidelidade/00-customer-search.html`
@@ -2697,7 +2701,7 @@ Two pages under a new `/dashboard/loyalty` route. The search page lets staff fin
 
 ---
 
-**`apps/web/lib/api/dashboard/loyalty.ts`:**
+**`apps/web/features/loyalty/dashboard-api.ts` / `apps/web/features/loyalty/dashboard-api.server.ts`:**
 ```typescript
 searchCustomers(term: string): Promise<CustomerSearchListResponse>
 // GET /v1/customers?search=:term&limit=20
@@ -2717,17 +2721,19 @@ fetchCustomerLoyaltyRedemptions(customerId: string, page?: number): Promise<Pagi
 **`apps/web/app/dashboard/loyalty/page.tsx`** — server component:
 - Reads `searchParams.customerId` (optional)
 - If no `customerId`: renders `<LoyaltySearchPage />`
-- If `customerId` present: fetches balance + entries + redemptions in parallel (`Promise.all`), renders `<CustomerLoyaltyPage balance={...} entries={...} redemptions={...} />`
+- If `customerId` present: fetches the staff detail contract from the BFF and renders `<CustomerLoyaltyPage balance={...} entries={...} redemptions={...} />`
 - 404 if `customerId` given but backend returns 404
 
-**`apps/web/components/dashboard/loyalty/LoyaltySearchPage.tsx`** — `'use client'`:
+**`apps/web/features/loyalty/components/dashboard/LoyaltySearchPage.tsx`** — `'use client'`:
 - Search input with debounce (300ms)
-- On empty: "Clientes recentes" — `GET /v1/customers?search=&limit=5` (most recent, sorted by last booking date)
+- On empty: "Clientes recentes" — `GET /v1/customers?search=&limit=5` (prototype copy is kept, but the current backend search path orders results by customer name; recency ordering would require a backend change)
 - On search: live results as user types
 - Each result row: avatar (initials), name, email, `currentPoints` badge; entire row → `router.push('/dashboard/loyalty?customerId=:id')`
 - No results state (per `01c-no-results.html`)
 
-**`apps/web/components/dashboard/loyalty/CustomerLoyaltyPage.tsx`** — `'use client'` (manages tab state):
+> **Discovery result (2026-07-03):** the current `GET /v1/customers` implementation sorts by `name ASC`. The UI can still label the empty state as "Clientes recentes" to match the prototype, but that label should not be read as a recency guarantee unless the backend ordering changes in a separate story.
+
+**`apps/web/features/loyalty/components/dashboard/CustomerLoyaltyPage.tsx`** — `'use client'` (manages tab state):
 - Customer header: avatar + name + email
 - **Balance card** (blue gradient per prototype):
   - `currentPoints` (large number)

@@ -49,6 +49,7 @@ describe('GetLoyaltyEntriesUseCase', () => {
     });
 
     expect(result.entries[0].serviceName).toBe('Lavagem Completa');
+    expect(result.entries[0].bookingId).toBeDefined();
   });
 
   it('falls back to serviceId when service not found in catalog', async () => {

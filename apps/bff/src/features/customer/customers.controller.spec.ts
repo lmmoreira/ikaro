@@ -69,6 +69,29 @@ describe('CustomersController', () => {
     });
   });
 
+  describe('getCustomer()', () => {
+    it('calls GET /customers/:id and returns the customer profile', async () => {
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockProfile) });
+      const controller = new CustomersController(backendHttp);
+
+      const result = await controller.getCustomer(CUSTOMER_ID);
+
+      expect(backendHttp.get).toHaveBeenCalledWith(`/customers/${CUSTOMER_ID}`);
+      expect(result).toBe(mockProfile);
+    });
+
+    it('propagates backend 404 error', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockRejectedValue(new HttpException({ status: 404 }, 404)),
+      });
+      const controller = new CustomersController(backendHttp);
+
+      const err = await controller.getCustomer(CUSTOMER_ID).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(404);
+    });
+  });
+
   describe('getProfile()', () => {
     it('calls GET /customers/me and returns the profile', async () => {
       const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(mockProfile) });

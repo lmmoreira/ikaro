@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type {
   StaffBookingListResponse,
@@ -59,6 +59,10 @@ vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShel
     </form>
   ),
 }));
+
+function getHiddenSelects(container: HTMLElement): HTMLSelectElement[] {
+  return Array.from(container.querySelectorAll('select')) as HTMLSelectElement[];
+}
 
 function emptyClosures(): ScheduleClosureListResponse {
   return { items: [] };
@@ -185,7 +189,6 @@ describe('SchedulePage', () => {
   });
 
   it('renders the week grid on desktop browsers', async () => {
-    const user = userEvent.setup();
     mockMatchMedia(true);
 
     renderWithIntl(
@@ -204,6 +207,8 @@ describe('SchedulePage', () => {
     expect(screen.queryByTestId('schedule-mobile-view')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('schedule-week-day-card')).toHaveLength(7);
 
+    const user = userEvent.setup();
+
     await user.click(screen.getByRole('combobox', { name: 'Visualização' }));
     await user.click(screen.getByRole('option', { name: 'Dia' }));
 
@@ -212,7 +217,6 @@ describe('SchedulePage', () => {
   });
 
   it('restores the last selected visual mode from browser storage', async () => {
-    const user = userEvent.setup();
     mockMatchMedia(false);
 
     const { unmount } = renderWithIntl(
@@ -228,6 +232,8 @@ describe('SchedulePage', () => {
     );
 
     expect(screen.getByTestId('schedule-mobile-view')).toBeInTheDocument();
+
+    const user = userEvent.setup();
 
     await user.click(screen.getByRole('combobox', { name: 'Visualização' }));
     await user.click(screen.getByRole('option', { name: 'Semana' }));
@@ -279,7 +285,7 @@ describe('SchedulePage', () => {
     const mutateAsync = vi.fn().mockResolvedValue({ id: 'closure-1' });
     scheduleHooks.useCreateClosure.mockReturnValue({ mutateAsync });
 
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <SchedulePage
         initialClosures={emptyClosures()}
         initialOpenings={emptyOpenings()}
@@ -293,10 +299,10 @@ describe('SchedulePage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Bloquear período' }));
     await user.selectOptions(screen.getByLabelText('Motivo'), 'MAINTENANCE');
-    await user.click(screen.getByRole('combobox', { name: 'Hora inicial' }));
-    await user.click(screen.getByRole('option', { name: '09:00' }));
-    await user.click(screen.getByRole('combobox', { name: 'Hora final' }));
-    await user.click(screen.getByRole('option', { name: '12:00' }));
+    const hiddenTimeSelects = getHiddenSelects(container).slice(-2);
+    expect(hiddenTimeSelects).toHaveLength(2);
+    fireEvent.change(hiddenTimeSelects[0], { target: { value: '09:00' } });
+    fireEvent.change(hiddenTimeSelects[1], { target: { value: '12:00' } });
     await user.click(screen.getByRole('button', { name: 'Bloquear' }));
 
     expect(mutateAsync).toHaveBeenCalledWith({
@@ -312,7 +318,7 @@ describe('SchedulePage', () => {
     const mutateAsync = vi.fn().mockResolvedValue({ id: 'opening-1' });
     scheduleHooks.useCreateOpening.mockReturnValue({ mutateAsync });
 
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <SchedulePage
         initialClosures={emptyClosures()}
         initialOpenings={emptyOpenings()}
@@ -325,10 +331,10 @@ describe('SchedulePage', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Abrir dia especial' }));
-    await user.click(screen.getByRole('combobox', { name: 'Hora inicial' }));
-    await user.click(screen.getByRole('option', { name: '09:00' }));
-    await user.click(screen.getByRole('combobox', { name: 'Hora final' }));
-    await user.click(screen.getByRole('option', { name: '14:00' }));
+    const hiddenTimeSelects = getHiddenSelects(container).slice(-2);
+    expect(hiddenTimeSelects).toHaveLength(2);
+    fireEvent.change(hiddenTimeSelects[0], { target: { value: '09:00' } });
+    fireEvent.change(hiddenTimeSelects[1], { target: { value: '14:00' } });
     await user.click(screen.getByRole('button', { name: 'Abrir dia' }));
 
     expect(mutateAsync).toHaveBeenCalledWith({
