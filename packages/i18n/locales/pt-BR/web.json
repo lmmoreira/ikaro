@@ -203,6 +203,48 @@
       "backToSite": "Site {tenantName}",
       "switchTenant": "Trocar empresa",
       "signOut": "Sair"
+    },
+    "home": {
+      "greeting": "Olá, {name}",
+      "points": "Pontos",
+      "pointsValue": "{points} pts",
+      "bookings": "Agendamentos",
+      "bookingsTotal": "{count} total",
+      "expiryStrip": "{points} pts expiram em {date}",
+      "upcomingTitle": "Próximos agendamentos",
+      "viewAll": "Ver todos os agendamentos →",
+      "newBooking": "+ Novo agendamento"
+    },
+    "bookings": {
+      "title": "Meus Agendamentos",
+      "pointsActive": "{points} pts ativos",
+      "expiryStrip": "{points} pts expiram em {date}",
+      "sectionUpcoming": "Próximos ({count})",
+      "sectionPending": "Pendentes ({count})",
+      "sectionHistory": "Histórico ({count})"
+    },
+    "bookingItem": {
+      "statusPending": "Aguardando",
+      "statusInfoRequested": "Info pedida",
+      "statusApproved": "Aprovado",
+      "statusRejected": "Rejeitado",
+      "statusCancelled": "Cancelado",
+      "statusCompleted": "Concluído",
+      "infoNeeded": "Admin precisa de informações",
+      "cancel": "Cancelar",
+      "cancelRequest": "Cancelar solicitação",
+      "respond": "Responder",
+      "windowClosed": "Prazo encerrado"
+    },
+    "emptyState": {
+      "title": "Nenhum agendamento ainda",
+      "body": "Faça seu primeiro agendamento e acompanhe o histórico do seu carro aqui.",
+      "cta": "Fazer agendamento"
+    },
+    "error": {
+      "title": "Não foi possível carregar seus dados",
+      "body": "Tente novamente em instantes.",
+      "retry": "Tentar novamente"
     }
   },
   "dashboard": {

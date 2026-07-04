@@ -208,6 +208,7 @@ describe('BookingsController (component)', () => {
             },
           ],
           createdAt: '2026-01-01T00:00:00.000Z',
+          cancellableUntil: null,
         },
       ],
       pagination: { limit: 20, offset: 0, total: 1, hasMore: false },

@@ -31,6 +31,7 @@ describe('toStaffBookingCard()', () => {
       },
     ],
     createdAt: '2026-01-01T00:00:00.000Z',
+    cancellableUntil: null,
   };
 
   it('maps backend booking-list item fields to StaffBookingCardResponse', () => {
@@ -92,6 +93,7 @@ describe('toCustomerBookingListItem()', () => {
       },
     ],
     createdAt: '2026-01-01T00:00:00.000Z',
+    cancellableUntil: null,
   };
 
   it('maps backend booking-list item fields to CustomerBookingListItem, dropping contact info and formatted price', () => {
@@ -110,7 +112,17 @@ describe('toCustomerBookingListItem()', () => {
         },
       ],
       totalPrice: { amount: 100, currency: 'BRL' },
+      cancellableUntil: null,
     });
+  });
+
+  it('passes through cancellableUntil on APPROVED items', () => {
+    const result = toCustomerBookingListItem({
+      ...backendItem,
+      status: 'APPROVED',
+      cancellableUntil: '2026-06-13T10:00:00.000Z',
+    });
+    expect(result.cancellableUntil).toBe('2026-06-13T10:00:00.000Z');
   });
 
   it('maps multiple lines in order', () => {

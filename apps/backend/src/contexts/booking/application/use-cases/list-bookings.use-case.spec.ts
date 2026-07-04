@@ -7,7 +7,7 @@ const TENANT_A = '10000000-0000-4000-8000-000000000120';
 const TENANT_B = '10000000-0000-4000-8000-000000000121';
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000120';
 
-const defaultDto = { limit: 25, offset: 0 };
+const defaultDto = { limit: 25, offset: 0, cancellationWindowHours: 48 };
 
 describe('ListBookingsUseCase', () => {
   let repo: InMemoryBookingRepository;
@@ -82,6 +82,7 @@ describe('ListBookingsUseCase', () => {
       }
 
       const result = await useCase.execute({
+        ...defaultDto,
         limit: 3,
         offset: 0,
         tenantId: TENANT_A,
@@ -99,6 +100,7 @@ describe('ListBookingsUseCase', () => {
       }
 
       const result = await useCase.execute({
+        ...defaultDto,
         limit: 3,
         offset: 3,
         tenantId: TENANT_A,
@@ -126,6 +128,36 @@ describe('ListBookingsUseCase', () => {
       expect(item.lineSummary[0].durationMinsAtBooking).toBe(
         booking.lines[0].durationMinsAtBooking,
       );
+    });
+
+    it('sets cancellableUntil to scheduledAt minus the cancellation window on APPROVED bookings', async () => {
+      const scheduledAt = new Date('2026-08-10T14:00:00.000Z');
+      await repo.save(
+        new BookingBuilder()
+          .withTenantId(TENANT_A)
+          .withStatus(BookingStatus.APPROVED)
+          .withScheduledAt(scheduledAt)
+          .build(),
+      );
+
+      const result = await useCase.execute({
+        ...defaultDto,
+        cancellationWindowHours: 48,
+        tenantId: TENANT_A,
+        locale: 'pt-BR',
+      });
+
+      expect(result.items[0].cancellableUntil).toBe('2026-08-08T14:00:00.000Z');
+    });
+
+    it('sets cancellableUntil to null on non-APPROVED bookings', async () => {
+      await repo.save(
+        new BookingBuilder().withTenantId(TENANT_A).withStatus(BookingStatus.PENDING).build(),
+      );
+
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A, locale: 'pt-BR' });
+
+      expect(result.items[0].cancellableUntil).toBeNull();
     });
 
     it('does not filter by customerId — sees all bookings', async () => {

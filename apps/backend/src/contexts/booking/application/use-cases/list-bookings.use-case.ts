@@ -1,12 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { ListBookingsDto } from '../dtos/list-bookings.dto';
-import { Booking } from '../../domain/booking.aggregate';
+import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 
 export type ListBookingsInput = ListBookingsDto & {
   tenantId: string;
   locale: string;
   customerId?: string;
+  cancellationWindowHours: number;
 };
 
 export interface BookingLineSummary {
@@ -29,6 +30,9 @@ export interface BookingListItem {
   totalPrice: { amount: number; currency: string; formatted: string };
   lineSummary: BookingLineSummary[];
   createdAt: string;
+  // Deadline for customer self-cancellation (UC-007) — scheduledAt minus the tenant's
+  // cancellation window. Only APPROVED bookings carry it; other statuses are null.
+  cancellableUntil: string | null;
 }
 
 export interface ListBookingsUseCaseResult {
@@ -41,7 +45,7 @@ export class ListBookingsUseCase {
   constructor(@Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository) {}
 
   async execute(input: ListBookingsInput): Promise<ListBookingsUseCaseResult> {
-    const { tenantId, locale, customerId } = input;
+    const { tenantId, locale, customerId, cancellationWindowHours } = input;
 
     const { items, total } = await this.bookingRepo.findAllByTenantPaginated(tenantId, {
       status: input.status,
@@ -53,7 +57,7 @@ export class ListBookingsUseCase {
     });
 
     return {
-      items: items.map((b) => this.toListItem(b, locale)),
+      items: items.map((b) => this.toListItem(b, locale, cancellationWindowHours)),
       pagination: {
         limit: input.limit,
         offset: input.offset,
@@ -63,7 +67,11 @@ export class ListBookingsUseCase {
     };
   }
 
-  private toListItem(booking: Booking, locale: string): BookingListItem {
+  private toListItem(
+    booking: Booking,
+    locale: string,
+    cancellationWindowHours: number,
+  ): BookingListItem {
     return {
       id: booking.id,
       status: booking.status,
@@ -90,6 +98,10 @@ export class ListBookingsUseCase {
         },
       })),
       createdAt: booking.createdAt.toISOString(),
+      cancellableUntil:
+        booking.status === BookingStatus.APPROVED
+          ? booking.cancellableUntil(cancellationWindowHours).toISOString()
+          : null,
     };
   }
 }

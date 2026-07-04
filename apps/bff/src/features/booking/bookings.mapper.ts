@@ -18,6 +18,7 @@ export function toCustomerBookingListItem(item: BookingListItem): CustomerBookin
       priceAtBooking: { amount: l.priceAtBooking.amount, currency: l.priceAtBooking.currency },
     })),
     totalPrice: { amount: item.totalPrice.amount, currency: item.totalPrice.currency },
+    cancellableUntil: item.cancellableUntil,
   };
 }
 

@@ -116,6 +116,9 @@ export interface CustomerBookingListItem {
   scheduledAt: string; // ISO-8601 — always set; no booking state has a missing slot
   lines: CustomerBookingLineItem[];
   totalPrice: MoneyAmount;
+  // Self-cancellation deadline (UC-007): scheduledAt minus the tenant's cancellation window,
+  // computed server-side. Non-null only for APPROVED bookings.
+  cancellableUntil: string | null;
 }
 
 export interface CustomerBookingListResponse {

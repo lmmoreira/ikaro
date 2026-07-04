@@ -645,9 +645,13 @@ export class Booking extends AggregateRoot {
     };
   }
 
-  isEligibleForCancellation(cancellationWindowHours: number): boolean {
+  cancellableUntil(cancellationWindowHours: number): Date {
     const windowMs = cancellationWindowHours * 60 * 60 * 1000;
-    return Date.now() < this.props.scheduledAt.getTime() - windowMs;
+    return new Date(this.props.scheduledAt.getTime() - windowMs);
+  }
+
+  isEligibleForCancellation(cancellationWindowHours: number): boolean {
+    return Date.now() < this.cancellableUntil(cancellationWindowHours).getTime();
   }
 
   static reconstitute(props: BookingProps, linesModified = false): Booking {

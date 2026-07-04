@@ -48,6 +48,8 @@ export interface BookingListItem {
   totalPrice: { amount: number; currency: string; formatted: string };
   lineSummary: BookingLineSummary[];
   createdAt: string;
+  // Customer self-cancellation deadline (UC-007) — non-null only for APPROVED bookings.
+  cancellableUntil: string | null;
 }
 
 export interface BookingListResponse {

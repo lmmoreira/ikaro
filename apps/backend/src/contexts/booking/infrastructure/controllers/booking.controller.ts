@@ -137,6 +137,7 @@ export class BookingController {
         tenantId,
         locale: settings.localization.language,
         customerId: actorType === 'CUSTOMER' ? actorId : undefined,
+        cancellationWindowHours: settings.booking.cancellationWindowHours,
       })
       .catch(mapBookingError);
   }

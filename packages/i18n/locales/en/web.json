@@ -203,6 +203,48 @@
       "backToSite": "{tenantName} site",
       "switchTenant": "Switch company",
       "signOut": "Sign out"
+    },
+    "home": {
+      "greeting": "Hello, {name}",
+      "points": "Points",
+      "pointsValue": "{points} pts",
+      "bookings": "Bookings",
+      "bookingsTotal": "{count} total",
+      "expiryStrip": "{points} pts expire on {date}",
+      "upcomingTitle": "Upcoming bookings",
+      "viewAll": "View all bookings →",
+      "newBooking": "+ New booking"
+    },
+    "bookings": {
+      "title": "My Bookings",
+      "pointsActive": "{points} active pts",
+      "expiryStrip": "{points} pts expire on {date}",
+      "sectionUpcoming": "Upcoming ({count})",
+      "sectionPending": "Pending ({count})",
+      "sectionHistory": "History ({count})"
+    },
+    "bookingItem": {
+      "statusPending": "Waiting",
+      "statusInfoRequested": "Info requested",
+      "statusApproved": "Approved",
+      "statusRejected": "Rejected",
+      "statusCancelled": "Cancelled",
+      "statusCompleted": "Completed",
+      "infoNeeded": "Admin needs more information",
+      "cancel": "Cancel",
+      "cancelRequest": "Cancel request",
+      "respond": "Reply",
+      "windowClosed": "Cancellation window closed"
+    },
+    "emptyState": {
+      "title": "No bookings yet",
+      "body": "Make your first booking and track your car's history here.",
+      "cta": "Book now"
+    },
+    "error": {
+      "title": "We couldn't load your data",
+      "body": "Please try again in a moment.",
+      "retry": "Try again"
     }
   },
   "dashboard": {

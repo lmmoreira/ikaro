@@ -2890,12 +2890,15 @@ The customer's home — two sibling routes under the same `CustomerShell`, givin
 > - File paths corrected: the draft's `apps/web/lib/api/` and `apps/web/components/` don't exist. The my-account surface lives in `features/customer/` (precedent: `features/customer/api.ts`, `CustomerShell`): components under `features/customer/components/my-account/`, server reads in a new `features/customer/api.server.ts` (`bffServerFetch`), client mutations extending `features/customer/api.ts` (`bffClient`).
 > - `CustomerBookingListResponse`/`CustomerLoyaltyBalanceResponse` (incl. `conversionRate`) verified present in `packages/types/` and served by the live BFF routes.
 > - The draft's "no status filter; all statuses returned" was wrong: `GET /v1/bookings` defaults to `status=PENDING,INFO_REQUESTED` and `limit=20` (`M13-S06`) — the fetcher must pass all six statuses and `limit=50` explicitly.
-> - Cancellation window is **never hardcoded client-side**: this story's BFF prep adds a server-computed `cancellableUntil` to the list items (see below), sourced from `tenants.settings.booking.cancellationWindowHours`.
+> - Cancellation window is **never hardcoded client-side**: this story's backend/BFF prep adds a server-computed `cancellableUntil` to the list items (see below), sourced from `tenants.settings.booking.cancellationWindowHours`.
 > - Status badge classes: the customer shell is pure Tailwind (`M13-S16`) — the draft's tokens.css `.status-*` AC was stale. Reuse the shared status-label/class helpers from `features/booking`; do not re-declare status maps in `features/customer/`.
+> - ⚠️ **Live bug found & fixed during implementation (2026-07-04):** customer `GET /v1/loyalty/balance` returned 403 in the running stack — the BFF's `getEnrichedBalance()` fanned out to backend `/tenants/settings` (STAFF/MANAGER-only) with forwarded CUSTOMER actor headers. The mocked BFF specs never exercised the backend guard. Root-cause fix (this branch): the backend loyalty controller enriches its own balance responses with `conversionRate` from `RequestContext.settings.loyalty.pointsPerCurrencyUnit` (`recordRedemption()` precedent; `null` on cross-tenant reads), and the BFF became a pass-through with no settings call.
 
-**BFF prep (part of this story):**
-- `packages/types/src/booking.dto.ts` — add `cancellableUntil: string | null` (ISO-8601) to `CustomerBookingListItem`; non-null only for APPROVED bookings.
-- `apps/bff/src/features/booking/bookings.mapper.ts#toCustomerBookingListItem()` — compute `scheduledAt − cancellationWindowHours` from `tenants.settings.booking.cancellationWindowHours` (same settings-access pattern as the loyalty controller's `conversionRate` enrichment); `null` for non-APPROVED statuses.
+**Backend + BFF prep (part of this story):**
+- `booking.aggregate.ts` — `cancellableUntil(windowHours)` helper; `isEligibleForCancellation()` now derives from it (single source of the window rule).
+- `list-bookings.use-case.ts` — input gains `cancellationWindowHours` (passed by the controller from `RequestContext.settings.booking.cancellationWindowHours`); `BookingListItem` gains `cancellableUntil: string | null`, non-null only for APPROVED.
+- `packages/types/src/booking.dto.ts` — `cancellableUntil: string | null` (ISO-8601) on `CustomerBookingListItem`.
+- `apps/bff/src/features/booking/bookings.mapper.ts#toCustomerBookingListItem()` — passes `cancellableUntil` through (no BFF-side settings access — see the loyalty 403 note above for why).
 
 **What to create:**
 
@@ -2996,13 +2999,14 @@ The booking detail page for a customer. The page adapts based on status: APPROVE
 
 > ✅ **Resolved during M13-S28 discovery (2026-07-04):**
 > - `CustomerBookingDetailResponse` verified in `packages/types/`; `PATCH /v1/bookings/:id/cancel` (CUSTOMER routes to backend `/cancel-customer`) and `PATCH /v1/bookings/:id/submit-info` (CUSTOMER-only) verified live in `apps/bff/src/features/booking/bookings.controller.ts`.
-> - **Cancellation window:** never hardcode `48` — this story's BFF prep (below) adds a server-computed `cancellableUntil` to the detail response (list items got it in `M13-S27`'s prep), sourced from `tenants.settings.booking.cancellationWindowHours`.
+> - **Cancellation window:** never hardcode `48` — this story's prep (below) adds a server-computed `cancellableUntil` to the detail response (list items got it in `M13-S27`'s prep). It is computed **backend-side**: the booking controller passes `settings.booking.cancellationWindowHours` into `GetBookingByIdUseCase`, which derives the deadline via `booking.aggregate.ts#cancellableUntil()` — do not compute it in the BFF (`/tenants/settings` 403s CUSTOMER-forwarded calls; see `M13-S27`'s loyalty-403 note).
 > - **COMPLETED-screen data gap closed via BFF prep (below):** the validated prototype (`02c`, and the index checklist's "preço cotado vs. cobrado") shows charged-vs-quoted price, discount, and a "+N pontos de fidelidade" banner — none of which the customer detail response carried. The generic `BookingDetailResponse` the BFF already receives has all the price fields (the staff mapper uses them since `M13-S26`); the customer mapper was narrowing them out. The prototype's "90 min realizados (cotado: 75 min)" element is **dropped** — actual duration is not recorded anywhere in the system.
 > - File paths corrected to `features/customer/**` (same convention decision as `M13-S27`).
 > - The draft's bottom-nav `<style>` override was unimplementable (the shipped shell is Tailwind; no `.bottom-nav` class exists) — replaced with a tested pathname helper (below).
 > - Validation copy "Informe sua resposta antes de enviar." confirmed with product (2026-07-04).
 
-**BFF prep (part of this story):**
+**Backend + BFF prep (part of this story):**
+- Backend: `booking.controller.ts#getOne()` passes `cancellationWindowHours` into `GetBookingByIdUseCase`; the use-case result gains `cancellableUntil` (APPROVED only, via the aggregate helper from `M13-S27`).
 - `packages/types/src/booking.dto.ts` — extend `CustomerBookingDetailResponse` with:
   - `cancellableUntil: string | null` — APPROVED only (same semantics as the list items from `M13-S27`)
   - `completedAt: string | null`
@@ -4197,7 +4201,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 ### Customer Minha Conta (Phase 7, M13-S27–M13-S29; `M13-S30` merged into `M13-S14`)
 
-- [x] **`cancellationWindowHours` availability:** resolved (discovery session 2026-07-04) — never hardcode `48`. The BFF computes `cancellableUntil: string | null` per APPROVED booking (from `tenants.settings.booking.cancellationWindowHours`, same settings-access pattern as the loyalty `conversionRate` enrichment) and exposes it on the customer booking list (`M13-S27` BFF prep) and detail (`M13-S28` BFF prep) responses; the frontend only compares it against `now`.
+- [x] **`cancellationWindowHours` availability:** resolved (discovery session 2026-07-04, revised during `M13-S27` implementation) — never hardcode `48`. The **backend** computes `cancellableUntil: string | null` per APPROVED booking: the booking controller passes `settings.booking.cancellationWindowHours` from `RequestContext` into the list/get use cases, and `booking.aggregate.ts#cancellableUntil()` (the same rule `isEligibleForCancellation()` uses) derives the deadline. The BFF customer mappers pass it through; the frontend only compares it against `now`. The original plan had the BFF compute it from `/tenants/settings` — that route is `StaffOrManagerRoleGuard`-ed and 403s CUSTOMER-forwarded calls, which also surfaced a live bug: the shipped customer `GET /v1/loyalty/balance` (`M13-S06`/`M13-S12`) was 403ing for real customers because `getEnrichedBalance()` fanned out to `/tenants/settings`. Fixed in `M13-S27`'s branch by enriching `conversionRate` at the source (backend loyalty controller reads `RequestContext.settings.loyalty.pointsPerCurrencyUnit`, the `recordRedemption()` precedent; `null` for cross-tenant reads) and making the BFF a pass-through.
 - [x] **"Total washes completed" stat (UC-006 step 6):** resolved (discovery session 2026-07-04) — go with the prototype's card pair: **Pontos** + **Agendamentos**, where the Agendamentos count = APPROVED + COMPLETED items, derived client-side (acceptable within the resolved `limit=50` cap). UC-006 step 6's "total washes / most recent service" is dropped from MVP.
 - [x] **After-cancel destination (UC-007):** resolved — redirect to `/{slug}/my-account` list after successful cancel; booking appears in Histórico as CANCELLED on next load. Implemented in `M13-S28`.
 - [x] **`infoResponseMessage` already filled:** resolved (discovery session 2026-07-04) — hide the form when `infoResponseMessage != null`; the previous response is displayed read-only. Spec'd in `M13-S28`.
