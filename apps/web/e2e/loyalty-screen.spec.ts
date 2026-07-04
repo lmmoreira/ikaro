@@ -26,8 +26,10 @@ test.describe('loyalty screen coverage', () => {
     );
 
     await expect(page.locator('aside').getByRole('link', { name: 'Fidelidade' })).toBeVisible();
-    await expect(page.getByText('Lavagem Completa')).toBeVisible();
-    await expect(page.getByText('pontos ativos')).toBeVisible();
+    await expect(
+      page.getByTestId('loyalty-entry-service-name').filter({ hasText: 'Lavagem Completa' }),
+    ).toBeVisible();
+    await expect(page.getByTestId('loyalty-balance-label')).toBeVisible();
     await expect(earnedBookingLink).toBeVisible();
 
     await earnedBookingLink.click();
@@ -40,7 +42,9 @@ test.describe('loyalty screen coverage', () => {
     await expect(page).toHaveURL(detailPath);
 
     await page.getByRole('button', { name: 'Resgates' }).click();
-    await expect(page.getByText('Resgate no agendamento')).toBeVisible();
+    await expect(page.getByTestId('loyalty-redemption-title')).toContainText(
+      'Resgate no agendamento',
+    );
     await expect(redeemBookingLink).toBeVisible();
 
     await redeemBookingLink.click();

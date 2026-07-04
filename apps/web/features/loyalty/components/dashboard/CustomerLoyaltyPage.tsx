@@ -217,7 +217,10 @@ function renderEntriesTabContent({
             key={entry.id}
             icon={<EntryIcon expired={!entry.isActive} />}
             title={
-              <p className="truncate text-sm font-semibold text-gray-900">
+              <p
+                data-testid="loyalty-entry-service-name"
+                className="truncate text-sm font-semibold text-gray-900"
+              >
                 {entry.serviceName}{' '}
                 <span
                   className={cn(
@@ -349,7 +352,10 @@ function renderRedemptionsTabContent({
               </div>
             }
             title={
-              <p className="truncate text-sm font-semibold text-gray-900">
+              <p
+                data-testid="loyalty-redemption-title"
+                className="truncate text-sm font-semibold text-gray-900"
+              >
                 {redemption.notes?.trim() || t('redemptionDefaultTitle')}
               </p>
             }
@@ -532,7 +538,10 @@ export function CustomerLoyaltyPage({
                 <p className="text-3xl font-extrabold leading-none sm:text-[2.25rem]">
                   {initialPoints}
                 </p>
-                <p className="mt-1 text-xs font-medium uppercase tracking-[0.06em] opacity-80">
+                <p
+                  data-testid="loyalty-balance-label"
+                  className="mt-1 text-xs font-medium uppercase tracking-[0.06em] opacity-80"
+                >
                   {hasPoints ? t('balanceLabelActive') : t('balanceLabelEmpty')}
                 </p>
               </div>
