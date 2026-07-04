@@ -28,7 +28,6 @@ function MemberAction({ member, isCurrentUser }: MemberRowProps): React.JSX.Elem
     return (
       <Link
         href={`/dashboard/team/invite?email=${encodeURIComponent(member.email)}`}
-        data-testid={`member-${member.id}-resend`}
         className="text-sm font-semibold text-blue-600 hover:underline"
       >
         {t('resendInvite')}
@@ -40,7 +39,6 @@ function MemberAction({ member, isCurrentUser }: MemberRowProps): React.JSX.Elem
     return (
       <Link
         href={`/dashboard/team/${member.id}/deactivate`}
-        data-testid={`member-${member.id}-deactivate`}
         className="text-sm font-semibold text-red-600 hover:underline"
       >
         {t('deactivate')}
@@ -55,10 +53,7 @@ export function MemberRow({ member, isCurrentUser }: MemberRowProps): React.JSX.
   const t = useTranslations('dashboard.teamPage');
 
   return (
-    <div
-      data-testid={`member-row-${member.id}`}
-      className="flex flex-wrap items-center gap-3 px-4 py-3.5"
-    >
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3.5">
       <span
         aria-hidden="true"
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600"
@@ -75,7 +70,6 @@ export function MemberRow({ member, isCurrentUser }: MemberRowProps): React.JSX.
         {member.role === 'MANAGER' ? t('roleManager') : t('roleStaff')}
       </span>
       <span
-        data-testid={`member-${member.id}-status`}
         className={cn(
           'rounded-full px-2.5 py-1 text-xs font-semibold',
           STATUS_BADGE_CLASSES[member.status],

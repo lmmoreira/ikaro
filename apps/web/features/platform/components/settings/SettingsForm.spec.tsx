@@ -101,9 +101,9 @@ describe('SettingsForm', () => {
   it('marks sunday as closed and disables its time inputs', () => {
     renderWithIntl(<SettingsForm initial={buildTenant()} />);
 
-    expect(screen.getByTestId('hours-sunday-closed')).toBeChecked();
-    expect(screen.getByTestId('hours-sunday-open')).toBeDisabled();
-    expect(screen.getByTestId('hours-monday-open')).not.toBeDisabled();
+    expect(screen.getByLabelText('Fechado — Domingo')).toBeChecked();
+    expect(screen.getByLabelText('Abre — Domingo')).toBeDisabled();
+    expect(screen.getByLabelText('Abre — Segunda')).not.toBeDisabled();
   });
 
   it('shows an inline error on cancellationWindowHours > 720 and preserves other values', async () => {

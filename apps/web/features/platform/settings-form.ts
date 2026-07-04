@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { TenantSettingsResponse, UpdateTenantSettingsRequest } from '@ikaro/types';
+import { digitsOnly } from '@/shared/utils/digits-only';
 
 export const SETTINGS_TIMEZONES = [
   'America/Sao_Paulo',
@@ -187,7 +188,7 @@ export function validateSettingsForm(
   readonly errors: SettingsFormErrors;
   readonly normalized: NormalizedSettingsForm | null;
 } {
-  const phoneDigits = values.phone.replaceAll(/\D/g, '');
+  const phoneDigits = digitsOnly(values.phone);
   const candidate = {
     name: values.name,
     cancellationWindowHours: parseIntStrict(values.cancellationWindowHours),

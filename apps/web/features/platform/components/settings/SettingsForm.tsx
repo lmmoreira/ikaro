@@ -82,7 +82,6 @@ function SuffixNumberField({
       <div className="relative max-w-56">
         <input
           id={id}
-          data-testid={`${id}-input`}
           type="number"
           inputMode="numeric"
           value={value}
@@ -129,7 +128,6 @@ function TextField({
       </label>
       <input
         id={id}
-        data-testid={`${id}-input`}
         type={type}
         value={value}
         maxLength={maxLength}
@@ -145,7 +143,6 @@ function TextField({
 }
 
 interface DayRowProps {
-  readonly day: WeekDay;
   readonly label: string;
   readonly value: DayHoursValue;
   readonly closedLabel: string;
@@ -155,7 +152,6 @@ interface DayRowProps {
 }
 
 function DayRow({
-  day,
   label,
   value,
   closedLabel,
@@ -168,7 +164,6 @@ function DayRow({
       <span className="w-24 text-sm font-semibold text-gray-900">{label}</span>
       <input
         type="time"
-        data-testid={`hours-${day}-open`}
         aria-label={`${opensAtLabel} — ${label}`}
         value={value.open}
         disabled={value.closed}
@@ -178,7 +173,6 @@ function DayRow({
       <span className="text-sm text-gray-400">–</span>
       <input
         type="time"
-        data-testid={`hours-${day}-close`}
         aria-label={`${closesAtLabel} — ${label}`}
         value={value.close}
         disabled={value.closed}
@@ -188,7 +182,7 @@ function DayRow({
       <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm text-gray-600">
         <input
           type="checkbox"
-          data-testid={`hours-${day}-closed`}
+          aria-label={`${closedLabel} — ${label}`}
           checked={value.closed}
           onChange={(event) => onChange({ closed: event.target.checked })}
           className="h-4 w-4 rounded border-gray-300"
@@ -404,7 +398,6 @@ export function SettingsForm({ initial }: SettingsFormProps): React.JSX.Element 
           {WEEK_DAYS.map((day) => (
             <DayRow
               key={day}
-              day={day}
               label={t(`daysOfWeek.${day}`)}
               value={values.days[day]}
               closedLabel={t('closedLabel')}
