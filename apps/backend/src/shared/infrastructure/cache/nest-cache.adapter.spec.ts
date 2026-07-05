@@ -11,10 +11,7 @@ describe('NestCacheAdapter', () => {
     };
 
     const moduleRef = await Test.createTestingModule({
-      providers: [
-        NestCacheAdapter,
-        { provide: CACHE_MANAGER, useValue: cacheManager },
-      ],
+      providers: [NestCacheAdapter, { provide: CACHE_MANAGER, useValue: cacheManager }],
     }).compile();
 
     const adapter = moduleRef.get(NestCacheAdapter);
