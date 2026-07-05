@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModuleBuilder } from '@nestjs/testing';
@@ -53,6 +54,10 @@ export async function createNotificationIntegrationApp(
   let builder: TestingModuleBuilder = Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true }),
+      CacheModule.register({
+        isGlobal: true,
+        ttl: 60_000,
+      }),
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],

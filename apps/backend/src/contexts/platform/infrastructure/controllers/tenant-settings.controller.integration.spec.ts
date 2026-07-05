@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { CacheModule } from '@nestjs/cache-manager';
 import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -30,6 +31,10 @@ describe('TenantSettingsController (integration)', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
+        CacheModule.register({
+          isGlobal: true,
+          ttl: 60_000,
+        }),
         TypeOrmModule.forRoot({
           type: 'postgres',
           url: process.env['TEST_DATABASE_URL'],

@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
@@ -29,6 +30,10 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
+        CacheModule.register({
+          isGlobal: true,
+          ttl: 60_000,
+        }),
         TypeOrmModule.forRoot({
           type: 'postgres',
           url: process.env['TEST_DATABASE_URL'],

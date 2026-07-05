@@ -20,6 +20,9 @@ import { validateEnv } from './config/env.validation';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    // Shared cache adapter for repository-level read-through caching.
+    // Keep it global so tenant settings can move from in-memory to Redis
+    // without changing the consumers that inject the cache manager.
     CacheModule.register({
       isGlobal: true,
       ttl: 60_000,
