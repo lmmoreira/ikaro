@@ -365,6 +365,35 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.status).toBe(400);
   });
 
+  it('returns 200 and persists socialLinks set to null (all fields blank client-side)', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({
+        settings: { businessInfo: { socialLinks: null } },
+      })
+      .expect(200);
+
+    expect(body.settings.businessInfo.socialLinks).toBeNull();
+  });
+
+  it('returns 200 and persists a notification.fromEmail update', async () => {
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({
+        settings: { notification: { fromEmail: 'reservas@lavacar.com.br' } },
+      })
+      .expect(200);
+
+    expect(body.settings.notification).toEqual({ fromEmail: 'reservas@lavacar.com.br' });
+
+    const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
+    expect(row!.settings.notification?.fromEmail).toBe('reservas@lavacar.com.br');
+  });
+
   it('returns 409 when the tenant is inactive', async () => {
     const inactiveTenant = new TenantEntityBuilder()
       .withId('00000000-0000-0000-0000-000000000001')

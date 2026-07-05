@@ -69,20 +69,23 @@ const BusinessInfoAddressSchema = z
   })
   .partial();
 
-const SocialLinksSchema = z
-  .object({
-    whatsapp: z.string().nullable().optional(),
-    instagram: z.string().nullable().optional(),
-    facebook: z.string().nullable().optional(),
-  })
-  .optional();
+const SocialLinksSchema = z.object({
+  whatsapp: z.string().nullable().optional(),
+  instagram: z.string().nullable().optional(),
+  facebook: z.string().nullable().optional(),
+});
 
 const BusinessInfoSchema = z
   .object({
     phone: z.string().nullable(),
     email: z.string().nullable(),
     address: BusinessInfoAddressSchema.nullable(),
-    socialLinks: SocialLinksSchema,
+    // socialLinks must accept null the same way address does — the settings form sends
+    // null when whatsapp/instagram/facebook are all blank (they're an all-or-nothing group
+    // client-side, mirroring how the address section works). A bare `.optional()` here
+    // (pre-fix) only allowed the object shape or omission, rejecting an explicit null with
+    // "expected object, received null".
+    socialLinks: SocialLinksSchema.nullable(),
   })
   .partial();
 

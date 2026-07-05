@@ -122,7 +122,7 @@ describe('SettingsForm', () => {
     );
     expect(screen.getByLabelText('Antecedência mínima para agendar')).toHaveValue(2);
     expect(screen.getByLabelText('Horizonte máximo de agendamento')).toHaveValue(60);
-    expect(screen.getByLabelText('Intervalo entre horários')).toHaveValue('30');
+    expect(screen.getByLabelText('Granularidade de Slot')).toHaveValue('30');
     expect(screen.getByLabelText('Janela da fila de atendimento')).toHaveValue(14);
     expect(
       screen.getByRole('switch', { name: /Notificações de expiração de pontos/ }),
@@ -334,7 +334,8 @@ describe('SettingsForm', () => {
 
   it('masks the CEP as 00000-000 while typing', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+    const lookup = new InMemoryAddressLookup({});
+    renderWithIntl(<SettingsForm initial={buildTenant()} addressLookup={lookup} />);
 
     const zip = screen.getByLabelText('CEP');
     await user.clear(zip);

@@ -133,5 +133,25 @@ describe('TenantSettingsController', () => {
 
       expect(result.success).toBe(true);
     });
+
+    it('accepts businessInfo.socialLinks set to null (all fields blank client-side)', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { businessInfo: { socialLinks: null } },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts a partial businessInfo.socialLinks object', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: {
+          businessInfo: {
+            socialLinks: { whatsapp: '+5511987654321', instagram: null, facebook: null },
+          },
+        },
+      });
+
+      expect(result.success).toBe(true);
+    });
   });
 });

@@ -14,6 +14,7 @@ const LoyaltySchema = z
     expiryDays: z.number().int().min(1).max(3650),
     enableNotifications: z.boolean(),
     expiryWarningDays: z.number().int().min(1).max(90),
+    notificationMinPoints: z.number().int().min(0).max(10000),
     pointsPerCurrencyUnit: z.number().int().min(0).max(10000),
   })
   .partial();
@@ -71,20 +72,28 @@ const BusinessInfoAddressSchema = z
   })
   .partial();
 
-const SocialLinksSchema = z
-  .object({
-    whatsapp: z.string().nullable().optional(),
-    instagram: z.string().nullable().optional(),
-    facebook: z.string().nullable().optional(),
-  })
-  .optional();
+const SocialLinksSchema = z.object({
+  whatsapp: z.string().nullable().optional(),
+  instagram: z.string().nullable().optional(),
+  facebook: z.string().nullable().optional(),
+});
 
 const BusinessInfoSchema = z
   .object({
     phone: z.string().nullable(),
     email: z.string().nullable(),
     address: BusinessInfoAddressSchema.nullable(),
-    socialLinks: SocialLinksSchema,
+    // socialLinks must accept null the same way address does — the settings form sends
+    // null when whatsapp/instagram/facebook are all blank. A bare `.optional()` here
+    // (pre-fix) only allowed the object shape or omission, rejecting an explicit null with
+    // "expected object, received null".
+    socialLinks: SocialLinksSchema.nullable(),
+  })
+  .partial();
+
+const NotificationSchema = z
+  .object({
+    fromEmail: z.string().nullable(),
   })
   .partial();
 
@@ -94,6 +103,7 @@ export const UpdateTenantSettingsSchema = z.object({
       loyalty: LoyaltySchema.optional(),
       booking: BookingSchema.optional(),
       businessHours: BusinessHoursSchema.optional(),
+      notification: NotificationSchema.optional(),
       localization: LocalizationSchema.optional(),
       businessInfo: BusinessInfoSchema.optional(),
     })

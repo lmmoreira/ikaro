@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TenantSettingsResponse } from '@ikaro/types';
 import {
+  resolveSettingsLocalization,
   toSettingsFormValues,
   validateSettingsForm,
   type SettingsFormValues,
@@ -232,6 +233,27 @@ describe('validateSettingsForm', () => {
     const { errors } = validateSettingsForm(validValues({ timezone: 'Europe/Lisbon' }), BR, t);
 
     expect(errors.timezone).toBe('errors.timezoneInvalid');
+  });
+
+  it('derives the valid timezone list from the tenant country, not a hardcoded constant', () => {
+    // BR: America/Sao_Paulo is valid, America/New_York is not.
+    expect(validateSettingsForm(validValues(), BR, t).errors.timezone).toBeUndefined();
+    expect(
+      validateSettingsForm(validValues({ timezone: 'America/New_York' }), BR, t).errors.timezone,
+    ).toBe('errors.timezoneInvalid');
+
+    // US: America/New_York is valid, America/Sao_Paulo is not.
+    const usValues = { ...validValues(), timezone: 'America/New_York' };
+    expect(validateSettingsForm(usValues, 'US', t).errors.timezone).toBeUndefined();
+    expect(
+      validateSettingsForm(validValues({ timezone: 'America/Sao_Paulo' }), 'US', t).errors.timezone,
+    ).toBe('errors.timezoneInvalid');
+  });
+
+  it('resolveSettingsLocalization exposes the country-specific timezone list', () => {
+    expect(resolveSettingsLocalization('BR').timezones).toContain('America/Sao_Paulo');
+    expect(resolveSettingsLocalization('BR').timezones).not.toContain('America/New_York');
+    expect(resolveSettingsLocalization('US').timezones).toContain('America/New_York');
   });
 
   it('strips phone formatting and builds the full E.164 value for the +55 prefix', () => {

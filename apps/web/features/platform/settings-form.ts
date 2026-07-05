@@ -5,14 +5,6 @@ import { digitsOnly } from '@/shared/utils/digits-only';
 import { buildContactPhone } from '@/shared/utils/contact-phone';
 import { maxPhoneDigits, phonePlaceholder } from '@/shared/utils/phone-format';
 
-export const SETTINGS_TIMEZONES = [
-  'America/Sao_Paulo',
-  'America/Fortaleza',
-  'America/Manaus',
-  'America/Rio_Branco',
-  'America/Noronha',
-] as const;
-
 export const WEEK_DAYS = [
   'monday',
   'tuesday',
@@ -119,7 +111,6 @@ export const SettingsFormSchema = z.object({
   loyaltyExpiryWarningDays: z.number().int().min(1).max(90),
   loyaltyNotificationMinPoints: z.number().int().min(0).max(10000),
   pointsPerCurrencyUnit: z.number().int().min(0).max(10000),
-  timezone: z.enum(SETTINGS_TIMEZONES),
   email: z.email().nullable(),
   notificationFromEmail: z.email().nullable(),
 });
@@ -138,7 +129,6 @@ const FIELD_ERROR_KEYS: Record<SchemaField, string> = {
   loyaltyExpiryWarningDays: 'errors.expiryWarningRange',
   loyaltyNotificationMinPoints: 'errors.notificationMinPointsMax',
   pointsPerCurrencyUnit: 'errors.pointsMax',
-  timezone: 'errors.timezoneInvalid',
   email: 'errors.emailInvalid',
   notificationFromEmail: 'errors.notificationFromEmailInvalid',
 };
@@ -152,11 +142,12 @@ export type SettingsFormTranslator = (key: string) => string;
 export interface SettingsLocalization {
   readonly addressSpec: AddressSpec;
   readonly phonePrefix: string;
+  readonly timezones: readonly string[];
 }
 
 export function resolveSettingsLocalization(countryCode: string): SettingsLocalization {
   const spec = countrySpec(countryCode);
-  return { addressSpec: spec.address, phonePrefix: spec.phonePrefix };
+  return { addressSpec: spec.address, phonePrefix: spec.phonePrefix, timezones: spec.timezones };
 }
 
 const DEFAULT_DAY: DayHoursValue = { open: '09:00', close: '18:00', closed: true };
@@ -414,19 +405,22 @@ export function validateSettingsForm(
     loyaltyExpiryWarningDays: parseIntStrict(values.loyaltyExpiryWarningDays),
     loyaltyNotificationMinPoints: parseIntStrict(values.loyaltyNotificationMinPoints),
     pointsPerCurrencyUnit: parseIntStrict(values.pointsPerCurrencyUnit),
-    timezone: values.timezone,
     email: trimmedOrNull(values.email),
     notificationFromEmail: trimmedOrNull(values.notificationFromEmail),
   };
 
   const result = SettingsFormSchema.safeParse(candidate);
-  const phonePrefix = countrySpec(countryCode).phonePrefix;
+  const { phonePrefix, timezones } = resolveSettingsLocalization(countryCode);
   const phoneResult = validatePhoneField(values.phone, phonePrefix, 'errors.phoneInvalid', t);
   const addressResult = validateBusinessAddress(values.address, countryCode, t);
   const socialLinksResult = validateSocialLinks(values.socialLinks, phonePrefix, t);
+  // Valid timezones are country-specific (resolveSettingsLocalization), so this can't live in
+  // the static SettingsFormSchema — validated the same way as phone/address above.
+  const timezoneValid = timezones.includes(values.timezone);
 
   const errors: SettingsFormErrors = { ...addressResult.errors, ...socialLinksResult.errors };
   if (phoneResult.error) errors.phone = phoneResult.error;
+  if (!timezoneValid) errors.timezone = t('errors.timezoneInvalid');
   if (!result.success) {
     for (const issue of result.error.issues) {
       const field = issue.path[0] as SchemaField;
@@ -439,6 +433,7 @@ export function validateSettingsForm(
 
   if (
     !result.success ||
+    !timezoneValid ||
     errors.loyaltyExpiryWarningDays ||
     addressResult.address === undefined ||
     phoneResult.phone === undefined ||
@@ -469,7 +464,7 @@ export function validateSettingsForm(
           notificationMinPoints: parsed.loyaltyNotificationMinPoints,
           pointsPerCurrencyUnit: parsed.pointsPerCurrencyUnit,
         },
-        businessHours: buildBusinessHours(parsed.timezone, values.days),
+        businessHours: buildBusinessHours(values.timezone, values.days),
         businessInfo: buildBusinessInfo(
           phoneResult.phone,
           parsed.email,

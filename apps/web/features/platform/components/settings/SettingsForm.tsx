@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type SubmitEvent } from 'react';
+import { memo, useCallback, useRef, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TenantSettingsResponse } from '@ikaro/types';
 import type { AddressSpec } from '@ikaro/i18n';
@@ -20,7 +20,6 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import type { AddressLookup } from '@/shared/lib/address/address-lookup.port';
 import { viaCepAddressLookup } from '@/shared/lib/address/viacep-address-lookup.adapter';
 import {
-  SETTINGS_TIMEZONES,
   SLOT_GRANULARITY_OPTIONS,
   WEEK_DAYS,
   resolveSettingsLocalization,
@@ -344,6 +343,7 @@ function PostalCodeField({
 }
 
 interface DayRowProps {
+  readonly day: WeekDay;
   readonly label: string;
   readonly value: DayHoursValue;
   readonly timeFormat: '24h' | '12h';
@@ -354,11 +354,14 @@ interface DayRowProps {
   readonly minuteLabel: string;
   readonly periodLabel: string;
   readonly copyToWeekdaysLabel?: string;
-  readonly onChange: (patch: Partial<DayHoursValue>) => void;
+  readonly onChange: (day: WeekDay, patch: Partial<DayHoursValue>) => void;
   readonly onCopyToWeekdays?: () => void;
 }
 
-function DayRow({
+// Memoized + fed a stable `onChange` (setDay) so typing in an unrelated field doesn't
+// re-render all 7 day rows (14 TimePickers / 28 Radix Selects) on every keystroke.
+const DayRow = memo(function DayRow({
+  day,
   label,
   value,
   timeFormat,
@@ -378,7 +381,7 @@ function DayRow({
 
       <TimePicker
         value={value.open}
-        onChange={(open) => onChange({ open })}
+        onChange={(open) => onChange(day, { open })}
         timeFormat={timeFormat}
         disabled={value.closed}
         hourAriaLabel={`${opensAtLabel} — ${hourLabel} — ${label}`}
@@ -390,7 +393,7 @@ function DayRow({
       </span>
       <TimePicker
         value={value.close}
-        onChange={(close) => onChange({ close })}
+        onChange={(close) => onChange(day, { close })}
         timeFormat={timeFormat}
         disabled={value.closed}
         hourAriaLabel={`${closesAtLabel} — ${hourLabel} — ${label}`}
@@ -403,7 +406,7 @@ function DayRow({
           type="checkbox"
           aria-label={`${closedLabel} — ${label}`}
           checked={value.closed}
-          onChange={(event) => onChange({ closed: event.target.checked })}
+          onChange={(event) => onChange(day, { closed: event.target.checked })}
           className="h-4 w-4 rounded border-gray-300"
         />
         {closedLabel}
@@ -421,7 +424,7 @@ function DayRow({
       )}
     </div>
   );
-}
+});
 
 function addressSpecFieldLabel(
   addressSpec: AddressSpec,
@@ -454,7 +457,7 @@ export function SettingsForm({
   const t = useTranslations('dashboard.settingsPage');
   const commonT = useTranslations('common');
   const { timeFormat } = useFormatting();
-  const { addressSpec, phonePrefix } = resolveSettingsLocalization(
+  const { addressSpec, phonePrefix, timezones } = resolveSettingsLocalization(
     initial.settings.localization.countryCode,
   );
   const [values, setValues] = useState<SettingsFormValues>(() => toSettingsFormValues(initial));
@@ -466,29 +469,33 @@ export function SettingsForm({
   const [zipLookupFailed, setZipLookupFailed] = useState(false);
   const zipLookupSeqRef = useRef(0);
 
-  function setField<K extends keyof SettingsFormValues>(
-    key: K,
-    value: SettingsFormValues[K],
-  ): void {
-    setValues((prev) => ({ ...prev, [key]: value }));
-  }
+  const setField = useCallback(
+    <K extends keyof SettingsFormValues>(key: K, value: SettingsFormValues[K]): void => {
+      setValues((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
 
-  function setAddressField(key: keyof SettingsAddressValues, value: string): void {
+  const setAddressField = useCallback((key: keyof SettingsAddressValues, value: string): void => {
     setValues((prev) => ({ ...prev, address: { ...prev.address, [key]: value } }));
-  }
+  }, []);
 
-  function setSocialLinksField(key: keyof SettingsSocialLinksValues, value: string): void {
-    setValues((prev) => ({ ...prev, socialLinks: { ...prev.socialLinks, [key]: value } }));
-  }
+  const setSocialLinksField = useCallback(
+    (key: keyof SettingsSocialLinksValues, value: string): void => {
+      setValues((prev) => ({ ...prev, socialLinks: { ...prev.socialLinks, [key]: value } }));
+    },
+    [],
+  );
 
-  function setDay(day: WeekDay, patch: Partial<DayHoursValue>): void {
+  // Stable reference — passed directly as DayRow's onChange prop so memoization holds.
+  const setDay = useCallback((day: WeekDay, patch: Partial<DayHoursValue>): void => {
     setValues((prev) => ({
       ...prev,
       days: { ...prev.days, [day]: { ...prev.days[day], ...patch } },
     }));
-  }
+  }, []);
 
-  function handleCopyMondayToWeekdays(): void {
+  const handleCopyMondayToWeekdays = useCallback((): void => {
     setValues((prev) => {
       const { open, close } = prev.days.monday;
       const days = { ...prev.days };
@@ -497,7 +504,7 @@ export function SettingsForm({
       }
       return { ...prev, days };
     });
-  }
+  }, []);
 
   async function handleZipCodeChange(rawValue: string): Promise<void> {
     const formatted = formatPostalCodeForDisplay(rawValue, addressSpec.postalPlaceholder);
@@ -627,41 +634,27 @@ export function SettingsForm({
             </div>
           </SectionCard>
 
-          <SectionCard title={t('sections.localization')}>
-            <ReadOnlyField
-              label={t('localization.countryCode')}
-              value={initial.settings.localization.countryCode}
-            />
-            <ReadOnlyField
-              label={t('localization.currency')}
-              value={initial.settings.localization.currency}
-            />
-            <ReadOnlyField
-              label={t('localization.language')}
-              value={initial.settings.localization.language}
-            />
-            <p className="text-sm text-gray-500">{t('localization.hint')}</p>
-          </SectionCard>
-
           <SectionCard title={t('sections.booking')}>
-            <SuffixNumberField
-              id="settings-cancellation-window"
-              label={t('cancellationLabel')}
-              hint={t('cancellationHint')}
-              suffix={t('hoursSuffix')}
-              value={values.cancellationWindowHours}
-              error={fieldErrors.cancellationWindowHours}
-              onChange={(value) => setField('cancellationWindowHours', value)}
-            />
-            <SuffixNumberField
-              id="settings-service-buffer"
-              label={t('bufferLabel')}
-              hint={t('bufferHint')}
-              suffix={t('minutesSuffix')}
-              value={values.serviceBufferMinutes}
-              error={fieldErrors.serviceBufferMinutes}
-              onChange={(value) => setField('serviceBufferMinutes', value)}
-            />
+            <div className="grid gap-4 md:grid-cols-2">
+              <SuffixNumberField
+                id="settings-cancellation-window"
+                label={t('cancellationLabel')}
+                hint={t('cancellationHint')}
+                suffix={t('hoursSuffix')}
+                value={values.cancellationWindowHours}
+                error={fieldErrors.cancellationWindowHours}
+                onChange={(value) => setField('cancellationWindowHours', value)}
+              />
+              <SuffixNumberField
+                id="settings-service-buffer"
+                label={t('bufferLabel')}
+                hint={t('bufferHint')}
+                suffix={t('minutesSuffix')}
+                value={values.serviceBufferMinutes}
+                error={fieldErrors.serviceBufferMinutes}
+                onChange={(value) => setField('serviceBufferMinutes', value)}
+              />
+            </div>
             <SwitchField
               testId="settings-auto-approve-switch"
               checked={values.autoApproveEnabled}
@@ -669,86 +662,92 @@ export function SettingsForm({
               label={t('autoApproveLabel')}
               hint={t('autoApproveHint')}
             />
-            <SuffixNumberField
-              id="settings-min-advance-hours"
-              label={t('minBookingAdvanceLabel')}
-              hint={t('minBookingAdvanceHint')}
-              suffix={t('hoursSuffix')}
-              value={values.minBookingAdvanceHours}
-              error={fieldErrors.minBookingAdvanceHours}
-              onChange={(value) => setField('minBookingAdvanceHours', value)}
-            />
-            <SuffixNumberField
-              id="settings-max-advance-days"
-              label={t('maxBookingAdvanceLabel')}
-              hint={t('maxBookingAdvanceHint')}
-              suffix={t('daysSuffix')}
-              value={values.maxBookingAdvanceDays}
-              error={fieldErrors.maxBookingAdvanceDays}
-              onChange={(value) => setField('maxBookingAdvanceDays', value)}
-            />
-            <SelectField
-              id="settings-slot-granularity"
-              label={t('slotGranularityLabel')}
-              hint={t('slotGranularityHint')}
-              value={values.slotGranularityMinutes}
-              error={fieldErrors.slotGranularityMinutes}
-              options={SLOT_GRANULARITY_OPTIONS.map((minutes) => ({
-                value: String(minutes),
-                label: t('minutesValue', { minutes }),
-              }))}
-              onChange={(value) => setField('slotGranularityMinutes', value)}
-            />
-            <SuffixNumberField
-              id="settings-welcome-staff-screen-days"
-              label={t('welcomeStaffScreenLabel')}
-              hint={t('welcomeStaffScreenHint')}
-              suffix={t('daysSuffix')}
-              value={values.welcomeStaffScreenDays}
-              error={fieldErrors.welcomeStaffScreenDays}
-              onChange={(value) => setField('welcomeStaffScreenDays', value)}
-            />
+            <div className="grid gap-4 md:grid-cols-2">
+              <SuffixNumberField
+                id="settings-min-advance-hours"
+                label={t('minBookingAdvanceLabel')}
+                hint={t('minBookingAdvanceHint')}
+                suffix={t('hoursSuffix')}
+                value={values.minBookingAdvanceHours}
+                error={fieldErrors.minBookingAdvanceHours}
+                onChange={(value) => setField('minBookingAdvanceHours', value)}
+              />
+              <SuffixNumberField
+                id="settings-max-advance-days"
+                label={t('maxBookingAdvanceLabel')}
+                hint={t('maxBookingAdvanceHint')}
+                suffix={t('daysSuffix')}
+                value={values.maxBookingAdvanceDays}
+                error={fieldErrors.maxBookingAdvanceDays}
+                onChange={(value) => setField('maxBookingAdvanceDays', value)}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <SelectField
+                id="settings-slot-granularity"
+                label={t('slotGranularityLabel')}
+                hint={t('slotGranularityHint')}
+                value={values.slotGranularityMinutes}
+                error={fieldErrors.slotGranularityMinutes}
+                options={SLOT_GRANULARITY_OPTIONS.map((minutes) => ({
+                  value: String(minutes),
+                  label: t('minutesValue', { minutes }),
+                }))}
+                onChange={(value) => setField('slotGranularityMinutes', value)}
+              />
+              <SuffixNumberField
+                id="settings-welcome-staff-screen-days"
+                label={t('welcomeStaffScreenLabel')}
+                hint={t('welcomeStaffScreenHint')}
+                suffix={t('daysSuffix')}
+                value={values.welcomeStaffScreenDays}
+                error={fieldErrors.welcomeStaffScreenDays}
+                onChange={(value) => setField('welcomeStaffScreenDays', value)}
+              />
+            </div>
           </SectionCard>
 
           <SectionCard title={t('sections.loyalty')}>
-            <SuffixNumberField
-              id="settings-loyalty-expiry"
-              label={t('expiryLabel')}
-              hint={t('expiryHint')}
-              suffix={t('daysSuffix')}
-              value={values.loyaltyExpiryDays}
-              error={fieldErrors.loyaltyExpiryDays}
-              onChange={(value) => setField('loyaltyExpiryDays', value)}
-            />
-            <div>
-              <label
-                htmlFor="settings-points-per-unit"
-                className="mb-1.5 block text-sm font-semibold text-gray-900"
-              >
-                {t('pointsLabel')}
-              </label>
-              <input
-                id="settings-points-per-unit"
-                data-testid="settings-points-per-unit-input"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={10000}
-                value={values.pointsPerCurrencyUnit}
-                onChange={(event) => setField('pointsPerCurrencyUnit', event.target.value)}
-                aria-invalid={Boolean(fieldErrors.pointsPerCurrencyUnit)}
-                aria-describedby={
-                  fieldErrors.pointsPerCurrencyUnit ? 'settings-points-per-unit-error' : undefined
-                }
-                className={`${INPUT_CLASS} max-w-56`}
+            <div className="grid gap-4 md:grid-cols-2">
+              <SuffixNumberField
+                id="settings-loyalty-expiry"
+                label={t('expiryLabel')}
+                hint={t('expiryHint')}
+                suffix={t('daysSuffix')}
+                value={values.loyaltyExpiryDays}
+                error={fieldErrors.loyaltyExpiryDays}
+                onChange={(value) => setField('loyaltyExpiryDays', value)}
               />
-              {!fieldErrors.pointsPerCurrencyUnit && (
-                <p className="mt-1.5 text-sm text-gray-500">{t('pointsHint')}</p>
-              )}
-              <FieldError
-                id="settings-points-per-unit-error"
-                message={fieldErrors.pointsPerCurrencyUnit}
-              />
+              <div>
+                <label
+                  htmlFor="settings-points-per-unit"
+                  className="mb-1.5 block text-sm font-semibold text-gray-900"
+                >
+                  {t('pointsLabel')}
+                </label>
+                <input
+                  id="settings-points-per-unit"
+                  data-testid="settings-points-per-unit-input"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={10000}
+                  value={values.pointsPerCurrencyUnit}
+                  onChange={(event) => setField('pointsPerCurrencyUnit', event.target.value)}
+                  aria-invalid={Boolean(fieldErrors.pointsPerCurrencyUnit)}
+                  aria-describedby={
+                    fieldErrors.pointsPerCurrencyUnit ? 'settings-points-per-unit-error' : undefined
+                  }
+                  className={`${INPUT_CLASS} max-w-56`}
+                />
+                {!fieldErrors.pointsPerCurrencyUnit && (
+                  <p className="mt-1.5 text-sm text-gray-500">{t('pointsHint')}</p>
+                )}
+                <FieldError
+                  id="settings-points-per-unit-error"
+                  message={fieldErrors.pointsPerCurrencyUnit}
+                />
+              </div>
             </div>
             <SwitchField
               testId="settings-loyalty-notifications-switch"
@@ -757,45 +756,47 @@ export function SettingsForm({
               label={t('loyaltyEnableNotificationsLabel')}
               hint={t('loyaltyEnableNotificationsHint')}
             />
-            <SuffixNumberField
-              id="settings-loyalty-expiry-warning"
-              label={t('expiryWarningLabel')}
-              hint={t('expiryWarningHint')}
-              suffix={t('daysSuffix')}
-              value={values.loyaltyExpiryWarningDays}
-              error={fieldErrors.loyaltyExpiryWarningDays}
-              onChange={(value) => setField('loyaltyExpiryWarningDays', value)}
-            />
-            <div>
-              <label
-                htmlFor="settings-loyalty-notification-min-points"
-                className="mb-1.5 block text-sm font-semibold text-gray-900"
-              >
-                {t('notificationMinPointsLabel')}
-              </label>
-              <input
-                id="settings-loyalty-notification-min-points"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={10000}
-                value={values.loyaltyNotificationMinPoints}
-                onChange={(event) => setField('loyaltyNotificationMinPoints', event.target.value)}
-                aria-invalid={Boolean(fieldErrors.loyaltyNotificationMinPoints)}
-                aria-describedby={
-                  fieldErrors.loyaltyNotificationMinPoints
-                    ? 'settings-loyalty-notification-min-points-error'
-                    : undefined
-                }
-                className={`${INPUT_CLASS} max-w-56`}
+            <div className="grid gap-4 md:grid-cols-2">
+              <SuffixNumberField
+                id="settings-loyalty-expiry-warning"
+                label={t('expiryWarningLabel')}
+                hint={t('expiryWarningHint')}
+                suffix={t('daysSuffix')}
+                value={values.loyaltyExpiryWarningDays}
+                error={fieldErrors.loyaltyExpiryWarningDays}
+                onChange={(value) => setField('loyaltyExpiryWarningDays', value)}
               />
-              {!fieldErrors.loyaltyNotificationMinPoints && (
-                <p className="mt-1.5 text-sm text-gray-500">{t('notificationMinPointsHint')}</p>
-              )}
-              <FieldError
-                id="settings-loyalty-notification-min-points-error"
-                message={fieldErrors.loyaltyNotificationMinPoints}
-              />
+              <div>
+                <label
+                  htmlFor="settings-loyalty-notification-min-points"
+                  className="mb-1.5 block text-sm font-semibold text-gray-900"
+                >
+                  {t('notificationMinPointsLabel')}
+                </label>
+                <input
+                  id="settings-loyalty-notification-min-points"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={10000}
+                  value={values.loyaltyNotificationMinPoints}
+                  onChange={(event) => setField('loyaltyNotificationMinPoints', event.target.value)}
+                  aria-invalid={Boolean(fieldErrors.loyaltyNotificationMinPoints)}
+                  aria-describedby={
+                    fieldErrors.loyaltyNotificationMinPoints
+                      ? 'settings-loyalty-notification-min-points-error'
+                      : undefined
+                  }
+                  className={`${INPUT_CLASS} max-w-56`}
+                />
+                {!fieldErrors.loyaltyNotificationMinPoints && (
+                  <p className="mt-1.5 text-sm text-gray-500">{t('notificationMinPointsHint')}</p>
+                )}
+                <FieldError
+                  id="settings-loyalty-notification-min-points-error"
+                  message={fieldErrors.loyaltyNotificationMinPoints}
+                />
+              </div>
             </div>
           </SectionCard>
 
@@ -828,7 +829,7 @@ export function SettingsForm({
                 aria-invalid={Boolean(fieldErrors.timezone)}
                 className={`${INPUT_CLASS} max-w-md`}
               >
-                {SETTINGS_TIMEZONES.map((timezone) => (
+                {timezones.map((timezone) => (
                   <option key={timezone} value={timezone}>
                     {timezone === 'America/Sao_Paulo' ? t('timezoneBrasilia') : timezone}
                   </option>
@@ -840,6 +841,7 @@ export function SettingsForm({
               {WEEK_DAYS.map((day) => (
                 <DayRow
                   key={day}
+                  day={day}
                   label={t(`daysOfWeek.${day}`)}
                   value={values.days[day]}
                   timeFormat={timeFormat}
@@ -850,7 +852,7 @@ export function SettingsForm({
                   minuteLabel={t('minuteLabel')}
                   periodLabel={t('periodLabel')}
                   copyToWeekdaysLabel={day === 'monday' ? t('copyToWeekdays') : undefined}
-                  onChange={(patch) => setDay(day, patch)}
+                  onChange={setDay}
                   onCopyToWeekdays={day === 'monday' ? handleCopyMondayToWeekdays : undefined}
                 />
               ))}
@@ -858,40 +860,51 @@ export function SettingsForm({
           </SectionCard>
 
           <SectionCard title={t('sections.contact')}>
-            <PhoneField
-              id="settings-phone"
-              prefixTestId="settings-phone-prefix"
-              label={t('phoneLabel')}
-              value={values.phone}
-              phonePrefix={phonePrefix}
-              error={fieldErrors.phone}
-              onChange={(localDigits) => setField('phone', localDigits)}
-            />
-            <TextField
-              id="settings-email"
-              label={t('emailLabel')}
-              type="email"
-              value={values.email}
-              error={fieldErrors.email}
-              placeholder={t('emailPlaceholder')}
-              onChange={(value) => setField('email', value)}
-            />
+            <div className="grid gap-4 md:grid-cols-2">
+              <PhoneField
+                id="settings-phone"
+                prefixTestId="settings-phone-prefix"
+                label={t('phoneLabel')}
+                value={values.phone}
+                phonePrefix={phonePrefix}
+                error={fieldErrors.phone}
+                onChange={(localDigits) => setField('phone', localDigits)}
+              />
+              <TextField
+                id="settings-email"
+                label={t('emailLabel')}
+                type="email"
+                value={values.email}
+                error={fieldErrors.email}
+                placeholder={t('emailPlaceholder')}
+                onChange={(value) => setField('email', value)}
+              />
+            </div>
             <fieldset className="space-y-4">
               <legend className="text-sm font-semibold text-gray-900">{t('addressLegend')}</legend>
               <p className="text-sm text-gray-500">{t('addressHint')}</p>
-              <PostalCodeField
-                label={addressSpec.postalLabel}
-                value={values.address.zipCode}
-                postalPlaceholder={addressSpec.postalPlaceholder}
-                error={fieldErrors.addressZipCode}
-                isLookingUp={isLookingUpZip}
-                lookupFailed={zipLookupFailed}
-                searchingLabel={t('addressZipSearching')}
-                notFoundLabel={t('addressZipNotFound')}
-                onChange={(raw) => {
-                  void handleZipCodeChange(raw);
-                }}
-              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <PostalCodeField
+                  label={addressSpec.postalLabel}
+                  value={values.address.zipCode}
+                  postalPlaceholder={addressSpec.postalPlaceholder}
+                  error={fieldErrors.addressZipCode}
+                  isLookingUp={isLookingUpZip}
+                  lookupFailed={zipLookupFailed}
+                  searchingLabel={t('addressZipSearching')}
+                  notFoundLabel={t('addressZipNotFound')}
+                  onChange={(raw) => {
+                    void handleZipCodeChange(raw);
+                  }}
+                />
+                <TextField
+                  id="settings-address-number"
+                  label={addressSpecFieldLabel(addressSpec, 'number')}
+                  value={values.address.number}
+                  error={fieldErrors.addressNumber}
+                  onChange={(value) => setAddressField('number', value)}
+                />
+              </div>
               <TextField
                 id="settings-address-street"
                 label={addressSpecFieldLabel(addressSpec, 'street')}
@@ -899,74 +912,91 @@ export function SettingsForm({
                 error={fieldErrors.addressStreet}
                 onChange={(value) => setAddressField('street', value)}
               />
-              <TextField
-                id="settings-address-number"
-                label={addressSpecFieldLabel(addressSpec, 'number')}
-                value={values.address.number}
-                error={fieldErrors.addressNumber}
-                onChange={(value) => setAddressField('number', value)}
-              />
-              <TextField
-                id="settings-address-complement"
-                label={addressSpecFieldLabel(addressSpec, 'complement')}
-                value={values.address.complement}
-                onChange={(value) => setAddressField('complement', value)}
-              />
-              {addressSpec.requireNeighborhood && (
+              <div className="grid gap-4 md:grid-cols-2">
                 <TextField
-                  id="settings-address-neighborhood"
-                  label={addressSpecFieldLabel(addressSpec, 'neighborhood')}
-                  value={values.address.neighborhood}
-                  error={fieldErrors.addressNeighborhood}
-                  onChange={(value) => setAddressField('neighborhood', value)}
+                  id="settings-address-complement"
+                  label={addressSpecFieldLabel(addressSpec, 'complement')}
+                  value={values.address.complement}
+                  onChange={(value) => setAddressField('complement', value)}
                 />
-              )}
-              <TextField
-                id="settings-address-city"
-                label={addressSpecFieldLabel(addressSpec, 'city')}
-                value={values.address.city}
-                error={fieldErrors.addressCity}
-                onChange={(value) => setAddressField('city', value)}
-              />
-              <TextField
-                id="settings-address-state"
-                label={addressSpecFieldLabel(addressSpec, 'state')}
-                maxLength={addressSpec.stateMaxLen ?? undefined}
-                value={values.address.state}
-                error={fieldErrors.addressState}
-                onChange={(value) => setAddressField('state', value)}
-              />
+                {addressSpec.requireNeighborhood && (
+                  <TextField
+                    id="settings-address-neighborhood"
+                    label={addressSpecFieldLabel(addressSpec, 'neighborhood')}
+                    value={values.address.neighborhood}
+                    error={fieldErrors.addressNeighborhood}
+                    onChange={(value) => setAddressField('neighborhood', value)}
+                  />
+                )}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <TextField
+                  id="settings-address-city"
+                  label={addressSpecFieldLabel(addressSpec, 'city')}
+                  value={values.address.city}
+                  error={fieldErrors.addressCity}
+                  onChange={(value) => setAddressField('city', value)}
+                />
+                <TextField
+                  id="settings-address-state"
+                  label={addressSpecFieldLabel(addressSpec, 'state')}
+                  maxLength={addressSpec.stateMaxLen ?? undefined}
+                  value={values.address.state}
+                  error={fieldErrors.addressState}
+                  onChange={(value) => setAddressField('state', value)}
+                />
+              </div>
             </fieldset>
             <fieldset className="space-y-4">
               <legend className="text-sm font-semibold text-gray-900">
                 {t('socialLinksLegend')}
               </legend>
-              <PhoneField
-                id="settings-social-whatsapp"
-                prefixTestId="settings-social-whatsapp-prefix"
-                label={t('socialLinksWhatsappLabel')}
-                value={values.socialLinks.whatsapp}
-                phonePrefix={phonePrefix}
-                error={fieldErrors.socialLinksWhatsapp}
-                onChange={(localDigits) => setSocialLinksField('whatsapp', localDigits)}
-              />
-              <TextField
-                id="settings-social-instagram"
-                label={t('socialLinksInstagramLabel')}
-                type="url"
-                value={values.socialLinks.instagram}
-                placeholder="https://instagram.com/..."
-                onChange={(value) => setSocialLinksField('instagram', value)}
-              />
-              <TextField
-                id="settings-social-facebook"
-                label={t('socialLinksFacebookLabel')}
-                type="url"
-                value={values.socialLinks.facebook}
-                placeholder="https://facebook.com/..."
-                onChange={(value) => setSocialLinksField('facebook', value)}
-              />
+              <div className="grid gap-4 md:grid-cols-3">
+                <PhoneField
+                  id="settings-social-whatsapp"
+                  prefixTestId="settings-social-whatsapp-prefix"
+                  label={t('socialLinksWhatsappLabel')}
+                  value={values.socialLinks.whatsapp}
+                  phonePrefix={phonePrefix}
+                  error={fieldErrors.socialLinksWhatsapp}
+                  onChange={(localDigits) => setSocialLinksField('whatsapp', localDigits)}
+                />
+                <TextField
+                  id="settings-social-instagram"
+                  label={t('socialLinksInstagramLabel')}
+                  type="url"
+                  value={values.socialLinks.instagram}
+                  placeholder="https://instagram.com/..."
+                  onChange={(value) => setSocialLinksField('instagram', value)}
+                />
+                <TextField
+                  id="settings-social-facebook"
+                  label={t('socialLinksFacebookLabel')}
+                  type="url"
+                  value={values.socialLinks.facebook}
+                  placeholder="https://facebook.com/..."
+                  onChange={(value) => setSocialLinksField('facebook', value)}
+                />
+              </div>
             </fieldset>
+          </SectionCard>
+
+          <SectionCard title={t('sections.localization')}>
+            <div className="grid grid-cols-3 gap-4">
+              <ReadOnlyField
+                label={t('localization.countryCode')}
+                value={initial.settings.localization.countryCode}
+              />
+              <ReadOnlyField
+                label={t('localization.currency')}
+                value={initial.settings.localization.currency}
+              />
+              <ReadOnlyField
+                label={t('localization.language')}
+                value={initial.settings.localization.language}
+              />
+            </div>
+            <p className="text-sm text-gray-500">{t('localization.hint')}</p>
           </SectionCard>
         </div>
 

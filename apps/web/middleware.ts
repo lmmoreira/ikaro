@@ -97,9 +97,16 @@ function buildContentSecurityPolicy(pathname: string): string {
   // Booking/after-service photo uploads PUT directly to a signed storage URL from the browser
   // (PhotoUpload.tsx, AfterServicePhotoUpload.tsx) — connect-src needs the same storage origin
   // img-src already allows, or uploads are silently blocked in production.
-  const connectSrc = ["'self'", bffOrigin, storageOrigin, isDev && 'ws://localhost:*'].filter(
-    (v): v is string => Boolean(v),
-  );
+  // ViaCEP lookup (viacep-address-lookup.adapter.ts) fetches directly from the browser too —
+  // used by both the booking flow and dashboard settings CEP autofill. Without this origin,
+  // the browser silently blocks the request and every lookup falls through to "not found".
+  const connectSrc = [
+    "'self'",
+    bffOrigin,
+    storageOrigin,
+    'https://viacep.com.br',
+    isDev && 'ws://localhost:*',
+  ].filter((v): v is string => Boolean(v));
   const frameSrc = isHotsite ? 'https://maps.google.com' : "'none'";
 
   return [
