@@ -19,6 +19,7 @@
 | IHotsiteConfigRepository port | `src/contexts/platform/application/ports/hotsite-config-repository.port.ts` | `findByTenantId`, `save` |
 | TypeORM entities | `src/contexts/platform/infrastructure/entities/` | `TenantEntity`, `HotsiteConfigEntity` |
 | TypeORM repositories | `src/contexts/platform/infrastructure/repositories/` | `TypeOrmTenantRepository`, `TypeOrmHotsiteConfigRepository` |
+| Cross-cutting cache | `src/shared/infrastructure/cache/` + `src/shared/ports/cache.port.ts` | Shared cache adapter/port used by context-specific caching decorators |
 | DB migrations | `src/contexts/platform/infrastructure/migrations/` | `CreatePlatformTenants`, `CreatePlatformHotsiteConfigs` |
 | PlatformModule | `src/contexts/platform/platform.module.ts` | Imports `TenantModule` — never exports repository tokens |
 | TenantContext | `src/shared/tenant/tenant-context.ts` | AsyncLocalStorage-based, not request-scoped DI |
@@ -43,6 +44,8 @@
 | TimeOfDay VO | `src/shared/value-objects/time-of-day.vo.ts` | HH:MM string; `isBefore()` comparison; getter: `.value` — used in TenantSettings businessHours |
 | HexColor VO | `src/shared/value-objects/hex-color.vo.ts` | `/#[0-9A-Fa-f]{6}/`; normalises to uppercase; getter: `.value` — used in HotsiteConfig branding |
 | Address VO | `src/shared/value-objects/address.ts` | `create()` validates CEP; `reconstitute()` skips validation (for DB reads); `toJSON()` → `AddressProps`; `AddressProps` exported |
+
+> **Cross-cutting cache rule (added for AUD-011):** cache is a shared backend capability, but namespace/policy stay context-owned. The shared layer exposes a `CachePort` + Nest adapter, and contexts wrap repositories with caching decorators such as `CachingTenantRepository`. Keep cache key prefixes like `platform:tenant:` next to the owning context so eviction policy stays explicit and testable.
 
 > **Use case result naming rule (mandatory — introduced M02):** Every use case `execute()` return type must be named `{UseCaseClassName}Result` and exported from the same `.use-case.ts` file. Never `*Info`, `*Dto`, or raw `T[]`. Examples from this milestone: `ProvisionTenantUseCaseResult`, `UpdateTenantSettingsUseCaseResult`, `GetTenantByIdUseCaseResult`, `GetTenantBySlugUseCaseResult`.
 

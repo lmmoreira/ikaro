@@ -5,7 +5,7 @@
 **Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`  
 **Audience:** Any AI coding agent  
 **Rule:** Read this file first. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-07-03
+**Last updated:** 2026-07-05
 
 ---
 
@@ -167,6 +167,7 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 - **Transactions:** Every `save()` wrapped in `ITransactionManager.run()`. Reads/validations happen *before* `txManager.run()`.
 - **Event handlers:** `handle()` calls exactly one use case and rethrows. Zero domain logic. Pass `event.correlationId` into the DTO — never generate a new UUID in the handler. Idempotency via DB check in the use case.
 - **Cross-context data access (in priority order):** (1) Domain events — async, preferred; (2) BFF orchestration — sync reads, preferred; (3) Port+Adapter — last resort, same process. Grep `infrastructure/cross-context/` before adding a new port — extend existing adapters. Never a SQL JOIN across contexts.
+- **Platform tenant cache:** keep tenant read caching in `CachingTenantRepository` behind `CachePort`, not in `TypeOrmTenantRepository`. Cache writes/invalidations must stay best-effort and invalidate after the transaction commits; do not reintroduce cache concerns into the raw TypeORM adapter.
 
 ### Critical code invariants (not caught by linters)
 
@@ -212,6 +213,7 @@ If the proper fix genuinely cannot be done in the current branch (e.g. no upstre
 - Builders mandatory: class + `withXxx()` / `build()`. InMemory doubles over `jest.fn()`.
 - New migration/entity → register in `integration-global-setup.ts` in the **same commit** — missing = silent test failure.
 - Integration app helpers must default-override network-calling adapters. Use `useClass` not `useExisting`.
+- Integration test harnesses that need Nest cache wiring should reuse `apps/backend/src/test/utils/test-cache-module.ts` instead of copy-pasting `CacheModule.register(...)`.
 
 - **apps/web:** Vitest (not Jest) — config at `apps/web/vitest.config.ts`.
 - `shared/lib/**`: `node` env · `features/**/components/**`, `shells/**/components/**`, `shared/components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only

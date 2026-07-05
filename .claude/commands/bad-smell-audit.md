@@ -1,3 +1,10 @@
+---
+name: bad-smell-audit
+description: Run a structural bad-smell audit across the full stack. Covers `apps/backend/src/`, `apps/bff/src/`, and `apps/web/`. Report every finding with file path and line number. Group findings by layer and category. At the end give a total issue count. Fix nothing - audit only.
+metadata:
+  short-description: Structural bad-smell audit
+---
+
 Run a structural bad-smell audit across the full stack. Covers `apps/backend/src/`, `apps/bff/src/`, and `apps/web/`. Report every finding with file path and line number. Group findings by layer and category. At the end give a total issue count. Fix nothing — audit only.
 
 Optional argument: `$ARGUMENTS`

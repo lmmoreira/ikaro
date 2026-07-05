@@ -25,6 +25,7 @@ import { InMemoryLoyaltyBookingPort } from '../infrastructure/in-memory-loyalty-
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
 import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
+import { testCacheModule } from './test-cache-module';
 
 export interface LoyaltyIntegrationAppResult {
   app: INestApplication;
@@ -38,6 +39,7 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
   let builder: TestingModuleBuilder = Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true }),
+      testCacheModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],

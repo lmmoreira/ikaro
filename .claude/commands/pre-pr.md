@@ -1,3 +1,10 @@
+---
+name: pre-pr
+description: Run the pre-PR checklist against the current branch. This is the mandatory gate - run it once when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately.
+metadata:
+  short-description: Run the mandatory pre-PR checklist
+---
+
 Run the pre-PR checklist against the current branch. This is the mandatory gate — run it **once** when the story implementation is complete. If a PR is already open for this branch, this skill exits immediately.
 
 > **AGENT RULE:** Never invoke this skill autonomously. Ask the user: *"I believe the story is complete — may I run /pre-pr?"* Wait for explicit yes before starting.

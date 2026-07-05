@@ -90,10 +90,15 @@ export const GenerateHotsiteImageSignedUrlBodySchema = z.object({
 
 type GenerateHotsiteImageSignedUrlBody = z.infer<typeof GenerateHotsiteImageSignedUrlBodySchema>;
 
-export const FeatureBookingPhotoBodySchema = z.object({
-  bookingId: z.uuid(),
-  photoUrl: z.string().regex(/^tenants\/[^/]+\/bookings\/[^/]+\/.+$/),
-});
+export const FeatureBookingPhotoBodySchema = z
+  .object({
+    bookingId: z.uuid(),
+    filePath: z.string().regex(/^tenants\/[^/]+\/bookings\/[^/]+\/.+$/),
+    photoType: z.enum(['before', 'after']),
+  })
+  .refine((data) => data.filePath.includes(`/bookings/${data.bookingId}/`), {
+    message: 'filePath must belong to the provided bookingId',
+  });
 
 type FeatureBookingPhotoBody = z.infer<typeof FeatureBookingPhotoBodySchema>;
 

@@ -7,9 +7,7 @@ import {
 } from '../../../../test/builders/platform';
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
-import { InMemoryPlatformBookingPort } from '../../../../test/infrastructure/in-memory-platform-booking.port';
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
-import { PLATFORM_BOOKING_PORT } from '../../application/ports/platform-booking.port';
 import { FRONTEND_REVALIDATION_PORT } from '../../application/ports/frontend-revalidation.port';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
@@ -20,6 +18,7 @@ const TENANT_B = 'c2d3e4f5-0000-0000-0000-000000000002';
 const TENANT_NO_HOTSITE = 'c2d3e4f5-0000-0000-0000-000000000003';
 const BOOKING_ID = 'c2d3e4f5-0000-4000-8000-000000000001';
 const AFTER_PHOTO = `tenants/${TENANT_A}/bookings/${BOOKING_ID}/after-1.jpg`;
+const OTHER_TENANT_PHOTO = `tenants/${TENANT_B}/bookings/${BOOKING_ID}/after-1.jpg`;
 
 async function saveHotsiteConfig(
   ds: DataSource,
@@ -39,13 +38,11 @@ describe('HotsiteAdminController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
   let storageService: InMemoryStorageService;
-  let bookingLookup: InMemoryPlatformBookingPort;
   let frontendRevalidation: InMemoryFrontendRevalidationPort;
 
   beforeAll(async () => {
     ({ app, ds } = await createPlatformIntegrationApp());
     storageService = app.get(STORAGE_SERVICE);
-    bookingLookup = app.get(PLATFORM_BOOKING_PORT);
     frontendRevalidation = app.get(FRONTEND_REVALIDATION_PORT);
 
     await ds
@@ -309,25 +306,20 @@ describe('HotsiteAdminController (integration)', () => {
         .post('/tenants/hotsite/gallery/feature-booking-photo')
         .set('X-Tenant-ID', TENANT_A)
         .set('X-Actor-Role', 'STAFF')
-        .send({ bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO })
+        .send({ bookingId: BOOKING_ID, filePath: AFTER_PHOTO, photoType: 'after' })
         .expect(403);
 
       expect(body.status).toBe(403);
     });
 
     it('copies the booking photo into the public bucket and returns filePath, url, photoType', async () => {
-      bookingLookup.setBooking(TENANT_A, {
-        id: BOOKING_ID,
-        customerId: 'customer-1',
-        beforeServicePhotoUrls: [],
-        afterServicePhotoUrls: [AFTER_PHOTO],
-      });
+      storageService.markAsUploaded(AFTER_PHOTO);
 
       const { body } = await request(app.getHttpServer())
         .post('/tenants/hotsite/gallery/feature-booking-photo')
         .set('X-Tenant-ID', TENANT_A)
         .set('X-Actor-Role', 'MANAGER')
-        .send({ bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO })
+        .send({ bookingId: BOOKING_ID, filePath: AFTER_PHOTO, photoType: 'after' })
         .expect(201);
 
       expect(body.photoType).toBe('after');
@@ -339,32 +331,31 @@ describe('HotsiteAdminController (integration)', () => {
       });
     });
 
-    it('returns 404 when the booking does not exist for the tenant', async () => {
+    it('returns 400 when the source photo does not exist', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/tenants/hotsite/gallery/feature-booking-photo')
         .set('X-Tenant-ID', TENANT_B)
         .set('X-Actor-Role', 'MANAGER')
-        .send({ bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO })
-        .expect(404);
+        .send({
+          bookingId: BOOKING_ID,
+          filePath: `tenants/${TENANT_B}/bookings/${BOOKING_ID}/missing.jpg`,
+          photoType: 'after',
+        })
+        .expect(400);
 
-      expect(body.status).toBe(404);
+      expect(body.status).toBe(400);
     });
 
-    it('returns 400 when the photoUrl is on neither the before nor after photo lists', async () => {
-      bookingLookup.setBooking(TENANT_A, {
-        id: BOOKING_ID,
-        customerId: 'customer-1',
-        beforeServicePhotoUrls: [],
-        afterServicePhotoUrls: [AFTER_PHOTO],
-      });
-
+    it('returns 400 when the photo path belongs to another tenant', async () => {
+      storageService.markAsUploaded(OTHER_TENANT_PHOTO);
       const { body } = await request(app.getHttpServer())
         .post('/tenants/hotsite/gallery/feature-booking-photo')
         .set('X-Tenant-ID', TENANT_A)
         .set('X-Actor-Role', 'MANAGER')
         .send({
           bookingId: BOOKING_ID,
-          photoUrl: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/not-on-booking.jpg`,
+          filePath: OTHER_TENANT_PHOTO,
+          photoType: 'after',
         })
         .expect(400);
 

@@ -1,3 +1,10 @@
+---
+name: story-discovery
+description: Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, and - for frontend stories - alignment with the validated UX prototype, before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
+metadata:
+  short-description: Pre-implementation story discovery
+---
+
 Run a structured pre-implementation discovery session for a story or TD. Checks doc clarity, completeness, consistency, dependency artifacts, and — for frontend stories — alignment with the validated UX prototype, before any code is written. Ends by asking how the user wants to set up the working environment (worktree vs direct branch).
 
 > **HARD RULE — NO CODE CHANGES:** This skill only reads code and updates documentation files (`.md` plan and doc files). It NEVER writes or modifies any `.ts`, `.js`, or any source/test/config file. If a gap requires a code change (e.g. enriching an event payload, adding a method to an aggregate), flag it as a recommendation in the readiness verdict and let the user decide when and how to handle it — do NOT make the change.

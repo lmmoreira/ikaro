@@ -26,6 +26,7 @@ import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-eve
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
 import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
+import { testCacheModule } from './test-cache-module';
 
 type EntityClass = abstract new (...args: unknown[]) => unknown;
 
@@ -53,6 +54,7 @@ export async function createNotificationIntegrationApp(
   let builder: TestingModuleBuilder = Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true }),
+      testCacheModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],

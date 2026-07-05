@@ -6,10 +6,10 @@ import { RequestContextBuilder } from '../../../../test/factories/request-contex
 import { HotsiteConfigBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
-import { InMemoryPlatformBookingPort } from '../../../../test/infrastructure/in-memory-platform-booking.port';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { FeatureBookingPhotoUseCase } from '../../application/use-cases/feature-booking-photo.use-case';
+import { FeatureBookingPhotoSchema } from '../../application/dtos/feature-booking-photo.dto';
 import { HotsiteContentReader } from '../../application/services/hotsite-content-reader.service';
 import { GetHotsiteContentUseCase } from '../../application/use-cases/get-hotsite-content.use-case';
 import { UpdateHotsiteContentUseCase } from '../../application/use-cases/update-hotsite-content.use-case';
@@ -22,12 +22,12 @@ import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { HotsiteAdminController } from './hotsite-admin.controller';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
+const BOOKING_ID = '20000000-0000-4000-8000-000000000001';
 
 describe('HotsiteAdminController', () => {
   let repo: InMemoryHotsiteConfigRepository;
   let tenantRepo: InMemoryTenantRepository;
   let storageService: InMemoryStorageService;
-  let bookingLookup: InMemoryPlatformBookingPort;
   let frontendRevalidation: InMemoryFrontendRevalidationPort;
   let controller: HotsiteAdminController;
 
@@ -35,7 +35,6 @@ describe('HotsiteAdminController', () => {
     repo = new InMemoryHotsiteConfigRepository();
     tenantRepo = new InMemoryTenantRepository();
     storageService = new InMemoryStorageService();
-    bookingLookup = new InMemoryPlatformBookingPort();
     frontendRevalidation = new InMemoryFrontendRevalidationPort();
     const now = new Date();
     await tenantRepo.save(
@@ -69,7 +68,7 @@ describe('HotsiteAdminController', () => {
       new PublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
       new UnpublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
       new GenerateHotsiteImageSignedUrlUseCase(storageService),
-      new FeatureBookingPhotoUseCase(bookingLookup, storageService),
+      new FeatureBookingPhotoUseCase(storageService),
     );
   });
 
@@ -226,20 +225,16 @@ describe('HotsiteAdminController', () => {
   });
 
   describe('featureBookingPhoto', () => {
-    const BOOKING_ID = '20000000-0000-4000-8000-000000000001';
     const AFTER_PHOTO = `tenants/${TENANT_A}/bookings/${BOOKING_ID}/after-1.jpg`;
+    const OTHER_TENANT_PHOTO = `tenants/20000000-0000-4000-8000-000000000002/bookings/${BOOKING_ID}/after-1.jpg`;
 
     it('copies the booking photo into the public bucket and returns filePath, url, photoType', async () => {
-      bookingLookup.setBooking(TENANT_A, {
-        id: BOOKING_ID,
-        customerId: 'customer-1',
-        beforeServicePhotoUrls: [],
-        afterServicePhotoUrls: [AFTER_PHOTO],
-      });
+      storageService.markAsUploaded(AFTER_PHOTO);
 
       const result = await controller.featureBookingPhoto({
         bookingId: BOOKING_ID,
-        photoUrl: AFTER_PHOTO,
+        filePath: AFTER_PHOTO,
+        photoType: 'after',
       });
 
       expect(result.photoType).toBe('after');
@@ -247,32 +242,43 @@ describe('HotsiteAdminController', () => {
       expect(result.url).toBe(storageService.getPublicUrl(result.filePath));
     });
 
-    it('maps FeaturedBookingNotFoundError to 404 when the booking does not exist', async () => {
-      const err = await controller
-        .featureBookingPhoto({ bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO })
-        .catch((e: unknown) => e);
-
-      expect(err).toBeInstanceOf(HttpException);
-      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
-    });
-
-    it('maps PhotoNotOnBookingError to 400 when the photoUrl is on neither photo list', async () => {
-      bookingLookup.setBooking(TENANT_A, {
-        id: BOOKING_ID,
-        customerId: 'customer-1',
-        beforeServicePhotoUrls: [],
-        afterServicePhotoUrls: [AFTER_PHOTO],
-      });
-
+    it('maps HotsiteImageNotUploadedError to 400 when the source photo does not exist', async () => {
       const err = await controller
         .featureBookingPhoto({
           bookingId: BOOKING_ID,
-          photoUrl: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/not-on-booking.jpg`,
+          filePath: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/missing.jpg`,
+          photoType: 'after',
         })
         .catch((e: unknown) => e);
 
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('maps HotsiteImageNotUploadedError to 400 when the photo path belongs to another tenant', async () => {
+      storageService.markAsUploaded(OTHER_TENANT_PHOTO);
+      const err = await controller
+        .featureBookingPhoto({
+          bookingId: BOOKING_ID,
+          filePath: OTHER_TENANT_PHOTO,
+          photoType: 'after',
+        })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+  });
+
+  describe('FeatureBookingPhotoSchema', () => {
+    it('rejects a filePath that does not belong to the provided bookingId', () => {
+      const result = FeatureBookingPhotoSchema.safeParse({
+        bookingId: BOOKING_ID,
+        filePath: `tenants/${TENANT_A}/bookings/another-booking/after-1.jpg`,
+        photoType: 'after',
+      });
+
+      expect(result.success).toBe(false);
     });
   });
 });
