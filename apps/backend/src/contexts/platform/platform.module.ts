@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BookingModule } from '../booking/booking.module';
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { RequestModule } from '../../shared/request/request.module';
+import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { PLATFORM_BOOKING_PORT } from './application/ports/platform-booking.port';
 import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalidation.port';
@@ -36,6 +37,7 @@ import { InternalTenantController } from './infrastructure/controllers/internal-
 import { InternalTenantReadController } from './infrastructure/controllers/internal-tenant-read.controller';
 import { TenantController } from './infrastructure/controllers/tenant.controller';
 import { TenantSettingsController } from './infrastructure/controllers/tenant-settings.controller';
+import { CachingTenantRepository } from './infrastructure/repositories/caching-tenant.repository';
 import { TypeOrmHotsiteConfigRepository } from './infrastructure/repositories/typeorm-hotsite-config.repository';
 import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-tenant.repository';
 
@@ -44,6 +46,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     TypeOrmModule.forFeature([TenantEntity, HotsiteConfigEntity]),
     RequestModule,
     StorageModule,
+    SharedCacheModule,
     BookingModule,
   ],
   controllers: [
@@ -55,7 +58,9 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     TenantSettingsController,
   ],
   providers: [
-    { provide: TENANT_REPOSITORY, useClass: TypeOrmTenantRepository },
+    TypeOrmTenantRepository,
+    CachingTenantRepository,
+    { provide: TENANT_REPOSITORY, useClass: CachingTenantRepository },
     { provide: HOTSITE_CONFIG_REPOSITORY, useClass: TypeOrmHotsiteConfigRepository },
     { provide: PLATFORM_BOOKING_PORT, useClass: PlatformBookingAdapter },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },

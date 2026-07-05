@@ -354,7 +354,7 @@ Every request loads tenant settings from the DB at least twice — `request.inte
 Avoidable, repeated load on the hot `tenants` table on the critical path of every authenticated request — a real cost at scale.
 
 #### What needs to be fixed (solution)
-Put a cache at the tenant lookup boundary inside `TypeOrmTenantRepository.findById()`: use Nest's cache-manager stack for an in-memory LRU-style cache with a short TTL (30–60s) keyed by `tenantId`. (A distributed Redis cache is AUD-031, deferred — in-memory is fine now and still a big win per instance.) Invalidate the tenant entry on `save(tenant)` and keep the existing port path for cron/event contexts (no `RequestContext` there).
+Put a shared cache port behind a `CachingTenantRepository` decorator in front of `TypeOrmTenantRepository`: use Nest's cache-manager stack for an in-memory LRU-style cache with a short TTL (30–60s) keyed by `tenantId`. (A distributed Redis cache is AUD-031, deferred — in-memory is fine now and still a big win per instance.) Invalidate the tenant entry on `save(tenant)` and keep the existing port path for cron/event contexts (no `RequestContext` there).
 
 #### Acceptance criteria
 - [ ] Repeated settings reads within the TTL hit the cache, not the DB (verify via a spy/integration assertion).

@@ -1,4 +1,3 @@
-import type { Cache } from 'cache-manager';
 import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
@@ -10,7 +9,6 @@ import { TenantBuilder, TenantEntityBuilder } from '../../../../test/builders/pl
 
 describe('TypeOrmTenantRepository', () => {
   let mockRepo: jest.Mocked<Repository<TenantEntity>>;
-  let mockCache: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
   let repo: TypeOrmTenantRepository;
 
   beforeEach(() => {
@@ -20,12 +18,7 @@ describe('TypeOrmTenantRepository', () => {
       save: jest.fn(),
       existsBy: jest.fn(),
     } as unknown as jest.Mocked<Repository<TenantEntity>>;
-    mockCache = {
-      get: jest.fn(),
-      set: jest.fn(),
-      del: jest.fn(),
-    };
-    repo = new TypeOrmTenantRepository(mockRepo, mockCache as unknown as Cache);
+    repo = new TypeOrmTenantRepository(mockRepo);
   });
 
   describe('findBySlug', () => {
@@ -59,41 +52,13 @@ describe('TypeOrmTenantRepository', () => {
   });
 
   describe('findById', () => {
-    it('returns a Tenant aggregate when found and caches the result', async () => {
+    it('returns a Tenant aggregate when found', async () => {
       mockRepo.findOne.mockResolvedValue(new TenantEntityBuilder().build());
 
       const result = await repo.findById('tenant-id-1');
 
       expect(result).toBeInstanceOf(Tenant);
       expect(mockRepo.findOne).toHaveBeenCalledWith({ where: { id: 'tenant-id-1' } });
-      expect(mockCache.set).toHaveBeenCalledTimes(1);
-      expect(mockCache.set).toHaveBeenCalledWith(
-        'platform:tenant:tenant-id-1',
-        expect.objectContaining({
-          id: 'tenant-id-1',
-          slug: 'beloauto',
-        }),
-        60_000,
-      );
-    });
-
-    it('returns the cached Tenant aggregate without querying the database again', async () => {
-      mockCache.get.mockResolvedValue({
-        id: 'tenant-id-1',
-        name: 'Cached BeloAuto',
-        slug: 'cached-beloauto',
-        settings: new TenantEntityBuilder().build().settings,
-        isActive: true,
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-      });
-
-      const result = await repo.findById('tenant-id-1');
-
-      expect(result).toBeInstanceOf(Tenant);
-      expect(result!.name).toBe('Cached BeloAuto');
-      expect(mockRepo.findOne).not.toHaveBeenCalled();
-      expect(mockCache.get).toHaveBeenCalledWith('platform:tenant:tenant-id-1');
     });
 
     it('returns null when not found', async () => {
@@ -116,7 +81,6 @@ describe('TypeOrmTenantRepository', () => {
       expect(savedEntity.slug).toBe('novo-lavacar');
       expect(savedEntity.isActive).toBe(true);
       expect(savedEntity.settings).toEqual(tenant.settings.toJSON());
-      expect(mockCache.del).toHaveBeenCalledWith(`platform:tenant:${tenant.id}`);
     });
 
     it('uses the active EntityManager when inside a transaction', async () => {
@@ -132,7 +96,6 @@ describe('TypeOrmTenantRepository', () => {
         expect.objectContaining({ id: tenant.id, slug: 'tx-tenant' }),
       );
       expect(mockRepo.save).not.toHaveBeenCalled();
-      expect(mockCache.del).toHaveBeenCalledWith(`platform:tenant:${tenant.id}`);
     });
 
     it('maps pg 23505 unique violation to SlugAlreadyTakenError', async () => {

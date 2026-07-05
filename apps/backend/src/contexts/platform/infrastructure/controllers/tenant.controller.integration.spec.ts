@@ -1,23 +1,10 @@
 import { INestApplication } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { CacheModule } from '@nestjs/cache-manager';
-import { Test } from '@nestjs/testing';
-import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
-import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
-import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
-import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
-import { RequestInterceptor } from '../../../../shared/request/request.interceptor';
-import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
-import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { TenantEntityBuilder } from '../../../../test/builders/platform/index';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
-import { PlatformModule } from '../../platform.module';
+import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
 
 const TEST_KEY = 'rename-integ-test-key-tenant-xxxx'; // exactly 36 chars
 
@@ -28,36 +15,7 @@ describe('TenantController (integration)', () => {
 
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = TEST_KEY;
-
-    const moduleRef = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({ isGlobal: true }),
-        CacheModule.register({
-          isGlobal: true,
-          ttl: 60_000,
-        }),
-        TypeOrmModule.forRoot({
-          type: 'postgres',
-          url: process.env['TEST_DATABASE_URL'],
-          entities: [TenantEntity, HotsiteConfigEntity],
-          synchronize: false,
-        }),
-        EventBusModule,
-        TransactionManagerModule,
-        PlatformModule,
-      ],
-      providers: [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }],
-    })
-      .overrideProvider(EVENT_BUS)
-      .useValue(new RoutingInMemoryEventBus())
-      .overrideProvider(STORAGE_SERVICE)
-      .useValue(new InMemoryStorageService())
-      .compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
-
-    ds = moduleRef.get(DataSource);
+    ({ app, ds } = await createPlatformIntegrationApp());
 
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')

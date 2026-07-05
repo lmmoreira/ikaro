@@ -4,13 +4,16 @@ import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { TypeOrmHotsiteConfigRepository } from './typeorm-hotsite-config.repository';
 import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
+import { CachingTenantRepository } from './caching-tenant.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { TenantBuilder, HotsiteConfigBuilder } from '../../../../test/builders/platform';
 import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate';
+import { Tenant } from '../../domain/tenant.aggregate';
 
 describe('Platform repositories (integration)', () => {
   let dataSource: DataSource;
-  let tenantRepo: TypeOrmTenantRepository;
+  let tenantRepo: CachingTenantRepository;
+  let typeOrmTenantRepo: TypeOrmTenantRepository;
   let hotsiteRepo: TypeOrmHotsiteConfigRepository;
   let cacheManager: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
 
@@ -21,10 +24,8 @@ describe('Platform repositories (integration)', () => {
       set: jest.fn().mockResolvedValue(undefined),
       del: jest.fn().mockResolvedValue(undefined),
     };
-    tenantRepo = new TypeOrmTenantRepository(
-      dataSource.getRepository(TenantEntity),
-      cacheManager as unknown as Cache,
-    );
+    typeOrmTenantRepo = new TypeOrmTenantRepository(dataSource.getRepository(TenantEntity));
+    tenantRepo = new CachingTenantRepository(typeOrmTenantRepo, cacheManager as unknown as Cache);
     hotsiteRepo = new TypeOrmHotsiteConfigRepository(dataSource.getRepository(HotsiteConfigEntity));
   });
 
@@ -38,6 +39,7 @@ describe('Platform repositories (integration)', () => {
       .withSlug('lavacar-estrela')
       .build();
     await tenantRepo.save(tenant);
+    expect(cacheManager.del).toHaveBeenCalledWith(`platform:tenant:${tenant.id}`);
 
     // Full retrieval by slug verifies all fields survive the round-trip
     const bySlug = await tenantRepo.findBySlug('lavacar-estrela');
@@ -61,6 +63,28 @@ describe('Platform repositories (integration)', () => {
     await tenantRepo.save(tenant);
     const deactivated = await tenantRepo.findBySlug('lavacar-estrela');
     expect(deactivated!.isActive).toBe(false);
+  });
+
+  it('findById returns cached tenant data without hitting the TypeORM repository again', async () => {
+    const cachedTenant = new TenantBuilder().withSlug('cached-estrela').build();
+    const findByIdSpy = jest.spyOn(typeOrmTenantRepo, 'findById');
+    cacheManager.set.mockClear();
+    cacheManager.get.mockResolvedValueOnce({
+      id: cachedTenant.id,
+      name: cachedTenant.name,
+      slug: cachedTenant.slug.value,
+      settings: cachedTenant.settings.toJSON(),
+      isActive: cachedTenant.isActive,
+      createdAt: cachedTenant.createdAt,
+      updatedAt: cachedTenant.updatedAt,
+    });
+
+    const result = await tenantRepo.findById(cachedTenant.id);
+
+    expect(result).toBeInstanceOf(Tenant);
+    expect(result!.name).toBe(cachedTenant.name);
+    expect(findByIdSpy).not.toHaveBeenCalled();
+    expect(cacheManager.set).not.toHaveBeenCalled();
   });
 
   it('hotsite config management — from empty slate to branded and published', async () => {
