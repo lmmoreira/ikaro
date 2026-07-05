@@ -1,4 +1,7 @@
+import { Logger } from '@nestjs/common';
+import { DataSource, EntityManager } from 'typeorm';
 import { TenantBuilder } from '../../../../test/builders/platform';
+import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
 import { CachingTenantRepository } from './caching-tenant.repository';
 
@@ -78,6 +81,7 @@ describe('CachingTenantRepository', () => {
 
   it('falls through to the repository when the cache backend fails', async () => {
     const tenant = new TenantBuilder().withId('tenant-id-4').withSlug('cache-error').build();
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
     cachePort.get.mockRejectedValue(new Error('cache unavailable'));
     typeOrmRepo.findById.mockResolvedValue(tenant);
@@ -85,6 +89,9 @@ describe('CachingTenantRepository', () => {
     await expect(repo.findById(tenant.id)).resolves.toBe(tenant);
 
     expect(typeOrmRepo.findById).toHaveBeenCalledWith(tenant.id);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Cache read failed for platform:tenant:tenant-id-4'),
+    );
     expect(cachePort.set).toHaveBeenCalledWith(
       'platform:tenant:tenant-id-4',
       expect.objectContaining({
@@ -94,12 +101,25 @@ describe('CachingTenantRepository', () => {
       }),
       60_000,
     );
+
+    warnSpy.mockRestore();
   });
 
-  it('invalidates cached tenants after save', async () => {
+  it('invalidates cached tenants after the transaction commits', async () => {
     const tenant = new TenantBuilder().withId('tenant-id-3').build();
+    const mockDataSource = {
+      transaction: jest.fn(async (fn: (em: EntityManager) => Promise<void>) => {
+        const result = await fn({} as EntityManager);
+        expect(cachePort.del).not.toHaveBeenCalled();
+        return result;
+      }),
+    } as unknown as DataSource;
+    const txManager = new TypeOrmTransactionManager(mockDataSource);
 
-    await repo.save(tenant);
+    await txManager.run(async () => {
+      await repo.save(tenant);
+      expect(cachePort.del).not.toHaveBeenCalled();
+    });
 
     expect(typeOrmRepo.save).toHaveBeenCalledWith(tenant);
     expect(cachePort.del).toHaveBeenCalledWith('platform:tenant:tenant-id-3');

@@ -265,8 +265,7 @@ describe('HotsiteAdminController', () => {
     it('rejects a filePath that does not belong to the provided bookingId', () => {
       const result = FeatureBookingPhotoBodySchema.safeParse({
         bookingId: '20000000-0000-4000-8000-000000000001',
-        filePath:
-          'tenants/10000000-0000-4000-8000-000000000001/bookings/other-booking/after-1.jpg',
+        filePath: 'tenants/10000000-0000-4000-8000-000000000001/bookings/other-booking/after-1.jpg',
         photoType: 'after',
       });
 

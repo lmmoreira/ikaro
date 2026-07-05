@@ -1,6 +1,5 @@
 import { INestApplication } from '@nestjs/common';
 import type { Provider } from '@nestjs/common';
-import { CacheModule } from '@nestjs/cache-manager';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
@@ -21,6 +20,7 @@ import { InMemoryEventBus } from '../infrastructure/in-memory-event-bus';
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
 import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
+import { testCacheModule } from './test-cache-module';
 
 export interface CustomerIntegrationAppOptions {
   extraProviders?: Provider[];
@@ -34,10 +34,7 @@ export async function createCustomerIntegrationApp(
   const moduleRef = await Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true }),
-      CacheModule.register({
-        isGlobal: true,
-        ttl: 60_000,
-      }),
+      testCacheModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],

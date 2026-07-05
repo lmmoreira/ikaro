@@ -1,5 +1,5 @@
 import { DataSource, EntityManager } from 'typeorm';
-import { getActiveEntityManager } from './transaction-context';
+import { getActiveEntityManager, scheduleAfterCommit } from './transaction-context';
 import { TypeOrmTransactionManager } from './typeorm-transaction-manager';
 
 describe('TypeOrmTransactionManager', () => {
@@ -28,5 +28,33 @@ describe('TypeOrmTransactionManager', () => {
     const result = await new TypeOrmTransactionManager(mockDataSource).run(async () => 42);
 
     expect(result).toBe(42);
+  });
+
+  it('runs after-commit callbacks only after the transaction resolves', async () => {
+    const calls: string[] = [];
+    const mockDataSource = {
+      transaction: jest.fn(async (fn: (em: EntityManager) => Promise<string>) => {
+        const result = await fn({} as EntityManager);
+        calls.push('transaction-resolved');
+        return result;
+      }),
+    } as unknown as DataSource;
+
+    const result = await new TypeOrmTransactionManager(mockDataSource).run(async () => {
+      calls.push('work-started');
+      await scheduleAfterCommit(() => {
+        calls.push('after-commit');
+      });
+      calls.push('work-finished');
+      return 'ok';
+    });
+
+    expect(result).toBe('ok');
+    expect(calls).toEqual([
+      'work-started',
+      'work-finished',
+      'transaction-resolved',
+      'after-commit',
+    ]);
   });
 });

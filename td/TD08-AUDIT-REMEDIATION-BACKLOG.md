@@ -92,7 +92,7 @@
 
 ### AUD-001 — Transactional outbox for all domain events
 **Risk:** 🔴 Critical · **Effort:** L · **Phase:** Now · **Depends on:** — · **Audit ref:** `OPUS_AUDITORY.md` §4.1, §12.2, §12.3
-**Status:** ✅ Done
+**Status:** ☐ Not started
 
 #### What's wrong
 Domain events are published to Pub/Sub **after** the DB transaction commits, in a separate step — a classic dual-write with no atomicity.
@@ -128,7 +128,7 @@ Respect the aggregate-driven event rule (`CLAUDE.md §7`): events are still reco
 
 ### AUD-002 — Fix booking slot-conflict race + prove optimistic locking
 **Risk:** 🔴 Critical · **Effort:** M · **Phase:** Now · **Depends on:** — · **Audit ref:** §4.2, §4.3
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 #### What's wrong
 - **Slot race (§4.2):** `booking-slot-conflict.service.ts:18-34` reads approved bookings and checks overlap, but it's called *before* and *outside* the transaction (`approve-booking.use-case.ts:48-52`). Two concurrent approvals (or guest-create + approve) for overlapping times can both pass and both commit → **double-booking**. The `@VersionColumn` on `booking.entity.ts:117` only guards single-row lost-update, not the cross-row "no overlap" invariant.
@@ -345,7 +345,7 @@ Run `pnpm why multer` to find the path that still resolves `2.1.1`; fix the over
 
 ### AUD-011 — Tenant-settings cache (in-memory LRU + TTL)
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Now · **Depends on:** — · **Audit ref:** §5.1
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 #### What's wrong
 Every request loads tenant settings from the DB at least twice — `request.interceptor.ts:49` then again in each repository read (`typeorm-booking.repository.ts:38,69,109`; `typeorm-service.repository.ts:25,32,39`) — via `PlatformTenantSettingsAdapter` → `GetTenantByIdUseCase` → raw `findById`. No cache.
@@ -357,9 +357,9 @@ Avoidable, repeated load on the hot `tenants` table on the critical path of ever
 Put a shared cache port behind a `CachingTenantRepository` decorator in front of `TypeOrmTenantRepository`: use Nest's cache-manager stack for an in-memory LRU-style cache with a short TTL (30–60s) keyed by `tenantId`. (A distributed Redis cache is AUD-031, deferred — in-memory is fine now and still a big win per instance.) Invalidate the tenant entry on `save(tenant)` and keep the existing port path for cron/event contexts (no `RequestContext` there).
 
 #### Acceptance criteria
-- [ ] Repeated settings reads within the TTL hit the cache, not the DB (verify via a spy/integration assertion).
-- [ ] Settings update is reflected within the TTL (or eagerly invalidated).
-- [ ] Cron/event-handler paths still resolve settings correctly.
+- [x] Repeated settings reads within the TTL hit the cache, not the DB (verify via a spy/integration assertion).
+- [x] Settings update is reflected within the TTL (or eagerly invalidated).
+- [x] Cron/event-handler paths still resolve settings correctly.
 
 ---
 
