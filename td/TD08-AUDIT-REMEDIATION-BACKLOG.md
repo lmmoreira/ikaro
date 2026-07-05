@@ -43,7 +43,7 @@
 | **AUD-008** | Isolate BFF HTTP-client auth state (`client-only` guard) | 🟠 High | XS | Now | — | §8.4 |
 | **AUD-009** | Supply-chain CI hardening (pin actions, Dependabot, digests, concurrency, permissions) ✅ | 🟠 High | M | Now | — | §9.1, §9.2, §9.5, §10.1–10.3 |
 | **AUD-010** | Fix the brittle `multer` override (real CVE) ✅ | 🟠 High | S | Now | — | §10.6 |
-| **AUD-011** | Tenant-settings cache (in-memory LRU + TTL) | 🟡 Medium | S | Now | — | §5.1 |
+| **AUD-011** ✅ | Tenant-settings cache (in-memory LRU + TTL) | 🟡 Medium | S | Now | — | §5.1 |
 | **AUD-012** | Prototype-pollution guard in `deepMerge` ✅ | 🟡 Medium | XS | Now | — | §5.7 |
 | **AUD-013** | Per-tenant font loading (LCP) ✅ | 🟡 Medium | S | Now | — | §8.1 |
 | **AUD-014** | Coverage floor in test runners ✅ | 🟡 Medium | XS | Now | — | §11.3 |
@@ -92,7 +92,7 @@
 
 ### AUD-001 — Transactional outbox for all domain events
 **Risk:** 🔴 Critical · **Effort:** L · **Phase:** Now · **Depends on:** — · **Audit ref:** `OPUS_AUDITORY.md` §4.1, §12.2, §12.3
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 #### What's wrong
 Domain events are published to Pub/Sub **after** the DB transaction commits, in a separate step — a classic dual-write with no atomicity.
@@ -354,7 +354,7 @@ Every request loads tenant settings from the DB at least twice — `request.inte
 Avoidable, repeated load on the hot `tenants` table on the critical path of every authenticated request — a real cost at scale.
 
 #### What needs to be fixed (solution)
-Put a cache in front of `ITenantSettingsPort`: an in-memory LRU + short TTL (30–60s) keyed by `tenantId`. (A distributed Redis cache is AUD-031, deferred — in-memory is fine now and still a big win per instance.) Invalidate/short-TTL on settings update. Keep the port path for cron/event contexts (no `RequestContext` there).
+Put a cache at the tenant lookup boundary inside `TypeOrmTenantRepository.findById()`: use Nest's cache-manager stack for an in-memory LRU-style cache with a short TTL (30–60s) keyed by `tenantId`. (A distributed Redis cache is AUD-031, deferred — in-memory is fine now and still a big win per instance.) Invalidate the tenant entry on `save(tenant)` and keep the existing port path for cron/event contexts (no `RequestContext` there).
 
 #### Acceptance criteria
 - [ ] Repeated settings reads within the TTL hit the cache, not the DB (verify via a spy/integration assertion).

@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import type { Cache } from 'cache-manager';
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { TypeOrmHotsiteConfigRepository } from './typeorm-hotsite-config.repository';
@@ -11,10 +12,19 @@ describe('Platform repositories (integration)', () => {
   let dataSource: DataSource;
   let tenantRepo: TypeOrmTenantRepository;
   let hotsiteRepo: TypeOrmHotsiteConfigRepository;
+  let cacheManager: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
-    tenantRepo = new TypeOrmTenantRepository(dataSource.getRepository(TenantEntity));
+    cacheManager = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+      del: jest.fn().mockResolvedValue(undefined),
+    };
+    tenantRepo = new TypeOrmTenantRepository(
+      dataSource.getRepository(TenantEntity),
+      cacheManager as unknown as Cache,
+    );
     hotsiteRepo = new TypeOrmHotsiteConfigRepository(dataSource.getRepository(HotsiteConfigEntity));
   });
 
