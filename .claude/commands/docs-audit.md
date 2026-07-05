@@ -1,3 +1,10 @@
+---
+name: docs-audit
+description: Audit project documentation for staleness, internal inconsistency, drift from the actually-implemented code, and confusing/missing handoff info - across `docs/`, `plan/M0X-*.md` milestone files, `plan/journey/` (journeys + prototypes), and `CLAUDE.md`/`.copilot/context.md` itself. Run this before drafting any journey file (`plan/journey/`), before starting a new milestone, or any time documentation might have drifted from reality.
+metadata:
+  short-description: Project documentation audit
+---
+
 Audit project documentation for staleness, internal inconsistency, drift from the actually-implemented code, and confusing/missing handoff info — across `docs/`, `plan/M0X-*.md` milestone files, `plan/journey/` (journeys + prototypes), and `CLAUDE.md`/`.copilot/context.md` itself. Run this before drafting any journey file (`plan/journey/`), before starting a new milestone, or any time documentation might have drifted from reality.
 
 > Supersedes the old `/uc-audit` skill — its UC-vs-code logic is preserved verbatim as category (a) below, just no longer the only thing this skill checks.

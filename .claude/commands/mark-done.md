@@ -1,3 +1,10 @@
+---
+name: mark-done
+description: Mark a story as done in its milestone plan file and commit the change to main.
+metadata:
+  short-description: Mark a story done in the milestone plan
+---
+
 Mark a story as done in its milestone plan file and commit the change to main.
 
 Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
