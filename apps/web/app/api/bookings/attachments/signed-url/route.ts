@@ -3,8 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const token = (await cookies()).get('access_token')?.value;
   const body = (await request.json()) as Record<string, unknown>;
+  // An explicit guestToken in the body always means this is a guest-flow request (UC-005 A2),
+  // even if the browser also carries a leftover access_token cookie from an unrelated session
+  // in the same tab (e.g. a staff/admin session). The cookie must never hijack a request that
+  // names its own token — that would misattribute the upload to the wrong actor/tenant.
+  const token = body.guestToken ? undefined : (await cookies()).get('access_token')?.value;
 
   try {
     const upstream = token

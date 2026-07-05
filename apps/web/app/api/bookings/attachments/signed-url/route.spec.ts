@@ -104,6 +104,42 @@ describe('POST /api/bookings/attachments/signed-url', () => {
     expect(response.status).toBe(201);
   });
 
+  it('ignores a stale access_token cookie when the body carries a guestToken', async () => {
+    // A guest opening a tokenised /bookings/:id/submit-info link may share the same browser
+    // tab as an unrelated authenticated session (e.g. a staff member's own dashboard tab, or
+    // the E2E test fixture that logs in as staff to seed data before navigating to the guest
+    // page). The explicit guestToken must win — never let the cookie silently misattribute
+    // the upload to the wrong actor/tenant.
+    mockCookieGet.mockReturnValue({ value: 'staff-jwt' });
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ signedUrl: 'https://storage.example.com/upload?sig=abc' }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const response = await POST(
+      makeRequest({
+        fileName: 'photo.jpg',
+        contentType: 'image/jpeg',
+        bookingId: 'b-1',
+        guestToken: 'guest-jwt',
+      }),
+    );
+
+    expect(fetchSpy).toHaveBeenCalledWith(`${BFF_URL}/bookings/attachments/signed-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: 'photo.jpg',
+        contentType: 'image/jpeg',
+        bookingId: 'b-1',
+        guestToken: 'guest-jwt',
+      }),
+    });
+    expect(response.status).toBe(201);
+  });
+
   it('returns 502 when the upstream fetch throws', async () => {
     mockCookieGet.mockReturnValue({ value: 'signed-jwt' });
     fetchSpy.mockRejectedValue(new Error('connection refused'));
