@@ -3214,7 +3214,7 @@ fetchLoyaltyRedemptions(token): // GET /v1/loyalty/redemptions?limit=50 → Cust
 
 ---
 
-### M13-S31 — Configurações: settings form page (`/dashboard/settings`)
+### M13-S31 — Configurações: settings form page (`/dashboard/settings`) ✅ Done
 
 *(formerly M127-S03, folds in M128-S05)*
 
@@ -3280,7 +3280,7 @@ renameTenant(body: RenameTenantRequest): Promise<RenameTenantResponse>          
 
 ---
 
-### M13-S32 — Equipe: team list page (`/dashboard/team`)
+### M13-S32 — Equipe: team list page (`/dashboard/team`) ✅ Done
 
 *(formerly M127-S04)*
 
