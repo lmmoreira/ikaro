@@ -40,7 +40,11 @@ export function InvalidLinkView({
         >
           {tenantName?.charAt(0).toUpperCase() ?? '?'}
         </div>
-        {tenantName && <span className="text-base font-bold">{tenantName}</span>}
+        {tenantName && (
+          <span data-testid="brand-name" className="text-base font-bold">
+            {tenantName}
+          </span>
+        )}
       </header>
 
       <div className="mx-auto max-w-[480px] px-4 pb-16 pt-12 text-center">
@@ -68,7 +72,9 @@ export function InvalidLinkView({
         <h1 className="mb-2 text-[1.375rem] font-bold">{t('invalidTitle')}</h1>
 
         {reason === 'processed' ? (
-          <p className="text-base opacity-70">{t('processedMessage')}</p>
+          <p data-testid="processed-message" className="text-base opacity-70">
+            {t('processedMessage')}
+          </p>
         ) : (
           <>
             <p className="text-[0.9375rem] opacity-60">{t('invalidIntro')}</p>

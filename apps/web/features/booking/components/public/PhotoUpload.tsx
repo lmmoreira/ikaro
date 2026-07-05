@@ -144,6 +144,7 @@ export function PhotoUpload(props: PhotoUploadProps): React.JSX.Element {
         </p>
         <input
           id={INPUT_ID}
+          data-testid="photo-upload-input"
           type="file"
           multiple
           onChange={handleFilesSelected}
@@ -179,12 +180,19 @@ export function PhotoUpload(props: PhotoUploadProps): React.JSX.Element {
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
-                  <p className="truncate text-xs font-medium text-red-600">
+                  <p
+                    data-testid="photo-upload-status"
+                    className="truncate text-xs font-medium text-red-600"
+                  >
                     {statusLabel(item.status)}
                   </p>
                 </div>
               ) : (
-                <p className="mt-1 truncate text-xs" style={{ color: 'var(--ba-text)' }}>
+                <p
+                  data-testid="photo-upload-status"
+                  className="mt-1 truncate text-xs"
+                  style={{ color: 'var(--ba-text)' }}
+                >
                   {statusLabel(item.status)}
                 </p>
               )}

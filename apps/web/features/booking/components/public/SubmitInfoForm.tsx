@@ -260,6 +260,7 @@ export function SubmitInfoForm({
             </label>
             <textarea
               id="response"
+              data-testid="response-input"
               rows={5}
               value={response}
               onChange={(e) => setResponse(e.target.value)}
@@ -324,7 +325,11 @@ function BrandHeader({ brandName }: { readonly brandName?: string }): React.JSX.
       >
         {brandName?.charAt(0).toUpperCase() ?? '?'}
       </div>
-      {brandName && <span className="text-base font-bold">{brandName}</span>}
+      {brandName && (
+        <span data-testid="brand-name" className="text-base font-bold">
+          {brandName}
+        </span>
+      )}
     </header>
   );
 }
