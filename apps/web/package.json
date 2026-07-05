@@ -15,13 +15,12 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "e2e:ci": "playwright test --reporter=list"
+    "e2e:ci": "playwright test --reporter=list,html"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@ikaro/config": "workspace:*",
     "@playwright/test": "^1.61.1",
-    "dotenv": "^17.4.2",
     "@tailwindcss/postcss": "^4.3.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
