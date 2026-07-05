@@ -346,7 +346,8 @@
       "roleStaff": "Equipe",
       "statusActive": "Ativo",
       "statusPending": "Convite pendente",
-      "statusInactive": "Inativo"
+      "statusInactive": "Inativo",
+      "truncatedNotice": "Mostrando os 100 primeiros membros da equipe."
     },
     "settingsPage": {
       "sections": {
@@ -456,7 +457,8 @@
         "addressStateInvalid": "UF inválida — use a sigla de 2 letras (ex: MG).",
         "addressZipCodeRequired": "Informe o CEP.",
         "addressZipCodeInvalid": "CEP inválido. Use o formato 00000-000.",
-        "submitFailed": "Não foi possível salvar as configurações. Tente novamente."
+        "submitFailed": "Não foi possível salvar as configurações. Tente novamente.",
+        "renamePartialFailure": "As configurações foram salvas, mas não foi possível renomear o estabelecimento. Tente novamente."
       }
     },
     "servicesPage": {

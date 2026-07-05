@@ -234,6 +234,34 @@ describe('SettingsForm', () => {
     expect(mockRenameTenant).not.toHaveBeenCalled();
   });
 
+  it('hides the success banner again once the user edits a field after saving', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Buffer entre agendamentos'), '1');
+
+    expect(screen.queryByTestId('settings-saved-banner')).not.toBeInTheDocument();
+  });
+
+  it('reports a partial-failure when settings save but the rename fails', async () => {
+    mockRenameTenant.mockRejectedValueOnce(new Error('409'));
+    const user = userEvent.setup();
+    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+    const name = screen.getByLabelText('Nome do estabelecimento *');
+    await user.clear(name);
+    await user.type(name, 'Novo Nome');
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+
+    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
+    expect(screen.getByTestId('settings-submit-error')).toHaveTextContent(
+      'As configurações foram salvas, mas não foi possível renomear o estabelecimento. Tente novamente.',
+    );
+  });
+
   it('calls renameTenant only when the name changed', async () => {
     const user = userEvent.setup();
     renderWithIntl(<SettingsForm initial={buildTenant()} />);

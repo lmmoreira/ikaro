@@ -346,7 +346,8 @@
       "roleStaff": "Staff",
       "statusActive": "Active",
       "statusPending": "Pending invite",
-      "statusInactive": "Inactive"
+      "statusInactive": "Inactive",
+      "truncatedNotice": "Showing the first 100 team members."
     },
     "settingsPage": {
       "sections": {
@@ -456,7 +457,8 @@
         "addressStateInvalid": "Invalid state — use the 2-letter code (e.g. MG).",
         "addressZipCodeRequired": "Enter the ZIP code.",
         "addressZipCodeInvalid": "Invalid ZIP code. Use the format 00000-000.",
-        "submitFailed": "Could not save the settings. Please try again."
+        "submitFailed": "Could not save the settings. Please try again.",
+        "renamePartialFailure": "Settings were saved, but the business name could not be updated. Please try again."
       }
     },
     "servicesPage": {

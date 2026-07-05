@@ -51,7 +51,9 @@ function buildMembers(): StaffListItem[] {
 
 describe('TeamListPage', () => {
   it('renders all four filter tabs with correct counts', () => {
-    renderWithIntl(<TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} />);
+    renderWithIntl(
+      <TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore={false} />,
+    );
 
     expect(screen.getByRole('button', { name: 'Todos (4)' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ativos (2)' })).toBeInTheDocument();
@@ -61,7 +63,9 @@ describe('TeamListPage', () => {
 
   it('filters the list client-side when a tab is selected', async () => {
     const user = userEvent.setup();
-    renderWithIntl(<TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} />);
+    renderWithIntl(
+      <TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore={false} />,
+    );
 
     await user.click(screen.getByRole('button', { name: 'Convites pendentes (1)' }));
 
@@ -73,7 +77,9 @@ describe('TeamListPage', () => {
   it('shows the empty message when a filter has no members', async () => {
     const user = userEvent.setup();
     const onlyActive = buildMembers().filter((member) => member.status === 'ACTIVE');
-    renderWithIntl(<TeamListPage members={onlyActive} currentStaffId={CURRENT_ID} />);
+    renderWithIntl(
+      <TeamListPage members={onlyActive} currentStaffId={CURRENT_ID} hasMore={false} />,
+    );
 
     await user.click(screen.getByRole('button', { name: 'Inativos (0)' }));
 
@@ -81,7 +87,9 @@ describe('TeamListPage', () => {
   });
 
   it('hides Desativar on the current admin own row but shows it for other active members', () => {
-    renderWithIntl(<TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} />);
+    renderWithIntl(
+      <TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore={false} />,
+    );
 
     const deactivateLinks = screen.getAllByRole('link', { name: 'Desativar' });
     expect(deactivateLinks).toHaveLength(1);
@@ -92,11 +100,27 @@ describe('TeamListPage', () => {
   });
 
   it('links both create entry points (desktop button and mobile FAB) to the invite route', () => {
-    renderWithIntl(<TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} />);
+    renderWithIntl(
+      <TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore={false} />,
+    );
 
     const inviteLinks = screen
       .getAllByRole('link')
       .filter((link) => link.getAttribute('href') === '/dashboard/team/invite');
     expect(inviteLinks).toHaveLength(2);
+  });
+
+  it('shows a truncation notice when the backend page did not return the full roster', () => {
+    renderWithIntl(<TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore />);
+
+    expect(screen.getByTestId('team-list-truncated-notice')).toBeInTheDocument();
+  });
+
+  it('hides the truncation notice when the roster fits in one page', () => {
+    renderWithIntl(
+      <TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore={false} />,
+    );
+
+    expect(screen.queryByTestId('team-list-truncated-notice')).not.toBeInTheDocument();
   });
 });

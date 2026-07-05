@@ -472,17 +472,20 @@ export function SettingsForm({
   const setField = useCallback(
     <K extends keyof SettingsFormValues>(key: K, value: SettingsFormValues[K]): void => {
       setValues((prev) => ({ ...prev, [key]: value }));
+      setSaved(false);
     },
     [],
   );
 
   const setAddressField = useCallback((key: keyof SettingsAddressValues, value: string): void => {
     setValues((prev) => ({ ...prev, address: { ...prev.address, [key]: value } }));
+    setSaved(false);
   }, []);
 
   const setSocialLinksField = useCallback(
     (key: keyof SettingsSocialLinksValues, value: string): void => {
       setValues((prev) => ({ ...prev, socialLinks: { ...prev.socialLinks, [key]: value } }));
+      setSaved(false);
     },
     [],
   );
@@ -493,6 +496,7 @@ export function SettingsForm({
       ...prev,
       days: { ...prev.days, [day]: { ...prev.days[day], ...patch } },
     }));
+    setSaved(false);
   }, []);
 
   const handleCopyMondayToWeekdays = useCallback((): void => {
@@ -504,6 +508,7 @@ export function SettingsForm({
       }
       return { ...prev, days };
     });
+    setSaved(false);
   }, []);
 
   async function handleZipCodeChange(rawValue: string): Promise<void> {
@@ -560,24 +565,37 @@ export function SettingsForm({
     setIsSubmitting(true);
     try {
       await updateTenantSettings({ settings: normalized.settings });
-      if (normalized.name !== currentName) {
-        await renameTenant({ name: normalized.name });
-        setCurrentName(normalized.name);
-      }
-      setSaved(true);
-      globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
     } catch {
       setFieldErrors({ submit: t('errors.submitFailed') });
-    } finally {
       setIsSubmitting(false);
+      return;
     }
+
+    // Settings and the tenant rename are two separate backend calls — if the rename fails
+    // after settings already saved, the user must be told the truth (partial success), not
+    // a blanket "nothing was saved" message.
+    if (normalized.name !== currentName) {
+      try {
+        await renameTenant({ name: normalized.name });
+        setCurrentName(normalized.name);
+      } catch {
+        setSaved(true);
+        setFieldErrors({ submit: t('errors.renamePartialFailure') });
+        globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    setSaved(true);
+    globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
+    setIsSubmitting(false);
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
       {saved && (
-        <div
-          role="status"
+        <output
           data-testid="settings-saved-banner"
           className="flex items-start gap-3.5 rounded-xl border border-green-300 bg-green-50 p-4"
         >
@@ -591,7 +609,7 @@ export function SettingsForm({
             <span className="block text-sm font-bold text-green-800">{t('successTitle')}</span>
             <span className="mt-0.5 block text-sm text-green-700">{t('successBody')}</span>
           </span>
-        </div>
+        </output>
       )}
 
       {fieldErrors.submit && (

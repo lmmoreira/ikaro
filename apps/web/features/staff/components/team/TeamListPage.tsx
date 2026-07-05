@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { Plus } from 'lucide-react';
 import type { StaffListItem, StaffStatus } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
@@ -14,6 +15,9 @@ type TeamFilter = 'all' | StaffStatus;
 interface TeamListPageProps {
   readonly members: readonly StaffListItem[];
   readonly currentStaffId: string;
+  // True when the backend's single-page fetch (limit=100) didn't return the full roster —
+  // tab counts and the list itself are then a partial view, not the whole team.
+  readonly hasMore: boolean;
 }
 
 function buildFilterClass(active: boolean): string {
@@ -32,7 +36,11 @@ const FILTERS: readonly { key: TeamFilter; labelKey: string }[] = [
   { key: 'DEACTIVATED', labelKey: 'tabInactive' },
 ];
 
-export function TeamListPage({ members, currentStaffId }: TeamListPageProps): React.JSX.Element {
+export function TeamListPage({
+  members,
+  currentStaffId,
+  hasMore,
+}: TeamListPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
   const [filter, setFilter] = useState<TeamFilter>('all');
 
@@ -66,9 +74,18 @@ export function TeamListPage({ members, currentStaffId }: TeamListPageProps): Re
           </button>
         ))}
         <Button asChild size="sm" className="ml-auto hidden lg:inline-flex">
-          <Link href="/dashboard/team/invite">+ {t('invite')}</Link>
+          <Link href="/dashboard/team/invite">
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {t('invite')}
+          </Link>
         </Button>
       </div>
+
+      {hasMore && (
+        <p className="px-4 text-sm text-gray-500" data-testid="team-list-truncated-notice">
+          {t('truncatedNotice')}
+        </p>
+      )}
 
       <Card className="overflow-hidden">
         {filteredMembers.length > 0 ? (
@@ -89,10 +106,10 @@ export function TeamListPage({ members, currentStaffId }: TeamListPageProps): Re
       <Button
         asChild
         size="icon"
-        className="fixed bottom-20 right-6 z-20 h-14 w-14 rounded-full text-3xl font-light shadow-lg shadow-blue-600/35 lg:hidden"
+        className="fixed bottom-20 right-6 z-20 h-14 w-14 rounded-full shadow-lg shadow-blue-600/35 lg:hidden"
       >
         <Link href="/dashboard/team/invite" aria-label={t('invite')}>
-          +
+          <Plus className="h-6 w-6" aria-hidden="true" />
         </Link>
       </Button>
     </div>

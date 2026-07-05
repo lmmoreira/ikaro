@@ -8,5 +8,19 @@ export default async function TeamPage(): Promise<React.JSX.Element> {
   const payload = decodeJwtPayload(token);
   const staff = await fetchStaffList(token);
 
-  return <TeamListPage members={staff.items} currentStaffId={payload.sub ?? ''} />;
+  // A valid JWT always carries sub — a missing one means the token is corrupt/malformed,
+  // which middleware should already have rejected. Fail fast instead of defaulting to '',
+  // which would make the current user look like "not themselves" and show a Deactivate
+  // action on their own row that then errors server-side on click.
+  if (!payload.sub) {
+    throw new Error('Invalid session: missing user id');
+  }
+
+  return (
+    <TeamListPage
+      members={staff.items}
+      currentStaffId={payload.sub}
+      hasMore={staff.pagination.hasMore}
+    />
+  );
 }
