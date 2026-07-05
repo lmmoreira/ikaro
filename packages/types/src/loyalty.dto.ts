@@ -58,6 +58,7 @@ export interface CustomerLoyaltyBalanceResponse {
 
 export interface CustomerLoyaltyEntryResponse {
   entryId: string;
+  bookingId: string;
   serviceName: string;
   pointsEarned: number;
   earnedAt: string; // ISO-8601
@@ -74,6 +75,7 @@ export interface CustomerLoyaltyEntriesResponse {
 
 export interface CustomerLoyaltyRedemptionResponse {
   redemptionId: string;
+  bookingId: string | null;
   pointsUsed: number;
   amountSaved: string; // formatted BRL e.g. "R$ 8,50"
   redeemedAt: string; // ISO-8601

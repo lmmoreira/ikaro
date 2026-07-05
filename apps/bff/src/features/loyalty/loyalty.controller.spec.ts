@@ -117,6 +117,7 @@ describe('LoyaltyController (BFF)', () => {
         items: [
           {
             entryId: 'e1111111-0000-4000-8000-000000000001',
+            bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
             serviceName: 'Lavagem Completa',
             pointsEarned: 10,
             earnedAt: '2026-05-28T14:00:00.000Z',
@@ -156,6 +157,7 @@ describe('LoyaltyController (BFF)', () => {
       expect(result).toEqual({
         items: [
           {
+            bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
             redemptionId: 'r1111111-0000-4000-8000-000000000001',
             pointsUsed: 50,
             amountSaved: 'R$ 0,00',

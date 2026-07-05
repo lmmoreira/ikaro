@@ -35,7 +35,7 @@ export function CancelAction({
       )}
       <Link
         href={cancelHref}
-        className="rounded-lg border border-red-200 px-4 py-2.5 text-center text-sm font-semibold text-red-600 hover:bg-red-50"
+        className="rounded-lg border-2 border-red-600 bg-red-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:opacity-90"
       >
         {isApproved ? t('cancelButton') : t('cancelRequestButton')}
       </Link>

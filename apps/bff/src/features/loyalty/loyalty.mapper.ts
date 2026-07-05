@@ -26,6 +26,7 @@ export function toCustomerLoyaltyEntry(
 ): CustomerLoyaltyEntryResponse {
   return {
     entryId: item.entryId,
+    bookingId: item.bookingId,
     serviceName: item.serviceName,
     pointsEarned: item.points,
     earnedAt: item.earnedAt,
@@ -40,6 +41,7 @@ export function toCustomerLoyaltyRedemption(
   const amountSaved = computeAmountDeducted(item.pointsRedeemed, item.pointsPerCurrencyUnit);
   return {
     redemptionId: item.redemptionId,
+    bookingId: item.bookingId,
     pointsUsed: item.pointsRedeemed,
     amountSaved: formatBRL(amountSaved),
     redeemedAt: item.redeemedAt,

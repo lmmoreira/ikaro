@@ -258,6 +258,7 @@
       "lineDurationMinutes": "{minutes} min",
       "total": "Total",
       "totalCharged": "Amount charged",
+      "summaryLabel": "Summary",
       "quotedPrice": "Quoted: {amount}",
       "discountApplied": "Discount applied: {points} pts (−{amount})",
       "notesTitle": "Your notes",
@@ -281,14 +282,27 @@
       "submitting": "Sending...",
       "retry": "Try again",
       "validationError": "Enter your response before sending.",
-      "submitError": "We couldn't send your response. Check your connection and try again."
+      "submitError": "We couldn't send your response. Check your connection and try again.",
+      "photoUploadTitle": "Photos (optional)",
+      "photoClickToAdd": "Click to add photos",
+      "photoFormatHint": "JPG or PNG",
+      "photoUnsupportedFormat": "Unsupported image format",
+      "photoUploadFailed": "Failed to upload the image",
+      "photoUploading": "Uploading...",
+      "photoUploaded": "Uploaded",
+      "photoUploadError": "Upload error",
+      "photoRemove": "Remove"
     },
     "cancelConfirm": {
       "title": "Cancel this booking?",
       "irreversibleNote": "This action cannot be undone.",
+      "bookingSectionLabel": "Booking",
+      "warningNote": "Cancellations with less than 48 hours notice may not be accepted per the business's policy.",
+      "confirmNote": "Are you sure? The booking will be permanently cancelled.",
       "confirmButton": "Confirm cancellation",
       "confirming": "Cancelling...",
       "backButton": "Back",
+      "backToBooking": "Booking",
       "genericError": "Couldn't cancel the booking. Please try again."
     },
     "cancelError": {
@@ -297,7 +311,8 @@
       "deadlineNote": "The cancellation window closed on {date} at {time}.",
       "contactNote": "Need to cancel anyway? Contact the business directly.",
       "whatsappCta": "Contact via WhatsApp",
-      "backButton": "Back to booking"
+      "backButton": "Back to booking",
+      "backToBooking": "Booking"
     },
     "loyalty": {
       "title": "My Loyalty",

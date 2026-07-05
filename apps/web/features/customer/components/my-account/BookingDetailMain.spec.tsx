@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { BookingDetailMain } from './BookingDetailMain';
@@ -162,6 +162,15 @@ describe('BookingDetailMain', () => {
     expect(screen.getByText('Cotado: R$ 100.00')).toBeInTheDocument();
     expect(screen.getByText('Desconto aplicado: 240 pts (−R$ 24.00)')).toBeInTheDocument();
     expect(screen.getByText('Fotos após o serviço')).toBeInTheDocument();
+
+    // Quoted total, charged total, points-earned and discount are grouped in one summary card.
+    const summary = screen.getByTestId('completion-summary');
+    expect(within(summary).getByText('Cotado: R$ 100.00')).toBeInTheDocument();
+    expect(within(summary).getByText(/Valor cobrado:\s*R\$ 76\.00/)).toBeInTheDocument();
+    expect(within(summary).getByTestId('points-earned-banner')).toHaveTextContent(
+      '+20 pontos de fidelidade',
+    );
+    expect(within(summary).getByText('Desconto aplicado: 240 pts (−R$ 24.00)')).toBeInTheDocument();
   });
 
   it('non-COMPLETED bookings: hides after-photos even when present in the payload', () => {

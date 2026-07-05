@@ -159,6 +159,7 @@ describe('LoyaltyController (component)', () => {
       expect(res.status).toBe(200);
       expect(res.body.items[0]).toEqual({
         entryId: 'e1111111-0000-4000-8000-000000000001',
+        bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
         serviceName: 'Lavagem Completa',
         pointsEarned: 10,
         earnedAt: '2026-05-28T14:00:00.000Z',
@@ -210,6 +211,7 @@ describe('LoyaltyController (component)', () => {
             pointsPerCurrencyUnit: 0,
             redeemedAt: '2026-05-10T10:00:00.000Z',
             notes: 'Free basic wash',
+            bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
             bookingServices: [
               {
                 serviceId: 'cccccccc-0000-4000-8000-000000000001',
@@ -230,6 +232,7 @@ describe('LoyaltyController (component)', () => {
       expect(res.status).toBe(200);
       expect(res.body.items[0]).toEqual({
         redemptionId: 'r1111111-0000-4000-8000-000000000001',
+        bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
         pointsUsed: 50,
         amountSaved: 'R$ 0,00',
         redeemedAt: '2026-05-10T10:00:00.000Z',

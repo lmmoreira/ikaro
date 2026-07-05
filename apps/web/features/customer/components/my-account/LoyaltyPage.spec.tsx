@@ -75,6 +75,7 @@ function makeEntries(
     items: [
       {
         entryId: 'e1',
+        bookingId: 'b1',
         serviceName: 'Cristalização de Pintura',
         pointsEarned: 20,
         earnedAt: '2026-06-05T00:00:00.000Z',
@@ -83,6 +84,7 @@ function makeEntries(
       },
       {
         entryId: 'e2',
+        bookingId: 'b2',
         serviceName: 'Lavagem Simples',
         pointsEarned: 5,
         earnedAt: '2026-02-10T00:00:00.000Z',
@@ -104,6 +106,7 @@ function makeRedemptions(
     items: [
       {
         redemptionId: 'r1',
+        bookingId: 'b1',
         pointsUsed: 85,
         amountSaved: 'R$ 8,50',
         redeemedAt: '2026-05-18T00:00:00.000Z',
@@ -209,8 +212,24 @@ describe('LoyaltyPage', () => {
     );
 
     expect(screen.getByText('Expirado')).toBeInTheDocument();
-    const expiredRow = screen.getByText('Lavagem Simples').closest('li');
+    const expiredRow = screen.getByText('Lavagem Simples').closest('a');
     expect(expiredRow?.className).toContain('opacity-40');
+  });
+
+  it('links each earn entry to its booking detail page', () => {
+    render(
+      <LoyaltyPage
+        balance={makeBalance()}
+        entries={makeEntries()}
+        redemptions={makeRedemptions()}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    const rows = screen.getAllByTestId('loyalty-entry-row');
+    expect(rows[0].tagName).toBe('A');
+    expect(rows[0]).toHaveAttribute('href', '/lavacar-bh/my-account/bookings/b1');
+    expect(rows[1]).toHaveAttribute('href', '/lavacar-bh/my-account/bookings/b2');
   });
 
   it('switches to the Resgates tab and shows redemptions with savings', async () => {
@@ -229,6 +248,52 @@ describe('LoyaltyPage', () => {
     expect(screen.getByText('Resgate — Lavagem Completa')).toBeInTheDocument();
     expect(screen.getByText('Economia: R$ 8,50')).toBeInTheDocument();
     expect(screen.getByText('−85 pts')).toBeInTheDocument();
+  });
+
+  it('links a redemption to its booking detail page when bookingId is present', async () => {
+    const user = userEvent.setup();
+    render(
+      <LoyaltyPage
+        balance={makeBalance()}
+        entries={makeEntries()}
+        redemptions={makeRedemptions()}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    await user.click(screen.getByRole('tab', { name: 'Resgates' }));
+
+    const row = screen.getByTestId('loyalty-redemption-row');
+    expect(row.tagName).toBe('A');
+    expect(row).toHaveAttribute('href', '/lavacar-bh/my-account/bookings/b1');
+  });
+
+  it('renders a redemption without a link when bookingId is null', async () => {
+    const user = userEvent.setup();
+    render(
+      <LoyaltyPage
+        balance={makeBalance()}
+        entries={makeEntries()}
+        redemptions={makeRedemptions({
+          items: [
+            {
+              redemptionId: 'r2',
+              bookingId: null,
+              pointsUsed: 50,
+              amountSaved: 'R$ 5,00',
+              redeemedAt: '2026-05-01T00:00:00.000Z',
+              bookingReference: null,
+            },
+          ],
+        })}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    await user.click(screen.getByRole('tab', { name: 'Resgates' }));
+
+    const row = screen.getByTestId('loyalty-redemption-row');
+    expect(row.tagName).toBe('DIV');
   });
 
   it('wires each tab to its panel via aria-controls/aria-labelledby', () => {
@@ -273,6 +338,7 @@ describe('LoyaltyPage', () => {
           items: [
             {
               redemptionId: 'r2',
+              bookingId: null,
               pointsUsed: 50,
               amountSaved: 'R$ 5,00',
               redeemedAt: '2026-05-01T00:00:00.000Z',

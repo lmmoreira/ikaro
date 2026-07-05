@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { ApiError } from '@/shared/lib/api/errors';
+import {
+  CustomerTopbarStatusProvider,
+  useCustomerTopbarStatus,
+} from '../customer-topbar-status-context';
 import { CancelConfirmPage } from './CancelConfirmPage';
 
 vi.mock('next-intl', () => ({
@@ -11,14 +15,29 @@ vi.mock('next-intl', () => ({
     const translations: Record<string, string> = {
       title: 'Cancelar agendamento?',
       irreversibleNote: 'Esta ação não pode ser desfeita.',
+      bookingSectionLabel: 'Agendamento',
+      warningNote: 'Cancelamentos com menos de 48 horas de antecedência podem não ser aceitos.',
+      confirmNote: 'Tem certeza? O agendamento será cancelado permanentemente.',
       confirmButton: 'Confirmar cancelamento',
       confirming: 'Cancelando...',
       backButton: 'Voltar',
+      backToBooking: 'Agendamento',
       genericError: 'Não foi possível cancelar o agendamento. Tente novamente.',
     };
     return translations[key] ?? key;
   },
 }));
+
+function TopbarStatusProbe(): React.JSX.Element {
+  const status = useCustomerTopbarStatus();
+  return (
+    <div>
+      <p data-testid="probe-booking-status">{status?.bookingStatus ?? 'none'}</p>
+      <p data-testid="probe-back-href">{status?.backHrefOverride ?? 'none'}</p>
+      <p data-testid="probe-back-label">{status?.backLabelOverride ?? 'none'}</p>
+    </div>
+  );
+}
 
 vi.mock('@/shared/lib/formatting/use-formatting', () => ({
   useFormatting: () => ({
@@ -88,7 +107,9 @@ describe('CancelConfirmPage', () => {
     const user = userEvent.setup();
     render(<CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await user.click(screen.getByRole('button', { name: 'Confirmar cancelamento' }));
+    // Rendered twice: once inline for mobile, once in the sticky desktop sidebar.
+    const desktopPane = screen.getByTestId('action-pane-desktop');
+    await user.click(within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/lavacar-bh/my-account'));
     expect(cancelBookingMock).toHaveBeenCalledWith('b1');
@@ -99,7 +120,8 @@ describe('CancelConfirmPage', () => {
     const user = userEvent.setup();
     render(<CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await user.click(screen.getByRole('button', { name: 'Confirmar cancelamento' }));
+    const desktopPane = screen.getByTestId('action-pane-desktop');
+    await user.click(within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }));
 
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith('/lavacar-bh/my-account/bookings/b1/cancel/error'),
@@ -111,12 +133,15 @@ describe('CancelConfirmPage', () => {
     const user = userEvent.setup();
     render(<CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await user.click(screen.getByRole('button', { name: 'Confirmar cancelamento' }));
+    const desktopPane = screen.getByTestId('action-pane-desktop');
+    await user.click(within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Não foi possível cancelar o agendamento. Tente novamente.',
     );
-    expect(screen.getByRole('button', { name: 'Confirmar cancelamento' })).not.toBeDisabled();
+    expect(
+      within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }),
+    ).not.toBeDisabled();
     expect(pushMock).not.toHaveBeenCalled();
   });
 
@@ -124,8 +149,24 @@ describe('CancelConfirmPage', () => {
     const user = userEvent.setup();
     render(<CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await user.click(screen.getByRole('button', { name: 'Voltar' }));
+    const desktopPane = screen.getByTestId('action-pane-desktop');
+    await user.click(within(desktopPane).getByRole('button', { name: 'Voltar' }));
 
     expect(backMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs the booking status and back link to the shared topbar context', () => {
+    render(
+      <CustomerTopbarStatusProvider>
+        <TopbarStatusProbe />
+        <CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" />
+      </CustomerTopbarStatusProvider>,
+    );
+
+    expect(screen.getByTestId('probe-booking-status')).toHaveTextContent('APPROVED');
+    expect(screen.getByTestId('probe-back-href')).toHaveTextContent(
+      '/lavacar-bh/my-account/bookings/b1',
+    );
+    expect(screen.getByTestId('probe-back-label')).toHaveTextContent('Agendamento');
   });
 });

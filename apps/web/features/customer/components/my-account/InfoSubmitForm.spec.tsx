@@ -13,6 +13,9 @@ vi.mock('next-intl', () => ({
       retry: 'Tentar novamente',
       validationError: 'Informe sua resposta antes de enviar.',
       submitError: 'Não foi possível enviar sua resposta. Verifique sua conexão e tente novamente.',
+      photoUploadTitle: 'Fotos (opcional)',
+      photoClickToAdd: 'Clique para adicionar fotos',
+      photoFormatHint: 'JPG ou PNG',
     };
     return translations[key] ?? key;
   },
@@ -65,7 +68,7 @@ describe('InfoSubmitForm', () => {
     await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
 
     await waitFor(() => expect(onSubmitted).toHaveBeenCalledTimes(1));
-    expect(submitInfoMock).toHaveBeenCalledWith('b1', 'Tem película sim');
+    expect(submitInfoMock).toHaveBeenCalledWith('b1', 'Tem película sim', []);
   });
 
   it('shows an inline error and preserves the typed text on failure', async () => {

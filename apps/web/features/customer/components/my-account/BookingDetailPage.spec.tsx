@@ -1,9 +1,33 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
+import {
+  CustomerTopbarStatusProvider,
+  useCustomerTopbarStatus,
+} from '../customer-topbar-status-context';
 import { BookingDetailPage } from './BookingDetailPage';
+
+function TopbarStatusProbe(): React.JSX.Element {
+  const status = useCustomerTopbarStatus();
+  return (
+    <div data-testid="topbar-status-probe">
+      <p data-testid="probe-booking-status">{status?.bookingStatus ?? 'none'}</p>
+      <p data-testid="probe-back-href">{status?.backHrefOverride ?? 'none'}</p>
+      <p data-testid="probe-back-label">{status?.backLabelOverride ?? 'none'}</p>
+    </div>
+  );
+}
+
+function renderWithTopbarStatus(ui: React.ReactElement): ReturnType<typeof render> {
+  return render(
+    <CustomerTopbarStatusProvider>
+      <TopbarStatusProbe />
+      {ui}
+    </CustomerTopbarStatusProvider>,
+  );
+}
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string, params?: Record<string, unknown>) => {
@@ -113,14 +137,14 @@ describe('BookingDetailPage', () => {
     submitInfoMock.mockReset();
   });
 
-  it('links back to the bookings list and shows the status badge', () => {
-    render(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
+  it('syncs the back link and booking status to the shared topbar context', () => {
+    renderWithTopbarStatus(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    expect(screen.getByRole('link', { name: '← Agendamentos' })).toHaveAttribute(
-      'href',
+    expect(screen.getByTestId('probe-back-href')).toHaveTextContent(
       '/lavacar-bh/my-account/bookings',
     );
-    expect(screen.getByText('Aprovado')).toBeInTheDocument();
+    expect(screen.getByTestId('probe-back-label')).toHaveTextContent('Agendamentos');
+    expect(screen.getByTestId('probe-booking-status')).toHaveTextContent('APPROVED');
   });
 
   it('APPROVED within window: shows the cancel action, no info form', () => {
@@ -175,8 +199,9 @@ describe('BookingDetailPage', () => {
       />,
     );
 
-    expect(screen.getByText('Pode confirmar o polimento?')).toBeInTheDocument();
-    expect(screen.getByLabelText('Mensagem')).toBeInTheDocument();
+    // Rendered twice: once inline for mobile, once in the sticky desktop sidebar.
+    expect(screen.getAllByText('Pode confirmar o polimento?')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Mensagem')).toHaveLength(2);
   });
 
   it('INFO_REQUESTED with a prior response: hides the form', () => {
@@ -194,10 +219,10 @@ describe('BookingDetailPage', () => {
     expect(screen.queryByLabelText('Mensagem')).not.toBeInTheDocument();
   });
 
-  it('submitting the info form flips the status badge to PENDING and shows a confirmation', async () => {
+  it('submitting the info form flips the synced topbar status to PENDING and shows a confirmation', async () => {
     submitInfoMock.mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(
+    renderWithTopbarStatus(
       <BookingDetailPage
         booking={makeBooking({
           status: 'INFO_REQUESTED',
@@ -208,10 +233,14 @@ describe('BookingDetailPage', () => {
       />,
     );
 
-    await user.type(screen.getByLabelText('Mensagem'), 'Sim, pode');
-    await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
+    // Rendered twice (mobile + desktop sidebar) — act within the desktop pane only.
+    const desktopPane = screen.getByTestId('action-pane-desktop');
+    await user.type(within(desktopPane).getByLabelText('Mensagem'), 'Sim, pode');
+    await user.click(within(desktopPane).getByRole('button', { name: 'Enviar resposta' }));
 
-    await waitFor(() => expect(screen.getByText('Aguardando')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('probe-booking-status')).toHaveTextContent('PENDING'),
+    );
     expect(
       screen.getByText('Resposta enviada! Nossa equipe vai analisar em breve.'),
     ).toBeInTheDocument();

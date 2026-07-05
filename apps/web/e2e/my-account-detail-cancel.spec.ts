@@ -21,7 +21,7 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
     await loginAsCustomer(page, customerEmail, TENANT_SLUG);
 
     await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}`);
-    await expect(page.getByTestId('booking-detail-status-badge')).toBeVisible();
+    await expect(page.getByTestId('topbar-booking-status-badge')).toBeVisible();
 
     await page
       .getByTestId('action-pane-desktop')
@@ -29,11 +29,14 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
       .click();
     await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel`);
 
-    await page.getByRole('button', { name: 'Confirmar cancelamento' }).click();
+    await page
+      .getByTestId('action-pane-desktop')
+      .getByRole('button', { name: 'Confirmar cancelamento' })
+      .click();
     await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account`);
 
     await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}`);
-    await expect(page.getByTestId('booking-detail-status-badge')).toContainText('Cancelado');
+    await expect(page.getByTestId('topbar-booking-status-badge')).toContainText('Cancelado');
   });
 
   test('PENDING: "Cancelar solicitação" confirmation cancels the request', async ({ page }) => {
@@ -51,7 +54,10 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
       .getByTestId('action-pane-desktop')
       .getByRole('link', { name: 'Cancelar solicitação' })
       .click();
-    await page.getByRole('button', { name: 'Confirmar cancelamento' }).click();
+    await page
+      .getByTestId('action-pane-desktop')
+      .getByRole('button', { name: 'Confirmar cancelamento' })
+      .click();
 
     await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account`);
   });
@@ -68,7 +74,10 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
     await loginAsCustomer(page, customerEmail, TENANT_SLUG);
 
     await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel`);
-    await page.getByRole('button', { name: 'Confirmar cancelamento' }).click();
+    await page
+      .getByTestId('action-pane-desktop')
+      .getByRole('button', { name: 'Confirmar cancelamento' })
+      .click();
 
     await expect(page).toHaveURL(
       `/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel/error`,
@@ -90,16 +99,18 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
     await loginAsCustomer(page, customerEmail, TENANT_SLUG);
 
     await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}`);
-    await expect(page.getByTestId('booking-detail-status-badge')).toContainText('Info pedida');
+    await expect(page.getByTestId('topbar-booking-status-badge')).toContainText('Info pedida');
 
-    await page.getByRole('button', { name: 'Enviar resposta' }).click();
-    await expect(page.getByTestId('info-validation-error')).toBeVisible();
+    // The form renders twice (mobile inline + desktop sidebar) — act within the desktop pane.
+    const desktopPane = page.getByTestId('action-pane-desktop');
+    await desktopPane.getByRole('button', { name: 'Enviar resposta' }).click();
+    await expect(desktopPane.getByTestId('info-validation-error')).toBeVisible();
 
-    await page.locator('#info-response').fill('Sim, pode confirmar o endereço.');
-    await page.getByRole('button', { name: 'Enviar resposta' }).click();
+    await desktopPane.getByTestId('info-response-textarea').fill('Sim, pode confirmar o endereço.');
+    await desktopPane.getByRole('button', { name: 'Enviar resposta' }).click();
 
-    await expect(page.getByTestId('booking-detail-status-badge')).toContainText('Aguardando');
-    await expect(page.locator('#info-response')).toHaveCount(0);
+    await expect(page.getByTestId('topbar-booking-status-badge')).toContainText('Aguardando');
+    await expect(page.getByTestId('info-response-textarea')).toHaveCount(0);
   });
 
   test('COMPLETED: shows the charged price and points-earned banner, with no cancel action', async ({

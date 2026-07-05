@@ -1,15 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { BOOKING_STATUS } from '@ikaro/types';
-import {
-  buildBookingStatusLabels,
-  BOOKING_STATUS_CLASSES,
-} from '@/features/booking/model/booking-status';
 import { canCancelBooking } from '../../booking-sections';
+import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { BookingDetailMain } from './BookingDetailMain';
 import { CancelAction } from './CancelAction';
 import { InfoSubmitForm } from './InfoSubmitForm';
@@ -49,50 +46,67 @@ export function BookingDetailPage({
   tenantSlug,
 }: BookingDetailPageProps): React.JSX.Element {
   const t = useTranslations('customer.bookingDetail');
-  const statusLabelsT = useTranslations('customer.bookingItem');
   const [status, setStatus] = useState(booking.status);
   const [infoJustSubmitted, setInfoJustSubmitted] = useState(false);
+  const topbarStatus = useCustomerTopbarStatus();
+  const setTopbarBookingStatus = topbarStatus?.setBookingStatus;
+  const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
+  const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
 
-  const statusLabels = buildBookingStatusLabels(statusLabelsT);
   const isInfoRequested = status === BOOKING_STATUS.INFO_REQUESTED;
   const showCancel = canCancelBooking({ status, cancellableUntil: booking.cancellableUntil });
   const showInfoForm =
     isInfoRequested && booking.infoResponseMessage === null && !infoJustSubmitted;
-  // INFO_REQUESTED's cancel button stays inline below the form — the prototype has no
-  // sidebar for that state (the form is the primary action). PENDING/APPROVED/COMPLETED
-  // get the two-column layout with a sticky action pane on desktop.
-  const hasSidebarAction = !isInfoRequested && (showCancel || status === BOOKING_STATUS.COMPLETED);
+  // Every non-terminal state gets the same two-column layout, with a sticky action pane on
+  // desktop — INFO_REQUESTED stacks the response form above the cancel option in that pane.
+  const hasSidebarAction = showCancel || status === BOOKING_STATUS.COMPLETED;
+
+  useEffect(() => {
+    setTopbarBookingStatus?.(status);
+    return () => {
+      setTopbarBookingStatus?.(null);
+    };
+  }, [status, setTopbarBookingStatus]);
+
+  useEffect(() => {
+    setBackHrefOverride?.(`/${tenantSlug}/my-account/bookings`);
+    setBackLabelOverride?.(t('backToBookings'));
+    return () => {
+      setBackHrefOverride?.(null);
+      setBackLabelOverride?.(null);
+    };
+  }, [tenantSlug, t, setBackHrefOverride, setBackLabelOverride]);
 
   function renderActionPane(): React.JSX.Element {
-    return status === BOOKING_STATUS.COMPLETED ? (
-      <CompletedActionPane tenantSlug={tenantSlug} />
-    ) : (
-      <CancelAction
-        tenantSlug={tenantSlug}
-        bookingId={booking.bookingId}
-        status={status}
-        cancellableUntil={booking.cancellableUntil}
-      />
+    if (status === BOOKING_STATUS.COMPLETED) {
+      return <CompletedActionPane tenantSlug={tenantSlug} />;
+    }
+    return (
+      <div className="flex flex-col gap-3">
+        {showInfoForm && booking.infoRequestMessage !== null && (
+          <InfoSubmitForm
+            bookingId={booking.bookingId}
+            infoRequestMessage={booking.infoRequestMessage}
+            onSubmitted={() => {
+              setStatus(BOOKING_STATUS.PENDING);
+              setInfoJustSubmitted(true);
+            }}
+          />
+        )}
+        {showCancel && (
+          <CancelAction
+            tenantSlug={tenantSlug}
+            bookingId={booking.bookingId}
+            status={status}
+            cancellableUntil={booking.cancellableUntil}
+          />
+        )}
+      </div>
     );
   }
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between">
-        <Link
-          href={`/${tenantSlug}/my-account/bookings`}
-          className="text-sm font-medium text-blue-600 hover:underline"
-        >
-          ← {t('backToBookings')}
-        </Link>
-        <span
-          data-testid="booking-detail-status-badge"
-          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${BOOKING_STATUS_CLASSES[status]}`}
-        >
-          {statusLabels[status]}
-        </span>
-      </div>
-
       <div
         className={
           hasSidebarAction
@@ -107,26 +121,6 @@ export function BookingDetailPage({
             <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
               {t('responseSentConfirmation')}
             </div>
-          )}
-
-          {showInfoForm && booking.infoRequestMessage !== null && (
-            <InfoSubmitForm
-              bookingId={booking.bookingId}
-              infoRequestMessage={booking.infoRequestMessage}
-              onSubmitted={() => {
-                setStatus(BOOKING_STATUS.PENDING);
-                setInfoJustSubmitted(true);
-              }}
-            />
-          )}
-
-          {isInfoRequested && showCancel && (
-            <CancelAction
-              tenantSlug={tenantSlug}
-              bookingId={booking.bookingId}
-              status={status}
-              cancellableUntil={booking.cancellableUntil}
-            />
           )}
 
           {hasSidebarAction && (

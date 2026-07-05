@@ -2,6 +2,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
+import {
+  CustomerTopbarStatusProvider,
+  useCustomerTopbarStatus,
+} from '../customer-topbar-status-context';
 import { CancelErrorPage } from './CancelErrorPage';
 
 vi.mock('next-intl', () => ({
@@ -13,6 +17,7 @@ vi.mock('next-intl', () => ({
       contactNote: 'Precisa cancelar mesmo assim? Entre em contato.',
       whatsappCta: 'Contato via WhatsApp',
       backButton: 'Voltar ao agendamento',
+      backToBooking: 'Agendamento',
     };
     let value = translations[key] ?? key;
     if (params) {
@@ -112,5 +117,31 @@ describe('CancelErrorPage', () => {
       'href',
       '/lavacar-bh/my-account/bookings/b1',
     );
+  });
+
+  it('syncs the booking status and back link to the shared topbar context', () => {
+    function TopbarStatusProbe(): React.JSX.Element {
+      const status = useCustomerTopbarStatus();
+      return (
+        <div>
+          <p data-testid="probe-booking-status">{status?.bookingStatus ?? 'none'}</p>
+          <p data-testid="probe-back-href">{status?.backHrefOverride ?? 'none'}</p>
+          <p data-testid="probe-back-label">{status?.backLabelOverride ?? 'none'}</p>
+        </div>
+      );
+    }
+
+    render(
+      <CustomerTopbarStatusProvider>
+        <TopbarStatusProbe />
+        <CancelErrorPage booking={makeBooking()} tenantSlug="lavacar-bh" whatsapp={null} />
+      </CustomerTopbarStatusProvider>,
+    );
+
+    expect(screen.getByTestId('probe-booking-status')).toHaveTextContent('APPROVED');
+    expect(screen.getByTestId('probe-back-href')).toHaveTextContent(
+      '/lavacar-bh/my-account/bookings/b1',
+    );
+    expect(screen.getByTestId('probe-back-label')).toHaveTextContent('Agendamento');
   });
 });

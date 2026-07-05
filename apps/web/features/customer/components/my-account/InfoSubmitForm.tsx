@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, type SubmitEvent } from 'react';
+import { useId, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { submitInfo } from '../../api';
+import { CustomerPhotoUpload } from './CustomerPhotoUpload';
 
 interface InfoSubmitFormProps {
   readonly bookingId: string;
@@ -25,8 +26,10 @@ export function InfoSubmitForm({
 }: InfoSubmitFormProps): React.JSX.Element {
   const t = useTranslations('customer.infoSubmit');
   const [message, setMessage] = useState('');
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [state, setState] = useState<FormState>('idle');
   const [validationError, setValidationError] = useState(false);
+  const responseId = useId();
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -37,7 +40,7 @@ export function InfoSubmitForm({
     setValidationError(false);
     setState('submitting');
     try {
-      await submitInfo(bookingId, message.trim());
+      await submitInfo(bookingId, message.trim(), photoUrls);
       onSubmitted();
     } catch {
       setState('error');
@@ -62,11 +65,12 @@ export function InfoSubmitForm({
       )}
 
       <div>
-        <label htmlFor="info-response" className="text-sm font-semibold text-gray-900">
+        <label htmlFor={responseId} className="text-sm font-semibold text-gray-900">
           {t('label')}
         </label>
         <textarea
-          id="info-response"
+          id={responseId}
+          data-testid="info-response-textarea"
           value={message}
           onChange={(event) => {
             setMessage(event.target.value);
@@ -82,6 +86,8 @@ export function InfoSubmitForm({
           </p>
         )}
       </div>
+
+      <CustomerPhotoUpload bookingId={bookingId} value={photoUrls} onChange={setPhotoUrls} />
 
       <button
         type="submit"

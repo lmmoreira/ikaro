@@ -23,6 +23,7 @@ describe('toCustomerLoyaltyEntry()', () => {
 
     expect(result).toEqual({
       entryId: 'e1111111-0000-4000-8000-000000000001',
+      bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
       serviceName: 'Lavagem Completa',
       pointsEarned: 10,
       earnedAt: '2026-05-28T14:00:00.000Z',
@@ -55,6 +56,7 @@ describe('toCustomerLoyaltyRedemption()', () => {
 
     expect(result).toEqual({
       redemptionId: 'r1111111-0000-4000-8000-000000000001',
+      bookingId: 'bbbbbbbb-0000-4000-8000-000000000001',
       pointsUsed: 85,
       amountSaved: 'R$ 8,50',
       redeemedAt: '2026-05-18T10:00:00.000Z',

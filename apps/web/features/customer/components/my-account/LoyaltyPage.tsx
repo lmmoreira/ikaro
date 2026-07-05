@@ -127,29 +127,31 @@ export function LoyaltyPage({
               className="mt-3 flex flex-col gap-2"
             >
               {entries.items.map((entry) => (
-                <li
-                  key={entry.entryId}
-                  data-testid="loyalty-entry-row"
-                  className={`flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4 ${
-                    entry.expired ? 'opacity-40' : ''
-                  }`}
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{entry.serviceName}</p>
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
-                      <span>{formatDate(new Date(entry.earnedAt))}</span>
-                      {entry.expired && (
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-500">
-                          {t('expiredBadge')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={`text-sm font-bold ${entry.expired ? 'text-gray-400' : 'text-green-600'}`}
+                <li key={entry.entryId}>
+                  <Link
+                    href={`/${tenantSlug}/my-account/bookings/${entry.bookingId}`}
+                    data-testid="loyalty-entry-row"
+                    className={`flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4 transition-colors hover:bg-gray-50 ${
+                      entry.expired ? 'opacity-40' : ''
+                    }`}
                   >
-                    +{entry.pointsEarned} pts
-                  </span>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{entry.serviceName}</p>
+                      <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+                        <span>{formatDate(new Date(entry.earnedAt))}</span>
+                        {entry.expired && (
+                          <span className="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-500">
+                            {t('expiredBadge')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span
+                      className={`text-sm font-bold ${entry.expired ? 'text-gray-400' : 'text-green-600'}`}
+                    >
+                      +{entry.pointsEarned} pts
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -165,28 +167,46 @@ export function LoyaltyPage({
                   {t('noRedemptions')}
                 </li>
               ) : (
-                redemptions.items.map((redemption) => (
-                  <li
-                    key={redemption.redemptionId}
-                    data-testid="loyalty-redemption-row"
-                    className="flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {redemption.bookingReference === null
-                          ? t('redemptionLabelGeneric')
-                          : t('redemptionLabel', { reference: redemption.bookingReference })}
-                      </p>
-                      <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
-                        <span>{formatDate(new Date(redemption.redeemedAt))}</span>
-                        <span>{t('savingsLabel', { amount: redemption.amountSaved })}</span>
+                redemptions.items.map((redemption) => {
+                  const rowClassName =
+                    'flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4';
+                  const rowContent = (
+                    <>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {redemption.bookingReference === null
+                            ? t('redemptionLabelGeneric')
+                            : t('redemptionLabel', { reference: redemption.bookingReference })}
+                        </p>
+                        <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+                          <span>{formatDate(new Date(redemption.redeemedAt))}</span>
+                          <span>{t('savingsLabel', { amount: redemption.amountSaved })}</span>
+                        </div>
                       </div>
-                    </div>
-                    <span className="text-sm font-bold text-red-600">
-                      −{redemption.pointsUsed} pts
-                    </span>
-                  </li>
-                ))
+                      <span className="text-sm font-bold text-red-600">
+                        −{redemption.pointsUsed} pts
+                      </span>
+                    </>
+                  );
+
+                  return (
+                    <li key={redemption.redemptionId}>
+                      {redemption.bookingId === null ? (
+                        <div data-testid="loyalty-redemption-row" className={rowClassName}>
+                          {rowContent}
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/${tenantSlug}/my-account/bookings/${redemption.bookingId}`}
+                          data-testid="loyalty-redemption-row"
+                          className={`${rowClassName} transition-colors hover:bg-gray-50`}
+                        >
+                          {rowContent}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })
               )}
             </ul>
           )}

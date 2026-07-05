@@ -1,10 +1,12 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { digitsOnly } from '@/shared/utils/digits-only';
+import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 
 interface CancelErrorPageProps {
   readonly booking: CustomerBookingDetailResponse;
@@ -19,10 +21,23 @@ export function CancelErrorPage({
 }: CancelErrorPageProps): React.JSX.Element {
   const t = useTranslations('customer.cancelError');
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
+  const topbarStatus = useCustomerTopbarStatus();
 
   const serviceNames = booking.lines.map((line) => line.serviceName).join(', ');
   const scheduledAt = booking.scheduledAt === null ? null : new Date(booking.scheduledAt);
   const deadline = booking.cancellableUntil === null ? null : new Date(booking.cancellableUntil);
+
+  useEffect(() => {
+    topbarStatus?.setBookingStatus(booking.status);
+    topbarStatus?.setBackHrefOverride(`/${tenantSlug}/my-account/bookings/${booking.bookingId}`);
+    topbarStatus?.setBackLabelOverride(t('backToBooking'));
+    return () => {
+      topbarStatus?.setBookingStatus(null);
+      topbarStatus?.setBackHrefOverride(null);
+      topbarStatus?.setBackLabelOverride(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booking.bookingId, booking.status, tenantSlug]);
 
   return (
     <div className="flex w-full flex-col gap-4">

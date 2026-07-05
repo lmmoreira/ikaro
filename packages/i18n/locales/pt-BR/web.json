@@ -258,6 +258,7 @@
       "lineDurationMinutes": "{minutes} min",
       "total": "Total",
       "totalCharged": "Valor cobrado",
+      "summaryLabel": "Resumo",
       "quotedPrice": "Cotado: {amount}",
       "discountApplied": "Desconto aplicado: {points} pts (−{amount})",
       "notesTitle": "Suas observações",
@@ -281,14 +282,27 @@
       "submitting": "Enviando...",
       "retry": "Tentar novamente",
       "validationError": "Informe sua resposta antes de enviar.",
-      "submitError": "Não foi possível enviar sua resposta. Verifique sua conexão e tente novamente."
+      "submitError": "Não foi possível enviar sua resposta. Verifique sua conexão e tente novamente.",
+      "photoUploadTitle": "Fotos (opcional)",
+      "photoClickToAdd": "Clique para adicionar fotos",
+      "photoFormatHint": "JPG ou PNG",
+      "photoUnsupportedFormat": "Formato de imagem não suportado",
+      "photoUploadFailed": "Falha ao enviar a imagem",
+      "photoUploading": "Enviando...",
+      "photoUploaded": "Enviada",
+      "photoUploadError": "Erro ao enviar",
+      "photoRemove": "Remover"
     },
     "cancelConfirm": {
       "title": "Cancelar agendamento?",
       "irreversibleNote": "Esta ação não pode ser desfeita.",
+      "bookingSectionLabel": "Agendamento",
+      "warningNote": "Cancelamentos com menos de 48 horas de antecedência podem não ser aceitos conforme a política do estabelecimento.",
+      "confirmNote": "Tem certeza? O agendamento será cancelado permanentemente.",
       "confirmButton": "Confirmar cancelamento",
       "confirming": "Cancelando...",
       "backButton": "Voltar",
+      "backToBooking": "Agendamento",
       "genericError": "Não foi possível cancelar o agendamento. Tente novamente."
     },
     "cancelError": {
@@ -297,7 +311,8 @@
       "deadlineNote": "O prazo de cancelamento encerrou em {date} às {time}.",
       "contactNote": "Precisa cancelar mesmo assim? Entre em contato diretamente com o estabelecimento.",
       "whatsappCta": "Contato via WhatsApp",
-      "backButton": "Voltar ao agendamento"
+      "backButton": "Voltar ao agendamento",
+      "backToBooking": "Agendamento"
     },
     "loyalty": {
       "title": "Minha Fidelidade",

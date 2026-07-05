@@ -50,15 +50,6 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
 
   return (
     <div className="flex flex-col gap-5">
-      {isCompleted && booking.pointsEarned !== null && booking.pointsEarned > 0 && (
-        <div
-          data-testid="points-earned-banner"
-          className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800"
-        >
-          {t('pointsEarnedBanner', { points: booking.pointsEarned })}
-        </div>
-      )}
-
       <section>
         <SectionLabel>{t('dateTimeTitle')}</SectionLabel>
         <div className="rounded-xl border border-gray-100 bg-white px-4 shadow-sm">
@@ -120,20 +111,36 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
             </span>
           </div>
         </div>
-        {isCompleted && booking.totalActualPrice !== null && (
-          <p className="mt-1.5 text-right text-xs text-gray-400">
-            {t('quotedPrice', { amount: formatMoney(booking.totalPrice.amount) })}
-          </p>
-        )}
-        {isCompleted && booking.discountAmount !== null && booking.discountPointsUsed !== null && (
-          <p className="mt-1 text-right text-xs text-blue-600">
-            {t('discountApplied', {
-              points: booking.discountPointsUsed,
-              amount: formatMoney(booking.discountAmount.amount),
-            })}
-          </p>
-        )}
       </section>
+
+      {isCompleted && (
+        <section>
+          <SectionLabel>{t('summaryLabel')}</SectionLabel>
+          <div
+            data-testid="completion-summary"
+            className="flex flex-col gap-1.5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3.5 text-sm text-blue-900"
+          >
+            <p>{t('quotedPrice', { amount: formatMoney(booking.totalPrice.amount) })}</p>
+            <p className="font-semibold">
+              {t('totalCharged')}:{' '}
+              {formatMoney((booking.totalActualPrice ?? booking.totalPrice).amount)}
+            </p>
+            {booking.pointsEarned !== null && booking.pointsEarned > 0 && (
+              <p data-testid="points-earned-banner">
+                {t('pointsEarnedBanner', { points: booking.pointsEarned })}
+              </p>
+            )}
+            {booking.discountAmount !== null && booking.discountPointsUsed !== null && (
+              <p>
+                {t('discountApplied', {
+                  points: booking.discountPointsUsed,
+                  amount: formatMoney(booking.discountAmount.amount),
+                })}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
 
       {booking.notes !== null && (
         <section>
@@ -161,14 +168,14 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
       {booking.beforeServicePhotoUrls.length > 0 && (
         <section>
           <SectionLabel>{t('beforePhotosTitle')}</SectionLabel>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {booking.beforeServicePhotoUrls.map((url, index) => (
               <img
                 key={`${url}-${index}`}
                 src={url}
                 alt={t('beforePhotoAlt', { index: index + 1 })}
                 loading="lazy"
-                className="h-[70px] w-[70px] rounded-lg border border-gray-100 bg-blue-50 object-cover"
+                className="aspect-square w-full rounded-lg border border-gray-100 bg-blue-50 object-cover"
               />
             ))}
           </div>
@@ -178,14 +185,14 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
       {isCompleted && booking.afterServicePhotoUrls.length > 0 && (
         <section>
           <SectionLabel>{t('afterPhotosTitle')}</SectionLabel>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {booking.afterServicePhotoUrls.map((url, index) => (
               <img
                 key={`${url}-${index}`}
                 src={url}
                 alt={t('afterPhotoAlt', { index: index + 1 })}
                 loading="lazy"
-                className="h-[70px] w-[70px] rounded-lg border border-gray-100 bg-blue-50 object-cover"
+                className="aspect-square w-full rounded-lg border border-gray-100 bg-blue-50 object-cover"
               />
             ))}
           </div>
