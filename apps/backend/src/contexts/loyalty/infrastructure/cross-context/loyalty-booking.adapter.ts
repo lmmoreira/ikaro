@@ -23,7 +23,6 @@ export class LoyaltyBookingAdapter implements ILoyaltyBookingPort {
       const booking = await this.getBookingById.execute({
         bookingId,
         tenantId,
-        locale: 'pt-BR',
         cancellationWindowHours: 0,
       });
       return booking.lines.map((line) => ({

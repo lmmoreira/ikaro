@@ -228,8 +228,15 @@ describe('LoyaltyPage', () => {
 
     const rows = screen.getAllByTestId('loyalty-entry-row');
     expect(rows[0].tagName).toBe('A');
-    expect(rows[0]).toHaveAttribute('href', '/lavacar-bh/my-account/bookings/b1');
-    expect(rows[1]).toHaveAttribute('href', '/lavacar-bh/my-account/bookings/b2');
+    // returnTo remembers the loyalty page so the detail page's back link returns here.
+    expect(rows[0]).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/bookings/b1?returnTo=%2Flavacar-bh%2Fmy-account%2Floyalty',
+    );
+    expect(rows[1]).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/bookings/b2?returnTo=%2Flavacar-bh%2Fmy-account%2Floyalty',
+    );
   });
 
   it('switches to the Resgates tab and shows redemptions with savings', async () => {
@@ -265,7 +272,10 @@ describe('LoyaltyPage', () => {
 
     const row = screen.getByTestId('loyalty-redemption-row');
     expect(row.tagName).toBe('A');
-    expect(row).toHaveAttribute('href', '/lavacar-bh/my-account/bookings/b1');
+    expect(row).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/bookings/b1?returnTo=%2Flavacar-bh%2Fmy-account%2Floyalty',
+    );
   });
 
   it('renders a redemption without a link when bookingId is null', async () => {

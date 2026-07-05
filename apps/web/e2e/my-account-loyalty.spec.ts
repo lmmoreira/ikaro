@@ -22,6 +22,21 @@ test.describe('customer my-account: Fidelidade page', () => {
     await expect(page.getByTestId('loyalty-redemption-row').first()).toBeVisible();
   });
 
+  test('clicking an earned entry through to its booking, then back, returns to the loyalty page', async ({
+    page,
+  }) => {
+    const customerEmail = uniqueTestEmail('loyalty-back-nav');
+    await createCompletedLoyaltyFlow(page, STAFF_EMAIL, customerEmail);
+    await loginAsCustomer(page, customerEmail, TENANT_SLUG);
+
+    await page.goto(`/${TENANT_SLUG}/my-account/loyalty`);
+    await page.getByTestId('loyalty-entry-row').first().click();
+    await expect(page).toHaveURL(new RegExp(`/${TENANT_SLUG}/my-account/bookings/`));
+
+    await page.getByTestId('topbar-back-link').click();
+    await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account/loyalty`);
+  });
+
   test('on mobile, the bottom nav reaches the page and hides again on drill-down', async ({
     page,
   }) => {

@@ -249,6 +249,7 @@
     },
     "bookingDetail": {
       "backToBookings": "Agendamentos",
+      "backToLoyalty": "Fidelidade",
       "dateTimeTitle": "Data e horário",
       "dateLabel": "Data",
       "timeLabel": "Horário",

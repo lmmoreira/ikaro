@@ -2868,7 +2868,7 @@ On confirm: pass `discountByPoints` to `completeBooking()` fetcher.
 
 ---
 
-### M13-S27 — Minha Conta home + booking list page (`/{slug}/my-account`)
+### M13-S27 — Minha Conta home + booking list page (`/{slug}/my-account`) ✅ Done
 
 *(formerly M126-S03)*
 
@@ -2978,7 +2978,7 @@ const canCancel =
 
 ---
 
-### M13-S28 — Booking detail page + cancel flow + info submit (`/{slug}/my-account/bookings/[id]`)
+### M13-S28 — Booking detail page + cancel flow + info submit (`/{slug}/my-account/bookings/[id]`) ✅ Done
 
 *(formerly M126-S05)*
 
@@ -3123,7 +3123,7 @@ submitInfo(bookingId: string, message: string): Promise<void>
 
 ---
 
-### M13-S29 — Frontend: Fidelidade page (`/{slug}/my-account/loyalty`)
+### M13-S29 — Frontend: Fidelidade page (`/{slug}/my-account/loyalty`) ✅ Done
 
 *(formerly M126-S07)*
 
@@ -3200,7 +3200,7 @@ fetchLoyaltyRedemptions(token): // GET /v1/loyalty/redemptions?limit=50 → Cust
 
 ---
 
-### M13-S30 — ~~Frontend: UC-023 tenant switch trigger + page~~ — Merged into `M13-S14`
+### M13-S30 — ~~Frontend: UC-023 tenant switch trigger + page~~ — Merged into `M13-S14` ✅ Done
 
 *(formerly M126-S08)*
 

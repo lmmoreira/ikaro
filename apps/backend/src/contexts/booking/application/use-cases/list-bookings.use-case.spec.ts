@@ -23,7 +23,7 @@ describe('ListBookingsUseCase', () => {
       await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
       await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
 
-      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
 
       expect(result.items).toHaveLength(2);
       expect(result.pagination.total).toBe(2);
@@ -42,7 +42,6 @@ describe('ListBookingsUseCase', () => {
         ...defaultDto,
         status: [BookingStatus.APPROVED],
         tenantId: TENANT_A,
-        locale: 'pt-BR',
       });
 
       expect(result.items).toHaveLength(1);
@@ -67,7 +66,6 @@ describe('ListBookingsUseCase', () => {
         ...defaultDto,
         status: [BookingStatus.PENDING, BookingStatus.INFO_REQUESTED],
         tenantId: TENANT_A,
-        locale: 'pt-BR',
       });
 
       expect(result.items).toHaveLength(2);
@@ -86,7 +84,6 @@ describe('ListBookingsUseCase', () => {
         limit: 3,
         offset: 0,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
       });
 
       expect(result.items).toHaveLength(3);
@@ -104,7 +101,6 @@ describe('ListBookingsUseCase', () => {
         limit: 3,
         offset: 3,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
       });
 
       expect(result.items).toHaveLength(2);
@@ -115,13 +111,14 @@ describe('ListBookingsUseCase', () => {
       const booking = new BookingBuilder().withTenantId(TENANT_A).build();
       await repo.save(booking);
 
-      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
 
       const item = result.items[0];
       expect(item.id).toBe(booking.id);
       expect(item.status).toBe(booking.status);
       expect(item.type).toBe(booking.type);
-      expect(item.totalPrice.formatted).toMatch(/^R\$/);
+      expect(item.totalPrice.amount).toBe(booking.totalPrice.amount.toNumber());
+      expect(item.totalPrice.currency).toBe(booking.totalPrice.currency);
       expect(item.lineSummary).toHaveLength(booking.lines.length);
       expect(item.lineSummary[0].lineId).toBe(booking.lines[0].lineId);
       expect(item.lineSummary[0].serviceNameAtBooking).toBeDefined();
@@ -144,7 +141,6 @@ describe('ListBookingsUseCase', () => {
         ...defaultDto,
         cancellationWindowHours: 48,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
       });
 
       expect(result.items[0].cancellableUntil).toBe('2026-08-08T14:00:00.000Z');
@@ -155,7 +151,7 @@ describe('ListBookingsUseCase', () => {
         new BookingBuilder().withTenantId(TENANT_A).withStatus(BookingStatus.PENDING).build(),
       );
 
-      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
 
       expect(result.items[0].cancellableUntil).toBeNull();
     });
@@ -169,7 +165,7 @@ describe('ListBookingsUseCase', () => {
       await repo.save(customerBooking);
       await repo.save(guestBooking);
 
-      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
 
       expect(result.items).toHaveLength(2);
     });
@@ -178,7 +174,7 @@ describe('ListBookingsUseCase', () => {
       await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
       await repo.save(new BookingBuilder().withTenantId(TENANT_B).build());
 
-      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A, locale: 'pt-BR' });
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
 
       expect(result.items).toHaveLength(1);
     });
@@ -200,7 +196,6 @@ describe('ListBookingsUseCase', () => {
       const result = await useCase.execute({
         ...defaultDto,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
         customerId: CUSTOMER_ID,
       });
 
@@ -212,7 +207,6 @@ describe('ListBookingsUseCase', () => {
       const result = await useCase.execute({
         ...defaultDto,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
         customerId: CUSTOMER_ID,
       });
       expect(result.items).toHaveLength(0);

@@ -45,6 +45,7 @@ export function CustomerTopbar({
       {topbarStatus?.backHrefOverride ? (
         <Link
           href={topbarStatus.backHrefOverride}
+          data-testid="topbar-back-link"
           className="flex min-w-0 items-center gap-1.5 text-[0.9375rem] font-semibold text-gray-900 transition-colors hover:text-blue-700"
         >
           <ChevronLeft className="h-5 w-5 shrink-0" />

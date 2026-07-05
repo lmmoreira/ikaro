@@ -34,6 +34,7 @@ vi.mock('next-intl', () => ({
     const translations: Record<string, Record<string, string>> = {
       'customer.bookingDetail': {
         backToBookings: 'Agendamentos',
+        backToLoyalty: 'Fidelidade',
         dateTimeTitle: 'Data e horário',
         dateLabel: 'Data',
         timeLabel: 'Horário',
@@ -145,6 +146,21 @@ describe('BookingDetailPage', () => {
     );
     expect(screen.getByTestId('probe-back-label')).toHaveTextContent('Agendamentos');
     expect(screen.getByTestId('probe-booking-status')).toHaveTextContent('APPROVED');
+  });
+
+  it('uses returnTo for the back link when reached from the loyalty page', () => {
+    renderWithTopbarStatus(
+      <BookingDetailPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        returnTo="/lavacar-bh/my-account/loyalty"
+      />,
+    );
+
+    expect(screen.getByTestId('probe-back-href')).toHaveTextContent(
+      '/lavacar-bh/my-account/loyalty',
+    );
+    expect(screen.getByTestId('probe-back-label')).toHaveTextContent('Fidelidade');
   });
 
   it('APPROVED within window: shows the cancel action, no info form', () => {

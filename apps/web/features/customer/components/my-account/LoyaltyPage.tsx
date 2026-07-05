@@ -9,6 +9,7 @@ import type {
   CustomerLoyaltyRedemptionsResponse,
 } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { appendReturnTo } from '../../booking-navigation';
 
 interface LoyaltyPageProps {
   readonly balance: CustomerLoyaltyBalanceResponse;
@@ -129,7 +130,10 @@ export function LoyaltyPage({
               {entries.items.map((entry) => (
                 <li key={entry.entryId}>
                   <Link
-                    href={`/${tenantSlug}/my-account/bookings/${entry.bookingId}`}
+                    href={appendReturnTo(
+                      `/${tenantSlug}/my-account/bookings/${entry.bookingId}`,
+                      `/${tenantSlug}/my-account/loyalty`,
+                    )}
                     data-testid="loyalty-entry-row"
                     className={`flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4 transition-colors hover:bg-gray-50 ${
                       entry.expired ? 'opacity-40' : ''
@@ -197,7 +201,10 @@ export function LoyaltyPage({
                         </div>
                       ) : (
                         <Link
-                          href={`/${tenantSlug}/my-account/bookings/${redemption.bookingId}`}
+                          href={appendReturnTo(
+                            `/${tenantSlug}/my-account/bookings/${redemption.bookingId}`,
+                            `/${tenantSlug}/my-account/loyalty`,
+                          )}
                           data-testid="loyalty-redemption-row"
                           className={`${rowClassName} transition-colors hover:bg-gray-50`}
                         >

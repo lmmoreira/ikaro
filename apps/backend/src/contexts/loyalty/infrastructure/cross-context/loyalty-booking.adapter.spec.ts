@@ -65,7 +65,7 @@ describe('LoyaltyBookingAdapter', () => {
       notes: null,
       scheduledAt: '2026-01-01T10:00:00.000Z',
       totalDurationMins: 30,
-      totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+      totalPrice: { amount: 100, currency: 'BRL' },
       totalActualPrice: null,
       discountPointsUsed: null,
       discountAmount: null,
@@ -103,7 +103,6 @@ describe('LoyaltyBookingAdapter', () => {
     expect(getBookingById.execute).toHaveBeenCalledWith({
       bookingId: BOOKING_ID,
       tenantId: TENANT_ID,
-      locale: 'pt-BR',
       cancellationWindowHours: 0,
     });
   });

@@ -135,7 +135,6 @@ export class BookingController {
       .execute({
         ...query,
         tenantId,
-        locale: settings.localization.language,
         customerId: actorType === 'CUSTOMER' ? actorId : undefined,
         cancellationWindowHours: settings.booking.cancellationWindowHours,
       })
@@ -151,7 +150,6 @@ export class BookingController {
       .execute({
         bookingId: id,
         tenantId,
-        locale: settings.localization.language,
         cancellationWindowHours: settings.booking.cancellationWindowHours,
       })
       .then((result) => {

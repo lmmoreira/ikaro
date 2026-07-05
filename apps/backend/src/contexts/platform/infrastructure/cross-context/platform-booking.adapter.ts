@@ -16,7 +16,6 @@ export class PlatformBookingAdapter implements IPlatformBookingPort {
       const booking = await this.getBookingById.execute({
         bookingId,
         tenantId,
-        locale: 'pt-BR',
         cancellationWindowHours: 0,
       });
       return {

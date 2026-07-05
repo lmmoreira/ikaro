@@ -14,6 +14,7 @@ import { InfoSubmitForm } from './InfoSubmitForm';
 interface BookingDetailPageProps {
   readonly booking: CustomerBookingDetailResponse;
   readonly tenantSlug: string;
+  readonly returnTo?: string | null;
 }
 
 interface CompletedActionPaneProps {
@@ -44,6 +45,7 @@ function CompletedActionPane({ tenantSlug }: CompletedActionPaneProps): React.JS
 export function BookingDetailPage({
   booking,
   tenantSlug,
+  returnTo = null,
 }: BookingDetailPageProps): React.JSX.Element {
   const t = useTranslations('customer.bookingDetail');
   const [status, setStatus] = useState(booking.status);
@@ -69,13 +71,15 @@ export function BookingDetailPage({
   }, [status, setTopbarBookingStatus]);
 
   useEffect(() => {
-    setBackHrefOverride?.(`/${tenantSlug}/my-account/bookings`);
-    setBackLabelOverride?.(t('backToBookings'));
+    const backHref = returnTo ?? `/${tenantSlug}/my-account/bookings`;
+    const backLabel = returnTo?.endsWith('/loyalty') ? t('backToLoyalty') : t('backToBookings');
+    setBackHrefOverride?.(backHref);
+    setBackLabelOverride?.(backLabel);
     return () => {
       setBackHrefOverride?.(null);
       setBackLabelOverride?.(null);
     };
-  }, [tenantSlug, t, setBackHrefOverride, setBackLabelOverride]);
+  }, [tenantSlug, returnTo, t, setBackHrefOverride, setBackLabelOverride]);
 
   function renderActionPane(): React.JSX.Element {
     if (status === BOOKING_STATUS.COMPLETED) {
