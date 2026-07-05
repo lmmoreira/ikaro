@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const GuestTokenPayloadSchema = z.object({
   bookingId: z.string(),
   tenantId: z.string(),
+  tenantSlug: z.string().optional(),
   contactEmail: z.email(),
 });
 

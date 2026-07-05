@@ -327,6 +327,7 @@ export class BackendHttpService {
 | `PATCH /bookings/:id/request-info` | JWT | X-Tenant-Slug | STAFF \| MANAGER |
 | `PATCH /bookings/:id/submit-info` | JWT | X-Tenant-Slug | CUSTOMER |
 | `PATCH /bookings/:id/submit-info/guest` | No (guest token in query) | No | — |
+| `GET /bookings/:id/guest` | No (guest token in query) | No | — |
 | `PATCH /bookings/:id/reschedule` | JWT | X-Tenant-Slug | STAFF \| MANAGER |
 | `PATCH /bookings/:id/complete` | JWT | X-Tenant-Slug | STAFF \| MANAGER |
 | `GET /customers/me` | JWT | X-Tenant-Slug | CUSTOMER |

@@ -3569,12 +3569,12 @@ Closes out the Hotsite editor: the SEO tab, the Preview action, and the Publish/
 *(formerly M129-S01)*
 
 **Agent:** `backend-ts`
-**Complexity:** XS (2 files, ~3 line changes)
+**Complexity:** XS (2 files, ~5 line changes)
 **Must co-deploy with:** M13-S40
 **Docs to load:** none beyond this file
 
 **Description:**
-The info-request email currently links guests to `/bookings/:id/responder?token=`. The new frontend page lives at `/bookings/:id/submit-info`. Update the link builder and its spec.
+The info-request email currently links guests to `/bookings/:id/responder?token=`. The new frontend page lives at `/bookings/:id/submit-info`. Update the link builder and its spec. Also embed `tenantSlug` in the signed guest token so the frontend page (M13-S40) can fetch and apply the tenant's hotsite branding — `tenantInfo.slug` is already available in `execute()` (fetched via `tenantPort.getTenantInfo()` for the locale lookup), it's just not passed into `buildRespondLink()` yet.
 
 > 🔍 **Discover before starting:**
 > Read `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case.ts` in full.
@@ -3582,20 +3582,53 @@ The info-request email currently links guests to `/bookings/:id/responder?token=
 
 **File 1:** `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case.ts`
 
-Change in `buildRespondLink()`:
+Change in `buildRespondLink()` — rename the path, pass `tenantInfo` in, and add `tenantSlug` to the signed payload:
 ```ts
 // Before:
-return `${frontendUrl}/bookings/${dto.bookingId}/responder?token=${token}`;
+const respondLink = this.buildRespondLink(input);
+// ...
+private buildRespondLink(input: SendBookingInfoRequestedNotificationUseCaseInput): string {
+  // ...
+  const token = jwt.sign(
+    { bookingId: input.bookingId, tenantId: input.tenantId, contactEmail: input.contactEmail },
+    secret,
+    { expiresIn: GUEST_TOKEN_TTL_SECONDS },
+  );
+  return `${frontendUrl}/bookings/${input.bookingId}/responder?token=${token}`;
+}
+
 // After:
-return `${frontendUrl}/bookings/${dto.bookingId}/submit-info?token=${token}`;
+const respondLink = this.buildRespondLink(input, tenantInfo);
+// ...
+private buildRespondLink(
+  input: SendBookingInfoRequestedNotificationUseCaseInput,
+  tenantInfo: NotificationTenantInfo | null,
+): string {
+  // ...
+  const token = jwt.sign(
+    {
+      bookingId: input.bookingId,
+      tenantId: input.tenantId,
+      tenantSlug: tenantInfo?.slug,
+      contactEmail: input.contactEmail,
+    },
+    secret,
+    { expiresIn: GUEST_TOKEN_TTL_SECONDS },
+  );
+  return `${frontendUrl}/bookings/${input.bookingId}/submit-info?token=${token}`;
+}
 ```
+Since `tenantInfo` can be `null` in principle (defensive port return type), `tenantSlug` should be optional in the payload — the frontend already degrades gracefully (default branding) if absent, same as it does when M13-S39 hasn't shipped.
 
 **File 2:** `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case.spec.ts`
 
-Update the assertion that checks the constructed link. Grep for `responder` in the spec — replace with `submit-info`.
+Update the assertion that checks the constructed link (grep for `responder`, replace with `submit-info`), and add an assertion decoding the signed token to confirm it carries `tenantSlug` matching the test's tenant fixture.
+
+**BFF companion change (not part of this story's files, but required for the token to validate):** `apps/bff/src/features/booking/guest-token.util.ts` → `GuestTokenPayloadSchema` needs `tenantSlug: z.string()` added. Tracked in M13-S40 since that's where the field is first consumed, but implementers should land it alongside this story since both `submitInfoGuest` and the M13-S39 guest-read endpoint parse tokens through this same schema.
 
 **Acceptance criteria:**
 - [ ] `buildRespondLink()` emits `/submit-info` for guest path; authenticated path unchanged (`/dashboard/bookings/${id}`)
+- [ ] Guest token payload includes `tenantSlug` sourced from `tenantInfo.slug`
 - [ ] All existing spec assertions pass with updated URL expectation
 - [ ] `grep -r "responder" apps/backend/src/contexts/notification/` returns zero matches
 
@@ -3616,9 +3649,11 @@ Update the assertion that checks the constructed link. Grep for `responder` in t
 Add `GET /v1/bookings/:id/guest?token=` to the BFF — a `@Public()` endpoint that validates the guest token and returns the minimal booking fields needed to pre-fill the form (service name, date, info request message). Without this, the frontend form has no way to show a booking summary to the guest.
 
 > 🔍 **Discover before starting:**
-> Read `apps/bff/src/bookings/bookings.controller.ts` — locate `submitInfoGuest()` (the existing `@Public()` PATCH handler). **Understand how it derives tenant context** without a `X-Tenant-Slug` header (TenantGuard is bypassed by `@Public()`). Whatever mechanism it uses to call the backend with the correct tenant must be replicated for this GET endpoint. Read `apps/bff/src/shared/http/backend-http.service.ts` to understand how the BFF passes headers to the backend.
+> Read `apps/bff/src/features/booking/bookings.controller.ts` — locate `submitInfoGuest()` (the existing `@Public()` PATCH handler). **Understand how it derives tenant context** without a `X-Tenant-Slug` header (TenantGuard is bypassed by `@Public()`). Whatever mechanism it uses to call the backend with the correct tenant must be replicated for this GET endpoint. Read `apps/bff/src/shared/http/backend-http.service.ts` to understand how the BFF passes headers to the backend.
 >
 > Also check: does `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.ts` have a guest-accessible `GET /bookings/:id` variant? Or does the existing `GET /bookings/:id` work without authentication at the backend level (since the BFF validates the token and the backend relies on `X-Internal-Key`)?
+>
+> **Resolved during story-discovery:** `BackendHttpService.getForPublic<T>(path, tenantId)` already exists and is the mechanism to replicate — same headers `submitInfoGuest` uses via `patchForPublic`. No backend variant is needed: the existing `GET /bookings/:id` (`GetBookingByIdUseCase`) already returns every field this endpoint needs (`status`, `contactName`, `scheduledAt`, `infoRequestMessage`, `lines[].serviceNameAtBooking`), and `RequestContext` resolves tenant scope from the `X-Tenant-ID`/`X-Internal-Key` headers the same way it already does for the guest submit-info flow.
 
 **Endpoint:**
 ```
@@ -3635,25 +3670,24 @@ Response 200:
   contactName: string;
 }
 
-Response 400: token missing or invalid JWT
-Response 401: token bookingId ≠ path :id (mismatch)
+Response 400: token missing, or token bookingId ≠ path :id (mismatch)
+Response 401: invalid or expired guest token (signature verification failed)
 Response 409: booking is not INFO_REQUESTED (already processed)
 Response 404: booking not found
 ```
 
-**Token validation:** reuse the existing `verifyGuestToken()` function already in the BFF bookings controller. Do not duplicate logic.
+**Token validation:** reuse the existing `verifyGuestToken()` function already in the BFF bookings controller. Do not duplicate logic. Status-code assignment matches `submitInfoGuest`'s established convention: `401` is reserved for JWT signature/expiry failure, `400` covers missing token and the bookingId-mismatch check.
 
-**Zod schema (response):**
+**Response type:** add `GuestBookingReadResponse` as a plain TS interface in `packages/types/src/booking.dto.ts` (same pattern as `CustomerBookingDetailResponse`) — no Zod validation on the outbound response, consistent with every other BFF response in this codebase (Zod is reserved for inbound request validation).
 ```ts
-export const GuestBookingReadResponseSchema = z.object({
-  bookingId: z.uuid(),
-  status: z.literal('INFO_REQUESTED'),
-  serviceSummary: z.string(),
-  scheduledAt: z.string(),
-  infoRequestMessage: z.string(),
-  contactName: z.string(),
-});
-export type GuestBookingReadResponse = z.infer<typeof GuestBookingReadResponseSchema>;
+export interface GuestBookingReadResponse {
+  bookingId: string;
+  status: 'INFO_REQUESTED';
+  serviceSummary: string;
+  scheduledAt: string;
+  infoRequestMessage: string;
+  contactName: string;
+}
 ```
 
 **`.http` file:** add a request block to `apps/bff/http/bookings/bookings.http`:
@@ -3664,12 +3698,13 @@ GET {{bffUrl}}/v1/bookings/{{bookingId}}/guest?token={{guestToken}}
 
 **Acceptance criteria:**
 - [ ] Returns 200 with booking summary fields when token is valid and booking is `INFO_REQUESTED`
-- [ ] Returns 400 when `?token=` is absent or JWT signature is invalid
-- [ ] Returns 401 when token `bookingId` ≠ path `:id`
+- [ ] Returns 400 when `?token=` is absent, or token `bookingId` ≠ path `:id`
+- [ ] Returns 401 when JWT signature is invalid or expired
 - [ ] Returns 409 when booking status ≠ `INFO_REQUESTED`
+- [ ] Returns 404 when booking belongs to a different tenant than the token's `tenantId`
 - [ ] No `X-Tenant-Slug` or JWT auth cookie required
 - [ ] `.http` block added
-- [ ] Unit test covers: valid token, invalid token, mismatched bookingId, wrong status
+- [ ] Unit test covers: valid token, invalid/expired token, mismatched bookingId, wrong status, cross-tenant token
 
 **Dependencies:** M08
 
@@ -3686,22 +3721,33 @@ GET {{bffUrl}}/v1/bookings/{{bookingId}}/guest?token={{guestToken}}
 **Prototype:** `plan/journey/guest/prototypes/submit-info/` — read `dev-notes.md` in full before starting
 
 **Description:**
-Create the standalone public page that guests arrive at via the info-request email link. No authentication required. The page validates the guest token server-side, optionally fetches the booking summary, and renders a form for the guest to type their response and optionally upload photos.
+Create the standalone public page that guests arrive at via the info-request email link. No authentication required. The page validates the guest token server-side, applies the tenant's hotsite branding, optionally fetches the booking summary, and renders a form for the guest to type their response (photo upload omitted — see below).
 
 > 🔍 **Discover before starting:**
 > - Confirm `apps/web/app/bookings/` does NOT exist yet — this is a new top-level Next.js route.
-> - Read `apps/web/app/[slug]/booking/page.tsx` to understand the existing public booking page pattern (auth bar, fetch pattern, error states).
-> - Confirm that `jsonwebtoken` is already a dependency in `apps/web/package.json`. If not, add `jose` instead (Web Crypto API, works in Edge Runtime — `jsonwebtoken` requires Node.js runtime).
-> - Read `apps/bff/src/bookings/bookings.controller.ts` — locate `SubmitGuestBookingInfoBodySchema` (lines ~109–121) to confirm the exact body shape: `{ response: string, photoUrls?: string[] }`.
-> - Check if `POST /v1/bookings/:id/presigned-url/guest?token=` exists in the BFF. If it does not exist, **omit photo upload from this story** — text-only response is sufficient for MVP. Document the gap in a comment.
+> - Read `apps/web/app/[slug]/booking/page.tsx` to understand the existing public booking page pattern — **note it types `params`/`searchParams` as `Promise<{...}>` and awaits them (Next.js 16 async params API); this story's code must follow the same pattern, not the sync `{ params: { id: string } }` shape.**
+> - **Resolved during story-discovery:** use `jsonwebtoken` (already a dependency of `apps/backend`/`apps/bff`, which sign/verify this same token — no Edge runtime is used anywhere in this app, so there's no reason to introduce `jose` as a second JWT library). Add `jsonwebtoken` + `@types/jsonwebtoken` to `apps/web/package.json`.
+> - Read `apps/bff/src/features/booking/bookings.controller.ts` (path corrected — moved since this story was drafted) — locate `SubmitGuestBookingInfoBodySchema` to confirm the exact body shape: `{ response: string, photoUrls?: string[] }`.
+> - **Resolved during story-discovery:** `POST /v1/bookings/:id/presigned-url/guest?token=` does not exist — verified no presigned-URL route exists for unauthenticated callers anywhere in the BFF (the only presigned-URL endpoint, `POST /uploads/signed-url`, sits behind the global `JwtAuthGuard`). Omit photo upload entirely; render the static fallback copy instead (see below).
+> - Read `apps/web/features/booking/api/public.ts` — this is where `fetchGuestBookingSummary` and the guest submission call belong (same raw-`fetch()` + `NEXT_PUBLIC_BFF_URL` pattern already used by `createBooking`), not a new `lib/api/` file.
+> - Read `apps/web/features/platform/api.ts` (`fetchManifest`) and `apps/web/features/platform/hotsite/apply-branding.ts` (`applyBranding`) — same two functions `app/[slug]/layout.tsx` uses to turn a manifest into `--ba-*` CSS variables. This story reuses them from a new call site (see branding section below).
 
 **New files to create:**
 
 | File | Notes |
 |---|---|
 | `apps/web/app/bookings/[id]/submit-info/page.tsx` | Server component — token validation + data fetch |
-| `apps/web/components/booking/SubmitInfoForm.tsx` | Client component — form state machine |
-| `apps/web/components/booking/SubmitInfoForm.spec.tsx` | Vitest + `@testing-library/react` unit tests |
+| `apps/web/features/booking/components/public/SubmitInfoForm.tsx` | Client component — form state machine |
+| `apps/web/features/booking/components/public/SubmitInfoForm.spec.tsx` | Vitest + `@testing-library/react` unit tests |
+| `apps/web/features/booking/components/public/InvalidLinkView.tsx` | Renders the `reason="invalid"` / `reason="processed"` screens |
+| `apps/web/features/booking/model/guest-token.ts` | `verifyGuestToken()` — booking-owned, not `features/auth/` |
+| `apps/web/e2e/guest-submit-info.spec.ts` | Playwright — golden path + invalid-link path (M13-S41 convention) |
+
+**New functions in existing files:**
+
+| File | Addition |
+|---|---|
+| `apps/web/features/booking/api/public.ts` | `fetchGuestBookingSummary(id, token)`, `submitGuestBookingInfo(id, token, body)` |
 
 ---
 
@@ -3709,55 +3755,70 @@ Create the standalone public page that guests arrive at via the info-request ema
 
 ```ts
 // @vitest-environment jsdom  ← NOT here (this is a server component, not tested directly)
-import { SubmitInfoForm } from '@/components/booking/SubmitInfoForm';
+import { SubmitInfoForm } from '@/features/booking/components/public/SubmitInfoForm';
+import { InvalidLinkView } from '@/features/booking/components/public/InvalidLinkView';
+import { verifyGuestToken } from '@/features/booking/model/guest-token';
+import { fetchGuestBookingSummary } from '@/features/booking/api/public';
+import { fetchManifest } from '@/features/platform/api';
+import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 
 interface Props {
-  params: { id: string };
-  searchParams: { token?: string };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ token?: string }>;
 }
 
 export default async function SubmitInfoPage({ params, searchParams }: Props) {
-  const { token } = searchParams;
+  const { id } = await params;
+  const { token } = await searchParams;
 
-  // 1. Token presence check
-  if (!token) {
-    return <InvalidLinkView reason="missing" />;
-  }
-
-  // 2. Token signature + expiry validation (server-side)
-  const payload = verifyGuestToken(token); // returns null on failure
-  if (!payload || payload.bookingId !== params.id) {
+  // 1/2. Token presence + signature/expiry validation (server-side) — both render the
+  // same generic invalid-link screen; the prototype does not distinguish "missing" from
+  // "invalid/expired/reused" (single combined reason list in 01b-invalid-link.html).
+  const payload = token ? verifyGuestToken(token) : null;
+  if (!payload || payload.bookingId !== id) {
     return <InvalidLinkView reason="invalid" />;
   }
 
-  // 3. Optional: fetch booking summary (if M13-S39 shipped)
-  const summary = await fetchGuestBookingSummary(params.id, token).catch(() => null);
-  // If summary?.status is not INFO_REQUESTED → render InvalidLinkView with reason="processed"
+  // 3. Tenant branding — degrade to default tokens.css values if the manifest fetch fails
+  // (e.g. tenantSlug absent because the token predates M13-S38's payload change).
+  const manifest = payload.tenantSlug ? await fetchManifest(payload.tenantSlug).catch(() => null) : null;
+  const brandingStyle = manifest ? applyBranding(manifest.branding) : undefined;
+
+  // 4. Optional: fetch booking summary (if M13-S39 shipped)
+  const summary = await fetchGuestBookingSummary(id, token).catch(() => null);
+  if (summary && summary.status !== 'INFO_REQUESTED') {
+    return <InvalidLinkView reason="processed" brandingStyle={brandingStyle} />;
+  }
 
   return (
     <SubmitInfoForm
-      bookingId={params.id}
+      bookingId={id}
       token={token}
       summary={summary}  // null if M13-S39 not available
+      brandName={manifest?.branding.brandName ?? manifest?.tenant.name}
+      logoUrl={manifest?.branding.logoUrl}
+      brandingStyle={brandingStyle}
     />
   );
 }
 ```
 
-**`verifyGuestToken(token: string)`** — implement inline or as a shared util in `apps/web/lib/auth/guest-token.ts`:
-- Use `jose` (`jwtVerify`) or `jsonwebtoken` (`jwt.verify`) with `process.env.JWT_SECRET`
-- Payload shape: `{ bookingId: string, tenantId: string, contactEmail: string }`
-- Return `null` on any error (expired, invalid signature, malformed)
+**`verifyGuestToken(token: string)`** — `apps/web/features/booking/model/guest-token.ts`:
+- Use `jsonwebtoken` (`jwt.verify`) with `process.env.JWT_SECRET` — matches the library already used to sign/verify this token in `apps/backend`/`apps/bff`
+- Payload shape: `{ bookingId: string, tenantId: string, tenantSlug?: string, contactEmail: string }` (`tenantSlug` optional — see M13-S38's payload change)
+- Return `null` on any error (expired, invalid signature, malformed) — do not throw
 
-**`fetchGuestBookingSummary(id, token)`** — in `apps/web/lib/api/bookings.ts`:
+**`fetchGuestBookingSummary(id, token)`** — new function in `apps/web/features/booking/api/public.ts`, same raw-`fetch()` pattern as `createBooking`:
 ```ts
 // GET /v1/bookings/:id/guest?token=
 // Returns GuestBookingReadResponse | null (null if endpoint not found or 409)
 ```
 
+**New env var:** `apps/web/.env.example` needs `JWT_SECRET` added — same value as `apps/backend`/`apps/bff`'s `JWT_SECRET`, following the exact precedent already set by `HOTSITE_REVALIDATE_SECRET` in that file ("Must be ≥32 chars. Same value must be set in the backend..."). No CI workflow change needed — `pr-e2e.yml` already launches all three dev servers in one shared-env shell step, so `JWT_SECRET` is already implicitly available to the web process there.
+
 ---
 
-#### `apps/web/components/booking/SubmitInfoForm.tsx` (client component)
+#### `apps/web/features/booking/components/public/SubmitInfoForm.tsx` (client component)
 
 **Props:**
 ```ts
@@ -3770,6 +3831,9 @@ interface SubmitInfoFormProps {
     readonly infoRequestMessage: string;
     readonly contactName: string;
   } | null;
+  readonly brandName?: string;
+  readonly logoUrl?: string;
+  readonly brandingStyle?: React.CSSProperties;
 }
 ```
 
@@ -3779,7 +3843,7 @@ idle → submitting → success
               └──→ error (retry available, form values preserved)
 ```
 
-**BFF call (submission):**
+**BFF call (submission):** new `submitGuestBookingInfo(id, token, body)` in `apps/web/features/booking/api/public.ts`:
 ```
 PATCH /v1/bookings/:id/submit-info/guest?token=<token>
   Body: { response: string, photoUrls?: string[] }
@@ -3788,9 +3852,11 @@ PATCH /v1/bookings/:id/submit-info/guest?token=<token>
 ```
 
 **Validation (client-side before submit):**
-| Field | Rule | Error message |
+| Field | Rule | i18n key (`booking.submitInfo.*`) |
 |---|---|---|
-| `response` | `trim().length >= 1` | "Informe sua resposta antes de enviar." |
+| `response` | `trim().length >= 1` | `validationError` → "Informe sua resposta antes de enviar." |
+
+**i18n:** every visible string (heading, subtitle, summary labels, info-request message label, error alerts, success screen, invalid-link copy, CTA labels) goes through `useTranslations('booking')` — no hardcoded copy, matching the existing guest-facing `BookingForm.tsx` convention. Add a new nested `submitInfo` section under `booking` in both `packages/i18n/locales/pt-BR/web.json` and `packages/i18n/locales/en/web.json` in this commit, sourcing exact copy from the prototype HTML files (not from this story's paraphrased text).
 
 **Screens to implement** (from prototype):
 | Screen | File | State |
@@ -3800,15 +3866,11 @@ PATCH /v1/bookings/:id/submit-info/guest?token=<token>
 | Validation error | `01d-validation-error.html` | field red border + inline error |
 | Submit error | `01e-submit-error.html` | red alert + retry button, values preserved; also covers the token-expired-mid-flow case (a 401 from the `PATCH` after the page already rendered the form) — the journey-prototype dev-notes call out this specific path: swap the retry CTA for a link back to the invalid-link state instead, since retrying an expired token just 401s again |
 | Success | `02-success.html` | replaces form in-place (no navigation) |
-| Invalid link | `01b-invalid-link.html` | rendered by page.tsx before form mounts |
+| Invalid link | `01b-invalid-link.html` | rendered by page.tsx before form mounts — one generic screen covers missing/invalid/expired/reused token; a separate `reason="processed"` variant (distinct copy: "este agendamento já foi processado") covers the 409-from-M13-S39 case |
 
-**Photo upload (MVP scope: text-only):**
-```ts
-// TODO: photo upload requires presigned-url endpoint for guests
-// POST /v1/bookings/:id/presigned-url/guest?token= — verify this exists before implementing
-// If missing: omit the upload zone; add a comment explaining the gap
-```
-If the presigned-URL endpoint does not exist, render a static note: _"Para enviar fotos, responda diretamente a este email com os arquivos em anexo."_
+**Photo upload: omitted from MVP scope (confirmed during story-discovery — no presigned-URL endpoint exists for unauthenticated callers).** Render a static note instead of the upload zone shown in the prototype screens: _"Para enviar fotos, responda diretamente a este email com os arquivos em anexo."_
+
+**Tenant branding:** wrap the page content in a `<div style={brandingStyle}>` (or apply via the root element) using the `--ba-*` variables from `applyBranding()`, and render a brand header (logo circle using `logoUrl`, `brandName` text) matching the prototype's `.brand-header`/`.brand-logo` classes — same visual system as the hotsite tree, reusing `shared/tokens.css` classes (`.card`, `.btn-primary`, `.form-label`, `.form-input`, `.field-error`), not Tailwind substitutes. If `brandingStyle` is `undefined` (manifest fetch failed or `tenantSlug` absent), fall back to `tokens.css`'s static default values — same visual result as the prototype screens show today.
 
 **Routing note (add as code comment):**
 ```ts
@@ -3819,7 +3881,7 @@ If the presigned-URL endpoint does not exist, render a static note: _"Para envia
 
 ---
 
-#### `apps/web/components/booking/SubmitInfoForm.spec.tsx`
+#### `apps/web/features/booking/components/public/SubmitInfoForm.spec.tsx`
 
 ```ts
 // @vitest-environment jsdom
@@ -3834,8 +3896,16 @@ If the presigned-URL endpoint does not exist, render a static note: _"Para envia
 | submit success | success banner appears; form hidden |
 | submit network error | error alert appears; retry button visible; response field value preserved |
 | submit in progress | button disabled; spinner present |
+| renders with tenant branding | `brandingStyle`/`brandName`/`logoUrl` props reflected in rendered output |
+| renders with default branding | `brandingStyle` undefined → no crash, static default look |
 
 Use `vi.mock` for `fetch`. Do NOT test `page.tsx` — server component, Playwright only.
+
+---
+
+**`apps/web/e2e/guest-submit-info.spec.ts`** (new — per the M13-S41 convention: every story shipping an `app/**/page.tsx` route adds an E2E test in the same story):
+- Golden path: seed a booking in `INFO_REQUESTED` status with a valid guest token, visit `/bookings/:id/submit-info?token=`, fill the response field, submit, assert the success screen renders.
+- Invalid-link path: visit the route with no `token` query param, assert the invalid-link screen renders.
 
 ---
 
@@ -3848,7 +3918,10 @@ Use `vi.mock` for `fetch`. Do NOT test `page.tsx` — server component, Playwrig
 - [ ] Network error shows retry alert; form values preserved
 - [ ] A 401 mid-submission (expired token detected only after the PATCH) shows the same submit-error layout but swaps the CTA to point back to the invalid-link state, not a same-token retry
 - [ ] Button disabled + spinner during submission
-- [ ] All tests pass (`pnpm test --filter apps/web`)
+- [ ] Page renders with the tenant's actual hotsite branding (`--ba-*` values from `applyBranding(manifest.branding)`) when `tenantSlug` is present and the manifest fetch succeeds; falls back to `tokens.css` static defaults otherwise
+- [ ] Every visible string is sourced from `useTranslations('booking')` — no hardcoded copy; `pt-BR`/`en` locale keys added under `booking.submitInfo.*` in the same commit
+- [ ] `apps/web/e2e/guest-submit-info.spec.ts` added, covering the golden path and the invalid-link path
+- [ ] All tests pass (`pnpm --filter @ikaro/web test`)
 - [ ] `tsc --noEmit` zero errors
 - [ ] No `[slug]/` route captures `/bookings/` — verify by opening `localhost:3000/bookings/some-id/submit-info?token=test` and confirming it does not render the hotsite
 

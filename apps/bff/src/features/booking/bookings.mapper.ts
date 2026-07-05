@@ -1,6 +1,7 @@
 import {
   CustomerBookingDetailResponse,
   CustomerBookingListItem,
+  GuestBookingReadResponse,
   StaffBookingCardResponse,
   StaffBookingDetailResponse,
 } from '@ikaro/types';
@@ -70,6 +71,17 @@ export function toCustomerBookingDetail(
     discountPointsUsed: detail.discountPointsUsed,
     discountAmount: toMoneyOrNull(detail.discountAmount),
     pointsEarned: detail.pointsEarned,
+  };
+}
+
+export function toGuestBookingRead(detail: BookingDetailResponse): GuestBookingReadResponse {
+  return {
+    bookingId: detail.id,
+    status: 'INFO_REQUESTED',
+    serviceSummary: detail.lines.map((l) => l.serviceNameAtBooking).join(', '),
+    scheduledAt: detail.scheduledAt,
+    infoRequestMessage: detail.infoRequestMessage ?? '',
+    contactName: detail.contactName,
   };
 }
 

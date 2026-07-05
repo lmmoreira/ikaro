@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import * as jwt from 'jsonwebtoken';
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
 import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
@@ -44,6 +45,7 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
   let processedEventRepo: InMemoryNotificationProcessedEventRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let templateRepo: InMemoryNotificationTemplateRepository;
+  let platformPort: InMemoryNotificationPlatformPort;
   let useCase: SendBookingInfoRequestedNotificationUseCase;
 
   beforeEach(() => {
@@ -66,13 +68,22 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
       subject: 'Precisamos de mais informações sobre seu agendamento',
       body: '<p>{{contactName}} — {{informationNeeded}} — <a href="{{respondLink}}">Responder</a></p>',
     });
+    platformPort = new InMemoryNotificationPlatformPort();
+    platformPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava Car Test',
+      slug: 'lava-car-test',
+      timezone: 'America/Sao_Paulo',
+      locale: 'pt-BR',
+      fromEmail: null,
+    });
     useCase = new SendBookingInfoRequestedNotificationUseCase(
       logRepo,
       processedEventRepo,
       dispatcher,
       new InMemoryTransactionManager(),
       templateRepo,
-      new InMemoryNotificationPlatformPort(),
+      platformPort,
       localizationPort,
       configService,
     );
@@ -88,8 +99,13 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
     expect(msg.to).toBe('joao@example.com');
     expect(msg.subject).toBe('Precisamos de mais informações sobre seu agendamento');
     expect(msg.body).toContain(guestDto.informationNeeded);
-    expect(msg.body).toContain(`/bookings/${BOOKING_ID}/responder?token=`);
+    expect(msg.body).toContain(`/bookings/${BOOKING_ID}/submit-info?token=`);
+    expect(msg.body).not.toContain('/responder');
     expect(msg.body).not.toContain('/dashboard/');
+
+    const [, token] = /token=([^"]+)/.exec(msg.body) ?? [];
+    const payload = jwt.decode(token!) as { tenantSlug?: string };
+    expect(payload.tenantSlug).toBe('lava-car-test');
 
     expect(logRepo.all).toHaveLength(1);
     expect(logRepo.all[0].notificationType).toBe('booking-info-requested-customer');

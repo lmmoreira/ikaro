@@ -26,6 +26,7 @@ import {
 import {
   INotificationPlatformPort,
   NOTIFICATION_PLATFORM_PORT,
+  NotificationTenantInfo,
 } from '../../ports/notification-platform.port';
 import { ILocalizationPort, LOCALIZATION_PORT } from '../../ports/localization.port';
 import { DEFAULT_LOCALE } from '../../../domain/notification-locale.constants';
@@ -74,7 +75,7 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
     const locale = tenantInfo?.locale ?? DEFAULT_LOCALE;
     this.localizeTemplates(templates, this.localizationPort, locale);
 
-    const respondLink = this.buildRespondLink(input);
+    const respondLink = this.buildRespondLink(input, tenantInfo);
 
     const emailSent = await this.dispatchTemplates(templates, input, input.contactEmail, {
       contactName: input.contactName,
@@ -84,7 +85,10 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
     return { emailSent };
   }
 
-  private buildRespondLink(input: SendBookingInfoRequestedNotificationUseCaseInput): string {
+  private buildRespondLink(
+    input: SendBookingInfoRequestedNotificationUseCaseInput,
+    tenantInfo: NotificationTenantInfo | null,
+  ): string {
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
 
     if (input.customerId !== null) {
@@ -93,10 +97,15 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
 
     const secret = this.config.getOrThrow<string>('JWT_SECRET');
     const token = jwt.sign(
-      { bookingId: input.bookingId, tenantId: input.tenantId, contactEmail: input.contactEmail },
+      {
+        bookingId: input.bookingId,
+        tenantId: input.tenantId,
+        tenantSlug: tenantInfo?.slug,
+        contactEmail: input.contactEmail,
+      },
       secret,
       { expiresIn: GUEST_TOKEN_TTL_SECONDS },
     );
-    return `${frontendUrl}/bookings/${input.bookingId}/responder?token=${token}`;
+    return `${frontendUrl}/bookings/${input.bookingId}/submit-info?token=${token}`;
   }
 }

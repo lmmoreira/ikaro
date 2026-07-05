@@ -181,6 +181,7 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: 'http://localhost:3000'
           INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'
+          JWT_SECRET: 'e2e-ci-jwt-secret-must-be-at-least-64-characters-long-xxxxxxxxxxxxx'
 
       - name: Upload Playwright report
         if: failure()
