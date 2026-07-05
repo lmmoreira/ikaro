@@ -28,3 +28,22 @@ export function verifyGuestToken(token: string): GuestTokenPayload | null {
   const parsed = GuestTokenPayloadSchema.safeParse(raw);
   return parsed.success ? parsed.data : null;
 }
+
+// Decodes tenantSlug WITHOUT verifying the signature — used only to pick which tenant's
+// public hotsite branding skins the invalid-link screen when the token fails full
+// verification (expired, tampered, or predates M13-S38's tenantSlug payload field). Safe
+// specifically because hotsite branding is already public, unauthenticated data (served at
+// GET /platform/manifest/:slug for anyone) — an unverified claim here can only select which
+// harmless color scheme renders, never grant access to booking data or a write action.
+export function decodeUnverifiedTenantSlug(token: string): string | null {
+  let raw: unknown;
+  try {
+    raw = jwt.decode(token);
+  } catch {
+    return null;
+  }
+  if (!raw || typeof raw !== 'object') return null;
+
+  const { tenantSlug } = raw as Record<string, unknown>;
+  return typeof tenantSlug === 'string' ? tenantSlug : null;
+}

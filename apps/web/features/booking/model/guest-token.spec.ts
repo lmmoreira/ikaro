@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { verifyGuestToken } from './guest-token';
+import { verifyGuestToken, decodeUnverifiedTenantSlug } from './guest-token';
 
 const SECRET = 'test-secret-must-be-at-least-32-chars-long!!';
 const BOOKING_ID = '40000000-0000-4000-8000-000000000001';
@@ -66,5 +66,42 @@ describe('verifyGuestToken()', () => {
     delete process.env.JWT_SECRET;
     const token = makeToken();
     expect(verifyGuestToken(token)).toBeNull();
+  });
+});
+
+describe('decodeUnverifiedTenantSlug()', () => {
+  it('returns tenantSlug from a well-formed token even with the wrong secret', () => {
+    const token = makeToken(
+      { tenantSlug: 'lava-car-test' },
+      'a-completely-different-secret-than-the-real-one',
+    );
+    expect(decodeUnverifiedTenantSlug(token)).toBe('lava-car-test');
+  });
+
+  it('returns tenantSlug from an expired token', () => {
+    const token = jwt.sign(
+      {
+        bookingId: BOOKING_ID,
+        tenantId: TENANT_ID,
+        tenantSlug: 'lava-car-test',
+        contactEmail: CONTACT_EMAIL,
+      },
+      SECRET,
+      { expiresIn: -1 },
+    );
+    expect(decodeUnverifiedTenantSlug(token)).toBe('lava-car-test');
+  });
+
+  it('returns null when tenantSlug is absent from the payload', () => {
+    const token = makeToken();
+    expect(decodeUnverifiedTenantSlug(token)).toBeNull();
+  });
+
+  it('returns null for a structurally malformed token', () => {
+    expect(decodeUnverifiedTenantSlug('not-a-jwt-at-all')).toBeNull();
+  });
+
+  it('returns null for an empty string', () => {
+    expect(decodeUnverifiedTenantSlug('')).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type React from 'react';
 import { submitGuestBookingInfo, SubmitGuestBookingInfoError } from '@/features/booking/api/public';
 import { formatDateLong, formatTime } from '@/shared/lib/formatting/format-time';
+import { PhotoUpload } from './PhotoUpload';
 
 export interface SubmitInfoFormSummary {
   readonly serviceSummary: string;
@@ -49,6 +50,7 @@ export function SubmitInfoForm({
 }: SubmitInfoFormProps): React.JSX.Element {
   const t = useTranslations('booking.submitInfo');
   const [response, setResponse] = useState('');
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [validationError, setValidationError] = useState(false);
   const [state, setState] = useState<FormState>({ status: 'idle' });
 
@@ -68,7 +70,10 @@ export function SubmitInfoForm({
     setState({ status: 'submitting' });
 
     try {
-      const result = await submitGuestBookingInfo(bookingId, token, { response: response.trim() });
+      const result = await submitGuestBookingInfo(bookingId, token, {
+        response: response.trim(),
+        photoUrls: photoUrls.length > 0 ? photoUrls : undefined,
+      });
       setState({ status: 'success', infoSubmittedAt: result.infoSubmittedAt });
     } catch (err) {
       const expired = err instanceof SubmitGuestBookingInfoError && err.status === 401;
@@ -280,7 +285,14 @@ export function SubmitInfoForm({
               </p>
             )}
 
-            <p className="mb-1.5 mt-4 text-sm font-semibold">{t('photoFallbackNote')}</p>
+            <div className="mt-4">
+              <PhotoUpload
+                guestToken={token}
+                bookingId={bookingId}
+                value={photoUrls}
+                onChange={setPhotoUrls}
+              />
+            </div>
 
             <button
               type="submit"

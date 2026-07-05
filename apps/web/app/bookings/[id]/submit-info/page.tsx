@@ -1,10 +1,12 @@
 import type React from 'react';
+import type { HotsiteManifestResponse } from '@ikaro/types';
 import { SubmitInfoForm } from '@/features/booking/components/public/SubmitInfoForm';
 import { InvalidLinkView } from '@/features/booking/components/public/InvalidLinkView';
-import { verifyGuestToken } from '@/features/booking/model/guest-token';
+import { verifyGuestToken, decodeUnverifiedTenantSlug } from '@/features/booking/model/guest-token';
 import { fetchGuestBookingSummary, GuestBookingReadError } from '@/features/booking/api/public';
-import { fetchManifest } from '@/features/platform/api';
+import { fetchManifestResponse } from '@/features/platform/api';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
+import { DEFAULT_HOTSITE_BRANDING } from '@/features/platform/hotsite/default-branding';
 import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { isValidTimezone } from '@/shared/lib/formatting/locale-validators';
 import type { GuestBookingReadResponse } from '@ikaro/types';
@@ -19,6 +21,20 @@ interface SubmitInfoPageProps {
   readonly searchParams: Promise<{ readonly token?: string }>;
 }
 
+// fetchManifest() (features/platform/api.ts) calls Next.js's notFound() on a 404 — a
+// framework-level signal that renders the global not-found page even when the call is
+// wrapped in try/catch or .catch(). This page wants graceful degradation instead (fall back
+// to default branding), so it fetches the raw Response itself and never triggers notFound().
+async function fetchManifestSafely(slug: string): Promise<HotsiteManifestResponse | null> {
+  try {
+    const res = await fetchManifestResponse(slug);
+    if (!res.ok) return null;
+    return (await res.json()) as HotsiteManifestResponse;
+  } catch {
+    return null;
+  }
+}
+
 export default async function SubmitInfoPage({
   params,
   searchParams,
@@ -26,20 +42,15 @@ export default async function SubmitInfoPage({
   const { id } = await params;
   const { token } = await searchParams;
 
-  if (!token) {
-    return <InvalidLinkView reason="invalid" />;
-  }
-  const payload = verifyGuestToken(token);
-  if (!payload || payload.bookingId !== id) {
-    return <InvalidLinkView reason="invalid" />;
-  }
+  const payload = token ? verifyGuestToken(token) : null;
 
-  // Tenant branding: degrades to tokens.css defaults (brandingStyle undefined) when the
-  // manifest fetch fails or the token predates M13-S38's tenantSlug payload addition.
-  const manifest = payload.tenantSlug
-    ? await fetchManifest(payload.tenantSlug).catch(() => null)
-    : null;
-  const brandingStyle = manifest ? applyBranding(manifest.branding) : undefined;
+  // Tenant branding: prefer the verified payload's tenantSlug; fall back to an unverified
+  // decode when verification failed (expired/tampered/pre-M13-S38 token). Safe — hotsite
+  // branding is public data (GET /platform/manifest/:slug needs no auth), so an unverified
+  // claim here can only pick a harmless public color scheme, never grant booking access.
+  const brandingSlug = payload?.tenantSlug ?? (token ? decodeUnverifiedTenantSlug(token) : null);
+  const manifest = brandingSlug ? await fetchManifestSafely(brandingSlug) : null;
+  const brandingStyle = applyBranding(manifest?.branding ?? DEFAULT_HOTSITE_BRANDING);
   const brandName = manifest?.branding.brandName ?? manifest?.tenant.name;
   const locale = resolveSupportedLocale(manifest?.localization.language ?? 'pt-BR');
   const timezone =
@@ -47,6 +58,17 @@ export default async function SubmitInfoPage({
       ? manifest.localization.timezone
       : 'America/Sao_Paulo';
   const timeFormat = manifest?.localization.timeFormat ?? '24h';
+
+  if (!token || !payload || payload.bookingId !== id) {
+    return (
+      <InvalidLinkView
+        reason="invalid"
+        tenantName={brandName}
+        tenantSlug={brandingSlug ?? undefined}
+        brandingStyle={brandingStyle}
+      />
+    );
+  }
 
   // Optional: booking summary (M13-S39). A 409 means the booking is no longer
   // INFO_REQUESTED — block submission with the "processed" invalid-link variant. Any other

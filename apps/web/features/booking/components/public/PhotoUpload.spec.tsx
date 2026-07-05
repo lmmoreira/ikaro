@@ -3,11 +3,15 @@ import { renderWithIntl } from '@/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAttachmentSignedUrl } from '@/features/booking/api/public';
+import {
+  createAttachmentSignedUrl,
+  createGuestAttachmentSignedUrl,
+} from '@/features/booking/api/public';
 import { PhotoUpload } from './PhotoUpload';
 
 vi.mock('@/features/booking/api/public', () => ({
   createAttachmentSignedUrl: vi.fn(),
+  createGuestAttachmentSignedUrl: vi.fn(),
 }));
 
 function makeFile(name: string, type: string): File {
@@ -24,6 +28,7 @@ describe('PhotoUpload', () => {
   afterEach(() => {
     fetchSpy.mockRestore();
     vi.mocked(createAttachmentSignedUrl).mockReset();
+    vi.mocked(createGuestAttachmentSignedUrl).mockReset();
   });
 
   it('renders the file input with a pt-BR label', () => {
@@ -145,5 +150,63 @@ describe('PhotoUpload', () => {
 
     expect(await screen.findByText('Erro ao enviar')).toBeInTheDocument();
     expect(createAttachmentSignedUrl).not.toHaveBeenCalled();
+  });
+
+  describe('guest mode (guestToken + bookingId)', () => {
+    it('uploads via createGuestAttachmentSignedUrl instead of the slug-based call', async () => {
+      const user = userEvent.setup();
+      vi.mocked(createGuestAttachmentSignedUrl).mockResolvedValue({
+        signedUrl: 'https://storage.example.com/upload?sig=abc',
+        filePath: 'tenants/tenant-1/bookings/booking-1/photo.jpg',
+        expiresAt: '2026-06-15T12:00:00.000Z',
+      });
+      fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+      const onChange = vi.fn();
+
+      renderWithIntl(
+        <PhotoUpload
+          guestToken="signed.jwt.token"
+          bookingId="booking-1"
+          value={[]}
+          onChange={onChange}
+        />,
+      );
+
+      await user.upload(
+        screen.getByLabelText('Fotos do veículo (opcional)'),
+        makeFile('photo.jpg', 'image/jpeg'),
+      );
+
+      expect(await screen.findByText('Enviada')).toBeInTheDocument();
+      expect(createGuestAttachmentSignedUrl).toHaveBeenCalledWith(
+        'signed.jwt.token',
+        'booking-1',
+        'photo.jpg',
+        'image/jpeg',
+      );
+      expect(createAttachmentSignedUrl).not.toHaveBeenCalled();
+      expect(onChange).toHaveBeenCalledWith(['tenants/tenant-1/bookings/booking-1/photo.jpg']);
+    });
+
+    it('shows an error status when the guest upload fails', async () => {
+      const user = userEvent.setup();
+      vi.mocked(createGuestAttachmentSignedUrl).mockRejectedValue(new Error('401'));
+
+      renderWithIntl(
+        <PhotoUpload
+          guestToken="signed.jwt.token"
+          bookingId="booking-1"
+          value={[]}
+          onChange={vi.fn()}
+        />,
+      );
+
+      await user.upload(
+        screen.getByLabelText('Fotos do veículo (opcional)'),
+        makeFile('photo.jpg', 'image/jpeg'),
+      );
+
+      expect(await screen.findByText('Erro ao enviar')).toBeInTheDocument();
+    });
   });
 });

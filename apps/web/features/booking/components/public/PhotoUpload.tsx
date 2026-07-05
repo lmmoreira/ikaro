@@ -3,13 +3,32 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
-import { createAttachmentSignedUrl } from '@/features/booking/api/public';
+import {
+  createAttachmentSignedUrl,
+  createGuestAttachmentSignedUrl,
+} from '@/features/booking/api/public';
 
-interface PhotoUploadProps {
-  readonly slug: string;
+interface PhotoUploadCommonProps {
   readonly value: readonly string[];
   readonly onChange: (filePaths: string[]) => void;
 }
+
+// Booking creation (Step 4, no booking yet): identify by tenant slug.
+interface PhotoUploadBySlugProps extends PhotoUploadCommonProps {
+  readonly slug: string;
+  readonly guestToken?: undefined;
+  readonly bookingId?: undefined;
+}
+
+// Guest responding to an existing booking (UC-005 A2): identify by the signed guest token
+// instead — ties the upload to that specific booking via the BFF's guestToken branch.
+interface PhotoUploadByGuestTokenProps extends PhotoUploadCommonProps {
+  readonly slug?: undefined;
+  readonly guestToken: string;
+  readonly bookingId: string;
+}
+
+type PhotoUploadProps = PhotoUploadBySlugProps | PhotoUploadByGuestTokenProps;
 
 type UploadStatus = 'uploading' | 'done' | 'error';
 
@@ -29,7 +48,8 @@ const uploadAreaStyle: React.CSSProperties = {
   borderRadius: 'var(--ba-radius)',
 };
 
-export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps): React.JSX.Element {
+export function PhotoUpload(props: PhotoUploadProps): React.JSX.Element {
+  const { value, onChange } = props;
   const t = useTranslations('booking.photo');
   const [items, setItems] = useState<UploadItem[]>([]);
 
@@ -39,7 +59,15 @@ export function PhotoUpload({ slug, value, onChange }: PhotoUploadProps): React.
     }
 
     const contentType = file.type as 'image/jpeg' | 'image/png';
-    const { signedUrl, filePath } = await createAttachmentSignedUrl(slug, file.name, contentType);
+    const { signedUrl, filePath } =
+      props.guestToken !== undefined
+        ? await createGuestAttachmentSignedUrl(
+            props.guestToken,
+            props.bookingId,
+            file.name,
+            contentType,
+          )
+        : await createAttachmentSignedUrl(props.slug, file.name, contentType);
 
     const res = await fetch(signedUrl, {
       method: 'PUT',

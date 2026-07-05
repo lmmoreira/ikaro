@@ -153,3 +153,27 @@ export async function createAttachmentSignedUrl(
 
   return res.json() as Promise<AttachmentSignedUrlResponse>;
 }
+
+// Guest variant (UC-005 A2, M13-S40): same /api/bookings/attachments/signed-url route, but
+// identifies the caller via the signed guestToken instead of tenantSlug. The BFF's
+// generateAttachmentSignedUrl() already has a guestToken+bookingId branch (Scenario 3) —
+// verifies the token and scopes the upload to tenants/<tenantId>/bookings/<bookingId>/<file>,
+// same as every other booking photo. No backend or BFF change needed.
+export async function createGuestAttachmentSignedUrl(
+  guestToken: string,
+  bookingId: string,
+  fileName: string,
+  contentType: 'image/jpeg' | 'image/png',
+): Promise<AttachmentSignedUrlResponse> {
+  const res = await fetch('/api/bookings/attachments/signed-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileName, contentType, bookingId, guestToken }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to create guest attachment signed URL for booking "${bookingId}"`);
+  }
+
+  return res.json() as Promise<AttachmentSignedUrlResponse>;
+}

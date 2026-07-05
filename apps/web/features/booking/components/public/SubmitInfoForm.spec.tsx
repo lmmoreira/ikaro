@@ -3,7 +3,11 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
-import { submitGuestBookingInfo, SubmitGuestBookingInfoError } from '@/features/booking/api/public';
+import {
+  submitGuestBookingInfo,
+  SubmitGuestBookingInfoError,
+  createGuestAttachmentSignedUrl,
+} from '@/features/booking/api/public';
 import { SubmitInfoForm } from './SubmitInfoForm';
 
 vi.mock('@/features/booking/api/public', async (importOriginal) => {
@@ -11,8 +15,13 @@ vi.mock('@/features/booking/api/public', async (importOriginal) => {
   return {
     ...actual,
     submitGuestBookingInfo: vi.fn(),
+    createGuestAttachmentSignedUrl: vi.fn(),
   };
 });
+
+function makeFile(name: string, type: string): File {
+  return new File(['fake-image-content'], name, { type });
+}
 
 const BOOKING_ID = 'booking-1';
 const TOKEN = 'signed.jwt.token';
@@ -27,6 +36,7 @@ const summary = {
 describe('SubmitInfoForm', () => {
   beforeEach(() => {
     vi.mocked(submitGuestBookingInfo).mockReset();
+    vi.mocked(createGuestAttachmentSignedUrl).mockReset();
   });
 
   it('renders the form with a summary card when summary is provided', () => {
@@ -164,5 +174,47 @@ describe('SubmitInfoForm', () => {
 
     renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
     expect(screen.getByLabelText(/Sua resposta/)).toBeInTheDocument();
+  });
+
+  it('uploads a photo via the guest-token PhotoUpload and includes it in the submit call', async () => {
+    vi.mocked(createGuestAttachmentSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: `tenants/tenant-1/bookings/${BOOKING_ID}/photo.jpg`,
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    vi.mocked(submitGuestBookingInfo).mockResolvedValue({
+      bookingId: BOOKING_ID,
+      status: 'PENDING',
+      infoSubmittedAt: '2026-06-17T14:30:00.000Z',
+    });
+    const user = userEvent.setup();
+    renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
+
+    await user.upload(
+      screen.getByLabelText('Fotos do veículo (opcional)'),
+      makeFile('photo.jpg', 'image/jpeg'),
+    );
+    await screen.findByText('Enviada');
+
+    expect(createGuestAttachmentSignedUrl).toHaveBeenCalledWith(
+      TOKEN,
+      BOOKING_ID,
+      'photo.jpg',
+      'image/jpeg',
+    );
+
+    await user.type(screen.getByLabelText(/Sua resposta/), 'Segue a foto solicitada.');
+    await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
+
+    await waitFor(() => expect(screen.getByText('Resposta enviada!')).toBeInTheDocument());
+    expect(submitGuestBookingInfo).toHaveBeenCalledWith(BOOKING_ID, TOKEN, {
+      response: 'Segue a foto solicitada.',
+      photoUrls: [`tenants/tenant-1/bookings/${BOOKING_ID}/photo.jpg`],
+    });
+
+    fetchSpy.mockRestore();
   });
 });

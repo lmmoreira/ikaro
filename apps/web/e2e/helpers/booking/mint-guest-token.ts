@@ -7,6 +7,10 @@ export interface MintGuestTokenOptions {
   readonly contactEmail: string;
   readonly tenantId?: string;
   readonly tenantSlug?: string;
+  // Override to mint a token with a signature that won't verify against the app's real
+  // JWT_SECRET — used to test that a structurally-valid-but-unverifiable token still
+  // resolves real tenant branding via decodeUnverifiedTenantSlug() on the invalid-link screen.
+  readonly secret?: string;
 }
 
 // Mints a guest info-request token identical in shape to buildRespondLink()'s output
@@ -17,8 +21,8 @@ export function mintGuestToken({
   contactEmail,
   tenantId = GUEST_INFO_REQUEST_TENANT_ID,
   tenantSlug = 'lavacar-beloauto',
+  secret = process.env.JWT_SECRET,
 }: MintGuestTokenOptions): string {
-  const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error(
       'JWT_SECRET must be set in the Playwright test environment to mint a guest token',

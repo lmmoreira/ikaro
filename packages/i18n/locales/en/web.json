@@ -151,7 +151,6 @@
       "responseLabel": "Your response",
       "responsePlaceholder": "Describe the requested information or explain what you're sending...",
       "validationError": "Enter your response before submitting.",
-      "photoFallbackNote": "To send photos, reply directly to this email with the files attached.",
       "submitButton": "Submit response",
       "submittingButton": "Submitting…",
       "linkValidityNote": "This link is valid for 7 days from when the email was sent.",

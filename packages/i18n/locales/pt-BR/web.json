@@ -151,7 +151,6 @@
       "responseLabel": "Sua resposta",
       "responsePlaceholder": "Descreva as informações solicitadas ou explique o que está enviando...",
       "validationError": "Informe sua resposta antes de enviar.",
-      "photoFallbackNote": "Para enviar fotos, responda diretamente a este email com os arquivos em anexo.",
       "submitButton": "Enviar resposta",
       "submittingButton": "Enviando…",
       "linkValidityNote": "Este link é válido por 7 dias a partir do recebimento do email.",

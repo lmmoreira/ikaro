@@ -572,7 +572,12 @@ describe('BookingsController', () => {
     const JWT_SECRET = 'test-secret-32-chars-for-bff-spec';
     const makeToken = (overrides: Record<string, unknown> = {}) =>
       jwt.sign(
-        { bookingId: BOOKING_ID, tenantId: TENANT_ID, contactEmail: 'guest@example.com', ...overrides },
+        {
+          bookingId: BOOKING_ID,
+          tenantId: TENANT_ID,
+          contactEmail: 'guest@example.com',
+          ...overrides,
+        },
         JWT_SECRET,
         { expiresIn: 604800 },
       );

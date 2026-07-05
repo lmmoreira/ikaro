@@ -11,6 +11,7 @@ import {
   createAuthenticatedBooking,
   createAttachmentSignedUrl,
   createBooking,
+  createGuestAttachmentSignedUrl,
   CreateBookingError,
   fetchGuestBookingSummary,
   GuestBookingReadError,
@@ -190,6 +191,59 @@ describe('createAttachmentSignedUrl', () => {
     await expect(
       createAttachmentSignedUrl('lavacar-beloauto', 'photo.jpg', 'image/jpeg'),
     ).rejects.toThrow(/Failed to create attachment signed URL/);
+  });
+});
+
+describe('createGuestAttachmentSignedUrl', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('sends guestToken and bookingId (not tenantSlug) to the signed-url route', async () => {
+    const signedUrl: AttachmentSignedUrlResponse = {
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/bookings/booking-1/photo.jpg',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    };
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify(signedUrl), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const result = await createGuestAttachmentSignedUrl(
+      'signed.jwt.token',
+      'booking-1',
+      'photo.jpg',
+      'image/jpeg',
+    );
+
+    expect(result).toEqual(signedUrl);
+    expect(fetchSpy).toHaveBeenCalledWith('/api/bookings/attachments/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: 'photo.jpg',
+        contentType: 'image/jpeg',
+        bookingId: 'booking-1',
+        guestToken: 'signed.jwt.token',
+      }),
+    });
+  });
+
+  it('throws when the BFF returns an error', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 401 }));
+
+    await expect(
+      createGuestAttachmentSignedUrl('signed.jwt.token', 'booking-1', 'photo.jpg', 'image/jpeg'),
+    ).rejects.toThrow(/Failed to create guest attachment signed URL/);
   });
 });
 
