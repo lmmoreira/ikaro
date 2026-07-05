@@ -4,8 +4,8 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { Address, HotsiteAddressSpec } from '@ikaro/types';
-import type { AddressLookup } from '@/features/booking/components/public/address/address-lookup.port';
-import { viaCepAddressLookup } from '@/features/booking/components/public/address/viacep-address-lookup.adapter';
+import type { AddressLookup } from '@/shared/lib/address/address-lookup.port';
+import { viaCepAddressLookup } from '@/shared/lib/address/viacep-address-lookup.adapter';
 import { digitsOnly } from '@/shared/utils/digits-only';
 
 interface AddressFieldsProps {

@@ -160,7 +160,14 @@ export class TenantSettings {
     TenantSettings.validateLoyalty(props.loyalty);
     TenantSettings.validateBooking(props.booking);
     TenantSettings.validateBusinessHours(props.businessHours);
+    TenantSettings.validateNotification(props.notification);
     TenantSettings.validateBusinessInfo(props.businessInfo, props.localization.countryCode);
+  }
+
+  private static validateNotification(notification: NotificationSettings | undefined): void {
+    if (notification?.fromEmail != null && !Email.isValid(notification.fromEmail)) {
+      throw new PlatformDomainError('notification.fromEmail must be a valid email address');
+    }
   }
 
   private static validateLoyalty(loyalty: LoyaltySettings): void {

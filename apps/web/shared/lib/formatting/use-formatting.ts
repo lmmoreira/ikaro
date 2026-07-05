@@ -8,6 +8,9 @@ import { FormattingContext } from './formatting-context';
 export interface FormattingUtils {
   timezone: string;
   currencySymbol: string;
+  // Raw 12h/24h flag — for components that need to branch on the tenant's clock
+  // convention (e.g. showing an AM/PM control), not just format a Date to a string.
+  timeFormat: '24h' | '12h';
   formatMoney: (amount: number) => string;
   formatDate: (date: Date) => string;
   formatDateLong: (date: Date) => string;
@@ -23,6 +26,7 @@ export function useFormatting(): FormattingUtils {
   return {
     timezone,
     currencySymbol: currencySymbol ?? formatCurrencySymbol(locale, currency),
+    timeFormat,
     formatMoney: (amount) => formatMoney(amount, locale, currency),
     formatDate: (date) => formatDate(date, timezone, dateFormat),
     formatDateLong: (date) => formatDateLong(date, locale),

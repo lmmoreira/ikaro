@@ -86,12 +86,19 @@ const BusinessInfoSchema = z
   })
   .partial();
 
+const NotificationSchema = z
+  .object({
+    fromEmail: z.string().nullable(),
+  })
+  .partial();
+
 export const UpdateTenantSettingsBodySchema = z.object({
   settings: z
     .object({
       loyalty: LoyaltySchema.optional(),
       booking: BookingSchema.optional(),
       businessHours: BusinessHoursSchema.optional(),
+      notification: NotificationSchema.optional(),
       localization: LocalizationSchema.optional(),
       businessInfo: BusinessInfoSchema.optional(),
     })

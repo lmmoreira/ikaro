@@ -3223,9 +3223,11 @@ fetchLoyaltyRedemptions(token): // GET /v1/loyalty/redemptions?limit=50 → Cust
 **Docs to load:** `docs/04-USE_CASES.md` § UC-026, `plan/journey/manager/configuracoes.md`, `plan/journey/manager/prototypes/configuracoes/dev-notes.md`
 
 **Description:**
-The settings form — five sections matching the prototype: Geral, Agendamento, Fidelidade, Horário de funcionamento, Contato. Scope is exactly what's in the prototype and UC-026 — the backend supports additional fields (`autoApproveEnabled`, `slotGranularityMinutes`, `localization`, etc.) that are **explicitly out of scope** here; see the consolidated open-questions section at the end of this file.
+The settings form — sections matching the prototype (Geral, Agendamento, Fidelidade, Horário de funcionamento, Contato) plus a read-only Localização section and a Notificações section. See the "Scope expanded" note below for what changed after the original prototype/UC-026 scope.
 
 > ✅ **Discovery resolved (2026-07-04):** Landed BFF types verified. Key correction vs. the draft shape and dev-notes: `PATCH /tenants/settings` has a `.strict()` schema that does **not** accept `name` — tenant rename is the separate `PATCH /tenants` (`RenameTenantRequest`, shipped in `M13-S10`). On submit, a changed `name` triggers `renameTenant()` in addition to `updateTenantSettings()`. Validation failures from the BFF return **400** (ZodValidationPipe), not 422 — the client-side Zod schema mirrors all ranges so field-level errors are caught pre-submit; a server 400 maps to a generic inline error.
+
+> ✅ **Scope expanded (2026-07-04, user decision):** beyond the original prototype/UC-026 fields, the form also exposes: `booking.autoApproveEnabled` (switch), `booking.minBookingAdvanceHours`, `booking.maxBookingAdvanceDays`, `booking.slotGranularityMinutes` (15/30/60 select), `booking.welcomeStaffScreenDays`; `loyalty.expiryWarningDays`, `loyalty.enableNotifications` (switch), `loyalty.notificationMinPoints`; a new **Notificações** section for `notification.fromEmail` (this required new backend `TenantSettings.validateNotification` + BFF `NotificationSchema` support — it had no update path before this story); `businessInfo.socialLinks` (whatsapp/instagram/facebook) under Contato. A new read-only **Localização** section displays `localization.countryCode`/`currency`/`language` as plain text (not editable — changing a tenant's country post-onboarding risks invalidating already-validated E.164 phone numbers and address formats). `localization.decimalPlaces` is not exposed. The time picker for Horário de funcionamento uses a new shared `TimePicker` component (`apps/web/shared/components/ui/time-picker.tsx`, hour+minute selects, no seconds, 12h/24h driven by the tenant's own `useFormatting().timeFormat`) instead of a native `<input type="time">`; Monday has a "copy to weekdays" button that applies its open/close time to Tuesday–Friday.
 
 **Prototype reference:** `plan/journey/manager/prototypes/configuracoes/01-settings-form.html` (happy path), `01b-validation-error.html`, `01c-saved-success.html`
 
@@ -3244,10 +3246,12 @@ renameTenant(body: RenameTenantRequest): Promise<RenameTenantResponse>          
 | Section | Fields |
 |---|---|
 | Geral | `name` (editable), `slug` (read-only — gray background, `disabled` input) |
-| Agendamento | `cancellationWindowHours` (0–720, suffix "horas"), `serviceBufferMinutes` (0–120, suffix "min") |
-| Fidelidade | `loyaltyExpiryDays` (1–3650, suffix "dias"), **`pointsPerCurrencyUnit`** (integer 0–10000, label "Pontos por unidade monetária" — see note below) |
-| Horário de funcionamento | `timezone` select + 7 day-rows (open/close time pickers + "Fechado" checkbox per day) |
-| Contato | `phone`, `email`, `address` (street/number/complement/neighborhood/city/state/zipCode) — all optional |
+| Localização (read-only) | `countryCode`, `currency`, `language` — plain text display, not editable |
+| Agendamento | `cancellationWindowHours` (0–720, suffix "horas"), `serviceBufferMinutes` (0–120, suffix "min"), `autoApproveEnabled` (switch), `minBookingAdvanceHours` (≥0, suffix "horas"), `maxBookingAdvanceDays` (≥1, suffix "dias"), `slotGranularityMinutes` (select 15/30/60), `welcomeStaffScreenDays` (1–90, suffix "dias") |
+| Fidelidade | `loyaltyExpiryDays` (1–3650, suffix "dias"), **`pointsPerCurrencyUnit`** (integer 0–10000, label "Pontos por unidade monetária" — see note below), `enableNotifications` (switch), `expiryWarningDays` (1–90, must be < `expiryDays`), `notificationMinPoints` (0–10000) |
+| Notificações | `notification.fromEmail` (optional email; new backend+BFF support added in this story) |
+| Horário de funcionamento | `timezone` select + 7 day-rows using the shared `TimePicker` (hour+minute selects, no seconds, 12h/24h from `useFormatting()`) + "Fechado" checkbox per day; Monday has a "copy to weekdays" button (applies its time to Tue–Fri) |
+| Contato | `phone`, `email`, `address` (street/number/complement/neighborhood/city/state/zipCode), `socialLinks` (whatsapp/instagram/facebook) — all optional |
 
 > **Field folded in during consolidation (formerly a separate story, M128-S05):** `pointsPerCurrencyUnit` is added directly to the Fidelidade section here rather than as a follow-up story that would touch this same file again right after it ships. Hint text: "Quantos pontos equivalem a 1 unidade monetária (ex: 10 = 10 pts → R$1). Zero desativa o desconto por pontos." Value `0` is accepted (disables the feature); `> 10000` shows inline validation error "Máximo 10000". The field is included in `UpdateTenantSettingsRequest` as of `M13-S12`.
 
@@ -3258,9 +3262,14 @@ renameTenant(body: RenameTenantRequest): Promise<RenameTenantResponse>          
 **Acceptance criteria:**
 - [ ] Form loads pre-filled from the settings endpoint (`cache: 'no-store'`)
 - [ ] `slug` is read-only and visually distinct from editable fields
-- [ ] All five sections render with exactly the fields listed above (including `pointsPerCurrencyUnit`) — no more, no less
+- [ ] All sections render with exactly the fields listed in the table above — no more, no less
+- [ ] Localização section renders `countryCode`/`currency`/`language` as read-only text, not editable inputs
 - [ ] Submitting `cancellationWindowHours > 720` shows an inline error on that field only; other field values are preserved
 - [ ] `pointsPerCurrencyUnit` accepts `0`; rejects `> 10000` with inline error "Máximo 10000"; save sends it in the PATCH body
+- [ ] `loyaltyExpiryWarningDays >= loyaltyExpiryDays` shows its own inline error and blocks submit
+- [ ] `notification.fromEmail` accepts blank (sent as `null`) and rejects an invalid email inline
+- [ ] `businessInfo.socialLinks` is sent as `null` when whatsapp/instagram/facebook are all blank; whatsapp uses the same E.164 masking as the main phone field
+- [ ] Business hours use the shared `TimePicker` component (hour+minute, no seconds); Monday's "copy to weekdays" button applies its open/close time to Tuesday–Friday only
 - [ ] Changed `name` is saved via `PATCH /tenants` (`renameTenant`); unchanged `name` sends no rename request
 - [ ] Successful save shows the inline success banner and the user stays on `/dashboard/settings`
 - [ ] `/dashboard/settings` is `MANAGER`-only via the shared middleware manager-only route list (this branch owns the one shared edit adding `/dashboard/settings`, `/dashboard/team`, `/dashboard/hotsite` — see `M13-S32`)
@@ -4211,7 +4220,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 ### Manager workspace (Phase 8, M13-S31–M13-S37)
 
-- [ ] **Extra tenant-settings fields** (`autoApproveEnabled`, `maxBookingAdvanceDays`, `minBookingAdvanceHours`, `slotGranularityMinutes`, `localization` currency/language, `notification.fromEmail`, `businessInfo.socialLinks`): the backend already supports these, but neither UC-026 nor the Configurações prototype mention them. Needs an explicit scope decision before a story is written for them — don't add silently to `M13-S31`.
+- [x] **Extra tenant-settings fields** (updated 2026-07-04) — scope decision made directly by the user on branch `feat/m13-s31-settings-form`: all of `booking.autoApproveEnabled`/`minBookingAdvanceHours`/`maxBookingAdvanceDays`/`slotGranularityMinutes`/`welcomeStaffScreenDays`, `loyalty.expiryWarningDays`/`enableNotifications`/`notificationMinPoints`, and `businessInfo.socialLinks` are now editable fields on the Configurações form (`M13-S31`), each with its own hint text. `notification.fromEmail` required new backend (`TenantSettings.validateNotification`) + BFF (`NotificationSchema`) support, added in the same branch — it was previously read-only-in-response-only with no update path at all. `localization.countryCode`/`currency`/`language` are shown **read-only** (changing a tenant's country post-onboarding risks invalidating already-stored E.164 phone numbers and address formats validated against the old country's rules) — full country-change support is a separate future story if ever needed. `localization.decimalPlaces` is not exposed at all (derived/technical, not admin-facing).
 - [ ] **Per-module config panels for `SERVICE_LIST`, `GALLERY`, `BOOKING_CTA`, `TESTIMONIALS`, `ABOUT`, `CONTACT`:** only HERO was prototyped as a representative example (`M13-S36`). Each of the other 6 needs its own UX pass — `GALLERY` in particular already has a `feature-booking-photo` BFF endpoint wired that none of the stories above use yet.
 - [ ] **BFF-token-based hotsite preview (pixel-exact production-path render):** `M13-S37` ships a pragmatic client-side render instead. Revisit only if the simplified preview proves insufficient in practice.
 - [x] **Sidebar "Fidelidade" and "Hotsite" nav items:** both confirmed included from the start in `M13-S15` (the original M125 draft's sidebar spec omitted Hotsite — caught during the manager-workspace cross-file audit and folded into `M13-S15` directly rather than a separate patch).

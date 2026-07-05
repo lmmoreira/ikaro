@@ -26,8 +26,9 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
   );
   const isServiceDetailAction = /^\/dashboard\/services\/[^/]+\/(edit|deactivate)$/.test(pathname);
   const isLoyaltyDetail = /^\/dashboard\/loyalty\/[^/]+$/.test(pathname);
+  const isSettingsPage = pathname === '/dashboard/settings';
 
-  if (isBookingDetail || isServiceDetailAction || isLoyaltyDetail) return null;
+  if (isBookingDetail || isServiceDetailAction || isLoyaltyDetail || isSettingsPage) return null;
 
   const itemClass = (active: boolean) =>
     cn(

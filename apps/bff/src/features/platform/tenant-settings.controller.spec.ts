@@ -117,5 +117,21 @@ describe('TenantSettingsController', () => {
 
       expect(result.success).toBe(true);
     });
+
+    it('accepts a notification.fromEmail update', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { notification: { fromEmail: 'reservas@lavacar.com.br' } },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts notification.fromEmail set to null', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { notification: { fromEmail: null } },
+      });
+
+      expect(result.success).toBe(true);
+    });
   });
 });

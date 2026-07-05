@@ -96,6 +96,31 @@ describe('UpdateTenantSettingsUseCase', () => {
     expect(result.settings.loyalty.expiryDays).toBe(180);
   });
 
+  it('merges partial notification settings without wiping other settings', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    const result = await useCase.execute({
+      tenantId: tenant.id,
+      settings: { notification: { fromEmail: 'reservas@lavacar.com.br' } },
+    });
+
+    expect(result.settings.notification).toEqual({ fromEmail: 'reservas@lavacar.com.br' });
+    expect(result.settings.loyalty.expiryDays).toBe(180);
+  });
+
+  it('throws PlatformDomainError for an invalid notification.fromEmail', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    await expect(
+      useCase.execute({
+        tenantId: tenant.id,
+        settings: { notification: { fromEmail: 'not-an-email' } },
+      }),
+    ).rejects.toThrow(PlatformDomainError);
+  });
+
   it('sets socialLinks in businessInfo', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);

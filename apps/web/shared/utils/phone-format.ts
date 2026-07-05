@@ -1,4 +1,5 @@
 import { digitsOnly } from './digits-only';
+import { applyMaskTemplate } from './mask-template';
 
 // '#' is a digit placeholder, every other character is a literal. BR has two valid lengths
 // (10-digit landline, 11-digit mobile) sharing the same area-code prefix; US has one.
@@ -11,21 +12,6 @@ const PHONE_PLACEHOLDERS: Readonly<Record<string, string>> = {
   '+55': '(11) 91234-5678',
   '+1': '(555) 123-4567',
 };
-
-function applyTemplate(digits: string, template: string): string {
-  let result = '';
-  let digitIndex = 0;
-  for (const ch of template) {
-    if (digitIndex >= digits.length) break;
-    if (ch === '#') {
-      result += digits[digitIndex];
-      digitIndex += 1;
-    } else {
-      result += ch;
-    }
-  }
-  return result;
-}
 
 // Max local-number digit count (excluding the country prefix) for a known phonePrefix.
 // Unknown prefixes fall back to E.164's overall max (15 digits total, minus the prefix is not
@@ -43,7 +29,7 @@ export function formatPhoneForDisplay(rawValue: string, phonePrefix: string): st
   const mask = PHONE_MASKS[phonePrefix];
   if (!mask) return digits;
   const template = mask.eleven && digits.length > 10 ? mask.eleven : mask.ten;
-  return applyTemplate(digits, template);
+  return applyMaskTemplate(digits, template);
 }
 
 export function phonePlaceholder(phonePrefix: string): string {

@@ -95,6 +95,7 @@ export interface UpdateTenantSettingsRequest {
     booking?: Partial<TenantBookingSettings>;
     businessHours?: Partial<TenantBusinessHours>;
     localization?: Partial<TenantLocalizationSettings>;
+    notification?: Partial<TenantNotificationSettings>;
     businessInfo?: {
       phone?: string | null;
       email?: string | null;
