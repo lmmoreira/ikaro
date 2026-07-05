@@ -137,6 +137,19 @@ Content-Type: application/json
   }
 }
 
+###
+
+### Set notification sender email override (M13-S31 follow-up: was read-only before this change)
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": {
+    "notification": { "fromEmail": "reservas@lavacar.com.br" }
+  }
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
@@ -175,4 +188,15 @@ Content-Type: application/json
 
 {
   "settings": { "businessHours": { "timezone": "Not/AZone" } }
+}
+
+###
+
+### 400 — Invalid notification.fromEmail (forwarded from backend domain validation)
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": { "notification": { "fromEmail": "not-an-email" } }
 }

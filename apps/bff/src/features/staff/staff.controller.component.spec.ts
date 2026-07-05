@@ -244,7 +244,7 @@ describe('StaffController (component)', () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   describe('happy paths', () => {
-    it('GET /v1/staff calls GET /staff with correct params', async () => {
+    it('GET /v1/staff calls GET /staff with correct params, derives status and strips googleOAuthId', async () => {
       const backendResponse = {
         items: [
           {
@@ -253,6 +253,7 @@ describe('StaffController (component)', () => {
             name: 'A',
             role: 'MANAGER',
             isActive: true,
+            googleOAuthId: 'google-sub-1',
             createdAt: '2026-01-01T00:00:00Z',
           },
         ],
@@ -266,7 +267,20 @@ describe('StaffController (component)', () => {
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toEqual(backendResponse);
+      expect(res.body).toEqual({
+        items: [
+          {
+            id: STAFF_ID,
+            email: 'a@b.com',
+            name: 'A',
+            role: 'MANAGER',
+            isActive: true,
+            createdAt: '2026-01-01T00:00:00Z',
+            status: 'ACTIVE',
+          },
+        ],
+        pagination: backendResponse.pagination,
+      });
       expect(backendHttpService.get).toHaveBeenCalledWith('/staff', { limit: 10, offset: 5 });
     });
 

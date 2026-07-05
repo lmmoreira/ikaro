@@ -278,7 +278,7 @@ describe('middleware', () => {
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
       expect(csp).toContain(
-        "connect-src 'self' https://bff.ikaro.example https://storage.googleapis.com",
+        "connect-src 'self' https://bff.ikaro.example https://storage.googleapis.com https://viacep.com.br",
       );
     });
 
@@ -295,7 +295,7 @@ describe('middleware', () => {
       expect(csp).toContain("img-src 'self' blob: https://storage.googleapis.com");
     });
 
-    it('falls back to self-only connect-src/img-src when the env vars are unset', () => {
+    it('falls back to self + viacep-only connect-src, self-only img-src when the env vars are unset', () => {
       vi.stubEnv('NODE_ENV', 'production');
       vi.stubEnv('NEXT_PUBLIC_BFF_URL', '');
       vi.stubEnv('NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL', '');
@@ -303,8 +303,9 @@ describe('middleware', () => {
       const response = middleware(makeRequest('/lavacar-beloauto'));
       const csp = response.headers.get('Content-Security-Policy') ?? '';
 
-      expect(csp).toContain("connect-src 'self'");
-      expect(csp).not.toMatch(/connect-src 'self' \S/);
+      // viacep.com.br is a fixed third-party origin (not env-configurable) — always present.
+      expect(csp).toContain("connect-src 'self' https://viacep.com.br");
+      expect(csp).not.toMatch(/connect-src 'self' https:\/\/viacep\.com\.br \S/);
       expect(csp).toContain("img-src 'self' blob:");
     });
 

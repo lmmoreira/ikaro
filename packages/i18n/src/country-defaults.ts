@@ -39,6 +39,10 @@ export interface CountrySpec {
   readonly phonePrefix: string;
   /** IANA timezone — best-guess default for provisioning; tenant should always set explicitly. */
   readonly defaultTimezone: string;
+  /** Curated IANA timezone options for this country's settings-form dropdown. Not the full
+   *  IANA list — a short, relevant set per country (Intl.supportedValuesOf('timeZone') would
+   *  return ~400 zones with no country filter, which is worse UX for a single-country form). */
+  readonly timezones: readonly string[];
   /** Short date order — drives display formatting across emails and web. */
   readonly dateFormat: DateFormat;
   /** 24-hour vs 12-hour (AM/PM) clock — drives slot display in emails and web. */
@@ -57,6 +61,13 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
     language: 'pt-BR',
     phonePrefix: '+55',
     defaultTimezone: 'America/Sao_Paulo',
+    timezones: [
+      'America/Sao_Paulo',
+      'America/Fortaleza',
+      'America/Manaus',
+      'America/Rio_Branco',
+      'America/Noronha',
+    ],
     dateFormat: 'DD/MM/YYYY',
     timeFormat: '24h',
     numberFormat: '1.234,56',
@@ -83,6 +94,14 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
     language: 'en',
     phonePrefix: '+1',
     defaultTimezone: 'America/New_York',
+    timezones: [
+      'America/New_York',
+      'America/Chicago',
+      'America/Denver',
+      'America/Los_Angeles',
+      'America/Anchorage',
+      'Pacific/Honolulu',
+    ],
     dateFormat: 'MM/DD/YYYY',
     timeFormat: '12h',
     numberFormat: '1,234.56',
@@ -110,6 +129,7 @@ const FALLBACK: CountrySpec = {
   language: 'en',
   phonePrefix: '+1',
   defaultTimezone: 'UTC',
+  timezones: ['UTC'],
   dateFormat: 'DD/MM/YYYY',
   timeFormat: '24h',
   numberFormat: '1,234.56',

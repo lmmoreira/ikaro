@@ -48,7 +48,10 @@ describe('GetStaffUseCase', () => {
       name: 'Gerente Silva',
       role: 'MANAGER',
       isActive: true,
+      googleOAuthId: 'google-sub-1',
     });
+    const staffItem = result.items.find((i) => i.email === 'staff@lavacar.com.br');
+    expect(staffItem?.googleOAuthId).toBeNull();
   });
 
   it('filters by role and active status', async () => {

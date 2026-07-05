@@ -9,8 +9,16 @@ export interface StaffResponse {
   createdAt: string;
 }
 
+// Derived by the BFF from backend data (M13-S32): ACTIVE = isActive; PENDING = never
+// accepted the invite; DEACTIVATED = activated once, then deactivated.
+export type StaffStatus = 'ACTIVE' | 'PENDING' | 'DEACTIVATED';
+
+export interface StaffListItem extends StaffResponse {
+  status: StaffStatus;
+}
+
 export interface StaffListResponse {
-  items: StaffResponse[];
+  items: StaffListItem[];
   pagination: {
     limit: number;
     offset: number;

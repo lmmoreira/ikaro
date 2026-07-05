@@ -267,6 +267,9 @@ Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-
 | Dashboard schedule timeline uses the generic booking badge palette in tests or components | Use `SCHEDULE_BOOKING_TIMELINE_CLASSES` for schedule timeline cards; reserve `BOOKING_STATUS_CLASSES` for generic booking badges and lists |
 | SonarCloud is failing and only stale CI logs were checked | Inspect the live Sonar issue list, quality gate metrics, and current Sonar job first, then fix the reported rule and verify the live Sonar stage, issue list, and quality gate again before declaring it resolved |
 | Wrong web→BFF transport: `bffServerFetch` in client file, `bffClient` in Server Component, raw `fetch()` in hook | Server: `bffServerFetch(token, path)`. Client: `bffClient.get(path)`. Hook `tenantId`: `useTenant()` only |
+| Address/phone field hardcodes labels, a fixed input mask, or skips the country-driven postal lookup | Derive labels/mask/validation from `countrySpec(tenant.settings.localization.countryCode)` (`@ikaro/i18n`); reuse `apps/web/shared/lib/address/` (postal lookup port+adapter) and `apps/web/shared/utils/phone-format.ts` (mask + E.164 prefix) — see `docs/CODE_STANDARDS.md` § Localization-driven fields |
+| Fixed a Zod/DTO validation rule in one layer (BFF or backend) without checking the other for a duplicate schema | Grep the field name in both `apps/bff/src/features/<module>/*.controller.ts` and `apps/backend/src/contexts/<context>/application/dtos/*.dto.ts` — the BFF and backend often maintain independent copies of the same settings/DTO schema; fixing one silently leaves the other rejecting the same payload |
+| New client-side `fetch()` to a third-party domain (e.g. ViaCEP) added without updating CSP | Add the origin to `connect-src` in `apps/web/middleware.ts` (and its spec) — otherwise the browser silently blocks the request with no visible error, and the feature just looks like it "can't find" anything |
 
 ---
 

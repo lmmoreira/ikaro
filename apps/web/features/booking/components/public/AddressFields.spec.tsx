@@ -5,8 +5,8 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { Address, HotsiteAddressSpec } from '@ikaro/types';
-import type { AddressLookup } from '@/features/booking/components/public/address/address-lookup.port';
-import { InMemoryAddressLookup } from '@/features/booking/components/public/address/in-memory-address-lookup';
+import type { AddressLookup } from '@/shared/lib/address/address-lookup.port';
+import { InMemoryAddressLookup } from '@/shared/lib/address/in-memory-address-lookup';
 import { AddressFields } from './AddressFields';
 
 const BR_SPEC: HotsiteAddressSpec = {

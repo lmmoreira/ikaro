@@ -7,17 +7,48 @@ const STAFF_ID = '30000000-0000-4000-8000-000000000001';
 describe('StaffController', () => {
   describe('list()', () => {
     it('calls GET /staff with limit and offset (actor context comes from RequestContext via BFF headers)', async () => {
-      const expectedResult = {
+      const backendResult = {
         items: [],
         pagination: { limit: 10, offset: 5, total: 0, hasMore: false, nextOffset: null },
       };
-      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(expectedResult) });
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(backendResult) });
       const controller = new StaffController(backendHttp);
 
       const result = await controller.list(10, 5);
 
       expect(backendHttp.get).toHaveBeenCalledWith('/staff', { limit: 10, offset: 5 });
-      expect(result).toBe(expectedResult);
+      expect(result).toEqual(backendResult);
+    });
+
+    it('derives status per item and strips googleOAuthId from the response', async () => {
+      const backendResult = {
+        items: [
+          {
+            id: STAFF_ID,
+            email: 'pendente@lavacar.com.br',
+            name: null,
+            role: 'STAFF',
+            isActive: false,
+            googleOAuthId: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+        pagination: { limit: 50, offset: 0, total: 1, hasMore: false, nextOffset: null },
+      };
+      const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue(backendResult) });
+      const controller = new StaffController(backendHttp);
+
+      const result = await controller.list(50, 0);
+
+      expect(result.items[0]).toEqual({
+        id: STAFF_ID,
+        email: 'pendente@lavacar.com.br',
+        name: null,
+        role: 'STAFF',
+        isActive: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        status: 'PENDING',
+      });
     });
   });
 

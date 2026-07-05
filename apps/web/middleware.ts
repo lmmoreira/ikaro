@@ -27,6 +27,16 @@ function isValidStaffToken(token: string): boolean {
   return true;
 }
 
+// Shared manager-only route list for /dashboard — M13-S31/S32 own this single edit;
+// M13-S35 (hotsite editor) reuses it. STAFF hitting these is sent back to the dashboard home.
+const MANAGER_ONLY_ROUTES = ['/dashboard/settings', '/dashboard/team', '/dashboard/hotsite'];
+
+function isManagerOnlyRoute(pathname: string): boolean {
+  return MANAGER_ONLY_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+}
+
 // Matches /<slug>/my-account and /<slug>/my-account/* — captures the slug.
 const MY_ACCOUNT_PATTERN = /^\/([^/]+)\/my-account(?:\/.*)?$/;
 
@@ -87,9 +97,16 @@ function buildContentSecurityPolicy(pathname: string): string {
   // Booking/after-service photo uploads PUT directly to a signed storage URL from the browser
   // (PhotoUpload.tsx, AfterServicePhotoUpload.tsx) — connect-src needs the same storage origin
   // img-src already allows, or uploads are silently blocked in production.
-  const connectSrc = ["'self'", bffOrigin, storageOrigin, isDev && 'ws://localhost:*'].filter(
-    (v): v is string => Boolean(v),
-  );
+  // ViaCEP lookup (viacep-address-lookup.adapter.ts) fetches directly from the browser too —
+  // used by both the booking flow and dashboard settings CEP autofill. Without this origin,
+  // the browser silently blocks the request and every lookup falls through to "not found".
+  const connectSrc = [
+    "'self'",
+    bffOrigin,
+    storageOrigin,
+    'https://viacep.com.br',
+    isDev && 'ws://localhost:*',
+  ].filter((v): v is string => Boolean(v));
   const frameSrc = isHotsite ? 'https://maps.google.com' : "'none'";
 
   return [
@@ -124,6 +141,12 @@ export function middleware(request: NextRequest): NextResponse {
     if (!token || !isValidStaffToken(token)) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL('/dashboard/login', request.url)),
+        pathname,
+      );
+    }
+    if (isManagerOnlyRoute(pathname) && decodeJwtClaims(token).role !== 'MANAGER') {
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL('/dashboard', request.url)),
         pathname,
       );
     }

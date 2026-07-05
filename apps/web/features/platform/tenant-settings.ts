@@ -5,6 +5,9 @@ import type {
   GenerateHotsiteImageSignedUrlResponse,
   FeatureBookingPhotoResponse,
   TenantSettingsResponse,
+  UpdateTenantSettingsRequest,
+  RenameTenantRequest,
+  RenameTenantResponse,
 } from '@ikaro/types';
 import { countrySpec } from '@ikaro/i18n';
 import type { DateFormat } from '@ikaro/i18n';
@@ -116,6 +119,27 @@ export async function fetchTenantSettings(token: string): Promise<TenantSettings
   });
   if (!res.ok) throw new Error(`Failed to fetch tenant settings (${res.status})`);
   return res.json() as Promise<TenantSettingsResponse>;
+}
+
+// Server-side, uncached — the settings form must never pre-fill stale values after a save.
+export async function fetchTenantSettingsFresh(token: string): Promise<TenantSettingsResponse> {
+  const res = await bffServerFetch(token, '/tenants/settings', { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to fetch tenant settings (${res.status})`);
+  return res.json() as Promise<TenantSettingsResponse>;
+}
+
+export async function updateTenantSettings(
+  body: UpdateTenantSettingsRequest,
+): Promise<TenantSettingsResponse> {
+  const res = await bffClient.patch<TenantSettingsResponse>('/tenants/settings', body);
+  return res.data;
+}
+
+// Tenant rename is a separate endpoint — PATCH /tenants/settings has a strict schema
+// that rejects `name` (see M13-S31 discovery note in plan/M13-DASHBOARD-FRONTEND.md).
+export async function renameTenant(body: RenameTenantRequest): Promise<RenameTenantResponse> {
+  const res = await bffClient.patch<RenameTenantResponse>('/tenants', body);
+  return res.data;
 }
 
 export function resolveTenantFormatting(tenant: TenantSettingsResponse): TenantFormattingConfig {

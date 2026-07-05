@@ -166,6 +166,28 @@ describe('TenantSettings', () => {
     });
   });
 
+  describe('create() — notification validation', () => {
+    it('accepts a null fromEmail (default)', () => {
+      const props = new TenantSettingsPropsBuilder().build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+
+    it('accepts a valid fromEmail and exposes it via the getter', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withNotification({ fromEmail: 'reservas@lavacar.com.br' })
+        .build();
+      const settings = TenantSettings.create(props);
+      expect(settings.notification.fromEmail).toBe('reservas@lavacar.com.br');
+    });
+
+    it('throws for an invalid fromEmail', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withNotification({ fromEmail: 'not-an-email' })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+    });
+  });
+
   describe('create() — businessInfo validation', () => {
     const validAddress = {
       street: 'Av. Paulista',

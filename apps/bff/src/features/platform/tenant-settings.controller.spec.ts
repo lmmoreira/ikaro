@@ -117,5 +117,41 @@ describe('TenantSettingsController', () => {
 
       expect(result.success).toBe(true);
     });
+
+    it('accepts a notification.fromEmail update', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { notification: { fromEmail: 'reservas@lavacar.com.br' } },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts notification.fromEmail set to null', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { notification: { fromEmail: null } },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts businessInfo.socialLinks set to null (all fields blank client-side)', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: { businessInfo: { socialLinks: null } },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts a partial businessInfo.socialLinks object', () => {
+      const result = UpdateTenantSettingsBodySchema.safeParse({
+        settings: {
+          businessInfo: {
+            socialLinks: { whatsapp: '+5511987654321', instagram: null, facebook: null },
+          },
+        },
+      });
+
+      expect(result.success).toBe(true);
+    });
   });
 });
