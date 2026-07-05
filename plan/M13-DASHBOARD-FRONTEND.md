@@ -2868,7 +2868,7 @@ On confirm: pass `discountByPoints` to `completeBooking()` fetcher.
 
 ---
 
-### M13-S27 — Minha Conta home + booking list page (`/{slug}/my-account`)
+### M13-S27 — Minha Conta home + booking list page (`/{slug}/my-account`) ✅ Done
 
 *(formerly M126-S03)*
 
@@ -2883,44 +2883,52 @@ On confirm: pass `discountByPoints` to `completeBooking()` fetcher.
 > **Naming note:** prototypes above stay pt-BR (`minha-conta`, conceptual mockups). All production identifiers below — route, files, components — use the English `my-account`, per the code-standards English-only rule, established in `M13-S42`.
 
 **Description:**
-The customer's home — a single route with two tab views. The "Início" tab shows summary stats and a preview of upcoming/pending bookings. The "Agendamentos" tab shows the full sectioned list. Both views are rendered client-side from the same server-fetched data.
+The customer's home — two sibling routes under the same `CustomerShell`, giving the impression of tabs: `/{slug}/my-account` (Início — summary stats + upcoming preview) and `/{slug}/my-account/bookings` (Agendamentos — full sectioned list). There is **no client-side tab state**: the shell's nav (`customer-nav-items.ts`, shipped in `M13-S16`) already links both routes and derives the active tab from the pathname.
 
-> 🔍 **Discover before starting:** Confirm that `CustomerBookingListResponse` and `CustomerLoyaltyBalanceResponse` from `M13-S06` are available in `packages/types/`. Verify `apps/web/lib/api/` — check whether a customer fetcher file already exists (`customer.ts`, `my-account.ts`). Follow the convention already in place.
+> ✅ **Resolved during M13-S27 discovery (2026-07-04):**
+> - The original draft's single-route + client-side `activeTab` model contradicted the shipped `CustomerShell` nav (real route links + `isCustomerNavActive` pathname detection) and the CLAUDE.md rule against mirroring route-scoped chrome state in shell-local state. Replaced with the two-route model above — zero shell changes needed.
+> - File paths corrected: the draft's `apps/web/lib/api/` and `apps/web/components/` don't exist. The my-account surface lives in `features/customer/` (precedent: `features/customer/api.ts`, `CustomerShell`): components under `features/customer/components/my-account/`, server reads in a new `features/customer/api.server.ts` (`bffServerFetch`), client mutations extending `features/customer/api.ts` (`bffClient`).
+> - `CustomerBookingListResponse`/`CustomerLoyaltyBalanceResponse` (incl. `conversionRate`) verified present in `packages/types/` and served by the live BFF routes.
+> - The draft's "no status filter; all statuses returned" was wrong: `GET /v1/bookings` defaults to `status=PENDING,INFO_REQUESTED` and `limit=20` (`M13-S06`) — the fetcher must pass all six statuses and `limit=50` explicitly.
+> - Cancellation window is **never hardcoded client-side**: this story's backend/BFF prep adds a server-computed `cancellableUntil` to the list items (see below), sourced from `tenants.settings.booking.cancellationWindowHours`.
+> - Status badge classes: the customer shell is pure Tailwind (`M13-S16`) — the draft's tokens.css `.status-*` AC was stale. Reuse the shared status-label/class helpers from `features/booking`; do not re-declare status maps in `features/customer/`.
+> - ⚠️ **Live bug found & fixed during implementation (2026-07-04):** customer `GET /v1/loyalty/balance` returned 403 in the running stack — the BFF's `getEnrichedBalance()` fanned out to backend `/tenants/settings` (STAFF/MANAGER-only) with forwarded CUSTOMER actor headers. The mocked BFF specs never exercised the backend guard. Root-cause fix (this branch): the backend loyalty controller enriches its own balance responses with `conversionRate` from `RequestContext.settings.loyalty.pointsPerCurrencyUnit` (`recordRedemption()` precedent; `null` on cross-tenant reads), and the BFF became a pass-through with no settings call.
+
+**Backend + BFF prep (part of this story):**
+- `booking.aggregate.ts` — `cancellableUntil(windowHours)` helper; `isEligibleForCancellation()` now derives from it (single source of the window rule).
+- `list-bookings.use-case.ts` — input gains `cancellationWindowHours` (passed by the controller from `RequestContext.settings.booking.cancellationWindowHours`); `BookingListItem` gains `cancellableUntil: string | null`, non-null only for APPROVED.
+- `packages/types/src/booking.dto.ts` — `cancellableUntil: string | null` (ISO-8601) on `CustomerBookingListItem`.
+- `apps/bff/src/features/booking/bookings.mapper.ts#toCustomerBookingListItem()` — passes `cancellableUntil` through (no BFF-side settings access — see the loyalty 403 note above for why).
 
 **What to create:**
 
-`apps/web/lib/api/my-account.ts`:
+`apps/web/features/customer/api.server.ts` — server-side reads via `bffServerFetch` (follow the result-shape convention of `features/loyalty/dashboard-api.server.ts`):
 ```typescript
-fetchCustomerBookings(): Promise<CustomerBookingListResponse>
-// GET /v1/bookings — no status filter; all statuses returned, split client-side
-// Sends auth cookie + X-Actor-* headers
-
-fetchLoyaltyBalance(): Promise<CustomerLoyaltyBalanceResponse>
-// GET /v1/loyalty/balance
+fetchCustomerBookings(token): // GET /v1/bookings?status=PENDING,INFO_REQUESTED,APPROVED,COMPLETED,CANCELLED,REJECTED&limit=50
+                              // → CustomerBookingListResponse ({ items, total, page, limit })
+fetchLoyaltyBalance(token):   // GET /v1/loyalty/balance → CustomerLoyaltyBalanceResponse
 ```
 
-`apps/web/app/[slug]/my-account/page.tsx` — server component:
+`apps/web/app/[slug]/my-account/page.tsx` — Início, server component (replaces the `M13-S16` empty stub):
 - Calls `fetchCustomerBookings()` and `fetchLoyaltyBalance()` in parallel (`Promise.all`)
 - On fetch error → render error boundary (not a crash)
-- Renders `<MyAccountPage bookings={items} loyaltyBalance={balance} />`
+- Renders `<HomeDashboard bookings={items} loyaltyBalance={balance} userName={...} />`
 
-`apps/web/components/customer/my-account/MyAccountPage.tsx` — `'use client'`:
-- Manages `activeTab: 'home' | 'bookings'` state (default: `'home'`)
-- Syncs active tab to the shell's tab nav + bottom nav (via props or context)
-- Renders `<HomeDashboard>` or `<BookingsList>` based on active tab
+`apps/web/app/[slug]/my-account/bookings/page.tsx` — Agendamentos, server component (net-new; the shell nav already links here):
+- Same two fetches in parallel; renders `<BookingsList bookings={items} loyaltyBalance={balance} />`
 
-`apps/web/components/customer/my-account/HomeDashboard.tsx`:
+`apps/web/features/customer/components/my-account/HomeDashboard.tsx`:
 - Greeting: "Olá, {userName}"
-- Stat cards: **Pontos** (`currentPoints`) + **Agendamentos** (`total`)
-- Loyalty expiry strip: "X pontos expiram em {nextExpiryDate}" — hidden when `nextExpiryDate` is null
+- Stat cards: **Pontos** (`currentPoints`) + **Agendamentos** (count of APPROVED + COMPLETED items, derived client-side — resolved 2026-07-04, replaces UC-006 step 6's "total washes")
+- Loyalty expiry strip: "X pontos expiram em {nextExpiryDate}" — hidden when `nextExpiryDate` is null; the strip links to `/{slug}/my-account/loyalty`
 - Upcoming preview: up to 3 most recent APPROVED or PENDING/INFO_REQUESTED bookings as `<BookingListItem>` rows
-- "Ver todos os agendamentos →" link → switches to `'bookings'` tab
+- "Ver todos os agendamentos →" plain link → `/{slug}/my-account/bookings`
 - "+ Novo agendamento" CTA (mobile) → `/{slug}/booking`
 
-`apps/web/components/customer/my-account/BookingsList.tsx`:
+`apps/web/features/customer/components/my-account/BookingsList.tsx`:
 - **Client-side section split** (from one `items` array):
   ```ts
-  const upcoming = items.filter(b => b.status === 'APPROVED' && new Date(b.scheduledAt!) >= today);
+  const upcoming = items.filter(b => b.status === 'APPROVED' && new Date(b.scheduledAt) >= today);
   const pending  = items.filter(b => b.status === 'PENDING' || b.status === 'INFO_REQUESTED');
   const history  = items.filter(b => ['COMPLETED','CANCELLED','REJECTED'].includes(b.status));
   ```
@@ -2929,43 +2937,48 @@ fetchLoyaltyBalance(): Promise<CustomerLoyaltyBalanceResponse>
 - Each section: list of `<BookingListItem>` rows; empty section → section hidden (not empty state)
 - All sections empty → `<BookingEmptyState>` (UC-006 A1)
 
-`apps/web/components/customer/my-account/BookingListItem.tsx`:
-- Service name(s), date + time, total price, status badge
+`apps/web/features/customer/components/my-account/BookingListItem.tsx`:
+- Service name(s), date + time, total price, status badge (shared status helpers from `features/booking`)
 - For APPROVED: "Cancelar" text link (visible only within cancellation window — UC-006 A2) + links to detail page
 - For INFO_REQUESTED: "Responder" text link + status badge (blue)
 - For PENDING: "Cancelar solicitação" text link + status badge (yellow)
 - For COMPLETED/CANCELLED/REJECTED: read-only, badge only, no action links
 
-**Cancellation window check (UC-006 A2) — client-side:**
+**Cancellation window check (UC-006 A2) — server-computed, never hardcoded client-side:**
 ```ts
-// tenantSettings.booking.cancellationWindowHours loaded from JWT or BFF
-const deadline = new Date(booking.scheduledAt!);
-deadline.setHours(deadline.getHours() - cancellationWindowHours);
-const canCancel = new Date() < deadline;
-// canCancel === false → hide "Cancelar" link; show note "Prazo encerrado"
+// cancellableUntil arrives on each APPROVED item (this story's BFF prep, above)
+const canCancel =
+  booking.cancellableUntil != null && new Date() < new Date(booking.cancellableUntil);
+// canCancel === false on APPROVED → hide "Cancelar" link; show note "Prazo encerrado"
 ```
 
-`apps/web/components/customer/my-account/BookingEmptyState.tsx` — UC-006 A1:
+`apps/web/features/customer/components/my-account/BookingEmptyState.tsx` — UC-006 A1:
 - Icon + "Nenhum agendamento ainda"
 - CTA "Fazer agendamento" → `/{slug}/booking`
 
+**i18n:** no hardcoded visible copy — all labels/CTAs/notes via `useTranslations()` keys under the existing `customer.*` namespace, added to **both** `packages/i18n/locales/pt-BR/web.json` and `en/web.json` in the same commit (the pt-BR strings quoted above are the pt-BR values).
+
+**Specs:** every new component ships a co-located `.spec.tsx` in the same commit (`HomeDashboard`, `BookingsList`, `BookingListItem`, `BookingEmptyState`), plus a unit test for the pure section-split helper.
+
 **Acceptance criteria:**
-- [ ] Page fetches both endpoints in parallel; renders within 2 network round trips
-- [ ] Início tab: stat cards show `currentPoints` and `total`; loyalty expiry strip visible when `nextExpiryDate != null`
-- [ ] Agendamentos tab: Próximos / Pendentes / Histórico sections contain correct items per status logic
+- [ ] Each page fetches both endpoints in parallel; renders within 2 network round trips
+- [ ] `/my-account` (Início): stat cards show `currentPoints` and the APPROVED+COMPLETED count; loyalty expiry strip visible when `nextExpiryDate != null` and links to `/my-account/loyalty`
+- [ ] `/my-account/bookings` (Agendamentos): Próximos / Pendentes / Histórico sections contain correct items per status logic; shell nav marks the correct tab active on each route
+- [ ] Fetcher passes all six statuses + `limit=50` explicitly (endpoint defaults would silently drop APPROVED/COMPLETED/CANCELLED/REJECTED)
 - [ ] Empty sections are hidden; all three empty → `<BookingEmptyState>` shown
-- [ ] "Cancelar" on APPROVED item: visible when `now < scheduledAt − windowHours`; hidden with "Prazo encerrado" note otherwise
+- [ ] "Cancelar" on APPROVED item: visible when `now < cancellableUntil`; hidden with "Prazo encerrado" note otherwise; `cancellableUntil` computed by the BFF from `tenants.settings.booking.cancellationWindowHours`
 - [ ] INFO_REQUESTED item shows "Responder" link (not "Cancelar")
-- [ ] Status badges match tokens.css: `.status-approved`, `.status-pending`, `.status-info`, `.status-cancelled`
+- [ ] Status badges reuse the shared `features/booking` status helpers (customer shell is Tailwind — no tokens.css classes)
 - [ ] Completed items: no action links
+- [ ] All new copy via i18n keys, present in both `pt-BR` and `en` locale files
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
-- [ ] Vitest unit test for the client-side section-split logic (pure function)
+- [ ] Vitest unit test for the client-side section-split logic (pure function); co-located `.spec.tsx` for every new component
 
 **Dependencies:** M13-S16, M13-S06
 
 ---
 
-### M13-S28 — Booking detail page + cancel flow + info submit (`/{slug}/my-account/bookings/[id]`)
+### M13-S28 — Booking detail page + cancel flow + info submit (`/{slug}/my-account/bookings/[id]`) ✅ Done
 
 *(formerly M126-S05)*
 
@@ -2984,15 +2997,35 @@ const canCancel = new Date() < deadline;
 **Description:**
 The booking detail page for a customer. The page adapts based on status: APPROVED/PENDING show a cancel action; INFO_REQUESTED shows an info-submit form; COMPLETED/CANCELLED/REJECTED are read-only. Cancel confirmation is a dedicated sub-page (not a JS overlay — static prototype informed this decision).
 
-> 🔍 **Discover before starting:** Confirm `CustomerBookingDetailResponse` from `M13-S07` is available in types. Check `apps/bff/src/bookings/bookings.controller.ts` for `PATCH /v1/bookings/:id/cancel` and `PATCH /v1/bookings/:id/submit-info` — verify both accept CUSTOMER role and return the expected shapes. Check `tenants.settings.booking.cancellationWindowHours` is accessible from the JWT or a BFF settings endpoint; if not, default to `48`.
+> ✅ **Resolved during M13-S28 discovery (2026-07-04):**
+> - `CustomerBookingDetailResponse` verified in `packages/types/`; `PATCH /v1/bookings/:id/cancel` (CUSTOMER routes to backend `/cancel-customer`) and `PATCH /v1/bookings/:id/submit-info` (CUSTOMER-only) verified live in `apps/bff/src/features/booking/bookings.controller.ts`.
+> - **Cancellation window:** never hardcode `48` — this story's prep (below) adds a server-computed `cancellableUntil` to the detail response (list items got it in `M13-S27`'s prep). It is computed **backend-side**: the booking controller passes `settings.booking.cancellationWindowHours` into `GetBookingByIdUseCase`, which derives the deadline via `booking.aggregate.ts#cancellableUntil()` — do not compute it in the BFF (`/tenants/settings` 403s CUSTOMER-forwarded calls; see `M13-S27`'s loyalty-403 note).
+> - **COMPLETED-screen data gap closed via BFF prep (below):** the validated prototype (`02c`, and the index checklist's "preço cotado vs. cobrado") shows charged-vs-quoted price, discount, and a "+N pontos de fidelidade" banner — none of which the customer detail response carried. The generic `BookingDetailResponse` the BFF already receives has all the price fields (the staff mapper uses them since `M13-S26`); the customer mapper was narrowing them out. The prototype's "90 min realizados (cotado: 75 min)" element is **dropped** — actual duration is not recorded anywhere in the system.
+> - File paths corrected to `features/customer/**` (same convention decision as `M13-S27`).
+> - The draft's bottom-nav `<style>` override was unimplementable (the shipped shell is Tailwind; no `.bottom-nav` class exists) — replaced with a tested pathname helper (below).
+> - Validation copy "Informe sua resposta antes de enviar." confirmed with product (2026-07-04).
+
+**Backend + BFF prep (part of this story):**
+- Backend: `booking.controller.ts#getOne()` passes `cancellationWindowHours` into `GetBookingByIdUseCase`; the use-case result gains `cancellableUntil` (APPROVED only, via the aggregate helper from `M13-S27`).
+- `packages/types/src/booking.dto.ts` — extend `CustomerBookingDetailResponse` with:
+  - `cancellableUntil: string | null` — APPROVED only (same semantics as the list items from `M13-S27`)
+  - `completedAt: string | null`
+  - `totalActualPrice: MoneyAmount | null` — populated once COMPLETED ("Valor cobrado")
+  - `discountPointsUsed: number | null` / `discountAmount: MoneyAmount | null` — loyalty redemption applied at completion
+  - `pointsEarned: number | null` — populated once COMPLETED; sum of the lines' `pointsValueAtBooking` (backs the "+N pontos de fidelidade" banner)
+  - per-line `actualPriceCharged: MoneyAmount | null` on `CustomerBookingLineItem`
+- `apps/bff/src/features/booking/bookings.mapper.ts#toCustomerBookingDetail()` — map the new fields from the generic `BookingDetailResponse` (all already present there; staff mapper is the precedent). Still narrow out `adminNotes`/`approvedBy`/contact fields.
+- `.http` block updated in `apps/bff/http/bookings/bookings.http`.
 
 **What to create:**
 
-`apps/web/lib/api/my-account.ts` (extend from `M13-S27`):
+`apps/web/features/customer/api.server.ts` (extend from `M13-S27`) — server read via `bffServerFetch`:
 ```typescript
-fetchCustomerBookingDetail(bookingId: string): Promise<CustomerBookingDetailResponse>
-// GET /v1/bookings/:id
+fetchCustomerBookingDetail(token, bookingId): // GET /v1/bookings/:id → CustomerBookingDetailResponse
+```
 
+`apps/web/features/customer/api.ts` (extend — client mutations via `bffClient`):
+```typescript
 cancelBooking(bookingId: string): Promise<void>
 // PATCH /v1/bookings/:id/cancel
 // 200 → booking now CANCELLED
@@ -3006,9 +3039,9 @@ submitInfo(bookingId: string, message: string): Promise<void>
 `apps/web/app/[slug]/my-account/bookings/[id]/page.tsx` — server component:
 - Calls `fetchCustomerBookingDetail(id)`
 - `notFound()` on 404; `redirect('/{slug}/login')` on 401/403
-- Renders `<BookingDetailPage booking={data} cancellationWindowHours={windowHours} />`
+- Renders `<BookingDetailPage booking={data} />` (cancel visibility comes from `booking.cancellableUntil` — no settings prop)
 
-`apps/web/components/customer/my-account/BookingDetailPage.tsx` — `'use client'`:
+`apps/web/features/customer/components/my-account/BookingDetailPage.tsx` — `'use client'`:
 - Topbar: `← Agendamentos` back link + status badge (updates after action)
 - Renders `<BookingDetailMain>` (read-only booking info)
 - Conditionally renders:
@@ -3016,22 +3049,23 @@ submitInfo(bookingId: string, message: string): Promise<void>
   - `<InfoSubmitForm>` when status is INFO_REQUESTED and no `infoResponseMessage` yet
   - Nothing extra when COMPLETED/CANCELLED/REJECTED
 
-`apps/web/components/customer/my-account/BookingDetailMain.tsx` — read-only body:
+`apps/web/features/customer/components/my-account/BookingDetailMain.tsx` — read-only body:
 - Date + time section
-- Service lines table: name | duration | price; totals row
+- Service lines table: name | duration | price; totals row. When COMPLETED: show charged vs. quoted — per-line `actualPriceCharged` when it differs from `priceAtBooking`, "Valor cobrado" total from `totalActualPrice`, and the discount row (`discountPointsUsed`/`discountAmount`) when a redemption was applied (prototype `02c`; no actual-duration display — dropped, no backing data)
 - "Suas observações" section: `booking.notes` — hidden when null
+- Customer's previous info response (`infoResponseMessage`) shown read-only when non-null
 - Before-service photos grid (lazy loaded) — hidden when empty array
 - After-service photos grid (COMPLETED only) — hidden when empty
-- Loyalty points earned banner (COMPLETED only — show if `afterServicePhotoUrls.length > 0` or status COMPLETED)
+- Loyalty points earned banner (COMPLETED only): "+{pointsEarned} pontos de fidelidade" from the new `pointsEarned` field
 
-`apps/web/components/customer/my-account/CancelAction.tsx`:
+`apps/web/features/customer/components/my-account/CancelAction.tsx`:
 - "Cancelar agendamento" button → navigates to `/{slug}/my-account/bookings/[id]/cancel`
-- Window note: "Cancelamento gratuito até {deadline}" — shown for APPROVED within window
+- Window note: "Cancelamento gratuito até {deadline}" — deadline = `booking.cancellableUntil`; shown for APPROVED within window
 
 `apps/web/app/[slug]/my-account/bookings/[id]/cancel/page.tsx` — server component:
 - Renders `<CancelConfirmPage booking={...} />`
 
-`apps/web/components/customer/my-account/CancelConfirmPage.tsx` — `'use client'`:
+`apps/web/features/customer/components/my-account/CancelConfirmPage.tsx` — `'use client'`:
 - Shows booking summary + warning
 - "Confirmar cancelamento" → calls `cancelBooking()`
   - 200 → redirect to `/{slug}/my-account` (booking will appear as CANCELLED in Histórico)
@@ -3041,23 +3075,32 @@ submitInfo(bookingId: string, message: string): Promise<void>
 `apps/web/app/[slug]/my-account/bookings/[id]/cancel/error/page.tsx`:
 - Renders `<CancelErrorPage>` — static (no action needed, just shows error + "Voltar" + a real `wa.me` WhatsApp contact link, not a placeholder `href="#"` — see `plan/journey/customer/prototypes/minha-conta/03b-cancel-error.html`, fixed during the journey-prototype audit to use the tenant's contact number)
 
-`apps/web/components/customer/my-account/InfoSubmitForm.tsx` — UC-005 A2:
+`apps/web/features/customer/components/my-account/InfoSubmitForm.tsx` — UC-005 A2:
 - Shows `infoRequestMessage` (admin's question) in a blue info box
-- Textarea for response (required) — error message "Informe sua resposta antes de enviar." when empty
+- Textarea for response (required) — error message "Informe sua resposta antes de enviar." when empty (copy confirmed with product 2026-07-04)
 - "Enviar resposta" → calls `submitInfo()`
-  - 200 → local state update: hide form, show "Resposta enviada" confirmation, status badge → PENDING
-  - Error → inline error message; form stays open
+  - 200 → local state update: hide form, show "Resposta enviada" confirmation, status badge → PENDING (prototype `02d-info-sent.html`)
+  - Error → inline error banner, textarea re-enabled with typed text preserved, "Tentar novamente" (prototype `02e-submit-error.html`); form stays open
+- Form is rendered only when `status === INFO_REQUESTED && infoResponseMessage == null`; a previous response is shown read-only instead
 
-**Bottom nav:** hidden on all detail and cancelar pages (drill-down pages — add `<style>.bottom-nav { display: none !important; }</style>` in layout or `page.tsx`).
+**Bottom nav:** hidden on all detail and cancel pages (drill-down). Mechanism: a `shouldShowCustomerBottomNav(pathname)` helper next to `customer-nav-items.ts` (unit-tested), consumed by `CustomerBottomNav` — hides on paths deeper than the three tab routes. No CSS overrides (the shell is Tailwind; the draft's `<style>.bottom-nav</style>` injection targeted a class that doesn't exist).
+
+**i18n:** no hardcoded visible copy — all labels/CTAs/errors via `useTranslations()` keys under the `customer.*` namespace, added to **both** `pt-BR` and `en` locale files in the same commit.
+
+**Specs:** every new component ships a co-located `.spec.tsx` in the same commit (`BookingDetailPage`, `BookingDetailMain`, `CancelAction`, `CancelConfirmPage`, `CancelErrorPage`, `InfoSubmitForm`), plus a unit test for `shouldShowCustomerBottomNav`.
 
 **Acceptance criteria:**
 
+*BFF prep:*
+- [ ] `CustomerBookingDetailResponse` extended (`cancellableUntil`, `completedAt`, `totalActualPrice`, `discountPointsUsed`, `discountAmount`, `pointsEarned`, per-line `actualPriceCharged`); `toCustomerBookingDetail()` maps them; staff-internal fields still narrowed out
+- [ ] `cancellableUntil` computed from `tenants.settings.booking.cancellationWindowHours` — no hardcoded window anywhere
+
 *Detail page:*
-- [ ] APPROVED detail: shows date, services, notes, cancel button (when within window), before-photos
-- [ ] INFO_REQUESTED detail: shows admin's question + `<InfoSubmitForm>`
-- [ ] COMPLETED detail: shows after-photos, loyalty points banner, "Fazer novo agendamento" CTA; no cancel button
+- [ ] APPROVED detail: shows date, services, notes, cancel button (when `now < cancellableUntil`), before-photos
+- [ ] INFO_REQUESTED detail: shows admin's question + `<InfoSubmitForm>` (form hidden when `infoResponseMessage != null` — previous response shown read-only)
+- [ ] COMPLETED detail: shows after-photos, charged-vs-quoted summary (`totalActualPrice` + discount row when present), "+{pointsEarned} pontos" banner, "Fazer novo agendamento" CTA; no cancel button
 - [ ] CANCELLED/REJECTED detail: read-only, no action buttons
-- [ ] Bottom nav hidden (drill-down)
+- [ ] Bottom nav hidden (drill-down) via `shouldShowCustomerBottomNav` — no CSS override
 
 *Cancel flow (UC-007):*
 - [ ] "Cancelar" → navigates to `/cancel` page showing booking summary + warning
@@ -3066,19 +3109,21 @@ submitInfo(bookingId: string, message: string): Promise<void>
 
 *Info submit (UC-005 A2):*
 - [ ] INFO_REQUESTED booking shows `infoRequestMessage` + textarea form
-- [ ] Submit disabled when textarea empty
+- [ ] Submit disabled when textarea empty; empty submit shows "Informe sua resposta antes de enviar."
 - [ ] 200 → form replaced with "Resposta enviada" confirmation; status badge updates to PENDING
-- [ ] Network error → inline error; form remains usable
+- [ ] Network error → inline error banner; typed text preserved; form remains usable
 
-*Types:*
-- [ ] `cancelBooking`, `submitInfo` fetchers in `apps/web/lib/api/my-account.ts`
+*Types / quality:*
+- [ ] `fetchCustomerBookingDetail` in `features/customer/api.server.ts`; `cancelBooking`, `submitInfo` in `features/customer/api.ts`
+- [ ] All new copy via i18n keys, present in both `pt-BR` and `en` locale files
+- [ ] Co-located `.spec.tsx` for every new component
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
 
 **Dependencies:** M13-S16, M13-S27, M13-S07
 
 ---
 
-### M13-S29 — Frontend: Fidelidade page (`/{slug}/my-account/loyalty`)
+### M13-S29 — Frontend: Fidelidade page (`/{slug}/my-account/loyalty`) ✅ Done
 
 *(formerly M126-S07)*
 
@@ -3096,33 +3141,30 @@ The customer's own loyalty history page — a full view of their balance, earnin
 
 > **Dependency fix applied during consolidation:** the original draft listed this story's data dependencies as just the balance + entries/redemptions BFF calls (`M13-S06`, `M13-S08`), which would have let it ship before the loyalty conversion-rate field existed — its own "10 pts = R$ 1,00" conversion row would have had nothing real to read. `M13-S12` (which adds `conversionRate` to the balance response) is now an explicit dependency; since `M13-S12` is in Phase 1, it's already satisfied by the time this phase starts.
 
-> 🔍 **Discover before starting:**
-> - Confirm `M13-S08` types (`CustomerLoyaltyEntriesResponse`, `CustomerLoyaltyRedemptionsResponse`) are in `packages/types/`.
-> - Confirm `CustomerLoyaltyBalanceResponse` from `M13-S06` (including `conversionRate` from `M13-S12`) is available.
-> - Check `apps/web/lib/api/my-account.ts` — extend it rather than creating a new file.
-> - The "10 pts = R$ 1,00" conversion row's UI was carried over from the prototype with only an inline comment caveat — the journey-prototype audit flagged it should be explicitly verified against UC-016's actual MVP scope (CLAUDE.md describes the loyalty MVP as points-balance only). Confirm with product before shipping the conversion row as-is; it is gated on `conversionRate > 0` either way, so tenants with redemption disabled never see it.
+> ✅ **Resolved during M13-S29 discovery (2026-07-04):**
+> - `CustomerLoyaltyEntriesResponse`/`CustomerLoyaltyRedemptionsResponse` (`M13-S08`) and `CustomerLoyaltyBalanceResponse` incl. `conversionRate` (`M13-S06`/`M13-S12`) verified in `packages/types/` and served by the live BFF routes (`loyalty.controller.ts`, CUSTOMER-guarded).
+> - **Conversion row confirmed in scope by product (2026-07-04):** it is driven by the tenant's `tenants.settings.loyalty.pointsPerCurrencyUnit` (exposed as `conversionRate` — the same rate booking completion/redemption already use), gated on `conversionRate > 0`. The copy must render **dynamically from the rate** (`{conversionRate} pts = R$ 1,00`), not the prototype's hardcoded "10".
+> - File paths corrected to `features/customer/**` (same convention decision as `M13-S27`); the "Fidelidade" nav link to `/{slug}/my-account/loyalty` already shipped in `M13-S16` (`customer-nav-items.ts`) — no shell change needed, this story just makes the target route exist.
+> - Loyalty pagination default is `limit=20` (`M13-S08` kept the shared `PaginationSchema` default) — pass `limit=50` explicitly.
 
 **What to create:**
 
-`apps/web/lib/api/my-account.ts` (extend from `M13-S27`):
+`apps/web/features/customer/api.server.ts` (extend from `M13-S27`) — server reads via `bffServerFetch`:
 ```typescript
-fetchLoyaltyEntries(limit?: number): Promise<CustomerLoyaltyEntriesResponse>
-// GET /v1/loyalty/entries?limit=50
-
-fetchLoyaltyRedemptions(limit?: number): Promise<CustomerLoyaltyRedemptionsResponse>
-// GET /v1/loyalty/redemptions?limit=50
+fetchLoyaltyEntries(token):     // GET /v1/loyalty/entries?limit=50 → CustomerLoyaltyEntriesResponse
+fetchLoyaltyRedemptions(token): // GET /v1/loyalty/redemptions?limit=50 → CustomerLoyaltyRedemptionsResponse
 ```
 
 `apps/web/app/[slug]/my-account/loyalty/page.tsx` — server component:
 - Calls `fetchLoyaltyBalance()`, `fetchLoyaltyEntries()`, `fetchLoyaltyRedemptions()` in parallel
-- Renders `<LoyaltyPage balance={...} entries={...} redemptions={...} conversionRate={...} />`
+- Renders `<LoyaltyPage balance={...} entries={...} redemptions={...} />` (`conversionRate` is a field of the balance response)
 
-`apps/web/components/customer/my-account/LoyaltyPage.tsx` — `'use client'`:
+`apps/web/features/customer/components/my-account/LoyaltyPage.tsx` — `'use client'`:
 - **Balance card** (gradient blue — same pattern as `04-fidelidade.html`):
   - `currentPoints` (large bold number)
   - "pontos ativos" label
   - Expiry strip: "X pts expiram em {date}" — hidden when `nextExpiryDate === null`
-  - Conversion row: "10 pts = R$ 1,00 · Valor total: R$ {currentPoints / rate}" — hidden when `conversionRate === 0`
+  - Conversion row: "{conversionRate} pts = R$ 1,00 · Valor total: R$ {currentPoints / conversionRate}" — hidden when `conversionRate === 0`; rate rendered dynamically, never hardcoded
 - **Tab bar**: "Histórico de ganhos" | "Resgates"
 - **Ganhos tab**: list of `CustomerLoyaltyEntryResponse` rows
   - Service name + date + `+N pts` (green)
@@ -3135,26 +3177,30 @@ fetchLoyaltyRedemptions(limit?: number): Promise<CustomerLoyaltyRedemptionsRespo
   - "Nenhum ponto acumulado ainda" + CTA "Agendar agora" → `/{slug}/booking`
 - Vitest unit test: `LoyaltyPage.spec.tsx` — key cases: renders balance, tabs switch correctly, empty state shown when both entries and balance are zero
 
-**`CustomerShell` update** (`M13-S16`):
-- "Fidelidade" tab nav link (desktop) and bottom-nav item (mobile) must link to `/{slug}/my-account/loyalty`
-- Loyalty strip on Minha Conta home (`01-minha-conta.html`) is a link → this page
+**Shell integration (already shipped — verify only):**
+- "Fidelidade" tab nav link (desktop) and bottom-nav item (mobile) already point to `/{slug}/my-account/loyalty` (`M13-S16`, `customer-nav-items.ts`) — no shell change in this story
+- Loyalty strip on the Minha Conta home links to this page (`M13-S27`'s `HomeDashboard`)
+
+**i18n:** no hardcoded visible copy — all labels/tab names/empty states via `useTranslations()` keys under the `customer.*` namespace, added to **both** `pt-BR` and `en` locale files in the same commit.
 
 **Acceptance criteria:**
 - [ ] `GET /{slug}/my-account/loyalty` renders balance card with `currentPoints`
 - [ ] Expiry strip visible when `nextExpiryDate != null`; hidden otherwise
-- [ ] Conversion row visible when `conversionRate > 0`; hidden otherwise
+- [ ] Conversion row visible when `conversionRate > 0`; hidden otherwise; rate and total value rendered dynamically from `conversionRate` (never a hardcoded "10")
 - [ ] Ganhos tab: entries shown with service name, date, green `+N pts`; expired entries faded
-- [ ] Resgates tab: redemptions shown with `−N pts` and savings amount; empty message when list is empty
+- [ ] Resgates tab: redemptions shown with `−N pts` and savings amount (`amountSaved` arrives pre-formatted from the BFF); empty message when list is empty
 - [ ] Empty state (0 pts, no entries): muted balance card + "Agendar agora" CTA
 - [ ] "Fidelidade" nav tab active on this page (both desktop and mobile)
+- [ ] Fetchers pass `limit=50` explicitly (endpoint default is 20)
+- [ ] All new copy via i18n keys, present in both `pt-BR` and `en` locale files
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
-- [ ] Vitest unit tests pass
+- [ ] Vitest unit tests pass; co-located `.spec.tsx` for every new component
 
 **Dependencies:** M13-S16 (shell), M13-S06 (`fetchLoyaltyBalance`), M13-S08 (entries + redemptions BFF), M13-S12 (`conversionRate` enrichment)
 
 ---
 
-### M13-S30 — ~~Frontend: UC-023 tenant switch trigger + page~~ — Merged into `M13-S14`
+### M13-S30 — ~~Frontend: UC-023 tenant switch trigger + page~~ — Merged into `M13-S14` ✅ Done
 
 *(formerly M126-S08)*
 
@@ -4155,12 +4201,12 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 ### Customer Minha Conta (Phase 7, M13-S27–M13-S29; `M13-S30` merged into `M13-S14`)
 
-- [ ] **`cancellationWindowHours` availability:** is this value accessible to the frontend without a dedicated settings endpoint? MVP default is to hardcode `48` and read from real settings later (used by `M13-S27`/`M13-S28`).
-- [ ] **"Total washes completed" stat (UC-006 step 6):** not available from `GET /v1/loyalty/balance`. Drop from MVP Minha Conta, or derive client-side from `items.filter(b => b.status === 'COMPLETED').length`? Decide before `M13-S27`.
+- [x] **`cancellationWindowHours` availability:** resolved (discovery session 2026-07-04, revised during `M13-S27` implementation) — never hardcode `48`. The **backend** computes `cancellableUntil: string | null` per APPROVED booking: the booking controller passes `settings.booking.cancellationWindowHours` from `RequestContext` into the list/get use cases, and `booking.aggregate.ts#cancellableUntil()` (the same rule `isEligibleForCancellation()` uses) derives the deadline. The BFF customer mappers pass it through; the frontend only compares it against `now`. The original plan had the BFF compute it from `/tenants/settings` — that route is `StaffOrManagerRoleGuard`-ed and 403s CUSTOMER-forwarded calls, which also surfaced a live bug: the shipped customer `GET /v1/loyalty/balance` (`M13-S06`/`M13-S12`) was 403ing for real customers because `getEnrichedBalance()` fanned out to `/tenants/settings`. Fixed in `M13-S27`'s branch by enriching `conversionRate` at the source (backend loyalty controller reads `RequestContext.settings.loyalty.pointsPerCurrencyUnit`, the `recordRedemption()` precedent; `null` for cross-tenant reads) and making the BFF a pass-through.
+- [x] **"Total washes completed" stat (UC-006 step 6):** resolved (discovery session 2026-07-04) — go with the prototype's card pair: **Pontos** + **Agendamentos**, where the Agendamentos count = APPROVED + COMPLETED items, derived client-side (acceptable within the resolved `limit=50` cap). UC-006 step 6's "total washes / most recent service" is dropped from MVP.
 - [x] **After-cancel destination (UC-007):** resolved — redirect to `/{slug}/my-account` list after successful cancel; booking appears in Histórico as CANCELLED on next load. Implemented in `M13-S28`.
-- [ ] **`infoResponseMessage` already filled:** if the customer already responded to an info request once (status returned to PENDING, then re-requested), should `InfoSubmitForm` show again or just display the previous response? Recommendation carried into `M13-S28`: hide the form when `infoResponseMessage != null`.
+- [x] **`infoResponseMessage` already filled:** resolved (discovery session 2026-07-04) — hide the form when `infoResponseMessage != null`; the previous response is displayed read-only. Spec'd in `M13-S28`.
 - [x] **`GET /v1/bookings` pagination for MVP:** resolved — load all bookings with `limit=50`, display all, no infinite scroll. Implemented in `M13-S27`.
-- [ ] **Loyalty conversion-rate UI scope (verify against UC-016):** `M13-S29`'s "10 pts = R$ 1,00" conversion row was carried over from the prototype with only an inline-comment caveat in the original draft. CLAUDE.md describes the loyalty MVP as points-balance only — confirm with product whether the conversion display is actually in scope before shipping `M13-S29`'s conversion row, even though it's gated behind `conversionRate > 0`.
+- [x] **Loyalty conversion-rate UI scope (verify against UC-016):** resolved (product confirmation, discovery session 2026-07-04) — the conversion row **is in scope**: it is driven by the tenant's `tenants.settings.loyalty.pointsPerCurrencyUnit` (exposed as `conversionRate`, already used by booking completion and loyalty redemption), gated behind `conversionRate > 0`, and the copy must be rendered dynamically from the rate (`{rate} pts = R$ 1,00`), not the prototype's hardcoded "10".
 
 ### Manager workspace (Phase 8, M13-S31–M13-S37)
 

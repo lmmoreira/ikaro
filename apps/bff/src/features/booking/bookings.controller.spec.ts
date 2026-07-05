@@ -591,6 +591,7 @@ describe('BookingsController', () => {
         },
       ],
       createdAt: '2026-01-01T00:00:00.000Z',
+      cancellableUntil: null,
     };
     const backendListResponse = {
       items: [backendItem],
@@ -759,6 +760,8 @@ describe('BookingsController', () => {
       totalDurationMins: 30,
       totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
       totalActualPrice: null,
+      discountPointsUsed: null,
+      discountAmount: null,
       pickupAddress: null,
       lines: [],
       beforeServicePhotoUrls: [],
@@ -768,8 +771,11 @@ describe('BookingsController', () => {
       infoResponseMessage: null,
       approvedAt: null,
       approvedBy: null,
+      completedAt: null,
       rejectionReason: null,
       createdAt: '2026-01-01T00:00:00.000Z',
+      cancellableUntil: null,
+      pointsEarned: null,
     };
 
     it('CUSTOMER: calls GET /bookings/:id and returns CustomerBookingDetailResponse, dropping staff-only fields', async () => {
@@ -787,10 +793,16 @@ describe('BookingsController', () => {
         lines: [],
         totalPrice: { amount: 100, currency: 'BRL' },
         notes: null,
+        cancellableUntil: null,
         infoRequestMessage: null,
         infoResponseMessage: null,
         beforeServicePhotoUrls: [],
         afterServicePhotoUrls: [],
+        completedAt: null,
+        totalActualPrice: null,
+        discountPointsUsed: null,
+        discountAmount: null,
+        pointsEarned: null,
       });
       expect(result).not.toHaveProperty('contactEmail');
       expect(result).not.toHaveProperty('adminNotes');

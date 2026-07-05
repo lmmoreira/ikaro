@@ -20,17 +20,18 @@ describe('toStaffBookingCard()', () => {
     contactEmail: 'joao@example.com',
     scheduledAt: '2026-06-15T10:00:00.000Z',
     totalDurationMins: 30,
-    totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+    totalPrice: { amount: 100, currency: 'BRL' },
     lineSummary: [
       {
         lineId: LINE_ID,
         serviceId: SERVICE_ID,
         serviceNameAtBooking: 'Lavagem Simples',
         durationMinsAtBooking: 30,
-        priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+        priceAtBooking: { amount: 100, currency: 'BRL' },
       },
     ],
     createdAt: '2026-01-01T00:00:00.000Z',
+    cancellableUntil: null,
   };
 
   it('maps backend booking-list item fields to StaffBookingCardResponse', () => {
@@ -63,7 +64,7 @@ describe('toStaffBookingCard()', () => {
           serviceId: 'service-2',
           serviceNameAtBooking: 'Cera',
           durationMinsAtBooking: 15,
-          priceAtBooking: { amount: 50, currency: 'BRL', formatted: 'R$ 50,00' },
+          priceAtBooking: { amount: 50, currency: 'BRL' },
         },
       ],
     });
@@ -81,17 +82,18 @@ describe('toCustomerBookingListItem()', () => {
     contactEmail: 'joao@example.com',
     scheduledAt: '2026-06-15T10:00:00.000Z',
     totalDurationMins: 30,
-    totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+    totalPrice: { amount: 100, currency: 'BRL' },
     lineSummary: [
       {
         lineId: LINE_ID,
         serviceId: SERVICE_ID,
         serviceNameAtBooking: 'Lavagem Simples',
         durationMinsAtBooking: 30,
-        priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+        priceAtBooking: { amount: 100, currency: 'BRL' },
       },
     ],
     createdAt: '2026-01-01T00:00:00.000Z',
+    cancellableUntil: null,
   };
 
   it('maps backend booking-list item fields to CustomerBookingListItem, dropping contact info and formatted price', () => {
@@ -107,10 +109,21 @@ describe('toCustomerBookingListItem()', () => {
           serviceName: 'Lavagem Simples',
           durationMinsAtBooking: 30,
           priceAtBooking: { amount: 100, currency: 'BRL' },
+          actualPriceCharged: null,
         },
       ],
       totalPrice: { amount: 100, currency: 'BRL' },
+      cancellableUntil: null,
     });
+  });
+
+  it('passes through cancellableUntil on APPROVED items', () => {
+    const result = toCustomerBookingListItem({
+      ...backendItem,
+      status: 'APPROVED',
+      cancellableUntil: '2026-06-13T10:00:00.000Z',
+    });
+    expect(result.cancellableUntil).toBe('2026-06-13T10:00:00.000Z');
   });
 
   it('maps multiple lines in order', () => {
@@ -123,7 +136,7 @@ describe('toCustomerBookingListItem()', () => {
           serviceId: 'service-2',
           serviceNameAtBooking: 'Cera',
           durationMinsAtBooking: 15,
-          priceAtBooking: { amount: 50, currency: 'BRL', formatted: 'R$ 50,00' },
+          priceAtBooking: { amount: 50, currency: 'BRL' },
         },
       ],
     });
@@ -144,7 +157,7 @@ describe('toStaffBookingDetail()', () => {
     notes: null,
     scheduledAt: '2026-06-15T10:00:00.000Z',
     totalDurationMins: 30,
-    totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+    totalPrice: { amount: 100, currency: 'BRL' },
     totalActualPrice: null,
     discountPointsUsed: null,
     discountAmount: null,
@@ -160,6 +173,8 @@ describe('toStaffBookingDetail()', () => {
     completedAt: null,
     rejectionReason: null,
     createdAt: '2026-01-01T00:00:00.000Z',
+    cancellableUntil: null,
+    pointsEarned: null,
   };
 
   it('maps backend booking detail fields and the given loyaltyBalance to StaffBookingDetailResponse', () => {
@@ -197,9 +212,9 @@ describe('toStaffBookingDetail()', () => {
   it('maps totalActualPrice, discount and completedAt for a completed booking', () => {
     const detail: BookingDetailResponse = {
       ...backendDetail,
-      totalActualPrice: { amount: 76, currency: 'BRL', formatted: 'R$ 76,00' },
+      totalActualPrice: { amount: 76, currency: 'BRL' },
       discountPointsUsed: 240,
-      discountAmount: { amount: 24, currency: 'BRL', formatted: 'R$ 24,00' },
+      discountAmount: { amount: 24, currency: 'BRL' },
       completedAt: '2026-06-01T15:00:00.000Z',
     };
 
@@ -270,7 +285,7 @@ describe('toStaffBookingDetail()', () => {
           lineId: 'line-1',
           serviceId: 'service-1',
           serviceNameAtBooking: 'Lavagem Completa',
-          priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+          priceAtBooking: { amount: 100, currency: 'BRL' },
           durationMinsAtBooking: 30,
           pointsValueAtBooking: 10,
           requiresPickupAddressAtBooking: false,
@@ -303,11 +318,11 @@ describe('toStaffBookingDetail()', () => {
           lineId: 'line-1',
           serviceId: 'service-1',
           serviceNameAtBooking: 'Lavagem Completa',
-          priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+          priceAtBooking: { amount: 100, currency: 'BRL' },
           durationMinsAtBooking: 30,
           pointsValueAtBooking: 10,
           requiresPickupAddressAtBooking: false,
-          actualPriceCharged: { amount: 90, currency: 'BRL', formatted: 'R$ 90,00' },
+          actualPriceCharged: { amount: 90, currency: 'BRL' },
         },
       ],
     };
@@ -331,7 +346,7 @@ describe('toCustomerBookingDetail()', () => {
     notes: null,
     scheduledAt: '2026-06-15T10:00:00.000Z',
     totalDurationMins: 30,
-    totalPrice: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+    totalPrice: { amount: 100, currency: 'BRL' },
     totalActualPrice: null,
     discountPointsUsed: null,
     discountAmount: null,
@@ -347,6 +362,8 @@ describe('toCustomerBookingDetail()', () => {
     completedAt: null,
     rejectionReason: null,
     createdAt: '2026-01-01T00:00:00.000Z',
+    cancellableUntil: null,
+    pointsEarned: null,
   };
 
   it('maps backend booking detail fields to CustomerBookingDetailResponse', () => {
@@ -359,11 +376,29 @@ describe('toCustomerBookingDetail()', () => {
       lines: [],
       totalPrice: { amount: 100, currency: 'BRL' },
       notes: null,
+      cancellableUntil: null,
       infoRequestMessage: null,
       infoResponseMessage: null,
       beforeServicePhotoUrls: [],
       afterServicePhotoUrls: [],
+      completedAt: null,
+      totalActualPrice: null,
+      discountPointsUsed: null,
+      discountAmount: null,
+      pointsEarned: null,
     });
+  });
+
+  it('passes through cancellableUntil for an APPROVED booking', () => {
+    const detail: BookingDetailResponse = {
+      ...backendDetail,
+      status: 'APPROVED',
+      cancellableUntil: '2026-06-13T10:00:00.000Z',
+    };
+
+    const result = toCustomerBookingDetail(detail);
+
+    expect(result.cancellableUntil).toBe('2026-06-13T10:00:00.000Z');
   });
 
   it('drops staff-internal fields (adminNotes, approvedBy, rejectionReason, contact info)', () => {
@@ -401,7 +436,7 @@ describe('toCustomerBookingDetail()', () => {
           lineId: 'line-1',
           serviceId: 'service-1',
           serviceNameAtBooking: 'Lavagem Completa',
-          priceAtBooking: { amount: 100, currency: 'BRL', formatted: 'R$ 100,00' },
+          priceAtBooking: { amount: 100, currency: 'BRL' },
           durationMinsAtBooking: 30,
           pointsValueAtBooking: 10,
           requiresPickupAddressAtBooking: false,
@@ -418,6 +453,7 @@ describe('toCustomerBookingDetail()', () => {
         serviceName: 'Lavagem Completa',
         durationMinsAtBooking: 30,
         priceAtBooking: { amount: 100, currency: 'BRL' },
+        actualPriceCharged: null,
       },
     ]);
   });
@@ -433,5 +469,61 @@ describe('toCustomerBookingDetail()', () => {
 
     expect(result.beforeServicePhotoUrls).toEqual(['https://example.com/before.jpg']);
     expect(result.afterServicePhotoUrls).toEqual(['https://example.com/after.jpg']);
+  });
+
+  it('maps completion summary fields for a COMPLETED booking', () => {
+    const detail: BookingDetailResponse = {
+      ...backendDetail,
+      status: 'COMPLETED',
+      completedAt: '2026-06-01T15:00:00.000Z',
+      totalActualPrice: { amount: 76, currency: 'BRL' },
+      discountPointsUsed: 240,
+      discountAmount: { amount: 24, currency: 'BRL' },
+      // Pre-computed by the backend (sum of lines' pointsValueAtBooking) — the BFF mapper
+      // only passes this through, it does not sum the lines itself.
+      pointsEarned: 15,
+      lines: [
+        {
+          lineId: 'line-1',
+          serviceId: 'service-1',
+          serviceNameAtBooking: 'Lavagem Completa',
+          priceAtBooking: { amount: 100, currency: 'BRL' },
+          durationMinsAtBooking: 30,
+          pointsValueAtBooking: 10,
+          requiresPickupAddressAtBooking: false,
+          actualPriceCharged: { amount: 76, currency: 'BRL' },
+        },
+        {
+          lineId: 'line-2',
+          serviceId: 'service-2',
+          serviceNameAtBooking: 'Cera',
+          priceAtBooking: { amount: 50, currency: 'BRL' },
+          durationMinsAtBooking: 15,
+          pointsValueAtBooking: 5,
+          requiresPickupAddressAtBooking: false,
+          actualPriceCharged: null,
+        },
+      ],
+    };
+
+    const result = toCustomerBookingDetail(detail);
+
+    expect(result.completedAt).toBe('2026-06-01T15:00:00.000Z');
+    expect(result.totalActualPrice).toEqual({ amount: 76, currency: 'BRL' });
+    expect(result.discountPointsUsed).toBe(240);
+    expect(result.discountAmount).toEqual({ amount: 24, currency: 'BRL' });
+    expect(result.pointsEarned).toBe(15);
+    expect(result.lines[0].actualPriceCharged).toEqual({ amount: 76, currency: 'BRL' });
+    expect(result.lines[1].actualPriceCharged).toBeNull();
+  });
+
+  it('leaves completion summary fields null for a non-COMPLETED booking', () => {
+    const result = toCustomerBookingDetail({ ...backendDetail, status: 'APPROVED' });
+
+    expect(result.completedAt).toBeNull();
+    expect(result.totalActualPrice).toBeNull();
+    expect(result.discountPointsUsed).toBeNull();
+    expect(result.discountAmount).toBeNull();
+    expect(result.pointsEarned).toBeNull();
   });
 });

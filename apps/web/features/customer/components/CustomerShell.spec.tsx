@@ -68,7 +68,7 @@ describe('CustomerShell', () => {
     const tabNav = screen.getByRole('navigation', { name: 'customer-tabs' });
     const homeLink = tabNav.querySelector('a[href="/lavacar-bh/my-account"]');
     expect(homeLink?.className).toContain('border-blue-600');
-    expect(homeLink?.className).toContain('text-blue-600');
+    expect(homeLink?.querySelector('span')?.className).toContain('text-blue-600');
   });
 
   it('marks Agendamentos and Fidelidade as inactive when on root', () => {

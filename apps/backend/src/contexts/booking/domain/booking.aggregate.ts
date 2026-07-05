@@ -645,9 +645,25 @@ export class Booking extends AggregateRoot {
     };
   }
 
-  isEligibleForCancellation(cancellationWindowHours: number): boolean {
+  cancellableUntil(cancellationWindowHours: number): Date {
     const windowMs = cancellationWindowHours * 60 * 60 * 1000;
-    return Date.now() < this.props.scheduledAt.getTime() - windowMs;
+    return new Date(this.props.scheduledAt.getTime() - windowMs);
+  }
+
+  // Customer-facing self-cancellation deadline (UC-007) — non-null only for APPROVED
+  // bookings. Single-sourced here so list/detail read models never drift from each other.
+  cancellableUntilIso(cancellationWindowHours: number): string | null {
+    return this.props.status === BookingStatus.APPROVED
+      ? this.cancellableUntil(cancellationWindowHours).toISOString()
+      : null;
+  }
+
+  isEligibleForCancellation(cancellationWindowHours: number): boolean {
+    return Date.now() < this.cancellableUntil(cancellationWindowHours).getTime();
+  }
+
+  pointsEarned(): number {
+    return this.props.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0);
   }
 
   static reconstitute(props: BookingProps, linesModified = false): Booking {

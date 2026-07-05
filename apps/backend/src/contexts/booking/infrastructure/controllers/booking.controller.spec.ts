@@ -944,6 +944,22 @@ describe('BookingController', () => {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
+
+    it('sets cancellableUntil from the tenant cancellationWindowHours setting for APPROVED bookings', async () => {
+      const scheduledAt = new Date('2026-08-10T14:00:00.000Z');
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+
+      const result = await controller.getOne(booking.id);
+
+      expect(result.cancellableUntil).toBe(
+        new Date(scheduledAt.getTime() - 48 * 60 * 60 * 1000).toISOString(),
+      );
+    });
   });
 
   describe('complete()', () => {

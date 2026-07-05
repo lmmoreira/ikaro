@@ -5,8 +5,8 @@ import { Booking } from '../../domain/booking.aggregate';
 
 export type ListBookingsInput = ListBookingsDto & {
   tenantId: string;
-  locale: string;
   customerId?: string;
+  cancellationWindowHours: number;
 };
 
 export interface BookingLineSummary {
@@ -14,7 +14,7 @@ export interface BookingLineSummary {
   serviceId: string;
   serviceNameAtBooking: string;
   durationMinsAtBooking: number;
-  priceAtBooking: { amount: number; currency: string; formatted: string };
+  priceAtBooking: { amount: number; currency: string };
 }
 
 export interface BookingListItem {
@@ -26,9 +26,12 @@ export interface BookingListItem {
   contactEmail: string;
   scheduledAt: string;
   totalDurationMins: number;
-  totalPrice: { amount: number; currency: string; formatted: string };
+  totalPrice: { amount: number; currency: string };
   lineSummary: BookingLineSummary[];
   createdAt: string;
+  // Deadline for customer self-cancellation (UC-007) — scheduledAt minus the tenant's
+  // cancellation window. Only APPROVED bookings carry it; other statuses are null.
+  cancellableUntil: string | null;
 }
 
 export interface ListBookingsUseCaseResult {
@@ -41,7 +44,7 @@ export class ListBookingsUseCase {
   constructor(@Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository) {}
 
   async execute(input: ListBookingsInput): Promise<ListBookingsUseCaseResult> {
-    const { tenantId, locale, customerId } = input;
+    const { tenantId, customerId, cancellationWindowHours } = input;
 
     const { items, total } = await this.bookingRepo.findAllByTenantPaginated(tenantId, {
       status: input.status,
@@ -53,7 +56,7 @@ export class ListBookingsUseCase {
     });
 
     return {
-      items: items.map((b) => this.toListItem(b, locale)),
+      items: items.map((b) => this.toListItem(b, cancellationWindowHours)),
       pagination: {
         limit: input.limit,
         offset: input.offset,
@@ -63,7 +66,7 @@ export class ListBookingsUseCase {
     };
   }
 
-  private toListItem(booking: Booking, locale: string): BookingListItem {
+  private toListItem(booking: Booking, cancellationWindowHours: number): BookingListItem {
     return {
       id: booking.id,
       status: booking.status,
@@ -76,7 +79,6 @@ export class ListBookingsUseCase {
       totalPrice: {
         amount: booking.totalPrice.amount.toNumber(),
         currency: booking.totalPrice.currency,
-        formatted: booking.totalPrice.format(locale),
       },
       lineSummary: booking.lines.map((l) => ({
         lineId: l.lineId,
@@ -86,10 +88,10 @@ export class ListBookingsUseCase {
         priceAtBooking: {
           amount: l.priceAtBooking.amount.toNumber(),
           currency: l.priceAtBooking.currency,
-          formatted: l.priceAtBooking.format(locale),
         },
       })),
       createdAt: booking.createdAt.toISOString(),
+      cancellableUntil: booking.cancellableUntilIso(cancellationWindowHours),
     };
   }
 }

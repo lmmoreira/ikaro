@@ -108,6 +108,8 @@ export interface CustomerBookingLineItem {
   serviceName: string;
   durationMinsAtBooking: number;
   priceAtBooking: MoneyAmount;
+  // Populated once the booking is COMPLETED; null otherwise (quoted price never charged).
+  actualPriceCharged: MoneyAmount | null;
 }
 
 export interface CustomerBookingListItem {
@@ -116,6 +118,9 @@ export interface CustomerBookingListItem {
   scheduledAt: string; // ISO-8601 — always set; no booking state has a missing slot
   lines: CustomerBookingLineItem[];
   totalPrice: MoneyAmount;
+  // Self-cancellation deadline (UC-007): scheduledAt minus the tenant's cancellation window,
+  // computed server-side. Non-null only for APPROVED bookings.
+  cancellableUntil: string | null;
 }
 
 export interface CustomerBookingListResponse {
@@ -171,6 +176,9 @@ export interface CustomerBookingDetailResponse {
   totalPrice: MoneyAmount;
   notes: string | null; // customer's own notes at time of request
 
+  // Self-cancellation deadline (UC-007), same semantics as CustomerBookingListItem.
+  cancellableUntil: string | null;
+
   // UC-005 A2 — present when status is INFO_REQUESTED or beyond
   infoRequestMessage: string | null; // what the admin asked
   infoResponseMessage: string | null; // what the customer already answered (if any)
@@ -178,4 +186,11 @@ export interface CustomerBookingDetailResponse {
   // Photos — empty array if none
   beforeServicePhotoUrls: string[]; // signed read URLs
   afterServicePhotoUrls: string[]; // populated only when COMPLETED
+
+  // Completion summary — populated only when status is COMPLETED
+  completedAt: string | null;
+  totalActualPrice: MoneyAmount | null; // "Valor cobrado"
+  discountPointsUsed: number | null; // loyalty redemption applied at completion
+  discountAmount: MoneyAmount | null;
+  pointsEarned: number | null; // sum of lines' pointsValueAtBooking
 }

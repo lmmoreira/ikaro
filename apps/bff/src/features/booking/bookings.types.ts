@@ -33,7 +33,7 @@ export interface BookingLineSummary {
   serviceId: string;
   serviceNameAtBooking: string;
   durationMinsAtBooking: number;
-  priceAtBooking: { amount: number; currency: string; formatted: string };
+  priceAtBooking: { amount: number; currency: string };
 }
 
 export interface BookingListItem {
@@ -45,9 +45,11 @@ export interface BookingListItem {
   contactEmail: string;
   scheduledAt: string;
   totalDurationMins: number;
-  totalPrice: { amount: number; currency: string; formatted: string };
+  totalPrice: { amount: number; currency: string };
   lineSummary: BookingLineSummary[];
   createdAt: string;
+  // Customer self-cancellation deadline (UC-007) — non-null only for APPROVED bookings.
+  cancellableUntil: string | null;
 }
 
 export interface BookingListResponse {
@@ -59,11 +61,11 @@ export interface BookingLineDetail {
   lineId: string;
   serviceId: string;
   serviceNameAtBooking: string;
-  priceAtBooking: { amount: number; currency: string; formatted: string };
+  priceAtBooking: { amount: number; currency: string };
   durationMinsAtBooking: number;
   pointsValueAtBooking: number;
   requiresPickupAddressAtBooking: boolean;
-  actualPriceCharged: { amount: number; currency: string; formatted: string } | null;
+  actualPriceCharged: { amount: number; currency: string } | null;
 }
 
 export interface CancelBookingResponse {
@@ -102,10 +104,10 @@ export interface BookingDetailResponse {
   notes: string | null;
   scheduledAt: string;
   totalDurationMins: number;
-  totalPrice: { amount: number; currency: string; formatted: string };
-  totalActualPrice: { amount: number; currency: string; formatted: string } | null;
+  totalPrice: { amount: number; currency: string };
+  totalActualPrice: { amount: number; currency: string } | null;
   discountPointsUsed: number | null;
-  discountAmount: { amount: number; currency: string; formatted: string } | null;
+  discountAmount: { amount: number; currency: string } | null;
   pickupAddress: AddressResponse | null;
   lines: BookingLineDetail[];
   beforeServicePhotoUrls: string[];
@@ -118,4 +120,6 @@ export interface BookingDetailResponse {
   completedAt: string | null;
   rejectionReason: string | null;
   createdAt: string;
+  cancellableUntil: string | null;
+  pointsEarned: number | null;
 }

@@ -491,6 +491,17 @@ describe('Booking.isEligibleForCancellation()', () => {
   });
 });
 
+describe('Booking.pointsEarned()', () => {
+  it('sums pointsValueAtBooking across all lines', () => {
+    const lines = [
+      lineInput().withPointsValueAtBooking(10).build(),
+      lineInput().withPointsValueAtBooking(5).build(),
+    ];
+    const booking = request({ lineInputs: lines });
+    expect(booking.pointsEarned()).toBe(15);
+  });
+});
+
 describe('Booking — totalPrice and totalDurationMins derived correctly', () => {
   it('derives totals from line sum', () => {
     const lines = [

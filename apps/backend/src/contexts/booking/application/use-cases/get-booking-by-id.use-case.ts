@@ -1,27 +1,27 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { Money } from '../../../../shared/value-objects/money';
-import { Booking } from '../../domain/booking.aggregate';
+import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 
-type MoneyDetail = { amount: number; currency: string; formatted: string };
+type MoneyDetail = { amount: number; currency: string };
 
 export type GetBookingByIdInput = {
   bookingId: string;
   tenantId: string;
-  locale: string;
+  cancellationWindowHours: number;
 };
 
 export interface BookingLineDetail {
   lineId: string;
   serviceId: string;
   serviceNameAtBooking: string;
-  priceAtBooking: { amount: number; currency: string; formatted: string };
+  priceAtBooking: { amount: number; currency: string };
   durationMinsAtBooking: number;
   pointsValueAtBooking: number;
   requiresPickupAddressAtBooking: boolean;
-  actualPriceCharged: { amount: number; currency: string; formatted: string } | null;
+  actualPriceCharged: { amount: number; currency: string } | null;
 }
 
 export interface BookingAddressDetail {
@@ -46,10 +46,10 @@ export interface GetBookingByIdUseCaseResult {
   notes: string | null;
   scheduledAt: string;
   totalDurationMins: number;
-  totalPrice: { amount: number; currency: string; formatted: string };
-  totalActualPrice: { amount: number; currency: string; formatted: string } | null;
+  totalPrice: { amount: number; currency: string };
+  totalActualPrice: { amount: number; currency: string } | null;
   discountPointsUsed: number | null;
-  discountAmount: { amount: number; currency: string; formatted: string } | null;
+  discountAmount: { amount: number; currency: string } | null;
   pickupAddress: BookingAddressDetail | null;
   lines: BookingLineDetail[];
   beforeServicePhotoUrls: string[];
@@ -62,6 +62,10 @@ export interface GetBookingByIdUseCaseResult {
   completedAt: string | null;
   rejectionReason: string | null;
   createdAt: string;
+  // Customer self-cancellation deadline (UC-007) — non-null only for APPROVED bookings.
+  cancellableUntil: string | null;
+  // Sum of lines' pointsValueAtBooking — non-null only once COMPLETED.
+  pointsEarned: number | null;
 }
 
 @Injectable()
@@ -72,12 +76,12 @@ export class GetBookingByIdUseCase {
   ) {}
 
   async execute(input: GetBookingByIdInput): Promise<GetBookingByIdUseCaseResult> {
-    const { tenantId, locale } = input;
+    const { tenantId, cancellationWindowHours } = input;
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(input.bookingId);
 
-    return this.toResult(booking, locale);
+    return this.toResult(booking, cancellationWindowHours);
   }
 
   private toAddressDetail(address: Booking['contactAddress']): BookingAddressDetail | null {
@@ -94,12 +98,11 @@ export class GetBookingByIdUseCase {
     };
   }
 
-  private toMoneyDetail(money: Money | null, locale: string): MoneyDetail | null {
+  private toMoneyDetail(money: Money | null): MoneyDetail | null {
     if (!money) return null;
     return {
       amount: money.amount.toNumber(),
       currency: money.currency,
-      formatted: money.format(locale),
     };
   }
 
@@ -109,7 +112,10 @@ export class GetBookingByIdUseCase {
     );
   }
 
-  private async toResult(booking: Booking, locale: string): Promise<GetBookingByIdUseCaseResult> {
+  private async toResult(
+    booking: Booking,
+    cancellationWindowHours: number,
+  ): Promise<GetBookingByIdUseCaseResult> {
     const [beforeServicePhotoUrls, afterServicePhotoUrls] = await Promise.all([
       this.signPhotoUrls(booking.beforeServicePhotoUrls),
       this.signPhotoUrls(booking.afterServicePhotoUrls),
@@ -130,11 +136,10 @@ export class GetBookingByIdUseCase {
       totalPrice: {
         amount: booking.totalPrice.amount.toNumber(),
         currency: booking.totalPrice.currency,
-        formatted: booking.totalPrice.format(locale),
       },
-      totalActualPrice: this.toMoneyDetail(booking.totalActualPrice, locale),
+      totalActualPrice: this.toMoneyDetail(booking.totalActualPrice),
       discountPointsUsed: booking.discountPointsUsed,
-      discountAmount: this.toMoneyDetail(booking.discountAmount, locale),
+      discountAmount: this.toMoneyDetail(booking.discountAmount),
       pickupAddress: this.toAddressDetail(booking.pickupAddress),
       lines: booking.lines.map((l) => ({
         lineId: l.lineId,
@@ -143,12 +148,11 @@ export class GetBookingByIdUseCase {
         priceAtBooking: {
           amount: l.priceAtBooking.amount.toNumber(),
           currency: l.priceAtBooking.currency,
-          formatted: l.priceAtBooking.format(locale),
         },
         durationMinsAtBooking: l.durationMinsAtBooking,
         pointsValueAtBooking: l.pointsValueAtBooking,
         requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
-        actualPriceCharged: this.toMoneyDetail(l.actualPriceCharged, locale),
+        actualPriceCharged: this.toMoneyDetail(l.actualPriceCharged),
       })),
       beforeServicePhotoUrls,
       afterServicePhotoUrls,
@@ -160,6 +164,8 @@ export class GetBookingByIdUseCase {
       completedAt: booking.completedAt?.toISOString() ?? null,
       rejectionReason: booking.rejectionReason,
       createdAt: booking.createdAt.toISOString(),
+      cancellableUntil: booking.cancellableUntilIso(cancellationWindowHours),
+      pointsEarned: booking.status === BookingStatus.COMPLETED ? booking.pointsEarned() : null,
     };
   }
 }

@@ -28,25 +28,40 @@ describe('CustomerBottomNav', () => {
     render(<CustomerBottomNav tenantSlug="lavacar-bh" />);
 
     const nav = screen.getByRole('navigation', { name: 'customer-bottom-nav' });
-    expect(nav.querySelector('a[href="/lavacar-bh/my-account"]')?.className).toContain(
+    expect(nav.querySelector('a[href="/lavacar-bh/my-account"] span')?.className).toContain(
       'text-blue-600',
     );
   });
 
-  it('marks bookings as active when on a nested bookings route', () => {
-    vi.mocked(usePathname).mockReturnValue('/lavacar-bh/my-account/bookings/detail');
+  it('marks bookings as active on the bookings tab route', () => {
+    vi.mocked(usePathname).mockReturnValue('/lavacar-bh/my-account/bookings');
     render(<CustomerBottomNav tenantSlug="lavacar-bh" />);
 
     const nav = screen.getByRole('navigation', { name: 'customer-bottom-nav' });
-    expect(nav.querySelector('a[href="/lavacar-bh/my-account/bookings"]')?.className).toContain(
-      'text-blue-600',
-    );
-    expect(nav.querySelector('a[href="/lavacar-bh/my-account"]')?.className).toContain(
+    expect(
+      nav.querySelector('a[href="/lavacar-bh/my-account/bookings"] span')?.className,
+    ).toContain('text-blue-600');
+    expect(nav.querySelector('a[href="/lavacar-bh/my-account"] span')?.className).toContain(
       'text-gray-900/40',
     );
   });
 
+  it('renders nothing on a booking detail drill-down route (M13-S28)', () => {
+    vi.mocked(usePathname).mockReturnValue('/lavacar-bh/my-account/bookings/booking-id');
+    const { container } = render(<CustomerBottomNav tenantSlug="lavacar-bh" />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders nothing on the cancel confirmation drill-down route (M13-S28)', () => {
+    vi.mocked(usePathname).mockReturnValue('/lavacar-bh/my-account/bookings/booking-id/cancel');
+    const { container } = render(<CustomerBottomNav tenantSlug="lavacar-bh" />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('uses the provided tenantSlug in all href values', () => {
+    vi.mocked(usePathname).mockReturnValue('/outro-tenant/my-account');
     render(<CustomerBottomNav tenantSlug="outro-tenant" />);
 
     const nav = screen.getByRole('navigation', { name: 'customer-bottom-nav' });

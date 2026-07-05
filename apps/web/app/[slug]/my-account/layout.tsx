@@ -5,6 +5,7 @@ import { getAccessToken } from '@/features/auth/get-access-token';
 import { LocaleProvider } from '@/providers/locale-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
 import { CustomerShell } from '@/features/customer/components/CustomerShell';
+import { CustomerTopbarStatusProvider } from '@/features/customer/components/customer-topbar-status-context';
 
 interface MyAccountLayoutProps {
   readonly children: React.ReactNode;
@@ -40,9 +41,11 @@ export default async function MyAccountLayout({
   return (
     <LocaleProvider locale={locale} messages={messages}>
       <TenantProvider tenantId={tenantId} tenantSlug={tenantSlug}>
-        <CustomerShell tenantName={tenantName} tenantSlug={tenantSlug} userName={userName}>
-          {children}
-        </CustomerShell>
+        <CustomerTopbarStatusProvider>
+          <CustomerShell tenantName={tenantName} tenantSlug={tenantSlug} userName={userName}>
+            {children}
+          </CustomerShell>
+        </CustomerTopbarStatusProvider>
       </TenantProvider>
     </LocaleProvider>
   );

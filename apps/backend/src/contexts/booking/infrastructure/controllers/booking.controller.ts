@@ -135,8 +135,8 @@ export class BookingController {
       .execute({
         ...query,
         tenantId,
-        locale: settings.localization.language,
         customerId: actorType === 'CUSTOMER' ? actorId : undefined,
+        cancellationWindowHours: settings.booking.cancellationWindowHours,
       })
       .catch(mapBookingError);
   }
@@ -147,7 +147,11 @@ export class BookingController {
   ): Promise<GetBookingByIdUseCaseResult> {
     const { tenantId, actorType, actorId, settings } = this.ctx;
     return this.getBooking
-      .execute({ bookingId: id, tenantId, locale: settings.localization.language })
+      .execute({
+        bookingId: id,
+        tenantId,
+        cancellationWindowHours: settings.booking.cancellationWindowHours,
+      })
       .then((result) => {
         if (actorType === 'CUSTOMER' && result.customerId !== actorId) {
           throw new BookingNotFoundError(id);

@@ -1,7 +1,7 @@
 import { countrySpec } from '@ikaro/i18n';
 import { Address } from '../../../../shared/value-objects/address';
 import { Money } from '../../../../shared/value-objects/money';
-import { BookingBuilder } from '../../../../test/builders/booking/index';
+import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -35,14 +35,15 @@ describe('GetBookingByIdUseCase', () => {
       const result = await useCase.execute({
         bookingId: booking.id,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.id).toBe(booking.id);
       expect(result.status).toBe(booking.status);
       expect(result.contactEmail).toBe(booking.contactEmail.address);
       expect(result.contactPhone).toBe(booking.contactPhone.value);
-      expect(result.totalPrice.formatted).toMatch(/^R\$/);
+      expect(result.totalPrice.amount).toBe(booking.totalPrice.amount.toNumber());
+      expect(result.totalPrice.currency).toBe(booking.totalPrice.currency);
       expect(result.lines).toHaveLength(1);
       expect(result.lines[0].lineId).toBeDefined();
       expect(result.lines[0].serviceNameAtBooking).toBeDefined();
@@ -74,7 +75,7 @@ describe('GetBookingByIdUseCase', () => {
       const result = await useCase.execute({
         bookingId: booking.id,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.contactAddress).toEqual({
@@ -101,7 +102,7 @@ describe('GetBookingByIdUseCase', () => {
       const result = await useCase.execute({
         bookingId: booking.id,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.contactAddress).toBeNull();
@@ -121,7 +122,7 @@ describe('GetBookingByIdUseCase', () => {
       const result = await useCase.execute({
         bookingId: booking.id,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.notes).toBe('Carro está na garagem do prédio');
@@ -141,7 +142,7 @@ describe('GetBookingByIdUseCase', () => {
       const result = await useCase.execute({
         bookingId: booking.id,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.beforeServicePhotoUrls).toEqual([
@@ -169,21 +170,40 @@ describe('GetBookingByIdUseCase', () => {
       const result = await useCase.execute({
         bookingId: booking.id,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.totalActualPrice).toEqual({
         amount: 76,
         currency: 'BRL',
-        formatted: expect.stringMatching(/^R\$/),
       });
       expect(result.discountPointsUsed).toBe(240);
       expect(result.discountAmount).toEqual({
         amount: 24,
         currency: 'BRL',
-        formatted: expect.stringMatching(/^R\$/),
       });
       expect(result.completedAt).toBe(completedAt.toISOString());
+    });
+
+    it('sets pointsEarned to the sum of the lines pointsValueAtBooking for a completed booking', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withStatus(BookingStatus.COMPLETED)
+        .withLines([
+          new BookingLineBuilder().withPointsValueAtBooking(10).build(),
+          new BookingLineBuilder().withPointsValueAtBooking(5).build(),
+        ])
+        .build();
+      await repo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+      });
+
+      expect(result.pointsEarned).toBe(15);
     });
 
     it('returns null totalActualPrice, discount and completedAt when booking is not completed', async () => {
@@ -196,13 +216,50 @@ describe('GetBookingByIdUseCase', () => {
       const result = await useCase.execute({
         bookingId: booking.id,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.totalActualPrice).toBeNull();
       expect(result.discountPointsUsed).toBeNull();
       expect(result.discountAmount).toBeNull();
       expect(result.completedAt).toBeNull();
+      expect(result.pointsEarned).toBeNull();
+    });
+
+    it('sets cancellableUntil to scheduledAt minus the cancellation window for APPROVED bookings', async () => {
+      const scheduledAt = new Date('2026-08-10T14:00:00.000Z');
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await repo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+      });
+
+      expect(result.cancellableUntil).toBe('2026-08-08T14:00:00.000Z');
+    });
+
+    it('sets cancellableUntil to null for non-APPROVED bookings', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withStatus(BookingStatus.PENDING)
+        .build();
+      await repo.save(booking);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+      });
+
+      expect(result.cancellableUntil).toBeNull();
     });
 
     it('throws BookingNotFoundError when booking does not exist', async () => {
@@ -210,7 +267,7 @@ describe('GetBookingByIdUseCase', () => {
         useCase.execute({
           bookingId: '00000000-0000-4000-8000-000000009999',
           tenantId: TENANT_A,
-          locale: 'pt-BR',
+          cancellationWindowHours: 48,
         }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
@@ -220,7 +277,11 @@ describe('GetBookingByIdUseCase', () => {
       await repo.save(booking);
 
       await expect(
-        useCase.execute({ bookingId: booking.id, tenantId: TENANT_A, locale: 'pt-BR' }),
+        useCase.execute({
+          bookingId: booking.id,
+          tenantId: TENANT_A,
+          cancellationWindowHours: 48,
+        }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });
   });
@@ -236,7 +297,7 @@ describe('GetBookingByIdUseCase', () => {
       const result = await useCase.execute({
         bookingId: booking.id,
         tenantId: TENANT_A,
-        locale: 'pt-BR',
+        cancellationWindowHours: 48,
       });
 
       expect(result.id).toBe(booking.id);
@@ -247,7 +308,7 @@ describe('GetBookingByIdUseCase', () => {
         useCase.execute({
           bookingId: '00000000-0000-4000-8000-000000009998',
           tenantId: TENANT_A,
-          locale: 'pt-BR',
+          cancellationWindowHours: 48,
         }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
     });

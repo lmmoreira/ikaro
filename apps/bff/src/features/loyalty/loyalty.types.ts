@@ -2,6 +2,8 @@ export interface LoyaltyBalanceResponse {
   currentPoints: number;
   nextExpiryDate: string | null;
   nextExpiryPoints: number | null;
+  // Attached by the backend from tenant settings; null when the balance was read cross-tenant.
+  conversionRate: number | null;
 }
 
 export interface BackendLoyaltyEntryItem {

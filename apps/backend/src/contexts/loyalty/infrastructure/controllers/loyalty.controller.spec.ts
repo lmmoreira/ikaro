@@ -5,6 +5,7 @@ import { InMemoryLoyaltyRedemptionRepository } from '../../../../test/infrastruc
 import { InMemoryLoyaltyBookingPort } from '../../../../test/infrastructure/in-memory-loyalty-booking.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
+import { TenantSettingsPropsBuilder } from '../../../../test/builders/platform/tenant-settings-props.builder';
 import {
   LoyaltyBalanceBuilder,
   LoyaltyEntryBuilder,
@@ -68,6 +69,33 @@ describe('LoyaltyController', () => {
 
       const result = await controller.getBalance();
       expect(result.currentPoints).toBe(100);
+    });
+
+    it('returns conversionRate 0 with default settings (redemption disabled)', async () => {
+      const result = await controller.getBalance();
+      expect(result.conversionRate).toBe(0);
+    });
+
+    it('returns conversionRate from tenant settings loyalty.pointsPerCurrencyUnit', async () => {
+      const ctx = new RequestContextBuilder()
+        .withTenantId(TENANT_ID)
+        .withActorId(CUSTOMER_ID)
+        .withActorType('CUSTOMER')
+        .withActorRole('CUSTOMER')
+        .withSettings(
+          new TenantSettingsPropsBuilder().withLoyalty({ pointsPerCurrencyUnit: 10 }).build(),
+        )
+        .build();
+      const customerController = new LoyaltyController(
+        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
+        ctx,
+      );
+
+      const result = await customerController.getBalance();
+      expect(result.conversionRate).toBe(10);
     });
   });
 
@@ -257,7 +285,7 @@ describe('LoyaltyController', () => {
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
       );
-      expect(() => customerController.getBalanceAdmin(OTHER_CUSTOMER, {})).toThrow(
+      await expect(customerController.getBalanceAdmin(OTHER_CUSTOMER, {})).rejects.toThrow(
         ForbiddenException,
       );
     });
@@ -289,6 +317,34 @@ describe('LoyaltyController', () => {
       await expect(
         customerController.getBalanceAdmin(OTHER_TENANT_CUSTOMER_ID, { tenantId: OTHER_TENANT }),
       ).resolves.toMatchObject({ currentPoints: 77 });
+    });
+
+    it('returns conversionRate from context settings for same-tenant reads', async () => {
+      const ctx = new RequestContextBuilder()
+        .withTenantId(TENANT_ID)
+        .withActorId(STAFF_ID)
+        .withActorType('STAFF')
+        .withActorRole('MANAGER')
+        .withSettings(
+          new TenantSettingsPropsBuilder().withLoyalty({ pointsPerCurrencyUnit: 5 }).build(),
+        )
+        .build();
+      const managerController = new LoyaltyController(
+        new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
+        new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
+        ctx,
+      );
+
+      const result = await managerController.getBalanceAdmin(CUSTOMER_ID, {});
+      expect(result.conversionRate).toBe(5);
+    });
+
+    it('returns conversionRate null for cross-tenant reads (context settings belong to the home tenant)', async () => {
+      const OTHER_TENANT = '10000000-0000-7000-8000-000000000002';
+      const result = await controller.getBalanceAdmin(CUSTOMER_ID, { tenantId: OTHER_TENANT });
+      expect(result.conversionRate).toBeNull();
     });
   });
 

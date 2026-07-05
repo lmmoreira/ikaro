@@ -42,4 +42,11 @@ if [ -f "$SRC" ]; then
   echo "WorktreeCreate: copied apps/web/.env.local" >&2
 fi
 
+SRC="$REPO/apps/web/.env.playwright.local"
+if [ -f "$SRC" ]; then
+  cp "$SRC" "$WPATH/apps/web/.env.playwright.local" \
+    || { echo "WorktreeCreate: failed to copy apps/web/.env.playwright.local" >&2; exit 1; }
+  echo "WorktreeCreate: copied apps/web/.env.playwright.local" >&2
+fi
+
 echo "$WPATH"

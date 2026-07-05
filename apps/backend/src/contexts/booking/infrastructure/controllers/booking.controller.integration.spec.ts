@@ -1110,7 +1110,8 @@ describe('BookingController (integration)', () => {
 
       expect(body.items).toHaveLength(1);
       expect(body.items[0].lineSummary).toBeDefined();
-      expect(body.items[0].totalPrice.formatted).toMatch(/^R\$/);
+      expect(body.items[0].totalPrice.amount).toBeDefined();
+      expect(body.items[0].totalPrice.currency).toBe('BRL');
       expect(body.pagination.limit).toBe(1);
       expect(body.pagination.offset).toBe(0);
     });
@@ -1214,7 +1215,8 @@ describe('BookingController (integration)', () => {
       expect(body.lines).toBeDefined();
       expect(body.lines[0].lineId).toBeDefined();
       expect(body.lines[0].durationMinsAtBooking).toBe(45);
-      expect(body.totalPrice.formatted).toMatch(/^R\$/);
+      expect(body.totalPrice.amount).toBeDefined();
+      expect(body.totalPrice.currency).toBe('BRL');
     });
 
     it('CUSTOMER gets own booking detail', async () => {

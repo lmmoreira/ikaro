@@ -19,7 +19,6 @@ import {
   PaginatedLoyaltyEntriesResponse,
   PaginatedLoyaltyRedemptionsResponse,
   StaffCustomerLoyaltyDetailResponse,
-  TenantSettingsResponse,
 } from '@ikaro/types';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -81,16 +80,15 @@ function toPaginatedResponse<TSource, TResult>(
 export class LoyaltyController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
+  // The backend attaches conversionRate from its request context settings — do not fetch
+  // /tenants/settings here: that route is STAFF/MANAGER-only and 403s for CUSTOMER callers.
   private async getEnrichedBalance(balancePath: string): Promise<EnrichedLoyaltyBalanceResponse> {
-    const [balance, settings] = await Promise.all([
-      this.backendHttp.get<LoyaltyBalanceResponse>(balancePath),
-      this.backendHttp.get<TenantSettingsResponse>('/tenants/settings'),
-    ]);
+    const balance = await this.backendHttp.get<LoyaltyBalanceResponse>(balancePath);
     return {
       currentPoints: balance.currentPoints,
       nextExpiryDate: balance.nextExpiryDate,
       nextExpiryPoints: balance.nextExpiryPoints,
-      conversionRate: settings.settings.loyalty.pointsPerCurrencyUnit,
+      conversionRate: balance.conversionRate ?? 0,
     };
   }
 

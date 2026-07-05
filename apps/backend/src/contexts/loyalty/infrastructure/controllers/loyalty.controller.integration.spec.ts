@@ -66,6 +66,8 @@ describe('LoyaltyController (integration)', () => {
       expect(body.currentPoints).toBe(0);
       expect(body.nextExpiryDate).toBeNull();
       expect(body.nextExpiryPoints).toBeNull();
+      // Provisioned tenant carries default settings → pointsPerCurrencyUnit 0.
+      expect(body.conversionRate).toBe(0);
     });
 
     it('returns currentPoints from balance row', async () => {

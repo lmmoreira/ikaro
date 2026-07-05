@@ -29,6 +29,7 @@ const mockBalance: LoyaltyBalanceResponse = {
   currentPoints: 50,
   nextExpiryDate: null,
   nextExpiryPoints: null,
+  conversionRate: 0,
 };
 
 const TENANT_ID = '10000000-0000-4000-8000-000000000001';
