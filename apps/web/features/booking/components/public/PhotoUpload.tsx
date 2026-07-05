@@ -60,14 +60,14 @@ export function PhotoUpload(props: PhotoUploadProps): React.JSX.Element {
 
     const contentType = file.type as 'image/jpeg' | 'image/png';
     const { signedUrl, filePath } =
-      props.guestToken !== undefined
-        ? await createGuestAttachmentSignedUrl(
+      props.guestToken === undefined
+        ? await createAttachmentSignedUrl(props.slug, file.name, contentType)
+        : await createGuestAttachmentSignedUrl(
             props.guestToken,
             props.bookingId,
             file.name,
             contentType,
-          )
-        : await createAttachmentSignedUrl(props.slug, file.name, contentType);
+          );
 
     const res = await fetch(signedUrl, {
       method: 'PUT',

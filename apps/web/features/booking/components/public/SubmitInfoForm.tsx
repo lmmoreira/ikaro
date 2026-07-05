@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import { submitGuestBookingInfo, SubmitGuestBookingInfoError } from '@/features/booking/api/public';
@@ -59,7 +59,7 @@ export function SubmitInfoForm({
     return `${formatDateLong(date, locale)} ${formatTime(date, locale, timezone, timeFormat)}`;
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
 
     if (response.trim().length < 1) {

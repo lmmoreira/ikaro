@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { HotsiteManifestResponse } from '@ikaro/types';
+import type { HotsiteManifestResponse, GuestBookingReadResponse } from '@ikaro/types';
 import { SubmitInfoForm } from '@/features/booking/components/public/SubmitInfoForm';
 import { InvalidLinkView } from '@/features/booking/components/public/InvalidLinkView';
 import { verifyGuestToken, decodeUnverifiedTenantSlug } from '@/features/booking/model/guest-token';
@@ -9,7 +9,6 @@ import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { DEFAULT_HOTSITE_BRANDING } from '@/features/platform/hotsite/default-branding';
 import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { isValidTimezone } from '@/shared/lib/formatting/locale-validators';
-import type { GuestBookingReadResponse } from '@ikaro/types';
 
 // This page lives at apps/web/app/bookings/[id]/submit-info/page.tsx.
 // Next.js static segment 'bookings/' takes priority over the top-level '[slug]/' dynamic
@@ -59,7 +58,7 @@ export default async function SubmitInfoPage({
       : 'America/Sao_Paulo';
   const timeFormat = manifest?.localization.timeFormat ?? '24h';
 
-  if (!token || !payload || payload.bookingId !== id) {
+  if (!token || payload?.bookingId !== id) {
     return (
       <InvalidLinkView
         reason="invalid"
