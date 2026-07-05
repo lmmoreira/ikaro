@@ -3,6 +3,7 @@
 import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
+import type { TimeFormat } from '@ikaro/i18n';
 import { submitGuestBookingInfo, SubmitGuestBookingInfoError } from '@/features/booking/api/public';
 import { formatDateLong, formatTime } from '@/shared/lib/formatting/format-time';
 import { PhotoUpload } from './PhotoUpload';
@@ -22,7 +23,8 @@ export interface SubmitInfoFormProps {
   readonly brandingStyle?: React.CSSProperties;
   readonly locale?: string;
   readonly timezone?: string;
-  readonly timeFormat?: '24h' | '12h';
+  readonly timeFormat?: TimeFormat;
+  readonly tenantSlug?: string;
 }
 
 type FormState =
@@ -47,6 +49,7 @@ export function SubmitInfoForm({
   locale = 'pt-BR',
   timezone = 'America/Sao_Paulo',
   timeFormat = '24h',
+  tenantSlug,
 }: SubmitInfoFormProps): React.JSX.Element {
   const t = useTranslations('booking.submitInfo');
   const [response, setResponse] = useState('');
@@ -140,17 +143,23 @@ export function SubmitInfoForm({
           )}
 
           <a
-            href="/"
+            href={tenantSlug ? `/${tenantSlug}` : '/'}
             className="mb-4 block border-2 px-8 py-3 text-center font-semibold"
             style={btnStyle}
           >
             {t('goToSiteCta')}
           </a>
-          <p className="text-[0.8125rem] leading-relaxed opacity-50">
-            <a href="/login" style={{ color: 'var(--ba-primary)' }} className="font-semibold">
-              {t('createAccountCta')}
-            </a>
-          </p>
+          {tenantSlug && (
+            <p className="text-[0.8125rem] leading-relaxed opacity-50">
+              <a
+                href={`/${tenantSlug}/login`}
+                style={{ color: 'var(--ba-primary)' }}
+                className="font-semibold"
+              >
+                {t('createAccountCta')}
+              </a>
+            </p>
+          )}
         </div>
       </main>
     );
@@ -256,7 +265,10 @@ export function SubmitInfoForm({
         ) : (
           <form onSubmit={handleSubmit} noValidate>
             <label htmlFor="response" className="mb-1.5 block text-sm font-semibold">
-              {t('responseLabel')} <span style={{ color: '#ef4444' }}>*</span>
+              {t('responseLabel')}{' '}
+              <span aria-hidden="true" style={{ color: '#ef4444' }}>
+                *
+              </span>
             </label>
             <textarea
               id="response"
@@ -265,6 +277,7 @@ export function SubmitInfoForm({
               value={response}
               onChange={(e) => setResponse(e.target.value)}
               placeholder={t('responsePlaceholder')}
+              aria-required="true"
               aria-invalid={validationError}
               aria-describedby={validationError ? 'response-error' : undefined}
               className="mb-1.5 w-full resize-y rounded-md border p-3 text-sm"
@@ -297,6 +310,7 @@ export function SubmitInfoForm({
 
             <button
               type="submit"
+              data-testid="submit-button"
               disabled={state.status === 'submitting'}
               className="mt-5 w-full border-2 px-8 py-3.5 text-center font-semibold disabled:opacity-60"
               style={btnStyle}

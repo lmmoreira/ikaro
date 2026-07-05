@@ -23,7 +23,7 @@ test.describe('UC-005 A2 — Guest submit-info golden path', () => {
 
     await expect(page.getByTestId('response-input')).toBeVisible();
     await page.getByTestId('response-input').fill('Segue a foto do veículo conforme solicitado.');
-    await page.getByRole('button', { name: 'Enviar resposta' }).click();
+    await page.getByTestId('submit-button').click();
 
     await expect(page.getByTestId('submit-info-success')).toBeVisible();
   });
@@ -49,7 +49,7 @@ test.describe('UC-005 A2 — Guest submit-info golden path', () => {
     await expect(page.getByTestId('photo-upload-status')).toHaveText('Enviada');
 
     await page.getByTestId('response-input').fill('Segue a foto conforme solicitado.');
-    await page.getByRole('button', { name: 'Enviar resposta' }).click();
+    await page.getByTestId('submit-button').click();
 
     await expect(page.getByTestId('submit-info-success')).toBeVisible();
   });
@@ -74,7 +74,7 @@ test.describe('UC-005 A2 — Guest submit-info already processed', () => {
       'Este agendamento já foi processado.',
     );
     // Real tenant branding still resolved (not the generic default) — same token, verified.
-    await expect(page.getByTestId('brand-name')).toHaveText('BELOAUTO');
+    await expect(page.getByTestId('brand-name')).toHaveText('Lavacar BeloAuto');
   });
 });
 
@@ -96,9 +96,9 @@ test.describe('UC-005 A2 — Guest submit-info tampered token', () => {
     await page.goto(`/bookings/${bookingId}/submit-info?token=${wrongSecretToken}`);
 
     await expect(page.getByTestId('invalid-link-view')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Link inválido ou expirado' })).toBeVisible();
+    await expect(page.getByTestId('invalid-link-heading')).toBeVisible();
     // decodeUnverifiedTenantSlug() still resolves the real tenant's public branding.
-    await expect(page.getByTestId('brand-name')).toHaveText('BELOAUTO');
+    await expect(page.getByTestId('brand-name')).toHaveText('Lavacar BeloAuto');
   });
 });
 

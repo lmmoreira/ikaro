@@ -69,7 +69,9 @@ export function InvalidLinkView({
           </svg>
         </div>
 
-        <h1 className="mb-2 text-[1.375rem] font-bold">{t('invalidTitle')}</h1>
+        <h1 data-testid="invalid-link-heading" className="mb-2 text-[1.375rem] font-bold">
+          {t('invalidTitle')}
+        </h1>
 
         {reason === 'processed' ? (
           <p data-testid="processed-message" className="text-base opacity-70">

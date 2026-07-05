@@ -72,6 +72,7 @@ export async function fetchGuestBookingSummary(
 ): Promise<GuestBookingReadResponse> {
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_BFF_URL}/bookings/${bookingId}/guest?token=${encodeURIComponent(token)}`,
+    { cache: 'no-store' },
   );
 
   if (!res.ok) {

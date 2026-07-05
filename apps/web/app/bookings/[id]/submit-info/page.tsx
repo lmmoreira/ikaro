@@ -100,6 +100,7 @@ export default async function SubmitInfoPage({
       locale={locale}
       timezone={timezone}
       timeFormat={timeFormat}
+      tenantSlug={payload.tenantSlug}
     />
   );
 }

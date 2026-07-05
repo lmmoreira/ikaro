@@ -104,4 +104,20 @@ describe('decodeUnverifiedTenantSlug()', () => {
   it('returns null for an empty string', () => {
     expect(decodeUnverifiedTenantSlug('')).toBeNull();
   });
+
+  it('returns null for a forged slug shaped as an open-redirect target', () => {
+    const token = makeToken(
+      { tenantSlug: '//evil.com' },
+      'a-completely-different-secret-than-the-real-one',
+    );
+    expect(decodeUnverifiedTenantSlug(token)).toBeNull();
+  });
+
+  it('returns null for a forged slug containing path-traversal segments', () => {
+    const token = makeToken(
+      { tenantSlug: '../../internal-endpoint' },
+      'a-completely-different-secret-than-the-real-one',
+    );
+    expect(decodeUnverifiedTenantSlug(token)).toBeNull();
+  });
 });

@@ -98,6 +98,53 @@ describe('SubmitInfoForm', () => {
     });
   });
 
+  it('links the success screen CTAs to the tenant hotsite and login when tenantSlug is known', async () => {
+    vi.mocked(submitGuestBookingInfo).mockResolvedValue({
+      bookingId: BOOKING_ID,
+      status: 'PENDING',
+      infoSubmittedAt: '2026-06-17T14:30:00.000Z',
+    });
+    const user = userEvent.setup();
+    renderWithIntl(
+      <SubmitInfoForm
+        bookingId={BOOKING_ID}
+        token={TOKEN}
+        summary={summary}
+        tenantSlug="lavacar-beloauto"
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/Sua resposta/), 'Segue a foto do veículo.');
+    await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
+
+    await waitFor(() => expect(screen.getByText('Resposta enviada!')).toBeInTheDocument());
+    expect(screen.getByRole('link', { name: 'Ir para o site' })).toHaveAttribute(
+      'href',
+      '/lavacar-beloauto',
+    );
+    expect(screen.getByRole('link', { name: /Criar conta/ })).toHaveAttribute(
+      'href',
+      '/lavacar-beloauto/login',
+    );
+  });
+
+  it('falls back to "/" and omits the login link on the success screen when tenantSlug is absent', async () => {
+    vi.mocked(submitGuestBookingInfo).mockResolvedValue({
+      bookingId: BOOKING_ID,
+      status: 'PENDING',
+      infoSubmittedAt: '2026-06-17T14:30:00.000Z',
+    });
+    const user = userEvent.setup();
+    renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={summary} />);
+
+    await user.type(screen.getByLabelText(/Sua resposta/), 'Segue a foto do veículo.');
+    await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
+
+    await waitFor(() => expect(screen.getByText('Resposta enviada!')).toBeInTheDocument());
+    expect(screen.getByRole('link', { name: 'Ir para o site' })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('link', { name: /Criar conta/ })).not.toBeInTheDocument();
+  });
+
   it('shows a retry alert and preserves the response value on a network error', async () => {
     vi.mocked(submitGuestBookingInfo).mockRejectedValue(
       new SubmitGuestBookingInfoError(500, 'network error'),

@@ -275,6 +275,7 @@ describe('fetchGuestBookingSummary', () => {
     expect(result).toEqual(summary);
     expect(fetchSpy).toHaveBeenCalledWith(
       `${BFF_URL}/bookings/booking-1/guest?token=signed.jwt.token`,
+      { cache: 'no-store' },
     );
   });
 
