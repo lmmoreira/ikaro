@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BookingModule } from '../booking/booking.module';
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
-import { PLATFORM_BOOKING_PORT } from './application/ports/platform-booking.port';
 import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalidation.port';
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
@@ -28,7 +26,6 @@ import { UpdateTenantSettingsUseCase } from './application/use-cases/update-tena
 import { HotsiteConfigEntity } from './infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
-import { PlatformBookingAdapter } from './infrastructure/cross-context/platform-booking.adapter';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
 import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
@@ -47,7 +44,6 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     RequestModule,
     StorageModule,
     SharedCacheModule,
-    BookingModule,
   ],
   controllers: [
     HotsiteAdminController,
@@ -62,7 +58,6 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     CachingTenantRepository,
     { provide: TENANT_REPOSITORY, useClass: CachingTenantRepository },
     { provide: HOTSITE_CONFIG_REPOSITORY, useClass: TypeOrmHotsiteConfigRepository },
-    { provide: PLATFORM_BOOKING_PORT, useClass: PlatformBookingAdapter },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },
     HotsiteContentReader,
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },

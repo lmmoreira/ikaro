@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, QueryFailedError, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { toDate } from '../../../../shared/utils/date';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
 import { ITenantRepository, TenantFilters } from '../../application/ports/tenant-repository.port';
@@ -88,13 +89,9 @@ export class TypeOrmTenantRepository implements ITenantRepository {
       slug: Slug.create(entity.slug),
       settings: TenantSettings.reconstitute(entity.settings),
       isActive: entity.isActive,
-      createdAt: this.toDate(entity.createdAt),
-      updatedAt: this.toDate(entity.updatedAt),
+      createdAt: toDate(entity.createdAt),
+      updatedAt: toDate(entity.updatedAt),
     });
-  }
-
-  private toDate(value: Date | string): Date {
-    return value instanceof Date ? value : new Date(value);
   }
 
   private toEntity(tenant: Tenant): TenantEntity {

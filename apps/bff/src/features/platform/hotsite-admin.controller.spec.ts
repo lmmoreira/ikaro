@@ -1,5 +1,9 @@
 import { makeBackendHttp } from '../../test/backend-http.mock';
-import { HotsiteAdminController, UpdateHotsiteContentBodySchema } from './hotsite-admin.controller';
+import {
+  FeatureBookingPhotoBodySchema,
+  HotsiteAdminController,
+  UpdateHotsiteContentBodySchema,
+} from './hotsite-admin.controller';
 import {
   FeatureBookingPhotoResponse,
   GenerateHotsiteImageSignedUrlResponse,
@@ -229,8 +233,9 @@ describe('HotsiteAdminController', () => {
   describe('featureBookingPhoto()', () => {
     const body = {
       bookingId: '20000000-0000-4000-8000-000000000001',
-      photoUrl:
+      filePath:
         'tenants/10000000-0000-4000-8000-000000000001/bookings/20000000-0000-4000-8000-000000000001/after-1.jpg',
+      photoType: 'after' as const,
     };
 
     it('calls POST /tenants/hotsite/gallery/feature-booking-photo with the parsed body and returns the featured photo', async () => {
@@ -253,6 +258,19 @@ describe('HotsiteAdminController', () => {
       const controller = new HotsiteAdminController(backendHttp);
 
       await expect(controller.featureBookingPhoto(body)).rejects.toThrow('404');
+    });
+  });
+
+  describe('FeatureBookingPhotoBodySchema', () => {
+    it('rejects a filePath that does not belong to the provided bookingId', () => {
+      const result = FeatureBookingPhotoBodySchema.safeParse({
+        bookingId: '20000000-0000-4000-8000-000000000001',
+        filePath:
+          'tenants/10000000-0000-4000-8000-000000000001/bookings/other-booking/after-1.jpg',
+        photoType: 'after',
+      });
+
+      expect(result.success).toBe(false);
     });
   });
 });

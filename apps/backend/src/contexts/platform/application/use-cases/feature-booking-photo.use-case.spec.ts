@@ -1,9 +1,5 @@
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
-import { InMemoryPlatformBookingPort } from '../../../../test/infrastructure/in-memory-platform-booking.port';
-import {
-  FeaturedBookingNotFoundError,
-  PhotoNotOnBookingError,
-} from '../../domain/errors/platform-domain.error';
+import { HotsiteImageNotUploadedError } from '../../domain/errors/platform-domain.error';
 import { FeatureBookingPhotoUseCase } from './feature-booking-photo.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
@@ -11,29 +7,26 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 const BOOKING_ID = '20000000-0000-4000-8000-000000000001';
 const BEFORE_PHOTO = `tenants/${TENANT_A}/bookings/${BOOKING_ID}/before-1.jpg`;
 const AFTER_PHOTO = `tenants/${TENANT_A}/bookings/${BOOKING_ID}/after-1.jpg`;
+const OTHER_TENANT_PHOTO = `tenants/${TENANT_B}/bookings/${BOOKING_ID}/after-1.jpg`;
 
 describe('FeatureBookingPhotoUseCase', () => {
-  let bookingLookup: InMemoryPlatformBookingPort;
   let storageService: InMemoryStorageService;
   let useCase: FeatureBookingPhotoUseCase;
 
   beforeEach(() => {
-    bookingLookup = new InMemoryPlatformBookingPort();
     storageService = new InMemoryStorageService();
-    bookingLookup.setBooking(TENANT_A, {
-      id: BOOKING_ID,
-      customerId: 'customer-1',
-      beforeServicePhotoUrls: [BEFORE_PHOTO],
-      afterServicePhotoUrls: [AFTER_PHOTO],
-    });
-    useCase = new FeatureBookingPhotoUseCase(bookingLookup, storageService);
+    storageService.markAsUploaded(BEFORE_PHOTO);
+    storageService.markAsUploaded(AFTER_PHOTO);
+    storageService.markAsUploaded(OTHER_TENANT_PHOTO);
+    useCase = new FeatureBookingPhotoUseCase(storageService);
   });
 
-  it('derives photoType "before" and copies the photo into the public bucket', async () => {
+  it('copies the photo into the public bucket and echoes the provided photoType', async () => {
     const result = await useCase.execute({
       tenantId: TENANT_A,
       bookingId: BOOKING_ID,
-      photoUrl: BEFORE_PHOTO,
+      filePath: BEFORE_PHOTO,
+      photoType: 'before',
     });
 
     expect(result.photoType).toBe('before');
@@ -47,54 +40,36 @@ describe('FeatureBookingPhotoUseCase', () => {
     });
   });
 
-  it('derives photoType "after" when the photo is in the after-service list', async () => {
+  it('echoes photoType "after" when the caller marks the source photo as after', async () => {
     const result = await useCase.execute({
       tenantId: TENANT_A,
       bookingId: BOOKING_ID,
-      photoUrl: AFTER_PHOTO,
+      filePath: AFTER_PHOTO,
+      photoType: 'after',
     });
 
     expect(result.photoType).toBe('after');
   });
 
-  it('throws FeaturedBookingNotFoundError when the booking does not exist for the tenant', async () => {
+  it('throws HotsiteImageNotUploadedError when the source photo does not exist', async () => {
     await expect(
       useCase.execute({
         tenantId: TENANT_A,
-        bookingId: '30000000-0000-4000-8000-000000000099',
-        photoUrl: AFTER_PHOTO,
+        bookingId: BOOKING_ID,
+        filePath: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/missing.jpg`,
+        photoType: 'after',
       }),
-    ).rejects.toThrow(FeaturedBookingNotFoundError);
-  });
-
-  it('throws PhotoNotOnBookingError when the photoUrl is on neither before nor after lists', async () => {
-    const strangerPhoto = `tenants/${TENANT_A}/bookings/${BOOKING_ID}/not-on-booking.jpg`;
-
-    await expect(
-      useCase.execute({ tenantId: TENANT_A, bookingId: BOOKING_ID, photoUrl: strangerPhoto }),
-    ).rejects.toThrow(PhotoNotOnBookingError);
-  });
-
-  it('works identically for a guest-originated booking (customerId: null)', async () => {
-    bookingLookup.setBooking(TENANT_A, {
-      id: BOOKING_ID,
-      customerId: null,
-      beforeServicePhotoUrls: [BEFORE_PHOTO],
-      afterServicePhotoUrls: [AFTER_PHOTO],
-    });
-
-    const result = await useCase.execute({
-      tenantId: TENANT_A,
-      bookingId: BOOKING_ID,
-      photoUrl: BEFORE_PHOTO,
-    });
-
-    expect(result.photoType).toBe('before');
+    ).rejects.toThrow(HotsiteImageNotUploadedError);
   });
 
   it('tenant isolation: cannot feature a photo from another tenant booking', async () => {
     await expect(
-      useCase.execute({ tenantId: TENANT_B, bookingId: BOOKING_ID, photoUrl: AFTER_PHOTO }),
-    ).rejects.toThrow(FeaturedBookingNotFoundError);
+      useCase.execute({
+        tenantId: TENANT_A,
+        bookingId: BOOKING_ID,
+        filePath: OTHER_TENANT_PHOTO,
+        photoType: 'after',
+      }),
+    ).rejects.toThrow(HotsiteImageNotUploadedError);
   });
 });

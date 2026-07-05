@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CACHE_PORT, CachePort } from '../../../../shared/ports/cache.port';
+import { toDate } from '../../../../shared/utils/date';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { ITenantRepository, TenantFilters } from '../../application/ports/tenant-repository.port';
 import { Tenant } from '../../domain/tenant.aggregate';
@@ -99,8 +100,8 @@ export class CachingTenantRepository implements ITenantRepository {
       slug: Slug.create(entity.slug),
       settings: TenantSettings.reconstitute(entity.settings),
       isActive: entity.isActive,
-      createdAt: this.toDate(entity.createdAt),
-      updatedAt: this.toDate(entity.updatedAt),
+      createdAt: toDate(entity.createdAt),
+      updatedAt: toDate(entity.updatedAt),
     });
   }
 
@@ -114,9 +115,5 @@ export class CachingTenantRepository implements ITenantRepository {
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
     };
-  }
-
-  private toDate(value: Date | string): Date {
-    return value instanceof Date ? value : new Date(value);
   }
 }

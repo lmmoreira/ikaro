@@ -12,14 +12,12 @@ import { EVENT_BUS } from '../../shared/ports/event-bus.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
-import { PLATFORM_BOOKING_PORT } from '../../contexts/platform/application/ports/platform-booking.port';
 import { FRONTEND_REVALIDATION_PORT } from '../../contexts/platform/application/ports/frontend-revalidation.port';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../contexts/platform/platform.module';
 import { InMemoryEventBus } from '../infrastructure/in-memory-event-bus';
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
-import { InMemoryPlatformBookingPort } from '../infrastructure/in-memory-platform-booking.port';
 import { InMemoryFrontendRevalidationPort } from '../infrastructure/in-memory-frontend-revalidation.port';
 import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
@@ -58,8 +56,6 @@ export async function createPlatformIntegrationApp(
     .useValue(new InMemoryEventBus())
     .overrideProvider(STORAGE_SERVICE)
     .useValue(new InMemoryStorageService())
-    .overrideProvider(PLATFORM_BOOKING_PORT)
-    .useValue(new InMemoryPlatformBookingPort())
     .overrideProvider(FRONTEND_REVALIDATION_PORT)
     .useValue(new InMemoryFrontendRevalidationPort())
     .overrideProvider(TENANT_SETTINGS_PORT)
