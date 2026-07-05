@@ -36,7 +36,7 @@ export class FeatureBookingPhotoUseCase {
   }
 
   private extractTenantId(filePath: string): string | null {
-    const match = filePath.match(/^tenants\/([^/]+)\/bookings\/[^/]+\/.+$/);
+    const match = /^tenants\/([^/]+)\/bookings\/[^/]+\/.+$/.exec(filePath);
     return match?.[1] ?? null;
   }
 }
