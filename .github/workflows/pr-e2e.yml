@@ -198,3 +198,14 @@ jobs:
           name: playwright-traces
           path: apps/web/test-results/
           retention-days: 7
+
+      - name: Upload server logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: |
+            /tmp/backend.log
+            /tmp/bff.log
+            /tmp/web.log
+          retention-days: 7
