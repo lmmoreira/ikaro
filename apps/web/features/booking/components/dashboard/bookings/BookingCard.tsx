@@ -36,9 +36,7 @@ export interface UpcomingBookingCardProps extends BookingCardBaseProps {
 }
 
 export type BookingCardProps =
-  | ActionNeededBookingCardProps
-  | TodayBookingCardProps
-  | UpcomingBookingCardProps;
+  ActionNeededBookingCardProps | TodayBookingCardProps | UpcomingBookingCardProps;
 
 function BookingCardInner(props: BookingCardProps): React.JSX.Element {
   const { booking, variant, emphasized = false } = props;
