@@ -43,13 +43,13 @@
 | **AUD-008** | Isolate BFF HTTP-client auth state (`client-only` guard) | 🟠 High | XS | Now | — | §8.4 |
 | **AUD-009** | Supply-chain CI hardening (pin actions, Dependabot, digests, concurrency, permissions) ✅ | 🟠 High | M | Now | — | §9.1, §9.2, §9.5, §10.1–10.3 |
 | **AUD-010** | Fix the brittle `multer` override (real CVE) ✅ | 🟠 High | S | Now | — | §10.6 |
-| **AUD-011** ✅ | Tenant-settings cache (in-memory LRU + TTL) | 🟡 Medium | S | Now | — | §5.1 |
+| **AUD-011** | Tenant-settings cache (in-memory LRU + TTL) ✅ | 🟡 Medium | S | Now | — | §5.1 |
 | **AUD-012** | Prototype-pollution guard in `deepMerge` ✅ | 🟡 Medium | XS | Now | — | §5.7 |
 | **AUD-013** | Per-tenant font loading (LCP) ✅ | 🟡 Medium | S | Now | — | §8.1 |
 | **AUD-014** | Coverage floor in test runners ✅ | 🟡 Medium | XS | Now | — | §11.3 |
 | **AUD-015** | Playwright E2E in CI + expand booking flows ✅ | 🟡 Medium | M | Now | — | §9.4, §11.4 |
 | **AUD-016** | API idempotency-key on mutating endpoints | 🟡 Medium | M | Pre-deploy | — | §13.9 |
-| **AUD-017** ✅ | Manifest module `safeParse` fail-soft | 🟡 Medium | S | Now | — | §8.6 |
+| **AUD-017** | Manifest module `safeParse` fail-soft ✅ | 🟡 Medium | S | Now | — | §8.6 |
 | **AUD-018** | Pub/Sub ordering keys per booking | 🟡 Medium | S | Now | AUD-001 | §12.6 |
 | **AUD-019** | DLQ replay runbook + endpoint + depth alert | 🟡 Medium | M | Pre-deploy | — | §12.7 |
 | **AUD-020** | Slim the `Booking` aggregate (event-payload factories) | 🟡 Medium | M | Now | — | §5.3 |
