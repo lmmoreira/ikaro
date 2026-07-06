@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchServiceRoute } from './service-route';
+import { isServiceCreateRoute, matchServiceRoute } from './service-route';
 
 describe('matchServiceRoute', () => {
   it('matches edit routes', () => {
@@ -19,5 +19,13 @@ describe('matchServiceRoute', () => {
   it('returns null for other paths', () => {
     expect(matchServiceRoute('/dashboard/services')).toBeNull();
     expect(matchServiceRoute('/dashboard/services/new')).toBeNull();
+  });
+});
+
+describe('isServiceCreateRoute', () => {
+  it('returns true only for the exact create route', () => {
+    expect(isServiceCreateRoute('/dashboard/services/new')).toBe(true);
+    expect(isServiceCreateRoute('/dashboard/services')).toBe(false);
+    expect(isServiceCreateRoute('/dashboard/services/svc-1/edit')).toBe(false);
   });
 });

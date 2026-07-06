@@ -230,6 +230,74 @@ describe('Staff', () => {
     });
   });
 
+  describe('updateProfile()', () => {
+    it('updates name and role without recording a domain event', () => {
+      const staff = Staff.invite(
+        'tenant-1',
+        'ana@lavacar.com.br',
+        'STAFF',
+        'Ana Silva',
+        null,
+        CORR,
+      );
+      staff.clearDomainEvents();
+      staff.updateProfile('Ana Editada', 'MANAGER');
+      expect(staff.name).toBe('Ana Editada');
+      expect(staff.role).toBe('MANAGER');
+      expect(staff.clearDomainEvents()).toHaveLength(0);
+    });
+
+    it('trims whitespace from name', () => {
+      const staff = Staff.invite(
+        'tenant-1',
+        'ana@lavacar.com.br',
+        'STAFF',
+        'Ana Silva',
+        null,
+        CORR,
+      );
+      staff.updateProfile('  Ana Editada  ', 'STAFF');
+      expect(staff.name).toBe('Ana Editada');
+    });
+
+    it('throws when name is empty', () => {
+      const staff = Staff.invite(
+        'tenant-1',
+        'ana@lavacar.com.br',
+        'STAFF',
+        'Ana Silva',
+        null,
+        CORR,
+      );
+      expect(() => staff.updateProfile('', 'STAFF')).toThrow(StaffDomainError);
+    });
+
+    it('throws when name is whitespace-only', () => {
+      const staff = Staff.invite(
+        'tenant-1',
+        'ana@lavacar.com.br',
+        'STAFF',
+        'Ana Silva',
+        null,
+        CORR,
+      );
+      expect(() => staff.updateProfile('   ', 'STAFF')).toThrow(StaffDomainError);
+    });
+
+    it('does not change email', () => {
+      const staff = Staff.invite(
+        'tenant-1',
+        'ana@lavacar.com.br',
+        'STAFF',
+        'Ana Silva',
+        null,
+        CORR,
+      );
+      staff.updateProfile('Ana Editada', 'MANAGER');
+      expect(staff.email.address).toBe('ana@lavacar.com.br');
+    });
+  });
+
   describe('deactivate()', () => {
     it('sets isActive=false, stores deactivatedBy, records StaffDeactivated event', () => {
       const staff = Staff.invite(

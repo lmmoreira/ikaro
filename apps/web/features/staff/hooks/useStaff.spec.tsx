@@ -3,7 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useDeactivateStaff, useInviteStaff, useStaff, useStaffMember } from './useStaff';
+import {
+  useDeactivateStaff,
+  useInviteStaff,
+  useStaff,
+  useStaffMember,
+  useUpdateStaff,
+} from './useStaff';
 
 vi.mock('@/features/staff/api', () => ({
   listStaff: vi.fn().mockResolvedValue({
@@ -31,6 +37,7 @@ vi.mock('@/features/staff/api', () => ({
     .fn()
     .mockResolvedValue({ staffId: 's-2', email: 'bob@acme.com', role: 'STAFF', isActive: false }),
   deactivateStaff: vi.fn().mockResolvedValue({ staffId: 's-1', isActive: false }),
+  updateStaff: vi.fn().mockResolvedValue({ staffId: 's-1', name: 'Ana Editada', role: 'MANAGER' }),
 }));
 
 vi.mock('@/providers/tenant-provider', () => ({
@@ -76,6 +83,14 @@ describe('useInviteStaff', () => {
         role: 'STAFF',
       }),
     );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+});
+
+describe('useUpdateStaff', () => {
+  it('mutates successfully', async () => {
+    const { result } = renderHook(() => useUpdateStaff(), { wrapper });
+    act(() => result.current.mutate({ id: 's-1', body: { name: 'Ana Editada', role: 'MANAGER' } }));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
 });

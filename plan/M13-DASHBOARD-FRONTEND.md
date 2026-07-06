@@ -3310,15 +3310,19 @@ Extend `apps/web/features/staff/api.ts` (reuse the existing `listStaff` client f
 `apps/web/features/staff/components/team/TeamListPage.tsx` (+ co-located `.spec.tsx`) — `'use client'`:
 - Filter tabs: **Todos** | **Ativos** | **Convites pendentes** | **Inativos** — client-side filter on `member.status`, no re-fetch
 - The logged-in admin's own row (`member.id === currentStaffId`) never renders a "Desativar" action (server-side guard already exists via `StaffSelfDeactivationError`; this is the UX nicety, not the safety net)
-- A `PENDING` row shows "Reenviar convite" instead of "Desativar" — links to the invite form (`M13-S33`, later branch) pre-filled with the same email
+- A `PENDING` row shows "Reenviar convite" instead of "Desativar" — originally shipped as a link to the invite form (`M13-S33`, later branch) pre-filled with the same email; **revised on the M13-S43 branch** to a one-click button that calls `POST /staff/invite` directly with the row's existing name/role, no form/navigation (see `M13-S43` note below)
 - Desktop create button + mobile FAB → `/dashboard/team/invite`
 
 `apps/web/features/staff/components/team/MemberRow.tsx` (+ co-located `.spec.tsx`):
 - Avatar (initials — reuse the shared `getInitials` util) + name + email
 - Role badge (`Gerente` / `Equipe`)
 - Status badge (`Ativo` green / `Convite pendente` yellow / `Inativo` red)
-- Action: "Desativar" → `/dashboard/team/[id]/deactivate` (`M13-S34`, later branch), or "Reenviar convite" for pending rows, or nothing for the current user's own row
-- Note: invite/deactivate target routes ship in `M13-S33`/`M13-S34` (separate branches) — links point at their future routes and 404 until those land; accepted during discovery
+- Action: "Desativar" → `/dashboard/team/[id]/deactivate` (`M13-S34`, later branch), or "Reenviar convite" for pending rows (one-click resend as of `M13-S43`, see below), or nothing for the current user's own row
+- Note: the deactivate target route ships in `M13-S34` (separate branch) — its link points at a future route and 404s until that lands; accepted during discovery
+
+> ✅ **Revised (2026-07-06, M13-S43 branch):** Two corrections made after M13-S32/M13-S33 shipped:
+> 1. **Status derivation bug** — `deriveStaffStatus()` (`apps/bff/src/features/staff/staff.mapper.ts`) checked `isActive` before `googleOAuthId`. Since M13-S13's staff-auth redesign, `Staff.invite()` provisions every row as `isActive=true` from creation (previously `false`), so a fresh invite was misclassified as `ACTIVE` instead of `PENDING`. Fixed to check `googleOAuthId` first.
+> 2. **Resend affordance** — changed from "reopen the invite form pre-filled with the email" to a one-click button on the row itself: calls `inviteStaff()` directly with the existing `name` (split into firstName/lastName — lossless since both parts were required non-empty fields at original invite time) and `role`, no navigation. The `?email=` pre-fill on `/dashboard/team/invite` (and `InviteForm`'s `initialEmail` prop) were removed as dead code as a result.
 
 All visible copy via `useTranslations()` with keys in both `pt-BR` and `en` locale files, pt-BR matching prototype copy verbatim.
 
@@ -3343,14 +3347,16 @@ All visible copy via `useTranslations()` with keys in both `pt-BR` and `en` loca
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` § UC-028, `plan/journey/manager/prototypes/equipe/02-invite-form.html`, `02b-invite-error.html`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-028, `plan/journey/manager/prototypes/equipe/02-invite-form.html`, `02b-invite-error.html`, `plan/journey/manager/prototypes/equipe/dev-notes.md`
 
 **Description:**
 The invite form — name, email, role selector. `POST /staff/invite` already exists and is fully guarded; this is a frontend-only story.
 
+> ✅ **Discovery resolved (2026-07-06):** M13-S32 already shipped `inviteStaff()` in the canonical `apps/web/features/staff/api.ts` and `InviteStaffRequest`/`InviteStaffResponse` in `@ikaro/types` — this story's earlier `apps/web/lib/api/dashboard/team.ts` / `apps/web/components/dashboard/team/InviteForm.tsx` paths were stale (that `lib/api/dashboard/` tree no longer exists, per M13-S32's own resolution note). Also, the system has no toast component anywhere and `plan/journey/README.md` documents floating toasts as an explicit anti-pattern ("the rest of the system uses inline banners") — so the success flow is redirect + inline banner, matching `ServiceListPage`'s `showCreatedBanner` mechanism, not a toast.
+
 **Route:** `/dashboard/team/invite`
 
-**`apps/web/lib/api/dashboard/team.ts` additions:**
+**`apps/web/features/staff/api.ts`:** already has `inviteStaff()` (shipped in M13-S32) — no changes needed:
 ```typescript
 inviteStaff(body: InviteStaffRequest): Promise<InviteStaffResponse>
 // POST /staff/invite -> 201; 409 -> email already has an active record
@@ -3358,29 +3364,47 @@ inviteStaff(body: InviteStaffRequest): Promise<InviteStaffResponse>
 
 **What to create:**
 
-`apps/web/app/dashboard/team/invite/page.tsx` — server component wrapper, renders `<InviteForm />`.
+`apps/web/app/dashboard/team/invite/page.tsx` — server component wrapper, renders `<InviteForm />` (no props — see the `M13-S43` revision note above: the resend-invite flow no longer navigates here).
 
-`apps/web/components/dashboard/team/InviteForm.tsx` — `'use client'`:
+`apps/web/features/staff/components/team/InviteForm.tsx` (+ co-located `.spec.tsx`) — `'use client'`:
 
 | Field | Input | Validation |
 |---|---|---|
-| Nome | `<input>` | required |
-| Sobrenome | `<input>` | required |
-| E-mail | `<input type="email">` | `z.email()` |
-| Função | card-select: Equipe / Gerente | required, defaults to "Equipe" |
+| Nome | `<input>` | required — "Informe o nome." |
+| Sobrenome | `<input>` | required — "Informe o sobrenome." |
+| E-mail | `<input type="email">` | `z.email()` — "E-mail inválido." |
+| Função | card-select: Equipe / Gerente | required, defaults to "Equipe" (`STAFF`) |
 
-- Topbar: back arrow → `/dashboard/team`
+Layout follows the established two-pane pattern used by `SettingsForm.tsx` / `ServiceCreatePage.tsx`: fields in a `Card` on the left, a sticky submit aside on `lg:` breakpoints (`lg:grid-cols-[minmax(0,1fr)_22rem]`), and a fixed bottom action bar on mobile (`lg:hidden`) instead of the prototype's floating `form-actions` bar.
+
 - On submit: `inviteStaff({ firstName, lastName, email, role })`
-  - `201` → `router.push('/dashboard/team')` + `revalidatePath('/dashboard/team')` + toast "Convite enviado para [email]."
-  - `409` → email field gets `has-error` styling + "Este e-mail já está cadastrado na sua equipe." (matches `02b-invite-error.html`); other fields unchanged
+  - `201` → `router.push('/dashboard/team?invited=' + encodeURIComponent(email))` (no `revalidatePath` — `fetchStaffList()` already fetches with `cache: 'no-store'`, so the next server render is fresh regardless)
+  - `409` → email field gets inline error styling + "Este e-mail já está cadastrado na sua equipe." (matches `02b-invite-error.html`); other fields unchanged
   - Inactive record with same email (UC-028 A2) → backend reactivates silently; same `201` success path, no special handling needed client-side
 - Submit disabled while in flight
 
+**`apps/web/features/staff/components/team/TeamListPage.tsx` changes:**
+- Accept an `invitedEmail?: string` prop (from `page.tsx` reading `searchParams.invited`); when present, render an inline success banner ("Convite enviado para {email}.") matching the `settings-saved-banner` / `ServiceListPage`'s `showCreatedBanner` visual pattern, and auto-dismiss it via `router.replace('/dashboard/team', { scroll: false })` after ~1.8s (same mechanism as `ServiceListPage`)
+- Remove the desktop "+ Convidar membro" `Button` currently in the page body — it moves to the topbar (see below), matching `ServiceListPage` (no desktop create button in body, only the mobile FAB stays)
+
+**Shared shell chrome changes (mirroring the Services list→create pattern exactly):**
+- `apps/web/app/dashboard/team/layout.tsx`: upgrade from the generic `DashboardSectionShell` wrapper to a `services/layout.tsx`-style layout — read `x-pathname`, compute a `topbarAction` (the "+ Convidar membro" button, desktop-only) when `pathname === '/dashboard/team'`, and seed `DashboardTopbarStatusProvider`'s new role-status field (see below) when on the invite route
+- `apps/web/shells/dashboard/components/topbar-status-context.tsx`: add a `staffRoleStatus: StaffRole | null` field + `setStaffRoleStatus` setter, mirroring the existing `serviceStatus`/`setServiceStatus` pair
+- `apps/web/shells/dashboard/components/Topbar.tsx`: on `pathname === '/dashboard/team/invite'` — page title "Convidar membro", back link → `/dashboard/team` labeled via `dashboardT('nav.team')` ("Equipe"), matching the prototype's topbar exactly; render a role badge from `topbarStatus.staffRoleStatus` reusing the existing `roleManager`/`roleStaff` i18n keys (mirrors the `serviceStatus` badge block)
+- `InviteForm.tsx` syncs the selected role into `staffRoleStatus` via the same `useEffect` pattern `ServiceCreatePage.tsx` uses for `isActive` → `serviceStatus`
+- `apps/web/shells/dashboard/components/BottomNav.tsx`: add `/dashboard/team/invite` to the fixed-action-bar route list. While doing this, **fix a pre-existing bug and de-duplicate**: `BottomNav.tsx` currently reimplements its own `isBookingDetail`/`isServiceDetailAction` regexes instead of reusing `matchBookingDetailRoute`/`matchServiceRoute` from `shells/dashboard/model/` (the same functions `Topbar.tsx` already uses) — switch to those shared functions, and add the missing `/dashboard/services/new` case (currently *not* suppressed even though `ServiceCreatePage` has the same fixed bottom bar as edit/deactivate — the bottom nav currently sits on top of it on mobile)
+
+**i18n:** new keys needed in both `pt-BR`/`en` `web.json` for the invite page's field labels, placeholders, validation messages, 409 error, and the `invited` banner copy — exact key names decided at implementation time, following the existing `dashboard.teamPage.*` namespace conventions.
+
 **Acceptance criteria:**
 - [ ] All 4 fields render; role selector defaults to "Equipe"
-- [ ] `201` → redirects to `/dashboard/team`; new member visible with "Convite pendente" status
+- [ ] Desktop: "+ Convidar membro" appears in the topbar on `/dashboard/team`, not in the page body; mobile FAB unchanged
+- [ ] Topbar on `/dashboard/team/invite` shows title "Convidar membro", back link to `/dashboard/team` labeled "Equipe", and a role badge that updates live as Equipe/Gerente is selected
+- [ ] Bottom nav is hidden on `/dashboard/team/invite` (fixed action bar owns the bottom edge on mobile)
+- [ ] `201` → redirects to `/dashboard/team?invited=<email>`; inline success banner shows "Convite enviado para [email]." and auto-dismisses after ~1.8s; new member visible with "Convite pendente" status
 - [ ] `409` → email field shows inline error; first/last name and role selection are preserved
 - [ ] Back arrow returns to `/dashboard/team` without submitting
+- [ ] Bottom nav is also now correctly hidden on `/dashboard/services/new` (regression fix, covered by `BottomNav.spec.tsx`)
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
 
 **Dependencies:** M13-S32
@@ -4259,6 +4283,59 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 ---
 
+## Phase Pre-0c — Equipe: staff profile edit
+
+### M13-S43 — Equipe: staff detail/edit page (`/dashboard/team/[id]`)
+
+**Agent:** `frontend-ts` (full-stack — backend + BFF + web)
+**Complexity:** M
+**Docs to load:** `docs/04-USE_CASES.md` § UC-030
+
+**Description:**
+Clicking a staff member's row in the team list now goes to a detail page where the admin can edit `name` and `role` (`MANAGER`/`STAFF`). `email` is always read-only — it's the lookup key used on every staff Google login (`findStaffByEmail` in the BFF auth flow), not just at first activation, so editing it here would risk locking the member out. No UX prototype needed — the screen reuses `InviteForm`'s field/layout conventions (extracting its `RoleOption` card-select to a shared file) rather than inventing new visual language.
+
+**Route:** `/dashboard/team/[id]`
+
+**Backend — `apps/backend/src/contexts/staff/`:**
+- `domain/staff.aggregate.ts`: new `updateProfile(name: string, role: StaffRole): void` — validates non-empty name (mirrors `reinvite()`'s validation), updates `props.name`/`props.role`/`props.updatedAt`. **No domain event** — matches the existing precedent of `Service.update()` and `Staff.linkGoogleAccount()`, neither of which emits an event; nothing today needs to react to a profile edit.
+- `application/dtos/update-staff.dto.ts` (new): `UpdateStaffSchema = z.object({ name: z.string().min(1), role: z.enum(['MANAGER', 'STAFF']) })`
+- `application/use-cases/update-staff-profile.use-case.ts` (new): `UpdateStaffProfileUseCase` — find by id+tenantId (`StaffNotFoundError` if missing); if demoting an active `MANAGER` to `STAFF`, guard inside `txManager.run()` via the existing `IStaffRepository.countActiveManagersByTenant` (reuses the existing `LastActiveManagerError` — same rule and same error class as `DeactivateStaffUseCase`'s last-manager guard, UC-029 A2); call `staff.updateProfile()`; save; return `{ staffId, name, role }`. No new port methods, no new error classes.
+- `infrastructure/controllers/staff.controller.ts`: new `PATCH /staff/:id`, `ManagerRoleGuard`, `.catch(mapStaffError)` (already handles every error this needs). Register `UpdateStaffProfileUseCase` in `staff.module.ts`.
+- Add a request block to `apps/backend/http/staff/staff.http` (happy path + 400 empty-name + 404 + 409 last-manager).
+
+**BFF — `apps/bff/src/features/staff/`:**
+- `staff.controller.ts`: new `PATCH /staff/:id`, same inline-Zod-schema pattern as `invite`, forwards to `BackendHttpService.patch`.
+- `packages/types/src/staff.dto.ts`: add `UpdateStaffRequest { name: string; role: StaffRole }` and `UpdateStaffResponse { staffId: string; name: string; role: StaffRole }`.
+- Add a request block to `apps/bff/http/staff/staff.http`.
+
+**Web:**
+- `apps/web/features/staff/api.ts`: add `updateStaff(id: string, body: UpdateStaffRequest): Promise<UpdateStaffResponse>`.
+- `apps/web/features/staff/hooks/useStaff.ts`: add `useUpdateStaff()` mutation (mirrors `useInviteStaff`, invalidates `['staff', tenantId]`).
+- `apps/web/features/staff/components/team/MemberRow.tsx`: whole row becomes a stretched-link to `/dashboard/team/${member.id}` — same overlay pattern as `BookingCard.tsx` (`absolute inset-0 z-10` link + `aria-label`, existing Desativar/Reenviar action promoted to `relative z-20` so it stays independently clickable).
+- Extract `InviteForm.tsx`'s private `RoleOption` component to `apps/web/features/staff/components/team/RoleOption.tsx` (+ `.spec.tsx`) so both `InviteForm` and the new detail page share it without duplication.
+- New `apps/web/features/staff/components/team/StaffDetailPage.tsx` (+ `.spec.tsx`): single "Nome completo" field (the domain stores one `name` string — no firstName/lastName split to preserve, unlike the invite form), `RoleOption` card-select, read-only email field with a hint explaining why, Save button. Same two-pane layout (`Card` + sticky aside on `lg:`, fixed mobile bar) and topbar role-badge sync (`useEffect` → `setStaffRoleStatus`) as `InviteForm`.
+- New `apps/web/app/dashboard/team/[id]/page.tsx` — server component, fetches via the existing `GET /staff/:id`, renders `<StaffDetailPage staff={data} />`.
+- New `apps/web/shells/dashboard/model/team-route.ts` (mirrors `service-route.ts`) — the team section now has two dynamic sub-routes (`/invite`, `/[id]`) to distinguish in `Topbar.tsx`/`BottomNav.tsx`.
+- `apps/web/app/dashboard/team/layout.tsx`: extend to fetch the target member on `/dashboard/team/[id]` and seed `initialStaffRoleStatus` from their current role.
+- `apps/web/shells/dashboard/components/Topbar.tsx`: on `/dashboard/team/[id]`, page title = member's name, back link → `/dashboard/team` labeled "Equipe" (same as the invite route); role badge already wired for `staffRoleStatus`.
+- `apps/web/shells/dashboard/components/BottomNav.tsx`: suppress on `/dashboard/team/[id]` (fixed Save bar owns the bottom edge, same as `/dashboard/team/invite`).
+- i18n: new keys for the detail page's field labels/hints/save button/success banner/validation errors, both `pt-BR`/`en`, following the existing `dashboard.teamPage.*` namespace.
+
+**Acceptance criteria:**
+- [ ] Clicking a team-list row navigates to `/dashboard/team/[id]`; the existing Desativar/Reenviar action still works independently (doesn't trigger row navigation)
+- [ ] Detail page shows the member's current name, role, and read-only email
+- [ ] Editing name + role and saving → `200`; updated values persist on reload; team list reflects the change
+- [ ] Empty name → inline validation error, no request sent
+- [ ] Demoting the last active MANAGER to STAFF → `409`, inline error matching UC-029 A2's copy
+- [ ] Email field is rendered read-only/disabled — no request ever includes an email change
+- [ ] Bottom nav hidden on `/dashboard/team/[id]`; topbar shows the member's name + back link to Equipe + live role badge while editing
+- [ ] Tenant isolation: staff from another tenant → `404`
+- [ ] `tsc --noEmit` passes across the monorepo; `pnpm lint` zero warnings; unit + integration tests pass
+
+**Dependencies:** M13-S32, M13-S33
+
+---
+
 ## Open questions & future discovery
 
 > Consolidated from all 7 source files' "Open questions" and "Future discovery" sections. Items already resolved by a decision made during this consolidation (or that turned out to already be in scope) are marked `[x]` with a one-line resolution; genuinely open items are marked `[ ]` and reference the story they block.
@@ -4273,7 +4350,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 - [ ] **Staff logout:** no logout endpoint designed yet. Current MVP behavior: JWT expiry → redirect to `/dashboard/login`. An explicit logout button is post-MVP — not scoped in any story above.
 - [ ] **"Bem-vindo(a)!" first-login banner (UC-025 step 8):** ⚠️ auth flow redesigned in M13-S13 — `link-google` now redirects straight to `/dashboard` with no distinguishable "first login" moment. To implement the banner, the BFF would need to detect that `google_oauth_id` was just set (i.e. call `link-google` succeeded where it previously returned 200 without a cookie) and append `?welcome=1` to the `/dashboard` redirect — this logic does not exist today. Post-MVP; fold into a follow-up patch if product wants it.
 - [x] **Playwright E2E suite for auth flows:** this note assumed full auth E2E coverage was blocked on a not-yet-built "Google OAuth test-bypass endpoint" deferred to M16-S06. That assumption was stale — `ENABLE_DEV_AUTH`'s `POST /v1/auth/dev-login` already serves exactly that purpose (mints a real JWT cookie without driving Google's consent screen) and was already wired into `pr-e2e.yml`'s CI job. Built in M13-S14 follow-up: `apps/web/e2e/helpers/auth.ts` (`loginAsCustomer`, `completeCustomerProfile`) plus E2E specs for authenticated hotsite-auth-bar states, `InformationCompletionPrompt`, `/switch-tenant`, and the staff-login middleware regression. No remaining blocker for auth-flow E2E coverage.
-- [x] **Staff invite email `activationLink` broken (TD13):** link itself is still broken (unchanged — still tracked, now Low priority since the workaround below is no longer the only path). M13-S14 follow-up closed the underlying gap a different way: `handleStaffLogin` (the generic `/dashboard/login` path) now falls back to matching by Google's verified email across all tenants when the OAuth-ID lookup finds nothing, then links and proceeds — so a never-linked invited staff member can just use the normal "Entrar com Google" button instead of needing the (broken) tenant-scoped invite link at all. Fixing the link itself is still worth doing for UX polish (skips an extra step) but no longer blocks anyone.
+- [x] **Staff invite email `activationLink` broken (TD13):** ✅ resolved in `M13-S33`'s branch — `activationLink` now points to `/dashboard/login?tenantSlug=<slug>` instead of the dead `/{slug}/auth/staff` route. M13-S14 follow-up had already closed the underlying *gap* a different way (`handleStaffLogin`'s verified-email fallback meant a never-linked invitee could use the normal "Entrar com Google" button instead of needing the invite link at all), so this fix is the remaining UX-polish piece, not a blocker fix.
 
 ### Staff booking core (Phase 4, M13-S17–M13-S20)
 

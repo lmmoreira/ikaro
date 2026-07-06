@@ -4,6 +4,8 @@ import type {
   InviteStaffResponse,
   StaffListResponse,
   StaffResponse,
+  UpdateStaffRequest,
+  UpdateStaffResponse,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
@@ -31,8 +33,39 @@ export async function getStaffMember(id: string): Promise<StaffResponse> {
   return res.data;
 }
 
+export class StaffDetailFetchError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'StaffDetailFetchError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+// Server-side variant for the team detail page load.
+export async function fetchStaffMember(token: string, id: string): Promise<StaffResponse> {
+  const res = await bffServerFetch(token, `/staff/${id}`, { cache: 'no-store' });
+  if (!res.ok) {
+    throw new StaffDetailFetchError(
+      res.status,
+      res.status === 404 ? 'Staff not found' : `Failed to fetch staff detail (${res.status})`,
+    );
+  }
+  return res.json() as Promise<StaffResponse>;
+}
+
 export async function inviteStaff(body: InviteStaffRequest): Promise<InviteStaffResponse> {
   const res = await bffClient.post<InviteStaffResponse>('/staff/invite', body);
+  return res.data;
+}
+
+export async function updateStaff(
+  id: string,
+  body: UpdateStaffRequest,
+): Promise<UpdateStaffResponse> {
+  const res = await bffClient.patch<UpdateStaffResponse>(`/staff/${id}`, body);
   return res.data;
 }
 

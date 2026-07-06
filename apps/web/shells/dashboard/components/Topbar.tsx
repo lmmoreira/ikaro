@@ -10,7 +10,8 @@ import { cn } from '@/shared/utils/cn';
 import { formatTodayLabel } from '@/shells/dashboard/utils/format-today';
 import { getInitials } from '@/shared/utils/initials';
 import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
-import { matchServiceRoute } from '@/shells/dashboard/model/service-route';
+import { isServiceCreateRoute, matchServiceRoute } from '@/shells/dashboard/model/service-route';
+import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team-route';
 import {
   BOOKING_STATUS_CLASSES,
   buildBookingStatusLabels,
@@ -39,6 +40,7 @@ interface TopbarRouteState {
   readonly backLabel: string;
   readonly isBookingRoute: boolean;
   readonly isServicesCreateRoute: boolean;
+  readonly isTeamInviteRoute: boolean;
 }
 
 function resolveTopbarRouteState({
@@ -46,6 +48,7 @@ function resolveTopbarRouteState({
   commonBackLabel,
   dashboardT,
   servicesT,
+  teamT,
   bookingT,
   returnTo,
 }: {
@@ -53,13 +56,15 @@ function resolveTopbarRouteState({
   readonly commonBackLabel: string;
   readonly dashboardT: ReturnType<typeof useTranslations>;
   readonly servicesT: ReturnType<typeof useTranslations>;
+  readonly teamT: ReturnType<typeof useTranslations>;
   readonly bookingT: ReturnType<typeof useTranslations>;
   readonly returnTo: string | null;
 }): TopbarRouteState {
   const bookingRouteMatch = matchBookingDetailRoute(pathname);
   const serviceRouteMatch = matchServiceRoute(pathname);
   const isBookingRoute = bookingRouteMatch !== null;
-  const isServicesCreateRoute = pathname === '/dashboard/services/new';
+  const isServicesCreateRouteMatch = isServiceCreateRoute(pathname);
+  const isTeamInviteRouteMatch = isTeamInviteRoute(pathname);
   const pageTitleKey = PAGE_TITLE_KEYS.find(([path]) => pathname.startsWith(path))?.[1];
   let pageTitle = dashboardT('topbar.defaultTitle');
   let backHref: string | null = null;
@@ -88,10 +93,14 @@ function resolveTopbarRouteState({
     pageTitle = servicesT('deactivatePageTitle');
     backHref = `/dashboard/services/${serviceRouteMatch.serviceId}/edit`;
     backLabel = servicesT('editPageTitle');
-  } else if (isServicesCreateRoute) {
+  } else if (isServicesCreateRouteMatch) {
     pageTitle = servicesT('createPageTitle');
     backHref = '/dashboard/services';
     backLabel = commonBackLabel;
+  } else if (isTeamInviteRouteMatch) {
+    pageTitle = teamT('invite');
+    backHref = '/dashboard/team';
+    backLabel = dashboardT('nav.team');
   } else if (pageTitleKey) {
     pageTitle = dashboardT(pageTitleKey);
   }
@@ -105,7 +114,8 @@ function resolveTopbarRouteState({
     backHref,
     backLabel,
     isBookingRoute,
-    isServicesCreateRoute,
+    isServicesCreateRoute: isServicesCreateRouteMatch,
+    isTeamInviteRoute: isTeamInviteRouteMatch,
   };
 }
 
@@ -113,24 +123,33 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
   const commonT = useTranslations('common');
   const t = useTranslations('dashboard');
   const servicesT = useTranslations('dashboard.servicesPage');
+  const teamT = useTranslations('dashboard.teamPage');
   const bookingT = useTranslations('dashboard.bookingDetail');
   const locale = useLocale();
   const pathname = usePathname();
   const topbarStatus = useDashboardTopbarStatus();
   const initials = getInitials(userName);
   const serviceRouteMatch = matchServiceRoute(pathname);
+  const teamRouteMatch = matchTeamRoute(pathname);
   const returnTo = topbarStatus?.backHrefOverride ?? null;
   const backLabelOverride = topbarStatus?.backLabelOverride ?? null;
   const pageTitleOverride = topbarStatus?.pageTitleOverride ?? null;
-  const { pageTitle, backHref, backLabel, isBookingRoute, isServicesCreateRoute } =
-    resolveTopbarRouteState({
-      pathname,
-      commonBackLabel: commonT('back'),
-      dashboardT: t,
-      servicesT,
-      bookingT,
-      returnTo,
-    });
+  const {
+    pageTitle,
+    backHref,
+    backLabel,
+    isBookingRoute,
+    isServicesCreateRoute,
+    isTeamInviteRoute,
+  } = resolveTopbarRouteState({
+    pathname,
+    commonBackLabel: commonT('back'),
+    dashboardT: t,
+    servicesT,
+    teamT,
+    bookingT,
+    returnTo,
+  });
   const bookingStatusLabels = buildBookingStatusLabels(bookingT);
   const showBackLink = Boolean(backHref);
   const effectivePageTitle = pageTitleOverride ?? pageTitle;
@@ -190,6 +209,14 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
             {topbarStatus.serviceStatus === 'ACTIVE'
               ? servicesT('statusActive')
               : servicesT('statusInactive')}
+          </Badge>
+        )}
+        {topbarStatus?.staffRoleStatus && (isTeamInviteRoute || teamRouteMatch) && (
+          <Badge
+            data-testid="team-role-badge"
+            className="shrink-0 rounded-full border-0 bg-slate-100 px-3.5 py-2 text-[0.875rem] font-semibold text-slate-600"
+          >
+            {topbarStatus.staffRoleStatus === 'MANAGER' ? teamT('roleManager') : teamT('roleStaff')}
           </Badge>
         )}
 

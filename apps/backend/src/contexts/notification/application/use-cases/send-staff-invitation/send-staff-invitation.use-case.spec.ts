@@ -91,7 +91,7 @@ describe('SendStaffInvitationUseCase', () => {
     expect(msg.to).toBe('maria@lavacar.com.br');
     expect(msg.subject).toContain('Lava Car');
     expect(msg.body).toContain('Maria');
-    expect(msg.body).toContain('lavacar/auth/staff');
+    expect(msg.body).toContain('/dashboard/login?tenantSlug=lavacar');
 
     const logs = logRepo.all;
     expect(logs).toHaveLength(1);

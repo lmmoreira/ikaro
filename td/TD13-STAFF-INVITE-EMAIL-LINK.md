@@ -2,10 +2,12 @@
 
 ## Status
 - **Type**: Technical Debt / Broken end-to-end flow
+- **State**: ✅ Done — resolved in PR #93 (`feat/m13-s33-invite-form`)
 - **Priority**: Low (downgraded from Medium — see Update below; the broken link is no longer the only way to complete first login)
 - **Context**: `apps/backend/src/contexts/notification/application/use-cases/send-staff-invitation/send-staff-invitation.use-case.ts:79`
 - **Created**: 2026-06-24 (surfaced during M13-S13 real OAuth login testing)
 - **Update (2026-06-25, M13-S14 follow-up)**: the underlying gap this link existed to work around is now closed a different way. `handleStaffLogin` (the generic `/dashboard/login` → "Entrar com Google" path, with no `tenantSlug`) now falls back to matching by Google's verified email across all tenants whenever the OAuth-ID lookup finds nothing, links the account, and proceeds — see `apps/bff/src/auth/auth.controller.ts`'s `linkStaffByVerifiedEmail`. A never-linked invited staff member can now just use the normal staff login button; the invite email's link is no longer the only path to first login. Fixing the link itself (Option A/B below) is still worth doing for UX polish, but is no longer blocking.
+- **Resolved (2026-07-06, M13-S33 branch)**: `activationLink` now points to `/dashboard/login?tenantSlug=<slug>` — a third variant not listed in the original Fix options below. It lands on a real page (no more 404) with a working "Entrar com Google" button for that tenant, at the cost of one extra click versus Option A/B's direct-to-OAuth redirect. Chosen over A/B for simplicity — no new route, no `BFF_URL` needed in `apps/backend/.env`.
 
 ---
 

@@ -141,6 +141,7 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 | UC-027 | Admin manages hotsite content |
 | UC-028 | Admin invites new staff member |
 | UC-029 | Admin deactivates staff member |
+| UC-030 | Admin edits staff member profile |
 
 **Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry.
 

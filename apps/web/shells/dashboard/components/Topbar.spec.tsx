@@ -22,6 +22,9 @@ vi.mock('next-intl', () => ({
       deactivatePageTitle: 'Desativar serviço',
       statusActive: 'Ativo',
       statusInactive: 'Inativo',
+      invite: 'Convidar membro',
+      roleManager: 'Gerente',
+      roleStaff: 'Equipe',
       title: 'Detalhe do agendamento',
       completeSheetTitle: 'Marcar concluído',
       rescheduleSheetTitle: 'Reagendar',
@@ -157,6 +160,63 @@ describe('Topbar', () => {
     );
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Desativar serviço');
     expect(screen.getByText('Inativo')).toBeInTheDocument();
+  });
+
+  it('renders the invite title and back link to the team list on the team invite route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/team/invite');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('link', { name: 'Equipe' })).toHaveAttribute('href', '/dashboard/team');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Convidar membro');
+  });
+
+  it('renders the staff role badge on the team invite route and keeps it in sync', async () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/team/invite');
+
+    function StaffRoleProbe(): React.JSX.Element {
+      const { setStaffRoleStatus } = useDashboardTopbarStatus()!;
+      return (
+        <button type="button" onClick={() => setStaffRoleStatus('MANAGER')}>
+          Selecionar Gerente
+        </button>
+      );
+    }
+
+    render(
+      <DashboardTopbarStatusProvider initialStaffRoleStatus="STAFF">
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+        <StaffRoleProbe />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByTestId('team-role-badge')).toHaveTextContent('Equipe');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Selecionar Gerente' }));
+
+    expect(screen.getByTestId('team-role-badge')).toHaveTextContent('Gerente');
+  });
+
+  it('renders the staff role badge on the team detail route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/team/staff-1');
+    render(
+      <DashboardTopbarStatusProvider initialStaffRoleStatus="MANAGER">
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByTestId('team-role-badge')).toHaveTextContent('Gerente');
+  });
+
+  it('does not render the staff role badge on the team list route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/team');
+    render(
+      <DashboardTopbarStatusProvider initialStaffRoleStatus="STAFF">
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.queryByTestId('team-role-badge')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Equipe');
   });
 
   it('renders the service status badge on the edit route and keeps it in sync', async () => {

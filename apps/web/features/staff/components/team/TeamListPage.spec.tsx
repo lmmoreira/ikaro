@@ -1,10 +1,23 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffListItem } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { TeamListPage } from './TeamListPage';
+
+const routerReplace = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: routerReplace }),
+}));
+
+vi.mock('@/features/staff/hooks/useStaff', () => ({
+  useInviteStaff: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}));
 
 const CURRENT_ID = '30000000-0000-4000-8000-000000000001';
 
@@ -50,6 +63,10 @@ function buildMembers(): StaffListItem[] {
 }
 
 describe('TeamListPage', () => {
+  beforeEach(() => {
+    routerReplace.mockReset();
+  });
+
   it('renders all four filter tabs with correct counts', () => {
     renderWithIntl(
       <TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore={false} />,
@@ -99,7 +116,7 @@ describe('TeamListPage', () => {
     );
   });
 
-  it('links both create entry points (desktop button and mobile FAB) to the invite route', () => {
+  it('links the mobile FAB to the invite route (desktop entry point lives in the topbar)', () => {
     renderWithIntl(
       <TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore={false} />,
     );
@@ -107,7 +124,48 @@ describe('TeamListPage', () => {
     const inviteLinks = screen
       .getAllByRole('link')
       .filter((link) => link.getAttribute('href') === '/dashboard/team/invite');
-    expect(inviteLinks).toHaveLength(2);
+    expect(inviteLinks).toHaveLength(1);
+  });
+
+  it('hides the invited-success banner when no invitedEmail is provided', () => {
+    renderWithIntl(
+      <TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore={false} />,
+    );
+
+    expect(screen.queryByText('Convite enviado!')).not.toBeInTheDocument();
+  });
+
+  it('shows the invited-success banner with the email when provided', () => {
+    renderWithIntl(
+      <TeamListPage
+        members={buildMembers()}
+        currentStaffId={CURRENT_ID}
+        hasMore={false}
+        invitedEmail="maria.oliveira@gmail.com"
+      />,
+    );
+
+    expect(screen.getByText('Convite enviado!')).toBeInTheDocument();
+    expect(screen.getByText('Convite enviado para maria.oliveira@gmail.com.')).toBeInTheDocument();
+  });
+
+  it('auto-dismisses the invited-success banner by redirecting back to the plain list URL', () => {
+    vi.useFakeTimers();
+
+    renderWithIntl(
+      <TeamListPage
+        members={buildMembers()}
+        currentStaffId={CURRENT_ID}
+        hasMore={false}
+        invitedEmail="maria.oliveira@gmail.com"
+      />,
+    );
+
+    vi.advanceTimersByTime(1800);
+
+    expect(routerReplace).toHaveBeenCalledWith('/dashboard/team', { scroll: false });
+
+    vi.useRealTimers();
   });
 
   it('shows a truncation notice when the backend page did not return the full roster', () => {

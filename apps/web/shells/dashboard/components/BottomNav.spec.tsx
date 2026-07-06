@@ -64,8 +64,13 @@ describe('BottomNav', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('hides itself on the settings page (fixed Save bar owns the bottom edge)', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/settings');
+  it.each([
+    ['the settings page (fixed Save bar owns the bottom edge)', '/dashboard/settings'],
+    ['the service create route (fixed action bar owns the bottom edge)', '/dashboard/services/new'],
+    ['the team invite route (fixed action bar owns the bottom edge)', '/dashboard/team/invite'],
+    ['the team detail route (fixed Save bar owns the bottom edge)', '/dashboard/team/staff-1'],
+  ])('hides itself on %s', (_label, pathname) => {
+    vi.mocked(usePathname).mockReturnValue(pathname);
     const { container } = render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);
 
     expect(container).toBeEmptyDOMElement();

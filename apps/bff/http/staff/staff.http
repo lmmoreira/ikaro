@@ -79,6 +79,23 @@ GET {{bffUrl}}/v1/staff/{{staffWorkerId}}
 Authorization: Bearer {{managerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — update profile (UC-030)
+# email is never editable — it's the lookup key used on every staff Google login.
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Update a staff member's name and role
+PATCH {{bffUrl}}/v1/staff/{{staffWorkerId}}
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "name": "Funcionário Editado",
+  "role": "MANAGER"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -98,3 +115,15 @@ Authorization: Bearer {{staffToken}}
 ### 404 — Staff id not found in tenant
 GET {{bffUrl}}/v1/staff/00000000-0000-4000-8000-000000009999
 Authorization: Bearer {{managerToken}}
+
+###
+
+### 400 — Update with empty name
+PATCH {{bffUrl}}/v1/staff/{{staffWorkerId}}
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "name": "",
+  "role": "STAFF"
+}

@@ -3,7 +3,14 @@ import { decodeJwtPayload } from '@/features/auth/decode-jwt';
 import { fetchStaffList } from '@/features/staff/api';
 import { TeamListPage } from '@/features/staff/components/team/TeamListPage';
 
-export default async function TeamPage(): Promise<React.JSX.Element> {
+interface TeamRouteProps {
+  readonly searchParams: Promise<{ invited?: string }>;
+}
+
+export default async function TeamPage({
+  searchParams,
+}: TeamRouteProps): Promise<React.JSX.Element> {
+  const { invited } = await searchParams;
   const token = await getAccessToken();
   const payload = decodeJwtPayload(token);
   const staff = await fetchStaffList(token);
@@ -21,6 +28,7 @@ export default async function TeamPage(): Promise<React.JSX.Element> {
       members={staff.items}
       currentStaffId={payload.sub}
       hasMore={staff.pagination.hasMore}
+      invitedEmail={invited}
     />
   );
 }

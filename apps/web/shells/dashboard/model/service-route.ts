@@ -14,3 +14,7 @@ export function matchServiceRoute(pathname: string): ServiceRouteMatch | null {
     action: match[2] as ServiceRouteMatch['action'],
   };
 }
+
+export function isServiceCreateRoute(pathname: string): boolean {
+  return pathname === '/dashboard/services/new';
+}

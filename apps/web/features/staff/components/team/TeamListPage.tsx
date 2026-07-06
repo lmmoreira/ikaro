@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 import type { StaffListItem, StaffStatus } from '@ikaro/types';
@@ -18,6 +19,10 @@ interface TeamListPageProps {
   // True when the backend's single-page fetch (limit=100) didn't return the full roster —
   // tab counts and the list itself are then a partial view, not the whole team.
   readonly hasMore: boolean;
+  // Set when redirected here from a successful invite submission (?invited=<email>) —
+  // renders an inline success banner that auto-dismisses, mirroring ServiceListPage's
+  // showCreatedBanner mechanism.
+  readonly invitedEmail?: string;
 }
 
 function buildFilterClass(active: boolean): string {
@@ -40,9 +45,20 @@ export function TeamListPage({
   members,
   currentStaffId,
   hasMore,
+  invitedEmail,
 }: TeamListPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
+  const router = useRouter();
   const [filter, setFilter] = useState<TeamFilter>('all');
+
+  useEffect(() => {
+    if (!invitedEmail) return;
+    const timeoutId = globalThis.setTimeout(() => {
+      router.replace('/dashboard/team', { scroll: false });
+    }, 1800);
+
+    return () => globalThis.clearTimeout(timeoutId);
+  }, [router, invitedEmail]);
 
   const counts = useMemo(
     () => ({
@@ -61,6 +77,18 @@ export function TeamListPage({
 
   return (
     <div className="space-y-4">
+      {invitedEmail && (
+        <output
+          aria-live="polite"
+          className="mx-4 block rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4"
+        >
+          <p className="text-[0.9375rem] font-bold text-emerald-800">{t('invitedSuccessTitle')}</p>
+          <p className="mt-1 text-sm text-emerald-700">
+            {t('invitedSuccessBody', { email: invitedEmail })}
+          </p>
+        </output>
+      )}
+
       <div className="flex flex-wrap items-center gap-2 px-4 pb-1">
         {FILTERS.map(({ key, labelKey }) => (
           <button
@@ -73,12 +101,6 @@ export function TeamListPage({
             {t(labelKey, { count: counts[key] })}
           </button>
         ))}
-        <Button asChild size="sm" className="ml-auto hidden lg:inline-flex">
-          <Link href="/dashboard/team/invite">
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            {t('invite')}
-          </Link>
-        </Button>
       </div>
 
       {hasMore && (
