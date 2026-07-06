@@ -145,7 +145,7 @@ describe('TeamListPage', () => {
       />,
     );
 
-    expect(screen.getByText('Convite enviado!')).toBeInTheDocument();
+    expect(screen.getByTestId('team-invite-success-banner')).toBeInTheDocument();
     expect(screen.getByText('Convite enviado para maria.oliveira@gmail.com.')).toBeInTheDocument();
   });
 

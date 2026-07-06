@@ -1,13 +1,7 @@
 import { DateTime } from 'luxon';
 
 export type WeekDayName =
-  | 'sunday'
-  | 'monday'
-  | 'tuesday'
-  | 'wednesday'
-  | 'thursday'
-  | 'friday'
-  | 'saturday';
+  'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
 
 const WEEKDAY_NAMES: WeekDayName[] = [
   'sunday',

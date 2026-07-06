@@ -16,12 +16,7 @@ export interface HeroModuleData {
   ctaTarget: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   secondaryCtaLabel?: string;
   secondaryCtaTarget?:
-    | 'booking-form'
-    | 'service-list'
-    | 'gallery'
-    | 'testimonials'
-    | 'about'
-    | 'contact';
+    'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
   rightPanel?: 'none' | 'image' | 'brand-card';
 }
 
