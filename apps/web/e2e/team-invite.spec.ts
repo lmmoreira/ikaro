@@ -1,18 +1,6 @@
-import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { loginAsStaff, uniqueTestEmail } from './helpers/auth';
-import { inviteStaff } from './helpers/staff';
-
-function getMemberRow(page: Page, text: string) {
-  return page.locator('.divide-y > div').filter({ hasText: text });
-}
-
-// Filtering role-option by visible text is unreliable: the MANAGER option's own description
-// ("Tudo da Equipe + ...") contains "Equipe" as a substring, colliding with the STAFF option's
-// title. The data-role attribute is unambiguous.
-function getRoleOption(page: Page, role: 'STAFF' | 'MANAGER') {
-  return page.locator(`[data-testid="role-option"][data-role="${role}"]`);
-}
+import { getMemberRow, getRoleOption, inviteStaff } from './helpers/staff';
 
 test.describe('team invite flow', () => {
   test.beforeEach(async ({ page }) => {

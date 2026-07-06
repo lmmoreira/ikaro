@@ -1,5 +1,5 @@
 export { loginAsCustomer } from './customer-login';
-export { loginAsStaff } from './staff-login';
+export { linkStaffGoogleAccount, loginAsStaff } from './staff-login';
 
 // A fresh, unique email per call — guarantees a brand-new customer row (phone/defaultAddress
 // both null) rather than reusing one a previous test run may have already completed.

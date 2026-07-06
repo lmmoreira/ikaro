@@ -22,3 +22,20 @@ export async function loginAsStaff(
   await addDevLoginCookie(page, body.accessToken);
   return body.user;
 }
+
+// Simulates a staff member's first Google login WITHOUT touching the current page's session
+// cookie — used by fixtures that need a seeded (invited) member to already be ACTIVE rather
+// than PENDING, while the test's actual actor stays logged in as whoever called this.
+export async function linkStaffGoogleAccount(
+  page: Page,
+  email: string,
+  tenantSlug: string,
+): Promise<void> {
+  const res = await page.request.post(`${BFF_URL}/auth/dev-login`, {
+    headers: { 'X-Internal-Key': INTERNAL_API_KEY! },
+    data: { email, tenantSlug, type: 'staff' },
+  });
+  if (!res.ok()) {
+    throw new Error(`link staff google account failed: ${res.status()} ${await res.text()}`);
+  }
+}

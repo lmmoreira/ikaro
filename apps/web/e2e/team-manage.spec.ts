@@ -1,39 +1,6 @@
-import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
-import { loginAsStaff, uniqueTestEmail } from './helpers/auth';
-import { inviteStaff } from './helpers/staff';
-
-function getMemberRow(page: Page, text: string) {
-  return page.locator('.divide-y > div').filter({ hasText: text });
-}
-
-// Filtering role-option by visible text is unreliable: the MANAGER option's own description
-// ("Tudo da Equipe + ...") contains "Equipe" as a substring, colliding with the STAFF option's
-// title. The data-role attribute is unambiguous.
-function getRoleOption(page: Page, role: 'STAFF' | 'MANAGER') {
-  return page.locator(`[data-testid="role-option"][data-role="${role}"]`);
-}
-
-async function seedStaffMember(
-  page: Page,
-  overrides: {
-    readonly firstName?: string;
-    readonly lastName?: string;
-    readonly role?: 'STAFF' | 'MANAGER';
-  } = {},
-): Promise<{ readonly staffId: string; readonly email: string; readonly name: string }> {
-  const email = uniqueTestEmail('e2e-manage');
-  const firstName = overrides.firstName ?? 'Teste';
-  const lastName = overrides.lastName ?? 'E2E';
-  const result = await inviteStaff(page, {
-    email,
-    firstName,
-    lastName,
-    role: overrides.role ?? 'STAFF',
-  });
-
-  return { staffId: result.staffId, email, name: `${firstName} ${lastName}` };
-}
+import { loginAsStaff } from './helpers/auth';
+import { getMemberRow, getRoleOption, seedStaffMember } from './helpers/staff';
 
 test.describe('team member detail/edit flow', () => {
   test.beforeEach(async ({ page }) => {
