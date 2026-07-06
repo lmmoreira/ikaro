@@ -1,3 +1,4 @@
+import type { AddressProps } from './address';
 import type { BusinessHours } from './business-hours.vo';
 
 export interface NotificationSettings {
@@ -43,16 +44,6 @@ export interface ResolvedLocalization {
   address: import('@ikaro/i18n').AddressSpec;
 }
 
-export interface BusinessInfoAddress {
-  street: string;
-  number: string;
-  complement?: string;
-  neighborhood: string;
-  city: string;
-  state: string;
-  zipCode: string;
-}
-
 export interface SocialLinks {
   whatsapp: string | null;
   instagram: string | null;
@@ -62,7 +53,7 @@ export interface SocialLinks {
 export interface BusinessInfo {
   phone: string | null;
   email: string | null;
-  address: BusinessInfoAddress | null;
+  address: AddressProps | null;
   socialLinks: SocialLinks | null;
 }
 

@@ -25,17 +25,41 @@ export class Address extends ValueObject<AddressProps> {
   }
 
   static create(props: AddressProps, spec: AddressSpec): Address {
-    if (spec.postalRegex !== null && !spec.postalRegex.test(props.zipCode)) {
+    const street = typeof props.street === 'string' ? props.street.trim() : '';
+    const number = typeof props.number === 'string' ? props.number.trim() : '';
+    const complement =
+      typeof props.complement === 'string' ? props.complement.trim() || undefined : undefined;
+    const neighborhood =
+      typeof props.neighborhood === 'string' ? props.neighborhood.trim() || undefined : undefined;
+    const city = typeof props.city === 'string' ? props.city.trim() : '';
+    const state = typeof props.state === 'string' ? props.state.trim() : '';
+    const zipCode = typeof props.zipCode === 'string' ? props.zipCode.trim() : '';
+
+    if (!street) {
+      throw new AddressValidationError(`${spec.streetLabel} is required`);
+    }
+    if (!number) {
+      throw new AddressValidationError(`${spec.numberLabel} is required`);
+    }
+    if (!city) {
+      throw new AddressValidationError(`${spec.cityLabel} is required`);
+    }
+    if (!state) {
+      throw new AddressValidationError(`${spec.stateLabel} is required`);
+    }
+    if (!zipCode) {
+      throw new AddressValidationError(`${spec.postalLabel} is required`);
+    }
+    if (spec.postalRegex !== null && !spec.postalRegex.test(zipCode)) {
       throw new AddressValidationError(`Invalid ${spec.postalLabel}: ${props.zipCode}`);
     }
-    if (spec.statePattern !== null && !spec.statePattern.test(props.state)) {
+    if (spec.statePattern !== null && !spec.statePattern.test(state)) {
       throw new AddressValidationError(`Invalid ${spec.stateLabel}: ${props.state}`);
     }
-    const neighborhood = props.neighborhood?.trim() || undefined;
     if (spec.requireNeighborhood && !neighborhood) {
       throw new AddressValidationError(`${spec.neighborhoodLabel ?? 'neighborhood'} is required`);
     }
-    return new Address({ ...props, neighborhood });
+    return new Address({ street, number, complement, neighborhood, city, state, zipCode });
   }
 
   static reconstitute(props: AddressProps): Address {

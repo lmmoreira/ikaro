@@ -1,10 +1,10 @@
 import { countrySpec } from '@ikaro/i18n';
 import { Email } from '../../../../shared/value-objects/email.vo';
+import { Address, type AddressProps } from '../../../../shared/value-objects/address';
 import type { BusinessHours, DayHours } from '../../../../shared/value-objects/business-hours.vo';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import type {
   BusinessInfo,
-  BusinessInfoAddress,
   BookingSettings,
   LocalizationSettings,
   LoyaltySettings,
@@ -20,9 +20,9 @@ import { PlatformDomainError } from '../errors/platform-domain.error';
 const FALLBACK_COUNTRY_SPEC = countrySpec('ZZ');
 
 export type {
+  AddressProps,
   BookingSettings,
   BusinessInfo,
-  BusinessInfoAddress,
   LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
@@ -146,12 +146,15 @@ export class TenantSettings {
   }
 
   static create(props: TenantSettingsProps): TenantSettings {
+    const normalizedCountryCode = props.localization.countryCode.trim().toUpperCase();
+    TenantSettings.validateCountryCode(normalizedCountryCode);
     const normalizedProps = {
       ...props,
       localization: {
         ...props.localization,
-        countryCode: props.localization.countryCode.trim().toUpperCase(),
+        countryCode: normalizedCountryCode,
       },
+      businessInfo: TenantSettings.normalizeBusinessInfo(props.businessInfo, normalizedCountryCode),
     };
     TenantSettings.validate(normalizedProps);
     return new TenantSettings(normalizedProps);
@@ -173,7 +176,7 @@ export class TenantSettings {
     TenantSettings.validateBusinessHours(props.businessHours);
     TenantSettings.validateLocalization(props.localization);
     TenantSettings.validateNotification(props.notification);
-    TenantSettings.validateBusinessInfo(props.businessInfo, props.localization.countryCode);
+    TenantSettings.validateBusinessInfo(props.businessInfo);
   }
 
   private static validateLocalization(localization: LocalizationSettings): void {
@@ -291,10 +294,7 @@ export class TenantSettings {
     }
   }
 
-  private static validateBusinessInfo(
-    businessInfo: BusinessInfo | undefined,
-    countryCode: string,
-  ): void {
+  private static validateBusinessInfo(businessInfo: BusinessInfo | undefined): void {
     if (!businessInfo) return;
     if (businessInfo.phone != null && !PhoneNumber.isValid(businessInfo.phone)) {
       throw new PlatformDomainError('businessInfo.phone must be a valid phone number');
@@ -302,8 +302,27 @@ export class TenantSettings {
     if (businessInfo.email != null && !Email.isValid(businessInfo.email)) {
       throw new PlatformDomainError('businessInfo.email must be a valid email address');
     }
-    TenantSettings.validateBusinessAddress(businessInfo.address, countryCode);
     TenantSettings.validateSocialLinks(businessInfo.socialLinks);
+  }
+
+  private static normalizeBusinessInfo(
+    businessInfo: BusinessInfo | undefined,
+    countryCode: string,
+  ): BusinessInfo | undefined {
+    if (!businessInfo) return businessInfo;
+    return {
+      ...businessInfo,
+      address: TenantSettings.normalizeBusinessAddress(businessInfo.address, countryCode),
+    };
+  }
+
+  private static normalizeBusinessAddress(
+    address: AddressProps | null,
+    countryCode: string,
+  ): AddressProps | null {
+    if (address == null) return null;
+    const normalizedAddress = Address.create(address, countrySpec(countryCode).address);
+    return normalizedAddress.toJSON();
   }
 
   private static validateSocialLinks(socialLinks: SocialLinks | null): void {
@@ -312,31 +331,6 @@ export class TenantSettings {
       throw new PlatformDomainError(
         'businessInfo.socialLinks.whatsapp must be a valid phone number',
       );
-    }
-  }
-
-  private static validateBusinessAddress(
-    address: BusinessInfoAddress | null,
-    countryCode: string,
-  ): void {
-    if (address == null) return;
-    const spec = countrySpec(countryCode).address;
-    if (spec.postalRegex !== null && !spec.postalRegex.test(address.zipCode)) {
-      throw new PlatformDomainError(
-        `businessInfo.address.zipCode is not a valid ${spec.postalLabel}`,
-      );
-    }
-    if (spec.statePattern !== null && !spec.statePattern.test(address.state)) {
-      throw new PlatformDomainError(`businessInfo.address.state is not a valid ${spec.stateLabel}`);
-    }
-    const alwaysRequired = ['street', 'number', 'city', 'state', 'zipCode'] as const;
-    for (const field of alwaysRequired) {
-      if (!address[field]) {
-        throw new PlatformDomainError(`businessInfo.address.${field} is required`);
-      }
-    }
-    if (spec.requireNeighborhood && !address.neighborhood) {
-      throw new PlatformDomainError('businessInfo.address.neighborhood is required');
     }
   }
 }

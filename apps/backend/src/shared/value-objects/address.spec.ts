@@ -25,6 +25,16 @@ describe('Address', () => {
       expect(() => Address.create({ ...baseProps, zipCode: '123' }, BR)).toThrow('Invalid CEP');
     });
 
+    it('throws when a required field is blank', () => {
+      expect(() => Address.create({ ...baseProps, street: '   ' }, BR)).toThrow('Rua is required');
+    });
+
+    it('throws when a required field is null at runtime', () => {
+      expect(() => Address.create({ ...baseProps, street: null as unknown as string }, BR)).toThrow(
+        'Rua is required',
+      );
+    });
+
     it('throws when neighborhood is missing and the country requires it', () => {
       expect(() => Address.create({ ...baseProps, neighborhood: undefined }, BR)).toThrow(
         'Bairro is required',

@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { AddressValidationError } from '../../../../shared/value-objects/address';
 import { ProblemDetail } from '../../../../shared/http/problem-detail';
 import { TenantSettingsValidationError } from '../../domain/value-objects/tenant-settings.vo';
 import {
@@ -41,6 +42,15 @@ export function mapPlatformError(err: unknown): never {
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.NOT_FOUND);
+  }
+  if (err instanceof AddressValidationError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: HttpStatus.BAD_REQUEST,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.BAD_REQUEST);
   }
   if (err instanceof TenantSettingsValidationError) {
     const body: ProblemDetail = {

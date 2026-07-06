@@ -1,4 +1,5 @@
 import { PlatformDomainError } from '../errors/platform-domain.error';
+import { AddressValidationError } from '../../../../shared/value-objects/address';
 import { TenantSettings, TenantSettingsValidationError } from './tenant-settings.vo';
 import { TenantSettingsPropsBuilder } from '../../../../test/builders/platform';
 
@@ -275,21 +276,21 @@ describe('TenantSettings', () => {
       const props = new TenantSettingsPropsBuilder()
         .withBusinessInfo({ address: { ...validAddress, zipCode: '123' } })
         .build();
-      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+      expect(() => TenantSettings.create(props)).toThrow(AddressValidationError);
     });
 
     it('throws for a state that is not a 2-letter uppercase UF', () => {
       const props = new TenantSettingsPropsBuilder()
         .withBusinessInfo({ address: { ...validAddress, state: 'sp' } })
         .build();
-      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+      expect(() => TenantSettings.create(props)).toThrow(AddressValidationError);
     });
 
     it('throws when the address is missing a required field', () => {
       const props = new TenantSettingsPropsBuilder()
         .withBusinessInfo({ address: { ...validAddress, street: '' } })
         .build();
-      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+      expect(() => TenantSettings.create(props)).toThrow(AddressValidationError);
     });
 
     it('accepts businessInfo with socialLinks set and exposes them via getter', () => {
