@@ -810,6 +810,7 @@ export function SettingsForm({
                 </label>
                 <input
                   id="settings-loyalty-notification-min-points"
+                  data-testid="settings-loyalty-notification-min-points-input"
                   type="number"
                   inputMode="numeric"
                   min={0}

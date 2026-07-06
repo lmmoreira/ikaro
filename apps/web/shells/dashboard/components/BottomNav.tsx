@@ -6,8 +6,8 @@ import { useTranslations } from 'next-intl';
 import { Calendar, Clock, Wrench, Star, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
-import { matchServiceRoute } from '@/shells/dashboard/model/service-route';
-import { matchTeamRoute } from '@/shells/dashboard/model/team-route';
+import { isServiceCreateRoute, matchServiceRoute } from '@/shells/dashboard/model/service-route';
+import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team-route';
 
 interface BottomNavProps {
   readonly role: 'STAFF' | 'MANAGER';
@@ -26,19 +26,17 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
   const pathname = usePathname();
   const isBookingDetail = matchBookingDetailRoute(pathname) !== null;
   const isServiceDetailAction = matchServiceRoute(pathname) !== null;
-  const isServiceCreateRoute = pathname === '/dashboard/services/new';
   const isLoyaltyDetail = /^\/dashboard\/loyalty\/[^/]+$/.test(pathname);
   const isSettingsPage = pathname === '/dashboard/settings';
-  const isTeamInviteRoute = pathname === '/dashboard/team/invite';
   const isTeamDetailRoute = matchTeamRoute(pathname) !== null;
 
   if (
     isBookingDetail ||
     isServiceDetailAction ||
-    isServiceCreateRoute ||
+    isServiceCreateRoute(pathname) ||
     isLoyaltyDetail ||
     isSettingsPage ||
-    isTeamInviteRoute ||
+    isTeamInviteRoute(pathname) ||
     isTeamDetailRoute
   )
     return null;

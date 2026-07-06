@@ -49,16 +49,16 @@ interface InviteStaffDto {
 
 ## Deriving member status for the list UI
 
-The `staff` table has **no dedicated "pending invite" status** — both a never-activated invitee and a deactivated former member have `isActive = false`. Distinguish them client-side using fields already on the aggregate:
+The `staff` table has **no dedicated "pending invite" status**, and since M13-S13's staff-auth security redesign, `Staff.invite()` provisions every row as `isActive = true` from the moment of creation (previously `false` — changed because `is_active=false` could be bypassed). This means `isActive` alone can no longer distinguish "never accepted the invite" from "currently active": a brand-new, never-logged-in invitee already has `isActive = true`. The reliable signal is `googleOAuthId`, set once at UC-025 activation and never cleared by `deactivate()` — it must be checked **before** `isActive`, not after:
 
 ```typescript
-function memberStatus(member: StaffListItem): 'active' | 'pending' | 'deactivated' {
-  if (member.isActive) return 'active';
-  return member.googleOAuthId === null ? 'pending' : 'deactivated';
+function memberStatus(member: { isActive: boolean; googleOAuthId: string | null }): 'active' | 'pending' | 'deactivated' {
+  if (member.googleOAuthId === null) return 'pending';
+  return member.isActive ? 'active' : 'deactivated';
 }
 ```
 
-`googleOAuthId` is set once, during UC-025 activation (`staff.aggregate.ts` `activate()`), and is never cleared by `deactivate()`. So `googleOAuthId === null` reliably means "never accepted the invite." Verify `StaffListItem` actually exposes `googleOAuthId` through the BFF response — if it's stripped for privacy, the BFF needs to expose a precomputed `status` field instead (cleaner anyway; consider proposing this as the API shape rather than leaking `googleOAuthId` to the frontend).
+This is implemented server-side in the BFF's `deriveStaffStatus()` (`apps/bff/src/features/staff/staff.mapper.ts`), which strips `googleOAuthId` from the response and exposes only the precomputed `status` field to the frontend — `StaffListItem` never sees `googleOAuthId` directly.
 
 ---
 

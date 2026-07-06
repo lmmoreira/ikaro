@@ -10,7 +10,7 @@ import { useUpdateStaff } from '@/features/staff/hooks/useStaff';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
-import { RoleOption } from './RoleOption';
+import { RoleSelectorField } from '@/features/staff/components/team/RoleSelectorField';
 
 interface StaffDetailPageProps {
   readonly staff: StaffResponse;
@@ -146,27 +146,7 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
               <p className="mt-1.5 text-sm text-gray-500">{t('emailReadonlyHint')}</p>
             </div>
 
-            <fieldset>
-              <legend className="mb-1.5 block text-sm font-semibold text-gray-900">
-                {t('roleLabel')}
-              </legend>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <RoleOption
-                  staffRole="STAFF"
-                  selected={role === 'STAFF'}
-                  title={t('roleStaff')}
-                  description={t('roleStaffDesc')}
-                  onSelect={setRole}
-                />
-                <RoleOption
-                  staffRole="MANAGER"
-                  selected={role === 'MANAGER'}
-                  title={t('roleManager')}
-                  description={t('roleManagerDesc')}
-                  onSelect={setRole}
-                />
-              </div>
-            </fieldset>
+            <RoleSelectorField staffRole={role} onSelect={setRole} />
 
             {fieldErrors.submit && (
               <div

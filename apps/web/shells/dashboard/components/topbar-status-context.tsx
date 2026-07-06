@@ -20,7 +20,7 @@ interface DashboardTopbarStatusContextValue {
   readonly setPageTitleOverride: (title: string | null) => void;
 }
 
-interface DashboardTopbarStatusProviderProps {
+export interface DashboardTopbarStatusProviderProps {
   readonly initialBookingStatus?: BookingStatus | null;
   readonly initialServiceStatus?: DashboardServiceStatus | null;
   readonly initialStaffRoleStatus?: StaffRole | null;

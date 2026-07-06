@@ -15,9 +15,17 @@ function buildItem(overrides?: Partial<StaffItem>): StaffItem {
 }
 
 describe('deriveStaffStatus', () => {
-  it('returns ACTIVE for an active member regardless of googleOAuthId', () => {
-    expect(deriveStaffStatus(buildItem({ isActive: true, googleOAuthId: null }))).toBe('ACTIVE');
-    expect(deriveStaffStatus(buildItem({ isActive: true }))).toBe('ACTIVE');
+  it('returns PENDING for a fresh invite (isActive=true, never linked a Google account)', () => {
+    // Staff.invite() provisions every row as isActive=true from the start (M13-S13 security
+    // fix), so a brand-new invitee already has isActive=true *and* googleOAuthId=null. This
+    // must resolve to PENDING, not ACTIVE — googleOAuthId is the real activation signal.
+    expect(deriveStaffStatus(buildItem({ isActive: true, googleOAuthId: null }))).toBe('PENDING');
+  });
+
+  it('returns ACTIVE for a member that has linked a Google account and is active', () => {
+    expect(deriveStaffStatus(buildItem({ isActive: true, googleOAuthId: 'google-sub-1' }))).toBe(
+      'ACTIVE',
+    );
   });
 
   it('returns PENDING for an inactive member that never linked a Google account', () => {

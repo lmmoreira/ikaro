@@ -3310,15 +3310,19 @@ Extend `apps/web/features/staff/api.ts` (reuse the existing `listStaff` client f
 `apps/web/features/staff/components/team/TeamListPage.tsx` (+ co-located `.spec.tsx`) — `'use client'`:
 - Filter tabs: **Todos** | **Ativos** | **Convites pendentes** | **Inativos** — client-side filter on `member.status`, no re-fetch
 - The logged-in admin's own row (`member.id === currentStaffId`) never renders a "Desativar" action (server-side guard already exists via `StaffSelfDeactivationError`; this is the UX nicety, not the safety net)
-- A `PENDING` row shows "Reenviar convite" instead of "Desativar" — links to the invite form (`M13-S33`, later branch) pre-filled with the same email
+- A `PENDING` row shows "Reenviar convite" instead of "Desativar" — originally shipped as a link to the invite form (`M13-S33`, later branch) pre-filled with the same email; **revised on the M13-S43 branch** to a one-click button that calls `POST /staff/invite` directly with the row's existing name/role, no form/navigation (see `M13-S43` note below)
 - Desktop create button + mobile FAB → `/dashboard/team/invite`
 
 `apps/web/features/staff/components/team/MemberRow.tsx` (+ co-located `.spec.tsx`):
 - Avatar (initials — reuse the shared `getInitials` util) + name + email
 - Role badge (`Gerente` / `Equipe`)
 - Status badge (`Ativo` green / `Convite pendente` yellow / `Inativo` red)
-- Action: "Desativar" → `/dashboard/team/[id]/deactivate` (`M13-S34`, later branch), or "Reenviar convite" for pending rows, or nothing for the current user's own row
-- Note: invite/deactivate target routes ship in `M13-S33`/`M13-S34` (separate branches) — links point at their future routes and 404 until those land; accepted during discovery
+- Action: "Desativar" → `/dashboard/team/[id]/deactivate` (`M13-S34`, later branch), or "Reenviar convite" for pending rows (one-click resend as of `M13-S43`, see below), or nothing for the current user's own row
+- Note: the deactivate target route ships in `M13-S34` (separate branch) — its link points at a future route and 404s until that lands; accepted during discovery
+
+> ✅ **Revised (2026-07-06, M13-S43 branch):** Two corrections made after M13-S32/M13-S33 shipped:
+> 1. **Status derivation bug** — `deriveStaffStatus()` (`apps/bff/src/features/staff/staff.mapper.ts`) checked `isActive` before `googleOAuthId`. Since M13-S13's staff-auth redesign, `Staff.invite()` provisions every row as `isActive=true` from creation (previously `false`), so a fresh invite was misclassified as `ACTIVE` instead of `PENDING`. Fixed to check `googleOAuthId` first.
+> 2. **Resend affordance** — changed from "reopen the invite form pre-filled with the email" to a one-click button on the row itself: calls `inviteStaff()` directly with the existing `name` (split into firstName/lastName — lossless since both parts were required non-empty fields at original invite time) and `role`, no navigation. The `?email=` pre-fill on `/dashboard/team/invite` (and `InviteForm`'s `initialEmail` prop) were removed as dead code as a result.
 
 All visible copy via `useTranslations()` with keys in both `pt-BR` and `en` locale files, pt-BR matching prototype copy verbatim.
 
@@ -3360,7 +3364,7 @@ inviteStaff(body: InviteStaffRequest): Promise<InviteStaffResponse>
 
 **What to create:**
 
-`apps/web/app/dashboard/team/invite/page.tsx` — server component wrapper. Reads `searchParams: Promise<{ email?: string }>` (the "Reenviar convite" link from `MemberRow.tsx` links here with `?email=<email>`) and passes it down as the email field's initial value. Renders `<InviteForm initialEmail={email} />`.
+`apps/web/app/dashboard/team/invite/page.tsx` — server component wrapper, renders `<InviteForm />` (no props — see the `M13-S43` revision note above: the resend-invite flow no longer navigates here).
 
 `apps/web/features/staff/components/team/InviteForm.tsx` (+ co-located `.spec.tsx`) — `'use client'`:
 
@@ -3368,7 +3372,7 @@ inviteStaff(body: InviteStaffRequest): Promise<InviteStaffResponse>
 |---|---|---|
 | Nome | `<input>` | required — "Informe o nome." |
 | Sobrenome | `<input>` | required — "Informe o sobrenome." |
-| E-mail | `<input type="email">` | `z.email()` — "E-mail inválido."; pre-filled from `initialEmail` when present |
+| E-mail | `<input type="email">` | `z.email()` — "E-mail inválido." |
 | Função | card-select: Equipe / Gerente | required, defaults to "Equipe" (`STAFF`) |
 
 Layout follows the established two-pane pattern used by `SettingsForm.tsx` / `ServiceCreatePage.tsx`: fields in a `Card` on the left, a sticky submit aside on `lg:` breakpoints (`lg:grid-cols-[minmax(0,1fr)_22rem]`), and a fixed bottom action bar on mobile (`lg:hidden`) instead of the prototype's floating `form-actions` bar.
@@ -3393,7 +3397,7 @@ Layout follows the established two-pane pattern used by `SettingsForm.tsx` / `Se
 **i18n:** new keys needed in both `pt-BR`/`en` `web.json` for the invite page's field labels, placeholders, validation messages, 409 error, and the `invited` banner copy — exact key names decided at implementation time, following the existing `dashboard.teamPage.*` namespace conventions.
 
 **Acceptance criteria:**
-- [ ] All 4 fields render; role selector defaults to "Equipe"; email pre-fills from `?email=` when present (the "Reenviar convite" flow from `MemberRow.tsx`)
+- [ ] All 4 fields render; role selector defaults to "Equipe"
 - [ ] Desktop: "+ Convidar membro" appears in the topbar on `/dashboard/team`, not in the page body; mobile FAB unchanged
 - [ ] Topbar on `/dashboard/team/invite` shows title "Convidar membro", back link to `/dashboard/team` labeled "Equipe", and a role badge that updates live as Equipe/Gerente is selected
 - [ ] Bottom nav is hidden on `/dashboard/team/invite` (fixed action bar owns the bottom edge on mobile)

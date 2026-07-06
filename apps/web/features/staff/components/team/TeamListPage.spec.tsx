@@ -12,6 +12,13 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: routerReplace }),
 }));
 
+vi.mock('@/features/staff/hooks/useStaff', () => ({
+  useInviteStaff: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}));
+
 const CURRENT_ID = '30000000-0000-4000-8000-000000000001';
 
 function buildMembers(): StaffListItem[] {

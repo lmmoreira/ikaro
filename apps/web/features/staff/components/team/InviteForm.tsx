@@ -11,16 +11,12 @@ import { validateInviteForm, type InviteFormErrors } from '@/features/staff/invi
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
-import { RoleOption } from './RoleOption';
-
-interface InviteFormProps {
-  readonly initialEmail?: string;
-}
+import { RoleSelectorField } from '@/features/staff/components/team/RoleSelectorField';
 
 const INPUT_CLASS =
   'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50';
 
-export function InviteForm({ initialEmail = '' }: InviteFormProps): React.JSX.Element {
+export function InviteForm(): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
   const commonT = useTranslations('common');
   const router = useRouter();
@@ -29,7 +25,7 @@ export function InviteForm({ initialEmail = '' }: InviteFormProps): React.JSX.El
   const setStaffRoleStatus = topbarStatus?.setStaffRoleStatus;
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState(initialEmail);
+  const [email, setEmail] = useState('');
   const [role, setRole] = useState<StaffRole>('STAFF');
   const [fieldErrors, setFieldErrors] = useState<InviteFormErrors>({});
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
@@ -64,7 +60,7 @@ export function InviteForm({ initialEmail = '' }: InviteFormProps): React.JSX.El
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <Card>
           <CardContent className="space-y-5 p-5 lg:p-6">
@@ -160,27 +156,7 @@ export function InviteForm({ initialEmail = '' }: InviteFormProps): React.JSX.El
               )}
             </div>
 
-            <fieldset>
-              <legend className="mb-1.5 block text-sm font-semibold text-gray-900">
-                {t('roleLabel')}
-              </legend>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <RoleOption
-                  staffRole="STAFF"
-                  selected={role === 'STAFF'}
-                  title={t('roleStaff')}
-                  description={t('roleStaffDesc')}
-                  onSelect={setRole}
-                />
-                <RoleOption
-                  staffRole="MANAGER"
-                  selected={role === 'MANAGER'}
-                  title={t('roleManager')}
-                  description={t('roleManagerDesc')}
-                  onSelect={setRole}
-                />
-              </div>
-            </fieldset>
+            <RoleSelectorField staffRole={role} onSelect={setRole} />
 
             {fieldErrors.submit && (
               <div

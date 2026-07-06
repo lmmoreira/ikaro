@@ -10,8 +10,8 @@ import { cn } from '@/shared/utils/cn';
 import { formatTodayLabel } from '@/shells/dashboard/utils/format-today';
 import { getInitials } from '@/shared/utils/initials';
 import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
-import { matchServiceRoute } from '@/shells/dashboard/model/service-route';
-import { matchTeamRoute } from '@/shells/dashboard/model/team-route';
+import { isServiceCreateRoute, matchServiceRoute } from '@/shells/dashboard/model/service-route';
+import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team-route';
 import {
   BOOKING_STATUS_CLASSES,
   buildBookingStatusLabels,
@@ -63,8 +63,8 @@ function resolveTopbarRouteState({
   const bookingRouteMatch = matchBookingDetailRoute(pathname);
   const serviceRouteMatch = matchServiceRoute(pathname);
   const isBookingRoute = bookingRouteMatch !== null;
-  const isServicesCreateRoute = pathname === '/dashboard/services/new';
-  const isTeamInviteRoute = pathname === '/dashboard/team/invite';
+  const isServicesCreateRouteMatch = isServiceCreateRoute(pathname);
+  const isTeamInviteRouteMatch = isTeamInviteRoute(pathname);
   const pageTitleKey = PAGE_TITLE_KEYS.find(([path]) => pathname.startsWith(path))?.[1];
   let pageTitle = dashboardT('topbar.defaultTitle');
   let backHref: string | null = null;
@@ -93,11 +93,11 @@ function resolveTopbarRouteState({
     pageTitle = servicesT('deactivatePageTitle');
     backHref = `/dashboard/services/${serviceRouteMatch.serviceId}/edit`;
     backLabel = servicesT('editPageTitle');
-  } else if (isServicesCreateRoute) {
+  } else if (isServicesCreateRouteMatch) {
     pageTitle = servicesT('createPageTitle');
     backHref = '/dashboard/services';
     backLabel = commonBackLabel;
-  } else if (isTeamInviteRoute) {
+  } else if (isTeamInviteRouteMatch) {
     pageTitle = teamT('invite');
     backHref = '/dashboard/team';
     backLabel = dashboardT('nav.team');
@@ -114,8 +114,8 @@ function resolveTopbarRouteState({
     backHref,
     backLabel,
     isBookingRoute,
-    isServicesCreateRoute,
-    isTeamInviteRoute,
+    isServicesCreateRoute: isServicesCreateRouteMatch,
+    isTeamInviteRoute: isTeamInviteRouteMatch,
   };
 }
 

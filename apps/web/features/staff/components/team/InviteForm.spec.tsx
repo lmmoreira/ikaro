@@ -29,7 +29,7 @@ vi.mock('@/shells/dashboard/components/topbar-status-context', () => ({
 
 describe('InviteForm', () => {
   function getPrimarySubmitButton() {
-    return screen.getAllByRole('button', { name: 'Enviar convite' })[0];
+    return screen.getByTestId('invite-submit-desktop');
   }
 
   function getRoleOption(role: 'STAFF' | 'MANAGER') {
@@ -55,12 +55,6 @@ describe('InviteForm', () => {
     expect(getRoleOption('STAFF')).toHaveAttribute('aria-pressed', 'true');
     expect(getRoleOption('MANAGER')).toHaveAttribute('aria-pressed', 'false');
     expect(mockSetStaffRoleStatus).toHaveBeenCalledWith('STAFF');
-  });
-
-  it('pre-fills the email field from initialEmail (resend-invite flow)', () => {
-    renderWithIntl(<InviteForm initialEmail="novo@lavacar.com.br" />);
-
-    expect(screen.getByLabelText('E-mail *')).toHaveValue('novo@lavacar.com.br');
   });
 
   it('keeps the topbar role status in sync with the selected role', async () => {

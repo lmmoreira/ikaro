@@ -1,9 +1,19 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffListItem } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { MemberRow } from './MemberRow';
+
+const mockInviteStaff = vi.fn();
+
+vi.mock('@/features/staff/hooks/useStaff', () => ({
+  useInviteStaff: () => ({
+    mutateAsync: mockInviteStaff,
+    isPending: false,
+  }),
+}));
 
 function buildMember(overrides?: Partial<StaffListItem>): StaffListItem {
   return {
@@ -19,6 +29,10 @@ function buildMember(overrides?: Partial<StaffListItem>): StaffListItem {
 }
 
 describe('MemberRow', () => {
+  beforeEach(() => {
+    mockInviteStaff.mockReset();
+  });
+
   it('renders initials, name, email, role and status badges', () => {
     renderWithIntl(<MemberRow member={buildMember()} isCurrentUser={false} />);
 
@@ -37,19 +51,19 @@ describe('MemberRow', () => {
     expect(action).toHaveAttribute('href', `/dashboard/team/${member.id}/deactivate`);
   });
 
-  it('never shows Desativar on the current user own row', () => {
+  it('never shows Desativar or Reenviar convite on the current user own row', () => {
     renderWithIntl(<MemberRow member={buildMember()} isCurrentUser />);
 
     expect(screen.queryByRole('link', { name: 'Desativar' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Reenviar convite' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('resend-invite-button')).not.toBeInTheDocument();
   });
 
-  it('shows Reenviar convite instead of Desativar for a pending member', () => {
+  it('shows a Reenviar convite button (not a link) instead of Desativar for a pending member', () => {
     const member = buildMember({
-      isActive: false,
+      isActive: true,
       status: 'PENDING',
       role: 'STAFF',
-      name: null,
+      name: 'Novo Membro',
       email: 'novo@lavacar.com.br',
     });
     renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
@@ -57,17 +71,84 @@ describe('MemberRow', () => {
     expect(screen.getByText('Convite pendente')).toBeInTheDocument();
     expect(screen.getByText('Equipe')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Desativar' })).not.toBeInTheDocument();
-    const resend = screen.getByRole('link', { name: 'Reenviar convite' });
-    expect(resend).toHaveAttribute('href', '/dashboard/team/invite?email=novo%40lavacar.com.br');
+    expect(screen.getByTestId('resend-invite-button')).toHaveTextContent('Reenviar convite');
   });
 
-  it('shows no action link for a deactivated member, only the row-to-detail link', () => {
+  it('resends the invite directly with the row existing name/role/email, no navigation', async () => {
+    const user = userEvent.setup();
+    mockInviteStaff.mockResolvedValue({
+      staffId: '1',
+      email: 'novo@lavacar.com.br',
+      role: 'STAFF',
+      isActive: true,
+    });
+    const member = buildMember({
+      status: 'PENDING',
+      role: 'STAFF',
+      name: 'Novo Membro',
+      email: 'novo@lavacar.com.br',
+    });
+    renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
+
+    await user.click(screen.getByTestId('resend-invite-button'));
+
+    expect(mockInviteStaff).toHaveBeenCalledWith({
+      email: 'novo@lavacar.com.br',
+      firstName: 'Novo',
+      lastName: 'Membro',
+      role: 'STAFF',
+    });
+    expect(await screen.findByTestId('resend-invite-success')).toHaveTextContent(
+      'Convite reenviado!',
+    );
+  });
+
+  it('shows an inline error when the resend fails', async () => {
+    const user = userEvent.setup();
+    mockInviteStaff.mockRejectedValue(new Error('network down'));
+    const member = buildMember({ status: 'PENDING', role: 'STAFF', name: 'Novo Membro' });
+    renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
+
+    await user.click(screen.getByTestId('resend-invite-button'));
+
+    expect(await screen.findByTestId('resend-invite-error')).toHaveTextContent(
+      'Não foi possível reenviar. Tente novamente.',
+    );
+  });
+
+  it('falls back to the email local part as first/last name when member has no name', async () => {
+    const user = userEvent.setup();
+    mockInviteStaff.mockResolvedValue({
+      staffId: '1',
+      email: 'semnome@lavacar.com.br',
+      role: 'STAFF',
+      isActive: true,
+    });
+    const member = buildMember({
+      status: 'PENDING',
+      role: 'STAFF',
+      name: null,
+      email: 'semnome@lavacar.com.br',
+    });
+    renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
+
+    await user.click(screen.getByTestId('resend-invite-button'));
+
+    expect(mockInviteStaff).toHaveBeenCalledWith({
+      email: 'semnome@lavacar.com.br',
+      firstName: 'semnome',
+      lastName: 'semnome',
+      role: 'STAFF',
+    });
+  });
+
+  it('shows no action for a deactivated member, only the row-to-detail link', () => {
     const member = buildMember({ isActive: false, status: 'DEACTIVATED' });
     renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
 
     expect(screen.getByText('Inativo')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Desativar' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Reenviar convite' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('resend-invite-button')).not.toBeInTheDocument();
     expect(screen.getAllByRole('link')).toHaveLength(1);
   });
 
@@ -79,10 +160,10 @@ describe('MemberRow', () => {
     expect(detailLink).toHaveAttribute('href', `/dashboard/team/${member.id}`);
   });
 
-  it('falls back to the email when the member has no name', () => {
+  it('falls back to the email in the name/avatar display when the member has no name', () => {
     renderWithIntl(
       <MemberRow
-        member={buildMember({ name: null, status: 'PENDING', isActive: false })}
+        member={buildMember({ name: null, status: 'DEACTIVATED', isActive: false })}
         isCurrentUser={false}
       />,
     );
