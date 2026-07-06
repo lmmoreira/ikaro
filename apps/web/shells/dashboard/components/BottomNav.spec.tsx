@@ -71,6 +71,20 @@ describe('BottomNav', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('hides itself on the service create route (fixed action bar owns the bottom edge)', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/services/new');
+    const { container } = render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('hides itself on the team invite route (fixed action bar owns the bottom edge)', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/team/invite');
+    const { container } = render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('still renders on the team list page (FAB sits above the nav, no fixed bar)', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/team');
     render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);

@@ -3343,14 +3343,16 @@ All visible copy via `useTranslations()` with keys in both `pt-BR` and `en` loca
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` § UC-028, `plan/journey/manager/prototypes/equipe/02-invite-form.html`, `02b-invite-error.html`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-028, `plan/journey/manager/prototypes/equipe/02-invite-form.html`, `02b-invite-error.html`, `plan/journey/manager/prototypes/equipe/dev-notes.md`
 
 **Description:**
 The invite form — name, email, role selector. `POST /staff/invite` already exists and is fully guarded; this is a frontend-only story.
 
+> ✅ **Discovery resolved (2026-07-06):** M13-S32 already shipped `inviteStaff()` in the canonical `apps/web/features/staff/api.ts` and `InviteStaffRequest`/`InviteStaffResponse` in `@ikaro/types` — this story's earlier `apps/web/lib/api/dashboard/team.ts` / `apps/web/components/dashboard/team/InviteForm.tsx` paths were stale (that `lib/api/dashboard/` tree no longer exists, per M13-S32's own resolution note). Also, the system has no toast component anywhere and `plan/journey/README.md` documents floating toasts as an explicit anti-pattern ("the rest of the system uses inline banners") — so the success flow is redirect + inline banner, matching `ServiceListPage`'s `showCreatedBanner` mechanism, not a toast.
+
 **Route:** `/dashboard/team/invite`
 
-**`apps/web/lib/api/dashboard/team.ts` additions:**
+**`apps/web/features/staff/api.ts`:** already has `inviteStaff()` (shipped in M13-S32) — no changes needed:
 ```typescript
 inviteStaff(body: InviteStaffRequest): Promise<InviteStaffResponse>
 // POST /staff/invite -> 201; 409 -> email already has an active record
@@ -3358,29 +3360,47 @@ inviteStaff(body: InviteStaffRequest): Promise<InviteStaffResponse>
 
 **What to create:**
 
-`apps/web/app/dashboard/team/invite/page.tsx` — server component wrapper, renders `<InviteForm />`.
+`apps/web/app/dashboard/team/invite/page.tsx` — server component wrapper. Reads `searchParams: Promise<{ email?: string }>` (the "Reenviar convite" link from `MemberRow.tsx` links here with `?email=<email>`) and passes it down as the email field's initial value. Renders `<InviteForm initialEmail={email} />`.
 
-`apps/web/components/dashboard/team/InviteForm.tsx` — `'use client'`:
+`apps/web/features/staff/components/team/InviteForm.tsx` (+ co-located `.spec.tsx`) — `'use client'`:
 
 | Field | Input | Validation |
 |---|---|---|
-| Nome | `<input>` | required |
-| Sobrenome | `<input>` | required |
-| E-mail | `<input type="email">` | `z.email()` |
-| Função | card-select: Equipe / Gerente | required, defaults to "Equipe" |
+| Nome | `<input>` | required — "Informe o nome." |
+| Sobrenome | `<input>` | required — "Informe o sobrenome." |
+| E-mail | `<input type="email">` | `z.email()` — "E-mail inválido."; pre-filled from `initialEmail` when present |
+| Função | card-select: Equipe / Gerente | required, defaults to "Equipe" (`STAFF`) |
 
-- Topbar: back arrow → `/dashboard/team`
+Layout follows the established two-pane pattern used by `SettingsForm.tsx` / `ServiceCreatePage.tsx`: fields in a `Card` on the left, a sticky submit aside on `lg:` breakpoints (`lg:grid-cols-[minmax(0,1fr)_22rem]`), and a fixed bottom action bar on mobile (`lg:hidden`) instead of the prototype's floating `form-actions` bar.
+
 - On submit: `inviteStaff({ firstName, lastName, email, role })`
-  - `201` → `router.push('/dashboard/team')` + `revalidatePath('/dashboard/team')` + toast "Convite enviado para [email]."
-  - `409` → email field gets `has-error` styling + "Este e-mail já está cadastrado na sua equipe." (matches `02b-invite-error.html`); other fields unchanged
+  - `201` → `router.push('/dashboard/team?invited=' + encodeURIComponent(email))` (no `revalidatePath` — `fetchStaffList()` already fetches with `cache: 'no-store'`, so the next server render is fresh regardless)
+  - `409` → email field gets inline error styling + "Este e-mail já está cadastrado na sua equipe." (matches `02b-invite-error.html`); other fields unchanged
   - Inactive record with same email (UC-028 A2) → backend reactivates silently; same `201` success path, no special handling needed client-side
 - Submit disabled while in flight
 
+**`apps/web/features/staff/components/team/TeamListPage.tsx` changes:**
+- Accept an `invitedEmail?: string` prop (from `page.tsx` reading `searchParams.invited`); when present, render an inline success banner ("Convite enviado para {email}.") matching the `settings-saved-banner` / `ServiceListPage`'s `showCreatedBanner` visual pattern, and auto-dismiss it via `router.replace('/dashboard/team', { scroll: false })` after ~1.8s (same mechanism as `ServiceListPage`)
+- Remove the desktop "+ Convidar membro" `Button` currently in the page body — it moves to the topbar (see below), matching `ServiceListPage` (no desktop create button in body, only the mobile FAB stays)
+
+**Shared shell chrome changes (mirroring the Services list→create pattern exactly):**
+- `apps/web/app/dashboard/team/layout.tsx`: upgrade from the generic `DashboardSectionShell` wrapper to a `services/layout.tsx`-style layout — read `x-pathname`, compute a `topbarAction` (the "+ Convidar membro" button, desktop-only) when `pathname === '/dashboard/team'`, and seed `DashboardTopbarStatusProvider`'s new role-status field (see below) when on the invite route
+- `apps/web/shells/dashboard/components/topbar-status-context.tsx`: add a `staffRoleStatus: StaffRole | null` field + `setStaffRoleStatus` setter, mirroring the existing `serviceStatus`/`setServiceStatus` pair
+- `apps/web/shells/dashboard/components/Topbar.tsx`: on `pathname === '/dashboard/team/invite'` — page title "Convidar membro", back link → `/dashboard/team` labeled via `dashboardT('nav.team')` ("Equipe"), matching the prototype's topbar exactly; render a role badge from `topbarStatus.staffRoleStatus` reusing the existing `roleManager`/`roleStaff` i18n keys (mirrors the `serviceStatus` badge block)
+- `InviteForm.tsx` syncs the selected role into `staffRoleStatus` via the same `useEffect` pattern `ServiceCreatePage.tsx` uses for `isActive` → `serviceStatus`
+- `apps/web/shells/dashboard/components/BottomNav.tsx`: add `/dashboard/team/invite` to the fixed-action-bar route list. While doing this, **fix a pre-existing bug and de-duplicate**: `BottomNav.tsx` currently reimplements its own `isBookingDetail`/`isServiceDetailAction` regexes instead of reusing `matchBookingDetailRoute`/`matchServiceRoute` from `shells/dashboard/model/` (the same functions `Topbar.tsx` already uses) — switch to those shared functions, and add the missing `/dashboard/services/new` case (currently *not* suppressed even though `ServiceCreatePage` has the same fixed bottom bar as edit/deactivate — the bottom nav currently sits on top of it on mobile)
+
+**i18n:** new keys needed in both `pt-BR`/`en` `web.json` for the invite page's field labels, placeholders, validation messages, 409 error, and the `invited` banner copy — exact key names decided at implementation time, following the existing `dashboard.teamPage.*` namespace conventions.
+
 **Acceptance criteria:**
-- [ ] All 4 fields render; role selector defaults to "Equipe"
-- [ ] `201` → redirects to `/dashboard/team`; new member visible with "Convite pendente" status
+- [ ] All 4 fields render; role selector defaults to "Equipe"; email pre-fills from `?email=` when present (the "Reenviar convite" flow from `MemberRow.tsx`)
+- [ ] Desktop: "+ Convidar membro" appears in the topbar on `/dashboard/team`, not in the page body; mobile FAB unchanged
+- [ ] Topbar on `/dashboard/team/invite` shows title "Convidar membro", back link to `/dashboard/team` labeled "Equipe", and a role badge that updates live as Equipe/Gerente is selected
+- [ ] Bottom nav is hidden on `/dashboard/team/invite` (fixed action bar owns the bottom edge on mobile)
+- [ ] `201` → redirects to `/dashboard/team?invited=<email>`; inline success banner shows "Convite enviado para [email]." and auto-dismisses after ~1.8s; new member visible with "Convite pendente" status
 - [ ] `409` → email field shows inline error; first/last name and role selection are preserved
 - [ ] Back arrow returns to `/dashboard/team` without submitting
+- [ ] Bottom nav is also now correctly hidden on `/dashboard/services/new` (regression fix, covered by `BottomNav.spec.tsx`)
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
 
 **Dependencies:** M13-S32

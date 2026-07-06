@@ -382,7 +382,28 @@
       "statusActive": "Active",
       "statusPending": "Pending invite",
       "statusInactive": "Inactive",
-      "truncatedNotice": "Showing the first 100 team members."
+      "truncatedNotice": "Showing the first 100 team members.",
+      "firstNameLabel": "First name *",
+      "firstNamePlaceholder": "Jane",
+      "lastNameLabel": "Last name *",
+      "lastNamePlaceholder": "Doe",
+      "emailLabel": "Email *",
+      "emailPlaceholder": "jane.doe@gmail.com",
+      "emailHint": "The invite is sent to this email. The person must sign in with a Google account using the same address.",
+      "roleLabel": "Role *",
+      "roleStaffDesc": "Manages schedule, hours, and services",
+      "roleManagerDesc": "Everything in Staff plus settings, hotsite, and team",
+      "inviteSubmit": "Send invite",
+      "inviteAsideHint": "The invite expires in 7 days. The person must sign in with the same email provided.",
+      "inviteDuplicateEmail": "This email is already registered on your team.",
+      "inviteFailed": "Could not send the invite. Please try again.",
+      "invitedSuccessTitle": "Invite sent!",
+      "invitedSuccessBody": "Invite sent to {email}.",
+      "errors": {
+        "firstNameRequired": "Enter the first name.",
+        "lastNameRequired": "Enter the last name.",
+        "emailInvalid": "Invalid email."
+      }
     },
     "settingsPage": {
       "sections": {
