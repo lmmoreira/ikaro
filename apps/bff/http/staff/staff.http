@@ -96,6 +96,22 @@ Content-Type: application/json
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — deactivate / activate (UC-029 / UC-031)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Deactivate a staff member
+PATCH {{bffUrl}}/v1/staff/{{staffWorkerId}}/deactivate
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Reactivate a deactivated staff member
+PATCH {{bffUrl}}/v1/staff/{{staffWorkerId}}/activate
+Authorization: Bearer {{managerToken}}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
 

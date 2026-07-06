@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { StaffListItem, StaffStatus } from '@ikaro/types';
-import { useInviteStaff } from '@/features/staff/hooks/useStaff';
+import { useActivateStaff, useInviteStaff } from '@/features/staff/hooks/useStaff';
 import { getInitials } from '@/shared/utils/initials';
 import { cn } from '@/shared/utils/cn';
 
@@ -96,6 +97,54 @@ function ResendInviteAction({ member }: { readonly member: StaffListItem }): Rea
   );
 }
 
+function ActivateMemberAction({ member }: { readonly member: StaffListItem }): React.JSX.Element {
+  const t = useTranslations('dashboard.teamPage');
+  const router = useRouter();
+  const activateStaffMutation = useActivateStaff();
+  const [activateState, setActivateState] = useState<'idle' | 'success' | 'error'>('idle');
+
+  async function handleActivate(): Promise<void> {
+    setActivateState('idle');
+    try {
+      await activateStaffMutation.mutateAsync(member.id);
+      setActivateState('success');
+      // The team list is server-rendered (page.tsx fetches it, not a client query) — refresh()
+      // re-runs the server fetch in place so the status badge and this row's action both flip
+      // from Inativo/Ativar to Ativo/Desativar without a full navigation.
+      router.refresh();
+    } catch {
+      setActivateState('error');
+    }
+  }
+
+  return (
+    <div className="relative z-20 flex items-center gap-2">
+      <button
+        type="button"
+        data-testid="activate-member-button"
+        onClick={() => void handleActivate()}
+        disabled={activateStaffMutation.isPending}
+        className="text-sm font-semibold text-blue-600 hover:underline disabled:opacity-50"
+      >
+        {activateStaffMutation.isPending ? t('activating') : t('activate')}
+      </button>
+      {activateState === 'success' && (
+        <span
+          data-testid="activate-member-success"
+          className="text-xs font-semibold text-emerald-600"
+        >
+          {t('activateSuccess')}
+        </span>
+      )}
+      {activateState === 'error' && (
+        <span data-testid="activate-member-error" className="text-xs font-semibold text-red-600">
+          {t('activateError')}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function MemberAction({ member, isCurrentUser }: MemberRowProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.teamPage');
 
@@ -112,6 +161,10 @@ function MemberAction({ member, isCurrentUser }: MemberRowProps): React.JSX.Elem
         {t('deactivate')}
       </Link>
     );
+  }
+
+  if (member.status === 'DEACTIVATED') {
+    return <ActivateMemberAction member={member} />;
   }
 
   return null;

@@ -7,12 +7,22 @@ import { renderWithIntl } from '@/test-utils';
 import { MemberRow } from './MemberRow';
 
 const mockInviteStaff = vi.fn();
+const mockActivateStaff = vi.fn();
+const mockRouterRefresh = vi.fn();
 
 vi.mock('@/features/staff/hooks/useStaff', () => ({
   useInviteStaff: () => ({
     mutateAsync: mockInviteStaff,
     isPending: false,
   }),
+  useActivateStaff: () => ({
+    mutateAsync: mockActivateStaff,
+    isPending: false,
+  }),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: mockRouterRefresh }),
 }));
 
 function buildMember(overrides?: Partial<StaffListItem>): StaffListItem {
@@ -31,6 +41,8 @@ function buildMember(overrides?: Partial<StaffListItem>): StaffListItem {
 describe('MemberRow', () => {
   beforeEach(() => {
     mockInviteStaff.mockReset();
+    mockActivateStaff.mockReset();
+    mockRouterRefresh.mockReset();
   });
 
   it('renders initials, name, email, role and status badges', () => {
@@ -142,14 +154,58 @@ describe('MemberRow', () => {
     });
   });
 
-  it('shows no action for a deactivated member, only the row-to-detail link', () => {
+  it('shows an Ativar button (not a link) instead of Desativar for a deactivated member', () => {
     const member = buildMember({ isActive: false, status: 'DEACTIVATED' });
     renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
 
     expect(screen.getByText('Inativo')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Desativar' })).not.toBeInTheDocument();
     expect(screen.queryByTestId('resend-invite-button')).not.toBeInTheDocument();
+    expect(screen.getByTestId('activate-member-button')).toHaveTextContent('Ativar');
     expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('activates the member directly, no navigation', async () => {
+    const user = userEvent.setup();
+    mockActivateStaff.mockResolvedValue({
+      staffId: '30000000-0000-4000-8000-000000000001',
+      isActive: true,
+    });
+    const member = buildMember({ isActive: false, status: 'DEACTIVATED' });
+    renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
+
+    await user.click(screen.getByTestId('activate-member-button'));
+
+    expect(mockActivateStaff).toHaveBeenCalledWith(member.id);
+    expect(await screen.findByTestId('activate-member-success')).toHaveTextContent(
+      'Membro ativado!',
+    );
+    expect(mockRouterRefresh).toHaveBeenCalledOnce();
+  });
+
+  it('does not refresh the route when activation fails', async () => {
+    const user = userEvent.setup();
+    mockActivateStaff.mockRejectedValue(new Error('network down'));
+    const member = buildMember({ isActive: false, status: 'DEACTIVATED' });
+    renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
+
+    await user.click(screen.getByTestId('activate-member-button'));
+
+    await screen.findByTestId('activate-member-error');
+    expect(mockRouterRefresh).not.toHaveBeenCalled();
+  });
+
+  it('shows an inline error when activation fails', async () => {
+    const user = userEvent.setup();
+    mockActivateStaff.mockRejectedValue(new Error('network down'));
+    const member = buildMember({ isActive: false, status: 'DEACTIVATED' });
+    renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
+
+    await user.click(screen.getByTestId('activate-member-button'));
+
+    expect(await screen.findByTestId('activate-member-error')).toHaveTextContent(
+      'Não foi possível ativar. Tente novamente.',
+    );
   });
 
   it('links the whole row to the staff detail page', () => {

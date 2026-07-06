@@ -4,6 +4,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
+import { ActivateStaffUseCase } from '../../application/use-cases/activate-staff.use-case';
 import { DeactivateStaffUseCase } from '../../application/use-cases/deactivate-staff.use-case';
 import { GetStaffByIdUseCase } from '../../application/use-cases/get-staff-by-id.use-case';
 import { GetStaffTenantsByIdUseCase } from '../../application/use-cases/get-staff-tenants-by-id.use-case';
@@ -36,6 +37,7 @@ function makeController(
     new GetStaffByIdUseCase(repo),
     new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
     new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
+    new ActivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
     new UpdateStaffProfileUseCase(repo, new InMemoryTransactionManager()),
     new GetStaffTenantsByIdUseCase(repo),
   );
@@ -235,6 +237,7 @@ describe('StaffController', () => {
         new GetStaffByIdUseCase(repo),
         new InviteStaffUseCase(repo, txMgr, eventBus),
         new DeactivateStaffUseCase(repo, txMgr, eventBus),
+        new ActivateStaffUseCase(repo, txMgr, eventBus),
         new UpdateStaffProfileUseCase(repo, txMgr),
         new GetStaffTenantsByIdUseCase(repo),
       );
@@ -305,6 +308,96 @@ describe('StaffController', () => {
 
       const ctrl = makeController(repo, eventBus, TENANT_A, actor.id);
       const err = await ctrl.deactivate(manager.id).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
+    });
+  });
+
+  describe('activate()', () => {
+    it('returns 400 when X-Actor-ID header is missing', async () => {
+      const ctxNoActor = new RequestContextBuilder()
+        .withTenantId(TENANT_A)
+        .withCorrelationId(CORRELATION_ID)
+        .build();
+      const txMgr = new InMemoryTransactionManager();
+      const ctrl = new StaffController(
+        ctxNoActor,
+        new GetStaffUseCase(repo),
+        new GetStaffByIdUseCase(repo),
+        new InviteStaffUseCase(repo, txMgr, eventBus),
+        new DeactivateStaffUseCase(repo, txMgr, eventBus),
+        new ActivateStaffUseCase(repo, txMgr, eventBus),
+        new UpdateStaffProfileUseCase(repo, txMgr),
+        new GetStaffTenantsByIdUseCase(repo),
+      );
+      const err = await ctrl
+        .activate('10000000-0000-4000-8000-000000000001')
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('activates a deactivated STAFF member using tenantId from RequestContext', async () => {
+      const manager = new StaffBuilder()
+        .withTenantId(TENANT_A)
+        .withRole('MANAGER')
+        .withEmail('manager@lavacar.com.br')
+        .withGoogleOAuthId('google-manager')
+        .build();
+      const staff = new StaffBuilder()
+        .withTenantId(TENANT_A)
+        .withRole('STAFF')
+        .withEmail('staff@lavacar.com.br')
+        .withGoogleOAuthId('google-staff')
+        .build();
+      staff.deactivate(manager.id, 'corr-setup');
+      await repo.save(manager);
+      await repo.save(staff);
+
+      const ctrl = makeController(repo, eventBus, TENANT_A, manager.id);
+      const result = await ctrl.activate(staff.id);
+
+      expect(result.staffId).toBe(staff.id);
+      expect(result.isActive).toBe(true);
+
+      const saved = await repo.findById(staff.id, TENANT_A);
+      expect(saved!.deactivatedBy).toBeNull();
+    });
+
+    it('maps StaffSelfReactivationError to 403', async () => {
+      const manager = new StaffBuilder()
+        .withTenantId(TENANT_A)
+        .withRole('MANAGER')
+        .withEmail('manager@lavacar.com.br')
+        .withGoogleOAuthId('google-manager')
+        .build();
+      manager.deactivate('some-other-actor', 'corr-setup');
+      await repo.save(manager);
+
+      const ctrl = makeController(repo, eventBus, TENANT_A, manager.id);
+      const err = await ctrl.activate(manager.id).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.FORBIDDEN);
+    });
+
+    it('maps StaffAlreadyActiveError to 409', async () => {
+      const manager = new StaffBuilder()
+        .withTenantId(TENANT_A)
+        .withRole('MANAGER')
+        .withEmail('manager@lavacar.com.br')
+        .withGoogleOAuthId('google-manager')
+        .build();
+      const staff = new StaffBuilder()
+        .withTenantId(TENANT_A)
+        .withRole('STAFF')
+        .withEmail('staff@lavacar.com.br')
+        .withGoogleOAuthId('google-staff')
+        .build();
+      await repo.save(manager);
+      await repo.save(staff);
+
+      const ctrl = makeController(repo, eventBus, TENANT_A, manager.id);
+      const err = await ctrl.activate(staff.id).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
     });

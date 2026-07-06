@@ -4336,6 +4336,47 @@ Clicking a staff member's row in the team list now goes to a detail page where t
 
 ---
 
+### M13-S44 — Equipe: activate member flow
+
+**Agent:** `frontend-ts` (full-stack — backend + BFF + web)
+**Complexity:** S
+**Docs to load:** `docs/04-USE_CASES.md` § UC-031
+
+**Description:**
+While verifying M13-S34 (deactivate member flow) live in the browser, we discovered there was no working path back for a deactivated staff member — `InviteStaffUseCase` throws `StaffAlreadyExistsError` for any email that has ever linked a Google account, active or deactivated, so re-inviting never reactivates one. This story adds a real, symmetric "activate" capability. One-click action on the row — mirrors the existing "Reenviar convite" pattern on PENDING rows, not a dedicated confirmation page — since reactivation is low-stakes and reversible (deactivate again if clicked in error). No dedicated UX prototype was produced — this mirrors an already-validated one-click interaction rather than introducing new UX.
+
+**Backend — `apps/backend/src/contexts/staff/`:**
+- `domain/staff.aggregate.ts`: new `activate(activatedBy: string, correlationId: string): void` — mirrors `deactivate()`'s shape: guards self-reactivation (`StaffSelfReactivationError`), sets `isActive = true`, clears `deactivatedBy`, records `StaffActivated`.
+- `domain/errors/staff-domain.error.ts`: new `StaffSelfReactivationError`, mirroring `StaffSelfDeactivationError`. Reuses the existing (previously unused) `StaffAlreadyActiveError`.
+- `domain/events/staff-activated.event.ts` (new): mirrors `staff-deactivated.event.ts`.
+- `infrastructure/http/staff-error.mapper.ts`: `StaffSelfReactivationError` → 403.
+- `application/use-cases/activate-staff.use-case.ts` (new): `ActivateStaffUseCase` — find by id+tenantId (`StaffNotFoundError` if missing); fast-exit self-reactivation and already-active checks; `staff.activate()`; save; publish events; return `{ staffId, isActive: true }`.
+- `infrastructure/controllers/staff.controller.ts`: new `PATCH /staff/:id/activate`, `ManagerRoleGuard`, same actor-id guard shape as `deactivate`. Register `ActivateStaffUseCase` in `staff.module.ts`.
+- Request block added to `apps/backend/http/staff/staff.http` (happy path + 403 self + 409 already-active).
+
+**BFF — `apps/bff/src/features/staff/`:**
+- `staff.controller.ts`: new `PATCH /staff/:id/activate`, mirrors `deactivate()`.
+- `packages/types/src/staff.dto.ts`: add `ActivateStaffResponse { staffId: string; isActive: true }`.
+- Request block added to `apps/bff/http/staff/staff.http`.
+
+**Web:**
+- `apps/web/features/staff/api.ts`: add `activateStaff(id: string): Promise<ActivateStaffResponse>`.
+- `apps/web/features/staff/hooks/useStaff.ts`: add `useActivateStaff()` mutation (mirrors `useDeactivateStaff`).
+- `apps/web/features/staff/components/team/MemberRow.tsx`: new `ActivateMemberAction` component (mirrors `ResendInviteAction`'s local idle/success/error state), wired for `status === 'DEACTIVATED'` — replaces the previous `return null` fallthrough.
+- i18n: `activate`/`activating`/`activateSuccess`/`activateError` keys under `dashboard.teamPage`, both `pt-BR`/`en`.
+
+**Acceptance criteria:**
+- [x] A deactivated member's row shows an "Ativar" action (not a dead end)
+- [x] Clicking it calls `PATCH /staff/:id/activate` directly, no navigation — success shows inline confirmation, row flips to "Ativo"
+- [x] Self-reactivation attempt (stale-but-valid JWT scenario) → `403`, mirrors UC-029 A1's guard family
+- [x] Already-active reactivation attempt → `409` (defensive only — button never renders for active rows)
+- [x] Tenant isolation: staff from another tenant → `404`
+- [x] `tsc --noEmit` passes across the monorepo; `pnpm lint` zero warnings; unit tests pass
+
+**Dependencies:** M13-S34
+
+---
+
 ## Open questions & future discovery
 
 > Consolidated from all 7 source files' "Open questions" and "Future discovery" sections. Items already resolved by a decision made during this consolidation (or that turned out to already be in scope) are marked `[x]` with a one-line resolution; genuinely open items are marked `[ ]` and reference the story they block.

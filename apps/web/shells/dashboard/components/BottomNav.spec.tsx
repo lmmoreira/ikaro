@@ -69,6 +69,10 @@ describe('BottomNav', () => {
     ['the service create route (fixed action bar owns the bottom edge)', '/dashboard/services/new'],
     ['the team invite route (fixed action bar owns the bottom edge)', '/dashboard/team/invite'],
     ['the team detail route (fixed Save bar owns the bottom edge)', '/dashboard/team/staff-1'],
+    [
+      'the team deactivate route (fixed action bar owns the bottom edge)',
+      '/dashboard/team/staff-1/deactivate',
+    ],
   ])('hides itself on %s', (_label, pathname) => {
     vi.mocked(usePathname).mockReturnValue(pathname);
     const { container } = render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);

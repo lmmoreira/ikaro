@@ -7,13 +7,18 @@ import { renderWithIntl } from '@/test-utils';
 import { TeamListPage } from './TeamListPage';
 
 const routerReplace = vi.fn();
+const routerRefresh = vi.fn();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: routerReplace }),
+  useRouter: () => ({ replace: routerReplace, refresh: routerRefresh }),
 }));
 
 vi.mock('@/features/staff/hooks/useStaff', () => ({
   useInviteStaff: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useActivateStaff: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),

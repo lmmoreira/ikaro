@@ -3,12 +3,14 @@ import { SYSTEM_ACTOR_ID } from '../../../shared/domain/system-actor';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Email } from '../../../shared/value-objects/email.vo';
 import { normalizeText } from '../../../shared/utils/text-normalization';
+import { StaffActivated } from './events/staff-activated.event';
 import { StaffDeactivated } from './events/staff-deactivated.event';
 import { StaffInvited } from './events/staff-invited.event';
 import {
   StaffDomainError,
   StaffGoogleAccountConflictError,
   StaffSelfDeactivationError,
+  StaffSelfReactivationError,
 } from './errors/staff-domain.error';
 
 export type StaffRole = 'MANAGER' | 'STAFF';
@@ -176,6 +178,16 @@ export class Staff extends AggregateRoot {
     this.props.updatedAt = new Date();
     this.addDomainEvent(
       new StaffDeactivated(this.props.tenantId, correlationId, { staffId: this.props.id }),
+    );
+  }
+
+  activate(activatedBy: string, correlationId: string): void {
+    if (this.props.id === activatedBy) throw new StaffSelfReactivationError();
+    this.props.isActive = true;
+    this.props.deactivatedBy = null;
+    this.props.updatedAt = new Date();
+    this.addDomainEvent(
+      new StaffActivated(this.props.tenantId, correlationId, { staffId: this.props.id }),
     );
   }
 }

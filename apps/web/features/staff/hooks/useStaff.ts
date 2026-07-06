@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { InviteStaffRequest, UpdateStaffRequest } from '@ikaro/types';
 import {
+  activateStaff,
   deactivateStaff,
   getStaffMember,
   inviteStaff,
@@ -50,6 +51,15 @@ export function useDeactivateStaff() {
   const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (id: string) => deactivateStaff(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff', tenantId] }),
+  });
+}
+
+export function useActivateStaff() {
+  const queryClient = useQueryClient();
+  const { tenantId } = useTenant();
+  return useMutation({
+    mutationFn: (id: string) => activateStaff(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff', tenantId] }),
   });
 }

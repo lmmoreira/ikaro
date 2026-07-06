@@ -1,11 +1,13 @@
 import { SYSTEM_ACTOR_ID } from '../../../shared/domain/system-actor';
 import { Email } from '../../../shared/value-objects/email.vo';
+import { StaffActivated } from './events/staff-activated.event';
 import { StaffDeactivated } from './events/staff-deactivated.event';
 import { StaffInvited } from './events/staff-invited.event';
 import {
   StaffDomainError,
   StaffGoogleAccountConflictError,
   StaffSelfDeactivationError,
+  StaffSelfReactivationError,
 } from './errors/staff-domain.error';
 import { Staff } from './staff.aggregate';
 
@@ -332,6 +334,46 @@ describe('Staff', () => {
       staff.linkGoogleAccount('google-sub-789', 'Ana Silva');
       expect(() => staff.deactivate(staff.id, CORR)).toThrow(StaffSelfDeactivationError);
       expect(staff.isActive).toBe(true);
+    });
+  });
+
+  describe('activate()', () => {
+    it('sets isActive=true, clears deactivatedBy, records StaffActivated event', () => {
+      const staff = Staff.invite(
+        'tenant-1',
+        'ana@lavacar.com.br',
+        'STAFF',
+        'Ana Silva',
+        null,
+        CORR,
+      );
+      staff.linkGoogleAccount('google-sub-789', 'Ana Silva');
+      staff.deactivate('other-staff-id', CORR);
+      staff.clearDomainEvents();
+
+      staff.activate('other-staff-id', CORR);
+      expect(staff.isActive).toBe(true);
+      expect(staff.deactivatedBy).toBeNull();
+      const events = staff.clearDomainEvents();
+      expect(events).toHaveLength(1);
+      const event = events[0] as StaffActivated;
+      expect(event.eventName).toBe('StaffActivated');
+      expect(event.data.staffId).toBe(staff.id);
+    });
+
+    it('throws StaffSelfReactivationError when activatedBy equals own id', () => {
+      const staff = Staff.invite(
+        'tenant-1',
+        'ana@lavacar.com.br',
+        'STAFF',
+        'Ana Silva',
+        null,
+        CORR,
+      );
+      staff.linkGoogleAccount('google-sub-789', 'Ana Silva');
+      staff.deactivate('other-staff-id', CORR);
+      expect(() => staff.activate(staff.id, CORR)).toThrow(StaffSelfReactivationError);
+      expect(staff.isActive).toBe(false);
     });
   });
 });

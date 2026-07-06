@@ -184,4 +184,26 @@ describe('StaffController', () => {
       await expect(controller.deactivate(STAFF_ID)).rejects.toThrow('403');
     });
   });
+
+  describe('activate()', () => {
+    it('calls PATCH /staff/:id/activate with empty body', async () => {
+      const expectedResult = { staffId: STAFF_ID, isActive: true };
+      const backendHttp = makeBackendHttp({ patch: jest.fn().mockResolvedValue(expectedResult) });
+      const controller = new StaffController(backendHttp);
+
+      const result = await controller.activate(STAFF_ID);
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(`/staff/${STAFF_ID}/activate`, {});
+      expect(result).toBe(expectedResult);
+    });
+
+    it('propagates 403 from backend when self-reactivation', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockRejectedValue(new Error('403')),
+      });
+      const controller = new StaffController(backendHttp);
+
+      await expect(controller.activate(STAFF_ID)).rejects.toThrow('403');
+    });
+  });
 });

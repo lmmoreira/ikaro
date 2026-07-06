@@ -238,6 +238,14 @@ describe('StaffController (component)', () => {
       expect(res.status).toBe(400);
     });
 
+    it('PATCH /v1/staff/:id/activate → 400 when id is not a UUID', async () => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .patch('/v1/staff/not-a-uuid/activate')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+      expect(res.status).toBe(400);
+    });
+
     it('PATCH /v1/staff/:id → 400 when id is not a UUID', async () => {
       setupActiveGuardMock(httpService);
       const res = await request(app.getHttpServer())
@@ -399,6 +407,20 @@ describe('StaffController (component)', () => {
       expect(res.status).toBe(200);
       expect(res.body).toEqual(backendResponse);
       expect(backendHttpService.patch).toHaveBeenCalledWith(`/staff/${STAFF_ID_2}/deactivate`, {});
+    });
+
+    it('PATCH /v1/staff/:id/activate calls PATCH /staff/:id/activate', async () => {
+      const backendResponse = { staffId: STAFF_ID_2, isActive: true };
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce(backendResponse);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/staff/${STAFF_ID_2}/activate`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(backendResponse);
+      expect(backendHttpService.patch).toHaveBeenCalledWith(`/staff/${STAFF_ID_2}/activate`, {});
     });
 
     it('PATCH /v1/staff/:id calls PATCH /staff/:id with exact body', async () => {

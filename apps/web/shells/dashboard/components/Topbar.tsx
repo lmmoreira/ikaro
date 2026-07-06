@@ -62,6 +62,7 @@ function resolveTopbarRouteState({
 }): TopbarRouteState {
   const bookingRouteMatch = matchBookingDetailRoute(pathname);
   const serviceRouteMatch = matchServiceRoute(pathname);
+  const teamRouteMatch = matchTeamRoute(pathname);
   const isBookingRoute = bookingRouteMatch !== null;
   const isServicesCreateRouteMatch = isServiceCreateRoute(pathname);
   const isTeamInviteRouteMatch = isTeamInviteRoute(pathname);
@@ -99,6 +100,10 @@ function resolveTopbarRouteState({
     backLabel = commonBackLabel;
   } else if (isTeamInviteRouteMatch) {
     pageTitle = teamT('invite');
+    backHref = '/dashboard/team';
+    backLabel = dashboardT('nav.team');
+  } else if (teamRouteMatch?.action === 'deactivate') {
+    pageTitle = teamT('deactivateMemberPageTitle');
     backHref = '/dashboard/team';
     backLabel = dashboardT('nav.team');
   } else if (pageTitleKey) {

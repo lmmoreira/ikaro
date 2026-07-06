@@ -1,5 +1,5 @@
 # Staff — Management Endpoints
-# UC-028 (invite), UC-029 (deactivate), UC-030 (update profile), list, detail
+# UC-028 (invite), UC-029 (deactivate), UC-030 (update profile), UC-031 (activate), list, detail
 # TenantContext is populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
 #
 # Prerequisites:
@@ -131,6 +131,19 @@ X-Actor-Type: STAFF
 X-Actor-Role: MANAGER
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — activate (UC-031)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Reactivate a deactivated STAFF member
+PATCH {{baseUrl}}/staff/{{staffId}}/activate
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -197,6 +210,24 @@ X-Actor-Role: MANAGER
   "name": "",
   "role": "STAFF"
 }
+
+###
+
+### 403 — Self-reactivation attempt
+PATCH {{baseUrl}}/staff/{{managerId}}/activate
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### 409 — Already-active member reactivation attempt
+PATCH {{baseUrl}}/staff/{{staffId}}/activate
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
 
 ###
 
