@@ -399,10 +399,16 @@
       "inviteFailed": "Não foi possível enviar o convite. Tente novamente.",
       "invitedSuccessTitle": "Convite enviado!",
       "invitedSuccessBody": "Convite enviado para {email}.",
+      "fullNameLabel": "Nome completo *",
+      "viewDetailsAriaLabel": "Ver detalhes de {name}",
+      "emailReadonlyHint": "O e-mail não pode ser alterado — é usado para o login com Google.",
+      "updateLastManagerError": "O estabelecimento precisa de pelo menos um gerente ativo.",
+      "updateFailed": "Não foi possível salvar as alterações. Tente novamente.",
       "errors": {
         "firstNameRequired": "Informe o nome.",
         "lastNameRequired": "Informe o sobrenome.",
-        "emailInvalid": "E-mail inválido."
+        "emailInvalid": "E-mail inválido.",
+        "fullNameRequired": "Informe o nome."
       }
     },
     "settingsPage": {

@@ -139,6 +139,30 @@ describe('StaffController', () => {
     });
   });
 
+  describe('update()', () => {
+    const updateBody = { name: 'Nome Editado', role: 'MANAGER' as const };
+
+    it('calls PATCH /staff/:id with the body (tenantId comes from RequestContext headers)', async () => {
+      const expectedResult = { staffId: STAFF_ID, name: 'Nome Editado', role: 'MANAGER' };
+      const backendHttp = makeBackendHttp({ patch: jest.fn().mockResolvedValue(expectedResult) });
+      const controller = new StaffController(backendHttp);
+
+      const result = await controller.update(STAFF_ID, updateBody);
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(`/staff/${STAFF_ID}`, updateBody);
+      expect(result).toBe(expectedResult);
+    });
+
+    it('propagates 409 from backend when demoting the last active manager', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockRejectedValue(new Error('409')),
+      });
+      const controller = new StaffController(backendHttp);
+
+      await expect(controller.update(STAFF_ID, updateBody)).rejects.toThrow('409');
+    });
+  });
+
   describe('deactivate()', () => {
     it('calls PATCH /staff/:id/deactivate with empty body', async () => {
       const expectedResult = { staffId: STAFF_ID, isActive: false };

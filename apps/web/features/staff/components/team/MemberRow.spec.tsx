@@ -61,16 +61,22 @@ describe('MemberRow', () => {
     expect(resend).toHaveAttribute('href', '/dashboard/team/invite?email=novo%40lavacar.com.br');
   });
 
-  it('shows no action for a deactivated member', () => {
-    renderWithIntl(
-      <MemberRow
-        member={buildMember({ isActive: false, status: 'DEACTIVATED' })}
-        isCurrentUser={false}
-      />,
-    );
+  it('shows no action link for a deactivated member, only the row-to-detail link', () => {
+    const member = buildMember({ isActive: false, status: 'DEACTIVATED' });
+    renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
 
     expect(screen.getByText('Inativo')).toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Desativar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Reenviar convite' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('links the whole row to the staff detail page', () => {
+    const member = buildMember();
+    renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
+
+    const detailLink = screen.getByRole('link', { name: 'Ver detalhes de Ana Pereira' });
+    expect(detailLink).toHaveAttribute('href', `/dashboard/team/${member.id}`);
   });
 
   it('falls back to the email when the member has no name', () => {

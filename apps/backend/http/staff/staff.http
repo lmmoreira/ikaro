@@ -1,5 +1,5 @@
 # Staff — Management Endpoints
-# UC-028 (invite), UC-029 (deactivate), list, detail
+# UC-028 (invite), UC-029 (deactivate), UC-030 (update profile), list, detail
 # TenantContext is populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
 #
 # Prerequisites:
@@ -98,6 +98,26 @@ X-Actor-Role: MANAGER
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — update profile (UC-030)
+# email is never editable — it's the lookup key used on every staff Google login.
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Update a staff member's name and role
+PATCH {{baseUrl}}/staff/{{staffId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "name": "João Silva Editado",
+  "role": "MANAGER"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — deactivate (UC-029)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -156,9 +176,39 @@ X-Actor-Role: MANAGER
 
 ###
 
-### 409 — Last active manager
+### 409 — Last active manager (deactivate)
 PATCH {{baseUrl}}/staff/{{managerId}}/deactivate
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: 99999999-0000-4000-8000-000000000001
 X-Actor-Type: STAFF
 X-Actor-Role: MANAGER
+
+###
+
+### 400 — Update with empty name
+PATCH {{baseUrl}}/staff/{{staffId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "name": "",
+  "role": "STAFF"
+}
+
+###
+
+### 409 — Update demoting the last active manager to STAFF
+PATCH {{baseUrl}}/staff/{{managerId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: 99999999-0000-4000-8000-000000000001
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "name": "Gerente",
+  "role": "STAFF"
+}

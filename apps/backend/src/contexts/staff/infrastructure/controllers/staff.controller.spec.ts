@@ -8,6 +8,7 @@ import { DeactivateStaffUseCase } from '../../application/use-cases/deactivate-s
 import { GetStaffByIdUseCase } from '../../application/use-cases/get-staff-by-id.use-case';
 import { GetStaffTenantsByIdUseCase } from '../../application/use-cases/get-staff-tenants-by-id.use-case';
 import { InviteStaffUseCase } from '../../application/use-cases/invite-staff.use-case';
+import { UpdateStaffProfileUseCase } from '../../application/use-cases/update-staff-profile.use-case';
 import { GetStaffUseCase } from '../../application/use-cases/get-staff.use-case';
 import { StaffController } from './staff.controller';
 
@@ -35,6 +36,7 @@ function makeController(
     new GetStaffByIdUseCase(repo),
     new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
     new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
+    new UpdateStaffProfileUseCase(repo, new InMemoryTransactionManager()),
     new GetStaffTenantsByIdUseCase(repo),
   );
 }
@@ -175,6 +177,51 @@ describe('StaffController', () => {
     });
   });
 
+  describe('update()', () => {
+    it('updates name and role using tenantId from RequestContext', async () => {
+      const staff = new StaffBuilder()
+        .withTenantId(TENANT_A)
+        .withRole('STAFF')
+        .withEmail('staff@lavacar.com.br')
+        .withGoogleOAuthId('google-staff')
+        .build();
+      await repo.save(staff);
+
+      const result = await controller.update(staff.id, { name: 'Nome Editado', role: 'MANAGER' });
+
+      expect(result.staffId).toBe(staff.id);
+      expect(result.name).toBe('Nome Editado');
+      expect(result.role).toBe('MANAGER');
+    });
+
+    it('maps StaffNotFoundError to 404 for staff from a different tenant (isolation)', async () => {
+      const staff = new StaffBuilder().withTenantId(TENANT_B).withEmail('b@b.com').build();
+      await repo.save(staff);
+
+      const err = await controller
+        .update(staff.id, { name: 'Nome', role: 'STAFF' })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('maps LastActiveManagerError to 409 when demoting the only active MANAGER', async () => {
+      const manager = new StaffBuilder()
+        .withTenantId(TENANT_A)
+        .withRole('MANAGER')
+        .withEmail('manager@lavacar.com.br')
+        .withGoogleOAuthId('google-manager')
+        .build();
+      await repo.save(manager);
+
+      const err = await controller
+        .update(manager.id, { name: manager.name ?? 'Nome', role: 'STAFF' })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
+    });
+  });
+
   describe('deactivate()', () => {
     it('returns 400 when X-Actor-ID header is missing', async () => {
       const ctxNoActor = new RequestContextBuilder()
@@ -188,6 +235,7 @@ describe('StaffController', () => {
         new GetStaffByIdUseCase(repo),
         new InviteStaffUseCase(repo, txMgr, eventBus),
         new DeactivateStaffUseCase(repo, txMgr, eventBus),
+        new UpdateStaffProfileUseCase(repo, txMgr),
         new GetStaffTenantsByIdUseCase(repo),
       );
       const err = await ctrl

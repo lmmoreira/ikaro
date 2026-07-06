@@ -157,6 +157,18 @@ export class Staff extends AggregateRoot {
     );
   }
 
+  // Admin edits name/role from the team detail screen (UC-030). No domain event —
+  // matches Service.update()/linkGoogleAccount()'s precedent: nothing today needs to
+  // react to a profile edit. The last-active-manager guard for a MANAGER->STAFF
+  // demotion lives in the use case (it needs to query sibling staff rows).
+  updateProfile(name: string, role: StaffRole): void {
+    const trimmedName = normalizeText(name);
+    if (!trimmedName) throw new StaffDomainError('name is required');
+    this.props.name = trimmedName;
+    this.props.role = role;
+    this.props.updatedAt = new Date();
+  }
+
   deactivate(deactivatedBy: string, correlationId: string): void {
     if (this.props.id === deactivatedBy) throw new StaffSelfDeactivationError();
     this.props.isActive = false;

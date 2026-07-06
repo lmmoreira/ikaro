@@ -1073,6 +1073,28 @@ Returns:
 
 ---
 
+### **UC-030: Admin Edits Staff Member Profile**
+
+- **Actor:** Staff member with `MANAGER` role
+- **Preconditions:** Admin is authenticated with MANAGER role. Target staff member belongs to the same tenant.
+- **Trigger:** Admin clicks a staff member's row in the team list.
+- **Main Flow:**
+   1. Admin selects a staff member from the team list, landing on that member's detail page.
+   2. Admin edits `name` and/or `role` (`MANAGER` or `STAFF`). `email` is always read-only — it is the lookup key used on every staff Google login and is never editable from this screen.
+   3. Admin clicks "Salvar".
+   4. System validates `name` is non-empty.
+   5. System updates `staff.name` and `staff.role`.
+   6. Admin sees the updated values reflected on the page.
+
+- **Alternative Flows:**
+   - **A1: Empty name** → System shows: "Informe o nome."
+   - **A2: Demoting the last active MANAGER to STAFF** → System prevents: "O estabelecimento precisa de pelo menos um gerente ativo." (same guard as UC-029 A2)
+
+- **Postconditions:** `staff.name`/`staff.role` updated. No domain event is published — no other bounded context currently needs to react to a profile edit (consistent with `Service.update()` and `Staff.linkGoogleAccount()`, which also don't emit events).
+- **Events Triggered:** none
+
+---
+
 | UC | Name | Actor | Domain Impact |
 |----|------|-------|----------------|
 | UC-001 | Guest requests booking | Guest | Creates PENDING booking with 1..N lines + photos |
@@ -1103,4 +1125,5 @@ Returns:
 | UC-027 | Admin manages hotsite content | MANAGER staff | `hotsite_configs` updated + published |
 | UC-028 | Admin invites new staff member | MANAGER staff | `staff` row created (`is_active=false`); `StaffInvited` event |
 | UC-029 | Admin deactivates staff member | MANAGER staff | `staff.is_active = false`; `StaffDeactivated` event |
+| UC-030 | Admin edits staff member profile | MANAGER staff | `staff.name`/`staff.role` updated; no event |
 

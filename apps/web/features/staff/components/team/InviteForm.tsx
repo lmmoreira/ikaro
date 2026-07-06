@@ -10,8 +10,8 @@ import { useInviteStaff } from '@/features/staff/hooks/useStaff';
 import { validateInviteForm, type InviteFormErrors } from '@/features/staff/invite-form';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { cn } from '@/shared/utils/cn';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
+import { RoleOption } from './RoleOption';
 
 interface InviteFormProps {
   readonly initialEmail?: string;
@@ -19,41 +19,6 @@ interface InviteFormProps {
 
 const INPUT_CLASS =
   'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50';
-
-interface RoleOptionProps {
-  readonly staffRole: StaffRole;
-  readonly selected: boolean;
-  readonly title: string;
-  readonly description: string;
-  readonly onSelect: (staffRole: StaffRole) => void;
-}
-
-function RoleOption({
-  staffRole,
-  selected,
-  title,
-  description,
-  onSelect,
-}: RoleOptionProps): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      data-testid="invite-role-option"
-      data-role={staffRole}
-      aria-pressed={selected}
-      onClick={() => onSelect(staffRole)}
-      className={cn(
-        'rounded-md border px-3.5 py-3.5 text-left transition-colors',
-        selected
-          ? 'border-2 border-blue-600 bg-blue-50'
-          : 'border-border bg-white hover:bg-slate-50',
-      )}
-    >
-      <span className="block text-sm font-bold text-gray-900">{title}</span>
-      <span className="mt-0.5 block text-sm text-gray-500">{description}</span>
-    </button>
-  );
-}
 
 export function InviteForm({ initialEmail = '' }: InviteFormProps): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');

@@ -4279,6 +4279,59 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 ---
 
+## Phase Pre-0c — Equipe: staff profile edit
+
+### M13-S43 — Equipe: staff detail/edit page (`/dashboard/team/[id]`)
+
+**Agent:** `frontend-ts` (full-stack — backend + BFF + web)
+**Complexity:** M
+**Docs to load:** `docs/04-USE_CASES.md` § UC-030
+
+**Description:**
+Clicking a staff member's row in the team list now goes to a detail page where the admin can edit `name` and `role` (`MANAGER`/`STAFF`). `email` is always read-only — it's the lookup key used on every staff Google login (`findStaffByEmail` in the BFF auth flow), not just at first activation, so editing it here would risk locking the member out. No UX prototype needed — the screen reuses `InviteForm`'s field/layout conventions (extracting its `RoleOption` card-select to a shared file) rather than inventing new visual language.
+
+**Route:** `/dashboard/team/[id]`
+
+**Backend — `apps/backend/src/contexts/staff/`:**
+- `domain/staff.aggregate.ts`: new `updateProfile(name: string, role: StaffRole): void` — validates non-empty name (mirrors `reinvite()`'s validation), updates `props.name`/`props.role`/`props.updatedAt`. **No domain event** — matches the existing precedent of `Service.update()` and `Staff.linkGoogleAccount()`, neither of which emits an event; nothing today needs to react to a profile edit.
+- `application/dtos/update-staff.dto.ts` (new): `UpdateStaffSchema = z.object({ name: z.string().min(1), role: z.enum(['MANAGER', 'STAFF']) })`
+- `application/use-cases/update-staff-profile.use-case.ts` (new): `UpdateStaffProfileUseCase` — find by id+tenantId (`StaffNotFoundError` if missing); if demoting an active `MANAGER` to `STAFF`, guard inside `txManager.run()` via the existing `IStaffRepository.countActiveManagersByTenant` (reuses the existing `LastActiveManagerError` — same rule and same error class as `DeactivateStaffUseCase`'s last-manager guard, UC-029 A2); call `staff.updateProfile()`; save; return `{ staffId, name, role }`. No new port methods, no new error classes.
+- `infrastructure/controllers/staff.controller.ts`: new `PATCH /staff/:id`, `ManagerRoleGuard`, `.catch(mapStaffError)` (already handles every error this needs). Register `UpdateStaffProfileUseCase` in `staff.module.ts`.
+- Add a request block to `apps/backend/http/staff/staff.http` (happy path + 400 empty-name + 404 + 409 last-manager).
+
+**BFF — `apps/bff/src/features/staff/`:**
+- `staff.controller.ts`: new `PATCH /staff/:id`, same inline-Zod-schema pattern as `invite`, forwards to `BackendHttpService.patch`.
+- `packages/types/src/staff.dto.ts`: add `UpdateStaffRequest { name: string; role: StaffRole }` and `UpdateStaffResponse { staffId: string; name: string; role: StaffRole }`.
+- Add a request block to `apps/bff/http/staff/staff.http`.
+
+**Web:**
+- `apps/web/features/staff/api.ts`: add `updateStaff(id: string, body: UpdateStaffRequest): Promise<UpdateStaffResponse>`.
+- `apps/web/features/staff/hooks/useStaff.ts`: add `useUpdateStaff()` mutation (mirrors `useInviteStaff`, invalidates `['staff', tenantId]`).
+- `apps/web/features/staff/components/team/MemberRow.tsx`: whole row becomes a stretched-link to `/dashboard/team/${member.id}` — same overlay pattern as `BookingCard.tsx` (`absolute inset-0 z-10` link + `aria-label`, existing Desativar/Reenviar action promoted to `relative z-20` so it stays independently clickable).
+- Extract `InviteForm.tsx`'s private `RoleOption` component to `apps/web/features/staff/components/team/RoleOption.tsx` (+ `.spec.tsx`) so both `InviteForm` and the new detail page share it without duplication.
+- New `apps/web/features/staff/components/team/StaffDetailPage.tsx` (+ `.spec.tsx`): single "Nome completo" field (the domain stores one `name` string — no firstName/lastName split to preserve, unlike the invite form), `RoleOption` card-select, read-only email field with a hint explaining why, Save button. Same two-pane layout (`Card` + sticky aside on `lg:`, fixed mobile bar) and topbar role-badge sync (`useEffect` → `setStaffRoleStatus`) as `InviteForm`.
+- New `apps/web/app/dashboard/team/[id]/page.tsx` — server component, fetches via the existing `GET /staff/:id`, renders `<StaffDetailPage staff={data} />`.
+- New `apps/web/shells/dashboard/model/team-route.ts` (mirrors `service-route.ts`) — the team section now has two dynamic sub-routes (`/invite`, `/[id]`) to distinguish in `Topbar.tsx`/`BottomNav.tsx`.
+- `apps/web/app/dashboard/team/layout.tsx`: extend to fetch the target member on `/dashboard/team/[id]` and seed `initialStaffRoleStatus` from their current role.
+- `apps/web/shells/dashboard/components/Topbar.tsx`: on `/dashboard/team/[id]`, page title = member's name, back link → `/dashboard/team` labeled "Equipe" (same as the invite route); role badge already wired for `staffRoleStatus`.
+- `apps/web/shells/dashboard/components/BottomNav.tsx`: suppress on `/dashboard/team/[id]` (fixed Save bar owns the bottom edge, same as `/dashboard/team/invite`).
+- i18n: new keys for the detail page's field labels/hints/save button/success banner/validation errors, both `pt-BR`/`en`, following the existing `dashboard.teamPage.*` namespace.
+
+**Acceptance criteria:**
+- [ ] Clicking a team-list row navigates to `/dashboard/team/[id]`; the existing Desativar/Reenviar action still works independently (doesn't trigger row navigation)
+- [ ] Detail page shows the member's current name, role, and read-only email
+- [ ] Editing name + role and saving → `200`; updated values persist on reload; team list reflects the change
+- [ ] Empty name → inline validation error, no request sent
+- [ ] Demoting the last active MANAGER to STAFF → `409`, inline error matching UC-029 A2's copy
+- [ ] Email field is rendered read-only/disabled — no request ever includes an email change
+- [ ] Bottom nav hidden on `/dashboard/team/[id]`; topbar shows the member's name + back link to Equipe + live role badge while editing
+- [ ] Tenant isolation: staff from another tenant → `404`
+- [ ] `tsc --noEmit` passes across the monorepo; `pnpm lint` zero warnings; unit + integration tests pass
+
+**Dependencies:** M13-S32, M13-S33
+
+---
+
 ## Open questions & future discovery
 
 > Consolidated from all 7 source files' "Open questions" and "Future discovery" sections. Items already resolved by a decision made during this consolidation (or that turned out to already be in scope) are marked `[x]` with a one-line resolution; genuinely open items are marked `[ ]` and reference the story they block.
@@ -4293,7 +4346,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 - [ ] **Staff logout:** no logout endpoint designed yet. Current MVP behavior: JWT expiry → redirect to `/dashboard/login`. An explicit logout button is post-MVP — not scoped in any story above.
 - [ ] **"Bem-vindo(a)!" first-login banner (UC-025 step 8):** ⚠️ auth flow redesigned in M13-S13 — `link-google` now redirects straight to `/dashboard` with no distinguishable "first login" moment. To implement the banner, the BFF would need to detect that `google_oauth_id` was just set (i.e. call `link-google` succeeded where it previously returned 200 without a cookie) and append `?welcome=1` to the `/dashboard` redirect — this logic does not exist today. Post-MVP; fold into a follow-up patch if product wants it.
 - [x] **Playwright E2E suite for auth flows:** this note assumed full auth E2E coverage was blocked on a not-yet-built "Google OAuth test-bypass endpoint" deferred to M16-S06. That assumption was stale — `ENABLE_DEV_AUTH`'s `POST /v1/auth/dev-login` already serves exactly that purpose (mints a real JWT cookie without driving Google's consent screen) and was already wired into `pr-e2e.yml`'s CI job. Built in M13-S14 follow-up: `apps/web/e2e/helpers/auth.ts` (`loginAsCustomer`, `completeCustomerProfile`) plus E2E specs for authenticated hotsite-auth-bar states, `InformationCompletionPrompt`, `/switch-tenant`, and the staff-login middleware regression. No remaining blocker for auth-flow E2E coverage.
-- [x] **Staff invite email `activationLink` broken (TD13):** link itself is still broken (unchanged — still tracked, now Low priority since the workaround below is no longer the only path). M13-S14 follow-up closed the underlying gap a different way: `handleStaffLogin` (the generic `/dashboard/login` path) now falls back to matching by Google's verified email across all tenants when the OAuth-ID lookup finds nothing, then links and proceeds — so a never-linked invited staff member can just use the normal "Entrar com Google" button instead of needing the (broken) tenant-scoped invite link at all. Fixing the link itself is still worth doing for UX polish (skips an extra step) but no longer blocks anyone.
+- [x] **Staff invite email `activationLink` broken (TD13):** ✅ resolved in `M13-S33`'s branch — `activationLink` now points to `/dashboard/login?tenantSlug=<slug>` instead of the dead `/{slug}/auth/staff` route. M13-S14 follow-up had already closed the underlying *gap* a different way (`handleStaffLogin`'s verified-email fallback meant a never-linked invitee could use the normal "Entrar com Google" button instead of needing the invite link at all), so this fix is the remaining UX-polish piece, not a blocker fix.
 
 ### Staff booking core (Phase 4, M13-S17–M13-S20)
 

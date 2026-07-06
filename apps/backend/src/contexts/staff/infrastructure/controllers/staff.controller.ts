@@ -17,11 +17,17 @@ import {
 import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { InviteStaffBodyDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
+import { UpdateStaffBodyDto, UpdateStaffSchema } from '../../application/dtos/update-staff.dto';
 import {
   DeactivateStaffUseCase,
   DeactivateStaffUseCaseInput,
   DeactivateStaffUseCaseResult,
 } from '../../application/use-cases/deactivate-staff.use-case';
+import {
+  UpdateStaffProfileUseCase,
+  UpdateStaffProfileUseCaseInput,
+  UpdateStaffProfileUseCaseResult,
+} from '../../application/use-cases/update-staff-profile.use-case';
 import {
   GetStaffByIdUseCase,
   GetStaffByIdUseCaseResult,
@@ -51,6 +57,7 @@ export class StaffController {
     private readonly getStaffById: GetStaffByIdUseCase,
     private readonly inviteStaff: InviteStaffUseCase,
     private readonly deactivateStaff: DeactivateStaffUseCase,
+    private readonly updateStaffProfile: UpdateStaffProfileUseCase,
     private readonly getStaffTenantsById: GetStaffTenantsByIdUseCase,
   ) {}
 
@@ -103,6 +110,22 @@ export class StaffController {
       correlationId: this.tenantContext.correlationId,
     };
     return this.inviteStaff.execute(input).catch(mapStaffError);
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ManagerRoleGuard)
+  update(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Body(new ZodValidationPipe(UpdateStaffSchema)) body: UpdateStaffBodyDto,
+  ): Promise<UpdateStaffProfileUseCaseResult> {
+    const input: UpdateStaffProfileUseCaseInput = {
+      staffId: id,
+      tenantId: this.tenantContext.tenantId,
+      name: body.name,
+      role: body.role,
+    };
+    return this.updateStaffProfile.execute(input).catch(mapStaffError);
   }
 
   @Patch(':id/deactivate')

@@ -7,6 +7,7 @@ import { Calendar, Clock, Wrench, Star, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
 import { matchServiceRoute } from '@/shells/dashboard/model/service-route';
+import { matchTeamRoute } from '@/shells/dashboard/model/team-route';
 
 interface BottomNavProps {
   readonly role: 'STAFF' | 'MANAGER';
@@ -29,6 +30,7 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
   const isLoyaltyDetail = /^\/dashboard\/loyalty\/[^/]+$/.test(pathname);
   const isSettingsPage = pathname === '/dashboard/settings';
   const isTeamInviteRoute = pathname === '/dashboard/team/invite';
+  const isTeamDetailRoute = matchTeamRoute(pathname) !== null;
 
   if (
     isBookingDetail ||
@@ -36,7 +38,8 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
     isServiceCreateRoute ||
     isLoyaltyDetail ||
     isSettingsPage ||
-    isTeamInviteRoute
+    isTeamInviteRoute ||
+    isTeamDetailRoute
   )
     return null;
 

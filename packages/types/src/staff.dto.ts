@@ -46,3 +46,14 @@ export interface DeactivateStaffResponse {
   staffId: string;
   isActive: false;
 }
+
+export interface UpdateStaffRequest {
+  name: string;
+  role: StaffRole;
+}
+
+export interface UpdateStaffResponse {
+  staffId: string;
+  name: string;
+  role: StaffRole;
+}

@@ -28,7 +28,7 @@ function MemberAction({ member, isCurrentUser }: MemberRowProps): React.JSX.Elem
     return (
       <Link
         href={`/dashboard/team/invite?email=${encodeURIComponent(member.email)}`}
-        className="text-sm font-semibold text-blue-600 hover:underline"
+        className="relative z-20 text-sm font-semibold text-blue-600 hover:underline"
       >
         {t('resendInvite')}
       </Link>
@@ -39,7 +39,7 @@ function MemberAction({ member, isCurrentUser }: MemberRowProps): React.JSX.Elem
     return (
       <Link
         href={`/dashboard/team/${member.id}/deactivate`}
-        className="text-sm font-semibold text-red-600 hover:underline"
+        className="relative z-20 text-sm font-semibold text-red-600 hover:underline"
       >
         {t('deactivate')}
       </Link>
@@ -53,7 +53,12 @@ export function MemberRow({ member, isCurrentUser }: MemberRowProps): React.JSX.
   const t = useTranslations('dashboard.teamPage');
 
   return (
-    <div className="flex flex-wrap items-center gap-3 px-4 py-3.5">
+    <div className="relative flex flex-wrap items-center gap-3 px-4 py-3.5">
+      <Link
+        href={`/dashboard/team/${member.id}`}
+        className="absolute inset-0 z-10"
+        aria-label={t('viewDetailsAriaLabel', { name: member.name ?? member.email })}
+      />
       <span
         aria-hidden="true"
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600"

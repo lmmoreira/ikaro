@@ -189,14 +189,25 @@ describe('Topbar', () => {
       </DashboardTopbarStatusProvider>,
     );
 
-    expect(screen.getByTestId('team-invite-role-badge')).toHaveTextContent('Equipe');
+    expect(screen.getByTestId('team-role-badge')).toHaveTextContent('Equipe');
 
     await userEvent.click(screen.getByRole('button', { name: 'Selecionar Gerente' }));
 
-    expect(screen.getByTestId('team-invite-role-badge')).toHaveTextContent('Gerente');
+    expect(screen.getByTestId('team-role-badge')).toHaveTextContent('Gerente');
   });
 
-  it('does not render the staff role badge outside the team invite route', () => {
+  it('renders the staff role badge on the team detail route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/team/staff-1');
+    render(
+      <DashboardTopbarStatusProvider initialStaffRoleStatus="MANAGER">
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByTestId('team-role-badge')).toHaveTextContent('Gerente');
+  });
+
+  it('does not render the staff role badge on the team list route', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/team');
     render(
       <DashboardTopbarStatusProvider initialStaffRoleStatus="STAFF">
@@ -204,7 +215,7 @@ describe('Topbar', () => {
       </DashboardTopbarStatusProvider>,
     );
 
-    expect(screen.queryByTestId('team-invite-role-badge')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('team-role-badge')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Equipe');
   });
 

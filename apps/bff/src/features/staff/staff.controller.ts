@@ -18,6 +18,7 @@ import {
   InviteStaffResponse,
   StaffListResponse,
   StaffResponse,
+  UpdateStaffResponse,
 } from '@ikaro/types';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
@@ -34,6 +35,13 @@ const InviteStaffBodySchema = z.object({
 });
 
 type InviteStaffBody = z.infer<typeof InviteStaffBodySchema>;
+
+const UpdateStaffBodySchema = z.object({
+  name: z.string().min(1),
+  role: z.enum(['MANAGER', 'STAFF']),
+});
+
+type UpdateStaffBody = z.infer<typeof UpdateStaffBodySchema>;
 
 @Controller('staff')
 @Roles('MANAGER')
@@ -74,6 +82,15 @@ export class StaffController {
   @Get(':id')
   getById(@Param('id', ParseUUIDPipe) id: string): Promise<StaffResponse> {
     return this.backendHttp.get<StaffResponse>(`/staff/${id}`);
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateStaffBodySchema)) body: UpdateStaffBody,
+  ): Promise<UpdateStaffResponse> {
+    return this.backendHttp.patch<UpdateStaffResponse>(`/staff/${id}`, body);
   }
 
   @Patch(':id/deactivate')

@@ -34,9 +34,9 @@ describe('InviteForm', () => {
 
   function getRoleOption(role: 'STAFF' | 'MANAGER') {
     const found = screen
-      .getAllByTestId('invite-role-option')
+      .getAllByTestId('role-option')
       .find((el) => el.getAttribute('data-role') === role);
-    if (!found) throw new Error(`invite-role-option with data-role="${role}" not found`);
+    if (!found) throw new Error(`role-option with data-role="${role}" not found`);
     return found;
   }
 

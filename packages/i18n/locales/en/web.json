@@ -399,10 +399,16 @@
       "inviteFailed": "Could not send the invite. Please try again.",
       "invitedSuccessTitle": "Invite sent!",
       "invitedSuccessBody": "Invite sent to {email}.",
+      "fullNameLabel": "Full name *",
+      "viewDetailsAriaLabel": "View details for {name}",
+      "emailReadonlyHint": "Email can't be changed — it's used for Google sign-in.",
+      "updateLastManagerError": "The business needs at least one active manager.",
+      "updateFailed": "Could not save the changes. Please try again.",
       "errors": {
         "firstNameRequired": "Enter the first name.",
         "lastNameRequired": "Enter the last name.",
-        "emailInvalid": "Invalid email."
+        "emailInvalid": "Invalid email.",
+        "fullNameRequired": "Enter the name."
       }
     },
     "settingsPage": {

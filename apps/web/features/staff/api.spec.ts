@@ -1,7 +1,7 @@
 import MockAdapter from 'axios-mock-adapter';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { bffClient } from '@/shared/lib/api/bff-client';
-import { deactivateStaff, getStaffMember, inviteStaff, listStaff } from './api';
+import { deactivateStaff, getStaffMember, inviteStaff, listStaff, updateStaff } from './api';
 
 const mock = new MockAdapter(bffClient);
 
@@ -48,6 +48,15 @@ describe('inviteStaff', () => {
       role: 'STAFF',
     });
     expect(res.staffId).toBe('s-2');
+  });
+});
+
+describe('updateStaff', () => {
+  it('calls PATCH /staff/:id with the body', async () => {
+    mock.onPatch('/staff/s-1').reply(200, { staffId: 's-1', name: 'Ana Editada', role: 'MANAGER' });
+    const res = await updateStaff('s-1', { name: 'Ana Editada', role: 'MANAGER' });
+    expect(res.name).toBe('Ana Editada');
+    expect(res.role).toBe('MANAGER');
   });
 });
 

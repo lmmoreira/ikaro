@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { InviteStaffRequest } from '@ikaro/types';
+import type { InviteStaffRequest, UpdateStaffRequest } from '@ikaro/types';
 import {
   deactivateStaff,
   getStaffMember,
   inviteStaff,
   listStaff,
+  updateStaff,
   type StaffListQuery,
 } from '@/features/staff/api';
 import { useTenant } from '@/providers/tenant-provider';
@@ -31,6 +32,15 @@ export function useInviteStaff() {
   const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (body: InviteStaffRequest) => inviteStaff(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff', tenantId] }),
+  });
+}
+
+export function useUpdateStaff() {
+  const queryClient = useQueryClient();
+  const { tenantId } = useTenant();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateStaffRequest }) => updateStaff(id, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff', tenantId] }),
   });
 }

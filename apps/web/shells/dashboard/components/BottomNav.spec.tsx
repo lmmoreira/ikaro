@@ -85,6 +85,13 @@ describe('BottomNav', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('hides itself on the team detail route (fixed Save bar owns the bottom edge)', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/team/staff-1');
+    const { container } = render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('still renders on the team list page (FAB sits above the nav, no fixed bar)', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/team');
     render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);

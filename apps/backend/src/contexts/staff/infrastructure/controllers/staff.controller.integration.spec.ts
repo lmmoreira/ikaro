@@ -233,6 +233,110 @@ describe('StaffController (integration) — management endpoints', () => {
     });
   });
 
+  describe('PATCH /staff/:id', () => {
+    it('updates name and role, returns 200', async () => {
+      const entity = new StaffEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withEmail('update-m13s43@lavacar.com.br')
+        .withRole('STAFF')
+        .withGoogleOAuthId('google-update-m13s43')
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(StaffEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/staff/${entity.id}`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .send({ name: 'Nome Editado', role: 'MANAGER' })
+        .expect(200);
+
+      expect(body.staffId).toBe(entity.id);
+      expect(body.name).toBe('Nome Editado');
+      expect(body.role).toBe('MANAGER');
+
+      const row = await ds.getRepository(StaffEntity).findOne({ where: { id: entity.id } });
+      expect(row!.name).toBe('Nome Editado');
+      expect(row!.role).toBe('MANAGER');
+      expect(row!.email).toBe('update-m13s43@lavacar.com.br');
+    });
+
+    it('returns 400 when name is empty', async () => {
+      const entity = new StaffEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withEmail('update-empty-m13s43@lavacar.com.br')
+        .withRole('STAFF')
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(StaffEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/staff/${entity.id}`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .send({ name: '', role: 'STAFF' })
+        .expect(400);
+
+      expect(body.status).toBe(400);
+    });
+
+    it('returns 404 when staff does not exist', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/staff/10000000-0000-4000-8000-000000000199')
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .send({ name: 'Nome', role: 'STAFF' })
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('returns 409 when demoting the last active MANAGER', async () => {
+      // Isolated tenant to avoid contamination from other tests that create MANAGERs in TENANT_A
+      const lastMgrTenant = '10000000-0000-4000-8000-000000000111';
+      const onlyManager = new StaffEntityBuilder()
+        .withTenantId(lastMgrTenant)
+        .withEmail('update-last-mgr-m13s43@lavacar.com.br')
+        .withRole('MANAGER')
+        .withGoogleOAuthId('google-update-last-mgr-m13s43')
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(StaffEntity).save(onlyManager);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/staff/${onlyManager.id}`)
+        .set(actorHeaders(lastMgrTenant, MANAGER_ID))
+        .send({ name: onlyManager.name ?? 'Nome', role: 'STAFF' })
+        .expect(409);
+
+      expect(body.status).toBe(409);
+    });
+
+    it('tenant isolation: returns 404 for staff belonging to another tenant', async () => {
+      const entity = new StaffEntityBuilder()
+        .withTenantId(TENANT_B)
+        .withEmail('iso-update-m13s43@lavacar.com.br')
+        .withRole('STAFF')
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(StaffEntity).save(entity);
+
+      const { body } = await request(app.getHttpServer())
+        .patch(`/staff/${entity.id}`)
+        .set(actorHeaders(TENANT_A, MANAGER_ID))
+        .send({ name: 'Nome', role: 'STAFF' })
+        .expect(404);
+
+      expect(body.status).toBe(404);
+    });
+
+    it('returns 403 when no auth headers are provided', async () => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/staff/10000000-0000-4000-8000-000000000199')
+        .send({ name: 'Nome', role: 'STAFF' })
+        .expect(403);
+
+      expect(body.status ?? body.statusCode).toBe(403);
+    });
+  });
+
   describe('PATCH /staff/:id/deactivate', () => {
     it('deactivates a STAFF member and returns 200', async () => {
       const managerEntity = new StaffEntityBuilder()
