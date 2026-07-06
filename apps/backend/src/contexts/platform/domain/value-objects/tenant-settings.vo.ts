@@ -17,6 +17,8 @@ import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
 import { PlatformDomainError } from '../errors/platform-domain.error';
 
+const FALLBACK_COUNTRY_SPEC = countrySpec('ZZ');
+
 export type {
   BookingSettings,
   BusinessInfo,
@@ -95,7 +97,9 @@ export class TenantSettings {
   }
 
   static default(timezone = 'America/Sao_Paulo', countryCode = 'BR'): TenantSettings {
-    const spec = countrySpec(countryCode);
+    TenantSettings.validateCountryCode(countryCode);
+    const normalizedCountryCode = countryCode.trim().toUpperCase();
+    const spec = countrySpec(normalizedCountryCode);
     return new TenantSettings({
       loyalty: {
         expiryDays: 180,
@@ -124,7 +128,7 @@ export class TenantSettings {
         sunday: null,
       },
       localization: {
-        countryCode,
+        countryCode: normalizedCountryCode,
         currency: spec.currency,
         language: spec.language,
         decimalPlaces: 2,
@@ -142,8 +146,15 @@ export class TenantSettings {
   }
 
   static create(props: TenantSettingsProps): TenantSettings {
-    TenantSettings.validate(props);
-    return new TenantSettings(props);
+    const normalizedProps = {
+      ...props,
+      localization: {
+        ...props.localization,
+        countryCode: props.localization.countryCode.trim().toUpperCase(),
+      },
+    };
+    TenantSettings.validate(normalizedProps);
+    return new TenantSettings(normalizedProps);
   }
 
   static reconstitute(props: TenantSettingsProps): TenantSettings {
@@ -160,8 +171,48 @@ export class TenantSettings {
     TenantSettings.validateLoyalty(props.loyalty);
     TenantSettings.validateBooking(props.booking);
     TenantSettings.validateBusinessHours(props.businessHours);
+    TenantSettings.validateLocalization(props.localization);
     TenantSettings.validateNotification(props.notification);
     TenantSettings.validateBusinessInfo(props.businessInfo, props.localization.countryCode);
+  }
+
+  private static validateLocalization(localization: LocalizationSettings): void {
+    TenantSettings.validateCountryCode(localization.countryCode);
+    if (!localization.currency.trim()) {
+      throw new TenantSettingsValidationError('localization.currency must not be empty');
+    }
+    if (!localization.language.trim()) {
+      throw new TenantSettingsValidationError('localization.language must not be empty');
+    }
+    if (localization.currencySymbol != null) {
+      const currencySymbol = localization.currencySymbol.trim();
+      if (currencySymbol.length < 1 || currencySymbol.length > 3) {
+        throw new TenantSettingsValidationError(
+          'localization.currencySymbol must be between 1 and 3 characters',
+        );
+      }
+    }
+    if (
+      !Number.isInteger(localization.decimalPlaces) ||
+      localization.decimalPlaces < 0 ||
+      localization.decimalPlaces > 8
+    ) {
+      throw new TenantSettingsValidationError('localization.decimalPlaces must be between 0 and 8');
+    }
+  }
+
+  private static validateCountryCode(countryCode: string): void {
+    const normalizedCountryCode = countryCode.trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(normalizedCountryCode)) {
+      throw new TenantSettingsValidationError(
+        'localization.countryCode must be a 2-letter ISO 3166-1 alpha-2 code',
+      );
+    }
+    if (countrySpec(normalizedCountryCode) === FALLBACK_COUNTRY_SPEC) {
+      throw new TenantSettingsValidationError(
+        `localization.countryCode must be a supported country code: ${normalizedCountryCode}`,
+      );
+    }
   }
 
   private static validateNotification(notification: NotificationSettings | undefined): void {
@@ -287,5 +338,12 @@ export class TenantSettings {
     if (spec.requireNeighborhood && !address.neighborhood) {
       throw new PlatformDomainError('businessInfo.address.neighborhood is required');
     }
+  }
+}
+
+export class TenantSettingsValidationError extends PlatformDomainError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TenantSettingsValidationError';
   }
 }

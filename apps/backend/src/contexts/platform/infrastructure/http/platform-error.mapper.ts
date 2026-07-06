@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ProblemDetail } from '../../../../shared/http/problem-detail';
+import { TenantSettingsValidationError } from '../../domain/value-objects/tenant-settings.vo';
 import {
   FeaturedBookingNotFoundError,
   HotsiteNotFoundError,
@@ -40,6 +41,15 @@ export function mapPlatformError(err: unknown): never {
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.NOT_FOUND);
+  }
+  if (err instanceof TenantSettingsValidationError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: HttpStatus.BAD_REQUEST,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.BAD_REQUEST);
   }
   if (err instanceof PlatformDomainError) {
     const body: ProblemDetail = {

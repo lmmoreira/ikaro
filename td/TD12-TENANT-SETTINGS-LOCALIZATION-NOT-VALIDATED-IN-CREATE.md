@@ -1,6 +1,7 @@
 # TD12 — `TenantSettings.create()` doesn't validate `localization` itself
 
 ## Status
+- **State**: ✅ Done — resolved in `feat/td12-tenant-settings-localization-validation` on 2026-07-06
 - **Type**: Technical Debt / Defense-in-depth
 - **Priority**: Low
 - **Context**: `apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts`

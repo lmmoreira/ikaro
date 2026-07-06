@@ -121,6 +121,18 @@ describe('UpdateTenantSettingsUseCase', () => {
     ).rejects.toThrow(PlatformDomainError);
   });
 
+  it('throws PlatformDomainError for an unsupported localization countryCode', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    await expect(
+      useCase.execute({
+        tenantId: tenant.id,
+        settings: { localization: { countryCode: 'ZZ' } },
+      }),
+    ).rejects.toThrow(PlatformDomainError);
+  });
+
   it('sets socialLinks in businessInfo', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
