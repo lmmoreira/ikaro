@@ -38,7 +38,8 @@ function RoleOption({
   return (
     <button
       type="button"
-      data-testid={`invite-role-${staffRole}`}
+      data-testid="invite-role-option"
+      data-role={staffRole}
       aria-pressed={selected}
       onClick={() => onSelect(staffRole)}
       className={cn(

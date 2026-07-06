@@ -32,6 +32,14 @@ describe('InviteForm', () => {
     return screen.getAllByRole('button', { name: 'Enviar convite' })[0];
   }
 
+  function getRoleOption(role: 'STAFF' | 'MANAGER') {
+    const found = screen
+      .getAllByTestId('invite-role-option')
+      .find((el) => el.getAttribute('data-role') === role);
+    if (!found) throw new Error(`invite-role-option with data-role="${role}" not found`);
+    return found;
+  }
+
   beforeEach(() => {
     routerPush.mockReset();
     mockInviteStaff.mockReset();
@@ -44,8 +52,8 @@ describe('InviteForm', () => {
     expect(screen.getByLabelText('Nome *')).toHaveValue('');
     expect(screen.getByLabelText('Sobrenome *')).toHaveValue('');
     expect(screen.getByLabelText('E-mail *')).toHaveValue('');
-    expect(screen.getByTestId('invite-role-STAFF')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('invite-role-MANAGER')).toHaveAttribute('aria-pressed', 'false');
+    expect(getRoleOption('STAFF')).toHaveAttribute('aria-pressed', 'true');
+    expect(getRoleOption('MANAGER')).toHaveAttribute('aria-pressed', 'false');
     expect(mockSetStaffRoleStatus).toHaveBeenCalledWith('STAFF');
   });
 
@@ -59,11 +67,11 @@ describe('InviteForm', () => {
     const user = userEvent.setup();
     renderWithIntl(<InviteForm />);
 
-    await user.click(screen.getByTestId('invite-role-MANAGER'));
+    await user.click(getRoleOption('MANAGER'));
 
     expect(mockSetStaffRoleStatus).toHaveBeenLastCalledWith('MANAGER');
-    expect(screen.getByTestId('invite-role-MANAGER')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('invite-role-STAFF')).toHaveAttribute('aria-pressed', 'false');
+    expect(getRoleOption('MANAGER')).toHaveAttribute('aria-pressed', 'true');
+    expect(getRoleOption('STAFF')).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('validates required fields inline', async () => {
@@ -87,7 +95,7 @@ describe('InviteForm', () => {
     await user.type(screen.getByLabelText('Nome *'), 'Maria');
     await user.type(screen.getByLabelText('Sobrenome *'), 'Oliveira');
     await user.type(screen.getByLabelText('E-mail *'), 'maria.oliveira@gmail.com');
-    await user.click(screen.getByTestId('invite-role-MANAGER'));
+    await user.click(getRoleOption('MANAGER'));
     await user.click(getPrimarySubmitButton());
 
     expect(mockInviteStaff).toHaveBeenCalledWith({

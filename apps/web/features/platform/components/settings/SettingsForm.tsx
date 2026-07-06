@@ -107,6 +107,7 @@ function SuffixNumberField({
       <div className="relative max-w-56">
         <input
           id={id}
+          data-testid={id}
           type="number"
           inputMode="numeric"
           value={value}
@@ -155,6 +156,7 @@ function TextField({
       </label>
       <input
         id={id}
+        data-testid={id}
         type={type}
         value={value}
         maxLength={maxLength}
@@ -196,6 +198,7 @@ function SelectField({
       </label>
       <select
         id={id}
+        data-testid={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
@@ -215,15 +218,19 @@ function SelectField({
 }
 
 interface ReadOnlyFieldProps {
+  readonly testId: string;
   readonly label: string;
   readonly value: string;
 }
 
-function ReadOnlyField({ label, value }: ReadOnlyFieldProps): React.JSX.Element {
+function ReadOnlyField({ testId, label, value }: ReadOnlyFieldProps): React.JSX.Element {
   return (
     <div>
       <span className="mb-1.5 block text-sm font-semibold text-gray-900">{label}</span>
-      <p className="rounded-md border border-border bg-gray-50 px-3 py-2.5 text-sm text-gray-600">
+      <p
+        data-testid={testId}
+        className="rounded-md border border-border bg-gray-50 px-3 py-2.5 text-sm text-gray-600"
+      >
         {value}
       </p>
     </div>
@@ -269,6 +276,7 @@ function PhoneField({
         </span>
         <input
           id={id}
+          data-testid={id}
           type="tel"
           inputMode="numeric"
           placeholder={phonePlaceholder(phonePrefix)}
@@ -318,6 +326,7 @@ function PostalCodeField({
       </label>
       <input
         id="settings-address-zip"
+        data-testid="settings-address-zip"
         type="text"
         inputMode="numeric"
         placeholder={postalPlaceholder}
@@ -387,6 +396,10 @@ const DayRow = memo(function DayRow({
         hourAriaLabel={`${opensAtLabel} — ${hourLabel} — ${label}`}
         minuteAriaLabel={`${opensAtLabel} — ${minuteLabel} — ${label}`}
         periodAriaLabel={`${opensAtLabel} — ${periodLabel} — ${label}`}
+        hourTestId="settings-day-open-hour"
+        minuteTestId="settings-day-open-minute"
+        periodTestId="settings-day-open-period"
+        dataRowKey={day}
       />
       <span aria-hidden="true" className="text-sm text-gray-400">
         –
@@ -399,6 +412,10 @@ const DayRow = memo(function DayRow({
         hourAriaLabel={`${closesAtLabel} — ${hourLabel} — ${label}`}
         minuteAriaLabel={`${closesAtLabel} — ${minuteLabel} — ${label}`}
         periodAriaLabel={`${closesAtLabel} — ${periodLabel} — ${label}`}
+        hourTestId="settings-day-close-hour"
+        minuteTestId="settings-day-close-minute"
+        periodTestId="settings-day-close-period"
+        dataRowKey={day}
       />
 
       <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
@@ -1002,14 +1019,17 @@ export function SettingsForm({
           <SectionCard title={t('sections.localization')}>
             <div className="grid grid-cols-3 gap-4">
               <ReadOnlyField
+                testId="settings-country-code"
                 label={t('localization.countryCode')}
                 value={initial.settings.localization.countryCode}
               />
               <ReadOnlyField
+                testId="settings-currency"
                 label={t('localization.currency')}
                 value={initial.settings.localization.currency}
               />
               <ReadOnlyField
+                testId="settings-language"
                 label={t('localization.language')}
                 value={initial.settings.localization.language}
               />

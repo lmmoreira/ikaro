@@ -14,6 +14,12 @@ interface TimePickerProps {
   readonly hourAriaLabel: string;
   readonly minuteAriaLabel: string;
   readonly periodAriaLabel: string;
+  // Static test-id triple for E2E — the identifying/varying part (e.g. which weekday row)
+  // is carried separately via `dataRowKey`, never baked into the id itself.
+  readonly hourTestId?: string;
+  readonly minuteTestId?: string;
+  readonly periodTestId?: string;
+  readonly dataRowKey?: string;
 }
 
 type Period = 'AM' | 'PM';
@@ -54,6 +60,10 @@ export function TimePicker({
   hourAriaLabel,
   minuteAriaLabel,
   periodAriaLabel,
+  hourTestId,
+  minuteTestId,
+  periodTestId,
+  dataRowKey,
 }: TimePickerProps): React.JSX.Element {
   const { hour24, minute } = parseTime(value);
   const is12h = timeFormat === '12h';
@@ -80,7 +90,12 @@ export function TimePicker({
         value={String(is12h ? hour12 : hour24)}
         onValueChange={commitHour}
       >
-        <SelectTrigger aria-label={hourAriaLabel} className="w-[4.25rem] shrink-0">
+        <SelectTrigger
+          aria-label={hourAriaLabel}
+          data-testid={hourTestId}
+          data-row-key={dataRowKey}
+          className="w-[4.25rem] shrink-0"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -101,7 +116,12 @@ export function TimePicker({
         value={String(minute).padStart(2, '0')}
         onValueChange={commitMinute}
       >
-        <SelectTrigger aria-label={minuteAriaLabel} className="w-[4.25rem] shrink-0">
+        <SelectTrigger
+          aria-label={minuteAriaLabel}
+          data-testid={minuteTestId}
+          data-row-key={dataRowKey}
+          className="w-[4.25rem] shrink-0"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -115,7 +135,12 @@ export function TimePicker({
 
       {is12h && (
         <Select disabled={disabled} value={period} onValueChange={commitPeriod}>
-          <SelectTrigger aria-label={periodAriaLabel} className="w-[4.25rem] shrink-0">
+          <SelectTrigger
+            aria-label={periodAriaLabel}
+            data-testid={periodTestId}
+            data-row-key={dataRowKey}
+            className="w-[4.25rem] shrink-0"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
