@@ -4285,7 +4285,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 ## Phase Pre-0c — Equipe: staff profile edit
 
-### M13-S43 — Equipe: staff detail/edit page (`/dashboard/team/[id]`)
+### M13-S43 — Equipe: staff detail/edit page (`/dashboard/team/[id]`) ✅ Done
 
 **Agent:** `frontend-ts` (full-stack — backend + BFF + web)
 **Complexity:** M
