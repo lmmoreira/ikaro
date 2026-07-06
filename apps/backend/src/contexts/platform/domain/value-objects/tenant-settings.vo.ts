@@ -1,6 +1,7 @@
 import { countrySpec } from '@ikaro/i18n';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { Address, type AddressProps } from '../../../../shared/value-objects/address';
+import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import type { BusinessHours, DayHours } from '../../../../shared/value-objects/business-hours.vo';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import type {
@@ -16,8 +17,6 @@ import type {
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
 import { PlatformDomainError } from '../errors/platform-domain.error';
-
-const FALLBACK_COUNTRY_SPEC = countrySpec('ZZ');
 
 export type {
   AddressProps,
@@ -97,9 +96,8 @@ export class TenantSettings {
   }
 
   static default(timezone = 'America/Sao_Paulo', countryCode = 'BR'): TenantSettings {
-    TenantSettings.validateCountryCode(countryCode);
-    const normalizedCountryCode = countryCode.trim().toUpperCase();
-    const spec = countrySpec(normalizedCountryCode);
+    const resolvedCountryCode = CountryCode.create(countryCode);
+    const spec = resolvedCountryCode.spec;
     return new TenantSettings({
       loyalty: {
         expiryDays: 180,
@@ -128,7 +126,7 @@ export class TenantSettings {
         sunday: null,
       },
       localization: {
-        countryCode: normalizedCountryCode,
+        countryCode: resolvedCountryCode.value,
         currency: spec.currency,
         language: spec.language,
         decimalPlaces: 2,
@@ -146,15 +144,14 @@ export class TenantSettings {
   }
 
   static create(props: TenantSettingsProps): TenantSettings {
-    const normalizedCountryCode = props.localization.countryCode.trim().toUpperCase();
-    TenantSettings.validateCountryCode(normalizedCountryCode);
+    const resolvedCountryCode = CountryCode.create(props.localization.countryCode);
     const normalizedProps = {
       ...props,
       localization: {
         ...props.localization,
-        countryCode: normalizedCountryCode,
+        countryCode: resolvedCountryCode.value,
       },
-      businessInfo: TenantSettings.normalizeBusinessInfo(props.businessInfo, normalizedCountryCode),
+      businessInfo: TenantSettings.normalizeBusinessInfo(props.businessInfo, resolvedCountryCode),
     };
     TenantSettings.validate(normalizedProps);
     return new TenantSettings(normalizedProps);
@@ -180,7 +177,6 @@ export class TenantSettings {
   }
 
   private static validateLocalization(localization: LocalizationSettings): void {
-    TenantSettings.validateCountryCode(localization.countryCode);
     if (!localization.currency.trim()) {
       throw new TenantSettingsValidationError('localization.currency must not be empty');
     }
@@ -201,20 +197,6 @@ export class TenantSettings {
       localization.decimalPlaces > 8
     ) {
       throw new TenantSettingsValidationError('localization.decimalPlaces must be between 0 and 8');
-    }
-  }
-
-  private static validateCountryCode(countryCode: string): void {
-    const normalizedCountryCode = countryCode.trim().toUpperCase();
-    if (!/^[A-Z]{2}$/.test(normalizedCountryCode)) {
-      throw new TenantSettingsValidationError(
-        'localization.countryCode must be a 2-letter ISO 3166-1 alpha-2 code',
-      );
-    }
-    if (countrySpec(normalizedCountryCode) === FALLBACK_COUNTRY_SPEC) {
-      throw new TenantSettingsValidationError(
-        `localization.countryCode must be a supported country code: ${normalizedCountryCode}`,
-      );
     }
   }
 
@@ -307,7 +289,7 @@ export class TenantSettings {
 
   private static normalizeBusinessInfo(
     businessInfo: BusinessInfo | undefined,
-    countryCode: string,
+    countryCode: CountryCode,
   ): BusinessInfo | undefined {
     if (!businessInfo) return businessInfo;
     return {
@@ -318,10 +300,10 @@ export class TenantSettings {
 
   private static normalizeBusinessAddress(
     address: AddressProps | null,
-    countryCode: string,
+    countryCode: CountryCode,
   ): AddressProps | null {
     if (address == null) return null;
-    const normalizedAddress = Address.create(address, countrySpec(countryCode).address);
+    const normalizedAddress = Address.create(address, countryCode.spec.address);
     return normalizedAddress.toJSON();
   }
 

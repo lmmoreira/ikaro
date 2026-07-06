@@ -1,5 +1,6 @@
 import { PlatformDomainError } from '../errors/platform-domain.error';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
+import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import { TenantSettings, TenantSettingsValidationError } from './tenant-settings.vo';
 import { TenantSettingsPropsBuilder } from '../../../../test/builders/platform';
 
@@ -41,7 +42,7 @@ describe('TenantSettings', () => {
 
     it('throws for an unsupported country code', () => {
       expect(() => TenantSettings.default('America/Sao_Paulo', 'ZZ')).toThrow(
-        TenantSettingsValidationError,
+        CountryCodeValidationError,
       );
     });
   });
@@ -157,7 +158,7 @@ describe('TenantSettings', () => {
       const props = new TenantSettingsPropsBuilder()
         .withLocalization({ countryCode: 'ZZ' })
         .build();
-      expect(() => TenantSettings.create(props)).toThrow(TenantSettingsValidationError);
+      expect(() => TenantSettings.create(props)).toThrow(CountryCodeValidationError);
     });
 
     it('throws for decimalPlaces above 8', () => {

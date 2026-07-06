@@ -1,6 +1,7 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { TenantBuilder } from '../../../../test/builders/platform/index';
+import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import {
   PlatformDomainError,
   TenantInactiveError,
@@ -121,7 +122,7 @@ describe('UpdateTenantSettingsUseCase', () => {
     ).rejects.toThrow(PlatformDomainError);
   });
 
-  it('throws PlatformDomainError for an unsupported localization countryCode', async () => {
+  it('throws CountryCodeValidationError for an unsupported localization countryCode', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
@@ -130,7 +131,7 @@ describe('UpdateTenantSettingsUseCase', () => {
         tenantId: tenant.id,
         settings: { localization: { countryCode: 'ZZ' } },
       }),
-    ).rejects.toThrow(PlatformDomainError);
+    ).rejects.toThrow(CountryCodeValidationError);
   });
 
   it('sets socialLinks in businessInfo', async () => {
