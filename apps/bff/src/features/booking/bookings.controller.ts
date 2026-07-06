@@ -35,16 +35,18 @@ import {
   CustomerBookingDetailResponse,
   CustomerBookingListResponse,
   ApproveBookingRequest,
+  GuestBookingReadResponse,
   StaffBookingDetailResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
 import {
   toCustomerBookingDetail,
   toCustomerBookingListItem,
+  toGuestBookingRead,
   toStaffBookingCard,
   toStaffBookingDetail,
 } from './bookings.mapper';
-import { tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
+import { GuestTokenPayload, tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -460,6 +462,44 @@ export class BookingsController {
     @Query('token') token: string | undefined,
     @Body(new ZodValidationPipe(SubmitGuestBookingInfoBodySchema)) body: SubmitGuestBookingInfoBody,
   ): Promise<{ bookingId: string; status: string; infoSubmittedAt: string }> {
+    const payload = this.verifyGuestTokenOrThrow(id, token);
+
+    return this.backendHttp.patchForPublic(
+      `/bookings/${id}/submit-info/guest`,
+      { contactEmail: payload.contactEmail, ...body },
+      payload.tenantId,
+    );
+  }
+
+  @Get(':id/guest')
+  @Public()
+  async getOneGuest(
+    @Param('id') id: string,
+    @Query('token') token: string | undefined,
+  ): Promise<GuestBookingReadResponse> {
+    const payload = this.verifyGuestTokenOrThrow(id, token);
+
+    const detail = await this.backendHttp.getForPublic<BookingDetailResponse>(
+      `/bookings/${id}`,
+      payload.tenantId,
+    );
+
+    if (detail.status !== 'INFO_REQUESTED') {
+      throw new HttpException(
+        {
+          type: 'about:blank',
+          title: 'Conflict',
+          status: HttpStatus.CONFLICT,
+          detail: 'Booking is no longer awaiting additional information',
+        },
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    return toGuestBookingRead(detail);
+  }
+
+  private verifyGuestTokenOrThrow(id: string, token: string | undefined): GuestTokenPayload {
     if (!token) {
       throw new HttpException(
         {
@@ -498,10 +538,6 @@ export class BookingsController {
       );
     }
 
-    return this.backendHttp.patchForPublic(
-      `/bookings/${id}/submit-info/guest`,
-      { contactEmail: payload.contactEmail, ...body },
-      payload.tenantId,
-    );
+    return payload;
   }
 }

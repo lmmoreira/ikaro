@@ -4,13 +4,19 @@ import type {
   AttachmentSignedUrlResponse,
   BookingResponse,
   CreateBookingRequest,
+  GuestBookingReadResponse,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 import {
   createAuthenticatedBooking,
   createAttachmentSignedUrl,
   createBooking,
+  createGuestAttachmentSignedUrl,
   CreateBookingError,
+  fetchGuestBookingSummary,
+  GuestBookingReadError,
+  submitGuestBookingInfo,
+  SubmitGuestBookingInfoError,
 } from './public';
 
 const BFF_URL = 'http://bff-test:3002';
@@ -185,5 +191,165 @@ describe('createAttachmentSignedUrl', () => {
     await expect(
       createAttachmentSignedUrl('lavacar-beloauto', 'photo.jpg', 'image/jpeg'),
     ).rejects.toThrow(/Failed to create attachment signed URL/);
+  });
+});
+
+describe('createGuestAttachmentSignedUrl', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('sends guestToken and bookingId (not tenantSlug) to the signed-url route', async () => {
+    const signedUrl: AttachmentSignedUrlResponse = {
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/bookings/booking-1/photo.jpg',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    };
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify(signedUrl), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const result = await createGuestAttachmentSignedUrl(
+      'signed.jwt.token',
+      'booking-1',
+      'photo.jpg',
+      'image/jpeg',
+    );
+
+    expect(result).toEqual(signedUrl);
+    expect(fetchSpy).toHaveBeenCalledWith('/api/bookings/attachments/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: 'photo.jpg',
+        contentType: 'image/jpeg',
+        bookingId: 'booking-1',
+        guestToken: 'signed.jwt.token',
+      }),
+    });
+  });
+
+  it('throws when the BFF returns an error', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 401 }));
+
+    await expect(
+      createGuestAttachmentSignedUrl('signed.jwt.token', 'booking-1', 'photo.jpg', 'image/jpeg'),
+    ).rejects.toThrow(/Failed to create guest attachment signed URL/);
+  });
+});
+
+describe('fetchGuestBookingSummary', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_BFF_URL = BFF_URL;
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('returns the booking summary on a successful BFF response', async () => {
+    const summary: GuestBookingReadResponse = {
+      bookingId: 'booking-1',
+      status: 'INFO_REQUESTED',
+      serviceSummary: 'Lavagem Simples',
+      scheduledAt: '2026-06-18T13:00:00.000Z',
+      infoRequestMessage: 'Envie fotos do veículo.',
+      contactName: 'João da Silva',
+    };
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify(summary), { status: 200 }));
+
+    const result = await fetchGuestBookingSummary('booking-1', 'signed.jwt.token');
+
+    expect(result).toEqual(summary);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${BFF_URL}/bookings/booking-1/guest?token=signed.jwt.token`,
+      { cache: 'no-store' },
+    );
+  });
+
+  it('throws a GuestBookingReadError with status 409 when already processed', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 409 }));
+
+    await expect(fetchGuestBookingSummary('booking-1', 'token')).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(fetchGuestBookingSummary('booking-1', 'token')).rejects.toBeInstanceOf(
+      GuestBookingReadError,
+    );
+  });
+
+  it('throws a GuestBookingReadError when the endpoint does not exist (M13-S39 not shipped)', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 404 }));
+
+    await expect(fetchGuestBookingSummary('booking-1', 'token')).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+});
+
+describe('submitGuestBookingInfo', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_BFF_URL = BFF_URL;
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('submits the response and returns the updated booking status', async () => {
+    const response = {
+      bookingId: 'booking-1',
+      status: 'PENDING',
+      infoSubmittedAt: '2026-06-18T14:00:00.000Z',
+    };
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify(response), { status: 200 }));
+
+    const result = await submitGuestBookingInfo('booking-1', 'signed.jwt.token', {
+      response: 'Segue a foto do veículo conforme solicitado.',
+    });
+
+    expect(result).toEqual(response);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${BFF_URL}/bookings/booking-1/submit-info/guest?token=signed.jwt.token`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: 'Segue a foto do veículo conforme solicitado.' }),
+      },
+    );
+  });
+
+  it('throws a SubmitGuestBookingInfoError with status 401 when the token expired mid-flow', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 401 }));
+
+    await expect(
+      submitGuestBookingInfo('booking-1', 'token', { response: 'texto' }),
+    ).rejects.toMatchObject({ status: 401 });
+    await expect(
+      submitGuestBookingInfo('booking-1', 'token', { response: 'texto' }),
+    ).rejects.toBeInstanceOf(SubmitGuestBookingInfoError);
+  });
+
+  it('throws a SubmitGuestBookingInfoError on a network/server error', async () => {
+    fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
+
+    await expect(
+      submitGuestBookingInfo('booking-1', 'token', { response: 'texto' }),
+    ).rejects.toMatchObject({ status: 500 });
   });
 });

@@ -83,7 +83,7 @@ jobs:
           GCS_BUCKET_NAME: ikaro-local
           GCS_PUBLIC_BUCKET_NAME: ikaro-local-public
           GCS_PUBLIC_BASE_URL: 'http://localhost:4443'
-          GCS_KEY_FILE: docker/fake-service-account.json
+          GCS_KEY_FILE: ../../docker/fake-service-account.json
           EMAIL_ADAPTER: mailhog
           EMAIL_FROM: noreply@ikaro.example
           SMTP_HOST: localhost
@@ -120,7 +120,7 @@ jobs:
           GCS_BUCKET_NAME: ikaro-local
           GCS_PUBLIC_BUCKET_NAME: ikaro-local-public
           GCS_PUBLIC_BASE_URL: 'http://localhost:4443'
-          GCS_KEY_FILE: docker/fake-service-account.json
+          GCS_KEY_FILE: ../../docker/fake-service-account.json
           GCS_MAX_UPLOAD_BYTES: '10485760'
           EMAIL_ADAPTER: mailhog
           EMAIL_FROM: noreply@ikaro.example
@@ -181,6 +181,7 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: 'http://localhost:3000'
           INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'
+          JWT_SECRET: 'e2e-ci-jwt-secret-must-be-at-least-64-characters-long-xxxxxxxxxxxxx'
 
       - name: Upload Playwright report
         if: failure()
@@ -188,4 +189,23 @@ jobs:
         with:
           name: playwright-report
           path: apps/web/playwright-report/
-          retention-days: 7
+          retention-days: 1
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 1
+
+      - name: Upload server logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: |
+            /tmp/backend.log
+            /tmp/bff.log
+            /tmp/web.log
+          retention-days: 1

@@ -20,6 +20,18 @@ describe('verifyGuestToken()', () => {
     expect(result).toMatchObject({ bookingId: BOOKING_ID });
   });
 
+  it('returns payload including tenantSlug when present', () => {
+    const token = makeToken({ tenantSlug: 'lava-car-test' });
+    const result = verifyGuestToken(token, SECRET);
+    expect(result).toMatchObject({ tenantSlug: 'lava-car-test' });
+  });
+
+  it('returns payload with tenantSlug undefined when absent (pre-M13-S38 tokens)', () => {
+    const token = makeToken();
+    const result = verifyGuestToken(token, SECRET);
+    expect(result && result.tenantSlug).toBeUndefined();
+  });
+
   it('returns false for an invalid signature', () => {
     const token = makeToken();
     expect(

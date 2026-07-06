@@ -2,6 +2,7 @@ import { BookingDetailResponse, BookingListItem } from './bookings.types';
 import {
   toCustomerBookingDetail,
   toCustomerBookingListItem,
+  toGuestBookingRead,
   toStaffBookingCard,
   toStaffBookingDetail,
 } from './bookings.mapper';
@@ -525,5 +526,80 @@ describe('toCustomerBookingDetail()', () => {
     expect(result.discountPointsUsed).toBeNull();
     expect(result.discountAmount).toBeNull();
     expect(result.pointsEarned).toBeNull();
+  });
+});
+
+describe('toGuestBookingRead()', () => {
+  const backendDetail: BookingDetailResponse = {
+    id: BOOKING_ID,
+    status: 'INFO_REQUESTED',
+    type: 'GUEST',
+    customerId: null,
+    contactName: 'João da Silva',
+    contactEmail: 'joao@example.com',
+    contactPhone: '+5531999999999',
+    contactAddress: null,
+    notes: null,
+    scheduledAt: '2026-06-18T13:00:00.000Z',
+    totalDurationMins: 30,
+    totalPrice: { amount: 100, currency: 'BRL' },
+    totalActualPrice: null,
+    discountPointsUsed: null,
+    discountAmount: null,
+    pickupAddress: null,
+    lines: [
+      {
+        lineId: LINE_ID,
+        serviceId: SERVICE_ID,
+        serviceNameAtBooking: 'Lavagem Simples',
+        priceAtBooking: { amount: 100, currency: 'BRL' },
+        durationMinsAtBooking: 30,
+        pointsValueAtBooking: 10,
+        requiresPickupAddressAtBooking: false,
+        actualPriceCharged: null,
+      },
+    ],
+    beforeServicePhotoUrls: [],
+    afterServicePhotoUrls: [],
+    adminNotes: null,
+    infoRequestMessage: 'Por favor, envie fotos do veículo antes da lavagem.',
+    infoResponseMessage: null,
+    approvedAt: null,
+    approvedBy: null,
+    completedAt: null,
+    rejectionReason: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    cancellableUntil: null,
+    pointsEarned: null,
+  };
+
+  it('maps backend booking detail fields to GuestBookingReadResponse', () => {
+    const result = toGuestBookingRead(backendDetail);
+
+    expect(result).toEqual({
+      bookingId: BOOKING_ID,
+      status: 'INFO_REQUESTED',
+      serviceSummary: 'Lavagem Simples',
+      scheduledAt: '2026-06-18T13:00:00.000Z',
+      infoRequestMessage: 'Por favor, envie fotos do veículo antes da lavagem.',
+      contactName: 'João da Silva',
+    });
+  });
+
+  it('joins multiple line service names into serviceSummary', () => {
+    const result = toGuestBookingRead({
+      ...backendDetail,
+      lines: [
+        { ...backendDetail.lines[0], serviceNameAtBooking: 'Lavagem Simples' },
+        { ...backendDetail.lines[0], lineId: 'other-line', serviceNameAtBooking: 'Cera' },
+      ],
+    });
+
+    expect(result.serviceSummary).toBe('Lavagem Simples, Cera');
+  });
+
+  it('falls back to an empty string when infoRequestMessage is null', () => {
+    const result = toGuestBookingRead({ ...backendDetail, infoRequestMessage: null });
+    expect(result.infoRequestMessage).toBe('');
   });
 });

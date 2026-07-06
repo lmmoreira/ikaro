@@ -516,6 +516,32 @@ Content-Type: application/json
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# GET /v1/bookings/:id/guest — guest reads booking summary before submitting info (UC-005 A2)
+# Same tokenised link as the PATCH above — paste the token from the MailHog email.
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### HAPPY PATH — guest reads booking summary with valid JWT token (paste token from MailHog email link)
+# GET {{bffUrl}}/v1/bookings/{{bookingId}}/guest?token=<paste-token-from-email>
+
+###
+
+### ERROR — missing token → 400
+GET {{bffUrl}}/v1/bookings/{{bookingId}}/guest
+
+###
+
+### ERROR — invalid token → 401
+GET {{bffUrl}}/v1/bookings/{{bookingId}}/guest?token=invalid.token.string
+
+###
+
+### ERROR — booking not INFO_REQUESTED (already processed) → 409
+# Paste a token whose booking has already moved past INFO_REQUESTED.
+# GET {{bffUrl}}/v1/bookings/{{bookingId}}/guest?token=<paste-token-for-processed-booking>
+
+# ─────────────────────────────────────────────────────────────────────────────
 # PATCH /v1/bookings/:id/cancel — customer cancels own booking (UC-007)
 # Works on PENDING (bookingId from seed). APPROVED within 48h also works.
 # ─────────────────────────────────────────────────────────────────────────────

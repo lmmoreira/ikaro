@@ -3,6 +3,7 @@ import type {
   BookingResponse,
   CreateBookingRequest,
   Address,
+  GuestBookingReadResponse,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 
@@ -51,6 +52,85 @@ export async function createAuthenticatedBooking(
   return res.data;
 }
 
+export class GuestBookingReadError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'GuestBookingReadError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+// Throws GuestBookingReadError on any non-2xx response — callers distinguish a 409 (booking no
+// longer INFO_REQUESTED, must block the form) from every other failure (network error, or the
+// endpoint not existing because M13-S39 wasn't deployed — both degrade to "no summary card").
+export async function fetchGuestBookingSummary(
+  bookingId: string,
+  token: string,
+): Promise<GuestBookingReadResponse> {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_BFF_URL}/bookings/${bookingId}/guest?token=${encodeURIComponent(token)}`,
+    { cache: 'no-store' },
+  );
+
+  if (!res.ok) {
+    throw new GuestBookingReadError(
+      res.status,
+      `Failed to fetch guest booking summary for booking "${bookingId}"`,
+    );
+  }
+
+  return res.json() as Promise<GuestBookingReadResponse>;
+}
+
+export interface SubmitGuestBookingInfoRequest {
+  readonly response: string;
+  readonly photoUrls?: readonly string[];
+}
+
+export interface SubmitGuestBookingInfoResponse {
+  readonly bookingId: string;
+  readonly status: string;
+  readonly infoSubmittedAt: string;
+}
+
+export class SubmitGuestBookingInfoError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'SubmitGuestBookingInfoError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export async function submitGuestBookingInfo(
+  bookingId: string,
+  token: string,
+  body: SubmitGuestBookingInfoRequest,
+): Promise<SubmitGuestBookingInfoResponse> {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_BFF_URL}/bookings/${bookingId}/submit-info/guest?token=${encodeURIComponent(token)}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  );
+
+  if (!res.ok) {
+    throw new SubmitGuestBookingInfoError(
+      res.status,
+      `Failed to submit guest booking info for booking "${bookingId}"`,
+    );
+  }
+
+  return res.json() as Promise<SubmitGuestBookingInfoResponse>;
+}
+
 export async function createAttachmentSignedUrl(
   slug: string,
   fileName: string,
@@ -70,6 +150,30 @@ export async function createAttachmentSignedUrl(
 
   if (!res.ok) {
     throw new Error(`Failed to create attachment signed URL for slug "${slug}"`);
+  }
+
+  return res.json() as Promise<AttachmentSignedUrlResponse>;
+}
+
+// Guest variant (UC-005 A2, M13-S40): same /api/bookings/attachments/signed-url route, but
+// identifies the caller via the signed guestToken instead of tenantSlug. The BFF's
+// generateAttachmentSignedUrl() already has a guestToken+bookingId branch (Scenario 3) —
+// verifies the token and scopes the upload to tenants/<tenantId>/bookings/<bookingId>/<file>,
+// same as every other booking photo. No backend or BFF change needed.
+export async function createGuestAttachmentSignedUrl(
+  guestToken: string,
+  bookingId: string,
+  fileName: string,
+  contentType: 'image/jpeg' | 'image/png',
+): Promise<AttachmentSignedUrlResponse> {
+  const res = await fetch('/api/bookings/attachments/signed-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileName, contentType, bookingId, guestToken }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to create guest attachment signed URL for booking "${bookingId}"`);
   }
 
   return res.json() as Promise<AttachmentSignedUrlResponse>;

@@ -194,3 +194,14 @@ export interface CustomerBookingDetailResponse {
   discountAmount: MoneyAmount | null;
   pointsEarned: number | null; // sum of lines' pointsValueAtBooking
 }
+
+// UC-005 A2 — guest reads booking summary before submitting info (M13-S39). Only reachable
+// while status is INFO_REQUESTED — the BFF returns 409 otherwise.
+export interface GuestBookingReadResponse {
+  bookingId: string;
+  status: 'INFO_REQUESTED';
+  serviceSummary: string; // joined service names, e.g. "Lavagem Simples, Cera"
+  scheduledAt: string;
+  infoRequestMessage: string;
+  contactName: string;
+}

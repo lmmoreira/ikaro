@@ -15,18 +15,18 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "e2e:ci": "playwright test --reporter=list"
+    "e2e:ci": "playwright test --reporter=list,html"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@ikaro/config": "workspace:*",
     "@playwright/test": "^1.61.1",
-    "dotenv": "^17.4.2",
     "@tailwindcss/postcss": "^4.3.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/jest-axe": "^3.5.9",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.7.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -34,6 +34,7 @@
     "@vitest/coverage-v8": "^4.1.8",
     "autoprefixer": "^10.5.0",
     "axios-mock-adapter": "^2.1.0",
+    "dotenv": "^17.4.2",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "jest-axe": "^10.0.0",
@@ -56,6 +57,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.14.0",
     "next": "^16.2.6",
     "next-intl": "^4.3.4",
@@ -64,6 +66,7 @@
     "react-dom": "^19.2.6",
     "react-markdown": "^10.1.0",
     "rehype-sanitize": "^6.0.0",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   }
