@@ -3574,7 +3574,7 @@ Closes out the Hotsite editor: the SEO tab, the Preview action, and the Publish/
 
 ---
 
-### M13-S38 — Backend: rename email link URL (`responder` → `submit-info`)
+### M13-S38 — Backend: rename email link URL (`responder` → `submit-info`) ✅ Done
 
 *(formerly M129-S01)*
 
@@ -3646,7 +3646,7 @@ Update the assertion that checks the constructed link (grep for `responder`, rep
 
 ---
 
-### M13-S39 — BFF: guest booking read endpoint (optional — enhances M13-S40)
+### M13-S39 — BFF: guest booking read endpoint (optional — enhances M13-S40) ✅ Done
 
 *(formerly M129-S02)*
 
@@ -3720,7 +3720,7 @@ GET {{bffUrl}}/v1/bookings/{{bookingId}}/guest?token={{guestToken}}
 
 ---
 
-### M13-S40 — Frontend: `SubmitInfoPage` + `SubmitInfoForm`
+### M13-S40 — Frontend: `SubmitInfoPage` + `SubmitInfoForm` ✅ Done
 
 *(formerly M129-S03)*
 
