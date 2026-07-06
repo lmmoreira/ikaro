@@ -61,7 +61,9 @@ test.describe('team member deactivate/activate flow', () => {
     await page.goto(`/dashboard/team/${sub}/deactivate`);
     await page.getByRole('button', { name: 'Confirmar desativação' }).first().click();
 
-    await expect(page.getByText('Você não pode desativar sua própria conta.')).toBeVisible();
+    await expect(page.getByTestId('deactivate-error-body')).toHaveText(
+      'Você não pode desativar sua própria conta.',
+    );
     await expect(page.url()).toContain(`/dashboard/team/${sub}/deactivate`);
   });
 });

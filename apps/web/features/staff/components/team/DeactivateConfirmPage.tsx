@@ -67,7 +67,12 @@ function DeactivateErrorScreen({
             <Ban className="h-6 w-6 shrink-0 text-red-700" />
             <div>
               <p className="font-bold text-red-800">{t(titleKey)}</p>
-              <p className="mt-1 text-sm leading-6 text-red-800">{t(bodyKey)}</p>
+              <p
+                data-testid="deactivate-error-body"
+                className="mt-1 text-sm leading-6 text-red-800"
+              >
+                {t(bodyKey)}
+              </p>
             </div>
           </div>
           <p className="text-sm leading-6 text-gray-600">{t(hintKey)}</p>
