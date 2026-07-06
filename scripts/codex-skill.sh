@@ -16,19 +16,18 @@ for file in "$CLAUDE_DIR"/*.md; do
   [[ -e "$file" ]] || continue
 
   name=$(basename "$file" .md)
-  target="$(pwd)/$file"
   skill_dir="$CODEX_DIR/$name"
   skill_file="$skill_dir/SKILL.md"
 
   mkdir -p "$skill_dir"
 
-  if [[ -L "$skill_file" ]] && [[ "$(readlink "$skill_file")" == "$target" ]]; then
-    echo "✓ $name already linked"
-    continue
+  # Replace any existing skill file or symlink with a real copy.
+  if [[ -e "$skill_file" || -L "$skill_file" ]]; then
+    rm -f "$skill_file"
   fi
 
-  ln -snf "$target" "$skill_file"
-  echo "✓ Linked $name"
+  cp "$file" "$skill_file"
+  echo "✓ Copied $name"
 done
 
 echo "Done."
