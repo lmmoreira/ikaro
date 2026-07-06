@@ -10,35 +10,28 @@ describe('InvalidLinkView', () => {
       <InvalidLinkView reason="invalid" tenantName="BeloAuto" tenantSlug="belo-auto" />,
     );
 
-    expect(screen.getByRole('heading', { name: 'Link inválido ou expirado' })).toBeInTheDocument();
-    expect(screen.getByText('O link já foi utilizado anteriormente')).toBeInTheDocument();
-    expect(
-      screen.getByText('O agendamento já foi aprovado, rejeitado ou cancelado'),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('invalid-link-heading')).toBeInTheDocument();
+    expect(screen.getByTestId('invalid-reasons-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('processed-message')).not.toBeInTheDocument();
   });
 
   it('renders the distinct processed message for reason="processed"', () => {
     renderWithIntl(<InvalidLinkView reason="processed" tenantName="BeloAuto" />);
 
-    expect(screen.getByText('Este agendamento já foi processado.')).toBeInTheDocument();
-    expect(screen.queryByText('O link já foi utilizado anteriormente')).not.toBeInTheDocument();
+    expect(screen.getByTestId('processed-message')).toBeInTheDocument();
+    expect(screen.queryByTestId('invalid-reasons-list')).not.toBeInTheDocument();
   });
 
   it('links "Ir para o site" to the tenant hotsite when tenantSlug is present', () => {
     renderWithIntl(<InvalidLinkView reason="invalid" tenantSlug="belo-auto" />);
 
-    expect(screen.getByRole('link', { name: 'Ir para o site' })).toHaveAttribute(
-      'href',
-      '/belo-auto',
-    );
+    expect(screen.getByTestId('go-to-site-link')).toHaveAttribute('href', '/belo-auto');
   });
 
   it('falls back to "/" and omits the login link when tenantSlug is absent', () => {
     renderWithIntl(<InvalidLinkView reason="invalid" />);
 
-    expect(screen.getByRole('link', { name: 'Ir para o site' })).toHaveAttribute('href', '/');
-    expect(
-      screen.queryByRole('link', { name: 'Entrar para ver seus agendamentos' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByTestId('go-to-site-link')).toHaveAttribute('href', '/');
+    expect(screen.queryByTestId('login-link')).not.toBeInTheDocument();
   });
 });

@@ -81,6 +81,7 @@ export function InvalidLinkView({
           <>
             <p className="text-[0.9375rem] opacity-60">{t('invalidIntro')}</p>
             <ul
+              data-testid="invalid-reasons-list"
               className="my-6 rounded-md border p-4 text-left text-sm"
               style={{ borderColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
             >
@@ -103,6 +104,7 @@ export function InvalidLinkView({
         )}
 
         <a
+          data-testid="go-to-site-link"
           href={tenantSlug ? `/${tenantSlug}` : '/'}
           className="inline-block border-2 px-8 py-3 font-semibold"
           style={btnStyle}
@@ -113,6 +115,7 @@ export function InvalidLinkView({
         {tenantSlug && (
           <p className="mt-5 text-[0.8125rem] opacity-45">
             <a
+              data-testid="login-link"
               href={`/${tenantSlug}/login`}
               className="font-semibold"
               style={{ color: 'var(--ba-primary)' }}
