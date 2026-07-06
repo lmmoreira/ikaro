@@ -78,7 +78,7 @@ export class SendStaffInvitationUseCase extends BaseNotificationUseCase {
 
     this.localizeTemplates(templates, this.localizationPort, tenant.locale ?? DEFAULT_LOCALE);
 
-    const activationLink = `${this.config.getOrThrow<string>('FRONTEND_URL')}/${tenant.slug}/auth/staff`;
+    const activationLink = `${this.config.getOrThrow<string>('FRONTEND_URL')}/dashboard/login?tenantSlug=${encodeURIComponent(tenant.slug)}`;
 
     const sent = await this.dispatchTemplates(templates, input, staff.email, {
       staffName: staff.name ?? staff.email,
