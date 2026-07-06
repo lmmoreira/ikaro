@@ -3341,7 +3341,7 @@ All visible copy via `useTranslations()` with keys in both `pt-BR` and `en` loca
 
 ---
 
-### M13-S33 — Equipe: invite member form (`/dashboard/team/invite`)
+### M13-S33 — Equipe: invite member form (`/dashboard/team/invite`) ✅ Done
 
 *(formerly M127-S05)*
 
