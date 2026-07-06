@@ -29,7 +29,7 @@ test.describe('team invite flow', () => {
     await page.getByRole('button', { name: 'Enviar convite' }).click();
 
     await expect(page).toHaveURL(`/dashboard/team?invited=${encodeURIComponent(email)}`);
-    await expect(page.getByText('Convite enviado!')).toBeVisible();
+    await expect(page.getByTestId('team-invite-success-banner')).toBeVisible();
 
     const row = getMemberRow(page, email);
     await expect(row).toContainText('Convite pendente');

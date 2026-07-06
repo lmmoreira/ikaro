@@ -81,6 +81,7 @@ export function TeamListPage({
         <output
           aria-live="polite"
           className="mx-4 block rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4"
+          data-testid="team-invite-success-banner"
         >
           <p className="text-[0.9375rem] font-bold text-emerald-800">{t('invitedSuccessTitle')}</p>
           <p className="mt-1 text-sm text-emerald-700">
