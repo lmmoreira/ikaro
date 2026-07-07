@@ -22,7 +22,7 @@
 | D9 | **Observability: OTel SDK (OTLP-only in code) → otel-collector sidecar → GCP managed backends** (Cloud Trace, Cloud Monitoring, Cloud Logging). No Grafana VM at launch. | All 3 pillars from day one at ~$0. The only vendor coupling is one exporter block in the collector YAML — swapping to self-hosted Grafana/Tempo/Loki or another vendor is a config change + `terraform apply`, zero code. |
 | D10 | **4 GitHub environments** (`staging`, `production`, `staging-infrastructure`, `production-infrastructure`), not 11. Solo reviewer: repository owner. | One approval covers a whole prod deploy (migrations + 3 services). Per-service environments = 4 approvals per deploy with no security gain for a solo operator. |
 | D11 | **Domain: `ikaro.online`** (owned). Prod: `ikaro.online` (web + path-based hotsites `/{slug}`), `bff.ikaro.online` (BFF). | Subdomains share the `ikaro.online` site → cookies flow same-site between web and BFF with `SameSite=Lax`. |
-| D12 | **Budget: ~$50/month total as a design target, not a hard cap** (staging + prod, pre-traffic). Billing alerts at $25/$50/$75. Security controls may exceed the target with documented rationale (e.g. S36 origin lockdown → worst case ~$52); expensive scaling items (e.g. S46 MCP) stay metrics-gated. | Drives: db-f1-micro both envs at launch (prod upgrades via a tfvars change when the first paying tenant lands), no staging LB, scale-to-zero everywhere, 10% prod trace sampling. |
+| D12 | **Budget: ~$50/month total as a design target, not a hard cap** (staging + prod, pre-traffic). Billing alerts at $25/$50/$75. Security controls may exceed the target with documented rationale (e.g. S36 origin lockdown → worst case ~$52); expensive scaling items (e.g. S46 MCP) stay metrics-gated. | Drives: db-f1-micro both envs at launch (prod upgrades via a tfvars change when the first paying tenant lands), no staging LB, scale-to-zero everywhere, 10% prod trace sampling. Named tradeoff (2026-07-07): shared-core tiers (`db-f1-micro`, `db-g1-small`) are **excluded from the Cloud SQL SLA** — SLA coverage begins at dedicated-core tiers (S13 ladder rung 2); accepted pre-traffic. |
 | D13 | **HashiCorp agent-skills** vendored into `.claude/skills/` before any HCL is written. | Terraform authored to HashiCorp's published module/style conventions from day one. |
 
 ### Anti-lock-in guardrails (enforced across all stories)
@@ -108,7 +108,7 @@
 | Developer → Cloud SQL | Cloud SQL Auth Proxy (IAM-authenticated, TLS). DB has no public IP. |
 | Developer → internal backend | `gcloud run services proxy ikaro-backend --region=southamerica-east1` (IAM-authenticated tunnel). Used for tenant provisioning (UC-024). |
 | CI → GCP | Workload Identity Federation scoped to `repository == lmmoreira/ikaro` + branch conditions. Zero long-lived keys; org policy blocks SA key creation. |
-| BFF → backend | VPC direct egress → internal ingress + `InternalApiGuard` (`INTERNAL_API_KEY`, M115-S03). |
+| BFF → backend | VPC direct egress (**`ALL_TRAFFIC`** — `*.run.app` resolves to public IPs; private-ranges-only egress would bypass the VPC and internal ingress would reject the call) → internal ingress + Cloud Run IAM ID token (S47) + `InternalApiGuard` (`INTERNAL_API_KEY`, M115-S03). |
 | Pub/Sub → backend | Push with Google-signed **OIDC token**; backend guard verifies issuer, audience, and the invoker SA email. |
 | Secrets | Secret Manager only. Values **never** in Terraform state, tfvars, git, or CI logs — **no exceptions** (decision revised 2026-07-07: an earlier draft had Terraform generate `db-password`; rejected because `tf-planner` credentials are PR-mintable and read state, so any secret in state is readable from a tampered PR workflow). Terraform creates secret containers + IAM only; all values — including the DB password — are populated via the tightly-scoped activation runbooks (S27/S37). Runtime injection via secret references. |
 | Edge | Cloudflare proxy (DDoS/WAF) in front of ALB; Cloud Armor rule restricting the ALB to Cloudflare IP ranges, enabled at go-live (M17-S36). |
@@ -121,12 +121,12 @@
 
 | Wave | Stories | Theme | Cloud cost? |
 |---|---|---|---|
-| 0 | S01–S06, S47 | App prerequisites (all local, no accounts needed) | No |
+| 0 | S01–S06, S30, S32, S47 | App prerequisites (all local, no accounts needed) | No |
 | 1 | S07–S10, S48 | Accounts & Day-0 bootstrap (GCP, Cloudflare, OAuth, SendGrid) + legacy-doc banners | Starts |
 | 2 | S11–S22 | Terraform: modules + staging/prod envs | Yes |
 | 3 | S23–S26 | Pipelines: infra, staging deploy, prod promote | Yes |
 | 4 | S27–S28 | Staging live + E2E against staging | Yes |
-| 5 | S29–S36, S49–S50 | Hardening + observability + DR & governance | Yes |
+| 5 | S29, S31, S33–S36, S49–S50 | Hardening + observability + DR & governance | Yes |
 | 6 | S37 | Production go-live | Yes |
 | 7 | S38–S46, S51 | Post-launch product: custom domains, edge caching, photo cost/LGPD controls, docs refresh, managed connection pooling, LGPD lifecycle | Yes |
 
@@ -312,6 +312,55 @@ Codify “this must never run in production” rules as startup errors, so a cop
 
 ---
 
+### M17-S30 — Rate limiting finalization
+
+> Moved from Wave 5 (2026-07-07 second review): pure app code with no cloud dependency — landing it before staging is publicly reachable closes the unthrottled window.
+
+**Agent:** `bff-ts`
+**Complexity:** S
+**Docs to load:** `docs/24-BFF_ARCHITECTURE.md` § rate limiting
+
+**Description:**
+Preserved from old M16-S07 minus the Cloud Armor pairing (D4). Throttler is already wired in `app.module.ts` — finalize: public unauthenticated **60/min per IP**; authenticated **300/min per JWT sub**; `/auth/*` token issuance **10/min per IP**; `/health/*` and `/pubsub|cron` paths bypassed; backend’s `POST /internal/tenants` **3/hour** (enforced at the app layer via `PlatformAdminGuard` context — note the endpoint is internal-ingress + IAM-proxied anyway; the limit is brute-force insurance on `PLATFORM_ADMIN_KEY`). `429` responses are RFC 9457 with pt-BR detail; standard `X-RateLimit-*` headers. **Cloud Run caveat (document in code):** per-instance in-memory throttling is per-instance — with `max_instances` small this is acceptable at MVP; a shared store (Memorystore) is the documented scale-up path, not built now (FinOps).
+
+**Client-IP extraction (added 2026-07-07 — per-IP tiers are useless or spoofable if this is wrong):** behind the prod chain (Cloudflare → ALB → Cloud Run) the socket peer is never the client. Resolve the throttle key in one env-selected helper (`APP_ENV`): **prod** keys on `CF-Connecting-IP` — trustworthy *only* because S36 origin lockdown guarantees traffic entered via Cloudflare (state the coupling in a code comment); **staging** (no Cloudflare/ALB) keys on the rightmost `X-Forwarded-For` hop, appended by Cloud Run's front end; the leftmost XFF value is attacker-controlled and must never be trusted. Unit-test all branches.
+
+**Acceptance criteria:**
+- [ ] 61st anonymous request in a minute → 429 Problem Detail (pt-BR)
+- [ ] Authenticated limit keyed by JWT `sub`, not IP
+- [ ] Health/push/cron paths never throttled (specs)
+- [ ] Headers decrement correctly; specs for each tier
+- [ ] IP-extraction helper specs: prod `CF-Connecting-IP`, staging rightmost-XFF, spoofed leftmost-XFF ignored
+
+**Dependencies:** none (prod's trust in `CF-Connecting-IP` becomes real when S36 enables origin lockdown — a config/runtime concern, not a code dependency)
+
+---
+
+### M17-S32 — Signed OAuth `state` (CSRF) wrapping the existing payload
+
+> Moved from Wave 5 (2026-07-07 second review): pure app code with no cloud dependency — closes a known CSRF hole before staging exposes the OAuth flow publicly.
+
+**Agent:** `bff-ts`
+**Complexity:** S
+**Docs to load:** `docs/24-BFF_ARCHITECTURE.md` § security, `apps/bff/src/features/auth/oauth-state.ts`, `google.strategy.ts`
+
+**Description:**
+Old M16-S11 redesigned: `state` today carries functional routing data (`''`, `<slug>`, `__staff__`, `__staff__:<slug>`) with **no integrity/anti-CSRF protection**. Naively replacing it with a nonce breaks staff/tenant login routing. Instead: `state` becomes a short-lived signed JWT `{ loginType?, tenantSlug?, nonce: uuidv7() }` (5-min TTL) via the existing `JwtIssuerService`.
+
+**What to implement:**
+- `encodeOAuthState()` → returns the signed JWT; `decodeOAuthState()` → verifies signature + TTL, returns payload; invalid/expired/missing → `400` Problem Detail on the callback (never a silent fallback to customer flow — fail closed).
+- Keep slug validation (`SLUG_REGEX`) inside the payload creation.
+- Update `google.strategy.ts` + all `encodeOAuthState` call sites + specs (tampered token, expired token, missing state, valid staff and customer flows).
+
+**Acceptance criteria:**
+- [ ] Redirect to Google carries a JWT `state`; callback verifies it
+- [ ] Tampered/expired/missing state → 400 (three specs)
+- [ ] Staff login with `?tenantSlug=` still routes correctly end-to-end (existing E2E `hotsite-auth-bar.spec.ts` stays green)
+
+**Dependencies:** none
+
+---
+
 ### M17-S47 — BFF attaches Google ID tokens to backend calls (Cloud Run IAM auth)
 
 **Agent:** `bff-ts`
@@ -356,13 +405,15 @@ Create the Google Cloud footprint from zero, with security posture set BEFORE an
 **Runbook steps:**
 1. **Cloud Identity Free + Organization (recommended, do first):** sign up for Cloud Identity Free using `ikaro.online` (requires a TXT DNS verification — doable at the current registrar before Cloudflare migration). This creates a GCP **Organization**, which unlocks org policies (step 5) and clean IAM. Create an admin identity (e.g. `admin@ikaro.online`) — do not run the platform from a personal gmail.
 2. **Enforce 2FA** on the admin account (authenticator app minimum; hardware key recommended). Document recovery codes storage (offline).
-3. **Billing account:** create, attach payment method.
-4. **Budgets & alerts:** one budget for the billing account: alerts at **$25, $50 (target ceiling), $75** with email notifications; plus per-project budgets after S08.
-5. **Org policies** (once org exists): `iam.disableServiceAccountKeyCreation` (enforce — pairs with D6), `iam.automaticIamGrantsForDefaultServiceAccounts` (disable), `compute.requireOsLogin` (defense in depth; no VMs planned). Document any policy that must be exempted later, with rationale.
-6. Install `gcloud` CLI locally; `gcloud auth login` as the admin identity.
+3. **Break-glass admin (moved from S50, 2026-07-07):** create a second admin identity now (e.g. `breakglass@ikaro.online`) — the lockout risk it covers is live from this story onward, not from Wave 5. Hardware security key, stored offline and physically separate from daily hardware; never used day-to-day; any use is written up. S50 writes the policy and runs the login+revoke drill.
+4. **Billing account:** create, attach payment method.
+5. **Budgets & alerts:** one budget for the billing account: alerts at **$25, $50 (target ceiling), $75** with email notifications; plus per-project budgets after S08.
+6. **Org policies** (once org exists): `iam.disableServiceAccountKeyCreation` (enforce — pairs with D6), `iam.automaticIamGrantsForDefaultServiceAccounts` (disable), `compute.requireOsLogin` (defense in depth; no VMs planned). Document any policy that must be exempted later, with rationale.
+7. Install `gcloud` CLI locally; `gcloud auth login` as the admin identity.
 
 **Acceptance criteria:**
 - [ ] Organization exists rooted on `ikaro.online`; admin account has 2FA enforced
+- [ ] Break-glass admin identity exists; hardware key stored offline (policy + drill land in S50)
 - [ ] Budget alerts at $25/$50/$75 verified (send test notification)
 - [ ] `iam.disableServiceAccountKeyCreation` enforced at org level
 - [ ] `docs/BOOTSTRAP_LOG.md` created, gitignored, records every step with dates
@@ -386,7 +437,7 @@ The chicken-and-egg bootstrap: the minimal manual resources Terraform itself nee
 2. Enable APIs on both: `run.googleapis.com`, `sqladmin.googleapis.com`, `pubsub.googleapis.com`, `secretmanager.googleapis.com`, `artifactregistry.googleapis.com`, `cloudscheduler.googleapis.com`, `compute.googleapis.com` (LB, prod), `servicenetworking.googleapis.com` (private SQL), `iamcredentials.googleapis.com` (WIF), `monitoring.googleapis.com`, `cloudtrace.googleapis.com`, `logging.googleapis.com`.
 3. **State bucket:** `gs://ikaro-tfstate` in `ikaro-prod`, region `southamerica-east1`, **versioning ON**, uniform bucket-level access, public access prevention enforced. State prefixes: `envs/staging`, `envs/prod` (one state per env — never shared).
 4. **CI service accounts — three per project, split by blast radius** (review finding, 2026-07-07). **No keys on any** (org policy blocks them):
-   - `ikaro-tf-deployer@<project>` — Terraform applies only. Broad infra roles: `roles/run.admin`, `roles/cloudsql.admin`, `roles/pubsub.admin`, `roles/secretmanager.admin`, `roles/compute.networkAdmin`, `roles/iam.serviceAccountAdmin`, `roles/iam.serviceAccountUser`, `roles/storage.admin`, `roles/cloudscheduler.admin`, `roles/monitoring.editor` (prod one additionally `roles/artifactregistry.admin` on the shared registry). `roles/storage.objectAdmin` on the state bucket.
+   - `ikaro-tf-deployer@<project>` — Terraform applies only. Broad infra roles: `roles/run.admin`, `roles/cloudsql.admin`, `roles/pubsub.admin`, `roles/secretmanager.admin`, `roles/compute.networkAdmin`, `roles/iam.serviceAccountAdmin`, `roles/iam.serviceAccountUser`, `roles/storage.admin`, `roles/cloudscheduler.admin`, `roles/monitoring.editor` (prod one additionally `roles/artifactregistry.admin` on the shared registry). `roles/storage.objectAdmin` on the state bucket, **scoped by IAM condition to its own env prefix** (`resource.name.startsWith("projects/_/buckets/ikaro-tfstate/objects/envs/<env>")`) — the staging deployer is mintable from any merge to `main` with no approval, so unscoped access would let it tamper with prod state ahead of the next prod apply.
    - `ikaro-app-deployer@<project>` — app deploy pipelines only. Narrow: `roles/run.developer` (deploy/update services + execute jobs), `roles/artifactregistry.writer` on the shared registry, `roles/iam.serviceAccountUser` **only on the runtime SAs** (not project-wide).
    - `ikaro-tf-planner@<project>` — PR `terraform plan` only. Read-only: `roles/viewer` + `roles/storage.objectViewer` on the state bucket (+ `roles/secretmanager.viewer` for metadata). Cannot mutate anything — safe to expose to PR-triggered workflows.
 5. **WIF:** in each project — pool `github-pool`, OIDC provider `github` (`https://token.actions.githubusercontent.com`), attribute mapping `attribute.repository=assertion.repository`, `attribute.ref=assertion.ref`, and a composite `attribute.repo_ref=assertion.repository + "@" + assertion.ref`; provider-level condition `assertion.repository == "lmmoreira/ikaro"`. Bindings (review finding — repo-only is too broad):
@@ -401,6 +452,7 @@ The chicken-and-egg bootstrap: the minimal manual resources Terraform itself nee
 - [ ] Both projects exist with APIs enabled and budgets attached
 - [ ] `gsutil ls gs://ikaro-tfstate` OK; versioning + public-access-prevention verified
 - [ ] All six SAs (3 × 2 projects) exist with the role split above; app-deployer demonstrably cannot run `terraform apply` (missing infra roles) and planner cannot mutate
+- [ ] State-prefix condition proven: staging `tf-deployer` writes `envs/staging/*` but is denied on `envs/prod/*` (and vice versa)
 - [ ] WIF: planner auth OK from a PR ref; deployer auth REJECTED from a PR ref, OK from `main`; any other repo rejected entirely
 - [ ] Zero SA keys exist (`gcloud iam service-accounts keys list` on each SA shows only Google-managed)
 - [ ] Provider resource names + all SA emails recorded in `BOOTSTRAP_LOG.md`
@@ -451,12 +503,12 @@ The two external service prerequisites for a working deployment: Google OAuth (l
    - staging: authorized redirect `https://<bff-staging-run-url>/v1/auth/google/callback` (exact BFF path — verify against `GOOGLE_CALLBACK_URL` usage in `apps/bff`). **Chicken-and-egg note:** the BFF run URL doesn't exist until Wave 2 — use Cloud Run's deterministic URL format, computable after S08 (`https://ikaro-bff-<PROJECT_NUMBER>.southamerica-east1.run.app`; project number from `gcloud projects describe`), or create the client with a placeholder and update the redirect URI during S27 (redirect URIs are freely editable; changes take effect in minutes).
    - prod: `https://bff.ikaro.online/v1/auth/google/callback`
    - Record client IDs; secrets go straight to a password manager → Secret Manager in S27/S37.
-3. **SendGrid:** create account; verify sender domain `ikaro.online` (SPF/DKIM DNS records — add via Cloudflare, done after S09); create two API keys (staging, prod) with Mail Send permission only.
+3. **SendGrid:** create account; verify sender domain `ikaro.online` (SPF/DKIM DNS records — add via Cloudflare, done after S09); publish a **DMARC** record too (`_dmarc.ikaro.online`, start `v=DMARC1; p=none; rua=mailto:<admin>` to monitor, tighten to `p=quarantine` once SendGrid alignment is confirmed — deliverability + spoofing protection); create two API keys (staging, prod) with Mail Send permission only.
 4. Plan for go-live: consent screen **verification/publishing** takes days–weeks with Google — start the submission during Wave 5, not at go-live day (tracked in S37 checklist).
 
 **Acceptance criteria:**
 - [ ] Two OAuth clients exist with correct redirect URIs; test users added
-- [ ] SendGrid domain authentication (SPF+DKIM) verified on `ikaro.online`
+- [ ] SendGrid domain authentication (SPF+DKIM) verified on `ikaro.online`; DMARC record published
 - [ ] API keys scoped to Mail Send only; nothing committed to git
 - [ ] `BOOTSTRAP_LOG.md` updated
 
@@ -531,10 +583,11 @@ Create the folder structure above with empty-but-valid modules, per-env backends
 **Docs to load:** vendored skills; `docs/23-INFRASTRUCTURE_SETUP.md` § network (reference)
 
 **Description:**
-`modules/network`: VPC `ikaro-vpc-{env}` (no auto subnets), subnet `ikaro-subnet-{env}` `10.0.0.0/24` in `southamerica-east1` (flow logs ON per Checkov), **private services access** peering range for Cloud SQL (`servicenetworking` connection), firewall: default-deny ingress; egress allowed. **No Serverless VPC Access connector** (D7) — Cloud Run services reference this subnet via direct VPC egress in S18.
+`modules/network`: VPC `ikaro-vpc-{env}` (no auto subnets), subnet `ikaro-subnet-{env}` `10.0.0.0/24` in `southamerica-east1` (flow logs ON per Checkov; **`private_ip_google_access = true`** — required: the BFF egresses `ALL_TRAFFIC` through this subnet (S18), so its Google-API calls — OAuth token exchange, JWKS fetches — must ride Private Google Access), **private services access** peering range for Cloud SQL (`servicenetworking` connection), firewall: default-deny ingress; egress allowed. **No Serverless VPC Access connector** (D7) — Cloud Run services reference this subnet via direct VPC egress in S18. **No Cloud NAT at launch** (documented decision, 2026-07-07): the backend keeps `PRIVATE_RANGES_ONLY` egress so its non-Google calls (SendGrid) go direct from Cloud Run's infrastructure, and the BFF calls only Google APIs (PGA) + the backend (VPC) — nothing needs a NAT path. Revisit only if a VPC-egressing service ever needs a non-Google external API.
 
 **Acceptance criteria:**
 - [ ] Applied to staging: VPC + subnet + PSA connection exist
+- [ ] Subnet has `private_ip_google_access = true` (the BFF's Google-API calls under `ALL_TRAFFIC` egress depend on it — S18)
 - [ ] No `google_vpc_access_connector` resource anywhere
 - [ ] Flow logs enabled; Checkov clean
 - [ ] Module has typed variables + outputs (`network_id`, `subnet_id`) consumed by later modules
@@ -550,7 +603,7 @@ Create the folder structure above with empty-but-valid modules, per-env backends
 **Docs to load:** `docs/13-DATABASE_SCHEMA.md` (context), vendored skills
 
 **Description:**
-`modules/database`: instance `ikaro-db-{env}`, PostgreSQL 15, `var.db_tier` (staging `db-f1-micro`; **prod launches on `db-f1-micro` too per D12** — upgrade to `db-g1-small`/custom via tfvars change when the first paying tenant lands; document this in the module README including the brief restart the resize causes), `ipv4_enabled=false` + PSA network, `require_ssl=true`, daily backups 02:00 UTC retention 7, PITR enabled prod-only (`var.enable_pitr`), `deletion_protection=true` prod. Database `ikaro` created by Terraform. **The `ikaro` user and its password are NOT Terraform-managed** (decision revised 2026-07-07 — zero secret values in state, no exceptions; see §2): the activation runbooks (S27/S37) create them out-of-band:
+`modules/database`: instance `ikaro-db-{env}`, PostgreSQL 15, `var.db_tier` (staging `db-f1-micro`; **prod launches on `db-f1-micro` too per D12** — upgrade to `db-g1-small`/custom via tfvars change when the first paying tenant lands; document this in the module README including the brief restart the resize causes), `ipv4_enabled=false` + PSA network, `require_ssl=true`, daily backups 02:00 UTC retention 7, PITR enabled prod-only (`var.enable_pitr`), `deletion_protection=true` prod, **maintenance window pinned off-peak** (e.g. Sunday 06:00 UTC ≈ 03:00 São Paulo), **`disk_autoresize=true` + `disk_autoresize_limit`** (e.g. 30GB) so disk growth never hard-stops writes while cost stays bounded. Database `ikaro` created by Terraform. **The `ikaro` user and its password are NOT Terraform-managed** (decision revised 2026-07-07 — zero secret values in state, no exceptions; see §2): the activation runbooks (S27/S37) create them out-of-band:
 ```bash
 PW=$(openssl rand -base64 32)
 gcloud sql users create ikaro --instance=ikaro-db-<env> --password="$PW"
@@ -686,8 +739,8 @@ No SA gets `roles/editor`/`roles/owner`. No keys (org policy enforces).
 `modules/cloudrun-service` (generic: image, env map, secret map, SA, ingress, resources, probes, VPC egress, optional sidecar) + per-env composition of the three services. Until the first pipeline deploy, use a placeholder public image (e.g. `gcr.io/cloudrun/hello`) with probes relaxed via a `bootstrap_mode` variable — flipped off in S27. `lifecycle { ignore_changes = [template[0].containers[0].image] }` on app containers: **the pipeline owns the image, Terraform owns everything else** (prevents every future `terraform apply` from rolling back deploys).
 
 Key settings:
-- **backend:** ingress `INGRESS_TRAFFIC_INTERNAL_ONLY`; direct VPC egress (network+subnet from S12, egress `PRIVATE_RANGES_ONLY`); `min=0,max=10` staging / `min=0,max=20` prod (push model makes min=0 safe — D2); CPU 1 / 512Mi; startup probe `/health/live`, liveness `/health/live`, readiness via startup+`/health/ready`; env per backend schema incl. `PUBSUB_CONSUMER_MODE=push`, `PUBSUB_AUTO_CREATE=false`, `PUBSUB_PUSH_AUDIENCE=<own run URL>/pubsub/push`, `PUBSUB_PUSH_SERVICE_ACCOUNT=ikaro-pubsub-invoker@…`; secrets via `value_source.secret_key_ref`. `--no-allow-unauthenticated` + `run.invoker` for bff/pubsub-invoker SAs (IAM layer on top of internal ingress).
-- **bff:** public (`INGRESS_TRAFFIC_ALL` staging; `INTERNAL_AND_CLOUD_LOAD_BALANCING` prod once S22 lands); allow-unauthenticated (app does its own auth); VPC direct egress to reach backend; `BACKEND_INTERNAL_URL=https://<backend run URL>` (internal ingress accepts VPC-originated calls to the run.app URL); CPU 1 / 512Mi; `min=0`.
+- **backend:** ingress `INGRESS_TRAFFIC_INTERNAL_ONLY`; direct VPC egress (network+subnet from S12, egress `PRIVATE_RANGES_ONLY`); `min=0,max=10` staging / `min=0,max=20` prod (push model makes min=0 safe — D2); CPU 1 / 512Mi; probes (**Cloud Run has startup + liveness probes only — no readiness probe**): startup probe `/health/ready` (gates new instances on real dependencies), liveness `/health/live`; a running instance that loses the DB is **not** pulled from rotation (Cloud Run cannot do that) — the S35 5xx/uptime alerting is the mitigation; env per backend schema incl. `PUBSUB_CONSUMER_MODE=push`, `PUBSUB_AUTO_CREATE=false`, `PUBSUB_PUSH_AUDIENCE=<own run URL>/pubsub/push`, `PUBSUB_PUSH_SERVICE_ACCOUNT=ikaro-pubsub-invoker@…`; secrets via `value_source.secret_key_ref`. `--no-allow-unauthenticated` + `run.invoker` for bff/pubsub-invoker SAs (IAM layer on top of internal ingress).
+- **bff:** public (`INGRESS_TRAFFIC_ALL` staging; `INTERNAL_AND_CLOUD_LOAD_BALANCING` prod once S22 lands); allow-unauthenticated (app does its own auth); VPC direct egress with **`ALL_TRAFFIC`** (fixes a would-break-staging gap found 2026-07-07: `*.run.app` resolves to public Google IPs, so `PRIVATE_RANGES_ONLY` would route the backend call outside the VPC — it would arrive as external traffic and internal ingress would reject it; under all-traffic egress the BFF's Google-API calls ride the subnet's Private Google Access — S12); `BACKEND_INTERNAL_URL=https://<backend run URL>` (internal ingress accepts VPC-originated calls to the run.app URL); CPU 1 / 512Mi; `min=0`.
 - **web:** public (same ingress split as BFF); 256Mi; `min=0`; env: `NEXT_PUBLIC_*` are **build-time** — runtime copies exist only for server-side code; see S26 for the per-env image consequence.
 - **web probe paths differ:** web health lives under Next.js route handlers — probes must target `/api/health/live` and `/api/health/ready` (S04), NOT `/health/*` like backend/BFF. A wrong probe path = a service that never turns READY.
 - All three: `APP_ENV` set per environment (`staging`/`production` — S06 deployment identity; `NODE_ENV=production` in both), sidecar support wired (container list accepts an optional collector sidecar — activated in S34), `max_instance_request_concurrency` default, second-gen execution environment, labels (`env`, `service`, `managed-by=terraform`).
@@ -698,6 +751,7 @@ Key settings:
 - [ ] Staging apply: 3 services READY on placeholder images
 - [ ] Connection-math precondition proven: setting `max_instances=20` on f1-micro fails `terraform plan` with a descriptive error
 - [ ] Backend has NO public URL access: unauthenticated fetch of its run.app URL from the internet fails; a request from the BFF container succeeds (verify post-S27 — checklist item there)
+- [ ] BFF egress mode is `ALL_TRAFFIC`; the BFF→backend call demonstrably traverses the VPC (internal ingress accepts it — verify post-S27 alongside the item above)
 - [ ] `terraform plan` after a manual `gcloud run deploy` shows NO image drift (ignore_changes works)
 - [ ] All secret env vars are `secret_key_ref` (zero plaintext secrets in state for these)
 - [ ] Checkov clean
@@ -726,6 +780,7 @@ Terraform must mirror the adapter’s naming **exactly**: topic `ikaro-{EventNam
 - [ ] `pnpm pubsub:catalog` regenerates the JSON deterministically; CI fails on stale catalog (prove with a deliberate temp change)
 - [ ] Staging apply: every topic/sub/DLQ exists; names byte-identical to what the adapter registers
 - [ ] Push subs carry OIDC config with the invoker SA
+- [ ] Dual audience validation verified (the backend is `--no-allow-unauthenticated`): the push token must pass **both** Cloud Run's IAM check (audience = service URL or a configured custom audience) and the app guard (`PUBSUB_PUSH_AUDIENCE` = full push URL). Pub/Sub defaults the audience to the full endpoint URL (path included) — if Cloud Run rejects a path-suffixed audience, set `oidc_token.audience` explicitly and align both layers (exercise in staging, S27)
 - [ ] DLQ IAM grants for the Pub/Sub service agent in place
 
 **Dependencies:** M17-S02, M17-S18 (backend URL)
@@ -840,7 +895,7 @@ Repository **variables** (non-sensitive): `GCP_PROJECT_STAGING=ikaro-staging`, `
 The Terraform lifecycle the user asked for: commit to `infra/` triggers plan/apply. **After this story merges, manual `terraform apply` is forbidden** (README + this doc are the record).
 
 **`.github/workflows/infra-deploy.yml`:**
-- **On `pull_request` touching `infra/terraform/**`:** `terraform fmt -check`, `validate`, Checkov, then `terraform plan` for **both** envs — authenticated as the read-only **`tf-planner`** SAs (S08: PR refs cannot mint deployer credentials, by WIF binding). Post both plans as a PR comment (truncated with a link to the run). No apply ever on PRs.
+- **On `pull_request` touching `infra/terraform/**`:** `terraform fmt -check`, `validate`, Checkov, then `terraform plan` for **both** envs — authenticated as the read-only **`tf-planner`** SAs (S08: PR refs cannot mint deployer credentials, by WIF binding). Post both plans as a PR comment (truncated with a link to the run). No apply ever on PRs. Public-repo note (2026-07-07): fork PRs are not granted `id-token: write`, so they cannot mint even planner credentials — plans run only on same-repo branches (fine for a solo repo).
 - **On `push` to `main` touching `infra/terraform/**`:** job `apply-staging` (environment `staging-infrastructure`, authenticated as **`tf-deployer`** — mintable from `main` only): `terraform apply -auto-approve` for `envs/staging`, using the **plan artifact** from the merged commit where practical. Then job `apply-prod` (environment `production-infrastructure`, `needs: apply-staging`): re-plan prod, **wait for approval**, apply. Reviewer sees the fresh prod plan in the job log before approving.
 - **Concurrency:** apply jobs use `concurrency: { group: staging-mutations, cancel-in-progress: false }` (prod: `production-mutations`) — the **same group names the app deploy workflow uses (S25)**, so a PR touching both `infra/**` and `apps/**` cannot run a Terraform apply and an app deploy concurrently (review finding: infra/app race). GCS state locking is the second line of defense.
 - **Convention (enforced as a `/pre-pr` checklist line + workflow header comment):** do not mix `infra/terraform/**` and `apps/**` changes in one PR; when unavoidable, note in the PR that infra applies first and re-run the app deploy if it won the race.
@@ -926,6 +981,7 @@ Turn staging from placeholder to a working environment. This is a runbook + chec
 **Steps:**
 1. Populate staging secret values (`gcloud secrets versions add`): jwt-secret (`openssl rand -hex 64`), internal-api-key, platform-admin-key, hotsite-revalidate-secret, OAuth pair (S10), SendGrid key. **Create the DB user + password out-of-band per the S13 snippet** (`gcloud sql users create` + `db-password` secret version — never via Terraform, §2). Record rotation dates in `SECRETS.md`.
 2. Flip `bootstrap_mode=false` (S18) via the infra pipeline; set staging env vars: `APP_ENV=staging` (which is what makes `ENABLE_DEV_AUTH=true` legal — S06), `ENABLE_DEV_AUTH=true`, `EMAIL_ADAPTER=sendgrid`, `LOG_LEVEL=DEBUG`.
+   **Staging data rule (compensating control, 2026-07-07):** `ENABLE_DEV_AUTH=true` on a public `*.run.app` URL is an authentication bypass for anyone who discovers the URL. Accepted **only** under this rule: staging holds synthetic/test data exclusively — never real customer data, never a copy of prod. Record the rule in `docs/RUNBOOKS.md` (staging section) as part of this story.
 3. Trigger `deploy-staging.yml` (empty commit or re-run) → first real images deploy.
 4. **Validation checklist (all deferred items from Wave 2 land here):**
    - [ ] 3 services READY with real images; probes green
@@ -991,26 +1047,7 @@ Preserved from old M16-S04 — still fully valid and the highest-value hardening
 - [ ] No `.skip()`; suite wired into CI (extend `pr-tests.yml` or a dedicated job) and into `/pre-pr`
 - [ ] Any failure documented as a critical security bug process (README of the suite)
 
-**Dependencies:** none within M17 (parallelizable inside Wave 5)
-
----
-
-### M17-S30 — Rate limiting finalization
-
-**Agent:** `bff-ts`
-**Complexity:** S
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md` § rate limiting
-
-**Description:**
-Preserved from old M16-S07 minus the Cloud Armor pairing (D4). Throttler is already wired in `app.module.ts` — finalize: public unauthenticated **60/min per IP**; authenticated **300/min per JWT sub**; `/auth/*` token issuance **10/min per IP**; `/health/*` and `/pubsub|cron` paths bypassed; backend’s `POST /internal/tenants` **3/hour** (enforced at the app layer via `PlatformAdminGuard` context — note the endpoint is internal-ingress + IAM-proxied anyway; the limit is brute-force insurance on `PLATFORM_ADMIN_KEY`). `429` responses are RFC 9457 with pt-BR detail; standard `X-RateLimit-*` headers. **Cloud Run caveat (document in code):** per-instance in-memory throttling is per-instance — with `max_instances` small this is acceptable at MVP; a shared store (Memorystore) is the documented scale-up path, not built now (FinOps).
-
-**Acceptance criteria:**
-- [ ] 61st anonymous request in a minute → 429 Problem Detail (pt-BR)
-- [ ] Authenticated limit keyed by JWT `sub`, not IP
-- [ ] Health/push/cron paths never throttled (specs)
-- [ ] Headers decrement correctly; specs for each tier
-
-**Dependencies:** none
+**Dependencies:** none within M17 (cloud-independent — Testcontainers only; parallelizable inside Wave 5 or pulled earlier at will; must land before S37)
 
 ---
 
@@ -1035,29 +1072,6 @@ Old M16-S08 is **largely already implemented** (`shared/http/problem-detail.ts`,
 - [ ] Audit table (route group → verdict) attached to the PR description
 - [ ] All gaps fixed with specs in the same PR
 - [ ] Production-mode 500 spec exists in both apps
-
-**Dependencies:** none
-
----
-
-### M17-S32 — Signed OAuth `state` (CSRF) wrapping the existing payload
-
-**Agent:** `bff-ts`
-**Complexity:** S
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md` § security, `apps/bff/src/features/auth/oauth-state.ts`, `google.strategy.ts`
-
-**Description:**
-Old M16-S11 redesigned: `state` today carries functional routing data (`''`, `<slug>`, `__staff__`, `__staff__:<slug>`) with **no integrity/anti-CSRF protection**. Naively replacing it with a nonce breaks staff/tenant login routing. Instead: `state` becomes a short-lived signed JWT `{ loginType?, tenantSlug?, nonce: uuidv7() }` (5-min TTL) via the existing `JwtIssuerService`.
-
-**What to implement:**
-- `encodeOAuthState()` → returns the signed JWT; `decodeOAuthState()` → verifies signature + TTL, returns payload; invalid/expired/missing → `400` Problem Detail on the callback (never a silent fallback to customer flow — fail closed).
-- Keep slug validation (`SLUG_REGEX`) inside the payload creation.
-- Update `google.strategy.ts` + all `encodeOAuthState` call sites + specs (tampered token, expired token, missing state, valid staff and customer flows).
-
-**Acceptance criteria:**
-- [ ] Redirect to Google carries a JWT `state`; callback verifies it
-- [ ] Tampered/expired/missing state → 400 (three specs)
-- [ ] Staff login with `?tenantSlug=` still routes correctly end-to-end (existing E2E `hotsite-auth-bar.spec.ts` stays green)
 
 **Dependencies:** none
 
@@ -1115,7 +1129,7 @@ Terraform: activate the sidecar in the S18 module for backend + BFF (128Mi/0.1 C
 
 **Description:**
 `modules/monitoring` (both envs; alert thresholds via variables): 
-- **Uptime checks (prod):** `https://bff.ikaro.online/v1/health/ready`, `https://ikaro.online/api/health/live` (staging: run.app equivalents, relaxed).
+- **Uptime checks (prod):** `https://bff.ikaro.online/v1/health/ready`, `https://ikaro.online/api/health/live` (staging: run.app equivalents, relaxed). FinOps note (2026-07-07): uptime checks probe from multiple regions every few minutes, keeping prod BFF/web permanently warm — scale-to-zero effectively stops applying to them. Accepted: the cost is a fraction of an instance and it masks cold starts for real users; the §1 cost model's Cloud Run line absorbs it.
 - **Alert policies:** uptime failure; Cloud Run 5xx rate > 5% over 5m (per service); p99 latency > 2s over 10m; Cloud SQL disk > 80% & CPU > 80%; **any DLQ topic with undelivered messages > 0 for 10m** (per-DLQ, from S19 catalog — this is the “events are silently dying” alarm); Cloud Run instance count stuck at max. Notification channel: email (admin address); structure so a Slack webhook channel can be added later.
 - **Dashboard:** one per env (JSON in Terraform): request rate/latency/5xx per service, instance counts, SQL connections/CPU, Pub/Sub oldest-unacked-age, DLQ depths.
 - Log-based metric: count of `severity=ERROR` per service, alerted at a burst threshold.
@@ -1186,14 +1200,14 @@ Closes the “bypass Cloudflare by hitting the LB IP directly” hole. `modules/
 
 **What to produce (`docs/SECURITY_GOVERNANCE.md`, doc gate applies):**
 1. **Role inventory:** the admin identity is the only human with org/project Owner; everything else (CI, runtime) is enumerated with its S08/S17 role set. Any new human gets least-privilege roles, never Owner.
-2. **Break-glass account:** a second admin identity with a hardware security key stored offline (physically separate from daily hardware). Documented activation procedure + a log requirement (any break-glass use is written up). For a solo operator this is the difference between "lost my phone" and "lost the platform".
+2. **Break-glass account:** the second admin identity **created back in S07** (moved there 2026-07-07 — the lockout risk is live from Day 0). This story verifies and drills it (login + revoke test), documents the activation procedure + a log requirement (any break-glass use is written up). For a solo operator this is the difference between "lost my phone" and "lost the platform".
 3. **Quarterly IAM review:** 15-minute checklist — `gcloud projects get-iam-policy` diff vs the documented inventory, SA key check (must stay zero), WIF binding check, dormant-identity removal. Same calendar cadence as the S49 drill.
 4. **Audit log expectations:** Admin Activity logs (400-day default retention, free) are the baseline; decide and document Data Access logs per service (enable for Secret Manager and Cloud SQL at minimum — low volume, high forensic value; leave GCS data-access off until traffic justifies the cost).
 5. **2FA statement:** hardware key (or authenticator minimum) on the admin Google account, Cloudflare, GitHub, SendGrid — already required by S07/S09; this doc is where the requirement lives permanently.
 
 **Acceptance criteria:**
 - [ ] `docs/SECURITY_GOVERNANCE.md` exists covering the five areas
-- [ ] Break-glass identity created and tested (login + revoke drill), key stored offline
+- [ ] Break-glass identity (created in S07) verified and tested (login + revoke drill), key stored offline
 - [ ] Data Access audit logs enabled for Secret Manager + Cloud SQL via Terraform
 - [ ] First quarterly review executed as part of this story (baseline)
 
@@ -1528,9 +1542,9 @@ When the trigger above is met, move the instance to Enterprise Plus and enable *
 | S27 | M15-S11 | staging activation |
 | S28 | M16-S06 | E2E vs staging; test-login superseded by M115 Dev Login |
 | S29 | M16-S04 | unchanged + storage check |
-| S30 | M16-S07 | minus Armor pairing |
+| S30 | M16-S07 | minus Armor pairing; moved to Wave 0 + client-IP extraction spec (2026-07-07) |
 | S31 | M16-S08 | build → audit (already implemented) |
-| S32 | M16-S11 | redesigned to wrap routing payload |
+| S32 | M16-S11 | redesigned to wrap routing payload; moved to Wave 0 (2026-07-07) |
 | S33 | M14-S01/S02 | OTLP-only; manual spans deferred |
 | S34 | M14-S04 + M16-S09 | compose stack/VM → collector sidecar (D9) |
 | S35 | M14-S05/S06 | Grafana JSONs/Prometheus rules → Cloud Monitoring as code |
