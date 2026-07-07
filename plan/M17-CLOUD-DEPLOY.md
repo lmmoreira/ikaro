@@ -112,7 +112,7 @@
 | 4 | S27–S28 | Staging live + E2E against staging | Yes |
 | 5 | S29–S36 | Hardening + observability | Yes |
 | 6 | S37 | Production go-live | Yes |
-| 7 | S38–S42 | Post-launch product: custom domains, edge caching, docs refresh | Yes |
+| 7 | S38–S45 | Post-launch product: custom domains, edge caching, photo cost/LGPD controls, docs refresh | Yes |
 
 Waves are strictly sequential; stories inside a wave may run in the listed order (some are parallelizable — noted per story). Every story follows the standard workflow: `/story-discovery M17-SXX` → branch → implement → `/pre-pr` → PR.
 
@@ -497,7 +497,7 @@ cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-stagi
 **This module was missing from the old M15 entirely.** The app requires two buckets (see `GCS_BUCKET_NAME`, `GCS_PUBLIC_BUCKET_NAME`, `GCS_PUBLIC_BASE_URL`):
 - `ikaro-uploads-{env}` — **private** (uniform access, public-prevention enforced). Browser uploads go via V4 signed URLs (M115-S01), so the bucket needs a **CORS config** allowing `PUT`/`GET` from the web origin(s) with the headers the signed-URL flow uses (verify exact headers against `GcsSignedUrlAdapter`).
 - `ikaro-public-{env}` — public-read objects (hotsite images): `allUsers: roles/storage.objectViewer`, CORS `GET` from `*`. `GCS_PUBLIC_BASE_URL=https://storage.googleapis.com/ikaro-public-{env}`.
-- Both: `southamerica-east1`, soft-delete default, lifecycle rule deleting incomplete multipart uploads after 7 days. Signed URLs require the backend runtime SA to have `roles/iam.serviceAccountTokenCreator` **on itself** (keyless signing via IAM signBlob — no key file in cloud; `GCS_KEY_FILE` stays a local-dev-only var). Verify the adapter supports keyless signing; if it insists on a key file, fix the adapter in this story (root-cause rule — no key-file workaround in cloud).
+- Both: `southamerica-east1`, soft-delete default, lifecycle rule deleting incomplete multipart uploads after 7 days. (Age-based tiering + booking-photo retention/deletion is added later by M17-S45 — uploads bucket only; the public hotsite bucket is permanent.) Signed URLs require the backend runtime SA to have `roles/iam.serviceAccountTokenCreator` **on itself** (keyless signing via IAM signBlob — no key file in cloud; `GCS_KEY_FILE` stays a local-dev-only var). Verify the adapter supports keyless signing; if it insists on a key file, fix the adapter in this story (root-cause rule — no key-file workaround in cloud).
 
 **Acceptance criteria:**
 - [ ] Uploads bucket rejects public access; public bucket serves objects anonymously
@@ -1199,6 +1199,89 @@ Run `/docs-audit` scoped to the infra/deploy docs, then update them to describe 
 
 ---
 
+### M17-S43 — Client-side photo compression before upload
+
+**Agent:** `frontend-ts`
+**Complexity:** M
+**Docs to load:** M115 IA § S01 (3-step signed-URL upload contract), `docs/08-TESTING_STRATEGY.md` § apps/web
+
+**Description:**
+Uploads currently go browser → V4 signed URL → GCS **raw** — a phone photo is 3–6MB. Resizing to ~1600px max-dimension WebP (~200–400KB) in the browser before the signed `PUT` cuts storage, egress, and hotsite page weight ~10× with no visible quality loss for service documentation. This is the single highest-leverage cost story for photos.
+
+**What to implement:**
+1. Shared helper `apps/web/shared/utils/compress-image.ts` (+ `.spec.ts` same commit, repo rule): input `File` → output `File`/`Blob`. Pipeline: `createImageBitmap(file, { imageOrientation: 'from-image' })` (EXIF rotation baked in — critical for phone photos) → draw to canvas capped at `MAX_DIMENSION=1600` preserving aspect ratio → `canvas.toBlob('image/webp', 0.8)`. Config (dimension/quality/format) as exported constants so tuning is one place.
+2. **Fallbacks (fail-open):** if `createImageBitmap`/WebP encoding is unavailable or throws, or if the compressed result is *larger* than the original (already-optimized images), upload the original — never block a booking flow on compression. `GCS_MAX_UPLOAD_BYTES` remains the server-side hard cap either way.
+3. Integrate at every upload call site: booking before/after photo pickers and the hotsite `GalleryImageManager` (grep the upload helper tree for all consumers of the signed-URL flow — do not fork per-component logic; one shared helper).
+4. **Contract check:** the signed URL is generated for a declared content type — verify the M115-S01 contract (does the backend sign for a specific `Content-Type`?). If yes, request the signed URL *after* compression with `image/webp`; if the backend restricts allowed types, add `image/webp` to the allowlist (backend change in the same story, with spec).
+5. Any new user-visible copy (e.g. a "processing photo…" state) localized pt-BR + en (repo rule).
+
+**Acceptance criteria:**
+- [ ] A 5MB portrait JPEG from a phone uploads as WebP ≤ ~500KB, correctly oriented, and renders in the booking detail and hotsite gallery
+- [ ] Compression failure or larger-result path falls back to the original file (specs for both)
+- [ ] All upload entry points go through the shared helper (grep proves no raw-`File` PUT remains)
+- [ ] Signed-URL content-type contract verified/adjusted with backend spec if touched
+- [ ] Helper unit tests cover: resize math, orientation, fallback, size-comparison branch
+
+**Dependencies:** none (post-launch; independently shippable)
+
+---
+
+### M17-S44 — Public hotsite images behind the edge (`img.ikaro.online`)
+
+**Agent:** `devops`
+**Complexity:** M
+**Docs to load:** S22 edge module, S14 storage module, S41 (cache rules)
+
+**Description:**
+`GCS_PUBLIC_BASE_URL` currently points at `storage.googleapis.com` directly — every hotsite image view is uncached GCS egress (~$0.12/GB), which at scale costs more than storage itself. Serve the public bucket through the existing prod ALB + Cloudflare so the edge absorbs repeat views (~90% egress reduction on popular hotsites).
+
+**What to implement:**
+1. **Terraform (`modules/edge`):** a **backend bucket** (`google_compute_backend_bucket`, `enable_cdn=false` — Cloudflare is the CDN; don't pay twice) pointing at `ikaro-public-prod`; host rule `img.ikaro.online` → backend bucket; add the hostname to the Certificate Manager cert (DNS authorization) and a proxied Cloudflare record → LB IP. No new forwarding rule → **no new fixed cost** (reuses the existing ALB).
+   - Note: the classic `CNAME c.storage.googleapis.com` shortcut is explicitly rejected — it breaks under Cloudflare SSL Full (strict) (GCS CNAME origin is HTTP-only). The backend-bucket path is the correct one.
+2. **Cloudflare cache rule:** `img.ikaro.online/*` → cache everything, long edge TTL (30d). Safe **only if objects are immutable**: verify the upload flow writes unique object names per upload (it does per the `tenants/<id>/bookings/<id>/<file>` + generated-name pattern — confirm for hotsite gallery uploads too; if any path overwrites in place, fix to versioned names in this story rather than adding purge complexity).
+3. **Config:** prod `GCS_PUBLIC_BASE_URL=https://img.ikaro.online` (and `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` build arg for web-prod, S26). Staging keeps `storage.googleapis.com` (no LB there — D5); the env divergence is config, not code.
+4. CSP check: if the web `connect-src`/`img-src` in `apps/web/middleware.ts` enumerates image origins, add the new hostname + spec (repo anti-pattern: silent CSP blocks).
+
+**Acceptance criteria:**
+- [ ] Hotsite image second view → `cf-cache-status: HIT`; first view → served via LB backend bucket (no `storage.googleapis.com` in prod page HTML)
+- [ ] Object immutability confirmed for all public-bucket writers (or versioned naming fixed with specs)
+- [ ] Staging unaffected; prod cert covers the new hostname; SSL Full (strict) end-to-end
+- [ ] CSP updated with spec if applicable; Checkov clean
+
+**Dependencies:** M17-S22, M17-S37 (prod edge live); pairs naturally with S41
+
+---
+
+### M17-S45 — Photo lifecycle & retention: booking photos expire, hotsite assets permanent
+
+**Agent:** `devops` + `backend-ts` + `frontend-ts`
+**Complexity:** M
+**Docs to load:** S14 storage module, `docs/13-DATABASE_SCHEMA.md` (photo reference columns), LGPD context in `docs/01-BUSINESS_CONTEXT.md` if present
+
+**Description:**
+Two-in-one: cost ceiling + LGPD compliance. Customer vehicle photos are personal data; keeping them forever is a liability *and* linear cost growth. Decision (2026-07-07): **booking photos are deletable; hotsite/public assets are permanent** (tenant-owned marketing content, no lifecycle deletion).
+
+**What to implement:**
+1. **Terraform (`modules/storage`), uploads bucket only:**
+   - Age 60d → `SetStorageClass: NEARLINE` (viewing a photo months later still works — Nearline is instant-access, just cheaper storage/pricier reads).
+   - Age `var.booking_photo_retention_days` → `Delete`. Default **365** (proposal — confirm at `/story-discovery`: must be ≥ the tenant dispute/warranty window; it is a business + LGPD decision, so it lands in this story's discovery, not silently in code).
+   - Scope rules with `matchesPrefix = ["tenants/"]` so any future non-photo object class in this bucket isn't caught accidentally; document the constraint in the module README.
+   - **Public bucket: explicitly NO age-based rules** — add a comment block stating the permanence decision so a future cost-trim doesn't "optimize" tenant marketing assets away.
+2. **App-side graceful degradation:** after deletion, DB photo references dangle by design (no cleanup job — the storage layer is the source of truth for existence). Verify/implement: signed-URL read for a missing object must surface as a typed not-found (not a 500), and the dashboard booking detail + customer views render a localized "foto expirada/indisponível" placeholder instead of a broken image. Specs for the missing-photo path in the same commit (`.spec.tsx` per repo rule, pt-BR + en keys).
+3. **Orphan check (hotsite bucket):** verify whether removing/replacing an image in `GalleryImageManager` deletes the old GCS object. If it doesn't, file a `td/` entry (orphaned public objects = slow cost leak) — fixing it is out of this story's scope.
+4. **Transparency:** add the retention period to the tenant-facing terms/privacy documentation stub (doc-gate applies) so tenants can tell *their* customers how long photos are kept.
+
+**Acceptance criteria:**
+- [ ] Lifecycle rules visible on the uploads bucket (staging + prod) with the retention variable per env; public bucket has none
+- [ ] Missing-object read path returns typed not-found end-to-end; UI shows localized placeholder (specs both locales)
+- [ ] Retention value + rationale recorded in this story's discovery notes and the module README
+- [ ] Orphan-deletion behavior of the public bucket verified and documented (or `td/` filed)
+- [ ] Checkov clean
+
+**Dependencies:** M17-S14 (module exists); app-side parts independently shippable post-launch
+
+---
+
 ## Appendix — Story → old milestone traceability
 
 | M17 | Origin | Disposition |
@@ -1239,6 +1322,9 @@ Run `/docs-audit` scoped to the infra/deploy docs, then update them to describe 
 | S38–S40 | new product | custom domains (UC-032 doc-first) |
 | S41 | new product | hotsite edge caching |
 | S42 | new | docs refresh |
+| S43 | new (photo costs, 2026-07-07) | client-side compression before upload |
+| S44 | new (photo costs, 2026-07-07) | public images via ALB backend bucket + Cloudflare |
+| S45 | new (photo costs + LGPD, 2026-07-07) | booking-photo retention; hotsite bucket permanent |
 
 **Explicitly dropped:** M15-S12 Cloud IAP (D4) · M16-S06 `E2E_TEST_MODE`/`test-login` (M115-S02 Dev Login exists) · M14 Docker-Compose observability stack + M16-S09 GCE Grafana VM as launch items (D9 — remain a documented future option via collector config swap) · M16-S01 SA JSON keys (D6) · M15-S03 VPC Access connector (D7).
 
