@@ -55,7 +55,9 @@ interface HotsiteBranding {
 }
 ```
 
-`docs/04-USE_CASES.md` UC-027 Section A was updated (2026-06-16) to list all 13 fields. The prototype groups them into 4 sub-sections (Cores, Logo, Tipografia, Forma e estilo) to keep the form scannable — confirm this grouping with the user before implementing, it's a UX judgment call not dictated by the UC.
+`docs/04-USE_CASES.md` UC-027 Section A was updated (2026-06-16) to list these 13 fields. The prototype groups them into 4 sub-sections (Cores, Logo, Tipografia, Forma e estilo) to keep the form scannable.
+
+> ✅ **Resolved during M13-S35 discovery (2026-07-07):** `HotsiteBrandingResponse` (`packages/types/src/hotsite.ts`) actually carries 5 more fields the prototype never showed — `heroBgStyle`, `alternateSectionBg`, `dividerStyle`, `brandName`, `brandTagline` — confirmed live and consumed by the public hotsite renderer today (`apps/web/features/platform/hotsite/apply-branding.ts`, `page-model.ts`, the Hero/BookingCta brand-card). M13-S35 covers all 18 fields, extending the grouping to 5 sub-sections: the 4 above plus a new "Ritmo visual" section (`heroBgStyle`, `alternateSectionBg`, `dividerStyle`), with `brandName`/`brandTagline` folded into "Logo e identidade". See `plan/M13-DASHBOARD-FRONTEND.md` § M13-S35 for the full field table.
 
 ---
 

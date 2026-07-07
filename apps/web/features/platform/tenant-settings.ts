@@ -52,7 +52,7 @@ export interface UpdateHotsiteBrandingRequest {
 
 export interface UpdateHotsiteRequest {
   readonly branding?: UpdateHotsiteBrandingRequest;
-  readonly modules?: readonly UpdateHotsiteModuleRequest[];
+  readonly layout?: readonly UpdateHotsiteModuleRequest[];
   readonly seo?: {
     readonly title?: string | null;
     readonly description?: string | null;
@@ -62,6 +62,7 @@ export interface UpdateHotsiteRequest {
 export interface HotsiteImageSignedUrlRequest {
   readonly fileName: string;
   readonly contentType: 'image/jpeg' | 'image/png';
+  readonly purpose: 'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta';
 }
 
 export interface FeatureBookingPhotoRequest {
@@ -71,24 +72,32 @@ export interface FeatureBookingPhotoRequest {
 }
 
 export async function getHotsiteConfig(): Promise<HotsiteAdminContentResponse> {
-  const res = await bffClient.get<HotsiteAdminContentResponse>('/platform/hotsite');
+  const res = await bffClient.get<HotsiteAdminContentResponse>('/tenants/hotsite');
   return res.data;
+}
+
+// Server-side only — the editor must never pre-fill stale values after a save, same rationale
+// as fetchTenantSettingsFresh.
+export async function fetchHotsiteConfig(token: string): Promise<HotsiteAdminContentResponse> {
+  const res = await bffServerFetch(token, '/tenants/hotsite', { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to fetch hotsite config (${res.status})`);
+  return res.json() as Promise<HotsiteAdminContentResponse>;
 }
 
 export async function updateHotsiteConfig(
   body: UpdateHotsiteRequest,
 ): Promise<HotsiteAdminContentResponse> {
-  const res = await bffClient.patch<HotsiteAdminContentResponse>('/platform/hotsite', body);
+  const res = await bffClient.patch<HotsiteAdminContentResponse>('/tenants/hotsite', body);
   return res.data;
 }
 
 export async function publishHotsite(): Promise<PublishHotsiteResponse> {
-  const res = await bffClient.post<PublishHotsiteResponse>('/platform/hotsite/publish', {});
+  const res = await bffClient.post<PublishHotsiteResponse>('/tenants/hotsite/publish', {});
   return res.data;
 }
 
 export async function unpublishHotsite(): Promise<UnpublishHotsiteResponse> {
-  const res = await bffClient.post<UnpublishHotsiteResponse>('/platform/hotsite/unpublish', {});
+  const res = await bffClient.post<UnpublishHotsiteResponse>('/tenants/hotsite/unpublish', {});
   return res.data;
 }
 
@@ -96,7 +105,7 @@ export async function generateHotsiteImageSignedUrl(
   body: HotsiteImageSignedUrlRequest,
 ): Promise<GenerateHotsiteImageSignedUrlResponse> {
   const res = await bffClient.post<GenerateHotsiteImageSignedUrlResponse>(
-    '/platform/hotsite/images/signed-url',
+    '/tenants/hotsite/images/signed-url',
     body,
   );
   return res.data;
@@ -106,7 +115,7 @@ export async function featureBookingPhoto(
   body: FeatureBookingPhotoRequest,
 ): Promise<FeatureBookingPhotoResponse> {
   const res = await bffClient.post<FeatureBookingPhotoResponse>(
-    '/platform/hotsite/gallery/feature-booking-photo',
+    '/tenants/hotsite/gallery/feature-booking-photo',
     body,
   );
   return res.data;

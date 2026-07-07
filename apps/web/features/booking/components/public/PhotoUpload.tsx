@@ -7,6 +7,7 @@ import {
   createAttachmentSignedUrl,
   createGuestAttachmentSignedUrl,
 } from '@/features/booking/api/public';
+import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 
 interface PhotoUploadCommonProps {
   readonly value: readonly string[];
@@ -40,7 +41,6 @@ interface UploadItem {
   readonly filePath?: string;
 }
 
-const ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png']);
 const INPUT_ID = 'photo-upload-input';
 
 const uploadAreaStyle: React.CSSProperties = {
@@ -54,29 +54,11 @@ export function PhotoUpload(props: PhotoUploadProps): React.JSX.Element {
   const [items, setItems] = useState<UploadItem[]>([]);
 
   async function uploadFile(file: File): Promise<string> {
-    if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
-      throw new Error(t('unsupportedFormat'));
-    }
-
-    const contentType = file.type as 'image/jpeg' | 'image/png';
-    const { signedUrl, filePath } =
+    return uploadFileToSignedUrl(file, (fileName, contentType) =>
       props.guestToken === undefined
-        ? await createAttachmentSignedUrl(props.slug, file.name, contentType)
-        : await createGuestAttachmentSignedUrl(
-            props.guestToken,
-            props.bookingId,
-            file.name,
-            contentType,
-          );
-
-    const res = await fetch(signedUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': contentType },
-      body: file,
-    });
-    if (!res.ok) throw new Error(t('uploadFailed'));
-
-    return filePath;
+        ? createAttachmentSignedUrl(props.slug, fileName, contentType)
+        : createGuestAttachmentSignedUrl(props.guestToken, props.bookingId, fileName, contentType),
+    );
   }
 
   function statusLabel(status: UploadStatus): string {

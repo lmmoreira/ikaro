@@ -13,8 +13,8 @@ import {
 } from './useHotsite';
 
 vi.mock('@/features/platform/tenant-settings', () => ({
-  getHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, modules: [], seo: {} }),
-  updateHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, modules: [], seo: {} }),
+  getHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, layout: [], seo: {} }),
+  updateHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, layout: [], seo: {} }),
   publishHotsite: vi.fn().mockResolvedValue({ publishedAt: '' }),
   unpublishHotsite: vi.fn().mockResolvedValue({ unpublishedAt: '' }),
   generateHotsiteImageSignedUrl: vi
@@ -69,7 +69,13 @@ describe('useUnpublishHotsite', () => {
 describe('useGenerateHotsiteImageSignedUrl', () => {
   it('mutates successfully', async () => {
     const { result } = renderHook(() => useGenerateHotsiteImageSignedUrl(), { wrapper });
-    act(() => result.current.mutate({ fileName: 'logo.jpg', contentType: 'image/jpeg' }));
+    act(() =>
+      result.current.mutate({
+        fileName: 'logo.jpg',
+        contentType: 'image/jpeg',
+        purpose: 'branding',
+      }),
+    );
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
 });

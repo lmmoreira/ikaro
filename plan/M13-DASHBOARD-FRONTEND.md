@@ -3464,9 +3464,29 @@ deactivateStaff(staffId: string): Promise<DeactivateStaffResponse>
 **Docs to load:** `docs/04-USE_CASES.md` § UC-027, `plan/journey/manager/hotsite.md`, `plan/journey/manager/prototypes/hotsite/dev-notes.md`
 
 **Description:**
-The Hotsite editor page itself — tabbed shell (Branding / Layout / SEO, client-side tab state, no separate routes, matching the prototype) — plus the Branding tab's full field set. `GET`/`PATCH /tenants/hotsite` and the image signed-URL endpoint already exist and are fully typed in `@ikaro/types` (`packages/types/src/hotsite.ts`) — frontend-only story. Branding scope is the 13-field set agreed during the audit (2026-06-16), not the original 4-field UC-027 text.
+The Hotsite editor page itself — tabbed shell (Branding / Layout / SEO, client-side tab state, no separate routes, matching the prototype) — plus the Branding tab's full field set. `GET`/`PATCH /tenants/hotsite` and the image signed-URL endpoint already exist and are fully typed in `@ikaro/types` (`packages/types/src/hotsite.ts`) — frontend-only story.
 
-> 🔍 **Discover before starting:** Confirm `HotsiteAdminContentResponse`'s exact branding field names in `packages/types/src/hotsite.ts` before building the form. Confirm whether an `UpdateHotsiteContentRequest` TS interface already exists alongside the BFF's `UpdateHotsiteContentBodySchema` Zod schema, or only the Zod schema exists on the BFF side — if the frontend has nothing to import, add the missing TS interface to `packages/types/src/hotsite.ts` as part of this story (small addition, not a new story). Also check `POST /tenants/hotsite/images/signed-url`'s exact request/response shape (`GenerateHotsiteImageSignedUrlResponse`) before wiring the logo upload.
+> ✅ **Resolved during discovery (2026-07-07) — supersedes the original file paths, field scope, and discovery note above:**
+>
+> **File locations.** The codebase convention established by M13-S31/S32 (both ✅ Done) is `apps/web/features/<feature>/`, not `apps/web/lib/api/dashboard/` or `apps/web/components/dashboard/` (neither directory exists). Use the corrected paths in "What to create" below.
+>
+> **Reuse existing scaffolding, fixed in place.** `apps/web/features/platform/tenant-settings.ts` and `apps/web/features/platform/hotsite/useHotsite.ts` already have hotsite API functions + TanStack Query hooks (`getHotsiteConfig`, `updateHotsiteConfig`, `publishHotsite`, `unpublishHotsite`, `generateHotsiteImageSignedUrl`, `featureBookingPhoto`, `useHotsiteConfig`, `useUpdateHotsiteConfig`, etc.) from the M13-S31/S32 commit, but they were never wired to a page and have two bugs: every call targets `/platform/hotsite*` instead of the real `/tenants/hotsite*` (`apps/bff/src/features/platform/hotsite-admin.controller.ts:105` — `@Controller('tenants/hotsite')`), and `UpdateHotsiteRequest.modules` doesn't match the real `layout` field name (`HotsiteResponse.layout` / `UpdateHotsiteContentBodySchema.layout`). Fix both in place as part of this story. Note `UpdateHotsiteBrandingRequest` in that file already declares all 18 branding fields (the original 13 plus the 5 below) — no type gaps there. Do **not** add a new `UpdateHotsiteContentRequest` to `packages/types` — the existing frontend-local request interfaces in `tenant-settings.ts` are the established pattern (mirrors `UpdateTenantSettingsRequest` usage).
+>
+> **Branding field scope expanded to all 18 fields**, not just the 13-field set from the 2026-06-16 audit. `HotsiteBrandingResponse` (`packages/types/src/hotsite.ts`) has 5 more fields the prototype never showed: `heroBgStyle`, `alternateSectionBg`, `dividerStyle`, `brandName`, `brandTagline`. Confirmed live and consumed today by the public hotsite renderer (`apps/web/features/platform/hotsite/apply-branding.ts`, `page-model.ts`, `HeroModule.tsx`/`BookingCtaModule.tsx`'s brand-card), so they need editable UI too. See the updated field table below — the prototype's 4 sub-sections become 5.
+>
+> **Layout pattern** must reuse the existing settings-page composition, not reinvent one: `apps/web/app/dashboard/settings/layout.tsx` → `DashboardSectionShell` → `page.tsx` (server) → client form. Inside the client component, mirror `SettingsForm.tsx`'s responsive structure exactly: `grid lg:grid-cols-[minmax(0,1fr)_22rem]` with a `sticky` desktop action pane (`<aside className="hidden lg:block lg:sticky lg:top-6">`) and a `fixed inset-x-0 bottom-0 ... lg:hidden` mobile action bar. `apps/web/shells/dashboard/components/BottomNav.tsx` explicitly hides itself (`return null`) on pages that own their own mobile action bar (`isSettingsPage`, team detail, booking detail, etc.) — **add `pathname === '/dashboard/hotsite'` to that hide-list** (one-line fix in `BottomNav.tsx`), otherwise the bottom nav and the hotsite action bar overlap on mobile.
+>
+> **Shared components to add** (repo has a real shadcn/ui setup — `apps/web/components.json`, Radix `Popover`/`Select` already installed, `Popover`+`Select` composition precedent in `ScheduleDateTimeRangeSheet.tsx`):
+> - `SectionCard` — currently duplicated as a local function inside `SettingsForm.tsx` (`Card`/`CardContent` wrapper + title). Extract to `apps/web/shared/components/ui/section-card.tsx` and refactor `SettingsForm.tsx` to import it. `BrandingTab.tsx` becomes the second consumer. This replaces the prototype's `.section-card`/`.section-card-title`/`.section-card-sub` CSS classes (those only exist in `plan/journey/shared/tokens.css`, a design reference — never imported into `apps/web`).
+> - `ColorPicker` — new shared primitive, `apps/web/shared/components/ui/color-picker.tsx`. `Popover` trigger showing the current swatch + hex value; panel uses **`react-colorful`'s `HexColorPicker`** (new dependency, ~2.8KB, zero sub-dependencies) — a real saturation/hue gradient, not the native `<input type="color">` (that opens the browser/OS color dialog, which is slow and visually inconsistent — rejected after an initial attempt). Generic — takes `value`/`onChange`, not hotsite-specific.
+> - `FontPicker` — new shared primitive, `apps/web/shared/components/ui/font-picker.tsx`, built on a new `apps/web/shared/components/ui/command.tsx` (`cmdk`, new dependency — the standard shadcn combobox primitive, zero network calls). `Popover` + searchable `Command` list; each option (and the trigger) renders in its own real font face. Hotsite feature code feeds it `Object.entries(FONT_MAP)` from `apps/web/features/platform/hotsite/font-config.ts` — the only 8 fonts actually available (Inter, Poppins, Playfair Display, Montserrat, Raleway, Oswald, Lato, Roboto). Do **not** reuse the prototype's hardcoded `<select>` options — they include "Open Sans" (not in `FONT_MAP`) and omit 4 of the 8 real fonts.
+>   - **Critical, easy to miss:** `FONT_MAP`'s CSS values are `next/font/google` custom properties (`var(--font-inter)`, etc.) that only exist where the corresponding loader's `.variable` class has been applied to an ancestor element. The public hotsite applies this per-tenant via `getActiveFontVariables()` in `[slug]/layout.tsx` — but that only loads the *2 currently-active* fonts, and nothing in the `/dashboard` tree loads any of them. Without applying `FONT_VARIABLES` (the full 8-variable list, already exported from `font-config.ts` but previously unused anywhere) to an ancestor of `FontPicker` — e.g. `BrandingTab`'s root `className` — every option silently renders in the same inherited fallback font. Verified live in a browser: without the fix every option looked identical; with `FONT_VARIABLES` applied, e.g. Playfair Display renders as a distinct serif and Oswald as visibly condensed.
+>
+> **"Publicar alterações" button** — renders always-visible per the prototype, but **disabled** in this story (same "Em breve"-style treatment as the deferred per-module config links in `M13-S36`). `M13-S37` wires the real `PATCH` + publish flow.
+>
+> **"Preview" button and "Zona de risco" (Despublicar hotsite)** — both fully in scope for `M13-S37` ("SEO tab + Preview + Publish/Unpublish"). Render them in this story as visually-matching but disabled stubs, so the shell's layout doesn't shift when `M13-S37` lands.
+>
+> **i18n** — add a new `dashboard.hotsitePage` namespace to `packages/i18n/locales/pt-BR/web.json` and `en/web.json`, matching the existing `dashboard.settingsPage`/`dashboard.teamPage` convention, for all Branding tab copy (labels, tab names, error/hint text, disabled-button hints).
 
 **Prototype references:**
 - `plan/journey/manager/prototypes/hotsite/01-hotsite-editor.html` — shell + Branding tab
@@ -3477,40 +3497,51 @@ The Hotsite editor page itself — tabbed shell (Branding / Layout / SEO, client
 
 **What to create:**
 
-`apps/web/lib/api/dashboard/hotsite.ts`:
-```typescript
-fetchHotsiteConfig(): Promise<HotsiteAdminContentResponse>
-updateHotsiteConfig(body: UpdateHotsiteContentRequest): Promise<HotsiteAdminContentResponse>
-requestImageUploadUrl(fileName: string, contentType: string): Promise<GenerateHotsiteImageSignedUrlResponse>
-```
+Fix in `apps/web/features/platform/tenant-settings.ts`:
+- Correct `getHotsiteConfig`, `updateHotsiteConfig`, `publishHotsite`, `unpublishHotsite`, `generateHotsiteImageSignedUrl`, `featureBookingPhoto` to call `/tenants/hotsite*` (not `/platform/hotsite*`)
+- Rename `UpdateHotsiteRequest.modules` → `layout`
+- Add `fetchHotsiteConfig(token: string)` — server-only, `bffServerFetch(token, '/tenants/hotsite', { cache: 'no-store' })`, following `fetchTenantSettingsFresh`'s exact pattern (the editor must never pre-fill stale values after a save)
+- `useHotsite.ts`'s existing hooks (`useHotsiteConfig`, `useUpdateHotsiteConfig`, `usePublishHotsite`, `useUnpublishHotsite`, `useGenerateHotsiteImageSignedUrl`) need no changes — they inherit the fix for free
 
-`apps/web/app/dashboard/hotsite/page.tsx` — server component: calls `fetchHotsiteConfig()`, renders `<HotsiteEditor initial={data} />`.
+Fix in `apps/web/shells/dashboard/components/BottomNav.tsx`: add `pathname === '/dashboard/hotsite'` to the hide-list alongside `isSettingsPage`.
 
-`apps/web/components/dashboard/hotsite/HotsiteEditor.tsx` — `'use client'`:
+New shared components: `apps/web/shared/components/ui/section-card.tsx` (extracted from `SettingsForm.tsx`), `apps/web/shared/components/ui/color-picker.tsx`, `apps/web/shared/components/ui/font-picker.tsx`. Refactor `SettingsForm.tsx` to use the extracted `SectionCard`.
+
+`apps/web/app/dashboard/hotsite/page.tsx` — server component: calls `fetchHotsiteConfig(token)`, renders `<HotsiteEditor initial={data} />`.
+
+`apps/web/features/platform/components/hotsite/HotsiteEditor.tsx` — `'use client'`:
 - Tab state: `'branding' | 'layout' | 'seo'` (client-side only, matches prototype's `showTab()`)
-- Holds the full draft config in local state; `M13-S36`/`M13-S37` extend this same component with the Layout/SEO tab bodies and the Preview/Publish actions
-- "Publicar alterações" button always visible regardless of active tab — calls `updateHotsiteConfig()` then `POST /tenants/hotsite/publish` (full publish flow wired in `M13-S37`; this story stubs the button disabled until `M13-S37` lands, or implements just the `PATCH` half — confirm sequencing at discovery)
+- Holds the full draft config (`HotsiteAdminContentResponse`) in local state; `M13-S36`/`M13-S37` extend this same component with the Layout/SEO tab bodies and the Preview/Publish actions
+- Same responsive shell as `SettingsForm.tsx`: sticky desktop action pane / fixed mobile action bar
+- "Publicar alterações" renders disabled; "Preview" and the "Zona de risco" unpublish action render as disabled stubs (see discovery note above)
 
-`apps/web/components/dashboard/hotsite/BrandingTab.tsx` — grouped into 4 sub-sections (Cores, Logo, Tipografia, Forma e estilo), per the prototype:
+`apps/web/features/platform/components/hotsite/BrandingTab.tsx` — grouped into 5 sub-sections, using the shared `SectionCard`:
 
 | Sub-section | Fields |
 |---|---|
-| Cores | `primaryColor`, `secondaryColor`, `backgroundColor`, `textColor` (hex inputs + swatch), `buttonBackgroundColor`, `buttonTextColor` (optional) |
-| Logo | upload area → `requestImageUploadUrl()` + direct PUT to signed URL; on failure, falls back to a plain URL text input (UC-027 A2) |
-| Tipografia | `headingFontFamily`, `bodyFontFamily` (select) |
-| Forma e estilo | `borderRadius` (sharp/rounded/pill), `buttonStyle` (filled/outline/ghost), `spacing` (compact/comfortable/spacious), `shadowStyle` (none/subtle/strong) — pill-button selects |
+| Cores | `primaryColor`, `secondaryColor`, `backgroundColor`, `textColor` (via `ColorPicker`), `buttonBackgroundColor`, `buttonTextColor` (optional, via `ColorPicker`) |
+| Logo e identidade | `logoUrl` — upload area → `generateHotsiteImageSignedUrl()` + direct PUT to signed URL (same single-image mechanics as `PhotoUpload.tsx`/`AfterServicePhotoUpload.tsx`, hotsite-scoped, not unified into a shared component — see discovery addendum below); on failure, shows a retry-oriented error, **no free-text URL fallback** (superseded UC-027 A2 — see note) — plus `brandName` (text, max 100), `brandTagline` (text, max 200) |
+| Tipografia | `headingFontFamily`, `bodyFontFamily` (via `FontPicker`, options from `FONT_MAP`) |
+| Forma e estilo | `borderRadius` (sharp/rounded/pill — "Retos"/"Arredondados"/"Bem arredondados"), `buttonStyle` (filled/outline/ghost — "Preenchido"/"Contorno"/"Discreto"), `spacing` (compact/comfortable/spacious — "Compacto"/"Confortável"/"Espaçoso"), `shadowStyle` (none/subtle/strong — "Nenhuma"/"Sutil"/"Forte") — pill-button selects |
+| Ritmo visual | `heroBgStyle` (`primary`/`background` — pill-select, "Cor primária"/"Cor de fundo"; controls whether the public Hero section background uses the primary color or the page background), `alternateSectionBg` (switch toggle; alternates background color on every other public-hotsite section), `dividerStyle` (`none`/`gradient`/`solid` — pill-select; CSS divider rendered between public sections) |
 
 - Hex color fields validate client-side (`/^#[0-9A-Fa-f]{6}$/`) before allowing save; invalid → inline error "Cor inválida. Use o formato hexadecimal, ex: #2563eb." (matches `01b-color-error.html`)
-- Group the four sub-sections' container styling into a shared `.section-card`/`.section-card-title`/`.section-card-sub` pattern — these are now promoted to `plan/journey/shared/tokens.css` (the journey-prototype audit found this exact pattern duplicated identically across the Configurações and Hotsite prototypes and promoted it), so the frontend implementation should mirror that with one reusable component/style block rather than per-field bespoke styling.
+
+> ✅ **Superseded during implementation (2026-07-07):** the prototype's `01c-image-upload-fallback.html` (a free-text "URL do logo" field, UC-027 A2) doesn't match the BFF's actual validation — `LOGO_URL_REGEX` in `hotsite-admin.controller.ts` only accepts an empty string or a `tenants/<id>/hotsite/...` storage path, never an external `https://` URL, so that field would 400 on every submit. Replaced with a retry-only failure state (error message + re-select the file to try again), matching the pattern already used by `PhotoUpload.tsx`/`AfterServicePhotoUpload.tsx` (which also don't offer a URL fallback).
+>
+> **Upload mechanic extracted, UI not merged.** `LogoUpload.tsx`, `PhotoUpload.tsx`, and `AfterServicePhotoUpload.tsx` differ enough in UI shape (single-image-replace vs. multi-file-gallery-with-removal) and styling system (`PhotoUpload.tsx` renders on the public hotsite tree using `--ba-*` branding tokens — the "Web styling boundary" rule in `.copilot/context.md` §7 blocks merging that with the dashboard's Tailwind-styled components) that a single shared UI component wasn't the right call. What *was* genuinely duplicated three times — validate content type → request a signed URL → `PUT` → return the path — is now `apps/web/shared/lib/upload/upload-to-signed-url.ts`, and all three components call it internally. Also fixed two real bugs found via manual testing: (1) `HotsiteImageSignedUrlRequest`/`LogoUpload.tsx` were missing the required `purpose` field the BFF's `GenerateHotsiteImageSignedUrlBodySchema` expects (`'branding'` for this field) — every upload 400'd until this was added; (2) the upload's resolved `filePath` is a bucket-relative storage path, not a displayable URL (only `GET`'s already-resolved `branding.logoUrl` is) — `LogoUpload.tsx` now previews a freshly-uploaded file from a local blob URL (`URL.createObjectURL`), matching the pattern `PhotoUpload.tsx`/`AfterServicePhotoUpload.tsx` already used.
 
 **Acceptance criteria:**
 - [ ] Editor loads with 3 tabs; Branding active by default; switching tabs doesn't trigger a network request
-- [ ] All 13 branding fields render, grouped into the 4 sub-sections above
+- [ ] All 18 branding fields render, grouped into the 5 sub-sections above
+- [ ] `ColorPicker` and `FontPicker` are used for their respective fields (not raw text inputs / a hardcoded `<select>`); `FontPicker` only offers the 8 fonts in `FONT_MAP`
 - [ ] Invalid hex color shows inline error and blocks save
-- [ ] Logo upload failure shows the URL fallback input (simulate by forcing the upload call to reject)
+- [ ] Logo upload failure shows a retry-oriented error, no free-text URL fallback input (simulate by forcing the upload call to reject)
+- [ ] "Publicar alterações" renders but is disabled; "Preview" and the "Zona de risco" unpublish action render as disabled stubs
+- [ ] On mobile viewport, the bottom nav is hidden on `/dashboard/hotsite` and the editor's own fixed action bar is visible instead (no overlap)
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
 
-**Dependencies:** M13-S15, M13-S32 (shared middleware extension for manager-only routes — or land independently if `M13-S32` hasn't merged yet; confirm at discovery to avoid a circular dependency)
+**Dependencies:** M13-S15 ✅, M13-S32 ✅ — both satisfied. `/dashboard/hotsite` is already present in `apps/web/middleware.ts`'s `MANAGER_ONLY_ROUTES` (added ahead of time, comment references this story by name) — no middleware edit needed, no circular dependency.
 
 ---
 
@@ -3563,6 +3594,8 @@ Closes out the Hotsite editor: the SEO tab, the Preview action, and the Publish/
 > **Preview fidelity note (validated in the journey-prototype pass):** the prototype originally rendered its preview mock with a hardcoded `--ba-primary` value regardless of the form's edited color — meaning the "preview" never actually reflected what was being edited. This was fixed at the prototype level with a lightweight `localStorage`-based live-binding (`01-hotsite-editor.html` writes the draft color on input/navigate; `02-preview.html` reads it on load) purely to validate the UX. **The production implementation must not reuse that mechanism** — bind the preview to actual component state (the same `draft` object `HotsiteEditor` already holds in memory), not `localStorage`. The underlying engineering question (does the preview need a BFF preview-token for a pixel-exact production-path render, or is a client-side draft render sufficient?) is still open — this story picks the pragmatic v1 answer (client-side render of the draft state) rather than building the more involved BFF preview-token approach; revisit if stakeholders need a pixel-exact production-path preview.
 
 > 🔍 **Discover before starting:** Confirm whether the hotsite's public-facing render components (`HeroModule`, `ServiceListModule`, etc. from M12) can be imported directly into the dashboard bundle to render the draft preview, or whether they have server-only dependencies that block client-side reuse. If they can't be reused directly, scope down to a simplified mock preview for v1 and flag the gap rather than building a parallel render path.
+>
+> ⚠️ **Bug to fix before wiring PATCH (found during M13-S35, 2026-07-07):** `GET /tenants/hotsite`'s `branding.logoUrl` (and every other image field — module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GalleryImage.url`) is resolved to a **full public URL** by `HotsiteContentReader.readResolved()` → `HotsiteImageUrlResolver` → `storageService.getPublicUrl()` (`apps/backend/src/contexts/platform/domain/services/hotsite-image-url-resolver.service.ts`). But `PATCH /tenants/hotsite`'s `LOGO_URL_REGEX` (`apps/bff/src/features/platform/hotsite-admin.controller.ts:15`) only accepts an empty string or a raw `tenants/<id>/hotsite/...` storage path — never a full URL. Submitting `HotsiteEditor`'s draft unchanged (i.e. the admin edited some other field but never touched the logo) would 400. When building the publish call, strip resolved image fields back to `undefined`/omit unless the admin uploaded a fresh one this session — don't send the GET-resolved URL back on PATCH as-is. Same risk applies to any other image field this or a later story lets the admin edit.
 
 **What to create:**
 
