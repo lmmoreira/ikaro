@@ -62,7 +62,7 @@ describe('BrandingTab', () => {
     expect(screen.getByTestId('hotsite-button-background-color')).toBeInTheDocument();
     expect(screen.getByTestId('hotsite-button-text-color')).toBeInTheDocument();
     // Logo e identidade (3)
-    expect(screen.getByTestId('hotsite-logo-upload-input')).toBeInTheDocument();
+    expect(screen.getByTestId('hotsite-logo-input')).toBeInTheDocument();
     expect(screen.getByTestId('hotsite-brand-name')).toBeInTheDocument();
     expect(screen.getByTestId('hotsite-brand-tagline')).toBeInTheDocument();
     // Tipografia (2)

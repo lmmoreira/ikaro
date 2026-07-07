@@ -467,6 +467,7 @@
         "logoFormatHint": "PNG or JPG, transparent background recommended",
         "logoUploading": "Uploading...",
         "logoUploadError": "Could not upload the image. Try again.",
+        "logoRemove": "Remove logo",
         "brandNameLabel": "Brand name",
         "brandTaglineLabel": "Brand tagline",
         "headingFontLabel": "Heading font",

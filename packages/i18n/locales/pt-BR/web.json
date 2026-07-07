@@ -467,6 +467,7 @@
         "logoFormatHint": "PNG ou JPG, fundo transparente recomendado",
         "logoUploading": "Enviando...",
         "logoUploadError": "Não foi possível enviar a imagem. Tente novamente.",
+        "logoRemove": "Remover logo",
         "brandNameLabel": "Nome da marca",
         "brandTaglineLabel": "Slogan da marca",
         "headingFontLabel": "Fonte de títulos",
