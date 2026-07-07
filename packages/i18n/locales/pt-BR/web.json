@@ -499,6 +499,27 @@
         "dividerStyleNone": "Nenhum",
         "dividerStyleGradient": "Gradiente",
         "dividerStyleSolid": "Sólido"
+      },
+      "layout": {
+        "gallery": {
+          "addUploadLabel": "Adicionar imagem",
+          "addFromBookingLabel": "Usar foto de um agendamento",
+          "captionPlaceholder": "Legenda (opcional)",
+          "removeLabel": "Remover",
+          "uploadingLabel": "Enviando...",
+          "uploadErrorLabel": "Não foi possível enviar a imagem. Tente novamente.",
+          "emptyLabel": "Nenhuma imagem adicionada ainda.",
+          "picker": {
+            "title": "Selecionar foto de um agendamento",
+            "emptyLabel": "Nenhum agendamento concluído com fotos foi encontrado.",
+            "loadingLabel": "Carregando...",
+            "selectBookingLabel": "Selecione um agendamento",
+            "noPhotosLabel": "Este agendamento não tem fotos.",
+            "beforeLabel": "Antes",
+            "afterLabel": "Depois",
+            "closeLabel": "Fechar"
+          }
+        }
       }
     },
     "settingsPage": {

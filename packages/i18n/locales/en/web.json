@@ -499,6 +499,27 @@
         "dividerStyleNone": "None",
         "dividerStyleGradient": "Gradient",
         "dividerStyleSolid": "Solid"
+      },
+      "layout": {
+        "gallery": {
+          "addUploadLabel": "Add image",
+          "addFromBookingLabel": "Use a photo from a booking",
+          "captionPlaceholder": "Caption (optional)",
+          "removeLabel": "Remove",
+          "uploadingLabel": "Uploading...",
+          "uploadErrorLabel": "Could not upload the image. Try again.",
+          "emptyLabel": "No images added yet.",
+          "picker": {
+            "title": "Select a photo from a booking",
+            "emptyLabel": "No completed bookings with photos were found.",
+            "loadingLabel": "Loading...",
+            "selectBookingLabel": "Select a booking",
+            "noPhotosLabel": "This booking has no photos.",
+            "beforeLabel": "Before",
+            "afterLabel": "After",
+            "closeLabel": "Close"
+          }
+        }
       }
     },
     "settingsPage": {
