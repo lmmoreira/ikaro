@@ -62,7 +62,7 @@ export interface UpdateHotsiteRequest {
 export interface HotsiteImageSignedUrlRequest {
   readonly fileName: string;
   readonly contentType: 'image/jpeg' | 'image/png';
-  readonly purpose: 'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta';
+  readonly purpose: 'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials';
 }
 
 export interface FeatureBookingPhotoRequest {
@@ -119,6 +119,10 @@ export async function featureBookingPhoto(
     body,
   );
   return res.data;
+}
+
+export async function deleteHotsiteImage(filePath: string): Promise<void> {
+  await bffClient.post('/tenants/hotsite/images/delete', { filePath });
 }
 
 // Server-side only — reads the auth cookie directly (called from layout server components).

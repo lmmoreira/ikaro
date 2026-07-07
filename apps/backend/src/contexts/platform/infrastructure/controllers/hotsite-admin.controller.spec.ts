@@ -10,6 +10,8 @@ import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-pa
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { FeatureBookingPhotoUseCase } from '../../application/use-cases/feature-booking-photo.use-case';
 import { FeatureBookingPhotoSchema } from '../../application/dtos/feature-booking-photo.dto';
+import { DeleteHotsiteImageUseCase } from '../../application/use-cases/delete-hotsite-image.use-case';
+import { DeleteHotsiteImageSchema } from '../../application/dtos/delete-hotsite-image.dto';
 import { HotsiteContentReader } from '../../application/services/hotsite-content-reader.service';
 import { GetHotsiteContentUseCase } from '../../application/use-cases/get-hotsite-content.use-case';
 import { UpdateHotsiteContentUseCase } from '../../application/use-cases/update-hotsite-content.use-case';
@@ -69,6 +71,7 @@ describe('HotsiteAdminController', () => {
       new UnpublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
       new GenerateHotsiteImageSignedUrlUseCase(storageService),
       new FeatureBookingPhotoUseCase(storageService),
+      new DeleteHotsiteImageUseCase(storageService),
     );
   });
 
@@ -279,6 +282,48 @@ describe('HotsiteAdminController', () => {
       });
 
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('deleteImage', () => {
+    const LOGO_PATH = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
+    const OTHER_TENANT_LOGO_PATH = `tenants/20000000-0000-4000-8000-000000000002/hotsite/branding/u1/logo.png`;
+
+    it('deletes the image from the public bucket', async () => {
+      storageService.markAsUploaded(LOGO_PATH);
+
+      await controller.deleteImage({ filePath: LOGO_PATH });
+
+      expect(storageService.deletedPaths).toContain(LOGO_PATH);
+    });
+
+    it('maps HotsiteImageNotUploadedError to 400 when the path belongs to another tenant', async () => {
+      storageService.markAsUploaded(OTHER_TENANT_LOGO_PATH);
+
+      const err = await controller
+        .deleteImage({ filePath: OTHER_TENANT_LOGO_PATH })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
+  });
+
+  describe('DeleteHotsiteImageSchema', () => {
+    it('rejects a filePath outside the tenants/<id>/hotsite/... shape', () => {
+      const result = DeleteHotsiteImageSchema.safeParse({
+        filePath: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/after-1.jpg`,
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts a well-formed hotsite image path', () => {
+      const result = DeleteHotsiteImageSchema.safeParse({
+        filePath: `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`,
+      });
+
+      expect(result.success).toBe(true);
     });
   });
 });

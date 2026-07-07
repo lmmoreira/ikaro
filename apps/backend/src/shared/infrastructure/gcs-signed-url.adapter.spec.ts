@@ -13,6 +13,7 @@ describe('GcsSignedUrlAdapter', () => {
   let mockCreateBucket: jest.Mock;
   let mockFile: jest.Mock;
   let mockBucket: jest.Mock;
+  let mockDelete: jest.Mock;
 
   function makeConfig(overrides: Record<string, string | undefined> = {}): ConfigService {
     return {
@@ -29,9 +30,12 @@ describe('GcsSignedUrlAdapter', () => {
       .fn()
       .mockResolvedValue(['https://storage.googleapis.com/bucket/path?X-Goog-Signature=abc']);
     mockFileExists = jest.fn().mockResolvedValue([true]);
-    mockFile = jest
-      .fn()
-      .mockReturnValue({ getSignedUrl: mockGetSignedUrl, exists: mockFileExists });
+    mockDelete = jest.fn().mockResolvedValue(undefined);
+    mockFile = jest.fn().mockReturnValue({
+      getSignedUrl: mockGetSignedUrl,
+      exists: mockFileExists,
+      delete: mockDelete,
+    });
     mockBucketExists = jest.fn().mockResolvedValue([true]);
     mockCreateBucket = jest.fn().mockResolvedValue(undefined);
     mockBucket = jest.fn().mockReturnValue({ exists: mockBucketExists, file: mockFile });
@@ -205,6 +209,23 @@ describe('GcsSignedUrlAdapter', () => {
       const service = makeService({ GCS_BUCKET_NAME: 'my-prod-bucket' });
       await service.exists('path/file.jpg');
       expect(mockBucket).toHaveBeenCalledWith('my-prod-bucket');
+    });
+  });
+
+  describe('delete()', () => {
+    it('deletes the file from the default (private) bucket', async () => {
+      const service = makeService({});
+      await service.delete('tenants/t1/uploads/uuid/car.jpg');
+      expect(mockBucket).toHaveBeenCalledWith('ikaro-local');
+      expect(mockFile).toHaveBeenCalledWith('tenants/t1/uploads/uuid/car.jpg');
+      expect(mockDelete).toHaveBeenCalled();
+    });
+
+    it('deletes the file from the public bucket when bucket is "public"', async () => {
+      const service = makeService({});
+      await service.delete('tenants/t1/hotsite/branding/logo.png', 'public');
+      expect(mockBucket).toHaveBeenCalledWith('ikaro-local-public');
+      expect(mockDelete).toHaveBeenCalled();
     });
   });
 });

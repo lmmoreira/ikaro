@@ -89,6 +89,17 @@ Content-Type: application/json
   "photoUrl": "tenants/{{tenantId}}/bookings/{{bookingId}}/after-1.jpg"
 }
 
+###
+
+### Delete a hotsite image from the public bucket
+POST {{bffUrl}}/v1/tenants/hotsite/images/delete
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "filePath": "tenants/{{tenantId}}/hotsite/branding/u1/logo.png"
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
@@ -107,4 +118,15 @@ Content-Type: application/json
 {
   "bookingId": "{{bookingId}}",
   "photoUrl": "not-a-valid-booking-photo-path.jpg"
+}
+
+###
+
+### 400 — delete with a filePath outside the tenants/<id>/hotsite/... shape
+POST {{bffUrl}}/v1/tenants/hotsite/images/delete
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "filePath": "tenants/{{tenantId}}/bookings/{{bookingId}}/after-1.jpg"
 }

@@ -1,5 +1,6 @@
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import {
+  DeleteHotsiteImageBodySchema,
   FeatureBookingPhotoBodySchema,
   HotsiteAdminController,
   UpdateHotsiteContentBodySchema,
@@ -270,6 +271,46 @@ describe('HotsiteAdminController', () => {
       });
 
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('deleteImage()', () => {
+    const body = {
+      filePath: 'tenants/10000000-0000-4000-8000-000000000001/hotsite/branding/u1/logo.png',
+    };
+
+    it('calls POST /tenants/hotsite/images/delete with the parsed body', async () => {
+      const backendHttp = makeBackendHttp({ post: jest.fn().mockResolvedValue(undefined) });
+      const controller = new HotsiteAdminController(backendHttp);
+
+      await controller.deleteImage(body);
+
+      expect(backendHttp.post).toHaveBeenCalledWith('/tenants/hotsite/images/delete', body);
+    });
+
+    it('propagates errors from the backend', async () => {
+      const backendHttp = makeBackendHttp({ post: jest.fn().mockRejectedValue(new Error('400')) });
+      const controller = new HotsiteAdminController(backendHttp);
+
+      await expect(controller.deleteImage(body)).rejects.toThrow('400');
+    });
+  });
+
+  describe('DeleteHotsiteImageBodySchema', () => {
+    it('rejects a filePath outside the tenants/<id>/hotsite/... shape', () => {
+      const result = DeleteHotsiteImageBodySchema.safeParse({
+        filePath: 'tenants/10000000-0000-4000-8000-000000000001/bookings/b1/after-1.jpg',
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts a well-formed hotsite image path', () => {
+      const result = DeleteHotsiteImageBodySchema.safeParse({
+        filePath: 'tenants/10000000-0000-4000-8000-000000000001/hotsite/branding/u1/logo.png',
+      });
+
+      expect(result.success).toBe(true);
     });
   });
 });

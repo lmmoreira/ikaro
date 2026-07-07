@@ -12,6 +12,10 @@ import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import {
+  DeleteHotsiteImageDto,
+  DeleteHotsiteImageSchema,
+} from '../../application/dtos/delete-hotsite-image.dto';
+import {
   FeatureBookingPhotoDto,
   FeatureBookingPhotoSchema,
 } from '../../application/dtos/feature-booking-photo.dto';
@@ -23,6 +27,7 @@ import {
   UpdateHotsiteContentDto,
   UpdateHotsiteContentSchema,
 } from '../../application/dtos/update-hotsite-content.dto';
+import { DeleteHotsiteImageUseCase } from '../../application/use-cases/delete-hotsite-image.use-case';
 import {
   FeatureBookingPhotoUseCase,
   FeatureBookingPhotoUseCaseResult,
@@ -60,6 +65,7 @@ export class HotsiteAdminController {
     private readonly unpublishHotsite: UnpublishHotsiteUseCase,
     private readonly generateHotsiteImageSignedUrl: GenerateHotsiteImageSignedUrlUseCase,
     private readonly featureHotsiteBookingPhoto: FeatureBookingPhotoUseCase,
+    private readonly deleteHotsiteImage: DeleteHotsiteImageUseCase,
   ) {}
 
   @Get()
@@ -106,6 +112,16 @@ export class HotsiteAdminController {
     @Body(new ZodValidationPipe(FeatureBookingPhotoSchema)) dto: FeatureBookingPhotoDto,
   ): Promise<FeatureBookingPhotoUseCaseResult> {
     return this.featureHotsiteBookingPhoto
+      .execute({ ...dto, tenantId: this.ctx.tenantId })
+      .catch(mapPlatformError);
+  }
+
+  @Post('images/delete')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteImage(
+    @Body(new ZodValidationPipe(DeleteHotsiteImageSchema)) dto: DeleteHotsiteImageDto,
+  ): Promise<void> {
+    return this.deleteHotsiteImage
       .execute({ ...dto, tenantId: this.ctx.tenantId })
       .catch(mapPlatformError);
   }

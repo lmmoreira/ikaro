@@ -108,6 +108,20 @@ Content-Type: application/json
 
 ###
 
+### Delete a hotsite image from the public bucket
+POST {{baseUrl}}/tenants/hotsite/images/delete
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "filePath": "tenants/00000000-0000-4000-8000-000000000001/hotsite/branding/00000000-0000-7000-8000-000000000001/logo.png"
+}
+
+###
+
 ### Publish hotsite (requires at least one enabled module)
 POST {{baseUrl}}/tenants/hotsite/publish
 X-Tenant-ID: {{tenantId}}
@@ -246,6 +260,34 @@ Content-Type: application/json
 {
   "bookingId": "00000000-0000-7000-8000-000000000001",
   "photoUrl": "tenants/00000000-0000-4000-8000-000000000001/bookings/00000000-0000-7000-8000-000000000001/not-on-booking.jpg"
+}
+
+###
+
+### 400 — Delete with a filePath belonging to another tenant
+POST {{baseUrl}}/tenants/hotsite/images/delete
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "filePath": "tenants/00000000-0000-4000-8000-000000000002/hotsite/branding/00000000-0000-7000-8000-000000000001/logo.png"
+}
+
+###
+
+### 400 — Delete with a filePath outside the tenants/<id>/hotsite/... shape
+POST {{baseUrl}}/tenants/hotsite/images/delete
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "filePath": "tenants/00000000-0000-4000-8000-000000000001/bookings/00000000-0000-7000-8000-000000000001/after-1.jpg"
 }
 
 ###
