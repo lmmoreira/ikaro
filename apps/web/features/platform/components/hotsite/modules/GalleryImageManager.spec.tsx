@@ -55,10 +55,9 @@ describe('GalleryImageManager', () => {
 
     renderWithIntl(<GalleryImageManager images={images} onChange={vi.fn()} />);
 
-    expect(screen.getByTestId('gallery-image-0')).toHaveAttribute(
-      'src',
-      'https://cdn.example.com/g1.jpg',
-    );
+    expect(
+      screen.getAllByTestId('gallery-image').find((el) => el.dataset.index === '0'),
+    ).toHaveAttribute('src', 'https://cdn.example.com/g1.jpg');
     expect(screen.getByDisplayValue('Foto 1')).toBeInTheDocument();
   });
 
@@ -112,7 +111,9 @@ describe('GalleryImageManager', () => {
 
     renderWithIntl(<GalleryImageManager images={images} onChange={onChange} />);
 
-    await user.click(screen.getByTestId('gallery-remove-0'));
+    await user.click(
+      screen.getAllByTestId('gallery-remove').find((el) => el.dataset.index === '0')!,
+    );
 
     expect(deleteHotsiteImage).toHaveBeenCalledWith('tenants/tenant-1/hotsite/gallery/g1.jpg');
     expect(onChange).toHaveBeenCalledWith([]);
@@ -125,7 +126,9 @@ describe('GalleryImageManager', () => {
 
     renderWithIntl(<GalleryImageManager images={images} onChange={onChange} />);
 
-    await user.click(screen.getByTestId('gallery-remove-0'));
+    await user.click(
+      screen.getAllByTestId('gallery-remove').find((el) => el.dataset.index === '0')!,
+    );
 
     expect(deleteHotsiteImage).not.toHaveBeenCalled();
     expect(onChange).toHaveBeenCalledWith([]);

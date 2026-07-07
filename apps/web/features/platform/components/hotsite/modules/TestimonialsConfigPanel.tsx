@@ -111,7 +111,8 @@ export function TestimonialsConfigPanel({
           {testimonials.items.map((item, index) => (
             <div
               key={index}
-              data-testid={`testimonial-item-${index}`}
+              data-testid="testimonial-item"
+              data-index={index}
               className="rounded-md border border-gray-200 p-3"
             >
               <div className="mb-3">
@@ -183,7 +184,8 @@ export function TestimonialsConfigPanel({
 
               <button
                 type="button"
-                data-testid={`testimonial-remove-${index}`}
+                data-testid="testimonial-remove"
+                data-index={index}
                 onClick={() => removeItem(index)}
                 className="text-sm font-semibold text-red-600 underline"
               >

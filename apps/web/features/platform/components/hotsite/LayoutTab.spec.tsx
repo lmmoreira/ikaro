@@ -36,7 +36,9 @@ describe('LayoutTab', () => {
   it('renders all modules with their translated labels and current enabled state', () => {
     renderWithIntl(<LayoutTab layout={LAYOUT} onChange={vi.fn()} onConfigure={vi.fn()} />);
 
-    expect(screen.getByTestId('layout-row-HERO')).toBeInTheDocument();
+    expect(
+      screen.getAllByTestId('layout-row').find((el) => el.dataset.moduleType === 'HERO'),
+    ).toBeInTheDocument();
     expect(screen.getByTestId('layout-row-toggle-HERO')).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByTestId('layout-row-toggle-SERVICE_LIST')).toHaveAttribute(
       'aria-checked',
@@ -64,7 +66,10 @@ describe('LayoutTab', () => {
 
     renderWithIntl(<LayoutTab layout={LAYOUT} onChange={vi.fn()} onConfigure={onConfigure} />);
 
-    await user.click(screen.getByTestId('layout-row-configure-GALLERY'));
+    const configureButton = screen
+      .getAllByTestId('layout-row-configure')
+      .find((el) => el.dataset.moduleType === 'GALLERY')!;
+    await user.click(configureButton);
 
     expect(onConfigure).toHaveBeenCalledWith('GALLERY');
   });

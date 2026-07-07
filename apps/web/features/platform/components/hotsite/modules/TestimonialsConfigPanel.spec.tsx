@@ -65,7 +65,9 @@ describe('TestimonialsConfigPanel', () => {
       <TestimonialsConfigPanel data={writeModuleData(WITH_ITEM)} onChange={onChange} />,
     );
 
-    await user.click(screen.getByTestId('testimonial-remove-0'));
+    await user.click(
+      screen.getAllByTestId('testimonial-remove').find((el) => el.dataset.index === '0')!,
+    );
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...WITH_ITEM, items: [] }));
   });

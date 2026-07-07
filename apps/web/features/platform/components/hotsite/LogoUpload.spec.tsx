@@ -46,7 +46,10 @@ describe('LogoUpload', () => {
 
     renderWithIntl(<LogoUpload value="" onChange={onChange} />);
 
-    await user.upload(screen.getByTestId('hotsite-logo-input'), makeFile('logo.png', 'image/png'));
+    await user.upload(
+      screen.getByTestId('single-image-upload-input'),
+      makeFile('logo.png', 'image/png'),
+    );
 
     expect(generateHotsiteImageSignedUrl).toHaveBeenCalledWith({
       fileName: 'logo.png',
@@ -55,13 +58,13 @@ describe('LogoUpload', () => {
     });
     expect(onChange).toHaveBeenCalledWith('tenants/tenant-1/hotsite/logo.png');
     // Small preview size — logoUrl is only ever displayed as a 64px icon (login page), not a banner.
-    expect(screen.getByTestId('hotsite-logo-preview').className).toContain('h-16');
+    expect(screen.getByTestId('single-image-upload-preview').className).toContain('h-16');
   });
 
   it('renders the current logo as a preview when a value is present', () => {
     renderWithIntl(<LogoUpload value="https://cdn.example.com/logo.png" onChange={vi.fn()} />);
 
-    expect(screen.getByTestId('hotsite-logo-preview')).toHaveAttribute(
+    expect(screen.getByTestId('single-image-upload-preview')).toHaveAttribute(
       'src',
       'https://cdn.example.com/logo.png',
     );
@@ -76,7 +79,7 @@ describe('LogoUpload', () => {
       <LogoUpload value="tenants/tenant-1/hotsite/branding/u1/logo.png" onChange={onChange} />,
     );
 
-    await user.click(screen.getByTestId('hotsite-logo-remove'));
+    await user.click(screen.getByTestId('single-image-upload-remove'));
 
     expect(deleteHotsiteImage).toHaveBeenCalledWith(
       'tenants/tenant-1/hotsite/branding/u1/logo.png',

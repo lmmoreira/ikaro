@@ -66,12 +66,14 @@ function LayoutRow({
     <div
       ref={setNodeRef}
       style={style}
-      data-testid={`layout-row-${module.type}`}
+      data-testid="layout-row"
+      data-module-type={module.type}
       className={`flex items-center gap-3 rounded-md border border-gray-200 bg-white p-3 ${isDragging ? 'opacity-50' : ''}`}
     >
       <button
         type="button"
-        data-testid={`layout-row-drag-${module.type}`}
+        data-testid="layout-row-drag"
+        data-module-type={module.type}
         aria-label="drag"
         className="cursor-grab touch-none text-gray-400 hover:text-gray-600"
         {...attributes}
@@ -98,7 +100,8 @@ function LayoutRow({
 
       <button
         type="button"
-        data-testid={`layout-row-configure-${module.type}`}
+        data-testid="layout-row-configure"
+        data-module-type={module.type}
         onClick={() => onConfigure(module.type)}
         className="text-sm font-semibold text-blue-600 hover:text-blue-700"
       >

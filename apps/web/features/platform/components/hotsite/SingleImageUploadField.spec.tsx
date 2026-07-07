@@ -27,6 +27,18 @@ function makeFile(name: string, type: string): File {
   return new File(['fake-image-content'], name, { type });
 }
 
+// Static testid + data-field-id (not a template-literal testid) — queried the same way this
+// codebase's other per-item lists are (see BookingQueuePage.spec.tsx's booking-card mock).
+function getByFieldId(testId: string, fieldId: string): HTMLElement {
+  const match = screen.getAllByTestId(testId).find((el) => el.dataset.fieldId === fieldId);
+  if (!match) throw new Error(`No element with data-testid="${testId}" data-field-id="${fieldId}"`);
+  return match;
+}
+
+function queryByFieldId(testId: string, fieldId: string): HTMLElement | null {
+  return screen.queryAllByTestId(testId).find((el) => el.dataset.fieldId === fieldId) ?? null;
+}
+
 describe('SingleImageUploadField', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
@@ -60,7 +72,10 @@ describe('SingleImageUploadField', () => {
       />,
     );
 
-    await user.upload(screen.getByTestId('hero-bg-input'), makeFile('banner.png', 'image/png'));
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'hero-bg'),
+      makeFile('banner.png', 'image/png'),
+    );
 
     expect(generateHotsiteImageSignedUrl).toHaveBeenCalledWith({
       fileName: 'banner.png',
@@ -68,7 +83,7 @@ describe('SingleImageUploadField', () => {
       purpose: 'hero',
     });
     expect(onChange).toHaveBeenCalledWith('tenants/tenant-1/hotsite/hero/banner.png');
-    expect(screen.getByTestId('hero-bg-preview')).toHaveAttribute(
+    expect(getByFieldId('single-image-upload-preview', 'hero-bg')).toHaveAttribute(
       'src',
       expect.stringContaining('blob:'),
     );
@@ -84,7 +99,7 @@ describe('SingleImageUploadField', () => {
         {...LABELS}
       />,
     );
-    expect(screen.getByTestId('hero-bg-preview').className).toContain('max-h-48');
+    expect(getByFieldId('single-image-upload-preview', 'hero-bg').className).toContain('max-h-48');
 
     renderWithIntl(
       <SingleImageUploadField
@@ -96,7 +111,7 @@ describe('SingleImageUploadField', () => {
         {...LABELS}
       />,
     );
-    expect(screen.getByTestId('logo-preview').className).toContain('h-16');
+    expect(getByFieldId('single-image-upload-preview', 'logo').className).toContain('h-16');
   });
 
   it('shows a retry-oriented error message when the upload fails', async () => {
@@ -113,9 +128,12 @@ describe('SingleImageUploadField', () => {
       />,
     );
 
-    await user.upload(screen.getByTestId('hero-bg-input'), makeFile('banner.png', 'image/png'));
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'hero-bg'),
+      makeFile('banner.png', 'image/png'),
+    );
 
-    expect(await screen.findByTestId('hero-bg-error')).toBeInTheDocument();
+    expect(await screen.findByTestId('single-image-upload-error')).toBeInTheDocument();
   });
 
   it('removing a freshly-uploaded (raw storage path) image calls deleteHotsiteImage and clears the value', async () => {
@@ -133,7 +151,7 @@ describe('SingleImageUploadField', () => {
       />,
     );
 
-    await user.click(screen.getByTestId('hero-bg-remove'));
+    await user.click(getByFieldId('single-image-upload-remove', 'hero-bg'));
 
     expect(deleteHotsiteImage).toHaveBeenCalledWith('tenants/tenant-1/hotsite/hero/banner.png');
     expect(onChange).toHaveBeenCalledWith('');
@@ -153,7 +171,7 @@ describe('SingleImageUploadField', () => {
       />,
     );
 
-    await user.click(screen.getByTestId('hero-bg-remove'));
+    await user.click(getByFieldId('single-image-upload-remove', 'hero-bg'));
 
     expect(deleteHotsiteImage).not.toHaveBeenCalled();
     expect(onChange).toHaveBeenCalledWith('');
@@ -170,6 +188,6 @@ describe('SingleImageUploadField', () => {
       />,
     );
 
-    expect(screen.queryByTestId('hero-bg-remove')).not.toBeInTheDocument();
+    expect(queryByFieldId('single-image-upload-remove', 'hero-bg')).not.toBeInTheDocument();
   });
 });

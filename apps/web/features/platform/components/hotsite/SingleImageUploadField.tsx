@@ -118,7 +118,8 @@ export function SingleImageUploadField({
           <img
             src={displaySrc}
             alt=""
-            data-testid={`${id}-preview`}
+            data-testid="single-image-upload-preview"
+            data-field-id={id}
             className={PREVIEW_CLASS[previewSize]}
           />
         )}
@@ -128,7 +129,8 @@ export function SingleImageUploadField({
         {status !== 'uploading' && <p className="text-xs text-gray-400">{formatHintLabel}</p>}
         <input
           id={id}
-          data-testid={`${id}-input`}
+          data-testid="single-image-upload-input"
+          data-field-id={id}
           type="file"
           accept="image/jpeg,image/png"
           onChange={(event) => {
@@ -139,7 +141,11 @@ export function SingleImageUploadField({
       </label>
 
       {status === 'error' && (
-        <p data-testid={`${id}-error`} className="mt-1.5 text-sm text-red-600">
+        <p
+          data-testid="single-image-upload-error"
+          data-field-id={id}
+          className="mt-1.5 text-sm text-red-600"
+        >
           {uploadErrorLabel}
         </p>
       )}
@@ -147,7 +153,8 @@ export function SingleImageUploadField({
       {displaySrc && status !== 'uploading' && (
         <button
           type="button"
-          data-testid={`${id}-remove`}
+          data-testid="single-image-upload-remove"
+          data-field-id={id}
           onClick={() => {
             void handleRemove();
           }}

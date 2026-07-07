@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
+import { extractTenantIdFromPath } from '../../../../shared/utils/extract-tenant-id-from-path';
 import { HotsiteImageNotUploadedError } from '../../domain/errors/platform-domain.error';
 import { FeatureBookingPhotoDto } from '../dtos/feature-booking-photo.dto';
 
@@ -19,7 +20,7 @@ export class FeatureBookingPhotoUseCase {
   async execute(dto: FeatureBookingPhotoUseCaseInput): Promise<FeatureBookingPhotoUseCaseResult> {
     const { tenantId } = dto;
 
-    const sourceTenantId = this.extractTenantId(dto.filePath);
+    const sourceTenantId = extractTenantIdFromPath(dto.filePath);
     if (sourceTenantId !== tenantId) {
       throw new HotsiteImageNotUploadedError(dto.filePath);
     }
@@ -33,10 +34,5 @@ export class FeatureBookingPhotoUseCase {
     await this.storageService.copy(dto.filePath, filePath);
 
     return { filePath, url: this.storageService.getPublicUrl(filePath), photoType: dto.photoType };
-  }
-
-  private extractTenantId(filePath: string): string | null {
-    const match = /^tenants\/([^/]+)\/bookings\/[^/]+\/.+$/.exec(filePath);
-    return match?.[1] ?? null;
   }
 }

@@ -80,8 +80,9 @@ describe('HotsiteEditor', () => {
 
     expect(screen.getByRole('tab', { name: 'Layout' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('layout-tab-list')).toBeInTheDocument();
-    expect(screen.getByTestId('layout-row-HERO')).toBeInTheDocument();
-    expect(screen.getByTestId('layout-row-FOOTER')).toBeInTheDocument();
+    const layoutRows = screen.getAllByTestId('layout-row');
+    expect(layoutRows.find((el) => el.dataset.moduleType === 'HERO')).toBeInTheDocument();
+    expect(layoutRows.find((el) => el.dataset.moduleType === 'FOOTER')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -110,7 +111,11 @@ describe('HotsiteEditor', () => {
       renderWithIntl(<HotsiteEditor initial={INITIAL} />);
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
-      await user.click(screen.getByTestId('layout-row-configure-HERO'));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
 
       expect(await screen.findByLabelText('Título *')).toBeInTheDocument();
       expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
@@ -122,14 +127,22 @@ describe('HotsiteEditor', () => {
       renderWithIntl(<HotsiteEditor initial={INITIAL} />);
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
-      await user.click(screen.getByTestId('layout-row-configure-HERO'));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
       const titleInput = await screen.findByLabelText('Título *');
       await user.clear(titleInput);
       await user.type(titleInput, 'Novo título');
       await user.click(screen.getByTestId('module-config-apply-desktop'));
 
       expect(screen.getByRole('tablist')).toBeInTheDocument();
-      await user.click(screen.getByTestId('layout-row-configure-HERO'));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
       expect(await screen.findByDisplayValue('Novo título')).toBeInTheDocument();
     });
 
@@ -138,13 +151,21 @@ describe('HotsiteEditor', () => {
       renderWithIntl(<HotsiteEditor initial={INITIAL} />);
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
-      await user.click(screen.getByTestId('layout-row-configure-HERO'));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
       const titleInput = await screen.findByLabelText('Título *');
       await user.type(titleInput, 'Descartado');
       await user.click(screen.getByTestId('module-config-cancel-desktop'));
 
       expect(screen.getByRole('tablist')).toBeInTheDocument();
-      await user.click(screen.getByTestId('layout-row-configure-HERO'));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
       expect(screen.queryByDisplayValue('Descartado')).not.toBeInTheDocument();
     });
 
@@ -160,7 +181,11 @@ describe('HotsiteEditor', () => {
       expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
-      await user.click(screen.getByTestId('layout-row-configure-HERO'));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
 
       expect(screen.getByTestId('probe-onback')).toHaveTextContent('set');
       expect(screen.getByTestId('probe-page-title')).toHaveTextContent('Configurar: Hero');

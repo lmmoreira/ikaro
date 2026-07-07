@@ -97,7 +97,8 @@ export function GalleryImageManager({
               <img
                 src={displayUrl(image)}
                 alt=""
-                data-testid={`gallery-image-${index}`}
+                data-testid="gallery-image"
+                data-index={index}
                 className="mb-2 aspect-square w-full rounded object-cover"
               />
               <input
@@ -109,7 +110,8 @@ export function GalleryImageManager({
               />
               <button
                 type="button"
-                data-testid={`gallery-remove-${index}`}
+                data-testid="gallery-remove"
+                data-index={index}
                 onClick={() => {
                   void handleRemove(index);
                 }}
