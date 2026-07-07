@@ -501,6 +501,17 @@
         "dividerStyleSolid": "Solid"
       },
       "layout": {
+        "configureLabel": "Configure",
+        "modules": {
+          "HERO": "Hero",
+          "SERVICE_LIST": "Service list",
+          "GALLERY": "Gallery",
+          "TESTIMONIALS": "Testimonials",
+          "BOOKING_CTA": "Booking call-to-action",
+          "ABOUT": "About",
+          "CONTACT": "Contact",
+          "FOOTER": "Footer"
+        },
         "configShell": {
           "backLabel": "Back",
           "titlePrefix": "Configure",

@@ -501,6 +501,17 @@
         "dividerStyleSolid": "Sólido"
       },
       "layout": {
+        "configureLabel": "Configurar",
+        "modules": {
+          "HERO": "Hero",
+          "SERVICE_LIST": "Lista de serviços",
+          "GALLERY": "Galeria",
+          "TESTIMONIALS": "Depoimentos",
+          "BOOKING_CTA": "Chamada para agendamento",
+          "ABOUT": "Sobre",
+          "CONTACT": "Contato",
+          "FOOTER": "Rodapé"
+        },
         "configShell": {
           "backLabel": "Voltar",
           "titlePrefix": "Configurar",
