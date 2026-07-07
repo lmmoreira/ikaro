@@ -112,7 +112,7 @@
 | 4 | S27–S28 | Staging live + E2E against staging | Yes |
 | 5 | S29–S36 | Hardening + observability | Yes |
 | 6 | S37 | Production go-live | Yes |
-| 7 | S38–S45 | Post-launch product: custom domains, edge caching, photo cost/LGPD controls, docs refresh | Yes |
+| 7 | S38–S46 | Post-launch product: custom domains, edge caching, photo cost/LGPD controls, docs refresh, managed connection pooling | Yes |
 
 Waves are strictly sequential; stories inside a wave may run in the listed order (some are parallelizable — noted per story). Every story follows the standard workflow: `/story-discovery M17-SXX` → branch → implement → `/pre-pr` → PR.
 
@@ -279,8 +279,11 @@ Codify “this must never run in production” rules as startup errors, so a cop
 5. **backend:** `NODE_ENV=production` + `EMAIL_ADAPTER=smtp` (local MailHog path) → startup error unless explicitly allowed via a documented override var.
 6. **both:** `JWT_SECRET` length ≥ 64 in production.
 
+**Also in this story — `DB_POOL_SIZE` (backend):** add `DB_POOL_SIZE` to the backend env schema (optional int, default 10 for local dev) and wire it into the TypeORM datasource options (`poolSize`/`extra.max` — verify the exact option the pg driver honors in this TypeORM version). This is the serverless connection-math lever: every Cloud Run instance opens its own pool, so cloud envs set a small value (S18 sets `DB_POOL_SIZE=3`) to keep `max_instances × pool` under the DB tier's `max_connections`. See M17-S46 for the managed-pooling upgrade path.
+
 **Acceptance criteria:**
 - [ ] Each rule has a spec (valid prod env passes; each violation produces a descriptive startup error naming the offending var)
+- [ ] `DB_POOL_SIZE` validated, defaulted, and demonstrably applied to the pg pool (spec or runtime assertion)
 - [ ] `.env.example` files updated with the new vars and safe defaults
 - [ ] No behavior change in dev/test modes
 
@@ -477,11 +480,13 @@ Create the folder structure above with empty-but-valid modules, per-env backends
 cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-staging --port 5433
 ```
 
+**Connection capacity note:** `db-f1-micro` allows only ~25 connections, and every Cloud Run instance opens its own TypeORM pool — the invariant `backend max_instances × DB_POOL_SIZE ≤ ~80% of max_connections` is owned by S18. The connection scale-up ladder (verified against Cloud SQL docs, 2026-07-07) is: **(1)** pool math — day zero, free; **(2)** dedicated-core Enterprise tier + raise the `max_connections` database flag (RAM-bounded); **(3)** Enterprise Plus edition + **Managed Connection Pooling** (Google-managed PgBouncer — requires Enterprise Plus, ~$200–300+/mo/env, so ONLY when traffic justifies it): M17-S46. Never a self-hosted pooler VM at any rung.
+
 **Acceptance criteria:**
 - [ ] Staging instance up, private-IP only, SSL required; `cloud-sql-proxy` connection from dev machine works
 - [ ] Backups verified in console; prod plan shows PITR + deletion protection
 - [ ] Checkov clean (no public IP, SSL enforced)
-- [ ] Module README documents tier-upgrade procedure + proxy usage
+- [ ] Module README documents the 3-rung connection ladder (pool math → tier + `max_connections` flag → Enterprise Plus + MCP, → S46) + proxy usage + the connection-math invariant
 
 **Dependencies:** M17-S12
 
@@ -602,8 +607,11 @@ Key settings:
 - **web:** public (same ingress split as BFF); 256Mi; `min=0`; env: `NEXT_PUBLIC_*` are **build-time** — runtime copies exist only for server-side code; see S26 for the per-env image consequence.
 - All three: sidecar support wired (container list accepts an optional collector sidecar — activated in S34), `max_instance_request_concurrency` default, second-gen execution environment, labels (`env`, `service`, `managed-by=terraform`).
 
+**Connection-math invariant (owned here):** backend env sets `DB_POOL_SIZE=3` (S06 wires it into TypeORM); the module must assert — via a Terraform `check`/`precondition` on the variables — that `backend max_instances × DB_POOL_SIZE ≤ 0.8 × max_connections` of the chosen `db_tier` (encode the tier→max_connections map as a local). Launch numbers: 10 instances × 3 = 30 > 25 (f1-micro) — so launch caps backend at `max_instances=6` until the tier upgrade (D12 note). Raising max_instances without raising the tier (or enabling S46 MCP) must fail `terraform plan`.
+
 **Acceptance criteria:**
 - [ ] Staging apply: 3 services READY on placeholder images
+- [ ] Connection-math precondition proven: setting `max_instances=20` on f1-micro fails `terraform plan` with a descriptive error
 - [ ] Backend has NO public URL access: unauthenticated fetch of its run.app URL from the internet fails; a request from the BFF container succeeds (verify post-S27 — checklist item there)
 - [ ] `terraform plan` after a manual `gcloud run deploy` shows NO image drift (ignore_changes works)
 - [ ] All secret env vars are `secret_key_ref` (zero plaintext secrets in state for these)
@@ -1282,6 +1290,44 @@ Two-in-one: cost ceiling + LGPD compliance. Customer vehicle photos are personal
 
 ---
 
+### M17-S46 — Cloud SQL Managed Connection Pooling (⚠️ DEFERRED OBSERVATION — high-traffic trigger only)
+
+**Agent:** `devops` + `backend-ts`
+**Complexity:** M
+**Docs to load:** S13 (database module), S18 (connection-math invariant), S06 (`DB_POOL_SIZE`)
+
+> **⚠️ This is a recorded observation, NOT a launch or early-growth task. Do not implement under the $50/mo budget (D12).**
+> Verified against Google docs (2026-07-07): **MCP requires Cloud SQL Enterprise Plus edition**, which has no shared-core tiers — smallest PostgreSQL machine is a performance-optimized 2 vCPU/16GB at **~$200–300+/month per environment** in `southamerica-east1`. Enabling it "from day zero" was explicitly considered and rejected (2026-07-07): at launch traffic it adds zero capacity (the S06/S18 pool-math invariant already guarantees the connection wall is unreachable) for ~10× the total infra budget.
+> **Trigger to enable (all three, roughly together):** sustained traffic where connection pressure — not CPU — is the proven bottleneck (Cloud SQL connection metrics near the flag-raised ceiling during scale-out); the business comfortably supports an Enterprise Plus-class DB spend; AND rung 2 of the ladder is exhausted: dedicated-core Enterprise tier with the `max_connections` database flag raised (RAM-bounded) + pool math re-tuned. Rung 2 is the normal growth path and does NOT require this story.
+
+**Description:**
+When the trigger above is met, move the instance to Enterprise Plus and enable **Managed Connection Pooling** — Google's built-in, fully managed PgBouncer. No VM, no sidecar, no self-hosted pooler ever (decision recorded in S13).
+
+**Doc-verified requirements (2026-07-07 — re-verify at implementation time):**
+- Enterprise Plus edition instance; new Cloud SQL network architecture; minimum maintenance version (`R20250727.00` era or later)
+- **Enabling on an existing instance restarts the database** — schedule a maintenance window
+- Cloud SQL Auth Proxy ≥ 2.15.2 for dev access
+- Transaction-mode pooling is incompatible with session state: `SET/RESET`, `LISTEN/NOTIFY`, `PREPARE/DEALLOCATE`, session-level advisory locks; client IP tracking unsupported
+
+**What to implement:**
+1. **Terraform (`modules/database`):** `edition` + `enable_managed_connection_pooling` variables (+ pool configuration block as exposed by the provider at the time); staged rollout — staging first (temporary Enterprise Plus staging instance for the soak, then downgrade or accept cost), soak, then prod via the normal infra pipeline approval, inside a maintenance window (restart).
+2. **Connection endpoint:** update backend DB env to the pooled endpoint. The **migrate job connects DIRECT (unpooled)**: DDL/migrations must not run through transaction-mode pooling.
+3. **App compatibility audit (backend-ts):** grep/audit for the incompatible features listed above. Expected clean — writes go through `ITransactionManager.run()` and TypeORM defaults are compatible — but the audit is the deliverable, recorded in the PR description. Any violation found: fix the call site (root-cause rule), never disable pooling as a workaround.
+4. **Re-tune the invariant:** the S18 precondition changes meaning (client connections multiplex onto few server connections) — validate against MCP's client-connection limit instead; raise `backend max_instances`/`DB_POOL_SIZE` to the new comfortable values. Update S13/S18 module READMEs.
+5. **Validation:** load test (`k6`/`autocannon` burst against staging BFF) proving instance scale-out beyond the old connection ceiling with zero connection errors; before/after Cloud SQL connection metrics attached to the PR.
+
+**Acceptance criteria:**
+- [ ] Trigger conditions documented as met (metrics evidence) BEFORE any Terraform change — this story must not be started speculatively
+- [ ] MCP enabled via Terraform only; no self-hosted pooler anywhere
+- [ ] Migrate job verified running on a direct (unpooled) connection
+- [ ] Compatibility audit documented; zero session-state violations remain
+- [ ] Load test: scale-out past the previous connection ceiling with 0 connection errors; metrics attached
+- [ ] S18 precondition + READMEs updated to the post-MCP math
+
+**Dependencies:** M17-S13, M17-S18, M17-S37 (far post-launch; gated by the explicit trigger above, never by calendar)
+
+---
+
 ## Appendix — Story → old milestone traceability
 
 | M17 | Origin | Disposition |
@@ -1325,6 +1371,7 @@ Two-in-one: cost ceiling + LGPD compliance. Customer vehicle photos are personal
 | S43 | new (photo costs, 2026-07-07) | client-side compression before upload |
 | S44 | new (photo costs, 2026-07-07) | public images via ALB backend bucket + Cloudflare |
 | S45 | new (photo costs + LGPD, 2026-07-07) | booking-photo retention; hotsite bucket permanent |
+| S46 | new (connection scaling, 2026-07-07) | Cloud SQL Managed Connection Pooling (Google-managed PgBouncer) — deferred observation; requires Enterprise Plus (~$200–300+/mo/env), high-traffic trigger only |
 
 **Explicitly dropped:** M15-S12 Cloud IAP (D4) · M16-S06 `E2E_TEST_MODE`/`test-login` (M115-S02 Dev Login exists) · M14 Docker-Compose observability stack + M16-S09 GCE Grafana VM as launch items (D9 — remain a documented future option via collector config swap) · M16-S01 SA JSON keys (D6) · M15-S03 VPC Access connector (D7).
 
