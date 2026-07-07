@@ -1,5 +1,7 @@
 # M15 — GCP Infrastructure (Terraform)
 
+> ⚠️ **SUPERSEDED by `plan/M17-CLOUD-DEPLOY.md` (2026-07-07).** All stories were reconciled against the implemented codebase and merged into M17 (see M17's traceability appendix). Key corrections made in M17: per-env Terraform state (this file's single state prefix would collide staging/prod), Pub/Sub push subscriptions (the implemented adapter's streaming pull conflicts with scale-to-zero), direct VPC egress instead of the connector, a GCS buckets module (missing here), single Artifact Registry in prod, Scheduler → Pub/Sub instead of BFF HTTP, the live secret catalog, and **M15-S12 (Cloud Armor + IAP) was cut** — superseded by internal-only ingress + `InternalApiGuard` (M115-S03) + IAM proxy access. Do not implement stories from this file. Kept for historical reference.
+
 **Phase:** Cloud ☁️ — GCP charges begin here  
 **Goal:** All GCP resources for staging are provisioned via Terraform. The application can be deployed to Cloud Run and reached via public URLs. Production infrastructure is defined in Terraform but requires a separate manual approval to apply.  
 **Depends on:** M14 (all local development complete and validated)  
