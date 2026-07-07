@@ -3411,7 +3411,7 @@ Layout follows the established two-pane pattern used by `SettingsForm.tsx` / `Se
 
 ---
 
-### M13-S34 — Equipe: deactivate member flow
+### M13-S34 — Equipe: deactivate member flow ✅ Done
 
 *(formerly M127-S06)*
 
