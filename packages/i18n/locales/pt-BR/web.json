@@ -501,6 +501,13 @@
         "dividerStyleSolid": "Sólido"
       },
       "layout": {
+        "configShell": {
+          "backLabel": "Voltar",
+          "titlePrefix": "Configurar",
+          "applyLabel": "Aplicar",
+          "cancelLabel": "Cancelar",
+          "description": "As alterações são aplicadas ao rascunho — ainda não são visíveis no hotsite público."
+        },
         "gallery": {
           "addUploadLabel": "Adicionar imagem",
           "addFromBookingLabel": "Usar foto de um agendamento",

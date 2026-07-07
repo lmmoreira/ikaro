@@ -501,6 +501,13 @@
         "dividerStyleSolid": "Solid"
       },
       "layout": {
+        "configShell": {
+          "backLabel": "Back",
+          "titlePrefix": "Configure",
+          "applyLabel": "Apply",
+          "cancelLabel": "Cancel",
+          "description": "Changes are applied to the draft — they aren't visible on the public hotsite yet."
+        },
         "gallery": {
           "addUploadLabel": "Add image",
           "addFromBookingLabel": "Use a photo from a booking",
