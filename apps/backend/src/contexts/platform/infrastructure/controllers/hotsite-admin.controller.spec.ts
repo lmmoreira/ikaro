@@ -225,6 +225,16 @@ describe('HotsiteAdminController', () => {
       expect(result.signedUrl).toContain(result.filePath);
       expect(result.expiresAt).toBe('2099-01-01T00:00:00.000Z');
     });
+
+    it('accepts purpose "testimonials" (avatar uploads)', async () => {
+      const result = await controller.generateImageSignedUrl({
+        fileName: 'avatar.png',
+        contentType: 'image/png',
+        purpose: 'testimonials',
+      });
+
+      expect(result.filePath.startsWith(`tenants/${TENANT_A}/hotsite/testimonials/`)).toBe(true);
+    });
   });
 
   describe('featureBookingPhoto', () => {

@@ -9,7 +9,7 @@ export const GenerateHotsiteImageSignedUrlSchema = z.object({
       message: 'fileName must not contain path separators or ".."',
     }),
   contentType: z.enum(['image/jpeg', 'image/png']),
-  purpose: z.enum(['branding', 'hero', 'gallery', 'about', 'booking-cta']),
+  purpose: z.enum(['branding', 'hero', 'gallery', 'about', 'booking-cta', 'testimonials']),
 });
 
 export type GenerateHotsiteImageSignedUrlDto = z.infer<typeof GenerateHotsiteImageSignedUrlSchema>;
