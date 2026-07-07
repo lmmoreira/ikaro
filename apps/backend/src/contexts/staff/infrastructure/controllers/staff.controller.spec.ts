@@ -401,5 +401,21 @@ describe('StaffController', () => {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
     });
+
+    it('tenant isolation: returns NotFound for a deactivated staff member from another tenant', async () => {
+      const staff = new StaffBuilder()
+        .withTenantId(TENANT_B)
+        .withRole('STAFF')
+        .withEmail('staff@b.com')
+        .withGoogleOAuthId('google-staff-b')
+        .build();
+      staff.deactivate('some-manager-id', 'corr-setup');
+      await repo.save(staff);
+
+      const ctrl = makeController(repo, eventBus, TENANT_A, MANAGER_ID);
+      const err = await ctrl.activate(staff.id).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
   });
 });

@@ -216,14 +216,17 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
               : servicesT('statusInactive')}
           </Badge>
         )}
-        {topbarStatus?.staffRoleStatus && (isTeamInviteRoute || teamRouteMatch) && (
-          <Badge
-            data-testid="team-role-badge"
-            className="shrink-0 rounded-full border-0 bg-slate-100 px-3.5 py-2 text-[0.875rem] font-semibold text-slate-600"
-          >
-            {topbarStatus.staffRoleStatus === 'MANAGER' ? teamT('roleManager') : teamT('roleStaff')}
-          </Badge>
-        )}
+        {topbarStatus?.staffRoleStatus &&
+          (isTeamInviteRoute || teamRouteMatch?.action === 'edit') && (
+            <Badge
+              data-testid="team-role-badge"
+              className="shrink-0 rounded-full border-0 bg-slate-100 px-3.5 py-2 text-[0.875rem] font-semibold text-slate-600"
+            >
+              {topbarStatus.staffRoleStatus === 'MANAGER'
+                ? teamT('roleManager')
+                : teamT('roleStaff')}
+            </Badge>
+          )}
 
         {/* suppressHydrationWarning: date may differ between server TZ and client TZ at midnight */}
         <span

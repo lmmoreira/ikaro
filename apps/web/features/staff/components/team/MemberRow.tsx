@@ -123,7 +123,7 @@ function ActivateMemberAction({ member }: { readonly member: StaffListItem }): R
         type="button"
         data-testid="activate-member-button"
         onClick={() => void handleActivate()}
-        disabled={activateStaffMutation.isPending}
+        disabled={activateStaffMutation.isPending || activateState === 'success'}
         className="text-sm font-semibold text-blue-600 hover:underline disabled:opacity-50"
       >
         {activateStaffMutation.isPending ? t('activating') : t('activate')}

@@ -137,27 +137,13 @@ export class StaffController {
   @Patch(':id/deactivate')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ManagerRoleGuard)
-  deactivate(
+  async deactivate(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<DeactivateStaffUseCaseResult> {
-    const actorId = this.tenantContext.actorId;
-    if (!actorId) {
-      return Promise.reject(
-        new HttpException(
-          {
-            type: 'about:blank',
-            title: 'Bad Request',
-            status: 400,
-            detail: 'X-Actor-ID header is required',
-          },
-          HttpStatus.BAD_REQUEST,
-        ),
-      );
-    }
     const input: DeactivateStaffUseCaseInput = {
       staffId: id,
       tenantId: this.tenantContext.tenantId,
-      deactivatedBy: actorId,
+      deactivatedBy: this.requireActorId(),
       correlationId: this.tenantContext.correlationId,
     };
     return this.deactivateStaff.execute(input).catch(mapStaffError);
@@ -166,29 +152,31 @@ export class StaffController {
   @Patch(':id/activate')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ManagerRoleGuard)
-  activate(
+  async activate(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<ActivateStaffUseCaseResult> {
-    const actorId = this.tenantContext.actorId;
-    if (!actorId) {
-      return Promise.reject(
-        new HttpException(
-          {
-            type: 'about:blank',
-            title: 'Bad Request',
-            status: 400,
-            detail: 'X-Actor-ID header is required',
-          },
-          HttpStatus.BAD_REQUEST,
-        ),
-      );
-    }
     const input: ActivateStaffUseCaseInput = {
       staffId: id,
       tenantId: this.tenantContext.tenantId,
-      activatedBy: actorId,
+      activatedBy: this.requireActorId(),
       correlationId: this.tenantContext.correlationId,
     };
     return this.activateStaff.execute(input).catch(mapStaffError);
+  }
+
+  private requireActorId(): string {
+    const actorId = this.tenantContext.actorId;
+    if (!actorId) {
+      throw new HttpException(
+        {
+          type: 'about:blank',
+          title: 'Bad Request',
+          status: 400,
+          detail: 'X-Actor-ID header is required',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return actorId;
   }
 }
