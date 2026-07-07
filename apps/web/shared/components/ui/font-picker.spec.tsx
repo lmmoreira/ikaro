@@ -41,7 +41,7 @@ describe('FontPicker', () => {
     );
 
     await user.click(screen.getByRole('combobox'));
-    await user.click(screen.getByTestId('heading-font-option-Montserrat'));
+    await user.click(screen.getByRole('option', { name: 'Montserrat' }));
 
     expect(onChange).toHaveBeenCalledWith('Montserrat');
   });
@@ -64,8 +64,8 @@ describe('FontPicker', () => {
     await user.click(screen.getByRole('combobox'));
     await user.type(screen.getByPlaceholderText('Buscar fonte...'), 'play');
 
-    expect(screen.queryByTestId('heading-font-option-Inter')).not.toBeInTheDocument();
-    await user.click(screen.getByTestId('heading-font-option-Playfair Display'));
+    expect(screen.queryByRole('option', { name: 'Inter' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Playfair Display' }));
 
     expect(onChange).toHaveBeenCalledWith('Playfair Display');
   });
@@ -84,10 +84,10 @@ describe('FontPicker', () => {
 
     await user.click(screen.getByRole('combobox'));
 
-    expect(screen.getByTestId('heading-font-option-Montserrat')).toHaveTextContent('Montserrat');
-    const montserratOption = screen
-      .getByTestId('heading-font-option-Montserrat')
-      .querySelector('span:last-child');
-    expect(montserratOption).toHaveStyle({ fontFamily: 'var(--font-montserrat)' });
+    const montserratOption = screen.getByRole('option', { name: 'Montserrat' });
+    expect(montserratOption).toHaveAttribute('data-font-name', 'Montserrat');
+    expect(montserratOption.querySelector('span:last-child')).toHaveStyle({
+      fontFamily: 'var(--font-montserrat)',
+    });
   });
 });

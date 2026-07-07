@@ -48,7 +48,8 @@ export function ColorPicker({
         <Popover>
           <PopoverTrigger
             type="button"
-            data-testid={`${id}-swatch`}
+            data-testid="color-picker-swatch"
+            data-field-id={id}
             aria-label={label}
             className="h-9 w-9 shrink-0 rounded-md border border-gray-200 shadow-sm"
             style={{ backgroundColor: swatchColor }}

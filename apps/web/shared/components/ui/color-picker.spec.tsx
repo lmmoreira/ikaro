@@ -33,7 +33,9 @@ describe('ColorPicker', () => {
 
     expect(screen.queryAllByRole('slider')).toHaveLength(0);
 
-    await user.click(screen.getByTestId('primary-color-swatch'));
+    const swatch = screen.getByTestId('color-picker-swatch');
+    expect(swatch).toHaveAttribute('data-field-id', 'primary-color');
+    await user.click(swatch);
 
     // react-colorful's HexColorPicker renders a saturation slider + a hue slider
     expect(screen.getAllByRole('slider').length).toBeGreaterThanOrEqual(2);

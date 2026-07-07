@@ -40,9 +40,9 @@ describe('HotsiteEditor', () => {
   it('loads with 3 tabs, Branding active by default', () => {
     renderWithIntl(<HotsiteEditor initial={INITIAL} />);
 
-    expect(screen.getByTestId('hotsite-tab-branding')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('hotsite-tab-layout')).toHaveAttribute('aria-selected', 'false');
-    expect(screen.getByTestId('hotsite-tab-seo')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tab', { name: 'Branding' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Layout' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tab', { name: 'SEO' })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByTestId('hotsite-primary-color')).toBeInTheDocument();
   });
 
@@ -50,10 +50,10 @@ describe('HotsiteEditor', () => {
     const user = userEvent.setup();
     renderWithIntl(<HotsiteEditor initial={INITIAL} />);
 
-    await user.click(screen.getByTestId('hotsite-tab-layout'));
+    await user.click(screen.getByRole('tab', { name: 'Layout' }));
 
-    expect(screen.getByTestId('hotsite-tab-layout')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('hotsite-tab-layout-placeholder')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Layout' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('hotsite-tab-placeholder')).toHaveAttribute('data-tab', 'layout');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

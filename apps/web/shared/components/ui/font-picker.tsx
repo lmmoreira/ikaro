@@ -73,7 +73,8 @@ export function FontPicker({
                   <CommandItem
                     key={option.name}
                     value={option.name}
-                    data-testid={`${id}-option-${option.name}`}
+                    data-testid="font-picker-option"
+                    data-font-name={option.name}
                     onSelect={() => {
                       onChange(option.name);
                       setOpen(false);

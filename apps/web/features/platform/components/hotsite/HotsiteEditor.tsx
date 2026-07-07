@@ -34,7 +34,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
                 key={tab}
                 type="button"
                 role="tab"
-                data-testid={`hotsite-tab-${tab}`}
+                data-testid="hotsite-tab"
+                data-tab={tab}
                 aria-selected={activeTab === tab}
                 onClick={() => setActiveTab(tab)}
                 className={`rounded-t-md px-4 py-2.5 text-sm font-semibold transition-colors ${
@@ -53,7 +54,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
           )}
           {activeTab !== 'branding' && (
             <p
-              data-testid={`hotsite-tab-${activeTab}-placeholder`}
+              data-testid="hotsite-tab-placeholder"
+              data-tab={activeTab}
               className="text-sm text-gray-500"
             >
               {t('comingSoon')}
