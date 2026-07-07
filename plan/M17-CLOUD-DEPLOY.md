@@ -55,7 +55,7 @@
  Internet ──► Cloudflare │ (DNS · CDN · WAF · DDoS · Universal SSL — free plan)      │
                   │      └────────────────────────────────────────────────────────────┘
                   ▼
-        GCP Global External ALB  (serverless NEGs; optional Cloud Armor: allow only Cloudflare IPs)
+        GCP Global External ALB  (serverless NEGs; Cloud Armor origin lockdown: allow only Cloudflare IPs)
             │ ikaro.online              │ bff.ikaro.online
             ▼                           ▼
         Cloud Run: ikaro-web        Cloud Run: ikaro-bff          (both scale-to-zero)
@@ -111,8 +111,8 @@
 | BFF → backend | VPC direct egress → internal ingress + `InternalApiGuard` (`INTERNAL_API_KEY`, M115-S03). |
 | Pub/Sub → backend | Push with Google-signed **OIDC token**; backend guard verifies issuer, audience, and the invoker SA email. |
 | Secrets | Secret Manager only. Values **never** in Terraform state, tfvars, git, or CI logs — **no exceptions** (decision revised 2026-07-07: an earlier draft had Terraform generate `db-password`; rejected because `tf-planner` credentials are PR-mintable and read state, so any secret in state is readable from a tampered PR workflow). Terraform creates secret containers + IAM only; all values — including the DB password — are populated via the tightly-scoped activation runbooks (S27/S37). Runtime injection via secret references. |
-| Edge | Cloudflare proxy (DDoS/WAF) in front of ALB; optional Cloud Armor rule restricting the ALB to Cloudflare IP ranges (M17-S36). |
-| Dev-auth bypass | `ENABLE_DEV_AUTH=true` only in staging; BFF must refuse to start with it in production (M17-S06). |
+| Edge | Cloudflare proxy (DDoS/WAF) in front of ALB; Cloud Armor rule restricting the ALB to Cloudflare IP ranges, enabled at go-live (M17-S36). |
+| Dev-auth bypass | `ENABLE_DEV_AUTH=true` only in staging; BFF refuses to start with it when `APP_ENV=production` (M17-S06 — `APP_ENV`, not `NODE_ENV`: both cloud envs build with `NODE_ENV=production`). |
 | Tenant provisioning | internal ingress + IAM proxy + `PLATFORM_ADMIN_KEY` (timing-safe) + strict rate limit. |
 
 ---
@@ -290,8 +290,10 @@ The cron controllers already exist on the backend (`cron-booking.controller.ts` 
 **Description:**
 Codify “this must never run in production” rules as startup errors, so a copy-pasted env file can’t create a hole.
 
+**`APP_ENV` first (fixes a real contradiction found in the 2026-07-07 full-plan review):** both cloud environments run `NODE_ENV=production` (that is how the Docker images are built — running Nest/Next otherwise is wrong), so `NODE_ENV` **cannot** distinguish staging from prod. Add `APP_ENV=local|staging|production` (validated enum, default `local`) to backend + BFF env schemas as the **deployment identity**; S18 sets it per environment. Rules that apply to *both* cloud envs key on `NODE_ENV=production`; rules that legitimately differ between staging and prod key on `APP_ENV`. Without this split, S27's `ENABLE_DEV_AUTH=true` in staging would trip rule 1 and the staging BFF would refuse to boot.
+
 **Rules to enforce in `env.validation.ts` (Zod `superRefine`) of the respective app:**
-1. **BFF:** `NODE_ENV=production` + `ENABLE_DEV_AUTH=true` → startup error (verify whether M115-S02 already added this; if yes, add the missing cases below and a spec).
+1. **BFF:** `APP_ENV=production` + `ENABLE_DEV_AUTH=true` → startup error (staging explicitly allowed — E2E depends on it; verify whether M115-S02 added a `NODE_ENV`-based guard and migrate it to `APP_ENV`).
 2. **backend:** `NODE_ENV=production` + `PUBSUB_AUTO_CREATE=true` → startup error.
 3. **backend:** `NODE_ENV=production` + `PUBSUB_CONSUMER_MODE` ≠ `push` → startup error (cloud runs push; pull in prod would silently drop events at scale-to-zero).
 4. **backend:** `NODE_ENV=production` + `PUBSUB_PUSH_GUARD_ENFORCE=false` → startup error.
@@ -446,7 +448,7 @@ The two external service prerequisites for a working deployment: Google OAuth (l
 **Runbook steps:**
 1. **OAuth consent screen** (in `ikaro-prod`, shared by both envs or one per project — one per project preferred for isolation): External type; app name, support email, domain `ikaro.online`. Stays in **Testing** mode until go-live: add every staging tester as a Test User (without this, staging login returns `Error 403: access_denied` — Google policy, not a bug).
 2. **OAuth clients** (Web application), one per env:
-   - staging: authorized redirect `https://<bff-staging-run-url>/v1/auth/google/callback` (exact BFF path — verify against `GOOGLE_CALLBACK_URL` usage in `apps/bff`)
+   - staging: authorized redirect `https://<bff-staging-run-url>/v1/auth/google/callback` (exact BFF path — verify against `GOOGLE_CALLBACK_URL` usage in `apps/bff`). **Chicken-and-egg note:** the BFF run URL doesn't exist until Wave 2 — use Cloud Run's deterministic URL format, computable after S08 (`https://ikaro-bff-<PROJECT_NUMBER>.southamerica-east1.run.app`; project number from `gcloud projects describe`), or create the client with a placeholder and update the redirect URI during S27 (redirect URIs are freely editable; changes take effect in minutes).
    - prod: `https://bff.ikaro.online/v1/auth/google/callback`
    - Record client IDs; secrets go straight to a password manager → Secret Manager in S27/S37.
 3. **SendGrid:** create account; verify sender domain `ikaro.online` (SPF/DKIM DNS records — add via Cloudflare, done after S09); create two API keys (staging, prod) with Mail Send permission only.
@@ -687,7 +689,8 @@ Key settings:
 - **backend:** ingress `INGRESS_TRAFFIC_INTERNAL_ONLY`; direct VPC egress (network+subnet from S12, egress `PRIVATE_RANGES_ONLY`); `min=0,max=10` staging / `min=0,max=20` prod (push model makes min=0 safe — D2); CPU 1 / 512Mi; startup probe `/health/live`, liveness `/health/live`, readiness via startup+`/health/ready`; env per backend schema incl. `PUBSUB_CONSUMER_MODE=push`, `PUBSUB_AUTO_CREATE=false`, `PUBSUB_PUSH_AUDIENCE=<own run URL>/pubsub/push`, `PUBSUB_PUSH_SERVICE_ACCOUNT=ikaro-pubsub-invoker@…`; secrets via `value_source.secret_key_ref`. `--no-allow-unauthenticated` + `run.invoker` for bff/pubsub-invoker SAs (IAM layer on top of internal ingress).
 - **bff:** public (`INGRESS_TRAFFIC_ALL` staging; `INTERNAL_AND_CLOUD_LOAD_BALANCING` prod once S22 lands); allow-unauthenticated (app does its own auth); VPC direct egress to reach backend; `BACKEND_INTERNAL_URL=https://<backend run URL>` (internal ingress accepts VPC-originated calls to the run.app URL); CPU 1 / 512Mi; `min=0`.
 - **web:** public (same ingress split as BFF); 256Mi; `min=0`; env: `NEXT_PUBLIC_*` are **build-time** — runtime copies exist only for server-side code; see S26 for the per-env image consequence.
-- All three: sidecar support wired (container list accepts an optional collector sidecar — activated in S34), `max_instance_request_concurrency` default, second-gen execution environment, labels (`env`, `service`, `managed-by=terraform`).
+- **web probe paths differ:** web health lives under Next.js route handlers — probes must target `/api/health/live` and `/api/health/ready` (S04), NOT `/health/*` like backend/BFF. A wrong probe path = a service that never turns READY.
+- All three: `APP_ENV` set per environment (`staging`/`production` — S06 deployment identity; `NODE_ENV=production` in both), sidecar support wired (container list accepts an optional collector sidecar — activated in S34), `max_instance_request_concurrency` default, second-gen execution environment, labels (`env`, `service`, `managed-by=terraform`).
 
 **Connection-math invariant (owned here):** backend env sets `DB_POOL_SIZE=3` (S06 wires it into TypeORM); the module must assert — via a Terraform `check`/`precondition` on the variables — that `backend max_instances × DB_POOL_SIZE ≤ 0.8 × max_connections` of the chosen `db_tier` (encode the tier→max_connections map as a local). Launch numbers: 10 instances × 3 = 30 > 25 (f1-micro) — so launch caps backend at `max_instances=6` until the tier upgrade (D12 note). Raising max_instances without raising the tier (or enabling S46 MCP) must fail `terraform plan`.
 
@@ -922,7 +925,7 @@ Turn staging from placeholder to a working environment. This is a runbook + chec
 
 **Steps:**
 1. Populate staging secret values (`gcloud secrets versions add`): jwt-secret (`openssl rand -hex 64`), internal-api-key, platform-admin-key, hotsite-revalidate-secret, OAuth pair (S10), SendGrid key. **Create the DB user + password out-of-band per the S13 snippet** (`gcloud sql users create` + `db-password` secret version — never via Terraform, §2). Record rotation dates in `SECRETS.md`.
-2. Flip `bootstrap_mode=false` (S18) via the infra pipeline; set staging env vars: `ENABLE_DEV_AUTH=true`, `EMAIL_ADAPTER=sendgrid`, `LOG_LEVEL=DEBUG`.
+2. Flip `bootstrap_mode=false` (S18) via the infra pipeline; set staging env vars: `APP_ENV=staging` (which is what makes `ENABLE_DEV_AUTH=true` legal — S06), `ENABLE_DEV_AUTH=true`, `EMAIL_ADAPTER=sendgrid`, `LOG_LEVEL=DEBUG`.
 3. Trigger `deploy-staging.yml` (empty commit or re-run) → first real images deploy.
 4. **Validation checklist (all deferred items from Wave 2 land here):**
    - [ ] 3 services READY with real images; probes green
@@ -1128,7 +1131,7 @@ Terraform: activate the sidecar in the S18 module for backend + BFF (128Mi/0.1 C
 
 ---
 
-### M17-S36 — Cloud Armor origin lockdown (optional, prod)
+### M17-S36 — Cloud Armor origin lockdown (prod — enabled at go-live)
 
 **Agent:** `devops`
 **Complexity:** S
@@ -1225,6 +1228,7 @@ Runbook story mirroring S27 for prod, plus DNS cutover and the first real tenant
      -H "Content-Type: application/json" \
      -d '{ "name": "…", "slug": "…", "adminEmail": "…", "timezone": "America/Sao_Paulo" }'
    ```
+   **Guard-layering caution (verify during S27's staging provisioning first):** `InternalApiGuard` (M115-S03) is a global BFF↔backend gate — confirm how it treats `/internal/*` routes; if they are not exempt, this curl also needs the `-H "X-Internal-Key: $(gcloud secrets versions access latest --secret=internal-api-key --project=ikaro-prod)"` header. Record the working command shape in the runbook.
    Verify: `TenantProvisioned` handled (staff row + default templates seeded — M04/M11 behavior), invite email delivered, hotsite renders at `https://ikaro.online/<slug>`.
 8. **E2E-lite against prod:** guest booking journey only (no dev-auth in prod by design) + manual staff approval pass.
 9. **Observe for 30 min:** dashboards clean, no DLQ messages, no ERROR-burst alert, billing dashboard sane.
@@ -1530,7 +1534,7 @@ When the trigger above is met, move the instance to Enterprise Plus and enable *
 | S33 | M14-S01/S02 | OTLP-only; manual spans deferred |
 | S34 | M14-S04 + M16-S09 | compose stack/VM → collector sidecar (D9) |
 | S35 | M14-S05/S06 | Grafana JSONs/Prometheus rules → Cloud Monitoring as code |
-| S36 | M15-S12 remnant | Armor reduced to origin lockdown, optional |
+| S36 | M15-S12 remnant | Armor reduced to origin lockdown; enabled at go-live (revised 2026-07-07) |
 | S37 | M16-S10 | go-live |
 | S38–S40 | new product | custom domains (UC-032 doc-first) |
 | S41 | new product | hotsite edge caching |
