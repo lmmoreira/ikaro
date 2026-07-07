@@ -25,19 +25,18 @@ describe('ColorPicker', () => {
     expect(onChange).toHaveBeenCalledWith('f');
   });
 
-  it('opens the native color input when the swatch is clicked', async () => {
+  it('opens the react-colorful gradient picker when the swatch is clicked', async () => {
     const user = userEvent.setup();
     render(
       <ColorPicker id="primary-color" label="Cor primária" value="#2563eb" onChange={vi.fn()} />,
     );
 
-    expect(screen.queryByLabelText('Cor primária', { selector: 'input[type="color"]' })).toBeNull();
+    expect(screen.queryAllByRole('slider')).toHaveLength(0);
 
     await user.click(screen.getByTestId('primary-color-swatch'));
 
-    expect(
-      screen.getByLabelText('Cor primária', { selector: 'input[type="color"]' }),
-    ).toBeInTheDocument();
+    // react-colorful's HexColorPicker renders a saturation slider + a hue slider
+    expect(screen.getAllByRole('slider').length).toBeGreaterThanOrEqual(2);
   });
 
   it('shows the inline error message and marks the field invalid', () => {

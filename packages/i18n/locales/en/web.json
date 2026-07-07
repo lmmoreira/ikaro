@@ -471,6 +471,8 @@
         "brandTaglineLabel": "Brand tagline",
         "headingFontLabel": "Heading font",
         "bodyFontLabel": "Body font",
+        "fontSearchPlaceholder": "Search fonts...",
+        "fontSearchEmpty": "No fonts found.",
         "borderRadiusLabel": "Corners",
         "borderRadiusSharp": "Sharp",
         "borderRadiusRounded": "Rounded",

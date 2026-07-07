@@ -44,11 +44,22 @@ describe('LogoUpload', () => {
     );
 
     expect(onChange).toHaveBeenCalledWith('tenants/tenant-1/hotsite/logo.png');
+    expect(generateHotsiteImageSignedUrl).toHaveBeenCalledWith({
+      fileName: 'logo.png',
+      contentType: 'image/png',
+      purpose: 'branding',
+    });
     expect(fetchSpy).toHaveBeenCalledWith('https://storage.example.com/upload?sig=abc', {
       method: 'PUT',
       headers: { 'Content-Type': 'image/png' },
       body: expect.any(File),
     });
+    // The resolved filePath is a bucket-relative storage path, not a displayable URL — the
+    // preview must come from a local blob URL, not the raw onChange value.
+    expect(screen.getByTestId('hotsite-logo-preview')).toHaveAttribute(
+      'src',
+      expect.stringContaining('blob:'),
+    );
   });
 
   it('shows a retry-oriented error message when the upload fails, no URL fallback field', async () => {

@@ -68,3 +68,13 @@ if (typeof HTMLElement !== 'undefined' && !HTMLElement.prototype.hasOwnProperty(
     value: () => undefined,
   });
 }
+
+// jsdom does not implement ResizeObserver — cmdk (the Command/combobox primitive) observes
+// its list element to recalculate visible items.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  };
+}

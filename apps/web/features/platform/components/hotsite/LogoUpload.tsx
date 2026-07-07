@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { generateHotsiteImageSignedUrl } from '@/features/platform/tenant-settings';
+import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 
 interface LogoUploadProps {
   readonly value: string;
@@ -11,44 +12,41 @@ interface LogoUploadProps {
 
 type UploadStatus = 'idle' | 'uploading' | 'error';
 
-const ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png']);
 const INPUT_ID = 'hotsite-logo-upload-input';
 
-// Single-image upload — deliberately not unified with PhotoUpload.tsx/AfterServicePhotoUpload.tsx
-// (multi-file galleries, different signed-url endpoints/domains); this mirrors their PUT-to-
-// signed-URL mechanics but stays hotsite-scoped, consistent with how those two already coexist
-// without a shared abstraction. Retry-only on failure — no free-text URL fallback, since
+// Single-image upload — deliberately not unified into one UI component with
+// PhotoUpload.tsx/AfterServicePhotoUpload.tsx: those are multi-file galleries (append + remove),
+// this replaces a single value in place, and PhotoUpload additionally renders on the public
+// hotsite tree using --ba-* branding tokens (a different styling system per the "Web styling
+// boundary" rule — never mixed with the dashboard's Tailwind palette used here). The actual
+// duplicated part — validate → get a signed URL → PUT → return the path — is shared via
+// uploadFileToSignedUrl instead. Retry-only on failure — no free-text URL fallback, since
 // PATCH /tenants/hotsite only accepts a tenants/<id>/hotsite/... storage path, never an
 // arbitrary external URL (see hotsite-admin.controller.ts's LOGO_URL_REGEX).
 export function LogoUpload({ value, onChange }: LogoUploadProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.branding');
   const [status, setStatus] = useState<UploadStatus>('idle');
+  // uploadFileToSignedUrl resolves to a bucket-relative storage path (e.g.
+  // "tenants/<id>/hotsite/branding/logo.png"), not a displayable URL — only GET's resolved
+  // branding.logoUrl is a full URL (HotsiteContentReader.readResolved on the backend). Preview a
+  // freshly-selected file from a local blob URL instead, same pattern as
+  // PhotoUpload.tsx/AfterServicePhotoUpload.tsx.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   async function uploadFile(file: File): Promise<void> {
-    if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
-      setStatus('error');
-      return;
-    }
-
+    const localPreviewUrl = URL.createObjectURL(file);
+    setPreviewUrl(localPreviewUrl);
     setStatus('uploading');
     try {
-      const contentType = file.type as 'image/jpeg' | 'image/png';
-      const { signedUrl, filePath } = await generateHotsiteImageSignedUrl({
-        fileName: file.name,
-        contentType,
-      });
-
-      const res = await fetch(signedUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': contentType },
-        body: file,
-      });
-      if (!res.ok) throw new Error('upload failed');
-
+      const filePath = await uploadFileToSignedUrl(file, (fileName, contentType) =>
+        generateHotsiteImageSignedUrl({ fileName, contentType, purpose: 'branding' }),
+      );
       onChange(filePath);
       setStatus('idle');
     } catch {
       setStatus('error');
+      setPreviewUrl(null);
+      URL.revokeObjectURL(localPreviewUrl);
     }
   }
 
@@ -57,6 +55,8 @@ export function LogoUpload({ value, onChange }: LogoUploadProps): React.JSX.Elem
     event.target.value = '';
     if (file) await uploadFile(file);
   }
+
+  const displaySrc = previewUrl ?? value;
 
   return (
     <div>
@@ -68,9 +68,9 @@ export function LogoUpload({ value, onChange }: LogoUploadProps): React.JSX.Elem
         htmlFor={INPUT_ID}
         className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50/50"
       >
-        {value && status !== 'uploading' && (
+        {displaySrc && status !== 'uploading' && (
           <img
-            src={value}
+            src={displaySrc}
             alt=""
             data-testid="hotsite-logo-preview"
             className="h-16 w-auto object-contain"

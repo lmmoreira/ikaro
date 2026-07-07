@@ -471,6 +471,8 @@
         "brandTaglineLabel": "Slogan da marca",
         "headingFontLabel": "Fonte de títulos",
         "bodyFontLabel": "Fonte de texto",
+        "fontSearchPlaceholder": "Buscar fonte...",
+        "fontSearchEmpty": "Nenhuma fonte encontrada.",
         "borderRadiusLabel": "Cantos",
         "borderRadiusSharp": "Retos",
         "borderRadiusRounded": "Arredondados",

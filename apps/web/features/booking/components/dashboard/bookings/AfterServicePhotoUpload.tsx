@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { createAttachmentSignedUrl } from '@/features/booking/api/public';
+import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 
 interface AfterServicePhotoUploadProps {
   readonly slug: string;
@@ -22,7 +23,6 @@ interface UploadItem {
   readonly filePath?: string;
 }
 
-const ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png']);
 const INPUT_ID = 'after-service-photo-upload-input';
 
 export function AfterServicePhotoUpload({
@@ -36,29 +36,9 @@ export function AfterServicePhotoUpload({
   const [items, setItems] = useState<UploadItem[]>([]);
 
   async function uploadFile(file: File): Promise<string> {
-    if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
-      throw new Error(t('unsupportedFormat'));
-    }
-
-    const contentType = file.type as 'image/jpeg' | 'image/png';
-    const { signedUrl, filePath } = await createAttachmentSignedUrl(
-      slug,
-      file.name,
-      contentType,
-      bookingId,
+    return uploadFileToSignedUrl(file, (fileName, contentType) =>
+      createAttachmentSignedUrl(slug, fileName, contentType, bookingId),
     );
-
-    const res = await fetch(signedUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': contentType },
-      body: file,
-    });
-
-    if (!res.ok) {
-      throw new Error(t('uploadFailed'));
-    }
-
-    return filePath;
   }
 
   function statusLabel(status: UploadStatus): string {

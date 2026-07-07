@@ -8,13 +8,18 @@ import { ColorPicker } from '@/shared/components/ui/color-picker';
 import { FontPicker, type FontPickerOption } from '@/shared/components/ui/font-picker';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SwitchField } from '@/shared/components/ui/switch-field';
-import { FONT_MAP } from '@/features/platform/hotsite/font-config';
+import { FONT_MAP, FONT_VARIABLES } from '@/features/platform/hotsite/font-config';
 import { LogoUpload } from '@/features/platform/components/hotsite/LogoUpload';
 
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 const FONT_OPTIONS: readonly FontPickerOption[] = Object.entries(FONT_MAP).map(
   ([name, cssValue]) => ({ name, cssValue }),
 );
+// The public hotsite only loads the tenant's 2 currently-active fonts (getActiveFontVariables,
+// [slug]/layout.tsx) — nothing in the /dashboard tree loads any of the 8 next/font/google CSS
+// variables otherwise. Without this, FontPicker's per-option preview silently falls back to the
+// same inherited font for every option.
+const FONT_PREVIEW_CLASS = FONT_VARIABLES.join(' ');
 
 const INPUT_CLASS =
   'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
@@ -58,7 +63,7 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
   }
 
   return (
-    <div className="space-y-4 lg:space-y-6">
+    <div className={`space-y-4 lg:space-y-6 ${FONT_PREVIEW_CLASS}`}>
       <SectionCard title={t('sections.colors')}>
         <div className="grid gap-4 md:grid-cols-3">
           <ColorPicker
@@ -162,6 +167,8 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
             value={value.headingFontFamily}
             options={FONT_OPTIONS}
             onChange={(v) => setField('headingFontFamily', v)}
+            searchPlaceholder={t('fontSearchPlaceholder')}
+            emptyLabel={t('fontSearchEmpty')}
           />
           <FontPicker
             id="hotsite-body-font"
@@ -169,6 +176,8 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
             value={value.bodyFontFamily}
             options={FONT_OPTIONS}
             onChange={(v) => setField('bodyFontFamily', v)}
+            searchPlaceholder={t('fontSearchPlaceholder')}
+            emptyLabel={t('fontSearchEmpty')}
           />
         </div>
       </SectionCard>

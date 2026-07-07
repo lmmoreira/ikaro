@@ -69,7 +69,13 @@ describe('useUnpublishHotsite', () => {
 describe('useGenerateHotsiteImageSignedUrl', () => {
   it('mutates successfully', async () => {
     const { result } = renderHook(() => useGenerateHotsiteImageSignedUrl(), { wrapper });
-    act(() => result.current.mutate({ fileName: 'logo.jpg', contentType: 'image/jpeg' }));
+    act(() =>
+      result.current.mutate({
+        fileName: 'logo.jpg',
+        contentType: 'image/jpeg',
+        purpose: 'branding',
+      }),
+    );
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
 });

@@ -1,5 +1,6 @@
 'use client';
 
+import { HexColorPicker } from 'react-colorful';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { cn } from '@/shared/utils/cn';
 
@@ -20,9 +21,11 @@ interface ColorPickerProps {
   readonly placeholder?: string;
 }
 
-// Popover-based swatch (click to pick visually via the native color input) paired with a
-// always-visible hex text field (for typing/pasting and for the inline validation error —
-// UC-027 A1 requires the raw typed value to be shown and validated, not just a picked color).
+// Popover-based swatch (click to pick visually via react-colorful's saturation/hue gradient)
+// paired with an always-visible hex text field (for typing/pasting and for the inline
+// validation error — UC-027 A1 requires the raw typed value to be shown and validated, not
+// just a picked color). Deliberately not the native <input type="color"> — that opens the
+// browser/OS color dialog, which is slow and inconsistent across platforms.
 export function ColorPicker({
   id,
   label,
@@ -50,14 +53,8 @@ export function ColorPicker({
             className="h-9 w-9 shrink-0 rounded-md border border-gray-200 shadow-sm"
             style={{ backgroundColor: swatchColor }}
           />
-          <PopoverContent align="start" className="w-auto p-2">
-            <input
-              type="color"
-              aria-label={label}
-              value={swatchColor}
-              onChange={(event) => onChange(event.target.value)}
-              className="h-32 w-40 cursor-pointer border-none bg-transparent p-0"
-            />
+          <PopoverContent align="start" className="w-auto p-3">
+            <HexColorPicker color={swatchColor} onChange={onChange} />
           </PopoverContent>
         </Popover>
         <input

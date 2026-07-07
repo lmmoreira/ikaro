@@ -62,6 +62,7 @@ export interface UpdateHotsiteRequest {
 export interface HotsiteImageSignedUrlRequest {
   readonly fileName: string;
   readonly contentType: 'image/jpeg' | 'image/png';
+  readonly purpose: 'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta';
 }
 
 export interface FeatureBookingPhotoRequest {

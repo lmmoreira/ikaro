@@ -140,6 +140,7 @@ describe('generateHotsiteImageSignedUrl', () => {
     const res = await generateHotsiteImageSignedUrl({
       fileName: 'logo.jpg',
       contentType: 'image/jpeg',
+      purpose: 'branding',
     });
     expect(res.signedUrl).toContain('https://');
   });
