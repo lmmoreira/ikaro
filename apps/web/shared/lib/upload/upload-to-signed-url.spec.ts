@@ -37,6 +37,7 @@ describe('uploadFileToSignedUrl', () => {
       method: 'PUT',
       headers: { 'Content-Type': 'image/png' },
       body: expect.any(File),
+      signal: expect.any(AbortSignal),
     });
     expect(filePath).toBe('tenants/t-1/hotsite/logo.png');
   });

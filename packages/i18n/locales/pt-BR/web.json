@@ -464,7 +464,7 @@
         "colorErrorMessage": "Cor inválida. Use o formato hexadecimal, ex: #2563eb.",
         "logoLabel": "Logo",
         "logoClickToAdd": "Arraste uma imagem ou clique para enviar",
-        "logoFormatHint": "PNG ou SVG, fundo transparente recomendado",
+        "logoFormatHint": "PNG ou JPG, fundo transparente recomendado",
         "logoUploading": "Enviando...",
         "logoUploadError": "Não foi possível enviar a imagem. Tente novamente.",
         "brandNameLabel": "Nome da marca",

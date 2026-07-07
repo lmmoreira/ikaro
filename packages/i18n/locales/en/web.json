@@ -464,7 +464,7 @@
         "colorErrorMessage": "Invalid color. Use hex format, e.g.: #2563eb.",
         "logoLabel": "Logo",
         "logoClickToAdd": "Drag an image or click to upload",
-        "logoFormatHint": "PNG or SVG, transparent background recommended",
+        "logoFormatHint": "PNG or JPG, transparent background recommended",
         "logoUploading": "Uploading...",
         "logoUploadError": "Could not upload the image. Try again.",
         "brandNameLabel": "Brand name",

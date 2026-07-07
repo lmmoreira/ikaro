@@ -8,10 +8,10 @@ import { ColorPicker } from '@/shared/components/ui/color-picker';
 import { FontPicker, type FontPickerOption } from '@/shared/components/ui/font-picker';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SwitchField } from '@/shared/components/ui/switch-field';
+import { HEX_COLOR_REGEX } from '@/shared/utils/hex-color';
 import { FONT_MAP, FONT_VARIABLES } from '@/features/platform/hotsite/font-config';
 import { LogoUpload } from '@/features/platform/components/hotsite/LogoUpload';
 
-const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 const FONT_OPTIONS: readonly FontPickerOption[] = Object.entries(FONT_MAP).map(
   ([name, cssValue]) => ({ name, cssValue }),
 );

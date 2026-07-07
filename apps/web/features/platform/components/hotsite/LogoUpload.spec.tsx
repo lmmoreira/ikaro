@@ -53,6 +53,7 @@ describe('LogoUpload', () => {
       method: 'PUT',
       headers: { 'Content-Type': 'image/png' },
       body: expect.any(File),
+      signal: expect.any(AbortSignal),
     });
     // The resolved filePath is a bucket-relative storage path, not a displayable URL — the
     // preview must come from a local blob URL, not the raw onChange value.
@@ -77,6 +78,33 @@ describe('LogoUpload', () => {
     expect(await screen.findByTestId('hotsite-logo-upload-error')).toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('revokes the previous preview blob URL when a second logo is uploaded', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/hotsite/logo.png',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL');
+
+    renderWithIntl(<LogoUpload value="" onChange={vi.fn()} />);
+
+    await user.upload(
+      screen.getByTestId('hotsite-logo-upload-input'),
+      makeFile('logo.png', 'image/png'),
+    );
+    const firstPreviewUrl = screen.getByTestId('hotsite-logo-preview').getAttribute('src');
+
+    await user.upload(
+      screen.getByTestId('hotsite-logo-upload-input'),
+      makeFile('logo2.png', 'image/png'),
+    );
+
+    expect(revokeSpy).toHaveBeenCalledWith(firstPreviewUrl);
+    revokeSpy.mockRestore();
   });
 
   it('renders the current logo as a preview when a value is present', () => {

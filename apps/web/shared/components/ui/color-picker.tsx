@@ -3,8 +3,8 @@
 import { HexColorPicker } from 'react-colorful';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { cn } from '@/shared/utils/cn';
+import { HEX_COLOR_REGEX } from '@/shared/utils/hex-color';
 
-const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 const FALLBACK_SWATCH = '#e5e7eb';
 
 const INPUT_CLASS =

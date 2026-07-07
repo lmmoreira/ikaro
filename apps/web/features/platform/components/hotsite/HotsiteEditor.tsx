@@ -18,6 +18,12 @@ const TABS: readonly EditorTab[] = ['branding', 'layout', 'seo'];
 export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage');
   const [activeTab, setActiveTab] = useState<EditorTab>('branding');
+  // useState(initial) only applies on mount — page.tsx renders this once per full page load, so
+  // `initial` never changes under an already-mounted editor today. If M13-S37 adds a save +
+  // refetch cycle that could pass a fresh `initial` prop into a still-mounted HotsiteEditor, the
+  // fix is a `key` on this component (forcing a clean remount), not a useEffect resync — this
+  // repo's react-hooks/set-state-in-effect lint rule forbids setState-in-effect for exactly this
+  // "adjust state to a prop" case, and there's no other call site today that needs it.
   const [draft, setDraft] = useState<HotsiteAdminContentResponse>(initial);
 
   function setBranding(branding: HotsiteBrandingResponse): void {
@@ -34,6 +40,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
                 key={tab}
                 type="button"
                 role="tab"
+                id={`hotsite-tab-${tab}`}
+                aria-controls={`hotsite-tabpanel-${tab}`}
                 data-testid="hotsite-tab"
                 data-tab={tab}
                 aria-selected={activeTab === tab}
@@ -50,10 +58,19 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
           </div>
 
           {activeTab === 'branding' && (
-            <BrandingTab value={draft.branding} onChange={setBranding} />
+            <div
+              role="tabpanel"
+              id="hotsite-tabpanel-branding"
+              aria-labelledby="hotsite-tab-branding"
+            >
+              <BrandingTab value={draft.branding} onChange={setBranding} />
+            </div>
           )}
           {activeTab !== 'branding' && (
             <p
+              role="tabpanel"
+              id={`hotsite-tabpanel-${activeTab}`}
+              aria-labelledby={`hotsite-tab-${activeTab}`}
               data-testid="hotsite-tab-placeholder"
               data-tab={activeTab}
               className="text-sm text-gray-500"

@@ -34,6 +34,10 @@ export function LogoUpload({ value, onChange }: LogoUploadProps): React.JSX.Elem
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   async function uploadFile(file: File): Promise<void> {
+    // Revoke the previous blob before creating a new one — otherwise repeated logo changes in
+    // the same session leak one blob URL per selection.
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+
     const localPreviewUrl = URL.createObjectURL(file);
     setPreviewUrl(localPreviewUrl);
     setStatus('uploading');

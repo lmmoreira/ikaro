@@ -60,6 +60,7 @@ describe('AfterServicePhotoUpload', () => {
       method: 'PUT',
       headers: { 'Content-Type': 'image/jpeg' },
       body: expect.any(File),
+      signal: expect.any(AbortSignal),
     });
   });
 
