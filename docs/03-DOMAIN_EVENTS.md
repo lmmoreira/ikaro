@@ -545,6 +545,18 @@ Customer clicks "Cancel"
   ```
 - **Consumers:** None in MVP (sessions expire naturally via JWT TTL)
 
+#### **StaffActivated**
+- **Trigger:** MANAGER-role staff member reactivates a previously deactivated team member (UC-031)
+- **State change:** `staff.isActive` set to `true`; `staff.deactivatedBy` cleared
+- **Data:**
+  ```json
+  {
+    "staffId": "uuid"
+  }
+  ```
+  (`tenantId`/`correlationId` are envelope fields on every event, not part of `data` — see the Event Envelope in CLAUDE.md §4)
+- **Consumers:** None in MVP
+
 ---
 
 ### **Platform Context Events**

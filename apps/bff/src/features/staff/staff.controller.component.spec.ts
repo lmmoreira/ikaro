@@ -109,6 +109,13 @@ describe('StaffController (component)', () => {
       expect(res.status).toBe(403);
     });
 
+    it('PATCH /v1/staff/:id/activate → 403 for STAFF role', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/staff/${STAFF_ID_2}/activate`)
+        .set('Authorization', `Bearer ${makeStaffJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+
     it('GET /v1/staff/me → not 403 for STAFF role (unlike GET /v1/staff, this route is staff-inclusive)', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockResolvedValueOnce({
@@ -234,6 +241,14 @@ describe('StaffController (component)', () => {
       setupActiveGuardMock(httpService);
       const res = await request(app.getHttpServer())
         .patch('/v1/staff/not-a-uuid/deactivate')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+      expect(res.status).toBe(400);
+    });
+
+    it('PATCH /v1/staff/:id/activate → 400 when id is not a UUID', async () => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .patch('/v1/staff/not-a-uuid/activate')
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
       expect(res.status).toBe(400);
     });
@@ -401,6 +416,20 @@ describe('StaffController (component)', () => {
       expect(backendHttpService.patch).toHaveBeenCalledWith(`/staff/${STAFF_ID_2}/deactivate`, {});
     });
 
+    it('PATCH /v1/staff/:id/activate calls PATCH /staff/:id/activate', async () => {
+      const backendResponse = { staffId: STAFF_ID_2, isActive: true };
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce(backendResponse);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/staff/${STAFF_ID_2}/activate`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(backendResponse);
+      expect(backendHttpService.patch).toHaveBeenCalledWith(`/staff/${STAFF_ID_2}/activate`, {});
+    });
+
     it('PATCH /v1/staff/:id calls PATCH /staff/:id with exact body', async () => {
       const updateBody = { name: 'Nome Editado', role: 'MANAGER' };
       const backendResponse = { staffId: STAFF_ID_2, name: 'Nome Editado', role: 'MANAGER' };
@@ -460,6 +489,19 @@ describe('StaffController (component)', () => {
         .patch(`/v1/staff/${STAFF_ID_2}`)
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
         .send({ name: 'Nome', role: 'STAFF' });
+
+      expect(res.status).toBe(409);
+    });
+
+    it('propagates 409 from backend when activating an already-active member', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockRejectedValueOnce(
+        new HttpException({ title: 'Conflict', status: 409 }, 409),
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/staff/${STAFF_ID_2}/activate`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
 
       expect(res.status).toBe(409);
     });

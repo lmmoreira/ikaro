@@ -1,5 +1,7 @@
 import type { APIResponse, Page } from '@playwright/test';
 import type {
+  ActivateStaffResponse,
+  DeactivateStaffResponse,
   InviteStaffRequest,
   InviteStaffResponse,
   StaffResponse,
@@ -35,4 +37,17 @@ export async function updateStaff(
 export async function getStaffMember(page: Page, staffId: string): Promise<StaffResponse> {
   const res = await page.request.get(`${BFF_URL}/staff/${staffId}`);
   return readJson(res, 'get staff member');
+}
+
+export async function deactivateStaff(
+  page: Page,
+  staffId: string,
+): Promise<DeactivateStaffResponse> {
+  const res = await page.request.patch(`${BFF_URL}/staff/${staffId}/deactivate`);
+  return readJson(res, 'deactivate staff');
+}
+
+export async function activateStaff(page: Page, staffId: string): Promise<ActivateStaffResponse> {
+  const res = await page.request.patch(`${BFF_URL}/staff/${staffId}/activate`);
+  return readJson(res, 'activate staff');
 }

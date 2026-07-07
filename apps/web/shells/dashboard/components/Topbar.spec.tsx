@@ -20,6 +20,7 @@ vi.mock('next-intl', () => ({
       createPageTitle: 'Criar serviço',
       editPageTitle: 'Editar serviço',
       deactivatePageTitle: 'Desativar serviço',
+      deactivateMemberPageTitle: 'Desativar membro',
       statusActive: 'Ativo',
       statusInactive: 'Inativo',
       invite: 'Convidar membro',
@@ -194,6 +195,14 @@ describe('Topbar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Selecionar Gerente' }));
 
     expect(screen.getByTestId('team-role-badge')).toHaveTextContent('Gerente');
+  });
+
+  it('renders the deactivate title and back link to the team list on the team deactivate route', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/team/staff-1/deactivate');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('link', { name: 'Equipe' })).toHaveAttribute('href', '/dashboard/team');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Desativar membro');
   });
 
   it('renders the staff role badge on the team detail route', () => {

@@ -10,6 +10,7 @@ import {
   StaffGoogleAccountConflictError,
   StaffNotFoundError,
   StaffSelfDeactivationError,
+  StaffSelfReactivationError,
 } from '../../domain/errors/staff-domain.error';
 
 export function mapStaffError(err: unknown): never {
@@ -41,6 +42,15 @@ export function mapStaffError(err: unknown): never {
     throw new HttpException(body, HttpStatus.CONFLICT);
   }
   if (err instanceof StaffSelfDeactivationError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Forbidden',
+      status: HttpStatus.FORBIDDEN,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.FORBIDDEN);
+  }
+  if (err instanceof StaffSelfReactivationError) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Forbidden',

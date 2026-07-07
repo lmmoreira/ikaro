@@ -48,6 +48,13 @@ export class StaffSelfDeactivationError extends StaffDomainError {
   }
 }
 
+export class StaffSelfReactivationError extends StaffDomainError {
+  constructor() {
+    super('Cannot reactivate your own account');
+    this.name = 'StaffSelfReactivationError';
+  }
+}
+
 export class LastActiveManagerError extends StaffDomainError {
   constructor() {
     super('Cannot remove the last active manager');

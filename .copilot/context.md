@@ -142,6 +142,7 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 | UC-028 | Admin invites new staff member |
 | UC-029 | Admin deactivates staff member |
 | UC-030 | Admin edits staff member profile |
+| UC-031 | Admin reactivates staff member |
 
 **Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry.
 

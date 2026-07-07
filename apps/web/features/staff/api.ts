@@ -1,4 +1,5 @@
 import type {
+  ActivateStaffResponse,
   DeactivateStaffResponse,
   InviteStaffRequest,
   InviteStaffResponse,
@@ -71,5 +72,10 @@ export async function updateStaff(
 
 export async function deactivateStaff(id: string): Promise<DeactivateStaffResponse> {
   const res = await bffClient.patch<DeactivateStaffResponse>(`/staff/${id}/deactivate`, {});
+  return res.data;
+}
+
+export async function activateStaff(id: string): Promise<ActivateStaffResponse> {
+  const res = await bffClient.patch<ActivateStaffResponse>(`/staff/${id}/activate`, {});
   return res.data;
 }

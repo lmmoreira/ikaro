@@ -3,7 +3,17 @@ import { isTeamInviteRoute, matchTeamRoute, resolveTeamLayoutPlan } from './team
 
 describe('matchTeamRoute', () => {
   it('matches a staff detail route', () => {
-    expect(matchTeamRoute('/dashboard/team/staff-1')).toEqual({ staffId: 'staff-1' });
+    expect(matchTeamRoute('/dashboard/team/staff-1')).toEqual({
+      staffId: 'staff-1',
+      action: 'edit',
+    });
+  });
+
+  it('matches a staff deactivate route', () => {
+    expect(matchTeamRoute('/dashboard/team/staff-1/deactivate')).toEqual({
+      staffId: 'staff-1',
+      action: 'deactivate',
+    });
   });
 
   it('returns null for the invite route (collides structurally with [id])', () => {
@@ -16,7 +26,6 @@ describe('matchTeamRoute', () => {
 
   it('returns null for other paths', () => {
     expect(matchTeamRoute('/dashboard/services')).toBeNull();
-    expect(matchTeamRoute('/dashboard/team/staff-1/deactivate')).toBeNull();
   });
 });
 

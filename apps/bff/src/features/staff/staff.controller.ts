@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 import {
+  ActivateStaffResponse,
   DeactivateStaffResponse,
   InviteStaffResponse,
   StaffListResponse,
@@ -97,5 +98,11 @@ export class StaffController {
   @HttpCode(HttpStatus.OK)
   deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<DeactivateStaffResponse> {
     return this.backendHttp.patch<DeactivateStaffResponse>(`/staff/${id}/deactivate`, {});
+  }
+
+  @Patch(':id/activate')
+  @HttpCode(HttpStatus.OK)
+  activate(@Param('id', ParseUUIDPipe) id: string): Promise<ActivateStaffResponse> {
+    return this.backendHttp.patch<ActivateStaffResponse>(`/staff/${id}/activate`, {});
   }
 }

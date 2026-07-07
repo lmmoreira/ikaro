@@ -19,6 +19,11 @@ import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { InviteStaffBodyDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
 import { UpdateStaffBodyDto, UpdateStaffSchema } from '../../application/dtos/update-staff.dto';
 import {
+  ActivateStaffUseCase,
+  ActivateStaffUseCaseInput,
+  ActivateStaffUseCaseResult,
+} from '../../application/use-cases/activate-staff.use-case';
+import {
   DeactivateStaffUseCase,
   DeactivateStaffUseCaseInput,
   DeactivateStaffUseCaseResult,
@@ -57,6 +62,7 @@ export class StaffController {
     private readonly getStaffById: GetStaffByIdUseCase,
     private readonly inviteStaff: InviteStaffUseCase,
     private readonly deactivateStaff: DeactivateStaffUseCase,
+    private readonly activateStaff: ActivateStaffUseCase,
     private readonly updateStaffProfile: UpdateStaffProfileUseCase,
     private readonly getStaffTenantsById: GetStaffTenantsByIdUseCase,
   ) {}
@@ -131,29 +137,46 @@ export class StaffController {
   @Patch(':id/deactivate')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ManagerRoleGuard)
-  deactivate(
+  async deactivate(
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
   ): Promise<DeactivateStaffUseCaseResult> {
-    const actorId = this.tenantContext.actorId;
-    if (!actorId) {
-      return Promise.reject(
-        new HttpException(
-          {
-            type: 'about:blank',
-            title: 'Bad Request',
-            status: 400,
-            detail: 'X-Actor-ID header is required',
-          },
-          HttpStatus.BAD_REQUEST,
-        ),
-      );
-    }
     const input: DeactivateStaffUseCaseInput = {
       staffId: id,
       tenantId: this.tenantContext.tenantId,
-      deactivatedBy: actorId,
+      deactivatedBy: this.requireActorId(),
       correlationId: this.tenantContext.correlationId,
     };
     return this.deactivateStaff.execute(input).catch(mapStaffError);
+  }
+
+  @Patch(':id/activate')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ManagerRoleGuard)
+  async activate(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+  ): Promise<ActivateStaffUseCaseResult> {
+    const input: ActivateStaffUseCaseInput = {
+      staffId: id,
+      tenantId: this.tenantContext.tenantId,
+      activatedBy: this.requireActorId(),
+      correlationId: this.tenantContext.correlationId,
+    };
+    return this.activateStaff.execute(input).catch(mapStaffError);
+  }
+
+  private requireActorId(): string {
+    const actorId = this.tenantContext.actorId;
+    if (!actorId) {
+      throw new HttpException(
+        {
+          type: 'about:blank',
+          title: 'Bad Request',
+          status: 400,
+          detail: 'X-Actor-ID header is required',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return actorId;
   }
 }

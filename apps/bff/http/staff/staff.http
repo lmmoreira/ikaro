@@ -96,6 +96,22 @@ Content-Type: application/json
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — deactivate / activate (UC-029 / UC-031)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Deactivate a staff member
+PATCH {{bffUrl}}/v1/staff/{{staffWorkerId}}/deactivate
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Reactivate a deactivated staff member
+PATCH {{bffUrl}}/v1/staff/{{staffWorkerId}}/activate
+Authorization: Bearer {{managerToken}}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -127,3 +143,21 @@ Content-Type: application/json
   "name": "",
   "role": "STAFF"
 }
+
+###
+
+### 403 — Self-deactivation attempt
+PATCH {{bffUrl}}/v1/staff/{{managerId}}/deactivate
+Authorization: Bearer {{managerToken}}
+
+###
+
+### 403 — Self-reactivation attempt
+PATCH {{bffUrl}}/v1/staff/{{managerId}}/activate
+Authorization: Bearer {{managerToken}}
+
+###
+
+### 409 — Already-active member reactivation attempt
+PATCH {{bffUrl}}/v1/staff/{{staffWorkerId}}/activate
+Authorization: Bearer {{managerToken}}

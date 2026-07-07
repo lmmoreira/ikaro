@@ -1095,6 +1095,27 @@ Returns:
 
 ---
 
+### **UC-031: Admin Reactivates Staff Member**
+
+- **Actor:** Staff member with `MANAGER` role
+- **Preconditions:** Admin is authenticated with MANAGER role. Target staff member is currently deactivated (`staff.is_active = false`) and belongs to the same tenant.
+- **Trigger:** Admin clicks "Ativar" on a deactivated staff member's row in the team list.
+- **Main Flow:**
+   1. Admin selects a deactivated staff member from the team list.
+   2. Admin clicks "Ativar".
+   3. System sets `staff.is_active = true` and clears `staff.deactivated_by`.
+   4. System publishes `StaffActivated` event.
+   5. Admin sees the member's row update to "Ativo" with no page navigation.
+
+- **Alternative Flows:**
+   - **A1: Admin tries to reactivate themselves** → System prevents: same guard family as UC-029 A1. Not reachable via normal navigation (a deactivated actor's session cannot reach the team list), but the API defensively blocks it in case a still-valid, not-yet-expired JWT from just before deactivation is reused.
+   - **A2: Member is already active** → System prevents with a conflict response; not reachable via normal navigation since "Ativar" only renders on deactivated rows, but the API defensively blocks it against a stale client view.
+
+- **Postconditions:** `staff.is_active = true`. `staff.deactivated_by` cleared. Staff member can log in again.
+- **Events Triggered:** `StaffActivated`
+
+---
+
 | UC | Name | Actor | Domain Impact |
 |----|------|-------|----------------|
 | UC-001 | Guest requests booking | Guest | Creates PENDING booking with 1..N lines + photos |
@@ -1126,4 +1147,5 @@ Returns:
 | UC-028 | Admin invites new staff member | MANAGER staff | `staff` row created (`is_active=false`); `StaffInvited` event |
 | UC-029 | Admin deactivates staff member | MANAGER staff | `staff.is_active = false`; `StaffDeactivated` event |
 | UC-030 | Admin edits staff member profile | MANAGER staff | `staff.name`/`staff.role` updated; no event |
+| UC-031 | Admin reactivates staff member | MANAGER staff | `staff.is_active = true`; `deactivated_by` cleared; `StaffActivated` event |
 
