@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
+import {
+  DashboardTopbarStatusProvider,
+  useDashboardTopbarStatus,
+} from '@/shells/dashboard/components/topbar-status-context';
 import { HotsiteEditor } from './HotsiteEditor';
 
 vi.mock('@/features/platform/tenant-settings', () => ({
@@ -36,6 +40,17 @@ const INITIAL: HotsiteAdminContentResponse = {
   isPublished: true,
   updatedAt: '2026-07-01T00:00:00.000Z',
 };
+
+function TopbarOverrideProbe(): React.JSX.Element {
+  const status = useDashboardTopbarStatus();
+  return (
+    <div>
+      <p data-testid="probe-page-title">{status?.pageTitleOverride ?? 'none'}</p>
+      <p data-testid="probe-back-label">{status?.backLabelOverride ?? 'none'}</p>
+      <p data-testid="probe-onback">{status?.onBackOverride ? 'set' : 'none'}</p>
+    </div>
+  );
+}
 
 describe('HotsiteEditor', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
@@ -97,7 +112,7 @@ describe('HotsiteEditor', () => {
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
       await user.click(screen.getByTestId('layout-row-configure-HERO'));
 
-      expect(await screen.findByText('Configurar: Hero')).toBeInTheDocument();
+      expect(await screen.findByLabelText('Título *')).toBeInTheDocument();
       expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
       expect(fetchSpy).not.toHaveBeenCalled();
     });
@@ -126,11 +141,34 @@ describe('HotsiteEditor', () => {
       await user.click(screen.getByTestId('layout-row-configure-HERO'));
       const titleInput = await screen.findByLabelText('Título *');
       await user.type(titleInput, 'Descartado');
-      await user.click(screen.getByTestId('module-config-back'));
+      await user.click(screen.getByTestId('module-config-cancel-desktop'));
 
       expect(screen.getByRole('tablist')).toBeInTheDocument();
       await user.click(screen.getByTestId('layout-row-configure-HERO'));
       expect(screen.queryByDisplayValue('Descartado')).not.toBeInTheDocument();
+    });
+
+    it('pushes an onBackOverride + page title into the shared dashboard Topbar context while configuring, and clears them on cancel', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(
+        <DashboardTopbarStatusProvider>
+          <TopbarOverrideProbe />
+          <HotsiteEditor initial={INITIAL} />
+        </DashboardTopbarStatusProvider>,
+      );
+
+      expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      await user.click(screen.getByTestId('layout-row-configure-HERO'));
+
+      expect(screen.getByTestId('probe-onback')).toHaveTextContent('set');
+      expect(screen.getByTestId('probe-page-title')).toHaveTextContent('Configurar: Hero');
+
+      await user.click(screen.getByTestId('module-config-cancel-desktop'));
+
+      expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
+      expect(screen.getByTestId('probe-page-title')).toHaveTextContent('none');
     });
   });
 });

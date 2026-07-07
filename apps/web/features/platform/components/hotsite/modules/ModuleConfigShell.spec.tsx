@@ -6,30 +6,15 @@ import { renderWithIntl } from '@/test-utils';
 import { ModuleConfigShell } from './ModuleConfigShell';
 
 describe('ModuleConfigShell', () => {
-  it('renders the module label in the title and children in the content area', () => {
+  it('renders the module label in the aside and children in the content area', () => {
     renderWithIntl(
       <ModuleConfigShell moduleLabel="Hero" onBack={vi.fn()} onApply={vi.fn()}>
         <p data-testid="field">Título</p>
       </ModuleConfigShell>,
     );
 
-    expect(screen.getByText('Configurar: Hero')).toBeInTheDocument();
+    expect(screen.getByText('Hero', { selector: 'strong' })).toBeInTheDocument();
     expect(screen.getByTestId('field')).toBeInTheDocument();
-  });
-
-  it('calls onBack when the back arrow is clicked', async () => {
-    const user = userEvent.setup();
-    const onBack = vi.fn();
-
-    renderWithIntl(
-      <ModuleConfigShell moduleLabel="Hero" onBack={onBack} onApply={vi.fn()}>
-        <div />
-      </ModuleConfigShell>,
-    );
-
-    await user.click(screen.getByTestId('module-config-back'));
-
-    expect(onBack).toHaveBeenCalled();
   });
 
   it('calls onApply from both the desktop aside and the mobile action bar', async () => {

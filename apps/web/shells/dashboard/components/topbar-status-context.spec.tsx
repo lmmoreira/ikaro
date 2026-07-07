@@ -14,6 +14,7 @@ function Probe(): React.JSX.Element {
       <p>{status?.staffRoleStatus ?? 'none'}</p>
       <p>{status?.backLabelOverride ?? 'back-none'}</p>
       <p>{status?.pageTitleOverride ?? 'title-none'}</p>
+      <p>{status?.onBackOverride ? 'onback-set' : 'onback-none'}</p>
       <button type="button" onClick={() => status?.setBookingStatus('APPROVED')}>
         booking
       </button>
@@ -28,6 +29,12 @@ function Probe(): React.JSX.Element {
       </button>
       <button type="button" onClick={() => status?.setPageTitleOverride('João Silva')}>
         title
+      </button>
+      <button type="button" onClick={() => status?.setOnBackOverride(() => () => {})}>
+        set-onback
+      </button>
+      <button type="button" onClick={() => status?.setOnBackOverride(null)}>
+        clear-onback
       </button>
     </div>
   );
@@ -112,5 +119,21 @@ describe('DashboardTopbarStatusProvider', () => {
 
     expect(screen.getByText('Fidelidade')).toBeInTheDocument();
     expect(screen.getByText('João Silva')).toBeInTheDocument();
+  });
+
+  it('lets consumers set and clear the onBack override', async () => {
+    render(
+      <DashboardTopbarStatusProvider>
+        <Probe />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(screen.getByText('onback-none')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'set-onback' }));
+    expect(screen.getByText('onback-set')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'clear-onback' }));
+    expect(screen.getByText('onback-none')).toBeInTheDocument();
   });
 });

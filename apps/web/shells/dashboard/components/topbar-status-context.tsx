@@ -18,6 +18,11 @@ interface DashboardTopbarStatusContextValue {
   readonly setBackLabelOverride: (label: string | null) => void;
   readonly pageTitleOverride: string | null;
   readonly setPageTitleOverride: (title: string | null) => void;
+  // For back-navigation that isn't a real route (e.g. a client-side view swap within an
+  // already-mounted page) — takes precedence over backHrefOverride when both are set, since a
+  // Link to the current URL wouldn't trigger anything.
+  readonly onBackOverride: (() => void) | null;
+  readonly setOnBackOverride: (fn: (() => void) | null) => void;
 }
 
 export interface DashboardTopbarStatusProviderProps {
@@ -43,6 +48,7 @@ export function DashboardTopbarStatusProvider({
   const [backHrefOverride, setBackHrefOverride] = useState<string | null>(null);
   const [backLabelOverride, setBackLabelOverride] = useState<string | null>(null);
   const [pageTitleOverride, setPageTitleOverride] = useState<string | null>(null);
+  const [onBackOverride, setOnBackOverride] = useState<(() => void) | null>(null);
   const value = useMemo(
     () => ({
       bookingStatus,
@@ -57,17 +63,21 @@ export function DashboardTopbarStatusProvider({
       setBackLabelOverride,
       pageTitleOverride,
       setPageTitleOverride,
+      onBackOverride,
+      setOnBackOverride,
     }),
     [
       backHrefOverride,
       backLabelOverride,
       bookingStatus,
+      onBackOverride,
       pageTitleOverride,
       serviceStatus,
       staffRoleStatus,
       setBookingStatus,
       setBackHrefOverride,
       setBackLabelOverride,
+      setOnBackOverride,
       setPageTitleOverride,
       setServiceStatus,
       setStaffRoleStatus,

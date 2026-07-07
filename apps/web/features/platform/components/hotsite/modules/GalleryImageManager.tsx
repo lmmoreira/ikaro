@@ -98,7 +98,7 @@ export function GalleryImageManager({
                 src={displayUrl(image)}
                 alt=""
                 data-testid={`gallery-image-${index}`}
-                className="mb-2 h-24 w-full rounded object-cover"
+                className="mb-2 aspect-square w-full rounded object-cover"
               />
               <input
                 type="text"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import type {
@@ -10,6 +10,7 @@ import type {
 } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
+import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { BrandingTab } from '@/features/platform/components/hotsite/BrandingTab';
 import { LayoutTab } from '@/features/platform/components/hotsite/LayoutTab';
 import { ModuleConfigShell } from '@/features/platform/components/hotsite/modules/ModuleConfigShell';
@@ -88,6 +89,30 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   // `view.localData` (a local copy); "Aplicar" commits it into `draft.layout` by type, "Cancelar"
   // discards it — draft.layout is only ever touched by handleApply below.
   const [view, setView] = useState<EditorView>({ view: 'tabs' });
+  const topbarStatus = useDashboardTopbarStatus();
+  const setOnBackOverride = topbarStatus?.setOnBackOverride;
+  const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
+  const setPageTitleOverride = topbarStatus?.setPageTitleOverride;
+  // "Configurar" fills the screen but isn't a route, so the shared dashboard Topbar's
+  // pathname-based back-link resolution doesn't apply — push a callback override instead
+  // (same pattern BookingDetailPage/ServiceEditPage use for backHrefOverride, just with a
+  // function instead of a URL since there's nowhere to navigate to). Keyed on the module type,
+  // not the whole `view` object, so this doesn't re-run on every keystroke while editing a panel.
+  const configuringType = view.view === 'module-config' ? view.type : null;
+  useEffect(() => {
+    if (!configuringType) return;
+    const backToTabs = () => setView({ view: 'tabs' });
+    setOnBackOverride?.(() => backToTabs);
+    setBackLabelOverride?.(t('layout.configShell.backLabel'));
+    setPageTitleOverride?.(
+      `${t('layout.configShell.titlePrefix')}: ${t(`layout.modules.${configuringType}`)}`,
+    );
+    return () => {
+      setOnBackOverride?.(null);
+      setBackLabelOverride?.(null);
+      setPageTitleOverride?.(null);
+    };
+  }, [configuringType, setOnBackOverride, setBackLabelOverride, setPageTitleOverride, t]);
 
   function setBranding(branding: HotsiteBrandingResponse): void {
     setDraft((current) => ({ ...current, branding }));

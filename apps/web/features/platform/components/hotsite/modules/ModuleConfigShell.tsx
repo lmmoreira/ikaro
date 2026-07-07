@@ -11,10 +11,13 @@ interface ModuleConfigShellProps {
   readonly children: React.ReactNode;
 }
 
-// Replicates 01d-module-config-hero.html's drill-down chrome (back arrow + title, content-left/
-// sticky-aside-right on desktop, fixed mobile action bar) using the same grid/aside/fixed-bar
-// Tailwind pattern HotsiteEditor.tsx already established for its own tabs+publish layout — not a
-// new visual language, just the same shell reused one level deeper for a single module's config.
+// Replicates 01d-module-config-hero.html's drill-down chrome (content-left/sticky-aside-right on
+// desktop, fixed mobile action bar) using the same grid/aside/fixed-bar Tailwind pattern
+// HotsiteEditor.tsx already established for its own tabs+publish layout — not a new visual
+// language, just the same shell reused one level deeper for a single module's config. The back
+// arrow + title live in the shared dashboard Topbar (HotsiteEditor pushes an onBackOverride +
+// pageTitleOverride into topbar-status-context), matching where every other dashboard drill-down
+// screen puts its back navigation — not duplicated here.
 export function ModuleConfigShell({
   moduleLabel,
   onBack,
@@ -25,32 +28,6 @@ export function ModuleConfigShell({
 
   return (
     <div className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
-      <button
-        type="button"
-        data-testid="module-config-back"
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900"
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-        {t('backLabel')}
-      </button>
-
-      <h2 className="text-lg font-semibold text-gray-900">
-        {t('titlePrefix')}: {moduleLabel}
-      </h2>
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="space-y-4 lg:space-y-6">{children}</div>
 

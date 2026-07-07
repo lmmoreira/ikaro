@@ -139,6 +139,7 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
   const returnTo = topbarStatus?.backHrefOverride ?? null;
   const backLabelOverride = topbarStatus?.backLabelOverride ?? null;
   const pageTitleOverride = topbarStatus?.pageTitleOverride ?? null;
+  const onBackOverride = topbarStatus?.onBackOverride ?? null;
   const {
     pageTitle,
     backHref,
@@ -156,21 +157,32 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
     returnTo,
   });
   const bookingStatusLabels = buildBookingStatusLabels(bookingT);
-  const showBackLink = Boolean(backHref);
+  const showBackLink = Boolean(backHref) || Boolean(onBackOverride);
   const effectivePageTitle = pageTitleOverride ?? pageTitle;
   const effectiveBackLabel = backLabelOverride ?? backLabel;
+  const backLinkClassName =
+    'flex items-center gap-1.5 text-[0.9375rem] font-semibold text-gray-900 transition-colors hover:text-blue-700';
 
   return (
     <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 lg:px-6">
       {showBackLink ? (
         <div className="flex min-w-0 items-center gap-3">
-          <Link
-            href={backHref!}
-            className="flex items-center gap-1.5 text-[0.9375rem] font-semibold text-gray-900 transition-colors hover:text-blue-700"
-          >
-            <ChevronLeft className="h-5 w-5" />
-            <span>{effectiveBackLabel}</span>
-          </Link>
+          {onBackOverride ? (
+            <button
+              type="button"
+              data-testid="topbar-back-button"
+              onClick={onBackOverride}
+              className={backLinkClassName}
+            >
+              <ChevronLeft className="h-5 w-5" />
+              <span>{effectiveBackLabel}</span>
+            </button>
+          ) : (
+            <Link href={backHref!} className={backLinkClassName}>
+              <ChevronLeft className="h-5 w-5" />
+              <span>{effectiveBackLabel}</span>
+            </Link>
+          )}
           <h1 className="truncate text-[1.0625rem] font-bold text-gray-900">
             {effectivePageTitle}
           </h1>
