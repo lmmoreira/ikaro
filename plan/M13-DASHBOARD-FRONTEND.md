@@ -3455,7 +3455,7 @@ deactivateStaff(staffId: string): Promise<DeactivateStaffResponse>
 
 ---
 
-### M13-S35 — Hotsite: editor shell + Branding tab
+### M13-S35 — Hotsite: editor shell + Branding tab ✅ Done
 
 *(formerly M127-S07)*
 
