@@ -33,7 +33,7 @@ export async function seedStaffMember(
   });
 
   if (overrides.linkGoogleAccount) {
-    await linkStaffGoogleAccount(page, email, overrides.tenantSlug ?? 'lavacar-beloauto');
+    await linkStaffGoogleAccount(email, overrides.tenantSlug ?? 'lavacar-beloauto');
   }
 
   return { staffId: result.staffId, email, name: `${firstName} ${lastName}` };
