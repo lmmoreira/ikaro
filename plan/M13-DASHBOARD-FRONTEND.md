@@ -4336,7 +4336,7 @@ Clicking a staff member's row in the team list now goes to a detail page where t
 
 ---
 
-### M13-S44 — Equipe: activate member flow
+### M13-S44 — Equipe: activate member flow ✅ Done
 
 **Agent:** `frontend-ts` (full-stack — backend + BFF + web)
 **Complexity:** S
