@@ -37,6 +37,8 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
     totalDurationMins: 30,
     beforeServicePhotoUrls: ['https://cdn.example.com/before-1.jpg'],
     afterServicePhotoUrls: ['https://cdn.example.com/after-1.jpg'],
+    beforeServicePhotoPaths: ['tenants/tenant-1/bookings/b-1/before-1.jpg'],
+    afterServicePhotoPaths: ['tenants/tenant-1/bookings/b-1/after-1.jpg'],
     infoRequestMessage: 'Enviar mais fotos?',
     infoResponseMessage: 'Claro',
     approvedAt: null,

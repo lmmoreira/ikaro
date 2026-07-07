@@ -158,6 +158,11 @@ export interface StaffBookingDetailResponse {
   // Media
   beforeServicePhotoUrls: string[]; // signed read URLs
   afterServicePhotoUrls: string[]; // signed read URLs — populated once COMPLETED
+  // Raw "tenants/<id>/bookings/<id>/..." storage paths for the same photos, in the same order —
+  // needed by POST /tenants/hotsite/gallery/feature-booking-photo, which validates against the
+  // raw path, not the signed URL.
+  beforeServicePhotoPaths: string[];
+  afterServicePhotoPaths: string[]; // populated once COMPLETED
 
   // Admin-recorded fields
   infoRequestMessage: string | null; // UC-005: what admin asked

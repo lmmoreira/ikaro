@@ -166,6 +166,8 @@ describe('toStaffBookingDetail()', () => {
     lines: [],
     beforeServicePhotoUrls: [],
     afterServicePhotoUrls: [],
+    beforeServicePhotoPaths: [],
+    afterServicePhotoPaths: [],
     adminNotes: null,
     infoRequestMessage: null,
     infoResponseMessage: null,
@@ -201,6 +203,8 @@ describe('toStaffBookingDetail()', () => {
       totalDurationMins: 30,
       beforeServicePhotoUrls: [],
       afterServicePhotoUrls: [],
+      beforeServicePhotoPaths: [],
+      afterServicePhotoPaths: [],
       infoRequestMessage: null,
       infoResponseMessage: null,
       approvedAt: null,
@@ -265,17 +269,21 @@ describe('toStaffBookingDetail()', () => {
     expect(result.rejectionReason).toBe('Cliente não confirmou disponibilidade');
   });
 
-  it('maps before/after-service photo URLs through unchanged', () => {
+  it('maps before/after-service photo URLs and raw storage paths through unchanged', () => {
     const detail: BookingDetailResponse = {
       ...backendDetail,
       beforeServicePhotoUrls: ['https://example.com/before.jpg'],
       afterServicePhotoUrls: ['https://example.com/after.jpg'],
+      beforeServicePhotoPaths: ['tenants/tenant-1/bookings/b-1/before.jpg'],
+      afterServicePhotoPaths: ['tenants/tenant-1/bookings/b-1/after.jpg'],
     };
 
     const result = toStaffBookingDetail(detail, null);
 
     expect(result.beforeServicePhotoUrls).toEqual(['https://example.com/before.jpg']);
     expect(result.afterServicePhotoUrls).toEqual(['https://example.com/after.jpg']);
+    expect(result.beforeServicePhotoPaths).toEqual(['tenants/tenant-1/bookings/b-1/before.jpg']);
+    expect(result.afterServicePhotoPaths).toEqual(['tenants/tenant-1/bookings/b-1/after.jpg']);
   });
 
   it('maps lines to StaffBookingLineResponse with a null actualPriceCharged when unset', () => {
@@ -355,6 +363,8 @@ describe('toCustomerBookingDetail()', () => {
     lines: [],
     beforeServicePhotoUrls: [],
     afterServicePhotoUrls: [],
+    beforeServicePhotoPaths: [],
+    afterServicePhotoPaths: [],
     adminNotes: 'Staff-only note',
     infoRequestMessage: null,
     infoResponseMessage: null,
@@ -561,6 +571,8 @@ describe('toGuestBookingRead()', () => {
     ],
     beforeServicePhotoUrls: [],
     afterServicePhotoUrls: [],
+    beforeServicePhotoPaths: [],
+    afterServicePhotoPaths: [],
     adminNotes: null,
     infoRequestMessage: 'Por favor, envie fotos do veículo antes da lavagem.',
     infoResponseMessage: null,

@@ -79,6 +79,8 @@ function makeBooking(): StaffBookingDetailResponse {
     totalDurationMins: 50,
     beforeServicePhotoUrls: ['https://cdn.example.com/before.jpg'],
     afterServicePhotoUrls: [],
+    beforeServicePhotoPaths: ['tenants/tenant-1/bookings/b-1/before.jpg'],
+    afterServicePhotoPaths: [],
     infoRequestMessage: null,
     infoResponseMessage: null,
     approvedAt: null,

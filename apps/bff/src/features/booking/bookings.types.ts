@@ -112,6 +112,8 @@ export interface BookingDetailResponse {
   lines: BookingLineDetail[];
   beforeServicePhotoUrls: string[];
   afterServicePhotoUrls: string[];
+  beforeServicePhotoPaths: string[];
+  afterServicePhotoPaths: string[];
   adminNotes: string | null;
   infoRequestMessage: string | null;
   infoResponseMessage: string | null;

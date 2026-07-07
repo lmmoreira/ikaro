@@ -82,6 +82,8 @@ describe('LoyaltyBookingAdapter', () => {
       ] as never,
       beforeServicePhotoUrls: [],
       afterServicePhotoUrls: [],
+      beforeServicePhotoPaths: [],
+      afterServicePhotoPaths: [],
       adminNotes: null,
       infoRequestMessage: null,
       infoResponseMessage: null,

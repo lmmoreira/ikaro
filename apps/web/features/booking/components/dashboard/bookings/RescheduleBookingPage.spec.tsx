@@ -89,6 +89,8 @@ function makeBooking(): StaffBookingDetailResponse {
     totalDurationMins: 30,
     beforeServicePhotoUrls: [],
     afterServicePhotoUrls: [],
+    beforeServicePhotoPaths: [],
+    afterServicePhotoPaths: [],
     infoRequestMessage: null,
     infoResponseMessage: null,
     approvedAt: null,

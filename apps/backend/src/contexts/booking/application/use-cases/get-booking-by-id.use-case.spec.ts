@@ -152,6 +152,10 @@ describe('GetBookingByIdUseCase', () => {
         `http://fake-gcs/bucket/${afterPath}?sig=test&op=read`,
       ]);
       expect(storageService.readSignedPaths).toEqual([beforePath, afterPath]);
+      // Raw storage paths (not signed URLs) — needed by feature-booking-photo, which validates
+      // against the raw tenants/<id>/bookings/<id>/... shape.
+      expect(result.beforeServicePhotoPaths).toEqual([beforePath]);
+      expect(result.afterServicePhotoPaths).toEqual([afterPath]);
     });
 
     it('returns totalActualPrice, discount and completedAt for a completed booking', async () => {
