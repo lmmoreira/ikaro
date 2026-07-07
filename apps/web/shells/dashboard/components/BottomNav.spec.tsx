@@ -66,6 +66,7 @@ describe('BottomNav', () => {
 
   it.each([
     ['the settings page (fixed Save bar owns the bottom edge)', '/dashboard/settings'],
+    ['the hotsite editor page (fixed action bar owns the bottom edge)', '/dashboard/hotsite'],
     ['the service create route (fixed action bar owns the bottom edge)', '/dashboard/services/new'],
     ['the team invite route (fixed action bar owns the bottom edge)', '/dashboard/team/invite'],
     ['the team detail route (fixed Save bar owns the bottom edge)', '/dashboard/team/staff-1'],

@@ -28,6 +28,7 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
   const isServiceDetailAction = matchServiceRoute(pathname) !== null;
   const isLoyaltyDetail = /^\/dashboard\/loyalty\/[^/]+$/.test(pathname);
   const isSettingsPage = pathname === '/dashboard/settings';
+  const isHotsitePage = pathname === '/dashboard/hotsite';
   const isTeamDetailRoute = matchTeamRoute(pathname) !== null;
 
   if (
@@ -36,6 +37,7 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
     isServiceCreateRoute(pathname) ||
     isLoyaltyDetail ||
     isSettingsPage ||
+    isHotsitePage ||
     isTeamInviteRoute(pathname) ||
     isTeamDetailRoute
   )

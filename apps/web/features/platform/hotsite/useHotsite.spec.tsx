@@ -13,8 +13,8 @@ import {
 } from './useHotsite';
 
 vi.mock('@/features/platform/tenant-settings', () => ({
-  getHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, modules: [], seo: {} }),
-  updateHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, modules: [], seo: {} }),
+  getHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, layout: [], seo: {} }),
+  updateHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, layout: [], seo: {} }),
   publishHotsite: vi.fn().mockResolvedValue({ publishedAt: '' }),
   unpublishHotsite: vi.fn().mockResolvedValue({ unpublishedAt: '' }),
   generateHotsiteImageSignedUrl: vi

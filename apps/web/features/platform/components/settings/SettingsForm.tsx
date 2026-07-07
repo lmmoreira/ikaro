@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { TenantSettingsResponse } from '@ikaro/types';
 import type { AddressSpec } from '@ikaro/i18n';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { SectionCard } from '@/shared/components/ui/section-card';
 import { Button } from '@/shared/components/ui/button';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import { TimePicker } from '@/shared/components/ui/time-picker';
@@ -61,22 +62,6 @@ function FieldError({ id, message }: FieldErrorProps): React.JSX.Element | null 
     <p id={id} data-testid={id} className="mt-1.5 text-sm text-red-600">
       {message}
     </p>
-  );
-}
-
-interface SectionCardProps {
-  readonly title: string;
-  readonly children: React.ReactNode;
-}
-
-function SectionCard({ title, children }: SectionCardProps): React.JSX.Element {
-  return (
-    <Card>
-      <CardContent className="space-y-5 p-5 lg:p-6">
-        <h2 className="text-base font-bold text-gray-900">{title}</h2>
-        {children}
-      </CardContent>
-    </Card>
   );
 }
 
