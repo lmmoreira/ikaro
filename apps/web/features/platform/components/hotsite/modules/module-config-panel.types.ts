@@ -8,3 +8,14 @@ export interface ModuleConfigPanelProps {
   readonly data: Record<string, unknown>;
   readonly onChange: (data: Record<string, unknown>) => void;
 }
+
+// TS won't structurally assign a specific *ModuleData interface to/from Record<string, unknown>
+// without an intermediate `unknown` cast (no index signature on the specific interfaces). These
+// two helpers centralize that cast so each panel doesn't repeat `as unknown as X` inline.
+export function readModuleData<T>(data: Record<string, unknown>): T {
+  return data as unknown as T;
+}
+
+export function writeModuleData<T>(data: T): Record<string, unknown> {
+  return data as unknown as Record<string, unknown>;
+}
