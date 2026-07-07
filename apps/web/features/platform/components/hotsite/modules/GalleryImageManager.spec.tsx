@@ -1,14 +1,16 @@
 // @vitest-environment jsdom
+import { useState } from 'react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GalleryImage } from '@ikaro/types';
+import type { GalleryImage, StaffBookingDetailResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import {
   deleteHotsiteImage,
+  featureBookingPhoto,
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/tenant-settings';
-import { listBookings } from '@/features/booking/api/staff';
+import { getBooking, listBookings } from '@/features/booking/api/staff';
 import { GalleryImageManager } from './GalleryImageManager';
 
 vi.mock('@/features/platform/tenant-settings', () => ({
@@ -85,6 +87,32 @@ describe('GalleryImageManager', () => {
     ]);
   });
 
+  it('typing a caption right after uploading does not break the image preview', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/hotsite/gallery/g2.png',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+    function ControlledWrapper(): React.JSX.Element {
+      const [images, setImages] = useState<GalleryImage[]>([]);
+      return <GalleryImageManager images={images} onChange={setImages} />;
+    }
+
+    renderWithIntl(<ControlledWrapper />);
+
+    await user.upload(screen.getByTestId('gallery-upload-input'), makeFile('g2.png', 'image/png'));
+    const preview = await screen.findByTestId('gallery-image');
+    const objectUrlBeforeTyping = preview.getAttribute('src');
+    expect(objectUrlBeforeTyping).toMatch(/^blob:/);
+
+    await user.type(screen.getByPlaceholderText('Legenda (opcional)'), 'Legenda');
+
+    expect(screen.getByTestId('gallery-image')).toHaveAttribute('src', objectUrlBeforeTyping!);
+  });
+
   it('editing the caption of an image updates only that image', async () => {
     const user = userEvent.setup();
     const images: GalleryImage[] = [
@@ -143,5 +171,68 @@ describe('GalleryImageManager', () => {
     await user.click(screen.getByTestId('gallery-open-picker'));
 
     expect(await screen.findByTestId('booking-photo-picker-close')).toBeInTheDocument();
+  });
+
+  it('closing the booking photo picker hides it again', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(<GalleryImageManager images={[]} onChange={vi.fn()} />);
+
+    await user.click(screen.getByTestId('gallery-open-picker'));
+    await user.click(await screen.findByTestId('booking-photo-picker-close'));
+
+    expect(screen.queryByTestId('booking-photo-picker-close')).not.toBeInTheDocument();
+  });
+
+  it('picking a photo from the booking picker appends it and closes the picker', async () => {
+    const user = userEvent.setup();
+    vi.mocked(listBookings).mockResolvedValue({
+      items: [
+        {
+          bookingId: 'b-1',
+          status: 'COMPLETED',
+          scheduledAt: '2026-06-01T10:00:00.000Z',
+          contactName: 'João Silva',
+          serviceNames: ['Lavagem'],
+          totalPrice: { amount: 50, currency: 'BRL' },
+          totalDurationMins: 30,
+          isCustomer: true,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 50,
+    });
+    const detailResponse: Partial<StaffBookingDetailResponse> = {
+      beforeServicePhotoUrls: ['https://cdn.example.com/before-1.jpg'],
+      afterServicePhotoUrls: [],
+      beforeServicePhotoPaths: ['tenants/tenant-1/bookings/b-1/before-1.jpg'],
+      afterServicePhotoPaths: [],
+    };
+    vi.mocked(getBooking).mockResolvedValue(detailResponse as StaffBookingDetailResponse);
+    vi.mocked(featureBookingPhoto).mockResolvedValue({
+      filePath: 'tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
+      url: 'https://public.storage.example.com/tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
+      photoType: 'before',
+    });
+    const onChange = vi.fn();
+
+    renderWithIntl(<GalleryImageManager images={[]} onChange={onChange} />);
+
+    await user.click(screen.getByTestId('gallery-open-picker'));
+    await user.selectOptions(await screen.findByTestId('booking-photo-picker-select'), 'b-1');
+    const grid = await screen.findByTestId('booking-photo-picker-grid');
+    const beforeThumb = grid.querySelector('img[src="https://cdn.example.com/before-1.jpg"]');
+    await user.click(beforeThumb!.closest('button')!);
+
+    expect(onChange).toHaveBeenCalledWith([
+      {
+        url: 'tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
+        source: 'booking',
+        bookingId: 'b-1',
+        photoType: 'before',
+      },
+    ]);
+    expect(screen.queryByTestId('booking-photo-picker-close')).not.toBeInTheDocument();
   });
 });

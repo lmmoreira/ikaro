@@ -24,18 +24,19 @@ const INPUT_ID = 'hotsite-gallery-upload-input';
 // every one of these fields into a public URL uniformly at GET-time, gallery images included).
 // A freshly added image (upload or booking-feature) therefore has a raw path as its `url` in the
 // draft, which isn't directly displayable — previewUrls tracks a locally-known displayable URL
-// per image (by object reference) until the next GET resolves it for real.
+// per image, keyed by that raw path (not object reference — editing the caption replaces the
+// image object on every keystroke via handleCaptionChange, which would otherwise miss the cache).
 export function GalleryImageManager({
   images,
   onChange,
 }: GalleryImageManagerProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.gallery');
   const [status, setStatus] = useState<UploadStatus>('idle');
-  const [previewUrls] = useState(() => new Map<GalleryImage, string>());
+  const [previewUrls] = useState(() => new Map<string, string>());
   const [pickerOpen, setPickerOpen] = useState(false);
 
   function displayUrl(image: GalleryImage): string {
-    return previewUrls.get(image) ?? image.url;
+    return previewUrls.get(image.url) ?? image.url;
   }
 
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>): Promise<void> {
@@ -50,7 +51,7 @@ export function GalleryImageManager({
         generateHotsiteImageSignedUrl({ fileName, contentType, purpose: 'gallery' }),
       );
       const newImage: GalleryImage = { url: filePath, source: 'upload' };
-      previewUrls.set(newImage, localPreviewUrl);
+      previewUrls.set(filePath, localPreviewUrl);
       onChange([...images, newImage]);
       setStatus('idle');
     } catch {
@@ -60,14 +61,14 @@ export function GalleryImageManager({
   }
 
   function handlePicked(image: GalleryImage, previewUrl: string): void {
-    previewUrls.set(image, previewUrl);
+    previewUrls.set(image.url, previewUrl);
     onChange([...images, image]);
     setPickerOpen(false);
   }
 
   async function handleRemove(index: number): Promise<void> {
     const image = images[index];
-    previewUrls.delete(image);
+    previewUrls.delete(image.url);
     if (image.url.startsWith('tenants/')) {
       try {
         await deleteHotsiteImage(image.url);

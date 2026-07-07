@@ -46,4 +46,44 @@ describe('ContactConfigPanel', () => {
       writeModuleData({ ...CONTACT, displayStyle: 'icon-cards' }),
     );
   });
+
+  it('editing title, eyebrow, and whatsappCtaLabel each update only their own field', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    renderWithIntl(<ContactConfigPanel data={writeModuleData(CONTACT)} onChange={onChange} />);
+
+    await user.type(screen.getByLabelText('Título (opcional)'), 'T');
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...CONTACT, title: 'T' }));
+
+    await user.type(screen.getByLabelText('Texto de destaque (opcional)'), 'E');
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...CONTACT, eyebrow: 'E' }));
+
+    await user.type(screen.getByLabelText('Texto do botão do WhatsApp (opcional)'), 'W');
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...CONTACT, whatsappCtaLabel: 'W' }),
+    );
+  });
+
+  it('toggling showAddress, showPhone, showWhatsapp, showEmail, and showFacebook each flip only their own field', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    renderWithIntl(<ContactConfigPanel data={writeModuleData(CONTACT)} onChange={onChange} />);
+
+    await user.click(screen.getByTestId('contact-show-address'));
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...CONTACT, showAddress: false }));
+
+    await user.click(screen.getByTestId('contact-show-phone'));
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...CONTACT, showPhone: false }));
+
+    await user.click(screen.getByTestId('contact-show-whatsapp'));
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...CONTACT, showWhatsapp: false }));
+
+    await user.click(screen.getByTestId('contact-show-email'));
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...CONTACT, showEmail: false }));
+
+    await user.click(screen.getByTestId('contact-show-facebook'));
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...CONTACT, showFacebook: false }));
+  });
 });

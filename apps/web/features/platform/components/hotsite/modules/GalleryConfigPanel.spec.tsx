@@ -44,4 +44,28 @@ describe('GalleryConfigPanel', () => {
     expect(screen.getByTestId('gallery-empty')).toBeInTheDocument();
     expect(screen.getByTestId('gallery-open-picker')).toBeInTheDocument();
   });
+
+  it('editing title and eyebrow each update only their own field', () => {
+    const onChange = vi.fn();
+
+    renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={onChange} />);
+
+    fireEvent.change(screen.getByLabelText('Título (opcional)'), { target: { value: 'T' } });
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...GALLERY, title: 'T' }));
+
+    fireEvent.change(screen.getByLabelText('Texto de destaque (opcional)'), {
+      target: { value: 'E' },
+    });
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...GALLERY, eyebrow: 'E' }));
+  });
+
+  it('changing the layout pill calls onChange with the new layout', () => {
+    const onChange = vi.fn();
+
+    renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={onChange} />);
+
+    fireEvent.click(screen.getByTestId('gallery-layout-masonry'));
+
+    expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...GALLERY, layout: 'masonry' }));
+  });
 });

@@ -175,7 +175,7 @@ export function BookingPhotoPicker({
       )}
 
       {selectedBookingId && currentPhotos && hasPhotos && (
-        <div className="grid grid-cols-4 gap-2" data-testid="booking-photo-picker-grid">
+        <div className="grid grid-cols-3 gap-3" data-testid="booking-photo-picker-grid">
           {currentPhotos.beforeUrls.map((url, index) => (
             <button
               key={`before-${index}`}
@@ -186,7 +186,7 @@ export function BookingPhotoPicker({
               }}
               className="group relative overflow-hidden rounded-md border border-gray-200"
             >
-              <img src={url} alt="" className="h-20 w-full object-cover" />
+              <img src={url} alt="" className="aspect-square w-full object-cover" />
               <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 text-[10px] text-white">
                 {t('beforeLabel')}
               </span>
@@ -202,7 +202,7 @@ export function BookingPhotoPicker({
               }}
               className="group relative overflow-hidden rounded-md border border-gray-200"
             >
-              <img src={url} alt="" className="h-20 w-full object-cover" />
+              <img src={url} alt="" className="aspect-square w-full object-cover" />
               <span className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 text-[10px] text-white">
                 {t('afterLabel')}
               </span>

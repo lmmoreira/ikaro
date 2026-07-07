@@ -106,6 +106,67 @@ describe('BookingPhotoPicker', () => {
     );
   });
 
+  it('shows the empty message when listBookings rejects', async () => {
+    vi.mocked(listBookings).mockRejectedValue(new Error('network error'));
+
+    renderWithIntl(<BookingPhotoPicker onPick={vi.fn()} onClose={vi.fn()} />);
+
+    expect(await screen.findByText(/nenhum agendamento/i)).toBeInTheDocument();
+  });
+
+  it('picking an "after" photo calls featureBookingPhoto with photoType "after"', async () => {
+    const user = userEvent.setup();
+    vi.mocked(listBookings).mockResolvedValue(LIST_RESPONSE);
+    vi.mocked(getBooking).mockResolvedValue(DETAIL_RESPONSE as StaffBookingDetailResponse);
+    vi.mocked(featureBookingPhoto).mockResolvedValue({
+      filePath: 'tenants/tenant-1/hotsite/gallery/g1/after-1.jpg',
+      url: 'https://public.storage.example.com/tenants/tenant-1/hotsite/gallery/g1/after-1.jpg',
+      photoType: 'after',
+    });
+    const onPick = vi.fn();
+
+    renderWithIntl(<BookingPhotoPicker onPick={onPick} onClose={vi.fn()} />);
+
+    await screen.findByTestId('booking-photo-picker-select');
+    await user.selectOptions(screen.getByTestId('booking-photo-picker-select'), 'b-1');
+
+    const grid = await screen.findByTestId('booking-photo-picker-grid');
+    const afterThumb = grid.querySelector('img[src="https://cdn.example.com/after-1.jpg"]');
+    expect(afterThumb).not.toBeNull();
+    await user.click(afterThumb!.closest('button')!);
+
+    await waitFor(() => {
+      expect(featureBookingPhoto).toHaveBeenCalledWith({
+        bookingId: 'b-1',
+        photoType: 'after',
+        filePath: 'tenants/tenant-1/bookings/b-1/after-1.jpg',
+      });
+    });
+    expect(onPick).toHaveBeenCalledWith(
+      {
+        url: 'tenants/tenant-1/hotsite/gallery/g1/after-1.jpg',
+        source: 'booking',
+        bookingId: 'b-1',
+        photoType: 'after',
+      },
+      'https://public.storage.example.com/tenants/tenant-1/hotsite/gallery/g1/after-1.jpg',
+    );
+  });
+
+  it('shows no photos when getBooking rejects for the selected booking', async () => {
+    const user = userEvent.setup();
+    vi.mocked(listBookings).mockResolvedValue(LIST_RESPONSE);
+    vi.mocked(getBooking).mockRejectedValue(new Error('not found'));
+
+    renderWithIntl(<BookingPhotoPicker onPick={vi.fn()} onClose={vi.fn()} />);
+
+    await screen.findByTestId('booking-photo-picker-select');
+    await user.selectOptions(screen.getByTestId('booking-photo-picker-select'), 'b-1');
+
+    expect(await screen.findByText('Este agendamento não tem fotos.')).toBeInTheDocument();
+    expect(screen.queryByTestId('booking-photo-picker-grid')).not.toBeInTheDocument();
+  });
+
   it('calls onClose when the close button is clicked', async () => {
     const user = userEvent.setup();
     vi.mocked(listBookings).mockResolvedValue(LIST_RESPONSE);

@@ -195,5 +195,57 @@ describe('HotsiteEditor', () => {
       expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
       expect(screen.getByTestId('probe-page-title')).toHaveTextContent('none');
     });
+
+    it('opens every one of the other 7 module panels (each lazy-loaded via next/dynamic)', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<HotsiteEditor initial={INITIAL} />);
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+
+      const panels: ReadonlyArray<{ type: string; testId: string }> = [
+        { type: 'SERVICE_LIST', testId: 'service-list-show-prices' },
+        { type: 'GALLERY', testId: 'gallery-open-picker' },
+        { type: 'TESTIMONIALS', testId: 'testimonials-add' },
+        { type: 'BOOKING_CTA', testId: 'booking-cta-variant-centered' },
+        { type: 'ABOUT', testId: 'about-image-position-left' },
+        { type: 'CONTACT', testId: 'contact-show-address' },
+        { type: 'FOOTER', testId: 'footer-show-whatsapp' },
+      ];
+
+      for (const panel of panels) {
+        await user.click(
+          screen
+            .getAllByTestId('layout-row-configure')
+            .find((el) => el.dataset.moduleType === panel.type)!,
+        );
+        expect(await screen.findByTestId(panel.testId)).toBeInTheDocument();
+        await user.click(screen.getByTestId('module-config-cancel-desktop'));
+        expect(await screen.findByRole('tablist')).toBeInTheDocument();
+      }
+    });
+
+    it('editing a Branding field through HotsiteEditor updates the draft (setBranding)', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<HotsiteEditor initial={INITIAL} />);
+
+      const primaryColorInput = screen.getByTestId('hotsite-primary-color');
+      await user.clear(primaryColorInput);
+      await user.type(primaryColorInput, '#ff0000');
+
+      expect(primaryColorInput).toHaveValue('#ff0000');
+    });
+
+    it("toggling a module through HotsiteEditor's Layout tab updates the draft (setLayout)", async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<HotsiteEditor initial={INITIAL} />);
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      const heroToggle = screen.getByTestId('layout-row-toggle-HERO');
+      const initialChecked = heroToggle.getAttribute('aria-checked');
+
+      await user.click(heroToggle);
+
+      expect(heroToggle.getAttribute('aria-checked')).not.toBe(initialChecked);
+    });
   });
 });

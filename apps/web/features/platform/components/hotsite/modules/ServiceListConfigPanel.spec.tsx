@@ -44,4 +44,24 @@ describe('ServiceListConfigPanel', () => {
 
     expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...SERVICE_LIST, layout: 'list' }));
   });
+
+  it('editing title and eyebrow, and toggling showPoints, each update only their own field', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <ServiceListConfigPanel data={writeModuleData(SERVICE_LIST)} onChange={onChange} />,
+    );
+
+    await user.type(screen.getByLabelText('Título (opcional)'), 'T');
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...SERVICE_LIST, title: 'T' }));
+
+    await user.type(screen.getByLabelText('Texto de destaque (opcional)'), 'E');
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...SERVICE_LIST, eyebrow: 'E' }));
+
+    await user.click(screen.getByTestId('service-list-show-points'));
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...SERVICE_LIST, showPoints: false }),
+    );
+  });
 });

@@ -46,4 +46,48 @@ describe('BookingCtaConfigPanel', () => {
 
     expect(screen.queryByText(/carousel/i)).not.toBeInTheDocument();
   });
+
+  it('editing subtitle, eyebrow, and ctaLabel each update only their own field', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
+    );
+
+    await user.type(screen.getByLabelText('Subtítulo (opcional)'), 'S');
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...BOOKING_CTA, subtitle: 'S' }));
+
+    await user.type(screen.getByLabelText('Texto de destaque (opcional)'), 'E');
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...BOOKING_CTA, eyebrow: 'E' }));
+
+    await user.type(screen.getByLabelText('Texto do botão *'), 'X');
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...BOOKING_CTA, ctaLabel: 'AgendarX' }),
+    );
+  });
+
+  it('changing variant, bgStyle, and rightPanel pills each update only their own field', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
+    );
+
+    await user.click(screen.getByTestId('booking-cta-variant-left-aligned'));
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...BOOKING_CTA, variant: 'left-aligned' }),
+    );
+
+    await user.click(screen.getByTestId('booking-cta-bg-style-background'));
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...BOOKING_CTA, bgStyle: 'background' }),
+    );
+
+    await user.click(screen.getByTestId('booking-cta-right-panel-brand-card'));
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...BOOKING_CTA, rightPanel: 'brand-card' }),
+    );
+  });
 });

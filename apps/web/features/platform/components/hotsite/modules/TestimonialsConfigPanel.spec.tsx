@@ -86,4 +86,40 @@ describe('TestimonialsConfigPanel', () => {
       writeModuleData({ ...WITH_ITEM, items: [{ ...WITH_ITEM.items[0], rating: 5 }] }),
     );
   });
+
+  it("editing title, eyebrow, and an item's text each update only their own field", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <TestimonialsConfigPanel data={writeModuleData(WITH_ITEM)} onChange={onChange} />,
+    );
+
+    await user.type(screen.getByLabelText('Título (opcional)'), 'T');
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...WITH_ITEM, title: 'T' }));
+
+    await user.type(screen.getByLabelText('Texto de destaque (opcional)'), 'E');
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...WITH_ITEM, eyebrow: 'E' }));
+
+    await user.type(screen.getByLabelText('Texto *'), 'X');
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({
+        ...WITH_ITEM,
+        items: [{ ...WITH_ITEM.items[0], text: 'Ótimo serviçoX' }],
+      }),
+    );
+  });
+
+  it('changing the layout pill calls onChange with the new layout', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <TestimonialsConfigPanel data={writeModuleData(WITH_ITEM)} onChange={onChange} />,
+    );
+
+    await user.click(screen.getByTestId('testimonials-layout-carousel'));
+
+    expect(onChange).toHaveBeenCalledWith(writeModuleData({ ...WITH_ITEM, layout: 'carousel' }));
+  });
 });
