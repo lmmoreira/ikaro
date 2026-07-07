@@ -1,6 +1,7 @@
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { TenantBuilder } from '../../../../test/builders/platform/index';
+import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import {
   PlatformDomainError,
   TenantInactiveError,
@@ -120,6 +121,41 @@ describe('UpdateTenantSettingsUseCase', () => {
       }),
     ).rejects.toThrow(PlatformDomainError);
   });
+
+  it('throws CountryCodeValidationError for an unsupported localization countryCode', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    await expect(
+      useCase.execute({
+        tenantId: tenant.id,
+        settings: { localization: { countryCode: 'ZZ' } },
+      }),
+    ).rejects.toThrow(CountryCodeValidationError);
+  });
+
+  it.each([
+    ['currency', null, 'localization.currency must be a string'],
+    ['language', null, 'localization.language must be a string'],
+    ['currencySymbol', 123, 'localization.currencySymbol must be a string'],
+  ])(
+    'throws TenantSettingsValidationError for a non-string localization %s',
+    async (field, value, message) => {
+      const tenant = new TenantBuilder().build();
+      await tenantRepo.save(tenant);
+
+      const settings = tenant.settings.toJSON();
+      const localization = settings.localization as unknown as Record<string, unknown>;
+      localization[field] = value;
+
+      await expect(
+        useCase.execute({
+          tenantId: tenant.id,
+          settings: { localization: settings.localization },
+        }),
+      ).rejects.toThrow(message as string);
+    },
+  );
 
   it('sets socialLinks in businessInfo', async () => {
     const tenant = new TenantBuilder().build();

@@ -1,5 +1,7 @@
 import { PlatformDomainError } from '../errors/platform-domain.error';
-import { TenantSettings } from './tenant-settings.vo';
+import { AddressValidationError } from '../../../../shared/value-objects/address';
+import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
+import { TenantSettings, TenantSettingsValidationError } from './tenant-settings.vo';
 import { TenantSettingsPropsBuilder } from '../../../../test/builders/platform';
 
 describe('TenantSettings', () => {
@@ -36,6 +38,12 @@ describe('TenantSettings', () => {
     it('accepts a custom timezone', () => {
       const settings = TenantSettings.default('America/Manaus');
       expect(settings.businessHours.timezone).toBe('America/Manaus');
+    });
+
+    it('throws for an unsupported country code', () => {
+      expect(() => TenantSettings.default('America/Sao_Paulo', 'ZZ')).toThrow(
+        CountryCodeValidationError,
+      );
     });
   });
 
@@ -145,6 +153,32 @@ describe('TenantSettings', () => {
     });
   });
 
+  describe('create() — localization validation', () => {
+    it('throws for an unsupported country code', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withLocalization({ countryCode: 'ZZ' })
+        .build();
+      expect(() => TenantSettings.create(props)).toThrow(CountryCodeValidationError);
+    });
+
+    it('throws for decimalPlaces above 8', () => {
+      const props = new TenantSettingsPropsBuilder().withLocalization({ decimalPlaces: 9 }).build();
+      expect(() => TenantSettings.create(props)).toThrow(TenantSettingsValidationError);
+    });
+
+    it('accepts a valid localization payload', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withLocalization({
+          countryCode: 'US',
+          currency: 'USD',
+          language: 'en',
+          decimalPlaces: 2,
+        })
+        .build();
+      expect(() => TenantSettings.create(props)).not.toThrow();
+    });
+  });
+
   describe('create() — businessHours validation', () => {
     it('throws for invalid IANA timezone', () => {
       const props = new TenantSettingsPropsBuilder()
@@ -243,21 +277,21 @@ describe('TenantSettings', () => {
       const props = new TenantSettingsPropsBuilder()
         .withBusinessInfo({ address: { ...validAddress, zipCode: '123' } })
         .build();
-      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+      expect(() => TenantSettings.create(props)).toThrow(AddressValidationError);
     });
 
     it('throws for a state that is not a 2-letter uppercase UF', () => {
       const props = new TenantSettingsPropsBuilder()
         .withBusinessInfo({ address: { ...validAddress, state: 'sp' } })
         .build();
-      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+      expect(() => TenantSettings.create(props)).toThrow(AddressValidationError);
     });
 
     it('throws when the address is missing a required field', () => {
       const props = new TenantSettingsPropsBuilder()
         .withBusinessInfo({ address: { ...validAddress, street: '' } })
         .build();
-      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
+      expect(() => TenantSettings.create(props)).toThrow(AddressValidationError);
     });
 
     it('accepts businessInfo with socialLinks set and exposes them via getter', () => {

@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
+import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import {
   CustomerDomainError,
   CustomerNotFoundError,
@@ -9,6 +10,16 @@ import { mapCustomerError } from './customer-error.mapper';
 describe('mapCustomerError', () => {
   it('maps AddressValidationError to 400', () => {
     const err = new AddressValidationError('Invalid CEP: 123');
+    expect(() => mapCustomerError(err)).toThrow(HttpException);
+    try {
+      mapCustomerError(err);
+    } catch (e) {
+      expect((e as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    }
+  });
+
+  it('maps CountryCodeValidationError to 400', () => {
+    const err = new CountryCodeValidationError('countryCode must be supported');
     expect(() => mapCustomerError(err)).toThrow(HttpException);
     try {
       mapCustomerError(err);

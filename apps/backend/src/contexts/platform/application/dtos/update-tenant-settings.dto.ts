@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
 
@@ -45,14 +46,20 @@ const BusinessHoursSchema = z.object({
   sunday: DayHoursSchema.optional(),
 });
 
+const CountryCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z]{2}$/, {
+    message: 'countryCode must be a 2-letter ISO 3166-1 alpha-2 code',
+  })
+  .toUpperCase()
+  .refine(CountryCode.isValid, {
+    message: 'countryCode must be a supported country code',
+  });
+
 const LocalizationSchema = z
   .object({
-    countryCode: z
-      .string()
-      .regex(/^[A-Za-z]{2}$/, {
-        message: 'countryCode must be a 2-letter ISO 3166-1 alpha-2 code',
-      })
-      .toUpperCase(),
+    countryCode: CountryCodeSchema,
     currency: z.string().min(1),
     currencySymbol: z.string().min(1).max(3),
     language: z.string().min(1),

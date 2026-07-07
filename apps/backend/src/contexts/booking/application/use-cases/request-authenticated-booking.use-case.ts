@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { countrySpec } from '@ikaro/i18n';
 import { Address } from '../../../../shared/value-objects/address';
+import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
@@ -67,7 +67,7 @@ export class RequestAuthenticatedBookingUseCase {
     if (input.pickupAddress) {
       pickupAddress = Address.create(
         { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
-        countrySpec(countryCode).address,
+        CountryCode.create(countryCode).spec.address,
       );
     } else if (requiresPickup && customer.defaultAddress) {
       pickupAddress = customer.defaultAddress;

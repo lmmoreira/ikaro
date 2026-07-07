@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { countrySpec } from '@ikaro/i18n';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
+import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { HotsiteConfig } from '../../domain/hotsite-config.aggregate';
 import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
 import { Tenant } from '../../domain/tenant.aggregate';
@@ -32,7 +32,8 @@ export class ProvisionTenantUseCase {
   ) {}
 
   async execute(dto: ProvisionTenantDto): Promise<ProvisionTenantUseCaseResult> {
-    const timezone = dto.timezone ?? countrySpec(dto.country_code).defaultTimezone;
+    const countryCode = CountryCode.create(dto.country_code);
+    const timezone = dto.timezone ?? countryCode.spec.defaultTimezone;
     // correlationId generated here — /internal routes skip RequestInterceptor
     const correlationId = uuidv7();
 
@@ -46,7 +47,7 @@ export class ProvisionTenantUseCase {
       dto.adminEmail,
       correlationId,
       timezone,
-      dto.country_code,
+      countryCode.value,
     );
     const config = HotsiteConfig.create(tenant.id);
 

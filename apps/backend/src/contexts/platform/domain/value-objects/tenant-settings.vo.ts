@@ -1,10 +1,11 @@
 import { countrySpec } from '@ikaro/i18n';
 import { Email } from '../../../../shared/value-objects/email.vo';
+import { Address, type AddressProps } from '../../../../shared/value-objects/address';
+import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import type { BusinessHours, DayHours } from '../../../../shared/value-objects/business-hours.vo';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import type {
   BusinessInfo,
-  BusinessInfoAddress,
   BookingSettings,
   LocalizationSettings,
   LoyaltySettings,
@@ -18,9 +19,9 @@ import { Timezone } from '../../../../shared/value-objects/timezone.vo';
 import { PlatformDomainError } from '../errors/platform-domain.error';
 
 export type {
+  AddressProps,
   BookingSettings,
   BusinessInfo,
-  BusinessInfoAddress,
   LocalizationSettings,
   LoyaltySettings,
   NotificationSettings,
@@ -95,7 +96,8 @@ export class TenantSettings {
   }
 
   static default(timezone = 'America/Sao_Paulo', countryCode = 'BR'): TenantSettings {
-    const spec = countrySpec(countryCode);
+    const resolvedCountryCode = CountryCode.create(countryCode);
+    const spec = resolvedCountryCode.spec;
     return new TenantSettings({
       loyalty: {
         expiryDays: 180,
@@ -124,7 +126,7 @@ export class TenantSettings {
         sunday: null,
       },
       localization: {
-        countryCode,
+        countryCode: resolvedCountryCode.value,
         currency: spec.currency,
         language: spec.language,
         decimalPlaces: 2,
@@ -142,8 +144,17 @@ export class TenantSettings {
   }
 
   static create(props: TenantSettingsProps): TenantSettings {
-    TenantSettings.validate(props);
-    return new TenantSettings(props);
+    const resolvedCountryCode = CountryCode.create(props.localization.countryCode);
+    const normalizedProps = {
+      ...props,
+      localization: {
+        ...TenantSettings.normalizeLocalization(props.localization),
+        countryCode: resolvedCountryCode.value,
+      },
+      businessInfo: TenantSettings.normalizeBusinessInfo(props.businessInfo, resolvedCountryCode),
+    };
+    TenantSettings.validate(normalizedProps);
+    return new TenantSettings(normalizedProps);
   }
 
   static reconstitute(props: TenantSettingsProps): TenantSettings {
@@ -160,8 +171,44 @@ export class TenantSettings {
     TenantSettings.validateLoyalty(props.loyalty);
     TenantSettings.validateBooking(props.booking);
     TenantSettings.validateBusinessHours(props.businessHours);
+    TenantSettings.validateLocalization(props.localization);
     TenantSettings.validateNotification(props.notification);
-    TenantSettings.validateBusinessInfo(props.businessInfo, props.localization.countryCode);
+    TenantSettings.validateBusinessInfo(props.businessInfo);
+  }
+
+  private static validateLocalization(localization: LocalizationSettings): void {
+    const currency = TenantSettings.requireTrimmedString(
+      localization.currency,
+      'localization.currency',
+    );
+    if (!currency) {
+      throw new TenantSettingsValidationError('localization.currency must not be empty');
+    }
+    const language = TenantSettings.requireTrimmedString(
+      localization.language,
+      'localization.language',
+    );
+    if (!language) {
+      throw new TenantSettingsValidationError('localization.language must not be empty');
+    }
+    if (localization.currencySymbol != null) {
+      const currencySymbol = TenantSettings.requireTrimmedString(
+        localization.currencySymbol,
+        'localization.currencySymbol',
+      );
+      if (currencySymbol.length < 1 || currencySymbol.length > 3) {
+        throw new TenantSettingsValidationError(
+          'localization.currencySymbol must be between 1 and 3 characters',
+        );
+      }
+    }
+    if (
+      !Number.isInteger(localization.decimalPlaces) ||
+      localization.decimalPlaces < 0 ||
+      localization.decimalPlaces > 8
+    ) {
+      throw new TenantSettingsValidationError('localization.decimalPlaces must be between 0 and 8');
+    }
   }
 
   private static validateNotification(notification: NotificationSettings | undefined): void {
@@ -240,10 +287,7 @@ export class TenantSettings {
     }
   }
 
-  private static validateBusinessInfo(
-    businessInfo: BusinessInfo | undefined,
-    countryCode: string,
-  ): void {
+  private static validateBusinessInfo(businessInfo: BusinessInfo | undefined): void {
     if (!businessInfo) return;
     if (businessInfo.phone != null && !PhoneNumber.isValid(businessInfo.phone)) {
       throw new PlatformDomainError('businessInfo.phone must be a valid phone number');
@@ -251,8 +295,42 @@ export class TenantSettings {
     if (businessInfo.email != null && !Email.isValid(businessInfo.email)) {
       throw new PlatformDomainError('businessInfo.email must be a valid email address');
     }
-    TenantSettings.validateBusinessAddress(businessInfo.address, countryCode);
     TenantSettings.validateSocialLinks(businessInfo.socialLinks);
+  }
+
+  private static normalizeBusinessInfo(
+    businessInfo: BusinessInfo | undefined,
+    countryCode: CountryCode,
+  ): BusinessInfo | undefined {
+    if (!businessInfo) return businessInfo;
+    return {
+      ...businessInfo,
+      address: TenantSettings.normalizeBusinessAddress(businessInfo.address, countryCode),
+    };
+  }
+
+  private static normalizeLocalization(localization: LocalizationSettings): LocalizationSettings {
+    return {
+      ...localization,
+      currency: TenantSettings.requireTrimmedString(localization.currency, 'localization.currency'),
+      language: TenantSettings.requireTrimmedString(localization.language, 'localization.language'),
+      currencySymbol:
+        localization.currencySymbol == null
+          ? localization.currencySymbol
+          : TenantSettings.requireTrimmedString(
+              localization.currencySymbol,
+              'localization.currencySymbol',
+            ),
+    };
+  }
+
+  private static normalizeBusinessAddress(
+    address: AddressProps | null,
+    countryCode: CountryCode,
+  ): AddressProps | null {
+    if (address == null) return null;
+    const normalizedAddress = Address.create(address, countryCode.spec.address);
+    return normalizedAddress.toJSON();
   }
 
   private static validateSocialLinks(socialLinks: SocialLinks | null): void {
@@ -264,28 +342,17 @@ export class TenantSettings {
     }
   }
 
-  private static validateBusinessAddress(
-    address: BusinessInfoAddress | null,
-    countryCode: string,
-  ): void {
-    if (address == null) return;
-    const spec = countrySpec(countryCode).address;
-    if (spec.postalRegex !== null && !spec.postalRegex.test(address.zipCode)) {
-      throw new PlatformDomainError(
-        `businessInfo.address.zipCode is not a valid ${spec.postalLabel}`,
-      );
+  private static requireTrimmedString(value: unknown, field: string): string {
+    if (typeof value !== 'string') {
+      throw new TenantSettingsValidationError(`${field} must be a string`);
     }
-    if (spec.statePattern !== null && !spec.statePattern.test(address.state)) {
-      throw new PlatformDomainError(`businessInfo.address.state is not a valid ${spec.stateLabel}`);
-    }
-    const alwaysRequired = ['street', 'number', 'city', 'state', 'zipCode'] as const;
-    for (const field of alwaysRequired) {
-      if (!address[field]) {
-        throw new PlatformDomainError(`businessInfo.address.${field} is required`);
-      }
-    }
-    if (spec.requireNeighborhood && !address.neighborhood) {
-      throw new PlatformDomainError('businessInfo.address.neighborhood is required');
-    }
+    return value.trim();
+  }
+}
+
+export class TenantSettingsValidationError extends PlatformDomainError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TenantSettingsValidationError';
   }
 }

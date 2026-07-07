@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { countrySpec } from '@ikaro/i18n';
 import { Address, AddressProps } from '../../../../shared/value-objects/address';
+import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import {
   TRANSACTION_MANAGER,
   ITransactionManager,
@@ -47,7 +47,7 @@ export class UpdateCustomerProfileUseCase {
     } else {
       defaultAddress = Address.create(
         { ...dto.defaultAddress, complement: dto.defaultAddress.complement ?? undefined },
-        countrySpec(dto.countryCode).address,
+        CountryCode.create(dto.countryCode).spec.address,
       );
     }
 

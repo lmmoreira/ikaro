@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { countrySpec } from '@ikaro/i18n';
 import { Address } from '../../../../shared/value-objects/address';
+import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
@@ -59,7 +59,7 @@ export class RequestBookingUseCase {
 
   async execute(input: RequestBookingInput): Promise<RequestBookingUseCaseResult> {
     const { tenantId, correlationId, countryCode, timezone } = input;
-    const addressSpec = countrySpec(countryCode).address;
+    const addressSpec = CountryCode.create(countryCode).spec.address;
 
     const services = await this.serviceRepo.findByIds(input.serviceIds, tenantId);
     const serviceMap = new Map(services.map((s) => [s.id, s]));

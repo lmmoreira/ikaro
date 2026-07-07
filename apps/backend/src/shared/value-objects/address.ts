@@ -25,17 +25,51 @@ export class Address extends ValueObject<AddressProps> {
   }
 
   static create(props: AddressProps, spec: AddressSpec): Address {
-    if (spec.postalRegex !== null && !spec.postalRegex.test(props.zipCode)) {
-      throw new AddressValidationError(`Invalid ${spec.postalLabel}: ${props.zipCode}`);
+    const normalized = Address.normalize(props);
+    Address.validateRequiredFields(normalized, spec);
+    Address.validateCountrySpecificRules(normalized, spec);
+    return new Address(normalized);
+  }
+
+  private static normalize(props: AddressProps): AddressProps {
+    const street = typeof props.street === 'string' ? props.street.trim() : '';
+    const number = typeof props.number === 'string' ? props.number.trim() : '';
+    const complement =
+      typeof props.complement === 'string' ? props.complement.trim() || undefined : undefined;
+    const neighborhood =
+      typeof props.neighborhood === 'string' ? props.neighborhood.trim() || undefined : undefined;
+    const city = typeof props.city === 'string' ? props.city.trim() : '';
+    const state = typeof props.state === 'string' ? props.state.trim() : '';
+    const zipCode = typeof props.zipCode === 'string' ? props.zipCode.trim() : '';
+
+    return { street, number, complement, neighborhood, city, state, zipCode };
+  }
+
+  private static validateRequiredFields(props: AddressProps, spec: AddressSpec): void {
+    Address.requireField(props.street, spec.streetLabel);
+    Address.requireField(props.number, spec.numberLabel);
+    Address.requireField(props.city, spec.cityLabel);
+    Address.requireField(props.state, spec.stateLabel);
+    Address.requireField(props.zipCode, spec.postalLabel);
+  }
+
+  private static validateCountrySpecificRules(props: AddressProps, spec: AddressSpec): void {
+    const { zipCode, state, neighborhood } = props;
+    if (spec.postalRegex !== null && !spec.postalRegex.test(zipCode)) {
+      throw new AddressValidationError(`Invalid ${spec.postalLabel}: ${zipCode}`);
     }
-    if (spec.statePattern !== null && !spec.statePattern.test(props.state)) {
-      throw new AddressValidationError(`Invalid ${spec.stateLabel}: ${props.state}`);
+    if (spec.statePattern !== null && !spec.statePattern.test(state)) {
+      throw new AddressValidationError(`Invalid ${spec.stateLabel}: ${state}`);
     }
-    const neighborhood = props.neighborhood?.trim() || undefined;
     if (spec.requireNeighborhood && !neighborhood) {
       throw new AddressValidationError(`${spec.neighborhoodLabel ?? 'neighborhood'} is required`);
     }
-    return new Address({ ...props, neighborhood });
+  }
+
+  private static requireField(value: string, label: string): void {
+    if (!value) {
+      throw new AddressValidationError(`${label} is required`);
+    }
   }
 
   static reconstitute(props: AddressProps): Address {
