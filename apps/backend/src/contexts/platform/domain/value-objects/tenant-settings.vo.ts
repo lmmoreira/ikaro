@@ -148,7 +148,7 @@ export class TenantSettings {
     const normalizedProps = {
       ...props,
       localization: {
-        ...props.localization,
+        ...TenantSettings.normalizeLocalization(props.localization),
         countryCode: resolvedCountryCode.value,
       },
       businessInfo: TenantSettings.normalizeBusinessInfo(props.businessInfo, resolvedCountryCode),
@@ -177,14 +177,25 @@ export class TenantSettings {
   }
 
   private static validateLocalization(localization: LocalizationSettings): void {
-    if (!localization.currency.trim()) {
+    const currency = TenantSettings.requireTrimmedString(
+      localization.currency,
+      'localization.currency',
+    );
+    if (!currency) {
       throw new TenantSettingsValidationError('localization.currency must not be empty');
     }
-    if (!localization.language.trim()) {
+    const language = TenantSettings.requireTrimmedString(
+      localization.language,
+      'localization.language',
+    );
+    if (!language) {
       throw new TenantSettingsValidationError('localization.language must not be empty');
     }
     if (localization.currencySymbol != null) {
-      const currencySymbol = localization.currencySymbol.trim();
+      const currencySymbol = TenantSettings.requireTrimmedString(
+        localization.currencySymbol,
+        'localization.currencySymbol',
+      );
       if (currencySymbol.length < 1 || currencySymbol.length > 3) {
         throw new TenantSettingsValidationError(
           'localization.currencySymbol must be between 1 and 3 characters',
@@ -298,6 +309,21 @@ export class TenantSettings {
     };
   }
 
+  private static normalizeLocalization(localization: LocalizationSettings): LocalizationSettings {
+    return {
+      ...localization,
+      currency: TenantSettings.requireTrimmedString(localization.currency, 'localization.currency'),
+      language: TenantSettings.requireTrimmedString(localization.language, 'localization.language'),
+      currencySymbol:
+        localization.currencySymbol == null
+          ? localization.currencySymbol
+          : TenantSettings.requireTrimmedString(
+              localization.currencySymbol,
+              'localization.currencySymbol',
+            ),
+    };
+  }
+
   private static normalizeBusinessAddress(
     address: AddressProps | null,
     countryCode: CountryCode,
@@ -314,6 +340,13 @@ export class TenantSettings {
         'businessInfo.socialLinks.whatsapp must be a valid phone number',
       );
     }
+  }
+
+  private static requireTrimmedString(value: unknown, field: string): string {
+    if (typeof value !== 'string') {
+      throw new TenantSettingsValidationError(`${field} must be a string`);
+    }
+    return value.trim();
   }
 }
 

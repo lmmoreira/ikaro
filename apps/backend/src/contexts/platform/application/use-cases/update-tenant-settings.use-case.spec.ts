@@ -134,6 +134,29 @@ describe('UpdateTenantSettingsUseCase', () => {
     ).rejects.toThrow(CountryCodeValidationError);
   });
 
+  it.each([
+    ['currency', null, 'localization.currency must be a string'],
+    ['language', null, 'localization.language must be a string'],
+    ['currencySymbol', 123, 'localization.currencySymbol must be a string'],
+  ])(
+    'throws TenantSettingsValidationError for a non-string localization %s',
+    async (field, value, message) => {
+      const tenant = new TenantBuilder().build();
+      await tenantRepo.save(tenant);
+
+      const settings = tenant.settings.toJSON();
+      const localization = settings.localization as unknown as Record<string, unknown>;
+      localization[field] = value;
+
+      await expect(
+        useCase.execute({
+          tenantId: tenant.id,
+          settings: { localization: settings.localization },
+        }),
+      ).rejects.toThrow(message as string);
+    },
+  );
+
   it('sets socialLinks in businessInfo', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);

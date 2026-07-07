@@ -54,13 +54,14 @@ export class Address extends ValueObject<AddressProps> {
   }
 
   private static validateCountrySpecificRules(props: AddressProps, spec: AddressSpec): void {
-    if (spec.postalRegex !== null && !spec.postalRegex.test(props.zipCode)) {
-      throw new AddressValidationError(`Invalid ${spec.postalLabel}: ${props.zipCode}`);
+    const { zipCode, state, neighborhood } = props;
+    if (spec.postalRegex !== null && !spec.postalRegex.test(zipCode)) {
+      throw new AddressValidationError(`Invalid ${spec.postalLabel}: ${zipCode}`);
     }
-    if (spec.statePattern !== null && !spec.statePattern.test(props.state)) {
-      throw new AddressValidationError(`Invalid ${spec.stateLabel}: ${props.state}`);
+    if (spec.statePattern !== null && !spec.statePattern.test(state)) {
+      throw new AddressValidationError(`Invalid ${spec.stateLabel}: ${state}`);
     }
-    if (spec.requireNeighborhood && !props.neighborhood) {
+    if (spec.requireNeighborhood && !neighborhood) {
       throw new AddressValidationError(`${spec.neighborhoodLabel ?? 'neighborhood'} is required`);
     }
   }

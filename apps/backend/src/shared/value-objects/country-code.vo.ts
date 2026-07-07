@@ -1,7 +1,5 @@
-import { type CountrySpec, countrySpec } from '@ikaro/i18n';
+import { type CountrySpec, countrySpec, isSupportedCountryCode } from '@ikaro/i18n';
 import { ValueObject } from '../domain/value-object';
-
-const FALLBACK_COUNTRY_SPEC = countrySpec('ZZ');
 
 interface CountryCodeProps {
   value: string;
@@ -23,9 +21,7 @@ export class CountryCode extends ValueObject<CountryCodeProps> {
   static isValid(code: string): boolean {
     if (typeof code !== 'string') return false;
     const normalizedCode = code.trim().toUpperCase();
-    return (
-      /^[A-Z]{2}$/.test(normalizedCode) && countrySpec(normalizedCode) !== FALLBACK_COUNTRY_SPEC
-    );
+    return /^[A-Z]{2}$/.test(normalizedCode) && isSupportedCountryCode(normalizedCode);
   }
 
   static create(code: string): CountryCode {
@@ -35,7 +31,7 @@ export class CountryCode extends ValueObject<CountryCodeProps> {
         'countryCode must be a 2-letter ISO 3166-1 alpha-2 code',
       );
     }
-    if (countrySpec(normalizedCode) === FALLBACK_COUNTRY_SPEC) {
+    if (!isSupportedCountryCode(normalizedCode)) {
       throw new CountryCodeValidationError(
         `countryCode must be a supported country code: ${normalizedCode}`,
       );

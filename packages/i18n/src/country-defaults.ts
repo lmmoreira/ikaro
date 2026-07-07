@@ -155,3 +155,7 @@ const FALLBACK: CountrySpec = {
 export function countrySpec(code: string): CountrySpec {
   return REGISTRY[code.toUpperCase()] ?? FALLBACK;
 }
+
+export function isSupportedCountryCode(code: string): boolean {
+  return Object.prototype.hasOwnProperty.call(REGISTRY, code.toUpperCase());
+}
