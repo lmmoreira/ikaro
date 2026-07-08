@@ -3,8 +3,9 @@
 ## Status
 - **Type**: Architecture / Storage cost & hygiene
 - **Priority**: Medium (no security exposure, but unbounded storage growth with zero cleanup — cost and eventual GCS listing/perf drag)
-- **Contexts affected**: `platform` (hotsite images), `booking` (attachment photos) — backend + web
+- **Contexts affected**: `platform` (hotsite images), `booking` (attachment photos) — backend + BFF + web
 - **Discovered**: 2026-07-07, during M13-S36 (Hotsite Layout tab) discovery, while wiring image deletion for the new Gallery/config-panel upload flows
+- **Revised**: 2026-07-08, during `/story-discovery` — corrected promotion ordering (`scheduleAfterCommit`), added BFF/`docs/14`/`M17-S14` scope, committed to the private signed-read-URL fix for `tmp/` preview
 
 ---
 
@@ -116,6 +117,11 @@ async copy(
 
 `UpdateHotsiteContentUseCase` is the single right integration point — it already has both the *old* persisted `config.branding`/`config.layout` and the *new* merged values in scope, and already walks every image field via `HotsiteImagePathsService.collect()`. This is also where delete-previous-on-replace naturally belongs, since this use case is the only place that sees both states at once.
 
+> **Ordering rule (found during `/story-discovery`): validate before the transaction, mutate storage only after it commits.** The naive approach — call `copy()`/`delete()` inline, then `config.updateContent()`, then `txManager.run(save)` — has a real failure window: `config.updateContent()` calls `validateBranding()`, which can still throw on an unrelated field (bad hex color, invalid enum) *after* storage has already been mutated. If that happens, the DB save never runs, but the old permanent image is already deleted and the new tmp source is already gone — the persisted config now points at a deleted object, unrecoverable via retry (the tmp original is gone too). Split promotion into two phases:
+> - **`prepareImagePromotion`** (before `txManager.run()`, no storage mutation): validate every path's tenant ownership + existence, and *compute* (don't perform) the new permanent path for each `tmp/` entry — a pure string transformation once `purpose` is encoded into the tmp path (see open question below), so this needs no GCS round-trip beyond the `exists()` checks. Returns the rewritten branding/layout (used for `config.updateContent()`) plus a list of pending operations (`promotions: {from, to}[]`, `deletions: string[]`).
+> - **`executeImagePromotion`** (registered via `scheduleAfterCommit()` — `apps/backend/src/shared/infrastructure/transaction-context.ts`, the same mechanism `CachingTenantRepository` already uses for post-commit cache invalidation): performs the actual `copy()`/`delete()` calls, best-effort (log and continue per-file — the DB reference is already correct either way).
+> - Accepted trade-off: a small window exists between the DB commit and the async copy actually landing, where a `GET` could resolve a public URL for an object not yet physically present. This mirrors the trade-off this codebase already accepts for cache invalidation; not a new risk class.
+
 > **Precondition — depends on `M13-S37`:** Step 3's `tenants/${tenantId}/...` branch (below) assumes the hotsite editor's save flow never round-trips a GET-resolved public URL back as an untouched field's value — it must send either the original raw storage path, a fresh upload's raw path, or omit the field entirely (`UpdateHotsiteContentUseCase` merges partial `dto.branding` over the stored value, so omission preserves the existing stored path unchanged). `M13-S37` (Hotsite: SEO tab + Preview + Publish/Unpublish) fixes this on the frontend — it's the first story to actually wire the real `PATCH` save flow. If that fix isn't in place, every untouched image field fails promotion with `HotsiteImageNotUploadedError`, the same failure mode `verifyImagesExist` already has today. Implement this TD after `M13-S37` lands, not before or concurrently.
 
 Current (`update-hotsite-content.use-case.ts`):
@@ -134,16 +140,17 @@ private async verifyImagesExist(
 }
 ```
 
-Replace with a `promoteAndValidateImages` step that:
-1. Collects `oldPaths` from `config.branding`/`config.layout` (**before** merging in `dto`).
-2. Merges branding/layout as today.
-3. For each path collected from the **merged** branding/layout:
-   - If it matches `tmp/<tenantId>/...` (tenant-checked via `extractTenantIdFromTmpPath`, else `HotsiteImageNotUploadedError`) → verify it `exists(path, 'private')`, then `copy(path, newPermanentPath, 'public')` where `newPermanentPath` reuses the *existing* `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` convention (purpose isn't known at this layer today — see open question below), rewrite the in-memory branding/layout field to `newPermanentPath`, and `delete(path, 'private')` the tmp original immediately (belt-and-suspenders on top of the lifecycle rule — frees the object right away rather than waiting out the TTL).
+Replace with:
+1. Collect `oldPaths` from `config.branding`/`config.layout` (**before** merging in `dto`).
+2. Merge branding/layout as today.
+3. `prepareImagePromotion(branding, layout, tenantId)` — pure validation + path computation, no storage mutation. For each path collected from the **merged** branding/layout:
+   - If it matches `tmp/<tenantId>/...` (tenant-checked via `extractTenantIdFromTmpPath`, else `HotsiteImageNotUploadedError`) → verify it `exists(path, 'private')`, compute `newPermanentPath` reusing the *existing* `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` convention (purpose isn't known at this layer today — see open question below), rewrite the in-memory branding/layout field to `newPermanentPath`, and push `{ from: path, to: newPermanentPath }` onto `promotions`.
    - If it matches `tenants/${tenantId}/...` (already permanent, untouched field) → validate `exists(path, 'public')` as today.
    - Anything else → `HotsiteImageNotUploadedError`.
 4. Compute `newPaths` from the now-rewritten branding/layout (post-promotion).
-5. For every path in `oldPaths` not present in `newPaths` **and** matching `tenants/${tenantId}/...` (i.e. it was a real, permanent, promoted object — not a tmp one, tmp cleanup is the lifecycle rule's job) → `delete(path, 'public')`. Best-effort: a failure here shouldn't fail the whole save (the reference is already gone from the config either way) — log and continue, mirroring `SingleImageUploadField`'s existing best-effort delete pattern on the frontend.
-6. Proceed to `config.updateContent(branding, layout, seo)` and save as today.
+5. For every path in `oldPaths` not present in `newPaths` **and** matching `tenants/${tenantId}/...` (i.e. it was a real, permanent, promoted object — not a tmp one, tmp cleanup is the lifecycle rule's job) → push onto `deletions`.
+6. `config.updateContent(branding, layout, seo)`.
+7. `await this.txManager.run(async () => { await this.hotsiteConfigRepo.save(config); await scheduleAfterCommit(() => this.executeImagePromotion(promotions, deletions)); });` — `executeImagePromotion` performs, for each entry: `copy(from, to, 'public')` + `delete(from, 'private')` for `promotions`, and `delete(path, 'public')` for `deletions`. Each call wrapped in its own try/catch — best-effort, log and continue, mirroring `SingleImageUploadField`'s existing best-effort delete pattern on the frontend. The DB reference is already correct in either case; a failed delete just leaves an orphan for the lifecycle rule to catch, and a failed copy leaves the new path 404ing until manually reconciled (rare — the source was just existence-checked moments earlier in the same request).
 
 **Open question to resolve during implementation**: the current promotion path needs a `purpose` segment (`tenants/<id>/hotsite/<purpose>/...`) that today only exists at *upload* time (`GenerateHotsiteImageSignedUrlUseCase`'s `dto.purpose`), not at *save* time. Either (a) encode `purpose` into the tmp path too (`tmp/<tenantId>/<purpose>/<uuid>/<fileName>`, still safe for the lifecycle rule since `matches_prefix` only needs `tmp/`), or (b) derive purpose from which field the path was found on during `collect()` (e.g. `backgroundImageUrl` on `HERO`/`BOOKING_CTA` → `hero`/`booking-cta`, `avatarUrl` on `TESTIMONIALS` → `testimonials`, etc.). (a) is simpler and doesn't require `HotsiteImagePathsService` to know per-field purpose mappings — recommended.
 
@@ -180,35 +187,65 @@ This is the exact same shape as hotsite's `verifyImagesExist` — the right move
 | `submit-guest-booking-info.use-case.ts` | response `photoUrls` (guest) | Yes |
 | `complete-booking.use-case.ts` | `afterServicePhotoUrls` (staff) | Yes |
 
+> **Same ordering rule as hotsite promotion applies here** — `assertPhotosUploaded`'s replacement must not perform the actual `copy()`/`delete()` before the booking is safely saved. `Booking.requestBooking()`/`booking.submitInformation()`/`booking.complete()` can all still throw domain validation errors (`BookingLineRequiredError`, `PickupAddressRequiredError`, `Email`/`PhoneNumber` VOs, etc.) *after* photo promotion would have already run in the naive ordering — and unlike hotsite, a failure here wouldn't just break a display, it would orphan a permanent photo under a `bookingId` that was never persisted, which is exactly the failure mode this TD exists to close. Split into a `prepare`/`execute` pair, same shape as hotsite's:
+
 ```typescript
 // photo-existence.service.ts — extended
+import { extractTenantIdFromTmpPath } from '../../../../shared/utils/extract-tenant-id-from-tmp-path';
+
 @Injectable()
 export class PhotoExistenceService {
   constructor(@Inject(STORAGE_SERVICE) private readonly storageService: IStorageService) {}
 
-  async promotePhotos(tmpPaths: string[], tenantId: string, bookingId: string): Promise<string[]> {
-    const promoted: string[] = [];
+  /** Pure validation + path computation — call before the aggregate is constructed/saved. No storage mutation. */
+  async preparePhotoPromotion(
+    tmpPaths: string[],
+    tenantId: string,
+    bookingId: string,
+  ): Promise<{ permanentPaths: string[]; operations: Array<{ from: string; to: string }> }> {
+    const permanentPaths: string[] = [];
+    const operations: Array<{ from: string; to: string }> = [];
     for (const path of tmpPaths) {
-      if (this.extractTenantId(path) !== tenantId) throw new BookingPhotoNotUploadedError(path);
+      if (extractTenantIdFromTmpPath(path) !== tenantId) throw new BookingPhotoNotUploadedError(path);
       const exists = await this.storageService.exists(path, 'private');
       if (!exists) throw new BookingPhotoNotUploadedError(path);
 
       const fileName = path.split('/').pop()!;
       const permanentPath = `tenants/${tenantId}/bookings/${bookingId}/${fileName}`;
-      await this.storageService.copy(path, permanentPath, 'private');
-      await this.storageService.delete(path, 'private'); // best-effort — log, don't fail the booking op
-      promoted.push(permanentPath);
+      operations.push({ from: path, to: permanentPath });
+      permanentPaths.push(permanentPath);
     }
-    return promoted;
+    return { permanentPaths, operations };
   }
 
-  private extractTenantId(filePath: string): string | null {
-    const match = /^tmp\/([^/]+)\/.+$/.exec(filePath);
-    return match?.[1] ?? null;
+  /** Actual copy+delete — call via scheduleAfterCommit(), only after the booking row is saved. Best-effort per file. */
+  async executePhotoPromotion(operations: Array<{ from: string; to: string }>): Promise<void> {
+    for (const { from, to } of operations) {
+      try {
+        await this.storageService.copy(from, to, 'private');
+        await this.storageService.delete(from, 'private');
+      } catch (err) {
+        // log and continue — the aggregate's photo fields already point at `to`; a failed copy
+        // just means that path 404s until manually reconciled, not a broken booking record
+      }
+    }
   }
 }
 ```
-(`assertPhotosUploaded` can be deleted outright — every call site is being replaced with `promotePhotos`, there's no remaining caller that only wants validation without promotion.)
+(`assertPhotosUploaded` can be deleted outright — every call site is being replaced. `extractTenantIdFromTmpPath` lives in a new shared util, `apps/backend/src/shared/utils/extract-tenant-id-from-tmp-path.ts`, sibling to the existing `extract-tenant-id-from-path.ts` — not a private method here, since `UpdateHotsiteContentUseCase` needs the identical check.)
+
+Each of the five call sites now looks like (existing-booking example, `submit-booking-info.use-case.ts`):
+```typescript
+const { permanentPaths, operations } = await this.photoExistenceService.preparePhotoPromotion(
+  input.photoUrls ?? [], tenantId, input.bookingId,
+);
+booking.submitInformation(booking.contactEmail.address, { notes: input.response }, correlationId, permanentPaths, customerId);
+await this.txManager.run(async () => {
+  await this.bookingRepo.save(booking);
+  await scheduleAfterCommit(() => this.photoExistenceService.executePhotoPromotion(operations));
+});
+```
+`request-booking.use-case.ts` / `request-authenticated-booking.use-case.ts` follow the same shape, with `bookingId` being the freshly-generated `id` (see below) computed before `preparePhotoPromotion` runs.
 
 ### The booking-ID-generation-timing problem (found during review, not in the first draft)
 
@@ -240,16 +277,22 @@ static requestBooking(input: RequestBookingInput): Booking {
 ```
 
 ```typescript
-// request-booking.use-case.ts — generate id first, promote, then pass both through
+// request-booking.use-case.ts — generate id first, prepare promotion, then pass both through
 const bookingId = uuidv7();
-const beforeServicePhotoUrls = await this.photoExistenceService.promotePhotos(
-  input.beforeServicePhotoUrls ?? [], tenantId, bookingId,
-);
+const { permanentPaths: beforeServicePhotoUrls, operations } =
+  await this.photoExistenceService.preparePhotoPromotion(
+    input.beforeServicePhotoUrls ?? [], tenantId, bookingId,
+  );
 // ...
 const booking = Booking.requestBooking({
   id: bookingId,
   // ...everything else unchanged...
-  beforeServicePhotoUrls,   // promoted paths, not input.beforeServicePhotoUrls
+  beforeServicePhotoUrls,   // already-rewritten permanent paths, not input.beforeServicePhotoUrls
+});
+
+await this.txManager.run(async () => {
+  await this.bookingRepo.save(booking);
+  await scheduleAfterCommit(() => this.photoExistenceService.executePhotoPromotion(operations));
 });
 ```
 
@@ -280,37 +323,21 @@ const { signedUrl, expiresAt } = await this.storageService.generateWriteSignedUr
 ```
 (The `bookingRepo.findById` existence check in the current `GenerateAttachmentSignedUrlUseCase` — validating a client-supplied `bookingId` exists before generating a booking-scoped path — is no longer needed, since the path is never booking-scoped at upload time anymore.)
 
+**BFF mirror change (found during `/story-discovery`):** `apps/bff/src/features/booking/bookings.controller.ts`'s `AttachmentSignedUrlBodySchema` (line 180) duplicates `bookingId: z.uuid().optional()` and forwards it to the backend in 2 of its 4 tenant-resolution scenarios (`user` branch at line 249, guest-token branch at line 275 via `tokenPayload.bookingId`). Once the backend DTO drops `bookingId`, this becomes dead pass-through — remove the field from the Zod schema and both forwarding sites in the same PR. The 4-scenario branching itself (JWT user / guest token / anonymous `tenantSlug` / staff) is about **tenant resolution**, not `bookingId`, and is unaffected — only the now-pointless `bookingId` plumbing goes.
+
 ---
 
-## Fix — GCS Lifecycle Rule (Terraform)
+## Fix — GCS Lifecycle Rule (deferred to `M17-CLOUD-DEPLOY`, not this TD)
 
-Add to `storage.tf`'s `media` bucket (`docs/23-INFRASTRUCTURE_SETUP.md`) — hotsite `tmp/` staging also lives here, since promotion source is always the private bucket:
+**Found during `/story-discovery` (2026-07-08): no Terraform exists in this repo yet** — zero `.tf` files anywhere. `docs/23-INFRASTRUCTURE_SETUP.md`'s `storage.tf` documents the old, pre-`M17-CLOUD-DEPLOY` infra design and is explicitly flagged as partially superseded (`M17-S48 — Supersession banners on legacy infra docs`, `plan/M17-CLOUD-DEPLOY.md`: *"On any conflict... M17 wins"*). Its bucket names (`media`/`hotsite_public`, `ikaro-media-*`/`ikaro-hotsite-public-*`) don't even match the real plan: **`M17-S14` — GCS storage module** (`plan/M17-CLOUD-DEPLOY.md`) creates `ikaro-uploads-{env}` (private, matches `GCS_BUCKET_NAME`) and `ikaro-public-{env}` (public, matches `GCS_PUBLIC_BUCKET_NAME`) — and that module doesn't exist as code yet either.
 
-```hcl
-resource "google_storage_bucket" "media" {
-  # ...existing config unchanged...
+**This TD does not author any Terraform.** The `tmp/`-prefixed lifecycle rule requirement (`matches_prefix = ["tmp/"]`, `age = 2` days, `Delete`) has instead been added as a bullet to `M17-S14`'s story in `plan/M17-CLOUD-DEPLOY.md`, alongside that story's own 7-day incomplete-multipart-upload rule. `M17-S45 — Photo lifecycle & retention` separately adds `tenants/`-prefixed retention/tiering rules on the same bucket — all three `lifecycle_rule` blocks are additive and non-conflicting.
 
-  lifecycle_rule {
-    action { type = "Delete" }
-    condition { age = 365 }   # existing — unrelated long-term retention, unchanged
-  }
+**Caveat (unchanged)**: GCS lifecycle `age` is in whole days, not hours — there's no sub-day granularity in the native lifecycle API. If a tighter bound than "1–2 days" is required, that needs an actual scheduled job (Cloud Scheduler + Cloud Function or a NestJS `@Cron` task hitting a new cleanup endpoint) doing the same prefix-scan-and-delete instead of relying on the bucket-native rule. Recommended: start with the native 2-day lifecycle rule (zero new infra, zero new code) and only add a scheduled job if 48h staging proves to be a real cost/hygiene problem in practice.
 
-  # New — staging area for uploads not yet promoted to a permanent path (TD22).
-  # 48h gives enough headroom for a slow multi-step form (e.g. booking creation with
-  # pickup address + photos) without leaving genuinely-abandoned uploads around long.
-  lifecycle_rule {
-    action { type = "Delete" }
-    condition {
-      age             = 2  # GCS lifecycle age is in whole days; 2 days ≈ 48h (see note below)
-      matches_prefix  = ["tmp/"]
-    }
-  }
-}
-```
+No lifecycle rule will be needed on the public bucket — nothing is ever written there except already-promoted, referenced (or explicitly superseded-and-deleted) objects.
 
-**Caveat**: GCS lifecycle `age` is in whole days, not hours — there's no sub-day granularity in the native lifecycle API. If a tighter bound than "1–2 days" is required, that needs an actual scheduled job (Cloud Scheduler + Cloud Function or a NestJS `@Cron` task hitting a new cleanup endpoint) doing the same prefix-scan-and-delete instead of relying on the bucket-native rule. Recommended: start with the native 2-day lifecycle rule (zero new infra, zero new code) and only add a scheduled job if 48h staging proves to be a real cost/hygiene problem in practice.
-
-No lifecycle rule is needed on `hotsite_public` — nothing is ever written there except already-promoted, referenced (or explicitly superseded-and-deleted) objects.
+**Until `M17-S14` ships, there is no live GCS bucket to accumulate orphaned `tmp/` cost.** This TD's app-level changes (tmp staging + promote-on-submit) are still worth shipping now — they unconditionally close the "explicit remove doesn't delete" and "superseded upload" leaks — but the "abandoned upload ages out automatically" guarantee only takes effect once `M17-S14` is implemented.
 
 ---
 
@@ -319,7 +346,17 @@ No lifecycle rule is needed on `hotsite_public` — nothing is ever written ther
 - `SingleImageUploadField.handleRemove()` — the `value.startsWith('tenants/')` guard (gating whether `deleteHotsiteImage` is called) must also match `tmp/` — a freshly-uploaded-but-not-yet-applied image is now `tmp/<tenantId>/...`, not `tenants/<tenantId>/...`. Change to `value.startsWith('tenants/') || value.startsWith('tmp/')`.
 - `GalleryImageManager.handleRemove()` — same guard, same fix.
 - `PhotoUpload.tsx` / `AfterServicePhotoUpload.tsx` — **recommendation: do not add an explicit delete-on-remove call for these two.** Unlike hotsite, there's no existing delete-attachment backend endpoint, and wiring one just to shave the tail off a 48h TTL window is low ROI relative to the lifecycle rule already closing the gap. Revisit only if the lifecycle rule alone proves insufficient (e.g., cost pressure from very high abandonment rates). This is a judgment call, not a hard constraint — flag for review during implementation rather than deciding unilaterally here.
-- **New interaction with M13-S37's preview/thumbnail resolution:** `SingleImageUploadField`/`GalleryImageManager`'s `displaySrc`/`displayUrl()` and `HotsitePreview`'s `resolveDraftImageUrls()` (`apps/web/features/platform/hotsite/resolve-hotsite-image-url.ts`) resolve a raw, non-absolute value by prefixing `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` (the **public** bucket base) — correct today, since an unsaved upload's raw path already lives in the public bucket. Once uploads target `tmp/` in the **private** bucket instead, that same resolution 404s for anything not yet promoted (i.e., previewed/reopened before the first save). Needs a private-bucket signed-read-URL path for not-yet-promoted `tmp/` images (mirroring how `BookingPhotoPicker` already handles private booking photos), or a way to keep the local blob-URL preview alive across a remount — pick one before shipping this TD, don't ship the resolution helpers unchanged.
+- **`CustomerPhotoUpload.tsx`** (`apps/web/features/customer/components/my-account/CustomerPhotoUpload.tsx`, used by `InfoSubmitForm.tsx` for the customer-response-photos flow into `submit-booking-info`) — found during `/story-discovery`: a third booking-photo upload component with the identical no-delete-on-remove pattern as `PhotoUpload.tsx`/`AfterServicePhotoUpload.tsx`, calling the same `createCustomerAttachmentSignedUrl`/backend signed-url endpoint. Same recommendation applies (no delete-on-remove call, rely on the lifecycle rule) — named explicitly here so it isn't rediscovered mid-implementation.
+
+### tmp/ image preview (private signed-read-URL — decided during `/story-discovery`)
+
+`SingleImageUploadField`/`GalleryImageManager`'s `displaySrc`/`displayUrl()` and `HotsitePreview`'s `resolveDraftImageUrls()` (`apps/web/features/platform/hotsite/resolve-hotsite-image-url.ts`) resolve a raw, non-absolute value by prefixing `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` (the **public** bucket base) — correct today, since an unsaved upload's raw path already lives in the public bucket. Once uploads target `tmp/` in the **private** bucket instead, that same resolution 404s for anything not yet promoted (i.e., previewed/reopened before the first save, when the local blob-URL preview has been lost to a remount).
+
+**Decision: add a private signed-read-URL endpoint**, mirroring how `BookingPhotoPicker` already handles private booking photos (fresh signed read at display time, nothing stored). `IStorageService.generateReadSignedUrl()` already exists and already supports `'private'` — no new port method needed.
+
+- **Backend:** `GenerateHotsiteImageReadSignedUrlUseCase` (new) — input `{ filePath, tenantId }`; validates `extractTenantIdFromTmpPath(filePath) === tenantId` (else `HotsiteImageNotUploadedError`), then `generateReadSignedUrl(filePath, 'private')`. Only ever called for `tmp/`-prefixed values — already-public `tenants/...` paths keep resolving via the existing pure-string `resolveHotsiteImageDisplayUrl`.
+- **BFF:** new authenticated endpoint on `hotsite-admin.controller.ts`, e.g. `POST /v1/tenants/hotsite/images/read-signed-url` (same role guard as the existing hotsite-admin endpoints).
+- **Frontend:** new fetcher `generateHotsiteImageReadSignedUrl(filePath)` alongside `generateHotsiteImageSignedUrl`/`deleteHotsiteImage` in `apps/web/features/platform/tenant-settings`. `SingleImageUploadField`, `GalleryImageManager`, and `HotsitePreview` all need to become async-aware for `tmp/`-prefixed values with no local blob preview: on mount/remount, if `value.startsWith('tmp/')` and there's no `previewUrl`, call the new fetcher and use the returned `signedUrl` as `displaySrc` (with a loading state), instead of the current pure `resolveHotsiteImageDisplayUrl` string template. Already-public `tenants/...` values keep the existing synchronous path unchanged.
 
 ---
 
@@ -332,21 +369,30 @@ No lifecycle rule is needed on `hotsite_public` — nothing is ever written ther
 | `apps/backend/src/shared/infrastructure/gcs-signed-url.adapter.spec.ts` | New tests: private→private copy, private→public copy (default) |
 | `apps/backend/src/test/infrastructure/in-memory-storage.service.ts` | `copy()` accepts (and can ignore) the new param |
 | `apps/backend/src/contexts/platform/application/use-cases/generate-hotsite-image-signed-url.use-case.ts` | Target `tmp/<tenantId>/<purpose>/<uuid>/<fileName>` in `'private'`, not final path in `'public'` |
-| `apps/backend/src/contexts/platform/application/use-cases/update-hotsite-content.use-case.ts` | Replace `verifyImagesExist` with promote-and-validate + delete-previous-on-replace |
+| `apps/backend/src/contexts/platform/application/use-cases/update-hotsite-content.use-case.ts` | Replace `verifyImagesExist` with `prepareImagePromotion` (pre-commit, pure) + `executeImagePromotion` (post-commit, via `scheduleAfterCommit`) |
 | `apps/backend/src/contexts/platform/domain/services/hotsite-image-paths.service.ts` | No change (already collects every field correctly) |
 | `apps/backend/src/contexts/booking/application/use-cases/generate-attachment-signed-url.use-case.ts` | Collapse to always target `tmp/<tenantId>/<uuid>/<fileName>`; drop `bookingId`-branch + existence check |
 | `apps/backend/src/contexts/booking/application/dtos/generate-attachment-signed-url.dto.ts` | Drop now-unused `bookingId` field |
-| `apps/backend/src/contexts/booking/application/services/photo-existence.service.ts` | Replace `assertPhotosUploaded` with `promotePhotos` (copy + delete + return new paths); reuses existing `BookingPhotoNotUploadedError`, no new error class |
-| `apps/backend/src/contexts/booking/application/services/photo-existence.service.spec.ts` | Update existing tests for the new method/return shape |
+| `apps/bff/src/features/booking/bookings.controller.ts` | Drop `bookingId` from `AttachmentSignedUrlBodySchema` and its 2 forwarding sites (tenant-resolution branching itself is unaffected) |
+| `apps/backend/src/shared/utils/extract-tenant-id-from-tmp-path.ts` (new) | Shared `tmp/<tenantId>/...` extractor, sibling to the existing `extract-tenant-id-from-path.ts` — used by both `PhotoExistenceService` and `UpdateHotsiteContentUseCase` |
+| `apps/backend/src/shared/utils/extract-tenant-id-from-tmp-path.spec.ts` (new) | Unit tests for the new util |
+| `apps/backend/src/contexts/booking/application/services/photo-existence.service.ts` | Replace `assertPhotosUploaded` with `preparePhotoPromotion` (validate + compute paths, pure) and `executePhotoPromotion` (copy + delete, called via `scheduleAfterCommit`); reuses existing `BookingPhotoNotUploadedError`, no new error class |
+| `apps/backend/src/contexts/booking/application/services/photo-existence.service.spec.ts` | Update existing tests for the new method pair |
 | `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` | `RequestBookingInput` gains optional `id?: string`; `requestBooking()` uses `input.id ?? uuidv7()` |
-| `apps/backend/src/contexts/booking/application/use-cases/request-booking.use-case.ts` | Generate `bookingId` before promotion; pass both `id` and promoted `beforeServicePhotoUrls` into `Booking.requestBooking()` |
+| `apps/backend/src/contexts/booking/application/use-cases/request-booking.use-case.ts` | Generate `bookingId` before `preparePhotoPromotion`; pass both `id` and rewritten `beforeServicePhotoUrls` into `Booking.requestBooking()`; register `executePhotoPromotion` via `scheduleAfterCommit` inside `txManager.run()` |
 | `apps/backend/src/contexts/booking/application/use-cases/request-authenticated-booking.use-case.ts` | Same |
-| `apps/backend/src/contexts/booking/application/use-cases/submit-booking-info.use-case.ts` | Call `promotePhotos` with the already-known `bookingId`, for response `photoUrls` |
+| `apps/backend/src/contexts/booking/application/use-cases/submit-booking-info.use-case.ts` | Same pattern, `bookingId` already known, for response `photoUrls` |
 | `apps/backend/src/contexts/booking/application/use-cases/submit-guest-booking-info.use-case.ts` | Same |
 | `apps/backend/src/contexts/booking/application/use-cases/complete-booking.use-case.ts` | Same, for `afterServicePhotoUrls` |
-| `apps/web/features/platform/components/hotsite/SingleImageUploadField.tsx` | Widen delete-eligibility check to include `tmp/` |
-| `apps/web/features/platform/components/hotsite/modules/GalleryImageManager.tsx` | Same |
-| `docs/23-INFRASTRUCTURE_SETUP.md` | Add the new `lifecycle_rule` block to the documented `storage.tf` |
+| `apps/backend/src/contexts/platform/application/dtos/generate-hotsite-image-read-signed-url.dto.ts` (new) | `{ filePath }` — tenant-scoped `tmp/` read-signed-URL request |
+| `apps/backend/src/contexts/platform/application/use-cases/generate-hotsite-image-read-signed-url.use-case.ts` (new) | Validates `extractTenantIdFromTmpPath`, calls `generateReadSignedUrl(filePath, 'private')` |
+| `apps/backend/src/contexts/platform/application/use-cases/generate-hotsite-image-read-signed-url.use-case.spec.ts` (new) | Unit tests: success, cross-tenant rejection |
+| `apps/bff/src/features/platform/hotsite-admin.controller.ts` | New `POST /v1/tenants/hotsite/images/read-signed-url` endpoint |
+| `apps/web/features/platform/tenant-settings/*` | New `generateHotsiteImageReadSignedUrl(filePath)` fetcher |
+| `apps/web/features/platform/components/hotsite/SingleImageUploadField.tsx` | Widen delete-eligibility check to include `tmp/`; resolve `tmp/`-prefixed `displaySrc` via the new read-signed-URL fetcher when no local blob preview exists |
+| `apps/web/features/platform/components/hotsite/modules/GalleryImageManager.tsx` | Same (delete guard + async `tmp/` resolution) |
+| `apps/web/features/platform/components/hotsite/HotsitePreview.tsx` | `resolveDraftImageUrls()` becomes async-aware for `tmp/`-prefixed values |
+| `plan/M17-CLOUD-DEPLOY.md` (`M17-S14`) | Add a bullet: `ikaro-uploads-{env}` also needs a `tmp/`-prefixed lifecycle rule (age 2 days, Delete) sourced from this TD, in addition to S14's own 7-day incomplete-multipart-upload rule |
 | `apps/bff/src/features/uploads/` (whole directory) | Recommend deleting — dead code, see "Third upload surface" note above. Separate small cleanup, not required for this TD's acceptance criteria |
 
 ---
@@ -364,8 +410,13 @@ No lifecycle rule is needed on `hotsite_public` — nothing is ever written ther
 - [ ] Completing a booking with `afterServicePhotoUrls` pointing at `tmp/` paths promotes them the same way
 - [ ] Submitting requested info (guest and customer) with response photos pointing at `tmp/` paths promotes them the same way
 - [ ] `IStorageService.copy()`'s existing callers (`FeatureBookingPhotoUseCase`) are unaffected — still defaults to public destination
-- [ ] The `media` bucket's Terraform config has a `tmp/`-scoped lifecycle rule in addition to the existing 365-day rule; `hotsite_public` still has none
+- [ ] Hotsite and booking promotion both perform the actual `copy()`/`delete()` calls via `scheduleAfterCommit()`, registered from inside `txManager.run()` — not before the aggregate/`config.updateContent()` validation that can still throw
+- [ ] `M17-S14`'s story in `plan/M17-CLOUD-DEPLOY.md` documents the additional `tmp/`-prefixed lifecycle rule requirement sourced from this TD (no Terraform to write in this TD's own PR — none exists in the repo yet)
 - [ ] `SingleImageUploadField`/`GalleryImageManager`'s "Remove" button correctly deletes both `tenants/`- and `tmp/`-prefixed values, and correctly no-ops (de-reference only) for already-resolved public URLs
-- [ ] `PhotoExistenceService.promotePhotos()` has unit tests covering: successful promotion, cross-tenant rejection (reusing `BookingPhotoNotUploadedError`), and non-existent tmp path rejection
-- [ ] All five booking use cases' existing specs are updated for the new `promotePhotos` call and pass
+- [ ] A not-yet-promoted `tmp/`-prefixed hotsite image resolves to a working preview (via the new private read-signed-URL endpoint) after a component remount, not a 404
+- [ ] `GenerateHotsiteImageReadSignedUrlUseCase` has unit tests covering: success and cross-tenant rejection
+- [ ] `PhotoExistenceService.preparePhotoPromotion()`/`executePhotoPromotion()` have unit tests covering: successful promotion, cross-tenant rejection (reusing `BookingPhotoNotUploadedError`), and non-existent tmp path rejection
+- [ ] All five booking use cases' existing specs are updated for the new `preparePhotoPromotion`/`executePhotoPromotion` calls and pass
+- [ ] `apps/bff/src/features/booking/bookings.controller.ts`'s `bookingId` field and both forwarding sites are removed; its existing tenant-resolution-scenario tests still pass
+- [ ] `docs/14-API_CONTRACTS.md`'s `filePath` examples for both signed-url endpoints (and the booking-attachment flow walkthrough) are updated to show `tmp/...` at generation time and the final permanent path only after promotion
 - [ ] `tsc --noEmit` clean across backend + web; existing `FeatureBookingPhotoUseCase`/`DeleteHotsiteImageUseCase` specs still pass unmodified

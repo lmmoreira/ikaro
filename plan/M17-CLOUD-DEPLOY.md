@@ -667,12 +667,14 @@ cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-stagi
 - `ikaro-uploads-{env}` — **private** (uniform access, public-prevention enforced). Browser uploads go via V4 signed URLs (M115-S01), so the bucket needs a **CORS config** allowing `PUT`/`GET` from the web origin(s) with the headers the signed-URL flow uses (verify exact headers against `GcsSignedUrlAdapter`).
 - `ikaro-public-{env}` — public-read objects (hotsite images): `allUsers: roles/storage.objectViewer`, CORS `GET` from `*`. `GCS_PUBLIC_BASE_URL=https://storage.googleapis.com/ikaro-public-{env}`.
 - Both: `southamerica-east1`, soft-delete default, lifecycle rule deleting incomplete multipart uploads after 7 days. (Age-based tiering + booking-photo retention/deletion is added later by M17-S45 — uploads bucket only; the public hotsite bucket is permanent.) Signed URLs require the backend runtime SA to have `roles/iam.serviceAccountTokenCreator` **on itself** (keyless signing via IAM signBlob — no key file in cloud; `GCS_KEY_FILE` stays a local-dev-only var). Verify the adapter supports keyless signing; if it insists on a key file, fix the adapter in this story (root-cause rule — no key-file workaround in cloud).
+- **Uploads bucket also needs a `tmp/`-prefixed lifecycle rule** (`matches_prefix = ["tmp/"]`, `age = 2` days, `Delete`) — sourced from `td/TD22-ORPHANED-UPLOAD-CLEANUP.md`, additive to this story's own 7-day incomplete-multipart-upload rule and to M17-S45's separate `tenants/`-prefixed retention/tiering rules. Cleans up the app's `tmp/<tenantId>/...` staging convention (hotsite + booking-photo uploads not yet promoted to a permanent path) — TD22 ships the app-side staging/promotion logic independent of this bucket's existence, but the automatic-cleanup guarantee only takes effect once this rule is added here.
 
 **Acceptance criteria:**
 - [ ] Uploads bucket rejects public access; public bucket serves objects anonymously
 - [ ] CORS verified with a real browser preflight against staging (after S27; leave a checklist item there)
 - [ ] Keyless signed-URL generation confirmed working with the runtime SA (no JSON key anywhere)
 - [ ] Org-policy exceptions from S07 step 7 (`iam.allowedPolicyMemberDomains` / `storage.publicAccessPrevention`) verified applied — the public bucket's `allUsers` grant fails without them
+- [ ] Uploads bucket has a `tmp/`-prefixed lifecycle rule (age 2 days, Delete) per TD22, in addition to the 7-day incomplete-multipart-upload rule
 
 **Dependencies:** M17-S11 (parallel with S12–S13)
 
