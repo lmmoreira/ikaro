@@ -43,4 +43,6 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    > "All stories in <milestone> are done. Per §15 item 16, create both wrap-up files before reporting milestone complete:
    > - `plan/<milestone>_IMPLEMENTATION_DETAILS_IA.md` — token-efficient reference for AI agents: artifacts table, gotchas, version facts, structural decisions. No prose, no tutorials.
    > - `plan/<milestone>_IMPLEMENTATION_DETAILS_DEVELOPER.md` — detailed learning doc for the human developer: explain every concept with rationale, real code examples from this codebase, and enough context that a developer can learn NestJS, DDD, and the engineering patterns used here just by reading it.
-   > Then add the IA doc to §10 of CLAUDE.md."
+   > Then add the IA doc to §10 of CLAUDE.md.
+   >
+   > **Also do a stale-documentation sweep before declaring the milestone complete** — this is a safety net for the per-story Definition of Done check (CLAUDE.md §7), which should have caught most of this already, but milestones this size reliably leave a few behind. For each story that replaced or removed an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint), grep `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, and CLAUDE.md itself for anything still describing the *old* version. Present findings to the user before editing (doc/config gate) — do not silently rewrite docs without confirmation."

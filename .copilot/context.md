@@ -246,6 +246,7 @@ ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed 
 - [ ] All queries filter `tenant_id`; all events include `tenantId`/`eventId`/`correlationId`
 - [ ] Migration is backward-compatible (expand/contract)
 - [ ] Conventional Commit + PR description links the UC
+- [ ] **If this story replaces or removes an existing flow/mechanism** (an auth pattern, a data model assumption, a transport layer, a dead endpoint), grep `docs/*.md`, `plan/*_IMPLEMENTATION_DETAILS_*.md`, and this file for anything still describing the *old* version — update or flag it in the same PR. A replaced flow with stale docs left behind means the next agent builds on a wrong assumption with no signal it's wrong (M13 alone left 18 such findings across 8 files, found only when the milestone closed out — don't defer this to milestone-end if the story itself is the one making the change)
 
 ---
 
