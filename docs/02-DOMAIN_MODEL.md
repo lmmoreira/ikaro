@@ -582,8 +582,8 @@ Represents an employee.
 ```
 Staff {
   staffId: StaffId
-  tenantId: TenantId (staff belongs to exactly ONE tenant)
-  googleOAuthId: String | null (unique from Google; null until first login/activation)
+  tenantId: TenantId
+  googleOAuthId: String | null (unique from Google per tenant; null until the invite link is used)
   email: Email
   name: String | null
   role: StaffRole
@@ -594,14 +594,14 @@ Staff {
   updatedAt: DateTime
 }
 
-Constraint: global UNIQUE(googleOAuthId) — partial index, WHERE google_oauth_id IS NOT NULL
-  (NOT composite with tenantId)
-  This means: Same person can NEVER be staff in multiple tenants
-  (But same person CAN be customer in multiple tenants)
+Constraint: UNIQUE(tenantId, googleOAuthId) — partial index, WHERE google_oauth_id IS NOT NULL
+  (composite with tenantId, changed from a global constraint in M13-S13)
+  This means: the same Google account CAN be staff at multiple tenants
+  (same multi-tenant model as Customer — see docs/06-TENANT_ISOLATION_STRATEGY.md)
 
-> Per CLAUDE.md §2 invariant #6: "Staff are single-tenant — global UNIQUE(google_oauth_id) at
-> DB level (not composite with tenant_id — the same Google account cannot be staff at two
-> different tenants)."
+> Per CLAUDE.md §2 invariant #6: "Staff can be multi-tenant — UNIQUE(tenant_id, google_oauth_id),
+> same shape as customers." A staff row is always provisioned isActive=true at invite time;
+> "pending invite" is signaled by googleOAuthId IS NULL, not isActive.
 ```
 
 ---

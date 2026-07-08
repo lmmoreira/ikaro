@@ -40,7 +40,7 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    ```
 
 8. Check whether ALL stories in the milestone plan file are now marked `✅ Done`. If yes, remind the agent:
-   > "All stories in <milestone> are done. Per §15 item 16, create both wrap-up files before reporting milestone complete:
+   > "All stories in <milestone> are done. Per §9 Step 12, create both wrap-up files before reporting milestone complete:
    > - `plan/<milestone>_IMPLEMENTATION_DETAILS_IA.md` — token-efficient reference for AI agents: artifacts table, gotchas, version facts, structural decisions. No prose, no tutorials.
    > - `plan/<milestone>_IMPLEMENTATION_DETAILS_DEVELOPER.md` — detailed learning doc for the human developer: explain every concept with rationale, real code examples from this codebase, and enough context that a developer can learn NestJS, DDD, and the engineering patterns used here just by reading it.
    > Then add the IA doc to §10 of CLAUDE.md.

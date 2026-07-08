@@ -206,6 +206,12 @@ The existing customer login in `app/[slug]/login/page.tsx` (which uses `${NEXT_P
 
 ---
 
+## `/internal/` routes are pre-auth only
+
+Backend `/internal/` routes bypass `RequestInterceptor` entirely and exist for exactly one purpose: auth-flow calls made **before** a JWT exists — OAuth callbacks (`handleStaffLogin`, `findOrCreate`, `link-google`). If the BFF can reach the endpoint with actor headers already available (`X-Actor-ID`/`X-Actor-Type`/`X-Actor-Role`, via `buildBackendHeaders(req)`), the endpoint is not internal — it belongs on the regular authenticated controller, reading the actor from `RequestContext` instead of a URL/query param. A BFF method whose only use of `@CurrentUser()` is to build an `/internal/` URL is the signal the endpoint is misplaced (see `docs/ANTI_PATTERNS.md`'s `@CurrentUser()`/`/internal/` row).
+
+---
+
 ## Event Handlers (Pub/Sub consumers)
 
 Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**, not application layer.
@@ -284,6 +290,10 @@ Current helpers and required default overrides:
 | `createNotificationIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` |
 
 When adding a new shared module with a network-calling adapter, update every helper that imports it.
+
+### Reuse the shared Nest cache test module
+
+Any integration test harness that needs `CacheModule` wiring must import `apps/backend/src/test/utils/test-cache-module.ts` instead of copy-pasting `CacheModule.register(...)` inline — keeps cache TTL/store config consistent across every harness that needs it.
 
 ### NestJS module provider pattern (useClass not useExisting)
 

@@ -58,6 +58,8 @@ We use **shadcn/ui** as the component foundation. Components are copied into the
 - **Business Modules:** `BookingForm` and `ServiceCard` are shared between the Hotsite (public) and Dashboard (staff editing).
 - **Quality Rule:** Every UI component must be accessible (WCAG 2.1 AA) and responsive.
 
+**Booking action sheets use native `<dialog>` semantics**, not a CSS-only overlay: open with `showModal()` (gives the browser's own top-layer centering), close with `close()`/the `onCancel` handler, and keep the visual card inside an inner wrapper `<div>` rather than styling the `<dialog>` element itself. If a dialog renders top-left/unstyled instead of centered, check for a plain `open` attribute in place of `showModal()` before touching any layout CSS — see `docs/ANTI_PATTERNS.md`'s `<dialog className="flex ...">` row for the exact failure mode.
+
 ---
 
 ## 4. Engineering Standards & Quality Gates
@@ -81,8 +83,9 @@ Since we are following **Trunk-Based Development**, the frontend must have a "Bu
 
 - **State Management:** **TanStack Query (React Query)**.
   - Handles caching, background syncing, and loading states.
-  - **Multi-Tenancy:** The `tenant_id` is automatically injected into every query key to prevent cross-tenant data leaks in the local cache.
-- **API Client:** Specialized Axios wrapper that automatically attaches the `Authorization: Bearer <JWT>` and `X-Tenant-Slug` headers.
+  - **Multi-Tenancy:** Every query key is prefixed with `tenantId` (from `useTenant()`) to prevent cross-tenant data leaks in the local cache and to give tenant-scoped invalidation a single shared prefix to target.
+  - **Booking queries specifically** share the `['bookings', tenantId, ...]` prefix so one invalidation (`useInvalidateBookings()` in `apps/web/features/booking/hooks/useBookingMutations.ts`) reaches the queue, detail, and any filtered booking view at once. If a booking query key's shape ever changes, update this shared invalidation contract in the same change. Booking detail mutations should go through the shared mutation hooks, not ad-hoc `useMutation()` calls in page components, to keep this invalidation contract centralized.
+- **API Client (`apps/web/shared/lib/api/bff-client.ts`):** Axios wrapper with `withCredentials: true` — the browser attaches the `access_token` httpOnly cookie automatically. **Updated (`M13-S17`):** no `Authorization`/`X-Tenant-Slug` headers are attached manually — the original client-side singleton (`configureBffClient()`) that did this was replaced; see the transport patterns below.
 
 **Two auth-transport patterns exist — pick by context, not by habit (clarified in M13-S42):**
 - **Inside an authenticated shell** (dashboard or `/{slug}/my-account`): use the Bearer-token `bffClient` (`apps/web/shared/lib/api/bff-client.ts`) through feature-owned API helpers and hooks. The old `configureBffClient({ token, tenantSlug, tenantId })` singleton is gone; `tenantId` now comes from `useTenant()` in client hooks.

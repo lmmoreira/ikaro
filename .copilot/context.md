@@ -2,10 +2,10 @@
 
 > **AGENT EDITING NOTICE:** `CLAUDE.md`, `claude.md`, `AGENTS.md`, and `gemini.md` are all symlinks to **`.copilot/context.md`**. Always write to `.copilot/context.md` directly — never through the symlinks.
 
-**Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`  
-**Audience:** Any AI coding agent  
-**Rule:** Read this file first. Then use §10 to load only the docs you need.  
-**Last updated:** 2026-07-05
+**Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`
+**Audience:** Any AI coding agent
+**Rule:** Read this file first. Then use §10 to load only the docs you need.
+**Last updated:** 2026-07-08
 
 ---
 
@@ -34,7 +34,7 @@
 | **Stack** | TypeScript strict · NestJS v11 backend + BFF · Next.js 16 + React 19 frontend · pnpm workspaces |
 | **DB** | PostgreSQL 15 · TypeORM v0.3+ · single shared schema · `tenant_id` everywhere · migrations via separate CI job (never auto at startup) |
 | **Event bus** | GCP Pub/Sub (prod) · emulator (local) · behind `IEventBus` port |
-| **Auth** | Google OAuth 2.0 · JWT (`sub` = backend UUID, `tenantId`, `tenantSlug`, `role`) · BFF forwards `X-Actor-ID`/`X-Actor-Type`/`X-Actor-Role` |
+| **Auth** | Google OAuth 2.0 · JWT (`sub` = backend UUID, `tenantId`, `tenantSlug`, `tenantName`, `userName`, `role`, `locale`) · httpOnly cookie, not a client-readable token · BFF forwards `X-Actor-ID`/`X-Actor-Type`/`X-Actor-Role` to the backend |
 | **Storage** | GCS/S3-compatible · paths: `tenants/<tenant_id>/bookings/<booking_id>/<file>` |
 | **Errors** | RFC 9457 Problem Details on all non-2xx |
 | **Coverage gate** | ≥ 85% on **changed code** (differential) — enforced in SonarCloud/CI |
@@ -53,7 +53,7 @@ Any code that breaks these is a defect regardless of test coverage.
 3. Every domain event includes `tenantId`, `eventId` (idempotency key), `occurredAt` (ISO-8601 UTC), `correlationId`.
 4. Composite FKs use `(tenant_id, id)` to block cross-tenant references at DB level.
 5. **Customers are multi-tenant** — same Google `sub` → multiple `Customer` rows (one per tenant). No unique on `google_oauth_id` alone.
-6. **Staff can be multi-tenant** — `UNIQUE(tenant_id, google_oauth_id)`. Multiple active staff records → issue selection token → `/select-staff-tenant`. Staff is always provisioned `is_active=true` at invite time (never created inactive) — the invite link only links `google_oauth_id` to that existing active record, it never sets `is_active`. `is_active` does toggle later via explicit deactivate/activate actions (`PATCH /staff/:id/deactivate` / `PATCH /staff/:id/activate`); re-inviting a deactivated staff member does **not** reactivate them — `is_active=false` staff → `/auth/error?reason=staff-deactivated`.
+6. **Staff can be multi-tenant** — `UNIQUE(tenant_id, google_oauth_id)`, same shape as customers. Multiple active records → issue selection token → `/select-staff-tenant`. Full invite/activate/deactivate lifecycle: `docs/06-TENANT_ISOLATION_STRATEGY.md`.
 7. File paths prefixed by tenant (see Storage in §1).
 8. Logs, metrics, traces include `tenant_id`. OTel span attrs: `tenant.id`, `user.id`, `correlation.id`.
 9. Event consumers are idempotent (at-least-once). Dedup via `eventId`.
@@ -74,6 +74,8 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 | **Loyalty** | Supporting | `LoyaltyEntry` (append-only), `LoyaltyBalance`, `LoyaltyRedemption` (append-only) |
 | **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` |
 | **Platform** | Foundational | `Tenant`, `HotsiteConfig` |
+
+These 5 names (`booking`, `customer`, `staff`, `loyalty`, `platform`) are also the canonical `features/` slice names in the BFF and web — see §11.
 
 → Aggregates, events published, cross-context communication patterns, Loyalty MVP rules: `docs/05-BOUNDED_CONTEXTS.md`
 
@@ -110,41 +112,12 @@ COMPLETED / REJECTED / CANCELLED  (terminal)
 
 ---
 
-## 6. Use Cases Index (load `docs/04-USE_CASES.md` for detail)
+## 6. Use Cases (full index + detail: `docs/04-USE_CASES.md`)
 
-| UC | Title |
-|---|---|
-| UC-001 | Guest requests booking |
-| UC-002 | Authenticated customer requests booking |
-| UC-003 | Admin approves booking |
-| UC-004 | Admin rejects booking |
-| UC-005 | Admin requests more info |
-| UC-006 | Customer views & manages bookings |
-| UC-007 | Customer cancels booking (48 h window from `settings`) |
-| UC-008 | Admin cancels / reschedules booking |
-| UC-009 | Admin marks booking complete + after-photos |
-| UC-010 | Staff manages schedule closures and openings |
-| UC-011 | Guest views calendar availability |
-| UC-012 | Admin creates service |
-| UC-013 | Admin edits / deactivates service |
-| UC-014 | Customer login — **SUPERSEDED by UC-021** |
-| UC-015 | Staff login — **SUPERSEDED by UC-022** |
-| UC-016 | View customer loyalty metrics |
-| UC-017 | Booking analytics — **Future, out of MVP** |
-| UC-018 | Admin daily schedule reminder (6 AM) |
-| UC-019 | Customer reminder day-before (6 AM) |
-| UC-020 | Customer reminder day-of (6 AM) |
-| UC-021 | Customer login + tenant selection **(canonical)** |
-| UC-022 | Staff login — single tenant **(canonical)** |
-| UC-023 | Customer switches tenant |
-| UC-024 | Platform operator provisions new tenant |
-| UC-025 | Admin first login / accepts invite |
-| UC-026 | Admin edits tenant settings |
-| UC-027 | Admin manages hotsite content |
-| UC-028 | Admin invites new staff member |
-| UC-029 | Admin deactivates staff member |
-| UC-030 | Admin edits staff member profile |
-| UC-031 | Admin reactivates staff member |
+**Traps — don't implement these as written:**
+- UC-014 (customer login), UC-015 (staff login) — superseded by UC-021/UC-022
+- UC-017 (booking analytics) — future, out of MVP
+- UC-030 was superseded/renumbered as part of the M13 staff-lifecycle stories (UC-029 deactivate / UC-031 reactivate are the canonical pair) — check `docs/04-USE_CASES.md`'s table before citing a UC number in a story
 
 **Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry.
 
@@ -177,22 +150,19 @@ When the user gives explicit references (a library, a URL, a named example, a pa
 - **Cross-context data access (in priority order):** (1) Domain events — async, preferred; (2) BFF orchestration — sync reads, preferred; (3) Port+Adapter — last resort, same process. Grep `infrastructure/cross-context/` before adding a new port — extend existing adapters. Never a SQL JOIN across contexts.
 - **Platform tenant cache:** keep tenant read caching in `CachingTenantRepository` behind `CachePort`, not in `TypeOrmTenantRepository`. Cache writes/invalidations must stay best-effort and invalidate after the transaction commits; do not reintroduce cache concerns into the raw TypeORM adapter.
 
-### Critical code invariants (not caught by linters)
+### Critical code invariants (not caught by linters — full list: `docs/ENGINEERING_RULES.md`)
 
 - `mapXxxError(err: unknown): never` at HTTP layer; controller = `return this.useCase.execute(dto).catch(mapXxxError)`. Never throw `HttpException` from a use case.
 - **Aggregate-driven events:** `this.addDomainEvent()` in aggregate method; flush `clearDomainEvents()` **after** `txManager.run()`. Never publish events directly from a use case.
-- `correlationId` — controllers read from `RequestContext.correlationId` and pass via DTO. Use cases receive it as `dto.correlationId` — never inject `RequestContext`, never call `uuidv7()`. Domain error base class needs `Object.setPrototypeOf(this, new.target.prototype)` after `super()` — otherwise `instanceof` fails silently and every mapper falls through to 500.
-- **Use cases never inject `RequestContext`.** Extract `tenantId`, `actorId`, `correlationId`, and any `settings.*` fields in the controller, then forward them in the DTO. Use cases are pure functions of their input — safe to call from event handlers and cross-context adapters.
-- **Controllers and route files are composition layers only.** They may parse input and choose the use case/helper, but branching policy and response shaping belong in the owning slice, not in the controller/page body.
-- **Feature-owned transport helpers stay with the feature.** Generic buckets are for cross-cutting code only; if a helper belongs to one capability or surface, keep it next to that ownership boundary.
-- Zod v4: `z.uuid()` / `z.email()` — never `z.string().uuid()` / `z.string().email()`.
-- **`/internal/` routes are only for unauthenticated auth flows** (OAuth callbacks before a JWT exists: `handleStaffLogin`, `findOrCreate`, `link-google`). If the BFF can include actor headers, the endpoint is not internal — put it in the regular authenticated controller.
-- `RequestModule` is not `@Global()` — import explicitly in every module whose controller injects `RequestContext`.
-- **Protected-area layouts** read `resolveSupportedLocale(payload.locale ?? 'pt-BR')` from `decodeJwtPayload(token)` — never hardcode `'pt-BR'`. BFF sets `locale` in every `issueToken()` call.
+- Domain error base class needs `Object.setPrototypeOf(this, new.target.prototype)` after `super()` — otherwise `instanceof` fails silently and every mapper falls through to 500.
+- **Use cases never inject `RequestContext`.** Extract `tenantId`, `actorId`, `correlationId`, and any `settings.*` fields in the controller, then forward them in the DTO — safe to call from event handlers and cross-context adapters this way.
+- **Controllers and route files are composition layers only.** Branching policy and response shaping belong in the owning slice, not in the controller/page body.
+- **Feature-owned transport helpers stay with the feature.** Generic buckets are for cross-cutting code only.
+- **Protected-area layouts** read `resolveSupportedLocale(payload.locale ?? 'pt-BR')` from the decoded JWT — never hardcode `'pt-BR'`.
 
 ### BFF naming & transport
 
-**BFF modules** named after bounded context (`platform/`, not `tenants/`). Authenticated controller: `<context>.controller.ts`; public: `<context>.public.controller.ts`. Public types in `@ikaro/types` as `Hotsite<Resource>Response`/`<Resource>ListResponse`. Before adding a new request/response interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**`, grep `@ikaro/types` first — verify against the live BFF schema if shapes differ. Second mapper function → extract to `<module>.mapper.ts` (plain functions, not a class; `bookings.mapper.ts` is the reference). → `docs/24-BFF_ARCHITECTURE.md`
+**BFF modules** named after bounded context (`platform/`, not `tenants/`). Authenticated controller: `<context>.controller.ts`; public: `<context>.public.controller.ts`. Before adding a new request/response interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**`, grep `@ikaro/types` first — verify against the live BFF schema if shapes differ. Second mapper function → extract to `<module>.mapper.ts` (plain functions, not a class). → `docs/24-BFF_ARCHITECTURE.md`
 
 **Web → BFF transport:** Two helpers cover all calls — never write a raw `fetch()` URL outside them:
 - `bffServerFetch(token, path)` — server-only (`page.tsx`, `layout.tsx`, Route Handlers). Import from `@/shared/lib/api/bff-server`. Never in `'use client'` files.
@@ -201,19 +171,11 @@ When the user gives explicit references (a library, a URL, a named example, a pa
 
 ### Web styling boundary
 
-- `DashboardShell` and `CustomerShell` are the **shared SaaS UI layer**. They may share the same colors, spacing, typography, button styles, cards, dialogs, and status treatments.
-- If a primitive or pattern is safe for both authenticated shells, place it in shared web UI code and keep it **tenant-agnostic**.
-- Prefer `shadcn/ui` primitives and composition patterns when they are a good fit for the UI problem. Use bespoke components only when the user experience or layout clearly needs something custom.
-- The **only** tenant-dynamic branding surface is the hotsite tree (`app/[slug]/`, its modules, and widgets). Do not leak `--ba-*` tokens, manifest-driven colors, or hotsite-only patterns into dashboard/customer shells.
-- If a new component needs both SaaS and hotsite variants, create separate implementations instead of trying to make one component read both branding systems.
-- Shared UI primitives should expose readonly props where practical, so consumers do not mutate shared contracts by accident.
-- Any `dangerouslySetInnerHTML` usage must go through a controlled helper/component with an explicit sanitization path; never inline raw HTML injection in a page or reusable component.
-- Route-scoped chrome state that must be visible in a shell header or top bar must live in a provider above both the shell and the page. Do not mirror that state in shell-local state, effect-based sync, or `key` remount workarounds.
-- Booking detail mutations should use the shared booking mutation hooks. Keep React Query invalidation in the shared hook layer, not inside page components.
-- Tenant-scoped booking queries must share the `['bookings', tenantId, ...]` prefix so a single invalidation reaches the queue, detail, and filtered booking views. If a query key shape changes, update the shared invalidation contract in the same change.
-- Booking action sheets should use native `<dialog>` semantics: open with `showModal()`, close with `close()`/`onCancel`, and keep the visual card inside an inner wrapper. If a dialog sits top-left, check for a plain `open` attribute before changing layout code.
-- React submit handlers in web components should use `SubmitEvent<HTMLFormElement>` instead of deprecated `FormEvent<HTMLFormElement>` so SonarCloud does not flag the handler type.
-- If Sonar points at a UI smell that seems to change behavior, reproduce it in the browser before applying the suggested refactor. Static analysis can identify a smell without identifying the actual runtime cause.
+- `DashboardShell` and `CustomerShell` are the **shared SaaS UI layer** (tenant-agnostic colors/spacing/typography/dialogs). The **only** tenant-dynamic branding surface is the hotsite tree (`app/[slug]/`) — see `docs/ANTI_PATTERNS.md` for the `--ba-*` boundary and the failure mode of leaking it into dashboard/customer shells.
+- If a new component needs both SaaS and hotsite variants, build separate implementations rather than one component reading both branding systems.
+- Prefer `shadcn/ui` primitives; use bespoke components only when the UI clearly needs something custom.
+- Route-scoped chrome state visible in a shell header/topbar lives in a provider above both shell and page — never shell-local state or effect-based sync (`docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`).
+- If Sonar flags a UI smell that seems to change behavior, reproduce it in the browser before applying the suggested refactor — static analysis identifies a smell, not the runtime cause.
 
 ### Testing
 
@@ -221,24 +183,18 @@ When the user gives explicit references (a library, a URL, a named example, a pa
 - Builders mandatory: class + `withXxx()` / `build()`. InMemory doubles over `jest.fn()`.
 - New migration/entity → register in `integration-global-setup.ts` in the **same commit** — missing = silent test failure.
 - Integration app helpers must default-override network-calling adapters. Use `useClass` not `useExisting`.
-- Integration test harnesses that need Nest cache wiring should reuse `apps/backend/src/test/utils/test-cache-module.ts` instead of copy-pasting `CacheModule.register(...)`.
 
 - **apps/web:** Vitest (not Jest) — config at `apps/web/vitest.config.ts`.
-- `shared/lib/**`: `node` env · `features/**/components/**`, `shells/**/components/**`, `shared/components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only
-- Keep `app/**/page.tsx` and `app/**/layout.tsx` thin. If they start owning reusable data shaping, URL construction, or render-plan logic, extract a helper under `apps/web/shared/lib/**` and unit-test that helper in the same change.
-- Playwright E2E specs should contain test cases only. Reusable flows, login/setup helpers, and fixture-like actions belong in `apps/web/e2e/helpers/<feature>/**` with a folder `index.ts` barrel. Grep the helper tree before adding a new helper, and split by concern instead of building a shared `misc` helper.
-- Playwright login helpers must use repository-seeded accounts when they exist. Do not hardcode personal or ad-hoc emails in E2E helpers if the scenario can run against a seeded tenant staff/customer user.
-- **Every new `features/**/components/**/*.tsx`, `shells/**/components/**/*.tsx`, or `shared/components/**/*.tsx` must ship its `.spec.tsx` in the same commit.**
-- **Every new dashboard UI component must be localization-ready from the start.** No hardcoded visible copy, helper text, error text, success banners, placeholders, `aria-label`, `alt`, or status labels/classes. If the component needs text, wire `useTranslations()` and add locale keys in both `pt-BR` and `en` in the same change.
-- → Vitest config, mocks, axe testing, per-component cases: `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
+- `shared/lib/**`: `node` env · `features/**/components/**`, `shells/**/components/**`, `shared/components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only.
+- Keep `app/**/page.tsx` and `app/**/layout.tsx` thin — extract reusable logic to `apps/web/shared/lib/**` and unit-test it there.
+- **Every new `features/**/components/**/*.tsx`, `shells/**/components/**/*.tsx`, or `shared/components/**/*.tsx` must ship its `.spec.tsx` in the same commit** (§9 Step 2 restates this at the point it applies — one rule, not two).
+- **Every new dashboard UI component must be localization-ready from the start.** No hardcoded visible copy — wire `useTranslations()` and add locale keys in both `pt-BR` and `en` in the same change.
+- Playwright specs are test cases only; reusable flows/helpers live in `apps/web/e2e/helpers/<feature>/**`. → Vitest config, mocks, axe testing, E2E helper/dev-login conventions: `docs/08-TESTING_STRATEGY.md`
 
 ### CI gates (block merge)
 ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Snyk SCA · Gitleaks · Trivy · Checkov/Tfsec
 
-- When SonarCloud is failing or a bot mentions Sonar, inspect the live Sonar issue list, the quality gate metric/summary, and the current Sonar job before editing code. Never "fix Sonar" from stale CI logs alone, and never claim a Sonar fix is done without verifying the live Sonar stage, issue list, and quality gate after the change.
-- For `new_duplicated_lines_density` or any duplication-related Sonar failure, query the exact file/block report first, then remove the duplicate by extracting shared code or deleting one side. Do not shuffle the same code into another file and call it fixed.
-- If a Sonar edit does not move the failing metric, stop and re-query the live analysis before making another change. Blind iteration wastes time and usually hides the real duplicate or coverage gap.
-- Treat the live Sonar metric as the source of truth: record the exact failing metric, the file(s) involved, and the post-push result before declaring a fix complete.
+When SonarCloud is failing, treat the live issue list/quality gate as the only source of truth — never fix from stale logs or guess from the diff (see `docs/ANTI_PATTERNS.md`'s SonarCloud row for the exact discipline and how to verify a fix actually moved the metric).
 
 ### Definition of Done
 - [ ] Matches cited UC's main + alt flows; CI passes (`pnpm lint`, `pnpm test`, `pnpm type-check`)
@@ -252,35 +208,22 @@ ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed 
 
 ## 8. Anti-Patterns (BLOCK MERGE)
 
-Full detail in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). Non-obvious patterns not covered by §2 or linters:
+Full list (~115 entries) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). The ones below are the highest-severity/most-recurring — likely to be hit *while writing code*, before `/pre-pr` ever loads the full list:
 
 | Pattern | Fix |
 |---|---|
-| `useExisting` when registering adapter token (`providers: [Adapter, { provide: TOKEN, useExisting: Adapter }]`) | Use `useClass` — `useExisting` still instantiates the class even when the token is overridden in tests |
+| `useExisting` when registering adapter token | Use `useClass` — `useExisting` still instantiates the class even when the token is overridden in tests |
 | New cross-context Port+Adapter when one already exists for the same context pair | Grep `infrastructure/cross-context/` first; add a method to the existing adapter instead |
 | Shared VO `create()` throws plain `Error` for validation it owns | Give VO a typed domain error; add `instanceof` branch to every calling `mapXxxError` |
 | New interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**` without checking `@ikaro/types` | Grep `@ikaro/types` first — either side may be stale; verify against live BFF schema if shapes differ |
 | Inline mapper functions accumulating in a BFF `*.controller.ts` | Extract to `<module>.mapper.ts` (plain functions, not a class) once a second mapper appears |
-| Fat route shell in `app/**/page.tsx` or `app/**/layout.tsx` with reusable logic | Extract pure helpers to `apps/web/shared/lib/**`, unit-test them, and keep the route file to fetch + compose only |
-| Second independent `fetch()` building the same BFF route URL outside the canonical slice API helper | Use the canonical fetcher — duplicates go stale silently (only caught by Playwright) |
-| Cross-context port returns a pre-formatted display string instead of structured data | Return typed data all the way through; join/format in BFF mapper only |
-| Port+Adapter removed but backing service left in `providers`/`exports` | Delete the backing service too — zero consumers = dead infrastructure |
-| Duplicate read endpoints/use cases for projections of the same aggregate/config (e.g. `/tenants/formatting` beside `/tenants/settings`) | Keep one canonical read endpoint/use case for the source of truth; derive caller-specific values in BFF mapper or web helper. Split only for real auth/data-boundary differences |
-| Exported `*QueryService` wrappers or super-narrow read use cases for one field (e.g. manager emails) | Cross-context adapters depend on source-context read use cases. Use `Get<Entity>ByIdUseCase` for single lookup; use broad `Get<Entities>UseCase` with filter DTOs (`ids`, `status`, `roles`, `search`, pagination) for list/search reads. Map the caller-specific shape at the boundary (controller, adapter, BFF mapper, client helper). Example: `GetBookingByIdUseCase` is the canonical booking read; do not add a smaller booking summary use case just to satisfy one caller. Extract a DTO/mapper only when that shape is reused or shared; if breadth is unclear, discuss before adding a new reader |
-| BFF/`@ikaro/types` interface named with ad-hoc suffix (e.g. `BackendSearchResult`) | Use `<Thing>Response` / `<Thing>Item` — "Result" collides with backend Use Case naming |
-| Global `APP_GUARD` changed to `Scope.REQUEST` to inject `BackendHttpService` | Keep guards singleton; inject `HttpService` + `ConfigService` directly; use `buildBackendHeaders(req)` + explicit `X-Internal-Key` |
+| Duplicate read endpoints/use cases for projections of the same aggregate/config | Keep one canonical read endpoint/use case; derive caller-specific values in the BFF mapper or web helper |
 | Staff hotsite login link to `/dashboard/login` without `?tenantSlug=` | Append `?tenantSlug=${encodeURIComponent(slug)}` — without it, linked accounts at another tenant are silently routed there |
 | BFF `@CurrentUser()` used only to construct a backend `/internal/` URL | Move endpoint to authenticated controller — `BackendHttpService` already forwards actor headers; `/internal/` is pre-auth only |
-| Dashboard component substitutes Tailwind for `tokens.css` class names in story's CSS reference table | Use exact CSS class name — `tokens.css` classes carry responsive/hidden behaviour Tailwind equivalents silently miss |
-| Dashboard or account component uses `--ba-*` CSS variable | `--ba-*` only exists under `app/[slug]/` (hotsite tree). Use Tailwind + shadcn in dashboard/account shells |
-| Utility function (e.g. `getInitials`) copy-pasted inline in each component | Grep `apps/web/shared/utils/` first; create `shared/utils/<name>.ts` + `.spec.ts` pair there |
-| Status-to-label or status-to-class mappings duplicated across dashboard components | Extract one shared helper next to the feature module and reuse it from all callers |
-| Dashboard schedule timeline uses the generic booking badge palette in tests or components | Use `SCHEDULE_BOOKING_TIMELINE_CLASSES` for schedule timeline cards; reserve `BOOKING_STATUS_CLASSES` for generic booking badges and lists |
-| SonarCloud is failing and only stale CI logs were checked | Inspect the live Sonar issue list, quality gate metrics, and current Sonar job first, then fix the reported rule and verify the live Sonar stage, issue list, and quality gate again before declaring it resolved |
-| Wrong web→BFF transport: `bffServerFetch` in client file, `bffClient` in Server Component, raw `fetch()` in hook | Server: `bffServerFetch(token, path)`. Client: `bffClient.get(path)`. Hook `tenantId`: `useTenant()` only |
-| Address/phone field hardcodes labels, a fixed input mask, or skips the country-driven postal lookup | Derive labels/mask/validation from `countrySpec(tenant.settings.localization.countryCode)` (`@ikaro/i18n`); reuse `apps/web/shared/lib/address/` (postal lookup port+adapter) and `apps/web/shared/utils/phone-format.ts` (mask + E.164 prefix) — see `docs/CODE_STANDARDS.md` § Localization-driven fields |
-| Fixed a Zod/DTO validation rule in one layer (BFF or backend) without checking the other for a duplicate schema | Grep the field name in both `apps/bff/src/features/<module>/*.controller.ts` and `apps/backend/src/contexts/<context>/application/dtos/*.dto.ts` — the BFF and backend often maintain independent copies of the same settings/DTO schema; fixing one silently leaves the other rejecting the same payload |
-| New client-side `fetch()` to a third-party domain (e.g. ViaCEP) added without updating CSP | Add the origin to `connect-src` in `apps/web/middleware.ts` (and its spec) — otherwise the browser silently blocks the request with no visible error, and the feature just looks like it "can't find" anything |
+| Dashboard or account component uses a `--ba-*` CSS variable | `--ba-*` only exists under `app/[slug]/` (hotsite tree). Use Tailwind + shadcn in dashboard/account shells |
+| Fixed a Zod/DTO validation rule in one layer (BFF or backend) without checking the other for a duplicate schema | Grep the field name in both layers — BFF and backend often maintain independent copies of the same schema |
+| An aggregate's update method re-validates a field even when the value passed through unchanged | Compare against the current stored value first; skip validation when nothing actually changed (see the SEO-limit row in the full doc for why this matters) |
+| A route is added to an existing hide-list/allow-list by pattern-matching neighbors | Name the invariant every current member satisfies before adding a new one — surface similarity isn't the same as satisfying the same rule |
 
 ---
 
@@ -304,7 +247,7 @@ Run `/story-discovery M0X-SYY` — wait for READY verdict before proceeding. Nev
 Write all files from the story spec. For any frontend story referencing a prototype:
 - Read the prototype HTML **before** writing components.
 - Use exact CSS class names from the story's reference table — do not substitute Tailwind for `tokens.css` names.
-- Every new `apps/web/features/**/components/**/*.tsx`, `apps/web/shells/**/components/**/*.tsx`, or `apps/web/shared/components/**/*.tsx` needs a co-located `.spec.tsx` in the **same commit**.
+- Every new component file needs a co-located `.spec.tsx` in the **same commit** (§7 Testing).
 
 ### Steps 3–5 — Verify, commit, push
 Run type-check, lint, jest — zero errors.
@@ -349,7 +292,7 @@ Always delete the local branch with `-D` (not `-d` — squash merges aren't reco
 `/mark-done M0X-SYY` — updates plan file, commits to main, alerts if milestone complete.
 
 ### Step 12 — Milestone complete?
-If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10.
+If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10. Also do the stale-documentation sweep described in `/mark-done`'s milestone-complete reminder — a safety net for any story that skipped the Definition of Done's doc-sweep item (§7).
 
 ---
 
@@ -371,7 +314,7 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 | BFF implementation | `docs/24-BFF_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` |
 | Web → BFF transport | `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer |
 | Architecture question | `docs/11-ARCHITECTURE.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/REPOSITORY_STRUCTURE.md` |
-| Repo layout / new file location | `docs/REPOSITORY_STRUCTURE.md` |
+| Repo layout / new file location | `docs/REPOSITORY_STRUCTURE.md` (full trees) — §11 below has the quick summary |
 | Multi-tenancy / isolation | `docs/06-TENANT_ISOLATION_STRATEGY.md` |
 | Testing patterns | `docs/08-TESTING_STRATEGY.md` + `docs/ENGINEERING_RULES.md` |
 | apps/web test infrastructure | `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure |
@@ -382,22 +325,32 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special cases: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md`, `td/TD02-LOCALIZATION.md` |
 | New journey or prototype | `plan/journey/README.md` |
 
-**Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.  
+**Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.
 **Never load:** `docs/archive/` (superseded) · `plan/*_DEVELOPER.md` (written for humans, not agents).
 
 **Drafting a new milestone:** Consolidate into the single canonical `plan/M0X-<NAME>.md` before any story starts. Sequence backend/BFF-only stories in an early wave before any frontend story that depends on them.
 
 ---
 
-## 11. Repository Layout
+## 11. Repository Layout — Domain-Slice Architecture
 
-→ Full directory trees and guard placement: `docs/REPOSITORY_STRUCTURE.md`
+Full trees: `docs/REPOSITORY_STRUCTURE.md` · Rationale: `docs/11-ARCHITECTURE.md` · BFF detail: `docs/24-BFF_ARCHITECTURE.md` · Migration history: `td/TD-21-SEPARATION-REPOSITORY-INTO-DOMAIN-SLICES.md` (resolved — this is the live architecture, not a future plan).
 
-- Backend contexts: `apps/backend/src/contexts/<context>/{domain,application,infrastructure}/`
-- Shared: `apps/backend/src/shared/` — cross-cutting only
-- BFF: `apps/bff/` · Frontend: `apps/web/`
-- Migrations: per-context `infrastructure/migrations/`
-- Test helpers: `apps/backend/src/test/utils/` + `src/test/infrastructure/`
+Three slice types, consistent across all three apps:
+- **Domain slices** (business capability, mirrors backend bounded contexts): `booking`, `customer`, `staff`, `loyalty`, `platform`
+- **Shell slices** (web only — route composition, zero business policy): `dashboard`, `hotsite`
+- **Technical slices** (not bounded contexts — never treat as domains): `auth`, `uploads`
+
+| App | Domain slice shape |
+|---|---|
+| Backend | `contexts/<domain>/{domain,application,infrastructure}/` |
+| BFF | `features/<domain>/{presentation,application,infrastructure}/` |
+| Web | `features/<domain>/{api,components,hooks,model,utils}/` |
+
+- `schedule`/`services` live inside `booking`; `hotsite`-specific logic lives inside `platform` — never a standalone top-level domain.
+- `shared/` (any app) is cross-cutting only — a helper used by exactly one domain belongs in that domain's slice, not in `shared/`.
+- Web additionally has `shells/<surface>/` (route composition for `dashboard`/`hotsite` — no business policy) and `app/` (Next.js routes/layouts only, thin).
+- Test helpers: `apps/backend/src/test/utils/` + `src/test/infrastructure/`.
 
 ---
 
@@ -405,22 +358,19 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 
 1. **Multi-location (post-MVP):** Multiple locations per tenant = separate tenants or sub-tenant model?
 
-_Note: §13, §14, §16, §18 were removed in earlier revisions. Numbers preserved to avoid breaking cross-references._
-
 ---
 
-## 15. Self-Check Before Submitting
+## 13. Self-Check Before Submitting
 
 1. **`/story-discovery M0X-SYY` ran and returned READY** — first action, no exceptions (§9 Step 0)
 2. **Feature branch created before any code** — `git checkout -b feat/M0X-SYY-<desc>` (§9 Step 1)
 3. **Asked user before every `git commit` and `git push`** — never autonomous (§0)
 4. **Ran `/pre-pr` and waited for the integration gate to pass before `gh pr create`** (§9 Step 7)
-
-If milestone is now complete: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10.
+5. **Milestone complete?** — see §9 Step 12 for the wrap-up-doc + stale-doc-sweep sequence.
 
 ---
 
-## 17. Project Slash Commands (Claude Code)
+## 14. Project Slash Commands (Claude Code)
 
 | Command | When to use |
 |---|---|
@@ -434,26 +384,9 @@ Commands live in `.claude/commands/`. To add: create `.claude/commands/<name>.md
 
 ---
 
-## 19. Journey & Prototype Workflow Rules
-
-> **Full rules, conventions, and CSS gotchas:** `plan/journey/README.md` — load whenever working on any journey file or prototype folder.
+## 15. Journey & Prototype Workflow Rules
 
 > ❗ **HARD STOP — READ BEFORE TOUCHING ANY `plan/journey/` FILE**
-> `/docs-audit` MUST run and report a clean baseline first. Then:
-> 1. Write `<actor>/<slug>.md` — mermaid flow, pages table, open questions
-> 2. Update `<actor>/use-cases.md` journey column
-> 3. Update `plan/journey/README.md` index table
-> 4. **Only then** create files under `<actor>/prototypes/<slug>/`
+> `/docs-audit` MUST run and report a clean baseline first. Then: (1) write `<actor>/<slug>.md`, (2) update `<actor>/use-cases.md`, (3) update `plan/journey/README.md`'s index, (4) **only then** create files under `<actor>/prototypes/<slug>/`.
 
-```
-plan/journey/<actor>/
-├── use-cases.md
-├── <slug>.md
-└── prototypes/<slug>/
-    ├── index.html  ←  navigation hub
-    ├── 00-*.html … 01-*.html …
-    └── dev-notes.md
-```
-
-Prototype files **always** reference `../../../shared/tokens.css` — never a local copy.  
-→ CSS class gotchas (`.topbar-avatar`, `.week-nav`, `padding-bottom`, floating toast, etc.): `plan/journey/README.md` § CSS Gotchas.
+Full rules, folder structure, and CSS gotchas (`.topbar-avatar`, `.week-nav`, `padding-bottom`, floating toast, etc.): `plan/journey/README.md` — load whenever working on any journey file or prototype folder.
