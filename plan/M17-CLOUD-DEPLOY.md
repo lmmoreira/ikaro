@@ -140,7 +140,7 @@ Waves are strictly sequential; stories inside a wave may run in the listed order
 
 ---
 
-### M17-S01 — Vendor HashiCorp agent-skills for Terraform
+### M17-S01 — Vendor HashiCorp agent-skills for Terraform ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
@@ -1606,4 +1606,3 @@ When the trigger above is met, move the instance to Enterprise Plus and enable *
 | S52 | new (review finding, 2026-07-08) | `PlatformAdminGuard` header migration — `Authorization` collides with the `gcloud run services proxy` IAM ID token |
 
 **Explicitly dropped:** M15-S12 Cloud IAP (D4) · M16-S06 `E2E_TEST_MODE`/`test-login` (M115-S02 Dev Login exists) · M14 Docker-Compose observability stack + M16-S09 GCE Grafana VM as launch items (D9 — remain a documented future option via collector config swap) · M16-S01 SA JSON keys (D6) · M15-S03 VPC Access connector (D7).
-
