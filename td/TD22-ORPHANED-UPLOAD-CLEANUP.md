@@ -116,6 +116,8 @@ async copy(
 
 `UpdateHotsiteContentUseCase` is the single right integration point — it already has both the *old* persisted `config.branding`/`config.layout` and the *new* merged values in scope, and already walks every image field via `HotsiteImagePathsService.collect()`. This is also where delete-previous-on-replace naturally belongs, since this use case is the only place that sees both states at once.
 
+> **Precondition — depends on `M13-S37`:** Step 3's `tenants/${tenantId}/...` branch (below) assumes the hotsite editor's save flow never round-trips a GET-resolved public URL back as an untouched field's value — it must send either the original raw storage path, a fresh upload's raw path, or omit the field entirely (`UpdateHotsiteContentUseCase` merges partial `dto.branding` over the stored value, so omission preserves the existing stored path unchanged). `M13-S37` (Hotsite: SEO tab + Preview + Publish/Unpublish) fixes this on the frontend — it's the first story to actually wire the real `PATCH` save flow. If that fix isn't in place, every untouched image field fails promotion with `HotsiteImageNotUploadedError`, the same failure mode `verifyImagesExist` already has today. Implement this TD after `M13-S37` lands, not before or concurrently.
+
 Current (`update-hotsite-content.use-case.ts`):
 ```typescript
 private async verifyImagesExist(

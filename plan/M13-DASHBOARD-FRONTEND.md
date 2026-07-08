@@ -3660,39 +3660,62 @@ Extends `HotsiteEditor` (`M13-S35`) with the Layout tab: an 8-module (not 7 — 
 
 *(formerly M127-S09)*
 
-**Agent:** `frontend-ts`
+**Agent:** `fullstack-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-027 Section C, `plan/journey/manager/prototypes/hotsite/02-preview.html`, `03-publish-success.html`, `03b-unpublish-success.html`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-027 Section C, `plan/journey/manager/prototypes/hotsite/02-preview.html`, `03-publish-success.html`, `03b-unpublish-success.html`, `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx`, `apps/web/features/platform/components/hotsite/modules/ModuleConfigShell.tsx`, `apps/web/features/platform/components/settings/SettingsForm.tsx` (inline success-banner pattern to mirror), `apps/backend/src/shared/value-objects/hex-color.vo.ts` (VO pattern to mirror)
 
 **Description:**
-Closes out the Hotsite editor: the SEO tab, the Preview action, and the Publish/Unpublish actions.
+Closes out the Hotsite editor: the SEO tab, the Preview action, and the Publish/Unpublish actions. Confirmed during story-discovery (2026-07-08) that this touches backend + BFF + web on one branch — not frontend-only as originally scoped.
 
-> **Preview fidelity note (validated in the journey-prototype pass):** the prototype originally rendered its preview mock with a hardcoded `--ba-primary` value regardless of the form's edited color — meaning the "preview" never actually reflected what was being edited. This was fixed at the prototype level with a lightweight `localStorage`-based live-binding (`01-hotsite-editor.html` writes the draft color on input/navigate; `02-preview.html` reads it on load) purely to validate the UX. **The production implementation must not reuse that mechanism** — bind the preview to actual component state (the same `draft` object `HotsiteEditor` already holds in memory), not `localStorage`. The underlying engineering question (does the preview need a BFF preview-token for a pixel-exact production-path render, or is a client-side draft render sufficient?) is still open — this story picks the pragmatic v1 answer (client-side render of the draft state) rather than building the more involved BFF preview-token approach; revisit if stakeholders need a pixel-exact production-path preview.
+> **SEO limits tightened during discovery:** title max 60 chars (not 70), description max 158 chars (not 160) — real-world Google truncation points, not the rough placeholder numbers in the original UC/prototype. Promote `HotsiteSeo.title`/`description` from plain `string | null` fields validated procedurally in `hotsite-config.aggregate.ts`'s `validateSeo()` to proper value objects, mirroring the `HexColor` VO already in the same file (`create()`/`reconstitute()`/`value`). New `SeoTitle`/`SeoDescription` VOs under `apps/backend/src/shared/value-objects/`, throwing `PlatformDomainError` (a typed domain error, not a plain `Error`, per `docs/ANTI_PATTERNS.md`'s VO-error rule). Update `SEO_TITLE_MAX_LENGTH`/`SEO_DESCRIPTION_MAX_LENGTH` (70→60, 160→158) and the matching Zod `.max()` in both `apps/bff/src/features/platform/hotsite-admin.controller.ts`'s `HotsiteSeoBodySchema` and the backend's `update-hotsite-content.dto.ts`'s `HotsiteSeoSchema`. `docs/04-USE_CASES.md` UC-027 §C updated in the same story.
 
-> 🔍 **Discover before starting:** Confirm whether the hotsite's public-facing render components (`HeroModule`, `ServiceListModule`, etc. from M12) can be imported directly into the dashboard bundle to render the draft preview, or whether they have server-only dependencies that block client-side reuse. If they can't be reused directly, scope down to a simplified mock preview for v1 and flag the gap rather than building a parallel render path.
+> **Preview fidelity note (validated in the journey-prototype pass):** the prototype originally rendered its preview mock with a hardcoded `--ba-primary` value regardless of the form's edited color — meaning the "preview" never actually reflected what was being edited. This was fixed at the prototype level with a lightweight `localStorage`-based live-binding purely to validate the UX. **The production implementation must not reuse that mechanism** — bind the preview to actual component state (the same `draft` object `HotsiteEditor` already holds in memory), not `localStorage`.
+
+> **Preview architecture — resolved during story-discovery (2026-07-08):** the M12 public hotsite render components (`HeroModule`, `ServiceListModule`, `GalleryModule`, `BookingCtaModule`, `TestimonialsModule`, `AboutModule`, `ContactModule`, `Footer` — `apps/web/shells/hotsite/components/`) have no `'use client'` directive and no server-only dependencies, so they're directly importable into a client bundle. `buildHotsiteModuleRenderPlan`/`resolveHotsiteDisplayName` (`apps/web/features/platform/hotsite/page-model.ts`) are pure functions already used by the public hotsite page and reusable as-is to build the preview's render plan from `draft.layout`/`draft.branding`.
 >
-> ⚠️ **Bug to fix before wiring PATCH (found during M13-S35, 2026-07-07):** `GET /tenants/hotsite`'s `branding.logoUrl` (and every other image field — module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GalleryImage.url`) is resolved to a **full public URL** by `HotsiteContentReader.readResolved()` → `HotsiteImageUrlResolver` → `storageService.getPublicUrl()` (`apps/backend/src/contexts/platform/domain/services/hotsite-image-url-resolver.service.ts`). But `PATCH /tenants/hotsite`'s `LOGO_URL_REGEX` (`apps/bff/src/features/platform/hotsite-admin.controller.ts:15`) only accepts an empty string or a raw `tenants/<id>/hotsite/...` storage path — never a full URL. Submitting `HotsiteEditor`'s draft unchanged (i.e. the admin edited some other field but never touched the logo) would 400. When building the publish call, strip resolved image fields back to `undefined`/omit unless the admin uploaded a fresh one this session — don't send the GET-resolved URL back on PATCH as-is. Same risk applies to any other image field this or a later story lets the admin edit.
+> `HotsitePreview` needs supplementary data that isn't part of `draft`: `services` (for `SERVICE_LIST`) and `business` (for `CONTACT`/`FOOTER`). Fetch these once, client-side, via the existing public `fetchManifest(tenantSlug)`/`fetchServices(tenantSlug)` functions (read-only, not part of the save/PATCH flow) — overlay `draft.branding`/`draft.layout` on top of the manifest's static parts for the actual editable preview.
+>
+> **This is not its own route.** `HotsitePreview` is a third `EditorView` state (alongside `'tabs'` and `'module-config'`), entered from a "Preview" button and exited via the shared dashboard Topbar's back-button override — the exact mechanism `HotsiteEditor`'s existing module-config drill-down already uses (`setOnBackOverride`/`setBackLabelOverride`/`setPageTitleOverride`, in the `useEffect` keyed on `configuringType`; extend it to also cover `'preview'`). Renders inside the dashboard shell (sidebar + topbar stay visible) — not a chrome-less full-bleed mock like the prototype's `02-preview.html`.
+>
+> `HotsitePreview`'s layout reuses the exact `grid-cols-[minmax(0,1fr)_22rem]` + sticky-aside-desktop + fixed-bottom-bar-mobile shell `ModuleConfigShell.tsx` already established ("not a new visual language, just the same shell reused one level deeper," per its own code comment) — not the prototype's floating dark `.preview-banner`. The aside/mobile-bar holds "Publicar agora"; there's no separate "Voltar a editar" button since the topbar back-arrow already covers that.
+>
+> **Lazy-load it.** `HotsitePreview` must be dynamically imported (`next/dynamic(..., { ssr: false })`), exactly like the 8 `MODULE_CONFIG_PANELS` already are in `HotsiteEditor.tsx`. Reason (confirmed during discovery): on the public hotsite page these same module components cost zero client JS (Server Components there); reachable from `HotsiteEditor`'s `'use client'` boundary, they become client-hydrated code instead. Lazy-loading bounds that cost to managers who actually click "Preview," not every visit to `/dashboard/hotsite`.
+
+> **Publish/Unpublish — no separate success screen, no toast (resolved during story-discovery, 2026-07-08).** `03-publish-success.html`/`03b-unpublish-success.html` are not separate screens — both stay on `/dashboard/hotsite` with no back arrow, and `03-publish-success.html`'s own comment says *"Inline success banner — same pattern as `configuracoes/01c-saved-success.html`."* The codebase already has that exact pattern: `SettingsForm.tsx` (lines 597-625) — a `saved` boolean → `<output>` banner (green check icon, title/body text) rendered above the same `grid-cols-[minmax(0,1fr)_22rem]` layout, plus `scrollTo({top:0, behavior:'smooth'})`. Mirror that for both Publish and Unpublish success (and its error-banner sibling), on the `'tabs'` view. If "Publicar agora" is triggered from `HotsitePreview`, switch back to `{view:'tabs'}` on success so one shared banner implementation covers both entry points.
+>
+> "Publish" = save + publish (`PATCH /tenants/hotsite` with the current `draft`, then `POST /tenants/hotsite/publish`). "Unpublish" = `POST /tenants/hotsite/unpublish` only — it does not save pending draft edits first, it just takes the currently-published content offline.
+
+> ⚠️ **Bug to fix before wiring PATCH (found during M13-S35, 2026-07-07):** `GET /tenants/hotsite`'s `branding.logoUrl` (and every other image field — module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GalleryImage.url`, `TESTIMONIALS.items[].avatarUrl`) is resolved to a **full public URL** by `HotsiteContentReader.readResolved()` → `HotsiteImageUrlResolver` → `storageService.getPublicUrl()`. But `PATCH /tenants/hotsite` requires each of these fields to be a raw `tenants/<id>/hotsite/...` storage path — confirmed against `UpdateHotsiteContentUseCase.verifyImagesExist()` / `HotsiteImagePathsService.collect()`, which rejects anything not matching that prefix with `HotsiteImageNotUploadedError`. Submitting `draft` unchanged for any untouched image field would fail on every save. **Fix applies at save time only** (Preview keeps rendering the resolved public URLs — that's correct, `<img>` needs a real URL): before building the PATCH payload, compare each image field against its value at initial load; if unchanged, omit it (the backend's partial-merge preserves the existing stored path); if changed, it's already a raw path from a fresh upload (or an explicit clear), so send it through as-is.
+>
+> **Sequencing note:** `td/TD22-ORPHANED-UPLOAD-CLEANUP.md` (tmp-staging + promote-on-save, not yet implemented) depends on this fix already being in place — see the precondition note added to that TD during this story's discovery. Implement `TD22` after this story, not before or concurrently.
 
 **What to create:**
 
-`apps/web/components/dashboard/hotsite/SeoTab.tsx`:
-- `title` (text, maxlength 70, optional) — hint: "Deixe em branco para usar o título gerado automaticamente"
-- `description` (textarea, maxlength 160, optional) — same fallback hint
+`apps/web/features/platform/components/hotsite/SeoTab.tsx`:
+- `title` (text, maxlength 60, optional) — hint: "Deixe em branco para usar o título gerado automaticamente"
+- `description` (textarea, maxlength 158, optional) — same fallback hint
+- No live character counter — matches the validated prototype (`01-hotsite-editor.html`), which only shows a static "(máx. N caracteres)" hint + native `maxlength`, not a running count
 
-`apps/web/components/dashboard/hotsite/HotsitePreview.tsx`:
-- Renders the draft config using the M12 hotsite module components directly (if reusable per discovery) with a sticky banner: "Visualizando alterações não publicadas" + "Voltar a editar" / "Publicar agora" actions
-- Reads color/branding values directly from `HotsiteEditor`'s in-memory `draft` state (passed as a prop) — NOT from `localStorage` or any other out-of-band channel (see preview fidelity note above)
-- Opened from the editor's "Preview" button — overlay or new route, confirm at discovery
+`apps/web/features/platform/components/hotsite/HotsitePreview.tsx`:
+- Dynamically imported (`ssr: false`) from `HotsiteEditor.tsx`, same as the module config panels
+- Renders `draft.branding`/`draft.layout` through `buildHotsiteModuleRenderPlan`/`resolveHotsiteDisplayName` + the M12 module components, overlaid on `services`/`business` fetched once via `fetchManifest`/`fetchServices`
+- Layout: `ModuleConfigShell`-style grid, "Publicar agora" as the primary action
+- Entered/exited via a new `'preview'` `EditorView` state + topbar back-button override
 
 **`HotsiteEditor` (`M13-S35`) additions:**
-- "Publicar alterações": `updateHotsiteConfig(draft)` → `200` → `POST /tenants/hotsite/publish` → `200` → toast "Hotsite atualizado e no ar." (matches `03-publish-success.html`)
-- Danger-zone "Despublicar hotsite": `POST /tenants/hotsite/unpublish` → `200` → toast confirming the hotsite is offline (matches `03b-unpublish-success.html`)
+- `'preview'` `EditorView` state (see above)
+- "Publicar alterações" (tabs aside) / "Publicar agora" (preview aside): strip resolved image URLs per field-diff (see bug note) → `useUpdateHotsiteConfig().mutate()` → `usePublishHotsite().mutate()` → switch to `{view:'tabs'}` if not already there → inline success banner (`SettingsForm.tsx` pattern), matching `03-publish-success.html`'s copy
+- "Despublicar hotsite" (danger zone): `useUnpublishHotsite().mutate()` (hook already exists, just unused) → same inline banner pattern, matching `03b-unpublish-success.html`'s copy. No confirmation dialog (matches prototype).
 
 **Acceptance criteria:**
-- [ ] SEO fields enforce their max lengths and show a live character counter
-- [ ] "Preview" renders the draft state (not the last-published state) without requiring a save first, sourced from in-memory state
-- [ ] "Publicar alterações" persists the draft, publishes, and shows the success toast
-- [ ] "Despublicar hotsite" is visually separated in a danger-zone section and requires no extra confirmation step beyond the click itself (matches prototype — no confirmation dialog was prototyped for this action; flag if product wants one added)
+- [ ] SEO title enforces max 60 chars, description max 158 chars, via a domain-level `SeoTitle`/`SeoDescription` value object (not just Zod) — static hint text, no live counter
+- [ ] `SEO_TITLE_MAX_LENGTH`/`SEO_DESCRIPTION_MAX_LENGTH` and both BFF/backend Zod schemas updated to 60/158
+- [ ] "Preview" renders the draft state (not the last-published state) without requiring a save first, sourced from in-memory `draft` + a one-time fetch of `services`/`business`
+- [ ] Preview is reachable and exitable via the dashboard topbar back-button override — no new route
+- [ ] `HotsitePreview` is dynamically imported (code-split from the default tabs bundle)
+- [ ] "Publicar alterações"/"Publicar agora" persists the draft (resolved image URLs stripped/omitted for untouched fields), publishes, and shows the inline success banner on the tabs view
+- [ ] "Despublicar hotsite" is visually separated in a danger-zone section, requires no extra confirmation step, and shows its own inline success banner
+- [ ] Untouched image fields never round-trip a GET-resolved public URL back through PATCH; changed fields (fresh upload or explicit clear) are sent through as-is
 - [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
 
 **Dependencies:** M13-S35, M13-S36
