@@ -110,7 +110,7 @@ export function TestimonialsConfigPanel({
         <div className="space-y-4">
           {testimonials.items.map((item, index) => (
             <div
-              key={`${item.authorName}-${index}`}
+              key={index}
               data-testid="testimonial-item"
               data-index={index}
               className="rounded-md border border-gray-200 p-3"

@@ -1042,7 +1042,9 @@ export function SettingsForm({
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
+      {/* bottom-[calc(...)] clears the dashboard BottomNav, which now renders on this page too
+          (see BottomNav.tsx's comment) — sitting at bottom-0 would overlap and hide it. */}
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-20 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
         <Button
           type="submit"
           data-testid="settings-submit-mobile"

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useState } from 'react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,6 +7,19 @@ import type { TestimonialsModuleData } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { TestimonialsConfigPanel } from './TestimonialsConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
+
+// TestimonialsConfigPanel is a fully controlled component — a static onChange mock never updates
+// its `data` prop, so a bug that only reproduces across re-renders (e.g. a list `key` that
+// changes on every keystroke, remounting the input and dropping focus) stays invisible. This
+// wrapper mirrors how ModuleConfigShell/HotsiteEditor actually drive this panel in production.
+function ControlledTestimonialsConfigPanel({
+  initial,
+}: {
+  readonly initial: TestimonialsModuleData;
+}): React.JSX.Element {
+  const [data, setData] = useState<Record<string, unknown>>(writeModuleData(initial));
+  return <TestimonialsConfigPanel data={data} onChange={setData} />;
+}
 
 vi.mock('@/features/platform/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
@@ -55,6 +69,23 @@ describe('TestimonialsConfigPanel', () => {
         items: [{ ...WITH_ITEM.items[0], authorName: 'MariaX' }],
       }),
     );
+  });
+
+  // Regression test: the item's `key` must not change on every keystroke (it previously included
+  // authorName itself), or React remounts the input mid-typing and drops focus — invisible to a
+  // static-onChange-mock test, since `data` never actually changes across renders there. Typing a
+  // multi-character string through the controlled wrapper reproduces the real usage pattern.
+  it('typing a full name into a newly-added item keeps focus across every keystroke', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(<ControlledTestimonialsConfigPanel initial={EMPTY} />);
+
+    await user.click(screen.getByTestId('testimonials-add'));
+    const authorInput = screen.getByLabelText('Nome do autor *');
+    await user.type(authorInput, 'Maria Silva');
+
+    expect(authorInput).toHaveValue('Maria Silva');
+    expect(authorInput).toHaveFocus();
   });
 
   it('removing an item drops it from the list', async () => {

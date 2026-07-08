@@ -27,17 +27,18 @@ export function BottomNav({ role, onOpenSheet }: BottomNavProps): React.JSX.Elem
   const isBookingDetail = matchBookingDetailRoute(pathname) !== null;
   const isServiceDetailAction = matchServiceRoute(pathname) !== null;
   const isLoyaltyDetail = /^\/dashboard\/loyalty\/[^/]+$/.test(pathname);
-  const isSettingsPage = pathname === '/dashboard/settings';
-  const isHotsitePage = pathname === '/dashboard/hotsite';
   const isTeamDetailRoute = matchTeamRoute(pathname) !== null;
 
+  // /dashboard/settings and /dashboard/hotsite are deliberately NOT in this list (unlike the
+  // drill-down routes above) — they're top-level sections with no topbar back arrow, so hiding
+  // BottomNav there leaves mobile users with zero way to reach any other section. Both pages'
+  // own mobile action bars are offset above BottomNav instead (see their own `bottom-[calc(...)]`
+  // class) so the two don't overlap.
   if (
     isBookingDetail ||
     isServiceDetailAction ||
     isServiceCreateRoute(pathname) ||
     isLoyaltyDetail ||
-    isSettingsPage ||
-    isHotsitePage ||
     isTeamInviteRoute(pathname) ||
     isTeamDetailRoute
   )

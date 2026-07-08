@@ -65,8 +65,6 @@ describe('BottomNav', () => {
   });
 
   it.each([
-    ['the settings page (fixed Save bar owns the bottom edge)', '/dashboard/settings'],
-    ['the hotsite editor page (fixed action bar owns the bottom edge)', '/dashboard/hotsite'],
     ['the service create route (fixed action bar owns the bottom edge)', '/dashboard/services/new'],
     ['the team invite route (fixed action bar owns the bottom edge)', '/dashboard/team/invite'],
     ['the team detail route (fixed Save bar owns the bottom edge)', '/dashboard/team/staff-1'],
@@ -87,6 +85,22 @@ describe('BottomNav', () => {
 
     expect(screen.getByText('Mais')).toBeInTheDocument();
   });
+
+  // Settings and Hotsite are top-level sections with no topbar back arrow (unlike every route
+  // above) — hiding BottomNav there left mobile users with no way to reach any other section.
+  // Their own fixed action bars are offset above BottomNav instead of hidden behind it.
+  it.each([
+    ['the settings page', '/dashboard/settings'],
+    ['the hotsite editor page', '/dashboard/hotsite'],
+  ])(
+    'still renders on %s (own action bar sits above it, not hidden behind it)',
+    (_label, pathname) => {
+      vi.mocked(usePathname).mockReturnValue(pathname);
+      render(<BottomNav role={MANAGER} onOpenSheet={vi.fn()} />);
+
+      expect(screen.getByText('Mais')).toBeInTheDocument();
+    },
+  );
 
   it('renders the 4 core nav items for STAFF', () => {
     render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
