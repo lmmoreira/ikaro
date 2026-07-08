@@ -7,14 +7,24 @@ import type {
   HotsiteAdminContentResponse,
   HotsiteBrandingResponse,
   HotsiteModuleType,
+  HotsiteSeoResponse,
 } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
+import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
+import { useTenant } from '@/providers/tenant-provider';
 import { BrandingTab } from '@/features/platform/components/hotsite/BrandingTab';
 import { LayoutTab } from '@/features/platform/components/hotsite/LayoutTab';
+import { SeoTab } from '@/features/platform/components/hotsite/SeoTab';
 import { ModuleConfigShell } from '@/features/platform/components/hotsite/modules/ModuleConfigShell';
 import { materializeLayout } from '@/features/platform/hotsite/default-layout';
+import { stripResolvedImageUrls } from '@/features/platform/hotsite/strip-resolved-image-urls';
+import {
+  useUpdateHotsiteConfig,
+  usePublishHotsite,
+  useUnpublishHotsite,
+} from '@/features/platform/hotsite/useHotsite';
 import type { ModuleConfigPanelProps } from './modules/module-config-panel.types';
 
 type EditorTab = 'branding' | 'layout' | 'seo';
@@ -25,11 +35,17 @@ interface HotsiteEditorProps {
 
 type EditorView =
   | { readonly view: 'tabs' }
+  | { readonly view: 'preview' }
   | {
       readonly view: 'module-config';
       readonly type: HotsiteModuleType;
       readonly localData: Record<string, unknown>;
     };
+
+type ActionBanner = {
+  readonly kind: 'publish' | 'unpublish';
+  readonly status: 'success' | 'error';
+};
 
 const TABS: readonly EditorTab[] = ['branding', 'layout', 'seo'];
 
@@ -69,6 +85,14 @@ const MODULE_CONFIG_PANELS: Record<
   }),
 };
 
+// Lazy-loaded for the same reason as the module config panels above: the M12 public hotsite
+// render components it pulls in cost zero client JS on the public page (Server Components there),
+// but become client-hydrated code once imported into this 'use client' tree — so that cost should
+// only be paid by managers who actually click "Preview," not every visit to /dashboard/hotsite.
+const HotsitePreview = dynamic(() => import('./HotsitePreview').then((m) => m.HotsitePreview), {
+  ssr: false,
+});
+
 export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage');
   const [activeTab, setActiveTab] = useState<EditorTab>('branding');
@@ -89,29 +113,56 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   // `view.localData` (a local copy); "Aplicar" commits it into `draft.layout` by type, "Cancelar"
   // discards it — draft.layout is only ever touched by handleApply below.
   const [view, setView] = useState<EditorView>({ view: 'tabs' });
+  const [actionBanner, setActionBanner] = useState<ActionBanner | null>(null);
+  const { tenantId, tenantSlug } = useTenant();
+  const updateConfig = useUpdateHotsiteConfig();
+  const publishHotsite = usePublishHotsite();
+  const unpublishHotsite = useUnpublishHotsite();
+  const isPublishing = updateConfig.isPending || publishHotsite.isPending;
   const topbarStatus = useDashboardTopbarStatus();
   const setOnBackOverride = topbarStatus?.setOnBackOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
   const setPageTitleOverride = topbarStatus?.setPageTitleOverride;
-  // "Configurar" fills the screen but isn't a route, so the shared dashboard Topbar's
-  // pathname-based back-link resolution doesn't apply — push a callback override instead
+  // "Configurar" and "Preview" both fill the screen but aren't routes, so the shared dashboard
+  // Topbar's pathname-based back-link resolution doesn't apply — push a callback override instead
   // (same pattern BookingDetailPage/ServiceEditPage use for backHrefOverride, just with a
-  // function instead of a URL since there's nowhere to navigate to). Keyed on the module type,
+  // function instead of a URL since there's nowhere to navigate to). Keyed on stable primitives,
   // not the whole `view` object, so this doesn't re-run on every keystroke while editing a panel.
   const configuringType = view.view === 'module-config' ? view.type : null;
+  const isPreview = view.view === 'preview';
   useEffect(() => {
-    if (!configuringType) return;
-    const backToTabs = () => setView({ view: 'tabs' });
-    setOnBackOverride?.(() => backToTabs);
-    setBackLabelOverride?.(t('layout.configShell.backLabel'));
-    const moduleLabel = t(`layout.modules.${configuringType}`);
-    setPageTitleOverride?.(`${t('layout.configShell.titlePrefix')}: ${moduleLabel}`);
-    return () => {
-      setOnBackOverride?.(null);
-      setBackLabelOverride?.(null);
-      setPageTitleOverride?.(null);
-    };
-  }, [configuringType, setOnBackOverride, setBackLabelOverride, setPageTitleOverride, t]);
+    if (configuringType) {
+      const backToTabs = () => setView({ view: 'tabs' });
+      setOnBackOverride?.(() => backToTabs);
+      setBackLabelOverride?.(t('layout.configShell.backLabel'));
+      const moduleLabel = t(`layout.modules.${configuringType}`);
+      setPageTitleOverride?.(`${t('layout.configShell.titlePrefix')}: ${moduleLabel}`);
+      return () => {
+        setOnBackOverride?.(null);
+        setBackLabelOverride?.(null);
+        setPageTitleOverride?.(null);
+      };
+    }
+    if (isPreview) {
+      const backToTabs = () => setView({ view: 'tabs' });
+      setOnBackOverride?.(() => backToTabs);
+      setBackLabelOverride?.(t('previewView.backLabel'));
+      setPageTitleOverride?.(t('previewView.pageTitle'));
+      return () => {
+        setOnBackOverride?.(null);
+        setBackLabelOverride?.(null);
+        setPageTitleOverride?.(null);
+      };
+    }
+    return undefined;
+  }, [
+    configuringType,
+    isPreview,
+    setOnBackOverride,
+    setBackLabelOverride,
+    setPageTitleOverride,
+    t,
+  ]);
 
   function setBranding(branding: HotsiteBrandingResponse): void {
     setDraft((current) => ({ ...current, branding }));
@@ -119,6 +170,40 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
 
   function setLayout(layout: HotsiteAdminContentResponse['layout']): void {
     setDraft((current) => ({ ...current, layout }));
+  }
+
+  function setSeo(seo: HotsiteSeoResponse): void {
+    setDraft((current) => ({ ...current, seo }));
+  }
+
+  async function handlePublish(): Promise<void> {
+    try {
+      const stripped = stripResolvedImageUrls(draft.branding, draft.layout, tenantId);
+      await updateConfig.mutateAsync({
+        branding: stripped.branding,
+        layout: stripped.layout,
+        seo: draft.seo,
+      });
+      await publishHotsite.mutateAsync();
+      setView({ view: 'tabs' });
+      setActionBanner({ kind: 'publish', status: 'success' });
+    } catch {
+      // The banner only renders in the tabs view — switch back on failure too, or a publish
+      // triggered from Preview leaves the admin stuck there with no visible error feedback.
+      setView({ view: 'tabs' });
+      setActionBanner({ kind: 'publish', status: 'error' });
+    }
+    globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
+  }
+
+  async function handleUnpublish(): Promise<void> {
+    try {
+      await unpublishHotsite.mutateAsync();
+      setActionBanner({ kind: 'unpublish', status: 'success' });
+    } catch {
+      setActionBanner({ kind: 'unpublish', status: 'error' });
+    }
+    globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
   }
 
   function handleConfigure(type: HotsiteModuleType): void {
@@ -157,8 +242,45 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     );
   }
 
+  if (view.view === 'preview') {
+    return <HotsitePreview draft={draft} onPublish={handlePublish} isPublishing={isPublishing} />;
+  }
+
   return (
     <div className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
+      {actionBanner?.status === 'success' && (
+        <output
+          data-testid="hotsite-action-success-banner"
+          className="flex items-start gap-3.5 rounded-xl border border-green-300 bg-green-50 p-4"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-600 text-white"
+          >
+            ✓
+          </span>
+          <span>
+            <span className="block text-sm font-bold text-green-800">
+              {t(actionBanner.kind === 'publish' ? 'publishSuccessTitle' : 'unpublishSuccessTitle')}
+            </span>
+            <span className="mt-0.5 block text-sm text-green-700">
+              {t(actionBanner.kind === 'publish' ? 'publishSuccessBody' : 'unpublishSuccessBody', {
+                slug: tenantSlug,
+              })}
+            </span>
+          </span>
+        </output>
+      )}
+      {actionBanner?.status === 'error' && (
+        <div
+          role="alert"
+          data-testid="hotsite-action-error-banner"
+          className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-700"
+        >
+          {t(actionBanner.kind === 'publish' ? 'publishError' : 'unpublishError')}
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="space-y-4 lg:space-y-6">
           <div className="flex gap-1 border-b border-gray-200" role="tablist">
@@ -199,16 +321,9 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
             </div>
           )}
           {activeTab === 'seo' && (
-            <p
-              role="tabpanel"
-              id="hotsite-tabpanel-seo"
-              aria-labelledby="hotsite-tab-seo"
-              data-testid="hotsite-tab-placeholder"
-              data-tab={activeTab}
-              className="text-sm text-gray-500"
-            >
-              {t('comingSoon')}
-            </p>
+            <div role="tabpanel" id="hotsite-tabpanel-seo" aria-labelledby="hotsite-tab-seo">
+              <SeoTab value={draft.seo} onChange={setSeo} />
+            </div>
           )}
 
           <div className="rounded-md border-2 border-dashed border-red-200 p-4">
@@ -216,7 +331,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
             <Button
               type="button"
               variant="destructive"
-              disabled
+              disabled={unpublishHotsite.isPending}
+              onClick={handleUnpublish}
               data-testid="hotsite-unpublish-button"
             >
               {t('unpublish')}
@@ -229,7 +345,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
             <CardContent className="space-y-4 p-4">
               <Button
                 type="button"
-                disabled
+                disabled={isPublishing}
+                onClick={handlePublish}
                 className="w-full"
                 data-testid="hotsite-publish-desktop"
               >
@@ -238,7 +355,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
               <Button
                 type="button"
                 variant="outline"
-                disabled
+                onClick={() => setView({ view: 'preview' })}
                 className="w-full"
                 data-testid="hotsite-preview-desktop"
               >
@@ -251,17 +368,25 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
+      <div
+        className={`fixed inset-x-0 ${MOBILE_ACTION_BAR_CLEARANCE_CLASS} z-20 flex gap-3 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden`}
+      >
         <Button
           type="button"
           variant="outline"
-          disabled
+          onClick={() => setView({ view: 'preview' })}
           className="flex-1"
           data-testid="hotsite-preview-mobile"
         >
           {t('preview')}
         </Button>
-        <Button type="button" disabled className="flex-[2]" data-testid="hotsite-publish-mobile">
+        <Button
+          type="button"
+          disabled={isPublishing}
+          onClick={handlePublish}
+          className="flex-[2]"
+          data-testid="hotsite-publish-mobile"
+        >
           {t('publish')}
         </Button>
       </div>

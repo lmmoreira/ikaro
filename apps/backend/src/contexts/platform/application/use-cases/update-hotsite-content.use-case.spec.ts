@@ -250,21 +250,21 @@ describe('UpdateHotsiteContentUseCase', () => {
     expect(result.seo.description).toBe('Descrição original');
   });
 
-  it('throws PlatformDomainError when seo.title exceeds 70 characters', async () => {
+  it('throws PlatformDomainError when seo.title exceeds 60 characters', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
 
     await expect(
-      useCase.execute({ tenantId: TENANT_A, seo: { title: 'a'.repeat(71) } }),
+      useCase.execute({ tenantId: TENANT_A, seo: { title: 'a'.repeat(61) } }),
     ).rejects.toBeInstanceOf(PlatformDomainError);
   });
 
-  it('throws PlatformDomainError when seo.description exceeds 160 characters', async () => {
+  it('throws PlatformDomainError when seo.description exceeds 158 characters', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
 
     await expect(
-      useCase.execute({ tenantId: TENANT_A, seo: { description: 'a'.repeat(161) } }),
+      useCase.execute({ tenantId: TENANT_A, seo: { description: 'a'.repeat(159) } }),
     ).rejects.toBeInstanceOf(PlatformDomainError);
   });
 });

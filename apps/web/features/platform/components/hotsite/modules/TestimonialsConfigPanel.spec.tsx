@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useState } from 'react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,6 +7,19 @@ import type { TestimonialsModuleData } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { TestimonialsConfigPanel } from './TestimonialsConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
+
+// TestimonialsConfigPanel is a fully controlled component — a static onChange mock never updates
+// its `data` prop, so a bug that only reproduces across re-renders (e.g. a list `key` that
+// changes on every keystroke, remounting the input and dropping focus) stays invisible. This
+// wrapper mirrors how ModuleConfigShell/HotsiteEditor actually drive this panel in production.
+function ControlledTestimonialsConfigPanel({
+  initial,
+}: {
+  readonly initial: TestimonialsModuleData;
+}): React.JSX.Element {
+  const [data, setData] = useState<Record<string, unknown>>(writeModuleData(initial));
+  return <TestimonialsConfigPanel data={data} onChange={setData} />;
+}
 
 vi.mock('@/features/platform/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
@@ -55,6 +69,58 @@ describe('TestimonialsConfigPanel', () => {
         items: [{ ...WITH_ITEM.items[0], authorName: 'MariaX' }],
       }),
     );
+  });
+
+  // Regression test: the item's `key` must not change on every keystroke (it previously included
+  // authorName itself), or React remounts the input mid-typing and drops focus — invisible to a
+  // static-onChange-mock test, since `data` never actually changes across renders there. Typing a
+  // multi-character string through the controlled wrapper reproduces the real usage pattern.
+  it('typing a full name into a newly-added item keeps focus across every keystroke', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(<ControlledTestimonialsConfigPanel initial={EMPTY} />);
+
+    await user.click(screen.getByTestId('testimonials-add'));
+    const authorInput = screen.getByLabelText('Nome do autor *');
+    await user.type(authorInput, 'Maria Silva');
+
+    expect(authorInput).toHaveValue('Maria Silva');
+    expect(authorInput).toHaveFocus();
+  });
+
+  // Regression test for the exact concern SonarCloud's S6479 (no array index as key) exists to
+  // catch: removing an earlier item shifts every later item's array index. With an index-based
+  // key, React would reuse the removed item's key/DOM node for what is now a different
+  // testimonial. The stable per-item id (independent of position) must keep each remaining
+  // item's own data attached to it.
+  it('removing an earlier item keeps the remaining items attached to their own data, not shifted', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(
+      <ControlledTestimonialsConfigPanel
+        initial={{
+          items: [
+            { authorName: 'Ana', text: 'Depoimento da Ana' },
+            { authorName: 'Bruno', text: 'Depoimento do Bruno' },
+          ],
+          layout: 'grid',
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getAllByTestId('testimonial-remove').find((el) => el.dataset.index === '0')!,
+    );
+
+    expect(screen.getByDisplayValue('Bruno')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Depoimento do Bruno')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Ana')).not.toBeInTheDocument();
+
+    const remainingAuthorInput = screen.getByLabelText('Nome do autor *');
+    await user.type(remainingAuthorInput, ' Silva');
+
+    expect(remainingAuthorInput).toHaveValue('Bruno Silva');
+    expect(remainingAuthorInput).toHaveFocus();
   });
 
   it('removing an item drops it from the list', async () => {

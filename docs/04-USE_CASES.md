@@ -999,8 +999,8 @@ Returns:
       - [x] CONTACT (address/phone/email/WhatsApp/map, each independently toggleable) — toggle on/off
 
       **Section C: SEO** (M12-S09)
-      - Title (text input, max 70 chars) — overrides the generated `<title>` for search results and social sharing
-      - Description (textarea, max 160 chars) — overrides the generated meta description
+      - Title (text input, max 60 chars) — overrides the generated `<title>` for search results and social sharing
+      - Description (textarea, max 158 chars) — overrides the generated meta description
       - Both optional; left blank (`null`) → hotsite falls back to a generated title/description based on the tenant's name and city/state
    
    3. Admin updates:

@@ -217,12 +217,12 @@ describe('HotsiteAdminController (integration)', () => {
       });
     });
 
-    it('returns 400 when seo.title exceeds 70 characters', async () => {
+    it('returns 400 when seo.title exceeds 60 characters', async () => {
       const { body } = await request(app.getHttpServer())
         .patch('/tenants/hotsite')
         .set('X-Tenant-ID', TENANT_A)
         .set('X-Actor-Role', 'MANAGER')
-        .send({ seo: { title: 'a'.repeat(71) } })
+        .send({ seo: { title: 'a'.repeat(61) } })
         .expect(400);
 
       expect(body.status).toBe(400);

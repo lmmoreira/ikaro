@@ -154,12 +154,12 @@ describe('HotsiteAdminController', () => {
       });
     });
 
-    it('maps PlatformDomainError to 400 when seo.title exceeds 70 characters', async () => {
+    it('maps PlatformDomainError to 400 when seo.title exceeds 60 characters', async () => {
       const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
       await repo.save(config);
 
       const err = await controller
-        .updateContent({ seo: { title: 'a'.repeat(71) } })
+        .updateContent({ seo: { title: 'a'.repeat(61) } })
         .catch((e: unknown) => e);
 
       expect(err).toBeInstanceOf(HttpException);

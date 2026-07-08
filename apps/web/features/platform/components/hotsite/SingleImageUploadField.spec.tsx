@@ -41,6 +41,7 @@ function queryByFieldId(testId: string, fieldId: string): HTMLElement | null {
 
 describe('SingleImageUploadField', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
+  const originalImageBaseUrl = process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, 'fetch');
@@ -50,6 +51,9 @@ describe('SingleImageUploadField', () => {
     fetchSpy.mockRestore();
     vi.mocked(generateHotsiteImageSignedUrl).mockReset();
     vi.mocked(deleteHotsiteImage).mockReset();
+    // The "resolves a raw storage path" case below sets this env var directly — restore it so
+    // later tests in this file (or this worker) don't inherit a leftover value.
+    process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = originalImageBaseUrl;
   });
 
   it('uploads a selected image with the given purpose and calls onChange with the resulting filePath', async () => {
@@ -112,6 +116,25 @@ describe('SingleImageUploadField', () => {
       />,
     );
     expect(getByFieldId('single-image-upload-preview', 'logo').className).toContain('h-16');
+  });
+
+  it('resolves a raw storage path (re-opened after a save, no fresh local preview) into a displayable absolute URL', () => {
+    process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = 'http://localhost:4443/ikaro-local-public';
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="hero-bg"
+        value="tenants/tenant-1/hotsite/hero/banner.png"
+        onChange={vi.fn()}
+        purpose="hero"
+        {...LABELS}
+      />,
+    );
+
+    expect(getByFieldId('single-image-upload-preview', 'hero-bg')).toHaveAttribute(
+      'src',
+      'http://localhost:4443/ikaro-local-public/tenants/tenant-1/hotsite/hero/banner.png',
+    );
   });
 
   it('shows a retry-oriented error message when the upload fails', async () => {

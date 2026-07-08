@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Testimonial, TestimonialsModuleData } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
@@ -21,6 +22,15 @@ export function TestimonialsConfigPanel({
 }: ModuleConfigPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.testimonials');
   const testimonials = readModuleData<TestimonialsModuleData>(data);
+  // React key per item, independent of both array position (SonarCloud S6479 — shifts on
+  // removal, letting React reuse a later item's DOM/component instance under the same key) and
+  // field content (the previous key included authorName itself, so every keystroke changed the
+  // key and remounted the input, dropping focus). Testimonial (the wire type) has no id field —
+  // this is a display-only client-side id, generated once per item and kept in sync with
+  // add/remove, same pattern as PhotoUpload.tsx's `${file.name}-${crypto.randomUUID()}`.
+  const [itemKeys, setItemKeys] = useState<readonly string[]>(() =>
+    testimonials.items.map(() => crypto.randomUUID()),
+  );
 
   function update(patch: Partial<TestimonialsModuleData>): void {
     onChange(writeModuleData({ ...testimonials, ...patch }));
@@ -34,10 +44,12 @@ export function TestimonialsConfigPanel({
 
   function addItem(): void {
     update({ items: [...testimonials.items, { ...EMPTY_TESTIMONIAL }] });
+    setItemKeys((keys) => [...keys, crypto.randomUUID()]);
   }
 
   function removeItem(index: number): void {
     update({ items: testimonials.items.filter((_, i) => i !== index) });
+    setItemKeys((keys) => keys.filter((_, i) => i !== index));
   }
 
   return (
@@ -110,7 +122,7 @@ export function TestimonialsConfigPanel({
         <div className="space-y-4">
           {testimonials.items.map((item, index) => (
             <div
-              key={`${item.authorName}-${index}`}
+              key={itemKeys[index] ?? index}
               data-testid="testimonial-item"
               data-index={index}
               className="rounded-md border border-gray-200 p-3"

@@ -6,6 +6,7 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
+import { resolveHotsiteImageDisplayUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 
 export type HotsiteImagePurpose =
   'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials';
@@ -89,7 +90,7 @@ export function SingleImageUploadField({
     // public URL (the shape `value` has on first load, straight from GET) doesn't match the
     // delete endpoint's path validation. Known limitation: removing an image that was never
     // re-uploaded this session clears the draft reference but doesn't clean up the bucket;
-    // full reconciliation is deferred to the eventual Publish flow (M13-S37).
+    // full reconciliation (tmp-staging + promote-on-save) is TD22's scope, not this component's.
     if (value.startsWith('tenants/')) {
       try {
         await deleteHotsiteImage(value);
@@ -102,7 +103,10 @@ export function SingleImageUploadField({
     onChange('');
   }
 
-  const displaySrc = previewUrl ?? value;
+  // `value` is a raw storage path until the next GET resolves it — on re-opening this field
+  // after a save (no fresh local blob preview), it would otherwise be passed to <img src>
+  // unresolved and fail to load. See resolveHotsiteImageUrl for the full rationale.
+  const displaySrc = previewUrl ?? resolveHotsiteImageDisplayUrl(value);
 
   return (
     <div>

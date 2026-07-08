@@ -146,9 +146,17 @@ describe('HotsiteAdminController', () => {
       });
     });
 
-    it('rejects seo.title exceeding 70 characters', () => {
+    it('rejects seo.title exceeding 60 characters', () => {
       const result = UpdateHotsiteContentBodySchema.safeParse({
-        seo: { title: 'a'.repeat(71) },
+        seo: { title: 'a'.repeat(61) },
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects seo.description exceeding 158 characters', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({
+        seo: { description: 'a'.repeat(159) },
       });
 
       expect(result.success).toBe(false);
