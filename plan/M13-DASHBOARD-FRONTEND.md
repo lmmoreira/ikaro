@@ -3545,7 +3545,7 @@ New shared components: `apps/web/shared/components/ui/section-card.tsx` (extract
 
 ---
 
-### M13-S36 — Hotsite: Layout tab (all 8 modules: toggle/reorder + full config panels + image lifecycle)
+### M13-S36 — Hotsite: Layout tab (all 8 modules: toggle/reorder + full config panels + image lifecycle) ✅ Done
 
 *(formerly M127-S08 — scope expanded far beyond the original "Hero only" text on 2026-07-07; this section supersedes the original story entirely)*
 
