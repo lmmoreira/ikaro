@@ -2,6 +2,7 @@ import MockAdapter from 'axios-mock-adapter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { bffClient } from '@/shared/lib/api/bff-client';
 import {
+  deleteHotsiteImage,
   featureBookingPhoto,
   fetchHotsiteConfig,
   fetchTenantSettings,
@@ -155,6 +156,18 @@ describe('featureBookingPhoto', () => {
       filePath: 'tenants/t-1/bookings/b-1/photo.jpg',
     });
     expect(res).toMatchObject({ success: true });
+  });
+});
+
+describe('deleteHotsiteImage', () => {
+  it('calls POST /tenants/hotsite/images/delete with the filePath', async () => {
+    mock.onPost('/tenants/hotsite/images/delete').reply(204);
+
+    await deleteHotsiteImage('tenants/t-1/hotsite/branding/u1/logo.png');
+
+    expect(mock.history.post?.at(-1)?.data).toBe(
+      JSON.stringify({ filePath: 'tenants/t-1/hotsite/branding/u1/logo.png' }),
+    );
   });
 });
 

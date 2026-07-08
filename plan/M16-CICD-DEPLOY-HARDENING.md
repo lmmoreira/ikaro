@@ -1,5 +1,7 @@
 # M16 — CI/CD Deploy Pipelines + Production Hardening
 
+> ⚠️ **SUPERSEDED by `plan/M17-CLOUD-DEPLOY.md` (2026-07-07).** All stories were reconciled against the implemented codebase and merged into M17 (see M17's traceability appendix). Key corrections made in M17: Workload Identity Federation replaces `GCP_SA_KEY_*` JSON keys, 4 GitHub environments instead of 11, migrations run as a Cloud Run Job (this file's `docker run` on a GitHub runner cannot reach the private-IP Cloud SQL), S06's `E2E_TEST_MODE`/`test-login` bypass is superseded by the shipped Dev Login (M115-S02), S08's error catalog is already largely implemented (M17 audits it), S09's Grafana VM is replaced by managed observability (M17 D9), and S11's OAuth state must wrap the existing routing payload (implemented in `oauth-state.ts`) rather than replace it. Do not implement stories from this file. Kept for historical reference.
+
 **Phase:** Cloud ☁️  
 **Goal:** Every merge to `main` automatically builds, scans, and deploys to staging. Production is promoted via a manual approval gate. The system is hardened with E2E tests, rate limiting, a complete error catalog, and SLO monitoring. The first real tenant is provisioned and go-live is validated.  
 **Depends on:** M15 (GCP infrastructure provisioned)  

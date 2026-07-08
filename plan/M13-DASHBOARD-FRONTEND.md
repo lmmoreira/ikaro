@@ -3545,38 +3545,114 @@ New shared components: `apps/web/shared/components/ui/section-card.tsx` (extract
 
 ---
 
-### M13-S36 — Hotsite: Layout tab (module toggle/reorder + Hero config)
+### M13-S36 — Hotsite: Layout tab (all 8 modules: toggle/reorder + full config panels + image lifecycle)
 
-*(formerly M127-S08)*
+*(formerly M127-S08 — scope expanded far beyond the original "Hero only" text on 2026-07-07; this section supersedes the original story entirely)*
 
-**Agent:** `frontend-ts`
-**Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-027 Section B, `plan/journey/manager/prototypes/hotsite/01-hotsite-editor.html` (Layout tab), `01d-module-config-hero.html`
+**Agent:** `frontend-ts` (+ small `backend-ts`/`bff-ts` prep pieces — see Phase 0)
+**Complexity:** XL (expanded from `M` — originally 1 module's config panel + toggle/reorder; now all 8 modules' config panels + drag-and-drop + a new backend image-delete capability + a booking-photo picker)
+**Docs to load:** `docs/04-USE_CASES.md` § UC-027 Section B, `plan/journey/manager/prototypes/hotsite/01-hotsite-editor.html` (Layout tab), `01d-module-config-hero.html`, `packages/types/src/hotsite.ts` (all 8 module data interfaces — the ground truth for every field list below), `apps/web/features/platform/hotsite/module-schemas.ts` (existing Zod validation, already correct, no changes needed), `apps/web/shells/hotsite/components/*.tsx` (the public renderers — confirms exactly which fields are consumed vs. dead)
 
 **Description:**
-Extends `HotsiteEditor` (`M13-S35`) with the Layout tab — the 7-module toggle/reorder list, plus a per-module config drill-down. **Only the HERO module's config panel is in scope here**; the other 6 (`SERVICE_LIST`, `GALLERY`, `BOOKING_CTA`, `TESTIMONIALS`, `ABOUT`, `CONTACT`) are explicitly deferred — see the consolidated open-questions section at the end of this file.
+Extends `HotsiteEditor` (`M13-S35`) with the Layout tab: an 8-module (not 7 — see FOOTER note below) drag-to-reorder + enable/disable list, plus a full config panel for **every** module type (not just HERO — the original story's "defer the other 6" framing is superseded). Also adds real image lifecycle management (upload, large/prominent preview, and **actual deletion from the storage bucket**) everywhere an image is used, including a retrofit onto `LogoUpload.tsx` from M13-S35, and a "feature a photo from a completed booking" picker for the Gallery module.
 
-> 🔍 **Discover before starting:** Decide how "Configurar" should present the per-module panel — modal, slide-over, or a full route. The prototype doesn't mandate one; pick whichever the rest of the dashboard already establishes a precedent for (check if Phase 4/5 introduced a `Sheet`/`Dialog` pattern) and reuse it rather than inventing a new interaction.
+> ✅ **Resolved during discovery (2026-07-07) — read this whole block before writing any code:**
+>
+> **1. File paths.** `apps/web/features/platform/components/hotsite/` — the M13-S35 convention (`apps/web/components/dashboard/hotsite/` from the original story text doesn't exist and was already corrected once).
+>
+> **2. No new UX prototypes — build directly from the real types.** Only HERO has a validated prototype screen (`01d-module-config-hero.html`); the other 7 don't, and `dev-notes.md` explicitly flags this ("Don't build these 6 panels without reconfirming scope"). Confirmed decision: skip the formal CLAUDE.md §19 journey/prototype workflow for the other 7 and build directly from `packages/types/src/hotsite.ts` (verified field-by-field against two real production `hotsite_configs` JSON exports during discovery — the types are accurate and current) plus the actual renderer components in `apps/web/shells/hotsite/components/` (confirms which fields are genuinely consumed). Use `01d-module-config-hero.html`'s **layout/interaction pattern** (not its specific fields) as the template for all 8 panels — see point 5.
+>
+> **3. `FOOTER` is an 8th module type, in scope.** `HotsiteModuleType` (`packages/types/src/enums.ts`) has 8 values, not 7 — `FOOTER` is fully wired end-to-end (own data type, own Zod schema, own renderer at `apps/web/shells/hotsite/components/Footer.tsx`, flows through the same `layout` array + `enabled` flag as every other module) but was never mentioned in the original story or in `dev-notes.md`. Confirmed: include it as an 8th config panel (`FooterConfigPanel.tsx`) — its data shape is trivial (3 optional fields).
+>
+> **4. Drag-and-drop: new dependency, `@dnd-kit/core` + `@dnd-kit/sortable`.** No DnD library exists anywhere in this codebase today (confirmed via full-tree grep). `@dnd-kit` is the modern, accessible, actively-maintained standard (unlike deprecated `react-beautiful-dnd`) and gives the smooth/natural reorder motion the story needs.
+>
+> **5. "Configurar" is a client-side view swap, not a real route, not a modal.** The Hero prototype (`01d-module-config-hero.html`) visually renders as a full page (topbar with a back-arrow `<` link, `.detail-layout`/sticky-desktop-aside/mobile-fixed-action-bar — the exact same responsive pattern `BrandingTab`/`HotsiteEditor` already use), **not** a dialog/overlay. But it's a *separate static HTML file* only because that's how prototypes work — production should **not** make it a real Next.js route. Extend `HotsiteEditor`'s existing "client-side tab state, no separate routes" philosophy (from M13-S35) with a 4th view state (`{ view: 'tabs' } | { view: 'module-config'; type: HotsiteModuleType }`) that visually fills the screen the same way a route would, but keeps `draft` in the same in-memory React state — no risk of losing other tabs' unsaved edits, no `layout.tsx`/Context restructuring needed. Lazy-load each of the 8 panel components via `next/dynamic(() => import(...), { ssr: false })` so a manager who never opens "Configurar" on e.g. Contact never downloads that panel's JS — this gets the same code-splitting benefit a real route would give without the state-lifting cost. The panel's back arrow (`<`) and "Cancelar" both return to `{ view: 'tabs', activeTab: 'layout' }`; "Aplicar" commits the edited module data into `draft.layout` (by `type`) and also returns to the tabs view.
+>
+> **6. Empty `layout: []` on new tenants — auto-materialize all 8 types client-side.** `HotsiteConfig.create()` (backend aggregate) seeds new tenants with `layout: []`. `HotsiteEditor`'s draft-initialization must derive a full 8-entry list — for every `HotsiteModuleType` not already present in `initial.layout`, synthesize `{ type, enabled: false, data: <minimal-valid-default> }` (see the per-module default in each section below) in the canonical UC-027 order: `HERO, SERVICE_LIST, GALLERY, BOOKING_CTA, TESTIMONIALS, ABOUT, CONTACT, FOOTER`. This makes `LayoutTab` always render all 8 rows regardless of what's actually been saved — matches the prototype's mock (which shows all modules present) without inventing a separate "add module" step nobody has validated.
+>
+> **7. Image deletion is a genuinely new backend+BFF capability — see Phase 0.** `IStorageService` (`apps/backend/src/shared/ports/storage.service.port.ts`) has no `delete()` method today. Confirmed: build it now, bundled into this same story (not a separate TD) — see Phase 0 below. **Deletion is immediate on click**, not deferred to Publish (Publish/save doesn't exist yet — that's `M13-S37`). This has a known, accepted gap: if an admin removes an image that's still referenced by the *currently-published* live hotsite, the file is gone before the admin re-publishes, producing a broken image on the live site until they do. Flagged explicitly for `M13-S37` to account for (e.g. the eventual publish flow could warn about broken references, or this could be revisited then) — not solved in this story.
+>
+> **8. `'testimonials'` purpose value added to the image-upload enum (Phase 0, small change, 3 files).** `Testimonial.avatarUrl` is an optional field with nowhere to upload one — the existing `purpose` enum (`'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta'`, duplicated in `apps/backend/.../generate-hotsite-image-signed-url.dto.ts`, `apps/bff/.../hotsite-admin.controller.ts`, and `apps/web/features/platform/tenant-settings.ts`'s `HotsiteImageSignedUrlRequest`) needs a 6th value, `'testimonials'`, in all three places.
+>
+> **9. Gallery includes a "feature a photo from a booking" picker**, wiring the already-built-but-never-consumed `POST /tenants/hotsite/gallery/feature-booking-photo` endpoint (confirmed unused — zero frontend consumers before this story). No new backend endpoint needed for *browsing* — booking detail responses already carry `beforeServicePhotoUrls`/`afterServicePhotoUrls` as signed read URLs (`packages/types/src/booking.dto.ts`). 🔍 **Confirm at implementation time** which existing booking-list endpoint/query the picker should use to find candidate (likely `COMPLETED`) bookings with photos — not pinned down during discovery.
+>
+> **10. `BookingCtaModuleData.carouselDays` is omitted from `BookingCtaConfigPanel`.** It's typed but not read anywhere in `BookingCtaModule.tsx` (confirmed), and absent from both real-world production JSON examples reviewed during discovery — exposing it would be a dead field with no visible effect.
+>
+> **11. Single-image fields (Hero/BookingCta/About backgrounds) get large/prominent previews; Gallery gets a multi-image thumbnail grid.** This directly reverses the earlier, wrong assumption applied to the Branding tab's small Logo field (a real 64×64 icon, confirmed against its one actual consumer, `[slug]/login/page.tsx`) — Hero/BookingCta/About images are genuinely full-width/large in the real renderers (`<Image fill>` backgrounds, large content images), so a small preview would be actively misleading there. Build one shared `SingleImageUploadField` (`apps/web/features/platform/components/hotsite/SingleImageUploadField.tsx`, parametrized by `purpose`, `previewSize: 'small' | 'large'`, and remove-callback) used by all four single-image consumers — **retrofit `LogoUpload.tsx` to use it too** (`previewSize: 'small'`), rather than keeping a 5th near-duplicate. Gallery's multi-image case stays its own component (`GalleryImageManager.tsx`) — genuinely different shape (array management + booking-photo picker), not forced into the single-image component.
 
-**What to create:**
+---
 
-`apps/web/components/dashboard/hotsite/LayoutTab.tsx`:
-- Renders the 7 modules in `layout` array order, each row: drag handle, module name (pt-BR label), "Configurar" link, enabled/disabled toggle
-- Drag-to-reorder updates the local `layout` array order (no network call until "Publicar alterações")
-- "Configurar" is only wired for HERO in this story; for the other 6 modules render the link disabled with a tooltip "Em breve" rather than a broken link
+**Phase 0 — Backend + BFF prep (do this first, small and self-contained):**
 
-`apps/web/components/dashboard/hotsite/modules/HeroConfigPanel.tsx`:
-- Fields: `title` (required), `subtitle` (optional), layout (`centered`/`left-aligned`), CTA target (`booking`/`service-list`), optional background image (reuses the same signed-URL upload pattern as the Logo field in `M13-S35`)
-- "Aplicar" commits the draft back into `HotsiteEditor`'s local state (no network call — persisted only on "Publicar alterações")
+- [ ] `apps/backend/src/shared/ports/storage.service.port.ts` — add `delete(storagePath: string, bucket?: 'private' | 'public'): Promise<void>` to `IStorageService`.
+- [ ] `apps/backend/src/shared/infrastructure/gcs-signed-url.adapter.ts` — implement `delete()` (GCS `file.delete()` against the correct bucket).
+- [ ] `apps/backend/src/test/infrastructure/in-memory-storage.service.ts` — implement `delete()` on the test double (remove from its in-memory map).
+- [ ] New DTO `apps/backend/src/contexts/platform/application/dtos/delete-hotsite-image.dto.ts`: `{ filePath: string }`, regex-validated as `tenants/<tenantId>/hotsite/...`, `.refine()` that `filePath` contains the caller's own `tenantId` segment (mirror `FeatureBookingPhotoSchema`'s existing `.refine()` pattern for cross-tenant-path safety).
+- [ ] New use case `DeleteHotsiteImageUseCase` (`apps/backend/src/contexts/platform/application/use-cases/`): validates the path belongs to `tenantId`, calls `storageService.delete(filePath, 'public')`.
+- [ ] New backend controller endpoint (`apps/backend/.../hotsite-admin.controller.ts`): `POST /tenants/hotsite/images/delete` (RPC-style action endpoint, matching the existing `POST /tenants/hotsite/images/signed-url` convention — not a REST `DELETE`-with-body, for consistency with this controller's existing style).
+- [ ] New BFF endpoint (`apps/bff/src/features/platform/hotsite-admin.controller.ts`): `POST /tenants/hotsite/images/delete`, Zod-validated, proxies to backend.
+- [ ] New frontend API function `deleteHotsiteImage(filePath: string): Promise<void>` in `apps/web/features/platform/tenant-settings.ts` (alongside `generateHotsiteImageSignedUrl`).
+- [ ] Add `'testimonials'` to the `purpose` enum in all 3 places: backend DTO, BFF schema, `apps/web/features/platform/tenant-settings.ts`'s `HotsiteImageSignedUrlRequest`.
+- [ ] `.http` coverage for the new `POST /tenants/hotsite/images/delete` endpoint (happy path, cross-tenant-path-rejected case) in both `apps/backend/http/platform/` and `apps/bff/http/platform/`.
+- [ ] Unit specs: `DeleteHotsiteImageUseCase.spec.ts`, DTO schema spec, BFF controller spec, adapter spec (mirror the existing `generate-hotsite-image-signed-url` spec files' structure).
+
+**Phase 1 — Shared frontend pieces:**
+
+- [ ] `pnpm --filter @ikaro/web add @dnd-kit/core @dnd-kit/sortable`
+- [ ] `apps/web/features/platform/components/hotsite/SingleImageUploadField.tsx` — shared single-image upload+preview+remove, built on `uploadFileToSignedUrl` (existing) + `deleteHotsiteImage` (new, Phase 0). Props: `value: string`, `onChange: (path: string) => void`, `purpose: 'hero' | 'gallery' | 'about' | 'booking-cta' | 'branding' | 'testimonials'`, `previewSize: 'small' | 'large'`, labels. On remove: call `deleteHotsiteImage`, then `onChange('')`.
+- [ ] Retrofit `apps/web/features/platform/components/hotsite/LogoUpload.tsx` to use `SingleImageUploadField` internally (`previewSize: 'small'`, `purpose: 'branding'`) instead of its own bespoke upload logic — add the "remove logo" affordance this story's discovery flagged as missing from M13-S35.
+- [ ] `apps/web/features/platform/components/hotsite/modules/GalleryImageManager.tsx` — multi-image thumbnail grid (add via `SingleImageUploadField`-style upload per new image, or via the booking-photo picker below), each thumbnail with a caption text input + remove button (calls `deleteHotsiteImage`).
+- [ ] `apps/web/features/platform/components/hotsite/modules/BookingPhotoPicker.tsx` — browse-and-feature UI wired to the existing `featureBookingPhoto`/`useFeatureBookingPhoto` (already exists, unused, from M13-S35's `useHotsite.ts`). 🔍 Confirm the exact booking-list query/endpoint at implementation time (see discovery point 9).
+- [ ] `apps/web/features/platform/components/hotsite/modules/ModuleConfigShell.tsx` — the shared "Configurar" chrome: back-arrow `<` + module name in a topbar-style header, `.detail-layout`-equivalent (Tailwind `grid lg:grid-cols-[minmax(0,1fr)_22rem]`) with sticky desktop aside / mobile fixed action bar (mirrors `BrandingTab`'s established structure), "Aplicar"/"Cancelar" actions. Every one of the 8 config panels below renders inside this shell.
+
+**Phase 2 — `LayoutTab.tsx` (`apps/web/features/platform/components/hotsite/LayoutTab.tsx`):**
+
+- [ ] Renders all 8 modules (auto-materialized per discovery point 6) in `draft.layout` array order: drag handle (`@dnd-kit/sortable`), module name (pt-BR label — new i18n keys), "Configurar" link, enabled/disabled toggle (`SwitchField`).
+- [ ] Drag-to-reorder updates `draft.layout`'s local array order only — no network call (consistent with the rest of the editor; Publish isn't wired until `M13-S37`).
+- [ ] "Configurar" is wired for **all 8** modules now (not just Hero) — click sets `HotsiteEditor`'s view state to `{ view: 'module-config', type }`.
+- [ ] `HotsiteEditor.tsx` gets the new view-swap state (discovery point 5) — when `view === 'module-config'`, render the matching lazy-loaded config panel inside `ModuleConfigShell` instead of the tab bar/tab content.
+
+**Phase 3 — the 8 config panels** (`apps/web/features/platform/components/hotsite/modules/`), each `next/dynamic`-lazy-loaded, each rendering inside `ModuleConfigShell`, each pre-filled from `draft.layout`'s matching entry and committing back into `draft.layout` on "Aplicar" (no network call):
+
+| Panel | Fields (from `packages/types/src/hotsite.ts`, verified against real production JSON) | UI treatment |
+|---|---|---|
+| `HeroConfigPanel.tsx` | `variant` ('centered'/'left-aligned'), `title`* , `subtitle`, `eyebrow`, `backgroundImageUrl`, `ctaLabel`*, `ctaTarget`* (6 options: booking-form/service-list/gallery/testimonials/about/contact), `secondaryCtaLabel`, `secondaryCtaTarget` (same 6 options), `rightPanel` ('none'/'image'/'brand-card') | `PillSelect` (variant, rightPanel), text inputs (title/subtitle/eyebrow/ctaLabel/secondaryCtaLabel), `Select` (ctaTarget/secondaryCtaTarget — 6 options, too many for `PillSelect`), `SingleImageUploadField` (`previewSize: 'large'`, `purpose: 'hero'`) |
+| `ServiceListConfigPanel.tsx` | `title`, `eyebrow`, `showPrices`*, `showPoints`*, `layout`* ('grid'/'list') | text inputs, `SwitchField` ×2, `PillSelect` |
+| `GalleryConfigPanel.tsx` | `title`, `eyebrow`, `images`* (`GalleryImage[]`), `layout`* ('grid'/'masonry'), `maxVisible`* (number, min 1) | text inputs, `PillSelect`, number input, `GalleryImageManager` (upload + `BookingPhotoPicker` + per-image caption + remove) |
+| `BookingCtaConfigPanel.tsx` | `variant`, `title`*, `subtitle`, `eyebrow`, `ctaLabel`*, `backgroundImageUrl`, `bgStyle` ('primary'/'background'), `rightPanel` ('none'/'brand-card') — **`carouselDays` omitted, see discovery point 10** | `PillSelect` (variant, bgStyle, rightPanel), text inputs, `SingleImageUploadField` (`previewSize: 'large'`, `purpose: 'booking-cta'`) |
+| `TestimonialsConfigPanel.tsx` | `title`, `eyebrow`, `items`* (`Testimonial[]`: `authorName`*, `text`*, `rating` 1–5 optional, `avatarUrl` optional), `layout`* ('grid'/'carousel') | text inputs, `PillSelect` (layout), dynamic list — "+" adds a blank `Testimonial`, each item: text input (authorName), textarea (text), `PillSelect` 1–5 + "none" (rating), `SingleImageUploadField` (`previewSize: 'small'`, `purpose: 'testimonials'`, avatarUrl), delete button per item |
+| `AboutConfigPanel.tsx` | `title`*, `body`* (markdown — matches `AboutModule.tsx`'s `react-markdown`+`rehype-sanitize` rendering; hint the supported subset: bold/lists/links/headings), `eyebrow`, `imageUrl`, `imagePosition`* ('left'/'right') | text inputs, textarea (body, with a markdown hint), `PillSelect` (imagePosition), `SingleImageUploadField` (`previewSize: 'large'`, `purpose: 'about'`) |
+| `ContactConfigPanel.tsx` | `title`, `eyebrow`, `showAddress`*, `showPhone`*, `showWhatsapp`*, `showEmail`*, `showMap`*, `showInstagram` (optional, defaults true), `showFacebook` (optional, defaults true), `displayStyle` ('list'/'icon-cards'), `whatsappCtaLabel` | text inputs, `SwitchField` ×7, `PillSelect` (displayStyle) |
+| `FooterConfigPanel.tsx` | `tagline`, `copyrightNote`, `showWhatsapp` (optional, defaults true) | text inputs ×2, `SwitchField` |
+
+`*` = required field per the type (auto-materialized defaults below must populate these with a minimal valid value, not leave them empty, since the Zod schemas in `module-schemas.ts` already validate them as required):
+- HERO: `variant: 'centered'`, `title: ''`, `ctaLabel: ''`, `ctaTarget: 'booking-form'`
+- SERVICE_LIST: `showPrices: true`, `showPoints: true`, `layout: 'grid'`
+- GALLERY: `images: []`, `layout: 'grid'`, `maxVisible: 6`
+- BOOKING_CTA: `title: ''`, `ctaLabel: ''`
+- TESTIMONIALS: `items: []`, `layout: 'grid'`
+- ABOUT: `title: ''`, `body: ''`, `imagePosition: 'left'`
+- CONTACT: `showAddress: true`, `showPhone: true`, `showWhatsapp: true`, `showEmail: true`, `showMap: true`
+- FOOTER: `{}` (every field optional)
+
+**i18n:** every new label/hint/button/empty-state string above needs a `dashboard.hotsitePage.layout.*` (or similar, mirror the `dashboard.hotsitePage.branding.*` convention from M13-S35) key added to **both** `packages/i18n/locales/pt-BR/web.json` and `en/web.json` in the same commit — this story introduces a large amount of new copy across 8 panels, budget real time for it.
 
 **Acceptance criteria:**
-- [ ] Layout tab renders all 7 modules in their current order with working enabled/disabled toggles
-- [ ] Drag-to-reorder changes the local order (verify via a subsequent publish round-trip, not just visually)
-- [ ] "Configurar" on Hero opens `HeroConfigPanel` pre-filled with current values
-- [ ] "Configurar" on the other 6 modules is visibly disabled, not a dead link
-- [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings
+- [ ] Layout tab renders all 8 modules (including FOOTER) in `draft.layout` order, auto-materialized with defaults if a type is missing from the initial data, with working enabled/disabled toggles
+- [ ] Drag-to-reorder (via `@dnd-kit`) changes the local order with smooth/natural motion; order change is verifiable via a subsequent state inspection (not just visually) — e.g. an integration-style component test asserting `draft.layout` order after a simulated drag
+- [ ] "Configurar" on all 8 modules opens that module's config panel pre-filled with current values, via the client-side view swap (no URL change, `draft` state untouched until "Aplicar")
+- [ ] Each panel's fields exactly match its `packages/types/src/hotsite.ts` interface — no invented fields, no omitted required fields (except the deliberately-dropped `carouselDays`)
+- [ ] "Aplicar" commits the edited module's data into `draft.layout` by `type` and returns to the Layout tab view; "Cancelar" and the back arrow discard the panel's local edits and return without mutating `draft`
+- [ ] Hero/BookingCta/About background/content images use `SingleImageUploadField` with a large, prominent preview; Gallery uses `GalleryImageManager` with a thumbnail grid; each supports real removal (calls the new delete endpoint, confirmed removed from the bucket — not just cleared from the draft)
+- [ ] `LogoUpload.tsx` (M13-S35) is retrofitted to support removal via the same new delete endpoint
+- [ ] Testimonials supports dynamic add ("+") and delete of individual items, each with authorName/text/rating/avatarUrl
+- [ ] Gallery's `GalleryImageManager` includes a working "feature from booking" picker that lists candidate bookings/photos and calls the existing `feature-booking-photo` endpoint
+- [ ] New `POST /tenants/hotsite/images/delete` (backend + BFF): happy path deletes the object from the public bucket; a `filePath` not belonging to the caller's own `tenantId` is rejected (400/403, not silently ignored)
+- [ ] `'testimonials'` is a valid `purpose` value end-to-end (backend DTO, BFF schema, frontend type) and testimonial avatar upload works
+- [ ] All new UI copy has `pt-BR`/`en` i18n keys added in the same commit — no hardcoded strings
+- [ ] `tsc --noEmit` passes; `pnpm lint` zero warnings; new `.spec.ts`/`.spec.tsx` for every new file (backend, BFF, and web, per `CLAUDE.md` §7 testing rules)
 
-**Dependencies:** M13-S35
+**Dependencies:** M13-S35 ✅
 
 ---
 

@@ -4,6 +4,7 @@ export class InMemoryStorageService implements IStorageService {
   readonly uploadedPaths: string[] = [];
   readonly readSignedPaths: string[] = [];
   readonly copiedPaths: Array<{ sourcePath: string; destinationPath: string }> = [];
+  readonly deletedPaths: string[] = [];
   private readonly existingPaths = new Set<string>();
 
   async generateWriteSignedUrl(
@@ -42,6 +43,11 @@ export class InMemoryStorageService implements IStorageService {
   async copy(sourcePath: string, destinationPath: string): Promise<void> {
     this.copiedPaths.push({ sourcePath, destinationPath });
     this.existingPaths.add(destinationPath);
+  }
+
+  async delete(storagePath: string, _bucket: 'private' | 'public' = 'private'): Promise<void> {
+    this.deletedPaths.push(storagePath);
+    this.existingPaths.delete(storagePath);
   }
 
   markAsUploaded(storagePath: string): void {

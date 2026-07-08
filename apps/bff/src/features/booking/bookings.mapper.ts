@@ -118,6 +118,8 @@ export function toStaffBookingDetail(
     totalDurationMins: detail.totalDurationMins,
     beforeServicePhotoUrls: detail.beforeServicePhotoUrls,
     afterServicePhotoUrls: detail.afterServicePhotoUrls,
+    beforeServicePhotoPaths: detail.beforeServicePhotoPaths,
+    afterServicePhotoPaths: detail.afterServicePhotoPaths,
     infoRequestMessage: detail.infoRequestMessage,
     infoResponseMessage: detail.infoResponseMessage,
     approvedAt: detail.approvedAt,

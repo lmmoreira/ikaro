@@ -85,7 +85,7 @@ export const GenerateHotsiteImageSignedUrlBodySchema = z.object({
       message: 'fileName must not contain path separators or ".."',
     }),
   contentType: z.enum(['image/jpeg', 'image/png']),
-  purpose: z.enum(['branding', 'hero', 'gallery', 'about', 'booking-cta']),
+  purpose: z.enum(['branding', 'hero', 'gallery', 'about', 'booking-cta', 'testimonials']),
 });
 
 type GenerateHotsiteImageSignedUrlBody = z.infer<typeof GenerateHotsiteImageSignedUrlBodySchema>;
@@ -101,6 +101,12 @@ export const FeatureBookingPhotoBodySchema = z
   });
 
 type FeatureBookingPhotoBody = z.infer<typeof FeatureBookingPhotoBodySchema>;
+
+export const DeleteHotsiteImageBodySchema = z.object({
+  filePath: z.string().regex(/^tenants\/[^/]+\/hotsite\/.+$/),
+});
+
+type DeleteHotsiteImageBody = z.infer<typeof DeleteHotsiteImageBodySchema>;
 
 @Controller('tenants/hotsite')
 @Roles('MANAGER')
@@ -153,5 +159,13 @@ export class HotsiteAdminController {
       '/tenants/hotsite/gallery/feature-booking-photo',
       body,
     );
+  }
+
+  @Post('images/delete')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteImage(
+    @Body(new ZodValidationPipe(DeleteHotsiteImageBodySchema)) body: DeleteHotsiteImageBody,
+  ): Promise<void> {
+    return this.backendHttp.post<void>('/tenants/hotsite/images/delete', body);
   }
 }

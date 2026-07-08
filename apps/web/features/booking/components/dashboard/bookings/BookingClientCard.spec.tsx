@@ -26,6 +26,8 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
     totalDurationMins: 0,
     beforeServicePhotoUrls: [],
     afterServicePhotoUrls: [],
+    beforeServicePhotoPaths: [],
+    afterServicePhotoPaths: [],
     infoRequestMessage: null,
     infoResponseMessage: null,
     approvedAt: null,

@@ -1,5 +1,7 @@
 # M14 — Observability
 
+> ⚠️ **SUPERSEDED by `plan/M17-CLOUD-DEPLOY.md` (2026-07-07).** Deploy was reprioritized ahead of observability, and all M14 stories were reconciled against the implemented codebase and merged into M17: S01/S02 → M17-S33 (OTel, OTLP-only), S04 → M17-S34 (collector sidecar replaces the Compose stack), S05/S06 → M17-S35 (Cloud Monitoring as code), S07 → M17-S04, S08 → M17-S05. The self-hosted Grafana/Prometheus/Loki stack described here remains a valid **future option** (activated by swapping the collector exporter config — see M17 D9). Do not implement stories from this file. Kept for historical reference.
+
 **Phase:** Local Development  
 **Goal:** The full observability stack (OpenTelemetry traces, Prometheus metrics, structured logs, Grafana dashboards) runs locally via Docker Compose. Every business operation is traced, every metric is collected, and every log includes the mandatory structured fields. The stack is identical in production — no extra work needed when going live.  
 **Depends on:** M00 (backend/BFF skeleton to instrument)  

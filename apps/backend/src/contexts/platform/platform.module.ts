@@ -9,6 +9,7 @@ import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-re
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
 import { HotsiteImagePathsService } from './domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from './domain/services/hotsite-image-url-resolver.service';
+import { DeleteHotsiteImageUseCase } from './application/use-cases/delete-hotsite-image.use-case';
 import { FeatureBookingPhotoUseCase } from './application/use-cases/feature-booking-photo.use-case';
 import { GenerateHotsiteImageSignedUrlUseCase } from './application/use-cases/generate-hotsite-image-signed-url.use-case';
 import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-content.use-case';
@@ -63,6 +64,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },
     HotsiteImagePathsService,
     HotsiteImageUrlResolver,
+    DeleteHotsiteImageUseCase,
     FeatureBookingPhotoUseCase,
     GenerateHotsiteImageSignedUrlUseCase,
     GetHotsiteContentUseCase,

@@ -64,6 +64,32 @@ function TopbarStatusProbe(): React.JSX.Element {
   );
 }
 
+function TopbarOnBackSetter({
+  onBack,
+  backLabel,
+  pageTitle,
+}: {
+  readonly onBack: () => void;
+  readonly backLabel: string;
+  readonly pageTitle: string;
+}): React.JSX.Element {
+  const { setOnBackOverride, setBackLabelOverride, setPageTitleOverride } =
+    useDashboardTopbarStatus()!;
+
+  useEffect(() => {
+    setOnBackOverride(() => onBack);
+    setBackLabelOverride(backLabel);
+    setPageTitleOverride(pageTitle);
+    return () => {
+      setOnBackOverride(null);
+      setBackLabelOverride(null);
+      setPageTitleOverride(null);
+    };
+  }, [backLabel, onBack, pageTitle, setOnBackOverride, setBackLabelOverride, setPageTitleOverride]);
+
+  return <></>;
+}
+
 function TopbarSetter({
   href,
   backLabel,
@@ -275,6 +301,42 @@ describe('Topbar', () => {
       '/dashboard/loyalty',
     );
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('João Silva');
+  });
+
+  it('renders a button (not a link) and calls onBack when onBackOverride is set', async () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/hotsite');
+    const onBack = vi.fn();
+
+    render(
+      <DashboardTopbarStatusProvider>
+        <TopbarOnBackSetter onBack={onBack} backLabel="Voltar" pageTitle="Configurar: Hero" />
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    const backButton = await screen.findByTestId('topbar-back-button');
+    expect(backButton.tagName).toBe('BUTTON');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Configurar: Hero');
+
+    await userEvent.click(backButton);
+
+    expect(onBack).toHaveBeenCalled();
+  });
+
+  it('prefers onBackOverride over backHrefOverride when both are set', async () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/hotsite');
+    const onBack = vi.fn();
+
+    render(
+      <DashboardTopbarStatusProvider>
+        <TopbarSetter href="/dashboard/hotsite" backLabel="Voltar" pageTitle="Layout" />
+        <TopbarOnBackSetter onBack={onBack} backLabel="Voltar" pageTitle="Configurar: Hero" />
+        <Topbar tenantName="Lavacar BH" userName="Ana" />
+      </DashboardTopbarStatusProvider>,
+    );
+
+    expect(await screen.findByTestId('topbar-back-button')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Voltar' })).not.toBeInTheDocument();
   });
 
   it('prefers returnTo for booking routes opened from schedule', () => {

@@ -4,7 +4,22 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
+import {
+  DashboardTopbarStatusProvider,
+  useDashboardTopbarStatus,
+} from '@/shells/dashboard/components/topbar-status-context';
 import { HotsiteEditor } from './HotsiteEditor';
+
+vi.mock('@/features/platform/tenant-settings', () => ({
+  generateHotsiteImageSignedUrl: vi.fn(),
+  deleteHotsiteImage: vi.fn(),
+  featureBookingPhoto: vi.fn(),
+}));
+
+vi.mock('@/features/booking/api/staff', () => ({
+  listBookings: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 50 }),
+  getBooking: vi.fn(),
+}));
 
 const INITIAL: HotsiteAdminContentResponse = {
   branding: {
@@ -26,6 +41,17 @@ const INITIAL: HotsiteAdminContentResponse = {
   updatedAt: '2026-07-01T00:00:00.000Z',
 };
 
+function TopbarOverrideProbe(): React.JSX.Element {
+  const status = useDashboardTopbarStatus();
+  return (
+    <div>
+      <p data-testid="probe-page-title">{status?.pageTitleOverride ?? 'none'}</p>
+      <p data-testid="probe-back-label">{status?.backLabelOverride ?? 'none'}</p>
+      <p data-testid="probe-onback">{status?.onBackOverride ? 'set' : 'none'}</p>
+    </div>
+  );
+}
+
 describe('HotsiteEditor', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
@@ -46,15 +72,27 @@ describe('HotsiteEditor', () => {
     expect(screen.getByTestId('hotsite-primary-color')).toBeInTheDocument();
   });
 
-  it('switches tabs without triggering a network request', async () => {
+  it('switches to Layout without triggering a network request, showing all 8 auto-materialized modules', async () => {
     const user = userEvent.setup();
     renderWithIntl(<HotsiteEditor initial={INITIAL} />);
 
     await user.click(screen.getByRole('tab', { name: 'Layout' }));
 
     expect(screen.getByRole('tab', { name: 'Layout' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('hotsite-tab-placeholder')).toHaveAttribute('data-tab', 'layout');
+    expect(screen.getByTestId('layout-tab-list')).toBeInTheDocument();
+    const layoutRows = screen.getAllByTestId('layout-row');
+    expect(layoutRows.find((el) => el.dataset.moduleType === 'HERO')).toBeInTheDocument();
+    expect(layoutRows.find((el) => el.dataset.moduleType === 'FOOTER')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('switches to SEO showing the coming-soon placeholder', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<HotsiteEditor initial={INITIAL} />);
+
+    await user.click(screen.getByRole('tab', { name: 'SEO' }));
+
+    expect(screen.getByTestId('hotsite-tab-placeholder')).toHaveAttribute('data-tab', 'seo');
   });
 
   it('renders Publicar alterações, Preview, and the unpublish action as disabled', () => {
@@ -65,5 +103,149 @@ describe('HotsiteEditor', () => {
     expect(screen.getByTestId('hotsite-preview-desktop')).toBeDisabled();
     expect(screen.getByTestId('hotsite-preview-mobile')).toBeDisabled();
     expect(screen.getByTestId('hotsite-unpublish-button')).toBeDisabled();
+  });
+
+  describe('"Configurar" view swap', () => {
+    it('opens the module config shell for the clicked module, without changing the URL or making a network request', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<HotsiteEditor initial={INITIAL} />);
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
+
+      expect(await screen.findByLabelText('Título *')).toBeInTheDocument();
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('"Aplicar" commits the edited field into the Layout tab\'s draft and returns to the tabs view', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<HotsiteEditor initial={INITIAL} />);
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
+      const titleInput = await screen.findByLabelText('Título *');
+      await user.clear(titleInput);
+      await user.type(titleInput, 'Novo título');
+      await user.click(screen.getByTestId('module-config-apply-desktop'));
+
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
+      expect(await screen.findByDisplayValue('Novo título')).toBeInTheDocument();
+    });
+
+    it('"Cancelar" discards local edits and returns to the tabs view without mutating the draft', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<HotsiteEditor initial={INITIAL} />);
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
+      const titleInput = await screen.findByLabelText('Título *');
+      await user.type(titleInput, 'Descartado');
+      await user.click(screen.getByTestId('module-config-cancel-desktop'));
+
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
+      expect(screen.queryByDisplayValue('Descartado')).not.toBeInTheDocument();
+    });
+
+    it('pushes an onBackOverride + page title into the shared dashboard Topbar context while configuring, and clears them on cancel', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(
+        <DashboardTopbarStatusProvider>
+          <TopbarOverrideProbe />
+          <HotsiteEditor initial={INITIAL} />
+        </DashboardTopbarStatusProvider>,
+      );
+
+      expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
+
+      expect(screen.getByTestId('probe-onback')).toHaveTextContent('set');
+      expect(screen.getByTestId('probe-page-title')).toHaveTextContent('Configurar: Hero');
+
+      await user.click(screen.getByTestId('module-config-cancel-desktop'));
+
+      expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
+      expect(screen.getByTestId('probe-page-title')).toHaveTextContent('none');
+    });
+
+    it('opens every one of the other 7 module panels (each lazy-loaded via next/dynamic)', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<HotsiteEditor initial={INITIAL} />);
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+
+      const panels: ReadonlyArray<{ type: string; testId: string }> = [
+        { type: 'SERVICE_LIST', testId: 'service-list-show-prices' },
+        { type: 'GALLERY', testId: 'gallery-open-picker' },
+        { type: 'TESTIMONIALS', testId: 'testimonials-add' },
+        { type: 'BOOKING_CTA', testId: 'booking-cta-variant-centered' },
+        { type: 'ABOUT', testId: 'about-image-position-left' },
+        { type: 'CONTACT', testId: 'contact-show-address' },
+        { type: 'FOOTER', testId: 'footer-show-whatsapp' },
+      ];
+
+      for (const panel of panels) {
+        await user.click(
+          screen
+            .getAllByTestId('layout-row-configure')
+            .find((el) => el.dataset.moduleType === panel.type)!,
+        );
+        expect(await screen.findByTestId(panel.testId)).toBeInTheDocument();
+        await user.click(screen.getByTestId('module-config-cancel-desktop'));
+        expect(await screen.findByRole('tablist')).toBeInTheDocument();
+      }
+    });
+
+    it('editing a Branding field through HotsiteEditor updates the draft (setBranding)', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<HotsiteEditor initial={INITIAL} />);
+
+      const primaryColorInput = screen.getByTestId('hotsite-primary-color');
+      await user.clear(primaryColorInput);
+      await user.type(primaryColorInput, '#ff0000');
+
+      expect(primaryColorInput).toHaveValue('#ff0000');
+    });
+
+    it("toggling a module through HotsiteEditor's Layout tab updates the draft (setLayout)", async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<HotsiteEditor initial={INITIAL} />);
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      const heroToggle = screen.getByTestId('layout-row-toggle-HERO');
+      const initialChecked = heroToggle.getAttribute('aria-checked');
+
+      await user.click(heroToggle);
+
+      expect(heroToggle.getAttribute('aria-checked')).not.toBe(initialChecked);
+    });
   });
 });

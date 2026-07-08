@@ -29,4 +29,6 @@ export interface IStorageService {
   getPublicUrl(storagePath: string): string;
   /** Copies an object from the private bucket into the public bucket. */
   copy(sourcePath: string, destinationPath: string): Promise<void>;
+  /** `bucket` defaults to private — pass `'public'` to delete from the hotsite public bucket. */
+  delete(storagePath: string, bucket?: 'private' | 'public'): Promise<void>;
 }
