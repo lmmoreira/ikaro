@@ -1,6 +1,8 @@
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { HexColor } from '../../../shared/value-objects/hex-color.vo';
+import { SeoTitle } from '../../../shared/value-objects/seo-title.vo';
+import { SeoDescription } from '../../../shared/value-objects/seo-description.vo';
 import { PlatformDomainError } from './errors/platform-domain.error';
 
 export type HotsiteModuleType =
@@ -174,18 +176,25 @@ export interface HotsiteSeo {
   description: string | null;
 }
 
+/** Internal aggregate representation — title/description held as typed VOs when set. */
+interface HotsiteSeoProps {
+  title: SeoTitle | null;
+  description: SeoDescription | null;
+}
+
 interface HotsiteConfigProps {
   id: string;
   tenantId: string;
   branding: HotsiteBrandingProps;
   layout: HotsiteModule[];
-  seo: HotsiteSeo;
+  seo: HotsiteSeoProps;
   isPublished: boolean;
   updatedAt: Date;
 }
 
-type ReconstituteInput = Omit<HotsiteConfigProps, 'branding'> & {
+type ReconstituteInput = Omit<HotsiteConfigProps, 'branding' | 'seo'> & {
   branding: HotsiteBranding;
+  seo: HotsiteSeo;
 };
 
 function brandingToDomain(b: HotsiteBranding): HotsiteBrandingProps {
@@ -225,6 +234,27 @@ function brandingFromDomain(b: HotsiteBrandingProps): HotsiteBranding {
     textColor: b.textColor.value,
     buttonBackgroundColor: b.buttonBackgroundColor?.value,
     buttonTextColor: b.buttonTextColor?.value,
+  };
+}
+
+function seoToDomain(seo: HotsiteSeo): HotsiteSeoProps {
+  return {
+    title: seo.title !== null ? SeoTitle.create(seo.title) : null,
+    description: seo.description !== null ? SeoDescription.create(seo.description) : null,
+  };
+}
+
+function seoReconstitute(seo: HotsiteSeo): HotsiteSeoProps {
+  return {
+    title: seo.title !== null ? SeoTitle.reconstitute(seo.title) : null,
+    description: seo.description !== null ? SeoDescription.reconstitute(seo.description) : null,
+  };
+}
+
+function seoFromDomain(seo: HotsiteSeoProps): HotsiteSeo {
+  return {
+    title: seo.title?.value ?? null,
+    description: seo.description?.value ?? null,
   };
 }
 
@@ -272,9 +302,6 @@ export const DEFAULT_HOTSITE_SEO: HotsiteSeo = {
   description: null,
 };
 
-const SEO_TITLE_MAX_LENGTH = 70;
-const SEO_DESCRIPTION_MAX_LENGTH = 160;
-
 export class HotsiteConfig extends AggregateRoot {
   private readonly props: HotsiteConfigProps;
 
@@ -300,7 +327,7 @@ export class HotsiteConfig extends AggregateRoot {
   }
 
   get seo(): HotsiteSeo {
-    return { ...this.props.seo };
+    return seoFromDomain(this.props.seo);
   }
 
   get isPublished(): boolean {
@@ -317,7 +344,7 @@ export class HotsiteConfig extends AggregateRoot {
       tenantId,
       branding: brandingToDomain(DEFAULT_HOTSITE_BRANDING),
       layout: [],
-      seo: { ...DEFAULT_HOTSITE_SEO },
+      seo: seoToDomain(DEFAULT_HOTSITE_SEO),
       isPublished: false,
       updatedAt: new Date(),
     });
@@ -327,6 +354,7 @@ export class HotsiteConfig extends AggregateRoot {
     return new HotsiteConfig({
       ...props,
       branding: brandingReconstitute(props.branding),
+      seo: seoReconstitute(props.seo),
     });
   }
 
@@ -340,7 +368,7 @@ export class HotsiteConfig extends AggregateRoot {
     this.validateSeo(seo);
     this.props.branding = brandingToDomain(branding);
     this.props.layout = layout;
-    this.props.seo = seo;
+    this.props.seo = seoToDomain(seo);
     this.props.updatedAt = new Date();
   }
 
@@ -396,12 +424,12 @@ export class HotsiteConfig extends AggregateRoot {
   }
 
   private validateSeo(seo: HotsiteSeo): void {
-    if (seo.title !== null && seo.title.length > SEO_TITLE_MAX_LENGTH) {
-      throw new PlatformDomainError(`seo.title must be at most ${SEO_TITLE_MAX_LENGTH} characters`);
+    if (seo.title !== null && !SeoTitle.isValid(seo.title)) {
+      throw new PlatformDomainError(`seo.title must be at most ${SeoTitle.MAX_LENGTH} characters`);
     }
-    if (seo.description !== null && seo.description.length > SEO_DESCRIPTION_MAX_LENGTH) {
+    if (seo.description !== null && !SeoDescription.isValid(seo.description)) {
       throw new PlatformDomainError(
-        `seo.description must be at most ${SEO_DESCRIPTION_MAX_LENGTH} characters`,
+        `seo.description must be at most ${SeoDescription.MAX_LENGTH} characters`,
       );
     }
   }

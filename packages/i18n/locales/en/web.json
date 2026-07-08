@@ -439,12 +439,25 @@
         "layout": "Layout",
         "seo": "SEO"
       },
-      "comingSoon": "Coming soon",
       "publish": "Publish changes",
       "preview": "Preview",
       "unpublish": "Unpublish hotsite",
       "dangerZoneTitle": "Danger zone",
       "unpublishedHint": "Unpublished changes are only visible in Preview — the public hotsite still shows the previous version.",
+      "publishSuccessTitle": "Hotsite updated and live!",
+      "publishSuccessBody": "The changes are already visible to anyone visiting @{slug}.",
+      "publishError": "Could not publish the changes. Please try again.",
+      "unpublishSuccessTitle": "Hotsite offline",
+      "unpublishSuccessBody": "The hotsite @{slug} is no longer publicly accessible. Visitors to the address will see a maintenance page.",
+      "unpublishError": "Could not unpublish the hotsite. Please try again.",
+      "previewView": {
+        "pageTitle": "Preview",
+        "backLabel": "Back to editing",
+        "viewingDraftLabel": "Viewing unpublished changes",
+        "publishNow": "Publish now",
+        "loading": "Loading preview...",
+        "loadError": "Could not load the preview. Please try again."
+      },
       "branding": {
         "sections": {
           "colors": "Colors",
@@ -690,6 +703,13 @@
             "showWhatsappLabel": "Show WhatsApp button"
           }
         }
+      },
+      "seo": {
+        "sectionTitle": "SEO",
+        "titleLabel": "Title (max. {max} characters)",
+        "titleHint": "Leave blank to use the automatically generated title",
+        "descriptionLabel": "Description (max. {max} characters)",
+        "descriptionHint": "Leave blank to use the automatically generated description"
       }
     },
     "settingsPage": {

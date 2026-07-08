@@ -146,17 +146,17 @@ describe('HotsiteConfig', () => {
       });
     });
 
-    it('throws when seo.title exceeds 70 characters', () => {
+    it('throws when seo.title exceeds 60 characters', () => {
       const config = new HotsiteConfigBuilder().build();
-      const title = 'a'.repeat(71);
+      const title = 'a'.repeat(61);
       expect(() =>
         config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, { title, description: null }),
       ).toThrow(PlatformDomainError);
     });
 
-    it('throws when seo.description exceeds 160 characters', () => {
+    it('throws when seo.description exceeds 158 characters', () => {
       const config = new HotsiteConfigBuilder().build();
-      const description = 'a'.repeat(161);
+      const description = 'a'.repeat(159);
       expect(() =>
         config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, {
           title: null,
@@ -165,16 +165,16 @@ describe('HotsiteConfig', () => {
       ).toThrow(PlatformDomainError);
     });
 
-    it('accepts seo.title at exactly 70 characters', () => {
+    it('accepts seo.title at exactly 60 characters', () => {
       const config = new HotsiteConfigBuilder().build();
-      const title = 'a'.repeat(70);
+      const title = 'a'.repeat(60);
       config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, { title, description: null });
       expect(config.seo.title).toBe(title);
     });
 
-    it('accepts seo.description at exactly 160 characters', () => {
+    it('accepts seo.description at exactly 158 characters', () => {
       const config = new HotsiteConfigBuilder().build();
-      const description = 'a'.repeat(160);
+      const description = 'a'.repeat(158);
       config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, { title: null, description });
       expect(config.seo.description).toBe(description);
     });

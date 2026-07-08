@@ -57,8 +57,8 @@ const HotsiteModuleBodySchema = z.object({
 
 const HotsiteSeoBodySchema = z
   .object({
-    title: z.string().max(70).nullable(),
-    description: z.string().max(160).nullable(),
+    title: z.string().max(60).nullable(),
+    description: z.string().max(158).nullable(),
   })
   .partial();
 

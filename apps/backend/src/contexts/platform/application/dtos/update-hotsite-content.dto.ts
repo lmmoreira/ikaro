@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { HexColor } from '../../../../shared/value-objects/hex-color.vo';
+import { SeoTitle } from '../../../../shared/value-objects/seo-title.vo';
+import { SeoDescription } from '../../../../shared/value-objects/seo-description.vo';
 
 const HEX_COLOR_MESSAGE = { message: 'must be a valid hex color (e.g. #FF5733)' };
+const SEO_TITLE_MESSAGE = { message: `must be at most ${SeoTitle.MAX_LENGTH} characters` };
+const SEO_DESCRIPTION_MESSAGE = {
+  message: `must be at most ${SeoDescription.MAX_LENGTH} characters`,
+};
 const LOGO_URL_REGEX = /^$|^tenants\/[^/]+\/hotsite\/.+$/;
 const LOGO_URL_MESSAGE = {
   message: 'logoUrl must be empty (to clear) or a tenants/<id>/hotsite/... storage path',
@@ -47,8 +53,8 @@ const HotsiteModuleSchema = z.object({
 
 const HotsiteSeoSchema = z
   .object({
-    title: z.string().max(70).nullable(),
-    description: z.string().max(160).nullable(),
+    title: z.string().refine(SeoTitle.isValid, SEO_TITLE_MESSAGE).nullable(),
+    description: z.string().refine(SeoDescription.isValid, SEO_DESCRIPTION_MESSAGE).nullable(),
   })
   .partial();
 
