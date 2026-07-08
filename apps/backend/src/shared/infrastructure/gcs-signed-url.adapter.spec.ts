@@ -227,5 +227,11 @@ describe('GcsSignedUrlAdapter', () => {
       expect(mockBucket).toHaveBeenCalledWith('ikaro-local-public');
       expect(mockDelete).toHaveBeenCalled();
     });
+
+    it('is idempotent — passes ignoreNotFound so deleting an already-removed file does not throw', async () => {
+      const service = makeService({});
+      await service.delete('tenants/t1/uploads/uuid/car.jpg');
+      expect(mockDelete).toHaveBeenCalledWith({ ignoreNotFound: true });
+    });
   });
 });

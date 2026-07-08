@@ -94,6 +94,6 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
 
   async delete(storagePath: string, bucket: 'private' | 'public' = 'private'): Promise<void> {
     const bucketName = bucket === 'public' ? this.publicBucketName : this.bucketName;
-    await this.storage.bucket(bucketName).file(storagePath).delete();
+    await this.storage.bucket(bucketName).file(storagePath).delete({ ignoreNotFound: true });
   }
 }

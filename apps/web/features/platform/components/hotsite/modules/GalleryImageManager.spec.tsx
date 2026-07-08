@@ -113,6 +113,34 @@ describe('GalleryImageManager', () => {
     expect(screen.getByTestId('gallery-image')).toHaveAttribute('src', objectUrlBeforeTyping!);
   });
 
+  it('removing an uploaded image revokes its local blob preview URL', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/upload?sig=abc',
+      filePath: 'tenants/tenant-1/hotsite/gallery/g2.png',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL');
+
+    function ControlledWrapper(): React.JSX.Element {
+      const [images, setImages] = useState<GalleryImage[]>([]);
+      return <GalleryImageManager images={images} onChange={setImages} />;
+    }
+
+    renderWithIntl(<ControlledWrapper />);
+
+    await user.upload(screen.getByTestId('gallery-upload-input'), makeFile('g2.png', 'image/png'));
+    const preview = await screen.findByTestId('gallery-image');
+    const blobUrl = preview.getAttribute('src')!;
+    expect(blobUrl).toMatch(/^blob:/);
+
+    await user.click(screen.getByTestId('gallery-remove'));
+
+    expect(revokeSpy).toHaveBeenCalledWith(blobUrl);
+    revokeSpy.mockRestore();
+  });
+
   it('editing the caption of an image updates only that image', async () => {
     const user = userEvent.setup();
     const images: GalleryImage[] = [

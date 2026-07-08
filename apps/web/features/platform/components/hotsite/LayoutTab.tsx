@@ -45,6 +45,7 @@ export function reorderLayout(
 interface LayoutRowProps {
   readonly module: HotsiteModuleResponse;
   readonly moduleLabel: string;
+  readonly dragLabel: string;
   readonly configureLabel: string;
   readonly onToggle: (type: HotsiteModuleType, enabled: boolean) => void;
   readonly onConfigure: (type: HotsiteModuleType) => void;
@@ -53,6 +54,7 @@ interface LayoutRowProps {
 function LayoutRow({
   module,
   moduleLabel,
+  dragLabel,
   configureLabel,
   onToggle,
   onConfigure,
@@ -74,7 +76,7 @@ function LayoutRow({
         type="button"
         data-testid="layout-row-drag"
         data-module-type={module.type}
-        aria-label="drag"
+        aria-label={dragLabel}
         className="cursor-grab touch-none text-gray-400 hover:text-gray-600"
         {...attributes}
         {...listeners}
@@ -140,6 +142,7 @@ export function LayoutTab({ layout, onChange, onConfigure }: LayoutTabProps): Re
               key={module.type}
               module={module}
               moduleLabel={t(`modules.${module.type}`)}
+              dragLabel={t('dragLabel', { module: t(`modules.${module.type}`) })}
               configureLabel={t('configureLabel')}
               onToggle={handleToggle}
               onConfigure={onConfigure}

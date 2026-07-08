@@ -502,6 +502,7 @@
       },
       "layout": {
         "configureLabel": "Configure",
+        "dragLabel": "Drag to reorder: {module}",
         "modules": {
           "HERO": "Hero",
           "SERVICE_LIST": "Service list",

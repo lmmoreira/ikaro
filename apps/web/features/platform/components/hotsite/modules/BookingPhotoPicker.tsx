@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { GalleryImage } from '@ikaro/types';
 import { getBooking, listBookings } from '@/features/booking/api/staff';
 import { featureBookingPhoto } from '@/features/platform/tenant-settings';
+import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 
 interface BookingPhotoPickerProps {
   readonly onPick: (image: GalleryImage, previewUrl: string) => void;
@@ -35,6 +36,7 @@ export function BookingPhotoPicker({
   onClose,
 }: BookingPhotoPickerProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.gallery.picker');
+  const { formatDate } = useFormatting();
   const [candidates, setCandidates] = useState<readonly BookingCandidate[] | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<BookingPhotos | null>(null);
@@ -163,7 +165,7 @@ export function BookingPhotoPicker({
             <option value="">—</option>
             {candidates.map((c) => (
               <option key={c.bookingId} value={c.bookingId}>
-                {c.contactName} — {new Date(c.scheduledAt).toLocaleDateString('pt-BR')}
+                {c.contactName} — {formatDate(new Date(c.scheduledAt))}
               </option>
             ))}
           </select>
@@ -178,7 +180,7 @@ export function BookingPhotoPicker({
         <div className="grid grid-cols-3 gap-3" data-testid="booking-photo-picker-grid">
           {currentPhotos.beforeUrls.map((url, index) => (
             <button
-              key={`before-${index}`}
+              key={url}
               type="button"
               disabled={picking}
               onClick={() => {
@@ -194,7 +196,7 @@ export function BookingPhotoPicker({
           ))}
           {currentPhotos.afterUrls.map((url, index) => (
             <button
-              key={`after-${index}`}
+              key={url}
               type="button"
               disabled={picking}
               onClick={() => {

@@ -49,6 +49,16 @@ describe('LayoutTab', () => {
     expect(screen.getByText('Galeria')).toBeInTheDocument();
   });
 
+  it('gives each drag handle a module-specific, localized aria-label (not a bare "drag")', () => {
+    renderWithIntl(<LayoutTab layout={LAYOUT} onChange={vi.fn()} onConfigure={vi.fn()} />);
+
+    const heroHandle = screen
+      .getAllByTestId('layout-row-drag')
+      .find((el) => el.dataset.moduleType === 'HERO')!;
+
+    expect(heroHandle).toHaveAttribute('aria-label', 'Arrastar para reordenar: Hero');
+  });
+
   it('toggling a module calls onChange with only that module flipped', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

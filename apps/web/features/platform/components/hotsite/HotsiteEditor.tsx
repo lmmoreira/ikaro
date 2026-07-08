@@ -104,9 +104,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     const backToTabs = () => setView({ view: 'tabs' });
     setOnBackOverride?.(() => backToTabs);
     setBackLabelOverride?.(t('layout.configShell.backLabel'));
-    setPageTitleOverride?.(
-      `${t('layout.configShell.titlePrefix')}: ${t(`layout.modules.${configuringType}`)}`,
-    );
+    const moduleLabel = t(`layout.modules.${configuringType}`);
+    setPageTitleOverride?.(`${t('layout.configShell.titlePrefix')}: ${moduleLabel}`);
     return () => {
       setOnBackOverride?.(null);
       setBackLabelOverride?.(null);

@@ -68,6 +68,8 @@ export function GalleryImageManager({
 
   async function handleRemove(index: number): Promise<void> {
     const image = images[index];
+    const previewUrl = previewUrls.get(image.url);
+    if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
     previewUrls.delete(image.url);
     if (image.url.startsWith('tenants/')) {
       try {
