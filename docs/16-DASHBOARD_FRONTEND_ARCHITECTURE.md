@@ -12,20 +12,23 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 
 > **Naming note:** the customer area's pt-BR *concept* "Minha Conta" keeps that name in UI copy and in the prototype folder (`plan/journey/customer/prototypes/minha-conta/` — prototypes are conceptual mockups, kept pt-BR on purpose). The production route/file/component names are English (`my-account`, not `minha-conta`) per the code-standards English-only rule (`CLAUDE.md` §7) — established in `M13-S42`.
 
-### **Staff/Manager Shell — `/dashboard/**` (UC-003, UC-004, UC-005, UC-008, UC-009, UC-010, UC-012, UC-013)**
-- **Focus:** Efficiency and task management for STAFF and MANAGER roles.
-- **Route protection:** `apps/web/middleware.ts` reads the JWT from the `httpOnly` cookie; redirects to `/dashboard/login` if missing or if role is not `STAFF`/`MANAGER`.
-- **Layout:** `apps/web/app/dashboard/layout.tsx` (server component) reads `{ tenantId, tenantSlug, role }` from the JWT via `cookies()`, and renders `<DashboardShell>`. The JWT payload is only `{ sub, tenantId, tenantSlug, role }` (see `JwtIssuerService`) — it does **not** carry `tenantName`/`userName`; S15 must source those from a separate profile/tenant-info fetch, not by destructuring the JWT.
+### **Staff/Manager Shell — `/dashboard/**` (UC-003, UC-004, UC-005, UC-008, UC-009, UC-010, UC-012, UC-013, UC-025 through UC-031)**
+- **Focus:** Efficiency and task management for STAFF and MANAGER roles. The "Somente Gerente" section (Equipe, Configurações, Hotsite) covers UC-025 through UC-031 (staff/settings/hotsite management) — not listed in earlier revisions of this doc, added here for completeness.
+- **Route protection:** `apps/web/middleware.ts` reads the JWT from the `httpOnly` cookie; redirects to `/dashboard/login` if missing or if role is not `STAFF`/`MANAGER`. A separate check further restricts `/dashboard/{settings,team,hotsite}` to `MANAGER` only (STAFF hitting these is redirected to `/dashboard`, not to login — a soft redirect, not an auth failure).
+- **Layout:** `apps/web/app/dashboard/layout.tsx` (server component) reads `{ tenantId, tenantSlug, tenantName, userName, role, locale }` from the JWT via `cookies()`, and renders `<DashboardShell>`. **Updated (`M13-S15`):** the JWT payload was enriched to carry `tenantName`/`userName`/`locale` directly (see `JwtIssuerService`) specifically so shells never need a separate profile/tenant-info fetch — `apps/web/shells/dashboard/model/dashboard-shell-context.ts`'s `buildDashboardShellContext`/`loadDashboardShellContext` read these fields straight off the decoded token, with no extra API call.
 - **Key components (`apps/web/shells/dashboard/components/`):**
   - `DashboardShell.tsx` — `'use client'` shell wrapper: sidebar (desktop, `≥1024px`) + topbar + bottom nav (mobile, `<1024px`); conditionally renders manager-only nav based on `role`.
   - `Sidebar.tsx` — logo block, nav items (Agenda, Horários, Serviços, Fidelidade), and a "Somente Gerente" section (Equipe, Configurações, Hotsite) shown only when `role === 'MANAGER'`.
   - `Topbar.tsx` — back arrow + title on drill-down pages, page title on list pages, avatar + date on desktop.
-  - `BottomNav.tsx` — mobile-only tab bar mirroring the sidebar's nav items, role-aware.
+  - `BottomNav.tsx` — mobile-only tab bar mirroring the sidebar's nav items, role-aware. Hides itself only on genuine drill-down routes (booking/service/loyalty/team detail) that have their own topbar back arrow — top-level sections like `/dashboard/settings` and `/dashboard/hotsite` must stay visible here, or mobile users lose all navigation (a real bug found and fixed in `M13-S37`; see that story's implementation notes).
+  - `ManagerSheet.tsx` — mobile "Mais" bottom-sheet exposing the manager-only nav items on small viewports.
+  - `topbar-status-context.tsx` (`DashboardTopbarStatusProvider`) — route-scoped chrome state (status badge, back-href/label/onBack overrides), mounted per-section above both the shell and the page.
+  - `DashboardLayoutShell.tsx`/`DashboardSectionShell.tsx` — shared layout-composition helpers used by `services/`, `team/`, `settings/`, `hotsite/` (not yet adopted by `bookings/`, `schedule/`, `loyalty/`, which still hand-roll the same provider nesting inline).
 
 ### **Customer Shell — `/{slug}/my-account/**` (UC-006, UC-007, UC-016, UC-023)**
 - **Focus:** Personal booking history and loyalty for the `CUSTOMER` role.
 - **Route protection:** `apps/web/middleware.ts` extends the same file with a check for `/{slug}/my-account/**` — redirects to `/{slug}/login` if the JWT is missing/expired, if the role is not `CUSTOMER` (staff must not reach the customer area), or if the JWT's `tenantSlug` does not match the `[slug]` path segment.
-- **Layout:** `apps/web/app/[slug]/my-account/layout.tsx` (server component) reads `{ tenantId, tenantSlug, role }` from the JWT via `cookies()`, and renders `<CustomerShell>`. As with the staff shell, the JWT carries no `userName`/`tenantName` — fetch the customer's name via `GET /api/customers/me` (the proxy route added in `M13-S42`, also used by the hotsite auth bar) and the tenant's display name via the manifest already fetched by the parent `[slug]/layout.tsx`.
+- **Layout:** `apps/web/app/[slug]/my-account/layout.tsx` (server component) reads `{ tenantId, tenantSlug, tenantName, userName, role, locale }` from the JWT via `cookies()`, and renders `<CustomerShell>`. **Updated (`M13-S15`/`M13-S16`):** as with the staff shell, the JWT carries `tenantName`/`userName` directly — no separate fetch needed for the shell itself. `GET /api/customers/me` (the proxy route added in `M13-S42`) is real and still used, but only by the **public hotsite's** `HotsiteAuthBar` (which has no JWT to decode server-side, since a visitor may not be logged in) — not by this layout.
 - **Key component (`apps/web/features/customer/components/`):**
   - `CustomerShell.tsx` — `'use client'`: topbar (tenant brand + "+ Novo agendamento" desktop shortcut + avatar dropdown with "Sair"/"Site Ikaro"), a desktop-only horizontal tab nav (Início | Agendamentos | Fidelidade, `≥1024px`), a `main-content` slot, and a mobile-only bottom nav with the same three tabs (`<1024px`).
 
@@ -57,7 +60,7 @@ We use **shadcn/ui** as the component foundation. Components are copied into the
 
 ---
 
-## 3. Engineering Standards & Quality Gates
+## 4. Engineering Standards & Quality Gates
 
 Since we are following **Trunk-Based Development**, the frontend must have a "Bulletproof" CI pipeline:
 
@@ -74,7 +77,7 @@ Since we are following **Trunk-Based Development**, the frontend must have a "Bu
 
 ---
 
-## 4. Frontend-BFF Communication
+## 5. Frontend-BFF Communication
 
 - **State Management:** **TanStack Query (React Query)**.
   - Handles caching, background syncing, and loading states.
@@ -92,7 +95,7 @@ Likewise, do not fan out across multiple BFF calls inside a page or route file a
 
 ---
 
-## 5. Folder Structure (`apps/web/`)
+## 6. Folder Structure (`apps/web/`)
 
 The tree below reflects the current folder structure. Route files stay thin; feature code lives under `features/`, shell composition lives under `shells/`, and shared helpers live under `shared/`. Route files and pages may fetch and render, but they should not orchestrate multi-call data joins or response merging. Dashboard section routes additionally require a `layout.tsx` sibling to mount the shell.
 
@@ -112,19 +115,23 @@ apps/web/
 │   │   ├── components/
 │   │   ├── hooks/
 │   │   ├── model/
+│   │   ├── schedule/       (view-preference persistence, API layer — M13-S21)
+│   │   ├── services/       (form validation, hooks, API layer — M13-S22/23/24)
 │   │   └── utils/
 │   ├── customer/
-│   │   ├── api/
+│   │   ├── api.ts / api.server.ts   (flat files, not an api/ folder)
 │   │   ├── components/
 │   │   └── hooks/
 │   ├── loyalty/
 │   ├── platform/
+│   │   ├── api.ts, tenant-settings.ts, settings-form.ts   (flat files)
+│   │   ├── components/settings/    (SettingsForm.tsx — M13-S31)
 │   │   └── hotsite/
 │   │       ├── api/
 │   │       ├── model/
 │   │       └── utils/
 │   ├── staff/
-│   │   ├── api/
+│   │   ├── api.ts          (flat file, not an api/ folder)
 │   │   ├── components/
 │   │   └── hooks/
 │   └── uploads/
@@ -155,7 +162,7 @@ apps/web/
 
 ---
 
-## 6. Deployment
+## 7. Deployment
 
 **Runtime:** GCP Cloud Run — Next.js runs as an SSR Node.js server, not a static export. SSR is required for dynamic `[slug]` routing and server-side session handling.
 
@@ -212,7 +219,7 @@ module.exports = {
 
 ---
 
-## 7. Local Development
+## 8. Local Development
 
 ```bash
 # Start infrastructure (PostgreSQL, Pub/Sub emulator, MailHog)

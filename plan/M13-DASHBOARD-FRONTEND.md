@@ -1962,7 +1962,7 @@ Extend `apps/web/middleware.ts` — add protection for `/{slug}/my-account/**`:
 **Implementation session summary**
 - `M13-S18` shipped the booking detail shell and triage flows: approve, reject, request info, localized copy, slot-conflict handling, and topbar status sync.
 - `M13-S19` shipped the approved-state lifecycle shell: the detail page now exposes complete, reschedule, and cancel actions, with cancel staying inline and reschedule moving to a dedicated route.
-- `M13-S20` shipped the dedicated completion route with per-line charged-price editing, live totals, and success state. After-service photo upload is still missing.
+- `M13-S20` shipped the dedicated completion route with per-line charged-price editing, live totals, and success state, **including** after-service photo upload (`AfterServicePhotoUpload.tsx`, same signed-URL pattern as before-service photos) — shipped in the same PR, not a follow-up.
 - Playwright coverage for this slice should focus on happy paths, validation errors, 409 conflict retries, status-specific visibility, and stale-list regressions after returning to the bookings queue.
 
 ---
@@ -2000,7 +2000,7 @@ fetchStaffBookings(params: { status: string; date?: string; from?: string; page?
 - Three sections, each a `<BookingSection title="..." items={...} />`: "Precisa de ação", "Hoje", "Próximos dias"
 - Each card in "Precisa de ação" and "Próximos dias" shows its own date inline (e.g. "Hoje · 10:00", "Amanhã · 09:00", "Qui, 18 de junho · 09:00") since these sections span multiple days — "Hoje" cards show time only (date is implied by the section)
 - Empty state per section: "Nenhum agendamento precisa de ação." / "Nenhum agendamento confirmado para hoje." / "Nenhum agendamento confirmado nos próximos dias." (pt-BR, not an error)
-- Week-strip (`plan/journey/staff/prototypes/agenda/00-agenda.html`'s `.week-strip`) is a visual "this week at a glance" overview, NOT a filter — clicking "Hoje" scrolls to the Hoje section; clicking any future day scrolls to "Próximos dias" (an approximation — see `agenda.md` open question "Week-strip click target for future days"; a future PENDING booking for that day actually lives in "Precisa de ação", not "Próximos dias")
+- **Superseded by implementation:** the week-strip (`plan/journey/staff/prototypes/agenda/00-agenda.html`'s `.week-strip`) was originally planned as scroll-only, NOT a filter. The shipped `WeekNav.tsx` is a real, configurable date-window navigator instead — clicking a day genuinely filters "Próximos dias" to that day, and the window size itself is driven by the tenant's `welcomeStaffScreenDays` setting (`docs/21-TENANTS_SETTINGS_SCHEMA.md`), added in a same-story follow-up. Do not implement against the scroll-only description above.
 
 `apps/web/components/dashboard/bookings/BookingCard.tsx`:
 - Customer name (truncated with ellipsis if long)
@@ -2219,8 +2219,7 @@ completeBooking(body: CompleteBookingRequest): Promise<CompleteBookingResponse>
 - [x] `200` shows the inline green completion summary and updates the topbar badge to `COMPLETED`
 - [x] Cancel/back navigation returns to the bookings queue without requiring a refresh
 
-**Remaining work:**
-- [ ] After-service photo upload is still missing and remains a follow-up for the completion flow
+**Remaining work:** none — after-service photo upload shipped in the same PR as the rest of this story (`AfterServicePhotoUpload.tsx`), not deferred.
 
 **Validated Playwright coverage (`apps/web/e2e/staff-booking-lifecycle.spec.ts`):**
 - Queue card body still opens booking detail
@@ -2461,6 +2460,8 @@ export interface CreateOpeningRequest {
 ### M13-S22 — Serviços: service list page (`/dashboard/services`) ✅ Done
 
 *(formerly M125-S08)*
+
+> **Paths below are pre-`TD21` (domain-slice migration).** This story and `M13-S23`/`M13-S24` were written and implemented against `apps/web/components/dashboard/services/**` and `apps/web/lib/api/dashboard/services.ts` — `TD21` (commit `002d2898`) later relocated these to `apps/web/features/booking/components/dashboard/services/**` and `apps/web/features/booking/services/api.ts`. Grepping the plan text's literal paths will find nothing; use the current locations.
 
 **Agent:** `frontend-ts`
 **Complexity:** S

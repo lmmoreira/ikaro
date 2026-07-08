@@ -29,7 +29,7 @@
 | `reject-booking.dto.ts` | `bookingId, reason: string (min 10)` |
 | `request-more-info.dto.ts` | `bookingId, message: string (min 20)` |
 | `submit-booking-info.dto.ts` | `bookingId, response: string, photoUrls?: string[]` |
-| `submit-guest-booking-info.dto.ts` | `bookingId, guestEmail: string, response: string, photoUrls?: string[]` |
+| `submit-guest-booking-info.dto.ts` | `bookingId, contactEmail: string, response: string, photoUrls?: string[]` (renamed from `guestEmail` in `M13-S38`) |
 | `list-bookings.dto.ts` | `status?, from?, to?, limit (default 25), offset (default 0)` |
 
 ### Repository additions (`application/ports/booking-repository.port.ts`)
@@ -69,7 +69,7 @@ All 4 handlers: thin, call one use case, rethrow errors, subscribe via `onModule
 
 `BookingInfoRequestedHandler` → `SendBookingInfoRequestedNotificationUseCase.buildRespondLink()`:
 - **Authenticated customer** (`customerId !== null`): `${FRONTEND_URL}/dashboard/bookings/:id`
-- **Guest** (`customerId === null`): signs JWT `{ bookingId, tenantId, guestEmail }` with `JWT_SECRET`, TTL 7 days → `${FRONTEND_URL}/bookings/:id/responder?token=<token>`
+- **Guest** (`customerId === null`): signs JWT `{ bookingId, tenantId, tenantSlug?, contactEmail }` with `JWT_SECRET`, TTL 7 days → `${FRONTEND_URL}/bookings/:id/submit-info?token=<token>` (renamed from `guestEmail`/`/responder` in `M13-S38`; `tenantSlug` added the same story)
 
 BFF guest endpoint: `PATCH /v1/bookings/:id/submit-info/guest?token=<token>` (`@Public()`):
 - Verifies JWT with `jsonwebtoken.verify(token, JWT_SECRET, { algorithms: ['HS256'] })`
@@ -108,8 +108,8 @@ This logic lives in the use case, not the controller or repository.
 ### 4. Customer ownership check in GetBookingUseCase
 Customer accessing another customer's booking gets `BookingNotFoundError` (404), not `BookingForbiddenError` (403). This is intentional — avoids leaking booking existence to other customers.
 
-### 5. Guest submit-info: guestEmail from token, not request body
-BFF extracts `guestEmail` from the verified JWT token and forwards it to the backend. The guest does not provide their email in the request body — it comes from the token created when the info-request notification was sent.
+### 5. Guest submit-info: contactEmail from token, not request body
+BFF extracts `contactEmail` (renamed from `guestEmail` in `M13-S38`) from the verified JWT token and forwards it to the backend. The guest does not provide their email in the request body — it comes from the token created when the info-request notification was sent.
 
 ### 6. Notification idempotency via notification_logs
 Each notification use case queries `logRepo.findByEventAndChannel(tenantId, eventId, NOTIFICATION_TYPE, CHANNEL)` before dispatching. If found, returns `{ emailSent: false }` without sending. Log is persisted inside `txManager.run()` after dispatch.

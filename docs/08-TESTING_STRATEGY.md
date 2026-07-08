@@ -421,7 +421,7 @@ npx @stoplight/spectral-cli lint docs/api/openapi.yaml --fail-severity warn
 **Rules:**
 - Happy path only — edge cases belong to unit and integration layers.
 - **Local dev:** run against the local docker-compose stack (`pnpm up` + `pnpm dev`). Use `pnpm test:e2e` from the repo root.
-- **CI/staging:** run against a real staging environment (real containers, seeded DB). CI wiring is M16-S06's scope — until then, E2E is a local-only gate.
+- **CI:** `.github/workflows/pr-e2e.yml` runs the full Playwright suite on every PR to `main` — spins up the complete docker-compose stack + backend + BFF + web, then runs `pnpm test:e2e` against it (absorbed by `AUD-015`, well before `M13-S38`-`S41` even started). E2E is **not** a local-only gate. It also does not feed the SonarCloud coverage gate (see the coverage-exclusions note near the end of this doc) — that's a separate, narrower true statement from "doesn't run in CI at all."
 - Maximum 5–8 E2E scenarios for MVP. Each one maps to a core UC journey.
 - Keep Playwright specs focused on test cases. Move reusable flows, login/setup helpers, and fixture-like actions into `apps/web/e2e/helpers/<feature>/**` and expose them through folder `index.ts` barrels.
 - Before adding a new E2E helper, grep the existing helper tree first. Split by concern instead of growing a shared `misc` helper.
@@ -488,18 +488,21 @@ await page.locator('[data-testid="input-name"]').fill('E2E Teste');
 
 ### E2E Selector Strategy (mandatory — all Playwright tests)
 
+> **Updated (`M13-S41`):** this section previously recommended `getByLabel`/`getByText` as a first-choice selector strategy. That guidance directly contradicted the "Translated strings" rule immediately above (which correctly forbids exactly that) and was walked back during `M13-S41` after four separate follow-up commits were needed to strip `getByLabel`/`getByText` usages that had crept in under the old guidance. It's corrected here to match what's actually enforced (`scripts/pre-pr.sh`'s E2E-1 check) and what every real spec in `apps/web/e2e/*.spec.ts` does today.
+
 **Priority order — use the first that applies:**
 
-**1. Accessibility selectors first**
+**1. `getByRole` where a stable ARIA role/name fits — `getByLabel`/`getByText` are forbidden**
 
-Use `getByRole`, `getByLabel`, `getByText` for elements users interact with directly. These survive component refactors and test what the user actually sees.
+`getByRole` (e.g. `page.getByRole('tab', { name: 'Branding' })`) is used throughout the existing E2E suite and isn't blocked by tooling — in practice it's mostly used for widgets (tabs, dialogs) where the accessible name is also the visible label. **`getByLabel` and `getByText` are forbidden everywhere in `apps/web/e2e/*.spec.ts`**, with no exception — enforced mechanically by `scripts/pre-pr.sh`'s E2E-1 check, which blocks a PR outright if either appears. For anything else — form fields, dynamic content, action buttons, success/error states — use `data-testid` (below), not an accessibility selector matched against translatable copy.
 
 ```ts
-// ✅ heading confirms the right page rendered
-page.getByRole('heading', { level: 1 })
+// ✅ used in this codebase's real specs (hotsite-editor.spec.ts)
+page.getByRole('tab', { name: 'Branding' })
 
-// ✅ label-based — survives HTML restructuring
+// ❌ forbidden — E2E-1 blocks this
 page.getByLabel(/e-mail/i)
+page.getByText('Salvar')
 ```
 
 **2. `data-testid` for structural anchors**
@@ -559,12 +562,14 @@ await expect(page.locator('label[for="contact-address-zip-code"]')).toHaveText('
 await page.getByLabel('ZIP Code').click();
 ```
 
-When a heading or label is the right locator (rule 1), use a **case-insensitive regex** so capitalisation changes don't break the test:
+When `getByRole` is the right locator (rule 1 — structural landmarks only, never form fields), use a **case-insensitive regex** so capitalisation changes don't break the test:
 
 ```ts
 // ✅
-page.getByLabel(/e-mail/i)
 page.getByRole('heading', { name: /escolha os serviços/i })
+
+// ❌ — getByLabel is forbidden outright (rule 1), regex or not
+page.getByLabel(/e-mail/i)
 ```
 
 ---
@@ -863,7 +868,7 @@ describe('RescheduleBookingUseCase', () => {
 
 > Coverage is **differential** (changed files only), not a global project threshold. SonarCloud computes this on the PR diff. The Jest/Vitest coverage report feeds into SonarCloud.
 >
-> **Playwright/E2E coverage does not feed this gate** — there's no CI step instrumenting E2E runs into the lcov reports SonarCloud reads, and Playwright doesn't even run in CI yet (planned for M16-S06; today it's local-only against the dev stack). A file with real E2E coverage but no Vitest/Jest test (e.g. an async Server Component page/layout that can't be unit-tested — see `apps/web/app/**/page.tsx`, `layout.tsx`, `not-found.tsx`) still needs a `sonar.coverage.exclusions` entry, or the gate fails on 0% regardless of how well the E2E suite actually exercises it. Don't "fix" the exclusion by trying to make the file unit-testable, and don't remove it just because an E2E test now exists for it.
+> **Playwright/E2E coverage does not feed this gate** — Playwright does run in CI (`.github/workflows/pr-e2e.yml`, on every PR — see the E2E layer section above), but there's no CI step instrumenting those runs into the lcov reports SonarCloud reads. A file with real E2E coverage but no Vitest/Jest test (e.g. an async Server Component page/layout that can't be unit-tested — see `apps/web/app/**/page.tsx`, `layout.tsx`, `not-found.tsx`) still needs a `sonar.coverage.exclusions` entry, or the gate fails on 0% regardless of how well the E2E suite actually exercises it. Don't "fix" the exclusion by trying to make the file unit-testable, and don't remove it just because an E2E test now exists for it.
 >
 > **BFF `*.component.spec.ts` files don't feed this gate either, but for a different reason than E2E:** they run as real Jest tests in CI, but `apps/bff`'s `test:cov` script explicitly excludes them (`--testPathIgnorePatterns='component\.spec\.ts'`), since SonarCloud only ingests the unit-test coverage report. Any logic exercised only at the HTTP/component level — a Zod `.refine()` predicate, a deep mapper branch reached only through a specific request body — shows as uncovered even though a real test exists for it (M13-S10). Add a direct unit-level (`.spec.ts`) test that exercises the same code path (e.g. call `schema.safeParse()` directly, or call the mapper function directly) rather than relying on the component spec alone.
 

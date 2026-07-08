@@ -165,12 +165,15 @@ if (dto.customerId !== null) {
 }
 
 // guest — embed a short-lived JWT in the link
+// NOTE: field renamed guestEmail -> contactEmail, and the URL responder -> submit-info,
+// in M13-S38 (tenantSlug was also added to the payload the same story) — kept here as
+// contactEmail/submit-info to match current code, not the field/URL this doc originally shipped with.
 const token = jwt.sign(
-  { bookingId: dto.bookingId, tenantId: dto.tenantId, guestEmail: dto.guestEmail },
+  { bookingId: dto.bookingId, tenantId: dto.tenantId, tenantSlug: dto.tenantSlug, contactEmail: dto.contactEmail },
   JWT_SECRET,
   { expiresIn: 7 * 24 * 60 * 60 }, // 7 days
 );
-return `${FRONTEND_URL}/bookings/${dto.bookingId}/responder?token=${token}`;
+return `${FRONTEND_URL}/bookings/${dto.bookingId}/submit-info?token=${token}`;
 ```
 
 ### Token verification (BFF)
@@ -189,16 +192,16 @@ if (payload.bookingId !== id) throw 400;
 
 // 4. forward to backend with tenantId from token (no X-Actor headers = guest)
 return this.backendHttp.patchForPublic(`/bookings/${id}/submit-info/guest`,
-  { guestEmail: payload.guestEmail, ...body },
+  { contactEmail: payload.contactEmail, ...body },
   payload.tenantId,
 );
 ```
 
 ### Backend guest use case
 
-`SubmitGuestBookingInfoUseCase` receives `guestEmail` (extracted from token by BFF) and passes it to `booking.submitInformation(guestEmail, { notes: response }, correlationId, photoUrls, null)`. The last argument (`customerId = null`) marks it as a guest submission.
+`SubmitGuestBookingInfoUseCase` receives `contactEmail` (renamed from `guestEmail` in `M13-S38`, extracted from token by BFF) and passes it to `booking.submitInformation(contactEmail, { notes: response }, correlationId, photoUrls, null)`. The last argument (`customerId = null`) marks it as a guest submission.
 
-**Why guestEmail comes from the token, not the request body:** the guest's email was captured at booking-creation time. The token is proof they received the email at that address. Letting guests supply their own email would allow anyone with the URL to respond as any email address.
+**Why contactEmail comes from the token, not the request body:** the guest's email was captured at booking-creation time. The token is proof they received the email at that address. Letting guests supply their own email would allow anyone with the URL to respond as any email address.
 
 ---
 

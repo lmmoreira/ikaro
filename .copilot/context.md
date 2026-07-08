@@ -53,7 +53,7 @@ Any code that breaks these is a defect regardless of test coverage.
 3. Every domain event includes `tenantId`, `eventId` (idempotency key), `occurredAt` (ISO-8601 UTC), `correlationId`.
 4. Composite FKs use `(tenant_id, id)` to block cross-tenant references at DB level.
 5. **Customers are multi-tenant** — same Google `sub` → multiple `Customer` rows (one per tenant). No unique on `google_oauth_id` alone.
-6. **Staff can be multi-tenant** — `UNIQUE(tenant_id, google_oauth_id)`. Multiple active staff records → issue selection token → `/select-staff-tenant`. Staff always `is_active=true`; invite link only links `google_oauth_id` to existing record. Deactivated → `/auth/error?reason=staff-deactivated`.
+6. **Staff can be multi-tenant** — `UNIQUE(tenant_id, google_oauth_id)`. Multiple active staff records → issue selection token → `/select-staff-tenant`. Staff is always provisioned `is_active=true` at invite time (never created inactive) — the invite link only links `google_oauth_id` to that existing active record, it never sets `is_active`. `is_active` does toggle later via explicit deactivate/activate actions (`PATCH /staff/:id/deactivate` / `PATCH /staff/:id/activate`); re-inviting a deactivated staff member does **not** reactivate them — `is_active=false` staff → `/auth/error?reason=staff-deactivated`.
 7. File paths prefixed by tenant (see Storage in §1).
 8. Logs, metrics, traces include `tenant_id`. OTel span attrs: `tenant.id`, `user.id`, `correlation.id`.
 9. Event consumers are idempotent (at-least-once). Dedup via `eventId`.

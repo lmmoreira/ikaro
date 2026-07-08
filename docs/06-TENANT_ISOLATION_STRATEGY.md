@@ -16,11 +16,11 @@ We distinguish between two types of users to balance flexibility for customers a
 - **Login:** If Maria has bookings in 2+ tenants, she sees a **Tenant Selection** screen after Google OAuth.
 - **Switching:** Customers can switch between their tenants via a "Switch Car Wash" button.
 
-### **Staff: Single-Tenant Only ✓**
-- **Person:** `john@autowash.com` works for exactly ONE company.
-- **Isolation:** Staff cannot belong to multiple tenants (security constraint).
-- **Login:** John is directed straight to his dashboard (no selection screen).
-- **Constraint:** `UNIQUE(google_oauth_id, tenant_id)` is enforced at the database level.
+### **Staff: Multi-Tenant ✓** (updated `M13-S13`/`M13-S22`)
+- **Person:** `john@autowash.com` can work for multiple companies — same model as customers, not a single-tenant restriction.
+- **Isolation:** Each company = separate `Staff` record. `UNIQUE(tenant_id, google_oauth_id)` (per-tenant, not global) is enforced at the database level, so the same Google account can hold an active `Staff` row at 2+ tenants.
+- **Login:** If John has an active `Staff` row at exactly one tenant, he's directed straight to his dashboard. If he has active rows at 2+ tenants, he's issued a selection token and redirected to `/select-staff-tenant` — the same shape as the customer selection screen, and also reusable post-login to switch tenants (`POST /auth/switch-staff-tenant`).
+- **Provisioning:** A staff row is always created `is_active=true` (never inactive) — "pending invite" is signaled by `google_oauth_id IS NULL`, not by `is_active`. See `CLAUDE.md` §2 invariant 6.
 
 ---
 
@@ -73,11 +73,11 @@ All events emitted by the system include the `tenant_id`.
 
 | Aspect | Customer | Staff |
 |--------|----------|-------|
-| **Tenancy** | Multi-tenant | Single-tenant |
-| **Google ID** | Shared across records | Unique per record |
-| **Login Flow** | Selection screen (if 2+) | Direct entry |
-| **Data Scope** | Own history per tenant | Full tenant dashboard |
-| **Switching** | Allowed | Forbidden |
+| **Tenancy** | Multi-tenant | Multi-tenant |
+| **Google ID** | Shared across records (no unique constraint) | Shared across records, but `UNIQUE(tenant_id, google_oauth_id)` per tenant |
+| **Login Flow** | Selection screen (if 2+) | Direct entry (1 active tenant) or selection screen (2+ active tenants) |
+| **Data Scope** | Own history per tenant | Full tenant dashboard, scoped to the selected tenant |
+| **Switching** | Allowed | Allowed |
 
 ---
 

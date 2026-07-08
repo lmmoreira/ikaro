@@ -197,18 +197,17 @@ UC-XXX: [Use Case Name]
 - **Endpoint (list):** `GET /v1/bookings` (CUSTOMER | STAFF | MANAGER — filtered to the customer's own bookings when role = CUSTOMER)
 - **Endpoint (detail):** `GET /v1/bookings/:id` (CUSTOMER | STAFF | MANAGER — ownership enforced for CUSTOMER)
 - **Main Flow:**
-  1. System displays customer's bookings in sections:
+  1. System displays customer's bookings in sections (`apps/web/features/customer/booking-sections.ts`'s `splitBookingSections()` is the single source of truth for this grouping — reused by the home dashboard, the list, and each row):
      - **Upcoming:** APPROVED bookings with date ≥ today
-     - **Past:** COMPLETED or CANCELLED bookings with date < today
-     - **Pending:** PENDING bookings awaiting admin approval
+     - **Pending:** PENDING or INFO_REQUESTED bookings awaiting admin action
+     - **Past:** COMPLETED, CANCELLED, or REJECTED bookings
   2. Each booking shows: the list of services in the booking, date, time, status, total price, total duration.
   3. For APPROVED upcoming bookings: customer can see "Cancel" button.
   4. For PENDING / INFO_REQUESTED bookings: customer can see "Cancel Request" button.
   5. Clicking a booking shows the full detail including every line (service name, line price, line duration) and any photos.
   6. Customer can view loyalty summary (full breakdown lives in UC-016):
      - Total active points (across all services)
-     - Total washes completed (lifetime)
-     - Most recently completed service
+     - "Agendamentos" stat = count of APPROVED + COMPLETED bookings (there is no lifetime-wash counter in the system — this was a deliberate M13 substitution for an earlier "total washes (lifetime)" concept that was never implemented)
 
 - **Alternative Flows:**
   - **A1: No bookings** → System shows "You haven't booked yet"
@@ -603,16 +602,17 @@ Returns:
 - **Preconditions:** Service exists
 - **Trigger:** Admin clicks "Manage Services" → selects service → "Edit"
 - **Main Flow:**
-  1. Admin modifies: name, description, price, duration, loyalty points value, `requiresPickupAddress` toggle, status
+  1. Admin modifies: name, description, price, duration, loyalty points value, `requiresPickupAddress` toggle. (Active/inactive status is **not** part of this payload — it only changes via the separate deactivate/activate endpoints in A1/A4 below; `Service.update()` throws `ServiceDeactivatedError` if called while the service is inactive.)
   2. Admin clicks "Save"
   3. System validates changes
   4. System updates Service aggregate
   5. Admin sees confirmation: "Serviço atualizado"
 
 - **Alternative Flows:**
-  - **A1: Deactivate service** → Admin calls deactivate (`DELETE /v1/services/:id`) → sets `isActive = false` → service hidden from booking page
+  - **A1: Deactivate service** → Admin calls deactivate (`DELETE /v1/services/:id`) → sets `isActive = false` → service hidden from booking page. Pure soft delete — existing bookings referencing this service are untouched; only *new* bookings against it are blocked.
   - **A2: Price change** → Past bookings unaffected (snapshots are immutable); future bookings use new price
   - **A3: Toggle `requiresPickupAddress`** → Only affects future bookings. Existing `booking_lines` retain their snapshotted `requiresPickupAddressAtBooking` value.
+  - **A4: Reactivate service** (`M13-S24`) → Admin calls `PATCH /v1/services/:id/activate` → sets `isActive = true`. The edit form shows a locked "Reativar" view instead of editable fields while a service is inactive.
 
 - **Postconditions:** Service updated. New bookings reflect all changes including `requiresPickupAddress`.
 - **Events Triggered:** None
@@ -636,7 +636,7 @@ Returns:
 - **Main Flow (Customer — own data):**
   1. System reads `loyalty_balances.current_points` for the customer — O(1), no SUM needed (balance is maintained atomically by M10-S04 and M10-S08).
   2. System queries `loyalty_entries` to find the next expiry: `MIN(expires_at) WHERE expires_at > now()` and the sum of points expiring on that date.
-  3. System returns `{ currentPoints, nextExpiryDate, nextExpiryPoints }`.
+  3. System returns `{ currentPoints, nextExpiryDate, nextExpiryPoints, conversionRate }` — `conversionRate` is the tenant's live `settings.loyalty.pointsPerCurrencyUnit` (`M13-S12`), read directly from `RequestContext.settings` at the source, never recomputed/cached at the BFF. Drives the "N pts = R$1" conversion hint shown on every loyalty screen.
   4. System separately returns paginated `loyalty_entries` (earning history) with `isActive` flag (`expiresAt > now()`). Service names are resolved via `ILoyaltyBookingPort`.
   5. System separately returns paginated `loyalty_redemptions` (redemption history).
 
@@ -809,29 +809,29 @@ Returns:
 
 ---
 
-### **UC-022: Staff Login (No Tenant Selection)**
+### **UC-022: Staff Login (Single or Multi-Tenant)**
+
+> **Updated (`M13-S13`/`M13-S15`):** staff are multi-tenant-capable, the same way customers are (`UNIQUE(tenant_id, google_oauth_id)`, not a global unique constraint — see `CLAUDE.md` §2 invariant 6). A staff member is always provisioned `is_active=true` at invite time; there is no "invite not yet accepted" `is_active=false` state to activate from. The `/auth/first-login` flow this UC previously routed into was deleted — Google-callback login either succeeds directly or redirects to `/auth/error?reason=<code>`.
 
 - **Actor:** Staff member (unauthenticated)
-- **Preconditions:** Staff has Google account. Staff belongs to exactly ONE tenant.
-- **Trigger:** Staff clicks "Login" on admin dashboard
+- **Preconditions:** Staff has a Google account already linked to at least one active `Staff` record (via a prior accepted invite — see UC-028).
+- **Trigger:** Staff clicks "Login" on `/dashboard/login` (requires `?tenantSlug=` — see UC-025's linked note on invite-link format)
 - **Main Flow:**
   1. System redirects to Google OAuth
   2. Staff logs in with Google account
   3. Google returns: googleOAuthId, email, name
-  4. System queries: Which tenant does this staff member belong to?
-  5. **Case A: Staff found in exactly ONE tenant and `is_active = true`**
-     - Session automatically created for that tenant
-     - Staff redirected to admin dashboard
-     - No selection screen needed
-  6. **Case B: Staff found but invite not yet accepted (`is_active = false`)**
-     - System redirects to first-login flow (UC-025 handles activation from here).
-  7. **Case C: Staff not found in any tenant**
-     - System redirects to error: "Staff account not found. Contact your administrator."
+  4. System queries every active `Staff` record with this `google_oauth_id`
+  5. **Case A: Exactly one active `Staff` record found**
+     - Session created scoped to that tenant; staff redirected to `/dashboard`
+  6. **Case B: 2+ active `Staff` records found (multiple tenants)**
+     - System issues a short-lived selection token and redirects to `/select-staff-tenant` (an **authenticated** post-login screen — not a pre-login chooser) — see Alternative Flow A1
+  7. **Case C: No matching `Staff` record found, or the matched record is `is_active=false`**
+     - System redirects to `/auth/error?reason=<code>`, one of: `not-a-staff-member`, `invite-not-found`, `staff-deactivated`, `email-mismatch`, `account-linked-elsewhere`, `tenant-not-found`
 
 - **Alternative Flows:**
-  - **A1: Staff tries to access multiple tenants** → Not possible (staff belongs to one tenant only)
+  - **A1: Staff selects a tenant from `/select-staff-tenant`** → Session created scoped to the chosen tenant. This same screen/endpoint (`GET /staff/me/tenants`, `POST /auth/switch-staff-tenant`) also supports switching tenants **after** login, not just at initial sign-in.
 
-- **Postconditions:** Staff logged in to their single tenant. Session scoped to that tenant.
+- **Postconditions:** Staff logged in, session scoped to the selected tenant.
 - **Events Triggered:** None (read operation)
 
 ---
@@ -911,25 +911,28 @@ Returns:
 
 ### **UC-025: Admin First Login (Accepts Invite)**
 
+> **Updated (`M13-S13`):** a staff row is provisioned `is_active=true` at invite time (see UC-028) — it is never created inactive. "Pending" is signaled by `google_oauth_id IS NULL`, not by `is_active`. This use case only **links** a Google account to an already-active row (`LinkGoogleAccountUseCase`); it never flips `is_active`. The invite link format is `/dashboard/login?tenantSlug=<slug>` (see the anti-pattern note in `CLAUDE.md`/`docs/ANTI_PATTERNS.md` on staff hotsite login links needing `?tenantSlug=`).
+
 - **Actor:** Invited staff member (received invitation email from UC-024 or UC-028)
-- **Preconditions:** Staff row exists for the invited email with `is_active = false`. Tenant is active.
+- **Preconditions:** Staff row exists for the invited email with `is_active = true` and `google_oauth_id IS NULL`. Tenant is active.
 - **Trigger:** Staff member clicks the invitation link in the email and authenticates with Google OAuth.
 - **Main Flow:**
    1. System redirects to Google OAuth login.
    2. Staff member authenticates with Google using the invited email address.
    3. System receives Google callback with `google_oauth_id` and `email`.
-   4. System finds the `staff` row by `(tenant_id, email)` where `is_active = false`.
-   5. System activates the staff record: sets `google_oauth_id`, `is_active = true`.
+   4. System finds the `staff` row by `(tenant_id, email)` where `google_oauth_id IS NULL`.
+   5. System links the account: sets `google_oauth_id` on the row (`is_active` is already `true`, untouched).
    6. System creates a JWT session (`tenantId`, `tenantSlug`, `role`).
    7. System redirects to the dashboard.
    8. Staff member sees: "Bem-vindo(a)! Sua conta está pronta."
 
 - **Alternative Flows:**
    - **A1: Google email does not match invited email** → System shows error: "Por favor, use o e-mail para o qual você foi convidado(a)."
-   - **A2: Staff already active** → System treats as normal login (UC-022).
+   - **A2: Staff already linked (`google_oauth_id` already set)** → System treats as normal login (UC-022).
    - **A3: Tenant deactivated** → System shows error: "Este estabelecimento está desativado."
+   - **A4: Staff row is `is_active = false` (deactivated)** → System redirects to `/auth/error?reason=staff-deactivated` — linking never reactivates a deactivated staff member (see UC-031).
 
-- **Postconditions:** `staff.is_active = true`, `staff.google_oauth_id` set. Staff logged in and on the dashboard.
+- **Postconditions:** `staff.google_oauth_id` set. Staff logged in and on the dashboard.
 - **Events Triggered:** None
 
 ---
@@ -939,9 +942,11 @@ Returns:
 - **Actor:** Staff member with `MANAGER` role
 - **Preconditions:** Admin is authenticated with MANAGER role.
 - **Trigger:** Admin clicks "Configurações" → "Geral" in the dashboard.
+> **Scope expanded (`M13-S31`):** the shipped settings form covers substantially more than the original draft below — `booking.autoApproveEnabled` (accepted in the UI but currently inert; no booking use case reads it yet), `minBookingAdvanceHours`, `maxBookingAdvanceDays`, `slotGranularityMinutes`, `welcomeStaffScreenDays`; `loyalty.expiryWarningDays`, `enableNotifications`, `notificationMinPoints`; a full **Notificações** section (`notification.fromEmail`); read-only **Localização** (`countryCode`-driven, see `docs/21-TENANTS_SETTINGS_SCHEMA.md`); and `businessInfo.socialLinks`. See `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the authoritative field list — the list below is illustrative, not exhaustive.
+
 - **Main Flow:**
    1. System loads current `tenants.settings` JSONB and displays form with current values:
-      - **Nome do estabelecimento** (edit allowed)
+      - **Nome do estabelecimento** (edit allowed — saved via a **separate** `PATCH /tenants` call, not part of the settings PATCH, since `name`/`slug` are plain columns, not part of the `settings` JSONB)
       - **Slug** (read-only after creation — shown as info only)
       - **Janela de cancelamento** (horas) — default 48 h
       - **Validade dos pontos de fidelidade** (dias) — default 180 d
@@ -949,19 +954,21 @@ Returns:
       - **Fuso horário** — required; default `America/Sao_Paulo`
       - **Buffer entre agendamentos** (minutos) — prep time between bookings, default 60
       - **Endereço, telefone e e-mail do estabelecimento** — `settings.businessInfo` (M12-S06); all optional. Shown on the hotsite `CONTACT` module when its `showAddress`/`showPhone`/`showEmail`/`showMap` flags are enabled (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT, `docs/21-TENANTS_SETTINGS_SCHEMA.md` §6)
+      - (see scope-expansion note above for the full M13-S31 field set)
    2. Admin updates values.
    3. Admin clicks "Salvar".
    4. System validates all fields (see `docs/21-TENANTS_SETTINGS_SCHEMA.md` for rules).
-   5. System updates `tenants.settings` JSONB and `tenants.name` if changed.
-   6. System logs audit entry: who changed what and when.
-   7. Admin sees: "Configurações salvas com sucesso."
+   5. System updates `tenants.settings` JSONB, and `tenants.name` via a separate call if changed.
+   6. Admin sees: "Configurações salvas com sucesso."
 
 - **Alternative Flows:**
    - **A1: Invalid field value** → System highlights the specific field with an error message and prevents save.
    - **A2: Slug change attempted** → Slug field is read-only; system ignores any manipulation attempt.
+   - **A3: Rename fails after settings already saved** → Since settings-save and rename are two independent calls, the system distinguishes this partial-failure case in its error messaging rather than showing one generic error that would incorrectly imply nothing was saved.
 
 - **Postconditions:** `tenants` row updated. New settings apply to all future operations (bookings, loyalty) for this tenant.
 - **Events Triggered:** None (settings are read fresh on each request)
+- **Not implemented:** no audit log of settings changes exists (who/what/when) — do not assume one when building on top of this use case.
 
 ---
 
@@ -1029,22 +1036,24 @@ Returns:
 
 ### **UC-028: Admin Invites New Staff Member**
 
+> **Updated (`M13-S13`/`M13-S44`):** a new staff row is provisioned `is_active = true` from creation (never inactive — see UC-025's note). `InviteStaffUseCase` rejects an email that has **ever** linked a Google account (`google_oauth_id IS NOT NULL`), regardless of whether that row is currently active or deactivated — re-inviting can never reactivate a deactivated staff member. The only path back for a deactivated staff member is UC-031 (Admin Reactivates Staff Member).
+
 - **Actor:** Staff member with `MANAGER` role
 - **Preconditions:** Admin is authenticated with MANAGER role.
 - **Trigger:** Admin clicks "Equipe" → "Convidar membro" in the dashboard.
 - **Main Flow:**
    1. Admin enters: first name, last name, email address, role (`MANAGER` or `STAFF`).
-   2. System validates: email format valid; no existing active `staff` row for this `(tenant_id, email)`.
-   3. System creates `staff` row: `email`, `name` (concatenated from first + last name input), `role`, `tenant_id`, `is_active = false`.
+   2. System validates: email format valid; no existing `staff` row for this `(tenant_id, email)` with a non-null `google_oauth_id`.
+   3. System creates `staff` row: `email`, `name` (concatenated from first + last name input), `role`, `tenant_id`, `is_active = true`, `google_oauth_id = null`.
    4. System publishes `StaffInvited` event.
    5. Notification Context sends invitation email: "Você foi convidado(a) para gerenciar [Nome do Estabelecimento]. Clique aqui para aceitar."
    6. Admin sees: "Convite enviado para [email]."
 
 - **Alternative Flows:**
-   - **A1: Email already has active staff record** → System shows: "Este e-mail já está cadastrado na sua equipe."
-   - **A2: Email has inactive staff record** → System reactivates instead (A2-flow: sets `is_active = true`, resends invite).
+   - **A1: Email has ever linked a Google account for this tenant (active or deactivated)** → System shows: "Este e-mail já está cadastrado na sua equipe." No reactivation happens here — see UC-031.
+   - **A2: Email has a still-pending invite (`google_oauth_id IS NULL`, never linked)** → One-click "Reenviar convite" resends the same invitation email; no new row is created.
 
-- **Postconditions:** `staff` row created (`is_active = false`). Invitation email sent. Staff member activates account via UC-025.
+- **Postconditions:** `staff` row created (`is_active = true`, `google_oauth_id = null`). Invitation email sent. Staff member links their Google account via UC-025.
 - **Events Triggered:** `StaffInvited`
 
 ---
@@ -1138,13 +1147,13 @@ Returns:
 | UC-019 | Customer reminder (day before) | System | Cron emits `BookingReminderDue`; Notification sends email at 6 AM |
 | UC-020 | Customer reminder (day of) | System | Cron emits `BookingReminderDueToday`; Notification sends email at 6 AM |
 | UC-021 | Customer login | Customer | OAuth, tenant-scoped (login-time multi-tenant selection descoped — see UC-021 note) |
-| UC-022 | Staff login (no selection) | Staff | OAuth (direct to single tenant) |
+| UC-022 | Staff login (single or multi-tenant) | Staff | OAuth; 2+ active tenants → `/select-staff-tenant`, also used to switch post-login |
 | UC-023 | Customer switches tenant | Customer | Switch session to different tenant |
 | UC-024 | Platform operator provisions new tenant (REST API) | Platform operator | `tenants` row + first MANAGER staff row; invite email sent |
-| UC-025 | Admin first login (accepts invite) | Invited staff | `staff.is_active = true`, `google_oauth_id` set |
+| UC-025 | Admin first login (accepts invite) | Invited staff | `staff.google_oauth_id` set (row is already `is_active=true` from invite) |
 | UC-026 | Admin edits tenant settings | MANAGER staff | `tenants.settings` JSONB updated |
 | UC-027 | Admin manages hotsite content | MANAGER staff | `hotsite_configs` updated + published |
-| UC-028 | Admin invites new staff member | MANAGER staff | `staff` row created (`is_active=false`); `StaffInvited` event |
+| UC-028 | Admin invites new staff member | MANAGER staff | `staff` row created (`is_active=true`, `google_oauth_id=null`); `StaffInvited` event |
 | UC-029 | Admin deactivates staff member | MANAGER staff | `staff.is_active = false`; `StaffDeactivated` event |
 | UC-030 | Admin edits staff member profile | MANAGER staff | `staff.name`/`staff.role` updated; no event |
 | UC-031 | Admin reactivates staff member | MANAGER staff | `staff.is_active = true`; `deactivated_by` cleared; `StaffActivated` event |

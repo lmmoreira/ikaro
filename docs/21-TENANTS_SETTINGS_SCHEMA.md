@@ -77,6 +77,7 @@ Controls booking lifecycle and rules.
 | `maxBookingAdvanceDays` | integer | 90 | 1 | 365 | Maximum days in advance customer can book |
 | `serviceBufferMinutes` | integer | 60 | 0 | 120 | Buffer time between service end and next booking (cleaning, prep time) |
 | `slotGranularityMinutes` | integer | 30 | 15 | 60 | Calendar slot unit in minutes. Valid values: 15, 30, 60. Controls granularity of available start times shown in UC-011. |
+| `welcomeStaffScreenDays` | integer | — | 1 | 90 | (`M13-S17`) Size of the configurable date window shown/filtered on the staff booking queue's day-strip navigator (`/dashboard/bookings`). |
 
 **Example:**
 ```json
@@ -206,19 +207,23 @@ const from = tenantInfo?.fromEmail ?? config.get('EMAIL_FROM');
 
 ### **5. Localization Settings** (`settings.localization`)
 
-Currency, language, and regional preferences.
+Country, currency, language, and regional preferences.
+
+> **Updated (`TD02-LOCALIZATION`, merged 2026-06-21, before M13 started):** Ikaro is no longer Brazil-only. `countryCode` is the primary field — a `CountrySpec` registry (`packages/i18n/src/country-defaults.ts`) derives sensible defaults for `currency`/`language`/`decimalPlaces`/address format/phone prefix from it per tenant, overridable individually. This is what M13-S14's phone-mask and address-spec work (`InformationCompletionPrompt`, `shared/utils/phone-format.ts`) consumes directly.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `currency` | string | "BRL" | ISO 4217 currency code. Ikaro is Brazil-only — always BRL. |
-| `currencySymbol` | string | "R$" | Display symbol (used in UI). Brazilian Real symbol. |
-| `language` | string | "pt-BR" | BCP-47 language tag. All customer-facing text in Brazilian Portuguese. |
+| `countryCode` | string | — | ISO 3166-1 alpha-2 country code (e.g. `"BR"`, `"US"`). Drives the `CountrySpec` defaults below. |
+| `currency` | string | "BRL" | ISO 4217 currency code. Defaults from `countryCode`'s `CountrySpec`; overridable per tenant. |
+| `currencySymbol` | string | "R$" | Display symbol (used in UI). |
+| `language` | string | "pt-BR" | BCP-47 language tag. Defaults from `countryCode`'s `CountrySpec`; overridable per tenant. |
 | `decimalPlaces` | integer | 2 | Decimal precision for money display |
 
 **Example:**
 ```json
 {
   "localization": {
+    "countryCode": "BR",
     "currency": "BRL",
     "currencySymbol": "R$",
     "language": "pt-BR",
@@ -227,10 +232,8 @@ Currency, language, and regional preferences.
 }
 ```
 
-> Ikaro is a Brazil-only product. All tenants use BRL and pt-BR. The `currency` and `language` fields are stored for completeness but should not be changed in MVP.
-```
-
 **Validation Rules:**
+- `countryCode` must be a 2-letter alpha code (case-insensitive)
 - `currency` must be a valid ISO 4217 code
 - `currencySymbol` must be 1–3 characters
 - `language` must be a BCP-47 language tag (e.g. `pt-BR`, not bare ISO 639-1 `pt`)
@@ -339,6 +342,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
     "fromEmail": null
   },
   "localization": {
+    "countryCode": "BR",
     "currency": "BRL",
     "currencySymbol": "R$",
     "language": "pt-BR",
@@ -402,6 +406,7 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
     "fromEmail": null
   },
   "localization": {
+    "countryCode": "BR",
     "currency": "BRL",
     "currencySymbol": "R$",
     "language": "pt-BR",
@@ -502,6 +507,5 @@ When implementing any feature that reads tenant configuration:
 
 ---
 
-**Status:** Complete  
-**Next:** Implement UC-026 (Tenant Settings Edit) using this schema  
+**Status:** Complete — UC-026 (Tenant Settings Edit) implemented in `M13-S31`  
 **Reference:** 04-USE_CASES.md UC-026, 02-DOMAIN_MODEL.md tenants section

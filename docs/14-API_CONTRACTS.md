@@ -115,12 +115,15 @@ For even better performance with large datasets (Phase 2), consider cursor-based
 
 ## 1. Authentication & Multi-Tenancy
 
-### **Auth Flow (UC-014, UC-015, UC-021, UC-022, UC-023)**
+### **Auth Flow (UC-021, UC-022, UC-023)**
 - `GET /auth/google` -> Redirects to Google OAuth.
-- `GET /auth/google/callback` -> Returns temporary code.
-- `POST /auth/token` -> Sets `access_token` httpOnly cookie; returns `{ tenantSlug: string; expiresIn: string }`. No JWT in response body.
-- `GET /auth/tenants` -> (UC-021) Returns list of tenants the user belongs to (for selection screen).
-- `POST /auth/switch-tenant` -> (UC-023) Sets `access_token` httpOnly cookie with new tenant scope; returns `{ tenantSlug: string; expiresIn: string }`. No JWT in response body.
+- `GET /auth/google/callback` -> Sets `access_token` httpOnly cookie directly and redirects; no intermediate temporary-code step for the flows that ship today.
+- `GET /auth/logout` -> Clears the `access_token` cookie, redirects to the hotsite (or bare frontend URL if `tenantSlug` is absent/invalid).
+- `POST /auth/switch-tenant` -> (UC-023, customer) `{ targetTenantId: uuid }` — sets `access_token` httpOnly cookie with new tenant scope; returns `{ tenantSlug: string; expiresIn: string }`. No JWT in response body.
+- `GET /auth/staff-tenants` -> (UC-022, staff, authenticated) Lists every active tenant the current Google account is staff at.
+- `POST /auth/switch-staff-tenant` -> (UC-022, staff) Same shape as the customer switch, staff-scoped.
+
+> **Removed (`M13-S14`):** `POST /auth/token` and `GET /auth/tenants` — the pre-login `/select-tenant` customer flow they backed was descoped as unreachable from any shipped UI (every customer login starts from a specific tenant's hotsite, which always supplies the tenant slug directly). Do not resurrect these without a real requirement driving them — see `docs/04-USE_CASES.md` UC-021's note.
 
 ### **JWT Structure**
 ```json
@@ -128,11 +131,15 @@ For even better performance with large datasets (Phase 2), consider cursor-based
   "sub":        "user-uuid-v7",
   "tenantId":   "tenant-uuid-v7",
   "tenantSlug": "autowash-pro",
+  "tenantName": "AutoWash Pro",
+  "userName":   "Maria Silva",
   "role":       "CUSTOMER | STAFF | MANAGER",
+  "locale":     "pt-BR",
   "iat":        123456789,
   "exp":        123456789
 }
 ```
+`tenantName`/`userName`/`locale` were added in `M13-S15` specifically so the dashboard/customer shells never need a separate profile fetch just to render a greeting/name.
 
 | Role | Who | Access |
 |---|---|---|
@@ -519,10 +526,10 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 (`pickupAddress` omitted when null. `serviceNameAtBooking` stored on the line but not returned.)
 
 ### **Booking Management (UC-003 - UC-008)**
-- `GET /bookings` → List bookings. Filters: `status`, `dateRange`, `customerId`. Each list item includes `totalPrice`, `totalDurationMins`, and a compact `lineSummary: [{ lineId, serviceId, serviceNameAtBooking, durationMinsAtBooking, priceAtBooking }, …]`.
-- `GET /bookings/:id` → Detailed view: every line in full, audit log, photos, customer / guest info.
+- `GET /bookings` → List bookings. Query params (`M13-S03`): `status` (comma-separated), `date`, `from`, `to`, `page`, `limit`. **No `customerId` filter param** — for a CUSTOMER caller, scoping to their own bookings is role-derived server-side, not a query filter. Each list item includes `totalPrice`, `totalDurationMins`, and a compact `lineSummary: [{ lineId, serviceId, serviceNameAtBooking, durationMinsAtBooking, priceAtBooking }, …]`.
+- `GET /bookings/:id` → Detailed view, response shape branches by caller role in one shared handler: STAFF/MANAGER get `StaffBookingDetailResponse` (loyalty balance, signed before/after-service photo read-URLs, `contactAddress`/`approvedAt`/`approvedBy`/`rejectionReason`, and — once `COMPLETED` — `totalActualPrice`/`discountAmount`/`discountPointsUsed`/`completedAt`); CUSTOMER gets `CustomerBookingDetailResponse` (same completion fields, plus `notes`, minus staff-only fields like `adminNotes`/`approvedBy`/`rejectionReason`/contact info). A CUSTOMER requesting a booking they don't own gets `404`, not `403` (deliberate — avoids confirming the booking's existence to a non-owner).
 
-> **BFF note (M13-S06):** `GET /v1/bookings` is also accessible to `CUSTOMER` role — same query schema/defaults as STAFF/MANAGER (backend filters by `customerId` server-side), but the BFF maps the response to `CustomerBookingListResponse` (`lines[]` with `lineId`/`serviceName`/`durationMinsAtBooking`/`priceAtBooking`, no contact info) instead of `StaffBookingListResponse`.
+> **BFF note (M13-S03/S04/S06/S07):** `GET /v1/bookings` and `GET /v1/bookings/:id` are both accessible to STAFF, MANAGER, and CUSTOMER — same routes, same query schema/defaults, but the BFF maps the response differently per role: `StaffBookingCard/ListResponse`/`StaffBookingDetailResponse` for STAFF/MANAGER, `CustomerBookingListItem/Response`/`CustomerBookingDetailResponse` for CUSTOMER (no contact info, no staff-only fields).
 
 **Admin approval workflow** (JWT + `MANAGER|STAFF` role required):
 - `PATCH /bookings/:id/approve` → (UC-003) Approve a PENDING or INFO_REQUESTED booking. Re-checks slot availability. Returns `200 { bookingId, status: 'APPROVED', approvedAt }`. Returns `409 slot-unavailable` if slot is taken.
@@ -757,8 +764,8 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
   - Returns `{ currentPoints: 0, nextExpiryDate: null, nextExpiryPoints: null }` when customer has no balance row.
 
 - `GET /loyalty/entries?page=1&limit=20`
-  - Returns paginated earning history, most recent first.
-  - Response:
+  - Returns paginated earning history, most recent first. **Response below is the raw backend shape** — the BFF (`M13-S08`) reshapes this into `CustomerLoyaltyEntriesResponse` before it reaches the browser: `entries[]` → `items[]`, `points` → `pointsEarned`, `isActive` → `expired` (inverted), and `pagination: {page,limit,total}` flattened to top-level `page`/`limit`/`total` alongside `items`. Do not assume the browser sees the shape below verbatim.
+  - Backend response:
     ```json
     {
       "entries": [{
@@ -777,8 +784,8 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
   - `serviceName`: resolved via `IServiceCatalogPort` (cross-context adapter queries `booking.services`).
 
 - `GET /loyalty/redemptions?page=1&limit=20`
-  - Returns paginated redemption history, most recent first.
-  - Response:
+  - Returns paginated redemption history, most recent first. **Response below is the raw backend shape** — the BFF reshapes this into `CustomerLoyaltyRedemptionsResponse`: `redemptions[]` → `items[]`, `pointsRedeemed` → `pointsUsed`, adds `amountSaved` (computed from the redemption's own **snapshotted** `pointsPerCurrencyUnit`, never today's rate — see `M13-S11`) and `bookingReference` (resolved via `ILoyaltyBookingPort.findBookingServices()`), and flattens pagination the same way as entries.
+  - Backend response:
     ```json
     {
       "redemptions": [{

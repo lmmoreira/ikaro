@@ -39,7 +39,8 @@ export interface InviteStaffResponse {
   staffId: string;
   email: string;
   role: StaffRole;
-  isActive: false;
+  // Staff is provisioned isActive=true from creation (M13-S13) — never invited inactive.
+  isActive: boolean;
 }
 
 export interface DeactivateStaffResponse {
