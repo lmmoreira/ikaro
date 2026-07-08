@@ -3656,7 +3656,7 @@ Extends `HotsiteEditor` (`M13-S35`) with the Layout tab: an 8-module (not 7 — 
 
 ---
 
-### M13-S37 — Hotsite: SEO tab + Preview + Publish/Unpublish
+### M13-S37 — Hotsite: SEO tab + Preview + Publish/Unpublish ✅ Done
 
 *(formerly M127-S09)*
 
