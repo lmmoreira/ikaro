@@ -258,6 +258,10 @@ function seoFromDomain(seo: HotsiteSeoProps): HotsiteSeo {
   };
 }
 
+function seoEquals(a: HotsiteSeo, b: HotsiteSeo): boolean {
+  return a.title === b.title && a.description === b.description;
+}
+
 const HEX_COLOR_FIELDS = [
   'primaryColor',
   'secondaryColor',
@@ -365,10 +369,17 @@ export class HotsiteConfig extends AggregateRoot {
   ): void {
     this.validateBranding(branding);
     this.validateLayout(layout);
-    this.validateSeo(seo);
     this.props.branding = brandingToDomain(branding);
     this.props.layout = layout;
-    this.props.seo = seoToDomain(seo);
+    // Only re-validate seo when it's actually changing. UpdateHotsiteContentUseCase passes
+    // through the existing stored seo unchanged on every branding/layout-only PATCH — validating
+    // it here regardless would block ALL future updates for any tenant whose stored title/
+    // description was valid under a since-tightened limit (e.g. saved under the pre-M13-S37
+    // 70/160 char rule, now exceeding the current 60/158), even when this call never touches seo.
+    if (!seoEquals(seo, this.seo)) {
+      this.validateSeo(seo);
+      this.props.seo = seoToDomain(seo);
+    }
     this.props.updatedAt = new Date();
   }
 

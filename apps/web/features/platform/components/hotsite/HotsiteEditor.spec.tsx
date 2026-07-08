@@ -210,6 +210,27 @@ describe('HotsiteEditor', () => {
       });
       expect(mockPublishHotsite).not.toHaveBeenCalled();
     });
+
+    // Regression test: the banner only renders in the tabs view — a failed publish triggered
+    // from Preview must switch back to tabs too, or the admin is stuck in Preview with no
+    // visible error feedback at all.
+    it('switches back to the tabs view to show the error banner when publish fails from Preview', async () => {
+      mockUpdateHotsiteConfig.mockRejectedValue(new Error('network error'));
+      const user = userEvent.setup();
+      renderEditor();
+
+      await user.click(screen.getByTestId('hotsite-preview-desktop'));
+      // Preview is lazy-loaded via next/dynamic — give the chunk import more room than the
+      // default 1s timeout so this doesn't flake under a loaded test runner.
+      await user.click(
+        await screen.findByTestId('hotsite-preview-publish-desktop', {}, { timeout: 5000 }),
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hotsite-action-error-banner')).toBeInTheDocument();
+      });
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+    });
   });
 
   describe('Unpublish flow', () => {

@@ -55,6 +55,11 @@ const HotsiteModuleBodySchema = z.object({
   data: z.record(z.string(), z.unknown()),
 });
 
+// Keep in sync with SeoTitle.MAX_LENGTH / SeoDescription.MAX_LENGTH in
+// apps/backend/src/shared/value-objects/seo-title.vo.ts and seo-description.vo.ts — the BFF
+// keeps its own independent copy of this limit rather than importing the backend VO (same
+// convention as this file's hex-color regex), so a future change to either constant must be
+// applied here too.
 const HotsiteSeoBodySchema = z
   .object({
     title: z.string().max(60).nullable(),

@@ -155,6 +155,41 @@ describe('HotsitePreview', () => {
     expect(mockFetchServices).not.toHaveBeenCalled();
   });
 
+  it('fetches and renders services when a SERVICE_LIST module is enabled', async () => {
+    mockFetchManifest.mockResolvedValue(makeManifest());
+    mockFetchServices.mockResolvedValue([
+      {
+        id: 'service-1',
+        name: 'Lavagem Completa',
+        description: null,
+        price: { amount: 8000, currency: 'BRL', formatted: 'R$ 80,00' },
+        durationMinutes: 60,
+        loyaltyPointsValue: 10,
+        requiresPickupAddress: false,
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    const draft = makeDraft({
+      layout: [
+        ...makeDraft().layout,
+        {
+          type: 'SERVICE_LIST',
+          enabled: true,
+          data: { showPrices: true, showPoints: true, layout: 'grid' },
+        },
+      ],
+    });
+
+    renderWithIntl(<HotsitePreview draft={draft} onPublish={vi.fn()} isPublishing={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('hotsite-preview-content')).toBeInTheDocument();
+    });
+    expect(mockFetchServices).toHaveBeenCalledWith('tenant-a');
+    expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
+  });
+
   it('shows an error state when the manifest fetch fails', async () => {
     mockFetchManifest.mockRejectedValue(new Error('network error'));
     renderWithIntl(<HotsitePreview draft={makeDraft()} onPublish={vi.fn()} isPublishing={false} />);

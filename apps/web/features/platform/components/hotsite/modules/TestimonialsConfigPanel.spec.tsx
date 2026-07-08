@@ -88,6 +88,41 @@ describe('TestimonialsConfigPanel', () => {
     expect(authorInput).toHaveFocus();
   });
 
+  // Regression test for the exact concern SonarCloud's S6479 (no array index as key) exists to
+  // catch: removing an earlier item shifts every later item's array index. With an index-based
+  // key, React would reuse the removed item's key/DOM node for what is now a different
+  // testimonial. The stable per-item id (independent of position) must keep each remaining
+  // item's own data attached to it.
+  it('removing an earlier item keeps the remaining items attached to their own data, not shifted', async () => {
+    const user = userEvent.setup();
+
+    renderWithIntl(
+      <ControlledTestimonialsConfigPanel
+        initial={{
+          items: [
+            { authorName: 'Ana', text: 'Depoimento da Ana' },
+            { authorName: 'Bruno', text: 'Depoimento do Bruno' },
+          ],
+          layout: 'grid',
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getAllByTestId('testimonial-remove').find((el) => el.dataset.index === '0')!,
+    );
+
+    expect(screen.getByDisplayValue('Bruno')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Depoimento do Bruno')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Ana')).not.toBeInTheDocument();
+
+    const remainingAuthorInput = screen.getByLabelText('Nome do autor *');
+    await user.type(remainingAuthorInput, ' Silva');
+
+    expect(remainingAuthorInput).toHaveValue('Bruno Silva');
+    expect(remainingAuthorInput).toHaveFocus();
+  });
+
   it('removing an item drops it from the list', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

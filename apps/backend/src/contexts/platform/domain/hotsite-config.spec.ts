@@ -4,6 +4,7 @@ import {
   DEFAULT_HOTSITE_BRANDING,
   DEFAULT_HOTSITE_SEO,
   HotsiteBranding,
+  HotsiteConfig,
   HotsiteModule,
 } from './hotsite-config.aggregate';
 
@@ -177,6 +178,51 @@ describe('HotsiteConfig', () => {
       const description = 'a'.repeat(158);
       config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, { title: null, description });
       expect(config.seo.description).toBe(description);
+    });
+
+    // Regression test: a tenant reconstituted from a stored row can carry a seo.title/description
+    // that was valid under a since-tightened limit (e.g. saved under the pre-M13-S37 70-char
+    // limit, now exceeding the current 60). Passing that unchanged value through on a
+    // branding/layout-only update must not throw, or every future update for that tenant breaks
+    // until someone manually shortens its SEO — see hotsite-config.aggregate.ts's updateContent().
+    it('does not re-validate seo.title when it is unchanged, even if it exceeds the current 60-char limit', () => {
+      const legacyTitle = 'a'.repeat(65);
+      const config = HotsiteConfig.reconstitute({
+        id: '01234567-0000-7000-8000-000000000099',
+        tenantId: '01234567-0000-7000-8000-000000000001',
+        branding: DEFAULT_HOTSITE_BRANDING,
+        layout: VALID_LAYOUT,
+        seo: { title: legacyTitle, description: null },
+        isPublished: false,
+        updatedAt: new Date(),
+      });
+
+      expect(() =>
+        config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, {
+          title: legacyTitle,
+          description: null,
+        }),
+      ).not.toThrow();
+      expect(config.seo.title).toBe(legacyTitle);
+    });
+
+    it('still validates seo.title when the admin actually changes it, even from a legacy value', () => {
+      const config = HotsiteConfig.reconstitute({
+        id: '01234567-0000-7000-8000-000000000099',
+        tenantId: '01234567-0000-7000-8000-000000000001',
+        branding: DEFAULT_HOTSITE_BRANDING,
+        layout: VALID_LAYOUT,
+        seo: { title: 'a'.repeat(65), description: null },
+        isPublished: false,
+        updatedAt: new Date(),
+      });
+
+      expect(() =>
+        config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, {
+          title: 'a'.repeat(61),
+          description: null,
+        }),
+      ).toThrow(PlatformDomainError);
     });
   });
 });

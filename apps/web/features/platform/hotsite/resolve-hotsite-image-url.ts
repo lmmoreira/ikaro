@@ -10,5 +10,18 @@ const ABSOLUTE_URL_PATTERN = /^https?:\/\//;
 // (loaded via a prior GET, untouched this session) or empty passes through unchanged.
 export function resolveHotsiteImageUrl(value: string, baseUrl: string): string {
   if (value === '' || ABSOLUTE_URL_PATTERN.test(value)) return value;
-  return `${baseUrl}/${value}`;
+  return `${baseUrl.replace(/\/$/, '')}/${value}`;
+}
+
+// Owns the NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL read so SingleImageUploadField, GalleryImageManager,
+// and HotsitePreview don't each independently read process.env — a typo or rename in one call site
+// would otherwise silently break image resolution only there, with no compile-time signal.
+// resolveDraftImageUrls keeps taking baseUrl as an explicit, testable parameter rather than
+// reading env itself — HotsitePreview (its only caller) passes hotsiteImageBaseUrl() in.
+export function hotsiteImageBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL ?? '';
+}
+
+export function resolveHotsiteImageDisplayUrl(value: string): string {
+  return resolveHotsiteImageUrl(value, hotsiteImageBaseUrl());
 }

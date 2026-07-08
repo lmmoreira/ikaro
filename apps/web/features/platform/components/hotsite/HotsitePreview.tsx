@@ -19,6 +19,8 @@ import {
   resolveHotsiteDisplayName,
 } from '@/features/platform/hotsite/page-model';
 import { resolveDraftImageUrls } from '@/features/platform/hotsite/resolve-draft-image-urls';
+import { hotsiteImageBaseUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 import { HeroModule } from '@/shells/hotsite/components/HeroModule';
 import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
 import { GalleryModule } from '@/shells/hotsite/components/GalleryModule';
@@ -93,7 +95,7 @@ export function HotsitePreview({
   const { branding, layout } = resolveDraftImageUrls(
     draft.branding,
     draft.layout,
-    process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL ?? '',
+    hotsiteImageBaseUrl(),
   );
   const alternateSectionBg = branding.alternateSectionBg ?? false;
   const modulesWithVariant = buildHotsiteModuleRenderPlan(layout, alternateSectionBg);
@@ -243,9 +245,9 @@ export function HotsitePreview({
         </aside>
       </div>
 
-      {/* bottom-[calc(...)] clears the dashboard BottomNav, which renders on /dashboard/hotsite
-          (see BottomNav.tsx's comment) — sitting at bottom-0 would overlap and hide it. */}
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-20 flex gap-3 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
+      <div
+        className={`fixed inset-x-0 ${MOBILE_ACTION_BAR_CLEARANCE_CLASS} z-20 flex gap-3 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden`}
+      >
         <Button
           type="button"
           className="w-full"

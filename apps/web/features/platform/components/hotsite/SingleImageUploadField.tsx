@@ -6,7 +6,7 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
-import { resolveHotsiteImageUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import { resolveHotsiteImageDisplayUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 
 export type HotsiteImagePurpose =
   'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials';
@@ -106,9 +106,7 @@ export function SingleImageUploadField({
   // `value` is a raw storage path until the next GET resolves it — on re-opening this field
   // after a save (no fresh local blob preview), it would otherwise be passed to <img src>
   // unresolved and fail to load. See resolveHotsiteImageUrl for the full rationale.
-  const displaySrc =
-    previewUrl ??
-    resolveHotsiteImageUrl(value, process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL ?? '');
+  const displaySrc = previewUrl ?? resolveHotsiteImageDisplayUrl(value);
 
   return (
     <div>

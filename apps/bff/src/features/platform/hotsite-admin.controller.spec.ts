@@ -154,6 +154,14 @@ describe('HotsiteAdminController', () => {
       expect(result.success).toBe(false);
     });
 
+    it('rejects seo.description exceeding 158 characters', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({
+        seo: { description: 'a'.repeat(159) },
+      });
+
+      expect(result.success).toBe(false);
+    });
+
     it('rejects an empty body (neither branding, layout, nor seo provided)', () => {
       const result = UpdateHotsiteContentBodySchema.safeParse({});
 

@@ -12,6 +12,7 @@ import type {
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
+import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 import { useTenant } from '@/providers/tenant-provider';
 import { BrandingTab } from '@/features/platform/components/hotsite/BrandingTab';
 import { LayoutTab } from '@/features/platform/components/hotsite/LayoutTab';
@@ -187,6 +188,9 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       setView({ view: 'tabs' });
       setActionBanner({ kind: 'publish', status: 'success' });
     } catch {
+      // The banner only renders in the tabs view — switch back on failure too, or a publish
+      // triggered from Preview leaves the admin stuck there with no visible error feedback.
+      setView({ view: 'tabs' });
       setActionBanner({ kind: 'publish', status: 'error' });
     }
     globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
@@ -364,9 +368,9 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
         </aside>
       </div>
 
-      {/* bottom-[calc(...)] clears the dashboard BottomNav, which now renders on /dashboard/hotsite
-          too (see BottomNav.tsx's comment) — sitting at bottom-0 would overlap and hide it. */}
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-20 flex gap-3 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
+      <div
+        className={`fixed inset-x-0 ${MOBILE_ACTION_BAR_CLEARANCE_CLASS} z-20 flex gap-3 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden`}
+      >
         <Button
           type="button"
           variant="outline"

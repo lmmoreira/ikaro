@@ -10,6 +10,7 @@ import { Button } from '@/shared/components/ui/button';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import { TimePicker } from '@/shared/components/ui/time-picker';
 import { renameTenant, updateTenantSettings } from '@/features/platform/tenant-settings';
+import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 import { digitsOnly } from '@/shared/utils/digits-only';
 import { formatPostalCodeForDisplay } from '@/shared/utils/postal-code-format';
 import {
@@ -1042,9 +1043,9 @@ export function SettingsForm({
         </aside>
       </div>
 
-      {/* bottom-[calc(...)] clears the dashboard BottomNav, which now renders on this page too
-          (see BottomNav.tsx's comment) — sitting at bottom-0 would overlap and hide it. */}
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-20 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
+      <div
+        className={`fixed inset-x-0 ${MOBILE_ACTION_BAR_CLEARANCE_CLASS} z-20 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden`}
+      >
         <Button
           type="submit"
           data-testid="settings-submit-mobile"

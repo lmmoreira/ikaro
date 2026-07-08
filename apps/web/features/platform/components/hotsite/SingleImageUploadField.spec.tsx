@@ -41,6 +41,7 @@ function queryByFieldId(testId: string, fieldId: string): HTMLElement | null {
 
 describe('SingleImageUploadField', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
+  const originalImageBaseUrl = process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, 'fetch');
@@ -50,6 +51,9 @@ describe('SingleImageUploadField', () => {
     fetchSpy.mockRestore();
     vi.mocked(generateHotsiteImageSignedUrl).mockReset();
     vi.mocked(deleteHotsiteImage).mockReset();
+    // The "resolves a raw storage path" case below sets this env var directly — restore it so
+    // later tests in this file (or this worker) don't inherit a leftover value.
+    process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = originalImageBaseUrl;
   });
 
   it('uploads a selected image with the given purpose and calls onChange with the resulting filePath', async () => {
