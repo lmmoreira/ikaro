@@ -94,9 +94,13 @@ test.describe('hotsite editor (MANAGER)', () => {
     // Preview renders the draft — Hero/ServiceList (already enabled in the seed) alongside the
     // two modules just enabled, all from in-memory state, no save yet.
     await page.getByTestId('hotsite-preview-desktop').click();
-    await expect(page.getByTestId('hotsite-preview-content')).toBeVisible();
-    await expect(page.getByText('Sobre a AutoSpa Premium')).toBeVisible();
-    await expect(page.getByText('Maria Silva')).toBeVisible();
+    const previewContent = page.getByTestId('hotsite-preview-content');
+    await expect(previewContent).toBeVisible();
+    // #about / #testimonials are stable anchor ids each module already renders (used as CTA
+    // scroll targets), not test-only additions — locating by id keeps this off getByText/
+    // getByLabel per this repo's E2E-1 convention while still asserting the actual content.
+    await expect(previewContent.locator('#about')).toContainText('Sobre a AutoSpa Premium');
+    await expect(previewContent.locator('#testimonials')).toContainText('Maria Silva');
 
     // Publish from Preview — returns to the tabs view with the shared success banner
     await page.getByTestId('hotsite-preview-publish-desktop').click();
@@ -134,12 +138,13 @@ test.describe('hotsite editor (MANAGER)', () => {
     await contactToggle.click();
     await expect(contactToggle).toHaveAttribute('aria-checked', 'false');
 
-    // Preview shouldn't render a disabled module
+    // Preview shouldn't render a disabled module — #contact is the module's own stable anchor
+    // id (a CTA scroll target, not a test-only addition), absent entirely when disabled since
+    // buildHotsiteModuleRenderPlan skips disabled modules.
     await page.getByTestId('hotsite-preview-desktop').click();
-    await expect(page.getByTestId('hotsite-preview-content')).toBeVisible();
-    await expect(page.getByTestId('hotsite-preview-content').getByText('Fale conosco')).toHaveCount(
-      0,
-    );
+    const previewContent = page.getByTestId('hotsite-preview-content');
+    await expect(previewContent).toBeVisible();
+    await expect(previewContent.locator('#contact')).toHaveCount(0);
 
     await page.getByTestId('hotsite-preview-publish-desktop').click();
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
