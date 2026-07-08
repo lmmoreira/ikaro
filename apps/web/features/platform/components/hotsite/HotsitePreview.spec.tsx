@@ -86,10 +86,13 @@ function makeDraft(
   };
 }
 
+const IMAGE_BASE_URL = 'http://localhost:4443/ikaro-local-public';
+
 describe('HotsitePreview', () => {
   beforeEach(() => {
     mockFetchManifest.mockReset();
     mockFetchServices.mockReset();
+    process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = IMAGE_BASE_URL;
   });
 
   it('shows a loading state before supplementary data resolves', () => {
@@ -107,6 +110,39 @@ describe('HotsitePreview', () => {
       expect(screen.getByTestId('hotsite-preview-content')).toBeInTheDocument();
     });
     expect(screen.getByText('Seu carro impecável')).toBeInTheDocument();
+  });
+
+  it('resolves a freshly-uploaded (not-yet-saved) HERO background image into an absolute URL instead of passing the raw storage path to next/image', async () => {
+    mockFetchManifest.mockResolvedValue(makeManifest());
+    const rawPath =
+      'tenants/tenant-a-id/hotsite/hero/019f420c-e46d-7f42-8524-4621e4642832/dfsda.png';
+    const draft = makeDraft({
+      layout: [
+        {
+          type: 'HERO',
+          enabled: true,
+          data: {
+            variant: 'centered',
+            title: 'Seu carro impecável',
+            ctaLabel: 'Agendar agora',
+            ctaTarget: 'booking-form',
+            backgroundImageUrl: rawPath,
+          },
+        },
+      ],
+    });
+
+    const { container } = renderWithIntl(
+      <HotsitePreview draft={draft} onPublish={vi.fn()} isPublishing={false} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('hotsite-preview-content')).toBeInTheDocument();
+    });
+    // alt="" makes this a presentational image (removed from the accessibility tree by ARIA
+    // rules), so it isn't reachable via getByRole('img') — query the DOM directly instead.
+    const image = container.querySelector('img');
+    expect(image).toHaveAttribute('src', `${IMAGE_BASE_URL}/${rawPath}`);
   });
 
   it('fetches services only when a SERVICE_LIST module is enabled', async () => {

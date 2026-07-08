@@ -1,4 +1,5 @@
 import type { HotsiteBrandingResponse, HotsiteModuleResponse } from '@ikaro/types';
+import { mapHotsiteImageFields } from './map-hotsite-image-fields';
 
 // GET resolves every stored image field to a full public URL (HotsiteImageUrlResolver,
 // backend) via a plain `${publicBaseUrl}/${publicBucketName}/${storagePath}` concatenation —
@@ -16,55 +17,10 @@ function extractRawStoragePath(value: string, tenantId: string): string {
   return index === -1 ? value : value.slice(index);
 }
 
-function stripBrandingImageUrls(
-  branding: HotsiteBrandingResponse,
-  tenantId: string,
-): HotsiteBrandingResponse {
-  return { ...branding, logoUrl: extractRawStoragePath(branding.logoUrl, tenantId) };
-}
-
-function stripModuleImageUrls(
-  module: HotsiteModuleResponse,
-  tenantId: string,
-): HotsiteModuleResponse {
-  const data = module.data;
-  const stripped: Record<string, unknown> = { ...data };
-
-  if (typeof data.backgroundImageUrl === 'string') {
-    stripped.backgroundImageUrl = extractRawStoragePath(data.backgroundImageUrl, tenantId);
-  }
-  if (typeof data.imageUrl === 'string') {
-    stripped.imageUrl = extractRawStoragePath(data.imageUrl, tenantId);
-  }
-  if (typeof data.avatarUrl === 'string') {
-    stripped.avatarUrl = extractRawStoragePath(data.avatarUrl, tenantId);
-  }
-
-  if (module.type === 'TESTIMONIALS' && Array.isArray(data.items)) {
-    stripped.items = (data.items as ReadonlyArray<Record<string, unknown>>).map((item) =>
-      typeof item.avatarUrl === 'string'
-        ? { ...item, avatarUrl: extractRawStoragePath(item.avatarUrl, tenantId) }
-        : item,
-    );
-  }
-  if (module.type === 'GALLERY' && Array.isArray(data.images)) {
-    stripped.images = (data.images as ReadonlyArray<Record<string, unknown>>).map((image) =>
-      typeof image.url === 'string'
-        ? { ...image, url: extractRawStoragePath(image.url, tenantId) }
-        : image,
-    );
-  }
-
-  return { ...module, data: stripped };
-}
-
 export function stripResolvedImageUrls(
   branding: HotsiteBrandingResponse,
   layout: readonly HotsiteModuleResponse[],
   tenantId: string,
 ): { branding: HotsiteBrandingResponse; layout: HotsiteModuleResponse[] } {
-  return {
-    branding: stripBrandingImageUrls(branding, tenantId),
-    layout: layout.map((module) => stripModuleImageUrls(module, tenantId)),
-  };
+  return mapHotsiteImageFields(branding, layout, (value) => extractRawStoragePath(value, tenantId));
 }

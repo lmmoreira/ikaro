@@ -18,6 +18,7 @@ import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
 } from '@/features/platform/hotsite/page-model';
+import { resolveDraftImageUrls } from '@/features/platform/hotsite/resolve-draft-image-urls';
 import { HeroModule } from '@/shells/hotsite/components/HeroModule';
 import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
 import { GalleryModule } from '@/shells/hotsite/components/GalleryModule';
@@ -85,12 +86,21 @@ export function HotsitePreview({
 }: HotsitePreviewProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.previewView');
   const { tenantSlug } = useTenant();
-  const alternateSectionBg = draft.branding.alternateSectionBg ?? false;
-  const modulesWithVariant = buildHotsiteModuleRenderPlan(draft.layout, alternateSectionBg);
+  // A field the admin just uploaded this session holds the raw storage path the upload flow
+  // returned, not yet resolved to a public URL (resolution only happens server-side on the next
+  // GET) — next/image's `src` requires an absolute URL, so resolve every image field before
+  // rendering. Untouched fields already hold a resolved URL and pass through unchanged.
+  const { branding, layout } = resolveDraftImageUrls(
+    draft.branding,
+    draft.layout,
+    process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL ?? '',
+  );
+  const alternateSectionBg = branding.alternateSectionBg ?? false;
+  const modulesWithVariant = buildHotsiteModuleRenderPlan(layout, alternateSectionBg);
   const hasServiceList = modulesWithVariant.some(({ parsed }) => parsed.type === 'SERVICE_LIST');
   const { data, loadError } = usePreviewSupplementaryData(tenantSlug, hasServiceList);
-  const tenantBrand = draft.branding.brandName
-    ? { name: draft.branding.brandName, tagline: draft.branding.brandTagline }
+  const tenantBrand = branding.brandName
+    ? { name: branding.brandName, tagline: branding.brandTagline }
     : undefined;
 
   return (
@@ -117,10 +127,10 @@ export function HotsitePreview({
           {data && (
             <div
               data-testid="hotsite-preview-content"
-              style={{ ...applyBranding(draft.branding), fontFamily: 'var(--ba-body-font)' }}
+              style={{ ...applyBranding(branding), fontFamily: 'var(--ba-body-font)' }}
               className={getActiveFontVariables(
-                draft.branding.headingFontFamily,
-                draft.branding.bodyFontFamily,
+                branding.headingFontFamily,
+                branding.bodyFontFamily,
               ).join(' ')}
             >
               {modulesWithVariant.map(({ parsed, bgVariant }, index) => {

@@ -8,6 +8,7 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
+import { resolveHotsiteImageUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { BookingPhotoPicker } from './BookingPhotoPicker';
 
 interface GalleryImageManagerProps {
@@ -36,7 +37,10 @@ export function GalleryImageManager({
   const [pickerOpen, setPickerOpen] = useState(false);
 
   function displayUrl(image: GalleryImage): string {
-    return previewUrls.get(image.url) ?? image.url;
+    return (
+      previewUrls.get(image.url) ??
+      resolveHotsiteImageUrl(image.url, process.env.NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL ?? '')
+    );
   }
 
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>): Promise<void> {
