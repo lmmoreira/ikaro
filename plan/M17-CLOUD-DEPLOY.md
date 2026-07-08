@@ -772,6 +772,8 @@ Key settings:
 - **web probe paths differ:** web health lives under Next.js route handlers — probes must target `/api/health/live` and `/api/health/ready` (S04), NOT `/health/*` like backend/BFF. A wrong probe path = a service that never turns READY.
 - All three: `APP_ENV` set per environment (`staging`/`production` — S06 deployment identity; `NODE_ENV=production` in both), sidecar support wired (container list accepts an optional collector sidecar — activated in S34), `max_instance_request_concurrency` default, second-gen execution environment, labels (`env`, `service`, `managed-by=terraform`).
 
+**Env-var contract check (added 2026-07-08):** the Terraform env/secret maps must mirror the app schemas (`env.validation.ts` is the source of truth — S16), and nothing enforces that today; the failure mode is a startup error discovered at deploy time. Reuse the S19 catalog-sync mechanism: a small script (`scripts/env-contract.ts`, with its own `.spec.ts` per repo rule) exports the cloud-required keys from both `apps/backend/src/config/env.validation.ts` and `apps/bff/src/config/env.validation.ts` and cross-checks them against this module's env + secret map keys; CI fails on mismatch (allowlist for local-only vars like `GCS_KEY_FILE`). This converts "added a var in code, forgot Terraform" from a failed staging deploy into a failed PR.
+
 **Connection-math invariant (owned here):** backend env sets `DB_POOL_SIZE=3` (S06 wires it into TypeORM); the module must assert — via a Terraform `check`/`precondition` on the variables — that `backend max_instances × DB_POOL_SIZE ≤ 0.8 × max_connections` of the chosen `db_tier` (encode the tier→max_connections map as a local). Launch numbers: 10 instances × 3 = 30 > 25 (f1-micro) — so launch caps backend at `max_instances=6` until the tier upgrade (D12 note). Raising max_instances without raising the tier (or enabling S46 MCP) must fail `terraform plan`. **Encode this permanently (2026-07-08) as `tests/connection_math.tftest.hcl`** (Wave 2 preamble rule): `command = plan` + `mock_provider "google"` cases — valid combination plans clean; `max_instances=20` on f1-micro fails with the descriptive error; the tier→max_connections map covers every tier named in the S13 ladder. No credentials or resources involved; runs in the S24 PR job and protects the invariant when S46 later rewrites the math.
 
 **Acceptance criteria:**
@@ -781,6 +783,7 @@ Key settings:
 - [ ] BFF egress mode is `ALL_TRAFFIC`; the BFF→backend call demonstrably traverses the VPC (internal ingress accepts it — verify post-S27 alongside the item above)
 - [ ] `terraform plan` after a manual `gcloud run deploy` shows NO image drift (ignore_changes works)
 - [ ] All secret env vars are `secret_key_ref` (zero plaintext secrets in state for these)
+- [ ] Env-contract check wired into CI with its spec: removing a var from the Terraform map (temp change) fails the check; local-only vars allowlisted
 - [ ] Checkov clean
 
 **Dependencies:** M17-S12, S13, S14, S15, S16, S17, **S47** (BFF must attach ID tokens before the backend goes `--no-allow-unauthenticated`, or staging breaks at S27)
@@ -797,7 +800,7 @@ Key settings:
 Terraform must mirror the adapter’s naming **exactly**: topic `ikaro-{EventName}`, subscription `ikaro-{EventName}-{consumer}`, DLQ topic `ikaro-{EventName}-{consumer}-dlq`. The old M15-S08 event list is stale (live catalog: 17 domain events incl. `BookingInfoSubmitted`, `BookingRescheduled`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`, `ServicePointsEarned`, `StaffActivated`, …).
 
 **What to build:**
-1. **Sync source:** a small script `scripts/pubsub-catalog.ts` that scans the backend for registered subscriptions (the adapter’s `subscribe()` call sites) and emits `infra/terraform/pubsub-catalog.json` (`[{ event, consumers: [] }]`). The Terraform module consumes this JSON via `jsondecode(file(...))` + `for_each`. CI check (add to `pr-quality.yml` or a tiny script run in `/pre-pr`): regenerating the JSON produces no diff — **an event/consumer added in code without regenerating the catalog fails CI** (this is the mechanism that prevents Terraform drift forever).
+1. **Sync source:** a small script `scripts/pubsub-catalog.ts` that scans the backend for registered subscriptions (the adapter’s `subscribe()` call sites) and emits `infra/terraform/pubsub-catalog.json` (`[{ event, consumers: [] }]`). The Terraform module consumes this JSON via `jsondecode(file(...))` + `for_each`. CI check (add to `pr-quality.yml` or a tiny script run in `/pre-pr`): regenerating the JSON produces no diff — **an event/consumer added in code without regenerating the catalog fails CI** (this is the mechanism that prevents Terraform drift forever). **The scanner itself ships a `.spec.ts` in the same commit (added 2026-07-08 — repo rule):** detects a `subscribe()` call site, deterministic ordering, one event with multiple consumers — a scanner that silently misses a registration pattern would pass the no-diff check while leaving a subscription unprovisioned, the exact failure this mechanism exists to prevent.
 2. **Per subscription:** push config → `https://<backend run URL>/pubsub/push` with `oidc_token { service_account_email = ikaro-pubsub-invoker }` (audience defaults to the URL), `ack_deadline_seconds=60`, retry `minimum_backoff=10s`/`maximum_backoff=600s`, DLQ with `max_delivery_attempts=5`, message retention 7 days. Pub/Sub service agent needs `pubsub.publisher` on each DLQ topic, `pubsub.subscriber` on the source, **and `roles/iam.serviceAccountTokenCreator` on `ikaro-pubsub-invoker`** — Pub/Sub (not the SA itself) mints the OIDC push tokens; without this grant every push delivery fails auth (known gotchas — grant all three in the module; token-creator added 2026-07-08).
 3. **Cron topics:** `ikaro-cron-reminders`, `ikaro-cron-loyalty-expiry` + push subs to `/cron/reminders` and the loyalty cron path (read the exact route from `cron-loyalty.controller.ts`).
 4. **DLQ handling contract (review finding, 2026-07-07 — this is the decision, not an open question):** DLQs are **alert-only, never consumed by code**. No handler subscribes to a DLQ topic. Flow: S35 alerts on depth > 0 → operator inspects via `gcloud pubsub subscriptions pull <dlq>-inspect` (Terraform creates one pull subscription per DLQ topic for inspection, otherwise messages on a subscriberless topic are silently dropped after retention) → fix root cause → replay by re-publishing the original envelope to the **source** topic (handler idempotency via `eventId` makes replay safe). Payload in the DLQ is the unmodified original envelope. Ownership: platform operator. The replay runbook lands in `docs/RUNBOOKS.md` (S37 item).
@@ -805,6 +808,7 @@ Terraform must mirror the adapter’s naming **exactly**: topic `ikaro-{EventNam
 
 **Acceptance criteria:**
 - [ ] `pnpm pubsub:catalog` regenerates the JSON deterministically; CI fails on stale catalog (prove with a deliberate temp change)
+- [ ] Scanner unit spec green (`subscribe()` detection, deterministic order, multi-consumer event)
 - [ ] Staging apply: every topic/sub/DLQ exists; names byte-identical to what the adapter registers
 - [ ] Push subs carry OIDC config with the invoker SA
 - [ ] Dual audience validation verified (the backend is `--no-allow-unauthenticated`): the push token must pass **both** Cloud Run's IAM check (audience = service URL or a configured custom audience) and the app guard (`PUBSUB_PUSH_AUDIENCE` = full push URL). Pub/Sub defaults the audience to the full endpoint URL (path included) — if Cloud Run rejects a path-suffixed audience, set `oidc_token.audience` explicitly and align both layers (exercise in staging, S27)
@@ -882,7 +886,7 @@ Pub/Sub target (not HTTP): `pubsub_target { topic_name, data = base64("{}") }`.
 
 ## Wave 3 — CI/CD Pipelines
 
-> All workflows authenticate via `google-github-actions/auth@v2` with WIF (`permissions: id-token: write`). No `GCP_SA_KEY_*` secrets exist — if a story or doc mentions them, it is stale. Existing PR workflows (`pr-quality`, `pr-tests`, `pr-security`, `pr-e2e`, `main-sonar`) are untouched. New workflows pin third-party actions to **commit SHAs** (Dependabot keeps the pins fresh) — supply-chain parity with the rest of the plan (2026-07-08).
+> All workflows authenticate via `google-github-actions/auth@v2` with WIF (`permissions: id-token: write`). No `GCP_SA_KEY_*` secrets exist — if a story or doc mentions them, it is stale. Existing PR workflows (`pr-quality`, `pr-tests`, `pr-security`, `pr-e2e`, `main-sonar`) are untouched. New workflows pin third-party actions to **commit SHAs** (Dependabot keeps the pins fresh) — supply-chain parity with the rest of the plan (2026-07-08). **Workflow static checks (added 2026-07-08):** the workflows are the least-tested code in this milestone — add `actionlint` (expression typos, invalid `needs`/`outputs` references, syntax) and `zizmor` (security audit: untrusted-input injection, unpinned actions — enforces the SHA rule) over `.github/workflows/**` to `pr-quality.yml` in the first Wave 3 story that touches workflows (S24). Zero cost, covers every workflow forever.
 
 ---
 
@@ -932,6 +936,7 @@ The Terraform lifecycle the user asked for: commit to `infra/` triggers plan/app
 
 **Acceptance criteria:**
 - [ ] PR touching only `infra/**` runs plans + comment, and does NOT trigger app deploy workflows (path filters verified both directions)
+- [ ] `actionlint` + `zizmor` run in `pr-quality.yml` over all workflows and pass (Wave 3 preamble)
 - [ ] Merge auto-applies staging; prod apply visibly waits for approval
 - [ ] Two rapid merges do not run concurrent applies (concurrency proven)
 - [ ] Checkov failure blocks merge (branch protection updated if needed)
@@ -982,13 +987,14 @@ On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build �
 3. **Build web-prod image** (from the tagged SHA checkout) + Trivy.
 4. **Migrate:** prod migrate job with `…backend:<sha>` — `--wait`, hard stop on failure.
 5. **Deploy sequential** backend → bff → web; each waits READY.
-6. **Smoke:** `https://bff.ikaro.online/v1/health/ready`, `https://ikaro.online/api/health/ready`, plus one real public read (`GET /v1/hotsite/<seeded-slug>` — adjust to the live BFF route).
+6. **Smoke:** `https://bff.ikaro.online/v1/health/ready`, `https://ikaro.online/api/health/ready`, plus one real public read (`GET /v1/hotsite/<seeded-slug>` — adjust to the live BFF route). **Build-arg assertion (added 2026-07-08):** the web-prod image is the only rebuilt artifact (D8) and its worst failure — a wrong `NEXT_PUBLIC_*` value baked in — is invisible to health smokes (they exercise the server side, not the client bundle). Curl the prod homepage and assert the served HTML/JS references `bff.ikaro.online` and contains no `run.app`/staging origin.
 7. **Rollback procedure (workflow header + `docs/RUNBOOKS.md` section):** re-run with the previous SHA (Cloud Run also keeps previous revisions for instant console rollback of a single service). Migrations follow expand/contract (repo rule) so rolling back code without reverting schema is safe by construction; `migration:revert` is the documented last resort.
 
 **Acceptance criteria:**
 - [ ] Cannot run without approval; cannot promote a SHA that never reached staging
 - [ ] Backend/BFF images are byte-identical to staging’s (digest comparison in the job log)
 - [ ] Smoke failure marks the run failed and prints the rollback one-liner
+- [ ] Build-arg smoke: served prod HTML references `bff.ikaro.online`, zero `run.app`/staging origins (prove once with a deliberately wrong build arg on a scratch deploy or dry run)
 - [ ] Total promote time (post-approval) < 15 min
 
 **Dependencies:** M17-S25; prod infra applied (S37)
@@ -1134,7 +1140,7 @@ Old M14-S01 preserved with the anti-lock-in rule: **only OTLP exporters in code*
 **Docs to load:** D9, S18 module, S33
 
 **Description:**
-The collector is where GCP appears — and the only place. Build a pinned image `infra/docker/otel-collector/` (FROM `otel/opentelemetry-collector-contrib:<pinned>`, config baked in) pushed to GAR by the staging pipeline (or a tiny dedicated workflow). Add the base image to Dependabot (`docker` ecosystem on `infra/docker/otel-collector/`) so the pin receives update PRs (2026-07-08). Config (`config.yaml`, versioned):
+The collector is where GCP appears — and the only place. Build a pinned image `infra/docker/otel-collector/` (FROM `otel/opentelemetry-collector-contrib:<pinned>`, config baked in) pushed to GAR by the staging pipeline (or a tiny dedicated workflow). Add the base image to Dependabot (`docker` ecosystem on `infra/docker/otel-collector/`) so the pin receives update PRs (2026-07-08). **Validate the config at build time (added 2026-07-08):** run the collector's built-in `validate` subcommand against `config.yaml` in the image-build step — a YAML/pipeline typo becomes a build failure instead of a sidecar crash-loop discovered in staging. Config (`config.yaml`, versioned):
 - receivers: `otlp` (http 4318, grpc 4317, localhost only)
 - processors: `memory_limiter`, `batch`, `resourcedetection` (gcp)
 - exporters: `googlecloud` (traces). Metrics pipeline stub commented for future `googlemanagedprometheus`.
@@ -1146,6 +1152,7 @@ Terraform: activate the sidecar in the S18 module for backend + BFF (128Mi/0.1 C
 - [ ] Collector memory-bounded; app boots even if collector crashes (graceful degradation from S33)
 - [ ] Prod sampling at 10% (env-controlled) — cost note recorded
 - [ ] Collector config change → image rebuild → deploy path documented in `infra/docker/otel-collector/README.md`
+- [ ] Config `validate` runs in the image build; a deliberately broken config fails the build (prove once)
 
 **Dependencies:** M17-S18, M17-S33
 
