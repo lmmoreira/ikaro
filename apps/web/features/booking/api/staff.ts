@@ -72,7 +72,9 @@ export interface CompleteBookingResponse {
   readonly totalActualPrice: { readonly amount: number; readonly currency: string };
 }
 
-export async function listBookings(filters?: BookingListFilters): Promise<StaffBookingListResponse> {
+export async function listBookings(
+  filters?: BookingListFilters,
+): Promise<StaffBookingListResponse> {
   const res = await bffClient.get<StaffBookingListResponse>('/bookings', { params: filters });
   return res.data;
 }
