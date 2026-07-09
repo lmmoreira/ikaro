@@ -454,7 +454,7 @@ Authorization: Bearer {{customerToken}}
 
 {
   "response": "Here are the photos of the vehicle exterior you requested",
-  "photoUrls": ["https://s3.example.com/car-front.jpg"]
+  "photoUrls": ["tmp/{{tenantId}}/019f420c-0000-0000-0000-000000000000/car-front.jpg"]
 }
 
 ###
@@ -686,7 +686,7 @@ Authorization: Bearer {{managerToken}}
   "lines": [
     { "lineId": "{{bookingLineId}}", "actualPriceCharged": 80.00 }
   ],
-  "afterServicePhotoUrls": ["tenants/{{tenantId}}/bookings/{{approvedBookingId}}/after1.jpg"],
+  "afterServicePhotoUrls": ["tmp/{{tenantId}}/019f420c-0000-0000-0000-000000000001/after1.jpg"],
   "adminNotes": "Extra shine applied"
 }
 

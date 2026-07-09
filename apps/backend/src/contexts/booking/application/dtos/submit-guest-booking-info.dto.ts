@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BOOKING_TMP_PHOTO_PATH_REGEX } from '../../../../shared/utils/tmp-path-regex';
 
 export const SubmitGuestBookingInfoBodySchema = z.object({
   bookingId: z.uuid(),
@@ -6,7 +7,7 @@ export const SubmitGuestBookingInfoBodySchema = z.object({
   response: z.string().trim().min(1),
   // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
   // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
-  photoUrls: z.array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/)).optional(),
+  photoUrls: z.array(z.string().regex(BOOKING_TMP_PHOTO_PATH_REGEX)).optional(),
 });
 
 export type SubmitGuestBookingInfoDto = z.infer<typeof SubmitGuestBookingInfoBodySchema>;

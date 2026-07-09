@@ -106,20 +106,17 @@ describe('PhotoExistenceService', () => {
     });
 
     it('is best-effort — a failure on one operation does not stop the rest', async () => {
-      const failingStorage: InMemoryStorageService & { copy: jest.Mock } = Object.assign(
-        new InMemoryStorageService(),
-        {
-          copy: jest.fn().mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(undefined),
-        },
-      );
-      const failingService = new PhotoExistenceService(failingStorage);
+      const copySpy = jest
+        .spyOn(storageService, 'copy')
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValueOnce(undefined);
       const operations = [
         { from: 'tmp/tenant-a/u1/a.jpg', to: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/a.jpg` },
         { from: 'tmp/tenant-a/u2/b.jpg', to: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/b.jpg` },
       ];
 
-      await expect(failingService.executePhotoPromotion(operations)).resolves.toBeUndefined();
-      expect(failingStorage.copy).toHaveBeenCalledTimes(2);
+      await expect(service.executePhotoPromotion(operations)).resolves.toBeUndefined();
+      expect(copySpy).toHaveBeenCalledTimes(2);
     });
   });
 });

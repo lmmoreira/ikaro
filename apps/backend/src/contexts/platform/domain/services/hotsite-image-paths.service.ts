@@ -38,7 +38,7 @@ export class HotsiteImagePathsService {
   }
 
   private mapModule(module: HotsiteModule, transform: ImagePathTransform): HotsiteModule {
-    const data = module.data as unknown as Record<string, unknown>;
+    const data = this.asRecord(module.data);
     const mapped: Record<string, unknown> = { ...data };
 
     if (typeof data.backgroundImageUrl === 'string' && data.backgroundImageUrl.length > 0) {
@@ -69,7 +69,7 @@ export class HotsiteImagePathsService {
   }
 
   private collectFromModule(paths: string[], module: HotsiteModule): void {
-    const data = module.data as unknown as Record<string, unknown>;
+    const data = this.asRecord(module.data);
     this.pushIfPath(paths, data.backgroundImageUrl);
     this.pushIfPath(paths, data.imageUrl);
     this.pushIfPath(paths, data.avatarUrl);
@@ -87,5 +87,12 @@ export class HotsiteImagePathsService {
 
   private pushIfPath(paths: string[], value: unknown): void {
     if (typeof value === 'string' && value.length > 0) paths.push(value);
+  }
+
+  // HotsiteModuleData is a union of specific per-type interfaces with no index signature —
+  // this is the one place that widens it for generic field probing, since Zod validates
+  // `data` as a plain record and the per-module-type shape isn't statically derivable from it.
+  private asRecord(data: HotsiteModuleData): Record<string, unknown> {
+    return data as unknown as Record<string, unknown>;
   }
 }
