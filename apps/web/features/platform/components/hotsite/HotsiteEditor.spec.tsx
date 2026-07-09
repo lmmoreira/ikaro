@@ -211,6 +211,58 @@ describe('HotsiteEditor', () => {
       expect(mockPublishHotsite).not.toHaveBeenCalled();
     });
 
+    // Regression test: after a save, the PATCH response reflects any tmp/ -> permanent path
+    // promotion the backend just performed (and deleted the tmp/ object for). Before this fix,
+    // `draft` never absorbed that response, so a *second* save resubmitted the stale tmp/
+    // reference — which the backend then rejects with HotsiteImageNotUploadedError, because the
+    // tmp/ object no longer exists (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md).
+    it('refreshes the draft with the promoted path from the PATCH response, so a second save does not resubmit a dead tmp/ reference', async () => {
+      const tmpPath = 'tmp/tenant-a-id/hero/u1/banner.png';
+      const promotedPath = 'tenants/tenant-a-id/hotsite/hero/u1/banner.png';
+      const heroModule = (backgroundImageUrl: string) => ({
+        type: 'HERO' as const,
+        enabled: true,
+        data: {
+          variant: 'centered',
+          title: 'Título',
+          ctaLabel: 'Agendar',
+          ctaTarget: 'booking-form',
+          backgroundImageUrl,
+        },
+      });
+      const draftWithTmpHero: HotsiteAdminContentResponse = {
+        ...INITIAL,
+        layout: [heroModule(tmpPath)],
+      };
+      mockUpdateHotsiteConfig.mockResolvedValueOnce({
+        ...draftWithTmpHero,
+        layout: [heroModule(promotedPath)],
+      });
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+      const user = userEvent.setup();
+      renderEditor(draftWithTmpHero);
+
+      await user.click(screen.getByTestId('hotsite-publish-desktop'));
+      await waitFor(() => {
+        expect(screen.getByTestId('hotsite-action-success-banner')).toBeInTheDocument();
+      });
+
+      mockUpdateHotsiteConfig.mockResolvedValueOnce({
+        ...draftWithTmpHero,
+        layout: [heroModule(promotedPath)],
+      });
+      await user.click(screen.getByTestId('hotsite-publish-desktop'));
+
+      await waitFor(() => {
+        expect(mockUpdateHotsiteConfig).toHaveBeenCalledTimes(2);
+      });
+      const secondCallBody = mockUpdateHotsiteConfig.mock.calls[1]![0];
+      const submittedHero = secondCallBody.layout?.find((m) => m.type === 'HERO');
+      expect((submittedHero?.data as { backgroundImageUrl: string }).backgroundImageUrl).toBe(
+        promotedPath,
+      );
+    });
+
     // Regression test: the banner only renders in the tabs view — a failed publish triggered
     // from Preview must switch back to tabs too, or the admin is stuck in Preview with no
     // visible error feedback at all.
