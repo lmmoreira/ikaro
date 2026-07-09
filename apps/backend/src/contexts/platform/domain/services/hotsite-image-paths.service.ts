@@ -39,8 +39,19 @@ export class HotsiteImagePathsService {
 
   private mapModule(module: HotsiteModule, transform: ImagePathTransform): HotsiteModule {
     const data = this.asRecord(module.data);
-    const mapped: Record<string, unknown> = { ...data };
+    let mapped = this.mapBaseFields(data, transform);
 
+    if (module.type === 'TESTIMONIALS') mapped = this.mapTestimonialsItems(mapped, data, transform);
+    if (module.type === 'GALLERY') mapped = this.mapGalleryImages(mapped, data, transform);
+
+    return { ...module, data: mapped as HotsiteModuleData };
+  }
+
+  private mapBaseFields(
+    data: Record<string, unknown>,
+    transform: ImagePathTransform,
+  ): Record<string, unknown> {
+    const mapped: Record<string, unknown> = { ...data };
     if (typeof data.backgroundImageUrl === 'string' && data.backgroundImageUrl.length > 0) {
       mapped.backgroundImageUrl = transform(data.backgroundImageUrl);
     }
@@ -50,22 +61,33 @@ export class HotsiteImagePathsService {
     if (typeof data.avatarUrl === 'string' && data.avatarUrl.length > 0) {
       mapped.avatarUrl = transform(data.avatarUrl);
     }
+    return mapped;
+  }
 
-    if (module.type === 'TESTIMONIALS') {
-      const items = (data.items as { avatarUrl?: string }[] | undefined) ?? [];
-      mapped.items = items.map((item) =>
+  private mapTestimonialsItems(
+    mapped: Record<string, unknown>,
+    data: Record<string, unknown>,
+    transform: ImagePathTransform,
+  ): Record<string, unknown> {
+    const items = (data.items as { avatarUrl?: string }[] | undefined) ?? [];
+    return {
+      ...mapped,
+      items: items.map((item) =>
         item.avatarUrl ? { ...item, avatarUrl: transform(item.avatarUrl) } : item,
-      );
-    }
+      ),
+    };
+  }
 
-    if (module.type === 'GALLERY') {
-      const images = (data.images as GalleryImage[] | undefined) ?? [];
-      mapped.images = images.map((image) =>
-        image.url ? { ...image, url: transform(image.url) } : image,
-      );
-    }
-
-    return { ...module, data: mapped as HotsiteModuleData };
+  private mapGalleryImages(
+    mapped: Record<string, unknown>,
+    data: Record<string, unknown>,
+    transform: ImagePathTransform,
+  ): Record<string, unknown> {
+    const images = (data.images as GalleryImage[] | undefined) ?? [];
+    return {
+      ...mapped,
+      images: images.map((image) => (image.url ? { ...image, url: transform(image.url) } : image)),
+    };
   }
 
   private collectFromModule(paths: string[], module: HotsiteModule): void {

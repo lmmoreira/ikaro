@@ -160,7 +160,9 @@ describe('HotsiteAdminController (integration)', () => {
       expect(saved!.branding.logoUrl).toBe(promotedPath);
 
       expect(storageService.copiedPaths).toEqual(
-        expect.arrayContaining([{ sourcePath: tmpLogoPath, destinationPath: promotedPath }]),
+        expect.arrayContaining([
+          { sourcePath: tmpLogoPath, destinationPath: promotedPath, destinationBucket: 'public' },
+        ]),
       );
       expect(storageService.deletedPaths).toEqual(
         expect.arrayContaining([tmpLogoPath, previousLogoPath]),
@@ -394,6 +396,7 @@ describe('HotsiteAdminController (integration)', () => {
       expect(storageService.copiedPaths).toContainEqual({
         sourcePath: AFTER_PHOTO,
         destinationPath: body.filePath,
+        destinationBucket: 'public',
       });
     });
 

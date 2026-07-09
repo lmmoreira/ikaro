@@ -123,7 +123,11 @@ describe('HotsiteImagePromotionService', () => {
       await service.executeImagePromotion(promotions, []);
 
       expect(storageService.copiedPaths).toEqual([
-        { sourcePath: promotions[0].from, destinationPath: promotions[0].to },
+        {
+          sourcePath: promotions[0].from,
+          destinationPath: promotions[0].to,
+          destinationBucket: 'public',
+        },
       ]);
       expect(storageService.deletedPaths).toContain(promotions[0].from);
     });

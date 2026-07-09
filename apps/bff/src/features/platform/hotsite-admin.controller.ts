@@ -13,9 +13,15 @@ import {
 } from '@ikaro/types';
 
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
+// tmp/<tenantId>/<purpose>/<uuid>/<fileName> — hotsite uploads only. One segment longer than
+// booking's tmp/<tenantId>/<uuid>/<fileName>; without the extra segment, a booking tmp/ upload
+// could be accepted by a hotsite endpoint and promoted into the public hotsite bucket (or
+// deleted from the private bucket) instead of being rejected. Shared across every hotsite tmp/
+// path field in this file so the shape only needs to change in one place.
+const HOTSITE_TMP_PATH_FRAGMENT = 'tmp/[^/]+/[^/]+/[^/]+/[^/]+';
 // Accepts empty (to clear), an already-permanent hotsite image, or a not-yet-promoted tmp/
 // staging upload — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
-const LOGO_URL_REGEX = /^$|^tenants\/[^/]+\/hotsite\/.+$|^tmp\/[^/]+\/.+$/;
+const LOGO_URL_REGEX = new RegExp(`^$|^tenants/[^/]+/hotsite/.+$|^${HOTSITE_TMP_PATH_FRAGMENT}$`);
 const LOGO_URL_MESSAGE = {
   message:
     'logoUrl must be empty (to clear), a tenants/<id>/hotsite/... storage path, or a tmp/<id>/... staging path',
@@ -103,7 +109,7 @@ type GenerateHotsiteImageSignedUrlBody = z.infer<typeof GenerateHotsiteImageSign
 // image resolves via the pure getPublicUrl() string template instead (see
 // td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
 export const GenerateHotsiteImageReadSignedUrlBodySchema = z.object({
-  filePath: z.string().regex(/^tmp\/[^/]+\/.+$/),
+  filePath: z.string().regex(new RegExp(`^${HOTSITE_TMP_PATH_FRAGMENT}$`)),
 });
 
 type GenerateHotsiteImageReadSignedUrlBody = z.infer<
@@ -125,7 +131,9 @@ type FeatureBookingPhotoBody = z.infer<typeof FeatureBookingPhotoBodySchema>;
 // Accepts either an already-permanent hotsite image (tenants/<id>/hotsite/...) or a not-yet
 // promoted tmp/ staging upload (tmp/<id>/...) — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
 export const DeleteHotsiteImageBodySchema = z.object({
-  filePath: z.string().regex(/^(tenants\/[^/]+\/hotsite\/.+|tmp\/[^/]+\/.+)$/),
+  filePath: z
+    .string()
+    .regex(new RegExp(`^(tenants/[^/]+/hotsite/.+|${HOTSITE_TMP_PATH_FRAGMENT})$`)),
 });
 
 type DeleteHotsiteImageBody = z.infer<typeof DeleteHotsiteImageBodySchema>;

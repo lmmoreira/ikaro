@@ -190,6 +190,16 @@ describe('HotsiteAdminController', () => {
 
       expect(result.success).toBe(false);
     });
+
+    it('rejects a booking tmp/ path for logoUrl (tmp/<tenantId>/<uuid>/<fileName>, no purpose segment)', () => {
+      // Guards the cross-feature gap flagged in PR #103 review: booking's tmp/ shape is one
+      // segment shorter than hotsite's and must not be accepted here.
+      const result = UpdateHotsiteContentBodySchema.safeParse({
+        branding: { logoUrl: 'tmp/10000000-0000-4000-8000-000000000001/u1/car.jpg' },
+      });
+
+      expect(result.success).toBe(false);
+    });
   });
 
   describe('publish()', () => {
@@ -307,6 +317,14 @@ describe('HotsiteAdminController', () => {
 
       expect(result.success).toBe(true);
     });
+
+    it('rejects a booking tmp/ path (tmp/<tenantId>/<uuid>/<fileName>, no purpose segment)', () => {
+      const result = GenerateHotsiteImageReadSignedUrlBodySchema.safeParse({
+        filePath: 'tmp/10000000-0000-4000-8000-000000000001/u1/car.jpg',
+      });
+
+      expect(result.success).toBe(false);
+    });
   });
 
   describe('featureBookingPhoto()', () => {
@@ -397,6 +415,14 @@ describe('HotsiteAdminController', () => {
       });
 
       expect(result.success).toBe(true);
+    });
+
+    it('rejects a booking tmp/ path (tmp/<tenantId>/<uuid>/<fileName>, no purpose segment)', () => {
+      const result = DeleteHotsiteImageBodySchema.safeParse({
+        filePath: 'tmp/10000000-0000-4000-8000-000000000001/u1/car.jpg',
+      });
+
+      expect(result.success).toBe(false);
     });
   });
 });

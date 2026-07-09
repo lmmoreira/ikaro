@@ -1,6 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { extractTenantIdFromTmpPath } from '../../../../shared/utils/extract-tenant-id-from-tmp-path';
+import { HOTSITE_TMP_PATH_REGEX } from '../../../../shared/utils/tmp-path-regex';
 import { HotsiteImageNotUploadedError } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
@@ -18,6 +19,8 @@ export interface PreparedImagePromotion {
 
 @Injectable()
 export class HotsiteImagePromotionService {
+  private readonly logger = new Logger(HotsiteImagePromotionService.name);
+
   constructor(
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
     private readonly imagePathsService: HotsiteImagePathsService,
@@ -42,7 +45,12 @@ export class HotsiteImagePromotionService {
 
     for (const path of this.imagePathsService.collect(branding, layout)) {
       if (path.startsWith(tmpPrefix)) {
-        if (extractTenantIdFromTmpPath(path) !== tenantId) {
+        // Requires the hotsite-specific tmp/<tenantId>/<purpose>/<uuid>/<fileName> shape — layout
+        // module image fields (data: Record<string, unknown> in the DTO) carry no shape
+        // validation upstream, so this is the only gate standing between a same-tenant booking
+        // tmp/ upload and being promoted into the public hotsite bucket (both shapes share the
+        // tmp/<tenantId>/ prefix; only the extra purpose segment tells them apart).
+        if (!HOTSITE_TMP_PATH_REGEX.test(path) || extractTenantIdFromTmpPath(path) !== tenantId) {
           throw new HotsiteImageNotUploadedError(path);
         }
         const exists = await this.storageService.exists(path, 'private');
@@ -76,16 +84,25 @@ export class HotsiteImagePromotionService {
       try {
         await this.storageService.copy(from, to, 'public');
         await this.storageService.delete(from, 'private');
-      } catch {
-        // log and continue — the config already points at `to`; a failed copy just means that
-        // path 404s until manually reconciled, not a broken save
+      } catch (err) {
+        // Best-effort — the config already points at `to`; a failed copy just means that path
+        // 404s until manually reconciled, not a broken save. Logged so production failures are
+        // discoverable instead of silently leaving a broken image / orphaned tmp object.
+        this.logger.error(
+          `Failed to promote hotsite image from ${from} to ${to}: ${(err as Error).message}`,
+          (err as Error).stack,
+        );
       }
     }
     for (const path of deletions) {
       try {
         await this.storageService.delete(path, 'public');
-      } catch {
-        // best-effort — the reference is already gone from the config either way
+      } catch (err) {
+        // Best-effort — the reference is already gone from the config either way.
+        this.logger.error(
+          `Failed to delete superseded hotsite image ${path}: ${(err as Error).message}`,
+          (err as Error).stack,
+        );
       }
     }
   }

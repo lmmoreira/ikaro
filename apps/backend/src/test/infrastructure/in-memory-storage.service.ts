@@ -3,7 +3,11 @@ import { GenerateSignedUrlResult, IStorageService } from '../../shared/ports/sto
 export class InMemoryStorageService implements IStorageService {
   readonly uploadedPaths: string[] = [];
   readonly readSignedPaths: string[] = [];
-  readonly copiedPaths: Array<{ sourcePath: string; destinationPath: string }> = [];
+  readonly copiedPaths: Array<{
+    sourcePath: string;
+    destinationPath: string;
+    destinationBucket: 'private' | 'public';
+  }> = [];
   readonly deletedPaths: string[] = [];
   private readonly existingPaths = new Set<string>();
 
@@ -43,9 +47,9 @@ export class InMemoryStorageService implements IStorageService {
   async copy(
     sourcePath: string,
     destinationPath: string,
-    _destinationBucket: 'private' | 'public' = 'public',
+    destinationBucket: 'private' | 'public' = 'public',
   ): Promise<void> {
-    this.copiedPaths.push({ sourcePath, destinationPath });
+    this.copiedPaths.push({ sourcePath, destinationPath, destinationBucket });
     this.existingPaths.add(destinationPath);
   }
 

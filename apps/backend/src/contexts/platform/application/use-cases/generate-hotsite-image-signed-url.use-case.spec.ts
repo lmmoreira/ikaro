@@ -37,14 +37,20 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
   });
 
   it('targets the private bucket — not public/permanent until promotion on save', async () => {
-    const result = await useCase.execute({
+    const writeSignedUrlSpy = jest.spyOn(storageService, 'generateWriteSignedUrl');
+
+    await useCase.execute({
       tenantId: TENANT_A,
       fileName: 'hero.jpg',
       contentType: 'image/jpeg',
       purpose: 'hero',
     });
 
-    expect(result.signedUrl).not.toContain('ikaro-local-public');
+    expect(writeSignedUrlSpy).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`^tmp/${TENANT_A}/hero/`)),
+      'image/jpeg',
+      'private',
+    );
   });
 
   it('scopes the generated path to the requesting tenant', async () => {

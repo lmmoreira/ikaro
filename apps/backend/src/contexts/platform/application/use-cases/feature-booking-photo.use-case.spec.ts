@@ -37,6 +37,7 @@ describe('FeatureBookingPhotoUseCase', () => {
     expect(storageService.copiedPaths).toContainEqual({
       sourcePath: BEFORE_PHOTO,
       destinationPath: result.filePath,
+      destinationBucket: 'public',
     });
   });
 

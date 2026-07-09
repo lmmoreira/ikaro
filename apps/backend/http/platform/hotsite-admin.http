@@ -262,6 +262,21 @@ Content-Type: application/json
 
 ###
 
+### 400 — read-signed-url with a filePath outside the hotsite tmp/ shape (e.g. a booking tmp/
+### upload — tmp/<tenantId>/<uuid>/<fileName>, missing the <purpose> segment) (TD22)
+POST {{baseUrl}}/tenants/hotsite/images/read-signed-url
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "filePath": "tmp/{{tenantId}}/019f420c-0000-0000-0000-000000000000/logo.png"
+}
+
+###
+
 ### 404 — feature-booking-photo with unknown bookingId
 POST {{baseUrl}}/tenants/hotsite/gallery/feature-booking-photo
 X-Tenant-ID: {{tenantId}}

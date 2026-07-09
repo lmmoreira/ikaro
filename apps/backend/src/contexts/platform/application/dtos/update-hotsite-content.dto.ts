@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { HexColor } from '../../../../shared/value-objects/hex-color.vo';
 import { SeoTitle } from '../../../../shared/value-objects/seo-title.vo';
 import { SeoDescription } from '../../../../shared/value-objects/seo-description.vo';
-import { TMP_PATH_FRAGMENT } from '../../../../shared/utils/tmp-path-regex';
+import { HOTSITE_TMP_PATH_FRAGMENT } from '../../../../shared/utils/tmp-path-regex';
 
 const HEX_COLOR_MESSAGE = { message: 'must be a valid hex color (e.g. #FF5733)' };
 const SEO_TITLE_MESSAGE = { message: `must be at most ${SeoTitle.MAX_LENGTH} characters` };
@@ -11,7 +11,7 @@ const SEO_DESCRIPTION_MESSAGE = {
 };
 // Accepts empty (to clear), an already-permanent hotsite image, or a not-yet-promoted tmp/
 // staging upload — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
-const LOGO_URL_REGEX = new RegExp(`^$|^tenants/[^/]+/hotsite/.+$|^${TMP_PATH_FRAGMENT}$`);
+const LOGO_URL_REGEX = new RegExp(`^$|^tenants/[^/]+/hotsite/.+$|^${HOTSITE_TMP_PATH_FRAGMENT}$`);
 const LOGO_URL_MESSAGE = {
   message:
     'logoUrl must be empty (to clear), a tenants/<id>/hotsite/... storage path, or a tmp/<id>/... staging path',

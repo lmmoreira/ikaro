@@ -183,7 +183,11 @@ describe('UpdateHotsiteContentUseCase', () => {
       expect(saved!.branding.logoUrl).toBe(expectedPermanentPath);
 
       expect(storageService.copiedPaths).toEqual([
-        { sourcePath: tmpPath, destinationPath: expectedPermanentPath },
+        {
+          sourcePath: tmpPath,
+          destinationPath: expectedPermanentPath,
+          destinationBucket: 'public',
+        },
       ]);
       expect(storageService.deletedPaths).toEqual([tmpPath]);
     });
