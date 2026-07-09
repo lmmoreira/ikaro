@@ -4,6 +4,7 @@ import { bffClient } from '@/shared/lib/api/bff-client';
 import {
   deleteHotsiteImage,
   featureBookingPhoto,
+  generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
   getHotsiteConfig,
   publishHotsite,
@@ -147,6 +148,20 @@ describe('generateHotsiteImageSignedUrl', () => {
       purpose: 'branding',
     });
     expect(res.signedUrl).toContain('https://');
+  });
+});
+
+describe('generateHotsiteImageReadSignedUrl', () => {
+  it('calls POST /tenants/hotsite/images/read-signed-url with the filePath', async () => {
+    const response = { signedUrl: 'https://storage.example.com/read', expiresAt: '' };
+    mock.onPost('/tenants/hotsite/images/read-signed-url').reply(201, response);
+
+    const res = await generateHotsiteImageReadSignedUrl('tmp/t-1/branding/u1/logo.png');
+
+    expect(res.signedUrl).toContain('https://');
+    expect(mock.history.post?.at(-1)?.data).toBe(
+      JSON.stringify({ filePath: 'tmp/t-1/branding/u1/logo.png' }),
+    );
   });
 });
 

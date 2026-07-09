@@ -27,8 +27,17 @@ export interface IStorageService {
   exists(storagePath: string, bucket?: 'private' | 'public'): Promise<boolean>;
   /** Pure string template against the public bucket — no GCS API round-trip, no expiry. */
   getPublicUrl(storagePath: string): string;
-  /** Copies an object from the private bucket into the public bucket. */
-  copy(sourcePath: string, destinationPath: string): Promise<void>;
+  /**
+   * Copies an object. Source is always read from the private bucket (that's where `tmp/`
+   * staging lives). `destinationBucket` defaults to `'public'` (unchanged existing behavior
+   * for `FeatureBookingPhotoUseCase`) — pass `'private'` for a same-bucket promotion like
+   * booking attachments.
+   */
+  copy(
+    sourcePath: string,
+    destinationPath: string,
+    destinationBucket?: 'private' | 'public',
+  ): Promise<void>;
   /** `bucket` defaults to private — pass `'public'` to delete from the hotsite public bucket. */
   delete(storagePath: string, bucket?: 'private' | 'public'): Promise<void>;
 }

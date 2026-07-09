@@ -20,12 +20,16 @@ export class GenerateHotsiteImageSignedUrlUseCase {
   async execute(
     dto: GenerateHotsiteImageSignedUrlUseCaseInput,
   ): Promise<GenerateHotsiteImageSignedUrlUseCaseResult> {
-    const filePath = `tenants/${dto.tenantId}/hotsite/${dto.purpose}/${uuidv7()}/${dto.fileName}`;
+    // Staged in the private bucket under tmp/ — not public/permanent until UpdateHotsiteContentUseCase
+    // promotes it on save (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md). Purpose is encoded into the tmp
+    // path so promotion can rebuild the permanent tenants/<id>/hotsite/<purpose>/... path without
+    // needing a second lookup.
+    const filePath = `tmp/${dto.tenantId}/${dto.purpose}/${uuidv7()}/${dto.fileName}`;
 
     const { signedUrl, expiresAt } = await this.storageService.generateWriteSignedUrl(
       filePath,
       dto.contentType,
-      'public',
+      'private',
     );
 
     return { signedUrl, filePath, expiresAt: expiresAt.toISOString() };

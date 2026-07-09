@@ -9,6 +9,7 @@ import {
 } from '../../domain/errors/platform-domain.error';
 import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
+import { HotsiteImagePromotionService } from '../services/hotsite-image-promotion.service';
 import { UpdateHotsiteContentUseCase } from './update-hotsite-content.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
@@ -22,11 +23,12 @@ describe('UpdateHotsiteContentUseCase', () => {
   beforeEach(() => {
     repo = new InMemoryHotsiteConfigRepository();
     storageService = new InMemoryStorageService();
+    const imagePathsService = new HotsiteImagePathsService();
     useCase = new UpdateHotsiteContentUseCase(
       repo,
-      storageService,
       new InMemoryTransactionManager(),
-      new HotsiteImagePathsService(),
+      imagePathsService,
+      new HotsiteImagePromotionService(storageService, imagePathsService),
     );
   });
 
@@ -98,107 +100,6 @@ describe('UpdateHotsiteContentUseCase', () => {
     );
   });
 
-  it('verifies the branding logoUrl exists in storage before persisting', async () => {
-    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
-    await repo.save(config);
-    const logoPath = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
-
-    await expect(
-      useCase.execute({ tenantId: TENANT_A, branding: { logoUrl: logoPath } }),
-    ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
-
-    storageService.markAsUploaded(logoPath);
-    const result = await useCase.execute({ tenantId: TENANT_A, branding: { logoUrl: logoPath } });
-    expect(result.branding.logoUrl).toBe(logoPath);
-  });
-
-  it('verifies HERO backgroundImageUrl exists in storage before persisting', async () => {
-    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
-    await repo.save(config);
-    const imagePath = `tenants/${TENANT_A}/hotsite/hero/u1/bg.jpg`;
-
-    const layout = [
-      {
-        type: 'HERO' as const,
-        enabled: true,
-        data: {
-          variant: 'centered',
-          title: 'Cuidado completo para o seu carro',
-          backgroundImageUrl: imagePath,
-          ctaLabel: 'Agendar agora',
-          ctaTarget: 'booking-form',
-        },
-      },
-    ];
-
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
-      HotsiteImageNotUploadedError,
-    );
-
-    storageService.markAsUploaded(imagePath);
-    const result = await useCase.execute({ tenantId: TENANT_A, layout });
-    const data = result.layout[0]!.data as unknown as Record<string, unknown>;
-    expect(data['backgroundImageUrl']).toBe(imagePath);
-  });
-
-  it('verifies each TESTIMONIALS item avatarUrl exists in storage', async () => {
-    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
-    await repo.save(config);
-    const avatarPath = `tenants/${TENANT_A}/hotsite/gallery/u1/avatar.jpg`;
-
-    const layout = [
-      {
-        type: 'TESTIMONIALS' as const,
-        enabled: true,
-        data: {
-          items: [{ authorName: 'Maria', text: 'Ótimo serviço!', avatarUrl: avatarPath }],
-          layout: 'grid',
-        },
-      },
-    ];
-
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
-      HotsiteImageNotUploadedError,
-    );
-
-    storageService.markAsUploaded(avatarPath);
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).resolves.toBeDefined();
-  });
-
-  it('verifies every GALLERY image exists in storage uniformly — upload and booking sources alike', async () => {
-    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
-    await repo.save(config);
-    const uploadedPath = `tenants/${TENANT_A}/hotsite/gallery/u1/photo.jpg`;
-    const featuredPath = `tenants/${TENANT_A}/hotsite/gallery/u2/featured.jpg`;
-
-    const layout = [
-      {
-        type: 'GALLERY' as const,
-        enabled: true,
-        data: {
-          images: [
-            { url: uploadedPath, source: 'upload' },
-            { url: featuredPath, source: 'booking', bookingId: 'b1', photoType: 'after' },
-          ],
-          layout: 'grid',
-          maxVisible: 6,
-        },
-      },
-    ];
-
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
-      HotsiteImageNotUploadedError,
-    );
-
-    storageService.markAsUploaded(uploadedPath);
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
-      HotsiteImageNotUploadedError,
-    );
-
-    storageService.markAsUploaded(featuredPath);
-    await expect(useCase.execute({ tenantId: TENANT_A, layout })).resolves.toBeDefined();
-  });
-
   it('tenant isolation: updating tenant A does not affect tenant B', async () => {
     const configA = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     const configB = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildWithContent();
@@ -209,17 +110,6 @@ describe('UpdateHotsiteContentUseCase', () => {
 
     const savedB = await repo.findByTenantId(TENANT_B);
     expect(savedB!.branding.primaryColor).toBe(DEFAULT_HOTSITE_BRANDING.primaryColor);
-  });
-
-  it('tenant isolation: rejects a logoUrl pointing at another tenant storage path even if it exists', async () => {
-    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
-    await repo.save(config);
-    const otherTenantPath = `tenants/${TENANT_B}/hotsite/branding/u1/logo.png`;
-    storageService.markAsUploaded(otherTenantPath);
-
-    await expect(
-      useCase.execute({ tenantId: TENANT_A, branding: { logoUrl: otherTenantPath } }),
-    ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
   });
 
   it('sets seo title and description from null defaults', async () => {
@@ -266,5 +156,85 @@ describe('UpdateHotsiteContentUseCase', () => {
     await expect(
       useCase.execute({ tenantId: TENANT_A, seo: { description: 'a'.repeat(159) } }),
     ).rejects.toBeInstanceOf(PlatformDomainError);
+  });
+
+  // Field-level promotion/validation mechanics (tmp/ promotion, cross-tenant rejection, every
+  // image field type) are unit-tested directly in hotsite-image-promotion.service.spec.ts and
+  // hotsite-image-paths.service.spec.ts. These remaining tests cover what's genuinely this use
+  // case's own responsibility: wiring the promotion service in correctly, persisting the result,
+  // and the before/after path diff that drives delete-previous-on-replace (that diff lives here,
+  // not in the promotion service, since it needs the pre-merge stored state).
+  describe('tmp/ promotion (TD22)', () => {
+    it('promotes a tmp/-referenced logoUrl to a permanent public path, persists it, and calls storage for real', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+      const tmpPath = `tmp/${TENANT_A}/branding/u1/logo.png`;
+      storageService.markAsUploaded(tmpPath);
+
+      const result = await useCase.execute({
+        tenantId: TENANT_A,
+        branding: { logoUrl: tmpPath },
+      });
+
+      const expectedPermanentPath = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
+      expect(result.branding.logoUrl).toBe(expectedPermanentPath);
+
+      const saved = await repo.findByTenantId(TENANT_A);
+      expect(saved!.branding.logoUrl).toBe(expectedPermanentPath);
+
+      expect(storageService.copiedPaths).toEqual([
+        {
+          sourcePath: tmpPath,
+          destinationPath: expectedPermanentPath,
+          destinationBucket: 'public',
+        },
+      ]);
+      expect(storageService.deletedPaths).toEqual([tmpPath]);
+    });
+
+    it('deletes the previous permanent object when a field changes from one permanent image to another', async () => {
+      const oldPermanentPath = `tenants/${TENANT_A}/hotsite/branding/old/logo.png`;
+      const branding = { ...DEFAULT_HOTSITE_BRANDING, logoUrl: oldPermanentPath };
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent(branding);
+      await repo.save(config);
+      storageService.markAsUploaded(oldPermanentPath);
+      const newTmpPath = `tmp/${TENANT_A}/branding/new/logo.png`;
+      storageService.markAsUploaded(newTmpPath);
+
+      await useCase.execute({ tenantId: TENANT_A, branding: { logoUrl: newTmpPath } });
+
+      expect(storageService.deletedPaths).toEqual(
+        expect.arrayContaining([oldPermanentPath, newTmpPath]),
+      );
+    });
+
+    it('does not delete or re-promote anything for an untouched field still pointing at an old permanent image', async () => {
+      const permanentPath = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
+      const branding = { ...DEFAULT_HOTSITE_BRANDING, logoUrl: permanentPath };
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent(branding);
+      await repo.save(config);
+      storageService.markAsUploaded(permanentPath);
+
+      const result = await useCase.execute({
+        tenantId: TENANT_A,
+        seo: { title: 'Novo título' },
+      });
+
+      expect(result.branding.logoUrl).toBe(permanentPath);
+      expect(storageService.copiedPaths).toEqual([]);
+      expect(storageService.deletedPaths).toEqual([]);
+    });
+
+    it('propagates HotsiteImageNotUploadedError from the promotion service (e.g. a tmp/ path never actually uploaded)', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+
+      await expect(
+        useCase.execute({
+          tenantId: TENANT_A,
+          branding: { logoUrl: `tmp/${TENANT_A}/branding/u1/missing.png` },
+        }),
+      ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+    });
   });
 });

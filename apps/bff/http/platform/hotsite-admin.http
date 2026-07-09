@@ -53,6 +53,17 @@ Content-Type: application/json
 
 ###
 
+### Generate a private read-signed URL for a not-yet-promoted tmp/ image (TD22)
+POST {{bffUrl}}/v1/tenants/hotsite/images/read-signed-url
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "filePath": "tmp/{{tenantId}}/branding/019f420c-0000-0000-0000-000000000000/logo.png"
+}
+
+###
+
 ### Partial branding update (only colors changed)
 PATCH {{bffUrl}}/v1/tenants/hotsite
 Authorization: Bearer {{managerToken}}

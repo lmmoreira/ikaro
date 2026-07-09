@@ -85,12 +85,9 @@ describe('SubmitBookingInfoUseCase', () => {
     expect(saved!.infoSubmittedAt).not.toBeNull();
   });
 
-  it('appends photoUrls to beforeServicePhotoUrls', async () => {
-    const photoUrls = [
-      `tenants/${TENANT_A}/uploads/upload-1/photo1.jpg`,
-      `tenants/${TENANT_A}/uploads/upload-2/photo2.jpg`,
-    ];
-    photoUrls.forEach((path) => storageService.markAsUploaded(path));
+  it('promotes photoUrls from tmp/ to the permanent booking path and appends to beforeServicePhotoUrls', async () => {
+    const tmpPaths = [`tmp/${TENANT_A}/upload-1/photo1.jpg`, `tmp/${TENANT_A}/upload-2/photo2.jpg`];
+    tmpPaths.forEach((path) => storageService.markAsUploaded(path));
     const booking = new BookingBuilder()
       .withTenantId(TENANT_A)
       .withCustomerId(CUSTOMER_ID)
@@ -102,14 +99,20 @@ describe('SubmitBookingInfoUseCase', () => {
     await useCase.execute({
       bookingId: booking.id,
       response: VALID_RESPONSE,
-      photoUrls,
+      photoUrls: tmpPaths,
       tenantId: TENANT_A,
       customerId: CUSTOMER_ID,
       correlationId: CORRELATION_ID,
     });
 
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
-    expect(saved!.beforeServicePhotoUrls).toEqual(expect.arrayContaining(photoUrls));
+    expect(saved!.beforeServicePhotoUrls).toEqual(
+      expect.arrayContaining([
+        `tenants/${TENANT_A}/bookings/${booking.id}/upload-1/photo1.jpg`,
+        `tenants/${TENANT_A}/bookings/${booking.id}/upload-2/photo2.jpg`,
+      ]),
+    );
+    expect(storageService.deletedPaths).toEqual(expect.arrayContaining(tmpPaths));
   });
 
   it('throws BookingPhotoNotUploadedError when a photo path does not exist in storage', async () => {
@@ -125,7 +128,7 @@ describe('SubmitBookingInfoUseCase', () => {
       useCase.execute({
         bookingId: booking.id,
         response: VALID_RESPONSE,
-        photoUrls: [`tenants/${TENANT_A}/uploads/upload-1/missing.jpg`],
+        photoUrls: [`tmp/${TENANT_A}/upload-1/missing.jpg`],
         tenantId: TENANT_A,
         customerId: CUSTOMER_ID,
         correlationId: CORRELATION_ID,

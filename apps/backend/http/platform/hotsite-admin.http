@@ -41,6 +41,20 @@ Content-Type: application/json
 
 ###
 
+### Generate a private read-signed URL for a not-yet-promoted tmp/ image (TD22)
+POST {{baseUrl}}/tenants/hotsite/images/read-signed-url
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "filePath": "tmp/{{tenantId}}/branding/019f420c-0000-0000-0000-000000000000/logo.png"
+}
+
+###
+
 ### Partial branding update (only colors changed)
 PATCH {{baseUrl}}/tenants/hotsite
 X-Tenant-ID: {{tenantId}}
@@ -230,6 +244,35 @@ Content-Type: application/json
   "fileName": "banner.jpg",
   "contentType": "image/jpeg",
   "purpose": "invalid-purpose"
+}
+
+###
+
+### 400 — read-signed-url with a cross-tenant tmp/ path (TD22)
+POST {{baseUrl}}/tenants/hotsite/images/read-signed-url
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "filePath": "tmp/00000000-0000-4000-8000-000000000099/branding/019f420c-0000-0000-0000-000000000000/logo.png"
+}
+
+###
+
+### 400 — read-signed-url with a filePath outside the hotsite tmp/ shape (e.g. a booking tmp/
+### upload — tmp/<tenantId>/<uuid>/<fileName>, missing the <purpose> segment) (TD22)
+POST {{baseUrl}}/tenants/hotsite/images/read-signed-url
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "filePath": "tmp/{{tenantId}}/019f420c-0000-0000-0000-000000000000/logo.png"
 }
 
 ###

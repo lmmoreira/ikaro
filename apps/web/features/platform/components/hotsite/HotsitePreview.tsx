@@ -14,12 +14,17 @@ import { fetchManifest } from '@/features/platform/api';
 import { fetchServices } from '@/features/platform/hotsite/api/services';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
+import { collectHotsiteImagePaths } from '@/features/platform/hotsite/map-hotsite-image-fields';
 import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
 } from '@/features/platform/hotsite/page-model';
 import { resolveDraftImageUrls } from '@/features/platform/hotsite/resolve-draft-image-urls';
-import { hotsiteImageBaseUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import {
+  hotsiteImageBaseUrl,
+  isTmpImagePath,
+} from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import { generateHotsiteImageReadSignedUrl } from '@/features/platform/api/tenant-settings';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 import { HeroModule } from '@/shells/hotsite/components/HeroModule';
 import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
@@ -81,6 +86,46 @@ function usePreviewSupplementaryData(
   return { data, loadError };
 }
 
+// A not-yet-promoted tmp/ upload lives in the private bucket — it can't resolve via the public
+// base URL, so Preview needs a fresh private signed read URL per tmp/ path before rendering
+// (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
+function useTmpSignedUrls(
+  branding: HotsiteAdminContentResponse['branding'],
+  layout: HotsiteAdminContentResponse['layout'],
+): ReadonlyMap<string, string> {
+  const [signedUrls, setSignedUrls] = useState<ReadonlyMap<string, string>>(new Map());
+
+  useEffect(() => {
+    // Deduped — the same tmp/ path can appear in more than one field (e.g. a reused image), and
+    // fetching a signed URL for it once is enough.
+    const tmpPaths = [
+      ...new Set(collectHotsiteImagePaths(branding, layout).filter(isTmpImagePath)),
+    ];
+    if (tmpPaths.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      tmpPaths.map(async (path) => [path, await generateHotsiteImageReadSignedUrl(path)] as const),
+    )
+      .then((resolved) => {
+        if (cancelled) return;
+        setSignedUrls((prev) => {
+          const next = new Map(prev);
+          for (const [path, res] of resolved) next.set(path, res.signedUrl);
+          return next;
+        });
+      })
+      .catch(() => {
+        // best-effort — an unresolved tmp/ image just shows a broken preview until reconciled
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [branding, layout]);
+
+  return signedUrls;
+}
+
 export function HotsitePreview({
   draft,
   onPublish,
@@ -92,10 +137,12 @@ export function HotsitePreview({
   // returned, not yet resolved to a public URL (resolution only happens server-side on the next
   // GET) — next/image's `src` requires an absolute URL, so resolve every image field before
   // rendering. Untouched fields already hold a resolved URL and pass through unchanged.
+  const tmpSignedUrls = useTmpSignedUrls(draft.branding, draft.layout);
   const { branding, layout } = resolveDraftImageUrls(
     draft.branding,
     draft.layout,
     hotsiteImageBaseUrl(),
+    tmpSignedUrls,
   );
   const alternateSectionBg = branding.alternateSectionBg ?? false;
   const modulesWithVariant = buildHotsiteModuleRenderPlan(layout, alternateSectionBg);

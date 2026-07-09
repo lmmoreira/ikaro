@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
+import { BookingTmpPhotoPathsSchema } from '../../../../shared/utils/tmp-path-regex';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -22,9 +23,7 @@ export const RequestBookingSchema = z.object({
   notes: z.string().trim().min(1).max(1000).optional(),
   scheduledAt: z.iso.datetime(),
   serviceIds: z.array(z.uuid()).min(1),
-  beforeServicePhotoUrls: z
-    .array(z.string().regex(/^tenants\/[^/]+\/(uploads|bookings)\/[^/]+\/.+$/))
-    .optional(),
+  beforeServicePhotoUrls: BookingTmpPhotoPathsSchema.optional(),
 });
 
 export type RequestBookingDto = z.infer<typeof RequestBookingSchema>;

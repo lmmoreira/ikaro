@@ -4,6 +4,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
+import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { Money } from '../../../../shared/value-objects/money';
 import { Booking } from '../../domain/booking.aggregate';
 import {
@@ -56,7 +57,12 @@ export class CompleteBookingUseCase {
       throw new CompleteBookingLinesIncompleteError(missingLineIds);
     }
 
-    await this.photoExistenceService.assertPhotosUploaded(input.afterServicePhotoUrls, tenantId);
+    const { permanentPaths: afterServicePhotoUrls, operations } =
+      await this.photoExistenceService.preparePhotoPromotion(
+        input.afterServicePhotoUrls,
+        tenantId,
+        input.bookingId,
+      );
 
     this.validateDiscount(input, booking);
 
@@ -67,7 +73,7 @@ export class CompleteBookingUseCase {
     booking.complete(
       staffId,
       lineActualPrices,
-      input.afterServicePhotoUrls,
+      afterServicePhotoUrls,
       correlationId,
       input.adminNotes,
       input.discountByPoints,
@@ -75,6 +81,7 @@ export class CompleteBookingUseCase {
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);
+      await scheduleAfterCommit(() => this.photoExistenceService.executePhotoPromotion(operations));
     });
 
     for (const event of booking.clearDomainEvents()) {

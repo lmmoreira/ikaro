@@ -11,6 +11,7 @@ import { HotsiteImagePathsService } from './domain/services/hotsite-image-paths.
 import { HotsiteImageUrlResolver } from './domain/services/hotsite-image-url-resolver.service';
 import { DeleteHotsiteImageUseCase } from './application/use-cases/delete-hotsite-image.use-case';
 import { FeatureBookingPhotoUseCase } from './application/use-cases/feature-booking-photo.use-case';
+import { GenerateHotsiteImageReadSignedUrlUseCase } from './application/use-cases/generate-hotsite-image-read-signed-url.use-case';
 import { GenerateHotsiteImageSignedUrlUseCase } from './application/use-cases/generate-hotsite-image-signed-url.use-case';
 import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-content.use-case';
 import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-manifest.use-case';
@@ -29,6 +30,7 @@ import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
 import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
+import { HotsiteImagePromotionService } from './application/services/hotsite-image-promotion.service';
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
 import { InternalTenantController } from './infrastructure/controllers/internal-tenant.controller';
@@ -63,9 +65,11 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     HotsiteContentReader,
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },
     HotsiteImagePathsService,
+    HotsiteImagePromotionService,
     HotsiteImageUrlResolver,
     DeleteHotsiteImageUseCase,
     FeatureBookingPhotoUseCase,
+    GenerateHotsiteImageReadSignedUrlUseCase,
     GenerateHotsiteImageSignedUrlUseCase,
     GetHotsiteContentUseCase,
     GetHotsiteManifestUseCase,

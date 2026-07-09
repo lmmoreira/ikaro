@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useState } from 'react';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GalleryImage, StaffBookingDetailResponse } from '@ikaro/types';
@@ -8,6 +8,7 @@ import { renderWithIntl } from '@/test-utils';
 import {
   deleteHotsiteImage,
   featureBookingPhoto,
+  generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
 import { getBooking, listBookings } from '@/features/booking/api/staff';
@@ -15,6 +16,7 @@ import { GalleryImageManager } from './GalleryImageManager';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
+  generateHotsiteImageReadSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),
   featureBookingPhoto: vi.fn(),
 }));
@@ -39,6 +41,7 @@ describe('GalleryImageManager', () => {
   afterEach(() => {
     fetchSpy.mockRestore();
     vi.mocked(generateHotsiteImageSignedUrl).mockReset();
+    vi.mocked(generateHotsiteImageReadSignedUrl).mockReset();
     vi.mocked(deleteHotsiteImage).mockReset();
     vi.mocked(listBookings).mockReset();
   });
@@ -75,6 +78,26 @@ describe('GalleryImageManager', () => {
       'src',
       'http://localhost:4443/ikaro-local-public/tenants/tenant-1/hotsite/gallery/g1.jpg',
     );
+  });
+
+  it('resolves a tmp/ (not-yet-promoted) image via a private read-signed-URL instead of the public base URL', async () => {
+    vi.mocked(generateHotsiteImageReadSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/signed-read?sig=abc',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    const images: GalleryImage[] = [{ url: 'tmp/tenant-1/gallery/u1/g1.jpg', source: 'upload' }];
+
+    renderWithIntl(<GalleryImageManager images={images} onChange={vi.fn()} />);
+
+    expect(generateHotsiteImageReadSignedUrl).toHaveBeenCalledWith(
+      'tmp/tenant-1/gallery/u1/g1.jpg',
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('gallery-image')).toHaveAttribute(
+        'src',
+        'https://storage.example.com/signed-read?sig=abc',
+      );
+    });
   });
 
   it('uploads a new image with purpose "gallery" and appends it to the list', async () => {
@@ -186,6 +209,26 @@ describe('GalleryImageManager', () => {
     );
 
     expect(deleteHotsiteImage).toHaveBeenCalledWith('tenants/tenant-1/hotsite/gallery/g1.jpg');
+    expect(onChange).toHaveBeenCalledWith([]);
+  });
+
+  it('removing a not-yet-promoted tmp/ image calls deleteHotsiteImage and drops it from the list', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageReadSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/signed-read?sig=abc',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    vi.mocked(deleteHotsiteImage).mockResolvedValue(undefined);
+    const images: GalleryImage[] = [{ url: 'tmp/tenant-1/gallery/u1/g1.jpg', source: 'upload' }];
+    const onChange = vi.fn();
+
+    renderWithIntl(<GalleryImageManager images={images} onChange={onChange} />);
+
+    await user.click(
+      screen.getAllByTestId('gallery-remove').find((el) => el.dataset.index === '0')!,
+    );
+
+    expect(deleteHotsiteImage).toHaveBeenCalledWith('tmp/tenant-1/gallery/u1/g1.jpg');
     expect(onChange).toHaveBeenCalledWith([]);
   });
 

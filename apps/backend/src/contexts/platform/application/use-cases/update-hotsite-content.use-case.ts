@@ -1,13 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import {
-  HotsiteImageNotUploadedError,
-  HotsiteNotFoundError,
-} from '../../domain/errors/platform-domain.error';
+import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
+import { HotsiteNotFoundError } from '../../domain/errors/platform-domain.error';
 import {
   HotsiteBranding,
   HotsiteModule,
@@ -15,6 +12,7 @@ import {
   HotsiteSeo,
 } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
+import { HotsiteImagePromotionService } from '../services/hotsite-image-promotion.service';
 import {
   HOTSITE_CONFIG_REPOSITORY,
   IHotsiteConfigRepository,
@@ -35,9 +33,9 @@ export class UpdateHotsiteContentUseCase {
   constructor(
     @Inject(HOTSITE_CONFIG_REPOSITORY)
     private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
-    @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly imagePathsService: HotsiteImagePathsService,
+    private readonly imagePromotionService: HotsiteImagePromotionService,
   ) {}
 
   async execute(dto: UpdateHotsiteContentUseCaseInput): Promise<UpdateHotsiteContentUseCaseResult> {
@@ -45,18 +43,37 @@ export class UpdateHotsiteContentUseCase {
     const config = await this.hotsiteConfigRepo.findByTenantId(tenantId);
     if (!config) throw new HotsiteNotFoundError(tenantId);
 
-    const branding: HotsiteBranding = dto.branding
+    // Captured before the merge — needed to detect "was this field pointing at a permanent
+    // object that the merged value no longer references" (delete-previous-on-replace).
+    const oldPaths = this.imagePathsService.collect(config.branding, config.layout);
+
+    const mergedBranding: HotsiteBranding = dto.branding
       ? { ...config.branding, ...dto.branding }
       : config.branding;
-    const layout: HotsiteModule[] = dto.layout ? this.toDomainLayout(dto.layout) : config.layout;
+    const mergedLayout: HotsiteModule[] = dto.layout
+      ? this.toDomainLayout(dto.layout)
+      : config.layout;
     const seo: HotsiteSeo = dto.seo ? { ...config.seo, ...dto.seo } : config.seo;
 
-    await this.verifyImagesExist(branding, layout, tenantId);
+    const { branding, layout, promotions } = await this.imagePromotionService.prepareImagePromotion(
+      mergedBranding,
+      mergedLayout,
+      tenantId,
+    );
+
+    const newPaths = this.imagePathsService.collect(branding, layout);
+    const tenantPrefix = `tenants/${tenantId}/`;
+    const deletions = oldPaths.filter(
+      (path) => !newPaths.includes(path) && path.startsWith(tenantPrefix),
+    );
 
     config.updateContent(branding, layout, seo);
 
     await this.txManager.run(async () => {
       await this.hotsiteConfigRepo.save(config);
+      await scheduleAfterCommit(() =>
+        this.imagePromotionService.executeImagePromotion(promotions, deletions),
+      );
     });
 
     return {
@@ -65,19 +82,6 @@ export class UpdateHotsiteContentUseCase {
       seo: config.seo,
       isPublished: config.isPublished,
     };
-  }
-
-  private async verifyImagesExist(
-    branding: HotsiteBranding,
-    layout: HotsiteModule[],
-    tenantId: string,
-  ): Promise<void> {
-    const tenantPrefix = `tenants/${tenantId}/`;
-    for (const path of this.imagePathsService.collect(branding, layout)) {
-      if (!path.startsWith(tenantPrefix)) throw new HotsiteImageNotUploadedError(path);
-      const exists = await this.storageService.exists(path, 'public');
-      if (!exists) throw new HotsiteImageNotUploadedError(path);
-    }
   }
 
   private toDomainLayout(layout: UpdateHotsiteContentDto['layout']): HotsiteModule[] {

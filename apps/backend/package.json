@@ -12,7 +12,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "jest",
     "test:unit": "jest --selectProjects unit",
-    "test:integration": "jest --selectProjects integration",
+    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest --selectProjects integration",
     "test:cov": "jest --selectProjects unit --coverage",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/shared/database/data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/shared/database/data-source.ts",

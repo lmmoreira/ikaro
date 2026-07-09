@@ -3,7 +3,11 @@ import { GenerateSignedUrlResult, IStorageService } from '../../shared/ports/sto
 export class InMemoryStorageService implements IStorageService {
   readonly uploadedPaths: string[] = [];
   readonly readSignedPaths: string[] = [];
-  readonly copiedPaths: Array<{ sourcePath: string; destinationPath: string }> = [];
+  readonly copiedPaths: Array<{
+    sourcePath: string;
+    destinationPath: string;
+    destinationBucket: 'private' | 'public';
+  }> = [];
   readonly deletedPaths: string[] = [];
   private readonly existingPaths = new Set<string>();
 
@@ -40,8 +44,12 @@ export class InMemoryStorageService implements IStorageService {
     return `http://fake-public-gcs/ikaro-local-public/${storagePath}`;
   }
 
-  async copy(sourcePath: string, destinationPath: string): Promise<void> {
-    this.copiedPaths.push({ sourcePath, destinationPath });
+  async copy(
+    sourcePath: string,
+    destinationPath: string,
+    destinationBucket: 'private' | 'public' = 'public',
+  ): Promise<void> {
+    this.copiedPaths.push({ sourcePath, destinationPath, destinationBucket });
     this.existingPaths.add(destinationPath);
   }
 

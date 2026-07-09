@@ -14,6 +14,7 @@ describe('GcsSignedUrlAdapter', () => {
   let mockFile: jest.Mock;
   let mockBucket: jest.Mock;
   let mockDelete: jest.Mock;
+  let mockCopy: jest.Mock;
 
   function makeConfig(overrides: Record<string, string | undefined> = {}): ConfigService {
     return {
@@ -31,10 +32,12 @@ describe('GcsSignedUrlAdapter', () => {
       .mockResolvedValue(['https://storage.googleapis.com/bucket/path?X-Goog-Signature=abc']);
     mockFileExists = jest.fn().mockResolvedValue([true]);
     mockDelete = jest.fn().mockResolvedValue(undefined);
+    mockCopy = jest.fn().mockResolvedValue(undefined);
     mockFile = jest.fn().mockReturnValue({
       getSignedUrl: mockGetSignedUrl,
       exists: mockFileExists,
       delete: mockDelete,
+      copy: mockCopy,
     });
     mockBucketExists = jest.fn().mockResolvedValue([true]);
     mockCreateBucket = jest.fn().mockResolvedValue(undefined);
@@ -209,6 +212,38 @@ describe('GcsSignedUrlAdapter', () => {
       const service = makeService({ GCS_BUCKET_NAME: 'my-prod-bucket' });
       await service.exists('path/file.jpg');
       expect(mockBucket).toHaveBeenCalledWith('my-prod-bucket');
+    });
+  });
+
+  describe('copy()', () => {
+    it('copies private→public by default (unchanged existing behavior)', async () => {
+      const service = makeService({});
+      await service.copy('tmp/t1/uuid/logo.png', 'tenants/t1/hotsite/branding/uuid/logo.png');
+      expect(mockBucket).toHaveBeenNthCalledWith(1, 'ikaro-local');
+      expect(mockFile).toHaveBeenNthCalledWith(1, 'tmp/t1/uuid/logo.png');
+      expect(mockBucket).toHaveBeenNthCalledWith(2, 'ikaro-local-public');
+      expect(mockFile).toHaveBeenNthCalledWith(2, 'tenants/t1/hotsite/branding/uuid/logo.png');
+      expect(mockCopy).toHaveBeenCalled();
+    });
+
+    it('copies private→private when destinationBucket is "private"', async () => {
+      const service = makeService({});
+      await service.copy('tmp/t1/uuid/car.jpg', 'tenants/t1/bookings/b1/car.jpg', 'private');
+      expect(mockBucket).toHaveBeenNthCalledWith(1, 'ikaro-local');
+      expect(mockFile).toHaveBeenNthCalledWith(1, 'tmp/t1/uuid/car.jpg');
+      expect(mockBucket).toHaveBeenNthCalledWith(2, 'ikaro-local');
+      expect(mockFile).toHaveBeenNthCalledWith(2, 'tenants/t1/bookings/b1/car.jpg');
+      expect(mockCopy).toHaveBeenCalled();
+    });
+
+    it('always reads the source from the private bucket, even when destination is public', async () => {
+      const service = makeService({});
+      await service.copy(
+        'tmp/t1/uuid/logo.png',
+        'tenants/t1/hotsite/branding/uuid/logo.png',
+        'public',
+      );
+      expect(mockBucket).toHaveBeenNthCalledWith(1, 'ikaro-local');
     });
   });
 

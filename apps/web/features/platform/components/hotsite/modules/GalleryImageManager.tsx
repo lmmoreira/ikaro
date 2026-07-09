@@ -1,14 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { GalleryImage } from '@ikaro/types';
 import {
   deleteHotsiteImage,
+  generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
-import { resolveHotsiteImageDisplayUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import {
+  isTmpImagePath,
+  resolveHotsiteImageDisplayUrl,
+} from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { BookingPhotoPicker } from './BookingPhotoPicker';
 
 interface GalleryImageManagerProps {
@@ -35,9 +39,42 @@ export function GalleryImageManager({
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [previewUrls] = useState(() => new Map<string, string>());
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Not-yet-promoted tmp/ images live in the private bucket — they can't resolve via the
+  // public-bucket string template, so re-mounting this manager after the local blob preview is
+  // gone (e.g. a tab switch) needs a fresh private signed read URL per image instead (see
+  // td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
+  const [remoteReadUrls, setRemoteReadUrls] = useState(() => new Map<string, string>());
+
+  useEffect(() => {
+    const unresolved = images
+      .map((image) => image.url)
+      .filter((url) => isTmpImagePath(url) && !previewUrls.has(url) && !remoteReadUrls.has(url));
+    if (unresolved.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      unresolved.map(async (url) => [url, await generateHotsiteImageReadSignedUrl(url)] as const),
+    )
+      .then((resolved) => {
+        if (cancelled) return;
+        setRemoteReadUrls((prev) => {
+          const next = new Map(prev);
+          for (const [url, res] of resolved) next.set(url, res.signedUrl);
+          return next;
+        });
+      })
+      .catch(() => {
+        // best-effort — an unresolved tmp/ image just shows a broken preview until reconciled
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [images, previewUrls, remoteReadUrls]);
 
   function displayUrl(image: GalleryImage): string {
-    return previewUrls.get(image.url) ?? resolveHotsiteImageDisplayUrl(image.url);
+    if (previewUrls.has(image.url)) return previewUrls.get(image.url)!;
+    if (isTmpImagePath(image.url)) return remoteReadUrls.get(image.url) ?? '';
+    return resolveHotsiteImageDisplayUrl(image.url);
   }
 
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>): Promise<void> {
@@ -72,7 +109,7 @@ export function GalleryImageManager({
     const previewUrl = previewUrls.get(image.url);
     if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
     previewUrls.delete(image.url);
-    if (image.url.startsWith('tenants/')) {
+    if (image.url.startsWith('tenants/') || isTmpImagePath(image.url)) {
       try {
         await deleteHotsiteImage(image.url);
       } catch {

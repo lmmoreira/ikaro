@@ -1261,7 +1261,7 @@ describe('BookingsController (component)', () => {
       expiresAt: '2026-06-15T10:15:00.000Z',
     };
 
-    it('scenario 1 — valid CUSTOMER JWT, no bookingId: calls postForPublic with tenantId and returns 201', async () => {
+    it('scenario 1 — valid CUSTOMER JWT: calls postForPublic with tenantId and returns 201', async () => {
       const token = makeCustomerJwt(jwtService);
       backendHttpService.postForPublic.mockResolvedValueOnce(mockSignedUrlResponse);
 
@@ -1275,12 +1275,12 @@ describe('BookingsController (component)', () => {
       expect(res.body.filePath).toBeDefined();
       expect(backendHttpService.postForPublic).toHaveBeenCalledWith(
         '/bookings/attachments/signed-url',
-        expect.objectContaining({ fileName: 'car.jpg', contentType: 'image/jpeg' }),
+        { fileName: 'car.jpg', contentType: 'image/jpeg' },
         TENANT_ID,
       );
     });
 
-    it('scenario 4 — valid MANAGER JWT + bookingId: calls postForPublic with tenantId and bookingId', async () => {
+    it('scenario 4 — valid MANAGER JWT: calls postForPublic with tenantId; a stray bookingId is stripped by Zod', async () => {
       const token = makeManagerJwt(jwtService);
       setupActiveGuardMock(httpService);
       backendHttpService.postForPublic.mockResolvedValueOnce(mockSignedUrlResponse);
@@ -1293,7 +1293,7 @@ describe('BookingsController (component)', () => {
       expect(res.status).toBe(201);
       expect(backendHttpService.postForPublic).toHaveBeenCalledWith(
         '/bookings/attachments/signed-url',
-        expect.objectContaining({ bookingId: BOOKING_ID_ATTACH }),
+        { fileName: 'after.jpg', contentType: 'image/jpeg' },
         TENANT_ID,
       );
     });
@@ -1333,13 +1333,12 @@ describe('BookingsController (component)', () => {
           fileName: 'info.jpg',
           contentType: 'image/jpeg',
           guestToken,
-          bookingId: BOOKING_ID_ATTACH,
         });
 
       expect(res.status).toBe(201);
       expect(backendHttpService.postForPublic).toHaveBeenCalledWith(
         '/bookings/attachments/signed-url',
-        expect.objectContaining({ bookingId: BOOKING_ID_ATTACH }),
+        { fileName: 'info.jpg', contentType: 'image/jpeg' },
         TENANT_ID,
       );
     });

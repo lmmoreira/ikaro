@@ -20,6 +20,10 @@ import {
   FeatureBookingPhotoSchema,
 } from '../../application/dtos/feature-booking-photo.dto';
 import {
+  GenerateHotsiteImageReadSignedUrlDto,
+  GenerateHotsiteImageReadSignedUrlSchema,
+} from '../../application/dtos/generate-hotsite-image-read-signed-url.dto';
+import {
   GenerateHotsiteImageSignedUrlDto,
   GenerateHotsiteImageSignedUrlSchema,
 } from '../../application/dtos/generate-hotsite-image-signed-url.dto';
@@ -32,6 +36,10 @@ import {
   FeatureBookingPhotoUseCase,
   FeatureBookingPhotoUseCaseResult,
 } from '../../application/use-cases/feature-booking-photo.use-case';
+import {
+  GenerateHotsiteImageReadSignedUrlUseCase,
+  GenerateHotsiteImageReadSignedUrlUseCaseResult,
+} from '../../application/use-cases/generate-hotsite-image-read-signed-url.use-case';
 import {
   GenerateHotsiteImageSignedUrlUseCase,
   GenerateHotsiteImageSignedUrlUseCaseResult,
@@ -64,6 +72,7 @@ export class HotsiteAdminController {
     private readonly publishHotsite: PublishHotsiteUseCase,
     private readonly unpublishHotsite: UnpublishHotsiteUseCase,
     private readonly generateHotsiteImageSignedUrl: GenerateHotsiteImageSignedUrlUseCase,
+    private readonly generateHotsiteImageReadSignedUrl: GenerateHotsiteImageReadSignedUrlUseCase,
     private readonly featureHotsiteBookingPhoto: FeatureBookingPhotoUseCase,
     private readonly deleteHotsiteImage: DeleteHotsiteImageUseCase,
   ) {}
@@ -102,6 +111,17 @@ export class HotsiteAdminController {
     dto: GenerateHotsiteImageSignedUrlDto,
   ): Promise<GenerateHotsiteImageSignedUrlUseCaseResult> {
     return this.generateHotsiteImageSignedUrl
+      .execute({ ...dto, tenantId: this.ctx.tenantId })
+      .catch(mapPlatformError);
+  }
+
+  @Post('images/read-signed-url')
+  @HttpCode(HttpStatus.CREATED)
+  generateImageReadSignedUrl(
+    @Body(new ZodValidationPipe(GenerateHotsiteImageReadSignedUrlSchema))
+    dto: GenerateHotsiteImageReadSignedUrlDto,
+  ): Promise<GenerateHotsiteImageReadSignedUrlUseCaseResult> {
+    return this.generateHotsiteImageReadSignedUrl
       .execute({ ...dto, tenantId: this.ctx.tenantId })
       .catch(mapPlatformError);
   }

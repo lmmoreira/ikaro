@@ -32,4 +32,28 @@ describe('DeleteHotsiteImageUseCase', () => {
 
     expect(storageService.deletedPaths).not.toContain(OTHER_TENANT_IMAGE_PATH);
   });
+
+  describe('tmp/ staging paths (not-yet-promoted uploads)', () => {
+    const TMP_PATH = `tmp/${TENANT_A}/branding/u1/logo.png`;
+    const OTHER_TENANT_TMP_PATH = `tmp/${TENANT_B}/branding/u1/logo.png`;
+
+    it('deletes a tmp/ path from the private bucket', async () => {
+      storageService.markAsUploaded(TMP_PATH);
+
+      await useCase.execute({ tenantId: TENANT_A, filePath: TMP_PATH });
+
+      expect(storageService.deletedPaths).toContain(TMP_PATH);
+      expect(await storageService.exists(TMP_PATH, 'private')).toBe(false);
+    });
+
+    it('tenant isolation: cannot delete a tmp/ path belonging to another tenant', async () => {
+      storageService.markAsUploaded(OTHER_TENANT_TMP_PATH);
+
+      await expect(
+        useCase.execute({ tenantId: TENANT_A, filePath: OTHER_TENANT_TMP_PATH }),
+      ).rejects.toThrow(HotsiteImageNotUploadedError);
+
+      expect(storageService.deletedPaths).not.toContain(OTHER_TENANT_TMP_PATH);
+    });
+  });
 });

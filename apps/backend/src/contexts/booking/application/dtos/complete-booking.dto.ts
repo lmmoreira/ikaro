@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BookingTmpPhotoPathsSchema } from '../../../../shared/utils/tmp-path-regex';
 
 export const CompleteBookingSchema = z.object({
   lines: z
@@ -9,10 +10,7 @@ export const CompleteBookingSchema = z.object({
       }),
     )
     .min(1),
-  afterServicePhotoUrls: z
-    .array(z.string().regex(/^tenants\/[^/]+\/bookings\/[^/]+\/.+$/))
-    .optional()
-    .default([]),
+  afterServicePhotoUrls: BookingTmpPhotoPathsSchema.optional().default([]),
   adminNotes: z.string().optional(),
   discountByPoints: z
     .object({

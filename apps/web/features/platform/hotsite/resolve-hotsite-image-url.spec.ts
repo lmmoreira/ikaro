@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   hotsiteImageBaseUrl,
+  isTmpImagePath,
   resolveHotsiteImageDisplayUrl,
   resolveHotsiteImageUrl,
 } from './resolve-hotsite-image-url';
@@ -28,6 +29,20 @@ describe('resolveHotsiteImageUrl', () => {
     const rawPath = 'tenants/tenant-a/hotsite/hero/abc/bg.png';
 
     expect(resolveHotsiteImageUrl(rawPath, `${BASE_URL}/`)).toBe(`${BASE_URL}/${rawPath}`);
+  });
+});
+
+describe('isTmpImagePath', () => {
+  it('returns true for a tmp/ staging path', () => {
+    expect(isTmpImagePath('tmp/tenant-a/branding/u1/logo.png')).toBe(true);
+  });
+
+  it('returns false for a permanent tenants/ path', () => {
+    expect(isTmpImagePath('tenants/tenant-a/hotsite/branding/logo.png')).toBe(false);
+  });
+
+  it('returns false for an empty value', () => {
+    expect(isTmpImagePath('')).toBe(false);
   });
 });
 

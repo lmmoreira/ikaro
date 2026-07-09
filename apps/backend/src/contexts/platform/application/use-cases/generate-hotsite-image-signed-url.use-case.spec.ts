@@ -13,7 +13,7 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
     useCase = new GenerateHotsiteImageSignedUrlUseCase(storageService);
   });
 
-  it('builds a filePath scoped to the tenant and the requested purpose', async () => {
+  it('builds a tmp/ staging filePath scoped to the tenant and the requested purpose', async () => {
     const result = await useCase.execute({
       tenantId: TENANT_A,
       fileName: 'logo.png',
@@ -21,9 +21,7 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
       purpose: 'branding',
     });
 
-    expect(result.filePath).toMatch(
-      new RegExp(`^tenants/${TENANT_A}/hotsite/branding/[0-9a-f-]+/logo\\.png$`),
-    );
+    expect(result.filePath).toMatch(new RegExp(`^tmp/${TENANT_A}/branding/[0-9a-f-]+/logo\\.png$`));
   });
 
   it('returns the signedUrl and expiresAt from the storage service', async () => {
@@ -38,15 +36,21 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
     expect(result.expiresAt).toBe('2099-01-01T00:00:00.000Z');
   });
 
-  it('targets the public bucket — hotsite images are permanent public marketing assets', async () => {
-    const result = await useCase.execute({
+  it('targets the private bucket — not public/permanent until promotion on save', async () => {
+    const writeSignedUrlSpy = jest.spyOn(storageService, 'generateWriteSignedUrl');
+
+    await useCase.execute({
       tenantId: TENANT_A,
       fileName: 'hero.jpg',
       contentType: 'image/jpeg',
       purpose: 'hero',
     });
 
-    expect(result.signedUrl).toContain('ikaro-local-public');
+    expect(writeSignedUrlSpy).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`^tmp/${TENANT_A}/hero/`)),
+      'image/jpeg',
+      'private',
+    );
   });
 
   it('scopes the generated path to the requesting tenant', async () => {
@@ -57,6 +61,6 @@ describe('GenerateHotsiteImageSignedUrlUseCase', () => {
       purpose: 'about',
     });
 
-    expect(result.filePath.startsWith(`tenants/${TENANT_B}/hotsite/about/`)).toBe(true);
+    expect(result.filePath.startsWith(`tmp/${TENANT_B}/about/`)).toBe(true);
   });
 });

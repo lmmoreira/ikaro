@@ -100,23 +100,28 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     expect(eventBus.published[0].eventName).toBe('BookingRequested');
   });
 
-  it('includes beforeServicePhotoUrls in result', async () => {
-    const photoPath = `tenants/${TENANT_A}/uploads/upload-1/car.jpg`;
-    storageService.markAsUploaded(photoPath);
+  it('promotes beforeServicePhotoUrls from tmp/ to the permanent booking path', async () => {
+    const tmpPath = `tmp/${TENANT_A}/upload-1/car.jpg`;
+    storageService.markAsUploaded(tmpPath);
 
     const result = await useCase.execute({
       ...baseInput(),
-      beforeServicePhotoUrls: [photoPath],
+      beforeServicePhotoUrls: [tmpPath],
     });
 
-    expect(result.beforeServicePhotoUrls).toEqual([photoPath]);
+    const permanentPath = `tenants/${TENANT_A}/bookings/${result.bookingId}/upload-1/car.jpg`;
+    expect(result.beforeServicePhotoUrls).toEqual([permanentPath]);
+    // Proves the copy actually landed at the permanent path — not just that the tmp source was
+    // deleted, which alone wouldn't catch a promotion that deletes without a successful copy.
+    await expect(storageService.exists(permanentPath, 'private')).resolves.toBe(true);
+    expect(storageService.deletedPaths).toEqual([tmpPath]);
   });
 
   it('throws BookingPhotoNotUploadedError when a photo path does not exist in storage', async () => {
     await expect(
       useCase.execute({
         ...baseInput(),
-        beforeServicePhotoUrls: [`tenants/${TENANT_A}/uploads/upload-1/missing.jpg`],
+        beforeServicePhotoUrls: [`tmp/${TENANT_A}/upload-1/missing.jpg`],
       }),
     ).rejects.toBeInstanceOf(BookingPhotoNotUploadedError);
   });

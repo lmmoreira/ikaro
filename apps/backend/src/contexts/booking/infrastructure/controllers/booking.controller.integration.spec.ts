@@ -134,18 +134,20 @@ describe('BookingController (integration)', () => {
       expect(lines[0].serviceId).toBe(serviceId);
     });
 
-    it('stores beforeServicePhotoUrls', async () => {
-      const photoPath = `tenants/${tenantAId}/uploads/upload-1/car.jpg`;
-      storageService.markAsUploaded(photoPath);
+    it('promotes beforeServicePhotoUrls from tmp/ to the permanent booking path', async () => {
+      const tmpPath = `tmp/${tenantAId}/upload-1/car.jpg`;
+      storageService.markAsUploaded(tmpPath);
 
       const { body } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), beforeServicePhotoUrls: [photoPath] })
+        .send({ ...validBody(), beforeServicePhotoUrls: [tmpPath] })
         .expect(201);
 
       const row = await ds.getRepository(BookingEntity).findOne({ where: { id: body.bookingId } });
-      expect(row!.beforeServicePhotoUrls).toContain(photoPath);
+      expect(row!.beforeServicePhotoUrls).toContain(
+        `tenants/${tenantAId}/bookings/${body.bookingId}/upload-1/car.jpg`,
+      );
     });
 
     it('stores pickupAddress when a pickup service is selected', async () => {
@@ -1293,8 +1295,8 @@ describe('BookingController (integration)', () => {
     });
 
     it('returns approvedAt, approvedBy and signed beforeServicePhotoUrls after approval', async () => {
-      const photoPath = `tenants/${detailTenantId}/uploads/upload-detail/car.jpg`;
-      storageService.markAsUploaded(photoPath);
+      const tmpPath = `tmp/${detailTenantId}/upload-detail/car.jpg`;
+      storageService.markAsUploaded(tmpPath);
 
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
@@ -1303,9 +1305,10 @@ describe('BookingController (integration)', () => {
           ...validBody(),
           serviceIds: [detailServiceId],
           scheduledAt: `${futureDate(28)}T09:00:00.000Z`,
-          beforeServicePhotoUrls: [photoPath],
+          beforeServicePhotoUrls: [tmpPath],
         })
         .expect(201);
+      const permanentPath = `tenants/${detailTenantId}/bookings/${created.bookingId}/upload-detail/car.jpg`;
 
       await request(app.getHttpServer())
         .patch(`/bookings/${created.bookingId}/approve`)
@@ -1321,8 +1324,8 @@ describe('BookingController (integration)', () => {
       expect(new Date(body.approvedAt).toISOString()).toBe(body.approvedAt);
       expect(body.approvedBy).toBe(STAFF_ID);
       expect(body.beforeServicePhotoUrls).toHaveLength(1);
-      expect(body.beforeServicePhotoUrls[0]).not.toBe(photoPath);
-      expect(body.beforeServicePhotoUrls[0]).toContain(photoPath);
+      expect(body.beforeServicePhotoUrls[0]).not.toBe(permanentPath);
+      expect(body.beforeServicePhotoUrls[0]).toContain(permanentPath);
     });
 
     it('returns rejectionReason after rejection', async () => {
@@ -1574,15 +1577,16 @@ describe('BookingController (integration)', () => {
     it('persists actualPriceCharged, completedBy, adminNotes in DB', async () => {
       const bookingId = await createAndApproveBooking(`${futureDate(61)}T09:00:00.000Z`);
       const lineIds = await getLineIds(bookingId);
-      const photoPath = `tenants/${tenantAId}/bookings/${bookingId}/after.jpg`;
-      storageService.markAsUploaded(photoPath);
+      const tmpPath = `tmp/${tenantAId}/upload-1/after.jpg`;
+      storageService.markAsUploaded(tmpPath);
+      const permanentPath = `tenants/${tenantAId}/bookings/${bookingId}/upload-1/after.jpg`;
 
       await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/complete`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
         .send({
           lines: lineIds.map((lineId) => ({ lineId, actualPriceCharged: 75 })),
-          afterServicePhotoUrls: [photoPath],
+          afterServicePhotoUrls: [tmpPath],
           adminNotes: 'Looks great',
         })
         .expect(200);
@@ -1593,7 +1597,7 @@ describe('BookingController (integration)', () => {
       expect(row!.status).toBe('COMPLETED');
       expect(row!.completedBy).toBe(STAFF_ID);
       expect(row!.adminNotes).toBe('Looks great');
-      expect(row!.afterServicePhotoUrls).toEqual([photoPath]);
+      expect(row!.afterServicePhotoUrls).toEqual([permanentPath]);
 
       const lines = await ds
         .getRepository(BookingLineEntity)

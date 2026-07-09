@@ -86,9 +86,14 @@ export class GcsSignedUrlAdapter implements IStorageService, OnApplicationBootst
     return `${this.publicBaseUrl}/${this.publicBucketName}/${storagePath}`;
   }
 
-  async copy(sourcePath: string, destinationPath: string): Promise<void> {
+  async copy(
+    sourcePath: string,
+    destinationPath: string,
+    destinationBucket: 'private' | 'public' = 'public',
+  ): Promise<void> {
+    const destBucketName = destinationBucket === 'public' ? this.publicBucketName : this.bucketName;
     const source = this.storage.bucket(this.bucketName).file(sourcePath);
-    const destination = this.storage.bucket(this.publicBucketName).file(destinationPath);
+    const destination = this.storage.bucket(destBucketName).file(destinationPath);
     await source.copy(destination);
   }
 

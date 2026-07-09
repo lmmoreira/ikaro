@@ -1,4 +1,6 @@
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import { GenericContainer, Wait } from 'testcontainers';
+import { Storage } from '@google-cloud/storage';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import 'reflect-metadata';
@@ -120,4 +122,56 @@ export default async function globalSetup(): Promise<void> {
   await ds.initialize();
   await ds.runMigrations();
   await ds.destroy();
+
+  await startGcsEmulator();
+}
+
+// Real fake-gcs-server (same image as docker/docker-compose.yml), for the small set of
+// integration specs that need to exercise the actual GcsSignedUrlAdapter — real V4 signed URLs,
+// real cross-bucket copy, real delete — instead of the InMemoryStorageService double every other
+// integration spec uses. See td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
+//
+// A fixed port is required (not a Testcontainers-assigned dynamic one): fake-gcs-server's V4
+// signed URLs are only valid against the exact `-public-host`/`-external-url` the server was
+// started with, which must be known before `withCommand()` — chosen once, before the container's
+// dynamic port would otherwise be known. Deliberately different from docker-compose.yml's 4443 so
+// a developer's already-running `pnpm infra:up` stack never conflicts with a test run.
+const GCS_TEST_PORT = 14443;
+
+async function startGcsEmulator(): Promise<void> {
+  const container = await new GenericContainer('fsouza/fake-gcs-server:latest')
+    .withCommand([
+      '-scheme',
+      'http',
+      '-port',
+      '4443',
+      '-backend',
+      'memory',
+      '-public-host',
+      `localhost:${GCS_TEST_PORT}`,
+      '-external-url',
+      `http://localhost:${GCS_TEST_PORT}`,
+    ])
+    .withExposedPorts({ container: 4443, host: GCS_TEST_PORT })
+    .withWaitStrategy(Wait.forHttp('/_internal/healthcheck', 4443).forStatusCode(200))
+    .start();
+
+  (globalThis as Record<string, unknown>)['__TC_GCS_CONTAINER__'] = container;
+
+  const apiEndpoint = `http://localhost:${GCS_TEST_PORT}`;
+  process.env['GCS_EMULATOR_HOST'] = apiEndpoint;
+  process.env['GCS_BUCKET_NAME'] = 'ikaro-local';
+  process.env['GCS_PUBLIC_BUCKET_NAME'] = 'ikaro-local-public';
+  process.env['GCS_PUBLIC_BASE_URL'] = apiEndpoint;
+  process.env['GCS_KEY_FILE'] = join(__dirname, '../../../../docker/fake-service-account.json');
+
+  // Pre-create both buckets — GcsSignedUrlAdapter.onApplicationBootstrap() only does this when
+  // GCS_EMULATOR_HOST is set and the app has actually started; doing it here too means the
+  // adapter-level integration spec (which constructs GcsSignedUrlAdapter directly, no Nest app)
+  // doesn't depend on bootstrap ordering.
+  const storage = new Storage({ apiEndpoint, projectId: 'ikaro-local' });
+  for (const bucketName of ['ikaro-local', 'ikaro-local-public']) {
+    const [exists] = await storage.bucket(bucketName).exists();
+    if (!exists) await storage.createBucket(bucketName);
+  }
 }

@@ -1,5 +1,8 @@
 # BFF — Booking Attachment Signed URL
 # M115-S01: GCS pre-signed upload URLs for before/after photos
+# TD22: always targets tmp/<tenantId>/<uuid>/<fileName> in the private bucket, regardless
+# of scenario — bookingId is no longer part of this request. Promotion to the permanent
+# tenants/<id>/bookings/<bookingId>/... path happens server-side on save.
 #
 # Prerequisites:
 #   1. pnpm infra:up        (starts GCS emulator at http://localhost:4443)
@@ -30,7 +33,7 @@ Content-Type: application/json
 
 { "email": "cliente@email.com.br", "tenantSlug": "{{tenantSlug}}", "type": "customer" }
 
-# ── Scenario 1 — Authenticated customer, no bookingId (before-photos) ─────────
+# ── Scenario 1 — Authenticated customer ────────────────────────────────────────
 
 ###
 POST {{bffUrl}}/v1/bookings/attachments/signed-url
@@ -42,7 +45,7 @@ Authorization: Bearer {{customerToken}}
   "contentType": "image/jpeg"
 }
 
-# ── Scenario 2 — Guest (anonymous), tenantSlug in body (before-photos) ────────
+# ── Scenario 2 — Guest (anonymous), tenantSlug in body ─────────────────────────
 
 ###
 POST {{bffUrl}}/v1/bookings/attachments/signed-url
@@ -54,7 +57,7 @@ Content-Type: application/json
   "tenantSlug": "{{tenantSlug}}"
 }
 
-# ── Scenario 4 — Staff/Manager, bookingId present (after-photos) ──────────────
+# ── Scenario 4 — Staff/Manager ──────────────────────────────────────────────────
 
 ###
 POST {{bffUrl}}/v1/bookings/attachments/signed-url
@@ -63,8 +66,7 @@ Authorization: Bearer {{managerToken}}
 
 {
   "fileName": "after-wash.jpg",
-  "contentType": "image/jpeg",
-  "bookingId": "{{bookingId}}"
+  "contentType": "image/jpeg"
 }
 
 # ── ERROR cases ───────────────────────────────────────────────────────────────

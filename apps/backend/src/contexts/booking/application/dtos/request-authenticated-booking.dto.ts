@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BookingTmpPhotoPathsSchema } from '../../../../shared/utils/tmp-path-regex';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -15,9 +16,7 @@ export const RequestAuthenticatedBookingSchema = z.object({
   serviceIds: z.array(z.uuid()).min(1),
   pickupAddress: AddressSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
-  beforeServicePhotoUrls: z
-    .array(z.string().regex(/^tenants\/[^/]+\/(uploads|bookings)\/[^/]+\/.+$/))
-    .optional(),
+  beforeServicePhotoUrls: BookingTmpPhotoPathsSchema.optional(),
 });
 
 export type RequestAuthenticatedBookingDto = z.infer<typeof RequestAuthenticatedBookingSchema>;
