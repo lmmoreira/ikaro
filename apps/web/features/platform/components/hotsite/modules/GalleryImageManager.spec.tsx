@@ -10,11 +10,11 @@ import {
   featureBookingPhoto,
   generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
-} from '@/features/platform/tenant-settings';
+} from '@/features/platform/api/tenant-settings';
 import { getBooking, listBookings } from '@/features/booking/api/staff';
 import { GalleryImageManager } from './GalleryImageManager';
 
-vi.mock('@/features/platform/tenant-settings', () => ({
+vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
   generateHotsiteImageReadSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),

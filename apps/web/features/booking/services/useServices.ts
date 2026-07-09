@@ -6,7 +6,7 @@ import {
   deactivateService,
   listServices,
   updateService,
-} from '@/features/booking/services/api';
+} from '@/features/booking/api/services';
 import { useTenant } from '@/providers/tenant-provider';
 
 export function useServices() {

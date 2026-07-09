@@ -2,7 +2,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { notFound } from 'next/navigation';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { BookingDetailFetchError, fetchStaffBookingDetail } from '@/features/booking/api/staff';
+import {
+  BookingDetailFetchError,
+  fetchStaffBookingDetail,
+} from '@/features/booking/api/staff.server';
 import { loadBookingDetailRouteData } from './booking-route.server';
 import { matchBookingDetailRoute } from './booking-route';
 
@@ -16,7 +19,7 @@ vi.mock('@/features/auth/decode-jwt', () => ({
   decodeJwtPayload: vi.fn(),
 }));
 
-vi.mock('@/features/booking/api/staff', () => ({
+vi.mock('@/features/booking/api/staff.server', () => ({
   BookingDetailFetchError: class BookingDetailFetchError extends Error {
     readonly status: number;
 

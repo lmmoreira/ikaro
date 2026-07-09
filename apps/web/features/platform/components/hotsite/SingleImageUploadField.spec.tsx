@@ -7,10 +7,10 @@ import {
   deleteHotsiteImage,
   generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
-} from '@/features/platform/tenant-settings';
+} from '@/features/platform/api/tenant-settings';
 import { SingleImageUploadField } from './SingleImageUploadField';
 
-vi.mock('@/features/platform/tenant-settings', () => ({
+vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
   generateHotsiteImageReadSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),

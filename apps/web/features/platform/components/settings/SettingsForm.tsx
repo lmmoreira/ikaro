@@ -9,7 +9,7 @@ import { SectionCard } from '@/shared/components/ui/section-card';
 import { Button } from '@/shared/components/ui/button';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import { TimePicker } from '@/shared/components/ui/time-picker';
-import { renameTenant, updateTenantSettings } from '@/features/platform/tenant-settings';
+import { renameTenant, updateTenantSettings } from '@/features/platform/api/tenant-settings';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 import { digitsOnly } from '@/shared/utils/digits-only';
 import { formatPostalCodeForDisplay } from '@/shared/utils/postal-code-format';

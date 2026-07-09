@@ -24,7 +24,7 @@ const scheduleApi = vi.hoisted(() => ({
   listBookings: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 25 }),
 }));
 
-vi.mock('@/features/booking/schedule/api', () => ({
+vi.mock('@/features/booking/api/schedule', () => ({
   listClosures: scheduleApi.listClosures,
   createClosure: vi.fn().mockResolvedValue({ id: 'c-1' }),
   removeClosure: vi.fn().mockResolvedValue(undefined),

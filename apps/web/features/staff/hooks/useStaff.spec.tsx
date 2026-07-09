@@ -11,7 +11,7 @@ import {
   useUpdateStaff,
 } from './useStaff';
 
-vi.mock('@/features/staff/api', () => ({
+vi.mock('@/features/staff/api/staff', () => ({
   listStaff: vi.fn().mockResolvedValue({
     items: [
       {

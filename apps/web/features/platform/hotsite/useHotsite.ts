@@ -9,7 +9,7 @@ import {
   type FeatureBookingPhotoRequest,
   type HotsiteImageSignedUrlRequest,
   type UpdateHotsiteRequest,
-} from '@/features/platform/tenant-settings';
+} from '@/features/platform/api/tenant-settings';
 import { useTenant } from '@/providers/tenant-provider';
 
 export function useHotsiteConfig() {

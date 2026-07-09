@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { getBooking, listBookings } from '@/features/booking/api/staff';
-import { featureBookingPhoto } from '@/features/platform/tenant-settings';
+import { featureBookingPhoto } from '@/features/platform/api/tenant-settings';
 import { BookingPhotoPicker } from './BookingPhotoPicker';
 
 vi.mock('@/features/booking/api/staff', () => ({
@@ -13,7 +13,7 @@ vi.mock('@/features/booking/api/staff', () => ({
   getBooking: vi.fn(),
 }));
 
-vi.mock('@/features/platform/tenant-settings', () => ({
+vi.mock('@/features/platform/api/tenant-settings', () => ({
   featureBookingPhoto: vi.fn(),
 }));
 

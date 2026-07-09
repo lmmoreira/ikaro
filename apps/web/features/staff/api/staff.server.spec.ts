@@ -1,10 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchStaffMember, StaffDetailFetchError } from './api';
+import { fetchStaffList, fetchStaffMember, StaffDetailFetchError } from './staff.server';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 
 vi.mock('@/shared/lib/api/bff-server', () => ({
   bffServerFetch: vi.fn(),
 }));
+
+describe('fetchStaffList', () => {
+  beforeEach(() => vi.mocked(bffServerFetch).mockReset());
+
+  it('calls GET /staff with the auth token and returns the list', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(JSON.stringify({ items: [], pagination: { hasMore: false } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const result = await fetchStaffList('token-123');
+
+    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/staff?limit=100&offset=0', {
+      cache: 'no-store',
+    });
+    expect(result.items).toEqual([]);
+  });
+
+  it('throws on a non-2xx response', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(new Response(null, { status: 500 }));
+
+    await expect(fetchStaffList('token-123')).rejects.toThrow('Failed to fetch staff list (500)');
+  });
+});
 
 describe('fetchStaffMember', () => {
   beforeEach(() => vi.mocked(bffServerFetch).mockReset());

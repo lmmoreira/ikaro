@@ -164,8 +164,9 @@ When the user gives explicit references (a library, a URL, a named example, a pa
 
 **BFF modules** named after bounded context (`platform/`, not `tenants/`). Authenticated controller: `<context>.controller.ts`; public: `<context>.public.controller.ts`. Before adding a new request/response interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**`, grep `@ikaro/types` first — verify against the live BFF schema if shapes differ. Second mapper function → extract to `<module>.mapper.ts` (plain functions, not a class). → `docs/24-BFF_ARCHITECTURE.md`
 
-**Web → BFF transport:** Two helpers cover all calls — never write a raw `fetch()` URL outside them:
-- `bffServerFetch(token, path)` — server-only (`page.tsx`, `layout.tsx`, Route Handlers). Import from `@/shared/lib/api/bff-server`. Never in `'use client'` files.
+**Web → BFF transport:** Three helpers cover all calls — never write a raw `fetch()` URL outside them:
+- `bffServerFetch(token, path)` — authenticated server-only (`page.tsx`, `layout.tsx`, Route Handlers). Import from `@/shared/lib/api/bff-server`. Never in `'use client'` files.
+- `bffPublicFetch(path, init?)` — unauthenticated server-only BFF calls (public/guest flows from Server Components or Route Handlers). Import from `@/shared/lib/api/bff-server`. Never in `'use client'` files.
 - `bffClient` (axios, `withCredentials: true`) — client-only (React Query hooks). Import from `@/shared/lib/api/bff-client`. Never in Server Components.
 - `useTenant()` (`apps/web/providers/tenant-provider.tsx`) — only source of `tenantId` in hooks. Server layouts decode JWT and pass to `<TenantProvider>`.
 
@@ -321,6 +322,7 @@ If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA
 | Value objects / mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES.md` |
 | CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` |
 | Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` |
+| Writing Terraform / infra code | vendored HashiCorp Terraform skills from `.claude/skills/` + `plan/M17-CLOUD-DEPLOY.md` §0–§2 |
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` |
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special cases: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md`, `td/TD02-LOCALIZATION.md` |
 | New journey or prototype | `plan/journey/README.md` |
@@ -372,15 +374,7 @@ Three slice types, consistent across all three apps:
 
 ## 14. Project Slash Commands (Claude Code)
 
-| Command | When to use |
-|---|---|
-| `/pre-pr` | **Before every PR** — all checks + bad-smell-audit + integration tests. Must report zero issues. |
-| `/bad-smell-audit [backend\|bff\|web]` | Full-stack bad-smell scan on demand. |
-| `/mark-done M0X-SYY` | **After merge to main** — marks story done, alerts if milestone complete. |
-| `/story-discovery M0X-SYY` | **Before starting a story** — doc clarity, dep symbols, consistency check; emits READY/NOT READY. |
-| `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | **Before new milestone or journey file** — audits docs for staleness and inconsistency. |
-
-Commands live in `.claude/commands/`. To add: create `.claude/commands/<name>.md`, document here.
+Canonical registry: §17.
 
 ---
 
@@ -390,3 +384,33 @@ Commands live in `.claude/commands/`. To add: create `.claude/commands/<name>.md
 > `/docs-audit` MUST run and report a clean baseline first. Then: (1) write `<actor>/<slug>.md`, (2) update `<actor>/use-cases.md`, (3) update `plan/journey/README.md`'s index, (4) **only then** create files under `<actor>/prototypes/<slug>/`.
 
 Full rules, folder structure, and CSS gotchas (`.topbar-avatar`, `.week-nav`, `padding-bottom`, floating toast, etc.): `plan/journey/README.md` — load whenever working on any journey file or prototype folder.
+
+---
+
+## 16. Vendored HashiCorp Terraform Skills
+
+Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring from upstream and updating each `VENDORED_FROM.md`.
+
+---
+
+## 17. Project Skills & Commands Registry
+
+### Vendored skills
+
+| Skill | Path |
+|---|---|
+| `terraform-style-guide` | `.claude/skills/terraform-style-guide/` |
+| `terraform-test` | `.claude/skills/terraform-test/` |
+| `terraform-search-import` | `.claude/skills/terraform-search-import/` |
+| `refactor-module` | `.claude/skills/refactor-module/` |
+| `terraform-stacks` | `.claude/skills/terraform-stacks/` |
+
+### Command files
+
+| Command | File |
+|---|---|
+| `/bad-smell-audit [backend\|bff\|web]` | `.claude/commands/bad-smell-audit.md` |
+| `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` |
+| `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |
+| `/pre-pr` | `.claude/commands/pre-pr.md` |
+| `/story-discovery M0X-SYY` | `.claude/commands/story-discovery.md` |

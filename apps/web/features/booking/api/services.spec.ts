@@ -8,7 +8,7 @@ import {
   getService,
   listServices,
   updateService,
-} from './api';
+} from './services';
 
 const mock = new MockAdapter(bffClient);
 

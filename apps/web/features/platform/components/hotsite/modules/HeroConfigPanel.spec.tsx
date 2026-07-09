@@ -7,7 +7,7 @@ import { renderWithIntl } from '@/test-utils';
 import { HeroConfigPanel } from './HeroConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
 
-vi.mock('@/features/platform/tenant-settings', () => ({
+vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),
 }));

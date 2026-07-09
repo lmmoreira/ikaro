@@ -13,11 +13,10 @@ import {
   createBooking,
   createGuestAttachmentSignedUrl,
   CreateBookingError,
-  fetchGuestBookingSummary,
-  GuestBookingReadError,
   submitGuestBookingInfo,
   SubmitGuestBookingInfoError,
 } from './public';
+import { fetchGuestBookingSummary, GuestBookingReadError } from './public.server';
 
 const BFF_URL = 'http://bff-test:3002';
 
@@ -270,12 +269,15 @@ describe('fetchGuestBookingSummary', () => {
     };
     fetchSpy.mockResolvedValue(new Response(JSON.stringify(summary), { status: 200 }));
 
-    const result = await fetchGuestBookingSummary('booking-1', 'signed.jwt.token');
+    const result = await fetchGuestBookingSummary('booking/1', 'signed.jwt.token');
 
     expect(result).toEqual(summary);
     expect(fetchSpy).toHaveBeenCalledWith(
-      `${BFF_URL}/bookings/booking-1/guest?token=signed.jwt.token`,
-      { cache: 'no-store' },
+      `${BFF_URL}/bookings/booking%2F1/guest?token=signed.jwt.token`,
+      expect.objectContaining({
+        cache: 'no-store',
+        signal: expect.any(AbortSignal),
+      }),
     );
   });
 

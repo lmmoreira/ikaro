@@ -1,7 +1,10 @@
 import { notFound } from 'next/navigation';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { BookingDetailFetchError, fetchStaffBookingDetail } from '@/features/booking/api/staff';
+import {
+  BookingDetailFetchError,
+  fetchStaffBookingDetail,
+} from '@/features/booking/api/staff.server';
 
 export interface BookingDetailRouteData {
   readonly booking: StaffBookingDetailResponse;
