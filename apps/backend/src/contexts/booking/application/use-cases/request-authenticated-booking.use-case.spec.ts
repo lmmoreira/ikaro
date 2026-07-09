@@ -109,9 +109,11 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       beforeServicePhotoUrls: [tmpPath],
     });
 
-    expect(result.beforeServicePhotoUrls).toEqual([
-      `tenants/${TENANT_A}/bookings/${result.bookingId}/car.jpg`,
-    ]);
+    const permanentPath = `tenants/${TENANT_A}/bookings/${result.bookingId}/upload-1/car.jpg`;
+    expect(result.beforeServicePhotoUrls).toEqual([permanentPath]);
+    // Proves the copy actually landed at the permanent path — not just that the tmp source was
+    // deleted, which alone wouldn't catch a promotion that deletes without a successful copy.
+    await expect(storageService.exists(permanentPath, 'private')).resolves.toBe(true);
     expect(storageService.deletedPaths).toEqual([tmpPath]);
   });
 

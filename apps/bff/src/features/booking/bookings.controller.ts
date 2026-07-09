@@ -58,6 +58,10 @@ const AddressSchema = z.object({
   zipCode: z.string().trim().min(1).max(20),
 });
 
+// Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
+// tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
+const TMP_PHOTO_PATH_REGEX = /^tmp\/[^/]+\/[^/]+\/.+$/;
+
 export const RequestBookingBodySchema = z.object({
   contactEmail: z.email(),
   contactName: z.string().min(1),
@@ -67,9 +71,7 @@ export const RequestBookingBodySchema = z.object({
   notes: z.string().trim().min(1).max(1000).optional(),
   scheduledAt: z.iso.datetime(),
   serviceIds: z.array(z.uuid()).min(1),
-  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
-  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
-  beforeServicePhotoUrls: z.array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/)).optional(),
+  beforeServicePhotoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),
 });
 
 export const AuthenticatedBookingBodySchema = z.object({
@@ -77,9 +79,7 @@ export const AuthenticatedBookingBodySchema = z.object({
   serviceIds: z.array(z.uuid()).min(1),
   pickupAddress: AddressSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
-  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
-  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
-  beforeServicePhotoUrls: z.array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/)).optional(),
+  beforeServicePhotoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),
 });
 
 export const RejectBookingBodySchema = z.object({
@@ -112,12 +112,7 @@ export const CompleteBookingBodySchema = z.object({
       }),
     )
     .min(1),
-  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
-  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
-  afterServicePhotoUrls: z
-    .array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/))
-    .optional()
-    .default([]),
+  afterServicePhotoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional().default([]),
   adminNotes: z.string().trim().min(1).max(500).optional(),
   discountByPoints: z
     .object({
@@ -138,16 +133,12 @@ export const RequestMoreInfoBodySchema = z.object({
 
 export const SubmitBookingInfoBodySchema = z.object({
   response: z.string().trim().min(1),
-  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
-  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
-  photoUrls: z.array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/)).optional(),
+  photoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),
 });
 
 export const SubmitGuestBookingInfoBodySchema = z.object({
   response: z.string().trim().min(1),
-  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
-  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
-  photoUrls: z.array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/)).optional(),
+  photoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),
 });
 
 // Matches one or more comma-separated BookingStatus values, e.g. "PENDING" or "PENDING,INFO_REQUESTED"

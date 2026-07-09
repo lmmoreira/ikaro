@@ -97,12 +97,13 @@ describe('RequestBookingUseCase', () => {
     });
     const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
     expect(saved!.beforeServicePhotoUrls).toEqual([
-      `tenants/${TENANT_A}/bookings/${result.bookingId}/photo1.jpg`,
+      `tenants/${TENANT_A}/bookings/${result.bookingId}/upload-1/photo1.jpg`,
     ]);
     expect(storageService.copiedPaths).toEqual([
       {
         sourcePath: tmpPath,
-        destinationPath: `tenants/${TENANT_A}/bookings/${result.bookingId}/photo1.jpg`,
+        destinationPath: `tenants/${TENANT_A}/bookings/${result.bookingId}/upload-1/photo1.jpg`,
+        destinationBucket: 'private',
       },
     ]);
     expect(storageService.deletedPaths).toEqual([tmpPath]);

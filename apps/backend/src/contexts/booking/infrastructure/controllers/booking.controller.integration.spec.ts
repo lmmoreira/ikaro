@@ -146,7 +146,7 @@ describe('BookingController (integration)', () => {
 
       const row = await ds.getRepository(BookingEntity).findOne({ where: { id: body.bookingId } });
       expect(row!.beforeServicePhotoUrls).toContain(
-        `tenants/${tenantAId}/bookings/${body.bookingId}/car.jpg`,
+        `tenants/${tenantAId}/bookings/${body.bookingId}/upload-1/car.jpg`,
       );
     });
 
@@ -1308,7 +1308,7 @@ describe('BookingController (integration)', () => {
           beforeServicePhotoUrls: [tmpPath],
         })
         .expect(201);
-      const permanentPath = `tenants/${detailTenantId}/bookings/${created.bookingId}/car.jpg`;
+      const permanentPath = `tenants/${detailTenantId}/bookings/${created.bookingId}/upload-detail/car.jpg`;
 
       await request(app.getHttpServer())
         .patch(`/bookings/${created.bookingId}/approve`)
@@ -1579,7 +1579,7 @@ describe('BookingController (integration)', () => {
       const lineIds = await getLineIds(bookingId);
       const tmpPath = `tmp/${tenantAId}/upload-1/after.jpg`;
       storageService.markAsUploaded(tmpPath);
-      const permanentPath = `tenants/${tenantAId}/bookings/${bookingId}/after.jpg`;
+      const permanentPath = `tenants/${tenantAId}/bookings/${bookingId}/upload-1/after.jpg`;
 
       await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/complete`)

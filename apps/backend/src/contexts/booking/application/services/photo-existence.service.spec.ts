@@ -32,21 +32,38 @@ describe('PhotoExistenceService', () => {
       );
 
       expect(result.permanentPaths).toEqual([
-        `tenants/${TENANT_A}/bookings/${BOOKING_ID}/photo1.jpg`,
-        `tenants/${TENANT_A}/bookings/${BOOKING_ID}/photo2.jpg`,
+        `tenants/${TENANT_A}/bookings/${BOOKING_ID}/u1/photo1.jpg`,
+        `tenants/${TENANT_A}/bookings/${BOOKING_ID}/u2/photo2.jpg`,
       ]);
       expect(result.operations).toEqual([
         {
           from: 'tmp/tenant-a/u1/photo1.jpg',
-          to: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/photo1.jpg`,
+          to: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/u1/photo1.jpg`,
         },
         {
           from: 'tmp/tenant-a/u2/photo2.jpg',
-          to: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/photo2.jpg`,
+          to: `tenants/${TENANT_A}/bookings/${BOOKING_ID}/u2/photo2.jpg`,
         },
       ]);
       expect(storageService.copiedPaths).toEqual([]);
       expect(storageService.deletedPaths).toEqual([]);
+    });
+
+    it('keeps two uploads with the same original filename from colliding, since each retains its own upload-id segment', async () => {
+      storageService.markAsUploaded('tmp/tenant-a/u1/IMG_0001.jpg');
+      storageService.markAsUploaded('tmp/tenant-a/u2/IMG_0001.jpg');
+
+      const result = await service.preparePhotoPromotion(
+        ['tmp/tenant-a/u1/IMG_0001.jpg', 'tmp/tenant-a/u2/IMG_0001.jpg'],
+        TENANT_A,
+        BOOKING_ID,
+      );
+
+      expect(new Set(result.permanentPaths).size).toBe(2);
+      expect(result.permanentPaths).toEqual([
+        `tenants/${TENANT_A}/bookings/${BOOKING_ID}/u1/IMG_0001.jpg`,
+        `tenants/${TENANT_A}/bookings/${BOOKING_ID}/u2/IMG_0001.jpg`,
+      ]);
     });
 
     it('throws BookingPhotoNotUploadedError for a non-existent tmp path', async () => {
@@ -96,7 +113,11 @@ describe('PhotoExistenceService', () => {
       await service.executePhotoPromotion(operations);
 
       expect(storageService.copiedPaths).toEqual([
-        { sourcePath: operations[0].from, destinationPath: operations[0].to },
+        {
+          sourcePath: operations[0].from,
+          destinationPath: operations[0].to,
+          destinationBucket: 'private',
+        },
       ]);
       expect(storageService.deletedPaths).toEqual([operations[0].from]);
     });
@@ -117,6 +138,10 @@ describe('PhotoExistenceService', () => {
 
       await expect(service.executePhotoPromotion(operations)).resolves.toBeUndefined();
       expect(copySpy).toHaveBeenCalledTimes(2);
+      // op1's copy rejected, so its tmp source must NOT have been cleaned up; op2's copy
+      // succeeded, so its tmp source must have been deleted for real (delete() isn't mocked).
+      expect(storageService.deletedPaths).not.toContain(operations[0].from);
+      expect(storageService.deletedPaths).toContain(operations[1].from);
     });
   });
 });

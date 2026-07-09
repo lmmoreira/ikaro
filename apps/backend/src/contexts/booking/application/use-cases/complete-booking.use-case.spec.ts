@@ -122,9 +122,31 @@ describe('CompleteBookingUseCase', () => {
 
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.afterServicePhotoUrls).toEqual([
-      `tenants/${TENANT_A}/bookings/${booking.id}/after1.jpg`,
+      `tenants/${TENANT_A}/bookings/${booking.id}/upload-1/after1.jpg`,
     ]);
     expect(storageService.deletedPaths).toEqual([tmpPath]);
+  });
+
+  it('completes the booking even when promotion (copy/delete) fails after the save has already succeeded', async () => {
+    const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1]).build();
+    await bookingRepo.save(booking);
+    const tmpPath = `tmp/${TENANT_A}/upload-1/after1.jpg`;
+    storageService.markAsUploaded(tmpPath);
+    jest.spyOn(storageService, 'copy').mockRejectedValue(new Error('storage unavailable'));
+
+    const result = await useCase.execute({
+      ...makeDto(booking.id, [LINE_ID_1], { afterServicePhotoUrls: [tmpPath] }),
+      ...baseCtx,
+    });
+
+    // PhotoExistenceService.executePhotoPromotion() is best-effort — a storage failure after the
+    // booking row is already saved must not surface as a use-case error or block completion.
+    expect(result.status).toBe(BookingStatus.COMPLETED);
+    const saved = await bookingRepo.findById(booking.id, TENANT_A);
+    expect(saved!.status).toBe(BookingStatus.COMPLETED);
+    expect(saved!.afterServicePhotoUrls).toEqual([
+      `tenants/${TENANT_A}/bookings/${booking.id}/upload-1/after1.jpg`,
+    ]);
   });
 
   it('throws BookingPhotoNotUploadedError when a photo path does not exist in storage', async () => {

@@ -108,8 +108,8 @@ describe('SubmitBookingInfoUseCase', () => {
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.beforeServicePhotoUrls).toEqual(
       expect.arrayContaining([
-        `tenants/${TENANT_A}/bookings/${booking.id}/photo1.jpg`,
-        `tenants/${TENANT_A}/bookings/${booking.id}/photo2.jpg`,
+        `tenants/${TENANT_A}/bookings/${booking.id}/upload-1/photo1.jpg`,
+        `tenants/${TENANT_A}/bookings/${booking.id}/upload-2/photo2.jpg`,
       ]),
     );
     expect(storageService.deletedPaths).toEqual(expect.arrayContaining(tmpPaths));

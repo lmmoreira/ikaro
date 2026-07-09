@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { extractTenantIdFromTmpPath } from '../../../../shared/utils/extract-tenant-id-from-tmp-path';
 import { BookingPhotoNotUploadedError } from '../../domain/errors/booking-domain.error';
@@ -15,6 +15,8 @@ export interface PreparedPhotoPromotion {
 
 @Injectable()
 export class PhotoExistenceService {
+  private readonly logger = new Logger(PhotoExistenceService.name);
+
   constructor(@Inject(STORAGE_SERVICE) private readonly storageService: IStorageService) {}
 
   /**
@@ -36,8 +38,14 @@ export class PhotoExistenceService {
       const exists = await this.storageService.exists(path, 'private');
       if (!exists) throw new BookingPhotoNotUploadedError(path);
 
-      const fileName = path.split('/').pop()!;
-      const permanentPath = `tenants/${tenantId}/bookings/${bookingId}/${fileName}`;
+      // Keep the tmp/ upload's uuid segment in the permanent path (tmp/<tenantId>/<uploadId>/
+      // <fileName> -> tenants/<tenantId>/bookings/<bookingId>/<uploadId>/<fileName>) instead of
+      // flattening to <fileName> alone — two uploads sharing an original filename (common with
+      // phone-camera defaults like IMG_0001.jpg) would otherwise silently overwrite one another.
+      const segments = path.split('/');
+      const fileName = segments.pop()!;
+      const uploadId = segments.pop()!;
+      const permanentPath = `tenants/${tenantId}/bookings/${bookingId}/${uploadId}/${fileName}`;
       operations.push({ from: path, to: permanentPath });
       permanentPaths.push(permanentPath);
     }
@@ -50,9 +58,14 @@ export class PhotoExistenceService {
       try {
         await this.storageService.copy(from, to, 'private');
         await this.storageService.delete(from, 'private');
-      } catch {
-        // log and continue — the aggregate's photo fields already point at `to`; a failed copy
-        // just means that path 404s until manually reconciled, not a broken booking record
+      } catch (err) {
+        // Best-effort — the aggregate's photo fields already point at `to`; a failed copy just
+        // means that path 404s until manually reconciled, not a broken booking record. Logged so
+        // production failures are discoverable instead of silent.
+        this.logger.error(
+          `Failed to promote booking photo from ${from} to ${to}: ${(err as Error).message}`,
+          (err as Error).stack,
+        );
       }
     }
   }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { BOOKING_TMP_PHOTO_PATH_REGEX } from '../../../../shared/utils/tmp-path-regex';
+import { BookingTmpPhotoPathsSchema } from '../../../../shared/utils/tmp-path-regex';
 
 const AddressSchema = z.object({
   street: z.string().min(1),
@@ -16,9 +16,7 @@ export const RequestAuthenticatedBookingSchema = z.object({
   serviceIds: z.array(z.uuid()).min(1),
   pickupAddress: AddressSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
-  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
-  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
-  beforeServicePhotoUrls: z.array(z.string().regex(BOOKING_TMP_PHOTO_PATH_REGEX)).optional(),
+  beforeServicePhotoUrls: BookingTmpPhotoPathsSchema.optional(),
 });
 
 export type RequestAuthenticatedBookingDto = z.infer<typeof RequestAuthenticatedBookingSchema>;

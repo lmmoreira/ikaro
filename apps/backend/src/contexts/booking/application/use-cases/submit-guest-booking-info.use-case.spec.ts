@@ -150,7 +150,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
 
     const saved = await repo.findById(guestBookingId, TENANT_A);
     expect(saved!.beforeServicePhotoUrls).toEqual([
-      `tenants/${TENANT_A}/bookings/${guestBookingId}/photo1.jpg`,
+      `tenants/${TENANT_A}/bookings/${guestBookingId}/upload-1/photo1.jpg`,
     ]);
     expect(storageService.deletedPaths).toEqual([tmpPath]);
   });
