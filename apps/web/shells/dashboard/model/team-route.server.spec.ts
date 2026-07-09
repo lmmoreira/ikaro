@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { loadTeamDetailRouteData } from './team-route.server';
-import { fetchStaffMember, StaffDetailFetchError } from '@/features/staff/api.server';
+import { fetchStaffMember, StaffDetailFetchError } from '@/features/staff/api/staff.server';
 
-vi.mock('@/features/staff/api.server', () => ({
+vi.mock('@/features/staff/api/staff.server', () => ({
   fetchStaffMember: vi.fn(),
   StaffDetailFetchError: class StaffDetailFetchError extends Error {
     constructor(

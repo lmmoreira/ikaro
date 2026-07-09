@@ -21,7 +21,7 @@ function ControlledTestimonialsConfigPanel({
   return <TestimonialsConfigPanel data={data} onChange={setData} />;
 }
 
-vi.mock('@/features/platform/tenant-settings', () => ({
+vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),
 }));

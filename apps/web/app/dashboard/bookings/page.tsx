@@ -1,8 +1,8 @@
 import { BookingQueuePage } from '@/features/booking/components/dashboard/bookings/BookingQueuePage';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { listBookings } from '@/features/booking/api/staff.server';
-import { resolveWelcomeStaffScreenDays } from '@/features/platform/tenant-settings.shared';
-import { fetchTenantSettings } from '@/features/platform/tenant-settings.server';
+import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
+import { resolveWelcomeStaffScreenDays } from '@/features/platform/model/tenant-settings';
 import { addDays, toDateKey } from '@/shared/utils/date-utils';
 
 export default async function BookingsPage(): Promise<React.JSX.Element> {

@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import { StaffDetailFetchError, fetchStaffMember } from '@/features/staff/api.server';
+import { StaffDetailFetchError, fetchStaffMember } from '@/features/staff/api/staff.server';
 
 export interface TeamDetailRouteData {
   readonly staff: Awaited<ReturnType<typeof fetchStaffMember>>;

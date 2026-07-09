@@ -1,5 +1,5 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { fetchTenantSettingsFresh } from '@/features/platform/tenant-settings.server';
+import { fetchTenantSettingsFresh } from '@/features/platform/api/tenant-settings.server';
 import { SettingsForm } from '@/features/platform/components/settings/SettingsForm';
 
 export default async function SettingsPage(): Promise<React.JSX.Element> {

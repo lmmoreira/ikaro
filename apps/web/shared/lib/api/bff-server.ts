@@ -8,22 +8,19 @@ interface BffServerFetchInit extends Omit<RequestInit, 'headers' | 'next'> {
   readonly next?: BffServerFetchNextInit;
 }
 
-export async function bffServerFetch(
-  token: string,
-  path: string,
-  init: BffServerFetchInit = {},
-): Promise<Response> {
-  const { headers: extraHeaders, cache, next, ...rest } = init;
-  const hasRevalidate = next?.revalidate !== undefined;
-  const requestInit: RequestInit & { next?: BffServerFetchNextInit } = {
-    ...rest,
-    headers: {
-      Cookie: `access_token=${token}`,
-      ...extraHeaders,
-    },
-  };
+const DEFAULT_BFF_TIMEOUT_MS = 8_000;
 
-  if (!hasRevalidate) {
+function buildBffUrl(path: string): string {
+  return `${process.env.NEXT_PUBLIC_BFF_URL}${path}`;
+}
+
+function buildBffRequestInit(
+  init: BffServerFetchInit,
+): RequestInit & { next?: BffServerFetchNextInit } {
+  const { cache, next, ...rest } = init;
+  const requestInit: RequestInit & { next?: BffServerFetchNextInit } = { ...rest };
+
+  if (next?.revalidate === undefined) {
     requestInit.cache ??= cache ?? 'no-store';
   }
 
@@ -31,7 +28,24 @@ export async function bffServerFetch(
     requestInit.next = next;
   }
 
-  requestInit.signal ??= AbortSignal.timeout(8000);
+  requestInit.signal ??= AbortSignal.timeout(DEFAULT_BFF_TIMEOUT_MS);
+  return requestInit;
+}
 
-  return fetch(`${process.env.NEXT_PUBLIC_BFF_URL}${path}`, requestInit);
+export async function bffPublicFetch(
+  path: string,
+  init: BffServerFetchInit = {},
+): Promise<Response> {
+  return fetch(buildBffUrl(path), buildBffRequestInit(init));
+}
+
+export async function bffServerFetch(token: string, path: string, init: BffServerFetchInit = {}) {
+  const { headers: extraHeaders, ...rest } = init;
+  return bffPublicFetch(path, {
+    ...rest,
+    headers: {
+      Cookie: `access_token=${token}`,
+      ...extraHeaders,
+    },
+  });
 }

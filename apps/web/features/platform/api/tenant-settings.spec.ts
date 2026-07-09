@@ -12,7 +12,11 @@ import {
   unpublishHotsite,
   updateHotsiteConfig,
 } from './tenant-settings';
-import { fetchHotsiteConfig, fetchTenantSettings } from './tenant-settings.server';
+import {
+  fetchHotsiteConfig,
+  fetchTenantSettings,
+  fetchTenantSettingsFresh,
+} from './tenant-settings.server';
 
 const mock = new MockAdapter(bffClient);
 
@@ -195,6 +199,37 @@ describe('fetchTenantSettings', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }));
 
     await expect(fetchTenantSettings('bad-token')).rejects.toThrow(
+      'Failed to fetch tenant settings',
+    );
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('fetchTenantSettingsFresh', () => {
+  it('fetches GET /tenants/settings uncached and returns tenant settings', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve(tenantSettingsResponse) });
+    vi.stubGlobal('fetch', fetchMock);
+    process.env.NEXT_PUBLIC_BFF_URL = 'http://bff.test/v1';
+
+    const res = await fetchTenantSettingsFresh('test-token');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://bff.test/v1/tenants/settings',
+      expect.objectContaining({
+        headers: { Cookie: 'access_token=test-token' },
+        cache: 'no-store',
+      }),
+    );
+    expect(res).toEqual(tenantSettingsResponse);
+    vi.unstubAllGlobals();
+  });
+
+  it('throws on non-ok response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+
+    await expect(fetchTenantSettingsFresh('bad-token')).rejects.toThrow(
       'Failed to fetch tenant settings',
     );
     vi.unstubAllGlobals();

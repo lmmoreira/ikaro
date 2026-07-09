@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import { ServiceDetailFetchError, fetchStaffService } from '@/features/booking/services/api.server';
+import { ServiceDetailFetchError, fetchStaffService } from '@/features/booking/api/services.server';
 
 export interface ServiceDetailRouteData {
   readonly service: Awaited<ReturnType<typeof fetchStaffService>>;

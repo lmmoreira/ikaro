@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { loadServiceDetailRouteData } from './service-route.server';
-import { fetchStaffService, ServiceDetailFetchError } from '@/features/booking/services/api.server';
+import { fetchStaffService, ServiceDetailFetchError } from '@/features/booking/api/services.server';
 
-vi.mock('@/features/booking/services/api.server', () => ({
+vi.mock('@/features/booking/api/services.server', () => ({
   fetchStaffService: vi.fn(),
   ServiceDetailFetchError: class ServiceDetailFetchError extends Error {
     constructor(

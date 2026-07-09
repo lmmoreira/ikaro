@@ -6,9 +6,17 @@ function buildRangeQuery(from: string, to: string): string {
   return new URLSearchParams({ from, to }).toString();
 }
 
+export class ScheduleFetchError extends Error {
+  constructor(public readonly status: number) {
+    super('Schedule request failed');
+    this.name = 'ScheduleFetchError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 async function fetchScheduleResponse<T>(token: string, path: string): Promise<T> {
   const res = await bffServerFetch(token, path);
-  if (!res.ok) throw new Error(`Failed to fetch ${path} (${res.status})`);
+  if (!res.ok) throw new ScheduleFetchError(res.status);
   return res.json() as Promise<T>;
 }
 

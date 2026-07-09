@@ -14,7 +14,7 @@ export {
   resolveTenantFormatting,
   resolveWelcomeStaffScreenDays,
   type TenantFormattingConfig,
-} from './tenant-settings.shared';
+} from '../model/tenant-settings';
 
 export interface UpdateHotsiteModuleRequest {
   readonly type: string;

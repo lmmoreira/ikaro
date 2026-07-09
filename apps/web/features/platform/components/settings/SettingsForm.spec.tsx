@@ -18,7 +18,7 @@ vi.setConfig({ testTimeout: 40000 });
 const mockUpdateTenantSettings = vi.fn();
 const mockRenameTenant = vi.fn();
 
-vi.mock('@/features/platform/tenant-settings', () => ({
+vi.mock('@/features/platform/api/tenant-settings', () => ({
   updateTenantSettings: (...args: unknown[]) => mockUpdateTenantSettings(...args),
   renameTenant: (...args: unknown[]) => mockRenameTenant(...args),
 }));

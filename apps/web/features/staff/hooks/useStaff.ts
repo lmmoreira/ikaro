@@ -8,7 +8,7 @@ import {
   listStaff,
   updateStaff,
   type StaffListQuery,
-} from '@/features/staff/api';
+} from '@/features/staff/api/staff';
 import { useTenant } from '@/providers/tenant-provider';
 
 export function useStaff(query?: StaffListQuery) {

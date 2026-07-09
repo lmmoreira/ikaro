@@ -290,8 +290,8 @@ Extend `middleware.ts` (which already runs on every non-`api`/`_next`/favicon pa
 Either (a) add `import 'client-only'` at the top of `bff-client.ts` so any accidental Server-Component import fails the build, or (b) make the client per-call/per-request (pass token in, or read `cookies()` in each server fetcher and build a request-scoped client). Given the React Query direction, (a) is the cheap lock. Document the rule in `CLAUDE.md`.
 
 #### Acceptance criteria
-- [ ] `bff-client.ts` cannot be imported into a Server Component (build fails if attempted), OR the client no longer holds cross-request mutable auth state.
-- [ ] A short note added to `CLAUDE.md` codifying the rule (with permission per §0).
+- [x] `bff-client.ts` cannot be imported into a Server Component (build fails if attempted), OR the client no longer holds cross-request mutable auth state.
+- [x] A short note added to `CLAUDE.md` codifying the rule (with permission per §0).
 
 ---
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { GalleryImage } from '@ikaro/types';
 import { getBooking, listBookings } from '@/features/booking/api/staff';
-import { featureBookingPhoto } from '@/features/platform/tenant-settings';
+import { featureBookingPhoto } from '@/features/platform/api/tenant-settings';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 
 interface BookingPhotoPickerProps {

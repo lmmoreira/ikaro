@@ -13,10 +13,10 @@ import {
   updateHotsiteConfig,
   publishHotsite,
   unpublishHotsite,
-} from '@/features/platform/tenant-settings';
+} from '@/features/platform/api/tenant-settings';
 import { HotsiteEditor } from './HotsiteEditor';
 
-vi.mock('@/features/platform/tenant-settings', () => ({
+vi.mock('@/features/platform/api/tenant-settings', () => ({
   getHotsiteConfig: vi.fn(),
   updateHotsiteConfig: vi.fn(),
   publishHotsite: vi.fn(),

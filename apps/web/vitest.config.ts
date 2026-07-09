@@ -14,7 +14,7 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/.next/**', '**/e2e/**'],
     // components/hotsite specs run in jsdom — each spec file declares:
     //   // @vitest-environment jsdom
-    // lib/** stays in the default node environment with no change.
+    // shared/lib/** stays in the default node environment with no change.
     coverage: {
       provider: 'v8',
       reporter: ['lcov', 'text-summary'],
@@ -25,7 +25,7 @@ export default defineConfig({
         functions: 90,
         lines: 90,
       },
-      include: ['lib/**', 'app/**', 'components/**', 'providers/**', 'features/**'],
+      include: ['shared/lib/**', 'app/**', 'components/**', 'providers/**', 'features/**'],
       exclude: [
         '**/*.spec.*',
         '**/node_modules/**',

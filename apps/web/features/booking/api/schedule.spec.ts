@@ -8,7 +8,7 @@ import {
   listOpenings,
   removeClosure,
   removeOpening,
-} from './api';
+} from './schedule';
 
 const mock = new MockAdapter(bffClient);
 

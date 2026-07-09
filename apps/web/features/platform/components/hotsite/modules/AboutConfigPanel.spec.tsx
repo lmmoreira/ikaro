@@ -6,9 +6,9 @@ import type { AboutModuleData } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { AboutConfigPanel } from './AboutConfigPanel';
 import { writeModuleData } from './module-config-panel.types';
-import { generateHotsiteImageSignedUrl } from '@/features/platform/tenant-settings';
+import { generateHotsiteImageSignedUrl } from '@/features/platform/api/tenant-settings';
 
-vi.mock('@/features/platform/tenant-settings', () => ({
+vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),
 }));

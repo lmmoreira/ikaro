@@ -1,5 +1,6 @@
 import 'server-only';
 import type { GuestBookingReadResponse } from '@ikaro/types';
+import { bffPublicFetch } from '@/shared/lib/api/bff-server';
 
 export class GuestBookingReadError extends Error {
   constructor(
@@ -19,9 +20,8 @@ export async function fetchGuestBookingSummary(
   bookingId: string,
   token: string,
 ): Promise<GuestBookingReadResponse> {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BFF_URL}/bookings/${bookingId}/guest?token=${encodeURIComponent(token)}`,
-    { cache: 'no-store' },
+  const res = await bffPublicFetch(
+    `/bookings/${encodeURIComponent(bookingId)}/guest?token=${encodeURIComponent(token)}`,
   );
 
   if (!res.ok) {

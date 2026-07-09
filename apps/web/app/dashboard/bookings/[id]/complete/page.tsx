@@ -1,7 +1,7 @@
 import { MarkCompleteBookingPage } from '@/features/booking/components/dashboard/bookings/MarkCompleteBookingPage';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { resolveReturnTo } from '@/features/booking/model/booking-navigation';
-import { fetchTenantSettings } from '@/features/platform/tenant-settings.server';
+import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
 import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-route.server';
 
 interface BookingCompleteRouteProps {

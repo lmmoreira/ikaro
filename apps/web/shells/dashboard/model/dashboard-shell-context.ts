@@ -1,6 +1,6 @@
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { resolveTenantFormatting } from '@/features/platform/tenant-settings.shared';
-import { fetchTenantSettings } from '@/features/platform/tenant-settings.server';
+import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
+import { resolveTenantFormatting } from '@/features/platform/model/tenant-settings';
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { resolveDateFormat } from '@/shared/lib/formatting/locale-validators';
 

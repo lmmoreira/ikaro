@@ -3,8 +3,8 @@ import { listBookings } from '@/features/booking/api/staff.server';
 import {
   fetchScheduleClosures,
   fetchScheduleOpenings,
-} from '@/features/booking/schedule/api.server';
-import { fetchTenantSettings } from '@/features/platform/tenant-settings.server';
+} from '@/features/booking/api/schedule.server';
+import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
 import { SchedulePage } from '@/features/booking/components/dashboard/schedule/SchedulePage';
 import { SCHEDULE_BOOKING_STATUS_ALL } from '@/features/booking/model/booking-status';
 import {
