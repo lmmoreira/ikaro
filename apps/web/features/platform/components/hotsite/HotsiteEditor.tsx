@@ -162,16 +162,22 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     t,
   ]);
 
+  // Any edit here invalidates the "this is already live" claim a publish/unpublish success
+  // banner makes — without clearing it, the banner from a previous publish keeps showing while
+  // the admin makes further, still-unsaved changes, making it look like those are live too.
   function setBranding(branding: HotsiteBrandingResponse): void {
     setDraft((current) => ({ ...current, branding }));
+    setActionBanner(null);
   }
 
   function setLayout(layout: HotsiteAdminContentResponse['layout']): void {
     setDraft((current) => ({ ...current, layout }));
+    setActionBanner(null);
   }
 
   function setSeo(seo: HotsiteSeoResponse): void {
     setDraft((current) => ({ ...current, seo }));
+    setActionBanner(null);
   }
 
   async function handlePublish(): Promise<void> {
@@ -232,6 +238,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       ...current,
       layout: current.layout.map((m) => (m.type === type ? { ...m, data: localData } : m)),
     }));
+    setActionBanner(null);
     setView({ view: 'tabs' });
   }
 

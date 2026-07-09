@@ -263,6 +263,34 @@ describe('HotsiteEditor', () => {
       );
     });
 
+    // Regression test: a stale "already live" success banner from a previous publish must not
+    // survive further edits, or it reads as if brand-new unsaved changes are already published
+    // too — reported after publishing once, then editing and applying a different module.
+    it('clears the success banner as soon as the draft is edited again (e.g. applying a module config change)', async () => {
+      mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+      const user = userEvent.setup();
+      renderEditor();
+
+      await user.click(screen.getByTestId('hotsite-publish-desktop'));
+      await waitFor(() => {
+        expect(screen.getByTestId('hotsite-action-success-banner')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'HERO')!,
+      );
+      const titleInput = await screen.findByLabelText('Título *');
+      await user.clear(titleInput);
+      await user.type(titleInput, 'Novo título');
+      await user.click(screen.getByTestId('module-config-apply-desktop'));
+
+      expect(screen.queryByTestId('hotsite-action-success-banner')).not.toBeInTheDocument();
+    });
+
     // Regression test: the banner only renders in the tabs view — a failed publish triggered
     // from Preview must switch back to tabs too, or the admin is stuck in Preview with no
     // visible error feedback at all.
