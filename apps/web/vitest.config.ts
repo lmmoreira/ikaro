@@ -31,7 +31,6 @@ export default defineConfig({
         'components/**',
         'providers/**',
         'features/**',
-        'playwright.config.ts',
       ],
       exclude: [
         '**/*.spec.*',
@@ -51,6 +50,7 @@ export default defineConfig({
       'next/font/google': path.resolve(__dirname, '__mocks__/next-font-google.ts'),
       'next/image': path.resolve(__dirname, '__mocks__/next-image.ts'),
       'next/link': path.resolve(__dirname, '__mocks__/next-link.ts'),
+      'client-only': path.resolve(__dirname, '__mocks__/client-only.ts'),
       'server-only': path.resolve(__dirname, '__mocks__/server-only.ts'),
     },
   },

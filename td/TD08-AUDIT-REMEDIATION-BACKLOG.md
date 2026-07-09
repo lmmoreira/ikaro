@@ -40,7 +40,7 @@
 | **AUD-005** | Graceful shutdown hooks (backend + BFF) ✅ | 🟠 High | XS | Now | — | §5.2 |
 | **AUD-006** | Helmet / security headers on BFF ✅ | 🟠 High | XS | Now | — | §5.6 |
 | **AUD-007** | CSP + security headers across apps/web ✅ | 🟠 High | S | Now | — | §8.3 |
-| **AUD-008** | Isolate BFF HTTP-client auth state (`client-only` guard) | 🟠 High | XS | Now | — | §8.4 |
+| **AUD-008** | Isolate BFF HTTP-client auth state (`client-only` guard) ✅ | 🟠 High | XS | Now | — | §8.4 |
 | **AUD-009** | Supply-chain CI hardening (pin actions, Dependabot, digests, concurrency, permissions) ✅ | 🟠 High | M | Now | — | §9.1, §9.2, §9.5, §10.1–10.3 |
 | **AUD-010** | Fix the brittle `multer` override (real CVE) ✅ | 🟠 High | S | Now | — | §10.6 |
 | **AUD-011** | Tenant-settings cache (in-memory LRU + TTL) ✅ | 🟡 Medium | S | Now | — | §5.1 |
@@ -279,9 +279,9 @@ Extend `middleware.ts` (which already runs on every non-`api`/`_next`/favicon pa
 
 ---
 
-### AUD-008 — Isolate BFF HTTP-client auth state (`client-only` guard)
+### AUD-008 — Isolate BFF HTTP-client auth state (`client-only` guard) ✅
 **Risk:** 🟠 High (latent) · **Effort:** XS · **Phase:** Now (before dashboard) · **Depends on:** — · **Audit ref:** §8.4
-**Status:** ☐ Not started
+**Status:** ✅ Done
 
 #### What's wrong
 `apps/web/lib/api/bff-client.ts` holds `_token`/`_tenantId`/`_tenantSlug` in **module scope** (set via `configureBffClient`). In a Node server process, module scope is shared across all concurrent requests — if a dashboard fetcher is ever called from a Server Component, two users race on `_token` → cross-tenant token leak. Currently latent (dashboard is a client-rendered stub), but a loaded gun.
