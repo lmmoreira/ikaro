@@ -1,21 +1,19 @@
-import { Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { AdminScheduleReminderJob } from '../../application/jobs/admin-schedule-reminder.job';
-import { BookingReminderJob } from '../../application/jobs/booking-reminder.job';
+import { Controller, HttpCode, HttpStatus, Inject, Post } from '@nestjs/common';
+import { ITriggerBus, TRIGGER_BUS } from '../../../../shared/ports/trigger-bus.port';
 
-// MVP: no auth guard — backend is not publicly reachable (BFF-only path).
-// M115-S03 adds CronAuthGuard (OIDC token from GCP Cloud Scheduler).
+// Thin publisher (M17-S03): publishes the cron-reminders trigger onto the same channel Cloud
+// Scheduler publishes to in prod. Still behind the global InternalApiGuard (not PubSubPushGuard)
+// — this endpoint is the local/manual trigger path only. The jobs actually run via
+// BookingReminderTriggerHandler / AdminScheduleReminderTriggerHandler, both subscribed to this
+// same trigger and dispatched through the shared /pubsub/push receiver in prod.
 @Controller('cron')
 export class CronBookingController {
-  constructor(
-    private readonly bookingReminderJob: BookingReminderJob,
-    private readonly adminScheduleReminderJob: AdminScheduleReminderJob,
-  ) {}
+  constructor(@Inject(TRIGGER_BUS) private readonly triggerBus: ITriggerBus) {}
 
   @Post('reminders')
   @HttpCode(HttpStatus.OK)
   async reminders(): Promise<{ ok: boolean }> {
-    await this.bookingReminderJob.run();
-    await this.adminScheduleReminderJob.run();
+    await this.triggerBus.publishTrigger('cron-reminders');
     return { ok: true };
   }
 }

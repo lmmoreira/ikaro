@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DateTime } from 'luxon';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import {
+  CRON_RUN_LOG_REPOSITORY,
+  ICronRunLogRepository,
+} from '../../../../shared/ports/cron-run-log-repository.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { utcDateToLocalHHMM, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
@@ -11,6 +15,7 @@ import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-pl
 
 const WINDOW_START = '06:00';
 const WINDOW_END = '06:29';
+const REMINDER_TYPE = 'booking-admin-schedule-reminder';
 
 @Injectable()
 export class AdminScheduleReminderJob {
@@ -19,6 +24,7 @@ export class AdminScheduleReminderJob {
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(BOOKING_CUSTOMER_PORT) private readonly customerProfilePort: IBookingCustomerPort,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    @Inject(CRON_RUN_LOG_REPOSITORY) private readonly cronRunLogRepo: ICronRunLogRepository,
   ) {}
 
   async run(now: Date = new Date()): Promise<void> {
@@ -28,8 +34,12 @@ export class AdminScheduleReminderJob {
       const localHHMM = utcDateToLocalHHMM(now, tenant.timezone);
       if (localHHMM < WINDOW_START || localHHMM > WINDOW_END) continue;
 
-      const correlationId = uuidv7();
       const localToday = utcDateToLocalDate(now, tenant.timezone);
+      // Coarse per-tenant/day idempotency gate — a redelivered trigger for the same window
+      // must not re-publish the digest event with a fresh eventId (M17-S03).
+      if (await this.cronRunLogRepo.hasRun(tenant.id, localToday, REMINDER_TYPE)) continue;
+
+      const correlationId = uuidv7();
       const todayStart = DateTime.fromISO(localToday, { zone: tenant.timezone })
         .startOf('day')
         .toUTC()
@@ -56,6 +66,8 @@ export class AdminScheduleReminderJob {
           totalBookingsToday: bookingsToday.length,
         }),
       );
+
+      await this.cronRunLogRepo.markRun(tenant.id, localToday, REMINDER_TYPE);
     }
   }
 

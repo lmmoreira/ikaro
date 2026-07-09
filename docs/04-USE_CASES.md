@@ -657,14 +657,14 @@ Returns:
 
 - **Actor:** System (GCP Cloud Scheduler)
 - **Preconditions:** At least one tenant has customers with `LoyaltyEntry` rows whose `expires_at` falls within the warning window.
-- **Trigger:** GCP Cloud Scheduler fires `POST /cron/loyalty-expiry-warning` once a week (Mondays 06:00 UTC).
+- **Trigger:** GCP Cloud Scheduler publishes to the `ikaro-cron-loyalty-expiry-warning` Pub/Sub topic once a week (Mondays 06:00 UTC); the push subscription dispatches to `NotifyExpiringPointsTriggerHandler`, which calls `NotifyExpiringPointsJob.run()` (M17-S03 — local dev: `POST /cron/loyalty-expiry-warning` publishes the same trigger).
 - **Main Flow:**
-  1. Handler fetches all `LoyaltyEntry` rows where `expires_at BETWEEN now() AND now() + expiryWarningDays` across all tenants in a single query (all-tenant pass, same pattern as `POST /cron/loyalty-expiry`).
+  1. Job fetches all `LoyaltyEntry` rows where `expires_at BETWEEN now() AND now() + expiryWarningDays` across all tenants in a single query (all-tenant pass, same pattern as the daily expiry job).
   2. Groups entries by `(tenant_id, customer_id)`.
   3. For each group: computes `pointsExpiringSoon` (sum of `points`) and `earliestExpiresAt` (minimum `expires_at`).
   4. Publishes one `PointsExpiringSoon` event per customer.
   5. Notification context consumer receives the event, looks up the customer email via `INotificationCustomerPort`, and sends the warning email using the `points-expiring-soon` template.
-  6. Returns `{ processed: N }` where N is the number of customers notified.
+  6. `NotifyExpiringPointsJob.run()` returns `{ customersNotified: N }` internally (used for logging); the `POST /cron/loyalty-expiry-warning` HTTP response itself is just `{ ok: true }` once the trigger is published — it does not wait for the job to finish.
 
 - **Alternative Flows:**
   - **A1: No expiring entries found** → Handler returns `{ processed: 0 }` immediately. No events published.

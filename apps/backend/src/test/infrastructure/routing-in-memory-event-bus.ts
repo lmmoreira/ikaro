@@ -1,5 +1,6 @@
 import { DomainEvent } from '../../shared/domain/domain-event';
 import { IEventBus } from '../../shared/ports/event-bus.port';
+import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
 
 /**
  * Synchronous, in-process event bus for integration tests.
@@ -17,8 +18,9 @@ import { IEventBus } from '../../shared/ports/event-bus.port';
  * immediately after publish() returns, then explicitly republish to simulate
  * a deterministic retry.
  */
-export class RoutingInMemoryEventBus implements IEventBus {
+export class RoutingInMemoryEventBus implements IEventBus, ITriggerBus {
   private readonly handlers = new Map<string, Array<(event: DomainEvent) => Promise<void>>>();
+  private readonly triggerHandlers = new Map<string, Array<() => Promise<void>>>();
   readonly published: DomainEvent[] = [];
   private readonly queue: DomainEvent[] = [];
   private dispatching = false;
@@ -61,6 +63,25 @@ export class RoutingInMemoryEventBus implements IEventBus {
     const list = this.handlers.get(eventName) ?? [];
     list.push(handler as (event: DomainEvent) => Promise<void>);
     this.handlers.set(eventName, list);
+  }
+
+  registerTrigger(name: string, handler: () => Promise<void>, _consumerName: string): void {
+    const list = this.triggerHandlers.get(name) ?? [];
+    list.push(handler);
+    this.triggerHandlers.set(name, list);
+  }
+
+  // Unlike push mode in the real adapter (which rethrows so the controller responds 5xx), errors
+  // here are swallowed to match this class's own publish()/runHandlers() convention — deterministic,
+  // synchronous dispatch for integration-spec assertions immediately after the HTTP call resolves.
+  async publishTrigger(name: string): Promise<void> {
+    for (const handler of this.triggerHandlers.get(name) ?? []) {
+      try {
+        await handler();
+      } catch {
+        // swallow: matches this class's domain-event dispatch convention
+      }
+    }
   }
 
   clear(): void {

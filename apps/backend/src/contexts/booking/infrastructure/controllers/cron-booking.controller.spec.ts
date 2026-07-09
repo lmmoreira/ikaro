@@ -1,20 +1,16 @@
 import { CronBookingController } from './cron-booking.controller';
-import { BookingReminderJob } from '../../application/jobs/booking-reminder.job';
-import { AdminScheduleReminderJob } from '../../application/jobs/admin-schedule-reminder.job';
+import { ITriggerBus } from '../../../../shared/ports/trigger-bus.port';
 
 describe('CronBookingController', () => {
   let controller: CronBookingController;
-  let bookingReminderJob: jest.Mocked<BookingReminderJob>;
-  let adminScheduleReminderJob: jest.Mocked<AdminScheduleReminderJob>;
+  let triggerBus: jest.Mocked<ITriggerBus>;
 
   beforeEach(() => {
-    bookingReminderJob = {
-      run: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<BookingReminderJob>;
-    adminScheduleReminderJob = {
-      run: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<AdminScheduleReminderJob>;
-    controller = new CronBookingController(bookingReminderJob, adminScheduleReminderJob);
+    triggerBus = {
+      registerTrigger: jest.fn(),
+      publishTrigger: jest.fn().mockResolvedValue(undefined),
+    };
+    controller = new CronBookingController(triggerBus);
   });
 
   afterEach(() => jest.resetAllMocks());
@@ -24,27 +20,9 @@ describe('CronBookingController', () => {
     expect(result).toEqual({ ok: true });
   });
 
-  it('calls BookingReminderJob.run()', async () => {
+  it('publishes the cron-reminders trigger', async () => {
     await controller.reminders();
-    expect(bookingReminderJob.run).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls AdminScheduleReminderJob.run()', async () => {
-    await controller.reminders();
-    expect(adminScheduleReminderJob.run).toHaveBeenCalledTimes(1);
-  });
-
-  it('runs booking job before admin job', async () => {
-    const order: string[] = [];
-    bookingReminderJob.run.mockImplementation(async () => {
-      order.push('booking');
-    });
-    adminScheduleReminderJob.run.mockImplementation(async () => {
-      order.push('admin');
-    });
-
-    await controller.reminders();
-
-    expect(order).toEqual(['booking', 'admin']);
+    expect(triggerBus.publishTrigger).toHaveBeenCalledTimes(1);
+    expect(triggerBus.publishTrigger).toHaveBeenCalledWith('cron-reminders');
   });
 });

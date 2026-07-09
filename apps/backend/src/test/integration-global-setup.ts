@@ -17,6 +17,8 @@ import { CreateBookingBookings1748000000014 } from '../contexts/booking/infrastr
 import { AddBookingVersion1748000000015 } from '../contexts/booking/infrastructure/migrations/1748000000015-AddBookingVersion';
 import { AddBookingNotes1748400000002 } from '../contexts/booking/infrastructure/migrations/1748400000002-AddBookingNotes';
 import { AddBookingDiscountByPoints1748400000004 } from '../contexts/booking/infrastructure/migrations/1748400000004-AddBookingDiscountByPoints';
+import { CronRunLogEntity as BookingCronRunLogEntity } from '../contexts/booking/infrastructure/entities/cron-run-log.entity';
+import { CreateBookingCronRunLog1748400000005 } from '../contexts/booking/infrastructure/migrations/1748400000005-CreateBookingCronRunLog';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -25,9 +27,11 @@ import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entitie
 import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { ProcessedEventEntity } from '../contexts/loyalty/infrastructure/entities/processed-event.entity';
+import { CronRunLogEntity as LoyaltyCronRunLogEntity } from '../contexts/loyalty/infrastructure/entities/cron-run-log.entity';
 import { CreateLoyaltyLoyaltyEntries1748000000016 } from '../contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries';
 import { CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017 } from '../contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog';
 import { AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003 } from '../contexts/loyalty/infrastructure/migrations/1748400000003-AddLoyaltyRedemptionPointsPerCurrencyUnit';
+import { CreateLoyaltyCronRunLog1748400000006 } from '../contexts/loyalty/infrastructure/migrations/1748400000006-CreateLoyaltyCronRunLog';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { NotificationProcessedEventEntity } from '../contexts/notification/infrastructure/entities/processed-event.entity';
 import { NotificationTemplateEntity } from '../contexts/notification/infrastructure/entities/notification-template.entity';
@@ -78,6 +82,8 @@ export default async function globalSetup(): Promise<void> {
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
       ProcessedEventEntity,
+      BookingCronRunLogEntity,
+      LoyaltyCronRunLogEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,
@@ -101,9 +107,11 @@ export default async function globalSetup(): Promise<void> {
       AddBookingVersion1748000000015,
       AddBookingNotes1748400000002,
       AddBookingDiscountByPoints1748400000004,
+      CreateBookingCronRunLog1748400000005,
       CreateLoyaltyLoyaltyEntries1748000000016,
       CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017,
       AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003,
+      CreateLoyaltyCronRunLog1748400000006,
       AddSeoToHotsiteConfigs1748400000001,
     ],
     synchronize: false,

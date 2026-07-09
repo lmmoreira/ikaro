@@ -2,6 +2,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
+import { InMemoryCronRunLogRepository } from '../../../../test/infrastructure/in-memory-cron-run-log.repository';
 import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingReminderJob } from './booking-reminder.job';
@@ -33,6 +34,7 @@ describe('BookingReminderJob', () => {
   let bookingRepo: InMemoryBookingRepository;
   let customerProfilePort: InMemoryBookingCustomerPort;
   let eventBus: InMemoryEventBus;
+  let cronRunLogRepo: InMemoryCronRunLogRepository;
   let job: BookingReminderJob;
 
   beforeEach(() => {
@@ -40,7 +42,14 @@ describe('BookingReminderJob', () => {
     bookingRepo = new InMemoryBookingRepository();
     customerProfilePort = new InMemoryBookingCustomerPort();
     eventBus = new InMemoryEventBus();
-    job = new BookingReminderJob(tenantPort, bookingRepo, customerProfilePort, eventBus);
+    cronRunLogRepo = new InMemoryCronRunLogRepository();
+    job = new BookingReminderJob(
+      tenantPort,
+      bookingRepo,
+      customerProfilePort,
+      eventBus,
+      cronRunLogRepo,
+    );
   });
 
   afterEach(() => jest.resetAllMocks());
@@ -246,5 +255,22 @@ describe('BookingReminderJob', () => {
     expect(eventsA).toHaveLength(1);
     expect(eventsB).toHaveLength(1);
     expect(eventsA[0].correlationId).not.toBe(eventsB[0].correlationId);
+  });
+
+  it('does not double-publish reminder events on a second run within the same window', async () => {
+    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_IN)
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(TOMORROW)
+      .withLines([new BookingLineBuilder().build()])
+      .build();
+    await bookingRepo.save(booking);
+
+    await job.run(NOW_IN);
+    await job.run(NOW_IN);
+
+    const events = eventBus.published.filter((e) => e.eventName === 'BookingReminderDue');
+    expect(events).toHaveLength(1);
   });
 });

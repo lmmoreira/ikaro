@@ -13,8 +13,11 @@ import { BOOKING_PLATFORM_PORT } from './application/ports/booking-platform.port
 import { SCHEDULE_CLOSURE_REPOSITORY } from './application/ports/schedule-closure-repository.port';
 import { SCHEDULE_OPENING_REPOSITORY } from './application/ports/schedule-opening-repository.port';
 import { SERVICE_REPOSITORY } from './application/ports/service-repository.port';
+import { CRON_RUN_LOG_REPOSITORY } from '../../shared/ports/cron-run-log-repository.port';
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
+import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
+import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
 import { CloseScheduleUseCase } from './application/use-cases/close-schedule.use-case';
 import { ActivateServiceUseCase } from './application/use-cases/activate-service.use-case';
 import { CreateServiceUseCase } from './application/use-cases/create-service.use-case';
@@ -51,6 +54,7 @@ import { BookingLineEntity } from './infrastructure/entities/booking-line.entity
 import { ScheduleClosureEntity } from './infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from './infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from './infrastructure/entities/service.entity';
+import { CronRunLogEntity } from './infrastructure/entities/cron-run-log.entity';
 import { BookingCustomerAdapter } from './infrastructure/cross-context/booking-customer.adapter';
 import { BookingController } from './infrastructure/controllers/booking.controller';
 import { CronBookingController } from './infrastructure/controllers/cron-booking.controller';
@@ -65,6 +69,7 @@ import { TypeOrmBookingRepository } from './infrastructure/repositories/typeorm-
 import { TypeOrmScheduleClosureRepository } from './infrastructure/repositories/typeorm-schedule-closure.repository';
 import { TypeOrmScheduleOpeningRepository } from './infrastructure/repositories/typeorm-schedule-opening.repository';
 import { TypeOrmServiceRepository } from './infrastructure/repositories/typeorm-service.repository';
+import { TypeOrmCronRunLogRepository } from './infrastructure/repositories/typeorm-cron-run-log.repository';
 import { AvailabilityService } from './domain/services/availability.service';
 
 @Module({
@@ -75,6 +80,7 @@ import { AvailabilityService } from './domain/services/availability.service';
       ScheduleOpeningEntity,
       BookingEntity,
       BookingLineEntity,
+      CronRunLogEntity,
     ]),
     EventBusModule,
     RequestModule,
@@ -101,9 +107,12 @@ import { AvailabilityService } from './domain/services/availability.service';
     { provide: BOOKING_AVAILABILITY_PORT, useClass: TypeOrmBookingAvailabilityAdapter },
     { provide: BOOKING_REPOSITORY, useClass: TypeOrmBookingRepository },
     { provide: BOOKING_CUSTOMER_PORT, useClass: BookingCustomerAdapter },
+    { provide: CRON_RUN_LOG_REPOSITORY, useClass: TypeOrmCronRunLogRepository },
     AvailabilityService,
     BookingReminderJob,
     AdminScheduleReminderJob,
+    BookingReminderTriggerHandler,
+    AdminScheduleReminderTriggerHandler,
     BookingSlotConflictService,
     PhotoExistenceService,
     ActivateServiceUseCase,

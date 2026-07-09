@@ -15,6 +15,7 @@ import { BookingLineEntity } from '../../contexts/booking/infrastructure/entitie
 import { ScheduleClosureEntity } from '../../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../../contexts/booking/infrastructure/entities/service.entity';
+import { CronRunLogEntity } from '../../contexts/booking/infrastructure/entities/cron-run-log.entity';
 import { BookingModule } from '../../contexts/booking/booking.module';
 import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
@@ -54,6 +55,7 @@ export async function createBookingIntegrationApp(
           ScheduleOpeningEntity,
           BookingEntity,
           BookingLineEntity,
+          CronRunLogEntity,
         ],
         synchronize: false,
       }),

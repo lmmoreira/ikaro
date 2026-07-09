@@ -15,12 +15,13 @@ import { LoyaltyBalanceEntity } from '../../contexts/loyalty/infrastructure/enti
 import { LoyaltyEntryEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { ProcessedEventEntity } from '../../contexts/loyalty/infrastructure/entities/processed-event.entity';
+import { CronRunLogEntity } from '../../contexts/loyalty/infrastructure/entities/cron-run-log.entity';
 import { LOYALTY_BOOKING_PORT } from '../../contexts/loyalty/application/ports/loyalty-booking.port';
 import { LoyaltyModule } from '../../contexts/loyalty/loyalty.module';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../contexts/platform/platform.module';
-import { InMemoryEventBus } from '../infrastructure/in-memory-event-bus';
+import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
 import { InMemoryLoyaltyBookingPort } from '../infrastructure/in-memory-loyalty-booking.port';
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
 import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
@@ -31,10 +32,12 @@ export interface LoyaltyIntegrationAppResult {
   app: INestApplication;
   ds: DataSource;
   serviceCatalog: InMemoryLoyaltyBookingPort;
+  eventBus: RoutingInMemoryEventBus;
 }
 
 export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationAppResult> {
   const serviceCatalog = new InMemoryLoyaltyBookingPort();
+  const routingBus = new RoutingInMemoryEventBus();
 
   let builder: TestingModuleBuilder = Test.createTestingModule({
     imports: [
@@ -51,6 +54,7 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
           LoyaltyRedemptionEntity,
           BalanceExpiryLogEntity,
           ProcessedEventEntity,
+          CronRunLogEntity,
         ],
         synchronize: false,
       }),
@@ -65,7 +69,7 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
 
   builder = builder
     .overrideProvider(EVENT_BUS)
-    .useValue(new InMemoryEventBus())
+    .useValue(routingBus)
     .overrideProvider(LOYALTY_BOOKING_PORT)
     .useValue(serviceCatalog)
     .overrideProvider(STORAGE_SERVICE)
@@ -77,5 +81,5 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
   const app = moduleRef.createNestApplication();
   await app.init();
 
-  return { app, ds: moduleRef.get(DataSource), serviceCatalog };
+  return { app, ds: moduleRef.get(DataSource), serviceCatalog, eventBus: routingBus };
 }

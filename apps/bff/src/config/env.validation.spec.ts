@@ -12,7 +12,6 @@ describe('validateEnv()', () => {
     GOOGLE_CALLBACK_URL: 'http://localhost:3002/v1/auth/google/callback',
     ALLOWED_ORIGINS: 'http://localhost:3000',
     FRONTEND_URL: 'http://localhost:3000',
-    CRON_SECRET: 'b'.repeat(32),
     INTERNAL_API_KEY: 'c'.repeat(32),
   };
 

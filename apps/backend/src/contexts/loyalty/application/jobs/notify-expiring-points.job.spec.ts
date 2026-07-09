@@ -1,9 +1,10 @@
-import { InMemoryEventBus } from '../../../../../test/infrastructure/in-memory-event-bus';
-import { InMemoryLoyaltyEntryRepository } from '../../../../../test/infrastructure/in-memory-loyalty-entry.repository';
-import { InMemoryLoyaltyPlatformPort } from '../../../../../test/infrastructure/in-memory-loyalty-platform.port';
-import { LoyaltyEntryBuilder } from '../../../../../test/builders/loyalty/index';
-import { PointsExpiringSoon } from '../../../domain/events/points-expiring-soon.event';
-import { NotifyExpiringPointsUseCase } from './notify-expiring-points.use-case';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
+import { InMemoryLoyaltyPlatformPort } from '../../../../test/infrastructure/in-memory-loyalty-platform.port';
+import { InMemoryCronRunLogRepository } from '../../../../test/infrastructure/in-memory-cron-run-log.repository';
+import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
+import { PointsExpiringSoon } from '../../domain/events/points-expiring-soon.event';
+import { NotifyExpiringPointsJob } from './notify-expiring-points.job';
 
 const TENANT_A = 'aaaaaaaa-0000-4000-8000-000000001601';
 const TENANT_B = 'bbbbbbbb-0000-4000-8000-000000001601';
@@ -13,21 +14,23 @@ const CUSTOMER_2 = 'cccccccc-0002-4000-8000-000000001601';
 const soon = (daysFromNow: number): Date =>
   new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000);
 
-describe('NotifyExpiringPointsUseCase', () => {
-  let useCase: NotifyExpiringPointsUseCase;
+describe('NotifyExpiringPointsJob', () => {
+  let job: NotifyExpiringPointsJob;
   let entryRepo: InMemoryLoyaltyEntryRepository;
   let eventBus: InMemoryEventBus;
   let settingsPort: InMemoryLoyaltyPlatformPort;
+  let cronRunLogRepo: InMemoryCronRunLogRepository;
 
   beforeEach(() => {
     entryRepo = new InMemoryLoyaltyEntryRepository();
     eventBus = new InMemoryEventBus();
     settingsPort = new InMemoryLoyaltyPlatformPort();
-    useCase = new NotifyExpiringPointsUseCase(entryRepo, eventBus, settingsPort);
+    cronRunLogRepo = new InMemoryCronRunLogRepository();
+    job = new NotifyExpiringPointsJob(entryRepo, eventBus, settingsPort, cronRunLogRepo);
   });
 
   it('returns zero when no entries are expiring soon', async () => {
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.customersNotified).toBe(0);
     expect(eventBus.published).toHaveLength(0);
@@ -51,7 +54,7 @@ describe('NotifyExpiringPointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.customersNotified).toBe(1);
     const events = eventBus.published.filter((e) => e.eventName === 'PointsExpiringSoon');
@@ -80,7 +83,7 @@ describe('NotifyExpiringPointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.customersNotified).toBe(2);
     expect(eventBus.published.filter((e) => e.eventName === 'PointsExpiringSoon')).toHaveLength(2);
@@ -96,7 +99,7 @@ describe('NotifyExpiringPointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute(7);
+    const result = await job.run(new Date(), 7);
 
     expect(result.customersNotified).toBe(0);
     expect(eventBus.published).toHaveLength(0);
@@ -120,7 +123,7 @@ describe('NotifyExpiringPointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.customersNotified).toBe(2);
     const events = eventBus.published.filter(
@@ -143,7 +146,7 @@ describe('NotifyExpiringPointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.customersNotified).toBe(0);
     expect(eventBus.published).toHaveLength(0);
@@ -160,7 +163,7 @@ describe('NotifyExpiringPointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.customersNotified).toBe(1);
     expect(eventBus.published.filter((e) => e.eventName === 'PointsExpiringSoon')).toHaveLength(1);
@@ -185,12 +188,30 @@ describe('NotifyExpiringPointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.customersNotified).toBe(1);
     const events = eventBus.published.filter(
       (e) => e.eventName === 'PointsExpiringSoon',
     ) as PointsExpiringSoon[];
     expect(events[0].data.customerId).toBe(CUSTOMER_2);
+  });
+
+  it('does not double-publish on a second run for the same tenant on the same date', async () => {
+    await entryRepo.save(
+      new LoyaltyEntryBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_1)
+        .withPoints(10)
+        .withExpiresAt(soon(3))
+        .build(),
+    );
+    const now = new Date();
+
+    await job.run(now);
+    await job.run(now);
+
+    const events = eventBus.published.filter((e) => e.eventName === 'PointsExpiringSoon');
+    expect(events).toHaveLength(1);
   });
 });

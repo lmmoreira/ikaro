@@ -50,12 +50,12 @@ A bounded context is an autonomous domain with clear boundaries and its own mode
 - One immutable `LoyaltyEntry` is inserted each time a booking is completed for an authenticated customer. Append-only.
 - `LoyaltyBalance` holds the running active point total per `(tenant_id, customer_id)` — O(1) reads, updated atomically on earn/redeem/expiry.
 - `LoyaltyRedemption` records each time an admin redeems points for a customer. Append-only audit log.
-- A GCP Cloud Scheduler job calls `POST /cron/loyalty-expiry` at 02:00 UTC daily, which decrements `loyalty_balances.current_points` for entries whose `expires_at` has passed (idempotent via `balance_expiry_log`).
+- A GCP Cloud Scheduler job publishes to the `ikaro-cron-loyalty-expiry` Pub/Sub topic at 02:00 UTC daily; the push subscription dispatches to `ExpirePointsTriggerHandler`, which decrements `loyalty_balances.current_points` for entries whose `expires_at` has passed (idempotent via `balance_expiry_log`). `POST /cron/loyalty-expiry` publishes the same trigger for local/manual use (M17-S03).
 
 **Responsibilities:**
 - Append a `LoyaltyEntry` and increment `LoyaltyBalance` when `BookingCompleted` is consumed and the booking has a `customerId`.
 - Allow admin to record a redemption — decrement `LoyaltyBalance` atomically with the `LoyaltyRedemption` insert.
-- Expose `POST /cron/loyalty-expiry` — triggered by GCP Cloud Scheduler at 02:00 UTC to decrement balances for expired entries.
+- Run `ExpirePointsJob` daily (triggered by GCP Cloud Scheduler via Pub/Sub, `POST /cron/loyalty-expiry` locally) to decrement balances for expired entries.
 - Emit a notification when points are about to expire.
 
 **Key Aggregates:**
@@ -437,7 +437,7 @@ Example:
 
 #### **Aggregate: LoyaltyEntry** (Root Entity, immutable)
 
-A single record of points earned by a customer for one completed service. Append-only: rows are inserted on `BookingCompleted` and **never updated or deleted**. `expiresAt` marks when the points contributed by this entry stop being valid; the `loyalty_balances` decrement is applied by `POST /cron/loyalty-expiry` (triggered by GCP Cloud Scheduler) when that date passes.
+A single record of points earned by a customer for one completed service. Append-only: rows are inserted on `BookingCompleted` and **never updated or deleted**. `expiresAt` marks when the points contributed by this entry stop being valid; the `loyalty_balances` decrement is applied by `ExpirePointsJob` (triggered daily by GCP Cloud Scheduler via the `ikaro-cron-loyalty-expiry` Pub/Sub trigger) when that date passes.
 
 **Properties:**
 ```

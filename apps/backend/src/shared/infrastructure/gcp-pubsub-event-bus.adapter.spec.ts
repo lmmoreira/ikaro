@@ -46,6 +46,10 @@ const noopHandler = async (_e: DomainEvent): Promise<void> => {
   /* test stub */
 };
 
+const noopTriggerHandler = async (): Promise<void> => {
+  /* test stub */
+};
+
 function makeConfigService(overrides: Record<string, unknown> = {}): ConfigService {
   return {
     getOrThrow: (key: string): string => {
@@ -350,6 +354,142 @@ describe('GcpPubSubEventBusAdapter', () => {
         ).resolves.toBeUndefined();
         expect(handlerSpy).not.toHaveBeenCalled();
       });
+
+      it('routes to the trigger handler registered for the subscription, ahead of the DomainEvent path', async () => {
+        const triggerSpy = jest.fn().mockResolvedValue(undefined);
+        adapter.registerTrigger('cron-reminders', triggerSpy, 'booking-reminder');
+        await adapter.onApplicationBootstrap();
+
+        await adapter.dispatchPushMessage(
+          'projects/ikaro-local/subscriptions/ikaro-cron-reminders-booking-reminder',
+          Buffer.from('{}').toString('base64'),
+        );
+
+        expect(triggerSpy).toHaveBeenCalledTimes(1);
+        expect(triggerSpy).toHaveBeenCalledWith();
+      });
+
+      it('rethrows when the trigger handler fails, so the controller can respond 5xx', async () => {
+        const throwingTrigger = async (): Promise<void> => {
+          throw new Error('trigger boom');
+        };
+        adapter.registerTrigger('cron-reminders', throwingTrigger, 'booking-reminder');
+        await adapter.onApplicationBootstrap();
+
+        await expect(
+          adapter.dispatchPushMessage('ikaro-cron-reminders-booking-reminder', ''),
+        ).rejects.toThrow('trigger boom');
+      });
+    });
+  });
+
+  describe('registerTrigger() + publishTrigger()', () => {
+    it('publishes an empty payload to the trigger topic', async () => {
+      await adapter.publishTrigger('cron-reminders');
+
+      expect(mockTopicExists).toHaveBeenCalledTimes(1);
+      expect(mockPublishMessage).toHaveBeenCalledTimes(1);
+      const call = mockPublishMessage.mock.calls[0][0] as { data: Buffer };
+      expect(call.data.toString()).toBe('{}');
+    });
+
+    it('registers separate subscriptions for two consumers of the same trigger', async () => {
+      adapter.registerTrigger('cron-reminders', noopTriggerHandler, 'booking-reminder');
+      adapter.registerTrigger(
+        'cron-reminders',
+        noopTriggerHandler,
+        'booking-admin-schedule-reminder',
+      );
+      await adapter.onApplicationBootstrap();
+
+      expect(mockCreateSubscription).not.toHaveBeenCalled(); // subscriptions already "exist" per mock
+      // Each subscription registers 'message' and 'error' handlers (2 × 2 = 4 calls)
+      expect(mockSubOn).toHaveBeenCalledTimes(4);
+    });
+
+    it('one consumer failing does not prevent the other consumer of the same trigger from acking (isolation)', async () => {
+      const throwingHandler = async (): Promise<void> => {
+        throw new Error('boom');
+      };
+      const succeedingHandler = jest.fn().mockResolvedValue(undefined);
+      adapter.registerTrigger('cron-reminders', throwingHandler, 'booking-reminder');
+      adapter.registerTrigger(
+        'cron-reminders',
+        succeedingHandler,
+        'booking-admin-schedule-reminder',
+      );
+      await adapter.onApplicationBootstrap();
+
+      const messageHandlers = mockSubOn.mock.calls
+        .filter((c: unknown[]) => c[0] === 'message')
+        .map((c: unknown[]) => c[1] as (msg: unknown) => void);
+      expect(messageHandlers).toHaveLength(2);
+
+      const failingAck = jest.fn();
+      const failingNack = jest.fn();
+      const succeedingAck = jest.fn();
+      const succeedingNack = jest.fn();
+      messageHandlers[0]({ ack: failingAck, nack: failingNack, deliveryAttempt: 1 });
+      messageHandlers[1]({ ack: succeedingAck, nack: succeedingNack, deliveryAttempt: 1 });
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(failingNack).toHaveBeenCalledTimes(1);
+      expect(failingAck).not.toHaveBeenCalled();
+      expect(succeedingHandler).toHaveBeenCalledTimes(1);
+      expect(succeedingAck).toHaveBeenCalledTimes(1);
+      expect(succeedingNack).not.toHaveBeenCalled();
+    });
+
+    it('acks the pull message when the trigger handler succeeds', async () => {
+      adapter.registerTrigger('cron-reminders', noopTriggerHandler, 'booking-reminder');
+      await adapter.onApplicationBootstrap();
+
+      const messageHandler = mockSubOn.mock.calls.find(
+        (c: unknown[]) => c[0] === 'message',
+      )?.[1] as (msg: unknown) => void;
+
+      messageHandler({ ack: mockAck, nack: mockNack, deliveryAttempt: 1 });
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockAck).toHaveBeenCalledTimes(1);
+      expect(mockNack).not.toHaveBeenCalled();
+    });
+
+    it('nacks the pull message when the trigger handler throws below the retry threshold', async () => {
+      const throwingTrigger = async (): Promise<void> => {
+        throw new Error('boom');
+      };
+      adapter.registerTrigger('cron-reminders', throwingTrigger, 'booking-reminder');
+      await adapter.onApplicationBootstrap();
+
+      const messageHandler = mockSubOn.mock.calls.find(
+        (c: unknown[]) => c[0] === 'message',
+      )?.[1] as (msg: unknown) => void;
+
+      messageHandler({ ack: mockAck, nack: mockNack, deliveryAttempt: 1 });
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockNack).toHaveBeenCalledTimes(1);
+      expect(mockAck).not.toHaveBeenCalled();
+    });
+
+    it('acks (drops, no DLQ) when the trigger handler throws at the retry threshold', async () => {
+      const throwingTrigger = async (): Promise<void> => {
+        throw new Error('persistent failure');
+      };
+      adapter.registerTrigger('cron-reminders', throwingTrigger, 'booking-reminder');
+      await adapter.onApplicationBootstrap();
+
+      const messageHandler = mockSubOn.mock.calls.find(
+        (c: unknown[]) => c[0] === 'message',
+      )?.[1] as (msg: unknown) => void;
+
+      messageHandler({ ack: mockAck, nack: mockNack, deliveryAttempt: 5 });
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockAck).toHaveBeenCalledTimes(1);
+      expect(mockNack).not.toHaveBeenCalled();
+      expect(mockPublishMessage).not.toHaveBeenCalled(); // no DLQ publish for triggers
     });
   });
 });

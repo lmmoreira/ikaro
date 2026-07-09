@@ -378,8 +378,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 ---
 
 #### **PointsExpiringSoon**
-- **Trigger:** GCP Cloud Scheduler fires `POST /cron/loyalty-expiry-warning` once a week (Mondays 06:00 UTC). The handler finds all customers across all tenants who have `LoyaltyEntry` rows whose `expires_at` falls within the configured warning window (`settings.loyalty.expiryWarningDays`, default 7).
-- **Direction:** Forward-looking — this is a heads-up, not a post-mortem. Once `expires_at` actually passes, `POST /cron/loyalty-expiry` (triggered by GCP Cloud Scheduler at 02:00 UTC) decrements `loyalty_balances.current_points` for those entries.
+- **Trigger:** GCP Cloud Scheduler publishes to the `ikaro-cron-loyalty-expiry-warning` Pub/Sub topic once a week (Mondays 06:00 UTC); the push subscription dispatches to `NotifyExpiringPointsTriggerHandler`, which calls `NotifyExpiringPointsJob.run()` (M17-S03 — local dev: `POST /cron/loyalty-expiry-warning` publishes the same trigger). The job finds all customers across all tenants who have `LoyaltyEntry` rows whose `expires_at` falls within the configured warning window (`settings.loyalty.expiryWarningDays`, default 7).
+- **Direction:** Forward-looking — this is a heads-up, not a post-mortem. Once `expires_at` actually passes, the `ikaro-cron-loyalty-expiry` topic (daily, 02:00 UTC) dispatches to `ExpirePointsTriggerHandler`, which decrements `loyalty_balances.current_points` for those entries.
 - **Aggregation:** One event per customer per tenant — all expiring entries for a customer are aggregated into a single event.
 - **State change:** None — the weekly cron does not write any DB rows. It only computes and publishes.
 - **Data:**
@@ -393,7 +393,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Consumers:**
   - **Notification Context** → sends one email per customer: "Você tem [X] pontos prestes a expirar em [earliestExpiresAt]. Realize um agendamento para utilizá-los."
 
-> **No `PointsExpired` event.** When points actually expire, GCP Cloud Scheduler calls `POST /cron/loyalty-expiry` at 02:00 UTC, which decrements `loyalty_balances.current_points` and logs the processed entry IDs in `balance_expiry_log` (idempotent). No domain event is published — the customer was already warned in advance by `PointsExpiringSoon`.
+> **No `PointsExpired` event.** When points actually expire, the daily `ikaro-cron-loyalty-expiry` trigger dispatches to `ExpirePointsTriggerHandler`, which decrements `loyalty_balances.current_points` and logs the processed entry IDs in `balance_expiry_log` (idempotent). No domain event is published — the customer was already warned in advance by `PointsExpiringSoon`.
 
 > **No `PointsRedeemed` event.** Redemptions are recorded synchronously via `POST /v1/loyalty/redeem` (admin-only REST endpoint). The `loyalty_redemptions` table is the audit trail. No async event is needed — the balance decrement and redemption row are written atomically in the same HTTP transaction.
 

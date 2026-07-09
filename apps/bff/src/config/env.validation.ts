@@ -18,7 +18,6 @@ const schema = z.object({
   GOOGLE_CALLBACK_URL: z.url(),
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
   FRONTEND_URL: z.url().default('http://localhost:3000'),
-  CRON_SECRET: z.string().min(32, 'CRON_SECRET must be at least 32 characters'),
   ENABLE_DEV_AUTH: z.string().optional(),
   INTERNAL_API_KEY: z.string().min(32, 'INTERNAL_API_KEY must be at least 32 characters'),
 });
