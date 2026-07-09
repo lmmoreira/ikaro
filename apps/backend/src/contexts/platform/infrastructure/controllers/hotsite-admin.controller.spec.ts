@@ -13,6 +13,7 @@ import { FeatureBookingPhotoSchema } from '../../application/dtos/feature-bookin
 import { DeleteHotsiteImageUseCase } from '../../application/use-cases/delete-hotsite-image.use-case';
 import { DeleteHotsiteImageSchema } from '../../application/dtos/delete-hotsite-image.dto';
 import { HotsiteContentReader } from '../../application/services/hotsite-content-reader.service';
+import { HotsiteImagePromotionService } from '../../application/services/hotsite-image-promotion.service';
 import { GetHotsiteContentUseCase } from '../../application/use-cases/get-hotsite-content.use-case';
 import { UpdateHotsiteContentUseCase } from '../../application/use-cases/update-hotsite-content.use-case';
 import { PublishHotsiteUseCase } from '../../application/use-cases/publish-hotsite.use-case';
@@ -53,6 +54,7 @@ describe('HotsiteAdminController', () => {
     );
     const ctx = new RequestContextBuilder().withTenantId(TENANT_A).build();
     const txManager = new InMemoryTransactionManager();
+    const imagePathsService = new HotsiteImagePathsService();
     const hotsiteContentReader = new HotsiteContentReader(
       repo,
       storageService,
@@ -64,9 +66,9 @@ describe('HotsiteAdminController', () => {
       new GetHotsiteContentUseCase(hotsiteContentReader),
       new UpdateHotsiteContentUseCase(
         repo,
-        storageService,
         txManager,
-        new HotsiteImagePathsService(),
+        imagePathsService,
+        new HotsiteImagePromotionService(storageService, imagePathsService),
       ),
       new PublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
       new UnpublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),

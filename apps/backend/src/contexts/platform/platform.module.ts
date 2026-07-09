@@ -30,6 +30,7 @@ import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
 import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
+import { HotsiteImagePromotionService } from './application/services/hotsite-image-promotion.service';
 import { HotsiteAdminController } from './infrastructure/controllers/hotsite-admin.controller';
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
 import { InternalTenantController } from './infrastructure/controllers/internal-tenant.controller';
@@ -64,6 +65,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     HotsiteContentReader,
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },
     HotsiteImagePathsService,
+    HotsiteImagePromotionService,
     HotsiteImageUrlResolver,
     DeleteHotsiteImageUseCase,
     FeatureBookingPhotoUseCase,
