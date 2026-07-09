@@ -25,12 +25,19 @@ import { testCacheModule } from './test-cache-module';
 export interface PlatformIntegrationAppOptions {
   extraProviders?: Provider[];
   overrideProviders?: Array<{ provide: symbol | string; useValue: unknown }>;
+  /**
+   * Skip the STORAGE_SERVICE override, letting StorageModule's real GcsSignedUrlAdapter wire in
+   * against the real GCS emulator started in integration-global-setup.ts — only for specs that
+   * specifically need to exercise real bucket behavior (promotion, cross-bucket copy, delete).
+   * Defaults to false (every other integration spec keeps using InMemoryStorageService).
+   */
+  useRealStorage?: boolean;
 }
 
 export async function createPlatformIntegrationApp(
   options: PlatformIntegrationAppOptions = {},
 ): Promise<{ app: INestApplication; ds: DataSource }> {
-  const { extraProviders = [], overrideProviders = [] } = options;
+  const { extraProviders = [], overrideProviders = [], useRealStorage = false } = options;
 
   let builder = Test.createTestingModule({
     imports: [
@@ -51,12 +58,14 @@ export async function createPlatformIntegrationApp(
   })
     .overrideProvider(EVENT_BUS)
     .useValue(new InMemoryEventBus())
-    .overrideProvider(STORAGE_SERVICE)
-    .useValue(new InMemoryStorageService())
     .overrideProvider(FRONTEND_REVALIDATION_PORT)
     .useValue(new InMemoryFrontendRevalidationPort())
     .overrideProvider(TENANT_SETTINGS_PORT)
     .useValue(new InMemoryTenantSettingsPort());
+
+  if (!useRealStorage) {
+    builder = builder.overrideProvider(STORAGE_SERVICE).useValue(new InMemoryStorageService());
+  }
 
   for (const { provide, useValue } of overrideProviders) {
     builder = builder.overrideProvider(provide).useValue(useValue);
