@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchStaffService, fetchStaffServices, ServiceDetailFetchError } from './api';
+import {
+  fetchStaffService,
+  fetchStaffServices,
+  ServiceDetailFetchError,
+  ServiceListFetchError,
+} from './services.server';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 
 vi.mock('@/shared/lib/api/bff-server', () => ({
@@ -19,15 +24,17 @@ describe('fetchStaffServices', () => {
 
     const result = await fetchStaffServices('token-123');
 
-    expect(bffServerFetch).toHaveBeenCalledWith(
-      'token-123',
-      '/services',
-      expect.objectContaining({
-        signal: expect.any(AbortSignal),
-      }),
-    );
+    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/services');
     expect(result.items).toHaveLength(1);
     expect(result.total).toBe(1);
+  });
+
+  it('throws ServiceListFetchError on a non-2xx response', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(new Response(null, { status: 500 }));
+
+    await expect(fetchStaffServices('token-123')).rejects.toMatchObject(
+      new ServiceListFetchError(500, 'Failed to fetch services'),
+    );
   });
 });
 
@@ -40,9 +47,9 @@ describe('fetchStaffService', () => {
       }),
     );
 
-    const result = await fetchStaffService('token-123', 'svc-1');
+    const result = await fetchStaffService('token-123', 'svc/1');
 
-    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/services/svc-1');
+    expect(bffServerFetch).toHaveBeenCalledWith('token-123', '/services/svc%2F1');
     expect(result.serviceId).toBe('svc-1');
   });
 

@@ -89,12 +89,32 @@ bffServerFetch(token: string, path: string, init?: BffServerFetchInit): Promise<
 
 - Passes the JWT as `Cookie: access_token=<token>` — token comes from `(await cookies()).get('access_token')?.value ?? ''`
 - Default `cache: 'no-store'` — always fetches fresh data
-- **Never import in `'use client'` files** — `cookies()` is unavailable in the browser
+- Reuses the shared base transport (`bffPublicFetch`) for URL construction, timeout, and default request policy
+- **Never import in `'use client'` files** — server transport only
 
 Canonical callers:
-- feature-owned API helpers such as `features/booking/api/*.ts`, `features/customer/api/*.ts`, and `features/platform/hotsite/api/*.ts`
+- feature-owned authenticated API helpers such as `features/booking/api/staff.server.ts`, `features/customer/api.server.ts`, and `features/platform/api/tenant-settings.server.ts`
 - shell-owned route helpers under `shells/dashboard/**` when server-side composition needs BFF data
 - Route Handlers (`app/api/bookings/route.ts`, etc.) — these proxy BFF calls for React Query's client-side refetch
+
+### `bffPublicFetch(path, init?)` — public server-only
+
+**File:** `apps/web/shared/lib/api/bff-server.ts`
+
+```ts
+bffPublicFetch(path: string, init?: BffServerFetchInit): Promise<Response>
+```
+
+**Use in:** public or guest Server Components and Route Handlers that need the BFF base URL and centralized timeout/cache policy but do **not** authenticate with the dashboard cookie
+
+- Builds `NEXT_PUBLIC_BFF_URL + path`
+- Default `cache: 'no-store'`
+- Default timeout via `AbortSignal.timeout(8000)` when no signal is provided
+- Use this instead of a raw `fetch(NEXT_PUBLIC_BFF_URL + ...)` whenever the call is server-side but not cookie-authenticated
+
+Canonical callers:
+- guest/public server helpers such as `features/booking/api/public.server.ts`
+- future public Route Handlers that proxy guest-token or anonymous BFF reads
 
 ### `bffClient` — client-only axios instance
 
@@ -127,11 +147,12 @@ In these cases: **the Route Handler owns the `bffServerFetch` call; the hook cal
 
 | Context | Helper to use | Why |
 |---|---|---|
-| `page.tsx` / `layout.tsx` | `bffServerFetch(token, path)` | Runs on server; `cookies()` available |
-| `app/api/**/route.ts` | `bffServerFetch(token, path)` | Route Handler — server context |
+| `page.tsx` / `layout.tsx` (authenticated) | `bffServerFetch(token, path)` | Runs on server with cookie-authenticated BFF access |
+| `page.tsx` / `layout.tsx` (public or guest BFF call) | `bffPublicFetch(path, init?)` | Runs on server, but auth is not the dashboard cookie |
+| `app/api/**/route.ts` | `bffServerFetch(token, path)` or `bffPublicFetch(path, init?)` | Route Handler — choose by auth mode |
 | `features/**/hooks/use*.ts` | `bffClient.get(path)` | Runs in browser; cookie sent automatically |
-| `features/**/api/*.ts` fetchers | `bffServerFetch(token, path)` | Called from `page.tsx` / Route Handlers |
-| `'use client'` component | `bffClient` (via a hook) | Never call `bffServerFetch` client-side |
+| `features/**/api/*.server.ts` fetchers | `bffServerFetch(token, path)` or `bffPublicFetch(path, init?)` | Called from `page.tsx` / Route Handlers |
+| `'use client'` component | `bffClient` (via a hook) | Never call server transport helpers client-side |
 
 ---
 

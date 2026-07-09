@@ -7,7 +7,10 @@ import { FormattingProvider } from '@/providers/formatting-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
 import { DashboardShell } from '@/shells/dashboard/components/DashboardShell';
 import { DashboardTopbarStatusProvider } from '@/shells/dashboard/components/topbar-status-context';
-import { BookingDetailFetchError, fetchStaffBookingDetail } from '@/features/booking/api/staff';
+import {
+  BookingDetailFetchError,
+  fetchStaffBookingDetail,
+} from '@/features/booking/api/staff.server';
 import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
 import type { BookingStatus } from '@ikaro/types';
 import {

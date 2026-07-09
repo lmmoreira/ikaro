@@ -1,6 +1,6 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { fetchStaffList } from '@/features/staff/api';
+import { fetchStaffList } from '@/features/staff/api/staff.server';
 import { TeamListPage } from '@/features/staff/components/team/TeamListPage';
 
 interface TeamRouteProps {

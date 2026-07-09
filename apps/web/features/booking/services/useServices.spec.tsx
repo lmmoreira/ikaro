@@ -11,7 +11,7 @@ import {
   useUpdateService,
 } from './useServices';
 
-vi.mock('@/features/booking/services/api', () => ({
+vi.mock('@/features/booking/api/services', () => ({
   listServices: vi.fn().mockResolvedValue({ items: [] }),
   createService: vi.fn().mockResolvedValue({ id: 'svc-1', name: 'Lavagem' }),
   updateService: vi.fn().mockResolvedValue({ id: 'svc-1', name: 'Lavagem Premium' }),

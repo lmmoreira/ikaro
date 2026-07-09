@@ -6,7 +6,7 @@ import type { GalleryImage } from '@ikaro/types';
 import {
   deleteHotsiteImage,
   generateHotsiteImageSignedUrl,
-} from '@/features/platform/tenant-settings';
+} from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 import { resolveHotsiteImageDisplayUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { BookingPhotoPicker } from './BookingPhotoPicker';

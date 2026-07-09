@@ -164,8 +164,9 @@ When the user gives explicit references (a library, a URL, a named example, a pa
 
 **BFF modules** named after bounded context (`platform/`, not `tenants/`). Authenticated controller: `<context>.controller.ts`; public: `<context>.public.controller.ts`. Before adding a new request/response interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**`, grep `@ikaro/types` first — verify against the live BFF schema if shapes differ. Second mapper function → extract to `<module>.mapper.ts` (plain functions, not a class). → `docs/24-BFF_ARCHITECTURE.md`
 
-**Web → BFF transport:** Two helpers cover all calls — never write a raw `fetch()` URL outside them:
-- `bffServerFetch(token, path)` — server-only (`page.tsx`, `layout.tsx`, Route Handlers). Import from `@/shared/lib/api/bff-server`. Never in `'use client'` files.
+**Web → BFF transport:** Three helpers cover all calls — never write a raw `fetch()` URL outside them:
+- `bffServerFetch(token, path)` — authenticated server-only (`page.tsx`, `layout.tsx`, Route Handlers). Import from `@/shared/lib/api/bff-server`. Never in `'use client'` files.
+- `bffPublicFetch(path, init?)` — unauthenticated server-only BFF calls (public/guest flows from Server Components or Route Handlers). Import from `@/shared/lib/api/bff-server`. Never in `'use client'` files.
 - `bffClient` (axios, `withCredentials: true`) — client-only (React Query hooks). Import from `@/shared/lib/api/bff-client`. Never in Server Components.
 - `useTenant()` (`apps/web/providers/tenant-provider.tsx`) — only source of `tenantId` in hooks. Server layouts decode JWT and pass to `<TenantProvider>`.
 

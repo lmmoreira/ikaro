@@ -1,7 +1,8 @@
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
+import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
+import { resolveTenantFormatting } from '@/features/platform/model/tenant-settings';
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { resolveDateFormat } from '@/shared/lib/formatting/locale-validators';
-import { fetchTenantSettings, resolveTenantFormatting } from '@/features/platform/tenant-settings';
 
 export interface DashboardShellContext {
   readonly tenantName: string;

@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { fetchScheduleClosures, fetchScheduleOpenings } from './api';
+import {
+  fetchScheduleClosures,
+  fetchScheduleOpenings,
+  ScheduleFetchError,
+} from './schedule.server';
 
 vi.mock('@/shared/lib/api/bff-server', () => ({
   bffServerFetch: vi.fn(),
@@ -24,6 +28,14 @@ describe('fetchScheduleClosures', () => {
       '/schedule/closures?from=2026-07-01&to=2026-07-31',
     );
     expect(result.items).toHaveLength(0);
+  });
+
+  it('throws ScheduleFetchError on a non-ok response', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(new Response(null, { status: 500 }));
+
+    await expect(
+      fetchScheduleClosures('token-123', '2026-07-01', '2026-07-31'),
+    ).rejects.toMatchObject(new ScheduleFetchError(500));
   });
 });
 

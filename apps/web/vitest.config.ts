@@ -14,7 +14,7 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/.next/**', '**/e2e/**'],
     // components/hotsite specs run in jsdom — each spec file declares:
     //   // @vitest-environment jsdom
-    // lib/** stays in the default node environment with no change.
+    // shared/lib/** stays in the default node environment with no change.
     coverage: {
       provider: 'v8',
       reporter: ['lcov', 'text-summary'],
@@ -25,14 +25,7 @@ export default defineConfig({
         functions: 90,
         lines: 90,
       },
-      include: [
-        'lib/**',
-        'app/**',
-        'components/**',
-        'providers/**',
-        'features/**',
-        'playwright.config.ts',
-      ],
+      include: ['shared/lib/**', 'app/**', 'components/**', 'providers/**', 'features/**'],
       exclude: [
         '**/*.spec.*',
         '**/node_modules/**',
@@ -51,6 +44,7 @@ export default defineConfig({
       'next/font/google': path.resolve(__dirname, '__mocks__/next-font-google.ts'),
       'next/image': path.resolve(__dirname, '__mocks__/next-image.ts'),
       'next/link': path.resolve(__dirname, '__mocks__/next-link.ts'),
+      'client-only': path.resolve(__dirname, '__mocks__/client-only.ts'),
       'server-only': path.resolve(__dirname, '__mocks__/server-only.ts'),
     },
   },

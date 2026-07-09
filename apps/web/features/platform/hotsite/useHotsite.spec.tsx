@@ -12,7 +12,7 @@ import {
   useUpdateHotsiteConfig,
 } from './useHotsite';
 
-vi.mock('@/features/platform/tenant-settings', () => ({
+vi.mock('@/features/platform/api/tenant-settings', () => ({
   getHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, layout: [], seo: {} }),
   updateHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, layout: [], seo: {} }),
   publishHotsite: vi.fn().mockResolvedValue({ publishedAt: '' }),

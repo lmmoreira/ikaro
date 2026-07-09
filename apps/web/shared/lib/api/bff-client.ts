@@ -1,3 +1,4 @@
+import 'client-only';
 import axios from 'axios';
 import { ApiError, AuthError, ForbiddenError } from './errors';
 
