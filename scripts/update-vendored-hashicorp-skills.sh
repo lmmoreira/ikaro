@@ -14,12 +14,17 @@ SKILLS=(
   "terraform/module-generation/skills/terraform-stacks"
 )
 
-cd "$(git rev-parse --show-toplevel)"
-
 if ! command -v git >/dev/null 2>&1; then
   echo "git is required" >&2
   exit 1
 fi
+
+if ! repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  echo "Run this script from inside the ikaro git repository." >&2
+  exit 1
+fi
+
+cd "$repo_root"
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
@@ -62,5 +67,8 @@ echo "Vendored commit: $commit_sha"
 echo "Updated skills:"
 printf '  - %s\n' "${SKILLS[@]}"
 echo
+echo "Next step:"
+echo "  scripts/codex-skill.sh"
+echo
 echo "Review with:"
-echo "  git diff -- .claude/skills .copilot/context.md scripts/update-vendored-hashicorp-skills.sh"
+echo "  git diff -- .claude/skills .agents/skills .copilot/context.md scripts/update-vendored-hashicorp-skills.sh scripts/codex-skill.sh"
