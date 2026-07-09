@@ -72,4 +72,29 @@ describe('validateEnv()', () => {
     });
     expect(result.PUBSUB_CONSUMER_MODE).toBe('push');
   });
+
+  it('throws when APP_ENV != local and PUBSUB_AUTO_CREATE is left true, even in pull mode', () => {
+    expect(() => validateEnv({ ...valid, APP_ENV: 'staging' })).toThrow(
+      'PUBSUB_AUTO_CREATE must be false when APP_ENV is not "local"',
+    );
+  });
+
+  it('allows PUBSUB_AUTO_CREATE=true when APP_ENV=local, even outside pull mode', () => {
+    const result = validateEnv({
+      ...valid,
+      APP_ENV: 'local',
+      PUBSUB_CONSUMER_MODE: 'pull',
+    });
+    expect(result.PUBSUB_AUTO_CREATE).toBe(true);
+  });
+
+  it('accepts APP_ENV=staging with PUBSUB_AUTO_CREATE=false in pull mode', () => {
+    const result = validateEnv({
+      ...valid,
+      APP_ENV: 'staging',
+      PUBSUB_AUTO_CREATE: 'false',
+    });
+    expect(result.APP_ENV).toBe('staging');
+    expect(result.PUBSUB_AUTO_CREATE).toBe(false);
+  });
 });

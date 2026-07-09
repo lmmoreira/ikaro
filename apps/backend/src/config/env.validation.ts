@@ -61,6 +61,14 @@ const schema = z
           'PUBSUB_AUTO_CREATE must be false when PUBSUB_CONSUMER_MODE=push — Terraform pre-provisions all Pub/Sub resources in push mode',
       });
     }
+    if (data.APP_ENV !== 'local' && data.PUBSUB_AUTO_CREATE) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PUBSUB_AUTO_CREATE'],
+        message:
+          'PUBSUB_AUTO_CREATE must be false when APP_ENV is not "local" — Terraform owns all Pub/Sub resources in staging/production regardless of consumer mode',
+      });
+    }
     if (data.PUBSUB_CONSUMER_MODE === 'push') {
       if (!data.PUBSUB_PUSH_AUDIENCE) {
         ctx.addIssue({
