@@ -196,9 +196,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       // td/TD22-ORPHANED-UPLOAD-CLEANUP.md).
       setDraft((current) => ({
         ...current,
-        branding: updated.branding,
+        ...updated,
         layout: materializeLayout(updated.layout),
-        seo: updated.seo,
       }));
       await publishHotsite.mutateAsync();
       setView({ view: 'tabs' });
