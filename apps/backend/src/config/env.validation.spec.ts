@@ -79,7 +79,7 @@ describe('validateEnv()', () => {
     );
   });
 
-  it('allows PUBSUB_AUTO_CREATE=true when APP_ENV=local, even outside pull mode', () => {
+  it('allows PUBSUB_AUTO_CREATE=true when APP_ENV=local', () => {
     const result = validateEnv({
       ...valid,
       APP_ENV: 'local',

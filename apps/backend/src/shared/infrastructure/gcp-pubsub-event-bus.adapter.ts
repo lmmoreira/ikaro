@@ -4,6 +4,7 @@ import { Message, PubSub, Subscription } from '@google-cloud/pubsub';
 import { DomainEvent } from '../domain/domain-event';
 import { AppLogger } from '../observability/app-logger';
 import { IEventBus } from '../ports/event-bus.port';
+import { IPushableEventBus } from '../ports/pushable-event-bus.port';
 
 interface PendingSubscription {
   eventName: string;
@@ -14,7 +15,7 @@ interface PendingSubscription {
 
 @Injectable()
 export class GcpPubSubEventBusAdapter
-  implements IEventBus, OnApplicationBootstrap, OnModuleDestroy
+  implements IEventBus, IPushableEventBus, OnApplicationBootstrap, OnModuleDestroy
 {
   private readonly logger = new AppLogger(GcpPubSubEventBusAdapter.name);
   private readonly pubsub: PubSub;

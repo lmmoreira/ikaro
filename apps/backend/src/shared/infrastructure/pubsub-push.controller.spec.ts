@@ -1,14 +1,14 @@
 import { HttpException } from '@nestjs/common';
 import { PubSubPushController } from './pubsub-push.controller';
-import { GcpPubSubEventBusAdapter } from './gcp-pubsub-event-bus.adapter';
+import { IPushableEventBus } from '../ports/pushable-event-bus.port';
 
 describe('PubSubPushController', () => {
   let controller: PubSubPushController;
-  let eventBus: jest.Mocked<Pick<GcpPubSubEventBusAdapter, 'dispatchPushMessage'>>;
+  let eventBus: jest.Mocked<IPushableEventBus>;
 
   beforeEach(() => {
     eventBus = { dispatchPushMessage: jest.fn().mockResolvedValue(undefined) };
-    controller = new PubSubPushController(eventBus as unknown as GcpPubSubEventBusAdapter);
+    controller = new PubSubPushController(eventBus);
   });
 
   it('forwards the subscription and base64 data to the adapter', async () => {
@@ -49,5 +49,34 @@ describe('PubSubPushController', () => {
       expect(body['status']).toBe(500);
       expect(body['detail']).toBe('handler boom');
     }
+  });
+
+  it('acks instead of dispatching when message.data is missing (malformed envelope)', async () => {
+    await expect(
+      controller.push({
+        message: { messageId: 'm-4', attributes: {} } as unknown as {
+          data: string;
+          messageId: string;
+        },
+        subscription: 'sub',
+      }),
+    ).resolves.toBeUndefined();
+    expect(eventBus.dispatchPushMessage).not.toHaveBeenCalled();
+  });
+
+  it('acks instead of dispatching when message is missing entirely (malformed envelope)', async () => {
+    await expect(
+      controller.push({ subscription: 'sub' } as unknown as Parameters<typeof controller.push>[0]),
+    ).resolves.toBeUndefined();
+    expect(eventBus.dispatchPushMessage).not.toHaveBeenCalled();
+  });
+
+  it('acks instead of dispatching when subscription is missing (malformed envelope)', async () => {
+    await expect(
+      controller.push({
+        message: { data: 'x', messageId: 'm-5', attributes: {} },
+      } as unknown as Parameters<typeof controller.push>[0]),
+    ).resolves.toBeUndefined();
+    expect(eventBus.dispatchPushMessage).not.toHaveBeenCalled();
   });
 });

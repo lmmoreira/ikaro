@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { EVENT_BUS } from '../ports/event-bus.port';
+import { PUSHABLE_EVENT_BUS } from '../ports/pushable-event-bus.port';
 import { OIDC_TOKEN_VERIFIER, IOidcTokenVerifier } from '../ports/oidc-token-verifier.port';
 import { DomainEvent } from '../domain/domain-event';
 import { PubSubPushGuard } from '../guards/pubsub-push.guard';
@@ -71,6 +72,7 @@ describe('PubSubPushController (integration)', () => {
       providers: [
         { provide: ConfigService, useValue: fakeConfigService },
         { provide: EVENT_BUS, useClass: GcpPubSubEventBusAdapter },
+        { provide: PUSHABLE_EVENT_BUS, useExisting: EVENT_BUS },
         { provide: OIDC_TOKEN_VERIFIER, useValue: validVerifier },
         PubSubPushGuard,
       ],
@@ -126,11 +128,14 @@ describe('PubSubPushController (integration)', () => {
       subscription: 'projects/ikaro-local/subscriptions/ikaro-StubEvent-test-consumer',
     };
 
-    await request(app.getHttpServer())
+    const response = await request(app.getHttpServer())
       .post('/pubsub/push')
       .set('Authorization', 'Bearer fake-valid-token')
       .send(body)
       .expect(500);
+
+    expect(response.body.detail).toBe('handler boom');
+    expect(handlerSpy).toHaveBeenCalledTimes(1);
   });
 
   it('rejects with 403 when the Authorization header is missing', async () => {

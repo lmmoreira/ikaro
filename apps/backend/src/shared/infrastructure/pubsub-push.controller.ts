@@ -8,11 +8,11 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { EVENT_BUS } from '../ports/event-bus.port';
-import { GcpPubSubEventBusAdapter } from './gcp-pubsub-event-bus.adapter';
+import { PUSHABLE_EVENT_BUS, IPushableEventBus } from '../ports/pushable-event-bus.port';
 import { Public } from '../decorators/public.decorator';
 import { PubSubPushGuard } from '../guards/pubsub-push.guard';
 import { ProblemDetail } from '../http/problem-detail';
+import { AppLogger } from '../observability/app-logger';
 
 interface PubSubPushMessage {
   data: string;
@@ -33,11 +33,23 @@ interface PubSubPushBody {
 @UseGuards(PubSubPushGuard)
 @Controller('pubsub')
 export class PubSubPushController {
-  constructor(@Inject(EVENT_BUS) private readonly eventBus: GcpPubSubEventBusAdapter) {}
+  private readonly logger = new AppLogger(PubSubPushController.name);
+
+  constructor(@Inject(PUSHABLE_EVENT_BUS) private readonly eventBus: IPushableEventBus) {}
 
   @Post('push')
   @HttpCode(HttpStatus.NO_CONTENT)
   async push(@Body() body: PubSubPushBody): Promise<void> {
+    if (!body?.message?.data || !body?.subscription) {
+      // Malformed envelope — retrying will never fix a request this shape, so ack instead of
+      // triggering a Pub/Sub redelivery loop (mirrors dispatchPushMessage's own unparseable-payload
+      // and unregistered-subscription handling).
+      this.logger.error(
+        '[pubsub-push] malformed push envelope — acking to prevent redelivery loop',
+      );
+      return;
+    }
+
     try {
       await this.eventBus.dispatchPushMessage(body.subscription, body.message.data);
     } catch (err) {
