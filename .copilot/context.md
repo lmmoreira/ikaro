@@ -282,6 +282,9 @@ gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
 **Verify a bot's suggested fix against the actual source before applying:**
 - Bots often flag "inconsistencies" that are deliberate (e.g. different timezone conventions in two functions)
 - Severity labels (`Critical`) are not evidence — verify against framework source (`node_modules/.pnpm/...`)
+- **Check which commit range the review actually covers first** (stated in the review body, e.g. "between `<sha1>` and `<sha2>`") — local commits since then may have already fixed some findings. Cross-check each finding against the *current* file content, not the diff shown in the review, before triaging it as valid/stale/not-applicable.
+
+**If the branch conflicts with `main` after it's already been pushed and reviewed:** `git merge origin/main` into the feature branch, never rebase — rebasing rewrites the already-pushed commits and forces a `--force` push, which invalidates existing review/CI history on those commits. A regular merge commit + normal push keeps everything intact.
 
 ### Step 10 — Ask user before merging
 Ask: *"All checks are green on PR #N — happy to merge?"* Then:

@@ -1064,6 +1064,17 @@ Currently affected helpers and their default overrides:
 
 **Root cause gotcha — `useExisting` vs `useClass`:** if the shared module uses `useExisting` to register the adapter (`providers: [Adapter, { provide: TOKEN, useExisting: Adapter }]`), overriding the token in tests only removes the alias — the standalone `Adapter` class is still instantiated. Always use `useClass` in shared module providers so that overriding the token is sufficient to suppress instantiation.
 
+### Real-GCS-emulator integration tests (opt-in `useRealStorage`)
+
+Almost all integration tests use `InMemoryStorageService` (see the default-override rule above). One narrow exception exists: proving the upload/promote/delete storage lifecycle (tmp/ staging → copy → delete) actually works against a real GCS-compatible API, not just an in-memory double that can't catch bucket-target or signed-URL-shape mistakes.
+
+`createPlatformIntegrationApp({ useRealStorage: true })` skips the `STORAGE_SERVICE` override, wiring in the real `GcsSignedUrlAdapter` against a `fsouza/fake-gcs-server` Testcontainer (started once in `integration-global-setup.ts`, alongside Postgres). Use this option only for the specific spec(s) that need to assert real storage behavior — leave every other integration test on the in-memory default.
+
+Two non-obvious things had to be solved to make this container usable:
+
+- **Fixed port, not Testcontainers' dynamic assignment.** `fake-gcs-server`'s V4 signed URLs are only valid for the exact `host:port` the server was told to expect via `-public-host`/`-external-url` at startup — which must be known before the container's CMD args are set, so a dynamically-assigned port can't satisfy it. `GCS_TEST_PORT = 14443` is hardcoded in `integration-global-setup.ts` (deliberately different from `docker-compose.yml`'s `4443`, so it doesn't conflict with a developer's `pnpm infra:up`).
+- **`NODE_OPTIONS=--experimental-vm-modules` on `test:integration` only.** `@google-cloud/storage`'s transitive `teeny-request` dependency unconditionally does a dynamic `import('node-fetch')`, and `node-fetch@3` is pure ESM (no CJS entry) — this throws under Jest's default CJS mode. No dependency upgrade removes this (confirmed against the latest `@google-cloud/storage`/`teeny-request` at the time). The flag is scoped to the `test:integration` script only — it has no effect on `test`, `test:unit`, `dev`, or `build`.
+
 ### Notification integration spec helper
 
 All notification story integration specs must use `createNotificationIntegrationApp()` from `src/test/utils/notification-integration-app.ts`.

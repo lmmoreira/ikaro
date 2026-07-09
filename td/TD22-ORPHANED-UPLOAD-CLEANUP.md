@@ -1,6 +1,7 @@
 # TD22 — Orphaned Upload Cleanup: Unified `tmp/` Staging + Promote-on-Submit
 
 ## Status
+- **State**: Resolved (2026-07-09) — merged via PR #103
 - **Type**: Architecture / Storage cost & hygiene
 - **Priority**: Medium (no security exposure, but unbounded storage growth with zero cleanup — cost and eventual GCS listing/perf drag)
 - **Contexts affected**: `platform` (hotsite images), `booking` (attachment photos) — backend + BFF + web
