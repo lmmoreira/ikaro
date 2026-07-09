@@ -97,11 +97,9 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   const t = useTranslations('dashboard.hotsitePage');
   const [activeTab, setActiveTab] = useState<EditorTab>('branding');
   // useState(initial) only applies on mount — page.tsx renders this once per full page load, so
-  // `initial` never changes under an already-mounted editor today. If M13-S37 adds a save +
-  // refetch cycle that could pass a fresh `initial` prop into a still-mounted HotsiteEditor, the
-  // fix is a `key` on this component (forcing a clean remount), not a useEffect resync — this
-  // repo's react-hooks/set-state-in-effect lint rule forbids setState-in-effect for exactly this
-  // "adjust state to a prop" case, and there's no other call site today that needs it.
+  // `initial` itself never changes under an already-mounted editor. A save (handlePublish) DOES
+  // need to refresh this state afterward, but via an explicit setDraft() call using the mutation's
+  // response — not by feeding a new `initial` prop back in — see handlePublish's comment on why.
   const [draft, setDraft] = useState<HotsiteAdminContentResponse>(() => ({
     ...initial,
     layout: materializeLayout(initial.layout),
@@ -164,26 +162,43 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     t,
   ]);
 
+  // Any edit here invalidates the "this is already live" claim a publish/unpublish success
+  // banner makes — without clearing it, the banner from a previous publish keeps showing while
+  // the admin makes further, still-unsaved changes, making it look like those are live too.
   function setBranding(branding: HotsiteBrandingResponse): void {
     setDraft((current) => ({ ...current, branding }));
+    setActionBanner(null);
   }
 
   function setLayout(layout: HotsiteAdminContentResponse['layout']): void {
     setDraft((current) => ({ ...current, layout }));
+    setActionBanner(null);
   }
 
   function setSeo(seo: HotsiteSeoResponse): void {
     setDraft((current) => ({ ...current, seo }));
+    setActionBanner(null);
   }
 
   async function handlePublish(): Promise<void> {
     try {
       const stripped = stripResolvedImageUrls(draft.branding, draft.layout, tenantId);
-      await updateConfig.mutateAsync({
+      const updated = await updateConfig.mutateAsync({
         branding: stripped.branding,
         layout: stripped.layout,
         seo: draft.seo,
       });
+      // The PATCH response reflects any tmp/ -> permanent path promotion that just happened
+      // server-side (UpdateHotsiteContentUseCase rewrites the stored reference and returns it).
+      // Merge it back into `draft` — otherwise a still-unsaved tmp/ reference sits in local state
+      // forever, and a *later* save resubmits it even though its tmp/ object was already deleted
+      // by this promotion, failing with HotsiteImageNotUploadedError (see
+      // td/TD22-ORPHANED-UPLOAD-CLEANUP.md).
+      setDraft((current) => ({
+        ...current,
+        ...updated,
+        layout: materializeLayout(updated.layout),
+      }));
       await publishHotsite.mutateAsync();
       setView({ view: 'tabs' });
       setActionBanner({ kind: 'publish', status: 'success' });
@@ -222,6 +237,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       ...current,
       layout: current.layout.map((m) => (m.type === type ? { ...m, data: localData } : m)),
     }));
+    setActionBanner(null);
     setView({ view: 'tabs' });
   }
 
