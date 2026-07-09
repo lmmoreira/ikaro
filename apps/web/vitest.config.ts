@@ -25,13 +25,7 @@ export default defineConfig({
         functions: 90,
         lines: 90,
       },
-      include: [
-        'lib/**',
-        'app/**',
-        'components/**',
-        'providers/**',
-        'features/**',
-      ],
+      include: ['lib/**', 'app/**', 'components/**', 'providers/**', 'features/**'],
       exclude: [
         '**/*.spec.*',
         '**/node_modules/**',
