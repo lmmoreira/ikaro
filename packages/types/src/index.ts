@@ -3,6 +3,7 @@ export * from './money';
 export * from './address';
 export * from './pagination';
 export * from './errors.dto';
+export * from './error-codes';
 export * from './auth.dto';
 export * from './staff.dto';
 export * from './service.dto';
