@@ -56,6 +56,7 @@ function makeConfigService(overrides: Record<string, unknown> = {}): ConfigServi
       if (key === 'PUBSUB_SUBSCRIPTION_SUFFIX') return overrides[key] ?? defaultValue ?? '';
       if (key === 'PUBSUB_MAX_DELIVERY_ATTEMPTS') return overrides[key] ?? defaultValue ?? 5;
       if (key === 'PUBSUB_AUTO_CREATE') return overrides[key] ?? defaultValue ?? true;
+      if (key === 'PUBSUB_CONSUMER_MODE') return overrides[key] ?? defaultValue ?? 'pull';
       throw new Error(`Unknown config key: ${key}`);
     },
   } as unknown as ConfigService;
@@ -272,6 +273,83 @@ describe('GcpPubSubEventBusAdapter', () => {
       expect(mockTopicExists).not.toHaveBeenCalled();
       expect(mockSubscriptionExists).not.toHaveBeenCalled();
       expect(mockCreateSubscription).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('PUBSUB_CONSUMER_MODE=push', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      adapter = new GcpPubSubEventBusAdapter(
+        makeConfigService({ PUBSUB_CONSUMER_MODE: 'push', PUBSUB_AUTO_CREATE: false }),
+      );
+    });
+
+    it('does not open any streaming-pull subscription on bootstrap', async () => {
+      adapter.subscribe('StubEvent', noopHandler, 'test-consumer');
+      await adapter.onApplicationBootstrap();
+
+      expect(mockSubOn).not.toHaveBeenCalled();
+      expect(mockSubscriptionExists).not.toHaveBeenCalled();
+    });
+
+    describe('dispatchPushMessage()', () => {
+      it('routes to the handler registered for the subscription, stripping the full-name prefix', async () => {
+        const handlerSpy = jest.fn().mockResolvedValue(undefined);
+        adapter.subscribe('StubEvent', handlerSpy, 'test-consumer');
+        await adapter.onApplicationBootstrap();
+
+        const event = new StubEvent({ value: 'x' });
+        const base64Data = Buffer.from(JSON.stringify(event)).toString('base64');
+
+        await adapter.dispatchPushMessage(
+          'projects/ikaro-local/subscriptions/ikaro-StubEvent-test-consumer',
+          base64Data,
+        );
+
+        expect(handlerSpy).toHaveBeenCalledTimes(1);
+        const received = handlerSpy.mock.calls[0][0] as StubEvent;
+        expect(received.eventName).toBe('StubEvent');
+        expect(received.data.value).toBe('x');
+      });
+
+      it('rethrows when the handler fails, so the controller can respond 5xx', async () => {
+        const throwingHandler = async (): Promise<void> => {
+          throw new Error('handler boom');
+        };
+        adapter.subscribe('StubEvent', throwingHandler, 'test-consumer');
+        await adapter.onApplicationBootstrap();
+
+        const base64Data = Buffer.from(JSON.stringify(new StubEvent({ value: 'x' }))).toString(
+          'base64',
+        );
+
+        await expect(
+          adapter.dispatchPushMessage('ikaro-StubEvent-test-consumer', base64Data),
+        ).rejects.toThrow('handler boom');
+      });
+
+      it('does not throw for an unregistered subscription name', async () => {
+        await expect(
+          adapter.dispatchPushMessage(
+            'ikaro-Unknown-consumer',
+            Buffer.from('{}').toString('base64'),
+          ),
+        ).resolves.toBeUndefined();
+      });
+
+      it('does not throw for an unparseable payload', async () => {
+        const handlerSpy = jest.fn();
+        adapter.subscribe('StubEvent', handlerSpy, 'test-consumer');
+        await adapter.onApplicationBootstrap();
+
+        await expect(
+          adapter.dispatchPushMessage(
+            'ikaro-StubEvent-test-consumer',
+            Buffer.from('not-valid-json').toString('base64'),
+          ),
+        ).resolves.toBeUndefined();
+        expect(handlerSpy).not.toHaveBeenCalled();
+      });
     });
   });
 });

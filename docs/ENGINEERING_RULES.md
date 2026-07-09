@@ -238,6 +238,7 @@ Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**
 | Handler unit spec | `InMemoryEventBus` + call `handler.handle(event)` directly | Handler → use case logic in isolation |
 | Story integration spec | Real `EventBusModule` (no override) + `waitFor()` | Full publish → Pub/Sub → handler → DB chain |
 | Controller integration spec | Override `EVENT_BUS` with `InMemoryEventBus` | HTTP layer — no Pub/Sub needed |
+| Push-endpoint integration spec | Real `PubSubPushController` + `PubSubPushGuard` (verifier port overridden via DI, not the guard itself) + supertest against a synthetic push envelope | `PUBSUB_CONSUMER_MODE=push` — HTTP → guard → `dispatchPushMessage()` → handler, no real Pub/Sub or emulator needed (M17-S02) |
 
 `waitFor()` at `src/test/utils/wait-for.ts`. Use in story integration specs to poll async side effects.
 

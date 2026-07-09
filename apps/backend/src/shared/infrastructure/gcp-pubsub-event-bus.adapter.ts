@@ -4,6 +4,7 @@ import { Message, PubSub, Subscription } from '@google-cloud/pubsub';
 import { DomainEvent } from '../domain/domain-event';
 import { AppLogger } from '../observability/app-logger';
 import { IEventBus } from '../ports/event-bus.port';
+import { IPushableEventBus } from '../ports/pushable-event-bus.port';
 
 interface PendingSubscription {
   eventName: string;
@@ -14,7 +15,7 @@ interface PendingSubscription {
 
 @Injectable()
 export class GcpPubSubEventBusAdapter
-  implements IEventBus, OnApplicationBootstrap, OnModuleDestroy
+  implements IEventBus, IPushableEventBus, OnApplicationBootstrap, OnModuleDestroy
 {
   private readonly logger = new AppLogger(GcpPubSubEventBusAdapter.name);
   private readonly pubsub: PubSub;
@@ -58,6 +59,20 @@ export class GcpPubSubEventBusAdapter
   }
 
   async onApplicationBootstrap(): Promise<void> {
+    const mode = this.config.get<'pull' | 'push'>('PUBSUB_CONSUMER_MODE', 'pull');
+
+    if (mode === 'push') {
+      // Push mode: Pub/Sub POSTs to /pubsub/push instead of us holding a streaming-pull connection
+      // open — no subscriptions to open here, dispatchPushMessage() routes by subscription name.
+      this.logger.log(
+        `[pubsub] push mode — ${this.pending.size} handler(s) registered for /pubsub/push, no streaming pull opened`,
+      );
+      this.logger.warn(
+        '[pubsub] PUBSUB_MAX_DELIVERY_ATTEMPTS is inert in push mode — the Pub/Sub subscription retry/dead-letter policy owns redelivery',
+      );
+      return;
+    }
+
     for (const config of this.pending.values()) {
       await this.ensureTopicOnce(config.topicName);
       await this.ensureSubscription(config.topicName, config.subscriptionName);
@@ -113,6 +128,34 @@ export class GcpPubSubEventBusAdapter
         message.nack();
       }
     }
+  }
+
+  // PORTABILITY: the Pub/Sub push envelope shape (subscription full name + base64 data) is
+  // GCP-specific (D2 ledger) — confined to this one method. Success = return (controller ACKs with
+  // 204); throw = controller responds 5xx and Pub/Sub's own subscription retry/dead-letter policy
+  // (not app-level PUBSUB_MAX_DELIVERY_ATTEMPTS) owns redelivery in this mode.
+  async dispatchPushMessage(subscriptionFullName: string, base64Data: string): Promise<void> {
+    const subscriptionName = subscriptionFullName.split('/').pop() ?? subscriptionFullName;
+    const config = this.pending.get(subscriptionName);
+
+    if (!config) {
+      this.logger.error(
+        `[pubsub] push message for unregistered subscription "${subscriptionName}" — acking to prevent redelivery loop`,
+      );
+      return;
+    }
+
+    let event: DomainEvent;
+    try {
+      event = JSON.parse(Buffer.from(base64Data, 'base64').toString('utf8')) as DomainEvent;
+    } catch {
+      this.logger.error(
+        `[pubsub] unparseable push message on ${subscriptionName} — acking to prevent redelivery loop`,
+      );
+      return;
+    }
+
+    await config.handler(event);
   }
 
   private async publishToDlq(

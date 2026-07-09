@@ -4,6 +4,7 @@ import { validateEnvWithSchema } from '@ikaro/env-validation';
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'staging', 'production']).default('development'),
+    APP_ENV: z.enum(['local', 'staging', 'production']).default('local'),
     PORT: z.coerce.number().default(3001),
     DB_HOST: z.string().min(1, { message: 'DB_HOST is required' }),
     DB_PORT: z.coerce.number().default(5432),
@@ -19,7 +20,12 @@ const schema = z
     PUBSUB_EMULATOR_HOST: z.string().optional(),
     PUBSUB_PROJECT_ID: z.string().default('ikaro-local'),
     PUBSUB_MAX_DELIVERY_ATTEMPTS: z.coerce.number().int().min(1).default(5),
-    PUBSUB_AUTO_CREATE: z.coerce.boolean().default(true),
+    // z.stringbool() (not coerce.boolean(), which treats the *string* "false" as truthy)
+    // correctly parses real .env string values: "true"/"false" (and common synonyms).
+    PUBSUB_AUTO_CREATE: z.stringbool().default(true),
+    PUBSUB_CONSUMER_MODE: z.enum(['pull', 'push']).default('pull'),
+    PUBSUB_PUSH_AUDIENCE: z.string().optional(),
+    PUBSUB_PUSH_SERVICE_ACCOUNT: z.string().optional(),
     GCS_EMULATOR_HOST: z.string().optional(),
     GCS_BUCKET_NAME: z.string().default('ikaro-local'),
     GCS_PUBLIC_BUCKET_NAME: z.string().default('ikaro-local-public'),
@@ -46,6 +52,38 @@ const schema = z
         path: ['SENDGRID_API_KEY'],
         message: 'SENDGRID_API_KEY is required when EMAIL_ADAPTER=sendgrid',
       });
+    }
+    if (data.PUBSUB_CONSUMER_MODE === 'push' && data.PUBSUB_AUTO_CREATE) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PUBSUB_AUTO_CREATE'],
+        message:
+          'PUBSUB_AUTO_CREATE must be false when PUBSUB_CONSUMER_MODE=push — Terraform pre-provisions all Pub/Sub resources in push mode',
+      });
+    }
+    if (data.APP_ENV !== 'local' && data.PUBSUB_AUTO_CREATE) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PUBSUB_AUTO_CREATE'],
+        message:
+          'PUBSUB_AUTO_CREATE must be false when APP_ENV is not "local" — Terraform owns all Pub/Sub resources in staging/production regardless of consumer mode',
+      });
+    }
+    if (data.PUBSUB_CONSUMER_MODE === 'push') {
+      if (!data.PUBSUB_PUSH_AUDIENCE) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['PUBSUB_PUSH_AUDIENCE'],
+          message: 'PUBSUB_PUSH_AUDIENCE is required when PUBSUB_CONSUMER_MODE=push',
+        });
+      }
+      if (!data.PUBSUB_PUSH_SERVICE_ACCOUNT) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['PUBSUB_PUSH_SERVICE_ACCOUNT'],
+          message: 'PUBSUB_PUSH_SERVICE_ACCOUNT is required when PUBSUB_CONSUMER_MODE=push',
+        });
+      }
     }
   });
 

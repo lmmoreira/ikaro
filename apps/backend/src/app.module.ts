@@ -13,9 +13,15 @@ import { HealthController } from './health/health.controller';
 import { EventBusModule } from './shared/infrastructure/event-bus.module';
 import { TransactionManagerModule } from './shared/infrastructure/transaction-manager.module';
 import { InternalApiGuard } from './shared/guards/internal-api.guard';
+import { PubSubPushGuard } from './shared/guards/pubsub-push.guard';
 import { RequestInterceptor } from './shared/request/request.interceptor';
 import { RequestModule } from './shared/request/request.module';
 import { validateEnv } from './config/env.validation';
+import { PubSubPushController } from './shared/infrastructure/pubsub-push.controller';
+import { GoogleOidcTokenVerifier } from './shared/infrastructure/google-oidc-token-verifier.adapter';
+import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
+import { EVENT_BUS } from './shared/ports/event-bus.port';
+import { PUSHABLE_EVENT_BUS } from './shared/ports/pushable-event-bus.port';
 
 @Module({
   imports: [
@@ -48,10 +54,17 @@ import { validateEnv } from './config/env.validation';
     StaffModule,
     NotificationModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, PubSubPushController],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: RequestInterceptor },
     { provide: APP_GUARD, useClass: InternalApiGuard },
+    { provide: OIDC_TOKEN_VERIFIER, useClass: GoogleOidcTokenVerifier },
+    PubSubPushGuard,
+    // Token-to-token alias (not the useExisting-adapter-token anti-pattern from CLAUDE.md §8 —
+    // that's about `{ provide: TOKEN, useExisting: SomeClass }` where SomeClass is *also* a bare
+    // provider, double-instantiating it). This aliases PUSHABLE_EVENT_BUS to whatever EVENT_BUS
+    // resolves to — same singleton, and it correctly follows EVENT_BUS overrides in tests too.
+    { provide: PUSHABLE_EVENT_BUS, useExisting: EVENT_BUS },
   ],
 })
 export class AppModule {}
