@@ -5,12 +5,14 @@ import { BookingLineEntity } from '../contexts/booking/infrastructure/entities/b
 import { ScheduleClosureEntity } from '../contexts/booking/infrastructure/entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../contexts/booking/infrastructure/entities/schedule-opening.entity';
 import { ServiceEntity } from '../contexts/booking/infrastructure/entities/service.entity';
+import { CronRunLogEntity as BookingCronRunLogEntity } from '../contexts/booking/infrastructure/entities/cron-run-log.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { ProcessedEventEntity } from '../contexts/loyalty/infrastructure/entities/processed-event.entity';
+import { CronRunLogEntity as LoyaltyCronRunLogEntity } from '../contexts/loyalty/infrastructure/entities/cron-run-log.entity';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
@@ -48,6 +50,8 @@ export async function createTestDataSource(): Promise<DataSource> {
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
       ProcessedEventEntity,
+      BookingCronRunLogEntity,
+      LoyaltyCronRunLogEntity,
     ],
     synchronize: false,
     migrationsRun: false,
