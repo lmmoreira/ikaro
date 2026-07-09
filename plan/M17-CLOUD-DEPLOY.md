@@ -165,7 +165,7 @@ Before any HCL is written, vendor HashiCorp's official agent skills into this re
 
 ---
 
-### M17-S02 — Pub/Sub push-receiver mode in the event bus adapter
+### M17-S02 — Pub/Sub push-receiver mode in the event bus adapter ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
