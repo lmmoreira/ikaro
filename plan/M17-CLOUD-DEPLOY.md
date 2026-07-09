@@ -181,14 +181,17 @@ Before any HCL is written, vendor HashiCorp's official agent skills into this re
    { "message": { "data": "<base64 envelope>", "messageId": "…", "attributes": {}, "deliveryAttempt": 3 }, "subscription": "projects/<p>/subscriptions/ikaro-BookingCompleted-loyalty" }
    ```
    Decode base64 → the existing event envelope JSON → route to the handler registered for that subscription name (strip the `projects/<p>/subscriptions/` prefix). Return `204` on success (ack); rethrow → `5xx` (nack → Pub/Sub retries → DLQ after max attempts). Handler idempotency via `eventId` dedup already exists in use cases — unchanged.
-3. **`PubSubPushGuard`** (new, in `src/shared/guards/`): verifies the `Authorization: Bearer <OIDC>` token Google attaches to push requests — signature against Google JWKS (`https://www.googleapis.com/oauth2/v3/certs`), `iss` = `https://accounts.google.com`, `aud` = the push endpoint URL (env `PUBSUB_PUSH_AUDIENCE`), `email` = expected invoker SA (env `PUBSUB_PUSH_SERVICE_ACCOUNT`) and `email_verified=true`. Use `google-auth-library`'s `OAuth2Client.verifyIdToken` (already a transitive dep of `@google-cloud/pubsub`; add as direct dep). Guard rejects with `403` Problem Detail on any failure. Applied only to `/pubsub/push` (and `/cron/*` after S03). `InternalApiGuard` must exempt this route (it carries an OIDC token, not `INTERNAL_API_KEY` — mirror how the guard exemption for health routes works).
+3. **`PubSubPushGuard`** (new, in `src/shared/guards/`): verifies the `Authorization: Bearer <OIDC>` token Google attaches to push requests — signature against Google JWKS (`https://www.googleapis.com/oauth2/v3/certs`), `iss` = `https://accounts.google.com`, `aud` = the push endpoint URL (env `PUBSUB_PUSH_AUDIENCE`), `email` = expected invoker SA (env `PUBSUB_PUSH_SERVICE_ACCOUNT`) and `email_verified=true`. Use `google-auth-library`'s `OAuth2Client.verifyIdToken` (already a transitive dep of `@google-cloud/pubsub`; add as direct dep). Guard rejects with `403` Problem Detail on any failure. Applied only to `/pubsub/push` (and `/cron/*` after S03). `InternalApiGuard` must exempt this route — it carries an OIDC token, not `INTERNAL_API_KEY`. **No existing exemption pattern to reuse** (discovery, 2026-07-09): `InternalApiGuard` is a global `APP_GUARD` with zero path exemptions today, and `/health/*` currently (incorrectly) requires `X-Internal-Key` too. Add a `@Public()` decorator (`SetMetadata('isPublic', true)`) checked via `Reflector` inside `InternalApiGuard.canActivate()`; apply it to both `HealthController` (closing that pre-existing gap) and `PubSubPushController` (whose real auth is `PubSubPushGuard`, not the shared-secret guard).
 4. **Publish-side attribute:** ensure `publish()` sets `eventName` as a message attribute (needed for observability/filtering; verify — add if missing).
 5. **`PUBSUB_AUTO_CREATE`:** already env-controlled — in push mode auto-create must be OFF (Terraform pre-provisions everything); assert at bootstrap that `push` + `PUBSUB_AUTO_CREATE=true` is a startup error.
 6. **Retry/DLQ ownership moves to Pub/Sub in push mode:** the adapter's app-level delivery-attempt logic (`PUBSUB_MAX_DELIVERY_ATTEMPTS`) must be inert in push mode — Pub/Sub's subscription retry policy + dead-letter config (S19) own retries; app-level attempt counting on top would double-dead-letter. Guard: `push` mode ignores the var (log a warning if set) and the handler simply acks (2xx) or nacks (5xx).
+7. **`APP_ENV` (moved up from S06 — discovery, 2026-07-09):** add `APP_ENV=local|staging|production` (validated enum, default `local`) to the backend env schema in this story. S06 was already going to introduce this to distinguish staging from prod (`NODE_ENV=production` is shared by both cloud envs and can't make that distinction) — S02 needs it now to gate guard enforcement below without relying on the `NODE_ENV` coincidence. S06 no longer introduces the enum itself (see S06 cross-reference).
+8. **Guard enforcement derived from `APP_ENV` (no separate toggle — discovery, 2026-07-09):** `PubSubPushGuard` short-circuits to allow whenever `APP_ENV === 'local'`; OIDC verification only runs when `APP_ENV !== 'local'` (staging/production). No settable override var — nothing to misconfigure, no startup-error rule needed. This is what lets a developer `curl` `/pubsub/push` locally with a hand-built synthetic envelope, without a real Google-signed OIDC token. S03 reuses the same guard (and the same `APP_ENV` derivation) for `/cron/*`.
+9. **`PORTABILITY:` comment:** per anti-lock-in guardrail #3 (§0 Decisions Log), add a `PORTABILITY:` comment on the push-mode branch in the adapter, referencing the D2 ledger row — push mode is inherently Pub/Sub-shaped; the `IEventBus` port + this single adapter confine the migration cost.
 
 **Security notes:** the push endpoint is on the internal-ingress backend AND OIDC-verified — two layers. Never trust the `subscription` field for auth (it is attacker-controllable in principle); auth comes exclusively from the OIDC token.
 
-**Testing:** unit tests for the guard (valid/expired/wrong-aud/wrong-email tokens — use a stubbed verifier port so no network); integration test posting a synthetic push envelope through the endpoint with the guard overridden, asserting the correct use case fires; pull-mode integration tests unchanged and still green.
+**Testing:** unit tests for the guard (valid/expired/wrong-aud/wrong-email tokens — use a stubbed verifier port so no network); integration test posting a synthetic push envelope through the endpoint with the guard overridden, asserting the correct use case fires; pull-mode integration tests unchanged and still green. Add a 4th row to `docs/ENGINEERING_RULES.md`'s Event Handlers test-wiring table documenting this pattern (push-endpoint integration spec: guard overridden via DI, synthetic envelope posted through supertest) — the existing table only covers handler unit / story integration / controller integration specs.
 
 **Acceptance criteria:**
 - [ ] `PUBSUB_CONSUMER_MODE=push` → no streaming pull opened; `POST /pubsub/push` routes messages to the correct handler by subscription name
@@ -197,8 +200,10 @@ Before any HCL is written, vendor HashiCorp's official agent skills into this re
 - [ ] `push` + `PUBSUB_AUTO_CREATE=true` fails startup with a clear error
 - [ ] Local dev (`pnpm dev`, emulator) untouched: pull mode default, all existing integration tests pass
 - [ ] No `@google-cloud/*` import outside the adapter/guard infrastructure files
+- [ ] `APP_ENV` enum (`local|staging|production`, default `local`) validated in backend `env.validation.ts`
+- [ ] `/health/*` reachable without `X-Internal-Key` (via `@Public()`); `/pubsub/push` reachable without `X-Internal-Key` but still rejects without a valid OIDC token when `APP_ENV != local`
 
-**Dependencies:** none (parallelizable with S04–S06)
+**Dependencies:** none (parallelizable with S04–S05)
 
 ---
 
@@ -215,7 +220,7 @@ The cron controllers already exist on the backend (`cron-booking.controller.ts` 
 1. Apply `PubSubPushGuard` to both cron controllers. The push body (Scheduler → Pub/Sub message) is ignored — the endpoints take no input. Endpoints must tolerate the Pub/Sub push envelope as request body (accept and discard).
 2. Keep endpoints idempotent per delivery: the reminder job’s 06:00–06:29 window logic already tolerates repeated invocations within a window — add a spec asserting a second run in the same window doesn’t double-publish reminder events (check existing dedup; if absent, dedup on `(tenantId, date, reminderType)` — verify against M11 implementation before adding anything).
 3. Remove/deprecate `CRON_SECRET` on the BFF: it protects nothing anymore (cron never transits the BFF). Delete from `apps/bff/src/config/env.validation.ts` + `.env.example` + docs reference, or mark clearly as local-only if any local tooling uses it — grep first.
-4. Local dev: document (README section) how to trigger cron locally: `curl -X POST localhost:3001/cron/reminders` with the guard disabled outside production mode (`PUBSUB_PUSH_GUARD_ENFORCE=false` default in dev, `true` enforced when `NODE_ENV=production` — startup-validated).
+4. Local dev: document (README section) how to trigger cron locally: `curl -X POST localhost:3001/cron/reminders` — the guard is bypassed automatically under the local default (`APP_ENV=local`, per S02) and enforces OIDC verification whenever `APP_ENV != local`.
 
 **Acceptance criteria:**
 - [ ] `/cron/*` endpoints reject unauthenticated calls when guard enforcement is on
@@ -290,15 +295,16 @@ The cron controllers already exist on the backend (`cron-booking.controller.ts` 
 **Description:**
 Codify “this must never run in production” rules as startup errors, so a copy-pasted env file can’t create a hole.
 
-**`APP_ENV` first (fixes a real contradiction found in the 2026-07-07 full-plan review):** both cloud environments run `NODE_ENV=production` (that is how the Docker images are built — running Nest/Next otherwise is wrong), so `NODE_ENV` **cannot** distinguish staging from prod. Add `APP_ENV=local|staging|production` (validated enum, default `local`) to backend + BFF env schemas as the **deployment identity**; S18 sets it per environment. Rules that apply to *both* cloud envs key on `NODE_ENV=production`; rules that legitimately differ between staging and prod key on `APP_ENV`. Without this split, S27's `ENABLE_DEV_AUTH=true` in staging would trip rule 1 and the staging BFF would refuse to boot.
+**`APP_ENV`** (fixes a real contradiction found in the 2026-07-07 full-plan review — **enum now introduced in M17-S02, not here**, discovery 2026-07-09): both cloud environments run `NODE_ENV=production` (that is how the Docker images are built — running Nest/Next otherwise is wrong), so `NODE_ENV` **cannot** distinguish staging from prod. `APP_ENV=local|staging|production` (validated enum, default `local`) was added to the **backend** schema in **M17-S02** (it needed the enum to gate `PubSubPushGuard` enforcement without relying on the `NODE_ENV` coincidence). This story adds the same enum to the **BFF** schema; `S18` sets it per environment for both apps. Rules that apply to *both* cloud envs key on `NODE_ENV=production`; rules that legitimately differ between staging and prod key on `APP_ENV`. Without this split, S27's `ENABLE_DEV_AUTH=true` in staging would trip rule 1 and the staging BFF would refuse to boot.
 
 **Rules to enforce in `env.validation.ts` (Zod `superRefine`) of the respective app:**
 1. **BFF:** `APP_ENV=production` + `ENABLE_DEV_AUTH=true` → startup error (staging explicitly allowed — E2E depends on it; verify whether M115-S02 added a `NODE_ENV`-based guard and migrate it to `APP_ENV`).
 2. **backend:** `NODE_ENV=production` + `PUBSUB_AUTO_CREATE=true` → startup error.
 3. **backend:** `NODE_ENV=production` + `PUBSUB_CONSUMER_MODE` ≠ `push` → startup error (cloud runs push; pull in prod would silently drop events at scale-to-zero).
-4. **backend:** `NODE_ENV=production` + `PUBSUB_PUSH_GUARD_ENFORCE=false` → startup error.
-5. **backend:** `NODE_ENV=production` + `EMAIL_ADAPTER=smtp` (local MailHog path) → startup error unless explicitly allowed via a documented override var.
-6. **both:** `JWT_SECRET` length ≥ 64 in production. Note (2026-07-08): the backend **base** schema currently enforces min 32 (`apps/backend/src/config/env.validation.ts`) while the BFF enforces 64 — tighten the backend base schema to 64 in this story (one shared secret, one rule; update `.env.example`), not just a prod `superRefine`.
+4. **backend:** `NODE_ENV=production` + `EMAIL_ADAPTER=smtp` (local MailHog path) → startup error unless explicitly allowed via a documented override var.
+5. **both:** `JWT_SECRET` length ≥ 64 in production. Note (2026-07-08): the backend **base** schema currently enforces min 32 (`apps/backend/src/config/env.validation.ts`) while the BFF enforces 64 — tighten the backend base schema to 64 in this story (one shared secret, one rule; update `.env.example`), not just a prod `superRefine`.
+
+(Rule dropped, discovery 2026-07-09: `PUBSUB_PUSH_GUARD_ENFORCE` no longer exists — S02 derives guard enforcement directly from `APP_ENV !== 'local'` inside `PubSubPushGuard`, with no separate settable var, so there's nothing left to misconfigure here.)
 
 **Also in this story — `DB_POOL_SIZE` (backend):** add `DB_POOL_SIZE` to the backend env schema (optional int, default 10 for local dev) and wire it into the TypeORM datasource options (`poolSize`/`extra.max` — verify the exact option the pg driver honors in this TypeORM version). This is the serverless connection-math lever: every Cloud Run instance opens its own pool, so cloud envs set a small value (S18 sets `DB_POOL_SIZE=3`) to keep `max_instances × pool` under the DB tier's `max_connections`. See M17-S46 for the managed-pooling upgrade path.
 
@@ -308,7 +314,7 @@ Codify “this must never run in production” rules as startup errors, so a cop
 - [ ] `.env.example` files updated with the new vars and safe defaults
 - [ ] No behavior change in dev/test modes
 
-**Dependencies:** M17-S02, M17-S03 (var names exist)
+**Dependencies:** M17-S02 (`APP_ENV` enum + `PUBSUB_CONSUMER_MODE` var name exists), M17-S03 (cron var names exist)
 
 ---
 

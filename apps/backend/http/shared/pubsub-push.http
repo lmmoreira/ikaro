@@ -1,0 +1,79 @@
+# Shared — Pub/Sub Push Receiver
+# M17-S02: Pub/Sub POSTs each message here when PUBSUB_CONSUMER_MODE=push.
+# Authenticated by PubSubPushGuard (Google OIDC bearer token), NOT X-Internal-Key —
+# this route is @Public() so InternalApiGuard is bypassed for it.
+#
+# To exercise locally:
+#   1. pnpm --filter @ikaro/backend run dev
+#   2. APP_ENV=local (the default) bypasses PubSubPushGuard entirely — no real Authorization
+#      header is needed below. The guard only enforces when APP_ENV != local.
+#
+# The `data` field below is base64(JSON.stringify(domainEvent)) — this sample encodes
+# {"eventId":"...","eventName":"StubEvent","tenantId":"...", ...} for a handler registered
+# under subscription "ikaro-StubEvent-test-consumer". Swap for a real registered subscription
+# name + a real event envelope to test a specific consumer.
+
+@baseUrl = {{backendUrl}}
+
+### POST /pubsub/push — happy path (guard disabled locally)
+POST {{baseUrl}}/pubsub/push
+Content-Type: application/json
+
+{
+  "message": {
+    "data": "eyJldmVudElkIjoiMDFqZDBmYWtlLWlkIiwidGVuYW50SWQiOiJ0ZW5hbnQtMSIsIm9jY3VycmVkQXQiOiIyMDI2LTA3LTA5VDAwOjAwOjAwLjAwMFoiLCJjb3JyZWxhdGlvbklkIjoiY29ycmVsYXRpb24tMSIsImV2ZW50TmFtZSI6IlN0dWJFdmVudCIsImV2ZW50VmVyc2lvbiI6MSwiZGF0YSI6eyJ2YWx1ZSI6ImhlbGxvIn19",
+    "messageId": "test-message-1",
+    "attributes": { "eventName": "StubEvent" },
+    "deliveryAttempt": 1
+  },
+  "subscription": "projects/ikaro-local/subscriptions/ikaro-StubEvent-test-consumer"
+}
+
+###
+
+### POST /pubsub/push — missing Authorization header → 403 (requires APP_ENV=staging or production
+### temporarily — under the local default the guard is bypassed and this would 204 instead)
+POST {{baseUrl}}/pubsub/push
+Content-Type: application/json
+
+{
+  "message": {
+    "data": "eyJ0ZXN0IjoidHJ1ZSJ9",
+    "messageId": "test-message-2",
+    "attributes": {}
+  },
+  "subscription": "projects/ikaro-local/subscriptions/ikaro-StubEvent-test-consumer"
+}
+
+###
+
+### POST /pubsub/push — invalid/expired bearer token → 403 (same APP_ENV caveat as above)
+POST {{baseUrl}}/pubsub/push
+Content-Type: application/json
+Authorization: Bearer invalid-or-expired-token
+
+{
+  "message": {
+    "data": "eyJ0ZXN0IjoidHJ1ZSJ9",
+    "messageId": "test-message-3",
+    "attributes": {}
+  },
+  "subscription": "projects/ikaro-local/subscriptions/ikaro-StubEvent-test-consumer"
+}
+
+###
+
+### POST /pubsub/push — unregistered subscription name → acked (204), no handler invoked
+POST {{baseUrl}}/pubsub/push
+Content-Type: application/json
+
+{
+  "message": {
+    "data": "eyJ0ZXN0IjoidHJ1ZSJ9",
+    "messageId": "test-message-4",
+    "attributes": {}
+  },
+  "subscription": "projects/ikaro-local/subscriptions/ikaro-NoSuchConsumer"
+}
+
+###

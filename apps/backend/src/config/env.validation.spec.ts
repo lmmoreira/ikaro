@@ -38,4 +38,38 @@ describe('validateEnv()', () => {
       'ENV validation failed',
     );
   });
+
+  it('defaults APP_ENV to local and PUBSUB_CONSUMER_MODE to pull', () => {
+    const result = validateEnv(valid);
+    expect(result.APP_ENV).toBe('local');
+    expect(result.PUBSUB_CONSUMER_MODE).toBe('pull');
+  });
+
+  it('throws when PUBSUB_CONSUMER_MODE=push and PUBSUB_AUTO_CREATE is left true', () => {
+    expect(() =>
+      validateEnv({
+        ...valid,
+        PUBSUB_CONSUMER_MODE: 'push',
+        PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
+        PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
+      }),
+    ).toThrow('PUBSUB_AUTO_CREATE must be false when PUBSUB_CONSUMER_MODE=push');
+  });
+
+  it('throws when PUBSUB_CONSUMER_MODE=push without PUBSUB_PUSH_AUDIENCE or PUBSUB_PUSH_SERVICE_ACCOUNT', () => {
+    expect(() =>
+      validateEnv({ ...valid, PUBSUB_CONSUMER_MODE: 'push', PUBSUB_AUTO_CREATE: 'false' }),
+    ).toThrow('ENV validation failed');
+  });
+
+  it('accepts a fully configured push-mode env', () => {
+    const result = validateEnv({
+      ...valid,
+      PUBSUB_CONSUMER_MODE: 'push',
+      PUBSUB_AUTO_CREATE: 'false',
+      PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
+      PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
+    });
+    expect(result.PUBSUB_CONSUMER_MODE).toBe('push');
+  });
 });

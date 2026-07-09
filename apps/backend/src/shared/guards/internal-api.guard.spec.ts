@@ -1,5 +1,6 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import { InternalApiGuard } from './internal-api.guard';
 
 const TEST_KEY = 'a'.repeat(32);
@@ -11,6 +12,10 @@ const configService = {
   },
 } as unknown as ConfigService;
 
+function makeReflector(isPublic: boolean): Reflector {
+  return { getAllAndOverride: () => isPublic } as unknown as Reflector;
+}
+
 const makeContext = (internalKey?: string): ExecutionContext =>
   ({
     switchToHttp: () => ({
@@ -18,13 +23,20 @@ const makeContext = (internalKey?: string): ExecutionContext =>
         headers: internalKey ? { 'x-internal-key': internalKey } : {},
       }),
     }),
+    getHandler: () => undefined,
+    getClass: () => undefined,
   }) as unknown as ExecutionContext;
 
 describe('InternalApiGuard', () => {
   let guard: InternalApiGuard;
 
   beforeEach(() => {
-    guard = new InternalApiGuard(configService);
+    guard = new InternalApiGuard(configService, makeReflector(false));
+  });
+
+  it('allows a route marked @Public() without any key', () => {
+    const publicGuard = new InternalApiGuard(configService, makeReflector(true));
+    expect(publicGuard.canActivate(makeContext())).toBe(true);
   });
 
   it('returns true for a valid X-Internal-Key', () => {
