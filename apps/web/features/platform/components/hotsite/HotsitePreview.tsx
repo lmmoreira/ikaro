@@ -20,8 +20,11 @@ import {
   resolveHotsiteDisplayName,
 } from '@/features/platform/hotsite/page-model';
 import { resolveDraftImageUrls } from '@/features/platform/hotsite/resolve-draft-image-urls';
-import { hotsiteImageBaseUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
-import { generateHotsiteImageReadSignedUrl } from '@/features/platform/tenant-settings';
+import {
+  hotsiteImageBaseUrl,
+  isTmpImagePath,
+} from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import { generateHotsiteImageReadSignedUrl } from '@/features/platform/api/tenant-settings';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 import { HeroModule } from '@/shells/hotsite/components/HeroModule';
 import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
@@ -93,9 +96,11 @@ function useTmpSignedUrls(
   const [signedUrls, setSignedUrls] = useState<ReadonlyMap<string, string>>(new Map());
 
   useEffect(() => {
-    const tmpPaths = collectHotsiteImagePaths(branding, layout).filter((path) =>
-      path.startsWith('tmp/'),
-    );
+    // Deduped — the same tmp/ path can appear in more than one field (e.g. a reused image), and
+    // fetching a signed URL for it once is enough.
+    const tmpPaths = [
+      ...new Set(collectHotsiteImagePaths(branding, layout).filter(isTmpImagePath)),
+    ];
     if (tmpPaths.length === 0) return;
 
     let cancelled = false;

@@ -164,6 +164,56 @@ describe('SingleImageUploadField', () => {
     ).toHaveAttribute('src', 'https://storage.example.com/signed-read?sig=abc');
   });
 
+  it("does not show the previous tmp/ value's signed URL while a new tmp/ value is still resolving", async () => {
+    vi.mocked(generateHotsiteImageReadSignedUrl).mockResolvedValueOnce({
+      signedUrl: 'https://storage.example.com/signed-read-old?sig=old',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+
+    const { rerender } = renderWithIntl(
+      <SingleImageUploadField
+        id="hero-bg"
+        value="tmp/tenant-1/hero/u1/old.png"
+        onChange={vi.fn()}
+        purpose="hero"
+        {...LABELS}
+      />,
+    );
+
+    expect(
+      await screen.findByTestId('single-image-upload-preview', {}, { timeout: 3000 }),
+    ).toHaveAttribute('src', 'https://storage.example.com/signed-read-old?sig=old');
+
+    let resolveSecond!: (value: { signedUrl: string; expiresAt: string }) => void;
+    vi.mocked(generateHotsiteImageReadSignedUrl).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSecond = resolve;
+      }),
+    );
+
+    rerender(
+      <SingleImageUploadField
+        id="hero-bg"
+        value="tmp/tenant-1/hero/u2/new.png"
+        onChange={vi.fn()}
+        purpose="hero"
+        {...LABELS}
+      />,
+    );
+
+    // The stale old-value signed URL must be cleared immediately, before the new fetch resolves.
+    expect(queryByFieldId('single-image-upload-preview', 'hero-bg')).not.toBeInTheDocument();
+
+    resolveSecond({
+      signedUrl: 'https://storage.example.com/signed-read-new?sig=new',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+
+    expect(
+      await screen.findByTestId('single-image-upload-preview', {}, { timeout: 3000 }),
+    ).toHaveAttribute('src', 'https://storage.example.com/signed-read-new?sig=new');
+  });
+
   it('shows a retry-oriented error message when the upload fails', async () => {
     const user = userEvent.setup();
     vi.mocked(generateHotsiteImageSignedUrl).mockRejectedValue(new Error('network error'));

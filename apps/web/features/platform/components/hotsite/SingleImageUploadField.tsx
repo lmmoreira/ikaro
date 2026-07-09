@@ -7,7 +7,10 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
-import { resolveHotsiteImageDisplayUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import {
+  isTmpImagePath,
+  resolveHotsiteImageDisplayUrl,
+} from '@/features/platform/hotsite/resolve-hotsite-image-url';
 
 export type HotsiteImagePurpose =
   'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials';
@@ -59,18 +62,20 @@ export function SingleImageUploadField({
   // A not-yet-promoted tmp/ upload lives in the private bucket — it can't resolve via the
   // public-bucket string template, so re-mounting this field after the local blob preview is
   // gone (e.g. a tab switch) needs a fresh private signed read URL instead (see
-  // td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
-  const [remoteReadUrl, setRemoteReadUrl] = useState<string | null>(null);
+  // td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview). Tagged with the `value` it was
+  // resolved for, so a stale URL from a previous tmp/ value is never rendered against a new one
+  // while its own fetch is still pending — derived below, not reset via a synchronous setState
+  // in the effect (see https://react.dev/learn/you-might-not-need-an-effect).
+  const [remoteRead, setRemoteRead] = useState<{ value: string; url: string } | null>(null);
+  const remoteReadUrl = remoteRead?.value === value ? remoteRead.url : null;
 
   useEffect(() => {
-    // Only fetch when there's no local blob preview and the value is an unresolved tmp/ path —
-    // a stale remoteReadUrl from a previous value is harmless since displaySrc below only reads
-    // it in that same condition.
-    if (previewUrl || !value.startsWith('tmp/')) return;
+    // Only fetch when there's no local blob preview and the value is an unresolved tmp/ path.
+    if (previewUrl || !isTmpImagePath(value)) return;
     let cancelled = false;
     generateHotsiteImageReadSignedUrl(value)
       .then((res) => {
-        if (!cancelled) setRemoteReadUrl(res.signedUrl);
+        if (!cancelled) setRemoteRead({ value, url: res.signedUrl });
       })
       .catch(() => {
         // best-effort — an unresolved tmp/ image just shows nothing until reconciled
@@ -113,7 +118,7 @@ export function SingleImageUploadField({
     // A raw "tenants/<id>/hotsite/..." (already-promoted) or "tmp/<id>/..." (not-yet-promoted)
     // storage path can actually be deleted — a resolved public URL (the shape `value` has on
     // first load, straight from GET) doesn't match the delete endpoint's path validation.
-    if (value.startsWith('tenants/') || value.startsWith('tmp/')) {
+    if (value.startsWith('tenants/') || isTmpImagePath(value)) {
       try {
         await deleteHotsiteImage(value);
       } catch {
@@ -131,7 +136,7 @@ export function SingleImageUploadField({
   // is private-bucket only, so it resolves via remoteReadUrl (fetched above) instead of the
   // public-bucket string template.
   const displaySrc =
-    previewUrl ?? (value.startsWith('tmp/') ? remoteReadUrl : resolveHotsiteImageDisplayUrl(value));
+    previewUrl ?? (isTmpImagePath(value) ? remoteReadUrl : resolveHotsiteImageDisplayUrl(value));
 
   return (
     <div>

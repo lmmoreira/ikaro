@@ -1,6 +1,6 @@
 import type { HotsiteBrandingResponse, HotsiteModuleResponse } from '@ikaro/types';
 import { mapHotsiteImageFields } from './map-hotsite-image-fields';
-import { resolveHotsiteImageUrl } from './resolve-hotsite-image-url';
+import { isTmpImagePath, resolveHotsiteImageUrl } from './resolve-hotsite-image-url';
 
 // Mirror of stripResolvedImageUrls, opposite direction. HotsitePreview renders `draft` directly
 // through the M12 public render components (HeroModule, etc.), which pass image fields straight
@@ -19,7 +19,7 @@ export function resolveDraftImageUrls(
   tmpSignedUrls?: ReadonlyMap<string, string>,
 ): { branding: HotsiteBrandingResponse; layout: HotsiteModuleResponse[] } {
   return mapHotsiteImageFields(branding, layout, (value) => {
-    if (value.startsWith('tmp/')) return tmpSignedUrls?.get(value) ?? '';
+    if (isTmpImagePath(value)) return tmpSignedUrls?.get(value) ?? '';
     return resolveHotsiteImageUrl(value, baseUrl);
   });
 }

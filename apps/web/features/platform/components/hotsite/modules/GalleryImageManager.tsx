@@ -9,7 +9,10 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
-import { resolveHotsiteImageDisplayUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import {
+  isTmpImagePath,
+  resolveHotsiteImageDisplayUrl,
+} from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { BookingPhotoPicker } from './BookingPhotoPicker';
 
 interface GalleryImageManagerProps {
@@ -45,7 +48,7 @@ export function GalleryImageManager({
   useEffect(() => {
     const unresolved = images
       .map((image) => image.url)
-      .filter((url) => url.startsWith('tmp/') && !previewUrls.has(url) && !remoteReadUrls.has(url));
+      .filter((url) => isTmpImagePath(url) && !previewUrls.has(url) && !remoteReadUrls.has(url));
     if (unresolved.length === 0) return;
 
     let cancelled = false;
@@ -70,7 +73,7 @@ export function GalleryImageManager({
 
   function displayUrl(image: GalleryImage): string {
     if (previewUrls.has(image.url)) return previewUrls.get(image.url)!;
-    if (image.url.startsWith('tmp/')) return remoteReadUrls.get(image.url) ?? '';
+    if (isTmpImagePath(image.url)) return remoteReadUrls.get(image.url) ?? '';
     return resolveHotsiteImageDisplayUrl(image.url);
   }
 
@@ -106,7 +109,7 @@ export function GalleryImageManager({
     const previewUrl = previewUrls.get(image.url);
     if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
     previewUrls.delete(image.url);
-    if (image.url.startsWith('tenants/') || image.url.startsWith('tmp/')) {
+    if (image.url.startsWith('tenants/') || isTmpImagePath(image.url)) {
       try {
         await deleteHotsiteImage(image.url);
       } catch {

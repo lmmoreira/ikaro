@@ -6,7 +6,7 @@ import type { HotsiteAdminContentResponse, HotsiteManifestResponse } from '@ikar
 import { renderWithIntl } from '@/test-utils';
 import { fetchManifest } from '@/features/platform/api';
 import { fetchServices } from '@/features/platform/hotsite/api/services';
-import { generateHotsiteImageReadSignedUrl } from '@/features/platform/tenant-settings';
+import { generateHotsiteImageReadSignedUrl } from '@/features/platform/api/tenant-settings';
 import { HotsitePreview } from './HotsitePreview';
 
 vi.mock('@/providers/tenant-provider', () => ({
@@ -14,7 +14,7 @@ vi.mock('@/providers/tenant-provider', () => ({
 }));
 vi.mock('@/features/platform/api', () => ({ fetchManifest: vi.fn() }));
 vi.mock('@/features/platform/hotsite/api/services', () => ({ fetchServices: vi.fn() }));
-vi.mock('@/features/platform/tenant-settings', () => ({
+vi.mock('@/features/platform/api/tenant-settings', () => ({
   generateHotsiteImageReadSignedUrl: vi.fn(),
 }));
 
@@ -188,6 +188,41 @@ describe('HotsitePreview', () => {
         'https://storage.example.com/signed-read?sig=abc',
       );
     });
+  });
+
+  it('requests a signed URL only once for a tmp/ path referenced by more than one field', async () => {
+    mockFetchManifest.mockResolvedValue(makeManifest());
+    mockGenerateReadSignedUrl.mockResolvedValue({
+      signedUrl: 'https://storage.example.com/signed-read?sig=abc',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    const tmpPath = 'tmp/tenant-a-id/hero/019f420c-e46d-7f42-8524-4621e4642832/dfsda.png';
+    const draft = makeDraft({
+      branding: { ...makeManifest().branding, logoUrl: tmpPath },
+      layout: [
+        {
+          type: 'HERO',
+          enabled: true,
+          data: {
+            variant: 'centered',
+            title: 'Seu carro impecável',
+            ctaLabel: 'Agendar agora',
+            ctaTarget: 'booking-form',
+            backgroundImageUrl: tmpPath,
+          },
+        },
+      ],
+    });
+
+    renderWithIntl(<HotsitePreview draft={draft} onPublish={vi.fn()} isPublishing={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('hotsite-preview-content')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(mockGenerateReadSignedUrl).toHaveBeenCalledTimes(1);
+    });
+    expect(mockGenerateReadSignedUrl).toHaveBeenCalledWith(tmpPath);
   });
 
   it('fetches services only when a SERVICE_LIST module is enabled', async () => {
