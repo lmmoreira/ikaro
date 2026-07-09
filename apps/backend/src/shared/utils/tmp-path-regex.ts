@@ -3,7 +3,7 @@
 // tmp/<tenantId>/<purpose>/<uuid>/<fileName>. TMP_PATH_FRAGMENT (unanchored) only requires the
 // leading tmp/<tenantId>/ shape plus at least one more segment — composed into other schemas
 // (e.g. a logoUrl field that also accepts an already-permanent path) via string interpolation.
-export const TMP_PATH_FRAGMENT = 'tmp\\/[^/]+\\/.+';
+export const TMP_PATH_FRAGMENT = 'tmp/[^/]+/.+';
 
 /** tmp/<tenantId>/<anything> — hotsite uploads, where the tail shape (purpose/uuid/fileName) varies by purpose. */
 export const TMP_PATH_REGEX = new RegExp(`^${TMP_PATH_FRAGMENT}$`);

@@ -11,7 +11,7 @@ const SEO_DESCRIPTION_MESSAGE = {
 };
 // Accepts empty (to clear), an already-permanent hotsite image, or a not-yet-promoted tmp/
 // staging upload — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
-const LOGO_URL_REGEX = new RegExp(`^$|^tenants\\/[^/]+\\/hotsite\\/.+$|^${TMP_PATH_FRAGMENT}$`);
+const LOGO_URL_REGEX = new RegExp(`^$|^tenants/[^/]+/hotsite/.+$|^${TMP_PATH_FRAGMENT}$`);
 const LOGO_URL_MESSAGE = {
   message:
     'logoUrl must be empty (to clear), a tenants/<id>/hotsite/... storage path, or a tmp/<id>/... staging path',
