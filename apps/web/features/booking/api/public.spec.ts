@@ -13,11 +13,10 @@ import {
   createBooking,
   createGuestAttachmentSignedUrl,
   CreateBookingError,
-  fetchGuestBookingSummary,
-  GuestBookingReadError,
   submitGuestBookingInfo,
   SubmitGuestBookingInfoError,
 } from './public';
+import { fetchGuestBookingSummary, GuestBookingReadError } from './public.server';
 
 const BFF_URL = 'http://bff-test:3002';
 

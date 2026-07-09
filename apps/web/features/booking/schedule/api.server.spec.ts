@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { fetchScheduleClosures, fetchScheduleOpenings } from './api';
+import { fetchScheduleClosures, fetchScheduleOpenings } from './api.server';
 
 vi.mock('@/shared/lib/api/bff-server', () => ({
   bffServerFetch: vi.fn(),

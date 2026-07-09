@@ -7,7 +7,6 @@ import type {
   ScheduleOpeningListResponse,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
-import { bffServerFetch } from '@/shared/lib/api/bff-server';
 
 export type {
   CreateClosureRequest,
@@ -18,32 +17,11 @@ export type {
   ScheduleOpeningListResponse,
 };
 
-function buildRangeQuery(from: string, to: string): string {
-  return new URLSearchParams({ from, to }).toString();
-}
-
-async function fetchScheduleResponse<T>(token: string, path: string): Promise<T> {
-  const res = await bffServerFetch(token, path);
-  if (!res.ok) throw new Error(`Failed to fetch ${path} (${res.status})`);
-  return res.json() as Promise<T>;
-}
-
 export async function listClosures(from: string, to: string): Promise<ScheduleClosureListResponse> {
   const res = await bffClient.get<ScheduleClosureListResponse>('/schedule/closures', {
     params: { from, to },
   });
   return res.data;
-}
-
-export async function fetchScheduleClosures(
-  token: string,
-  from: string,
-  to: string,
-): Promise<ScheduleClosureListResponse> {
-  return fetchScheduleResponse<ScheduleClosureListResponse>(
-    token,
-    `/schedule/closures?${buildRangeQuery(from, to)}`,
-  );
 }
 
 export async function createClosure(body: CreateClosureRequest): Promise<ScheduleClosure> {
@@ -60,17 +38,6 @@ export async function listOpenings(from: string, to: string): Promise<ScheduleOp
     params: { from, to },
   });
   return res.data;
-}
-
-export async function fetchScheduleOpenings(
-  token: string,
-  from: string,
-  to: string,
-): Promise<ScheduleOpeningListResponse> {
-  return fetchScheduleResponse<ScheduleOpeningListResponse>(
-    token,
-    `/schedule/openings?${buildRangeQuery(from, to)}`,
-  );
 }
 
 export async function createOpening(body: CreateOpeningRequest): Promise<ScheduleOpening> {

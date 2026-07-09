@@ -9,19 +9,12 @@ import type {
   RenameTenantRequest,
   RenameTenantResponse,
 } from '@ikaro/types';
-import { countrySpec } from '@ikaro/i18n';
-import type { DateFormat } from '@ikaro/i18n';
 import { bffClient } from '@/shared/lib/api/bff-client';
-import { bffServerFetch } from '@/shared/lib/api/bff-server';
-
-export interface TenantFormattingConfig {
-  readonly locale: string;
-  readonly currency: string;
-  readonly currencySymbol?: string;
-  readonly timezone: string;
-  readonly dateFormat: DateFormat;
-  readonly timeFormat: '24h' | '12h';
-}
+export {
+  resolveTenantFormatting,
+  resolveWelcomeStaffScreenDays,
+  type TenantFormattingConfig,
+} from './tenant-settings.shared';
 
 export interface UpdateHotsiteModuleRequest {
   readonly type: string;
@@ -76,14 +69,6 @@ export async function getHotsiteConfig(): Promise<HotsiteAdminContentResponse> {
   return res.data;
 }
 
-// Server-side only — the editor must never pre-fill stale values after a save, same rationale
-// as fetchTenantSettingsFresh.
-export async function fetchHotsiteConfig(token: string): Promise<HotsiteAdminContentResponse> {
-  const res = await bffServerFetch(token, '/tenants/hotsite', { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Failed to fetch hotsite config (${res.status})`);
-  return res.json() as Promise<HotsiteAdminContentResponse>;
-}
-
 export async function updateHotsiteConfig(
   body: UpdateHotsiteRequest,
 ): Promise<HotsiteAdminContentResponse> {
@@ -125,22 +110,6 @@ export async function deleteHotsiteImage(filePath: string): Promise<void> {
   await bffClient.post('/tenants/hotsite/images/delete', { filePath });
 }
 
-// Server-side only — reads the auth cookie directly (called from layout server components).
-export async function fetchTenantSettings(token: string): Promise<TenantSettingsResponse> {
-  const res = await bffServerFetch(token, '/tenants/settings', {
-    next: { revalidate: 300 },
-  });
-  if (!res.ok) throw new Error(`Failed to fetch tenant settings (${res.status})`);
-  return res.json() as Promise<TenantSettingsResponse>;
-}
-
-// Server-side, uncached — the settings form must never pre-fill stale values after a save.
-export async function fetchTenantSettingsFresh(token: string): Promise<TenantSettingsResponse> {
-  const res = await bffServerFetch(token, '/tenants/settings', { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Failed to fetch tenant settings (${res.status})`);
-  return res.json() as Promise<TenantSettingsResponse>;
-}
-
 export async function updateTenantSettings(
   body: UpdateTenantSettingsRequest,
 ): Promise<TenantSettingsResponse> {
@@ -153,20 +122,4 @@ export async function updateTenantSettings(
 export async function renameTenant(body: RenameTenantRequest): Promise<RenameTenantResponse> {
   const res = await bffClient.patch<RenameTenantResponse>('/tenants', body);
   return res.data;
-}
-
-export function resolveTenantFormatting(tenant: TenantSettingsResponse): TenantFormattingConfig {
-  const spec = countrySpec(tenant.settings.localization.countryCode);
-  return {
-    locale: tenant.settings.localization.language,
-    currency: tenant.settings.localization.currency,
-    currencySymbol: tenant.settings.localization.currencySymbol,
-    timezone: tenant.settings.businessHours.timezone,
-    dateFormat: spec.dateFormat,
-    timeFormat: spec.timeFormat,
-  };
-}
-
-export function resolveWelcomeStaffScreenDays(tenant: TenantSettingsResponse): number {
-  return tenant.settings.booking.welcomeStaffScreenDays ?? 14;
 }

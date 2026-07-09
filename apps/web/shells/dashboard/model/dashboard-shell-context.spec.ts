@@ -1,8 +1,9 @@
 import type { TenantSettingsResponse } from '@ikaro/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
+import { resolveTenantFormatting } from '@/features/platform/tenant-settings.shared';
+import { fetchTenantSettings } from '@/features/platform/tenant-settings.server';
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
-import { fetchTenantSettings, resolveTenantFormatting } from '@/features/platform/tenant-settings';
 import {
   buildDashboardShellContext,
   loadDashboardShellContext,
@@ -17,8 +18,9 @@ vi.mock('@/shared/lib/i18n/get-messages', async (importOriginal) => {
   };
 });
 
-vi.mock('@/features/platform/tenant-settings', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/features/platform/tenant-settings')>();
+vi.mock('@/features/platform/tenant-settings.server', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/features/platform/tenant-settings.server')>();
   return {
     ...actual,
     fetchTenantSettings: vi.fn(),

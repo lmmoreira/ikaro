@@ -1,10 +1,8 @@
 import { BookingQueuePage } from '@/features/booking/components/dashboard/bookings/BookingQueuePage';
 import { getAccessToken } from '@/features/auth/get-access-token';
-import { listBookings } from '@/features/booking/api/staff';
-import {
-  fetchTenantSettings,
-  resolveWelcomeStaffScreenDays,
-} from '@/features/platform/tenant-settings';
+import { listBookings } from '@/features/booking/api/staff.server';
+import { resolveWelcomeStaffScreenDays } from '@/features/platform/tenant-settings.shared';
+import { fetchTenantSettings } from '@/features/platform/tenant-settings.server';
 import { addDays, toDateKey } from '@/shared/utils/date-utils';
 
 export default async function BookingsPage(): Promise<React.JSX.Element> {
@@ -21,9 +19,9 @@ export default async function BookingsPage(): Promise<React.JSX.Element> {
   const windowEnd = toDateKey(addDays(now, welcomeStaffScreenDays - 1));
 
   const [actionNeeded, todayBookings, upcoming] = await Promise.all([
-    listBookings({ status: 'PENDING,INFO_REQUESTED', from: today, to: windowEnd }, token),
-    listBookings({ status: 'APPROVED', date: today }, token),
-    listBookings({ status: 'APPROVED', from: tomorrow, to: windowEnd }, token),
+    listBookings(token, { status: 'PENDING,INFO_REQUESTED', from: today, to: windowEnd }),
+    listBookings(token, { status: 'APPROVED', date: today }),
+    listBookings(token, { status: 'APPROVED', from: tomorrow, to: windowEnd }),
   ]);
 
   return (

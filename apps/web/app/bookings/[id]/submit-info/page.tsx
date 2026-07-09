@@ -1,9 +1,12 @@
 import type React from 'react';
 import type { HotsiteManifestResponse, GuestBookingReadResponse } from '@ikaro/types';
+import {
+  fetchGuestBookingSummary,
+  GuestBookingReadError,
+} from '@/features/booking/api/public.server';
 import { SubmitInfoForm } from '@/features/booking/components/public/SubmitInfoForm';
 import { InvalidLinkView } from '@/features/booking/components/public/InvalidLinkView';
 import { verifyGuestToken, decodeUnverifiedTenantSlug } from '@/features/booking/model/guest-token';
-import { fetchGuestBookingSummary, GuestBookingReadError } from '@/features/booking/api/public';
 import { fetchManifestResponse } from '@/features/platform/api';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { DEFAULT_HOTSITE_BRANDING } from '@/features/platform/hotsite/default-branding';

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchStaffMember, StaffDetailFetchError } from './api';
+import { fetchStaffMember, StaffDetailFetchError } from './api.server';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 
 vi.mock('@/shared/lib/api/bff-server', () => ({

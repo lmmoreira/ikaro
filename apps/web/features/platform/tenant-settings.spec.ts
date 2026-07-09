@@ -4,8 +4,6 @@ import { bffClient } from '@/shared/lib/api/bff-client';
 import {
   deleteHotsiteImage,
   featureBookingPhoto,
-  fetchHotsiteConfig,
-  fetchTenantSettings,
   generateHotsiteImageSignedUrl,
   getHotsiteConfig,
   publishHotsite,
@@ -14,6 +12,7 @@ import {
   unpublishHotsite,
   updateHotsiteConfig,
 } from './tenant-settings';
+import { fetchHotsiteConfig, fetchTenantSettings } from './tenant-settings.server';
 
 const mock = new MockAdapter(bffClient);
 
