@@ -15,9 +15,9 @@ export const RequestAuthenticatedBookingSchema = z.object({
   serviceIds: z.array(z.uuid()).min(1),
   pickupAddress: AddressSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
-  beforeServicePhotoUrls: z
-    .array(z.string().regex(/^tenants\/[^/]+\/(uploads|bookings)\/[^/]+\/.+$/))
-    .optional(),
+  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
+  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
+  beforeServicePhotoUrls: z.array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/)).optional(),
 });
 
 export type RequestAuthenticatedBookingDto = z.infer<typeof RequestAuthenticatedBookingSchema>;

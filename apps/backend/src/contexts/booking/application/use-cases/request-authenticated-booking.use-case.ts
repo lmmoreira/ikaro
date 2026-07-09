@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { Address } from '../../../../shared/value-objects/address';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
@@ -6,6 +7,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
+import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { Booking } from '../../domain/booking.aggregate';
 import {
   BookingCustomerNotFoundError,
@@ -85,16 +87,20 @@ export class RequestAuthenticatedBookingUseCase {
       totalDurationMins,
       timezone,
     );
-    await this.photoExistenceService.assertPhotosUploaded(
-      input.beforeServicePhotoUrls ?? [],
-      tenantId,
-    );
+    const bookingId = uuidv7();
+    const { permanentPaths: beforeServicePhotoUrls, operations } =
+      await this.photoExistenceService.preparePhotoPromotion(
+        input.beforeServicePhotoUrls ?? [],
+        tenantId,
+        bookingId,
+      );
 
     const lineInputs = buildLineInputs(input.serviceIds, serviceMap);
 
     const contactAddress = customer.defaultAddress ?? undefined;
 
     const booking = Booking.requestBooking({
+      id: bookingId,
       tenantId,
       contactEmail: customer.email,
       contactName: customer.name,
@@ -107,11 +113,12 @@ export class RequestAuthenticatedBookingUseCase {
       contactAddress,
       pickupAddress,
       notes: input.notes,
-      beforeServicePhotoUrls: input.beforeServicePhotoUrls,
+      beforeServicePhotoUrls,
     });
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);
+      await scheduleAfterCommit(() => this.photoExistenceService.executePhotoPromotion(operations));
     });
 
     for (const event of booking.clearDomainEvents()) {

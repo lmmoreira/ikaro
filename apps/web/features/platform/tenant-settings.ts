@@ -3,6 +3,7 @@ import type {
   PublishHotsiteResponse,
   UnpublishHotsiteResponse,
   GenerateHotsiteImageSignedUrlResponse,
+  GenerateHotsiteImageReadSignedUrlResponse,
   FeatureBookingPhotoResponse,
   TenantSettingsResponse,
   UpdateTenantSettingsRequest,
@@ -107,6 +108,19 @@ export async function generateHotsiteImageSignedUrl(
   const res = await bffClient.post<GenerateHotsiteImageSignedUrlResponse>(
     '/tenants/hotsite/images/signed-url',
     body,
+  );
+  return res.data;
+}
+
+// Only for tmp/-prefixed values (not-yet-promoted uploads) — an already-permanent
+// tenants/<id>/hotsite/... path resolves via the pure NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL
+// template instead (see resolveHotsiteImageDisplayUrl). See td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
+export async function generateHotsiteImageReadSignedUrl(
+  filePath: string,
+): Promise<GenerateHotsiteImageReadSignedUrlResponse> {
+  const res = await bffClient.post<GenerateHotsiteImageReadSignedUrlResponse>(
+    '/tenants/hotsite/images/read-signed-url',
+    { filePath },
   );
   return res.data;
 }

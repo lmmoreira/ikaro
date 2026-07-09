@@ -4,6 +4,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
+import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import {
   BookingForbiddenError,
   BookingNotFoundError,
@@ -40,17 +41,23 @@ export class SubmitGuestBookingInfoUseCase {
 
     if (booking.customerId !== null) throw new BookingForbiddenError();
 
-    await this.photoExistenceService.assertPhotosUploaded(input.photoUrls ?? [], tenantId);
+    const { permanentPaths: photoUrls, operations } =
+      await this.photoExistenceService.preparePhotoPromotion(
+        input.photoUrls ?? [],
+        tenantId,
+        input.bookingId,
+      );
 
     booking.submitInformation(
       input.contactEmail,
       { notes: input.response },
       correlationId,
-      input.photoUrls ?? [],
+      photoUrls,
     );
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);
+      await scheduleAfterCommit(() => this.photoExistenceService.executePhotoPromotion(operations));
     });
 
     for (const event of booking.clearDomainEvents()) {

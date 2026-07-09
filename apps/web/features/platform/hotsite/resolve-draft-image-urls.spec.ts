@@ -84,6 +84,30 @@ describe('resolveDraftImageUrls', () => {
     );
   });
 
+  it('resolves a tmp/ (not-yet-promoted) logoUrl via tmpSignedUrls instead of the public base URL', () => {
+    const tmpPath = 'tmp/tenant-1/branding/u1/logo.png';
+    const tmpSignedUrls = new Map([[tmpPath, 'https://storage.example.com/signed-read?sig=abc']]);
+
+    const result = resolveDraftImageUrls(
+      makeBranding({ logoUrl: tmpPath }),
+      [],
+      BASE_URL,
+      tmpSignedUrls,
+    );
+
+    expect(result.branding.logoUrl).toBe('https://storage.example.com/signed-read?sig=abc');
+  });
+
+  it('resolves a tmp/ logoUrl to an empty string when no entry exists yet in tmpSignedUrls (loading)', () => {
+    const result = resolveDraftImageUrls(
+      makeBranding({ logoUrl: 'tmp/tenant-1/branding/u1/logo.png' }),
+      [],
+      BASE_URL,
+    );
+
+    expect(result.branding.logoUrl).toBe('');
+  });
+
   it('leaves a module with no image fields unchanged', () => {
     const modules: HotsiteModuleResponse[] = [
       {

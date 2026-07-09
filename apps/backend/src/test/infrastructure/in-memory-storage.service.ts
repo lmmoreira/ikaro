@@ -40,7 +40,11 @@ export class InMemoryStorageService implements IStorageService {
     return `http://fake-public-gcs/ikaro-local-public/${storagePath}`;
   }
 
-  async copy(sourcePath: string, destinationPath: string): Promise<void> {
+  async copy(
+    sourcePath: string,
+    destinationPath: string,
+    _destinationBucket: 'private' | 'public' = 'public',
+  ): Promise<void> {
     this.copiedPaths.push({ sourcePath, destinationPath });
     this.existingPaths.add(destinationPath);
   }

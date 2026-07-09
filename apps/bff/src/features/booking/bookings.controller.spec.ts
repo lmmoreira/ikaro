@@ -1153,7 +1153,7 @@ describe('BookingsController', () => {
       expiresAt: '2026-06-15T10:15:00.000Z',
     };
 
-    it('scenario 1 — valid CUSTOMER JWT, no bookingId: calls postForPublic with tenantId', async () => {
+    it('scenario 1 — valid CUSTOMER JWT: calls postForPublic with tenantId', async () => {
       const backendHttp = makeBackendHttp({
         postForPublic: jest.fn().mockResolvedValue(mockSignedUrlResponse),
       });
@@ -1170,7 +1170,7 @@ describe('BookingsController', () => {
 
       expect(backendHttp.postForPublic).toHaveBeenCalledWith(
         '/bookings/attachments/signed-url',
-        { fileName: 'car.jpg', contentType: 'image/jpeg', bookingId: undefined },
+        { fileName: 'car.jpg', contentType: 'image/jpeg' },
         TENANT_ID,
       );
       expect(result).toBe(mockSignedUrlResponse);
@@ -1213,12 +1213,11 @@ describe('BookingsController', () => {
         fileName: 'info.jpg',
         contentType: 'image/jpeg',
         guestToken,
-        bookingId: BOOKING_ID,
       });
 
       expect(backendHttp.postForPublic).toHaveBeenCalledWith(
         '/bookings/attachments/signed-url',
-        { fileName: 'info.jpg', contentType: 'image/jpeg', bookingId: BOOKING_ID },
+        { fileName: 'info.jpg', contentType: 'image/jpeg' },
         TENANT_ID,
       );
       expect(result).toBe(mockSignedUrlResponse);

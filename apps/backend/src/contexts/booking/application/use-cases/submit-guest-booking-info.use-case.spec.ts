@@ -128,10 +128,30 @@ describe('SubmitGuestBookingInfoUseCase', () => {
         bookingId: guestBookingId,
         contactEmail: 'joao@example.com',
         response: 'Segue a foto do carro',
-        photoUrls: [`tenants/${TENANT_A}/uploads/upload-1/missing.jpg`],
+        photoUrls: [`tmp/${TENANT_A}/upload-1/missing.jpg`],
         tenantId: TENANT_A,
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toBeInstanceOf(BookingPhotoNotUploadedError);
+  });
+
+  it('promotes photoUrls from tmp/ to the permanent booking path', async () => {
+    const tmpPath = `tmp/${TENANT_A}/upload-1/photo1.jpg`;
+    storageService.markAsUploaded(tmpPath);
+
+    await useCase.execute({
+      bookingId: guestBookingId,
+      contactEmail: 'joao@example.com',
+      response: 'Segue a foto do carro',
+      photoUrls: [tmpPath],
+      tenantId: TENANT_A,
+      correlationId: CORRELATION_ID,
+    });
+
+    const saved = await repo.findById(guestBookingId, TENANT_A);
+    expect(saved!.beforeServicePhotoUrls).toEqual([
+      `tenants/${TENANT_A}/bookings/${guestBookingId}/photo1.jpg`,
+    ]);
+    expect(storageService.deletedPaths).toEqual([tmpPath]);
   });
 });

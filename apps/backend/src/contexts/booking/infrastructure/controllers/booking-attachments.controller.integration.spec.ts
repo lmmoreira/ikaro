@@ -100,26 +100,16 @@ describe('BookingAttachmentsController (integration)', () => {
   });
 
   describe('POST /bookings/attachments/signed-url', () => {
-    it('scenario 4 — staff with bookingId: returns signedUrl + bookings/ filePath + expiresAt', async () => {
+    it('returns signedUrl + tmp/ staging filePath + expiresAt, regardless of whether a booking exists yet', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/bookings/attachments/signed-url')
         .set(actorHeaders(tenantId, STAFF_ID, 'MANAGER'))
-        .send({ fileName: 'after.jpg', contentType: 'image/jpeg', bookingId })
+        .send({ fileName: 'after.jpg', contentType: 'image/jpeg' })
         .expect(201);
 
       expect(body.signedUrl).toContain('http://fake-gcs/bucket/');
-      expect(body.filePath).toBe(`tenants/${tenantId}/bookings/${bookingId}/after.jpg`);
+      expect(body.filePath).toMatch(new RegExp(`^tmp/${tenantId}/[^/]+/after\\.jpg$`));
       expect(body.expiresAt).toBeDefined();
-    });
-
-    it('scenario 1 — no bookingId: returns signedUrl with uploads/ filePath', async () => {
-      const { body } = await request(app.getHttpServer())
-        .post('/bookings/attachments/signed-url')
-        .set(actorHeaders(tenantId, STAFF_ID, 'MANAGER'))
-        .send({ fileName: 'before.jpg', contentType: 'image/jpeg' })
-        .expect(201);
-
-      expect(body.filePath).toMatch(/^tenants\/[^/]+\/uploads\/[^/]+\/before\.jpg$/);
     });
 
     it('returns 400 when fileName contains ".." without "/"', async () => {
@@ -131,13 +121,14 @@ describe('BookingAttachmentsController (integration)', () => {
       expect(body.status).toBe(400);
     });
 
-    it('returns 404 when bookingId belongs to a different tenant (tenant isolation)', async () => {
+    it('ignores a stray bookingId from another tenant — filePath is still scoped to the caller tenant', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/bookings/attachments/signed-url')
         .set(actorHeaders(tenantBId, STAFF_ID, 'MANAGER'))
         .send({ fileName: 'after.jpg', contentType: 'image/jpeg', bookingId })
-        .expect(404);
-      expect(body.status).toBe(404);
+        .expect(201);
+
+      expect(body.filePath).toMatch(new RegExp(`^tmp/${tenantBId}/[^/]+/after\\.jpg$`));
     });
   });
 });

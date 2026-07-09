@@ -2,11 +2,13 @@ import { makeBackendHttp } from '../../test/backend-http.mock';
 import {
   DeleteHotsiteImageBodySchema,
   FeatureBookingPhotoBodySchema,
+  GenerateHotsiteImageReadSignedUrlBodySchema,
   HotsiteAdminController,
   UpdateHotsiteContentBodySchema,
 } from './hotsite-admin.controller';
 import {
   FeatureBookingPhotoResponse,
+  GenerateHotsiteImageReadSignedUrlResponse,
   GenerateHotsiteImageSignedUrlResponse,
   HotsiteAdminContentResponse,
   PublishHotsiteResponse,
@@ -50,6 +52,11 @@ const unpublishedResponse: UnpublishHotsiteResponse = { isPublished: false };
 const signedUrlResponse: GenerateHotsiteImageSignedUrlResponse = {
   signedUrl: 'https://storage.example.com/signed?token=abc',
   filePath: 'tenants/10000000-0000-4000-8000-000000000001/hotsite/branding/u1/logo.png',
+  expiresAt: '2026-06-01T10:15:00.000Z',
+};
+
+const readSignedUrlResponse: GenerateHotsiteImageReadSignedUrlResponse = {
+  signedUrl: 'https://storage.example.com/signed?token=read-abc',
   expiresAt: '2026-06-01T10:15:00.000Z',
 };
 
@@ -167,6 +174,22 @@ describe('HotsiteAdminController', () => {
 
       expect(result.success).toBe(false);
     });
+
+    it('accepts a tmp/ staging path for logoUrl (not-yet-promoted upload)', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({
+        branding: { logoUrl: 'tmp/10000000-0000-4000-8000-000000000001/branding/u1/logo.png' },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects a logoUrl outside the tenants/.../hotsite/... or tmp/... shape', () => {
+      const result = UpdateHotsiteContentBodySchema.safeParse({
+        branding: { logoUrl: 'uploads/u1/logo.png' },
+      });
+
+      expect(result.success).toBe(false);
+    });
   });
 
   describe('publish()', () => {
@@ -236,6 +259,53 @@ describe('HotsiteAdminController', () => {
           purpose: 'branding',
         }),
       ).rejects.toThrow('400');
+    });
+  });
+
+  describe('generateImageReadSignedUrl()', () => {
+    it('calls POST /tenants/hotsite/images/read-signed-url with the parsed body and returns the signed read URL', async () => {
+      const backendHttp = makeBackendHttp({
+        post: jest.fn().mockResolvedValue(readSignedUrlResponse),
+      });
+      const controller = new HotsiteAdminController(backendHttp);
+      const body = { filePath: 'tmp/10000000-0000-4000-8000-000000000001/branding/u1/logo.png' };
+
+      const result = await controller.generateImageReadSignedUrl(body);
+
+      expect(backendHttp.post).toHaveBeenCalledWith(
+        '/tenants/hotsite/images/read-signed-url',
+        body,
+      );
+      expect(result).toEqual(readSignedUrlResponse);
+    });
+
+    it('propagates errors from the backend', async () => {
+      const backendHttp = makeBackendHttp({ post: jest.fn().mockRejectedValue(new Error('400')) });
+      const controller = new HotsiteAdminController(backendHttp);
+
+      await expect(
+        controller.generateImageReadSignedUrl({
+          filePath: 'tmp/10000000-0000-4000-8000-000000000001/branding/u1/logo.png',
+        }),
+      ).rejects.toThrow('400');
+    });
+  });
+
+  describe('GenerateHotsiteImageReadSignedUrlBodySchema', () => {
+    it('rejects a filePath outside the tmp/... shape', () => {
+      const result = GenerateHotsiteImageReadSignedUrlBodySchema.safeParse({
+        filePath: 'tenants/10000000-0000-4000-8000-000000000001/hotsite/branding/u1/logo.png',
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts a well-formed tmp/ staging path', () => {
+      const result = GenerateHotsiteImageReadSignedUrlBodySchema.safeParse({
+        filePath: 'tmp/10000000-0000-4000-8000-000000000001/branding/u1/logo.png',
+      });
+
+      expect(result.success).toBe(true);
     });
   });
 
@@ -316,6 +386,14 @@ describe('HotsiteAdminController', () => {
     it('accepts a well-formed hotsite image path', () => {
       const result = DeleteHotsiteImageBodySchema.safeParse({
         filePath: 'tenants/10000000-0000-4000-8000-000000000001/hotsite/branding/u1/logo.png',
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts a tmp/ staging path (not-yet-promoted upload)', () => {
+      const result = DeleteHotsiteImageBodySchema.safeParse({
+        filePath: 'tmp/10000000-0000-4000-8000-000000000001/branding/u1/logo.png',
       });
 
       expect(result.success).toBe(true);

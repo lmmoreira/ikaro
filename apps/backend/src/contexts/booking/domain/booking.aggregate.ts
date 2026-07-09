@@ -76,6 +76,14 @@ export interface BookingProps {
 }
 
 export interface RequestBookingInput {
+  /**
+   * Pre-generated booking ID — pass this when the caller needs to know the ID before the
+   * aggregate exists (e.g. to promote `tmp/`-staged photos to their permanent
+   * `tenants/<id>/bookings/<bookingId>/...` path before construction; see
+   * td/TD22-ORPHANED-UPLOAD-CLEANUP.md). Omit to keep the existing behavior of generating a
+   * fresh `uuidv7()` inside the factory.
+   */
+  id?: string;
   tenantId: string;
   contactEmail: string;
   contactName: string;
@@ -222,6 +230,7 @@ export class Booking extends AggregateRoot {
 
   static requestBooking(input: RequestBookingInput): Booking {
     const {
+      id: suppliedId,
       tenantId,
       contactEmail,
       contactName,
@@ -242,7 +251,7 @@ export class Booking extends AggregateRoot {
     const requiresPickup = lineInputs.some((l) => l.requiresPickupAddressAtBooking);
     if (requiresPickup && !pickupAddress) throw new PickupAddressRequiredError();
 
-    const id = uuidv7();
+    const id = suppliedId ?? uuidv7();
     const lines = lineInputs.map((input) => BookingLine.create(id, tenantId, input));
     const totalDurationMins = lines.reduce((sum, l) => sum + l.durationMinsAtBooking, 0);
     const totalPrice = lines.reduce(

@@ -226,16 +226,16 @@ Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors
 - `PATCH /v1/tenants/hotsite` → body `{ branding?, layout?, seo? }` (partial update — unspecified fields unchanged); `200` returns updated state
   - Validation: hex colors must be `#rrggbb` · `borderRadius/buttonStyle/spacing/shadowStyle` must be known enum values · layout module `type` must be a known `HotsiteModuleType` — any violation → `400`
   - `branding.buttonBackgroundColor`/`branding.buttonTextColor` (M12-S11) are optional hex overrides for CTA button colors — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 "Button Color Tokens" for `filled`/`outline`/`ghost` semantics
-  - Image existence check: every non-empty image path submitted (`branding.logoUrl`, module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GALLERY` images with `source: 'upload'`) must resolve to a real object in GCS — verified via `IStorageService.exists()` before persisting; an unresolvable path returns `400 hotsite-image-not-uploaded`
+  - Image promotion (TD22): every non-empty image path submitted (`branding.logoUrl`, module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GALLERY` images with `source: 'upload'`) is either a `tmp/<tenantId>/...` staging path — validated (tenant-owned, exists in the private bucket), promoted to a permanent `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` object in the public bucket, then rewritten and the tmp original deleted — or an already-permanent `tenants/<tenantId>/hotsite/...` path, validated as still existing and left untouched. A path matching neither shape, a cross-tenant `tmp/` path, or a nonexistent object → `400 hotsite-image-not-uploaded`. A field that changed from one permanent object to another also deletes the superseded object from the public bucket (delete-previous-on-replace); an untouched field is never re-promoted or deleted. See "Hotsite Image Upload" below for the full contract.
   - `seo.title`/`seo.description` (M12-S09) are optional `string | null` overrides for the public hotsite's `<title>`/meta description — `title` max 70 chars, `description` max 160 chars; exceeding either → `400`
 - `POST /v1/tenants/hotsite/publish` → `200 { isPublished: true }`; `400 publish-requires-enabled-module` if the layout has no `enabled: true` modules
 - `POST /v1/tenants/hotsite/unpublish` → `200 { isPublished: false }`
 - All four require JWT + `MANAGER` role — `STAFF` gets `403`
 
-### **Hotsite Image Upload (Admin — UC-027, M12-S02 + M12-S10)**
+### **Hotsite Image Upload (Admin — UC-027, M12-S02 + M12-S10; tmp/ staging — TD22)**
 Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgrounds, gallery, about photos). Reuses the same `IStorageService`/`GcsSignedUrlAdapter` and upload constraints introduced for booking attachments in M115-S01 (15-minute *upload*-URL expiry, content-type lock, 10 MB cap) — no new upload mechanics.
 
-> **Destination differs from booking attachments (M12-S10):** the signed URL targets a separate **public** GCS bucket — hotsite images are public marketing assets with no privacy requirement, unlike booking photos. This is the single point where the destination is decided: a signed URL is cryptographically bound to a specific bucket+path, so once the browser `PUT`s the file there, its location — and therefore its final public address — is fixed. See "Reading hotsite images back" below; this is a deliberate departure from the booking-attachment pattern, not an oversight.
+> **Staging, not final placement (TD22):** the signed URL targets a `tmp/<tenantId>/<purpose>/<uuid>/<fileName>` path in the **private** media bucket — not the public hotsite bucket. Nothing uploaded here is public or permanent yet. The object only becomes a real, publicly-addressable hotsite asset once `PATCH /v1/tenants/hotsite` promotes it (see below). This closes three leaks the previous "upload straight to the public bucket" design had: an abandoned upload, an explicit "Remove" before save, and a superseded upload all used to leave an orphaned object in the public bucket forever — see `td/TD22-ORPHANED-UPLOAD-CLEANUP.md`.
 
 **BFF:** `POST /v1/tenants/hotsite/images/signed-url`
 - Requires JWT + `MANAGER` role
@@ -248,24 +248,45 @@ Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgro
     "purpose":     "branding"
   }
   ```
-  `purpose`: one of `branding | hero | gallery | about | booking-cta` — groups uploaded assets by what they're for, mirroring how booking attachments are grouped by `bookingId`
+  `purpose`: one of `branding | hero | gallery | about | booking-cta | testimonials` — groups uploaded assets by what they're for; also encoded into the staging path so promotion can rebuild the permanent path without a second lookup.
 
 - **Response (201 Created):**
   ```json
   {
-    "signedUrl": "http://localhost:4443/ikaro-local/tenants/.../logo.png?X-Goog-Signature=...",
-    "filePath":  "tenants/<tenantId>/hotsite/<purpose>/<uuid>/logo.png",
+    "signedUrl": "http://localhost:4443/ikaro-local/tmp/.../logo.png?X-Goog-Signature=...",
+    "filePath":  "tmp/<tenantId>/<purpose>/<uuid>/logo.png",
     "expiresAt": "2026-05-12T00:08:44Z"
   }
   ```
 
-**Storage path rule:** `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` (in the **public** hotsite bucket — see note above)
+**Storage path rule:** `tmp/<tenantId>/<purpose>/<uuid>/<fileName>` — staged in the **private** media bucket. Not public, not permanent, not yet referenced by anything durable.
 
-`filePath` is what gets persisted internally (`branding.logoUrl` / module `data.*Url` / `GalleryImage.url`). **Reading hotsite images back works differently from booking attachments:** because the object lives in a public bucket, `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` resolve `filePath` to a **permanent public URL** via `IStorageService.getPublicUrl()` — a pure string template, no signed URL, no expiry, nothing to regenerate. The admin endpoint (`GET /v1/tenants/hotsite`) and the public manifest (`GET /v1/platform/manifest/:slug`) both return this same resolved address. This is what makes the manifest safely cacheable (`Cache-Control: public, max-age=300`, ISR, future CDN) — an expiring signed URL embedded in cached content would eventually serve a broken image.
+`filePath` is what the frontend holds as the field's draft value until the next save. **`PATCH /v1/tenants/hotsite` promotes every `tmp/`-referenced field**: validates the tmp object exists in the private bucket and belongs to the caller's tenant, copies it to `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` in the **public** hotsite bucket, rewrites the stored reference to that permanent path, and deletes the tmp original. If the field previously pointed at a different permanent object, that old object is deleted too (delete-previous-on-replace); a field left untouched (still pointing at its existing permanent object) is neither re-promoted nor deleted. **Reading hotsite images back** (post-promotion) works differently from booking attachments: because the object lives in a public bucket, `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` resolve `filePath` to a **permanent public URL** via `IStorageService.getPublicUrl()` — a pure string template, no signed URL, no expiry, nothing to regenerate. The admin endpoint (`GET /v1/tenants/hotsite`) and the public manifest (`GET /v1/platform/manifest/:slug`) both return this same resolved address. This is what makes the manifest safely cacheable (`Cache-Control: public, max-age=300`, ISR, future CDN) — an expiring signed URL embedded in cached content would eventually serve a broken image.
 
 (Contrast with booking attachments below, where the bucket is private and a fresh *read*-signed URL genuinely must be minted per display.)
 
-**Error responses:** same constraint set as booking attachments (`400 invalid-file-name`, `400 unsupported-media-type`, plus `400` for an unknown `purpose`) — see §3 Media Upload below for the shared validation table.
+**Error responses:** same constraint set as booking attachments (`400 invalid-file-name`, `400 unsupported-media-type`, plus `400` for an unknown `purpose`) — see §3 Media Upload below for the shared validation table. `PATCH /v1/tenants/hotsite` additionally returns `400 hotsite-image-not-uploaded` for a `tmp/` path that doesn't exist or belongs to another tenant.
+
+### **Hotsite Image Preview — Private Read Signed URL (Admin — TD22)**
+A not-yet-promoted `tmp/` image lives in the private bucket, so it can't resolve via the public-bucket string template the admin editor otherwise uses for hotsite images. This endpoint mints a fresh private *read*-signed URL for previewing one — used whenever the editor re-mounts a field showing a `tmp/`-prefixed value with no local blob preview left (e.g. switching tabs before the first save).
+
+**BFF:** `POST /v1/tenants/hotsite/images/read-signed-url`
+- Requires JWT + `MANAGER` role
+
+- **Request body:**
+  ```json
+  { "filePath": "tmp/<tenantId>/<purpose>/<uuid>/logo.png" }
+  ```
+
+- **Response (201 Created):**
+  ```json
+  {
+    "signedUrl": "http://localhost:4443/ikaro-local/tmp/.../logo.png?X-Goog-Signature=...",
+    "expiresAt": "2026-05-12T00:08:44Z"
+  }
+  ```
+
+**Error responses:** `400 hotsite-image-not-uploaded` — `filePath` isn't a `tmp/<callerTenantId>/...` path.
 
 ### **Hotsite Gallery — Feature a Booking Photo (Admin — UC-027, M12-S02 + M12-S10)**
 Lets the admin curate the GALLERY module's "before/after" showcase by selecting a photo straight from one of the tenant's own bookings — guest or authenticated-customer, it makes no difference; `tenantId` is the only check that matters.
@@ -326,40 +347,38 @@ Used to upload photos before creating a booking (UC-001/UC-002), when submitting
 
 **BFF:** `POST /v1/bookings/attachments/signed-url`
 
-Single endpoint covering four authentication scenarios:
+Single endpoint covering four authentication scenarios — all four now upload to the exact same `tmp/` staging shape regardless of who's calling or what the photo will eventually be attached to (TD22):
 
-| Scenario | Who | Auth | `bookingId` |
-|---|---|---|---|
-| 1 | Authenticated customer — before-photos | CUSTOMER JWT | absent |
-| 2 | Guest — before-photos (initial booking) | None; `tenantSlug` in body | absent |
-| 3 | Guest — submit-info photos | `guestToken` in body (`@Public`) | present |
-| 4 | Staff / Manager — after-photos | STAFF/MANAGER JWT | present |
+| Scenario | Who | Auth |
+|---|---|---|
+| 1 | Authenticated customer | CUSTOMER JWT |
+| 2 | Guest — anonymous | None; `tenantSlug` in body |
+| 3 | Guest — with guest token | `guestToken` in body (`@Public`) |
+| 4 | Staff / Manager | STAFF/MANAGER JWT |
 
 - **Request body:**
   ```json
   {
     "fileName":    "car-front.jpg",
     "contentType": "image/jpeg",
-    "bookingId":   "uuid",        // optional — scenarios 3 + 4
     "tenantSlug":  "lavacar-bh",  // optional — scenario 2 only
     "guestToken":  "eyJ..."       // optional — scenario 3 only
   }
   ```
+  (`bookingId` is no longer part of this request — the booking the photo will end up on may not even exist yet at upload time, and the upload destination no longer depends on it. If a caller sends one anyway, it's silently stripped by the Zod schema.)
 
 - **Response (201 Created):**
   ```json
   {
-    "signedUrl": "http://localhost:4443/ikaro-local/tenants/.../car-front.jpg?X-Goog-Signature=...",
-    "filePath":  "tenants/<tenantId>/bookings/<bookingId>/car-front.jpg",
+    "signedUrl": "http://localhost:4443/ikaro-local/tmp/.../car-front.jpg?X-Goog-Signature=...",
+    "filePath":  "tmp/<tenantId>/<uuid>/car-front.jpg",
     "expiresAt": "2026-05-12T00:08:44Z"
   }
   ```
 
-**Storage path rules:**
-- `bookingId` present → `tenants/<tenantId>/bookings/<bookingId>/<fileName>`
-- `bookingId` absent  → `tenants/<tenantId>/uploads/<uuid>/<fileName>`
+**Storage path rule:** `tmp/<tenantId>/<uuid>/<fileName>` — staged in the **private** media bucket, unconditionally, for every scenario. `filePath` is what the backend stores and returns until the surrounding record is actually persisted.
 
-`filePath` is what the backend stores and returns. Booking photos are genuinely private — only the customer and the tenant's staff should ever see a customer's car — so the bucket stays private and **fresh read-signed URLs are generated at display time; `signedUrl` is never stored.** (This is the opposite of how hotsite images now work post-M12-S10 — see "Hotsite Image Upload" above. Hotsite images are public marketing assets with no privacy requirement, so they live in a separate public bucket with permanent addresses instead. Don't generalize this section's pattern to hotsite media.)
+`filePath` is a **staging** path, not the final one. The backend promotes it to `tenants/<tenantId>/bookings/<bookingId>/<fileName>` — still in the same **private** bucket — the moment the surrounding booking record is actually saved: booking creation (UC-001/UC-002, `bookingId` generated up front for exactly this reason), submitting requested info (UC-005b, guest or customer), or completing a booking (UC-009). Booking photos are genuinely private — only the customer and the tenant's staff should ever see a customer's car — so the bucket stays private throughout, and **fresh read-signed URLs are generated at display time; `signedUrl` is never stored.** (This is the opposite of how hotsite images work post-TD22 — see "Hotsite Image Upload" above. Hotsite images are public marketing assets with no privacy requirement, so promotion moves them into a separate public bucket with permanent addresses instead. Don't generalize this section's pattern to hotsite media.) Anything left in `tmp/` — abandoned, or superseded before the surrounding record is saved — ages out via a GCS lifecycle rule (`M17-S14`, `plan/M17-CLOUD-DEPLOY.md`); unlike hotsite, there's no delete-previous-on-replace here, since booking photo arrays are append-only in every current use case.
 
 **Signed URL expiration:** 15 minutes.
 
@@ -377,8 +396,9 @@ Single endpoint covering four authentication scenarios:
 - `400 unsupported-media-type` — `contentType` not `image/jpeg` or `image/png`
 - `400 missing-tenant` — scenario 2 called without `tenantSlug`
 - `401 invalid-guest-token` — scenario 3: `guestToken` missing, expired, or invalid
-- `404` — `bookingId` does not belong to the caller's tenant
 - `429 too-many-requests` — rate limit exceeded
+
+(Promotion — not this endpoint — is what can return `400 booking-photo-not-uploaded` for a `tmp/` path that doesn't exist or belongs to another tenant; see the booking create/submit-info/complete endpoints.)
 
 #### **3-step upload contract (frontend):**
 ```
@@ -389,9 +409,11 @@ Single endpoint covering four authentication scenarios:
    Content-Type: image/jpeg
    Body: <binary file>
 
-3. Include filePath (not signedUrl) in the booking body:
-   beforeServicePhotoUrls: ["tenants/.../uploads/<uuid>/car-front.jpg"]
-   afterServicePhotoUrls:  ["tenants/.../bookings/<bookingId>/after.jpg"]
+3. Include filePath (not signedUrl) in the booking body — still a tmp/ staging path;
+   the backend promotes it to its permanent tenants/.../bookings/<bookingId>/... path
+   on save:
+   beforeServicePhotoUrls: ["tmp/<tid>/<uuid>/car-front.jpg"]
+   afterServicePhotoUrls:  ["tmp/<tid>/<uuid>/after.jpg"]
 ```
 
 #### **Example flows:**
@@ -402,21 +424,22 @@ Single endpoint covering four authentication scenarios:
 POST /v1/bookings/attachments/signed-url
 Authorization: Bearer <customerJwt>
 { "fileName": "car-front.jpg", "contentType": "image/jpeg" }
-→ { signedUrl, filePath: "tenants/<tid>/uploads/<uuid>/car-front.jpg", expiresAt }
+→ { signedUrl, filePath: "tmp/<tid>/<uuid>/car-front.jpg", expiresAt }
 
 // Guest (no JWT)
 POST /v1/bookings/attachments/signed-url
 { "fileName": "car-front.jpg", "contentType": "image/jpeg", "tenantSlug": "lavacar-bh" }
-→ { signedUrl, filePath: "tenants/<tid>/uploads/<uuid>/car-front.jpg", expiresAt }
+→ { signedUrl, filePath: "tmp/<tid>/<uuid>/car-front.jpg", expiresAt }
 ```
 
 **UC-009 — after-photos (staff):**
 ```
 POST /v1/bookings/attachments/signed-url
 Authorization: Bearer <staffJwt>
-{ "fileName": "after.jpg", "contentType": "image/jpeg", "bookingId": "<bookingId>" }
-→ { signedUrl, filePath: "tenants/<tid>/bookings/<bookingId>/after.jpg", expiresAt }
+{ "fileName": "after.jpg", "contentType": "image/jpeg" }
+→ { signedUrl, filePath: "tmp/<tid>/<uuid>/after.jpg", expiresAt }
 ```
+(No `bookingId` in the request — the destination is only known once the booking is actually persisted.)
 
 ### **Booking Requests**
 

@@ -48,3 +48,18 @@ export function mapHotsiteImageFields(
     layout: layout.map((module) => transformModule(module, transform)),
   };
 }
+
+// Read-only twin of mapHotsiteImageFields — returns every non-empty image path instead of
+// rewriting them. Used to find tmp/-prefixed (not-yet-promoted) paths that need a private
+// signed-read URL before rendering (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
+export function collectHotsiteImagePaths(
+  branding: HotsiteBrandingResponse,
+  layout: readonly HotsiteModuleResponse[],
+): string[] {
+  const paths: string[] = [];
+  mapHotsiteImageFields(branding, layout, (value) => {
+    if (value) paths.push(value);
+    return value;
+  });
+  return paths;
+}

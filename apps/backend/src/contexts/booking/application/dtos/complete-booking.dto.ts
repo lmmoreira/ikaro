@@ -9,8 +9,10 @@ export const CompleteBookingSchema = z.object({
       }),
     )
     .min(1),
+  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
+  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
   afterServicePhotoUrls: z
-    .array(z.string().regex(/^tenants\/[^/]+\/bookings\/[^/]+\/.+$/))
+    .array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/))
     .optional()
     .default([]),
   adminNotes: z.string().optional(),

@@ -8,9 +8,12 @@ const SEO_TITLE_MESSAGE = { message: `must be at most ${SeoTitle.MAX_LENGTH} cha
 const SEO_DESCRIPTION_MESSAGE = {
   message: `must be at most ${SeoDescription.MAX_LENGTH} characters`,
 };
-const LOGO_URL_REGEX = /^$|^tenants\/[^/]+\/hotsite\/.+$/;
+// Accepts empty (to clear), an already-permanent hotsite image, or a not-yet-promoted tmp/
+// staging upload — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
+const LOGO_URL_REGEX = /^$|^tenants\/[^/]+\/hotsite\/.+$|^tmp\/[^/]+\/.+$/;
 const LOGO_URL_MESSAGE = {
-  message: 'logoUrl must be empty (to clear) or a tenants/<id>/hotsite/... storage path',
+  message:
+    'logoUrl must be empty (to clear), a tenants/<id>/hotsite/... storage path, or a tmp/<id>/... staging path',
 };
 
 const HotsiteBrandingSchema = z

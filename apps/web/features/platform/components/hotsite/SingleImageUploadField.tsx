@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   deleteHotsiteImage,
+  generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
@@ -55,6 +56,29 @@ export function SingleImageUploadField({
   // only a GET response's resolved *Url field is a full URL. Preview a freshly-selected file
   // from a local blob URL instead.
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // A not-yet-promoted tmp/ upload lives in the private bucket — it can't resolve via the
+  // public-bucket string template, so re-mounting this field after the local blob preview is
+  // gone (e.g. a tab switch) needs a fresh private signed read URL instead (see
+  // td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
+  const [remoteReadUrl, setRemoteReadUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Only fetch when there's no local blob preview and the value is an unresolved tmp/ path —
+    // a stale remoteReadUrl from a previous value is harmless since displaySrc below only reads
+    // it in that same condition.
+    if (previewUrl || !value.startsWith('tmp/')) return;
+    let cancelled = false;
+    generateHotsiteImageReadSignedUrl(value)
+      .then((res) => {
+        if (!cancelled) setRemoteReadUrl(res.signedUrl);
+      })
+      .catch(() => {
+        // best-effort — an unresolved tmp/ image just shows nothing until reconciled
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [value, previewUrl]);
 
   async function uploadFile(file: File): Promise<void> {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -86,12 +110,10 @@ export function SingleImageUploadField({
     setPreviewUrl(null);
     setStatus('idle');
 
-    // Only a raw "tenants/<id>/hotsite/..." storage path can actually be deleted — a resolved
-    // public URL (the shape `value` has on first load, straight from GET) doesn't match the
-    // delete endpoint's path validation. Known limitation: removing an image that was never
-    // re-uploaded this session clears the draft reference but doesn't clean up the bucket;
-    // full reconciliation (tmp-staging + promote-on-save) is TD22's scope, not this component's.
-    if (value.startsWith('tenants/')) {
+    // A raw "tenants/<id>/hotsite/..." (already-promoted) or "tmp/<id>/..." (not-yet-promoted)
+    // storage path can actually be deleted — a resolved public URL (the shape `value` has on
+    // first load, straight from GET) doesn't match the delete endpoint's path validation.
+    if (value.startsWith('tenants/') || value.startsWith('tmp/')) {
       try {
         await deleteHotsiteImage(value);
       } catch {
@@ -105,8 +127,11 @@ export function SingleImageUploadField({
 
   // `value` is a raw storage path until the next GET resolves it — on re-opening this field
   // after a save (no fresh local blob preview), it would otherwise be passed to <img src>
-  // unresolved and fail to load. See resolveHotsiteImageUrl for the full rationale.
-  const displaySrc = previewUrl ?? resolveHotsiteImageDisplayUrl(value);
+  // unresolved and fail to load. See resolveHotsiteImageUrl for the full rationale. A tmp/ path
+  // is private-bucket only, so it resolves via remoteReadUrl (fetched above) instead of the
+  // public-bucket string template.
+  const displaySrc =
+    previewUrl ?? (value.startsWith('tmp/') ? remoteReadUrl : resolveHotsiteImageDisplayUrl(value));
 
   return (
     <div>

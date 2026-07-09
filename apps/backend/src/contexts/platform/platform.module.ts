@@ -11,6 +11,7 @@ import { HotsiteImagePathsService } from './domain/services/hotsite-image-paths.
 import { HotsiteImageUrlResolver } from './domain/services/hotsite-image-url-resolver.service';
 import { DeleteHotsiteImageUseCase } from './application/use-cases/delete-hotsite-image.use-case';
 import { FeatureBookingPhotoUseCase } from './application/use-cases/feature-booking-photo.use-case';
+import { GenerateHotsiteImageReadSignedUrlUseCase } from './application/use-cases/generate-hotsite-image-read-signed-url.use-case';
 import { GenerateHotsiteImageSignedUrlUseCase } from './application/use-cases/generate-hotsite-image-signed-url.use-case';
 import { GetHotsiteContentUseCase } from './application/use-cases/get-hotsite-content.use-case';
 import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-manifest.use-case';
@@ -66,6 +67,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     HotsiteImageUrlResolver,
     DeleteHotsiteImageUseCase,
     FeatureBookingPhotoUseCase,
+    GenerateHotsiteImageReadSignedUrlUseCase,
     GenerateHotsiteImageSignedUrlUseCase,
     GetHotsiteContentUseCase,
     GetHotsiteManifestUseCase,

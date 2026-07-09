@@ -18,6 +18,7 @@ import { UpdateHotsiteContentUseCase } from '../../application/use-cases/update-
 import { PublishHotsiteUseCase } from '../../application/use-cases/publish-hotsite.use-case';
 import { UnpublishHotsiteUseCase } from '../../application/use-cases/unpublish-hotsite.use-case';
 import { GenerateHotsiteImageSignedUrlUseCase } from '../../application/use-cases/generate-hotsite-image-signed-url.use-case';
+import { GenerateHotsiteImageReadSignedUrlUseCase } from '../../application/use-cases/generate-hotsite-image-read-signed-url.use-case';
 import { Tenant } from '../../domain/tenant.aggregate';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
@@ -70,6 +71,7 @@ describe('HotsiteAdminController', () => {
       new PublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
       new UnpublishHotsiteUseCase(repo, tenantRepo, frontendRevalidation, txManager),
       new GenerateHotsiteImageSignedUrlUseCase(storageService),
+      new GenerateHotsiteImageReadSignedUrlUseCase(storageService),
       new FeatureBookingPhotoUseCase(storageService),
       new DeleteHotsiteImageUseCase(storageService),
     );
@@ -214,14 +216,14 @@ describe('HotsiteAdminController', () => {
   });
 
   describe('generateImageSignedUrl', () => {
-    it('returns a tenant-scoped filePath, signedUrl, and expiresAt', async () => {
+    it('returns a tenant-scoped tmp/ staging filePath, signedUrl, and expiresAt', async () => {
       const result = await controller.generateImageSignedUrl({
         fileName: 'logo.png',
         contentType: 'image/png',
         purpose: 'branding',
       });
 
-      expect(result.filePath.startsWith(`tenants/${TENANT_A}/hotsite/branding/`)).toBe(true);
+      expect(result.filePath.startsWith(`tmp/${TENANT_A}/branding/`)).toBe(true);
       expect(result.signedUrl).toContain(result.filePath);
       expect(result.expiresAt).toBe('2099-01-01T00:00:00.000Z');
     });
@@ -233,7 +235,29 @@ describe('HotsiteAdminController', () => {
         purpose: 'testimonials',
       });
 
-      expect(result.filePath.startsWith(`tenants/${TENANT_A}/hotsite/testimonials/`)).toBe(true);
+      expect(result.filePath.startsWith(`tmp/${TENANT_A}/testimonials/`)).toBe(true);
+    });
+  });
+
+  describe('generateImageReadSignedUrl', () => {
+    it('returns a signedUrl and expiresAt for a tenant-owned tmp/ path', async () => {
+      const filePath = `tmp/${TENANT_A}/branding/u1/logo.png`;
+
+      const result = await controller.generateImageReadSignedUrl({ filePath });
+
+      expect(result.signedUrl).toContain(filePath);
+      expect(result.expiresAt).toBe('2099-01-01T00:00:00.000Z');
+    });
+
+    it('maps HotsiteImageNotUploadedError to 400 for a cross-tenant tmp/ path', async () => {
+      const filePath = 'tmp/other-tenant/branding/u1/logo.png';
+
+      const err = await controller
+        .generateImageReadSignedUrl({ filePath })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     });
   });
 

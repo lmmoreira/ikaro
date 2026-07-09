@@ -67,9 +67,9 @@ export const RequestBookingBodySchema = z.object({
   notes: z.string().trim().min(1).max(1000).optional(),
   scheduledAt: z.iso.datetime(),
   serviceIds: z.array(z.uuid()).min(1),
-  beforeServicePhotoUrls: z
-    .array(z.string().regex(/^tenants\/[^/]+\/(uploads|bookings)\/[^/]+\/.+$/))
-    .optional(),
+  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
+  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
+  beforeServicePhotoUrls: z.array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/)).optional(),
 });
 
 export const AuthenticatedBookingBodySchema = z.object({
@@ -77,9 +77,9 @@ export const AuthenticatedBookingBodySchema = z.object({
   serviceIds: z.array(z.uuid()).min(1),
   pickupAddress: AddressSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
-  beforeServicePhotoUrls: z
-    .array(z.string().regex(/^tenants\/[^/]+\/(uploads|bookings)\/[^/]+\/.+$/))
-    .optional(),
+  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
+  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
+  beforeServicePhotoUrls: z.array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/)).optional(),
 });
 
 export const RejectBookingBodySchema = z.object({
@@ -112,8 +112,10 @@ export const CompleteBookingBodySchema = z.object({
       }),
     )
     .min(1),
+  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
+  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
   afterServicePhotoUrls: z
-    .array(z.string().regex(/^tenants\/[^/]+\/bookings\/[^/]+\/.+$/))
+    .array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/))
     .optional()
     .default([]),
   adminNotes: z.string().trim().min(1).max(500).optional(),
@@ -136,16 +138,16 @@ export const RequestMoreInfoBodySchema = z.object({
 
 export const SubmitBookingInfoBodySchema = z.object({
   response: z.string().trim().min(1),
-  photoUrls: z
-    .array(z.string().regex(/^tenants\/[^/]+\/(uploads|bookings)\/[^/]+\/.+$/))
-    .optional(),
+  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
+  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
+  photoUrls: z.array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/)).optional(),
 });
 
 export const SubmitGuestBookingInfoBodySchema = z.object({
   response: z.string().trim().min(1),
-  photoUrls: z
-    .array(z.string().regex(/^tenants\/[^/]+\/(uploads|bookings)\/[^/]+\/.+$/))
-    .optional(),
+  // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
+  // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
+  photoUrls: z.array(z.string().regex(/^tmp\/[^/]+\/[^/]+\/.+$/)).optional(),
 });
 
 // Matches one or more comma-separated BookingStatus values, e.g. "PENDING" or "PENDING,INFO_REQUESTED"
@@ -186,7 +188,6 @@ export const AttachmentSignedUrlBodySchema = z.object({
       message: 'fileName must not contain path separators or ".."',
     }),
   contentType: z.enum(['image/jpeg', 'image/png']),
-  bookingId: z.uuid().optional(),
   tenantSlug: z.string().optional(),
   guestToken: z.string().optional(),
 });
@@ -237,22 +238,20 @@ export class BookingsController {
   ): Promise<AttachmentSignedUrlResponse> {
     const user = this.tryDecodeUserJwt(authHeader);
 
-    // Scenario 1 (CUSTOMER, no bookingId) or Scenario 4 (STAFF/MANAGER, bookingId present).
+    // Scenario 1 (CUSTOMER) or Scenario 4 (STAFF/MANAGER) — JWT identifies the tenant.
     // Must use postForPublic because this route is @Public() — JwtAuthGuard does not run,
     // so req.user is unset and post() would send an empty X-Tenant-ID header.
+    // Uploads always target tmp/ staging now (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — a
+    // bookingId is no longer needed at upload time, only tenant resolution is.
     if (user) {
       return this.backendHttp.postForPublic<AttachmentSignedUrlResponse>(
         '/bookings/attachments/signed-url',
-        {
-          fileName: body.fileName,
-          contentType: body.contentType,
-          bookingId: body.bookingId,
-        },
+        { fileName: body.fileName, contentType: body.contentType },
         user.tenantId,
       );
     }
 
-    // Scenario 3 — guest with guestToken + bookingId
+    // Scenario 3 — guest with guestToken, tenant resolved from the token
     if (body.guestToken) {
       const secret = this.config.getOrThrow<string>('JWT_SECRET');
       const tokenPayload = verifyGuestToken(body.guestToken, secret);
@@ -269,11 +268,7 @@ export class BookingsController {
       }
       return this.backendHttp.postForPublic<AttachmentSignedUrlResponse>(
         '/bookings/attachments/signed-url',
-        {
-          fileName: body.fileName,
-          contentType: body.contentType,
-          bookingId: tokenPayload.bookingId,
-        },
+        { fileName: body.fileName, contentType: body.contentType },
         tokenPayload.tenantId,
       );
     }

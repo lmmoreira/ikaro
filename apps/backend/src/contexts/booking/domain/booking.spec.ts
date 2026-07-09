@@ -135,6 +135,18 @@ describe('Booking.requestBooking()', () => {
     expect(booking.type).toBe('CUSTOMER');
     expect(booking.customerId).toBe(customerId);
   });
+
+  it('uses the supplied id instead of generating its own', () => {
+    const suppliedId = '00000000-0000-7000-8000-0000000000aa';
+    const booking = request({ id: suppliedId });
+    expect(booking.id).toBe(suppliedId);
+  });
+
+  it('generates its own id when none is supplied (backward compatible)', () => {
+    const booking = request({});
+    expect(booking.id).toEqual(expect.any(String));
+    expect(booking.id).not.toBe('');
+  });
 });
 
 describe('Booking.approve()', () => {

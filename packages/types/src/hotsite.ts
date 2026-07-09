@@ -213,6 +213,11 @@ export interface GenerateHotsiteImageSignedUrlResponse {
   expiresAt: string;
 }
 
+export interface GenerateHotsiteImageReadSignedUrlResponse {
+  signedUrl: string;
+  expiresAt: string;
+}
+
 export interface FeatureBookingPhotoResponse {
   filePath: string;
   url: string;

@@ -5,12 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import {
   deleteHotsiteImage,
+  generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/tenant-settings';
 import { SingleImageUploadField } from './SingleImageUploadField';
 
 vi.mock('@/features/platform/tenant-settings', () => ({
   generateHotsiteImageSignedUrl: vi.fn(),
+  generateHotsiteImageReadSignedUrl: vi.fn(),
   deleteHotsiteImage: vi.fn(),
 }));
 
@@ -50,6 +52,7 @@ describe('SingleImageUploadField', () => {
   afterEach(() => {
     fetchSpy.mockRestore();
     vi.mocked(generateHotsiteImageSignedUrl).mockReset();
+    vi.mocked(generateHotsiteImageReadSignedUrl).mockReset();
     vi.mocked(deleteHotsiteImage).mockReset();
     // The "resolves a raw storage path" case below sets this env var directly — restore it so
     // later tests in this file (or this worker) don't inherit a leftover value.
@@ -137,6 +140,30 @@ describe('SingleImageUploadField', () => {
     );
   });
 
+  it('resolves a tmp/ (not-yet-promoted) value via a private read-signed-URL instead of the public base URL', async () => {
+    vi.mocked(generateHotsiteImageReadSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/signed-read?sig=abc',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="hero-bg"
+        value="tmp/tenant-1/hero/u1/banner.png"
+        onChange={vi.fn()}
+        purpose="hero"
+        {...LABELS}
+      />,
+    );
+
+    expect(generateHotsiteImageReadSignedUrl).toHaveBeenCalledWith(
+      'tmp/tenant-1/hero/u1/banner.png',
+    );
+    expect(
+      await screen.findByTestId('single-image-upload-preview', {}, { timeout: 3000 }),
+    ).toHaveAttribute('src', 'https://storage.example.com/signed-read?sig=abc');
+  });
+
   it('shows a retry-oriented error message when the upload fails', async () => {
     const user = userEvent.setup();
     vi.mocked(generateHotsiteImageSignedUrl).mockRejectedValue(new Error('network error'));
@@ -177,6 +204,31 @@ describe('SingleImageUploadField', () => {
     await user.click(getByFieldId('single-image-upload-remove', 'hero-bg'));
 
     expect(deleteHotsiteImage).toHaveBeenCalledWith('tenants/tenant-1/hotsite/hero/banner.png');
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  it('removing a not-yet-promoted tmp/ image calls deleteHotsiteImage and clears the value', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageReadSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/signed-read?sig=abc',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    vi.mocked(deleteHotsiteImage).mockResolvedValue(undefined);
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="hero-bg"
+        value="tmp/tenant-1/hero/u1/banner.png"
+        onChange={onChange}
+        purpose="hero"
+        {...LABELS}
+      />,
+    );
+
+    await user.click(await screen.findByTestId('single-image-upload-remove'));
+
+    expect(deleteHotsiteImage).toHaveBeenCalledWith('tmp/tenant-1/hero/u1/banner.png');
     expect(onChange).toHaveBeenCalledWith('');
   });
 

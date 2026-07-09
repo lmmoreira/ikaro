@@ -139,6 +139,34 @@ describe('HotsiteAdminController (integration)', () => {
       expect(body.branding.logoUrl).toBe(logoPath);
     });
 
+    it('promotes a tmp/-referenced logoUrl to a permanent path and deletes the superseded logo', async () => {
+      const previousLogoPath = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
+      const tmpLogoPath = `tmp/${TENANT_A}/branding/u2/new-logo.png`;
+      storageService.markAsUploaded(tmpLogoPath);
+
+      const { body } = await request(app.getHttpServer())
+        .patch('/tenants/hotsite')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ branding: { logoUrl: tmpLogoPath } })
+        .expect(200);
+
+      const promotedPath = `tenants/${TENANT_A}/hotsite/branding/u2/new-logo.png`;
+      expect(body.branding.logoUrl).toBe(promotedPath);
+
+      const saved = await ds
+        .getRepository(HotsiteConfigEntity)
+        .findOne({ where: { tenantId: TENANT_A } });
+      expect(saved!.branding.logoUrl).toBe(promotedPath);
+
+      expect(storageService.copiedPaths).toEqual(
+        expect.arrayContaining([{ sourcePath: tmpLogoPath, destinationPath: promotedPath }]),
+      );
+      expect(storageService.deletedPaths).toEqual(
+        expect.arrayContaining([tmpLogoPath, previousLogoPath]),
+      );
+    });
+
     it('returns 400 for an invalid buttonBackgroundColor hex value', async () => {
       const { body } = await request(app.getHttpServer())
         .patch('/tenants/hotsite')
@@ -275,7 +303,7 @@ describe('HotsiteAdminController (integration)', () => {
   });
 
   describe('POST /tenants/hotsite/images/signed-url', () => {
-    it('returns a tenant-scoped filePath, signedUrl, and expiresAt', async () => {
+    it('returns a tenant-scoped tmp/ staging filePath, signedUrl, and expiresAt', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/tenants/hotsite/images/signed-url')
         .set('X-Tenant-ID', TENANT_A)
@@ -283,7 +311,7 @@ describe('HotsiteAdminController (integration)', () => {
         .send({ fileName: 'logo.png', contentType: 'image/png', purpose: 'branding' })
         .expect(201);
 
-      expect(body.filePath.startsWith(`tenants/${TENANT_A}/hotsite/branding/`)).toBe(true);
+      expect(body.filePath.startsWith(`tmp/${TENANT_A}/branding/`)).toBe(true);
       expect(body.signedUrl).toContain(body.filePath);
       expect(body.expiresAt).toBeDefined();
     });
@@ -294,6 +322,44 @@ describe('HotsiteAdminController (integration)', () => {
         .set('X-Tenant-ID', TENANT_A)
         .set('X-Actor-Role', 'MANAGER')
         .send({ fileName: 'logo.gif', contentType: 'image/gif', purpose: 'branding' })
+        .expect(400);
+
+      expect(body.status).toBe(400);
+    });
+  });
+
+  describe('POST /tenants/hotsite/images/read-signed-url', () => {
+    it('returns a signedUrl and expiresAt for a tenant-owned tmp/ path', async () => {
+      const filePath = `tmp/${TENANT_A}/branding/u1/logo.png`;
+
+      const { body } = await request(app.getHttpServer())
+        .post('/tenants/hotsite/images/read-signed-url')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ filePath })
+        .expect(201);
+
+      expect(body.signedUrl).toContain(filePath);
+      expect(body.expiresAt).toBeDefined();
+    });
+
+    it('returns 400 for a cross-tenant tmp/ path', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/tenants/hotsite/images/read-signed-url')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ filePath: `tmp/${TENANT_B}/branding/u1/logo.png` })
+        .expect(400);
+
+      expect(body.status).toBe(400);
+    });
+
+    it('returns 400 for a filePath outside the tmp/ shape', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/tenants/hotsite/images/read-signed-url')
+        .set('X-Tenant-ID', TENANT_A)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ filePath: `tenants/${TENANT_A}/hotsite/branding/u1/logo.png` })
         .expect(400);
 
       expect(body.status).toBe(400);

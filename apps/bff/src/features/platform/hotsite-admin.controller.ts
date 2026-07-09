@@ -5,6 +5,7 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
   FeatureBookingPhotoResponse,
+  GenerateHotsiteImageReadSignedUrlResponse,
   GenerateHotsiteImageSignedUrlResponse,
   HotsiteAdminContentResponse,
   PublishHotsiteResponse,
@@ -12,9 +13,12 @@ import {
 } from '@ikaro/types';
 
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
-const LOGO_URL_REGEX = /^$|^tenants\/[^/]+\/hotsite\/.+$/;
+// Accepts empty (to clear), an already-permanent hotsite image, or a not-yet-promoted tmp/
+// staging upload — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
+const LOGO_URL_REGEX = /^$|^tenants\/[^/]+\/hotsite\/.+$|^tmp\/[^/]+\/.+$/;
 const LOGO_URL_MESSAGE = {
-  message: 'logoUrl must be empty (to clear) or a tenants/<id>/hotsite/... storage path',
+  message:
+    'logoUrl must be empty (to clear), a tenants/<id>/hotsite/... storage path, or a tmp/<id>/... staging path',
 };
 
 const HotsiteBrandingBodySchema = z
@@ -95,6 +99,17 @@ export const GenerateHotsiteImageSignedUrlBodySchema = z.object({
 
 type GenerateHotsiteImageSignedUrlBody = z.infer<typeof GenerateHotsiteImageSignedUrlBodySchema>;
 
+// Only for not-yet-promoted tmp/ staging uploads — an already-permanent tenants/.../hotsite/...
+// image resolves via the pure getPublicUrl() string template instead (see
+// td/TD22-ORPHANED-UPLOAD-CLEANUP.md § tmp/ image preview).
+export const GenerateHotsiteImageReadSignedUrlBodySchema = z.object({
+  filePath: z.string().regex(/^tmp\/[^/]+\/.+$/),
+});
+
+type GenerateHotsiteImageReadSignedUrlBody = z.infer<
+  typeof GenerateHotsiteImageReadSignedUrlBodySchema
+>;
+
 export const FeatureBookingPhotoBodySchema = z
   .object({
     bookingId: z.uuid(),
@@ -107,8 +122,10 @@ export const FeatureBookingPhotoBodySchema = z
 
 type FeatureBookingPhotoBody = z.infer<typeof FeatureBookingPhotoBodySchema>;
 
+// Accepts either an already-permanent hotsite image (tenants/<id>/hotsite/...) or a not-yet
+// promoted tmp/ staging upload (tmp/<id>/...) — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
 export const DeleteHotsiteImageBodySchema = z.object({
-  filePath: z.string().regex(/^tenants\/[^/]+\/hotsite\/.+$/),
+  filePath: z.string().regex(/^(tenants\/[^/]+\/hotsite\/.+|tmp\/[^/]+\/.+)$/),
 });
 
 type DeleteHotsiteImageBody = z.infer<typeof DeleteHotsiteImageBodySchema>;
@@ -151,6 +168,18 @@ export class HotsiteAdminController {
   ): Promise<GenerateHotsiteImageSignedUrlResponse> {
     return this.backendHttp.post<GenerateHotsiteImageSignedUrlResponse>(
       '/tenants/hotsite/images/signed-url',
+      body,
+    );
+  }
+
+  @Post('images/read-signed-url')
+  @HttpCode(HttpStatus.CREATED)
+  generateImageReadSignedUrl(
+    @Body(new ZodValidationPipe(GenerateHotsiteImageReadSignedUrlBodySchema))
+    body: GenerateHotsiteImageReadSignedUrlBody,
+  ): Promise<GenerateHotsiteImageReadSignedUrlResponse> {
+    return this.backendHttp.post<GenerateHotsiteImageReadSignedUrlResponse>(
+      '/tenants/hotsite/images/read-signed-url',
       body,
     );
   }

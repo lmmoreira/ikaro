@@ -87,23 +87,32 @@ describe('RequestBookingUseCase', () => {
     expect((eventBus.published[0] as { tenantId: string }).tenantId).toBe(TENANT_A);
   });
 
-  it('stores beforeServicePhotoUrls on the booking', async () => {
-    const photoPath = `tenants/${TENANT_A}/uploads/upload-1/photo1.jpg`;
-    storageService.markAsUploaded(photoPath);
+  it('promotes beforeServicePhotoUrls from tmp/ to the permanent booking path', async () => {
+    const tmpPath = `tmp/${TENANT_A}/upload-1/photo1.jpg`;
+    storageService.markAsUploaded(tmpPath);
 
     const result = await useCase.execute({
       ...baseInput(),
-      beforeServicePhotoUrls: [photoPath],
+      beforeServicePhotoUrls: [tmpPath],
     });
     const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
-    expect(saved!.beforeServicePhotoUrls).toEqual([photoPath]);
+    expect(saved!.beforeServicePhotoUrls).toEqual([
+      `tenants/${TENANT_A}/bookings/${result.bookingId}/photo1.jpg`,
+    ]);
+    expect(storageService.copiedPaths).toEqual([
+      {
+        sourcePath: tmpPath,
+        destinationPath: `tenants/${TENANT_A}/bookings/${result.bookingId}/photo1.jpg`,
+      },
+    ]);
+    expect(storageService.deletedPaths).toEqual([tmpPath]);
   });
 
   it('throws BookingPhotoNotUploadedError when a photo path does not exist in storage', async () => {
     await expect(
       useCase.execute({
         ...baseInput(),
-        beforeServicePhotoUrls: [`tenants/${TENANT_A}/uploads/upload-1/missing.jpg`],
+        beforeServicePhotoUrls: [`tmp/${TENANT_A}/upload-1/missing.jpg`],
       }),
     ).rejects.toBeInstanceOf(BookingPhotoNotUploadedError);
   });

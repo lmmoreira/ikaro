@@ -267,4 +267,86 @@ describe('UpdateHotsiteContentUseCase', () => {
       useCase.execute({ tenantId: TENANT_A, seo: { description: 'a'.repeat(159) } }),
     ).rejects.toBeInstanceOf(PlatformDomainError);
   });
+
+  describe('tmp/ promotion (TD22)', () => {
+    it('promotes a tmp/-referenced logoUrl to a permanent public path and rewrites the stored reference', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+      const tmpPath = `tmp/${TENANT_A}/branding/u1/logo.png`;
+      storageService.markAsUploaded(tmpPath);
+
+      const result = await useCase.execute({
+        tenantId: TENANT_A,
+        branding: { logoUrl: tmpPath },
+      });
+
+      const expectedPermanentPath = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
+      expect(result.branding.logoUrl).toBe(expectedPermanentPath);
+
+      const saved = await repo.findByTenantId(TENANT_A);
+      expect(saved!.branding.logoUrl).toBe(expectedPermanentPath);
+
+      expect(storageService.copiedPaths).toEqual([
+        { sourcePath: tmpPath, destinationPath: expectedPermanentPath },
+      ]);
+      expect(storageService.deletedPaths).toEqual([tmpPath]);
+    });
+
+    it('rejects a cross-tenant tmp path instead of promoting it', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+      const otherTenantTmpPath = `tmp/${TENANT_B}/branding/u1/logo.png`;
+      storageService.markAsUploaded(otherTenantTmpPath);
+
+      await expect(
+        useCase.execute({ tenantId: TENANT_A, branding: { logoUrl: otherTenantTmpPath } }),
+      ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+      expect(storageService.copiedPaths).toEqual([]);
+    });
+
+    it('rejects a tmp/ path for a tmp object that was never actually uploaded', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+
+      await expect(
+        useCase.execute({
+          tenantId: TENANT_A,
+          branding: { logoUrl: `tmp/${TENANT_A}/branding/u1/missing.png` },
+        }),
+      ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+    });
+
+    it('deletes the previous permanent object when a field changes from one permanent image to another', async () => {
+      const oldPermanentPath = `tenants/${TENANT_A}/hotsite/branding/old/logo.png`;
+      const branding = { ...DEFAULT_HOTSITE_BRANDING, logoUrl: oldPermanentPath };
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent(branding);
+      await repo.save(config);
+      storageService.markAsUploaded(oldPermanentPath);
+      const newTmpPath = `tmp/${TENANT_A}/branding/new/logo.png`;
+      storageService.markAsUploaded(newTmpPath);
+
+      await useCase.execute({ tenantId: TENANT_A, branding: { logoUrl: newTmpPath } });
+
+      expect(storageService.deletedPaths).toEqual(
+        expect.arrayContaining([oldPermanentPath, newTmpPath]),
+      );
+    });
+
+    it('does not delete or re-promote anything for an untouched field still pointing at an old permanent image', async () => {
+      const permanentPath = `tenants/${TENANT_A}/hotsite/branding/u1/logo.png`;
+      const branding = { ...DEFAULT_HOTSITE_BRANDING, logoUrl: permanentPath };
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent(branding);
+      await repo.save(config);
+      storageService.markAsUploaded(permanentPath);
+
+      const result = await useCase.execute({
+        tenantId: TENANT_A,
+        seo: { title: 'Novo título' },
+      });
+
+      expect(result.branding.logoUrl).toBe(permanentPath);
+      expect(storageService.copiedPaths).toEqual([]);
+      expect(storageService.deletedPaths).toEqual([]);
+    });
+  });
 });

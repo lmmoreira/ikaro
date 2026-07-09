@@ -109,19 +109,22 @@ describe('CompleteBookingUseCase', () => {
     expect(saved!.adminNotes).toBe('Extra shine applied');
   });
 
-  it('persists afterServicePhotoUrls', async () => {
+  it('promotes afterServicePhotoUrls from tmp/ to the permanent booking path', async () => {
     const booking = BookingBuilder.approved(TENANT_A, [LINE_ID_1]).build();
     await bookingRepo.save(booking);
-    const photos = [`tenants/${TENANT_A}/bookings/${booking.id}/after1.jpg`];
-    photos.forEach((path) => storageService.markAsUploaded(path));
+    const tmpPath = `tmp/${TENANT_A}/upload-1/after1.jpg`;
+    storageService.markAsUploaded(tmpPath);
 
     await useCase.execute({
-      ...makeDto(booking.id, [LINE_ID_1], { afterServicePhotoUrls: photos }),
+      ...makeDto(booking.id, [LINE_ID_1], { afterServicePhotoUrls: [tmpPath] }),
       ...baseCtx,
     });
 
     const saved = await bookingRepo.findById(booking.id, TENANT_A);
-    expect(saved!.afterServicePhotoUrls).toEqual(photos);
+    expect(saved!.afterServicePhotoUrls).toEqual([
+      `tenants/${TENANT_A}/bookings/${booking.id}/after1.jpg`,
+    ]);
+    expect(storageService.deletedPaths).toEqual([tmpPath]);
   });
 
   it('throws BookingPhotoNotUploadedError when a photo path does not exist in storage', async () => {
@@ -131,7 +134,7 @@ describe('CompleteBookingUseCase', () => {
     await expect(
       useCase.execute({
         ...makeDto(booking.id, [LINE_ID_1], {
-          afterServicePhotoUrls: [`tenants/${TENANT_A}/bookings/${booking.id}/missing.jpg`],
+          afterServicePhotoUrls: [`tmp/${TENANT_A}/upload-1/missing.jpg`],
         }),
         ...baseCtx,
       }),
