@@ -250,7 +250,7 @@ interface ProblemDetail {
 
 `<ORIGIN>_<REASON>`, upper snake case, origin prefix identifies the layer/context at a glance:
 - Backend domain, by context: `BOOKING_*`, `CUSTOMER_*`, `STAFF_*`, `LOYALTY_*`, `PLATFORM_*`
-- Backend shared VOs (cross-context, not context-owned): `ADDRESS_*`, `PHONE_*`, `MONEY_*`, `SEO_TITLE_*`, `SEO_DESCRIPTION_*`, `SLUG_*`, `HEX_COLOR_*`, `TIMEZONE_*`, `TIME_OF_DAY_*`, `EMAIL_*`
+- Backend shared VOs (cross-context, not context-owned): `ADDRESS_*`, `COUNTRY_CODE_*`, `PHONE_*`, `MONEY_*`, `SEO_TITLE_*`, `SEO_DESCRIPTION_*`, `SLUG_*`, `HEX_COLOR_*`, `TIMEZONE_*`, `TIME_OF_DAY_*`, `EMAIL_*`
 - BFF-originated: `BFF_*` (e.g. `BFF_GUEST_TOKEN_INVALID`, `BFF_UPSTREAM_UNAVAILABLE`)
 - Framework/generic fallback, used only when nothing more specific applies: `AUTH_UNAUTHORIZED`, `AUTH_FORBIDDEN`, `INTERNAL_ERROR`, `NOT_FOUND`
 
@@ -320,41 +320,47 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ### Wave 2 — Backend: base classes + per-context code assignment
 
-#### Story 2 — Unify backend base domain error classes
+#### Story 2 — `DomainErrorShape` pattern + apply it to booking (the other 5 contexts follow one-by-one)
 
-**Scope:** all 6 `*-domain.error.ts` base classes.
+**Scope:** `apps/backend/src/shared/domain/`, `BookingDomainError`, `NotificationDomainError`.
+
+**Found during Story 2+3 discovery:** this story cannot uniformly touch all 6 base classes at once. `implements DomainErrorShape` requires `code` to be a real, non-undefined value on every instance — but `CustomerErrorCode`/`StaffErrorCode`/`LoyaltyErrorCode`/`PlatformErrorCode` are still empty unions (`never`) until their own stories populate them. Typing a base class against an empty union and still expecting every existing subclass to compile is only possible for the one context whose catalog is populated in the same PR (booking, via Story 3) — for the other 4, it would either fail to compile or force a fake fallback that defeats the typed-governance goal of §9. So `DomainErrorShape` is applied **one context at a time**, each bundled with that context's own code-population story — not as one upfront pass across all 6. Stories 4/5/6/7 each carry this same work for their own base class (see the added line in each below).
 
 **Work required:**
-1. Add `interface DomainErrorShape { code: string; field?: string }` in `apps/backend/src/shared/domain/` — a structural contract, not a shared base class (bounded contexts stay independent per CLAUDE.md's no-cross-context-imports rule; this only pins the *shape*, defined in the sanctioned cross-cutting location).
-2. Each of the 6 base classes `implements DomainErrorShape`, with its constructor's `code` parameter typed against that context's own literal union from Story 1 (e.g. `BookingDomainError`'s constructor takes `code: BookingErrorCode`, not `string`) — this is what makes the compile-time governance in §9 real, not just documented intent.
-3. Add `readonly field?: string` to each base class constructor signature.
-4. Fix `NotificationDomainError`'s missing `this.name` assignment (the one inconsistency vs. the other 5).
-5. No mapper changes yet — this only prepares the base classes to carry `code`/`field`; Stories 3-8 populate them context-by-context.
+1. Add `interface DomainErrorShape { code: string; field?: string }` in `apps/backend/src/shared/domain/` — a structural contract, not a shared base class (bounded contexts stay independent per CLAUDE.md's no-cross-context-imports rule; this only pins the *shape*, defined in the sanctioned cross-cutting location). Reused by every context's own story, not just this one.
+2. `BookingDomainError implements DomainErrorShape`, with its constructor's `code` parameter typed against `BookingErrorCode` (not `string`) — this is what makes the compile-time governance in §9 real, not just documented intent. Real values exist because Story 3 populates `BookingErrorCode` in the same PR.
+3. Add `readonly field?: string` to `BookingDomainError`'s constructor signature.
+4. Fix `NotificationDomainError`'s missing `this.name` assignment (the one inconsistency vs. the other 5) — a pure bug fix, independent of any catalog state, safe to do now regardless of context sequencing.
+5. `CustomerDomainError`, `StaffDomainError`, `LoyaltyDomainError`, `PlatformDomainError` are untouched by this story — each gets its own `DomainErrorShape` treatment in Stories 4/5/6/7 respectively.
+6. No mapper changes beyond booking's (Story 3) — the other 4 contexts' mappers are untouched until their own story.
 
 **Acceptance criteria:**
-- [ ] All 6 base classes implement `DomainErrorShape` and have consistent `code`/`field`/`name`/`setPrototypeOf` shape
-- [ ] Each base class's `code` constructor parameter is typed against its own context's literal union (not bare `string`) — constructing a subclass with a code outside that union fails to compile
-- [ ] Existing subclasses still compile (constructors updated to pass a placeholder code — real codes assigned per-context in the following stories, or this story and Story 3 land together if splitting proves awkward)
+- [ ] `DomainErrorShape` interface exists in `apps/backend/src/shared/domain/`
+- [ ] `BookingDomainError` implements `DomainErrorShape`, `code` typed against `BookingErrorCode` — constructing a booking subclass with a code outside that union fails to compile
+- [ ] `NotificationDomainError` sets `this.name` correctly
+- [ ] `CustomerDomainError`/`StaffDomainError`/`LoyaltyDomainError`/`PlatformDomainError` compile unchanged (untouched by this story)
 
-**DoD:** Structural only, no behavior change, unit tests for error classes pass.
+**DoD:** Structural only for booking + the notification bug fix; no behavior change to the other 4 contexts; unit tests for error classes pass.
 
 ---
 
 #### Story 3 — Booking context: codes + `AddressValidationError` field discriminator (TD14's fix, correctly scoped)
 
-**Scope:** `apps/backend/src/contexts/booking/**`, `booking-error.mapper.ts`.
+**Scope:** `apps/backend/src/contexts/booking/**`, `booking-error.mapper.ts`, `apps/backend/src/shared/value-objects/address.ts`, `apps/backend/src/shared/value-objects/country-code.vo.ts`.
 
 **Work required:**
 1. Assign a `code` to each of the 32 named subclasses (table above) — e.g. `BookingNotFoundError` → `BOOKING_NOT_FOUND`, `ClosureDateInPastError` → `BOOKING_CLOSURE_DATE_IN_PAST`.
 2. Convert the ~23 raw `throw new BookingDomainError(...)` inline-message sites into either a `code` parameter on the base constructor or a new named subclass where the call site is a real, distinct business rule (judgment call per site — prefer a code parameter for genuinely one-off messages, a named subclass when the same condition is thrown from >1 place).
 3. Update `booking-error.mapper.ts` to emit `code`/`field` in every branch (currently flat `detail`-only).
-4. `Address.create()` callers in booking use cases (pickup address in `ServiceSelectionStep`'s backend counterpart, contact address in `PersonalInfoStep`'s) attach `field: 'pickupAddress'` / `field: 'contactAddress'` when catching/rethrowing `AddressValidationError` — this is TD14's original fix, now correctly scoped as one context's worth of work within the larger pattern.
-5. Populate `packages/types/src/error-codes.ts`'s `BookingErrorCode` and both `errors.json` locale files with translated copy for every new code.
+4. Give `AddressValidationError` a real `code: AddressErrorCode` per validation branch in `address.ts` (e.g. `ADDRESS_POSTAL_CODE_INVALID`, `ADDRESS_STATE_INVALID`, `ADDRESS_NEIGHBORHOOD_REQUIRED`, `ADDRESS_FIELD_REQUIRED`), populating `AddressErrorCode` (scaffolded empty in Story 1). Same for `CountryCodeValidationError` — add a new `CountryCodeErrorCode` origin to `error-codes.ts` (not present in Story 1's original 16; added here) and a `COUNTRY_CODE_*` prefix to §3. Found during Story 3 discovery: neither VO was actually in scope anywhere else — Story 8 excludes `Address`/`CountryCode` (they already have typed classes, unlike the 9 VOs Story 8 covers), but nothing else ever assigned them a `code`, even though Story 10 already presupposes "the backend VO (Story 3/4)" did.
+5. Add `BookingAddressValidationError` — a booking-owned `Error` subclass implementing the structural `DomainErrorShape` interface directly (not extending `BookingDomainError`: its `code` belongs to the `AddressErrorCode`/`CountryCodeErrorCode` namespace, not `BookingErrorCode`, and forcing a fake booking-origin code would either misrepresent the type or lose the per-rule specificity Story 3 exists to add). Booking's two `Address.create()` call sites (`request-booking.use-case.ts`, `request-authenticated-booking.use-case.ts`) catch `AddressValidationError`/`CountryCodeValidationError` and construct this new type, forwarding the caught error's own `code` and attaching `field: 'pickupAddress' | 'contactAddress'`. Requires one new explicit branch in `booking-error.mapper.ts` (it won't be swept up by the generic `BookingDomainError` catch-all, since it isn't one) — the existing raw `AddressValidationError`/`CountryCodeValidationError` branches stay as a defensive fallback for any address error reaching the mapper unwrapped (now also emitting `code`, just without `field`). This replaces TD14's original catch-and-rethrow-same-type idea with a proper VO-error → domain-error translation at the use-case boundary.
+6. Populate `packages/types/src/error-codes.ts`'s `BookingErrorCode`, `AddressErrorCode`, `CountryCodeErrorCode` and both `errors.json` locale files with translated copy for every new code.
 
 **Acceptance criteria:**
 - [ ] Every booking domain error (named + previously-raw) emits `code` (+ `field` where applicable) via the mapper
-- [ ] `AddressValidationError` thrown during booking creation carries `field: 'pickupAddress' | 'contactAddress'`
-- [ ] Both locale files have a translated entry for every new booking code
+- [ ] `AddressValidationError`/`CountryCodeValidationError` carry a real `code` (not just a message) for every validation branch
+- [ ] `BookingAddressValidationError` carries `field: 'pickupAddress' | 'contactAddress'` and forwards the underlying VO error's `code`
+- [ ] Both locale files have a translated entry for every new booking, address, and country-code code
 - [ ] Existing booking integration tests pass; new unit tests assert `code`/`field` presence per error class
 
 **DoD:** No `AddressValidationError` (or any booking domain error) leaves this context without a `code`.
@@ -365,7 +371,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 **Scope:** `apps/backend/src/contexts/customer/**`, `customer-error.mapper.ts`.
 
-**Work required:** same treatment as Story 3, scaled to 1 named subclass + 6 raw throws. `Address.create()`'s customer-profile call site (default address) attaches `field: 'contactAddress'`.
+**Work required:** first, `CustomerDomainError implements DomainErrorShape` with `code` typed against `CustomerErrorCode` + `readonly field?: string` on its constructor (Story 2's pattern, applied to this context now that its catalog is populated — see Story 2's note). Then same treatment as Story 3, scaled to 1 named subclass + 6 raw throws. `Address.create()`'s customer-profile call site (default address) attaches `field: 'contactAddress'`.
 
 **Acceptance criteria:** mirrors Story 3's, scoped to customer.
 
@@ -376,6 +382,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 **Scope:** `apps/backend/src/contexts/staff/**`, `staff-error.mapper.ts`.
 
 **Work required:**
+0. `StaffDomainError implements DomainErrorShape` with `code` typed against `StaffErrorCode` + `readonly field?: string` on its constructor (Story 2's pattern, applied to this context now that its catalog is populated).
 1. Codes for the 9 named subclasses + 10 raw throws.
 2. **Bug fix**: add the missing `AddressValidationError`/`CountryCodeValidationError` branches to `staff-error.mapper.ts` — today these fall to unshaped `Error` passthrough, unlike every other context that has them.
 3. **Security review (§10)**: `StaffEmailMismatchError` and `StaffGoogleAccountConflictError` both arise from the Google account-linking flow and reveal information about existing account/email associations. Before assigning their final codes, evaluate whether either should be collapsed into a more generic code to avoid confirming account existence to an unauthenticated or wrong-account caller — decide explicitly, don't default to maximal specificity.
@@ -389,6 +396,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 **Scope:** `apps/backend/src/contexts/loyalty/**`, `loyalty-error.mapper.ts`.
 
 **Work required:**
+0. `LoyaltyDomainError implements DomainErrorShape` with `code` typed against `LoyaltyErrorCode` + `readonly field?: string` on its constructor (Story 2's pattern, applied to this context now that its catalog is populated).
 1. Codes for the 4 named subclasses (3 live + `LoyaltyEntryNotFoundError`, confirmed dead — delete it, it's never thrown).
 2. **Bug fix**: add a generic `LoyaltyDomainError` catch-all branch + `Error` passthrough default, matching the other 4 mappers' structure — today anything unmatched (including `LoyaltyInvalidPointsError`, which should 4xx) returns an unconditional 500.
 
@@ -401,6 +409,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 **Scope:** `apps/backend/src/contexts/platform/**`, `platform-error.mapper.ts`.
 
 **Work required:**
+0. `PlatformDomainError implements DomainErrorShape` with `code` typed against `PlatformErrorCode` + `readonly field?: string` on its constructor (Story 2's pattern, applied to this context now that its catalog is populated).
 1. Codes for 7 named subclasses + `TenantSettingsValidationError` (the `domain/value-objects/` outlier — consider relocating it to `domain/errors/` for consistency while touching it, or document why it stays put) + ~29 raw throws (the largest single batch, mostly `tenant-settings.vo.ts`'s per-field messages — strong candidate for a helper that assigns a `code` from the field name mechanically rather than 29 hand-written codes, e.g. `PLATFORM_SETTINGS_FIELD_INVALID` + `params: { field }` for the generic cases, named codes only for the ones with genuinely distinct handling).
 2. Decide the fate of `FeaturedBookingNotFoundError` (dead but mapped) and `PhotoNotOnBookingError` (dead and unmapped) — wire up or delete, confirm with the user before deleting.
 
@@ -410,7 +419,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 #### Story 8 — Shared value objects: typed errors for the 8 plain-`Error` VOs (real correctness gap)
 
-**Scope:** `apps/backend/src/shared/value-objects/{money,phone-number,seo-title,seo-description,slug,hex-color,timezone,time-of-day,email}.vo.ts`, all 5 context mappers.
+**Scope:** `apps/backend/src/shared/value-objects/{money,phone-number,seo-title,seo-description,slug,hex-color,timezone,time-of-day,email}.vo.ts`, all 5 context mappers. (`Address`/`CountryCode` already have typed error classes with real codes as of Story 3 — not part of this story's scope.)
 
 **Work required:**
 1. Give each of the 8 VOs (`Money`, `PhoneNumber`, `SeoTitle`, `SeoDescription`, `Slug`, `HexColor`, `Timezone`, `TimeOfDay`, `Email`) a proper typed error class (not bare `Error`) with a `code`.
