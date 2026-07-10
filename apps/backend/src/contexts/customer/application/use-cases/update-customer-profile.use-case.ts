@@ -1,11 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Address, AddressProps } from '../../../../shared/value-objects/address';
+import {
+  Address,
+  AddressProps,
+  AddressValidationError,
+} from '../../../../shared/value-objects/address';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import {
   TRANSACTION_MANAGER,
   ITransactionManager,
 } from '../../../../shared/ports/transaction-manager.port';
-import { CustomerNotFoundError } from '../../domain/errors/customer-domain.error';
+import {
+  CustomerAddressValidationError,
+  CustomerNotFoundError,
+} from '../../domain/errors/customer-domain.error';
 import { CUSTOMER_REPOSITORY, ICustomerRepository } from '../ports/customer-repository.port';
 import { UpdateCustomerProfileDto } from '../dtos/update-customer-profile.dto';
 
@@ -45,10 +52,17 @@ export class UpdateCustomerProfileUseCase {
     } else if (dto.defaultAddress === null) {
       defaultAddress = null;
     } else {
-      defaultAddress = Address.create(
-        { ...dto.defaultAddress, complement: dto.defaultAddress.complement ?? undefined },
-        CountryCode.create(dto.countryCode).spec.address,
-      );
+      try {
+        defaultAddress = Address.create(
+          { ...dto.defaultAddress, complement: dto.defaultAddress.complement ?? undefined },
+          CountryCode.create(dto.countryCode).spec.address,
+        );
+      } catch (err) {
+        if (err instanceof AddressValidationError) {
+          throw new CustomerAddressValidationError(err.message, err.code, err.params);
+        }
+        throw err;
+      }
     }
 
     customer.updateProfile(name, phone, defaultAddress);

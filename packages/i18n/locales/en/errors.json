@@ -46,5 +46,14 @@
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "The neighborhood is required.",
   "ADDRESS_FIELD_REQUIRED": "This address field is required.",
   "COUNTRY_CODE_FORMAT_INVALID": "The country code provided is invalid.",
-  "COUNTRY_CODE_UNSUPPORTED": "The country code provided is not supported."
+  "COUNTRY_CODE_UNSUPPORTED": "The country code provided is not supported.",
+  "CUSTOMER_NOT_FOUND": "Customer not found.",
+  "CUSTOMER_TENANT_ID_REQUIRED": "Something went wrong. Please try again.",
+  "CUSTOMER_GOOGLE_OAUTH_ID_REQUIRED": "Something went wrong. Please try again.",
+  "CUSTOMER_EMAIL_INVALID": "Something went wrong. Please try again.",
+  "CUSTOMER_NAME_REQUIRED": "Name is required.",
+  "CUSTOMER_PHONE_INVALID": "The phone number provided is invalid.",
+  "LOYALTY_INVALID_POINTS": "The points amount must be greater than zero.",
+  "LOYALTY_INSUFFICIENT_POINTS": "Insufficient points balance for this operation.",
+  "LOYALTY_BALANCE_NOT_FOUND": "No loyalty balance found for this customer."
 }

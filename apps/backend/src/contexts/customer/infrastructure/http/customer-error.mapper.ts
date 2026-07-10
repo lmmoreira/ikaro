@@ -1,36 +1,33 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { ProblemDetail } from '../../../../shared/http/problem-detail';
-import { AddressValidationError } from '../../../../shared/value-objects/address';
-import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import {
+  CustomerAddressValidationError,
   CustomerDomainError,
   CustomerNotFoundError,
 } from '../../domain/errors/customer-domain.error';
 
 export function mapCustomerError(err: unknown): never {
-  if (err instanceof AddressValidationError) {
+  if (err instanceof CustomerAddressValidationError) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Bad Request',
       status: HttpStatus.BAD_REQUEST,
+      code: err.code,
+      field: err.field,
+      params: err.params,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.BAD_REQUEST);
   }
-  if (err instanceof CountryCodeValidationError) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Bad Request',
-      status: HttpStatus.BAD_REQUEST,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.BAD_REQUEST);
-  }
+  mapSharedAddressError(err);
   if (err instanceof CustomerNotFoundError) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Not Found',
       status: HttpStatus.NOT_FOUND,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.NOT_FOUND);
@@ -40,6 +37,8 @@ export function mapCustomerError(err: unknown): never {
       type: 'about:blank',
       title: 'Bad Request',
       status: HttpStatus.BAD_REQUEST,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.BAD_REQUEST);
