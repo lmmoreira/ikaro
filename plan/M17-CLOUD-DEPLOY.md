@@ -208,7 +208,7 @@ Before any HCL is written, vendor HashiCorp's official agent skills into this re
 
 ---
 
-### M17-S03 — Cron delivery via Scheduler → Pub/Sub → push
+### M17-S03 — Cron delivery via Scheduler → Pub/Sub → push ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
