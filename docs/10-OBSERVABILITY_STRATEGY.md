@@ -760,51 +760,67 @@ new ParentBasedSampler({
 
 ## Health Check Implementation
 
-```typescript
-// src/shared/observability/health.controller.ts
-import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+Every service ships two endpoints: `/health/live` (process-up, zero dependencies, always 200) and
+`/health/ready` (checks one hop down, `503` on failure). Both are exempt from auth guards (`@Public()`)
+and rate limiting. Each service checks only its *immediate* dependency — no cascading readiness chains
+(see `plan/M17-CLOUD-DEPLOY.md` M17-S04).
 
+**Backend** (`@nestjs/terminus` — real DB ping; Pub/Sub is log-only and never gates readiness, since a
+transient Pub/Sub blip must not take the API out of rotation):
+
+```typescript
+// apps/backend/src/health/health.controller.ts
+import { Controller, Get } from '@nestjs/common';
+import { HealthCheckService, HealthCheck, TypeOrmHealthIndicator } from '@nestjs/terminus';
+import { Public } from '../shared/decorators/public.decorator';
+
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(
-    @InjectDataSource() private dataSource: DataSource,
+    private readonly health: HealthCheckService,
+    private readonly db: TypeOrmHealthIndicator,
   ) {}
 
   @Get('live')
-  liveness() {
-    return { status: 'ok' };   // 200 as long as process runs
+  live(): { status: string } {
+    return { status: 'ok' }; // 200 as long as the process runs
   }
 
   @Get('ready')
-  async readiness() {
-    const checks: Record<string, string> = {};
-
-    // Check database
-    try {
-      await this.dataSource.query('SELECT 1');
-      checks.database = 'ok';
-    } catch {
-      checks.database = 'error';
-    }
-
-    // Check Pub/Sub (ping topic)
-    try {
-      // attempt a lightweight topic.exists() check
-      checks.eventBus = 'ok';
-    } catch {
-      checks.eventBus = 'error';
-    }
-
-    const healthy = Object.values(checks).every(v => v === 'ok');
-    const body = { status: healthy ? 'ok' : 'error', checks };
-
-    if (!healthy) throw new ServiceUnavailableException(body);
-    return body;
+  @HealthCheck()
+  ready() {
+    // 503 (terminus's native HealthCheckResult shape) on failed/slow DB ping
+    return this.health.check([() => this.db.pingCheck('database', { timeout: 2000 })]);
   }
 }
 ```
+
+**BFF** (HTTP check one hop down — the backend's *liveness*, not its readiness, so a backend DB blip
+doesn't cascade into the BFF failing too):
+
+```typescript
+// apps/bff/src/health/health.controller.ts
+@Get('ready')
+async ready() {
+  await firstValueFrom(this.http.get(`${this.backendUrl}/health/live`, { timeout: 2000 }));
+  return { status: 'ok' }; // non-2xx/timeout throws -> 503 via the global exception filter
+}
+```
+
+**Web** (Next.js route handlers, thin — logic lives in `shared/lib/`):
+
+```typescript
+// apps/web/app/api/health/ready/route.ts
+export async function GET() {
+  const res = await bffPublicFetch('/health/live', { signal: AbortSignal.timeout(2000) });
+  return res.ok
+    ? NextResponse.json({ status: 'ok' })
+    : NextResponse.json({ status: 'error' }, { status: 503 });
+}
+```
+
+All three: explicit 2s timeouts, no hanging probes; `/health/live` stays dependency-free everywhere.
 
 ---
 
