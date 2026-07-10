@@ -1,9 +1,15 @@
-import { BookingErrorCode } from '@ikaro/types';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Money } from '../../../shared/value-objects/money';
 import { normalizeOptionalText, normalizeText } from '../../../shared/utils/text-normalization';
-import { BookingDomainError, ServiceDeactivatedError } from './errors/booking-domain.error';
+import {
+  ServiceDeactivatedError,
+  ServiceDurationInvalidError,
+  ServiceLoyaltyPointsInvalidError,
+  ServiceNameRequiredError,
+  ServicePriceInvalidError,
+  TenantIdRequiredError,
+} from './errors/booking-domain.error';
 
 export interface ServiceProps {
   id: string;
@@ -82,30 +88,12 @@ export class Service extends AggregateRoot {
     isActive = true,
     description,
   }: CreateServiceProps): Service {
-    if (!tenantId)
-      throw new BookingDomainError('tenantId is required', BookingErrorCode.TENANT_ID_REQUIRED);
+    if (!tenantId) throw new TenantIdRequiredError();
     const normalizedName = normalizeText(name);
-    if (!normalizedName) {
-      throw new BookingDomainError('name is required', BookingErrorCode.SERVICE_NAME_REQUIRED);
-    }
-    if (price.amount.isNegative() || price.amount.isZero()) {
-      throw new BookingDomainError(
-        'price must be greater than zero',
-        BookingErrorCode.SERVICE_PRICE_INVALID,
-      );
-    }
-    if (durationMinutes <= 0) {
-      throw new BookingDomainError(
-        'durationMinutes must be greater than zero',
-        BookingErrorCode.SERVICE_DURATION_INVALID,
-      );
-    }
-    if (loyaltyPointsValue < 0) {
-      throw new BookingDomainError(
-        'loyaltyPointsValue must be non-negative',
-        BookingErrorCode.SERVICE_LOYALTY_POINTS_INVALID,
-      );
-    }
+    if (!normalizedName) throw new ServiceNameRequiredError();
+    if (price.amount.isNegative() || price.amount.isZero()) throw new ServicePriceInvalidError();
+    if (durationMinutes <= 0) throw new ServiceDurationInvalidError();
+    if (loyaltyPointsValue < 0) throw new ServiceLoyaltyPointsInvalidError();
 
     const now = new Date();
     return new Service({
@@ -137,27 +125,10 @@ export class Service extends AggregateRoot {
   ): void {
     if (!this.props.isActive) throw new ServiceDeactivatedError();
     const normalizedName = normalizeText(name);
-    if (!normalizedName) {
-      throw new BookingDomainError('name is required', BookingErrorCode.SERVICE_NAME_REQUIRED);
-    }
-    if (price.amount.isNegative() || price.amount.isZero()) {
-      throw new BookingDomainError(
-        'price must be greater than zero',
-        BookingErrorCode.SERVICE_PRICE_INVALID,
-      );
-    }
-    if (durationMinutes <= 0) {
-      throw new BookingDomainError(
-        'durationMinutes must be greater than zero',
-        BookingErrorCode.SERVICE_DURATION_INVALID,
-      );
-    }
-    if (loyaltyPointsValue < 0) {
-      throw new BookingDomainError(
-        'loyaltyPointsValue must be non-negative',
-        BookingErrorCode.SERVICE_LOYALTY_POINTS_INVALID,
-      );
-    }
+    if (!normalizedName) throw new ServiceNameRequiredError();
+    if (price.amount.isNegative() || price.amount.isZero()) throw new ServicePriceInvalidError();
+    if (durationMinutes <= 0) throw new ServiceDurationInvalidError();
+    if (loyaltyPointsValue < 0) throw new ServiceLoyaltyPointsInvalidError();
 
     this.props.name = normalizedName;
     this.props.description = normalizeOptionalText(description);

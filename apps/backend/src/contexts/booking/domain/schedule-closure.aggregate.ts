@@ -4,9 +4,12 @@ import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 import {
-  BookingDomainError,
   ClosureDateInPastError,
+  ClosureReasonInvalidError,
+  ClosureTimeRangeIncompleteError,
+  CreatedByRequiredError,
   InvalidTimeRangeError,
+  TenantIdRequiredError,
 } from './errors/booking-domain.error';
 
 export enum ClosureReason {
@@ -111,16 +114,10 @@ export class ScheduleClosure extends AggregateRoot {
     startTime?: string,
     endTime?: string,
   ): void {
-    if (!tenantId)
-      throw new BookingDomainError('tenantId is required', BookingErrorCode.TENANT_ID_REQUIRED);
-    if (!createdBy) {
-      throw new BookingDomainError('createdBy is required', BookingErrorCode.CREATED_BY_REQUIRED);
-    }
+    if (!tenantId) throw new TenantIdRequiredError();
+    if (!createdBy) throw new CreatedByRequiredError();
     if (!Object.values(ClosureReason).includes(reason)) {
-      throw new BookingDomainError(
-        `Invalid closure reason: ${reason}`,
-        BookingErrorCode.CLOSURE_REASON_INVALID,
-      );
+      throw new ClosureReasonInvalidError(reason);
     }
     const today = todayUTC();
     if (date < today) throw new ClosureDateInPastError();
@@ -131,10 +128,7 @@ export class ScheduleClosure extends AggregateRoot {
     const hasStart = startTime != null;
     const hasEnd = endTime != null;
     if (hasStart !== hasEnd) {
-      throw new BookingDomainError(
-        'startTime and endTime must both be provided or both omitted',
-        BookingErrorCode.CLOSURE_TIME_RANGE_INCOMPLETE,
-      );
+      throw new ClosureTimeRangeIncompleteError();
     }
     if (startTime != null && endTime != null) {
       if (!TimeOfDay.isValid(startTime) || !TimeOfDay.isValid(endTime)) {

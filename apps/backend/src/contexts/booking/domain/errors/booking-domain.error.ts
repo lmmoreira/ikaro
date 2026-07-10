@@ -286,6 +286,68 @@ export class InvalidTimeRangeError extends BookingDomainError {
   }
 }
 
+export class TenantIdRequiredError extends BookingDomainError {
+  constructor() {
+    super('tenantId is required', BookingErrorCode.TENANT_ID_REQUIRED);
+    this.name = 'TenantIdRequiredError';
+  }
+}
+
+export class CreatedByRequiredError extends BookingDomainError {
+  constructor() {
+    super('createdBy is required', BookingErrorCode.CREATED_BY_REQUIRED);
+    this.name = 'CreatedByRequiredError';
+  }
+}
+
+export class ClosureReasonInvalidError extends BookingDomainError {
+  constructor(reason: string) {
+    super(`Invalid closure reason: ${reason}`, BookingErrorCode.CLOSURE_REASON_INVALID);
+    this.name = 'ClosureReasonInvalidError';
+  }
+}
+
+export class ClosureTimeRangeIncompleteError extends BookingDomainError {
+  constructor() {
+    super(
+      'startTime and endTime must both be provided or both omitted',
+      BookingErrorCode.CLOSURE_TIME_RANGE_INCOMPLETE,
+    );
+    this.name = 'ClosureTimeRangeIncompleteError';
+  }
+}
+
+export class ServiceNameRequiredError extends BookingDomainError {
+  constructor() {
+    super('name is required', BookingErrorCode.SERVICE_NAME_REQUIRED);
+    this.name = 'ServiceNameRequiredError';
+  }
+}
+
+export class ServicePriceInvalidError extends BookingDomainError {
+  constructor() {
+    super('price must be greater than zero', BookingErrorCode.SERVICE_PRICE_INVALID);
+    this.name = 'ServicePriceInvalidError';
+  }
+}
+
+export class ServiceDurationInvalidError extends BookingDomainError {
+  constructor() {
+    super('durationMinutes must be greater than zero', BookingErrorCode.SERVICE_DURATION_INVALID);
+    this.name = 'ServiceDurationInvalidError';
+  }
+}
+
+export class ServiceLoyaltyPointsInvalidError extends BookingDomainError {
+  constructor() {
+    super(
+      'loyaltyPointsValue must be non-negative',
+      BookingErrorCode.SERVICE_LOYALTY_POINTS_INVALID,
+    );
+    this.name = 'ServiceLoyaltyPointsInvalidError';
+  }
+}
+
 /**
  * Booking-owned translation of a VO-level address/country-code validation failure.
  * Deliberately does NOT extend BookingDomainError: its `code` belongs to the

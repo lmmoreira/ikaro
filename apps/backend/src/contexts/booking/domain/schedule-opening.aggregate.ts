@@ -4,9 +4,10 @@ import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 import {
-  BookingDomainError,
+  CreatedByRequiredError,
   InvalidTimeRangeError,
   OpeningDateInPastError,
+  TenantIdRequiredError,
 } from './errors/booking-domain.error';
 
 export interface ScheduleOpeningProps {
@@ -85,11 +86,8 @@ export class ScheduleOpening extends AggregateRoot {
     endTime: string,
     createdBy: string,
   ): void {
-    if (!tenantId)
-      throw new BookingDomainError('tenantId is required', BookingErrorCode.TENANT_ID_REQUIRED);
-    if (!createdBy) {
-      throw new BookingDomainError('createdBy is required', BookingErrorCode.CREATED_BY_REQUIRED);
-    }
+    if (!tenantId) throw new TenantIdRequiredError();
+    if (!createdBy) throw new CreatedByRequiredError();
     const today = todayUTC();
     if (date < today) throw new OpeningDateInPastError();
     if (!TimeOfDay.isValid(startTime) || !TimeOfDay.isValid(endTime)) {

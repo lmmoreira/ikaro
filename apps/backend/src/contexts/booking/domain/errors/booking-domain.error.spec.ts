@@ -22,7 +22,10 @@ import {
   BookingSlotUnavailableError,
   CancellationWindowExpiredError,
   ClosureDateInPastError,
+  ClosureReasonInvalidError,
+  ClosureTimeRangeIncompleteError,
   CompleteBookingLinesIncompleteError,
+  CreatedByRequiredError,
   CustomerPhoneNotSetError,
   DayAlreadyOpenInSettingsError,
   InvalidBookingTransitionError,
@@ -34,7 +37,12 @@ import {
   ScheduleOpeningAlreadyExistsError,
   ScheduleOpeningNotFoundError,
   ServiceDeactivatedError,
+  ServiceDurationInvalidError,
+  ServiceLoyaltyPointsInvalidError,
+  ServiceNameRequiredError,
   ServiceNotFoundError,
+  ServicePriceInvalidError,
+  TenantIdRequiredError,
 } from './booking-domain.error';
 
 describe('BookingDomainError (base class)', () => {
@@ -239,6 +247,46 @@ describe('booking domain error subclasses', () => {
       build: () =>
         new InvalidTimeRangeError('bad order', BookingErrorCode.TIME_RANGE_ORDER_INVALID),
       code: BookingErrorCode.TIME_RANGE_ORDER_INVALID,
+    },
+    {
+      label: 'TenantIdRequiredError',
+      build: () => new TenantIdRequiredError(),
+      code: BookingErrorCode.TENANT_ID_REQUIRED,
+    },
+    {
+      label: 'CreatedByRequiredError',
+      build: () => new CreatedByRequiredError(),
+      code: BookingErrorCode.CREATED_BY_REQUIRED,
+    },
+    {
+      label: 'ServiceNameRequiredError',
+      build: () => new ServiceNameRequiredError(),
+      code: BookingErrorCode.SERVICE_NAME_REQUIRED,
+    },
+    {
+      label: 'ServicePriceInvalidError',
+      build: () => new ServicePriceInvalidError(),
+      code: BookingErrorCode.SERVICE_PRICE_INVALID,
+    },
+    {
+      label: 'ServiceDurationInvalidError',
+      build: () => new ServiceDurationInvalidError(),
+      code: BookingErrorCode.SERVICE_DURATION_INVALID,
+    },
+    {
+      label: 'ServiceLoyaltyPointsInvalidError',
+      build: () => new ServiceLoyaltyPointsInvalidError(),
+      code: BookingErrorCode.SERVICE_LOYALTY_POINTS_INVALID,
+    },
+    {
+      label: 'ClosureReasonInvalidError',
+      build: () => new ClosureReasonInvalidError('BAD_REASON'),
+      code: BookingErrorCode.CLOSURE_REASON_INVALID,
+    },
+    {
+      label: 'ClosureTimeRangeIncompleteError',
+      build: () => new ClosureTimeRangeIncompleteError(),
+      code: BookingErrorCode.CLOSURE_TIME_RANGE_INCOMPLETE,
     },
   ];
 
