@@ -1,4 +1,6 @@
+import { AddressErrorCode } from '@ikaro/types';
 import {
+  CustomerAddressValidationError,
   CustomerDomainError,
   CustomerNotFoundError,
 } from '../../domain/errors/customer-domain.error';
@@ -135,14 +137,22 @@ describe('UpdateCustomerProfileUseCase', () => {
     ).rejects.toBeInstanceOf(CustomerDomainError);
   });
 
-  it('throws for invalid zipCode in address (VO validation)', async () => {
-    await expect(
-      useCase.execute({
+  it('wraps invalid zipCode in address into CustomerAddressValidationError with field: contactAddress', async () => {
+    let caught: unknown;
+    try {
+      await useCase.execute({
         tenantId: TENANT_A,
         customerId,
         countryCode: COUNTRY_CODE,
         defaultAddress: { ...validAddress, zipCode: '123' },
-      }),
-    ).rejects.toThrow();
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(CustomerAddressValidationError);
+    expect((caught as CustomerAddressValidationError).code).toBe(
+      AddressErrorCode.POSTAL_CODE_INVALID,
+    );
+    expect((caught as CustomerAddressValidationError).field).toBe('contactAddress');
   });
 });

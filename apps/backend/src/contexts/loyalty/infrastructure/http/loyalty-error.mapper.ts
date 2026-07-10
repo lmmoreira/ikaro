@@ -1,39 +1,46 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { ProblemDetail } from '../../../../shared/http/problem-detail';
 import {
   LoyaltyBalanceNotFoundError,
+  LoyaltyDomainError,
   LoyaltyInsufficientPointsError,
+  LoyaltyInvalidPointsError,
 } from '../../domain/errors/loyalty-domain.error';
 
 export function mapLoyaltyError(err: unknown): never {
   if (err instanceof LoyaltyBalanceNotFoundError) {
-    throw new HttpException(
-      {
-        type: 'about:blank',
-        title: 'Not Found',
-        status: HttpStatus.NOT_FOUND,
-        detail: err.message,
-      },
-      HttpStatus.NOT_FOUND,
-    );
-  }
-  if (err instanceof LoyaltyInsufficientPointsError) {
-    throw new HttpException(
-      {
-        type: 'about:blank',
-        title: 'Unprocessable Entity',
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        detail: err.message,
-      },
-      HttpStatus.UNPROCESSABLE_ENTITY,
-    );
-  }
-  throw new HttpException(
-    {
+    const body: ProblemDetail = {
       type: 'about:blank',
-      title: 'Internal Server Error',
-      status: HttpStatus.INTERNAL_SERVER_ERROR,
-      detail: err instanceof Error ? err.message : 'Unexpected error',
-    },
-    HttpStatus.INTERNAL_SERVER_ERROR,
-  );
+      title: 'Not Found',
+      status: HttpStatus.NOT_FOUND,
+      code: err.code,
+      field: err.field,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.NOT_FOUND);
+  }
+  if (err instanceof LoyaltyInsufficientPointsError || err instanceof LoyaltyInvalidPointsError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Unprocessable Entity',
+      status: HttpStatus.UNPROCESSABLE_ENTITY,
+      code: err.code,
+      field: err.field,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
+  }
+  if (err instanceof LoyaltyDomainError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: HttpStatus.BAD_REQUEST,
+      code: err.code,
+      field: err.field,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.BAD_REQUEST);
+  }
+  if (err instanceof Error) throw err;
+  throw new Error(`Unexpected error: ${String(err)}`);
 }

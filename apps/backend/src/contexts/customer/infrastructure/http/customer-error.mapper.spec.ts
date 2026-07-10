@@ -1,58 +1,69 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { AddressErrorCode, CountryCodeErrorCode } from '@ikaro/types';
+import { AddressErrorCode, CountryCodeErrorCode, CustomerErrorCode } from '@ikaro/types';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import {
+  CustomerAddressValidationError,
   CustomerDomainError,
   CustomerNotFoundError,
 } from '../../domain/errors/customer-domain.error';
 import { mapCustomerError } from './customer-error.mapper';
 
+function call(err: unknown): HttpException {
+  try {
+    mapCustomerError(err);
+    throw new Error('mapCustomerError should have thrown');
+  } catch (e) {
+    return e as HttpException;
+  }
+}
+
 describe('mapCustomerError', () => {
-  it('maps AddressValidationError to 400', () => {
-    const err = new AddressValidationError(
-      'Invalid CEP: 123',
-      AddressErrorCode.POSTAL_CODE_INVALID,
+  it('maps CustomerAddressValidationError to 400 with code and field', () => {
+    const err = call(
+      new CustomerAddressValidationError('Invalid CEP: 123', AddressErrorCode.POSTAL_CODE_INVALID),
     );
-    expect(() => mapCustomerError(err)).toThrow(HttpException);
-    try {
-      mapCustomerError(err);
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
-    }
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({
+      code: AddressErrorCode.POSTAL_CODE_INVALID,
+      field: 'contactAddress',
+    });
   });
 
-  it('maps CountryCodeValidationError to 400', () => {
-    const err = new CountryCodeValidationError(
-      'countryCode must be supported',
-      CountryCodeErrorCode.UNSUPPORTED,
+  it('maps AddressValidationError to 400 with code', () => {
+    const err = call(
+      new AddressValidationError('Invalid CEP: 123', AddressErrorCode.POSTAL_CODE_INVALID),
     );
-    expect(() => mapCustomerError(err)).toThrow(HttpException);
-    try {
-      mapCustomerError(err);
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
-    }
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: AddressErrorCode.POSTAL_CODE_INVALID });
   });
 
-  it('maps CustomerNotFoundError to 404', () => {
-    const err = new CustomerNotFoundError('some-id');
-    expect(() => mapCustomerError(err)).toThrow(HttpException);
-    try {
-      mapCustomerError(err);
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
-    }
+  it('maps CountryCodeValidationError to 400 with code', () => {
+    const err = call(
+      new CountryCodeValidationError(
+        'countryCode must be supported',
+        CountryCodeErrorCode.UNSUPPORTED,
+      ),
+    );
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: CountryCodeErrorCode.UNSUPPORTED });
   });
 
-  it('maps generic CustomerDomainError to 400', () => {
-    const err = new CustomerDomainError('invalid state');
-    expect(() => mapCustomerError(err)).toThrow(HttpException);
-    try {
-      mapCustomerError(err);
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
-    }
+  it('maps CustomerNotFoundError to 404 with code', () => {
+    const err = call(new CustomerNotFoundError('some-id'));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(err.getResponse()).toMatchObject({ code: CustomerErrorCode.NOT_FOUND });
+  });
+
+  it('maps generic CustomerDomainError to 400, preserving the code carried on the instance', () => {
+    const err = call(new CustomerDomainError('invalid state', CustomerErrorCode.NAME_REQUIRED));
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: CustomerErrorCode.NAME_REQUIRED });
   });
 
   it('re-throws plain Error instances unchanged', () => {

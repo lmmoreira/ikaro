@@ -48,13 +48,24 @@ export const BookingErrorCode = {
 } as const;
 export type BookingErrorCode = (typeof BookingErrorCode)[keyof typeof BookingErrorCode];
 
-export const CustomerErrorCode = {} as const;
+export const CustomerErrorCode = {
+  NOT_FOUND: 'CUSTOMER_NOT_FOUND',
+  TENANT_ID_REQUIRED: 'CUSTOMER_TENANT_ID_REQUIRED',
+  GOOGLE_OAUTH_ID_REQUIRED: 'CUSTOMER_GOOGLE_OAUTH_ID_REQUIRED',
+  EMAIL_INVALID: 'CUSTOMER_EMAIL_INVALID',
+  NAME_REQUIRED: 'CUSTOMER_NAME_REQUIRED',
+  PHONE_INVALID: 'CUSTOMER_PHONE_INVALID',
+} as const;
 export type CustomerErrorCode = (typeof CustomerErrorCode)[keyof typeof CustomerErrorCode];
 
 export const StaffErrorCode = {} as const;
 export type StaffErrorCode = (typeof StaffErrorCode)[keyof typeof StaffErrorCode];
 
-export const LoyaltyErrorCode = {} as const;
+export const LoyaltyErrorCode = {
+  INVALID_POINTS: 'LOYALTY_INVALID_POINTS',
+  INSUFFICIENT_POINTS: 'LOYALTY_INSUFFICIENT_POINTS',
+  BALANCE_NOT_FOUND: 'LOYALTY_BALANCE_NOT_FOUND',
+} as const;
 export type LoyaltyErrorCode = (typeof LoyaltyErrorCode)[keyof typeof LoyaltyErrorCode];
 
 export const PlatformErrorCode = {} as const;

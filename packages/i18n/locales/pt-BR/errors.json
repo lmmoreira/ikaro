@@ -46,5 +46,14 @@
   "ADDRESS_NEIGHBORHOOD_REQUIRED": "O bairro é obrigatório.",
   "ADDRESS_FIELD_REQUIRED": "Este campo do endereço é obrigatório.",
   "COUNTRY_CODE_FORMAT_INVALID": "O código do país informado é inválido.",
-  "COUNTRY_CODE_UNSUPPORTED": "O código do país informado não é suportado."
+  "COUNTRY_CODE_UNSUPPORTED": "O código do país informado não é suportado.",
+  "CUSTOMER_NOT_FOUND": "Cliente não encontrado.",
+  "CUSTOMER_TENANT_ID_REQUIRED": "Ocorreu um erro inesperado. Tente novamente.",
+  "CUSTOMER_GOOGLE_OAUTH_ID_REQUIRED": "Ocorreu um erro inesperado. Tente novamente.",
+  "CUSTOMER_EMAIL_INVALID": "Ocorreu um erro inesperado. Tente novamente.",
+  "CUSTOMER_NAME_REQUIRED": "O nome é obrigatório.",
+  "CUSTOMER_PHONE_INVALID": "O telefone informado é inválido.",
+  "LOYALTY_INVALID_POINTS": "A quantidade de pontos deve ser maior que zero.",
+  "LOYALTY_INSUFFICIENT_POINTS": "Saldo de pontos insuficiente para esta operação.",
+  "LOYALTY_BALANCE_NOT_FOUND": "Nenhum saldo de fidelidade encontrado para este cliente."
 }
