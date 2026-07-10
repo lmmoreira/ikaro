@@ -102,20 +102,12 @@ describe('RequestInterceptor', () => {
     expect(capturedCorrelationId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it('skips tenant check for health routes', async () => {
-    const ctx = makeContext({}, '/health/live');
-    const result = await interceptor.intercept(ctx, mockCallHandler);
-    expect(result).toBeDefined();
-  });
-
-  it('skips tenant check for internal routes', async () => {
-    const ctx = makeContext({}, '/internal/tenants');
-    const result = await interceptor.intercept(ctx, mockCallHandler);
-    expect(result).toBeDefined();
-  });
-
-  it('skips tenant check for cron routes', async () => {
-    const ctx = makeContext({}, '/cron/reminders');
+  it.each([
+    ['health routes', '/health/live'],
+    ['internal routes', '/internal/tenants'],
+    ['cron routes', '/cron/reminders'],
+  ])('skips tenant check for %s', async (_label, path) => {
+    const ctx = makeContext({}, path);
     const result = await interceptor.intercept(ctx, mockCallHandler);
     expect(result).toBeDefined();
   });

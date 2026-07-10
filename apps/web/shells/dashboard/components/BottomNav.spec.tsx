@@ -29,36 +29,14 @@ beforeEach(() => {
 });
 
 describe('BottomNav', () => {
-  it('hides itself on booking detail routes', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123');
-    const { container } = render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
-
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('hides itself on booking completion routes', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123/complete');
-    const { container } = render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
-
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('hides itself on service edit routes', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/services/svc-1/edit');
-    const { container } = render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
-
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('hides itself on service deactivate routes', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/services/svc-1/deactivate');
-    const { container } = render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
-
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('hides itself on loyalty detail routes', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/loyalty/c-1');
+  it.each([
+    ['booking detail routes', '/dashboard/bookings/booking-123'],
+    ['booking completion routes', '/dashboard/bookings/booking-123/complete'],
+    ['service edit routes', '/dashboard/services/svc-1/edit'],
+    ['service deactivate routes', '/dashboard/services/svc-1/deactivate'],
+    ['loyalty detail routes', '/dashboard/loyalty/c-1'],
+  ])('hides itself on %s', (_label, pathname) => {
+    vi.mocked(usePathname).mockReturnValue(pathname);
     const { container } = render(<BottomNav role={STAFF} onOpenSheet={vi.fn()} />);
 
     expect(container).toBeEmptyDOMElement();
