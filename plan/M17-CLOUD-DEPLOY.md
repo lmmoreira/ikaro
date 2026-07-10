@@ -257,7 +257,7 @@ A cron tick is not a domain event, though — it carries no `tenantId` (the job 
 
 ---
 
-### M17-S04 — Real readiness checks (`/health/ready`) on all 3 services
+### M17-S04 — Real readiness checks (`/health/ready`) on all 3 services ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts` + `frontend-ts`
 **Complexity:** S
