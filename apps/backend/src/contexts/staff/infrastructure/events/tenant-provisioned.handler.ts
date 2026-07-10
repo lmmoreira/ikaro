@@ -15,7 +15,7 @@ export class TenantProvisionedHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe<TenantProvisioned>(
-      'TenantProvisioned',
+      TenantProvisioned.name,
       (event) => this.handle(event),
       'staff',
     );

@@ -2,29 +2,29 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
-} from '../../../../../shared/ports/transaction-manager.port';
-import { LoyaltyEntry } from '../../../domain/loyalty-entry.aggregate';
+} from '../../../../shared/ports/transaction-manager.port';
+import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
 import {
   BALANCE_EXPIRY_LOG_REPOSITORY,
   IBalanceExpiryLogRepository,
-} from '../../ports/balance-expiry-log-repository.port';
+} from '../ports/balance-expiry-log-repository.port';
 import {
   ILoyaltyBalanceRepository,
   LOYALTY_BALANCE_REPOSITORY,
-} from '../../ports/loyalty-balance-repository.port';
+} from '../ports/loyalty-balance-repository.port';
 import {
   ILoyaltyEntryRepository,
   LOYALTY_ENTRY_REPOSITORY,
-} from '../../ports/loyalty-entry-repository.port';
+} from '../ports/loyalty-entry-repository.port';
 
-export interface ExpirePointsUseCaseResult {
+export interface ExpirePointsJobResult {
   processedEntries: number;
   affectedCustomers: number;
   totalPointsExpired: number;
 }
 
 @Injectable()
-export class ExpirePointsUseCase {
+export class ExpirePointsJob {
   constructor(
     @Inject(LOYALTY_ENTRY_REPOSITORY) private readonly entryRepo: ILoyaltyEntryRepository,
     @Inject(LOYALTY_BALANCE_REPOSITORY) private readonly balanceRepo: ILoyaltyBalanceRepository,
@@ -33,8 +33,8 @@ export class ExpirePointsUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(): Promise<ExpirePointsUseCaseResult> {
-    const expired = await this.entryRepo.findExpiringBefore(new Date());
+  async run(now: Date = new Date()): Promise<ExpirePointsJobResult> {
+    const expired = await this.entryRepo.findExpiringBefore(now);
 
     const unprocessed: LoyaltyEntry[] = [];
     for (const entry of expired) {

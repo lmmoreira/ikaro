@@ -1,8 +1,12 @@
 # Loyalty — Cron Expiry Warning Trigger (M11-S06)
-# GCP Cloud Scheduler fires this once a week (Mondays 06:00 UTC).
-# Publishes one PointsExpiringSoon event per customer with points expiring within 7 days.
-# In production this is called by GCP Cloud Scheduler (network-protected).
-# M115-S03 adds CronAuthGuard (OIDC token from GCP Cloud Scheduler).
+# Publishes the cron-loyalty-expiry-warning trigger, dispatched to
+# NotifyExpiringPointsTriggerHandler (M17-S03), which publishes one PointsExpiringSoon event per
+# customer with points expiring within 7 days. In production, Cloud Scheduler publishes the same
+# trigger directly to Pub/Sub weekly (Mondays 06:00 UTC) — this endpoint is the local/manual
+# trigger path only, protected by the global InternalApiGuard (X-Internal-Key), not
+# PubSubPushGuard.
+# Response is { ok: true } once the trigger is published — it does not wait for the job to
+# finish. Requires the Pub/Sub emulator running (pnpm infra:up).
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -11,13 +15,8 @@
 
 @baseUrl = {{backendUrl}}
 
-### POST /cron/loyalty-expiry-warning — run weekly expiry warning
+### POST /cron/loyalty-expiry-warning — publish the weekly expiry-warning trigger
 POST {{baseUrl}}/cron/loyalty-expiry-warning
-
-###
-
-### POST /cron/loyalty-expiry-warning — expect 200 { customersNotified: 0 } when no expiring entries
-# (no entries in DB with expires_at within next 7 days)
-POST {{baseUrl}}/cron/loyalty-expiry-warning
+X-Internal-Key: {{internalKey}}
 
 ###

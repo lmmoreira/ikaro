@@ -2,7 +2,6 @@ import { AggregateRoot } from './aggregate-root';
 import { DomainEvent } from './domain-event';
 
 class OrderPlaced extends DomainEvent<{ orderId: string }> {
-  readonly eventName = 'OrderPlaced';
   readonly eventVersion = 1;
   readonly data: { orderId: string };
 
@@ -53,7 +52,7 @@ describe('AggregateRoot', () => {
     expect(event!.tenantId).toBe('tenant-abc');
     expect(event!.correlationId).toBe('corr-xyz');
     expect(event!.occurredAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    expect(event!.eventName).toBe('OrderPlaced');
+    expect(event!.eventName).toBe(OrderPlaced.name);
     expect(event!.eventVersion).toBe(1);
     expect(event!.data.orderId).toBe('order-1');
   });

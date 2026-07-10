@@ -15,7 +15,7 @@ export class TenantProvisionedNotificationHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe<TenantProvisioned>(
-      'TenantProvisioned',
+      TenantProvisioned.name,
       (event) => this.handle(event),
       'notification-template-seed',
     );

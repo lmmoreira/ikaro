@@ -15,7 +15,7 @@ export class StaffInvitedHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe<StaffInvited>(
-      'StaffInvited',
+      StaffInvited.name,
       (event) => this.handle(event),
       'notification',
     );

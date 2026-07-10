@@ -1,7 +1,10 @@
 # Loyalty — Cron Points Expiry Trigger
-# M10-S08: GCP Cloud Scheduler calls this endpoint at 02:00 UTC daily.
-# In production this is called by GCP Cloud Scheduler (network-protected).
-# M115-S03 adds CronAuthGuard (OIDC token from GCP Cloud Scheduler).
+# M10-S08: publishes the cron-loyalty-expiry trigger, dispatched to ExpirePointsTriggerHandler
+# (M17-S03). In production, Cloud Scheduler publishes the same trigger directly to Pub/Sub daily
+# at 02:00 UTC — this endpoint is the local/manual trigger path only, protected by the global
+# InternalApiGuard (X-Internal-Key), not PubSubPushGuard.
+# Response is { ok: true } once the trigger is published — it does not wait for the job to
+# finish. Requires the Pub/Sub emulator running (pnpm infra:up).
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -10,7 +13,8 @@
 
 @baseUrl = {{backendUrl}}
 
-### POST /cron/loyalty-expiry — run daily points expiry
+### POST /cron/loyalty-expiry — publish the daily points-expiry trigger
 POST {{baseUrl}}/cron/loyalty-expiry
+X-Internal-Key: {{internalKey}}
 
 ###

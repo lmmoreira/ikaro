@@ -936,38 +936,34 @@ Content-Type: application/json
 
 ---
 
-### `POST /cron/loyalty-expiry` — Run daily points expiry (M10-S08)
+### `POST /cron/loyalty-expiry` — Publish the daily points-expiry trigger (M10-S08, transport updated M17-S03)
 
-Decrements `loyalty_balances.current_points` for all `loyalty_entries` whose `expires_at` has passed. Triggered by a GCP Cloud Scheduler job at 02:00 UTC daily. Fully idempotent — safe to call multiple times; already-processed entries are skipped via `balance_expiry_log`.
+Publishes the `cron-loyalty-expiry` trigger onto the event bus's trigger channel (`ITriggerBus`) — the same channel Cloud Scheduler publishes to directly in prod via the `ikaro-cron-loyalty-expiry` Pub/Sub topic (daily, 02:00 UTC). `ExpirePointsTriggerHandler`, subscribed to that trigger, calls `ExpirePointsJob.run()`, which decrements `loyalty_balances.current_points` for all `loyalty_entries` whose `expires_at` has passed. Fully idempotent — safe to call multiple times; already-processed entries are skipped via `balance_expiry_log`.
 
-**Why HTTP trigger (not `@Cron`):** Cloud Run scales to zero and multi-pod deployments would execute a `@Cron` on every pod simultaneously. GCP Cloud Scheduler issues one HTTP request; one pod handles it.
+**Why a Pub/Sub trigger (not `@Cron` or a direct HTTP call):** Cloud Run scales to zero and multi-pod deployments would execute a `@Cron` on every pod simultaneously. The backend is internal-ingress only with no public URL, so Cloud Scheduler cannot call it directly either — Scheduler publishes to Pub/Sub, whose push subscription reaches the internal-ingress backend at `/pubsub/push` (D2/D3, `plan/M17-CLOUD-DEPLOY.md`). This `POST /cron/loyalty-expiry` endpoint is the local/manual trigger path only, protected by `InternalApiGuard` (not `PubSubPushGuard`) — it is not the endpoint Scheduler calls in prod.
 
-**Request headers:**
-```
-(no Authorization header required in MVP — network-protected; M115-S03 adds CronAuthGuard via OIDC token)
-```
+**Request headers:** `X-Internal-Key` required — protected by the global `InternalApiGuard`, same as any other internal endpoint. No `PubSubPushGuard`/OIDC on this endpoint; that guard sits on the shared `/pubsub/push` receiver instead.
 
 **Request body:** none
 
 **Response `200 OK`:**
-```json
-{
-  "processedEntries": 12,
-  "affectedCustomers": 5,
-  "totalPointsExpired": 87
-}
-```
-Returns `{ processedEntries: 0, affectedCustomers: 0, totalPointsExpired: 0 }` when no entries have expired.
 
-**GCP Cloud Scheduler resource (Terraform — tracked in M115/M16):**
+```json
+{ "ok": true }
+```
+
+Returned once the trigger is published — not once `ExpirePointsJob` finishes running (dispatch is asynchronous in prod; the local pull-mode consumer processes it moments later).
+
+**GCP Cloud Scheduler resource (Terraform — `modules/scheduler`, M17-S21):**
+
 ```hcl
 resource "google_cloud_scheduler_job" "loyalty_expire_points" {
-  name     = "loyalty-expire-points"
-  schedule = "0 2 * * *"
+  name      = "loyalty-expire-points"
+  schedule  = "0 2 * * *"
   time_zone = "UTC"
-  http_target {
-    uri         = "${google_cloud_run_v2_service.backend.uri}/cron/loyalty-expiry"
-    http_method = "POST"
+  pubsub_target {
+    topic_name = google_pubsub_topic.cron_loyalty_expiry.id
+    data       = base64encode("{}")
   }
 }
 ```

@@ -16,8 +16,8 @@ import { GetLoyaltyEntriesUseCase } from './application/use-cases/get-loyalty-en
 import { GetLoyaltyRedemptionsUseCase } from './application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
 import { RedeemPointsUseCase } from './application/use-cases/redeem-points/redeem-points.use-case';
 import { CompleteBookingLoyaltyEffectsUseCase } from './application/use-cases/complete-booking-loyalty-effects/complete-booking-loyalty-effects.use-case';
-import { ExpirePointsUseCase } from './application/use-cases/expire-points/expire-points.use-case';
-import { NotifyExpiringPointsUseCase } from './application/use-cases/notify-expiring-points/notify-expiring-points.use-case';
+import { ExpirePointsJob } from './application/jobs/expire-points.job';
+import { NotifyExpiringPointsJob } from './application/jobs/notify-expiring-points.job';
 import { BalanceExpiryLogEntity } from './infrastructure/entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from './infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from './infrastructure/entities/loyalty-entry.entity';
@@ -30,6 +30,8 @@ import { CronLoyaltyController } from './infrastructure/controllers/cron-loyalty
 import { CustomerRoleGuard } from '../../shared/guards/customer-role.guard';
 import { AnyAuthenticatedRoleGuard } from '../../shared/guards/any-authenticated-role.guard';
 import { BookingCompletedHandler } from './infrastructure/events/booking-completed.handler';
+import { ExpirePointsTriggerHandler } from './infrastructure/events/expire-points-trigger.handler';
+import { NotifyExpiringPointsTriggerHandler } from './infrastructure/events/notify-expiring-points-trigger.handler';
 import { TypeOrmBalanceExpiryLogRepository } from './infrastructure/repositories/typeorm-balance-expiry-log.repository';
 import { TypeOrmLoyaltyBalanceRepository } from './infrastructure/repositories/typeorm-loyalty-balance.repository';
 import { TypeOrmLoyaltyEntryRepository } from './infrastructure/repositories/typeorm-loyalty-entry.repository';
@@ -65,10 +67,12 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
     GetLoyaltyEntriesUseCase,
     GetLoyaltyRedemptionsUseCase,
     RedeemPointsUseCase,
-    ExpirePointsUseCase,
-    NotifyExpiringPointsUseCase,
+    ExpirePointsJob,
+    NotifyExpiringPointsJob,
     CompleteBookingLoyaltyEffectsUseCase,
     BookingCompletedHandler,
+    ExpirePointsTriggerHandler,
+    NotifyExpiringPointsTriggerHandler,
   ],
   exports: [
     LOYALTY_ENTRY_REPOSITORY,

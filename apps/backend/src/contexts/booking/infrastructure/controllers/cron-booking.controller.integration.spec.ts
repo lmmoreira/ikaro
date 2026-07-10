@@ -89,6 +89,21 @@ describe('CronBookingController (integration)', () => {
     expect(body.ok).toBe(true);
   });
 
+  it('POST /cron/reminders publishes the cron-reminders trigger, dispatched to both reminder handlers', async () => {
+    // Proves the new wiring end-to-end (controller -> publishTrigger -> both trigger handlers ->
+    // both jobs' run()) — window-matching / event-emission logic is covered by the jobs' own
+    // unit specs, so this only asserts dispatch happened, not on emitted domain events.
+    const bookingReminderJob = app.get(BookingReminderJob);
+    const adminScheduleReminderJob = app.get(AdminScheduleReminderJob);
+    const bookingRunSpy = jest.spyOn(bookingReminderJob, 'run');
+    const adminRunSpy = jest.spyOn(adminScheduleReminderJob, 'run');
+
+    await request(app.getHttpServer()).post('/cron/reminders').expect(200);
+
+    expect(bookingRunSpy).toHaveBeenCalledTimes(1);
+    expect(adminRunSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('emits BookingReminderDue for in-window tenant with APPROVED booking tomorrow', async () => {
     const bookingEntity = new BookingEntityBuilder()
       .withTenantId(TENANT_IN)

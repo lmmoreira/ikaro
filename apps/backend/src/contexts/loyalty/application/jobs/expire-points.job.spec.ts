@@ -1,12 +1,12 @@
-import { InMemoryBalanceExpiryLogRepository } from '../../../../../test/infrastructure/in-memory-balance-expiry-log.repository';
-import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/infrastructure/in-memory-loyalty-balance.repository';
-import { InMemoryLoyaltyEntryRepository } from '../../../../../test/infrastructure/in-memory-loyalty-entry.repository';
-import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryBalanceExpiryLogRepository } from '../../../../test/infrastructure/in-memory-balance-expiry-log.repository';
+import { InMemoryLoyaltyBalanceRepository } from '../../../../test/infrastructure/in-memory-loyalty-balance.repository';
+import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
+import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import {
   LoyaltyBalanceBuilder,
   LoyaltyEntryBuilder,
-} from '../../../../../test/builders/loyalty/index';
-import { ExpirePointsUseCase } from './expire-points.use-case';
+} from '../../../../test/builders/loyalty/index';
+import { ExpirePointsJob } from './expire-points.job';
 
 const TENANT_ID = '10000000-0000-7000-8000-000000000010';
 const CUSTOMER_ID = 'aaaaaaaa-0000-7000-8000-000000000010';
@@ -14,19 +14,19 @@ const CUSTOMER_ID = 'aaaaaaaa-0000-7000-8000-000000000010';
 const PAST = new Date(Date.now() - 24 * 60 * 60 * 1000);
 const FUTURE = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
 
-describe('ExpirePointsUseCase', () => {
+describe('ExpirePointsJob', () => {
   let entryRepo: InMemoryLoyaltyEntryRepository;
   let balanceRepo: InMemoryLoyaltyBalanceRepository;
   let expiryLogRepo: InMemoryBalanceExpiryLogRepository;
   let txManager: InMemoryTransactionManager;
-  let useCase: ExpirePointsUseCase;
+  let job: ExpirePointsJob;
 
   beforeEach(() => {
     entryRepo = new InMemoryLoyaltyEntryRepository();
     balanceRepo = new InMemoryLoyaltyBalanceRepository();
     expiryLogRepo = new InMemoryBalanceExpiryLogRepository();
     txManager = new InMemoryTransactionManager();
-    useCase = new ExpirePointsUseCase(entryRepo, balanceRepo, expiryLogRepo, txManager);
+    job = new ExpirePointsJob(entryRepo, balanceRepo, expiryLogRepo, txManager);
   });
 
   it('returns zero counts when no entries have expired', async () => {
@@ -39,7 +39,7 @@ describe('ExpirePointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.processedEntries).toBe(0);
     expect(result.affectedCustomers).toBe(0);
@@ -62,7 +62,7 @@ describe('ExpirePointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.processedEntries).toBe(1);
     expect(result.affectedCustomers).toBe(1);
@@ -89,8 +89,8 @@ describe('ExpirePointsUseCase', () => {
         .build(),
     );
 
-    await useCase.execute();
-    const result2 = await useCase.execute();
+    await job.run();
+    const result2 = await job.run();
 
     expect(result2.processedEntries).toBe(0);
     const balance = await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID);
@@ -122,7 +122,7 @@ describe('ExpirePointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.processedEntries).toBe(2);
     expect(result.totalPointsExpired).toBe(40);
@@ -147,7 +147,7 @@ describe('ExpirePointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.totalPointsExpired).toBe(30);
     const balance = await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID);
@@ -170,7 +170,7 @@ describe('ExpirePointsUseCase', () => {
         .build(),
     );
 
-    await useCase.execute();
+    await job.run();
 
     expect(await expiryLogRepo.hasBeenProcessed(entry.id)).toBe(true);
   });
@@ -184,7 +184,7 @@ describe('ExpirePointsUseCase', () => {
       .build();
     await entryRepo.save(entry);
 
-    await useCase.execute();
+    await job.run();
 
     expect(await expiryLogRepo.hasBeenProcessed(entry.id)).toBe(true);
   });
@@ -206,7 +206,7 @@ describe('ExpirePointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.processedEntries).toBe(0);
     expect(result.affectedCustomers).toBe(0);
@@ -250,7 +250,7 @@ describe('ExpirePointsUseCase', () => {
         .build(),
     );
 
-    const result = await useCase.execute();
+    const result = await job.run();
 
     expect(result.processedEntries).toBe(2);
     expect(result.affectedCustomers).toBe(2);

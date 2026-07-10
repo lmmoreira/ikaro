@@ -17,7 +17,6 @@ interface ServicePointsEarnedData extends Record<string, unknown> {
 }
 
 export class ServicePointsEarned extends DomainEvent<ServicePointsEarnedData> {
-  readonly eventName = 'ServicePointsEarned';
   readonly eventVersion = 2;
   readonly data: ServicePointsEarnedData;
 

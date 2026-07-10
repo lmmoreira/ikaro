@@ -229,6 +229,8 @@ Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**
 | Topic | `ikaro-{eventName}` | `ikaro-StaffInvited` |
 | Subscription | `ikaro-{eventName}-{consumerName}` | `ikaro-StaffInvited-notification` |
 
+Cron triggers (`*.job.ts`, M17-S03) use the identical naming pattern via `registerTrigger`/`publishTrigger` (`ITriggerBus`) — `{eventName}` is the trigger name (e.g. `cron-reminders`), not a `DomainEvent` name. See `trigger-bus.port.ts` for why triggers are a separate channel from `IEventBus`.
+
 `GcpPubSubEventBusAdapter` auto-creates topics/subscriptions on `onApplicationBootstrap()`. Local dev: `PUBSUB_EMULATOR_HOST=localhost:8085`.
 
 **Test wiring for event handlers:**
@@ -239,6 +241,7 @@ Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**
 | Story integration spec | Real `EventBusModule` (no override) + `waitFor()` | Full publish → Pub/Sub → handler → DB chain |
 | Controller integration spec | Override `EVENT_BUS` with `InMemoryEventBus` | HTTP layer — no Pub/Sub needed |
 | Push-endpoint integration spec | Real `PubSubPushController` + `PubSubPushGuard` (verifier port overridden via DI, not the guard itself) + supertest against a synthetic push envelope | `PUBSUB_CONSUMER_MODE=push` — HTTP → guard → `dispatchPushMessage()` → handler, no real Pub/Sub or emulator needed (M17-S02) |
+| Trigger-handler spec | `InMemoryEventBus`/`RoutingInMemoryEventBus` (`ITriggerBus` — `registerTrigger`/`publishTrigger`, aliased to `EVENT_BUS`) + supertest against the cron controller's `POST` route | Cron ticks (`*.job.ts`), not domain events — no `tenantId`, no `DomainEvent` envelope. Controller `publishTrigger()`s, `RoutingInMemoryEventBus` dispatches synchronously to the registered `XxxTriggerHandler`, which calls exactly one job (M17-S03) |
 
 `waitFor()` at `src/test/utils/wait-for.ts`. Use in story integration specs to poll async side effects.
 

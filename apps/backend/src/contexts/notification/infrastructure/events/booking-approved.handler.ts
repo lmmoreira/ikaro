@@ -15,7 +15,7 @@ export class BookingApprovedHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe<BookingApproved>(
-      'BookingApproved',
+      BookingApproved.name,
       (event) => this.handle(event),
       'notification',
     );

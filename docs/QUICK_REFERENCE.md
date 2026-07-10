@@ -186,7 +186,7 @@ LoyaltyBalance {
 }
 ```
 
-PRIMARY KEY (tenant_id, customer_id). Upserted on earn, decremented on redemption or daily expiry trigger (GCP Cloud Scheduler → POST /cron/loyalty-expiry). Read this for balance — do NOT compute SUM over entries.
+PRIMARY KEY (tenant_id, customer_id). Upserted on earn, decremented on redemption or daily expiry trigger (GCP Cloud Scheduler → `ikaro-cron-loyalty-expiry` Pub/Sub topic → `ExpirePointsTriggerHandler`; `POST /cron/loyalty-expiry` publishes the same trigger locally). Read this for balance — do NOT compute SUM over entries.
 
 ### LoyaltyRedemption Aggregate (append-only)
 ```

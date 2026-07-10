@@ -15,6 +15,8 @@ import { SCHEDULE_OPENING_REPOSITORY } from './application/ports/schedule-openin
 import { SERVICE_REPOSITORY } from './application/ports/service-repository.port';
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
+import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
+import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
 import { CloseScheduleUseCase } from './application/use-cases/close-schedule.use-case';
 import { ActivateServiceUseCase } from './application/use-cases/activate-service.use-case';
 import { CreateServiceUseCase } from './application/use-cases/create-service.use-case';
@@ -104,6 +106,8 @@ import { AvailabilityService } from './domain/services/availability.service';
     AvailabilityService,
     BookingReminderJob,
     AdminScheduleReminderJob,
+    BookingReminderTriggerHandler,
+    AdminScheduleReminderTriggerHandler,
     BookingSlotConflictService,
     PhotoExistenceService,
     ActivateServiceUseCase,

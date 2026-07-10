@@ -20,12 +20,12 @@ export class BookingReminderHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe<BookingReminderDue>(
-      'BookingReminderDue',
+      BookingReminderDue.name,
       (event) => this.handleDue(event),
       'notification',
     );
     this.eventBus.subscribe<BookingReminderDueToday>(
-      'BookingReminderDueToday',
+      BookingReminderDueToday.name,
       (event) => this.handleDueToday(event),
       'notification',
     );

@@ -5,6 +5,7 @@ import { DomainEvent } from '../domain/domain-event';
 import { AppLogger } from '../observability/app-logger';
 import { IEventBus } from '../ports/event-bus.port';
 import { IPushableEventBus } from '../ports/pushable-event-bus.port';
+import { ITriggerBus } from '../ports/trigger-bus.port';
 
 interface PendingSubscription {
   eventName: string;
@@ -13,13 +14,21 @@ interface PendingSubscription {
   handler: (event: DomainEvent) => Promise<void>;
 }
 
+interface PendingTrigger {
+  triggerName: string;
+  topicName: string;
+  subscriptionName: string;
+  handler: () => Promise<void>;
+}
+
 @Injectable()
 export class GcpPubSubEventBusAdapter
-  implements IEventBus, IPushableEventBus, OnApplicationBootstrap, OnModuleDestroy
+  implements IEventBus, IPushableEventBus, ITriggerBus, OnApplicationBootstrap, OnModuleDestroy
 {
   private readonly logger = new AppLogger(GcpPubSubEventBusAdapter.name);
   private readonly pubsub: PubSub;
   private readonly pending = new Map<string, PendingSubscription>();
+  private readonly pendingTriggers = new Map<string, PendingTrigger>();
   private readonly active: Subscription[] = [];
   private readonly ensuredTopics = new Set<string>();
 
@@ -58,6 +67,28 @@ export class GcpPubSubEventBusAdapter
     });
   }
 
+  // Trigger channel: for scheduling signals (cron ticks) that carry no tenantId and no business
+  // fact — see trigger-bus.port.ts for why this is a separate channel from publish()/subscribe().
+  registerTrigger(name: string, handler: () => Promise<void>, consumerName: string): void {
+    const suffix = this.config.get<string>('PUBSUB_SUBSCRIPTION_SUFFIX', '');
+    const subscriptionName = `ikaro-${name}-${consumerName}${suffix}`;
+    this.pendingTriggers.set(subscriptionName, {
+      triggerName: name,
+      topicName: `ikaro-${name}`,
+      subscriptionName,
+      handler,
+    });
+  }
+
+  async publishTrigger(name: string): Promise<void> {
+    const topicName = `ikaro-${name}`;
+    await this.ensureTopicOnce(topicName);
+    // Empty payload — mirrors what Cloud Scheduler's Pub/Sub target publishes in prod
+    // (data = base64("{}")); the trigger carries no data, only "run now".
+    await this.pubsub.topic(topicName).publishMessage({ data: Buffer.from('{}') });
+    this.logger.debug(`[pubsub] published trigger ${name}`);
+  }
+
   async onApplicationBootstrap(): Promise<void> {
     const mode = this.config.get<'pull' | 'push'>('PUBSUB_CONSUMER_MODE', 'pull');
 
@@ -65,7 +96,7 @@ export class GcpPubSubEventBusAdapter
       // Push mode: Pub/Sub POSTs to /pubsub/push instead of us holding a streaming-pull connection
       // open — no subscriptions to open here, dispatchPushMessage() routes by subscription name.
       this.logger.log(
-        `[pubsub] push mode — ${this.pending.size} handler(s) registered for /pubsub/push, no streaming pull opened`,
+        `[pubsub] push mode — ${this.pending.size} handler(s) + ${this.pendingTriggers.size} trigger(s) registered for /pubsub/push, no streaming pull opened`,
       );
       this.logger.warn(
         '[pubsub] PUBSUB_MAX_DELIVERY_ATTEMPTS is inert in push mode — the Pub/Sub subscription retry/dead-letter policy owns redelivery',
@@ -80,6 +111,21 @@ export class GcpPubSubEventBusAdapter
       const subscription = this.pubsub.subscription(config.subscriptionName);
       subscription.on('message', (message: Message) => {
         this.dispatch(message, config.eventName, config.handler).catch(() => undefined);
+      });
+      subscription.on('error', (err: Error) => {
+        this.logger.error(`[pubsub] subscription error on ${config.subscriptionName}`, err.stack);
+      });
+      this.active.push(subscription);
+      this.logger.log(`[pubsub] listening on ${config.subscriptionName}`);
+    }
+
+    for (const config of this.pendingTriggers.values()) {
+      await this.ensureTopicOnce(config.topicName);
+      await this.ensureSubscription(config.topicName, config.subscriptionName);
+
+      const subscription = this.pubsub.subscription(config.subscriptionName);
+      subscription.on('message', (message: Message) => {
+        this.dispatchTrigger(message, config.triggerName, config.handler).catch(() => undefined);
       });
       subscription.on('error', (err: Error) => {
         this.logger.error(`[pubsub] subscription error on ${config.subscriptionName}`, err.stack);
@@ -130,12 +176,47 @@ export class GcpPubSubEventBusAdapter
     }
   }
 
+  private async dispatchTrigger(
+    message: Message,
+    triggerName: string,
+    handler: () => Promise<void>,
+  ): Promise<void> {
+    try {
+      await handler();
+      message.ack();
+    } catch (err) {
+      const attempt = message.deliveryAttempt ?? 1;
+      const max = this.config.get<number>('PUBSUB_MAX_DELIVERY_ATTEMPTS', 5);
+      this.logger.error(
+        `[pubsub] trigger handler failed for ${triggerName} (attempt ${attempt}/${max})`,
+        err instanceof Error ? err.stack : String(err),
+      );
+      if (attempt >= max) {
+        // No DLQ publish here (unlike domain-event dispatch()): a trigger carries no envelope
+        // worth preserving/replaying — re-firing the trigger is equivalent to replay. Log and ack
+        // to stop the local pull-mode retry loop; prod push mode's DLQ is Pub/Sub-native (S19).
+        this.logger.warn(`[pubsub] trigger ${triggerName} exhausted retries — dropping`);
+        message.ack();
+      } else {
+        message.nack();
+      }
+    }
+  }
+
   // PORTABILITY: the Pub/Sub push envelope shape (subscription full name + base64 data) is
   // GCP-specific (D2 ledger) — confined to this one method. Success = return (controller ACKs with
   // 204); throw = controller responds 5xx and Pub/Sub's own subscription retry/dead-letter policy
   // (not app-level PUBSUB_MAX_DELIVERY_ATTEMPTS) owns redelivery in this mode.
   async dispatchPushMessage(subscriptionFullName: string, base64Data: string): Promise<void> {
     const subscriptionName = subscriptionFullName.split('/').pop() ?? subscriptionFullName;
+
+    // Trigger map checked first — a cron tick is not a DomainEvent, see trigger-bus.port.ts.
+    const triggerConfig = this.pendingTriggers.get(subscriptionName);
+    if (triggerConfig) {
+      await triggerConfig.handler();
+      return;
+    }
+
     const config = this.pending.get(subscriptionName);
 
     if (!config) {
@@ -166,9 +247,9 @@ export class GcpPubSubEventBusAdapter
   ): Promise<void> {
     const dlqTopic = 'ikaro-dead-letter';
     await this.ensureTopicOnce(dlqTopic);
-    const serialized = structuredClone(event) as unknown as Record<string, unknown>;
+    // event is spread into a new object below, never mutated — no defensive clone needed.
     const enrichedData = {
-      ...serialized,
+      ...event,
       deadLetterReason: err instanceof Error ? err.message : String(err),
       deliveryAttempt: message.deliveryAttempt ?? 1,
     };

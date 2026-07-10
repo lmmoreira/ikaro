@@ -9,7 +9,6 @@ interface BookingInfoSubmittedData extends Record<string, unknown> {
 }
 
 export class BookingInfoSubmitted extends DomainEvent<BookingInfoSubmittedData> {
-  readonly eventName = 'BookingInfoSubmitted';
   readonly eventVersion = 1;
   readonly data: BookingInfoSubmittedData;
 
