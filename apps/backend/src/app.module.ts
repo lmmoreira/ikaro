@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TerminusModule } from '@nestjs/terminus';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BookingModule } from './contexts/booking/booking.module';
 import { CustomerModule } from './contexts/customer/customer.module';
@@ -42,6 +43,7 @@ import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
       }),
       inject: [ConfigService],
     }),
+    TerminusModule,
     EventBusModule,
     TransactionManagerModule,
     RequestModule,

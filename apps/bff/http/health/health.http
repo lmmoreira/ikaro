@@ -1,0 +1,17 @@
+# BFF — Health Checks (M17-S04)
+# /health/live is a pure process-up check — always 200, no dependencies.
+# /health/ready checks the backend's /health/ready (2s timeout, chained — Cloud Run has no
+# continuous readiness-based traffic pulling, only startup + liveness probes, so there's no
+# cascading cost to checking the real dependency instead of just the backend's liveness) —
+# 503 when the backend is unreachable or itself not ready (e.g. its DB is down).
+# Both routes are @Public() (bypass JwtAuthGuard/TenantGuard/ActiveStaffGuard).
+
+### GET /v1/health/live — always 200
+GET {{bffUrl}}/v1/health/live
+
+###
+
+### GET /v1/health/ready — 200 when the backend is ready, 503 otherwise
+GET {{bffUrl}}/v1/health/ready
+
+###
