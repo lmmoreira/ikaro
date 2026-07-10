@@ -55,5 +55,19 @@
   "CUSTOMER_PHONE_INVALID": "The phone number provided is invalid.",
   "LOYALTY_INVALID_POINTS": "The points amount must be greater than zero.",
   "LOYALTY_INSUFFICIENT_POINTS": "Insufficient points balance for this operation.",
-  "LOYALTY_BALANCE_NOT_FOUND": "No loyalty balance found for this customer."
+  "LOYALTY_BALANCE_NOT_FOUND": "No loyalty balance found for this customer.",
+  "STAFF_NOT_FOUND": "Staff member not found.",
+  "STAFF_ALREADY_ACTIVE": "This staff member is already active.",
+  "STAFF_DEACTIVATED": "This account is deactivated.",
+  "STAFF_EMAIL_MISMATCH": "The Google account email doesn't match the invited email address.",
+  "STAFF_ALREADY_EXISTS": "A staff member with this email already exists in this business.",
+  "STAFF_SELF_DEACTIVATION": "You cannot deactivate your own account.",
+  "STAFF_SELF_REACTIVATION": "You cannot reactivate your own account.",
+  "STAFF_LAST_ACTIVE_MANAGER": "You cannot remove the last active manager.",
+  "STAFF_GOOGLE_ACCOUNT_CONFLICT": "This Google account is already linked to another staff member.",
+  "STAFF_TENANT_ID_REQUIRED": "Something went wrong. Please try again.",
+  "STAFF_EMAIL_INVALID": "Something went wrong. Please try again.",
+  "STAFF_NAME_REQUIRED": "Name is required.",
+  "STAFF_ROLE_INVALID": "Something went wrong. Please try again.",
+  "STAFF_GOOGLE_OAUTH_ID_REQUIRED": "Something went wrong. Please try again."
 }

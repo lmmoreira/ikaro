@@ -7,10 +7,14 @@ import { StaffActivated } from './events/staff-activated.event';
 import { StaffDeactivated } from './events/staff-deactivated.event';
 import { StaffInvited } from './events/staff-invited.event';
 import {
-  StaffDomainError,
+  StaffEmailInvalidError,
   StaffGoogleAccountConflictError,
+  StaffGoogleOAuthIdRequiredError,
+  StaffNameRequiredError,
+  StaffRoleInvalidError,
   StaffSelfDeactivationError,
   StaffSelfReactivationError,
+  StaffTenantIdRequiredError,
 } from './errors/staff-domain.error';
 
 export type StaffRole = 'MANAGER' | 'STAFF';
@@ -79,13 +83,13 @@ export class Staff extends AggregateRoot {
     invitedBy: string | null,
     correlationId: string,
   ): Staff {
-    if (!tenantId) throw new StaffDomainError('tenantId is required');
-    if (!Email.isValid(email)) throw new StaffDomainError('email must be a valid email address');
+    if (!tenantId) throw new StaffTenantIdRequiredError();
+    if (!Email.isValid(email)) throw new StaffEmailInvalidError();
     if (role !== 'MANAGER' && role !== 'STAFF') {
-      throw new StaffDomainError('role must be MANAGER or STAFF');
+      throw new StaffRoleInvalidError();
     }
     const trimmedName = normalizeText(name);
-    if (!trimmedName) throw new StaffDomainError('name is required to invite staff');
+    if (!trimmedName) throw new StaffNameRequiredError('name is required to invite staff', 'name');
 
     const now = new Date();
     const staff = new Staff({
@@ -108,8 +112,8 @@ export class Staff extends AggregateRoot {
   }
 
   static inviteFromProvisioning(tenantId: string, email: string, correlationId: string): Staff {
-    if (!tenantId) throw new StaffDomainError('tenantId is required');
-    if (!Email.isValid(email)) throw new StaffDomainError('email must be a valid email address');
+    if (!tenantId) throw new StaffTenantIdRequiredError();
+    if (!Email.isValid(email)) throw new StaffEmailInvalidError();
 
     const now = new Date();
     const staff = new Staff({
@@ -136,9 +140,9 @@ export class Staff extends AggregateRoot {
   }
 
   linkGoogleAccount(googleOAuthId: string, name: string): void {
-    if (!googleOAuthId) throw new StaffDomainError('googleOAuthId is required');
+    if (!googleOAuthId) throw new StaffGoogleOAuthIdRequiredError();
     const trimmedName = normalizeText(name);
-    if (!trimmedName) throw new StaffDomainError('name is required');
+    if (!trimmedName) throw new StaffNameRequiredError('name is required');
     if (this.props.googleOAuthId && this.props.googleOAuthId !== googleOAuthId) {
       throw new StaffGoogleAccountConflictError();
     }
@@ -149,7 +153,8 @@ export class Staff extends AggregateRoot {
 
   reinvite(role: StaffRole, name: string, invitedBy: string | null, correlationId: string): void {
     const trimmedName = normalizeText(name);
-    if (!trimmedName) throw new StaffDomainError('name is required to reinvite staff');
+    if (!trimmedName)
+      throw new StaffNameRequiredError('name is required to reinvite staff', 'name');
     this.props.role = role;
     this.props.name = trimmedName;
     this.props.invitedBy = invitedBy;
@@ -165,7 +170,7 @@ export class Staff extends AggregateRoot {
   // demotion lives in the use case (it needs to query sibling staff rows).
   updateProfile(name: string, role: StaffRole): void {
     const trimmedName = normalizeText(name);
-    if (!trimmedName) throw new StaffDomainError('name is required');
+    if (!trimmedName) throw new StaffNameRequiredError('name is required', 'name');
     this.props.name = trimmedName;
     this.props.role = role;
     this.props.updatedAt = new Date();
