@@ -348,7 +348,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
       expect(body.status).toBe(422);
     });
 
-    it('returns 400 for a service that does not belong to the tenant', async () => {
+    it('returns 404 for a service that does not belong to the tenant', async () => {
       const tenantBSvc = new ServiceEntityBuilder()
         .withTenantId(tenantBId)
         .withDurationMinutes(30)
@@ -358,9 +358,9 @@ describe('ScheduleAvailabilityController (integration)', () => {
       const { body } = await request(app.getHttpServer())
         .get(`/schedule/availability?date=${MONDAY}&serviceIds=${tenantBSvc.id}`)
         .set(tenantHeader(tenantAId))
-        .expect(400);
+        .expect(404);
 
-      expect(body.status).toBe(400);
+      expect(body.status).toBe(404);
     });
 
     it('returns 400 for a deactivated service', async () => {

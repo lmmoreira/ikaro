@@ -242,7 +242,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
       expect(body.status).toBe(422);
     });
 
-    it('returns 400 for an unknown service ID', async () => {
+    it('returns 404 for an unknown service ID', async () => {
       const unknownId = '00000000-0000-4000-8000-000000000099';
 
       const { body } = await request(app.getHttpServer())
@@ -250,9 +250,9 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
           `/schedule/availability/summary?from=${RANGE_START}&to=${RANGE_END}&serviceIds=${unknownId}`,
         )
         .set(tenantHeader(tenantAId))
-        .expect(400);
+        .expect(404);
 
-      expect(body.status).toBe(400);
+      expect(body.status).toBe(404);
     });
 
     it('returns 400 when X-Tenant-ID header is missing', async () => {

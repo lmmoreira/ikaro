@@ -4,7 +4,8 @@ import type { BusinessHours } from '../../../../shared/value-objects/business-ho
 import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   AvailabilityRangeInvalidError,
-  BookingDomainError,
+  BookingServiceNotActiveError,
+  ServiceNotFoundError,
 } from '../../domain/errors/booking-domain.error';
 import {
   IBookingAvailabilityPort,
@@ -71,8 +72,8 @@ export class GetAvailabilitySummaryUseCase {
     const services = await this.serviceRepo.findByIds(input.serviceIds, tenantId);
     for (const requestedId of input.serviceIds) {
       const service = services.find((s) => s.id === requestedId);
-      if (!service) throw new BookingDomainError(`Service not found: ${requestedId}`);
-      if (!service.isActive) throw new BookingDomainError(`Service is not active: ${requestedId}`);
+      if (!service) throw new ServiceNotFoundError(requestedId);
+      if (!service.isActive) throw new BookingServiceNotActiveError(requestedId);
     }
 
     const [closures, openings, bookings] = await Promise.all([

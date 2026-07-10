@@ -1,3 +1,4 @@
+import { BookingErrorCode } from '@ikaro/types';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Money } from '../../../shared/value-objects/money';
@@ -81,17 +82,29 @@ export class Service extends AggregateRoot {
     isActive = true,
     description,
   }: CreateServiceProps): Service {
-    if (!tenantId) throw new BookingDomainError('tenantId is required');
+    if (!tenantId)
+      throw new BookingDomainError('tenantId is required', BookingErrorCode.TENANT_ID_REQUIRED);
     const normalizedName = normalizeText(name);
-    if (!normalizedName) throw new BookingDomainError('name is required');
+    if (!normalizedName) {
+      throw new BookingDomainError('name is required', BookingErrorCode.SERVICE_NAME_REQUIRED);
+    }
     if (price.amount.isNegative() || price.amount.isZero()) {
-      throw new BookingDomainError('price must be greater than zero');
+      throw new BookingDomainError(
+        'price must be greater than zero',
+        BookingErrorCode.SERVICE_PRICE_INVALID,
+      );
     }
     if (durationMinutes <= 0) {
-      throw new BookingDomainError('durationMinutes must be greater than zero');
+      throw new BookingDomainError(
+        'durationMinutes must be greater than zero',
+        BookingErrorCode.SERVICE_DURATION_INVALID,
+      );
     }
     if (loyaltyPointsValue < 0) {
-      throw new BookingDomainError('loyaltyPointsValue must be non-negative');
+      throw new BookingDomainError(
+        'loyaltyPointsValue must be non-negative',
+        BookingErrorCode.SERVICE_LOYALTY_POINTS_INVALID,
+      );
     }
 
     const now = new Date();
@@ -124,15 +137,26 @@ export class Service extends AggregateRoot {
   ): void {
     if (!this.props.isActive) throw new ServiceDeactivatedError();
     const normalizedName = normalizeText(name);
-    if (!normalizedName) throw new BookingDomainError('name is required');
+    if (!normalizedName) {
+      throw new BookingDomainError('name is required', BookingErrorCode.SERVICE_NAME_REQUIRED);
+    }
     if (price.amount.isNegative() || price.amount.isZero()) {
-      throw new BookingDomainError('price must be greater than zero');
+      throw new BookingDomainError(
+        'price must be greater than zero',
+        BookingErrorCode.SERVICE_PRICE_INVALID,
+      );
     }
     if (durationMinutes <= 0) {
-      throw new BookingDomainError('durationMinutes must be greater than zero');
+      throw new BookingDomainError(
+        'durationMinutes must be greater than zero',
+        BookingErrorCode.SERVICE_DURATION_INVALID,
+      );
     }
     if (loyaltyPointsValue < 0) {
-      throw new BookingDomainError('loyaltyPointsValue must be non-negative');
+      throw new BookingDomainError(
+        'loyaltyPointsValue must be non-negative',
+        BookingErrorCode.SERVICE_LOYALTY_POINTS_INVALID,
+      );
     }
 
     this.props.name = normalizedName;

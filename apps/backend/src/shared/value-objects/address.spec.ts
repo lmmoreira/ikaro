@@ -1,5 +1,15 @@
 import { countrySpec } from '@ikaro/i18n';
+import { AddressErrorCode } from '@ikaro/types';
 import { Address, AddressValidationError } from './address';
+
+function captureError(fn: () => unknown): AddressValidationError {
+  try {
+    fn();
+    throw new Error('expected fn to throw AddressValidationError');
+  } catch (e) {
+    return e as AddressValidationError;
+  }
+}
 
 const BR = countrySpec('BR').address;
 const US = countrySpec('US').address;
@@ -87,6 +97,27 @@ describe('Address', () => {
       expect(() => Address.create({ ...baseProps, zipCode: '123' }, BR)).toThrow(
         AddressValidationError,
       );
+    });
+
+    it('carries ADDRESS_POSTAL_CODE_INVALID on an invalid postal code', () => {
+      const err = captureError(() => Address.create({ ...baseProps, zipCode: '123' }, BR));
+      expect(err.code).toBe(AddressErrorCode.POSTAL_CODE_INVALID);
+    });
+
+    it('carries ADDRESS_STATE_INVALID on an invalid state', () => {
+      const err = captureError(() => Address.create({ ...baseProps, state: 'sao paulo' }, BR));
+      expect(err.code).toBe(AddressErrorCode.STATE_INVALID);
+    });
+
+    it('carries ADDRESS_NEIGHBORHOOD_REQUIRED when neighborhood is missing and required', () => {
+      const err = captureError(() => Address.create({ ...baseProps, neighborhood: undefined }, BR));
+      expect(err.code).toBe(AddressErrorCode.NEIGHBORHOOD_REQUIRED);
+    });
+
+    it('carries ADDRESS_FIELD_REQUIRED with params.field when a required field is blank', () => {
+      const err = captureError(() => Address.create({ ...baseProps, street: '   ' }, BR));
+      expect(err.code).toBe(AddressErrorCode.FIELD_REQUIRED);
+      expect(err.params).toEqual({ field: 'street' });
     });
 
     it('treats a whitespace-only neighborhood as missing when required', () => {

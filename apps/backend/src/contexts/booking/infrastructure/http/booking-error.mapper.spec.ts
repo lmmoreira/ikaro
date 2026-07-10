@@ -1,7 +1,9 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { AddressErrorCode, BookingErrorCode, CountryCodeErrorCode } from '@ikaro/types';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import {
+  BookingAddressValidationError,
   BookingDiscountDisabledError,
   BookingDiscountExceedsTotalError,
   BookingDiscountMismatchError,
@@ -31,22 +33,49 @@ function call(err: unknown): HttpException {
 }
 
 describe('mapBookingError', () => {
-  it('maps AddressValidationError to 400', () => {
-    const err = call(new AddressValidationError('Invalid CEP: 123'));
+  it('maps BookingAddressValidationError to 400 with code and field', () => {
+    const err = call(
+      new BookingAddressValidationError(
+        'Invalid CEP: 123',
+        AddressErrorCode.POSTAL_CODE_INVALID,
+        'pickupAddress',
+      ),
+    );
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({
+      code: AddressErrorCode.POSTAL_CODE_INVALID,
+      field: 'pickupAddress',
+    });
   });
 
-  it('maps CountryCodeValidationError to 400', () => {
-    const err = call(new CountryCodeValidationError('countryCode must be supported'));
+  it('maps raw AddressValidationError to 400 with code, no field (defensive fallback)', () => {
+    const err = call(
+      new AddressValidationError('Invalid CEP: 123', AddressErrorCode.POSTAL_CODE_INVALID),
+    );
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: AddressErrorCode.POSTAL_CODE_INVALID });
+    expect((err.getResponse() as { field?: string }).field).toBeUndefined();
   });
 
-  it('maps ServiceNotFoundError to 404', () => {
+  it('maps CountryCodeValidationError to 400 with code', () => {
+    const err = call(
+      new CountryCodeValidationError(
+        'countryCode must be supported',
+        CountryCodeErrorCode.UNSUPPORTED,
+      ),
+    );
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: CountryCodeErrorCode.UNSUPPORTED });
+  });
+
+  it('maps ServiceNotFoundError to 404 with code', () => {
     const err = call(new ServiceNotFoundError('svc-id'));
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(err.getResponse()).toMatchObject({ code: BookingErrorCode.SERVICE_NOT_FOUND });
   });
 
   it('maps ScheduleClosureNotFoundError to 404', () => {
@@ -97,10 +126,14 @@ describe('mapBookingError', () => {
     expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });
 
-  it('maps BookingRejectionReasonTooShortError to 400', () => {
+  it('maps BookingRejectionReasonTooShortError to 400 with code and field', () => {
     const err = call(new BookingRejectionReasonTooShortError());
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({
+      code: BookingErrorCode.REJECTION_REASON_TOO_SHORT,
+      field: 'reason',
+    });
   });
 
   it('maps BookingPhotoNotUploadedError to 400', () => {
@@ -133,10 +166,13 @@ describe('mapBookingError', () => {
     expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });
 
-  it('maps generic BookingDomainError to 400', () => {
-    const err = call(new BookingDomainError('invalid input'));
+  it('maps generic BookingDomainError to 400, preserving the code carried on the instance', () => {
+    const err = call(
+      new BookingDomainError('tenantId is required', BookingErrorCode.TENANT_ID_REQUIRED),
+    );
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: BookingErrorCode.TENANT_ID_REQUIRED });
   });
 
   it('rethrows plain Error unchanged', () => {

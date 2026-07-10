@@ -1,4 +1,6 @@
 import type { AddressSpec } from '@ikaro/i18n';
+import { AddressErrorCode } from '@ikaro/types';
+import { DomainErrorShape } from '../domain/domain-error-shape';
 import { ValueObject } from '../domain/value-object';
 
 export interface AddressProps {
@@ -11,11 +13,16 @@ export interface AddressProps {
   zipCode: string;
 }
 
-export class AddressValidationError extends Error {
-  constructor(message: string) {
+export class AddressValidationError extends Error implements DomainErrorShape {
+  readonly code: AddressErrorCode;
+  readonly params?: Record<string, string | number>;
+
+  constructor(message: string, code: AddressErrorCode, params?: Record<string, string | number>) {
     super(message);
     Object.setPrototypeOf(this, new.target.prototype);
     this.name = 'AddressValidationError';
+    this.code = code;
+    this.params = params;
   }
 }
 
@@ -46,29 +53,40 @@ export class Address extends ValueObject<AddressProps> {
   }
 
   private static validateRequiredFields(props: AddressProps, spec: AddressSpec): void {
-    Address.requireField(props.street, spec.streetLabel);
-    Address.requireField(props.number, spec.numberLabel);
-    Address.requireField(props.city, spec.cityLabel);
-    Address.requireField(props.state, spec.stateLabel);
-    Address.requireField(props.zipCode, spec.postalLabel);
+    Address.requireField(props.street, spec.streetLabel, 'street');
+    Address.requireField(props.number, spec.numberLabel, 'number');
+    Address.requireField(props.city, spec.cityLabel, 'city');
+    Address.requireField(props.state, spec.stateLabel, 'state');
+    Address.requireField(props.zipCode, spec.postalLabel, 'zipCode');
   }
 
   private static validateCountrySpecificRules(props: AddressProps, spec: AddressSpec): void {
     const { zipCode, state, neighborhood } = props;
     if (spec.postalRegex !== null && !spec.postalRegex.test(zipCode)) {
-      throw new AddressValidationError(`Invalid ${spec.postalLabel}: ${zipCode}`);
+      throw new AddressValidationError(
+        `Invalid ${spec.postalLabel}: ${zipCode}`,
+        AddressErrorCode.POSTAL_CODE_INVALID,
+      );
     }
     if (spec.statePattern !== null && !spec.statePattern.test(state)) {
-      throw new AddressValidationError(`Invalid ${spec.stateLabel}: ${state}`);
+      throw new AddressValidationError(
+        `Invalid ${spec.stateLabel}: ${state}`,
+        AddressErrorCode.STATE_INVALID,
+      );
     }
     if (spec.requireNeighborhood && !neighborhood) {
-      throw new AddressValidationError(`${spec.neighborhoodLabel ?? 'neighborhood'} is required`);
+      throw new AddressValidationError(
+        `${spec.neighborhoodLabel ?? 'neighborhood'} is required`,
+        AddressErrorCode.NEIGHBORHOOD_REQUIRED,
+      );
     }
   }
 
-  private static requireField(value: string, label: string): void {
+  private static requireField(value: string, label: string, field: string): void {
     if (!value) {
-      throw new AddressValidationError(`${label} is required`);
+      throw new AddressValidationError(`${label} is required`, AddressErrorCode.FIELD_REQUIRED, {
+        field,
+      });
     }
   }
 

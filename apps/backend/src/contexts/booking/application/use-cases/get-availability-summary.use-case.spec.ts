@@ -182,7 +182,7 @@ describe('GetAvailabilitySummaryUseCase', () => {
     ).rejects.toMatchObject({ name: 'AvailabilityRangeInvalidError' });
   });
 
-  it('throws BookingDomainError when a serviceId does not belong to tenant', async () => {
+  it('throws ServiceNotFoundError when a serviceId does not belong to tenant', async () => {
     const unknownId = '00000000-0000-7000-8000-000000000099';
 
     await expect(
@@ -196,7 +196,7 @@ describe('GetAvailabilitySummaryUseCase', () => {
         serviceBufferMinutes: settings.booking.serviceBufferMinutes,
         maxBookingAdvanceDays: settings.booking.maxBookingAdvanceDays,
       }),
-    ).rejects.toMatchObject({ name: 'BookingDomainError' });
+    ).rejects.toMatchObject({ name: 'ServiceNotFoundError' });
   });
 
   it('marks past dates as available:false without throwing', async () => {

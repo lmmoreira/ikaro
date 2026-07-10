@@ -7,9 +7,11 @@ import { PhotoExistenceService } from '../services/photo-existence.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { testAddress } from '../../../../test/utils/address-helpers';
+import { testAddress, testAddressProps } from '../../../../test/utils/address-helpers';
 import { futureDate } from '../../../../test/utils/date-helpers';
+import { AddressErrorCode } from '@ikaro/types';
 import {
+  BookingAddressValidationError,
   BookingPhotoNotUploadedError,
   BookingSlotUnavailableError,
 } from '../../domain/errors/booking-domain.error';
@@ -131,6 +133,34 @@ describe('RequestBookingUseCase', () => {
     const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
     expect(saved!.contactAddress).not.toBeNull();
     expect(saved!.contactAddress!.city).toBe('BH');
+  });
+
+  it('translates an invalid contactAddress into BookingAddressValidationError with field=contactAddress', async () => {
+    const err = await useCase
+      .execute({ ...baseInput(), contactAddress: testAddressProps({ zipCode: '123' }) })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(BookingAddressValidationError);
+    expect((err as BookingAddressValidationError).field).toBe('contactAddress');
+    expect((err as BookingAddressValidationError).code).toBe(AddressErrorCode.POSTAL_CODE_INVALID);
+  });
+
+  it('translates an invalid pickupAddress into BookingAddressValidationError with field=pickupAddress', async () => {
+    const pickupSvc = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withRequiresPickupAddress(true)
+      .build();
+    await serviceRepo.save(pickupSvc);
+
+    const err = await useCase
+      .execute({
+        ...baseInput(),
+        serviceIds: [pickupSvc.id],
+        pickupAddress: testAddressProps({ zipCode: '123' }),
+      })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(BookingAddressValidationError);
+    expect((err as BookingAddressValidationError).field).toBe('pickupAddress');
+    expect((err as BookingAddressValidationError).code).toBe(AddressErrorCode.POSTAL_CODE_INVALID);
   });
 
   it('stores optional notes when provided', async () => {

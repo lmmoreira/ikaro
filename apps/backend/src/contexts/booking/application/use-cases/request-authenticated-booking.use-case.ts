@@ -1,7 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { Address } from '../../../../shared/value-objects/address';
-import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
+import {
+  Address,
+  AddressProps,
+  AddressValidationError,
+} from '../../../../shared/value-objects/address';
+import {
+  CountryCode,
+  CountryCodeValidationError,
+} from '../../../../shared/value-objects/country-code.vo';
+import type { AddressSpec } from '@ikaro/i18n';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
@@ -10,6 +18,7 @@ import {
 import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { Booking } from '../../domain/booking.aggregate';
 import {
+  BookingAddressValidationError,
   BookingCustomerNotFoundError,
   BookingServiceNotActiveError,
   BookingServiceNotInTenantError,
@@ -67,7 +76,7 @@ export class RequestAuthenticatedBookingUseCase {
 
     let pickupAddress: Address | undefined;
     if (input.pickupAddress) {
-      pickupAddress = Address.create(
+      pickupAddress = this.createPickupAddress(
         { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
         CountryCode.create(countryCode).spec.address,
       );
@@ -130,5 +139,19 @@ export class RequestAuthenticatedBookingUseCase {
 
   private toResult(booking: Booking): RequestAuthenticatedBookingUseCaseResult {
     return toBookingResult(booking);
+  }
+
+  private createPickupAddress(props: AddressProps, spec: AddressSpec): Address {
+    try {
+      return Address.create(props, spec);
+    } catch (err) {
+      if (err instanceof AddressValidationError) {
+        throw new BookingAddressValidationError(err.message, err.code, 'pickupAddress', err.params);
+      }
+      if (err instanceof CountryCodeValidationError) {
+        throw new BookingAddressValidationError(err.message, err.code, 'pickupAddress');
+      }
+      throw err;
+    }
   }
 }
