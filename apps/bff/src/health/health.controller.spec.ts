@@ -29,19 +29,21 @@ describe('HealthController', () => {
     expect(http.get).not.toHaveBeenCalled();
   });
 
-  it('ready() returns ok when the backend liveness check succeeds', async () => {
+  it('ready() returns ok when the backend readiness check succeeds', async () => {
     const http = makeHttp(false);
     const controller = new HealthController(http, makeConfig());
 
     await expect(controller.ready()).resolves.toEqual({ status: 'ok' });
-    expect(http.get).toHaveBeenCalledWith(`${BACKEND_URL}/health/live`, { timeout: 2000 });
+    expect(http.get).toHaveBeenCalledWith(`${BACKEND_URL}/health/ready`, { timeout: 2000 });
   });
 
-  it('ready() throws a 503 when the backend is unreachable', async () => {
+  it('ready() throws a 503 when the backend is unreachable or not ready', async () => {
     const http = makeHttp(true);
     const controller = new HealthController(http, makeConfig());
 
-    await expect(controller.ready()).rejects.toThrow(HttpException);
-    await expect(controller.ready()).rejects.toMatchObject({ status: 503 });
+    const rejection = await controller.ready().catch((err: unknown) => err);
+
+    expect(rejection).toBeInstanceOf(HttpException);
+    expect(rejection).toMatchObject({ status: 503 });
   });
 });

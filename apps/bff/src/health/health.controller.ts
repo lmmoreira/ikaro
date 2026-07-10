@@ -24,7 +24,12 @@ export class HealthController {
   @Get('ready')
   async ready(): Promise<{ status: string }> {
     try {
-      await firstValueFrom(this.http.get(`${this.backendUrl}/health/live`, { timeout: 2000 }));
+      // Chained to the backend's own /health/ready (not /health/live): Cloud Run has no
+      // continuous readiness-based traffic pulling (only startup + liveness probes), so
+      // there's no cascading-blast-radius cost to this depth — it just makes this readiness
+      // check (used for BFF's own startup gate + external uptime alerting) mean "the backend
+      // can actually serve," not merely "the backend process is up."
+      await firstValueFrom(this.http.get(`${this.backendUrl}/health/ready`, { timeout: 2000 }));
       return { status: 'ok' };
     } catch {
       throw new HttpException(
@@ -32,7 +37,7 @@ export class HealthController {
           type: 'about:blank',
           title: 'Service Unavailable',
           status: HttpStatus.SERVICE_UNAVAILABLE,
-          detail: 'Backend is not reachable',
+          detail: 'Backend is not ready',
         },
         HttpStatus.SERVICE_UNAVAILABLE,
       );

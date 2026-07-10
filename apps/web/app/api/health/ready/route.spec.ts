@@ -1,20 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const mockIsBffLive = vi.hoisted(() => vi.fn());
+const mockIsBffReady = vi.hoisted(() => vi.fn());
 
-vi.mock('@/shared/lib/health/check-bff-liveness', () => ({
-  isBffLive: mockIsBffLive,
+vi.mock('@/shared/lib/health/check-bff-readiness', () => ({
+  isBffReady: mockIsBffReady,
 }));
 
 import { GET } from './route';
 
 describe('GET /api/health/ready', () => {
   afterEach(() => {
-    mockIsBffLive.mockReset();
+    mockIsBffReady.mockReset();
   });
 
-  it('returns 200 when the BFF is live', async () => {
-    mockIsBffLive.mockResolvedValue(true);
+  it('returns 200 when the BFF is ready', async () => {
+    mockIsBffReady.mockResolvedValue(true);
 
     const response = await GET();
     const body = await response.json();
@@ -23,8 +23,8 @@ describe('GET /api/health/ready', () => {
     expect(body).toEqual({ status: 'ok' });
   });
 
-  it('returns 503 when the BFF is not live', async () => {
-    mockIsBffLive.mockResolvedValue(false);
+  it('returns 503 when the BFF is not ready', async () => {
+    mockIsBffReady.mockResolvedValue(false);
 
     const response = await GET();
     const body = await response.json();

@@ -760,23 +760,37 @@ new ParentBasedSampler({
 
 ## Health Check Implementation
 
-Every service ships two endpoints: `/health/live` (process-up, zero dependencies, always 200) and
-`/health/ready` (checks one hop down, `503` on failure). Both are exempt from auth guards (`@Public()`)
-and rate limiting. Each service checks only its *immediate* dependency — no cascading readiness chains
-(see `plan/M17-CLOUD-DEPLOY.md` M17-S04).
+Every service ships two endpoints with deliberately different depth: `/health/live` (process-up, zero
+dependencies, always 200) and `/health/ready` (chained through the full dependency graph beneath this
+service, `503` on failure). Both are exempt from auth guards (`@Public()`) and rate limiting.
+
+**Why `/health/ready` chains all the way down instead of stopping at "is the next hop's process up":**
+Cloud Run has no continuous readiness-based traffic pulling — only a **startup** probe (gates a *new*
+instance before it joins rotation) and a **liveness** probe (restarts the container on failure; see S18
+in `plan/M17-CLOUD-DEPLOY.md`). `/health/ready` is used exclusively for that startup gate and for
+external uptime-check alerting (S35) — never for pulling an already-running instance out of rotation
+(Cloud Run can't do that). So there's no "one DB blip cascades and pulls three services out of rotation
+at once" risk to guard against — chaining ready-through-ready just makes each hop's readiness answer
+the question a startup gate and an alert actually need answered: *can the whole chain beneath me serve
+a real request right now*, not merely *is the next process up*. `/health/live` stays completely
+separate and dependency-free everywhere, since it's the only signal that should ever trigger a restart —
+a transient DB blip must never cause Cloud Run to restart a perfectly healthy app container.
 
 **Backend** (`@nestjs/terminus` — real DB ping; Pub/Sub is log-only and never gates readiness, since a
 transient Pub/Sub blip must not take the API out of rotation):
 
 ```typescript
 // apps/backend/src/health/health.controller.ts
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { HealthCheckService, HealthCheck, TypeOrmHealthIndicator } from '@nestjs/terminus';
+import { AppLogger } from '../shared/observability/app-logger';
 import { Public } from '../shared/decorators/public.decorator';
 
 @Public()
 @Controller('health')
 export class HealthController {
+  private readonly logger = new AppLogger(HealthController.name);
+
   constructor(
     private readonly health: HealthCheckService,
     private readonly db: TypeOrmHealthIndicator,
@@ -789,34 +803,54 @@ export class HealthController {
 
   @Get('ready')
   @HealthCheck()
-  ready() {
-    // 503 (terminus's native HealthCheckResult shape) on failed/slow DB ping
-    return this.health.check([() => this.db.pingCheck('database', { timeout: 2000 })]);
+  async ready() {
+    try {
+      return await this.health.check([() => this.db.pingCheck('database', { timeout: 2000 })]);
+    } catch (err) {
+      // This route is @Public() — never leak terminus's raw indicator error message
+      // (e.g. connection/timeout detail). Log full diagnostics server-side instead.
+      this.logger.error('Readiness check failed', err instanceof Error ? err.stack : String(err));
+      throw new ServiceUnavailableException({
+        status: 'error',
+        info: {},
+        error: { database: { status: 'down' } },
+        details: { database: { status: 'down' } },
+      });
+    }
   }
 }
 ```
 
-**BFF** (HTTP check one hop down — the backend's *liveness*, not its readiness, so a backend DB blip
-doesn't cascade into the BFF failing too):
+**BFF** (chained to the backend's own `/health/ready` — so a backend DB blip correctly surfaces as the
+BFF not being ready either, since neither can serve a real request while it lasts):
 
 ```typescript
 // apps/bff/src/health/health.controller.ts
 @Get('ready')
-async ready() {
-  await firstValueFrom(this.http.get(`${this.backendUrl}/health/live`, { timeout: 2000 }));
-  return { status: 'ok' }; // non-2xx/timeout throws -> 503 via the global exception filter
+async ready(): Promise<{ status: string }> {
+  try {
+    await firstValueFrom(this.http.get(`${this.backendUrl}/health/ready`, { timeout: 2000 }));
+    return { status: 'ok' };
+  } catch {
+    // No global exception filter here — the controller maps the failure to 503 itself.
+    throw new HttpException(
+      { type: 'about:blank', title: 'Service Unavailable', status: 503, detail: 'Backend is not ready' },
+      503,
+    );
+  }
 }
 ```
 
-**Web** (Next.js route handlers, thin — logic lives in `shared/lib/`):
+**Web** (Next.js route handlers, thin — logic lives in `shared/lib/`; chained to the BFF's own
+`/health/ready`, same reasoning):
 
 ```typescript
 // apps/web/app/api/health/ready/route.ts
+import { isBffReady } from '@/shared/lib/health/check-bff-readiness';
+
 export async function GET() {
-  const res = await bffPublicFetch('/health/live', { signal: AbortSignal.timeout(2000) });
-  return res.ok
-    ? NextResponse.json({ status: 'ok' })
-    : NextResponse.json({ status: 'error' }, { status: 503 });
+  const healthy = await isBffReady(); // owns the fetch + 2s AbortSignal.timeout + error normalization
+  return NextResponse.json({ status: healthy ? 'ok' : 'error' }, { status: healthy ? 200 : 503 });
 }
 ```
 
