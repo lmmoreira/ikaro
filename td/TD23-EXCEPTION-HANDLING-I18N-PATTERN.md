@@ -1,7 +1,7 @@
 # TD23 — Exception Handling & i18n Pattern: Backend → BFF → UI
 
 ## Status
-- **State**: Proposed
+- **State**: In Progress — Stories 1-3 done (Wave 1 complete, Wave 2 started: booking context)
 - **Type**: Technical Debt / Cross-Cutting Architecture Pattern
 - **Priority**: Medium — no single instance is a P0 outage, but the systemic gap already causes 2 confirmed raw-English-in-pt-BR-UI leaks in production code, a fragile string-match anti-pattern, a dead-but-leak-shaped mechanism, and 40+ error paths across the app that lose specificity they could have
 - **Scope**: `apps/backend` (all 6 contexts + shared value objects), `apps/bff` (all feature slices), `apps/web` (all domain/shell slices), `packages/types`, `packages/i18n`
@@ -298,7 +298,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ### Wave 1 — Foundation
 
-#### Story 1 — Canonical envelope + shared code catalog skeleton
+#### Story 1 — Canonical envelope + shared code catalog skeleton ✅ Done
 
 **Scope:** `packages/types`, `packages/i18n`, this TD.
 
@@ -320,7 +320,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ### Wave 2 — Backend: base classes + per-context code assignment
 
-#### Story 2 — `DomainErrorShape` pattern + apply it to booking (the other 5 contexts follow one-by-one)
+#### Story 2 — `DomainErrorShape` pattern + apply it to booking (the other 5 contexts follow one-by-one) ✅ Done
 
 **Scope:** `apps/backend/src/shared/domain/`, `BookingDomainError`, `NotificationDomainError`.
 
@@ -344,7 +344,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ---
 
-#### Story 3 — Booking context: codes + `AddressValidationError` field discriminator (TD14's fix, correctly scoped)
+#### Story 3 — Booking context: codes + `AddressValidationError` field discriminator (TD14's fix, correctly scoped) ✅ Done
 
 **Scope:** `apps/backend/src/contexts/booking/**`, `booking-error.mapper.ts`, `apps/backend/src/shared/value-objects/address.ts`, `apps/backend/src/shared/value-objects/country-code.vo.ts`.
 
