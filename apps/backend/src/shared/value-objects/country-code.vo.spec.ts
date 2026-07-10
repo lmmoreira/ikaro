@@ -5,10 +5,11 @@ import { CountryCode, CountryCodeValidationError } from './country-code.vo';
 function captureError(fn: () => unknown): CountryCodeValidationError {
   try {
     fn();
-    throw new Error('expected fn to throw CountryCodeValidationError');
   } catch (e) {
-    return e as CountryCodeValidationError;
+    if (e instanceof CountryCodeValidationError) return e;
+    throw e;
   }
+  throw new Error('expected fn to throw CountryCodeValidationError');
 }
 
 describe('CountryCode', () => {

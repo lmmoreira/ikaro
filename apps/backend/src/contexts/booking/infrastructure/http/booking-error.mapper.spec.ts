@@ -49,6 +49,24 @@ describe('mapBookingError', () => {
     });
   });
 
+  it('maps BookingAddressValidationError to 400 with params when present', () => {
+    const err = call(
+      new BookingAddressValidationError(
+        'street is required',
+        AddressErrorCode.FIELD_REQUIRED,
+        'pickupAddress',
+        { field: 'street' },
+      ),
+    );
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({
+      code: AddressErrorCode.FIELD_REQUIRED,
+      field: 'pickupAddress',
+      params: { field: 'street' },
+    });
+  });
+
   it('maps raw AddressValidationError to 400 with code, no field (defensive fallback)', () => {
     const err = call(
       new AddressValidationError('Invalid CEP: 123', AddressErrorCode.POSTAL_CODE_INVALID),

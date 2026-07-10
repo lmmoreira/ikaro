@@ -11,7 +11,6 @@ import {
   AddressProps,
   AddressValidationError,
 } from '../../../../shared/value-objects/address';
-import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import { AddressResult, BookingLineResult } from './request-booking.use-case';
 
 export interface BookingRequestResult {
@@ -35,9 +34,6 @@ export function createBookingAddress(
   } catch (err) {
     if (err instanceof AddressValidationError) {
       throw new BookingAddressValidationError(err.message, err.code, field, err.params);
-    }
-    if (err instanceof CountryCodeValidationError) {
-      throw new BookingAddressValidationError(err.message, err.code, field);
     }
     throw err;
   }

@@ -5,10 +5,11 @@ import { Address, AddressValidationError } from './address';
 function captureError(fn: () => unknown): AddressValidationError {
   try {
     fn();
-    throw new Error('expected fn to throw AddressValidationError');
   } catch (e) {
-    return e as AddressValidationError;
+    if (e instanceof AddressValidationError) return e;
+    throw e;
   }
+  throw new Error('expected fn to throw AddressValidationError');
 }
 
 const BR = countrySpec('BR').address;

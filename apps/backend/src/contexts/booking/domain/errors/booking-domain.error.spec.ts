@@ -70,7 +70,7 @@ describe('booking domain error subclasses', () => {
   const cases: Array<{
     label: string;
     build: () => BookingDomainError;
-    code: string;
+    code: BookingErrorCode;
     field?: string;
   }> = [
     {

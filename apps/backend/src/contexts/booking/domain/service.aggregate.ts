@@ -78,6 +78,20 @@ export class Service extends AggregateRoot {
     return this.props.updatedAt;
   }
 
+  private static validateFields(
+    name: string,
+    price: Money,
+    durationMinutes: number,
+    loyaltyPointsValue: number,
+  ): string {
+    const normalizedName = normalizeText(name);
+    if (!normalizedName) throw new ServiceNameRequiredError();
+    if (price.amount.isNegative() || price.amount.isZero()) throw new ServicePriceInvalidError();
+    if (durationMinutes <= 0) throw new ServiceDurationInvalidError();
+    if (loyaltyPointsValue < 0) throw new ServiceLoyaltyPointsInvalidError();
+    return normalizedName;
+  }
+
   static create({
     tenantId,
     name,
@@ -89,11 +103,7 @@ export class Service extends AggregateRoot {
     description,
   }: CreateServiceProps): Service {
     if (!tenantId) throw new TenantIdRequiredError();
-    const normalizedName = normalizeText(name);
-    if (!normalizedName) throw new ServiceNameRequiredError();
-    if (price.amount.isNegative() || price.amount.isZero()) throw new ServicePriceInvalidError();
-    if (durationMinutes <= 0) throw new ServiceDurationInvalidError();
-    if (loyaltyPointsValue < 0) throw new ServiceLoyaltyPointsInvalidError();
+    const normalizedName = Service.validateFields(name, price, durationMinutes, loyaltyPointsValue);
 
     const now = new Date();
     return new Service({
@@ -124,11 +134,7 @@ export class Service extends AggregateRoot {
     requiresPickupAddress: boolean,
   ): void {
     if (!this.props.isActive) throw new ServiceDeactivatedError();
-    const normalizedName = normalizeText(name);
-    if (!normalizedName) throw new ServiceNameRequiredError();
-    if (price.amount.isNegative() || price.amount.isZero()) throw new ServicePriceInvalidError();
-    if (durationMinutes <= 0) throw new ServiceDurationInvalidError();
-    if (loyaltyPointsValue < 0) throw new ServiceLoyaltyPointsInvalidError();
+    const normalizedName = Service.validateFields(name, price, durationMinutes, loyaltyPointsValue);
 
     this.props.name = normalizedName;
     this.props.description = normalizeOptionalText(description);
