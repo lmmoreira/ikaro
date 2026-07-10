@@ -1,0 +1,16 @@
+# Shared — Health Checks (M17-S04)
+# /health/live is a pure process-up check — always 200, no dependencies.
+# /health/ready pings Postgres via @nestjs/terminus (2s timeout) — 503 with per-check
+# detail when the database is unreachable. Both routes are @Public() (bypass InternalApiGuard).
+#
+# To see the 503 case locally: pnpm infra:down, then re-run the /health/ready request below.
+
+### GET /health/live — always 200
+GET {{backendUrl}}/health/live
+
+###
+
+### GET /health/ready — 200 when Postgres is reachable, 503 otherwise
+GET {{backendUrl}}/health/ready
+
+###
