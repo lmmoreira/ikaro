@@ -6,11 +6,13 @@ import {
   LastActiveManagerError,
   StaffAlreadyActiveError,
   StaffAlreadyExistsError,
+  StaffDeactivatedError,
   StaffDomainError,
   StaffEmailMismatchError,
   StaffGoogleAccountConflictError,
   StaffNotFoundError,
   StaffSelfDeactivationError,
+  StaffSelfReactivationError,
 } from '../../domain/errors/staff-domain.error';
 import { mapStaffError } from './staff-error.mapper';
 
@@ -67,6 +69,18 @@ describe('mapStaffError', () => {
     const err = call(new StaffSelfDeactivationError());
     expect(err.getStatus()).toBe(HttpStatus.FORBIDDEN);
     expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.SELF_DEACTIVATION });
+  });
+
+  it('maps StaffSelfReactivationError to 403 with code', () => {
+    const err = call(new StaffSelfReactivationError());
+    expect(err.getStatus()).toBe(HttpStatus.FORBIDDEN);
+    expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.SELF_REACTIVATION });
+  });
+
+  it('maps StaffDeactivatedError to 403 with code', () => {
+    const err = call(new StaffDeactivatedError());
+    expect(err.getStatus()).toBe(HttpStatus.FORBIDDEN);
+    expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.DEACTIVATED });
   });
 
   it('maps LastActiveManagerError to 409 with code', () => {
