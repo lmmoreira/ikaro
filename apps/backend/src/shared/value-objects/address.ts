@@ -82,7 +82,11 @@ export class Address extends ValueObject<AddressProps> {
     }
   }
 
-  private static requireField(value: string, label: string, field: string): void {
+  private static requireField(
+    value: string,
+    label: string,
+    field: 'street' | 'number' | 'city' | 'state' | 'zipCode',
+  ): void {
     if (!value) {
       throw new AddressValidationError(`${label} is required`, AddressErrorCode.FIELD_REQUIRED, {
         field,

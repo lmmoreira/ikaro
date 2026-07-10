@@ -1,15 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import {
-  Address,
-  AddressProps,
-  AddressValidationError,
-} from '../../../../shared/value-objects/address';
-import {
-  CountryCode,
-  CountryCodeValidationError,
-} from '../../../../shared/value-objects/country-code.vo';
-import type { AddressSpec } from '@ikaro/i18n';
+import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
@@ -18,7 +9,6 @@ import {
 import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { Booking } from '../../domain/booking.aggregate';
 import {
-  BookingAddressValidationError,
   BookingServiceNotActiveError,
   BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
@@ -27,7 +17,12 @@ import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-reposit
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RequestBookingDto } from '../dtos/request-booking.dto';
-import { buildLineInputs, toBookingResult, BookingRequestResult } from './booking-request.helpers';
+import {
+  buildLineInputs,
+  createBookingAddress,
+  toBookingResult,
+  BookingRequestResult,
+} from './booking-request.helpers';
 
 export type RequestBookingInput = RequestBookingDto & {
   tenantId: string;
@@ -104,14 +99,14 @@ export class RequestBookingUseCase {
     const lineInputs = buildLineInputs(input.serviceIds, serviceMap);
 
     const contactAddress = input.contactAddress
-      ? this.createAddress(
+      ? createBookingAddress(
           { ...input.contactAddress, complement: input.contactAddress.complement ?? undefined },
           addressSpec,
           'contactAddress',
         )
       : undefined;
     const pickupAddress = input.pickupAddress
-      ? this.createAddress(
+      ? createBookingAddress(
           { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
           addressSpec,
           'pickupAddress',
@@ -148,23 +143,5 @@ export class RequestBookingUseCase {
 
   private toResult(booking: Booking): RequestBookingUseCaseResult {
     return toBookingResult(booking);
-  }
-
-  private createAddress(
-    props: AddressProps,
-    spec: AddressSpec,
-    field: 'pickupAddress' | 'contactAddress',
-  ): Address {
-    try {
-      return Address.create(props, spec);
-    } catch (err) {
-      if (err instanceof AddressValidationError) {
-        throw new BookingAddressValidationError(err.message, err.code, field, err.params);
-      }
-      if (err instanceof CountryCodeValidationError) {
-        throw new BookingAddressValidationError(err.message, err.code, field);
-      }
-      throw err;
-    }
   }
 }

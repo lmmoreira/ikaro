@@ -1,15 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import {
-  Address,
-  AddressProps,
-  AddressValidationError,
-} from '../../../../shared/value-objects/address';
-import {
-  CountryCode,
-  CountryCodeValidationError,
-} from '../../../../shared/value-objects/country-code.vo';
-import type { AddressSpec } from '@ikaro/i18n';
+import { Address } from '../../../../shared/value-objects/address';
+import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
@@ -18,7 +10,6 @@ import {
 import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { Booking } from '../../domain/booking.aggregate';
 import {
-  BookingAddressValidationError,
   BookingCustomerNotFoundError,
   BookingServiceNotActiveError,
   BookingServiceNotInTenantError,
@@ -30,7 +21,12 @@ import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-reposit
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RequestAuthenticatedBookingDto } from '../dtos/request-authenticated-booking.dto';
-import { buildLineInputs, toBookingResult, BookingRequestResult } from './booking-request.helpers';
+import {
+  buildLineInputs,
+  createBookingAddress,
+  toBookingResult,
+  BookingRequestResult,
+} from './booking-request.helpers';
 
 export type RequestAuthenticatedBookingInput = RequestAuthenticatedBookingDto & {
   tenantId: string;
@@ -76,9 +72,10 @@ export class RequestAuthenticatedBookingUseCase {
 
     let pickupAddress: Address | undefined;
     if (input.pickupAddress) {
-      pickupAddress = this.createPickupAddress(
+      pickupAddress = createBookingAddress(
         { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
         CountryCode.create(countryCode).spec.address,
+        'pickupAddress',
       );
     } else if (requiresPickup && customer.defaultAddress) {
       pickupAddress = customer.defaultAddress;
@@ -139,19 +136,5 @@ export class RequestAuthenticatedBookingUseCase {
 
   private toResult(booking: Booking): RequestAuthenticatedBookingUseCaseResult {
     return toBookingResult(booking);
-  }
-
-  private createPickupAddress(props: AddressProps, spec: AddressSpec): Address {
-    try {
-      return Address.create(props, spec);
-    } catch (err) {
-      if (err instanceof AddressValidationError) {
-        throw new BookingAddressValidationError(err.message, err.code, 'pickupAddress', err.params);
-      }
-      if (err instanceof CountryCodeValidationError) {
-        throw new BookingAddressValidationError(err.message, err.code, 'pickupAddress');
-      }
-      throw err;
-    }
   }
 }

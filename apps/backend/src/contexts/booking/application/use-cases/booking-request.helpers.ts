@@ -1,7 +1,17 @@
+import type { AddressSpec } from '@ikaro/i18n';
 import { Booking } from '../../domain/booking.aggregate';
 import { BookingLineInput } from '../../domain/booking-line.entity';
-import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
+import {
+  BookingAddressValidationError,
+  BookingServiceNotInTenantError,
+} from '../../domain/errors/booking-domain.error';
 import { Service } from '../../domain/service.aggregate';
+import {
+  Address,
+  AddressProps,
+  AddressValidationError,
+} from '../../../../shared/value-objects/address';
+import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import { AddressResult, BookingLineResult } from './request-booking.use-case';
 
 export interface BookingRequestResult {
@@ -13,6 +23,24 @@ export interface BookingRequestResult {
   pickupAddress: AddressResult | null;
   beforeServicePhotoUrls: string[];
   lines: BookingLineResult[];
+}
+
+export function createBookingAddress(
+  props: AddressProps,
+  spec: AddressSpec,
+  field: 'pickupAddress' | 'contactAddress',
+): Address {
+  try {
+    return Address.create(props, spec);
+  } catch (err) {
+    if (err instanceof AddressValidationError) {
+      throw new BookingAddressValidationError(err.message, err.code, field, err.params);
+    }
+    if (err instanceof CountryCodeValidationError) {
+      throw new BookingAddressValidationError(err.message, err.code, field);
+    }
+    throw err;
+  }
 }
 
 export function buildLineInputs(
