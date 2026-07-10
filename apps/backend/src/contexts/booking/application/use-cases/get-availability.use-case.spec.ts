@@ -135,7 +135,7 @@ describe('GetAvailabilityUseCase', () => {
     ).rejects.toMatchObject({ name: 'AvailabilityDateInPastError' });
   });
 
-  it('throws BookingDomainError (400) when a serviceId does not belong to tenant', async () => {
+  it('throws ServiceNotFoundError (404) when a serviceId does not belong to tenant', async () => {
     const unknownId = '00000000-0000-7000-8000-000000000099';
 
     await expect(
@@ -147,10 +147,10 @@ describe('GetAvailabilityUseCase', () => {
         slotGranularityMinutes: settings.booking.slotGranularityMinutes,
         serviceBufferMinutes: settings.booking.serviceBufferMinutes,
       }),
-    ).rejects.toMatchObject({ name: 'BookingDomainError' });
+    ).rejects.toMatchObject({ name: 'ServiceNotFoundError' });
   });
 
-  it('throws BookingDomainError (400) when a service is inactive', async () => {
+  it('throws BookingServiceNotActiveError (400) when a service is inactive', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_ID).withIsActive(false).build();
     await serviceRepo.save(service);
 
@@ -163,7 +163,7 @@ describe('GetAvailabilityUseCase', () => {
         slotGranularityMinutes: settings.booking.slotGranularityMinutes,
         serviceBufferMinutes: settings.booking.serviceBufferMinutes,
       }),
-    ).rejects.toMatchObject({ name: 'BookingDomainError' });
+    ).rejects.toMatchObject({ name: 'BookingServiceNotActiveError' });
   });
 
   it('sums durations of multiple services', async () => {

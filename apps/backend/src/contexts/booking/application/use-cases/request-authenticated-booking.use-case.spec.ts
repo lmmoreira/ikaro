@@ -8,9 +8,11 @@ import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
-import { testAddress } from '../../../../test/utils/address-helpers';
+import { testAddress, testAddressProps } from '../../../../test/utils/address-helpers';
 import { futureDate } from '../../../../test/utils/date-helpers';
+import { AddressErrorCode } from '@ikaro/types';
 import {
+  BookingAddressValidationError,
   BookingCustomerNotFoundError,
   BookingPhotoNotUploadedError,
   BookingSlotUnavailableError,
@@ -216,6 +218,25 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     });
 
     expect(result.pickupAddress!.city).toBe('Belo Horizonte');
+  });
+
+  it('translates an invalid explicit pickupAddress into BookingAddressValidationError with field=pickupAddress', async () => {
+    const pickupService = new ServiceBuilder()
+      .withTenantId(TENANT_A)
+      .withRequiresPickupAddress(true)
+      .build();
+    await serviceRepo.save(pickupService);
+
+    const err = await useCase
+      .execute({
+        ...baseInput(),
+        serviceIds: [pickupService.id],
+        pickupAddress: testAddressProps({ zipCode: '123' }),
+      })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(BookingAddressValidationError);
+    expect((err as BookingAddressValidationError).field).toBe('pickupAddress');
+    expect((err as BookingAddressValidationError).code).toBe(AddressErrorCode.POSTAL_CODE_INVALID);
   });
 
   it('throws BookingSlotUnavailableError when slot is taken', async () => {

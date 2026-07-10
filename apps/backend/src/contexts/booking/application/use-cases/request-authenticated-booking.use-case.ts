@@ -21,7 +21,12 @@ import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-reposit
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RequestAuthenticatedBookingDto } from '../dtos/request-authenticated-booking.dto';
-import { buildLineInputs, toBookingResult, BookingRequestResult } from './booking-request.helpers';
+import {
+  buildLineInputs,
+  createBookingAddress,
+  toBookingResult,
+  BookingRequestResult,
+} from './booking-request.helpers';
 
 export type RequestAuthenticatedBookingInput = RequestAuthenticatedBookingDto & {
   tenantId: string;
@@ -67,9 +72,10 @@ export class RequestAuthenticatedBookingUseCase {
 
     let pickupAddress: Address | undefined;
     if (input.pickupAddress) {
-      pickupAddress = Address.create(
+      pickupAddress = createBookingAddress(
         { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
         CountryCode.create(countryCode).spec.address,
+        'pickupAddress',
       );
     } else if (requiresPickup && customer.defaultAddress) {
       pickupAddress = customer.defaultAddress;

@@ -59,7 +59,7 @@ describe('ScheduleAvailabilitySummaryController', () => {
     expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });
 
-  it('maps unknown serviceId to 400', async () => {
+  it('maps unknown serviceId to 404', async () => {
     const unknownId = '00000000-0000-7000-8000-000000000099';
 
     const err = await controller
@@ -67,7 +67,7 @@ describe('ScheduleAvailabilitySummaryController', () => {
       .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(HttpException);
-    expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
   });
 
   it('returns past dates as available:false without error', async () => {

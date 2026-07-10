@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { AddressErrorCode, CountryCodeErrorCode } from '@ikaro/types';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import {
@@ -9,7 +10,10 @@ import { mapCustomerError } from './customer-error.mapper';
 
 describe('mapCustomerError', () => {
   it('maps AddressValidationError to 400', () => {
-    const err = new AddressValidationError('Invalid CEP: 123');
+    const err = new AddressValidationError(
+      'Invalid CEP: 123',
+      AddressErrorCode.POSTAL_CODE_INVALID,
+    );
     expect(() => mapCustomerError(err)).toThrow(HttpException);
     try {
       mapCustomerError(err);
@@ -19,7 +23,10 @@ describe('mapCustomerError', () => {
   });
 
   it('maps CountryCodeValidationError to 400', () => {
-    const err = new CountryCodeValidationError('countryCode must be supported');
+    const err = new CountryCodeValidationError(
+      'countryCode must be supported',
+      CountryCodeErrorCode.UNSUPPORTED,
+    );
     expect(() => mapCustomerError(err)).toThrow(HttpException);
     try {
       mapCustomerError(err);

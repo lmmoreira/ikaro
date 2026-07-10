@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { Address } from '../../../../shared/value-objects/address';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import {
@@ -18,7 +17,12 @@ import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-reposit
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RequestBookingDto } from '../dtos/request-booking.dto';
-import { buildLineInputs, toBookingResult, BookingRequestResult } from './booking-request.helpers';
+import {
+  buildLineInputs,
+  createBookingAddress,
+  toBookingResult,
+  BookingRequestResult,
+} from './booking-request.helpers';
 
 export type RequestBookingInput = RequestBookingDto & {
   tenantId: string;
@@ -95,15 +99,17 @@ export class RequestBookingUseCase {
     const lineInputs = buildLineInputs(input.serviceIds, serviceMap);
 
     const contactAddress = input.contactAddress
-      ? Address.create(
+      ? createBookingAddress(
           { ...input.contactAddress, complement: input.contactAddress.complement ?? undefined },
           addressSpec,
+          'contactAddress',
         )
       : undefined;
     const pickupAddress = input.pickupAddress
-      ? Address.create(
+      ? createBookingAddress(
           { ...input.pickupAddress, complement: input.pickupAddress.complement ?? undefined },
           addressSpec,
+          'pickupAddress',
         )
       : undefined;
 

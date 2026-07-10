@@ -4,7 +4,8 @@ import type { BusinessHours } from '../../../../shared/value-objects/business-ho
 import { AvailabilityService } from '../../domain/services/availability.service';
 import {
   AvailabilityDateInPastError,
-  BookingDomainError,
+  BookingServiceNotActiveError,
+  ServiceNotFoundError,
 } from '../../domain/errors/booking-domain.error';
 import {
   IBookingAvailabilityPort,
@@ -61,10 +62,10 @@ export class GetAvailabilityUseCase {
     for (const requestedId of input.serviceIds) {
       const service = services.find((s) => s.id === requestedId);
       if (!service) {
-        throw new BookingDomainError(`Service not found: ${requestedId}`);
+        throw new ServiceNotFoundError(requestedId);
       }
       if (!service.isActive) {
-        throw new BookingDomainError(`Service is not active: ${requestedId}`);
+        throw new BookingServiceNotActiveError(requestedId);
       }
     }
 

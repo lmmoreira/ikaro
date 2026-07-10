@@ -5,6 +5,7 @@ import { CountryCodeValidationError } from '../../../../shared/value-objects/cou
 import {
   AvailabilityDateInPastError,
   AvailabilityRangeInvalidError,
+  BookingAddressValidationError,
   BookingCustomerNotFoundError,
   BookingDiscountDisabledError,
   BookingDiscountExceedsTotalError,
@@ -33,11 +34,25 @@ import {
 } from '../../domain/errors/booking-domain.error';
 
 export function mapBookingError(err: unknown): never {
+  if (err instanceof BookingAddressValidationError) {
+    const body: ProblemDetail = {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: HttpStatus.BAD_REQUEST,
+      code: err.code,
+      field: err.field,
+      params: err.params,
+      detail: err.message,
+    };
+    throw new HttpException(body, HttpStatus.BAD_REQUEST);
+  }
   if (err instanceof AddressValidationError) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Bad Request',
       status: HttpStatus.BAD_REQUEST,
+      code: err.code,
+      params: err.params,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.BAD_REQUEST);
@@ -47,6 +62,7 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Bad Request',
       status: HttpStatus.BAD_REQUEST,
+      code: err.code,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.BAD_REQUEST);
@@ -56,6 +72,8 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Forbidden',
       status: HttpStatus.FORBIDDEN,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.FORBIDDEN);
@@ -69,6 +87,8 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Bad Request',
       status: HttpStatus.BAD_REQUEST,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.BAD_REQUEST);
@@ -78,6 +98,8 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Unprocessable Entity',
       status: HttpStatus.UNPROCESSABLE_ENTITY,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
@@ -93,6 +115,8 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Not Found',
       status: HttpStatus.NOT_FOUND,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.NOT_FOUND);
@@ -107,6 +131,8 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Conflict',
       status: HttpStatus.CONFLICT,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.CONFLICT);
@@ -121,6 +147,8 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Unprocessable Entity',
       status: HttpStatus.UNPROCESSABLE_ENTITY,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
@@ -130,6 +158,8 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Unprocessable Entity',
       status: HttpStatus.UNPROCESSABLE_ENTITY,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
@@ -139,6 +169,8 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Unprocessable Entity',
       status: HttpStatus.UNPROCESSABLE_ENTITY,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
@@ -154,6 +186,8 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Unprocessable Entity',
       status: HttpStatus.UNPROCESSABLE_ENTITY,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
@@ -163,6 +197,8 @@ export function mapBookingError(err: unknown): never {
       type: 'about:blank',
       title: 'Bad Request',
       status: HttpStatus.BAD_REQUEST,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.BAD_REQUEST);
