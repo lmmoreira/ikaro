@@ -55,5 +55,19 @@
   "CUSTOMER_PHONE_INVALID": "O telefone informado é inválido.",
   "LOYALTY_INVALID_POINTS": "A quantidade de pontos deve ser maior que zero.",
   "LOYALTY_INSUFFICIENT_POINTS": "Saldo de pontos insuficiente para esta operação.",
-  "LOYALTY_BALANCE_NOT_FOUND": "Nenhum saldo de fidelidade encontrado para este cliente."
+  "LOYALTY_BALANCE_NOT_FOUND": "Nenhum saldo de fidelidade encontrado para este cliente.",
+  "STAFF_NOT_FOUND": "Membro da equipe não encontrado.",
+  "STAFF_ALREADY_ACTIVE": "Este membro da equipe já está ativo.",
+  "STAFF_DEACTIVATED": "Esta conta está desativada.",
+  "STAFF_EMAIL_MISMATCH": "O e-mail da conta Google não corresponde ao e-mail do convite.",
+  "STAFF_ALREADY_EXISTS": "Já existe um membro da equipe com este e-mail neste estabelecimento.",
+  "STAFF_SELF_DEACTIVATION": "Você não pode desativar sua própria conta.",
+  "STAFF_SELF_REACTIVATION": "Você não pode reativar sua própria conta.",
+  "STAFF_LAST_ACTIVE_MANAGER": "Não é possível remover o último gerente ativo.",
+  "STAFF_GOOGLE_ACCOUNT_CONFLICT": "Esta conta Google já está vinculada a outro membro da equipe.",
+  "STAFF_TENANT_ID_REQUIRED": "Ocorreu um erro inesperado. Tente novamente.",
+  "STAFF_EMAIL_INVALID": "Ocorreu um erro inesperado. Tente novamente.",
+  "STAFF_NAME_REQUIRED": "O nome é obrigatório.",
+  "STAFF_ROLE_INVALID": "Ocorreu um erro inesperado. Tente novamente.",
+  "STAFF_GOOGLE_OAUTH_ID_REQUIRED": "Ocorreu um erro inesperado. Tente novamente."
 }

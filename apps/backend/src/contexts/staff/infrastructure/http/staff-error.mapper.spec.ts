@@ -1,4 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { AddressErrorCode, CountryCodeErrorCode, StaffErrorCode } from '@ikaro/types';
+import { AddressValidationError } from '../../../../shared/value-objects/address';
+import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import {
   LastActiveManagerError,
   StaffAlreadyActiveError,
@@ -11,77 +14,83 @@ import {
 } from '../../domain/errors/staff-domain.error';
 import { mapStaffError } from './staff-error.mapper';
 
+function call(err: unknown): HttpException {
+  try {
+    mapStaffError(err);
+    throw new Error('mapStaffError should have thrown');
+  } catch (e) {
+    return e as HttpException;
+  }
+}
+
 describe('mapStaffError', () => {
-  it('maps StaffNotFoundError to 404', () => {
-    expect(() => mapStaffError(new StaffNotFoundError('some-id'))).toThrow(HttpException);
-    try {
-      mapStaffError(new StaffNotFoundError('some-id'));
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
-    }
+  it('maps AddressValidationError to 400 with code (defensive fallback — staff has no address field today)', () => {
+    const err = call(
+      new AddressValidationError('Invalid CEP: 123', AddressErrorCode.POSTAL_CODE_INVALID),
+    );
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: AddressErrorCode.POSTAL_CODE_INVALID });
   });
 
-  it('maps StaffAlreadyActiveError to 409', () => {
-    expect(() => mapStaffError(new StaffAlreadyActiveError('some-id'))).toThrow(HttpException);
-    try {
-      mapStaffError(new StaffAlreadyActiveError('some-id'));
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
-    }
+  it('maps CountryCodeValidationError to 400 with code (defensive fallback)', () => {
+    const err = call(
+      new CountryCodeValidationError(
+        'countryCode must be supported',
+        CountryCodeErrorCode.UNSUPPORTED,
+      ),
+    );
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: CountryCodeErrorCode.UNSUPPORTED });
   });
 
-  it('maps StaffAlreadyExistsError to 409', () => {
-    expect(() => mapStaffError(new StaffAlreadyExistsError('a@b.com'))).toThrow(HttpException);
-    try {
-      mapStaffError(new StaffAlreadyExistsError('a@b.com'));
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
-    }
+  it('maps StaffNotFoundError to 404 with code', () => {
+    const err = call(new StaffNotFoundError('some-id'));
+    expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.NOT_FOUND });
   });
 
-  it('maps StaffSelfDeactivationError to 403', () => {
-    expect(() => mapStaffError(new StaffSelfDeactivationError())).toThrow(HttpException);
-    try {
-      mapStaffError(new StaffSelfDeactivationError());
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.FORBIDDEN);
-    }
+  it('maps StaffAlreadyActiveError to 409 with code', () => {
+    const err = call(new StaffAlreadyActiveError('some-id'));
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.ALREADY_ACTIVE });
   });
 
-  it('maps LastActiveManagerError to 409', () => {
-    expect(() => mapStaffError(new LastActiveManagerError())).toThrow(HttpException);
-    try {
-      mapStaffError(new LastActiveManagerError());
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
-    }
+  it('maps StaffAlreadyExistsError to 409 with code', () => {
+    const err = call(new StaffAlreadyExistsError('a@b.com'));
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.ALREADY_EXISTS });
   });
 
-  it('maps StaffEmailMismatchError to 422', () => {
-    expect(() => mapStaffError(new StaffEmailMismatchError())).toThrow(HttpException);
-    try {
-      mapStaffError(new StaffEmailMismatchError());
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
-    }
+  it('maps StaffSelfDeactivationError to 403 with code', () => {
+    const err = call(new StaffSelfDeactivationError());
+    expect(err.getStatus()).toBe(HttpStatus.FORBIDDEN);
+    expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.SELF_DEACTIVATION });
   });
 
-  it('maps StaffGoogleAccountConflictError to 409', () => {
-    expect(() => mapStaffError(new StaffGoogleAccountConflictError())).toThrow(HttpException);
-    try {
-      mapStaffError(new StaffGoogleAccountConflictError());
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
-    }
+  it('maps LastActiveManagerError to 409 with code', () => {
+    const err = call(new LastActiveManagerError());
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.LAST_ACTIVE_MANAGER });
   });
 
-  it('maps generic StaffDomainError to 400', () => {
-    expect(() => mapStaffError(new StaffDomainError('invalid'))).toThrow(HttpException);
-    try {
-      mapStaffError(new StaffDomainError('invalid'));
-    } catch (e) {
-      expect((e as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
-    }
+  it('maps StaffEmailMismatchError to 422 with code', () => {
+    const err = call(new StaffEmailMismatchError());
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.EMAIL_MISMATCH });
+  });
+
+  it('maps StaffGoogleAccountConflictError to 409 with code', () => {
+    const err = call(new StaffGoogleAccountConflictError());
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.GOOGLE_ACCOUNT_CONFLICT });
+  });
+
+  it('maps generic StaffDomainError to 400, preserving the code carried on the instance', () => {
+    const err = call(new StaffDomainError('invalid', StaffErrorCode.ROLE_INVALID));
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.ROLE_INVALID });
   });
 
   it('re-throws plain Error instances unchanged', () => {

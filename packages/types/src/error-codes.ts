@@ -58,7 +58,22 @@ export const CustomerErrorCode = {
 } as const;
 export type CustomerErrorCode = (typeof CustomerErrorCode)[keyof typeof CustomerErrorCode];
 
-export const StaffErrorCode = {} as const;
+export const StaffErrorCode = {
+  NOT_FOUND: 'STAFF_NOT_FOUND',
+  ALREADY_ACTIVE: 'STAFF_ALREADY_ACTIVE',
+  DEACTIVATED: 'STAFF_DEACTIVATED',
+  EMAIL_MISMATCH: 'STAFF_EMAIL_MISMATCH',
+  ALREADY_EXISTS: 'STAFF_ALREADY_EXISTS',
+  SELF_DEACTIVATION: 'STAFF_SELF_DEACTIVATION',
+  SELF_REACTIVATION: 'STAFF_SELF_REACTIVATION',
+  LAST_ACTIVE_MANAGER: 'STAFF_LAST_ACTIVE_MANAGER',
+  GOOGLE_ACCOUNT_CONFLICT: 'STAFF_GOOGLE_ACCOUNT_CONFLICT',
+  TENANT_ID_REQUIRED: 'STAFF_TENANT_ID_REQUIRED',
+  EMAIL_INVALID: 'STAFF_EMAIL_INVALID',
+  NAME_REQUIRED: 'STAFF_NAME_REQUIRED',
+  ROLE_INVALID: 'STAFF_ROLE_INVALID',
+  GOOGLE_OAUTH_ID_REQUIRED: 'STAFF_GOOGLE_OAUTH_ID_REQUIRED',
+} as const;
 export type StaffErrorCode = (typeof StaffErrorCode)[keyof typeof StaffErrorCode];
 
 export const LoyaltyErrorCode = {

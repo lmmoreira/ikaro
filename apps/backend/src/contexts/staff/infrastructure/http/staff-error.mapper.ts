@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { ProblemDetail } from '../../../../shared/http/problem-detail';
 import {
   LastActiveManagerError,
@@ -14,11 +15,14 @@ import {
 } from '../../domain/errors/staff-domain.error';
 
 export function mapStaffError(err: unknown): never {
+  mapSharedAddressError(err);
   if (err instanceof StaffNotFoundError) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Not Found',
       status: HttpStatus.NOT_FOUND,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.NOT_FOUND);
@@ -28,6 +32,8 @@ export function mapStaffError(err: unknown): never {
       type: 'about:blank',
       title: 'Conflict',
       status: HttpStatus.CONFLICT,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.CONFLICT);
@@ -37,6 +43,8 @@ export function mapStaffError(err: unknown): never {
       type: 'about:blank',
       title: 'Conflict',
       status: HttpStatus.CONFLICT,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.CONFLICT);
@@ -46,6 +54,8 @@ export function mapStaffError(err: unknown): never {
       type: 'about:blank',
       title: 'Forbidden',
       status: HttpStatus.FORBIDDEN,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.FORBIDDEN);
@@ -55,6 +65,8 @@ export function mapStaffError(err: unknown): never {
       type: 'about:blank',
       title: 'Forbidden',
       status: HttpStatus.FORBIDDEN,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.FORBIDDEN);
@@ -64,6 +76,8 @@ export function mapStaffError(err: unknown): never {
       type: 'about:blank',
       title: 'Conflict',
       status: HttpStatus.CONFLICT,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.CONFLICT);
@@ -73,6 +87,8 @@ export function mapStaffError(err: unknown): never {
       type: 'about:blank',
       title: 'Forbidden',
       status: HttpStatus.FORBIDDEN,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.FORBIDDEN);
@@ -82,6 +98,8 @@ export function mapStaffError(err: unknown): never {
       type: 'about:blank',
       title: 'Conflict',
       status: HttpStatus.CONFLICT,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.CONFLICT);
@@ -91,6 +109,8 @@ export function mapStaffError(err: unknown): never {
       type: 'about:blank',
       title: 'Unprocessable Content',
       status: HttpStatus.UNPROCESSABLE_ENTITY,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
@@ -100,6 +120,8 @@ export function mapStaffError(err: unknown): never {
       type: 'about:blank',
       title: 'Bad Request',
       status: HttpStatus.BAD_REQUEST,
+      code: err.code,
+      field: err.field,
       detail: err.message,
     };
     throw new HttpException(body, HttpStatus.BAD_REQUEST);
