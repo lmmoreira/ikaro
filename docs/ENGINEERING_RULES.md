@@ -221,6 +221,7 @@ Handlers live in `<context>/infrastructure/events/`. They are **infrastructure**
 - **Rethrow errors** — Pub/Sub nacks and retries. Never swallow errors.
 - **Idempotency in the use case** — DB check via `findByXxx`. No in-memory sets (lost on restart, not shared across pods).
 - **`correlationId` propagation** — pass `event.correlationId` into the use case DTO; never generate a new UUID in the handler.
+- **Never hand-type the event/trigger name as a literal at the subscribe/register call site.** `DomainEvent.eventName` is derived from `this.constructor.name` in the base class (`domain-event.ts`) — subscribe with `subscribe<StaffInvited>(StaffInvited.name, ...)`, not a `'StaffInvited'` string that can silently drift from the class if either is renamed. Cron triggers have no backing class, so they get a small exported `const` instead (e.g. `CRON_REMINDERS_TRIGGER` in `cron-trigger-names.constants.ts`), shared between the publishing controller and every subscribing handler. Each trigger handler also declares `static readonly CONSUMER_NAME` (mirrors `CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME`) instead of retyping the consumer-name string. The literal becomes the real Pub/Sub topic/subscription name (`ikaro-{eventName}`) — a typo here silently creates a dead channel no one publishes to correctly, not just a lint nit (M17-S03).
 
 **Pub/Sub naming (one topic per event type):**
 
