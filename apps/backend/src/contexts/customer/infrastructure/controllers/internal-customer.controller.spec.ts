@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import { CustomerBuilder } from '../../../../test/builders/customer';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryCustomerRepository } from '../../../../test/repositories/customer/in-memory-customer.repository';
@@ -20,12 +19,8 @@ describe('InternalCustomerController', () => {
   });
 
   describe('getTenants()', () => {
-    it('throws BadRequestException when googleOAuthId is missing', () => {
-      expect(() => controller.getTenants('')).toThrow(BadRequestException);
-    });
-
     it('returns empty array when no customer records exist', async () => {
-      expect(await controller.getTenants('unknown-sub')).toEqual([]);
+      expect(await controller.getTenants({ googleOAuthId: 'unknown-sub' })).toEqual([]);
     });
 
     it('returns matching tenant entries for a known googleOAuthId', async () => {
@@ -35,7 +30,7 @@ describe('InternalCustomerController', () => {
         .build();
       await repo.save(customer);
 
-      const result = await controller.getTenants('google-sub-123');
+      const result = await controller.getTenants({ googleOAuthId: 'google-sub-123' });
 
       expect(result).toHaveLength(1);
       expect(result[0].tenantId).toBe('00000000-0000-0000-0000-000000000001');

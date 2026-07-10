@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -12,6 +11,10 @@ import {
   FindOrCreateCustomerDto,
   FindOrCreateCustomerSchema,
 } from '../../application/dtos/find-or-create-customer.dto';
+import {
+  GetCustomerTenantsDto,
+  GetCustomerTenantsSchema,
+} from '../../application/dtos/get-customer-tenants.dto';
 import {
   FindOrCreateCustomerUseCaseResult,
   FindOrCreateCustomerUseCase,
@@ -33,17 +36,9 @@ export class InternalCustomerController {
 
   @Get('tenants')
   getTenants(
-    @Query('googleOAuthId') googleOAuthId: string,
+    @Query(new ZodValidationPipe(GetCustomerTenantsSchema)) query: GetCustomerTenantsDto,
   ): Promise<GetCustomerTenantsUseCaseResult> {
-    if (!googleOAuthId) {
-      throw new BadRequestException({
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: 400,
-        detail: 'googleOAuthId query parameter is required',
-      });
-    }
-    return this.getCustomerTenants.execute(googleOAuthId);
+    return this.getCustomerTenants.execute(query.googleOAuthId);
   }
 
   @Post()
