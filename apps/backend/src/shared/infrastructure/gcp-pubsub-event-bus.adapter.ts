@@ -247,9 +247,9 @@ export class GcpPubSubEventBusAdapter
   ): Promise<void> {
     const dlqTopic = 'ikaro-dead-letter';
     await this.ensureTopicOnce(dlqTopic);
-    const serialized = structuredClone(event) as unknown as Record<string, unknown>;
+    // event is spread into a new object below, never mutated — no defensive clone needed.
     const enrichedData = {
-      ...serialized,
+      ...event,
       deadLetterReason: err instanceof Error ? err.message : String(err),
       deliveryAttempt: message.deliveryAttempt ?? 1,
     };

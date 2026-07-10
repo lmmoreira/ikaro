@@ -1,8 +1,11 @@
 # Booking — Cron Reminders Trigger
-# M11-S04: GCP Cloud Scheduler calls this endpoint every 30 minutes.
-# Handler checks which tenants have local time 06:00–06:29 and emits reminder events.
-# In production, this is called by GCP Cloud Scheduler (network-protected).
-# M115-S03 adds CronAuthGuard (OIDC token).
+# M11-S04: publishes the cron-reminders trigger, dispatched to BookingReminderTriggerHandler and
+# AdminScheduleReminderTriggerHandler (M17-S03). In production, Cloud Scheduler publishes the
+# same trigger directly to Pub/Sub — this endpoint is the local/manual trigger path only,
+# protected by the global InternalApiGuard (X-Internal-Key), not PubSubPushGuard.
+# Response is { ok: true } once the trigger is published — it does not wait for the jobs to
+# finish. Requires the Pub/Sub emulator running (pnpm infra:up); check backend logs for
+# "trigger received by <consumer>" to confirm dispatch.
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -11,7 +14,8 @@
 
 @baseUrl = {{backendUrl}}
 
-### POST /cron/reminders — trigger reminder jobs
+### POST /cron/reminders — publish the cron-reminders trigger
 POST {{baseUrl}}/cron/reminders
+X-Internal-Key: {{internalKey}}
 
 ###

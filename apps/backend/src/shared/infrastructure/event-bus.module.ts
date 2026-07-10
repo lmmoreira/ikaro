@@ -15,6 +15,12 @@ import { GcpPubSubEventBusAdapter } from './gcp-pubsub-event-bus.adapter';
 @Module({
   providers: [
     { provide: EVENT_BUS, useClass: GcpPubSubEventBusAdapter },
+    // Token-to-token alias, not the useExisting-adapter-token anti-pattern from CLAUDE.md §8 —
+    // that pattern is `{ provide: TOKEN, useExisting: SomeClass }` where SomeClass is *also* a
+    // bare provider, double-instantiating it. EVENT_BUS here is a token (Symbol), not a class —
+    // GcpPubSubEventBusAdapter is registered exactly once, above. TRIGGER_BUS resolves to
+    // whatever EVENT_BUS resolves to (same singleton), and correctly follows EVENT_BUS overrides
+    // in tests too (mirrors PUSHABLE_EVENT_BUS's identical alias in app.module.ts).
     { provide: TRIGGER_BUS, useExisting: EVENT_BUS },
   ],
   exports: [EVENT_BUS, TRIGGER_BUS],
