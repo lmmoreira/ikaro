@@ -1,19 +1,14 @@
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { CronLoyaltyController } from './cron-loyalty.controller';
-import { ITriggerBus } from '../../../../shared/ports/trigger-bus.port';
 
 describe('CronLoyaltyController', () => {
   let controller: CronLoyaltyController;
-  let triggerBus: jest.Mocked<ITriggerBus>;
+  let triggerBus: InMemoryEventBus;
 
   beforeEach(() => {
-    triggerBus = {
-      registerTrigger: jest.fn(),
-      publishTrigger: jest.fn().mockResolvedValue(undefined),
-    };
+    triggerBus = new InMemoryEventBus();
     controller = new CronLoyaltyController(triggerBus);
   });
-
-  afterEach(() => jest.resetAllMocks());
 
   describe('POST /cron/loyalty-expiry', () => {
     it('returns { ok: true }', async () => {
@@ -23,8 +18,7 @@ describe('CronLoyaltyController', () => {
 
     it('publishes the cron-loyalty-expiry trigger', async () => {
       await controller.runExpiry();
-      expect(triggerBus.publishTrigger).toHaveBeenCalledTimes(1);
-      expect(triggerBus.publishTrigger).toHaveBeenCalledWith('cron-loyalty-expiry');
+      expect(triggerBus.publishedTriggers).toEqual(['cron-loyalty-expiry']);
     });
   });
 
@@ -36,8 +30,7 @@ describe('CronLoyaltyController', () => {
 
     it('publishes the cron-loyalty-expiry-warning trigger', async () => {
       await controller.runExpiryWarning();
-      expect(triggerBus.publishTrigger).toHaveBeenCalledTimes(1);
-      expect(triggerBus.publishTrigger).toHaveBeenCalledWith('cron-loyalty-expiry-warning');
+      expect(triggerBus.publishedTriggers).toEqual(['cron-loyalty-expiry-warning']);
     });
   });
 });

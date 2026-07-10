@@ -1,5 +1,4 @@
 export { BalanceExpiryLogEntityBuilder } from './balance-expiry-log-entity.builder';
-export { CronRunLogEntityBuilder } from './cron-run-log-entity.builder';
 export { LoyaltyBalanceBuilder } from './loyalty-balance.builder';
 export { LoyaltyBalanceEntityBuilder } from './loyalty-balance-entity.builder';
 export { LoyaltyEntryBuilder } from './loyalty-entry.builder';

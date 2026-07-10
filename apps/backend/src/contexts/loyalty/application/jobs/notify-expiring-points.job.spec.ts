@@ -1,7 +1,6 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyPlatformPort } from '../../../../test/infrastructure/in-memory-loyalty-platform.port';
-import { InMemoryCronRunLogRepository } from '../../../../test/infrastructure/in-memory-cron-run-log.repository';
 import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
 import { PointsExpiringSoon } from '../../domain/events/points-expiring-soon.event';
 import { NotifyExpiringPointsJob } from './notify-expiring-points.job';
@@ -19,14 +18,12 @@ describe('NotifyExpiringPointsJob', () => {
   let entryRepo: InMemoryLoyaltyEntryRepository;
   let eventBus: InMemoryEventBus;
   let settingsPort: InMemoryLoyaltyPlatformPort;
-  let cronRunLogRepo: InMemoryCronRunLogRepository;
 
   beforeEach(() => {
     entryRepo = new InMemoryLoyaltyEntryRepository();
     eventBus = new InMemoryEventBus();
     settingsPort = new InMemoryLoyaltyPlatformPort();
-    cronRunLogRepo = new InMemoryCronRunLogRepository();
-    job = new NotifyExpiringPointsJob(entryRepo, eventBus, settingsPort, cronRunLogRepo);
+    job = new NotifyExpiringPointsJob(entryRepo, eventBus, settingsPort);
   });
 
   it('returns zero when no entries are expiring soon', async () => {
@@ -195,23 +192,5 @@ describe('NotifyExpiringPointsJob', () => {
       (e) => e.eventName === 'PointsExpiringSoon',
     ) as PointsExpiringSoon[];
     expect(events[0].data.customerId).toBe(CUSTOMER_2);
-  });
-
-  it('does not double-publish on a second run for the same tenant on the same date', async () => {
-    await entryRepo.save(
-      new LoyaltyEntryBuilder()
-        .withTenantId(TENANT_A)
-        .withCustomerId(CUSTOMER_1)
-        .withPoints(10)
-        .withExpiresAt(soon(3))
-        .build(),
-    );
-    const now = new Date();
-
-    await job.run(now);
-    await job.run(now);
-
-    const events = eventBus.published.filter((e) => e.eventName === 'PointsExpiringSoon');
-    expect(events).toHaveLength(1);
   });
 });

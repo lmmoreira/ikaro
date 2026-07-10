@@ -11,4 +11,3 @@ export { BookingEntityBuilder } from './booking-entity.builder';
 export { BookingLineEntityBuilder } from './booking-line-entity.builder';
 export { BookingRequestedEventBuilder } from './booking-requested-event.builder';
 export { BookingCompletedEventBuilder } from './booking-completed-event.builder';
-export { CronRunLogEntityBuilder } from './cron-run-log-entity.builder';

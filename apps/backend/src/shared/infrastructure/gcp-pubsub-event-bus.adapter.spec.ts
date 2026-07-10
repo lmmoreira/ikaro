@@ -431,7 +431,8 @@ describe('GcpPubSubEventBusAdapter', () => {
       const succeedingNack = jest.fn();
       messageHandlers[0]({ ack: failingAck, nack: failingNack, deliveryAttempt: 1 });
       messageHandlers[1]({ ack: succeedingAck, nack: succeedingNack, deliveryAttempt: 1 });
-      await new Promise((r) => setTimeout(r, 10));
+      await Promise.resolve();
+      await Promise.resolve();
 
       expect(failingNack).toHaveBeenCalledTimes(1);
       expect(failingAck).not.toHaveBeenCalled();
@@ -449,7 +450,8 @@ describe('GcpPubSubEventBusAdapter', () => {
       )?.[1] as (msg: unknown) => void;
 
       messageHandler({ ack: mockAck, nack: mockNack, deliveryAttempt: 1 });
-      await new Promise((r) => setTimeout(r, 10));
+      await Promise.resolve();
+      await Promise.resolve();
 
       expect(mockAck).toHaveBeenCalledTimes(1);
       expect(mockNack).not.toHaveBeenCalled();
@@ -467,7 +469,8 @@ describe('GcpPubSubEventBusAdapter', () => {
       )?.[1] as (msg: unknown) => void;
 
       messageHandler({ ack: mockAck, nack: mockNack, deliveryAttempt: 1 });
-      await new Promise((r) => setTimeout(r, 10));
+      await Promise.resolve();
+      await Promise.resolve();
 
       expect(mockNack).toHaveBeenCalledTimes(1);
       expect(mockAck).not.toHaveBeenCalled();
@@ -485,7 +488,8 @@ describe('GcpPubSubEventBusAdapter', () => {
       )?.[1] as (msg: unknown) => void;
 
       messageHandler({ ack: mockAck, nack: mockNack, deliveryAttempt: 5 });
-      await new Promise((r) => setTimeout(r, 10));
+      await Promise.resolve();
+      await Promise.resolve();
 
       expect(mockAck).toHaveBeenCalledTimes(1);
       expect(mockNack).not.toHaveBeenCalled();

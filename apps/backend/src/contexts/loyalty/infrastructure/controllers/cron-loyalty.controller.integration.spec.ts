@@ -7,7 +7,6 @@ import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing
 import { BalanceExpiryLogEntity } from '../entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from '../entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../entities/loyalty-entry.entity';
-import { CronRunLogEntity } from '../entities/cron-run-log.entity';
 import {
   LoyaltyBalanceEntityBuilder,
   LoyaltyEntryEntityBuilder,
@@ -51,9 +50,6 @@ describe('CronLoyaltyController (integration)', () => {
     );
     await ds.getRepository(LoyaltyEntryEntity).delete({ tenantId });
     await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId });
-    // Cron dedup gate (M17-S03) persists across it() blocks — clear so each test's trigger is
-    // treated as a fresh invocation, not a duplicate of an earlier test's run.
-    await ds.getRepository(CronRunLogEntity).delete({ tenantId });
   });
 
   const CUSTOMER_ID = 'cccccccc-0000-7000-8000-000000000020';
@@ -181,7 +177,7 @@ describe('CronLoyaltyController (integration)', () => {
       const events = eventBus.published.filter(
         (e) => e.eventName === 'PointsExpiringSoon' && e.tenantId === tenantId,
       );
-      expect(events.length).toBeGreaterThanOrEqual(1);
+      expect(events).toHaveLength(1);
 
       await ds.getRepository(LoyaltyEntryEntity).delete({ tenantId, customerId: inlineCustomer });
     });

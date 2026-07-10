@@ -1,19 +1,14 @@
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { CronBookingController } from './cron-booking.controller';
-import { ITriggerBus } from '../../../../shared/ports/trigger-bus.port';
 
 describe('CronBookingController', () => {
   let controller: CronBookingController;
-  let triggerBus: jest.Mocked<ITriggerBus>;
+  let triggerBus: InMemoryEventBus;
 
   beforeEach(() => {
-    triggerBus = {
-      registerTrigger: jest.fn(),
-      publishTrigger: jest.fn().mockResolvedValue(undefined),
-    };
+    triggerBus = new InMemoryEventBus();
     controller = new CronBookingController(triggerBus);
   });
-
-  afterEach(() => jest.resetAllMocks());
 
   it('returns { ok: true }', async () => {
     const result = await controller.reminders();
@@ -22,7 +17,6 @@ describe('CronBookingController', () => {
 
   it('publishes the cron-reminders trigger', async () => {
     await controller.reminders();
-    expect(triggerBus.publishTrigger).toHaveBeenCalledTimes(1);
-    expect(triggerBus.publishTrigger).toHaveBeenCalledWith('cron-reminders');
+    expect(triggerBus.publishedTriggers).toEqual(['cron-reminders']);
   });
 });

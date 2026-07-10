@@ -942,17 +942,20 @@ Publishes the `cron-loyalty-expiry` trigger onto the event bus's trigger channel
 
 **Why a Pub/Sub trigger (not `@Cron` or a direct HTTP call):** Cloud Run scales to zero and multi-pod deployments would execute a `@Cron` on every pod simultaneously. The backend is internal-ingress only with no public URL, so Cloud Scheduler cannot call it directly either — Scheduler publishes to Pub/Sub, whose push subscription reaches the internal-ingress backend at `/pubsub/push` (D2/D3, `plan/M17-CLOUD-DEPLOY.md`). This `POST /cron/loyalty-expiry` endpoint is the local/manual trigger path only, protected by `InternalApiGuard` (not `PubSubPushGuard`) — it is not the endpoint Scheduler calls in prod.
 
-**Request headers:** none — protected by the global `InternalApiGuard` (`X-Internal-Key`), same as any other internal endpoint. No `PubSubPushGuard`/OIDC on this endpoint; that guard sits on the shared `/pubsub/push` receiver instead.
+**Request headers:** `X-Internal-Key` required — protected by the global `InternalApiGuard`, same as any other internal endpoint. No `PubSubPushGuard`/OIDC on this endpoint; that guard sits on the shared `/pubsub/push` receiver instead.
 
 **Request body:** none
 
 **Response `200 OK`:**
+
 ```json
 { "ok": true }
 ```
+
 Returned once the trigger is published — not once `ExpirePointsJob` finishes running (dispatch is asynchronous in prod; the local pull-mode consumer processes it moments later).
 
 **GCP Cloud Scheduler resource (Terraform — `modules/scheduler`, M17-S21):**
+
 ```hcl
 resource "google_cloud_scheduler_job" "loyalty_expire_points" {
   name      = "loyalty-expire-points"

@@ -2,7 +2,6 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
-import { InMemoryCronRunLogRepository } from '../../../../test/infrastructure/in-memory-cron-run-log.repository';
 import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { AdminScheduleReminderJob } from './admin-schedule-reminder.job';
@@ -35,7 +34,6 @@ describe('AdminScheduleReminderJob', () => {
   let bookingRepo: InMemoryBookingRepository;
   let customerProfilePort: InMemoryBookingCustomerPort;
   let eventBus: InMemoryEventBus;
-  let cronRunLogRepo: InMemoryCronRunLogRepository;
   let job: AdminScheduleReminderJob;
 
   beforeEach(() => {
@@ -43,14 +41,7 @@ describe('AdminScheduleReminderJob', () => {
     bookingRepo = new InMemoryBookingRepository();
     customerProfilePort = new InMemoryBookingCustomerPort();
     eventBus = new InMemoryEventBus();
-    cronRunLogRepo = new InMemoryCronRunLogRepository();
-    job = new AdminScheduleReminderJob(
-      tenantPort,
-      bookingRepo,
-      customerProfilePort,
-      eventBus,
-      cronRunLogRepo,
-    );
+    job = new AdminScheduleReminderJob(tenantPort, bookingRepo, customerProfilePort, eventBus);
   });
 
   afterEach(() => jest.resetAllMocks());
@@ -166,15 +157,5 @@ describe('AdminScheduleReminderJob', () => {
       (e) => e.eventName === 'AdminDailyScheduleReminder' && e.tenantId === TENANT_OUT,
     );
     expect((tenantBEvent?.data as unknown as DigestEventData).totalBookingsToday).toBe(0);
-  });
-
-  it('does not double-publish the digest on a second run within the same window', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
-
-    await job.run(NOW_IN);
-    await job.run(NOW_IN);
-
-    const events = eventBus.published.filter((e) => e.eventName === 'AdminDailyScheduleReminder');
-    expect(events).toHaveLength(1);
   });
 });

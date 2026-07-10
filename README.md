@@ -137,9 +137,11 @@ pnpm db:revert     # Revert last migration
 
 ## Triggering Cron Jobs Locally
 
-Cron jobs run in prod via Cloud Scheduler → Pub/Sub → the shared `/pubsub/push` receiver (M17-S03) — the backend has no public endpoint Scheduler calls directly. Locally, three `POST` endpoints publish the same triggers onto the Pub/Sub emulator's trigger channel, protected by `InternalApiGuard` (send `X-Internal-Key`, matching `INTERNAL_API_KEY` in `apps/backend/.env`):
+Cron jobs run in prod via Cloud Scheduler → Pub/Sub → the shared `/pubsub/push` receiver (M17-S03) — the backend has no public endpoint Scheduler calls directly. Locally, three `POST` endpoints publish the same triggers onto the Pub/Sub emulator's trigger channel, protected by `InternalApiGuard` (send `X-Internal-Key`, matching `INTERNAL_API_KEY` in `apps/backend/.env`). The shell does not read `.env` files automatically — export the value first, or the header will be sent empty and the request will fail authentication:
 
 ```bash
+export INTERNAL_API_KEY='<value from apps/backend/.env>'
+
 curl -X POST -H "X-Internal-Key: $INTERNAL_API_KEY" http://localhost:3001/cron/reminders               # booking + admin-digest reminders (30-min window)
 curl -X POST -H "X-Internal-Key: $INTERNAL_API_KEY" http://localhost:3001/cron/loyalty-expiry           # daily points expiry
 curl -X POST -H "X-Internal-Key: $INTERNAL_API_KEY" http://localhost:3001/cron/loyalty-expiry-warning    # weekly expiry-warning notification

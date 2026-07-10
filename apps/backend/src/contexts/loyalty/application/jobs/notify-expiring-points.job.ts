@@ -1,10 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
-import {
-  CRON_RUN_LOG_REPOSITORY,
-  ICronRunLogRepository,
-} from '../../../../shared/ports/cron-run-log-repository.port';
 import { PointsExpiringSoon } from '../../domain/events/points-expiring-soon.event';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
 import { ILoyaltyPlatformPort, LOYALTY_PLATFORM_PORT } from '../ports/loyalty-platform.port';
@@ -14,7 +10,6 @@ import {
 } from '../ports/loyalty-entry-repository.port';
 
 const DEFAULT_EXPIRY_WARNING_DAYS = 7;
-const REMINDER_TYPE = 'loyalty-notify-expiring-points';
 
 export interface NotifyExpiringPointsJobResult {
   customersNotified: number;
@@ -26,7 +21,6 @@ export class NotifyExpiringPointsJob {
     @Inject(LOYALTY_ENTRY_REPOSITORY) private readonly entryRepo: ILoyaltyEntryRepository,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     @Inject(LOYALTY_PLATFORM_PORT) private readonly settingsPort: ILoyaltyPlatformPort,
-    @Inject(CRON_RUN_LOG_REPOSITORY) private readonly cronRunLogRepo: ICronRunLogRepository,
   ) {}
 
   async run(
@@ -34,7 +28,6 @@ export class NotifyExpiringPointsJob {
     warningDays = DEFAULT_EXPIRY_WARNING_DAYS,
   ): Promise<NotifyExpiringPointsJobResult> {
     const correlationId = uuidv7();
-    const runDate = now.toISOString().slice(0, 10);
     const to = new Date(now.getTime() + warningDays * 24 * 60 * 60 * 1000);
 
     const entries = await this.entryRepo.findExpiringSoon(now, to);
@@ -44,10 +37,6 @@ export class NotifyExpiringPointsJob {
     let customersNotified = 0;
 
     for (const [tenantId, tenantGroups] of groupsByTenant) {
-      // Coarse per-tenant/run idempotency gate — a redelivered trigger must not re-publish
-      // PointsExpiringSoon with a fresh eventId for the same tenant (M17-S03).
-      if (await this.cronRunLogRepo.hasRun(tenantId, runDate, REMINDER_TYPE)) continue;
-
       const { notificationMinPoints } = await this.settingsPort.getLoyaltySettings(tenantId);
 
       for (const group of tenantGroups) {
@@ -68,8 +57,6 @@ export class NotifyExpiringPointsJob {
         );
         customersNotified++;
       }
-
-      await this.cronRunLogRepo.markRun(tenantId, runDate, REMINDER_TYPE);
     }
 
     return { customersNotified };

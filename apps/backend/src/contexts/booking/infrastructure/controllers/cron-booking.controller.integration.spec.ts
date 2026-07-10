@@ -16,7 +16,6 @@ import { TenantSettings } from '../../../platform/domain/value-objects/tenant-se
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { BookingReminderJob } from '../../application/jobs/booking-reminder.job';
 import { AdminScheduleReminderJob } from '../../application/jobs/admin-schedule-reminder.job';
-import { CronRunLogEntity } from '../entities/cron-run-log.entity';
 
 // Inline tenant UUID to avoid count cross-contamination
 const TENANT_IN = '00000000-1104-7000-8000-000000000001';
@@ -83,10 +82,6 @@ describe('CronBookingController (integration)', () => {
     await ds.getRepository(BookingLineEntity).delete({ tenantId: TENANT_OUT });
     await ds.getRepository(BookingEntity).delete({ tenantId: TENANT_IN });
     await ds.getRepository(BookingEntity).delete({ tenantId: TENANT_OUT });
-    // Cron dedup gate (M17-S03) persists across it() blocks within a run — clear so each test's
-    // job.run(NOW_IN) for the same tenant/date is treated as a fresh invocation, not a duplicate.
-    await ds.getRepository(CronRunLogEntity).delete({ tenantId: TENANT_IN });
-    await ds.getRepository(CronRunLogEntity).delete({ tenantId: TENANT_OUT });
   });
 
   it('POST /cron/reminders returns 200 { ok: true }', async () => {

@@ -15,7 +15,6 @@ import { LoyaltyBalanceEntity } from '../../contexts/loyalty/infrastructure/enti
 import { LoyaltyEntryEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { ProcessedEventEntity } from '../../contexts/loyalty/infrastructure/entities/processed-event.entity';
-import { CronRunLogEntity } from '../../contexts/loyalty/infrastructure/entities/cron-run-log.entity';
 import { LOYALTY_BOOKING_PORT } from '../../contexts/loyalty/application/ports/loyalty-booking.port';
 import { LoyaltyModule } from '../../contexts/loyalty/loyalty.module';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
@@ -54,7 +53,6 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
           LoyaltyRedemptionEntity,
           BalanceExpiryLogEntity,
           ProcessedEventEntity,
-          CronRunLogEntity,
         ],
         synchronize: false,
       }),

@@ -667,7 +667,7 @@ Returns:
   6. `NotifyExpiringPointsJob.run()` returns `{ customersNotified: N }` internally (used for logging); the `POST /cron/loyalty-expiry-warning` HTTP response itself is just `{ ok: true }` once the trigger is published — it does not wait for the job to finish.
 
 - **Alternative Flows:**
-  - **A1: No expiring entries found** → Handler returns `{ processed: 0 }` immediately. No events published.
+  - **A1: No expiring entries found** → `NotifyExpiringPointsJob.run()` returns `{ customersNotified: 0 }` internally; no events published. The HTTP response (when triggered via `POST /cron/loyalty-expiry-warning`) is unaffected — still `{ ok: true }`, since it responds once the trigger is published, not once the job finishes.
   - **A2: Customer not found in Notification context** → Consumer skips silently (logs a warning). Idempotency log is not written.
   - **A3: Duplicate delivery (handler called twice)** → Consumer checks `notification_logs` by `eventId`; second call is a no-op.
 
