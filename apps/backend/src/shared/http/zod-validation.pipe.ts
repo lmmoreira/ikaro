@@ -17,7 +17,7 @@ export class ZodValidationPipe implements PipeTransform {
         type: 'about:blank',
         title: 'Bad Request',
         status: 400,
-        detail: 'Request body validation failed',
+        detail: 'Request validation failed',
         violations,
       };
       throw new BadRequestException(body);
