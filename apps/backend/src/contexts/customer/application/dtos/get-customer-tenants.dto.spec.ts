@@ -12,4 +12,16 @@ describe('GetCustomerTenantsSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('rejects an empty googleOAuthId', () => {
+    const result = GetCustomerTenantsSchema.safeParse({ googleOAuthId: '' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a whitespace-only googleOAuthId', () => {
+    const result = GetCustomerTenantsSchema.safeParse({ googleOAuthId: '   ' });
+
+    expect(result.success).toBe(false);
+  });
 });

@@ -15,6 +15,7 @@ import {
   GetCustomerTenantsUseCase,
   GetCustomerTenantsUseCaseResult,
 } from '../../application/use-cases/get-customer-tenants.use-case';
+import { mapCustomerError } from '../http/customer-error.mapper';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 
 // MVP: protected at network level (backend not exposed publicly — BFF-only access).
@@ -30,7 +31,7 @@ export class InternalCustomerController {
   getTenants(
     @Query(new ZodValidationPipe(GetCustomerTenantsSchema)) query: GetCustomerTenantsDto,
   ): Promise<GetCustomerTenantsUseCaseResult> {
-    return this.getCustomerTenants.execute(query.googleOAuthId);
+    return this.getCustomerTenants.execute(query.googleOAuthId).catch(mapCustomerError);
   }
 
   @Post()
