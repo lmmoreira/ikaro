@@ -22,6 +22,21 @@ export class CustomerNotFoundError extends CustomerDomainError {
 }
 
 /**
+ * Thrown from both Customer.create() and Customer.updateProfile() — unlike the other
+ * single-site validation failures in this file, this condition is reused across two
+ * call sites, so it gets a named subclass rather than a raw code-param throw (same rule
+ * booking applied to TenantIdRequiredError/CreatedByRequiredError). `field: 'name'` only
+ * applies at updateProfile() (a real PATCH /customers/me body field) — create()'s name
+ * comes from the Google OAuth profile, not a user-submitted form field.
+ */
+export class CustomerNameRequiredError extends CustomerDomainError {
+  constructor(field?: 'name') {
+    super('name must not be empty', CustomerErrorCode.NAME_REQUIRED, field);
+    this.name = 'CustomerNameRequiredError';
+  }
+}
+
+/**
  * Customer-owned translation of a VO-level address/country-code validation failure.
  * Deliberately does NOT extend CustomerDomainError: its `code` belongs to the
  * AddressErrorCode/CountryCodeErrorCode namespace, not CustomerErrorCode — forcing a

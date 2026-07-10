@@ -1,7 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { ProblemDetail } from '../../../../shared/http/problem-detail';
-import { AddressValidationError } from '../../../../shared/value-objects/address';
-import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import {
   CustomerAddressValidationError,
   CustomerDomainError,
@@ -21,27 +20,7 @@ export function mapCustomerError(err: unknown): never {
     };
     throw new HttpException(body, HttpStatus.BAD_REQUEST);
   }
-  if (err instanceof AddressValidationError) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Bad Request',
-      status: HttpStatus.BAD_REQUEST,
-      code: err.code,
-      params: err.params,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.BAD_REQUEST);
-  }
-  if (err instanceof CountryCodeValidationError) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Bad Request',
-      status: HttpStatus.BAD_REQUEST,
-      code: err.code,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.BAD_REQUEST);
-  }
+  mapSharedAddressError(err);
   if (err instanceof CustomerNotFoundError) {
     const body: ProblemDetail = {
       type: 'about:blank',

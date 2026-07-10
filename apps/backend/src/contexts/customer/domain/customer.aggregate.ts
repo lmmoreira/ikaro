@@ -5,7 +5,7 @@ import { Address } from '../../../shared/value-objects/address';
 import { Email } from '../../../shared/value-objects/email.vo';
 import { PhoneNumber } from '../../../shared/value-objects/phone-number.vo';
 import { normalizeText } from '../../../shared/utils/text-normalization';
-import { CustomerDomainError } from './errors/customer-domain.error';
+import { CustomerDomainError, CustomerNameRequiredError } from './errors/customer-domain.error';
 
 export interface CustomerProps {
   id: string;
@@ -73,7 +73,7 @@ export class Customer extends AggregateRoot {
     }
     const normalizedName = normalizeText(name);
     if (!normalizedName) {
-      throw new CustomerDomainError('name must not be empty', CustomerErrorCode.NAME_REQUIRED);
+      throw new CustomerNameRequiredError();
     }
 
     const now = new Date();
@@ -97,11 +97,7 @@ export class Customer extends AggregateRoot {
   updateProfile(name: string, phone: string | null, defaultAddress: Address | null): void {
     const normalizedName = normalizeText(name);
     if (!normalizedName) {
-      throw new CustomerDomainError(
-        'name must not be empty',
-        CustomerErrorCode.NAME_REQUIRED,
-        'name',
-      );
+      throw new CustomerNameRequiredError('name');
     }
     if (phone !== null && !PhoneNumber.isValid(phone)) {
       throw new CustomerDomainError(

@@ -2,6 +2,7 @@ import { AddressErrorCode, CountryCodeErrorCode, CustomerErrorCode } from '@ikar
 import {
   CustomerAddressValidationError,
   CustomerDomainError,
+  CustomerNameRequiredError,
   CustomerNotFoundError,
 } from './customer-domain.error';
 
@@ -32,6 +33,22 @@ describe('CustomerNotFoundError', () => {
     expect(err).toBeInstanceOf(CustomerDomainError);
     expect(err.code).toBe(CustomerErrorCode.NOT_FOUND);
     expect(err.message).toBe('Customer not found: cust-1');
+  });
+});
+
+describe('CustomerNameRequiredError', () => {
+  it('extends CustomerDomainError and carries its code, with no field by default (create() call site)', () => {
+    const err = new CustomerNameRequiredError();
+    expect(err).toBeInstanceOf(CustomerDomainError);
+    expect(err.code).toBe(CustomerErrorCode.NAME_REQUIRED);
+    expect(err.field).toBeUndefined();
+    expect(err.message).toBe('name must not be empty');
+  });
+
+  it('carries field: "name" when constructed from updateProfile()', () => {
+    const err = new CustomerNameRequiredError('name');
+    expect(err.code).toBe(CustomerErrorCode.NAME_REQUIRED);
+    expect(err.field).toBe('name');
   });
 });
 
