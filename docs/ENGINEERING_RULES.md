@@ -125,6 +125,8 @@ A repository or adapter that reads `this.requestContext.settings` works fine whe
 ## Controller, Route, and Shared-UI Boundaries
 
 - Controllers and route files are composition layers only. They may parse input and choose the use case/helper, but branching policy and response shaping belong in the owning slice.
+- Controller input must be validated at the boundary. Prefer `@Body(new ZodValidationPipe(Schema))` or `@Query(new ZodValidationPipe(Schema))` with a typed DTO over raw `@Body('x')`, `@Query('x')`, or `@Param('x')` reads when the endpoint accepts structured input.
+- Do not treat `/internal` routes as a shortcut around validation. They still need explicit DTO or pipe validation for every externally supplied value.
 - Feature-specific transport helpers should live with the feature or capability that owns them. Generic buckets are for cross-cutting code only.
 - Shared UI primitives should expose readonly props where practical, so consumers cannot mutate shared contracts by accident.
 - Any `dangerouslySetInnerHTML` usage must go through a controlled helper or component with an explicit sanitization path; never inline raw HTML injection in a page or reusable component.

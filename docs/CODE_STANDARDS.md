@@ -26,6 +26,7 @@ save(entity: T): Promise<void>
 ## Controller rules
 
 - Controllers call use cases only — zero business logic
+- Validate all external controller input with a DTO/pipeline at the boundary. Prefer `ZodValidationPipe` on `@Body()` and `@Query()` over raw `@Body('x')`, `@Query('x')`, or `@Param('x')` reads when the endpoint accepts structured input.
 - No direct cross-context calls — data flows through events, BFF, or port+adapter
 - No barrel `index.ts` in `ports/` or `shared/domain/` — import from the specific file. ESLint `no-restricted-imports` enforces this. Test builder barrels (`src/test/builders/`) are the only exception.
 - Guards for a single context's endpoints: `src/contexts/<context>/infrastructure/guards/`. Cross-cutting guards only in `src/shared/guards/`.

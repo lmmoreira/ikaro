@@ -1,17 +1,12 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import {
   FindOrCreateCustomerDto,
   FindOrCreateCustomerSchema,
 } from '../../application/dtos/find-or-create-customer.dto';
+import {
+  GetCustomerTenantsDto,
+  GetCustomerTenantsSchema,
+} from '../../application/dtos/get-customer-tenants.dto';
 import {
   FindOrCreateCustomerUseCaseResult,
   FindOrCreateCustomerUseCase,
@@ -20,6 +15,7 @@ import {
   GetCustomerTenantsUseCase,
   GetCustomerTenantsUseCaseResult,
 } from '../../application/use-cases/get-customer-tenants.use-case';
+import { mapCustomerError } from '../http/customer-error.mapper';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 
 // MVP: protected at network level (backend not exposed publicly — BFF-only access).
@@ -33,17 +29,9 @@ export class InternalCustomerController {
 
   @Get('tenants')
   getTenants(
-    @Query('googleOAuthId') googleOAuthId: string,
+    @Query(new ZodValidationPipe(GetCustomerTenantsSchema)) query: GetCustomerTenantsDto,
   ): Promise<GetCustomerTenantsUseCaseResult> {
-    if (!googleOAuthId) {
-      throw new BadRequestException({
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: 400,
-        detail: 'googleOAuthId query parameter is required',
-      });
-    }
-    return this.getCustomerTenants.execute(googleOAuthId);
+    return this.getCustomerTenants.execute(query.googleOAuthId).catch(mapCustomerError);
   }
 
   @Post()
