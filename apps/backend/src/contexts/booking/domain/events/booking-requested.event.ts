@@ -38,7 +38,6 @@ interface BookingRequestedData extends Record<string, unknown> {
 }
 
 export class BookingRequested extends DomainEvent<BookingRequestedData> {
-  readonly eventName = 'BookingRequested';
   readonly eventVersion = 1;
   readonly data: BookingRequestedData;
 

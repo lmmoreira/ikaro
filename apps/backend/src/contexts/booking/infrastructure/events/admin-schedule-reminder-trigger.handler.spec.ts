@@ -1,6 +1,7 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { AdminScheduleReminderJob } from '../../application/jobs/admin-schedule-reminder.job';
 import { AdminScheduleReminderTriggerHandler } from './admin-schedule-reminder-trigger.handler';
+import { CRON_REMINDERS_TRIGGER } from './cron-trigger-names.constants';
 
 describe('AdminScheduleReminderTriggerHandler', () => {
   let handler: AdminScheduleReminderTriggerHandler;
@@ -19,9 +20,9 @@ describe('AdminScheduleReminderTriggerHandler', () => {
     const spy = jest.spyOn(triggerBus, 'registerTrigger');
     handler.onModuleInit();
     expect(spy).toHaveBeenCalledWith(
-      'cron-reminders',
+      CRON_REMINDERS_TRIGGER,
       expect.any(Function),
-      'booking-admin-schedule-reminder',
+      AdminScheduleReminderTriggerHandler.CONSUMER_NAME,
     );
   });
 

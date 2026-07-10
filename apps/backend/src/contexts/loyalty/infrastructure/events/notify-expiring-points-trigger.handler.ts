@@ -2,9 +2,12 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { ITriggerBus, TRIGGER_BUS } from '../../../../shared/ports/trigger-bus.port';
 import { NotifyExpiringPointsJob } from '../../application/jobs/notify-expiring-points.job';
+import { CRON_LOYALTY_EXPIRY_WARNING_TRIGGER } from './cron-trigger-names.constants';
 
 @Injectable()
 export class NotifyExpiringPointsTriggerHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'loyalty-notify-expiring-points';
+
   private readonly logger = new AppLogger(NotifyExpiringPointsTriggerHandler.name);
 
   constructor(
@@ -14,15 +17,15 @@ export class NotifyExpiringPointsTriggerHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.triggerBus.registerTrigger(
-      'cron-loyalty-expiry-warning',
+      CRON_LOYALTY_EXPIRY_WARNING_TRIGGER,
       () => this.handle(),
-      'loyalty-notify-expiring-points',
+      NotifyExpiringPointsTriggerHandler.CONSUMER_NAME,
     );
   }
 
   async handle(): Promise<void> {
     this.logger.log(
-      'cron-loyalty-expiry-warning trigger received by loyalty-notify-expiring-points handler',
+      `${CRON_LOYALTY_EXPIRY_WARNING_TRIGGER} trigger received by ${NotifyExpiringPointsTriggerHandler.CONSUMER_NAME} handler`,
     );
     try {
       await this.notifyExpiringPointsJob.run();

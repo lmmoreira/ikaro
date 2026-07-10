@@ -5,7 +5,6 @@ interface StaffDeactivatedData extends Record<string, unknown> {
 }
 
 export class StaffDeactivated extends DomainEvent<StaffDeactivatedData> {
-  readonly eventName = 'StaffDeactivated';
   readonly eventVersion = 1;
   readonly data: StaffDeactivatedData;
 

@@ -49,7 +49,6 @@ const validVerifier: IOidcTokenVerifier = {
 };
 
 class StubEvent extends DomainEvent<{ value: string }> {
-  readonly eventName = 'StubEvent';
   readonly eventVersion = 1;
   readonly data: { value: string };
   constructor(data: { value: string }) {
@@ -80,7 +79,7 @@ describe('PubSubPushController (integration)', () => {
 
     const adapter = moduleRef.get<GcpPubSubEventBusAdapter>(EVENT_BUS);
     handlerSpy = jest.fn().mockResolvedValue(undefined);
-    adapter.subscribe('StubEvent', handlerSpy, 'test-consumer');
+    adapter.subscribe(StubEvent.name, handlerSpy, 'test-consumer');
 
     app = moduleRef.createNestApplication();
     await app.init();
@@ -113,7 +112,7 @@ describe('PubSubPushController (integration)', () => {
 
     expect(handlerSpy).toHaveBeenCalledTimes(1);
     const received = handlerSpy.mock.calls[0][0] as StubEvent;
-    expect(received.eventName).toBe('StubEvent');
+    expect(received.eventName).toBe(StubEvent.name);
     expect(received.data.value).toBe('hello');
   });
 

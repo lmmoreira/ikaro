@@ -15,7 +15,7 @@ export class ServicePointsEarnedHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe<ServicePointsEarned>(
-      'ServicePointsEarned',
+      ServicePointsEarned.name,
       (event) => this.handle(event),
       'notification',
     );

@@ -1,4 +1,5 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { CRON_REMINDERS_TRIGGER } from '../events/cron-trigger-names.constants';
 import { CronBookingController } from './cron-booking.controller';
 
 describe('CronBookingController', () => {
@@ -17,6 +18,6 @@ describe('CronBookingController', () => {
 
   it('publishes the cron-reminders trigger', async () => {
     await controller.reminders();
-    expect(triggerBus.publishedTriggers).toEqual(['cron-reminders']);
+    expect(triggerBus.publishedTriggers).toEqual([CRON_REMINDERS_TRIGGER]);
   });
 });

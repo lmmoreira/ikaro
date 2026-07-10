@@ -21,7 +21,6 @@ interface AdminDailyScheduleReminderData extends Record<string, unknown> {
 }
 
 export class AdminDailyScheduleReminder extends DomainEvent<AdminDailyScheduleReminderData> {
-  readonly eventName = 'AdminDailyScheduleReminder';
   readonly eventVersion = 1;
   readonly data: AdminDailyScheduleReminderData;
 

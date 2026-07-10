@@ -15,7 +15,7 @@ export class AdminDailyScheduleReminderHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe<AdminDailyScheduleReminder>(
-      'AdminDailyScheduleReminder',
+      AdminDailyScheduleReminder.name,
       (event) => this.handle(event),
       'notification',
     );

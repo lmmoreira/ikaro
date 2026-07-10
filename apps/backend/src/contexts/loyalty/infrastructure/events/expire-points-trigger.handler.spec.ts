@@ -1,5 +1,6 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { ExpirePointsJob } from '../../application/jobs/expire-points.job';
+import { CRON_LOYALTY_EXPIRY_TRIGGER } from './cron-trigger-names.constants';
 import { ExpirePointsTriggerHandler } from './expire-points-trigger.handler';
 
 describe('ExpirePointsTriggerHandler', () => {
@@ -21,9 +22,9 @@ describe('ExpirePointsTriggerHandler', () => {
     const spy = jest.spyOn(triggerBus, 'registerTrigger');
     handler.onModuleInit();
     expect(spy).toHaveBeenCalledWith(
-      'cron-loyalty-expiry',
+      CRON_LOYALTY_EXPIRY_TRIGGER,
       expect.any(Function),
-      'loyalty-expire-points',
+      ExpirePointsTriggerHandler.CONSUMER_NAME,
     );
   });
 

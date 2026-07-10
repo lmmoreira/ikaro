@@ -33,7 +33,6 @@ jest.mock('@google-cloud/pubsub', () => ({
 import { GcpPubSubEventBusAdapter } from './gcp-pubsub-event-bus.adapter';
 
 class StubEvent extends DomainEvent<{ value: string }> {
-  readonly eventName = 'StubEvent';
   readonly eventVersion = 1;
   readonly data: { value: string };
   constructor(data: { value: string }) {
@@ -86,8 +85,8 @@ describe('GcpPubSubEventBusAdapter', () => {
         attributes: Record<string, string>;
       };
       const parsed = JSON.parse(call.data.toString()) as StubEvent;
-      expect(parsed.eventName).toBe('StubEvent');
-      expect(call.attributes.eventName).toBe('StubEvent');
+      expect(parsed.eventName).toBe(StubEvent.name);
+      expect(call.attributes.eventName).toBe(StubEvent.name);
     });
 
     it('skips topic.exists() on the second publish to the same topic', async () => {
@@ -108,7 +107,7 @@ describe('GcpPubSubEventBusAdapter', () => {
 
   describe('subscribe() + onApplicationBootstrap()', () => {
     it('registers subscription and starts listener on bootstrap', async () => {
-      adapter.subscribe('StubEvent', noopHandler, 'test-consumer');
+      adapter.subscribe(StubEvent.name, noopHandler, 'test-consumer');
       await adapter.onApplicationBootstrap();
 
       expect(mockSubOn).toHaveBeenCalledWith('message', expect.any(Function));
@@ -117,15 +116,15 @@ describe('GcpPubSubEventBusAdapter', () => {
 
     it('creates subscription when it does not exist', async () => {
       mockSubscriptionExists.mockResolvedValueOnce([false]);
-      adapter.subscribe('StubEvent', noopHandler, 'test-consumer');
+      adapter.subscribe(StubEvent.name, noopHandler, 'test-consumer');
       await adapter.onApplicationBootstrap();
 
       expect(mockCreateSubscription).toHaveBeenCalledWith('ikaro-StubEvent-test-consumer');
     });
 
     it('registers separate subscriptions for two consumers on the same event', async () => {
-      adapter.subscribe('StubEvent', noopHandler, 'consumer-a');
-      adapter.subscribe('StubEvent', noopHandler, 'consumer-b');
+      adapter.subscribe(StubEvent.name, noopHandler, 'consumer-a');
+      adapter.subscribe(StubEvent.name, noopHandler, 'consumer-b');
       await adapter.onApplicationBootstrap();
 
       // Each subscription registers 'message' and 'error' handlers (2 × 2 = 4 calls)
@@ -137,7 +136,7 @@ describe('GcpPubSubEventBusAdapter', () => {
 
   describe('onModuleDestroy()', () => {
     it('closes all active subscriptions', async () => {
-      adapter.subscribe('StubEvent', noopHandler, 'test-consumer');
+      adapter.subscribe(StubEvent.name, noopHandler, 'test-consumer');
       await adapter.onApplicationBootstrap();
       await adapter.onModuleDestroy();
 
@@ -147,7 +146,7 @@ describe('GcpPubSubEventBusAdapter', () => {
 
   describe('message dispatch', () => {
     it('acks message when handler succeeds', async () => {
-      adapter.subscribe('StubEvent', noopHandler, 'test-consumer');
+      adapter.subscribe(StubEvent.name, noopHandler, 'test-consumer');
       await adapter.onApplicationBootstrap();
 
       const messageHandler = mockSubOn.mock.calls.find(
@@ -173,7 +172,7 @@ describe('GcpPubSubEventBusAdapter', () => {
       const throwingHandler = async (_e: DomainEvent): Promise<void> => {
         throw new Error('boom');
       };
-      adapter.subscribe('StubEvent', throwingHandler, 'test-consumer');
+      adapter.subscribe(StubEvent.name, throwingHandler, 'test-consumer');
       await adapter.onApplicationBootstrap();
 
       const messageHandler = mockSubOn.mock.calls.find(
@@ -200,7 +199,7 @@ describe('GcpPubSubEventBusAdapter', () => {
       const throwingHandler = async (_e: DomainEvent): Promise<void> => {
         throw new Error('persistent failure');
       };
-      adapter.subscribe('StubEvent', throwingHandler, 'test-consumer');
+      adapter.subscribe(StubEvent.name, throwingHandler, 'test-consumer');
       await adapter.onApplicationBootstrap();
 
       const messageHandler = mockSubOn.mock.calls.find(
@@ -213,7 +212,7 @@ describe('GcpPubSubEventBusAdapter', () => {
         ack: mockAck,
         nack: mockNack,
         deliveryAttempt: 5, // at threshold
-        attributes: { eventName: 'StubEvent' },
+        attributes: { eventName: StubEvent.name },
       };
       messageHandler(fakeMessage);
       await new Promise((r) => setTimeout(r, 10));
@@ -232,7 +231,7 @@ describe('GcpPubSubEventBusAdapter', () => {
 
     it('acks and logs unparseable message without invoking handler', async () => {
       const handlerSpy = jest.fn();
-      adapter.subscribe('StubEvent', handlerSpy, 'test-consumer');
+      adapter.subscribe(StubEvent.name, handlerSpy, 'test-consumer');
       await adapter.onApplicationBootstrap();
 
       const messageHandler = mockSubOn.mock.calls.find(
@@ -271,7 +270,7 @@ describe('GcpPubSubEventBusAdapter', () => {
     });
 
     it('skips subscription creation on bootstrap when PUBSUB_AUTO_CREATE is false', async () => {
-      adapter.subscribe('StubEvent', noopHandler, 'test-consumer');
+      adapter.subscribe(StubEvent.name, noopHandler, 'test-consumer');
       await adapter.onApplicationBootstrap();
 
       expect(mockTopicExists).not.toHaveBeenCalled();
@@ -289,7 +288,7 @@ describe('GcpPubSubEventBusAdapter', () => {
     });
 
     it('does not open any streaming-pull subscription on bootstrap', async () => {
-      adapter.subscribe('StubEvent', noopHandler, 'test-consumer');
+      adapter.subscribe(StubEvent.name, noopHandler, 'test-consumer');
       await adapter.onApplicationBootstrap();
 
       expect(mockSubOn).not.toHaveBeenCalled();
@@ -299,7 +298,7 @@ describe('GcpPubSubEventBusAdapter', () => {
     describe('dispatchPushMessage()', () => {
       it('routes to the handler registered for the subscription, stripping the full-name prefix', async () => {
         const handlerSpy = jest.fn().mockResolvedValue(undefined);
-        adapter.subscribe('StubEvent', handlerSpy, 'test-consumer');
+        adapter.subscribe(StubEvent.name, handlerSpy, 'test-consumer');
         await adapter.onApplicationBootstrap();
 
         const event = new StubEvent({ value: 'x' });
@@ -312,7 +311,7 @@ describe('GcpPubSubEventBusAdapter', () => {
 
         expect(handlerSpy).toHaveBeenCalledTimes(1);
         const received = handlerSpy.mock.calls[0][0] as StubEvent;
-        expect(received.eventName).toBe('StubEvent');
+        expect(received.eventName).toBe(StubEvent.name);
         expect(received.data.value).toBe('x');
       });
 
@@ -320,7 +319,7 @@ describe('GcpPubSubEventBusAdapter', () => {
         const throwingHandler = async (): Promise<void> => {
           throw new Error('handler boom');
         };
-        adapter.subscribe('StubEvent', throwingHandler, 'test-consumer');
+        adapter.subscribe(StubEvent.name, throwingHandler, 'test-consumer');
         await adapter.onApplicationBootstrap();
 
         const base64Data = Buffer.from(JSON.stringify(new StubEvent({ value: 'x' }))).toString(
@@ -343,7 +342,7 @@ describe('GcpPubSubEventBusAdapter', () => {
 
       it('does not throw for an unparseable payload', async () => {
         const handlerSpy = jest.fn();
-        adapter.subscribe('StubEvent', handlerSpy, 'test-consumer');
+        adapter.subscribe(StubEvent.name, handlerSpy, 'test-consumer');
         await adapter.onApplicationBootstrap();
 
         await expect(

@@ -1,4 +1,8 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import {
+  CRON_LOYALTY_EXPIRY_TRIGGER,
+  CRON_LOYALTY_EXPIRY_WARNING_TRIGGER,
+} from '../events/cron-trigger-names.constants';
 import { CronLoyaltyController } from './cron-loyalty.controller';
 
 describe('CronLoyaltyController', () => {
@@ -18,7 +22,7 @@ describe('CronLoyaltyController', () => {
 
     it('publishes the cron-loyalty-expiry trigger', async () => {
       await controller.runExpiry();
-      expect(triggerBus.publishedTriggers).toEqual(['cron-loyalty-expiry']);
+      expect(triggerBus.publishedTriggers).toEqual([CRON_LOYALTY_EXPIRY_TRIGGER]);
     });
   });
 
@@ -30,7 +34,7 @@ describe('CronLoyaltyController', () => {
 
     it('publishes the cron-loyalty-expiry-warning trigger', async () => {
       await controller.runExpiryWarning();
-      expect(triggerBus.publishedTriggers).toEqual(['cron-loyalty-expiry-warning']);
+      expect(triggerBus.publishedTriggers).toEqual([CRON_LOYALTY_EXPIRY_WARNING_TRIGGER]);
     });
   });
 });

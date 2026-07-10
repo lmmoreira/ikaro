@@ -8,7 +8,6 @@ interface TenantProvisionedData extends Record<string, unknown> {
 }
 
 export class TenantProvisioned extends DomainEvent<TenantProvisionedData> {
-  readonly eventName = 'TenantProvisioned';
   readonly eventVersion = 1;
   readonly data: TenantProvisionedData;
 

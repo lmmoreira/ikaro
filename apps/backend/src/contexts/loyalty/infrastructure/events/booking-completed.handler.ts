@@ -15,7 +15,7 @@ export class BookingCompletedHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe<BookingCompleted>(
-      'BookingCompleted',
+      BookingCompleted.name,
       (event) => this.handle(event),
       CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
     );

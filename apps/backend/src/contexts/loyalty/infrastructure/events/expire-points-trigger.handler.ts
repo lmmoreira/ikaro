@@ -2,9 +2,12 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { ITriggerBus, TRIGGER_BUS } from '../../../../shared/ports/trigger-bus.port';
 import { ExpirePointsJob } from '../../application/jobs/expire-points.job';
+import { CRON_LOYALTY_EXPIRY_TRIGGER } from './cron-trigger-names.constants';
 
 @Injectable()
 export class ExpirePointsTriggerHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'loyalty-expire-points';
+
   private readonly logger = new AppLogger(ExpirePointsTriggerHandler.name);
 
   constructor(
@@ -14,14 +17,16 @@ export class ExpirePointsTriggerHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.triggerBus.registerTrigger(
-      'cron-loyalty-expiry',
+      CRON_LOYALTY_EXPIRY_TRIGGER,
       () => this.handle(),
-      'loyalty-expire-points',
+      ExpirePointsTriggerHandler.CONSUMER_NAME,
     );
   }
 
   async handle(): Promise<void> {
-    this.logger.log('cron-loyalty-expiry trigger received by loyalty-expire-points handler');
+    this.logger.log(
+      `${CRON_LOYALTY_EXPIRY_TRIGGER} trigger received by ${ExpirePointsTriggerHandler.CONSUMER_NAME} handler`,
+    );
     try {
       await this.expirePointsJob.run();
     } catch (err) {

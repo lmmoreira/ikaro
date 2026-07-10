@@ -2,9 +2,12 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { ITriggerBus, TRIGGER_BUS } from '../../../../shared/ports/trigger-bus.port';
 import { AdminScheduleReminderJob } from '../../application/jobs/admin-schedule-reminder.job';
+import { CRON_REMINDERS_TRIGGER } from './cron-trigger-names.constants';
 
 @Injectable()
 export class AdminScheduleReminderTriggerHandler implements OnModuleInit {
+  static readonly CONSUMER_NAME = 'booking-admin-schedule-reminder';
+
   private readonly logger = new AppLogger(AdminScheduleReminderTriggerHandler.name);
 
   constructor(
@@ -14,14 +17,16 @@ export class AdminScheduleReminderTriggerHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.triggerBus.registerTrigger(
-      'cron-reminders',
+      CRON_REMINDERS_TRIGGER,
       () => this.handle(),
-      'booking-admin-schedule-reminder',
+      AdminScheduleReminderTriggerHandler.CONSUMER_NAME,
     );
   }
 
   async handle(): Promise<void> {
-    this.logger.log('cron-reminders trigger received by booking-admin-schedule-reminder handler');
+    this.logger.log(
+      `${CRON_REMINDERS_TRIGGER} trigger received by ${AdminScheduleReminderTriggerHandler.CONSUMER_NAME} handler`,
+    );
     try {
       await this.adminScheduleReminderJob.run();
     } catch (err) {

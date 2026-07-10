@@ -1,6 +1,7 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { BookingReminderJob } from '../../application/jobs/booking-reminder.job';
 import { BookingReminderTriggerHandler } from './booking-reminder-trigger.handler';
+import { CRON_REMINDERS_TRIGGER } from './cron-trigger-names.constants';
 
 describe('BookingReminderTriggerHandler', () => {
   let handler: BookingReminderTriggerHandler;
@@ -18,7 +19,11 @@ describe('BookingReminderTriggerHandler', () => {
   it('registers the cron-reminders trigger with the booking-reminder consumer name on init', () => {
     const spy = jest.spyOn(triggerBus, 'registerTrigger');
     handler.onModuleInit();
-    expect(spy).toHaveBeenCalledWith('cron-reminders', expect.any(Function), 'booking-reminder');
+    expect(spy).toHaveBeenCalledWith(
+      CRON_REMINDERS_TRIGGER,
+      expect.any(Function),
+      BookingReminderTriggerHandler.CONSUMER_NAME,
+    );
   });
 
   it('delegates to BookingReminderJob.run()', async () => {

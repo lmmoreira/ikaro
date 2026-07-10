@@ -15,7 +15,7 @@ export class PointsExpiringSoonHandler implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe<PointsExpiringSoon>(
-      'PointsExpiringSoon',
+      PointsExpiringSoon.name,
       (event) => this.handle(event),
       'notification',
     );

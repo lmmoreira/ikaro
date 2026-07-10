@@ -1,5 +1,9 @@
 import { Controller, HttpCode, HttpStatus, Inject, Post } from '@nestjs/common';
 import { ITriggerBus, TRIGGER_BUS } from '../../../../shared/ports/trigger-bus.port';
+import {
+  CRON_LOYALTY_EXPIRY_TRIGGER,
+  CRON_LOYALTY_EXPIRY_WARNING_TRIGGER,
+} from '../events/cron-trigger-names.constants';
 
 // Thin publisher (M17-S03): publishes cron triggers onto the same channels Cloud Scheduler
 // publishes to in prod. Still behind the global InternalApiGuard (not PubSubPushGuard) — these
@@ -16,14 +20,14 @@ export class CronLoyaltyController {
   @Post('loyalty-expiry')
   @HttpCode(HttpStatus.OK)
   async runExpiry(): Promise<{ ok: boolean }> {
-    await this.triggerBus.publishTrigger('cron-loyalty-expiry');
+    await this.triggerBus.publishTrigger(CRON_LOYALTY_EXPIRY_TRIGGER);
     return { ok: true };
   }
 
   @Post('loyalty-expiry-warning')
   @HttpCode(HttpStatus.OK)
   async runExpiryWarning(): Promise<{ ok: boolean }> {
-    await this.triggerBus.publishTrigger('cron-loyalty-expiry-warning');
+    await this.triggerBus.publishTrigger(CRON_LOYALTY_EXPIRY_WARNING_TRIGGER);
     return { ok: true };
   }
 }

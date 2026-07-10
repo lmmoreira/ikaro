@@ -16,7 +16,6 @@ interface BookingReminderDueData extends Record<string, unknown> {
 }
 
 export class BookingReminderDue extends DomainEvent<BookingReminderDueData> {
-  readonly eventName = 'BookingReminderDue';
   readonly eventVersion = 1;
   readonly data: BookingReminderDueData;
 

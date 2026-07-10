@@ -7,7 +7,6 @@ interface PointsExpiringSoonData extends Record<string, unknown> {
 }
 
 export class PointsExpiringSoon extends DomainEvent<PointsExpiringSoonData> {
-  readonly eventName = 'PointsExpiringSoon';
   readonly eventVersion = 1;
   readonly data: PointsExpiringSoonData;
 
