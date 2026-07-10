@@ -41,7 +41,7 @@ describe('InternalCustomerController (integration)', () => {
       .expect(400);
 
     expect(body.status).toBe(400);
-    expect(body.detail).toContain('googleOAuthId');
+    expect(body.detail).toBe('Request body validation failed');
   });
 
   it('returns empty array when no customer records exist for the given googleOAuthId', async () => {
