@@ -74,24 +74,12 @@ describe('TenantSettings', () => {
       expect(() => TenantSettings.create(props)).not.toThrow();
     });
 
-    it('accepts pointsPerCurrencyUnit of 10', () => {
-      const props = new TenantSettingsPropsBuilder()
-        .withLoyalty({ pointsPerCurrencyUnit: 10 })
-        .build();
-      expect(() => TenantSettings.create(props)).not.toThrow();
-    });
-
-    it('accepts pointsPerCurrencyUnit of 0 (redemption disabled)', () => {
-      const props = new TenantSettingsPropsBuilder()
-        .withLoyalty({ pointsPerCurrencyUnit: 0 })
-        .build();
-      expect(() => TenantSettings.create(props)).not.toThrow();
-    });
-
-    it('accepts pointsPerCurrencyUnit at the upper boundary of 10000', () => {
-      const props = new TenantSettingsPropsBuilder()
-        .withLoyalty({ pointsPerCurrencyUnit: 10000 })
-        .build();
+    it.each([
+      ['10', 10],
+      ['0 (redemption disabled)', 0],
+      ['the upper boundary of 10000', 10000],
+    ])('accepts pointsPerCurrencyUnit of %s', (_label, pointsPerCurrencyUnit) => {
+      const props = new TenantSettingsPropsBuilder().withLoyalty({ pointsPerCurrencyUnit }).build();
       expect(() => TenantSettings.create(props)).not.toThrow();
     });
 
@@ -124,23 +112,13 @@ describe('TenantSettings', () => {
       expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
     });
 
-    it('throws for non-integer welcomeStaffScreenDays', () => {
+    it.each([
+      ['a non-integer value', 7.5],
+      ['a value below 1', 0],
+      ['a value above 90', 91],
+    ])('throws for welcomeStaffScreenDays with %s', (_label, welcomeStaffScreenDays) => {
       const props = new TenantSettingsPropsBuilder()
-        .withBooking({ welcomeStaffScreenDays: 7.5 })
-        .build();
-      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
-    });
-
-    it('throws for welcomeStaffScreenDays below 1', () => {
-      const props = new TenantSettingsPropsBuilder()
-        .withBooking({ welcomeStaffScreenDays: 0 })
-        .build();
-      expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
-    });
-
-    it('throws for welcomeStaffScreenDays above 90', () => {
-      const props = new TenantSettingsPropsBuilder()
-        .withBooking({ welcomeStaffScreenDays: 91 })
+        .withBooking({ welcomeStaffScreenDays })
         .build();
       expect(() => TenantSettings.create(props)).toThrow(PlatformDomainError);
     });

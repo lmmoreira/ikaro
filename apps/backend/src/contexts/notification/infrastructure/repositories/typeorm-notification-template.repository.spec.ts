@@ -199,22 +199,20 @@ describe('TypeOrmNotificationTemplateRepository', () => {
       expect(result).toBe(GLOBAL_DEFAULTS_COUNT);
     });
 
-    it('uses RETURNING instead of rowCount (unreliable for raw INSERT via DataSource.query())', async () => {
+    it.each([
+      [
+        'RETURNING (unreliable to rely on rowCount for raw INSERT via DataSource.query())',
+        'RETURNING',
+      ],
+      ['ON CONFLICT DO NOTHING (idempotency)', 'ON CONFLICT DO NOTHING'],
+      [
+        'WHERE tenant_id IS NULL (only sources rows from global defaults)',
+        'WHERE tenant_id IS NULL',
+      ],
+    ])('generated query includes %s', async (_label, expectedSubstring) => {
       await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
-      expect(mockQuery.mock.calls[0][0] as string).toContain('RETURNING');
-    });
-
-    it('uses ON CONFLICT DO NOTHING for idempotency', async () => {
-      await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
-
-      expect(mockQuery.mock.calls[0][0] as string).toContain('ON CONFLICT DO NOTHING');
-    });
-
-    it('only sources rows from global defaults (tenant_id IS NULL)', async () => {
-      await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
-
-      expect(mockQuery.mock.calls[0][0] as string).toContain('WHERE tenant_id IS NULL');
+      expect(mockQuery.mock.calls[0][0] as string).toContain(expectedSubstring);
     });
 
     it('returns 0 when no rows are inserted (all already exist for the tenant)', async () => {

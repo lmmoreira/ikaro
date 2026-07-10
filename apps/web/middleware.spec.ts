@@ -57,12 +57,27 @@ function makeRequest(path: string, token?: string): NextRequest {
 }
 
 describe('middleware', () => {
-  it('redirects to /dashboard/login when visiting a protected dashboard route without a token', () => {
-    const response = middleware(makeRequest('/dashboard/bookings'));
+  it.each([
+    ['the dashboard area', '/dashboard/bookings', 'http://localhost:3000/dashboard/login'],
+    [
+      'the customer account area',
+      '/lavacar-bh/my-account',
+      'http://localhost:3000/lavacar-bh/login',
+    ],
+    [
+      'a nested customer account route',
+      '/lavacar-bh/my-account/bookings',
+      'http://localhost:3000/lavacar-bh/login',
+    ],
+  ])(
+    'redirects to the login page when visiting %s without a token',
+    (_label, path, expectedLocation) => {
+      const response = middleware(makeRequest(path));
 
-    expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard/login');
-  });
+      expect(response.status).toBe(307);
+      expect(response.headers.get('location')).toBe(expectedLocation);
+    },
+  );
 
   it('does NOT redirect when visiting /dashboard/login itself without a token (regression: infinite redirect loop)', () => {
     const response = middleware(makeRequest('/dashboard/login'));
@@ -130,20 +145,8 @@ describe('middleware', () => {
   });
 
   // ── Customer area guard (/[slug]/my-account/**) ───────────────────────────
-
-  it('redirects to /{slug}/login when visiting my-account without a token', () => {
-    const response = middleware(makeRequest('/lavacar-bh/my-account'));
-
-    expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');
-  });
-
-  it('redirects to /{slug}/login when visiting a nested my-account route without a token', () => {
-    const response = middleware(makeRequest('/lavacar-bh/my-account/bookings'));
-
-    expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toBe('http://localhost:3000/lavacar-bh/login');
-  });
+  // (unauthenticated-redirect cases for this guard are covered by the parameterized
+  // test above, alongside the dashboard guard's equivalent case)
 
   it('passes through my-account with a valid CUSTOMER token matching the slug', () => {
     const response = middleware(makeRequest('/lavacar-bh/my-account', customerToken));
