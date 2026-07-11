@@ -115,4 +115,26 @@ describe('validateEnv()', () => {
     });
     expect(result.LOG_VENDOR).toBe('none');
   });
+
+  it('defaults the outbox config vars (TD24-S01)', () => {
+    const result = validateEnv(valid);
+    expect(result.OUTBOX_INLINE_DISPATCH_ENABLED).toBe(true);
+    expect(result.OUTBOX_SWEEP_BATCH_SIZE).toBe(100);
+    expect(result.OUTBOX_SWEEP_GRACE_SECONDS).toBe(30);
+    expect(result.OUTBOX_RETENTION_DAYS).toBe(14);
+  });
+
+  it('parses overridden outbox config vars from string env input', () => {
+    const result = validateEnv({
+      ...valid,
+      OUTBOX_INLINE_DISPATCH_ENABLED: 'false',
+      OUTBOX_SWEEP_BATCH_SIZE: '250',
+      OUTBOX_SWEEP_GRACE_SECONDS: '60',
+      OUTBOX_RETENTION_DAYS: '30',
+    });
+    expect(result.OUTBOX_INLINE_DISPATCH_ENABLED).toBe(false);
+    expect(result.OUTBOX_SWEEP_BATCH_SIZE).toBe(250);
+    expect(result.OUTBOX_SWEEP_GRACE_SECONDS).toBe(60);
+    expect(result.OUTBOX_RETENTION_DAYS).toBe(30);
+  });
 });

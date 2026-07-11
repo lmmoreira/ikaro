@@ -14,16 +14,26 @@ import { GcpPubSubEventBusAdapter } from './gcp-pubsub-event-bus.adapter';
 @Global()
 @Module({
   providers: [
+    // EVENT_BUS remains the ONE owning definition (useClass) — GcpPubSubEventBusAdapter is
+    // instantiated exactly once, here.
     { provide: EVENT_BUS, useClass: GcpPubSubEventBusAdapter },
-    // Token-to-token aliases, not the useExisting-adapter-token anti-pattern from CLAUDE.md §8 —
-    // that pattern is `{ provide: TOKEN, useExisting: SomeClass }` where SomeClass is *also* a
-    // bare provider, double-instantiating it. EVENT_BUS here is a token (Symbol), not a class —
-    // GcpPubSubEventBusAdapter is registered exactly once, above. TRIGGER_BUS/PUSHABLE_EVENT_BUS
-    // resolve to whatever EVENT_BUS resolves to (same singleton), and correctly follow EVENT_BUS
-    // overrides in tests too.
+    // Token-to-token aliases, not the useExisting-adapter-token anti-pattern from CLAUDE.md §8
+    // ("useExisting still instantiates the class even when the token is overridden in tests").
+    // That anti-pattern is `{ provide: TOKEN, useExisting: SomeClass }` where SomeClass is ALSO
+    // registered as its own bare provider — overriding TOKEN in a test then leaves the bare
+    // class provider behind, still instantiated. Every alias below points at EVENT_BUS itself
+    // (a Symbol token, not a class) and nothing here registers GcpPubSubEventBusAdapter as a
+    // second, independent provider — so overriding EVENT_BUS in tests correctly cascades to
+    // every alias, with no stray real instance left over.
     { provide: TRIGGER_BUS, useExisting: EVENT_BUS },
     { provide: PUSHABLE_EVENT_BUS, useExisting: EVENT_BUS },
+    // Class-token alias (TD24-S01): lets shared/infrastructure/outbox/ inject the concrete
+    // adapter directly by class (`private readonly innerBus: GcpPubSubEventBusAdapter`), which
+    // is what keeps TD24-S02's rebind (EVENT_BUS -> useClass: OutboxEventBus) a one-line change —
+    // OutboxEventBus/OutboxRelayService never inject EVENT_BUS, the token they'll themselves
+    // occupy or sit behind.
+    { provide: GcpPubSubEventBusAdapter, useExisting: EVENT_BUS },
   ],
-  exports: [EVENT_BUS, TRIGGER_BUS, PUSHABLE_EVENT_BUS],
+  exports: [EVENT_BUS, TRIGGER_BUS, PUSHABLE_EVENT_BUS, GcpPubSubEventBusAdapter],
 })
 export class EventBusModule {}

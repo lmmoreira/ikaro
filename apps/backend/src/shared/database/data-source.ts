@@ -20,7 +20,17 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   migrationsRun: false,
   logging: process.env['NODE_ENV'] === 'development' ? ['query', 'error'] : ['error'],
-  entities: [__dirname + '/../../contexts/**/infrastructure/entities/*.entity{.ts,.js}'],
-  migrations: [__dirname + '/../../contexts/**/infrastructure/migrations/*{.ts,.js}'],
+  entities: [
+    __dirname + '/../../contexts/**/infrastructure/entities/*.entity{.ts,.js}',
+    // shared/infrastructure/ entities (e.g. outbox/outbox-event.entity.ts, TD24-S01) live outside
+    // contexts/** — a separate glob is required or they silently fail to load.
+    __dirname + '/../infrastructure/**/*.entity{.ts,.js}',
+  ],
+  migrations: [
+    __dirname + '/../../contexts/**/infrastructure/migrations/*{.ts,.js}',
+    // shared/infrastructure/migrations/ (e.g. AddSharedSchema, CreateSharedOutbox, TD24-S01) is
+    // not a context — the migration CLI would never see these without a separate glob.
+    __dirname + '/../infrastructure/migrations/*{.ts,.js}',
+  ],
   subscribers: [],
 });

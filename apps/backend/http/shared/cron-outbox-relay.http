@@ -1,0 +1,22 @@
+# Shared — Cron Outbox Relay Trigger
+# TD24-S01: publishes the cron-outbox-relay trigger, dispatched to OutboxRelayTriggerHandler,
+# which runs the outbox sweep (grace-window batch, SKIP LOCKED) + retention GC in one tick. In
+# production, Cloud Scheduler publishes the same trigger directly to Pub/Sub (M17-S21) — this
+# endpoint is the local/manual trigger path only, protected by the global InternalApiGuard
+# (X-Internal-Key), not PubSubPushGuard.
+# Response is { ok: true } once the trigger is published — it does not wait for the sweep to
+# finish. Requires the Pub/Sub emulator running (pnpm infra:up); check backend logs for
+# "trigger received by outbox-relay" to confirm dispatch.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+
+@baseUrl = {{backendUrl}}
+
+### POST /cron/outbox-relay — publish the cron-outbox-relay trigger
+POST {{baseUrl}}/cron/outbox-relay
+X-Internal-Key: {{internalKey}}
+
+###

@@ -12,6 +12,7 @@ import { PlatformModule } from './contexts/platform/platform.module';
 import { StaffModule } from './contexts/staff/staff.module';
 import { HealthController } from './health/health.controller';
 import { EventBusModule } from './shared/infrastructure/event-bus.module';
+import { OutboxModule } from './shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from './shared/infrastructure/transaction-manager.module';
 import { InternalApiGuard } from './shared/guards/internal-api.guard';
 import { PubSubPushGuard } from './shared/guards/pubsub-push.guard';
@@ -39,12 +40,18 @@ import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
         database: config.get<string>('DB_NAME'),
         synchronize: false,
         migrationsRun: false,
-        entities: [__dirname + '/contexts/**/infrastructure/entities/*.entity{.ts,.js}'],
+        entities: [
+          __dirname + '/contexts/**/infrastructure/entities/*.entity{.ts,.js}',
+          // shared/infrastructure/ entities (e.g. outbox/outbox-event.entity.ts, TD24-S01) live
+          // outside contexts/** — a separate glob is required or they silently fail to load.
+          __dirname + '/shared/infrastructure/**/*.entity{.ts,.js}',
+        ],
       }),
       inject: [ConfigService],
     }),
     TerminusModule,
     EventBusModule,
+    OutboxModule,
     TransactionManagerModule,
     RequestModule,
     PlatformModule,
