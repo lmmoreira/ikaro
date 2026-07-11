@@ -1,7 +1,15 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { AddressErrorCode, CountryCodeErrorCode, CustomerErrorCode } from '@ikaro/types';
+import {
+  AddressErrorCode,
+  CountryCodeErrorCode,
+  CustomerErrorCode,
+  EmailErrorCode,
+  PhoneErrorCode,
+} from '@ikaro/types';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
+import { PhoneNumberValidationError } from '../../../../shared/value-objects/phone-number.vo';
+import { EmailValidationError } from '../../../../shared/value-objects/email.vo';
 import {
   CustomerAddressValidationError,
   CustomerDomainError,
@@ -64,6 +72,20 @@ describe('mapCustomerError', () => {
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
     expect(err.getResponse()).toMatchObject({ code: CustomerErrorCode.NAME_REQUIRED });
+  });
+
+  it('maps PhoneNumberValidationError to 400 with code', () => {
+    const err = call(
+      new PhoneNumberValidationError('"123" is not valid', PhoneErrorCode.FORMAT_INVALID),
+    );
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: PhoneErrorCode.FORMAT_INVALID });
+  });
+
+  it('maps EmailValidationError to 400 with code', () => {
+    const err = call(new EmailValidationError('bad email', EmailErrorCode.FORMAT_INVALID));
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: EmailErrorCode.FORMAT_INVALID });
   });
 
   it('re-throws plain Error instances unchanged', () => {

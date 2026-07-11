@@ -1,13 +1,21 @@
 import { z } from 'zod';
+import { HexColorErrorCode, PlatformErrorCode, SeoErrorCode } from '@ikaro/types';
 import { HexColor } from '../../../../shared/value-objects/hex-color.vo';
 import { SeoTitle } from '../../../../shared/value-objects/seo-title.vo';
 import { SeoDescription } from '../../../../shared/value-objects/seo-description.vo';
 import { HOTSITE_TMP_PATH_FRAGMENT } from '../../../../shared/utils/tmp-path-regex';
 
-const HEX_COLOR_MESSAGE = { message: 'must be a valid hex color (e.g. #FF5733)' };
-const SEO_TITLE_MESSAGE = { message: `must be at most ${SeoTitle.MAX_LENGTH} characters` };
+const HEX_COLOR_MESSAGE = {
+  error: 'must be a valid hex color (e.g. #FF5733)',
+  params: { code: HexColorErrorCode.FORMAT_INVALID },
+};
+const SEO_TITLE_MESSAGE = {
+  error: `must be at most ${SeoTitle.MAX_LENGTH} characters`,
+  params: { code: SeoErrorCode.TITLE_TOO_LONG },
+};
 const SEO_DESCRIPTION_MESSAGE = {
-  message: `must be at most ${SeoDescription.MAX_LENGTH} characters`,
+  error: `must be at most ${SeoDescription.MAX_LENGTH} characters`,
+  params: { code: SeoErrorCode.DESCRIPTION_TOO_LONG },
 };
 // Accepts empty (to clear), an already-permanent hotsite image, or a not-yet-promoted tmp/
 // staging upload — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
@@ -70,7 +78,10 @@ export const UpdateHotsiteContentSchema = z
   })
   .refine(
     (data) => data.branding !== undefined || data.layout !== undefined || data.seo !== undefined,
-    { message: 'at least one of branding, layout, or seo must be provided' },
+    {
+      error: 'at least one of branding, layout, or seo must be provided',
+      params: { code: PlatformErrorCode.HOTSITE_UPDATE_EMPTY },
+    },
   );
 
 export type UpdateHotsiteContentDto = z.infer<typeof UpdateHotsiteContentSchema>;

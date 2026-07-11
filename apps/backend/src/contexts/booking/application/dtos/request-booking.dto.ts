@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PhoneErrorCode } from '@ikaro/types';
 import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
 import { BookingTmpPhotoPathsSchema } from '../../../../shared/utils/tmp-path-regex';
 
@@ -16,7 +17,8 @@ export const RequestBookingSchema = z.object({
   contactEmail: z.email(),
   contactName: z.string().min(1),
   contactPhone: z.string().refine(PhoneNumber.isValid, {
-    message: 'contactPhone must be in E.164 format',
+    error: 'contactPhone must be in E.164 format',
+    params: { code: PhoneErrorCode.FORMAT_INVALID },
   }),
   contactAddress: AddressSchema.optional(),
   pickupAddress: AddressSchema.optional(),

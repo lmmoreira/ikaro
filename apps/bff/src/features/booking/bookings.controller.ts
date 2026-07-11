@@ -21,6 +21,7 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { withPublicTenant } from '../../shared/http/public-tenant';
+import { requiredWithCode } from '../../shared/http/zod-code.util';
 import {
   AttachmentSignedUrlResponse,
   BookingResponse,
@@ -32,10 +33,13 @@ import {
 } from './bookings.types';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import {
+  AddressErrorCode,
+  ApproveBookingRequest,
   CustomerBookingDetailResponse,
   CustomerBookingListResponse,
-  ApproveBookingRequest,
+  GenericErrorCode,
   GuestBookingReadResponse,
+  PhoneErrorCode,
   StaffBookingDetailResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
@@ -49,23 +53,28 @@ import {
 import { GuestTokenPayload, tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
 
 const AddressSchema = z.object({
-  street: z.string().min(1),
-  number: z.string().min(1),
+  street: requiredWithCode(z.string(), AddressErrorCode.FIELD_REQUIRED),
+  number: requiredWithCode(z.string(), AddressErrorCode.FIELD_REQUIRED),
   complement: z.string().nullable().optional(),
   neighborhood: z.string().min(1).optional(),
-  city: z.string().min(1),
-  state: z.string().trim().min(1).max(10),
-  zipCode: z.string().trim().min(1).max(20),
+  city: requiredWithCode(z.string(), AddressErrorCode.FIELD_REQUIRED),
+  state: requiredWithCode(z.string().trim().max(10), AddressErrorCode.FIELD_REQUIRED),
+  zipCode: requiredWithCode(z.string().trim().max(20), AddressErrorCode.FIELD_REQUIRED),
 });
 
 // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
 // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
 const TMP_PHOTO_PATH_REGEX = /^tmp\/[^/]+\/[^/]+\/.+$/;
 
+const E164_PATTERN = /^\+[1-9]\d{6,14}$/;
+
 export const RequestBookingBodySchema = z.object({
   contactEmail: z.email(),
   contactName: z.string().min(1),
-  contactPhone: z.string().regex(/^\+[1-9]\d{6,14}$/, 'contactPhone must be in E.164 format'),
+  contactPhone: z.string().refine((v) => E164_PATTERN.test(v), {
+    error: 'contactPhone must be in E.164 format',
+    params: { code: PhoneErrorCode.FORMAT_INVALID },
+  }),
   contactAddress: AddressSchema.optional(),
   pickupAddress: AddressSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
@@ -165,7 +174,8 @@ const StaffListBookingsQuerySchema = z
   })
   .refine((q) => q.to === undefined || q.from !== undefined, {
     path: ['to'],
-    message: '`to` requires `from`',
+    error: '`to` requires `from`',
+    params: { code: GenericErrorCode.VALUE_INVALID },
   });
 
 type StaffListBookingsQuery = z.infer<typeof StaffListBookingsQuerySchema>;
@@ -176,7 +186,8 @@ export const AttachmentSignedUrlBodySchema = z.object({
     .min(1)
     .max(255)
     .refine((v) => !v.includes('/') && !v.includes('..'), {
-      message: 'fileName must not contain path separators or ".."',
+      error: 'fileName must not contain path separators or ".."',
+      params: { code: GenericErrorCode.FORMAT_INVALID },
     }),
   contentType: z.enum(['image/jpeg', 'image/png']),
   tenantSlug: z.string().optional(),

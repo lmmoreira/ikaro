@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { z } from 'zod';
+import { EmailErrorCode, ValidationViolation } from '@ikaro/types';
 import { ZodValidationPipe } from './zod-validation.pipe';
 
 describe('ZodValidationPipe', () => {
@@ -33,5 +34,19 @@ describe('ZodValidationPipe', () => {
     expect(() => pipe.transform({ email: 'invalid', tenantId: 'not-a-uuid' })).toThrow(
       BadRequestException,
     );
+  });
+
+  it("violation entries carry field and code, not free-text message — derivation itself is covered by @ikaro/types' zod-violation.spec.ts", () => {
+    expect.assertions(2);
+    const pipe = new ZodValidationPipe(z.object({ email: z.string().email() }));
+    try {
+      pipe.transform({ email: 'invalid' });
+    } catch (e) {
+      const body = (e as BadRequestException).getResponse() as Record<string, unknown>;
+      const items = body['violations'] as ValidationViolation[];
+      const violation = items.find((v) => v.field === 'email');
+      expect(violation?.code).toBe(EmailErrorCode.FORMAT_INVALID);
+      expect(violation).not.toHaveProperty('message');
+    }
   });
 });

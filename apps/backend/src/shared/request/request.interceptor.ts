@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { uuidv7 } from '../domain/uuid-v7';
-import { ProblemDetail } from '../http/problem-detail';
+import { ProblemDetail } from '@ikaro/types';
 import { ITenantSettingsPort, TENANT_SETTINGS_PORT } from '../ports/tenant-settings.port';
 import type { TenantSettingsData } from '../value-objects/tenant-settings-data';
 import { runWithRequestContext } from './request-context';

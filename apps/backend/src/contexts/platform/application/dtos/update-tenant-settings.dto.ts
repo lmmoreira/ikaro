@@ -1,12 +1,24 @@
 import { z } from 'zod';
+import {
+  CountryCodeErrorCode,
+  PlatformErrorCode,
+  TimeOfDayErrorCode,
+  TimezoneErrorCode,
+} from '@ikaro/types';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
 
 const DayHoursSchema = z
   .object({
-    open: z.string().refine(TimeOfDay.isValid, { message: 'must be HH:MM (00:00–23:59)' }),
-    close: z.string().refine(TimeOfDay.isValid, { message: 'must be HH:MM (00:00–23:59)' }),
+    open: z.string().refine(TimeOfDay.isValid, {
+      error: 'must be HH:MM (00:00–23:59)',
+      params: { code: TimeOfDayErrorCode.FORMAT_INVALID },
+    }),
+    close: z.string().refine(TimeOfDay.isValid, {
+      error: 'must be HH:MM (00:00–23:59)',
+      params: { code: TimeOfDayErrorCode.FORMAT_INVALID },
+    }),
   })
   .nullable();
 
@@ -35,7 +47,10 @@ const BookingSchema = z
 const BusinessHoursSchema = z.object({
   timezone: z
     .string()
-    .refine(Timezone.isValid, { message: 'must be a valid IANA timezone' })
+    .refine(Timezone.isValid, {
+      error: 'must be a valid IANA timezone',
+      params: { code: TimezoneErrorCode.INVALID },
+    })
     .optional(),
   monday: DayHoursSchema.optional(),
   tuesday: DayHoursSchema.optional(),
@@ -54,7 +69,8 @@ const CountryCodeSchema = z
   })
   .toUpperCase()
   .refine(CountryCode.isValid, {
-    message: 'countryCode must be a supported country code',
+    error: 'countryCode must be a supported country code',
+    params: { code: CountryCodeErrorCode.UNSUPPORTED },
   });
 
 const LocalizationSchema = z
@@ -116,7 +132,8 @@ export const UpdateTenantSettingsSchema = z.object({
     })
     .strict()
     .refine((settings) => Object.values(settings).some((value) => value !== undefined), {
-      message: 'at least one settings field must be provided',
+      error: 'at least one settings field must be provided',
+      params: { code: PlatformErrorCode.SETTINGS_UPDATE_EMPTY },
     }),
 });
 

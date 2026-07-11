@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PlatformErrorCode } from '@ikaro/types';
 
 export const FeatureBookingPhotoSchema = z
   .object({
@@ -7,7 +8,8 @@ export const FeatureBookingPhotoSchema = z
     photoType: z.enum(['before', 'after']),
   })
   .refine((data) => data.filePath.includes(`/bookings/${data.bookingId}/`), {
-    message: 'filePath must belong to the provided bookingId',
+    error: 'filePath must belong to the provided bookingId',
+    params: { code: PlatformErrorCode.FEATURED_PHOTO_PATH_MISMATCH },
   });
 
 export type FeatureBookingPhotoDto = z.infer<typeof FeatureBookingPhotoSchema>;

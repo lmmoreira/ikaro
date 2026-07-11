@@ -1,7 +1,13 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { AddressErrorCode, CountryCodeErrorCode, StaffErrorCode } from '@ikaro/types';
+import {
+  AddressErrorCode,
+  CountryCodeErrorCode,
+  EmailErrorCode,
+  StaffErrorCode,
+} from '@ikaro/types';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
+import { EmailValidationError } from '../../../../shared/value-objects/email.vo';
 import {
   LastActiveManagerError,
   StaffAlreadyActiveError,
@@ -105,6 +111,12 @@ describe('mapStaffError', () => {
     const err = call(new StaffDomainError('invalid', StaffErrorCode.ROLE_INVALID));
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
     expect(err.getResponse()).toMatchObject({ code: StaffErrorCode.ROLE_INVALID });
+  });
+
+  it('maps EmailValidationError to 400 with code', () => {
+    const err = call(new EmailValidationError('bad email', EmailErrorCode.FORMAT_INVALID));
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: EmailErrorCode.FORMAT_INVALID });
   });
 
   it('re-throws plain Error instances unchanged', () => {

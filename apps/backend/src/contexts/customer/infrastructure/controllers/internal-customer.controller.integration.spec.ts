@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { GenericErrorCode } from '@ikaro/types';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer';
 import { CustomerEntity } from '../entities/customer.entity';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
@@ -45,7 +46,7 @@ describe('InternalCustomerController (integration)', () => {
     expect(body.violations).toEqual([
       expect.objectContaining({
         field: 'googleOAuthId',
-        message: 'googleOAuthId is required',
+        code: GenericErrorCode.FIELD_REQUIRED,
       }),
     ]);
   });

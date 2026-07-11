@@ -10,7 +10,13 @@ import {
   Query,
 } from '@nestjs/common';
 import { z } from 'zod';
-import { CustomerProfileResponse, CustomerSearchListResponse, TenantOption } from '@ikaro/types';
+import {
+  AddressErrorCode,
+  CustomerProfileResponse,
+  CustomerSearchListResponse,
+  PhoneErrorCode,
+  TenantOption,
+} from '@ikaro/types';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -19,22 +25,28 @@ import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { toTenantOption } from './customers.mapper';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import { CustomerSearchResponse } from './customers.types';
+import { requiredWithCode } from '../../shared/http/zod-code.util';
 
 const AddressSchema = z.object({
-  street: z.string().min(1),
-  number: z.string().min(1),
+  street: requiredWithCode(z.string(), AddressErrorCode.FIELD_REQUIRED),
+  number: requiredWithCode(z.string(), AddressErrorCode.FIELD_REQUIRED),
   complement: z.string().nullable().optional(),
   neighborhood: z.string().min(1).optional(),
-  city: z.string().min(1),
-  state: z.string().trim().min(1).max(10),
-  zipCode: z.string().trim().min(1).max(20),
+  city: requiredWithCode(z.string(), AddressErrorCode.FIELD_REQUIRED),
+  state: requiredWithCode(z.string().trim().max(10), AddressErrorCode.FIELD_REQUIRED),
+  zipCode: requiredWithCode(z.string().trim().max(20), AddressErrorCode.FIELD_REQUIRED),
 });
+
+const E164_PATTERN = /^\+[1-9]\d{6,14}$/;
 
 export const UpdateCustomerProfileBodySchema = z.object({
   name: z.string().min(1).optional(),
   phone: z
     .string()
-    .regex(/^\+[1-9]\d{6,14}$/, 'phone must be in E.164 format')
+    .refine((v) => E164_PATTERN.test(v), {
+      error: 'phone must be in E.164 format',
+      params: { code: PhoneErrorCode.FORMAT_INVALID },
+    })
     .nullable()
     .optional(),
   defaultAddress: AddressSchema.nullable().optional(),

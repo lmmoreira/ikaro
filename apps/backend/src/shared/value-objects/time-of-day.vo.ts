@@ -1,9 +1,23 @@
+import { TimeOfDayErrorCode } from '@ikaro/types';
+import { DomainErrorShape } from '../domain/domain-error-shape';
+
 const HHMM_PATTERN = /^\d{2}:\d{2}$/;
 const HHMMSS_PATTERN = /^\d{2}:\d{2}:\d{2}$/;
 
 // PostgreSQL TIME columns return HH:MM:SS; normalise to HH:MM before validation.
 function normalise(time: string): string {
   return HHMMSS_PATTERN.test(time) ? time.slice(0, 5) : time;
+}
+
+export class TimeOfDayValidationError extends Error implements DomainErrorShape {
+  readonly code: TimeOfDayErrorCode;
+
+  constructor(message: string, code: TimeOfDayErrorCode) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'TimeOfDayValidationError';
+    this.code = code;
+  }
 }
 
 export class TimeOfDay {
@@ -19,7 +33,10 @@ export class TimeOfDay {
   static create(time: string): TimeOfDay {
     const hhmm = normalise(time);
     if (!TimeOfDay.isValid(hhmm)) {
-      throw new Error(`"${time}" is not a valid time — expected HH:MM or HH:MM:SS (00:00–23:59)`);
+      throw new TimeOfDayValidationError(
+        `"${time}" is not a valid time — expected HH:MM or HH:MM:SS (00:00–23:59)`,
+        TimeOfDayErrorCode.FORMAT_INVALID,
+      );
     }
     return new TimeOfDay(hhmm);
   }

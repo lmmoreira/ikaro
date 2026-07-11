@@ -1,9 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { z } from 'zod';
+import { GenericErrorCode, ValidationViolation } from '@ikaro/types';
 import { ZodValidationPipe } from './zod-validation.pipe';
 
 const schema = z.object({
-  name: z.string().min(1, 'name is required'),
+  name: z.string().min(1),
   count: z.number(),
 });
 
@@ -22,7 +23,7 @@ describe('ZodValidationPipe', () => {
     expect(() => pipe.transform({ name: '', count: 'not-a-number' })).toThrow(BadRequestException);
   });
 
-  it('error response is a RFC 9457 Problem Detail with violations array', () => {
+  it('error response is a RFC 9457 Problem Detail with a violations array', () => {
     expect.assertions(4);
     try {
       pipe.transform({ name: '', count: 'oops' });
@@ -35,14 +36,16 @@ describe('ZodValidationPipe', () => {
     }
   });
 
-  it('violation entries include field and message', () => {
-    expect.assertions(1);
+  it("violation entries carry field and code, not free-text message — derivation itself is covered by @ikaro/types' zod-violation.spec.ts", () => {
+    expect.assertions(2);
     try {
       pipe.transform({ name: 'ok' });
     } catch (e) {
-      const violations = (e as BadRequestException).getResponse() as Record<string, unknown>;
-      const items = violations['violations'] as Array<Record<string, string>>;
-      expect(items.some((v) => v['field'] === 'count')).toBe(true);
+      const body = (e as BadRequestException).getResponse() as Record<string, unknown>;
+      const items = body['violations'] as ValidationViolation[];
+      const violation = items.find((v) => v.field === 'count');
+      expect(violation?.code).toBe(GenericErrorCode.FIELD_REQUIRED);
+      expect(violation).not.toHaveProperty('message');
     }
   });
 });

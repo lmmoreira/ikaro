@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'node:crypto';
-import { ProblemDetail } from '../../../../shared/http/problem-detail';
+import { ProblemDetail } from '@ikaro/types';
 
 @Injectable()
 export class PlatformAdminGuard implements CanActivate {

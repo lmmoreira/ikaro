@@ -7,12 +7,21 @@ import {
   FeatureBookingPhotoResponse,
   GenerateHotsiteImageReadSignedUrlResponse,
   GenerateHotsiteImageSignedUrlResponse,
+  GenericErrorCode,
+  HexColorErrorCode,
   HotsiteAdminContentResponse,
+  PlatformErrorCode,
   PublishHotsiteResponse,
+  SeoErrorCode,
   UnpublishHotsiteResponse,
 } from '@ikaro/types';
 
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
+const hexColorField = (): z.ZodString =>
+  z.string().refine((v) => HEX_COLOR_REGEX.test(v), {
+    error: 'must be a valid hex color (e.g. #FF5733)',
+    params: { code: HexColorErrorCode.FORMAT_INVALID },
+  });
 // tmp/<tenantId>/<purpose>/<uuid>/<fileName> — hotsite uploads only. One segment longer than
 // booking's tmp/<tenantId>/<uuid>/<fileName>; without the extra segment, a booking tmp/ upload
 // could be accepted by a hotsite endpoint and promoted into the public hotsite bucket (or
@@ -29,10 +38,10 @@ const LOGO_URL_MESSAGE = {
 
 const HotsiteBrandingBodySchema = z
   .object({
-    primaryColor: z.string().regex(HEX_COLOR_REGEX),
-    secondaryColor: z.string().regex(HEX_COLOR_REGEX),
-    backgroundColor: z.string().regex(HEX_COLOR_REGEX),
-    textColor: z.string().regex(HEX_COLOR_REGEX),
+    primaryColor: hexColorField(),
+    secondaryColor: hexColorField(),
+    backgroundColor: hexColorField(),
+    textColor: hexColorField(),
     headingFontFamily: z.string().min(1),
     bodyFontFamily: z.string().min(1),
     logoUrl: z.string().regex(LOGO_URL_REGEX, LOGO_URL_MESSAGE),
@@ -40,8 +49,8 @@ const HotsiteBrandingBodySchema = z
     buttonStyle: z.enum(['filled', 'outline', 'ghost']),
     spacing: z.enum(['compact', 'comfortable', 'spacious']),
     shadowStyle: z.enum(['none', 'subtle', 'strong']),
-    buttonBackgroundColor: z.string().regex(HEX_COLOR_REGEX),
-    buttonTextColor: z.string().regex(HEX_COLOR_REGEX),
+    buttonBackgroundColor: hexColorField(),
+    buttonTextColor: hexColorField(),
     heroBgStyle: z.enum(['primary', 'background']),
     alternateSectionBg: z.boolean(),
     dividerStyle: z.enum(['none', 'gradient', 'solid']),
@@ -72,8 +81,20 @@ const HotsiteModuleBodySchema = z.object({
 // applied here too.
 const HotsiteSeoBodySchema = z
   .object({
-    title: z.string().max(60).nullable(),
-    description: z.string().max(158).nullable(),
+    title: z
+      .string()
+      .refine((v) => v.length <= 60, {
+        error: 'must be at most 60 characters',
+        params: { code: SeoErrorCode.TITLE_TOO_LONG },
+      })
+      .nullable(),
+    description: z
+      .string()
+      .refine((v) => v.length <= 158, {
+        error: 'must be at most 158 characters',
+        params: { code: SeoErrorCode.DESCRIPTION_TOO_LONG },
+      })
+      .nullable(),
   })
   .partial();
 
@@ -85,7 +106,10 @@ export const UpdateHotsiteContentBodySchema = z
   })
   .refine(
     (data) => data.branding !== undefined || data.layout !== undefined || data.seo !== undefined,
-    { message: 'at least one of branding, layout, or seo must be provided' },
+    {
+      error: 'at least one of branding, layout, or seo must be provided',
+      params: { code: PlatformErrorCode.HOTSITE_UPDATE_EMPTY },
+    },
   )
   .default({});
 
@@ -97,7 +121,8 @@ export const GenerateHotsiteImageSignedUrlBodySchema = z.object({
     .min(1)
     .max(255)
     .refine((v) => !v.includes('/') && !v.includes('..'), {
-      message: 'fileName must not contain path separators or ".."',
+      error: 'fileName must not contain path separators or ".."',
+      params: { code: GenericErrorCode.FORMAT_INVALID },
     }),
   contentType: z.enum(['image/jpeg', 'image/png']),
   purpose: z.enum(['branding', 'hero', 'gallery', 'about', 'booking-cta', 'testimonials']),
@@ -123,7 +148,8 @@ export const FeatureBookingPhotoBodySchema = z
     photoType: z.enum(['before', 'after']),
   })
   .refine((data) => data.filePath.includes(`/bookings/${data.bookingId}/`), {
-    message: 'filePath must belong to the provided bookingId',
+    error: 'filePath must belong to the provided bookingId',
+    params: { code: PlatformErrorCode.FEATURED_PHOTO_PATH_MISMATCH },
   });
 
 type FeatureBookingPhotoBody = z.infer<typeof FeatureBookingPhotoBodySchema>;

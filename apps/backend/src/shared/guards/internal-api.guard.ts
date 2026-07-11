@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import * as crypto from 'node:crypto';
-import { ProblemDetail } from '../http/problem-detail';
+import { ProblemDetail } from '@ikaro/types';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()

@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppLogger } from '../observability/app-logger';
-import { ProblemDetail } from '../http/problem-detail';
+import { ProblemDetail } from '@ikaro/types';
 import { IOidcTokenVerifier, OIDC_TOKEN_VERIFIER } from '../ports/oidc-token-verifier.port';
 
 const GOOGLE_ISSUER = 'https://accounts.google.com';

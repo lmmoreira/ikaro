@@ -1,4 +1,18 @@
+import { HexColorErrorCode } from '@ikaro/types';
+import { DomainErrorShape } from '../domain/domain-error-shape';
+
 const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+
+export class HexColorValidationError extends Error implements DomainErrorShape {
+  readonly code: HexColorErrorCode;
+
+  constructor(message: string, code: HexColorErrorCode) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'HexColorValidationError';
+    this.code = code;
+  }
+}
 
 export class HexColor {
   private constructor(private readonly _value: string) {}
@@ -9,7 +23,10 @@ export class HexColor {
 
   static create(color: string): HexColor {
     if (!HexColor.isValid(color)) {
-      throw new Error(`"${color}" is not a valid hex color — expected #RRGGBB`);
+      throw new HexColorValidationError(
+        `"${color}" is not a valid hex color — expected #RRGGBB`,
+        HexColorErrorCode.FORMAT_INVALID,
+      );
     }
     return new HexColor(color.toUpperCase());
   }

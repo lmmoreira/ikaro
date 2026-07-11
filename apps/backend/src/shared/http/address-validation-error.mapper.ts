@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { AddressValidationError } from '../value-objects/address';
 import { CountryCodeValidationError } from '../value-objects/country-code.vo';
-import { ProblemDetail } from './problem-detail';
+import { ProblemDetail } from '@ikaro/types';
 
 /**
  * Shared branch for the two VO-level errors (Address, CountryCode) every context mapper

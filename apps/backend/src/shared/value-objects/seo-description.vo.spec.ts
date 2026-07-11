@@ -1,4 +1,5 @@
-import { SeoDescription } from './seo-description.vo';
+import { SeoErrorCode } from '@ikaro/types';
+import { SeoDescription, SeoDescriptionValidationError } from './seo-description.vo';
 
 describe('SeoDescription', () => {
   it('accepts a description at or under the max length', () => {
@@ -16,8 +17,13 @@ describe('SeoDescription', () => {
     expect(SeoDescription.create(description).value).toBe(description);
   });
 
-  it('create throws for a description over the max length', () => {
-    expect(() => SeoDescription.create('a'.repeat(159))).toThrow();
+  it('create throws SeoDescriptionValidationError with DESCRIPTION_TOO_LONG for a description over the max length', () => {
+    expect(() => SeoDescription.create('a'.repeat(159))).toThrow(SeoDescriptionValidationError);
+    try {
+      SeoDescription.create('a'.repeat(159));
+    } catch (err) {
+      expect((err as SeoDescriptionValidationError).code).toBe(SeoErrorCode.DESCRIPTION_TOO_LONG);
+    }
   });
 
   it('reconstitute skips validation', () => {

@@ -1,7 +1,19 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { AddressErrorCode, BookingErrorCode, CountryCodeErrorCode } from '@ikaro/types';
+import {
+  AddressErrorCode,
+  BookingErrorCode,
+  CountryCodeErrorCode,
+  EmailErrorCode,
+  MoneyErrorCode,
+  PhoneErrorCode,
+  TimeOfDayErrorCode,
+} from '@ikaro/types';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
+import { MoneyValidationError } from '../../../../shared/value-objects/money';
+import { PhoneNumberValidationError } from '../../../../shared/value-objects/phone-number.vo';
+import { TimeOfDayValidationError } from '../../../../shared/value-objects/time-of-day.vo';
+import { EmailValidationError } from '../../../../shared/value-objects/email.vo';
 import {
   BookingAddressValidationError,
   BookingDiscountDisabledError,
@@ -191,6 +203,34 @@ describe('mapBookingError', () => {
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
     expect(err.getResponse()).toMatchObject({ code: BookingErrorCode.TENANT_ID_REQUIRED });
+  });
+
+  it('maps MoneyValidationError to 400 with code', () => {
+    const err = call(
+      new MoneyValidationError('Invalid money amount: NaN', MoneyErrorCode.AMOUNT_INVALID),
+    );
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: MoneyErrorCode.AMOUNT_INVALID });
+  });
+
+  it('maps PhoneNumberValidationError to 400 with code', () => {
+    const err = call(
+      new PhoneNumberValidationError('"123" is not valid', PhoneErrorCode.FORMAT_INVALID),
+    );
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: PhoneErrorCode.FORMAT_INVALID });
+  });
+
+  it('maps EmailValidationError to 400 with code', () => {
+    const err = call(new EmailValidationError('bad email', EmailErrorCode.FORMAT_INVALID));
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: EmailErrorCode.FORMAT_INVALID });
+  });
+
+  it('maps TimeOfDayValidationError to 400 with code', () => {
+    const err = call(new TimeOfDayValidationError('bad time', TimeOfDayErrorCode.FORMAT_INVALID));
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: TimeOfDayErrorCode.FORMAT_INVALID });
   });
 
   it('rethrows plain Error unchanged', () => {
