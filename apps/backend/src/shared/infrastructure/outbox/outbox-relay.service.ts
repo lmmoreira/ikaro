@@ -1,19 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { Envelope } from '../../domain/envelope';
 import { AppLogger } from '../../observability/app-logger';
+import { IOutboxRepository, OUTBOX_REPOSITORY } from '../../ports/outbox-repository.port';
 import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
-import { OutboxEventEntity } from './outbox-event.entity';
-
-interface OutboxRowForDispatch {
-  id: string;
-  payload: Record<string, unknown>;
-}
 
 // The stored payload is the verbatim envelope JSON.stringify()'d from a real DomainEvent or
-// Command by OutboxEventBus.publish() — this reinterprets it back for
+// Command by OutboxPublisher.publish() — this reinterprets it back for
 // GcpPubSubEventBusAdapter.publish(), which only reads .eventName (topic routing) and
 // re-serializes the whole object. Structurally identical to the original; not a real class
 // instance (no aggregate methods, no Command.dedupKey type guard), which is fine since neither
@@ -24,45 +18,17 @@ function asStoredEvent(payload: unknown): Envelope {
   return payload as Envelope;
 }
 
-const SWEEP_SELECT_SQL = `
-  SELECT "id", "payload" FROM "shared"."outbox"
-  WHERE "published_at" IS NULL
-    AND "created_at" < now() - make_interval(secs => $1)
-  ORDER BY "created_at"
-  LIMIT $2
-  FOR UPDATE SKIP LOCKED
-`;
-
-const MARK_PUBLISHED_SQL = `
-  UPDATE "shared"."outbox" SET "published_at" = now()
-  WHERE "id" = $1 AND "published_at" IS NULL
-`;
-
-const SELECT_UNPUBLISHED_BY_ID_SQL = `
-  SELECT "id", "payload" FROM "shared"."outbox"
-  WHERE "id" = $1 AND "published_at" IS NULL
-`;
-
-const GC_SQL = `
-  DELETE FROM "shared"."outbox"
-  WHERE "id" IN (
-    SELECT "id" FROM "shared"."outbox"
-    WHERE "published_at" IS NOT NULL
-      AND "published_at" < now() - make_interval(days => $1)
-    LIMIT $2
-  )
-`;
-
-// Single publication path used by both the inline dispatch (OutboxEventBus, one row) and the
+// Single publication path used by both the inline dispatch (OutboxPublisher, one row) and the
 // scheduled sweep (OutboxRelayTriggerHandler, no rowIds — full grace-window batch + retention GC
-// in the same tick). See td/TD24-OUTBOX-INBOX-PATTERN.md §Design.
+// in the same tick). See td/TD24-OUTBOX-INBOX-PATTERN.md §Design. No SQL here — all persistence
+// lives behind IOutboxRepository (see TypeOrmOutboxRepository); this class only orchestrates
+// which rows get claimed/published/marked and when.
 @Injectable()
 export class OutboxRelayService {
   private readonly logger = new AppLogger(OutboxRelayService.name);
 
   constructor(
-    @InjectRepository(OutboxEventEntity)
-    private readonly repo: Repository<OutboxEventEntity>,
+    @Inject(OUTBOX_REPOSITORY) private readonly outboxRepo: IOutboxRepository,
     private readonly innerBus: GcpPubSubEventBusAdapter,
     private readonly config: ConfigService,
   ) {}
@@ -85,13 +51,11 @@ export class OutboxRelayService {
   // and this is a no-op — never a double-publish-then-double-mark.
   private async publishAndMarkOne(id: string): Promise<void> {
     try {
-      const rows = (await this.repo.query(SELECT_UNPUBLISHED_BY_ID_SQL, [
-        id,
-      ])) as OutboxRowForDispatch[];
-      if (rows.length === 0) return;
+      const row = await this.outboxRepo.findUnpublishedById(id);
+      if (!row) return;
 
-      await this.innerBus.publish(asStoredEvent(rows[0].payload));
-      await this.repo.query(MARK_PUBLISHED_SQL, [id]);
+      await this.innerBus.publish(asStoredEvent(row.payload));
+      await this.outboxRepo.markPublished(id);
     } catch (err) {
       this.logger.error(
         '[outbox] relay publish failed — row stays unpublished, the sweep will retry',
@@ -111,18 +75,15 @@ export class OutboxRelayService {
 
     let more = true;
     while (more) {
-      more = await this.repo.manager.transaction(async (manager: EntityManager) => {
-        const rows = (await manager.query(SWEEP_SELECT_SQL, [
-          graceSeconds,
-          batchSize,
-        ])) as OutboxRowForDispatch[];
+      more = await this.outboxRepo.runInTransaction(async (manager: EntityManager) => {
+        const rows = await this.outboxRepo.claimUnpublished(manager, graceSeconds, batchSize);
 
         if (rows.length === 0) return false;
 
         for (const row of rows) {
           try {
             await this.innerBus.publish(asStoredEvent(row.payload));
-            await manager.query(MARK_PUBLISHED_SQL, [row.id]);
+            await this.outboxRepo.markPublished(row.id, manager);
           } catch (err) {
             // Swallowed: this row stays unpublished (published_at still NULL) and is retried
             // next tick. The transaction still commits, releasing the SKIP LOCKED lock on it.
@@ -145,6 +106,6 @@ export class OutboxRelayService {
   private async gc(): Promise<void> {
     const retentionDays = this.config.get<number>('OUTBOX_RETENTION_DAYS', 14);
     const batchSize = this.config.get<number>('OUTBOX_SWEEP_BATCH_SIZE', 100);
-    await this.repo.query(GC_SQL, [retentionDays, batchSize]);
+    await this.outboxRepo.deleteOldPublished(retentionDays, batchSize);
   }
 }

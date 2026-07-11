@@ -24,14 +24,17 @@ import { uuidv7 } from '../../domain/uuid-v7';
 import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
 import { OutboxEventEntity } from './outbox-event.entity';
 import { OutboxRelayService } from './outbox-relay.service';
+import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
 
 describe('OutboxRelayService (integration)', () => {
   let ds: DataSource;
   let outboxRepo: Repository<OutboxEventEntity>;
+  let typeOrmOutboxRepo: TypeOrmOutboxRepository;
 
   beforeAll(async () => {
     ds = await createTestDataSource();
     outboxRepo = ds.getRepository(OutboxEventEntity);
+    typeOrmOutboxRepo = new TypeOrmOutboxRepository(outboxRepo);
   });
 
   afterAll(async () => {
@@ -43,7 +46,7 @@ describe('OutboxRelayService (integration)', () => {
       const innerBus = {
         publish: jest.fn().mockResolvedValue(undefined),
       } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
-      const service = new OutboxRelayService(outboxRepo, innerBus, makeConfigService());
+      const service = new OutboxRelayService(typeOrmOutboxRepo, innerBus, makeConfigService());
       const row = new OutboxEventEntityBuilder().withPayload({ eventName: 'StubEvent' }).build();
       await outboxRepo.save(row);
 
@@ -57,7 +60,7 @@ describe('OutboxRelayService (integration)', () => {
       const innerBus = {
         publish: jest.fn().mockRejectedValue(new Error('pubsub down')),
       } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
-      const service = new OutboxRelayService(outboxRepo, innerBus, makeConfigService());
+      const service = new OutboxRelayService(typeOrmOutboxRepo, innerBus, makeConfigService());
       const row = new OutboxEventEntityBuilder().withPayload({ eventName: 'StubEvent' }).build();
       await outboxRepo.save(row);
 
@@ -87,7 +90,7 @@ describe('OutboxRelayService (integration)', () => {
       await outboxRepo.save([freshRow, oldRow]);
 
       const service = new OutboxRelayService(
-        outboxRepo,
+        typeOrmOutboxRepo,
         innerBus,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 30 }),
       );
@@ -114,7 +117,7 @@ describe('OutboxRelayService (integration)', () => {
       await outboxRepo.save(rows);
 
       const service = new OutboxRelayService(
-        outboxRepo,
+        typeOrmOutboxRepo,
         innerBus,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 0, OUTBOX_SWEEP_BATCH_SIZE: 2 }),
       );
@@ -149,7 +152,7 @@ describe('OutboxRelayService (integration)', () => {
       await outboxRepo.save(rows);
 
       const service = new OutboxRelayService(
-        outboxRepo,
+        typeOrmOutboxRepo,
         innerBus,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 0, OUTBOX_SWEEP_BATCH_SIZE: 10 }),
       );
@@ -192,7 +195,7 @@ describe('OutboxRelayService (integration)', () => {
 
       // Grace window set very high so the sweep itself claims nothing — isolates this test to GC.
       const service = new OutboxRelayService(
-        outboxRepo,
+        typeOrmOutboxRepo,
         innerBus,
         makeConfigService({ OUTBOX_RETENTION_DAYS: 14, OUTBOX_SWEEP_GRACE_SECONDS: 999_999 }),
       );
@@ -237,7 +240,7 @@ describe('OutboxRelayService (integration)', () => {
         .build();
       await outboxRepo.save(row);
 
-      const service = new OutboxRelayService(outboxRepo, realAdapter, makeConfigService());
+      const service = new OutboxRelayService(typeOrmOutboxRepo, realAdapter, makeConfigService());
       await service.relay([row.id]);
 
       expect(mockPublishMessage).toHaveBeenCalledTimes(1);

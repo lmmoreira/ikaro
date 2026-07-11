@@ -1,8 +1,8 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
-import { BookingReminderDue } from '../../../booking/domain/events/booking-reminder-due.event';
-import { BookingReminderDueToday } from '../../../booking/domain/events/booking-reminder-due-today.event';
+import { BookingReminderDue } from '../../../booking/domain/commands/booking-reminder-due.command';
+import { BookingReminderDueToday } from '../../../booking/domain/commands/booking-reminder-due-today.command';
 import { SendBookingReminderDueNotificationDto } from '../../application/dtos/send-booking-reminder-due-notification.dto';
 import { BaseBookingReminderNotificationUseCase } from '../../application/use-cases/base-booking-reminder-notification.use-case';
 import { SendBookingReminderDueNotificationUseCase } from '../../application/use-cases/send-booking-reminder-due-notification/send-booking-reminder-due-notification.use-case';

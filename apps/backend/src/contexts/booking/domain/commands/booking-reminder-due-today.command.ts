@@ -15,7 +15,7 @@ interface BookingReminderDueTodayData extends Record<string, unknown> {
   lines: ReminderLine[];
 }
 
-// A Command, not a fact — see booking-reminder-due.event.ts for the full rationale (same shape,
+// A Command, not a fact — see booking-reminder-due.command.ts for the full rationale (same shape,
 // one calendar day earlier: "today" instead of "tomorrow").
 export class BookingReminderDueToday extends Command<BookingReminderDueTodayData> {
   readonly eventVersion = 1;

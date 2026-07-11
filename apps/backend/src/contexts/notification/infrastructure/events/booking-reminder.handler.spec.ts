@@ -1,6 +1,6 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { BookingReminderDue } from '../../../booking/domain/events/booking-reminder-due.event';
-import { BookingReminderDueToday } from '../../../booking/domain/events/booking-reminder-due-today.event';
+import { BookingReminderDue } from '../../../booking/domain/commands/booking-reminder-due.command';
+import { BookingReminderDueToday } from '../../../booking/domain/commands/booking-reminder-due-today.command';
 import { SendBookingReminderDueNotificationUseCase } from '../../application/use-cases/send-booking-reminder-due-notification/send-booking-reminder-due-notification.use-case';
 import { SendBookingReminderDueTodayNotificationUseCase } from '../../application/use-cases/send-booking-reminder-due-today-notification/send-booking-reminder-due-today-notification.use-case';
 import { BookingReminderHandler } from './booking-reminder.handler';

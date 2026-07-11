@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
 import { utcDateString } from '../../../../shared/utils/calendar-date';
-import { PointsExpiringSoon } from '../../domain/events/points-expiring-soon.event';
+import { PointsExpiringSoon } from '../../domain/commands/points-expiring-soon.command';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
 import { ILoyaltyPlatformPort, LOYALTY_PLATFORM_PORT } from '../ports/loyalty-platform.port';
 import {

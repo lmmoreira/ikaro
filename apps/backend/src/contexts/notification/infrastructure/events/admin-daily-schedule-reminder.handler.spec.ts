@@ -1,5 +1,5 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { AdminDailyScheduleReminder } from '../../../booking/domain/events/admin-daily-schedule-reminder.event';
+import { AdminDailyScheduleReminder } from '../../../booking/domain/commands/admin-daily-schedule-reminder.command';
 import { SendAdminDailyScheduleReminderNotificationUseCase } from '../../application/use-cases/send-admin-daily-schedule-reminder-notification/send-admin-daily-schedule-reminder-notification.use-case';
 import { AdminDailyScheduleReminderHandler } from './admin-daily-schedule-reminder.handler';
 

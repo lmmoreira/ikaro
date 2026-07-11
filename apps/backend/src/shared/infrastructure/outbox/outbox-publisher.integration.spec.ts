@@ -10,8 +10,9 @@ import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
 import { getActiveEntityManager } from '../transaction-context';
 import { TypeOrmTransactionManager } from '../typeorm-transaction-manager';
 import { OutboxEventEntity } from './outbox-event.entity';
-import { OutboxEventBus } from './outbox-event-bus';
+import { OutboxPublisher } from './outbox-publisher';
 import { OutboxRelayService } from './outbox-relay.service';
+import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
 
 class StubEvent extends DomainEvent<{ value: string }> {
   readonly eventVersion = 1;
@@ -31,9 +32,10 @@ class StubCommand extends Command<{ value: string }> {
   }
 }
 
-describe('OutboxEventBus (integration)', () => {
+describe('OutboxPublisher (integration)', () => {
   let ds: DataSource;
   let outboxRepo: Repository<OutboxEventEntity>;
+  let typeOrmOutboxRepo: TypeOrmOutboxRepository;
   let tenantRepo: Repository<TenantEntity>;
   let txManager: TypeOrmTransactionManager;
   let innerBus: jest.Mocked<GcpPubSubEventBusAdapter>;
@@ -41,6 +43,7 @@ describe('OutboxEventBus (integration)', () => {
   beforeAll(async () => {
     ds = await createTestDataSource();
     outboxRepo = ds.getRepository(OutboxEventEntity);
+    typeOrmOutboxRepo = new TypeOrmOutboxRepository(outboxRepo);
     tenantRepo = ds.getRepository(TenantEntity);
     txManager = new TypeOrmTransactionManager(ds);
   });
@@ -55,14 +58,14 @@ describe('OutboxEventBus (integration)', () => {
     } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
   });
 
-  function makeBus(inlineDispatchEnabled = true): OutboxEventBus {
+  function makePublisher(inlineDispatchEnabled = true): OutboxPublisher {
     const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: inlineDispatchEnabled });
-    const relay = new OutboxRelayService(outboxRepo, innerBus, config);
-    return new OutboxEventBus(outboxRepo, innerBus, relay, config);
+    const relay = new OutboxRelayService(typeOrmOutboxRepo, innerBus, config);
+    return new OutboxPublisher(typeOrmOutboxRepo, relay, config);
   }
 
   it('rolls back the outbox row together with the business write when the transaction throws', async () => {
-    const bus = makeBus();
+    const publisher = makePublisher();
     const tenantId = uuidv7();
     const event = new StubEvent(tenantId, uuidv7(), { value: 'x' });
 
@@ -74,7 +77,7 @@ describe('OutboxEventBus (integration)', () => {
           TenantEntity,
           new TenantEntityBuilder().withId(tenantId).withSlug(`outbox-eb-rb-${tenantId}`).build(),
         );
-        await bus.publish(event);
+        await publisher.publish(event);
         throw new Error('force rollback');
       }),
     ).rejects.toThrow('force rollback');
@@ -85,7 +88,7 @@ describe('OutboxEventBus (integration)', () => {
   });
 
   it('commits the outbox row together with the business write and dispatches inline after commit', async () => {
-    const bus = makeBus(true);
+    const publisher = makePublisher(true);
     const tenantId = uuidv7();
     const event = new StubEvent(tenantId, uuidv7(), { value: 'x' });
 
@@ -94,7 +97,7 @@ describe('OutboxEventBus (integration)', () => {
         TenantEntity,
         new TenantEntityBuilder().withId(tenantId).withSlug(`outbox-eb-commit-${tenantId}`).build(),
       );
-      await bus.publish(event);
+      await publisher.publish(event);
     });
 
     const outboxRow = await outboxRepo.findOne({ where: { id: event.eventId } });
@@ -105,10 +108,10 @@ describe('OutboxEventBus (integration)', () => {
   });
 
   it('commits the outbox row standalone when published outside any transaction', async () => {
-    const bus = makeBus(false);
+    const publisher = makePublisher(false);
     const event = new StubEvent(uuidv7(), uuidv7(), { value: 'x' });
 
-    await bus.publish(event);
+    await publisher.publish(event);
 
     const outboxRow = await outboxRepo.findOne({ where: { id: event.eventId } });
     expect(outboxRow).not.toBeNull();
@@ -116,18 +119,18 @@ describe('OutboxEventBus (integration)', () => {
   });
 
   it('is a no-op on a conflicting dedup_key — no new row, no dispatch for the losing attempt', async () => {
-    const bus = makeBus(true);
+    const publisher = makePublisher(true);
     const tenantId = uuidv7();
     const dedupKey = `business-key-${uuidv7()}`;
     // Two Commands with different eventIds but the same dedupKey — mirrors a retried/overlapping
     // cron run constructing the same business fact twice.
     const first = new StubCommand(tenantId, uuidv7(), { value: 'x' }, dedupKey);
 
-    await bus.publish(first);
+    await publisher.publish(first);
     innerBus.publish.mockClear();
 
     const second = new StubCommand(tenantId, uuidv7(), { value: 'y' }, dedupKey);
-    await bus.publish(second);
+    await publisher.publish(second);
 
     const rows = await outboxRepo.find({ where: { dedupKey } });
     expect(rows).toHaveLength(1);
@@ -136,7 +139,7 @@ describe('OutboxEventBus (integration)', () => {
   });
 
   it('after-commit error isolation: a failing inline dispatch does not stop another event in the same tx from dispatching, and txManager.run() resolves normally', async () => {
-    const bus = makeBus(true);
+    const publisher = makePublisher(true);
     const tenantId = uuidv7();
     const event1 = new StubEvent(tenantId, uuidv7(), { value: 'x' });
     const event2 = new StubEvent(tenantId, uuidv7(), { value: 'y' });
@@ -147,8 +150,8 @@ describe('OutboxEventBus (integration)', () => {
 
     await expect(
       txManager.run(async () => {
-        await bus.publish(event1);
-        await bus.publish(event2);
+        await publisher.publish(event1);
+        await publisher.publish(event2);
       }),
     ).resolves.toBeUndefined();
 

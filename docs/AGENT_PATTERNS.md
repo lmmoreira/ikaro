@@ -23,6 +23,13 @@ export interface IXxxRepository {
 }
 ```
 
+**Applies to `shared/infrastructure/` cross-cutting classes too, not just bounded-context aggregates.** Any class outside a `typeorm-xxx.repository.ts` file that touches `@InjectRepository`, `Repository<T>.query()`, raw SQL, or `EntityManager` directly has the same problem a context's use case would have — extract the port to `shared/ports/xxx-repository.port.ts` and the adapter to `shared/infrastructure/<feature>/typeorm-xxx.repository.ts`. Worked example: `shared/infrastructure/outbox/typeorm-outbox.repository.ts` — `OutboxPublisher`/`OutboxRelayService` originally embedded every `INSERT`/`SELECT ... FOR UPDATE SKIP LOCKED`/`UPDATE`/`DELETE` statement directly before this split (TD24 D13; see `docs/ANTI_PATTERNS.md`).
+
+**Checklist before writing a new class in `shared/infrastructure/` (or any infrastructure folder):**
+1. Does it touch a database or raw SQL directly? → extract a repository port first (above), even if there's only one call site today.
+2. Does it implement more than one interface/port? → confirm each interface's methods are actually invoked through the token *this* class will occupy — not merely carried along by DI alias chaining (`docs/ANTI_PATTERNS.md`'s ISP-via-alias-chaining row).
+3. Is its DI registration a `useExisting` alias of a functional token that's expected to be rebound to a different implementation later? → make this class the anchor bare provider instead, and have the functional token(s) alias *it* (`docs/ANTI_PATTERNS.md`'s anchor-direction row).
+
 ---
 
 ### 2. Domain Error Class

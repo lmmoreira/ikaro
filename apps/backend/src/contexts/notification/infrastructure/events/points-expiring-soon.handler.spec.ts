@@ -1,5 +1,5 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { PointsExpiringSoon } from '../../../loyalty/domain/events/points-expiring-soon.event';
+import { PointsExpiringSoon } from '../../../loyalty/domain/commands/points-expiring-soon.command';
 import { SendPointsExpiringSoonNotificationUseCase } from '../../application/use-cases/send-points-expiring-soon-notification/send-points-expiring-soon-notification.use-case';
 import { PointsExpiringSoonHandler } from './points-expiring-soon.handler';
 

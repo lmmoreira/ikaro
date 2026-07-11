@@ -3,7 +3,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { IEventBus } from '../../../../shared/ports/event-bus.port';
-import { PointsExpiringSoon } from '../../../loyalty/domain/events/points-expiring-soon.event';
+import { PointsExpiringSoon } from '../../../loyalty/domain/commands/points-expiring-soon.command';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/customer-entity.builder';

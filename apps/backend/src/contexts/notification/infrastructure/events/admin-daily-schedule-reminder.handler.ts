@@ -1,7 +1,7 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
-import { AdminDailyScheduleReminder } from '../../../booking/domain/events/admin-daily-schedule-reminder.event';
+import { AdminDailyScheduleReminder } from '../../../booking/domain/commands/admin-daily-schedule-reminder.command';
 import { SendAdminDailyScheduleReminderNotificationUseCase } from '../../application/use-cases/send-admin-daily-schedule-reminder-notification/send-admin-daily-schedule-reminder-notification.use-case';
 
 @Injectable()

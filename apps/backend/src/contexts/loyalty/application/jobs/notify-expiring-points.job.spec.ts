@@ -2,7 +2,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyPlatformPort } from '../../../../test/infrastructure/in-memory-loyalty-platform.port';
 import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
-import { PointsExpiringSoon } from '../../domain/events/points-expiring-soon.event';
+import { PointsExpiringSoon } from '../../domain/commands/points-expiring-soon.command';
 import { NotifyExpiringPointsJob } from './notify-expiring-points.job';
 
 const TENANT_A = 'aaaaaaaa-0000-4000-8000-000000001601';
