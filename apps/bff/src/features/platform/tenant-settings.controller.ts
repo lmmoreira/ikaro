@@ -11,7 +11,7 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 
 const HHMM_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const timeOfDayField = () =>
+const timeOfDayField = (): z.ZodString =>
   z.string().refine((v) => HHMM_REGEX.test(v), {
     error: 'must be HH:MM (00:00–23:59)',
     params: { code: TimeOfDayErrorCode.FORMAT_INVALID },

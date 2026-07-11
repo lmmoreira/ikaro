@@ -118,7 +118,7 @@ describe('Money', () => {
     it('throws MoneyValidationError with CURRENCY_INVALID on a malformed currency code', () => {
       expect(() => Money.from(100, 'br')).toThrow(MoneyValidationError);
       try {
-        Money.from(100, '1234');
+        Money.from(100, 'br');
       } catch (err) {
         expect((err as MoneyValidationError).code).toBe(MoneyErrorCode.CURRENCY_INVALID);
       }

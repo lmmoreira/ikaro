@@ -2,9 +2,9 @@ import { SeoErrorCode } from '@ikaro/types';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 
 export class SeoTitleValidationError extends Error implements DomainErrorShape {
-  readonly code: SeoErrorCode;
+  readonly code: typeof SeoErrorCode.TITLE_TOO_LONG;
 
-  constructor(message: string, code: SeoErrorCode) {
+  constructor(message: string, code: typeof SeoErrorCode.TITLE_TOO_LONG) {
     super(message);
     Object.setPrototypeOf(this, new.target.prototype);
     this.name = 'SeoTitleValidationError';

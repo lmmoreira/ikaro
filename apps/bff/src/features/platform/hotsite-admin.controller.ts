@@ -17,7 +17,7 @@ import {
 } from '@ikaro/types';
 
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
-const hexColorField = () =>
+const hexColorField = (): z.ZodString =>
   z.string().refine((v) => HEX_COLOR_REGEX.test(v), {
     error: 'must be a valid hex color (e.g. #FF5733)',
     params: { code: HexColorErrorCode.FORMAT_INVALID },

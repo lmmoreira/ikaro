@@ -57,6 +57,11 @@ describe('TimeOfDay', () => {
 
     it('throws TimeOfDayValidationError with FORMAT_INVALID for an invalid HH:MM:SS value', () => {
       expect(() => TimeOfDay.create('24:00:00')).toThrow(TimeOfDayValidationError);
+      try {
+        TimeOfDay.create('24:00:00');
+      } catch (err) {
+        expect((err as TimeOfDayValidationError).code).toBe(TimeOfDayErrorCode.FORMAT_INVALID);
+      }
     });
   });
 
