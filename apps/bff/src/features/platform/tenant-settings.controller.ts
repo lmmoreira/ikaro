@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { z } from 'zod';
-import { TenantSettingsResponse } from '@ikaro/types';
+import { PlatformErrorCode, TenantSettingsResponse } from '@ikaro/types';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -107,7 +107,8 @@ export const UpdateTenantSettingsBodySchema = z.object({
     })
     .strict()
     .refine((settings) => Object.values(settings).some((value) => value !== undefined), {
-      message: 'at least one settings field must be provided',
+      error: 'at least one settings field must be provided',
+      params: { code: PlatformErrorCode.SETTINGS_UPDATE_EMPTY },
     }),
 });
 
