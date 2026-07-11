@@ -1,7 +1,10 @@
-import { PlatformDomainError } from '../errors/platform-domain.error';
+import {
+  PlatformDomainError,
+  TenantSettingsValidationError,
+} from '../errors/platform-domain.error';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
-import { TenantSettings, TenantSettingsValidationError } from './tenant-settings.vo';
+import { TenantSettings } from './tenant-settings.vo';
 import { TenantSettingsPropsBuilder } from '../../../../test/builders/platform';
 
 describe('TenantSettings', () => {

@@ -1,9 +1,7 @@
 import { countrySpec } from '@ikaro/i18n';
-import { Email } from '../../../../shared/value-objects/email.vo';
 import { Address, type AddressProps } from '../../../../shared/value-objects/address';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
-import type { BusinessHours, DayHours } from '../../../../shared/value-objects/business-hours.vo';
-import { PhoneNumber } from '../../../../shared/value-objects/phone-number.vo';
+import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import type {
   BusinessInfo,
   BookingSettings,
@@ -11,12 +9,15 @@ import type {
   LoyaltySettings,
   NotificationSettings,
   ResolvedLocalization,
-  SocialLinks,
   TenantSettingsData,
 } from '../../../../shared/value-objects/tenant-settings-data';
-import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
-import { Timezone } from '../../../../shared/value-objects/timezone.vo';
-import { PlatformDomainError } from '../errors/platform-domain.error';
+import { BookingSettingsValidator } from './validators/booking-settings.validator';
+import { BusinessHoursValidator } from './validators/business-hours.validator';
+import { BusinessInfoValidator } from './validators/business-info.validator';
+import { LocalizationSettingsValidator } from './validators/localization-settings.validator';
+import { LoyaltySettingsValidator } from './validators/loyalty-settings.validator';
+import { NotificationSettingsValidator } from './validators/notification-settings.validator';
+import { requireTrimmedString } from './validators/require-trimmed-string';
 
 export type {
   AddressProps,
@@ -26,8 +27,8 @@ export type {
   LoyaltySettings,
   NotificationSettings,
   ResolvedLocalization,
-  SocialLinks,
 };
+export type { SocialLinks } from '../../../../shared/value-objects/tenant-settings-data';
 export type TenantSettingsProps = TenantSettingsData;
 
 export class TenantSettings {
@@ -168,134 +169,12 @@ export class TenantSettings {
   }
 
   private static validate(props: TenantSettingsProps): void {
-    TenantSettings.validateLoyalty(props.loyalty);
-    TenantSettings.validateBooking(props.booking);
-    TenantSettings.validateBusinessHours(props.businessHours);
-    TenantSettings.validateLocalization(props.localization);
-    TenantSettings.validateNotification(props.notification);
-    TenantSettings.validateBusinessInfo(props.businessInfo);
-  }
-
-  private static validateLocalization(localization: LocalizationSettings): void {
-    const currency = TenantSettings.requireTrimmedString(
-      localization.currency,
-      'localization.currency',
-    );
-    if (!currency) {
-      throw new TenantSettingsValidationError('localization.currency must not be empty');
-    }
-    const language = TenantSettings.requireTrimmedString(
-      localization.language,
-      'localization.language',
-    );
-    if (!language) {
-      throw new TenantSettingsValidationError('localization.language must not be empty');
-    }
-    if (localization.currencySymbol != null) {
-      const currencySymbol = TenantSettings.requireTrimmedString(
-        localization.currencySymbol,
-        'localization.currencySymbol',
-      );
-      if (currencySymbol.length < 1 || currencySymbol.length > 3) {
-        throw new TenantSettingsValidationError(
-          'localization.currencySymbol must be between 1 and 3 characters',
-        );
-      }
-    }
-    if (
-      !Number.isInteger(localization.decimalPlaces) ||
-      localization.decimalPlaces < 0 ||
-      localization.decimalPlaces > 8
-    ) {
-      throw new TenantSettingsValidationError('localization.decimalPlaces must be between 0 and 8');
-    }
-  }
-
-  private static validateNotification(notification: NotificationSettings | undefined): void {
-    if (notification?.fromEmail != null && !Email.isValid(notification.fromEmail)) {
-      throw new PlatformDomainError('notification.fromEmail must be a valid email address');
-    }
-  }
-
-  private static validateLoyalty(loyalty: LoyaltySettings): void {
-    if (loyalty.expiryDays < 1 || loyalty.expiryDays > 3650) {
-      throw new PlatformDomainError('loyalty.expiryDays must be between 1 and 3650');
-    }
-    if (loyalty.expiryWarningDays < 1 || loyalty.expiryWarningDays > 90) {
-      throw new PlatformDomainError('loyalty.expiryWarningDays must be between 1 and 90');
-    }
-    if (loyalty.expiryWarningDays >= loyalty.expiryDays) {
-      throw new PlatformDomainError('loyalty.expiryWarningDays must be less than expiryDays');
-    }
-    if (loyalty.notificationMinPoints < 0 || loyalty.notificationMinPoints > 10000) {
-      throw new PlatformDomainError('loyalty.notificationMinPoints must be between 0 and 10000');
-    }
-    if (loyalty.pointsPerCurrencyUnit < 0 || loyalty.pointsPerCurrencyUnit > 10000) {
-      throw new PlatformDomainError('loyalty.pointsPerCurrencyUnit must be between 0 and 10000');
-    }
-  }
-
-  private static validateBooking(booking: BookingSettings): void {
-    if (booking.cancellationWindowHours < 0 || booking.cancellationWindowHours > 720) {
-      throw new PlatformDomainError('booking.cancellationWindowHours must be between 0 and 720');
-    }
-    if (booking.minBookingAdvanceHours < 0) {
-      throw new PlatformDomainError('booking.minBookingAdvanceHours must be >= 0');
-    }
-    if (booking.maxBookingAdvanceDays < 1) {
-      throw new PlatformDomainError('booking.maxBookingAdvanceDays must be >= 1');
-    }
-    if (booking.serviceBufferMinutes < 0 || booking.serviceBufferMinutes > 120) {
-      throw new PlatformDomainError('booking.serviceBufferMinutes must be between 0 and 120');
-    }
-    if (![15, 30, 60].includes(booking.slotGranularityMinutes)) {
-      throw new PlatformDomainError('booking.slotGranularityMinutes must be 15, 30, or 60');
-    }
-    if (!Number.isInteger(booking.welcomeStaffScreenDays)) {
-      throw new PlatformDomainError('booking.welcomeStaffScreenDays must be an integer');
-    }
-    if (booking.welcomeStaffScreenDays < 1 || booking.welcomeStaffScreenDays > 90) {
-      throw new PlatformDomainError('booking.welcomeStaffScreenDays must be between 1 and 90');
-    }
-  }
-
-  private static validateBusinessHours(businessHours: BusinessHours): void {
-    if (!Timezone.isValid(businessHours.timezone)) {
-      throw new PlatformDomainError(`Invalid IANA timezone: ${businessHours.timezone}`);
-    }
-    const days = [
-      'monday',
-      'tuesday',
-      'wednesday',
-      'thursday',
-      'friday',
-      'saturday',
-      'sunday',
-    ] as const;
-    for (const day of days) {
-      TenantSettings.validateDayHours(day, businessHours[day]);
-    }
-  }
-
-  private static validateDayHours(day: string, hours: DayHours): void {
-    if (hours === null || hours === undefined) return;
-    if (!TimeOfDay.isValid(hours.open) || !TimeOfDay.isValid(hours.close)) {
-      throw new PlatformDomainError(`businessHours.${day}: open/close must be HH:MM format`);
-    }
-    if (hours.close <= hours.open) {
-      throw new PlatformDomainError(`businessHours.${day}: close must be after open`);
-    }
-  }
-
-  private static validateBusinessInfo(businessInfo: BusinessInfo | undefined): void {
-    if (!businessInfo) return;
-    if (businessInfo.phone != null && !PhoneNumber.isValid(businessInfo.phone)) {
-      throw new PlatformDomainError('businessInfo.phone must be a valid phone number');
-    }
-    if (businessInfo.email != null && !Email.isValid(businessInfo.email)) {
-      throw new PlatformDomainError('businessInfo.email must be a valid email address');
-    }
-    TenantSettings.validateSocialLinks(businessInfo.socialLinks);
+    LoyaltySettingsValidator.validate(props.loyalty);
+    BookingSettingsValidator.validate(props.booking);
+    BusinessHoursValidator.validate(props.businessHours);
+    LocalizationSettingsValidator.validate(props.localization);
+    NotificationSettingsValidator.validate(props.notification);
+    BusinessInfoValidator.validate(props.businessInfo);
   }
 
   private static normalizeBusinessInfo(
@@ -312,15 +191,12 @@ export class TenantSettings {
   private static normalizeLocalization(localization: LocalizationSettings): LocalizationSettings {
     return {
       ...localization,
-      currency: TenantSettings.requireTrimmedString(localization.currency, 'localization.currency'),
-      language: TenantSettings.requireTrimmedString(localization.language, 'localization.language'),
+      currency: requireTrimmedString(localization.currency, 'localization.currency'),
+      language: requireTrimmedString(localization.language, 'localization.language'),
       currencySymbol:
         localization.currencySymbol == null
           ? localization.currencySymbol
-          : TenantSettings.requireTrimmedString(
-              localization.currencySymbol,
-              'localization.currencySymbol',
-            ),
+          : requireTrimmedString(localization.currencySymbol, 'localization.currencySymbol'),
     };
   }
 
@@ -331,28 +207,5 @@ export class TenantSettings {
     if (address == null) return null;
     const normalizedAddress = Address.create(address, countryCode.spec.address);
     return normalizedAddress.toJSON();
-  }
-
-  private static validateSocialLinks(socialLinks: SocialLinks | null): void {
-    if (socialLinks == null) return;
-    if (socialLinks.whatsapp != null && !PhoneNumber.isValid(socialLinks.whatsapp)) {
-      throw new PlatformDomainError(
-        'businessInfo.socialLinks.whatsapp must be a valid phone number',
-      );
-    }
-  }
-
-  private static requireTrimmedString(value: unknown, field: string): string {
-    if (typeof value !== 'string') {
-      throw new TenantSettingsValidationError(`${field} must be a string`);
-    }
-    return value.trim();
-  }
-}
-
-export class TenantSettingsValidationError extends PlatformDomainError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'TenantSettingsValidationError';
   }
 }

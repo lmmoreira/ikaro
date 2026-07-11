@@ -9,6 +9,8 @@ Mark a story as done in its milestone plan file and commit the change to main.
 
 Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
 
+**TD stories** (`TDxx Story N`) are not covered by this command — `$ARGUMENTS` only parses `M0X-SYY` milestone syntax, and Step 5 requires being on `main`. Mark a TD story done by appending ` ✅ Done` directly to its `#### Story N —` heading in the `td/TDxx-*.md` file, bundled into the same feature-branch commit as the story's implementation — not as a separate post-merge `main` commit. See TD23 Stories 4-7 for precedent.
+
 ---
 
 ## Steps
