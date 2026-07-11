@@ -1,7 +1,7 @@
 # TD23 — Exception Handling & i18n Pattern: Backend → BFF → UI
 
 ## Status
-- **State**: In Progress — Stories 1-3, 4, 5, 6 done (Wave 1 complete, Wave 2 in progress: booking, customer, loyalty, staff contexts)
+- **State**: In Progress — Stories 1-3, 4, 5, 6, 7 done (Wave 1 complete, Wave 2 nearly complete: booking, customer, staff, loyalty, platform contexts done; Story 8 shared VOs remaining)
 - **Type**: Technical Debt / Cross-Cutting Architecture Pattern
 - **Priority**: Medium — no single instance is a P0 outage, but the systemic gap already causes 2 confirmed raw-English-in-pt-BR-UI leaks in production code, a fragile string-match anti-pattern, a dead-but-leak-shaped mechanism, and 40+ error paths across the app that lose specificity they could have
 - **Scope**: `apps/backend` (all 6 contexts + shared value objects), `apps/bff` (all feature slices), `apps/web` (all domain/shell slices), `packages/types`, `packages/i18n`
@@ -404,7 +404,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ---
 
-#### Story 7 — Platform context: codes (heaviest single-context load) + dead-class decisions
+#### Story 7 — Platform context: codes (heaviest single-context load) + dead-class decisions ✅ Done
 
 **Scope:** `apps/backend/src/contexts/platform/**`, `platform-error.mapper.ts`.
 
