@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
-import { PointsExpiringSoon } from '../../domain/events/points-expiring-soon.event';
+import { utcDateString } from '../../../../shared/utils/calendar-date';
+import { PointsExpiringSoon } from '../../domain/commands/points-expiring-soon.command';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
 import { ILoyaltyPlatformPort, LOYALTY_PLATFORM_PORT } from '../ports/loyalty-platform.port';
 import {
@@ -28,6 +29,7 @@ export class NotifyExpiringPointsJob {
     warningDays = DEFAULT_EXPIRY_WARNING_DAYS,
   ): Promise<NotifyExpiringPointsJobResult> {
     const correlationId = uuidv7();
+    const runDate = utcDateString(now);
     const to = new Date(now.getTime() + warningDays * 24 * 60 * 60 * 1000);
 
     const entries = await this.entryRepo.findExpiringSoon(now, to);
@@ -49,11 +51,16 @@ export class NotifyExpiringPointsJob {
           .reduce((min, d) => new Date(Math.min(d.getTime(), min.getTime())), group[0].expiresAt);
 
         await this.eventBus.publish(
-          new PointsExpiringSoon(tenantId, correlationId, {
-            customerId,
-            pointsExpiringSoon,
-            earliestExpiresAt: earliestExpiresAt.toISOString(),
-          }),
+          new PointsExpiringSoon(
+            tenantId,
+            correlationId,
+            {
+              customerId,
+              pointsExpiringSoon,
+              earliestExpiresAt: earliestExpiresAt.toISOString(),
+            },
+            runDate,
+          ),
         );
         customersNotified++;
       }

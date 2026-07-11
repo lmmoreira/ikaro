@@ -4,7 +4,7 @@ import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { utcDateToLocalHHMM, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
-import { AdminDailyScheduleReminder } from '../../domain/events/admin-daily-schedule-reminder.event';
+import { AdminDailyScheduleReminder } from '../../domain/commands/admin-daily-schedule-reminder.command';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';

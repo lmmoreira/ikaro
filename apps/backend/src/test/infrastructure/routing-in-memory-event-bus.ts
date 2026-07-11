@@ -1,4 +1,4 @@
-import { DomainEvent } from '../../shared/domain/domain-event';
+import { Envelope } from '../../shared/domain/envelope';
 import { IEventBus } from '../../shared/ports/event-bus.port';
 import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
 
@@ -19,13 +19,13 @@ import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
  * a deterministic retry.
  */
 export class RoutingInMemoryEventBus implements IEventBus, ITriggerBus {
-  private readonly handlers = new Map<string, Array<(event: DomainEvent) => Promise<void>>>();
+  private readonly handlers = new Map<string, Array<(event: Envelope) => Promise<void>>>();
   private readonly triggerHandlers = new Map<string, Array<() => Promise<void>>>();
-  readonly published: DomainEvent[] = [];
-  private readonly queue: DomainEvent[] = [];
+  readonly published: Envelope[] = [];
+  private readonly queue: Envelope[] = [];
   private dispatching = false;
 
-  async publish(event: DomainEvent): Promise<void> {
+  async publish(event: Envelope): Promise<void> {
     this.published.push(event);
 
     if (this.dispatching) {
@@ -45,7 +45,7 @@ export class RoutingInMemoryEventBus implements IEventBus, ITriggerBus {
     }
   }
 
-  private async runHandlers(event: DomainEvent): Promise<void> {
+  private async runHandlers(event: Envelope): Promise<void> {
     for (const handler of this.handlers.get(event.eventName) ?? []) {
       try {
         await handler(event as never);
@@ -55,13 +55,13 @@ export class RoutingInMemoryEventBus implements IEventBus, ITriggerBus {
     }
   }
 
-  subscribe<T extends DomainEvent>(
+  subscribe<T extends Envelope>(
     eventName: string,
     handler: (event: T) => Promise<void>,
     _consumerName: string,
   ): void {
     const list = this.handlers.get(eventName) ?? [];
-    list.push(handler as (event: DomainEvent) => Promise<void>);
+    list.push(handler as (event: Envelope) => Promise<void>);
     this.handlers.set(eventName, list);
   }
 

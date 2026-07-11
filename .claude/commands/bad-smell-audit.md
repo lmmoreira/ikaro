@@ -34,7 +34,7 @@ git diff origin/main...HEAD --name-only | grep "^apps/web/"
 
 2. Pass this file list to the Explore agent as its explicit scope — the agent greps and reads **only those files**, not the full directory tree.
 
-3. **BE-4 is skipped in `--pr` mode** — checking for missing entity builders requires scanning the full `src/test/builders/` tree against all entity files; this is a full-codebase check that the pre-PR script (Step 1, check 28) already covers for new entities added in the PR.
+3. **BE-4 is skipped in `--pr` mode** — checking for missing entity/event/command builders requires scanning the full `src/test/builders/` tree against all entity/event/command files; this is a full-codebase check that the pre-PR script (Step 1, check 28) already covers for new entities, events, and commands added in the PR.
 
 4. All other checks (BE-1, BE-2, BE-3, BE-5, BE-6, BE-7, BFF-1–4, WEB-1–7) run normally but scoped to the changed file list.
 
@@ -78,18 +78,21 @@ Grep for:
 - Inline regex patterns like `/^[a-z0-9-]+$/`, `/^#[0-9A-Fa-f]{6}$/`, `/@.*\./` in domain or application layer files (not in value-objects)
 - `Intl.supportedValuesOf` calls outside `src/shared/value-objects/`
 
-### BE-3. `makeXxx()` helpers or inline TypeORM entity construction in tests
+### BE-3. `makeXxx()` helpers or inline TypeORM entity/event/command construction in tests
 
 Grep for:
 - `function make` in `*.spec.ts` or `*.integration.spec.ts` files
 - `new XxxEntity()` called directly inside a test `it()` or `describe()` block (not inside a builder class)
 - Object literals assigned to a variable of a TypeORM entity type inside test files
+- `new XxxEvent(...)` or `new XxxCommand(...)` (classes extending `DomainEvent`/`Command`) constructed inline with all constructor args spelled out, in **two or more** spec files (a single one-off construction in one file is fine; repetition across files is the smell)
 
-The fix pattern: create a `XxxEntityBuilder` in `src/test/builders/<context>/`.
+The fix pattern: create a `XxxEntityBuilder` (for entities) or `XxxEventBuilder`/`XxxCommandBuilder` (for `DomainEvent`/`Command` classes) in `src/test/builders/<context>/`.
 
-### BE-4. Missing `XxxEntityBuilder` for existing TypeORM entities
+### BE-4. Missing `XxxEntityBuilder`/`XxxEventBuilder`/`XxxCommandBuilder` for existing classes
 
 For each TypeORM entity class found in `*/infrastructure/entities/*.entity.ts`, check whether a corresponding `XxxEntityBuilder` exists in `src/test/builders/<context>/`. Report entities that have no builder file.
+
+Same check for domain events and commands: for each class found in `*/domain/events/*.event.ts` or `*/domain/commands/*.command.ts` that is constructed inline (via `new XxxEvent(...)`/`new XxxCommand(...)`) in **two or more** test files, check whether a corresponding `XxxEventBuilder`/`XxxCommandBuilder` exists in `src/test/builders/<context>/`. Report any that don't.
 
 ### BE-5. Seed file containing DDL
 
@@ -188,10 +191,10 @@ List filenames in `apps/web/lib/api/`. Flag any file whose name corresponds to a
 #### BE-2. Duplicated isValidXxx / inline validation
 (none found)
 
-#### BE-3. makeXxx() helpers / inline entity construction in tests
+#### BE-3. makeXxx() helpers / inline entity/event/command construction in tests
 ...
 
-#### BE-4. Missing XxxEntityBuilder
+#### BE-4. Missing XxxEntityBuilder / XxxEventBuilder / XxxCommandBuilder
 ...
 
 #### BE-5. Seed DDL

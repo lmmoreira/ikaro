@@ -5,7 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
+import { EventBusModule } from '../../../../shared/infrastructure/event-bus/event-bus.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';

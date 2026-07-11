@@ -1,16 +1,13 @@
+import { PointsExpiringSoonCommandBuilder } from '../../../../test/builders/loyalty';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { PointsExpiringSoon } from '../../../loyalty/domain/events/points-expiring-soon.event';
+import { PointsExpiringSoon } from '../../../loyalty/domain/commands/points-expiring-soon.command';
 import { SendPointsExpiringSoonNotificationUseCase } from '../../application/use-cases/send-points-expiring-soon-notification/send-points-expiring-soon-notification.use-case';
 import { PointsExpiringSoonHandler } from './points-expiring-soon.handler';
 
 const TENANT_ID = 'aaaaaaaa-0020-4000-8000-000000001604';
 
 const buildEvent = (): PointsExpiringSoon =>
-  new PointsExpiringSoon(TENANT_ID, 'corr-expiring-soon-1', {
-    customerId: 'cccccccc-0001-4000-8000-000000001604',
-    pointsExpiringSoon: 20,
-    earliestExpiresAt: '2026-06-09T00:00:00.000Z',
-  });
+  new PointsExpiringSoonCommandBuilder().withTenantId(TENANT_ID).build();
 
 describe('PointsExpiringSoonHandler', () => {
   let sendNotification: jest.Mocked<Pick<SendPointsExpiringSoonNotificationUseCase, 'execute'>>;

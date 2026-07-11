@@ -279,6 +279,7 @@ All test data uses builder classes with fluent `withXxx()` / `build()`. Never pl
 Builder types:
 - `XxxEntityBuilder` — TypeORM entity builders
 - `XxxBuilder` — aggregate builders
+- `XxxEventBuilder` / `XxxCommandBuilder` — `DomainEvent`/`Command` builders (e.g. `StaffInvitedEventBuilder`, `BookingReminderDueCommandBuilder`) — mandatory for any event/command class constructed inline in more than one spec file
 - `RequestContextBuilder` — shared request-context stub
 
 ### InMemory doubles

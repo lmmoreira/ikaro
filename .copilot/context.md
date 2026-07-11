@@ -226,6 +226,7 @@ Full list (~115 entries) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/p
 | Zod validation rule duplicates a VO's own check (e.g. `.refine(Email.isValid, ...)`) | Reuse that VO's error code — don't mint a new one. Rules with no VO behind them share a small closed `GenericErrorCode` set instead of one code per site (`docs/ENGINEERING_RULES.md` § Single source of truth for a validation rule's code) |
 | An aggregate's update method re-validates a field even when the value passed through unchanged | Compare against the current stored value first; skip validation when nothing actually changed (see the SEO-limit row in the full doc for why this matters) |
 | A route is added to an existing hide-list/allow-list by pattern-matching neighbors | Name the invariant every current member satisfies before adding a new one — surface similarity isn't the same as satisfying the same rule |
+| A non-repository class (service, publisher, handler) contains raw SQL, `@InjectRepository`, or TypeORM `Repository<T>` directly | Extract `IXxxRepository` (`shared/ports/` for cross-cutting, `<ctx>/application/ports/` for a bounded context) + `TypeOrmXxxRepository` adapter; the class depends on the port only — see `docs/AGENT_PATTERNS.md` Pattern #1 |
 
 ---
 

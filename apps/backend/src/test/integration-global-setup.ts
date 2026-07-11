@@ -47,6 +47,9 @@ import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
 import { AddUniqueEmailPerTenant1716600000004 } from '../contexts/staff/infrastructure/migrations/1716600000004-AddUniqueEmailPerTenant';
 import { AddInvitedByDeactivatedByToStaff1748000000001 } from '../contexts/staff/infrastructure/migrations/1748000000001-AddInvitedByDeactivatedByToStaff';
+import { OutboxEventEntity } from '../shared/infrastructure/outbox/outbox-event.entity';
+import { AddSharedSchema1748400000005 } from '../shared/infrastructure/migrations/1748400000005-AddSharedSchema';
+import { CreateSharedOutbox1748400000006 } from '../shared/infrastructure/migrations/1748400000006-CreateSharedOutbox';
 
 export default async function globalSetup(): Promise<void> {
   const pgContainer = await new PostgreSqlContainer('postgres:15-alpine').start();
@@ -78,9 +81,12 @@ export default async function globalSetup(): Promise<void> {
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
       ProcessedEventEntity,
+      OutboxEventEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,
+      AddSharedSchema1748400000005,
+      CreateSharedOutbox1748400000006,
       CreatePlatformTenants1716500000001,
       CreatePlatformHotsiteConfigs1716500000002,
       CreateCustomerCustomers1716600000001,

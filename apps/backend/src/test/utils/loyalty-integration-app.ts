@@ -4,7 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
+import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';

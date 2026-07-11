@@ -6,7 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import type { ModuleMetadata } from '@nestjs/common';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
-import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
+import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';

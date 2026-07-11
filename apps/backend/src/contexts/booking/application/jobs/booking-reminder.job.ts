@@ -4,8 +4,8 @@ import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { utcDateToLocalHHMM, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
-import { BookingReminderDue } from '../../domain/events/booking-reminder-due.event';
-import { BookingReminderDueToday } from '../../domain/events/booking-reminder-due-today.event';
+import { BookingReminderDue } from '../../domain/commands/booking-reminder-due.command';
+import { BookingReminderDueToday } from '../../domain/commands/booking-reminder-due-today.command';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
@@ -68,36 +68,46 @@ export class BookingReminderJob {
       for (const booking of tomorrowBookings) {
         const { email, name } = await this.resolveRecipient(booking, tenant.id);
         await this.eventBus.publish(
-          new BookingReminderDue(tenant.id, correlationId, {
-            bookingId: booking.id,
-            customerId: booking.customerId,
-            recipientEmail: email,
-            customerName: name,
-            scheduledAt: booking.scheduledAt.toISOString(),
-            appointmentSlot: this.buildSlot(booking),
-            lines: booking.lines.map((l) => ({
-              serviceId: l.serviceId,
-              serviceName: l.serviceNameAtBooking,
-            })),
-          }),
+          new BookingReminderDue(
+            tenant.id,
+            correlationId,
+            {
+              bookingId: booking.id,
+              customerId: booking.customerId,
+              recipientEmail: email,
+              customerName: name,
+              scheduledAt: booking.scheduledAt.toISOString(),
+              appointmentSlot: this.buildSlot(booking),
+              lines: booking.lines.map((l) => ({
+                serviceId: l.serviceId,
+                serviceName: l.serviceNameAtBooking,
+              })),
+            },
+            localTomorrow,
+          ),
         );
       }
 
       for (const booking of todayBookings) {
         const { email, name } = await this.resolveRecipient(booking, tenant.id);
         await this.eventBus.publish(
-          new BookingReminderDueToday(tenant.id, correlationId, {
-            bookingId: booking.id,
-            customerId: booking.customerId,
-            recipientEmail: email,
-            customerName: name,
-            scheduledAt: booking.scheduledAt.toISOString(),
-            appointmentSlot: this.buildSlot(booking),
-            lines: booking.lines.map((l) => ({
-              serviceId: l.serviceId,
-              serviceName: l.serviceNameAtBooking,
-            })),
-          }),
+          new BookingReminderDueToday(
+            tenant.id,
+            correlationId,
+            {
+              bookingId: booking.id,
+              customerId: booking.customerId,
+              recipientEmail: email,
+              customerName: name,
+              scheduledAt: booking.scheduledAt.toISOString(),
+              appointmentSlot: this.buildSlot(booking),
+              lines: booking.lines.map((l) => ({
+                serviceId: l.serviceId,
+                serviceName: l.serviceNameAtBooking,
+              })),
+            },
+            localToday,
+          ),
         );
       }
     }

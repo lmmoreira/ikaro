@@ -2,7 +2,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyPlatformPort } from '../../../../test/infrastructure/in-memory-loyalty-platform.port';
 import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
-import { PointsExpiringSoon } from '../../domain/events/points-expiring-soon.event';
+import { PointsExpiringSoon } from '../../domain/commands/points-expiring-soon.command';
 import { NotifyExpiringPointsJob } from './notify-expiring-points.job';
 
 const TENANT_A = 'aaaaaaaa-0000-4000-8000-000000001601';
@@ -164,6 +164,46 @@ describe('NotifyExpiringPointsJob', () => {
 
     expect(result.customersNotified).toBe(1);
     expect(eventBus.published.filter((e) => e.eventName === 'PointsExpiringSoon')).toHaveLength(1);
+  });
+
+  it('sets dedupKey to PointsExpiringSoon:<tenantId>:<customerId>:<UTC run date>', async () => {
+    const now = new Date('2026-06-01T06:00:00.000Z');
+    await entryRepo.save(
+      new LoyaltyEntryBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_1)
+        .withPoints(10)
+        .withExpiresAt(new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000))
+        .build(),
+    );
+
+    await job.run(now);
+
+    const event = eventBus.published.find(
+      (e) => e.eventName === 'PointsExpiringSoon',
+    ) as PointsExpiringSoon;
+    expect(event.dedupKey).toBe(`PointsExpiringSoon:${TENANT_A}:${CUSTOMER_1}:2026-06-01`);
+  });
+
+  it('two overlapping runs for the same day produce the same dedupKey (TD24-S03 cron double-send fix)', async () => {
+    const now = new Date('2026-06-01T06:00:00.000Z');
+    await entryRepo.save(
+      new LoyaltyEntryBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_1)
+        .withPoints(10)
+        .withExpiresAt(new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000))
+        .build(),
+    );
+
+    await job.run(now);
+    await job.run(now);
+
+    const events = eventBus.published.filter(
+      (e) => e.eventName === 'PointsExpiringSoon',
+    ) as PointsExpiringSoon[];
+    expect(events).toHaveLength(2); // InMemoryEventBus doesn't dedup — the outbox does (S01/S03)
+    expect(events[0].dedupKey).toBe(events[1].dedupKey);
   });
 
   it('notifies only customers above threshold, skips those below', async () => {

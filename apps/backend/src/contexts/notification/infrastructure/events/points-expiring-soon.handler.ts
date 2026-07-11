@@ -1,7 +1,7 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
-import { PointsExpiringSoon } from '../../../loyalty/domain/events/points-expiring-soon.event';
+import { PointsExpiringSoon } from '../../../loyalty/domain/commands/points-expiring-soon.command';
 import { SendPointsExpiringSoonNotificationUseCase } from '../../application/use-cases/send-points-expiring-soon-notification/send-points-expiring-soon-notification.use-case';
 
 @Injectable()

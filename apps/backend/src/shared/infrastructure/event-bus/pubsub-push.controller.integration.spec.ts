@@ -2,11 +2,11 @@ import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { EVENT_BUS } from '../ports/event-bus.port';
-import { PUSHABLE_EVENT_BUS } from '../ports/pushable-event-bus.port';
-import { OIDC_TOKEN_VERIFIER, IOidcTokenVerifier } from '../ports/oidc-token-verifier.port';
-import { DomainEvent } from '../domain/domain-event';
-import { PubSubPushGuard } from '../guards/pubsub-push.guard';
+import { EVENT_BUS } from '../../ports/event-bus.port';
+import { PUSHABLE_EVENT_BUS } from '../../ports/pushable-event-bus.port';
+import { OIDC_TOKEN_VERIFIER, IOidcTokenVerifier } from '../../ports/oidc-token-verifier.port';
+import { DomainEvent } from '../../domain/domain-event';
+import { PubSubPushGuard } from '../../guards/pubsub-push.guard';
 
 jest.mock('@google-cloud/pubsub', () => ({
   PubSub: jest.fn().mockImplementation(() => ({

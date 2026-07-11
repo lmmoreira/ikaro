@@ -7,7 +7,7 @@ import type { ModuleMetadata } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
-import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
+import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';

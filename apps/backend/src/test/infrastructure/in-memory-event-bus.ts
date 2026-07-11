@@ -1,16 +1,16 @@
-import { DomainEvent } from '../../shared/domain/domain-event';
+import { Envelope } from '../../shared/domain/envelope';
 import { IEventBus } from '../../shared/ports/event-bus.port';
 import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
 
 export class InMemoryEventBus implements IEventBus, ITriggerBus {
-  readonly published: DomainEvent[] = [];
+  readonly published: Envelope[] = [];
   readonly publishedTriggers: string[] = [];
 
-  async publish(event: DomainEvent): Promise<void> {
+  async publish(event: Envelope): Promise<void> {
     this.published.push(event);
   }
 
-  subscribe<T extends DomainEvent>(
+  subscribe<T extends Envelope>(
     _eventName: string,
     _handler: (event: T) => Promise<void>,
     _consumerName: string,

@@ -1,23 +1,9 @@
-import { uuidv7 } from './uuid-v7';
+import { Envelope } from './envelope';
 
-export abstract class DomainEvent<TData extends Record<string, unknown> = Record<string, unknown>> {
-  readonly eventId: string;
-  readonly tenantId: string;
-  readonly occurredAt: string;
-  readonly correlationId: string;
-  // Derived from the concrete subclass name (e.g. `StaffInvited`) rather than a hand-typed
-  // literal — keeps handlers' subscribe<T>(T.name, ...) calls in sync with the class by
-  // construction instead of by convention. Safe: the backend build (swc, no minification)
-  // never renames classes.
-  readonly eventName: string;
-  abstract readonly eventVersion: number;
-  abstract readonly data: TData;
-
-  protected constructor(tenantId: string, correlationId: string) {
-    this.eventId = uuidv7();
-    this.tenantId = tenantId;
-    this.occurredAt = new Date().toISOString();
-    this.correlationId = correlationId;
-    this.eventName = this.constructor.name;
-  }
-}
+// A fact that already happened to an aggregate — emitted at most once per business action
+// (booking approved, staff invited, ...). No dedup concept: the action itself can only happen
+// once, so eventId already identifies the fact uniquely. Contrast with Command (command.ts),
+// which a scheduled job may legitimately construct more than once for the same underlying fact.
+export abstract class DomainEvent<
+  TData extends Record<string, unknown> = Record<string, unknown>,
+> extends Envelope<TData> {}

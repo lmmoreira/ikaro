@@ -3,6 +3,7 @@ import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
+import { Command } from '../../../../shared/domain/command';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { AdminScheduleReminderJob } from './admin-schedule-reminder.job';
 
@@ -136,6 +137,30 @@ describe('AdminScheduleReminderJob', () => {
 
     const event = eventBus.published.find((e) => e.eventName === 'AdminDailyScheduleReminder');
     expect((event?.data as unknown as DigestEventData).localDate).toBe('2026-06-01');
+  });
+
+  it('sets dedupKey to AdminDailyScheduleReminder:<tenantId>:<local date>', async () => {
+    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+
+    await job.run(NOW_IN);
+
+    const event = eventBus.published.find(
+      (e) => e.eventName === 'AdminDailyScheduleReminder',
+    ) as Command;
+    expect(event.dedupKey).toBe(`AdminDailyScheduleReminder:${TENANT_IN}:2026-06-01`);
+  });
+
+  it('two overlapping runs for the same day produce the same dedupKey (TD24-S03 cron double-send fix)', async () => {
+    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+
+    await job.run(NOW_IN);
+    await job.run(NOW_IN);
+
+    const events = eventBus.published.filter(
+      (e) => e.eventName === 'AdminDailyScheduleReminder',
+    ) as Command[];
+    expect(events).toHaveLength(2); // InMemoryEventBus doesn't dedup — the outbox does (S01/S03)
+    expect(events[0].dedupKey).toBe(events[1].dedupKey);
   });
 
   it('tenant isolation: Tenant A bookings do not appear in Tenant B digest', async () => {

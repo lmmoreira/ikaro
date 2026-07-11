@@ -15,6 +15,7 @@ import { NotificationLogEntity } from '../contexts/notification/infrastructure/e
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
 import { StaffEntity } from '../contexts/staff/infrastructure/entities/staff.entity';
+import { OutboxEventEntity } from '../shared/infrastructure/outbox/outbox-event.entity';
 
 /**
  * Creates a DataSource for the current test file using the PostgreSQL container
@@ -48,6 +49,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
       ProcessedEventEntity,
+      OutboxEventEntity,
     ],
     synchronize: false,
     migrationsRun: false,

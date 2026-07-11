@@ -3,10 +3,10 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { IEventBus } from '../../../../shared/ports/event-bus.port';
-import { PointsExpiringSoon } from '../../../loyalty/domain/events/points-expiring-soon.event';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/customer-entity.builder';
+import { PointsExpiringSoonCommandBuilder } from '../../../../test/builders/loyalty';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { createNotificationIntegrationApp } from '../../../../test/utils/notification-integration-app';
 
@@ -72,11 +72,12 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
   afterEach(() => dispatcher.clear());
 
   it('PointsExpiringSoon → writes log and dispatches warning email to customer', async () => {
-    const event = new PointsExpiringSoon(tenantId, uuidv7(), {
-      customerId,
-      pointsExpiringSoon: 30,
-      earliestExpiresAt: '2026-06-09T00:00:00.000Z',
-    });
+    const event = new PointsExpiringSoonCommandBuilder()
+      .withTenantId(tenantId)
+      .withCorrelationId(uuidv7())
+      .withCustomerId(customerId)
+      .withPointsExpiringSoon(30)
+      .build();
 
     await eventBus.publish(event);
 
@@ -91,11 +92,12 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
   });
 
   it('is idempotent — replaying same event produces only one notification log', async () => {
-    const event = new PointsExpiringSoon(tenantId, uuidv7(), {
-      customerId,
-      pointsExpiringSoon: 10,
-      earliestExpiresAt: '2026-06-09T00:00:00.000Z',
-    });
+    const event = new PointsExpiringSoonCommandBuilder()
+      .withTenantId(tenantId)
+      .withCorrelationId(uuidv7())
+      .withCustomerId(customerId)
+      .withPointsExpiringSoon(10)
+      .build();
 
     await eventBus.publish(event);
 
@@ -114,11 +116,12 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
   });
 
   it('dispatch failure → FAILED log; explicit retry → SENT log with retryCount=1', async () => {
-    const event = new PointsExpiringSoon(tenantId, uuidv7(), {
-      customerId,
-      pointsExpiringSoon: 99,
-      earliestExpiresAt: '2026-06-09T00:00:00.000Z',
-    });
+    const event = new PointsExpiringSoonCommandBuilder()
+      .withTenantId(tenantId)
+      .withCorrelationId(uuidv7())
+      .withCustomerId(customerId)
+      .withPointsExpiringSoon(99)
+      .build();
 
     // First delivery: dispatch fails → use case writes FAILED log, processedEvent NOT saved.
     // RoutingInMemoryEventBus swallows the handler rethrow.
@@ -172,11 +175,12 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
 
     dispatcher.clear();
 
-    const event = new PointsExpiringSoon(tenantId, uuidv7(), {
-      customerId,
-      pointsExpiringSoon: 25,
-      earliestExpiresAt: '2026-06-09T00:00:00.000Z',
-    });
+    const event = new PointsExpiringSoonCommandBuilder()
+      .withTenantId(tenantId)
+      .withCorrelationId(uuidv7())
+      .withCustomerId(customerId)
+      .withPointsExpiringSoon(25)
+      .build();
 
     await eventBus.publish(event);
 

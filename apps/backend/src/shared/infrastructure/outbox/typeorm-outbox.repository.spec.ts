@@ -1,0 +1,169 @@
+import { EntityManager, Repository } from 'typeorm';
+import { runWithEntityManager } from '../transaction-context';
+import { Command } from '../../domain/command';
+import { DomainEvent } from '../../domain/domain-event';
+import { OutboxEventEntity } from './outbox-event.entity';
+import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
+
+class StubEvent extends DomainEvent<{ value: string }> {
+  readonly eventVersion = 1;
+  readonly data: { value: string };
+  constructor(tenantId: string, correlationId: string, data: { value: string }) {
+    super(tenantId, correlationId);
+    this.data = data;
+  }
+}
+
+describe('TypeOrmOutboxRepository', () => {
+  let mockRepo: jest.Mocked<Repository<OutboxEventEntity>>;
+  let repo: TypeOrmOutboxRepository;
+
+  beforeEach(() => {
+    mockRepo = {
+      query: jest.fn(),
+      manager: { transaction: jest.fn(), query: jest.fn() },
+    } as unknown as jest.Mocked<Repository<OutboxEventEntity>>;
+    repo = new TypeOrmOutboxRepository(mockRepo);
+  });
+
+  describe('insert()', () => {
+    it('runs standalone (via repo.query) when no transaction is ambient', async () => {
+      mockRepo.query.mockResolvedValue([{ id: 'row-1' }]);
+      const event = new StubEvent('tenant-1', 'corr-1', { value: 'x' });
+
+      const id = await repo.insert(event, event.eventId);
+
+      expect(id).toBe('row-1');
+      expect(mockRepo.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO "shared"."outbox"'),
+        [event.eventId, event.eventId, 'tenant-1', 'StubEvent', JSON.stringify(event)],
+      );
+    });
+
+    it('joins the ambient transaction manager when one is active', async () => {
+      const mockManager = {
+        query: jest.fn().mockResolvedValue([{ id: 'row-1' }]),
+      } as unknown as jest.Mocked<EntityManager>;
+      const event = new StubEvent('tenant-1', 'corr-1', { value: 'x' });
+
+      const id = await runWithEntityManager(mockManager, () => repo.insert(event, event.eventId));
+
+      expect(id).toBe('row-1');
+      expect(mockManager.query).toHaveBeenCalled();
+      expect(mockRepo.query).not.toHaveBeenCalled();
+    });
+
+    it('returns undefined on a dedup_key conflict (no row returned)', async () => {
+      mockRepo.query.mockResolvedValue([]);
+      const event = new StubEvent('tenant-1', 'corr-1', { value: 'x' });
+
+      const id = await repo.insert(event, event.eventId);
+
+      expect(id).toBeUndefined();
+    });
+
+    it('uses Command.dedupKey when the event is a Command', async () => {
+      mockRepo.query.mockResolvedValue([{ id: 'row-1' }]);
+
+      class StubCommand extends Command<{ value: string }> {
+        readonly eventVersion = 1;
+        readonly data: { value: string };
+        constructor(
+          tenantId: string,
+          correlationId: string,
+          data: { value: string },
+          dedupKey: string,
+        ) {
+          super(tenantId, correlationId, dedupKey);
+          this.data = data;
+        }
+      }
+      const command = new StubCommand('tenant-1', 'corr-1', { value: 'x' }, 'business-key-1');
+
+      await repo.insert(command, 'business-key-1');
+
+      expect(mockRepo.query).toHaveBeenCalledWith(expect.any(String), [
+        command.eventId,
+        'business-key-1',
+        'tenant-1',
+        'StubCommand',
+        JSON.stringify(command),
+      ]);
+    });
+  });
+
+  describe('findUnpublishedById()', () => {
+    it('returns the row when found', async () => {
+      mockRepo.query.mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' } }]);
+
+      const row = await repo.findUnpublishedById('row-1');
+
+      expect(row).toEqual({ id: 'row-1', payload: { eventName: 'X' } });
+    });
+
+    it('returns null when not found (already published or missing)', async () => {
+      mockRepo.query.mockResolvedValue([]);
+
+      expect(await repo.findUnpublishedById('row-1')).toBeNull();
+    });
+  });
+
+  describe('markPublished()', () => {
+    it('runs via repo.manager when no explicit manager is passed', async () => {
+      await repo.markPublished('row-1');
+
+      expect(mockRepo.manager.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE "shared"."outbox"'),
+        ['row-1'],
+      );
+    });
+
+    it('runs via the given manager when one is passed (same transaction as the caller)', async () => {
+      const explicitManager = { query: jest.fn() } as unknown as jest.Mocked<EntityManager>;
+
+      await repo.markPublished('row-1', explicitManager);
+
+      expect(explicitManager.query).toHaveBeenCalledWith(expect.any(String), ['row-1']);
+      expect(mockRepo.manager.query).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('claimUnpublished()', () => {
+    it('queries with FOR UPDATE SKIP LOCKED using the given manager', async () => {
+      const manager = {
+        query: jest.fn().mockResolvedValue([{ id: 'row-1', payload: { eventName: 'X' } }]),
+      } as unknown as jest.Mocked<EntityManager>;
+
+      const rows = await repo.claimUnpublished(manager, 30, 100);
+
+      expect(rows).toEqual([{ id: 'row-1', payload: { eventName: 'X' } }]);
+      expect(manager.query).toHaveBeenCalledWith(
+        expect.stringContaining('FOR UPDATE SKIP LOCKED'),
+        [30, 100],
+      );
+    });
+  });
+
+  describe('runInTransaction()', () => {
+    it('delegates to repo.manager.transaction', async () => {
+      const work = jest.fn().mockResolvedValue('result');
+      (mockRepo.manager.transaction as jest.Mock).mockImplementation((cb) => cb('fake-manager'));
+
+      const result = await repo.runInTransaction(work);
+
+      expect(result).toBe('result');
+      expect(work).toHaveBeenCalledWith('fake-manager');
+    });
+  });
+
+  describe('deleteOldPublished()', () => {
+    it('runs the batched retention delete', async () => {
+      await repo.deleteOldPublished(14, 100);
+
+      expect(mockRepo.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM "shared"."outbox"'),
+        [14, 100],
+      );
+    });
+  });
+});

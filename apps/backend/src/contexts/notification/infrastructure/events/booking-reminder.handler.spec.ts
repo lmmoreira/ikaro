@@ -1,6 +1,10 @@
+import {
+  BookingReminderDueCommandBuilder,
+  BookingReminderDueTodayCommandBuilder,
+} from '../../../../test/builders/booking';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { BookingReminderDue } from '../../../booking/domain/events/booking-reminder-due.event';
-import { BookingReminderDueToday } from '../../../booking/domain/events/booking-reminder-due-today.event';
+import { BookingReminderDue } from '../../../booking/domain/commands/booking-reminder-due.command';
+import { BookingReminderDueToday } from '../../../booking/domain/commands/booking-reminder-due-today.command';
 import { SendBookingReminderDueNotificationUseCase } from '../../application/use-cases/send-booking-reminder-due-notification/send-booking-reminder-due-notification.use-case';
 import { SendBookingReminderDueTodayNotificationUseCase } from '../../application/use-cases/send-booking-reminder-due-today-notification/send-booking-reminder-due-today-notification.use-case';
 import { BookingReminderHandler } from './booking-reminder.handler';
@@ -8,32 +12,10 @@ import { BookingReminderHandler } from './booking-reminder.handler';
 const TENANT_ID = 'aaaaaaaa-0010-4000-8000-000000000001';
 
 const buildDueEvent = (): BookingReminderDue =>
-  new BookingReminderDue(TENANT_ID, 'corr-reminder-due-1', {
-    bookingId: 'bbbbbbbb-0001-4000-8000-000000000001',
-    customerId: 'cccccccc-0001-4000-8000-000000000001',
-    recipientEmail: 'joao@example.com',
-    customerName: 'João Silva',
-    scheduledAt: '2026-07-02T13:00:00.000Z',
-    appointmentSlot: {
-      startTime: '2026-07-02T13:00:00.000Z',
-      endTime: '2026-07-02T14:00:00.000Z',
-    },
-    lines: [{ serviceId: 'ssss-0001', serviceName: 'Lavagem Completa' }],
-  });
+  new BookingReminderDueCommandBuilder().withTenantId(TENANT_ID).build();
 
 const buildDueTodayEvent = (): BookingReminderDueToday =>
-  new BookingReminderDueToday(TENANT_ID, 'corr-reminder-today-1', {
-    bookingId: 'bbbbbbbb-0002-4000-8000-000000000001',
-    customerId: null,
-    recipientEmail: 'maria@example.com',
-    customerName: 'Maria Costa',
-    scheduledAt: '2026-07-02T09:00:00.000Z',
-    appointmentSlot: {
-      startTime: '2026-07-02T09:00:00.000Z',
-      endTime: '2026-07-02T10:00:00.000Z',
-    },
-    lines: [{ serviceId: 'ssss-0002', serviceName: 'Polimento' }],
-  });
+  new BookingReminderDueTodayCommandBuilder().withTenantId(TENANT_ID).build();
 
 describe('BookingReminderHandler', () => {
   let sendDue: jest.Mocked<Pick<SendBookingReminderDueNotificationUseCase, 'execute'>>;

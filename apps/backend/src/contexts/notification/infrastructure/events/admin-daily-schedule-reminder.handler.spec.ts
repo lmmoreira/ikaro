@@ -1,15 +1,15 @@
+import { AdminDailyScheduleReminderCommandBuilder } from '../../../../test/builders/booking';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { AdminDailyScheduleReminder } from '../../../booking/domain/events/admin-daily-schedule-reminder.event';
+import { AdminDailyScheduleReminder } from '../../../booking/domain/commands/admin-daily-schedule-reminder.command';
 import { SendAdminDailyScheduleReminderNotificationUseCase } from '../../application/use-cases/send-admin-daily-schedule-reminder-notification/send-admin-daily-schedule-reminder-notification.use-case';
 import { AdminDailyScheduleReminderHandler } from './admin-daily-schedule-reminder.handler';
 
 const TENANT_ID = 'aaaaaaaa-0012-4000-8000-000000000001';
 
 const buildEvent = (totalBookingsToday = 1): AdminDailyScheduleReminder =>
-  new AdminDailyScheduleReminder(TENANT_ID, 'corr-admin-schedule-1', {
-    localDate: '2026-07-02',
-    totalBookingsToday,
-    bookingsToday:
+  new AdminDailyScheduleReminderCommandBuilder()
+    .withTenantId(TENANT_ID)
+    .withBookingsToday(
       totalBookingsToday === 0
         ? []
         : [
@@ -25,7 +25,8 @@ const buildEvent = (totalBookingsToday = 1): AdminDailyScheduleReminder =>
               adminNotes: null,
             },
           ],
-  });
+    )
+    .build();
 
 describe('AdminDailyScheduleReminderHandler', () => {
   let useCase: jest.Mocked<Pick<SendAdminDailyScheduleReminderNotificationUseCase, 'execute'>>;
