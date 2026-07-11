@@ -19,6 +19,7 @@ describe('validateEnv()', () => {
     const result = validateEnv(valid);
     expect(result.PORT).toBe(3002);
     expect(result.FRONTEND_URL).toBe('http://localhost:3000');
+    expect(result.LOG_LEVEL).toBe('INFO');
   });
 
   it('throws when a required var is missing', () => {
@@ -30,5 +31,13 @@ describe('validateEnv()', () => {
 
   it('throws when JWT_SECRET is too short', () => {
     expect(() => validateEnv({ ...valid, JWT_SECRET: 'short' })).toThrow('ENV validation failed');
+  });
+
+  it('accepts optional GCP_PROJECT for Cloud Logging trace correlation', () => {
+    const result = validateEnv({
+      ...valid,
+      GCP_PROJECT: 'ikaro-staging',
+    });
+    expect(result.GCP_PROJECT).toBe('ikaro-staging');
   });
 });

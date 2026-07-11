@@ -286,7 +286,7 @@ A cron tick is not a domain event, though — it carries no `tenantId` (the job 
 
 ---
 
-### M17-S05 — AppLogger ↔ Cloud Logging alignment (vendor-neutral core)
+### M17-S05 — AppLogger ↔ Cloud Logging alignment (vendor-neutral core) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S

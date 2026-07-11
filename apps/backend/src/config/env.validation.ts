@@ -6,6 +6,8 @@ const schema = z
     NODE_ENV: z.enum(['development', 'staging', 'production']).default('development'),
     APP_ENV: z.enum(['local', 'staging', 'production']).default('local'),
     PORT: z.coerce.number().default(3001),
+    LOG_LEVEL: z.enum(['DEBUG', 'INFO', 'WARN', 'ERROR', 'VERBOSE']).default('INFO'),
+    GCP_PROJECT: z.string().optional(),
     DB_HOST: z.string().min(1, { message: 'DB_HOST is required' }),
     DB_PORT: z.coerce.number().default(5432),
     DB_USER: z.string().min(1, { message: 'DB_USER is required' }),

@@ -10,6 +10,7 @@ describe('AppLogger', () => {
   let lastOutput: Record<string, unknown>;
 
   beforeEach(() => {
+    delete process.env['GCP_PROJECT'];
     logger = new AppLogger('TestContext');
     writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
       lastOutput = JSON.parse(chunk as string) as Record<string, unknown>;
@@ -18,6 +19,7 @@ describe('AppLogger', () => {
   });
 
   afterEach(() => {
+    delete process.env['GCP_PROJECT'];
     writeSpy.mockRestore();
   });
 
@@ -45,5 +47,36 @@ describe('AppLogger', () => {
     });
     expect(lastOutput['tenantId']).toBe('caller-tenant');
     expect(lastOutput['correlationId']).toBe('caller-corr');
+  });
+
+  it('adds Cloud Logging trace fields only when GCP_PROJECT is set and a span is active', () => {
+    process.env['GCP_PROJECT'] = 'ikaro-staging';
+    const fields = (
+      logger as unknown as {
+        formatVendorFields: (
+          traceId: string | null,
+          spanId: string | null,
+        ) => Record<string, unknown>;
+      }
+    ).formatVendorFields('0123456789abcdef0123456789abcdef', '0123456789abcdef');
+
+    expect(fields['logging.googleapis.com/trace']).toBe(
+      'projects/ikaro-staging/traces/0123456789abcdef0123456789abcdef',
+    );
+    expect(fields['logging.googleapis.com/spanId']).toBe('0123456789abcdef');
+  });
+
+  it('omits Cloud Logging trace fields when GCP_PROJECT is unset', () => {
+    const fields = (
+      logger as unknown as {
+        formatVendorFields: (
+          traceId: string | null,
+          spanId: string | null,
+        ) => Record<string, unknown>;
+      }
+    ).formatVendorFields('0123456789abcdef0123456789abcdef', '0123456789abcdef');
+
+    expect(fields['logging.googleapis.com/trace']).toBeUndefined();
+    expect(fields['logging.googleapis.com/spanId']).toBeUndefined();
   });
 });

@@ -24,6 +24,7 @@ describe('validateEnv()', () => {
     const result = validateEnv(valid);
     expect(result.PUBSUB_PROJECT_ID).toBe('ikaro-local');
     expect(result.FRONTEND_URL).toBe('http://localhost:3000');
+    expect(result.LOG_LEVEL).toBe('INFO');
   });
 
   it('throws when a required var is missing', () => {
@@ -96,5 +97,13 @@ describe('validateEnv()', () => {
     });
     expect(result.APP_ENV).toBe('staging');
     expect(result.PUBSUB_AUTO_CREATE).toBe(false);
+  });
+
+  it('accepts optional GCP_PROJECT for Cloud Logging trace correlation', () => {
+    const result = validateEnv({
+      ...valid,
+      GCP_PROJECT: 'ikaro-staging',
+    });
+    expect(result.GCP_PROJECT).toBe('ikaro-staging');
   });
 });
