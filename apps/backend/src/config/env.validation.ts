@@ -14,6 +14,7 @@ const schema = z
     DB_USER: z.string().min(1, { message: 'DB_USER is required' }),
     DB_PASSWORD: z.string().min(1, { message: 'DB_PASSWORD is required' }),
     DB_NAME: z.string().min(1, { message: 'DB_NAME is required' }),
+    DB_POOL_SIZE: z.coerce.number().int().min(1).default(10),
     PLATFORM_ADMIN_KEY: z
       .string()
       .min(32, { message: 'PLATFORM_ADMIN_KEY must be at least 32 characters' }),
@@ -38,12 +39,13 @@ const schema = z
     SMTP_HOST: z.string().default('localhost'),
     SMTP_PORT: z.coerce.number().default(1025),
     EMAIL_ADAPTER: z.enum(['sendgrid', 'mailhog']).default('mailhog'),
+    ALLOW_PRODUCTION_MAILHOG: z.stringbool().default(false),
     EMAIL_FROM: z
       .email({ message: 'EMAIL_FROM must be a valid email address' })
       .default('noreply@ikaro.example'),
     SENDGRID_API_KEY: z.string().min(1).optional(),
     FRONTEND_URL: z.string().default('http://localhost:3000'),
-    JWT_SECRET: z.string().min(32, { message: 'JWT_SECRET must be at least 32 characters' }),
+    JWT_SECRET: z.string().min(64, { message: 'JWT_SECRET must be at least 64 characters' }),
     HOTSITE_REVALIDATE_SECRET: z
       .string()
       .min(32, { message: 'HOTSITE_REVALIDATE_SECRET must be at least 32 characters' }),
@@ -70,6 +72,26 @@ const schema = z
         path: ['PUBSUB_AUTO_CREATE'],
         message:
           'PUBSUB_AUTO_CREATE must be false when APP_ENV is not "local" — Terraform owns all Pub/Sub resources in staging/production regardless of consumer mode',
+      });
+    }
+    if (data.NODE_ENV === 'production' && data.PUBSUB_CONSUMER_MODE !== 'push') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PUBSUB_CONSUMER_MODE'],
+        message:
+          'PUBSUB_CONSUMER_MODE must be "push" when NODE_ENV=production — Cloud Run scales to zero, so pull consumers would silently stop processing events',
+      });
+    }
+    if (
+      data.NODE_ENV === 'production' &&
+      data.EMAIL_ADAPTER === 'mailhog' &&
+      !data.ALLOW_PRODUCTION_MAILHOG
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['EMAIL_ADAPTER'],
+        message:
+          'EMAIL_ADAPTER=mailhog is not allowed when NODE_ENV=production — use SendGrid or set ALLOW_PRODUCTION_MAILHOG=true for an explicit override',
       });
     }
     if (data.PUBSUB_CONSUMER_MODE === 'push') {

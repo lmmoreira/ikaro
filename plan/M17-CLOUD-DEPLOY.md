@@ -312,7 +312,7 @@ A cron tick is not a domain event, though — it carries no `tenantId` (the job 
 
 ---
 
-### M17-S06 — Production environment guards
+### M17-S06 — Production environment guards ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** S

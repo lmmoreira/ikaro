@@ -37,6 +37,10 @@ import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
         username: config.get<string>('DB_USER'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
+        poolSize: config.get<number>('DB_POOL_SIZE', 10),
+        extra: {
+          max: config.get<number>('DB_POOL_SIZE', 10),
+        },
         synchronize: false,
         migrationsRun: false,
         entities: [__dirname + '/contexts/**/infrastructure/entities/*.entity{.ts,.js}'],

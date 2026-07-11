@@ -11,7 +11,7 @@ describe('AppModule', () => {
       DB_NAME: 'ikaro',
       PLATFORM_ADMIN_KEY: 'a'.repeat(32),
       INTERNAL_API_KEY: 'b'.repeat(32),
-      JWT_SECRET: 'c'.repeat(32),
+      JWT_SECRET: 'c'.repeat(64),
       HOTSITE_REVALIDATE_SECRET: 'd'.repeat(32),
     };
   });

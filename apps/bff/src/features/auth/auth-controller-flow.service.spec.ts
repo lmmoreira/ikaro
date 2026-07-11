@@ -28,7 +28,11 @@ const makeRes = (): jest.Mocked<Response> =>
     clearCookie: jest.fn(),
   }) as unknown as jest.Mocked<Response>;
 
-function makeConfigService(opts?: { enableDevAuth?: string; nodeEnv?: string }): ConfigService {
+function makeConfigService(opts?: {
+  enableDevAuth?: string;
+  nodeEnv?: string;
+  appEnv?: 'local' | 'staging' | 'production';
+}): ConfigService {
   return {
     getOrThrow: jest.fn().mockImplementation((key: string) => {
       if (key === 'FRONTEND_URL') return 'http://localhost:3000';
@@ -38,6 +42,7 @@ function makeConfigService(opts?: { enableDevAuth?: string; nodeEnv?: string }):
     get: jest.fn().mockImplementation((key: string) => {
       if (key === 'ENABLE_DEV_AUTH') return opts?.enableDevAuth ?? 'true';
       if (key === 'NODE_ENV') return opts?.nodeEnv ?? 'development';
+      if (key === 'APP_ENV') return opts?.appEnv ?? 'local';
       return undefined;
     }),
   } as unknown as ConfigService;
@@ -691,7 +696,10 @@ describe('AuthControllerFlowService', () => {
     });
 
     it('throws ForbiddenException when dev auth is enabled in production', async () => {
-      const service = makeService(makeBackendHttp(), makeConfigService({ nodeEnv: 'production' }));
+      const service = makeService(
+        makeBackendHttp(),
+        makeConfigService({ nodeEnv: 'production', appEnv: 'production' }),
+      );
       const dto: DevLoginDto = {
         email: 'admin@lavacar.com.br',
         tenantSlug: 'lavacar-bh',
