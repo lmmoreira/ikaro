@@ -3,7 +3,8 @@ export { createLogVendorFormatter } from './log-vendor-formatter.factory';
 export { formatGoogleCloudLoggingFields } from './google-cloud-logging';
 export { NoopLogVendorFormatter } from './log-vendor-formatter';
 export type {
-  CreateLogVendorFormatterOptions,
   LogVendor,
   LogVendorFormatter,
 } from './log-vendor-formatter';
+export type { CreateLogVendorFormatterOptions } from './log-vendor-formatter.factory';
+export type { GcpLogVendorFormatterOptions } from './gcp-log-vendor-formatter';

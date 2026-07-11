@@ -2,7 +2,9 @@ import { createLogVendorFormatter } from './log-vendor-formatter.factory';
 
 describe('createLogVendorFormatter()', () => {
   it('defaults to the GCP formatter when no vendor is set', () => {
-    const formatter = createLogVendorFormatter({ gcpProjectId: 'ikaro-staging' });
+    const formatter = createLogVendorFormatter({
+      gcp: { projectId: 'ikaro-staging' },
+    });
 
     expect(formatter.format('0123456789abcdef0123456789abcdef', '0123456789abcdef')).toEqual({
       'logging.googleapis.com/trace':
@@ -14,7 +16,7 @@ describe('createLogVendorFormatter()', () => {
   it('returns no vendor-specific fields when vendor=none', () => {
     const formatter = createLogVendorFormatter({
       vendor: 'none',
-      gcpProjectId: 'ikaro-staging',
+      gcp: { projectId: 'ikaro-staging' },
     });
 
     expect(formatter.format('0123456789abcdef0123456789abcdef', '0123456789abcdef')).toEqual({});
@@ -23,7 +25,7 @@ describe('createLogVendorFormatter()', () => {
   it('falls back to the noop formatter for unknown vendors', () => {
     const formatter = createLogVendorFormatter({
       vendor: 'azure',
-      gcpProjectId: 'ikaro-staging',
+      gcp: { projectId: 'ikaro-staging' },
     });
 
     expect(formatter.format('0123456789abcdef0123456789abcdef', '0123456789abcdef')).toEqual({});

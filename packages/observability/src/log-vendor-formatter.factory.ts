@@ -1,24 +1,19 @@
-import { formatGoogleCloudLoggingFields } from './google-cloud-logging';
+import { LogVendor, LogVendorFormatter, NoopLogVendorFormatter } from './log-vendor-formatter';
 import {
-  CreateLogVendorFormatterOptions,
-  LogVendor,
-  LogVendorFormatter,
-  NoopLogVendorFormatter,
-} from './log-vendor-formatter';
+  GcpLogVendorFormatterOptions,
+  GoogleCloudLogVendorFormatter,
+} from './gcp-log-vendor-formatter';
 
-class GoogleCloudLogVendorFormatter implements LogVendorFormatter {
-  constructor(private readonly projectId?: string) {}
-
-  format(traceId: string | null, spanId: string | null): Record<string, unknown> {
-    return formatGoogleCloudLoggingFields(this.projectId, traceId, spanId);
-  }
+export interface CreateLogVendorFormatterOptions {
+  vendor?: string;
+  gcp?: GcpLogVendorFormatterOptions;
 }
 
 const SUPPORTED_LOG_VENDORS: Record<
   LogVendor,
   (options: CreateLogVendorFormatterOptions) => LogVendorFormatter
 > = {
-  gcp: (options) => new GoogleCloudLogVendorFormatter(options.gcpProjectId),
+  gcp: (options) => new GoogleCloudLogVendorFormatter(options.gcp),
   none: () => new NoopLogVendorFormatter(),
 };
 

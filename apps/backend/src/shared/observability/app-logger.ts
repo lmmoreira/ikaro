@@ -9,7 +9,9 @@ export class AppLogger extends BaseAppLogger {
       'backend',
       createLogVendorFormatter({
         vendor: process.env['LOG_VENDOR'],
-        gcpProjectId: process.env['GCP_PROJECT'],
+        gcp: {
+          projectId: process.env['GCP_PROJECT'],
+        },
       }),
       context,
     );

@@ -9,8 +9,3 @@ export class NoopLogVendorFormatter implements LogVendorFormatter {
 }
 
 export type LogVendor = 'gcp' | 'none';
-
-export interface CreateLogVendorFormatterOptions {
-  vendor?: string;
-  gcpProjectId?: string;
-}
