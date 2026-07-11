@@ -223,6 +223,7 @@ Full list (~115 entries) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/p
 | BFF `@CurrentUser()` used only to construct a backend `/internal/` URL | Move endpoint to authenticated controller — `BackendHttpService` already forwards actor headers; `/internal/` is pre-auth only |
 | Dashboard or account component uses a `--ba-*` CSS variable | `--ba-*` only exists under `app/[slug]/` (hotsite tree). Use Tailwind + shadcn in dashboard/account shells |
 | Fixed a Zod/DTO validation rule in one layer (BFF or backend) without checking the other for a duplicate schema | Grep the field name in both layers — BFF and backend often maintain independent copies of the same schema |
+| Zod validation rule duplicates a VO's own check (e.g. `.refine(Email.isValid, ...)`) | Reuse that VO's error code — don't mint a new one. Rules with no VO behind them share a small closed `GenericErrorCode` set instead of one code per site (`docs/ENGINEERING_RULES.md` § Single source of truth for a validation rule's code) |
 | An aggregate's update method re-validates a field even when the value passed through unchanged | Compare against the current stored value first; skip validation when nothing actually changed (see the SEO-limit row in the full doc for why this matters) |
 | A route is added to an existing hide-list/allow-list by pattern-matching neighbors | Name the invariant every current member satisfies before adding a new one — surface similarity isn't the same as satisfying the same rule |
 

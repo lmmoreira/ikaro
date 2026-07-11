@@ -441,6 +441,15 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 - [ ] Every context mapper that can trigger one of these VOs (grep call sites) has an explicit branch
 - [ ] A previously-unshaped VO validation failure now returns a proper `ProblemDetail` with `code`, in every context that can trigger it
 
+**Decided during Story 8 discovery:**
+- Loyalty context needs zero changes — none of the 8 VOs are referenced anywhere under `contexts/loyalty/` (confirmed via grep).
+- `Timezone.create()` has zero call sites in application code (only `.isValid()` is used, in Zod refines and `business-hours.validator.ts`) — still gets a typed error class per AC #1, but no mapper wiring is reachable for it.
+- 4 of 8 VOs (SeoTitle, SeoDescription, Slug, HexColor) are practically unreachable via their own `.create()` throw in `platform-error.mapper.ts`: `hotsite-config.aggregate.ts`/`tenant.aggregate.ts` pre-validate with `.isValid()` and throw their own existing typed `PlatformDomainError` subclasses first. Still wiring the branch for defense-in-depth/consistency with the literal AC — reachable today only via corrupted-DB-data repository hydration, not the validated request path.
+- New shared `mapSharedVoError()` helper in `shared/http/` (alongside `mapSharedAddressError()`) rather than duplicating ~9 `instanceof` branches across 4 mappers — avoids repeating Story 4+6's SonarCloud new-code-duplication hit.
+- `SeoErrorCode` stays one shared union for both `SeoTitle`/`SeoDescription` (as Story 1 scaffolded it) — `TITLE_TOO_LONG`/`DESCRIPTION_TOO_LONG` as two distinct members, mirroring `AddressErrorCode`'s multi-member pattern.
+- Mapper touch list: booking (Money, PhoneNumber, Email, TimeOfDay), customer (PhoneNumber, Email), staff (Email), platform (SeoTitle, SeoDescription, Slug, HexColor — defensive only), loyalty (none).
+- **Preparatory fix, bundled here (found during discovery, not in original scope):** `apps/backend/src/shared/http/problem-detail.ts` is a byte-for-byte duplicate of `packages/types/src/errors.dto.ts` (`ProblemDetail`/`ValidationViolation`/`ValidationProblemDetail`), both added in the same Story 1 commit. The backend already imports every `*ErrorCode` union from `@ikaro/types` (17 files) but hand-copied these 3 transport-shape interfaces instead of importing them — the `@ikaro/types` copy is currently unused by anything. Fix: delete `problem-detail.ts`, update its 12 consumers to import from `@ikaro/types` directly, matching the existing `*ErrorCode` import pattern.
+
 ---
 
 ### Wave 3 — Validation pipes (Zod, code-per-rule)
@@ -457,6 +466,12 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 - [ ] Every backend Zod validation failure emits a `code` per violation
 - [ ] Convention documented in `docs/CODE_STANDARDS.md` or `docs/ENGINEERING_RULES.md` for future schema authors
 
+**Decided during Story 9 discovery:**
+- Single source of truth: a Zod check that duplicates a VO's own rule (22 of 26 `.refine()` calls — e.g. `PhoneNumber.isValid`, `HexColor.isValid`) reuses that VO's code from Story 8/Story 3 rather than minting a new one — the same principle Story 10 already applies to the BFF's address triplication.
+- The remaining ~121 sites (117 native `.min()/.max()/.regex()` + 4 non-VO `.refine()` calls) have no VO backing them — these share a small closed `GenericErrorCode` set (required / too-short / too-long / format-invalid) rather than one bespoke code per site, mirroring `AddressErrorCode.FIELD_REQUIRED` already being reused across 5 different fields.
+- For the 117 native-rule sites, the code is derived automatically from Zod's own issue type in the pipe — no edits to those call sites needed. Only the 26 `.refine()` sites need an explicit code supplied per call.
+- **Exhaustiveness requirement:** the issue-type → `GenericErrorCode` derivation must be an exhaustively-typed switch (TypeScript `never` check on the default branch), not a runtime switch with a silent fallback. Zod v3→v4 already restructured issue-code granularity once (e.g. `invalid_string` split into a more granular scheme); a silent fallback would let a future Zod upgrade silently degrade violation specificity to a generic catch-all with no compiler or test signal. A test exercising every Zod issue kind is required alongside it.
+
 ---
 
 #### Story 10 — BFF's own Zod schemas: code-bearing violations + interim address-triplication fix
@@ -472,6 +487,15 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 - [ ] Every BFF Zod validation failure emits a `code` per violation
 - [ ] All 3 `AddressSchema` copies emit codes matching the backend `Address` VO's codes for the same logical failure (e.g. invalid postal code → same `ADDRESS_POSTAL_CODE_INVALID` whether the backend or any BFF copy catches it first)
 - [ ] TD11 flagged/updated with the corrected duplication count
+
+**Decided during Story 10 discovery:**
+- All 3 `AddressSchema` copies reuse `AddressErrorCode`/`CountryCodeErrorCode` (Story 3/4) per matching field.
+- `contactPhone`/`contactEmail`/`phone` regex duplicates in `bookings.controller.ts`/`customers.controller.ts` also reuse Story 8's `PhoneErrorCode.FORMAT_INVALID`/`EmailErrorCode.FORMAT_INVALID` — same single-source-of-truth principle as Story 9, applied one layer further out, not limited to the Address fields the story text calls out explicitly.
+- `tenant-settings.controller.ts`'s `businessInfo.phone`/`.email` fields have **no** BFF-side format check at all today — left as-is here rather than adding a new ad-hoc regex copy; recorded as a concrete gap in TD11 instead, to be closed for real once the shared-schema package lands.
+- `HotsiteSeoBodySchema.title`/`.description` reuse Story 8's `SeoErrorCode.TITLE_TOO_LONG`/`DESCRIPTION_TOO_LONG`.
+- BFF's own native `.min()/.max()` sites with no VO backing (e.g. `LoyaltySchema`/`BookingSchema` numeric ranges) reuse Story 9's `GenericErrorCode` set — not the separate, still-empty `BffErrorCode` union, which stays reserved for genuinely BFF-originated conditions (guest-token/guard failures — Story 11's scope).
+- BFF pipe gets the same `ProblemDetail`/`ValidationProblemDetail` typing from `@ikaro/types` that Story 8/9 apply to the backend pipe (currently a raw untyped object literal) — same dedup principle, applied for consistency.
+- TD11 updated directly (not just flagged): added the 2 newly-found `AddressSchema` copies, the phone/email duplication count, the `businessInfo.phone`/`.email` validation gap, and corrected file paths to their post-TD-21 domain-slice locations.
 
 ---
 

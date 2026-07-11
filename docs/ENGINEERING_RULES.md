@@ -38,16 +38,34 @@ Aggregate props interfaces use VO types; getters return VOs; `create()` construc
 
 → Code patterns, mapper examples, in-memory repo comparisons: `docs/VALUE_OBJECTS_REFERENCE.md`.
 
-### VO validation errors must be mapped, not just thrown
+### VO validation errors must be mapped with a typed `code` (`DomainErrorShape`)
 
-A VO's `create()` throws a plain `Error` when its format rules are too varied to fully replicate in a static Zod schema. `Address` is the concrete case: it validates against a country-specific `CountrySpec.postalRegex`/`statePattern`, while the DTO boundary can only check `.min(1).max(20)` — address formats vary too much across countries for one universal regex. `Money` and `PhoneNumber` don't hit this gap today because their DTO regex (E.164, currency code) is strict enough to fully replicate the VO's rule — but the gap exists in the same shape for any VO whose DTO check is necessarily loose.
+Every VO's `create()` throws a typed error class implementing `DomainErrorShape` (`{ code: string; field?: string }`) — never a bare `Error`. A plain `Error` falls through every `mapXxxError`'s `if (err instanceof Error) throw err;` line unchanged and becomes an unhandled 500 instead of a shaped 400. Pattern (mirrors `AddressValidationError` in `shared/value-objects/address.ts`):
 
-Every `mapXxxError(err: unknown): never` ends with `if (err instanceof Error) throw err;` before the final `throw new Error(...)` fallback. A plain `Error` from a VO falls through that line unchanged and becomes an unhandled 500 instead of a 400.
+```typescript
+export class XxxValidationError extends Error implements DomainErrorShape {
+  readonly code: XxxErrorCode;
+  constructor(message: string, code: XxxErrorCode) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'XxxValidationError';
+    this.code = code;
+  }
+}
+```
 
-If a VO's validation can fail in a way the DTO boundary doesn't fully prevent:
-1. Give it a typed error class in the VO's own file: `export class XxxValidationError extends Error { constructor(message: string) { super(message); Object.setPrototypeOf(this, new.target.prototype); this.name = 'XxxValidationError'; } }`.
-2. Throw that instead of plain `Error` from every validation branch in `create()`.
-3. Add an `instanceof XxxValidationError` branch (→ 400) to **every** context's error mapper that calls the VO's `create()` — a shared VO can be called from multiple contexts (`Address` is called from both `booking` and `customer`).
+`code` is typed against that VO's own literal union in `packages/types/src/error-codes.ts` (e.g. `PhoneErrorCode`, `EmailErrorCode`) — never `string` — so a code outside the catalog is a compile error (TD23 §9).
+
+Wire an `instanceof XxxValidationError` branch (→ 400) into **every** context's error mapper that calls the VO's `create()` — a shared VO can be called from multiple contexts (`Address` is called from both `booking` and `customer`). Once a second mapper needs the same branch, extract a shared `mapSharedXxxError()` helper into `shared/http/` (see `address-validation-error.mapper.ts`) instead of duplicating it — SonarCloud's new-code-duplication gate fails on the second copy.
+
+### Single source of truth for a validation rule's code
+
+A business rule gets **one** code, owned by whichever layer defines it — not one code per layer that happens to check it:
+
+- **A rule backed by a VO** (its predicate is `Xxx.isValid()`) — every other layer that also checks it (a Zod `.refine(Xxx.isValid, ...)` in a backend DTO or a BFF schema mirroring the same field) **imports and reuses that VO's code**. A `.refine(PhoneNumber.isValid, ...)` failure must emit the same `PhoneErrorCode.FORMAT_INVALID` the VO itself throws — never a second, bespoke code for the identical rule.
+- **A rule with no VO behind it** (Zod-native `.min()`/`.max()`/required-field checks with no domain VO — most numeric/length bounds) — these share a small closed `GenericErrorCode` set (`FIELD_REQUIRED`, `VALUE_TOO_SHORT`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE`, `FORMAT_INVALID`), disambiguated by `field`/`params` — not one bespoke code per call site. Mirrors `AddressErrorCode.FIELD_REQUIRED` already being reused across 5 different address fields instead of five separate codes.
+
+Why this matters: if the same rule gets two different codes depending on which layer catches it first (a BFF Zod schema vs. the backend VO), the frontend shows an inconsistent message for the identical violation depending on request timing — the exact defect `td/TD23-EXCEPTION-HANDLING-I18N-PATTERN.md` exists to remove.
 
 ---
 
