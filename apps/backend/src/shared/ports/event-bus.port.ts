@@ -1,7 +1,6 @@
-import { DomainEvent } from '../domain/domain-event';
 import { Envelope } from '../domain/envelope';
 
-export { DomainEvent };
+export { DomainEvent } from '../domain/domain-event';
 
 export const EVENT_BUS = Symbol('IEventBus');
 

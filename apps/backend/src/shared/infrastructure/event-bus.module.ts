@@ -28,10 +28,13 @@ import { GcpPubSubEventBusAdapter } from './gcp-pubsub-event-bus.adapter';
     { provide: TRIGGER_BUS, useExisting: EVENT_BUS },
     { provide: PUSHABLE_EVENT_BUS, useExisting: EVENT_BUS },
     // Class-token alias (TD24-S01): lets shared/infrastructure/outbox/ inject the concrete
-    // adapter directly by class (`private readonly innerBus: GcpPubSubEventBusAdapter`), which
-    // is what keeps TD24-S02's rebind (EVENT_BUS -> useClass: OutboxEventBus) a one-line change —
-    // OutboxEventBus/OutboxRelayService never inject EVENT_BUS, the token they'll themselves
-    // occupy or sit behind.
+    // adapter directly by class (`private readonly innerBus: GcpPubSubEventBusAdapter`) instead
+    // of the EVENT_BUS token, so OutboxEventBus/OutboxRelayService never depend on the token
+    // they'll themselves occupy or sit behind. NOTE: this alias resolves through EVENT_BUS, so it
+    // is NOT free-standing — TD24-S02's rebind (EVENT_BUS -> useClass: OutboxEventBus) must also
+    // change this line to a real bare provider (`useClass: GcpPubSubEventBusAdapter`), or
+    // GcpPubSubEventBusAdapter would resolve to the new OutboxEventBus instance instead of the
+    // raw Pub/Sub client, breaking the relay and risking a DI cycle.
     { provide: GcpPubSubEventBusAdapter, useExisting: EVENT_BUS },
   ],
   exports: [EVENT_BUS, TRIGGER_BUS, PUSHABLE_EVENT_BUS, GcpPubSubEventBusAdapter],

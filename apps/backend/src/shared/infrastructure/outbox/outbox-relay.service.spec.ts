@@ -67,6 +67,16 @@ describe('OutboxRelayService', () => {
 
       expect(innerBus.publish).toHaveBeenCalledTimes(2);
     });
+
+    it('is a no-op for an explicitly empty rowIds array — never falls through to sweep+GC', async () => {
+      const service = new OutboxRelayService(repo, innerBus, config);
+
+      await service.relay([]);
+
+      expect(repo.query).not.toHaveBeenCalled();
+      expect(repo.manager.transaction).not.toHaveBeenCalled();
+      expect(innerBus.publish).not.toHaveBeenCalled();
+    });
   });
 
   describe('relay() — sweep + GC path (no rowIds)', () => {

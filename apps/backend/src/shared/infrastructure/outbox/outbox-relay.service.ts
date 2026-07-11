@@ -68,7 +68,7 @@ export class OutboxRelayService {
   ) {}
 
   async relay(rowIds?: string[]): Promise<void> {
-    if (rowIds && rowIds.length > 0) {
+    if (rowIds !== undefined) {
       for (const id of rowIds) {
         await this.publishAndMarkOne(id);
       }
