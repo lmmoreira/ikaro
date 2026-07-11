@@ -408,12 +408,22 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 **Scope:** `apps/backend/src/contexts/platform/**`, `platform-error.mapper.ts`.
 
+**Decided during Story 7 discovery:**
+- Raw-throw codes: distinct code per validation rule, matching the precedent set by booking/customer/staff/loyalty's populated catalogs (none use a generic `FIELD_INVALID`+`params` code) — supersedes the mechanical-helper option below.
+- `TenantSettingsValidationError`: relocate from `domain/value-objects/tenant-settings.vo.ts` to `domain/errors/platform-domain.error.ts`, matching every other named platform error's location.
+- `FeaturedBookingNotFoundError`/`PhotoNotOnBookingError`: confirmed dead (never thrown in live source; only a stale `dist/` build artifact references the old flow) — delete both classes, including `FeaturedBookingNotFoundError`'s mapper branch.
+- `platform-error.mapper.ts`'s inline `AddressValidationError`/`CountryCodeValidationError` branches (lines 46-63) are replaced with a call to the shared `mapSharedAddressError()` helper, matching booking/customer/staff's mappers — not in the original work-item list, but required to satisfy Story 3's "mirrors" acceptance criteria.
+
 **Work required:**
 0. `PlatformDomainError implements DomainErrorShape` with `code` typed against `PlatformErrorCode` + `readonly field?: string` on its constructor (Story 2's pattern, applied to this context now that its catalog is populated).
-1. Codes for 7 named subclasses + `TenantSettingsValidationError` (the `domain/value-objects/` outlier — consider relocating it to `domain/errors/` for consistency while touching it, or document why it stays put) + ~29 raw throws (the largest single batch, mostly `tenant-settings.vo.ts`'s per-field messages — strong candidate for a helper that assigns a `code` from the field name mechanically rather than 29 hand-written codes, e.g. `PLATFORM_SETTINGS_FIELD_INVALID` + `params: { field }` for the generic cases, named codes only for the ones with genuinely distinct handling).
-2. Decide the fate of `FeaturedBookingNotFoundError` (dead but mapped) and `PhotoNotOnBookingError` (dead and unmapped) — wire up or delete, confirm with the user before deleting.
+1. Codes for 7 named subclasses + relocated `TenantSettingsValidationError` + ~29 raw throws (distinct code per site — see decision above).
+2. Delete `FeaturedBookingNotFoundError` and `PhotoNotOnBookingError` (dead classes) and remove `FeaturedBookingNotFoundError`'s mapper branch.
+3. Replace `platform-error.mapper.ts`'s inline Address/CountryCode branches with `mapSharedAddressError(err)`.
 
-**Acceptance criteria:** mirrors Story 3's, plus explicit resolution of both dead classes.
+**Acceptance criteria:** mirrors Story 3's, plus:
+- [ ] Both dead classes removed, no dangling references
+- [ ] `TenantSettingsValidationError` lives in `domain/errors/platform-domain.error.ts`
+- [ ] `platform-error.mapper.ts` calls `mapSharedAddressError()` instead of duplicating the Address/CountryCode branches inline
 
 ---
 
