@@ -45,7 +45,10 @@ export function deriveViolation(issue: ZodIssue): ValidationViolation {
     case 'invalid_type':
       return {
         field,
-        code: issue.input === undefined ? GenericErrorCode.FIELD_REQUIRED : GenericErrorCode.VALUE_INVALID,
+        code:
+          issue.input === undefined
+            ? GenericErrorCode.FIELD_REQUIRED
+            : GenericErrorCode.VALUE_INVALID,
       };
     case 'too_small':
       return {
@@ -68,7 +71,10 @@ export function deriveViolation(issue: ZodIssue): ValidationViolation {
     case 'invalid_format':
       return {
         field,
-        code: issue.format === 'email' ? EmailErrorCode.FORMAT_INVALID : GenericErrorCode.FORMAT_INVALID,
+        code:
+          issue.format === 'email'
+            ? EmailErrorCode.FORMAT_INVALID
+            : GenericErrorCode.FORMAT_INVALID,
       };
     case 'not_multiple_of':
       return { field, code: GenericErrorCode.VALUE_OUT_OF_RANGE };
