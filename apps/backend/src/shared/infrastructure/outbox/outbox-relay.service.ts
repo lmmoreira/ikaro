@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { DomainEvent } from '../../domain/domain-event';
+import { Envelope } from '../../domain/envelope';
 import { AppLogger } from '../../observability/app-logger';
 import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
 import { OutboxEventEntity } from './outbox-event.entity';
@@ -12,15 +12,16 @@ interface OutboxRowForDispatch {
   payload: Record<string, unknown>;
 }
 
-// The stored payload is the verbatim envelope JSON.stringify()'d from a real DomainEvent by
-// OutboxEventBus.publish() — this reinterprets it back for GcpPubSubEventBusAdapter.publish(),
-// which only reads .eventName (topic routing) and re-serializes the whole object. Structurally
-// identical to the original event; not a real DomainEvent instance (no aggregate methods), which
-// is fine since none are called on the relay path. Parameter typed `unknown` (not
-// Record<string, unknown>) so the single assertion below matches the adapter's own
-// JSON.parse(...) . as DomainEvent precedent in dispatch() — no double-cast through unknown.
-function asStoredEvent(payload: unknown): DomainEvent {
-  return payload as DomainEvent;
+// The stored payload is the verbatim envelope JSON.stringify()'d from a real DomainEvent or
+// Command by OutboxEventBus.publish() — this reinterprets it back for
+// GcpPubSubEventBusAdapter.publish(), which only reads .eventName (topic routing) and
+// re-serializes the whole object. Structurally identical to the original; not a real class
+// instance (no aggregate methods, no Command.dedupKey type guard), which is fine since neither
+// is used on the relay path. Parameter typed `unknown` (not Record<string, unknown>) so the
+// single assertion below matches the adapter's own JSON.parse(...) as Envelope precedent in
+// dispatch() — no double-cast through unknown.
+function asStoredEvent(payload: unknown): Envelope {
+  return payload as Envelope;
 }
 
 const SWEEP_SELECT_SQL = `

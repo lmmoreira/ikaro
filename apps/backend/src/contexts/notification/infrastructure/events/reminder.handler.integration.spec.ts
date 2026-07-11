@@ -74,18 +74,23 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
   });
 
   it('BookingReminderDue → writes log and dispatches day-before email', async () => {
-    const event = new BookingReminderDue(tenantId, uuidv7(), {
-      bookingId: uuidv7(),
-      customerId: uuidv7(),
-      recipientEmail: 'joao@example.com',
-      customerName: 'João Silva',
-      scheduledAt: '2026-07-02T13:00:00.000Z',
-      appointmentSlot: {
-        startTime: '2026-07-02T13:00:00.000Z',
-        endTime: '2026-07-02T14:00:00.000Z',
+    const event = new BookingReminderDue(
+      tenantId,
+      uuidv7(),
+      {
+        bookingId: uuidv7(),
+        customerId: uuidv7(),
+        recipientEmail: 'joao@example.com',
+        customerName: 'João Silva',
+        scheduledAt: '2026-07-02T13:00:00.000Z',
+        appointmentSlot: {
+          startTime: '2026-07-02T13:00:00.000Z',
+          endTime: '2026-07-02T14:00:00.000Z',
+        },
+        lines: [{ serviceId: uuidv7(), serviceName: 'Lavagem Completa' }],
       },
-      lines: [{ serviceId: uuidv7(), serviceName: 'Lavagem Completa' }],
-    });
+      '2026-07-02',
+    );
 
     await eventBus.publish(event);
 
@@ -102,18 +107,23 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
   });
 
   it('BookingReminderDueToday → writes log and dispatches day-of email', async () => {
-    const event = new BookingReminderDueToday(tenantId, uuidv7(), {
-      bookingId: uuidv7(),
-      customerId: null,
-      recipientEmail: 'maria@example.com',
-      customerName: 'Maria Costa',
-      scheduledAt: '2026-07-02T09:00:00.000Z',
-      appointmentSlot: {
-        startTime: '2026-07-02T09:00:00.000Z',
-        endTime: '2026-07-02T10:00:00.000Z',
+    const event = new BookingReminderDueToday(
+      tenantId,
+      uuidv7(),
+      {
+        bookingId: uuidv7(),
+        customerId: null,
+        recipientEmail: 'maria@example.com',
+        customerName: 'Maria Costa',
+        scheduledAt: '2026-07-02T09:00:00.000Z',
+        appointmentSlot: {
+          startTime: '2026-07-02T09:00:00.000Z',
+          endTime: '2026-07-02T10:00:00.000Z',
+        },
+        lines: [{ serviceId: uuidv7(), serviceName: 'Polimento' }],
       },
-      lines: [{ serviceId: uuidv7(), serviceName: 'Polimento' }],
-    });
+      '2026-07-02',
+    );
 
     await eventBus.publish(event);
 
@@ -160,18 +170,23 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
   });
 
   it('BookingReminderDue dispatch failure → FAILED log written; explicit retry delivers email', async () => {
-    const event = new BookingReminderDue(tenantId, uuidv7(), {
-      bookingId: uuidv7(),
-      customerId: uuidv7(),
-      recipientEmail: 'fail-test@example.com',
-      customerName: 'Fail Test',
-      scheduledAt: '2026-07-05T10:00:00.000Z',
-      appointmentSlot: {
-        startTime: '2026-07-05T10:00:00.000Z',
-        endTime: '2026-07-05T11:00:00.000Z',
+    const event = new BookingReminderDue(
+      tenantId,
+      uuidv7(),
+      {
+        bookingId: uuidv7(),
+        customerId: uuidv7(),
+        recipientEmail: 'fail-test@example.com',
+        customerName: 'Fail Test',
+        scheduledAt: '2026-07-05T10:00:00.000Z',
+        appointmentSlot: {
+          startTime: '2026-07-05T10:00:00.000Z',
+          endTime: '2026-07-05T11:00:00.000Z',
+        },
+        lines: [{ serviceId: uuidv7(), serviceName: 'Lavagem' }],
       },
-      lines: [{ serviceId: uuidv7(), serviceName: 'Lavagem' }],
-    });
+      '2026-07-05',
+    );
 
     // First delivery: dispatch fails → use case writes FAILED log, processedEvent NOT saved.
     // RoutingInMemoryEventBus swallows the handler rethrow (mirrors Pub/Sub fire-and-forget).
@@ -213,18 +228,23 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
     processedEventRepo.clear();
     dispatcher.clear();
 
-    const event = new BookingReminderDue(tenantId, uuidv7(), {
-      bookingId: uuidv7(),
-      customerId: uuidv7(),
-      recipientEmail: 'tenant-a-customer@example.com',
-      customerName: 'Tenant A Customer',
-      scheduledAt: '2026-07-05T10:00:00.000Z',
-      appointmentSlot: {
-        startTime: '2026-07-05T10:00:00.000Z',
-        endTime: '2026-07-05T11:00:00.000Z',
+    const event = new BookingReminderDue(
+      tenantId,
+      uuidv7(),
+      {
+        bookingId: uuidv7(),
+        customerId: uuidv7(),
+        recipientEmail: 'tenant-a-customer@example.com',
+        customerName: 'Tenant A Customer',
+        scheduledAt: '2026-07-05T10:00:00.000Z',
+        appointmentSlot: {
+          startTime: '2026-07-05T10:00:00.000Z',
+          endTime: '2026-07-05T11:00:00.000Z',
+        },
+        lines: [{ serviceId: uuidv7(), serviceName: 'Lavagem' }],
       },
-      lines: [{ serviceId: uuidv7(), serviceName: 'Lavagem' }],
-    });
+      '2026-07-05',
+    );
 
     await eventBus.publish(event);
 

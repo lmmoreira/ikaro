@@ -1,5 +1,6 @@
 import { Repository } from 'typeorm';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
+import { Command } from '../../domain/command';
 import { DomainEvent } from '../../domain/domain-event';
 import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
 import { OutboxEventEntity } from './outbox-event.entity';
@@ -9,10 +10,18 @@ import { OutboxRelayService } from './outbox-relay.service';
 class StubEvent extends DomainEvent<{ value: string }> {
   readonly eventVersion = 1;
   readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }, dedupKey?: string) {
+  constructor(tenantId: string, correlationId: string, data: { value: string }) {
     super(tenantId, correlationId);
     this.data = data;
-    if (dedupKey !== undefined) (this as { dedupKey?: string }).dedupKey = dedupKey;
+  }
+}
+
+class StubCommand extends Command<{ value: string }> {
+  readonly eventVersion = 1;
+  readonly data: { value: string };
+  constructor(tenantId: string, correlationId: string, data: { value: string }, dedupKey: string) {
+    super(tenantId, correlationId, dedupKey);
+    this.data = data;
   }
 }
 
@@ -49,24 +58,24 @@ describe('OutboxEventBus', () => {
       );
     });
 
-    it('uses the event dedupKey when set (cron-published events)', async () => {
+    it('uses Command.dedupKey for a Command, ignoring eventId (cron-published events)', async () => {
       repo.query.mockResolvedValue([{ id: 'row-1' }]);
       const bus = new OutboxEventBus(repo, innerBus, relay, makeConfigService());
-      const event = new StubEvent(
+      const command = new StubCommand(
         'tenant-1',
         'corr-1',
         { value: 'x' },
         'PointsExpiringSoon:t1:c1:2026-07-11',
       );
 
-      await bus.publish(event);
+      await bus.publish(command);
 
       expect(repo.query).toHaveBeenCalledWith(expect.any(String), [
-        event.eventId,
+        command.eventId,
         'PointsExpiringSoon:t1:c1:2026-07-11',
         'tenant-1',
-        'StubEvent',
-        JSON.stringify(event),
+        'StubCommand',
+        JSON.stringify(command),
       ]);
     });
 

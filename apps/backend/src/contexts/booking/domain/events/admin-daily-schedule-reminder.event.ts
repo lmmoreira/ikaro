@@ -1,4 +1,4 @@
-import { DomainEvent } from '../../../../shared/domain/domain-event';
+import { Command } from '../../../../shared/domain/command';
 
 interface ReminderLine {
   serviceId: string;
@@ -20,12 +20,16 @@ interface AdminDailyScheduleReminderData extends Record<string, unknown> {
   totalBookingsToday: number;
 }
 
-export class AdminDailyScheduleReminder extends DomainEvent<AdminDailyScheduleReminderData> {
+// A Command, not a fact (TD24-S03): no state change, one digest per tenant per tenant-local day.
+// dedupKey derives from data.localDate (already computed by AdminScheduleReminderJob for its own
+// query window) rather than a separate constructor param, since the date is already part of the
+// payload every consumer sees.
+export class AdminDailyScheduleReminder extends Command<AdminDailyScheduleReminderData> {
   readonly eventVersion = 1;
   readonly data: AdminDailyScheduleReminderData;
 
   constructor(tenantId: string, correlationId: string, data: AdminDailyScheduleReminderData) {
-    super(tenantId, correlationId);
+    super(tenantId, correlationId, `AdminDailyScheduleReminder:${tenantId}:${data.localDate}`);
     this.data = data;
   }
 }

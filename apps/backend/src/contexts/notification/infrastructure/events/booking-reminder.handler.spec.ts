@@ -8,32 +8,42 @@ import { BookingReminderHandler } from './booking-reminder.handler';
 const TENANT_ID = 'aaaaaaaa-0010-4000-8000-000000000001';
 
 const buildDueEvent = (): BookingReminderDue =>
-  new BookingReminderDue(TENANT_ID, 'corr-reminder-due-1', {
-    bookingId: 'bbbbbbbb-0001-4000-8000-000000000001',
-    customerId: 'cccccccc-0001-4000-8000-000000000001',
-    recipientEmail: 'joao@example.com',
-    customerName: 'João Silva',
-    scheduledAt: '2026-07-02T13:00:00.000Z',
-    appointmentSlot: {
-      startTime: '2026-07-02T13:00:00.000Z',
-      endTime: '2026-07-02T14:00:00.000Z',
+  new BookingReminderDue(
+    TENANT_ID,
+    'corr-reminder-due-1',
+    {
+      bookingId: 'bbbbbbbb-0001-4000-8000-000000000001',
+      customerId: 'cccccccc-0001-4000-8000-000000000001',
+      recipientEmail: 'joao@example.com',
+      customerName: 'João Silva',
+      scheduledAt: '2026-07-02T13:00:00.000Z',
+      appointmentSlot: {
+        startTime: '2026-07-02T13:00:00.000Z',
+        endTime: '2026-07-02T14:00:00.000Z',
+      },
+      lines: [{ serviceId: 'ssss-0001', serviceName: 'Lavagem Completa' }],
     },
-    lines: [{ serviceId: 'ssss-0001', serviceName: 'Lavagem Completa' }],
-  });
+    '2026-07-02',
+  );
 
 const buildDueTodayEvent = (): BookingReminderDueToday =>
-  new BookingReminderDueToday(TENANT_ID, 'corr-reminder-today-1', {
-    bookingId: 'bbbbbbbb-0002-4000-8000-000000000001',
-    customerId: null,
-    recipientEmail: 'maria@example.com',
-    customerName: 'Maria Costa',
-    scheduledAt: '2026-07-02T09:00:00.000Z',
-    appointmentSlot: {
-      startTime: '2026-07-02T09:00:00.000Z',
-      endTime: '2026-07-02T10:00:00.000Z',
+  new BookingReminderDueToday(
+    TENANT_ID,
+    'corr-reminder-today-1',
+    {
+      bookingId: 'bbbbbbbb-0002-4000-8000-000000000001',
+      customerId: null,
+      recipientEmail: 'maria@example.com',
+      customerName: 'Maria Costa',
+      scheduledAt: '2026-07-02T09:00:00.000Z',
+      appointmentSlot: {
+        startTime: '2026-07-02T09:00:00.000Z',
+        endTime: '2026-07-02T10:00:00.000Z',
+      },
+      lines: [{ serviceId: 'ssss-0002', serviceName: 'Polimento' }],
     },
-    lines: [{ serviceId: 'ssss-0002', serviceName: 'Polimento' }],
-  });
+    '2026-07-02',
+  );
 
 describe('BookingReminderHandler', () => {
   let sendDue: jest.Mocked<Pick<SendBookingReminderDueNotificationUseCase, 'execute'>>;

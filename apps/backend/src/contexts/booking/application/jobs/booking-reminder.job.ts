@@ -68,36 +68,46 @@ export class BookingReminderJob {
       for (const booking of tomorrowBookings) {
         const { email, name } = await this.resolveRecipient(booking, tenant.id);
         await this.eventBus.publish(
-          new BookingReminderDue(tenant.id, correlationId, {
-            bookingId: booking.id,
-            customerId: booking.customerId,
-            recipientEmail: email,
-            customerName: name,
-            scheduledAt: booking.scheduledAt.toISOString(),
-            appointmentSlot: this.buildSlot(booking),
-            lines: booking.lines.map((l) => ({
-              serviceId: l.serviceId,
-              serviceName: l.serviceNameAtBooking,
-            })),
-          }),
+          new BookingReminderDue(
+            tenant.id,
+            correlationId,
+            {
+              bookingId: booking.id,
+              customerId: booking.customerId,
+              recipientEmail: email,
+              customerName: name,
+              scheduledAt: booking.scheduledAt.toISOString(),
+              appointmentSlot: this.buildSlot(booking),
+              lines: booking.lines.map((l) => ({
+                serviceId: l.serviceId,
+                serviceName: l.serviceNameAtBooking,
+              })),
+            },
+            localTomorrow,
+          ),
         );
       }
 
       for (const booking of todayBookings) {
         const { email, name } = await this.resolveRecipient(booking, tenant.id);
         await this.eventBus.publish(
-          new BookingReminderDueToday(tenant.id, correlationId, {
-            bookingId: booking.id,
-            customerId: booking.customerId,
-            recipientEmail: email,
-            customerName: name,
-            scheduledAt: booking.scheduledAt.toISOString(),
-            appointmentSlot: this.buildSlot(booking),
-            lines: booking.lines.map((l) => ({
-              serviceId: l.serviceId,
-              serviceName: l.serviceNameAtBooking,
-            })),
-          }),
+          new BookingReminderDueToday(
+            tenant.id,
+            correlationId,
+            {
+              bookingId: booking.id,
+              customerId: booking.customerId,
+              recipientEmail: email,
+              customerName: name,
+              scheduledAt: booking.scheduledAt.toISOString(),
+              appointmentSlot: this.buildSlot(booking),
+              lines: booking.lines.map((l) => ({
+                serviceId: l.serviceId,
+                serviceName: l.serviceNameAtBooking,
+              })),
+            },
+            localToday,
+          ),
         );
       }
     }

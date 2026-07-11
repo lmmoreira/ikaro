@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DomainEvent } from '../../domain/domain-event';
+import { Command } from '../../domain/command';
+import { Envelope } from '../../domain/envelope';
 import { AppLogger } from '../../observability/app-logger';
 import { IEventBus } from '../../ports/event-bus.port';
 import { IPushableEventBus } from '../../ports/pushable-event-bus.port';
@@ -38,8 +39,11 @@ export class OutboxEventBus implements IEventBus, ITriggerBus, IPushableEventBus
     private readonly config: ConfigService,
   ) {}
 
-  async publish(event: DomainEvent): Promise<void> {
-    const dedupKey = event.dedupKey ?? event.eventId;
+  async publish(event: Envelope): Promise<void> {
+    // Command carries its own deterministic dedupKey (required on that type); every other
+    // Envelope (a DomainEvent, a real fact) is only ever constructed once per business action,
+    // so its own eventId already identifies that fact uniquely.
+    const dedupKey = event instanceof Command ? event.dedupKey : event.eventId;
     const params = [
       event.eventId,
       dedupKey,
@@ -83,7 +87,7 @@ export class OutboxEventBus implements IEventBus, ITriggerBus, IPushableEventBus
     });
   }
 
-  subscribe<T extends DomainEvent>(
+  subscribe<T extends Envelope>(
     eventName: string,
     handler: (event: T) => Promise<void>,
     consumerName: string,

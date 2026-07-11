@@ -72,11 +72,16 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
   afterEach(() => dispatcher.clear());
 
   it('PointsExpiringSoon → writes log and dispatches warning email to customer', async () => {
-    const event = new PointsExpiringSoon(tenantId, uuidv7(), {
-      customerId,
-      pointsExpiringSoon: 30,
-      earliestExpiresAt: '2026-06-09T00:00:00.000Z',
-    });
+    const event = new PointsExpiringSoon(
+      tenantId,
+      uuidv7(),
+      {
+        customerId,
+        pointsExpiringSoon: 30,
+        earliestExpiresAt: '2026-06-09T00:00:00.000Z',
+      },
+      '2026-06-02',
+    );
 
     await eventBus.publish(event);
 
@@ -91,11 +96,16 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
   });
 
   it('is idempotent — replaying same event produces only one notification log', async () => {
-    const event = new PointsExpiringSoon(tenantId, uuidv7(), {
-      customerId,
-      pointsExpiringSoon: 10,
-      earliestExpiresAt: '2026-06-09T00:00:00.000Z',
-    });
+    const event = new PointsExpiringSoon(
+      tenantId,
+      uuidv7(),
+      {
+        customerId,
+        pointsExpiringSoon: 10,
+        earliestExpiresAt: '2026-06-09T00:00:00.000Z',
+      },
+      '2026-06-02',
+    );
 
     await eventBus.publish(event);
 
@@ -114,11 +124,16 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
   });
 
   it('dispatch failure → FAILED log; explicit retry → SENT log with retryCount=1', async () => {
-    const event = new PointsExpiringSoon(tenantId, uuidv7(), {
-      customerId,
-      pointsExpiringSoon: 99,
-      earliestExpiresAt: '2026-06-09T00:00:00.000Z',
-    });
+    const event = new PointsExpiringSoon(
+      tenantId,
+      uuidv7(),
+      {
+        customerId,
+        pointsExpiringSoon: 99,
+        earliestExpiresAt: '2026-06-09T00:00:00.000Z',
+      },
+      '2026-06-02',
+    );
 
     // First delivery: dispatch fails → use case writes FAILED log, processedEvent NOT saved.
     // RoutingInMemoryEventBus swallows the handler rethrow.
@@ -172,11 +187,16 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
 
     dispatcher.clear();
 
-    const event = new PointsExpiringSoon(tenantId, uuidv7(), {
-      customerId,
-      pointsExpiringSoon: 25,
-      earliestExpiresAt: '2026-06-09T00:00:00.000Z',
-    });
+    const event = new PointsExpiringSoon(
+      tenantId,
+      uuidv7(),
+      {
+        customerId,
+        pointsExpiringSoon: 25,
+        earliestExpiresAt: '2026-06-09T00:00:00.000Z',
+      },
+      '2026-06-02',
+    );
 
     await eventBus.publish(event);
 

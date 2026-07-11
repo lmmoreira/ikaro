@@ -3,6 +3,7 @@ import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
+import { Command } from '../../../../shared/domain/command';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingReminderJob } from './booking-reminder.job';
 
@@ -213,6 +214,60 @@ describe('BookingReminderJob', () => {
       (e) => e.eventName === 'BookingReminderDue' && e.tenantId === TENANT_OUT,
     );
     expect(tenantBEvents).toHaveLength(0);
+  });
+
+  it('sets dedupKey to BookingReminderDue:<tenantId>:<bookingId>:<local tomorrow date>', async () => {
+    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_IN)
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(TOMORROW)
+      .withLines([new BookingLineBuilder().build()])
+      .build();
+    await bookingRepo.save(booking);
+
+    await job.run(NOW_IN);
+
+    const event = eventBus.published.find((e) => e.eventName === 'BookingReminderDue') as Command;
+    expect(event.dedupKey).toBe(`BookingReminderDue:${TENANT_IN}:${booking.id}:2026-06-02`);
+  });
+
+  it('sets dedupKey to BookingReminderDueToday:<tenantId>:<bookingId>:<local today date>', async () => {
+    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_IN)
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(TODAY)
+      .withLines([new BookingLineBuilder().build()])
+      .build();
+    await bookingRepo.save(booking);
+
+    await job.run(NOW_IN);
+
+    const event = eventBus.published.find(
+      (e) => e.eventName === 'BookingReminderDueToday',
+    ) as Command;
+    expect(event.dedupKey).toBe(`BookingReminderDueToday:${TENANT_IN}:${booking.id}:2026-06-01`);
+  });
+
+  it('two overlapping runs for the same day produce the same dedupKey (TD24-S03 cron double-send fix)', async () => {
+    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_IN)
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(TOMORROW)
+      .withLines([new BookingLineBuilder().build()])
+      .build();
+    await bookingRepo.save(booking);
+
+    await job.run(NOW_IN);
+    await job.run(NOW_IN);
+
+    const events = eventBus.published.filter(
+      (e) => e.eventName === 'BookingReminderDue',
+    ) as Command[];
+    expect(events).toHaveLength(2); // InMemoryEventBus doesn't dedup — the outbox does (S01/S03)
+    expect(events[0].dedupKey).toBe(events[1].dedupKey);
   });
 
   it('uses a fresh correlationId per tenant iteration', async () => {

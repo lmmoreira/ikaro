@@ -3,6 +3,7 @@ import { TenantEntity } from '../../../contexts/platform/infrastructure/entities
 import { TenantEntityBuilder } from '../../../test/builders/platform/tenant-entity.builder';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
 import { createTestDataSource } from '../../../test/test-datasource';
+import { Command } from '../../domain/command';
 import { DomainEvent } from '../../domain/domain-event';
 import { uuidv7 } from '../../domain/uuid-v7';
 import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
@@ -15,10 +16,18 @@ import { OutboxRelayService } from './outbox-relay.service';
 class StubEvent extends DomainEvent<{ value: string }> {
   readonly eventVersion = 1;
   readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }, dedupKey?: string) {
+  constructor(tenantId: string, correlationId: string, data: { value: string }) {
     super(tenantId, correlationId);
     this.data = data;
-    if (dedupKey !== undefined) (this as { dedupKey?: string }).dedupKey = dedupKey;
+  }
+}
+
+class StubCommand extends Command<{ value: string }> {
+  readonly eventVersion = 1;
+  readonly data: { value: string };
+  constructor(tenantId: string, correlationId: string, data: { value: string }, dedupKey: string) {
+    super(tenantId, correlationId, dedupKey);
+    this.data = data;
   }
 }
 
@@ -110,12 +119,14 @@ describe('OutboxEventBus (integration)', () => {
     const bus = makeBus(true);
     const tenantId = uuidv7();
     const dedupKey = `business-key-${uuidv7()}`;
-    const first = new StubEvent(tenantId, uuidv7(), { value: 'x' }, dedupKey);
+    // Two Commands with different eventIds but the same dedupKey — mirrors a retried/overlapping
+    // cron run constructing the same business fact twice.
+    const first = new StubCommand(tenantId, uuidv7(), { value: 'x' }, dedupKey);
 
     await bus.publish(first);
     innerBus.publish.mockClear();
 
-    const second = new StubEvent(tenantId, uuidv7(), { value: 'y' }, dedupKey);
+    const second = new StubCommand(tenantId, uuidv7(), { value: 'y' }, dedupKey);
     await bus.publish(second);
 
     const rows = await outboxRepo.find({ where: { dedupKey } });

@@ -1,7 +1,7 @@
 import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Message, PubSub, Subscription } from '@google-cloud/pubsub';
-import { DomainEvent } from '../domain/domain-event';
+import { Envelope } from '../domain/envelope';
 import { AppLogger } from '../observability/app-logger';
 import { IEventBus } from '../ports/event-bus.port';
 import { IPushableEventBus } from '../ports/pushable-event-bus.port';
@@ -11,7 +11,7 @@ interface PendingSubscription {
   eventName: string;
   topicName: string;
   subscriptionName: string;
-  handler: (event: DomainEvent) => Promise<void>;
+  handler: (event: Envelope) => Promise<void>;
 }
 
 interface PendingTrigger {
@@ -36,7 +36,7 @@ export class GcpPubSubEventBusAdapter
     this.pubsub = new PubSub({ projectId: config.getOrThrow<string>('PUBSUB_PROJECT_ID') });
   }
 
-  async publish(event: DomainEvent): Promise<void> {
+  async publish(event: Envelope): Promise<void> {
     const topicName = `ikaro-${event.eventName}`;
     await this.ensureTopicOnce(topicName);
     await this.pubsub.topic(topicName).publishMessage({
@@ -50,7 +50,7 @@ export class GcpPubSubEventBusAdapter
     });
   }
 
-  subscribe<T extends DomainEvent>(
+  subscribe<T extends Envelope>(
     eventName: string,
     handler: (event: T) => Promise<void>,
     consumerName: string,
@@ -63,7 +63,7 @@ export class GcpPubSubEventBusAdapter
       eventName,
       topicName: `ikaro-${eventName}`,
       subscriptionName,
-      handler: handler as (event: DomainEvent) => Promise<void>,
+      handler: handler as (event: Envelope) => Promise<void>,
     });
   }
 
@@ -143,11 +143,11 @@ export class GcpPubSubEventBusAdapter
   private async dispatch(
     message: Message,
     eventName: string,
-    handler: (event: DomainEvent) => Promise<void>,
+    handler: (event: Envelope) => Promise<void>,
   ): Promise<void> {
-    let event: DomainEvent;
+    let event: Envelope;
     try {
-      event = JSON.parse(message.data.toString()) as DomainEvent;
+      event = JSON.parse(message.data.toString()) as Envelope;
     } catch {
       this.logger.error('[pubsub] unparseable message — ACKing to prevent retry loop', undefined, {
         eventName,
@@ -210,7 +210,7 @@ export class GcpPubSubEventBusAdapter
   async dispatchPushMessage(subscriptionFullName: string, base64Data: string): Promise<void> {
     const subscriptionName = subscriptionFullName.split('/').pop() ?? subscriptionFullName;
 
-    // Trigger map checked first — a cron tick is not a DomainEvent, see trigger-bus.port.ts.
+    // Trigger map checked first — a cron tick carries no envelope at all, see trigger-bus.port.ts.
     const triggerConfig = this.pendingTriggers.get(subscriptionName);
     if (triggerConfig) {
       await triggerConfig.handler();
@@ -226,9 +226,9 @@ export class GcpPubSubEventBusAdapter
       return;
     }
 
-    let event: DomainEvent;
+    let event: Envelope;
     try {
-      event = JSON.parse(Buffer.from(base64Data, 'base64').toString('utf8')) as DomainEvent;
+      event = JSON.parse(Buffer.from(base64Data, 'base64').toString('utf8')) as Envelope;
     } catch {
       this.logger.error(
         `[pubsub] unparseable push message on ${subscriptionName} — acking to prevent redelivery loop`,
@@ -241,7 +241,7 @@ export class GcpPubSubEventBusAdapter
 
   private async publishToDlq(
     message: Message,
-    event: DomainEvent,
+    event: Envelope,
     eventName: string,
     err: unknown,
   ): Promise<void> {

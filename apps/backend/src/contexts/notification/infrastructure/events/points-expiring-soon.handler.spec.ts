@@ -6,11 +6,16 @@ import { PointsExpiringSoonHandler } from './points-expiring-soon.handler';
 const TENANT_ID = 'aaaaaaaa-0020-4000-8000-000000001604';
 
 const buildEvent = (): PointsExpiringSoon =>
-  new PointsExpiringSoon(TENANT_ID, 'corr-expiring-soon-1', {
-    customerId: 'cccccccc-0001-4000-8000-000000001604',
-    pointsExpiringSoon: 20,
-    earliestExpiresAt: '2026-06-09T00:00:00.000Z',
-  });
+  new PointsExpiringSoon(
+    TENANT_ID,
+    'corr-expiring-soon-1',
+    {
+      customerId: 'cccccccc-0001-4000-8000-000000001604',
+      pointsExpiringSoon: 20,
+      earliestExpiresAt: '2026-06-09T00:00:00.000Z',
+    },
+    '2026-06-02',
+  );
 
 describe('PointsExpiringSoonHandler', () => {
   let sendNotification: jest.Mocked<Pick<SendPointsExpiringSoonNotificationUseCase, 'execute'>>;

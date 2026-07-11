@@ -1,9 +1,11 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { DomainEvent } from '../../../../shared/domain/domain-event';
+import { Envelope } from '../../../../shared/domain/envelope';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
 
-type DeadLetterEvent = DomainEvent & {
+// Envelope, not DomainEvent — the DLQ can receive a dead-lettered Command just as easily as a
+// dead-lettered DomainEvent (GcpPubSubEventBusAdapter.publishToDlq() routes both here).
+type DeadLetterEvent = Envelope & {
   readonly deliveryAttempt?: number;
   readonly deadLetterReason?: string;
 };
@@ -15,10 +17,10 @@ export class DeadLetterHandler implements OnModuleInit {
   constructor(@Inject(EVENT_BUS) private readonly eventBus: IEventBus) {}
 
   onModuleInit(): void {
-    this.eventBus.subscribe<DomainEvent>('dead-letter', (event) => this.handle(event), 'monitor');
+    this.eventBus.subscribe<Envelope>('dead-letter', (event) => this.handle(event), 'monitor');
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(event: Envelope): Promise<void> {
     const dlq = event as DeadLetterEvent;
     this.logger.error('Dead-letter message received — requires human investigation', undefined, {
       eventId: dlq.eventId,

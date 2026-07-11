@@ -24,7 +24,7 @@ for (const event of booking.clearDomainEvents()) {
 }
 ```
 
-The inverse problem exists for cron jobs: a retried/overlapping trigger invocation publishes the **same business fact twice as two distinct messages with two fresh `eventId`s** (`DomainEvent`'s constructor calls `uuidv7()` unconditionally), so consumer-side `eventId` dedup never sees a duplicate — the customer gets two emails.
+The inverse problem exists for cron jobs: a retried/overlapping trigger invocation publishes the **same business fact twice as two distinct messages with two fresh `eventId`s** (`Envelope`'s constructor — the shared base every published message rides on, see §Design — calls `uuidv7()` unconditionally), so consumer-side `eventId` dedup never sees a duplicate — the customer gets two emails.
 
 M17-S03's `cron_run_log` attempt failed because `markRun()` can never be atomic with a Pub/Sub publish — the exact dual-write this TD eliminates. See `plan/M17-CLOUD-DEPLOY.md` S03 discovery note (2026-07-10) for the full post-mortem.
 
@@ -106,6 +106,7 @@ M17-S03's `cron_run_log` attempt failed because `markRun()` can never be atomic 
 | D8 | **Retention, both tables, enforced by the sweep tick — no separate cleanup job.** Both default to **14 days**, parameterized (`OUTBOX_RETENTION_DAYS`, `INBOX_RETENTION_DAYS`). Inbox retention must stay above Pub/Sub's 7-day max redelivery window or the dedup guarantee weakens — enforce with a startup config check (`INBOX_RETENTION_DAYS >= 8`). Deletes are batched (`DELETE WHERE id IN (SELECT … LIMIT :batchSize)`). | Debug/replay window without unbounded growth. Because the GC runs every tick, it's a continuous trickle (a few rows per tick), never a mass delete — autovacuum absorbs it. |
 | D10 | **No table partitioning.** | Postgres requires UNIQUE/PK constraints on partitioned tables to include the partition key — partitioning by time would outlaw `UNIQUE(dedup_key)` and `PK(event_id, consumer_name)`, breaking the constraint-backed idempotency (`ON CONFLICT` stops working; dedup degrades to racy SELECT-then-INSERT). At current volumes the trickle-delete costs nothing; if volume ever makes retention genuinely expensive, revisit partitioning *together with* a side-table global-uniqueness design as its own TD. |
 | D9 | **Ordering: out of scope.** Relay uses `SKIP LOCKED` (out-of-order-safe); no Pub/Sub ordering keys. | Matches current behavior (no ordering today). Ordering keys per booking remain TD08 AUD-018, a separate follow-up. |
+| D11 | **`Command` is a sibling of `DomainEvent` under a shared `Envelope` base — not an optional `dedupKey?` field on `DomainEvent` itself** (revises the original S01 draft, decided mid-implementation 2026-07-11). `Envelope` carries the wire fields every published message needs (`eventId`, `tenantId`, `occurredAt`, `correlationId`, `eventName`); `DomainEvent extends Envelope` unchanged (a fact, no dedup concept); `Command extends Envelope` with a **required** `dedupKey: string`. | A domain event is a fact that happened at most once per business action — it never needed a dedup concept, so bolting an optional field onto it for the 4 cron classes' benefit left the other 17 classes carrying a field that's always `undefined` and easy to misread as "do I need to set this?". Modeling `Command` as a proper sibling (not `DomainEvent extends ... dedupKey?`) makes `instanceof Command` a compiler-enforced signal instead of a convention, at zero transport-layer cost — `Command extends Envelope`, so `IEventBus`/`OutboxEventBus`/`GcpPubSubEventBusAdapter` only ever needed widening from `DomainEvent` to `Envelope`, never a new parallel bus. The 4 classes (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`) and their 3 publishing jobs were migrated to `Command` with real computed `dedupKey`s in the same PR as S01's foundation (pulled forward from S03 — see S01/S03 story notes below); the transactional per-tenant-batch wrapping and the loyalty re-emit atomicity fix remain S03's job. |
 
 ---
 
@@ -144,12 +145,20 @@ Insert is always `INSERT … ON CONFLICT ("dedup_key") DO NOTHING RETURNING "id"
 
 New `shared/infrastructure/outbox/outbox-event-bus.ts`, bound as `EVENT_BUS`. Because `TRIGGER_BUS`/`PUSHABLE_EVENT_BUS` alias `EVENT_BUS` (§C2), it implements **all three ports**:
 
-- `publish(event)` → **intercepted**: writes the outbox row using `getActiveEntityManager()` if a transaction is ambient (**joins the caller's transaction** — this is the atomicity), or its own short transaction if not. Dedup key = `event.dedupKey ?? event.eventId`. On successful insert, registers the row id via `scheduleAfterCommit()` for inline dispatch (which, per §C1, runs immediately when no tx is ambient — so non-transactional publishes still get instant delivery).
+- `publish(event)` → **intercepted**: writes the outbox row using `getActiveEntityManager()` if a transaction is ambient (**joins the caller's transaction** — this is the atomicity), or its own short transaction if not. Dedup key = `event instanceof Command ? event.dedupKey : event.eventId` (see the Envelope/Command model below). On successful insert, registers the row id via `scheduleAfterCommit()` for inline dispatch (which, per §C1, runs immediately when no tx is ambient — so non-transactional publishes still get instant delivery).
 - `subscribe()`, `registerTrigger()`, `publishTrigger()`, `dispatchPushMessage()` → **pure delegation** to the inner `GcpPubSubEventBusAdapter` (registered as its own class provider; stays the singleton that owns Pub/Sub connections, push dispatch, and DLQ routing — its consumer role is untouched).
 - **Inline dispatch is awaited inside the after-commit callback** — it runs after the commit and before the HTTP response returns (adds ~10–100 ms to event-emitting endpoints; accepted). This is deliberate, not an accident of §C1: a fire-and-forget floating promise would race Cloud Run's request-based CPU allocation — CPU is throttled once the response is sent, so a background publish gets starved, fails silently, and every "happy path" quietly degrades to sweep latency (up to 5 min for customer-facing emails). Awaiting before the response is the only Cloud-Run-safe option without paying for always-allocated CPU.
 - Inline dispatch **never throws into the caller**: the try/catch lives **inside the callback passed to `scheduleAfterCommit`** — this placement is mandatory, not stylistic. Per §C1, `flushAfterCommitCallbacks` has no try/catch: an escaping error would propagate out of `txManager.run()` *after* the commit (the use case would report failure for work that committed) and abort the remaining callbacks (other events' inline dispatch silently lost). Dispatch errors are logged and left to the sweep; the use case succeeded the moment the transaction committed.
 
-`DomainEvent` gains an optional readonly `dedupKey?: string` (default `undefined` → adapter falls back to `eventId`). Only the cron-job events set it. It serializes into `payload` like any other field; consumers ignore it.
+### `Envelope` / `DomainEvent` / `Command` (D11)
+
+**Superseded design note:** an earlier draft of this section gave `DomainEvent` an optional `dedupKey?: string` field, set only by cron-published events. Revised during S01 implementation to a proper sibling model instead — see D11 below for why.
+
+- `shared/domain/envelope.ts` — the shared wire envelope every published message rides on: `eventId` (fresh `uuidv7()` per construction), `tenantId`, `occurredAt`, `correlationId`, `eventName`, plus the abstract `eventVersion`/`data`. This is what `IEventBus.publish(event: Envelope)`/`subscribe<T extends Envelope>()`, `GcpPubSubEventBusAdapter`, and the outbox are typed against.
+- `shared/domain/domain-event.ts` — `DomainEvent extends Envelope {}`, unchanged in shape from before this revision. A fact that already happened to an aggregate (`BookingApproved`, `StaffInvited`, ...) — emitted at most once per business action, so its own `eventId` already identifies the fact uniquely. No dedup concept; never needed one.
+- `shared/domain/command.ts` — `Command extends Envelope`, new. An idempotent *instruction* ("send this reminder," "warn this customer"), not a fact — only ever constructed by scheduled jobs, never by aggregate methods. Carries a **required** `readonly dedupKey: string` (not optional): a retried or overlapping cron tick can legitimately construct the *same* Command twice with two different `eventId`s, so the deterministic `dedupKey` is what the outbox's `UNIQUE(dedup_key)` collapses N such attempts down to one delivered message on.
+
+`Command` deliberately extends `Envelope` (a sibling of `DomainEvent`, not a subtype of it) rather than a wholly separate hierarchy — this costs nothing at the transport layer (`IEventBus`, the outbox, `GcpPubSubEventBusAdapter` all already type against the shared envelope) while still making `instanceof Command` a reliable, compiler-enforced signal that dedup is required, instead of an easily-forgotten optional field on every event class.
 
 ### Repository auto-flush (D6)
 
@@ -224,13 +233,15 @@ End-to-end: **at-least-once delivery, exactly-once effect** (dedup at both edges
 
 ### Deterministic dedup keys for cron-published events
 
-The three publishing jobs set `dedupKey` to a business identity (exact formats + the timezone-of-day rule finalized in S03 discovery — a job straddling midnight must not mint two keys for one logical run):
+**Resolved** (originally deferred to S03 discovery, decided during S01 implementation 2026-07-11 alongside the `Command` migration — see D11). The three publishing jobs set `dedupKey` to a business identity:
 
-| Event | dedup_key shape |
-|---|---|
-| `PointsExpiringSoon` | `PointsExpiringSoon:<tenantId>:<customerId>:<yyyy-mm-dd>` |
-| `BookingReminderDue` / `BookingReminderDueToday` | `<EventName>:<tenantId>:<bookingId>:<yyyy-mm-dd>` |
-| `AdminDailyScheduleReminder` | `AdminDailyScheduleReminder:<tenantId>:<yyyy-mm-dd>` |
+| Event | dedup_key shape | Date source |
+|---|---|---|
+| `PointsExpiringSoon` | `PointsExpiringSoon:<tenantId>:<customerId>:<yyyy-mm-dd>` | **UTC** run date (`utcDateString(now)`, computed once per `run()`) |
+| `BookingReminderDue` / `BookingReminderDueToday` | `<EventName>:<tenantId>:<bookingId>:<yyyy-mm-dd>` | **Tenant-local** date (`localTomorrow`/`localToday`, already computed once per tenant by `BookingReminderJob` for its own query window) |
+| `AdminDailyScheduleReminder` | `AdminDailyScheduleReminder:<tenantId>:<yyyy-mm-dd>` | **Tenant-local** date (`data.localDate`, already part of the event's own payload — no extra constructor param needed) |
+
+**The timezone-of-day rule, resolved per job, not globally:** the two booking jobs (`BookingReminderJob`, `AdminScheduleReminderJob`) already compute a tenant-local calendar date once per tenant, before their own query-window logic — the dedup key reuses that exact value, so a job straddling midnight can't mint two keys for one logical run (no new computation, no new midnight-boundary risk). `NotifyExpiringPointsJob` uses the **UTC** date instead: unlike the booking jobs, it has no existing per-tenant timezone lookup (it iterates `LoyaltyEntry` rows grouped by `tenantId`, not `Tenant` records with a `.timezone` field), and at this job's weekly cadence the UTC-vs-tenant-local midnight boundary is immaterial to what the key protects against (a retry landing on the same calendar day as the original attempt, not a customer-facing "which day is this for" distinction). Adding tenant-timezone plumbing to this job solely for dedup-key purposes was judged out of proportion to the benefit — revisit only if this job's cadence ever tightens to daily or sub-daily.
 
 ### `shared.inbox`
 
@@ -264,7 +275,9 @@ Fixed-rate by construction — independent of tenant/traffic volume: ~8,640 swee
 
 ### TD24-S01 — Outbox foundation (ships dark) ✅ Done
 
-Nothing is rebound; no behavior changes. Everything is built and tested in isolation.
+Nothing is rebound; no *observable* behavior changes (`EVENT_BUS` still resolves to the raw `GcpPubSubEventBusAdapter`, unaffected by anything below). Everything is built and tested in isolation.
+
+**Scope pulled forward from S03 (decided mid-implementation, 2026-07-11 — see D11):** the `Command`/`Envelope` model was introduced here instead of shipping `DomainEvent.dedupKey?` as originally drafted, and — since `Command` needed at least one real consumer to prove the type out — the 4 cron event classes' migration and the timezone-of-day rule (originally S03's job) were completed in this same story. **What remains genuinely S03's job:** wrapping each job's per-tenant publish batch in `txManager.run()` (transactional atomicity across a tenant's outbox rows) and the loyalty re-emit atomicity fix (`ServicePointsEarned` inside `txManager.run()` with `markProcessed`) — see the shrunk S03 section below.
 
 **Create:**
 - Migration `AddSharedSchema` — `CREATE SCHEMA shared` + the `ikaro_app` grant block copied from `BootstrapSchemas` (new migration; never edit the applied one). ⚠️ Migration timestamps are global across contexts — pick the next free timestamp.
@@ -274,9 +287,12 @@ Nothing is rebound; no behavior changes. Everything is built and tested in isola
 - `shared/infrastructure/outbox/outbox-relay.service.ts` — `relay(rowIds?)`, sweep query (grace window, batch loop, `SKIP LOCKED`), retention GC (`OUTBOX_RETENTION_DAYS`, default 14), marking rule.
 - Trigger wiring, all in `shared/infrastructure/outbox/`: `cron-outbox-relay` trigger-name constant + trigger handler (mirror `booking/infrastructure/events/booking-reminder-trigger.handler.ts`) + thin `/cron/outbox-relay` controller (mirror `cron-booking.controller.ts`).
 - `shared/infrastructure/outbox/outbox.module.ts` — **new module, required** (verified gap: no existing module is positioned to host these providers). Registers `TypeOrmModule.forFeature([OutboxEventEntity])`, `OutboxRelayService`, the trigger handler, and the `/cron/outbox-relay` controller. Not `@Global()` — nothing outside this module needs to inject outbox internals yet (the `EVENT_BUS` rebind is S02). Mirrors `event-bus.module.ts`'s style (one module per shared concern, imported directly in `app.module.ts` — there is no catch-all `SharedModule` to drop into).
-- `DomainEvent.dedupKey?: string` optional readonly field (default undefined; no subclass changes yet).
+- `shared/domain/envelope.ts` — `Envelope` (the shared wire base, renamed content of what was `domain-event.ts`), `shared/domain/domain-event.ts` — `DomainEvent extends Envelope {}` (thin, unchanged shape for all 17 existing subclasses), `shared/domain/command.ts` — `Command extends Envelope` with a **required** `readonly dedupKey: string` (see D11 — supersedes the originally-drafted optional field on `DomainEvent`).
+- **4 cron event classes migrated `DomainEvent` → `Command`** (pulled forward from S03): `booking/domain/events/booking-reminder-due.event.ts`, `booking-reminder-due-today.event.ts`, `admin-daily-schedule-reminder.event.ts`, `loyalty/domain/events/points-expiring-soon.event.ts` — each now computes a real `dedupKey` per the §Design table (`BookingReminderDue`/`BookingReminderDueToday` take an extra `localDate` constructor param; `AdminDailyScheduleReminder` derives it from its own `data.localDate`; `PointsExpiringSoon` takes an extra `runDate` param).
+- **3 publishing jobs updated** to supply the new constructor args: `booking/application/jobs/booking-reminder.job.ts` passes its already-computed `localTomorrow`/`localToday`; `admin-schedule-reminder.job.ts` needs no change (dedupKey derives from existing payload data); `loyalty/application/jobs/notify-expiring-points.job.ts` computes `utcDateString(now)` once per run and passes it through. Per-tenant `txManager.run()` batching (transactional atomicity across a tenant's rows within one job run) is **not** part of this — remains S03.
+- Transport layer widened from `DomainEvent` to `Envelope`: `shared/ports/event-bus.port.ts` (`IEventBus.publish`/`subscribe<T>`), `shared/infrastructure/gcp-pubsub-event-bus.adapter.ts`, `contexts/notification/infrastructure/events/dead-letter.handler.ts` (the DLQ can receive a dead-lettered `Command` as easily as a `DomainEvent`), `test/infrastructure/in-memory-event-bus.ts` + `routing-in-memory-event-bus.ts`. `shared/domain/aggregate-root.ts` stays typed `DomainEvent[]` unchanged — aggregates never emit `Command`s.
 - Config wiring: `OUTBOX_INLINE_DISPATCH_ENABLED`, `OUTBOX_SWEEP_BATCH_SIZE`, `OUTBOX_SWEEP_GRACE_SECONDS`, `OUTBOX_RETENTION_DAYS` (default 14). (`INBOX_RETENTION_DAYS` + its ≥ 8 startup check arrive with the inbox in S04.)
-- Test support: outbox entity builder (`src/test/builders/shared/`), in-memory outbox repo double if needed (`src/test/infrastructure/`).
+- Test support: outbox entity builder (`src/test/builders/shared/`), shared `fake-config-service.ts` test double (`src/test/infrastructure/` — consolidates what would otherwise be 4 duplicated hand-rolled fakes across the outbox specs).
 
 **Modify:**
 - `integration-global-setup.ts` + `test-datasource.ts` — register new entity + migrations (**same commit** as the migrations).
@@ -290,6 +306,8 @@ Nothing is rebound; no behavior changes. Everything is built and tested in isola
 - relay marks `published_at` **only** on successful Pub/Sub publish; failed publish leaves row unpublished.
 - **transport round-trip (emulator):** relay publishes the stored envelope through the real `GcpPubSubEventBusAdapter` against the Pub/Sub emulator → received message is byte-identical to the pre-outbox envelope (`eventId`/`correlationId`/`occurredAt` survive the JSONB round-trip verbatim — this is what keeps consumer dedup working).
 - sweep: respects grace window; `SKIP LOCKED` (two concurrent sweeps → each row published once); loops until empty; GC deletes only published rows older than `OUTBOX_RETENTION_DAYS`.
+- `Envelope`/`Command` unit specs: fresh `eventId` per construction, envelope fields pass through, `Command.dedupKey` required and serializes into JSON.
+- Each of the 4 migrated event classes' owning job spec: dedup key shape assertion (`<EventName>:<tenantId>:...:<date>`), and — using `InMemoryEventBus` (no real dedup at this layer) — two calls to `job.run()` with the same `now` produce *matching* `dedupKey`s on the two resulting events, proving the key is deterministic across repeated runs (the outbox is what actually collapses them to one row/message — that guarantee is proved by the `OutboxEventBus`/`OutboxRelayService` specs above, not re-proved per job).
 
 **Infra note:** the Cloud Scheduler job + topic (`var.outbox_relay_schedule`, default `*/5 * * * *`) lands in the M17 Terraform tree — specifically `M17-S21` (Cloud Scheduler module, currently unimplemented) as its 4th job, and `M17-S19` (Pub/Sub module) auto-discovers the 4th topic via its scanner. Both stories already cross-reference this TD (updated 2026-07-11). Not a parallel mechanism.
 
@@ -334,18 +352,20 @@ The atomic story: rebind, drain, delete the 16 loops, fix the test bus — these
 
 ---
 
-### TD24-S03 — Cron dedup keys + the loyalty re-emit (the two motivating bugs)
+### TD24-S03 — Cron transactional batching + the loyalty re-emit (the two motivating bugs)
 
-**Modify — events (4 classes):** `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon` — accept/derive a deterministic `dedupKey` per §Design table. Finalize the timezone-of-day rule during story discovery (candidate: the tenant's timezone for tenant-scoped reminders, `America/Sao_Paulo` default per §1).
+**Scope shrunk 2026-07-11:** this story's original "accept/derive a deterministic `dedupKey`" work for the 4 cron event classes — including resolving the timezone-of-day rule — was pulled forward into S01 alongside the `Command`/`Envelope` model (see D11 and S01's story notes). Confirm at story-discovery time that `git log`/the current event class files still show `extends Command` with a real `dedupKey` before starting — if a future revert or rebase ever undid that, this story would need to re-absorb it.
 
-**Modify — jobs (3 files, §A2):** construct events with dedup keys; wrap each job's per-tenant publish batch in `txManager.run()` so a run's outbox rows commit atomically (one tx per tenant-batch, not one giant tx — a mid-run crash then retries only the un-committed tenants' facts as no-op conflicts + remainder).
+**What's left:**
 
-**Modify — job unit specs (3 files):** the publishing jobs gain a `txManager` constructor dependency — wire the existing `src/test/infrastructure/in-memory-transaction-manager.ts` double (it runs the work directly with no ambient context, so `InMemoryEventBus.publish` still records immediately; `expire-points.job.spec.ts` shows the pattern). Assertions on `.published` are otherwise unchanged.
+**Modify — jobs (3 files, §A2):** wrap each job's per-tenant publish batch in `txManager.run()` so a run's outbox rows commit atomically (one tx per tenant-batch, not one giant tx — a mid-run crash then retries only the un-committed tenants' facts as no-op conflicts + remainder). The `dedupKey`-bearing constructor calls already exist (S01) — this story only adds the transactional wrapping around them.
+
+**Modify — job unit specs (3 files):** the publishing jobs gain a `txManager` constructor dependency — wire the existing `src/test/infrastructure/in-memory-transaction-manager.ts` double (it runs the work directly with no ambient context, so `InMemoryEventBus.publish` still records immediately; `expire-points.job.spec.ts` shows the pattern). Assertions on `.published` and on `dedupKey` (added in S01) are otherwise unchanged.
 
 **Modify — loyalty re-emit (1 file):** `complete-booking-loyalty-effects.use-case.ts` — move the `ServicePointsEarned` publish **inside** the existing `txManager.run()` that contains `markProcessed` (closes TD08 §12.3: the re-emit and the idempotency mark become one atomic fact).
 
 **Tests:**
-- Two overlapping runs of each job for the same business day → exactly one outbox row per business fact → one consumer effect (the M17-S03 acceptance test that `cron_run_log` failed).
+- Two overlapping runs of each job for the same business day → exactly one outbox row per business fact → one consumer effect (the M17-S03 acceptance test that `cron_run_log` failed) — this is the first point in the TD where the dedup-key determinism proved at the domain level in S01 is actually exercised end-to-end through the real outbox.
 - Mid-loop crash → re-run completes the remainder; no duplicates, no dropped facts.
 - `BookingCompleted` redelivery after a simulated `ServicePointsEarned` outbox-write failure → effects roll back together and the redelivery completes both.
 
