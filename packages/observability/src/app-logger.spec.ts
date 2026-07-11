@@ -1,8 +1,9 @@
+import { trace } from '@opentelemetry/api';
 import { BaseAppLogger } from './app-logger';
 
 class TestLogger extends BaseAppLogger {
   constructor(context?: string) {
-    super('test-service', context);
+    super('test-service', undefined, context);
   }
 }
 
@@ -19,15 +20,20 @@ class EnrichingTestLogger extends BaseAppLogger {
 describe('BaseAppLogger', () => {
   let writeSpy: jest.SpyInstance;
   let lastOutput: Record<string, unknown>;
+  let getActiveSpanSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    delete process.env['LOG_LEVEL'];
     writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
       lastOutput = JSON.parse(chunk as string) as Record<string, unknown>;
       return true;
     });
+    getActiveSpanSpy = jest.spyOn(trace, 'getActiveSpan').mockReturnValue(undefined);
   });
 
   afterEach(() => {
+    delete process.env['LOG_LEVEL'];
+    getActiveSpanSpy.mockRestore();
     writeSpy.mockRestore();
   });
 
@@ -35,10 +41,13 @@ describe('BaseAppLogger', () => {
     new TestLogger('TestContext').log('hello world');
 
     expect(lastOutput).toMatchObject({
+      severity: 'INFO',
       level: 'INFO',
       service: 'test-service',
       context: 'TestContext',
       message: 'hello world',
+      traceId: null,
+      spanId: null,
     });
     expect(typeof lastOutput['timestamp']).toBe('string');
     expect(lastOutput['timestamp']).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -47,22 +56,28 @@ describe('BaseAppLogger', () => {
   it('warn() emits WARN level', () => {
     new TestLogger().warn('something suspicious');
     expect(lastOutput['level']).toBe('WARN');
+    expect(lastOutput['severity']).toBe('WARNING');
   });
 
-  it('error() emits ERROR level with trace', () => {
+  it('error() emits ERROR level with metadata.stack', () => {
     new TestLogger().error('boom', 'stack trace here');
     expect(lastOutput['level']).toBe('ERROR');
-    expect(lastOutput['trace']).toBe('stack trace here');
+    expect(lastOutput['severity']).toBe('ERROR');
+    expect(lastOutput['metadata']).toEqual({ stack: 'stack trace here' });
   });
 
   it('debug() emits DEBUG level', () => {
+    process.env['LOG_LEVEL'] = 'DEBUG';
     new TestLogger().debug('verbose info');
     expect(lastOutput['level']).toBe('DEBUG');
+    expect(lastOutput['severity']).toBe('DEBUG');
   });
 
-  it('verbose() emits VERBOSE level', () => {
+  it('verbose() emits VERBOSE level with DEBUG severity', () => {
+    process.env['LOG_LEVEL'] = 'VERBOSE';
     new TestLogger().verbose('extra detail');
     expect(lastOutput['level']).toBe('VERBOSE');
+    expect(lastOutput['severity']).toBe('DEBUG');
   });
 
   it('includes optional context fields when provided', () => {
@@ -77,7 +92,7 @@ describe('BaseAppLogger', () => {
     expect(() => JSON.parse(writeSpy.mock.calls[0]![0] as string)).not.toThrow();
   });
 
-  it('setLogLevels() is a no-op (filtering delegated to the log aggregator)', () => {
+  it('setLogLevels() remains a no-op for Nest integration', () => {
     expect(() => new TestLogger().setLogLevels(['error'])).not.toThrow();
   });
 
@@ -104,15 +119,52 @@ describe('BaseAppLogger', () => {
       service: 'evil',
       message: 'fake message',
       context: 'fake context',
-      trace: 'fake trace',
+      severity: 'EMERGENCY',
+      traceId: 'fake-trace-id',
+      spanId: 'fake-span-id',
+      metadata: { stack: 'fake trace' },
     });
 
     expect(lastOutput).toMatchObject({
+      severity: 'INFO',
       level: 'INFO',
       service: 'test-service',
       message: 'real message',
       context: 'RealContext',
+      traceId: null,
+      spanId: null,
     });
-    expect(lastOutput['trace']).toBeUndefined();
+    expect(lastOutput['metadata']).toBeUndefined();
+  });
+
+  it('omits entries below LOG_LEVEL', () => {
+    process.env['LOG_LEVEL'] = 'WARN';
+
+    new TestLogger().debug('debug message');
+    new TestLogger().log('info message');
+
+    expect(writeSpy).not.toHaveBeenCalled();
+  });
+
+  it('writes entries at or above LOG_LEVEL', () => {
+    process.env['LOG_LEVEL'] = 'WARN';
+
+    new TestLogger().warn('warn message');
+
+    expect(lastOutput['level']).toBe('WARN');
+  });
+
+  it('includes active trace and span ids when an OTel span is active', () => {
+    getActiveSpanSpy.mockReturnValue({
+      spanContext: () => ({
+        traceId: '0123456789abcdef0123456789abcdef',
+        spanId: '0123456789abcdef',
+      }),
+    });
+
+    new TestLogger().log('with span');
+
+    expect(lastOutput['traceId']).toBe('0123456789abcdef0123456789abcdef');
+    expect(lastOutput['spanId']).toBe('0123456789abcdef');
   });
 });

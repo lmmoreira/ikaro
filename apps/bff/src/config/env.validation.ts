@@ -4,6 +4,9 @@ import { validateEnvWithSchema } from '@ikaro/env-validation';
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3002),
+  LOG_LEVEL: z.enum(['DEBUG', 'INFO', 'WARN', 'ERROR', 'VERBOSE']).default('INFO'),
+  LOG_VENDOR: z.enum(['gcp', 'none']).default('gcp'),
+  GCP_PROJECT: z.string().optional(),
   BACKEND_INTERNAL_URL: z.url(),
   JWT_SECRET: z.string().min(64, 'JWT_SECRET must be at least 64 characters'),
   JWT_EXPIRES_IN: z

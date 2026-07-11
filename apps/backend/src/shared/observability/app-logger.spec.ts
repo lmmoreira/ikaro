@@ -4,13 +4,24 @@ import { TenantSettings } from '../../contexts/platform/domain/value-objects/ten
 
 const SETTINGS = TenantSettings.default().toJSON();
 
+class TestableAppLogger extends AppLogger {
+  public formatVendorFieldsForTest(
+    traceId: string | null,
+    spanId: string | null,
+  ): Record<string, unknown> {
+    return this.formatVendorFields(traceId, spanId);
+  }
+}
+
 describe('AppLogger', () => {
-  let logger: AppLogger;
+  let logger: TestableAppLogger;
   let writeSpy: jest.SpyInstance;
   let lastOutput: Record<string, unknown>;
 
   beforeEach(() => {
-    logger = new AppLogger('TestContext');
+    delete process.env['LOG_VENDOR'];
+    delete process.env['GCP_PROJECT'];
+    logger = new TestableAppLogger('TestContext');
     writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
       lastOutput = JSON.parse(chunk as string) as Record<string, unknown>;
       return true;
@@ -18,6 +29,8 @@ describe('AppLogger', () => {
   });
 
   afterEach(() => {
+    delete process.env['LOG_VENDOR'];
+    delete process.env['GCP_PROJECT'];
     writeSpy.mockRestore();
   });
 
@@ -45,5 +58,41 @@ describe('AppLogger', () => {
     });
     expect(lastOutput['tenantId']).toBe('caller-tenant');
     expect(lastOutput['correlationId']).toBe('caller-corr');
+  });
+
+  it('adds Cloud Logging trace fields when GCP_PROJECT is set and trace/span IDs are provided', () => {
+    process.env['GCP_PROJECT'] = 'ikaro-staging';
+    logger = new TestableAppLogger('TestContext');
+    const fields = logger.formatVendorFieldsForTest(
+      '0123456789abcdef0123456789abcdef',
+      '0123456789abcdef',
+    );
+
+    expect(fields['logging.googleapis.com/trace']).toBe(
+      'projects/ikaro-staging/traces/0123456789abcdef0123456789abcdef',
+    );
+    expect(fields['logging.googleapis.com/spanId']).toBe('0123456789abcdef');
+  });
+
+  it('omits Cloud Logging trace fields when GCP_PROJECT is unset', () => {
+    const fields = logger.formatVendorFieldsForTest(
+      '0123456789abcdef0123456789abcdef',
+      '0123456789abcdef',
+    );
+
+    expect(fields['logging.googleapis.com/trace']).toBeUndefined();
+    expect(fields['logging.googleapis.com/spanId']).toBeUndefined();
+  });
+
+  it('supports disabling vendor-specific fields via LOG_VENDOR=none', () => {
+    process.env['LOG_VENDOR'] = 'none';
+    process.env['GCP_PROJECT'] = 'ikaro-staging';
+    logger = new TestableAppLogger('TestContext');
+    const fields = logger.formatVendorFieldsForTest(
+      '0123456789abcdef0123456789abcdef',
+      '0123456789abcdef',
+    );
+
+    expect(fields).toEqual({});
   });
 });

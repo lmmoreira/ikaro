@@ -1,11 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { BaseAppLogger } from '@ikaro/observability';
+import { BaseAppLogger, createLogVendorFormatter } from '@ikaro/observability';
 import { getRequestStore } from '../request/request-context';
 
 @Injectable()
 export class AppLogger extends BaseAppLogger {
   constructor(context?: string) {
-    super('backend', context);
+    super(
+      'backend',
+      createLogVendorFormatter({
+        vendor: process.env['LOG_VENDOR'],
+        gcp: {
+          projectId: process.env['GCP_PROJECT'],
+        },
+      }),
+      context,
+    );
   }
 
   protected enrich(): Record<string, unknown> {

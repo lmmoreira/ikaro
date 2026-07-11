@@ -1,4 +1,6 @@
 import { Injectable, LoggerService, LogLevel } from '@nestjs/common';
+import { trace } from '@opentelemetry/api';
+import { LogVendorFormatter, NoopLogVendorFormatter } from './log-vendor-formatter';
 
 export interface LogContext {
   tenantId?: string;
@@ -9,14 +11,29 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
+type LoggerLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'VERBOSE';
+
+type CloudSeverity = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
+
+const LOG_LEVEL_ORDER: Record<LoggerLevel, number> = {
+  VERBOSE: 5,
+  DEBUG: 10,
+  INFO: 20,
+  WARN: 30,
+  ERROR: 40,
+};
+
 @Injectable()
 export abstract class BaseAppLogger implements LoggerService {
   private readonly context?: string;
+  private readonly vendorFormatter: LogVendorFormatter;
 
   protected constructor(
     private readonly service: string,
+    vendorFormatter: LogVendorFormatter = new NoopLogVendorFormatter(),
     context?: string,
   ) {
+    this.vendorFormatter = vendorFormatter;
     this.context = context;
   }
 
@@ -41,7 +58,7 @@ export abstract class BaseAppLogger implements LoggerService {
   }
 
   setLogLevels(_levels: LogLevel[]): void {
-    // Log level filtering delegated to log aggregator (Loki)
+    // NestJS setLogLevels is ignored — in-process filtering is controlled by LOG_LEVEL.
   }
 
   /** Hook for app-specific auto-enrichment (e.g. tenant context). Default: none. */
@@ -49,28 +66,70 @@ export abstract class BaseAppLogger implements LoggerService {
     return {};
   }
 
+  protected formatVendorFields(
+    traceId: string | null,
+    spanId: string | null,
+  ): Record<string, unknown> {
+    return this.vendorFormatter.format(traceId, spanId);
+  }
+
   private write(
-    level: string,
+    level: LoggerLevel,
     message: string,
     context?: LogContext | string,
-    trace?: string,
+    stackTrace?: string,
   ): void {
+    if (!this.shouldWrite(level)) {
+      return;
+    }
+
     const ctx = typeof context === 'string' ? { context } : context;
+    const spanContext = trace.getActiveSpan()?.spanContext();
+    const activeTraceId = spanContext?.traceId ?? null;
+    const activeSpanId = spanContext?.spanId ?? null;
     const entry = {
       // Caller/enrichment fields spread first so they can supply extras (tenantId,
       // correlationId, ...) — but never override the core fields declared below them,
       // since later keys in an object literal always win over earlier spreads.
       ...this.enrich(),
       ...(ctx && typeof ctx === 'object' ? ctx : {}),
+      ...this.formatVendorFields(activeTraceId, activeSpanId),
       timestamp: new Date().toISOString(),
+      severity: this.toSeverity(level),
       level,
       service: this.service,
       context: (typeof context === 'string' ? context : undefined) ?? this.context,
+      traceId: activeTraceId,
+      spanId: activeSpanId,
       message,
-      // JSON.stringify drops undefined-valued keys, so this both protects `trace`
-      // from being spoofed via ctx and keeps it absent from output when not provided.
-      trace,
+      metadata: stackTrace ? { stack: stackTrace } : undefined,
     };
     process.stdout.write(JSON.stringify(entry) + '\n');
+  }
+
+  private shouldWrite(level: LoggerLevel): boolean {
+    return LOG_LEVEL_ORDER[level] >= LOG_LEVEL_ORDER[this.resolveLogLevel()];
+  }
+
+  private resolveLogLevel(): LoggerLevel {
+    const rawLevel = process.env['LOG_LEVEL']?.toUpperCase();
+    if (rawLevel && rawLevel in LOG_LEVEL_ORDER) {
+      return rawLevel as LoggerLevel;
+    }
+    return 'INFO';
+  }
+
+  private toSeverity(level: LoggerLevel): CloudSeverity {
+    switch (level) {
+      case 'WARN':
+        return 'WARNING';
+      case 'ERROR':
+        return 'ERROR';
+      case 'DEBUG':
+      case 'VERBOSE':
+        return 'DEBUG';
+      default:
+        return 'INFO';
+    }
   }
 }
