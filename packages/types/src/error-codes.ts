@@ -142,28 +142,47 @@ export const CountryCodeErrorCode = {
 } as const;
 export type CountryCodeErrorCode = (typeof CountryCodeErrorCode)[keyof typeof CountryCodeErrorCode];
 
-export const PhoneErrorCode = {} as const;
+export const PhoneErrorCode = {
+  FORMAT_INVALID: 'PHONE_FORMAT_INVALID',
+} as const;
 export type PhoneErrorCode = (typeof PhoneErrorCode)[keyof typeof PhoneErrorCode];
 
-export const MoneyErrorCode = {} as const;
+export const MoneyErrorCode = {
+  AMOUNT_INVALID: 'MONEY_AMOUNT_INVALID',
+  CURRENCY_INVALID: 'MONEY_CURRENCY_INVALID',
+  CURRENCY_MISMATCH: 'MONEY_CURRENCY_MISMATCH',
+} as const;
 export type MoneyErrorCode = (typeof MoneyErrorCode)[keyof typeof MoneyErrorCode];
 
-export const SeoErrorCode = {} as const;
+export const SeoErrorCode = {
+  TITLE_TOO_LONG: 'SEO_TITLE_TOO_LONG',
+  DESCRIPTION_TOO_LONG: 'SEO_DESCRIPTION_TOO_LONG',
+} as const;
 export type SeoErrorCode = (typeof SeoErrorCode)[keyof typeof SeoErrorCode];
 
-export const SlugErrorCode = {} as const;
+export const SlugErrorCode = {
+  FORMAT_INVALID: 'SLUG_FORMAT_INVALID',
+} as const;
 export type SlugErrorCode = (typeof SlugErrorCode)[keyof typeof SlugErrorCode];
 
-export const HexColorErrorCode = {} as const;
+export const HexColorErrorCode = {
+  FORMAT_INVALID: 'HEX_COLOR_FORMAT_INVALID',
+} as const;
 export type HexColorErrorCode = (typeof HexColorErrorCode)[keyof typeof HexColorErrorCode];
 
-export const TimezoneErrorCode = {} as const;
+export const TimezoneErrorCode = {
+  INVALID: 'TIMEZONE_INVALID',
+} as const;
 export type TimezoneErrorCode = (typeof TimezoneErrorCode)[keyof typeof TimezoneErrorCode];
 
-export const TimeOfDayErrorCode = {} as const;
+export const TimeOfDayErrorCode = {
+  FORMAT_INVALID: 'TIME_OF_DAY_FORMAT_INVALID',
+} as const;
 export type TimeOfDayErrorCode = (typeof TimeOfDayErrorCode)[keyof typeof TimeOfDayErrorCode];
 
-export const EmailErrorCode = {} as const;
+export const EmailErrorCode = {
+  FORMAT_INVALID: 'EMAIL_FORMAT_INVALID',
+} as const;
 export type EmailErrorCode = (typeof EmailErrorCode)[keyof typeof EmailErrorCode];
 
 export const BffErrorCode = {} as const;

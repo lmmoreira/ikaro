@@ -1,7 +1,18 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { AddressErrorCode, CountryCodeErrorCode, PlatformErrorCode } from '@ikaro/types';
+import {
+  AddressErrorCode,
+  CountryCodeErrorCode,
+  HexColorErrorCode,
+  PlatformErrorCode,
+  SeoErrorCode,
+  SlugErrorCode,
+} from '@ikaro/types';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
+import { SeoTitleValidationError } from '../../../../shared/value-objects/seo-title.vo';
+import { SeoDescriptionValidationError } from '../../../../shared/value-objects/seo-description.vo';
+import { SlugValidationError } from '../../../../shared/value-objects/slug.vo';
+import { HexColorValidationError } from '../../../../shared/value-objects/hex-color.vo';
 import {
   HotsiteBrandingColorInvalidError,
   HotsiteNotFoundError,
@@ -93,6 +104,36 @@ describe('mapPlatformError', () => {
       code: PlatformErrorCode.SETTINGS_CURRENCY_REQUIRED,
       field: 'localization.currency',
     });
+  });
+
+  // hotsite-config.aggregate.ts and tenant.aggregate.ts always pre-guard with .isValid()
+  // before calling these VOs' .create(), so these branches are unreachable through the
+  // validated HTTP request path today — this direct unit test is their only coverage
+  // (see TD23 Story 8 discovery notes for why the branch is still wired regardless).
+  it('maps SeoTitleValidationError to 400 with code (defensive — unreachable via the validated request path today)', () => {
+    const err = call(new SeoTitleValidationError('too long', SeoErrorCode.TITLE_TOO_LONG));
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: SeoErrorCode.TITLE_TOO_LONG });
+  });
+
+  it('maps SeoDescriptionValidationError to 400 with code (defensive — unreachable via the validated request path today)', () => {
+    const err = call(
+      new SeoDescriptionValidationError('too long', SeoErrorCode.DESCRIPTION_TOO_LONG),
+    );
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: SeoErrorCode.DESCRIPTION_TOO_LONG });
+  });
+
+  it('maps SlugValidationError to 400 with code (defensive — unreachable via the validated request path today)', () => {
+    const err = call(new SlugValidationError('bad slug', SlugErrorCode.FORMAT_INVALID));
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: SlugErrorCode.FORMAT_INVALID });
+  });
+
+  it('maps HexColorValidationError to 400 with code (defensive — unreachable via the validated request path today)', () => {
+    const err = call(new HexColorValidationError('bad color', HexColorErrorCode.FORMAT_INVALID));
+    expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(err.getResponse()).toMatchObject({ code: HexColorErrorCode.FORMAT_INVALID });
   });
 
   it('re-throws plain Error instances unchanged', () => {

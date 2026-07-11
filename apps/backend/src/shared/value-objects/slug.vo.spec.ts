@@ -1,4 +1,5 @@
-import { Slug } from './slug.vo';
+import { SlugErrorCode } from '@ikaro/types';
+import { Slug, SlugValidationError } from './slug.vo';
 
 describe('Slug', () => {
   it('accepts valid slugs', () => {
@@ -30,7 +31,12 @@ describe('Slug', () => {
     expect(s.toString()).toBe('lavacar-belo');
   });
 
-  it('create throws for an invalid value', () => {
-    expect(() => Slug.create('Invalid Slug!')).toThrow();
+  it('create throws SlugValidationError with FORMAT_INVALID for an invalid value', () => {
+    expect(() => Slug.create('Invalid Slug!')).toThrow(SlugValidationError);
+    try {
+      Slug.create('Invalid Slug!');
+    } catch (err) {
+      expect((err as SlugValidationError).code).toBe(SlugErrorCode.FORMAT_INVALID);
+    }
   });
 });

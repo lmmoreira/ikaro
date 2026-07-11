@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { ProblemDetail } from '../../../../shared/http/problem-detail';
+import { ProblemDetail } from '@ikaro/types';
 import {
   LoyaltyBalanceNotFoundError,
   LoyaltyDomainError,

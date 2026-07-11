@@ -1,4 +1,5 @@
-import { Email } from './email.vo';
+import { EmailErrorCode } from '@ikaro/types';
+import { Email, EmailValidationError } from './email.vo';
 
 describe('Email', () => {
   describe('isValid', () => {
@@ -38,8 +39,13 @@ describe('Email', () => {
       expect(Email.create('ADMIN@LAVACAR.COM.BR').address).toBe('admin@lavacar.com.br');
     });
 
-    it('throws for an invalid address', () => {
-      expect(() => Email.create('not-an-email')).toThrow();
+    it('throws EmailValidationError with FORMAT_INVALID for an invalid address', () => {
+      expect(() => Email.create('not-an-email')).toThrow(EmailValidationError);
+      try {
+        Email.create('not-an-email');
+      } catch (err) {
+        expect((err as EmailValidationError).code).toBe(EmailErrorCode.FORMAT_INVALID);
+      }
     });
   });
 });

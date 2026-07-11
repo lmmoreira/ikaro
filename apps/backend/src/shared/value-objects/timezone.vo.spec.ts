@@ -1,4 +1,5 @@
-import { Timezone } from './timezone.vo';
+import { TimezoneErrorCode } from '@ikaro/types';
+import { Timezone, TimezoneValidationError } from './timezone.vo';
 
 describe('Timezone', () => {
   it('accepts valid IANA identifiers', () => {
@@ -19,7 +20,12 @@ describe('Timezone', () => {
     expect(tz.toString()).toBe('America/Sao_Paulo');
   });
 
-  it('create throws for an invalid value', () => {
-    expect(() => Timezone.create('Not/AZone')).toThrow();
+  it('create throws TimezoneValidationError with INVALID for an invalid value', () => {
+    expect(() => Timezone.create('Not/AZone')).toThrow(TimezoneValidationError);
+    try {
+      Timezone.create('Not/AZone');
+    } catch (err) {
+      expect((err as TimezoneValidationError).code).toBe(TimezoneErrorCode.INVALID);
+    }
   });
 });

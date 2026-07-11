@@ -11,7 +11,7 @@ import {
 import { PUSHABLE_EVENT_BUS, IPushableEventBus } from '../../ports/pushable-event-bus.port';
 import { Public } from '../../decorators/public.decorator';
 import { PubSubPushGuard } from '../../guards/pubsub-push.guard';
-import { ProblemDetail } from '../../http/problem-detail';
+import { ProblemDetail } from '@ikaro/types';
 import { AppLogger } from '../../observability/app-logger';
 
 interface PubSubPushMessage {

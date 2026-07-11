@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 import { ZodType } from 'zod';
-import { ProblemDetail } from './problem-detail';
+import { ProblemDetail } from '@ikaro/types';
 
 @Injectable()
 export class ZodValidationPipe implements PipeTransform {

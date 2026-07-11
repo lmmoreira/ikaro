@@ -1,4 +1,5 @@
-import { TimeOfDay } from './time-of-day.vo';
+import { TimeOfDayErrorCode } from '@ikaro/types';
+import { TimeOfDay, TimeOfDayValidationError } from './time-of-day.vo';
 
 describe('TimeOfDay', () => {
   describe('isValid', () => {
@@ -45,12 +46,17 @@ describe('TimeOfDay', () => {
       expect(t.value).toBe('10:30');
     });
 
-    it('throws for an invalid HH:MM value', () => {
-      expect(() => TimeOfDay.create('25:00')).toThrow();
+    it('throws TimeOfDayValidationError with FORMAT_INVALID for an invalid HH:MM value', () => {
+      expect(() => TimeOfDay.create('25:00')).toThrow(TimeOfDayValidationError);
+      try {
+        TimeOfDay.create('25:00');
+      } catch (err) {
+        expect((err as TimeOfDayValidationError).code).toBe(TimeOfDayErrorCode.FORMAT_INVALID);
+      }
     });
 
-    it('throws for an invalid HH:MM:SS value', () => {
-      expect(() => TimeOfDay.create('24:00:00')).toThrow();
+    it('throws TimeOfDayValidationError with FORMAT_INVALID for an invalid HH:MM:SS value', () => {
+      expect(() => TimeOfDay.create('24:00:00')).toThrow(TimeOfDayValidationError);
     });
   });
 

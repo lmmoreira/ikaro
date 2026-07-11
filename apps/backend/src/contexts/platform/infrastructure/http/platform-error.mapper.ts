@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
-import { ProblemDetail } from '../../../../shared/http/problem-detail';
+import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
+import { ProblemDetail } from '@ikaro/types';
 import {
   HotsiteNotFoundError,
   PlatformDomainError,
@@ -11,6 +12,7 @@ import {
 
 export function mapPlatformError(err: unknown): never {
   mapSharedAddressError(err);
+  mapSharedVoError(err);
   if (err instanceof SlugAlreadyTakenError || err instanceof TenantInactiveError) {
     const body: ProblemDetail = {
       type: 'about:blank',

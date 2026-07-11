@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
-import { ProblemDetail } from '../../../../shared/http/problem-detail';
+import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
+import { ProblemDetail } from '@ikaro/types';
 import {
   CustomerAddressValidationError,
   CustomerDomainError,
@@ -21,6 +22,7 @@ export function mapCustomerError(err: unknown): never {
     throw new HttpException(body, HttpStatus.BAD_REQUEST);
   }
   mapSharedAddressError(err);
+  mapSharedVoError(err);
   if (err instanceof CustomerNotFoundError) {
     const body: ProblemDetail = {
       type: 'about:blank',

@@ -1,4 +1,5 @@
-import { SeoTitle } from './seo-title.vo';
+import { SeoErrorCode } from '@ikaro/types';
+import { SeoTitle, SeoTitleValidationError } from './seo-title.vo';
 
 describe('SeoTitle', () => {
   it('accepts a title at or under the max length', () => {
@@ -17,8 +18,13 @@ describe('SeoTitle', () => {
     );
   });
 
-  it('create throws for a title over the max length', () => {
-    expect(() => SeoTitle.create('a'.repeat(61))).toThrow();
+  it('create throws SeoTitleValidationError with TITLE_TOO_LONG for a title over the max length', () => {
+    expect(() => SeoTitle.create('a'.repeat(61))).toThrow(SeoTitleValidationError);
+    try {
+      SeoTitle.create('a'.repeat(61));
+    } catch (err) {
+      expect((err as SeoTitleValidationError).code).toBe(SeoErrorCode.TITLE_TOO_LONG);
+    }
   });
 
   it('reconstitute skips validation', () => {

@@ -1,4 +1,5 @@
-import { Money } from './money';
+import { MoneyErrorCode } from '@ikaro/types';
+import { Money, MoneyValidationError } from './money';
 
 describe('Money', () => {
   describe('format()', () => {
@@ -53,10 +54,15 @@ describe('Money', () => {
       );
     });
 
-    it('throws when currencies differ', () => {
+    it('throws MoneyValidationError with CURRENCY_MISMATCH when currencies differ', () => {
       const a = Money.from(100, 'BRL');
       const b = Money.from(100, 'USD');
-      expect(() => a.add(b)).toThrow();
+      expect(() => a.add(b)).toThrow(MoneyValidationError);
+      try {
+        a.add(b);
+      } catch (err) {
+        expect((err as MoneyValidationError).code).toBe(MoneyErrorCode.CURRENCY_MISMATCH);
+      }
     });
   });
 
@@ -87,16 +93,35 @@ describe('Money', () => {
       );
     });
 
-    it('throws when currencies differ', () => {
+    it('throws MoneyValidationError with CURRENCY_MISMATCH when currencies differ', () => {
       const a = Money.from(100, 'BRL');
       const b = Money.from(100, 'USD');
-      expect(() => a.subtract(b)).toThrow();
+      expect(() => a.subtract(b)).toThrow(MoneyValidationError);
+      try {
+        a.subtract(b);
+      } catch (err) {
+        expect((err as MoneyValidationError).code).toBe(MoneyErrorCode.CURRENCY_MISMATCH);
+      }
     });
   });
 
   describe('construction', () => {
-    it('throws on NaN input', () => {
-      expect(() => Money.from(NaN, 'BRL')).toThrow();
+    it('throws MoneyValidationError with AMOUNT_INVALID on NaN input', () => {
+      expect(() => Money.from(NaN, 'BRL')).toThrow(MoneyValidationError);
+      try {
+        Money.from(NaN, 'BRL');
+      } catch (err) {
+        expect((err as MoneyValidationError).code).toBe(MoneyErrorCode.AMOUNT_INVALID);
+      }
+    });
+
+    it('throws MoneyValidationError with CURRENCY_INVALID on a malformed currency code', () => {
+      expect(() => Money.from(100, 'br')).toThrow(MoneyValidationError);
+      try {
+        Money.from(100, '1234');
+      } catch (err) {
+        expect((err as MoneyValidationError).code).toBe(MoneyErrorCode.CURRENCY_INVALID);
+      }
     });
 
     it('accepts string input', () => {

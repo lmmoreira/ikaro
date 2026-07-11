@@ -1,4 +1,5 @@
-import { HexColor } from './hex-color.vo';
+import { HexColorErrorCode } from '@ikaro/types';
+import { HexColor, HexColorValidationError } from './hex-color.vo';
 
 describe('HexColor', () => {
   it('accepts valid hex colors', () => {
@@ -29,8 +30,13 @@ describe('HexColor', () => {
     expect(c.value).toBe('#FF5733');
   });
 
-  it('create throws for an invalid value', () => {
-    expect(() => HexColor.create('not-a-color')).toThrow();
+  it('create throws HexColorValidationError with FORMAT_INVALID for an invalid value', () => {
+    expect(() => HexColor.create('not-a-color')).toThrow(HexColorValidationError);
+    try {
+      HexColor.create('not-a-color');
+    } catch (err) {
+      expect((err as HexColorValidationError).code).toBe(HexColorErrorCode.FORMAT_INVALID);
+    }
   });
 
   it('reconstitute normalises to uppercase without validation', () => {

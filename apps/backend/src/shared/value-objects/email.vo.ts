@@ -1,7 +1,20 @@
+import { EmailErrorCode } from '@ikaro/types';
+import { DomainErrorShape } from '../domain/domain-error-shape';
 import { ValueObject } from '../domain/value-object';
 
 interface EmailProps {
   address: string;
+}
+
+export class EmailValidationError extends Error implements DomainErrorShape {
+  readonly code: EmailErrorCode;
+
+  constructor(message: string, code: EmailErrorCode) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'EmailValidationError';
+    this.code = code;
+  }
 }
 
 export class Email extends ValueObject<EmailProps> {
@@ -19,7 +32,10 @@ export class Email extends ValueObject<EmailProps> {
 
   static create(address: string): Email {
     if (!Email.isValid(address)) {
-      throw new Error(`"${address}" is not a valid email address`);
+      throw new EmailValidationError(
+        `"${address}" is not a valid email address`,
+        EmailErrorCode.FORMAT_INVALID,
+      );
     }
     return new Email({ address: address.toLowerCase().trim() });
   }

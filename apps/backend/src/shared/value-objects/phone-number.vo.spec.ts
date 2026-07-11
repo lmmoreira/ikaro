@@ -1,4 +1,5 @@
-import { PhoneNumber } from './phone-number.vo';
+import { PhoneErrorCode } from '@ikaro/types';
+import { PhoneNumber, PhoneNumberValidationError } from './phone-number.vo';
 
 describe('PhoneNumber', () => {
   it('accepts a valid Brazilian E.164 number', () => {
@@ -43,7 +44,12 @@ describe('PhoneNumber', () => {
     expect(p.format()).toBe('+5511912345678');
   });
 
-  it('create throws for invalid input', () => {
-    expect(() => PhoneNumber.create('11912345678')).toThrow();
+  it('create throws PhoneNumberValidationError with FORMAT_INVALID for invalid input', () => {
+    expect(() => PhoneNumber.create('11912345678')).toThrow(PhoneNumberValidationError);
+    try {
+      PhoneNumber.create('11912345678');
+    } catch (err) {
+      expect((err as PhoneNumberValidationError).code).toBe(PhoneErrorCode.FORMAT_INVALID);
+    }
   });
 });

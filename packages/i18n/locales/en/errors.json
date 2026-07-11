@@ -105,5 +105,16 @@
   "PLATFORM_SETTINGS_BUSINESS_HOURS_ORDER_INVALID": "The closing time must be after the opening time.",
   "PLATFORM_SETTINGS_BUSINESS_PHONE_INVALID": "The phone number provided is invalid.",
   "PLATFORM_SETTINGS_BUSINESS_EMAIL_INVALID": "The email provided is invalid.",
-  "PLATFORM_SETTINGS_SOCIAL_WHATSAPP_INVALID": "The WhatsApp number provided is invalid."
+  "PLATFORM_SETTINGS_SOCIAL_WHATSAPP_INVALID": "The WhatsApp number provided is invalid.",
+  "MONEY_AMOUNT_INVALID": "The amount provided is invalid.",
+  "MONEY_CURRENCY_INVALID": "The currency provided is invalid.",
+  "MONEY_CURRENCY_MISMATCH": "This operation requires matching currencies.",
+  "PHONE_FORMAT_INVALID": "The phone number provided is invalid.",
+  "SEO_TITLE_TOO_LONG": "The SEO title is too long.",
+  "SEO_DESCRIPTION_TOO_LONG": "The SEO description is too long.",
+  "SLUG_FORMAT_INVALID": "This value must contain only lowercase letters, numbers, and hyphens.",
+  "HEX_COLOR_FORMAT_INVALID": "The color provided is invalid.",
+  "TIMEZONE_INVALID": "The timezone provided is invalid.",
+  "TIME_OF_DAY_FORMAT_INVALID": "The time must be in HH:MM format.",
+  "EMAIL_FORMAT_INVALID": "The email address provided is invalid."
 }

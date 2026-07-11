@@ -1,3 +1,17 @@
+import { SeoErrorCode } from '@ikaro/types';
+import { DomainErrorShape } from '../domain/domain-error-shape';
+
+export class SeoDescriptionValidationError extends Error implements DomainErrorShape {
+  readonly code: SeoErrorCode;
+
+  constructor(message: string, code: SeoErrorCode) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'SeoDescriptionValidationError';
+    this.code = code;
+  }
+}
+
 export class SeoDescription {
   static readonly MAX_LENGTH = 158;
 
@@ -9,8 +23,9 @@ export class SeoDescription {
 
   static create(description: string): SeoDescription {
     if (!SeoDescription.isValid(description)) {
-      throw new Error(
+      throw new SeoDescriptionValidationError(
         `"${description}" exceeds the maximum SEO description length of ${SeoDescription.MAX_LENGTH}`,
+        SeoErrorCode.DESCRIPTION_TOO_LONG,
       );
     }
     return new SeoDescription(description);
