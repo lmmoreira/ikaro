@@ -20,7 +20,7 @@ const configService = {
   getOrThrow: (key: string): string => {
     const values: Record<string, string> = {
       FRONTEND_URL: 'http://localhost:3000',
-      JWT_SECRET: 'test-secret-at-least-32-chars-long!!',
+      JWT_SECRET: 'test-secret-at-least-64-chars-long-xxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     };
     if (!(key in values)) throw new Error(`Unknown config key: ${key}`);
     return values[key];

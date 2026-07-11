@@ -6,7 +6,7 @@ import { makeBackendHttp } from '../../test/backend-http.mock';
 import { BookingsController } from './bookings.controller';
 import { AttachmentSignedUrlResponse, BookingResponse } from './bookings.types';
 
-const JWT_SECRET = 'test-secret-32-chars-for-bff-spec';
+const JWT_SECRET = 'test-secret-64-chars-for-bff-spec-xxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 const makeConfigService = (secret = JWT_SECRET) =>
   ({ getOrThrow: () => secret }) as unknown as ConfigService;
 
@@ -479,7 +479,7 @@ describe('BookingsController', () => {
   });
 
   describe('submitInfoGuest()', () => {
-    const JWT_SECRET = 'test-secret-32-chars-for-bff-spec';
+    const JWT_SECRET = 'test-secret-64-chars-for-bff-spec-xxxxxxxxxxxxxxxxxxxxxxxxxxxx';
     const validSubmitBody = { response: 'Here are the vehicle photos as requested' };
     const mockSubmitGuestResponse = {
       bookingId: BOOKING_ID,
@@ -569,7 +569,7 @@ describe('BookingsController', () => {
   });
 
   describe('getOneGuest()', () => {
-    const JWT_SECRET = 'test-secret-32-chars-for-bff-spec';
+    const JWT_SECRET = 'test-secret-64-chars-for-bff-spec-xxxxxxxxxxxxxxxxxxxxxxxxxxxx';
     const makeToken = (overrides: Record<string, unknown> = {}) =>
       jwt.sign(
         {

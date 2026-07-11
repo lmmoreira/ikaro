@@ -25,7 +25,8 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
 
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = PLATFORM_KEY;
-    process.env['JWT_SECRET'] = 'reminder-integration-test-secret-32chars';
+    process.env['JWT_SECRET'] =
+      'reminder-integration-test-secret-64-chars-xxxxxxxxxxxxxxxxxxxxxxxx';
 
     dispatcher = new InMemoryNotificationDispatcher();
     logRepo = new InMemoryNotificationLogRepository();

@@ -240,7 +240,7 @@ async function devLogin(
       detail: 'Dev auth is not enabled',
     });
   }
-  if (config.get<string>('NODE_ENV') === 'production') {
+  if (config.get<'local' | 'staging' | 'production'>('APP_ENV', 'local') === 'production') {
     throw new ForbiddenException({
       type: 'about:blank',
       title: 'Forbidden',

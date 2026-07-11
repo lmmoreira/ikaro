@@ -312,7 +312,7 @@ A cron tick is not a domain event, though — it carries no `tenantId` (the job 
 
 ---
 
-### M17-S06 — Production environment guards
+### M17-S06 — Production environment guards ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** S
@@ -321,15 +321,15 @@ A cron tick is not a domain event, though — it carries no `tenantId` (the job 
 **Description:**
 Codify “this must never run in production” rules as startup errors, so a copy-pasted env file can’t create a hole.
 
-**`APP_ENV`** (fixes a real contradiction found in the 2026-07-07 full-plan review — **enum now introduced in M17-S02, not here**, discovery 2026-07-09): both cloud environments run `NODE_ENV=production` (that is how the Docker images are built — running Nest/Next otherwise is wrong), so `NODE_ENV` **cannot** distinguish staging from prod. `APP_ENV=local|staging|production` (validated enum, default `local`) was added to the **backend** schema in **M17-S02** (it needed the enum to gate `PubSubPushGuard` enforcement without relying on the `NODE_ENV` coincidence). This story adds the same enum to the **BFF** schema; `S18` sets it per environment for both apps. Rules that apply to *both* cloud envs key on `NODE_ENV=production`; rules that legitimately differ between staging and prod key on `APP_ENV`. Without this split, S27's `ENABLE_DEV_AUTH=true` in staging would trip rule 1 and the staging BFF would refuse to boot.
+**`APP_ENV`** (fixes a real contradiction found in the 2026-07-07 full-plan review — **enum now introduced in M17-S02, not here**, discovery 2026-07-09): both cloud environments run `NODE_ENV=production` (that is how the Docker images are built — running Nest/Next otherwise is wrong), so `NODE_ENV` **cannot** distinguish staging from prod. `APP_ENV=local|staging|production` (validated enum, default `local`) was added to the **backend** schema in **M17-S02** (it needed the enum to gate `PubSubPushGuard` enforcement without relying on the `NODE_ENV` coincidence). This story adds the same enum to the **BFF** schema; `S18` sets it per environment for both apps. Environment-specific runtime policy keys on `APP_ENV`; `NODE_ENV` remains build/runtime mode only. Without this split, S27's `ENABLE_DEV_AUTH=true` in staging would trip rule 1 and the staging BFF would refuse to boot.
 
 **Rules to enforce in `env.validation.ts` (Zod `superRefine`) of the respective app:**
 1. **BFF:** `APP_ENV=production` + `ENABLE_DEV_AUTH=true` → startup error (staging explicitly allowed — E2E depends on it; verify whether M115-S02 added a `NODE_ENV`-based guard and migrate it to `APP_ENV`).
-2. **backend:** `NODE_ENV=production` + `PUBSUB_CONSUMER_MODE` ≠ `push` → startup error (cloud runs push; pull in prod would silently drop events at scale-to-zero).
-3. **backend:** `NODE_ENV=production` + `EMAIL_ADAPTER=smtp` (local MailHog path) → startup error unless explicitly allowed via a documented override var.
+2. **backend:** `APP_ENV != local` + `PUBSUB_CONSUMER_MODE` ≠ `push` → startup error (staging/prod run push; pull outside local would silently drop events at scale-to-zero).
+3. **backend:** `APP_ENV != local` + `EMAIL_ADAPTER=mailhog` → startup error (MailHog is local-only; no override var).
 4. **both:** `JWT_SECRET` length ≥ 64 in production. Note (2026-07-08): the backend **base** schema currently enforces min 32 (`apps/backend/src/config/env.validation.ts`) while the BFF enforces 64 — tighten the backend base schema to 64 in this story (one shared secret, one rule; update `.env.example`), not just a prod `superRefine`.
 
-(Rules dropped, discovery 2026-07-09: (a) `PUBSUB_PUSH_GUARD_ENFORCE` no longer exists — S02 derives guard enforcement directly from `APP_ENV !== 'local'` inside `PubSubPushGuard`, with no separate settable var, so there's nothing left to misconfigure here; (b) a `NODE_ENV=production` + `PUBSUB_AUTO_CREATE=true` rule is unnecessary here — S02's `superRefine` already enforces the broader `APP_ENV !== 'local'` + `PUBSUB_AUTO_CREATE=true` → error, which covers both cloud envs regardless of consumer mode; re-adding a `NODE_ENV`-keyed version would be a pure duplicate.)
+(Rules dropped, discovery 2026-07-09: (a) `PUBSUB_PUSH_GUARD_ENFORCE` no longer exists — S02 derives guard enforcement directly from `APP_ENV !== 'local'` inside `PubSubPushGuard`, with no separate settable var, so there's nothing left to misconfigure here; (b) a separate `PUBSUB_AUTO_CREATE=true` rule keyed to `NODE_ENV` is unnecessary here — S02's `superRefine` already enforces the broader `APP_ENV !== 'local'` + `PUBSUB_AUTO_CREATE=true` → error, which covers both cloud envs regardless of consumer mode; re-adding a `NODE_ENV`-keyed version would be a pure duplicate.)
 
 **Also in this story — `DB_POOL_SIZE` (backend):** add `DB_POOL_SIZE` to the backend env schema (optional int, default 10 for local dev) and wire it into the TypeORM datasource options (`poolSize`/`extra.max` — verify the exact option the pg driver honors in this TypeORM version). This is the serverless connection-math lever: every Cloud Run instance opens its own pool, so cloud envs set a small value (S18 sets `DB_POOL_SIZE=3`) to keep `max_instances × pool` under the DB tier's `max_connections`. See M17-S46 for the managed-pooling upgrade path.
 

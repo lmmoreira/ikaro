@@ -3,6 +3,7 @@ import { validateEnv } from './env.validation';
 describe('validateEnv()', () => {
   const valid = {
     NODE_ENV: 'development',
+    APP_ENV: 'local',
     PORT: '3002',
     BACKEND_INTERNAL_URL: 'http://localhost:3001',
     JWT_SECRET: 'a'.repeat(64),
@@ -18,6 +19,7 @@ describe('validateEnv()', () => {
   it('returns parsed env when all required vars are present and valid', () => {
     const result = validateEnv(valid);
     expect(result.PORT).toBe(3002);
+    expect(result.APP_ENV).toBe('local');
     expect(result.FRONTEND_URL).toBe('http://localhost:3000');
     expect(result.LOG_LEVEL).toBe('INFO');
     expect(result.LOG_VENDOR).toBe('gcp');
@@ -32,6 +34,25 @@ describe('validateEnv()', () => {
 
   it('throws when JWT_SECRET is too short', () => {
     expect(() => validateEnv({ ...valid, JWT_SECRET: 'short' })).toThrow('ENV validation failed');
+  });
+
+  it('throws when APP_ENV=production and ENABLE_DEV_AUTH=true', () => {
+    expect(() =>
+      validateEnv({
+        ...valid,
+        APP_ENV: 'production',
+        ENABLE_DEV_AUTH: 'true',
+      }),
+    ).toThrow('ENABLE_DEV_AUTH=true is not allowed when APP_ENV=production');
+  });
+
+  it('accepts ENABLE_DEV_AUTH=true in staging', () => {
+    const result = validateEnv({
+      ...valid,
+      APP_ENV: 'staging',
+      ENABLE_DEV_AUTH: 'true',
+    });
+    expect(result.APP_ENV).toBe('staging');
   });
 
   it('accepts optional GCP_PROJECT for Cloud Logging trace correlation', () => {
