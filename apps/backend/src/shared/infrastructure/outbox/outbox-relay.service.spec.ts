@@ -1,14 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
+import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
 import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
 import { OutboxEventEntity } from './outbox-event.entity';
 import { OutboxRelayService } from './outbox-relay.service';
-
-function makeConfigService(): ConfigService {
-  return {
-    get: (_key: string, defaultValue?: unknown): unknown => defaultValue,
-  } as unknown as ConfigService;
-}
 
 describe('OutboxRelayService', () => {
   let repo: jest.Mocked<Repository<OutboxEventEntity>>;
@@ -106,10 +101,7 @@ describe('OutboxRelayService', () => {
       (repo.manager.transaction as jest.Mock).mockImplementation(
         async (cb: (m: unknown) => Promise<boolean>) => cb(manager),
       );
-      const configWithBatchSizeOne = {
-        get: (key: string, defaultValue?: unknown): unknown =>
-          key === 'OUTBOX_SWEEP_BATCH_SIZE' ? 1 : defaultValue,
-      } as unknown as ConfigService;
+      const configWithBatchSizeOne = makeConfigService({ OUTBOX_SWEEP_BATCH_SIZE: 1 });
       const service = new OutboxRelayService(repo, innerBus, configWithBatchSizeOne);
 
       await service.relay();

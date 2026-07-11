@@ -1,5 +1,5 @@
-import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
+import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
 import { DomainEvent } from '../../domain/domain-event';
 import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
 import { OutboxEventEntity } from './outbox-event.entity';
@@ -14,15 +14,6 @@ class StubEvent extends DomainEvent<{ value: string }> {
     this.data = data;
     if (dedupKey !== undefined) (this as { dedupKey?: string }).dedupKey = dedupKey;
   }
-}
-
-function makeConfigService(inlineDispatchEnabled = true): jest.Mocked<ConfigService> {
-  return {
-    get: jest.fn((key: string, defaultValue?: unknown) => {
-      if (key === 'OUTBOX_INLINE_DISPATCH_ENABLED') return inlineDispatchEnabled;
-      return defaultValue;
-    }),
-  } as unknown as jest.Mocked<ConfigService>;
 }
 
 describe('OutboxEventBus', () => {
@@ -81,7 +72,12 @@ describe('OutboxEventBus', () => {
 
     it('schedules relay dispatch for the inserted row id when inline dispatch is enabled', async () => {
       repo.query.mockResolvedValue([{ id: 'row-1' }]);
-      const bus = new OutboxEventBus(repo, innerBus, relay, makeConfigService(true));
+      const bus = new OutboxEventBus(
+        repo,
+        innerBus,
+        relay,
+        makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: true }),
+      );
 
       await bus.publish(new StubEvent('tenant-1', 'corr-1', { value: 'x' }));
 
@@ -90,7 +86,12 @@ describe('OutboxEventBus', () => {
 
     it('does not schedule dispatch when a conflicting insert returns no row', async () => {
       repo.query.mockResolvedValue([]);
-      const bus = new OutboxEventBus(repo, innerBus, relay, makeConfigService(true));
+      const bus = new OutboxEventBus(
+        repo,
+        innerBus,
+        relay,
+        makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: true }),
+      );
 
       await bus.publish(new StubEvent('tenant-1', 'corr-1', { value: 'x' }));
 
@@ -99,7 +100,12 @@ describe('OutboxEventBus', () => {
 
     it('does not schedule dispatch when OUTBOX_INLINE_DISPATCH_ENABLED=false', async () => {
       repo.query.mockResolvedValue([{ id: 'row-1' }]);
-      const bus = new OutboxEventBus(repo, innerBus, relay, makeConfigService(false));
+      const bus = new OutboxEventBus(
+        repo,
+        innerBus,
+        relay,
+        makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: false }),
+      );
 
       await bus.publish(new StubEvent('tenant-1', 'corr-1', { value: 'x' }));
 
@@ -109,7 +115,12 @@ describe('OutboxEventBus', () => {
     it('swallows a relay failure — publish() never rejects', async () => {
       repo.query.mockResolvedValue([{ id: 'row-1' }]);
       relay.relay.mockRejectedValue(new Error('pubsub down'));
-      const bus = new OutboxEventBus(repo, innerBus, relay, makeConfigService(true));
+      const bus = new OutboxEventBus(
+        repo,
+        innerBus,
+        relay,
+        makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: true }),
+      );
 
       await expect(
         bus.publish(new StubEvent('tenant-1', 'corr-1', { value: 'x' })),

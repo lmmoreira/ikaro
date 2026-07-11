@@ -16,9 +16,11 @@ interface OutboxRowForDispatch {
 // OutboxEventBus.publish() — this reinterprets it back for GcpPubSubEventBusAdapter.publish(),
 // which only reads .eventName (topic routing) and re-serializes the whole object. Structurally
 // identical to the original event; not a real DomainEvent instance (no aggregate methods), which
-// is fine since none are called on the relay path.
-function asStoredEvent(payload: Record<string, unknown>): DomainEvent {
-  return payload as unknown as DomainEvent;
+// is fine since none are called on the relay path. Parameter typed `unknown` (not
+// Record<string, unknown>) so the single assertion below matches the adapter's own
+// JSON.parse(...) . as DomainEvent precedent in dispatch() — no double-cast through unknown.
+function asStoredEvent(payload: unknown): DomainEvent {
+  return payload as DomainEvent;
 }
 
 const SWEEP_SELECT_SQL = `

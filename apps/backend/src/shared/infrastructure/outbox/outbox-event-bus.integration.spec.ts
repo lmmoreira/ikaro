@@ -1,7 +1,7 @@
-import { ConfigService } from '@nestjs/config';
 import { DataSource, Repository } from 'typeorm';
 import { TenantEntity } from '../../../contexts/platform/infrastructure/entities/tenant.entity';
 import { TenantEntityBuilder } from '../../../test/builders/platform/tenant-entity.builder';
+import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
 import { createTestDataSource } from '../../../test/test-datasource';
 import { DomainEvent } from '../../domain/domain-event';
 import { uuidv7 } from '../../domain/uuid-v7';
@@ -20,15 +20,6 @@ class StubEvent extends DomainEvent<{ value: string }> {
     this.data = data;
     if (dedupKey !== undefined) (this as { dedupKey?: string }).dedupKey = dedupKey;
   }
-}
-
-function makeConfigService(inlineDispatchEnabled = true): ConfigService {
-  return {
-    get: (key: string, defaultValue?: unknown): unknown => {
-      if (key === 'OUTBOX_INLINE_DISPATCH_ENABLED') return inlineDispatchEnabled;
-      return defaultValue;
-    },
-  } as unknown as ConfigService;
 }
 
 describe('OutboxEventBus (integration)', () => {
@@ -56,7 +47,7 @@ describe('OutboxEventBus (integration)', () => {
   });
 
   function makeBus(inlineDispatchEnabled = true): OutboxEventBus {
-    const config = makeConfigService(inlineDispatchEnabled);
+    const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: inlineDispatchEnabled });
     const relay = new OutboxRelayService(outboxRepo, innerBus, config);
     return new OutboxEventBus(outboxRepo, innerBus, relay, config);
   }

@@ -18,17 +18,12 @@ jest.mock('@google-cloud/pubsub', () => ({
 }));
 
 import { OutboxEventEntityBuilder } from '../../../test/builders/shared/outbox-event-entity.builder';
+import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
 import { createTestDataSource } from '../../../test/test-datasource';
 import { uuidv7 } from '../../domain/uuid-v7';
 import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
 import { OutboxEventEntity } from './outbox-event.entity';
 import { OutboxRelayService } from './outbox-relay.service';
-
-function makeConfigService(overrides: Record<string, unknown> = {}): ConfigService {
-  return {
-    get: (key: string, defaultValue?: unknown): unknown => overrides[key] ?? defaultValue,
-  } as unknown as ConfigService;
-}
 
 describe('OutboxRelayService (integration)', () => {
   let ds: DataSource;
