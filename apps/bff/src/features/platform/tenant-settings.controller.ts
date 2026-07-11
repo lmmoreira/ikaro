@@ -1,16 +1,26 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { z } from 'zod';
-import { PlatformErrorCode, TenantSettingsResponse } from '@ikaro/types';
+import {
+  CountryCodeErrorCode,
+  PlatformErrorCode,
+  TenantSettingsResponse,
+  TimeOfDayErrorCode,
+} from '@ikaro/types';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 
 const HHMM_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const timeOfDayField = () =>
+  z.string().refine((v) => HHMM_REGEX.test(v), {
+    error: 'must be HH:MM (00:00–23:59)',
+    params: { code: TimeOfDayErrorCode.FORMAT_INVALID },
+  });
 
 const DayHoursSchema = z
   .object({
-    open: z.string().regex(HHMM_REGEX),
-    close: z.string().regex(HHMM_REGEX),
+    open: timeOfDayField(),
+    close: timeOfDayField(),
   })
   .nullable();
 
@@ -49,7 +59,10 @@ const BusinessHoursSchema = z.object({
 
 const LocalizationSchema = z
   .object({
-    countryCode: z.string().regex(/^[A-Za-z]{2}$/),
+    countryCode: z.string().refine((v) => /^[A-Za-z]{2}$/.test(v), {
+      error: 'countryCode must be a 2-letter ISO 3166-1 alpha-2 code',
+      params: { code: CountryCodeErrorCode.FORMAT_INVALID },
+    }),
     currency: z.string().min(1),
     currencySymbol: z.string().min(1).max(3),
     language: z.string().min(1),

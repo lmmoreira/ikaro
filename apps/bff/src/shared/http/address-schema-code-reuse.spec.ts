@@ -1,14 +1,24 @@
-import { AddressErrorCode, PhoneErrorCode, SeoErrorCode } from '@ikaro/types';
+import {
+  AddressErrorCode,
+  CountryCodeErrorCode,
+  PhoneErrorCode,
+  SeoErrorCode,
+  TimeOfDayErrorCode,
+} from '@ikaro/types';
 import { RequestBookingBodySchema } from '../../features/booking/bookings.controller';
 import { UpdateCustomerProfileBodySchema } from '../../features/customer/customers.controller';
 import { UpdateTenantSettingsBodySchema } from '../../features/platform/tenant-settings.controller';
 import { UpdateHotsiteContentBodySchema } from '../../features/platform/hotsite-admin.controller';
 
 /**
- * TD23 Story 10's core acceptance criterion: all 3 BFF AddressSchema copies (bookings,
- * customers, tenant-settings) — plus the phone/email/SEO fields that independently
- * duplicate a VO rule — must emit the SAME code the backend VO would for the identical
- * failure, regardless of which layer catches it first.
+ * TD23 Story 10's core acceptance criterion: a BFF check that duplicates a backend VO's own
+ * rule must emit the SAME code the VO would for the identical failure, regardless of which
+ * layer catches it first. Covers 2 of the 3 AddressSchema copies (bookings, customers) —
+ * tenant-settings' BusinessInfoAddressSchema is deliberately excluded: every field there is
+ * `.nullable()` (genuinely optional), so AddressErrorCode.FIELD_REQUIRED would misrepresent
+ * a field that isn't actually required; it keeps generic codes instead. Also covers
+ * phone/email/SEO/hex-color/timezone/country-code fields that independently duplicate a VO
+ * rule outside the Address shape.
  */
 describe('BFF Address/Phone/Email/SEO code reuse (TD23 Story 10)', () => {
   it('bookings AddressSchema: empty street reuses AddressErrorCode.FIELD_REQUIRED', () => {
@@ -104,6 +114,53 @@ describe('BFF Address/Phone/Email/SEO code reuse (TD23 Story 10)', () => {
       const issue = result.error.issues.find((i) => i.path.join('.') === 'seo.title');
       const params = issue as unknown as { params?: { code?: string } };
       expect(params.params?.code).toBe(SeoErrorCode.TITLE_TOO_LONG);
+    }
+  });
+
+  it('tenant-settings businessHours DayHoursSchema.open reuses TimeOfDayErrorCode.FORMAT_INVALID', () => {
+    const result = UpdateTenantSettingsBodySchema.safeParse({
+      settings: { businessHours: { monday: { open: '25:00', close: '18:00' } } },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (i) => i.path.join('.') === 'settings.businessHours.monday.open',
+      );
+      const params = issue as unknown as { params?: { code?: string } };
+      expect(params.params?.code).toBe(TimeOfDayErrorCode.FORMAT_INVALID);
+    }
+  });
+
+  it('tenant-settings LocalizationSchema.countryCode reuses CountryCodeErrorCode.FORMAT_INVALID', () => {
+    const result = UpdateTenantSettingsBodySchema.safeParse({
+      settings: { localization: { countryCode: '1' } },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (i) => i.path.join('.') === 'settings.localization.countryCode',
+      );
+      const params = issue as unknown as { params?: { code?: string } };
+      expect(params.params?.code).toBe(CountryCodeErrorCode.FORMAT_INVALID);
+    }
+  });
+
+  it('tenant-settings businessInfo address fields stay generic (genuinely optional, not FIELD_REQUIRED)', () => {
+    const result = UpdateTenantSettingsBodySchema.safeParse({
+      settings: {
+        businessInfo: { address: { street: '', number: '1', city: 'BH', state: '', zipCode: '' } },
+      },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (i) => i.path.join('.') === 'settings.businessInfo.address.state',
+      );
+      const params = issue as unknown as { params?: { code?: string } };
+      // Not AddressErrorCode.FIELD_REQUIRED — this field is nullable/optional, so an empty
+      // string (once provided) falls to the generic bucket rather than misrepresenting it
+      // as "required".
+      expect(params.params?.code).not.toBe(AddressErrorCode.FIELD_REQUIRED);
     }
   });
 });
