@@ -26,7 +26,6 @@ describe('validateEnv()', () => {
     expect(result.PUBSUB_PROJECT_ID).toBe('ikaro-local');
     expect(result.FRONTEND_URL).toBe('http://localhost:3000');
     expect(result.DB_POOL_SIZE).toBe(10);
-    expect(result.ALLOW_PRODUCTION_MAILHOG).toBe(false);
     expect(result.LOG_LEVEL).toBe('INFO');
     expect(result.LOG_VENDOR).toBe('gcp');
   });
@@ -61,15 +60,15 @@ describe('validateEnv()', () => {
     ).toThrow('PUBSUB_AUTO_CREATE must be false when PUBSUB_CONSUMER_MODE=push');
   });
 
-  it('throws when NODE_ENV=production and PUBSUB_CONSUMER_MODE is not push', () => {
+  it('throws when APP_ENV is not local and PUBSUB_CONSUMER_MODE is not push', () => {
     expect(() =>
       validateEnv({
         ...valid,
-        NODE_ENV: 'production',
-        APP_ENV: 'production',
+        NODE_ENV: 'development',
+        APP_ENV: 'staging',
         PUBSUB_AUTO_CREATE: 'false',
       }),
-    ).toThrow('PUBSUB_CONSUMER_MODE must be "push" when NODE_ENV=production');
+    ).toThrow('PUBSUB_CONSUMER_MODE must be "push" when APP_ENV is not "local"');
   });
 
   it('throws when PUBSUB_CONSUMER_MODE=push without PUBSUB_PUSH_AUDIENCE or PUBSUB_PUSH_SERVICE_ACCOUNT', () => {
@@ -89,26 +88,26 @@ describe('validateEnv()', () => {
     expect(result.PUBSUB_CONSUMER_MODE).toBe('push');
   });
 
-  it('throws when NODE_ENV=production and EMAIL_ADAPTER=mailhog', () => {
+  it('throws when APP_ENV is not local and EMAIL_ADAPTER=mailhog', () => {
     expect(() =>
       validateEnv({
         ...valid,
-        NODE_ENV: 'production',
-        APP_ENV: 'production',
+        NODE_ENV: 'development',
+        APP_ENV: 'staging',
         PUBSUB_AUTO_CREATE: 'false',
         PUBSUB_CONSUMER_MODE: 'push',
         PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
         PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
         EMAIL_ADAPTER: 'mailhog',
       }),
-    ).toThrow('EMAIL_ADAPTER=mailhog is not allowed when NODE_ENV=production');
+    ).toThrow('EMAIL_ADAPTER=mailhog is not allowed when APP_ENV is not "local"');
   });
 
-  it('accepts NODE_ENV=production when push mode and sendgrid are configured', () => {
+  it('accepts non-local APP_ENV when push mode and sendgrid are configured', () => {
     const result = validateEnv({
       ...valid,
-      NODE_ENV: 'production',
-      APP_ENV: 'production',
+      NODE_ENV: 'development',
+      APP_ENV: 'staging',
       PUBSUB_AUTO_CREATE: 'false',
       PUBSUB_CONSUMER_MODE: 'push',
       PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
@@ -120,44 +119,39 @@ describe('validateEnv()', () => {
     expect(result.DB_POOL_SIZE).toBe(3);
   });
 
-  it('accepts NODE_ENV=production with mailhog only when ALLOW_PRODUCTION_MAILHOG=true', () => {
-    const result = validateEnv({
-      ...valid,
-      NODE_ENV: 'production',
-      APP_ENV: 'production',
-      PUBSUB_AUTO_CREATE: 'false',
-      PUBSUB_CONSUMER_MODE: 'push',
-      PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
-      PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
-      EMAIL_ADAPTER: 'mailhog',
-      ALLOW_PRODUCTION_MAILHOG: 'true',
-    });
-    expect(result.ALLOW_PRODUCTION_MAILHOG).toBe(true);
-  });
-
   it('throws when APP_ENV != local and PUBSUB_AUTO_CREATE is left true, even in pull mode', () => {
     expect(() => validateEnv({ ...valid, APP_ENV: 'staging' })).toThrow(
       'PUBSUB_AUTO_CREATE must be false when APP_ENV is not "local"',
     );
   });
 
-  it('allows PUBSUB_AUTO_CREATE=true when APP_ENV=local', () => {
+  it('allows pull mode and MailHog when APP_ENV=local even if NODE_ENV=production', () => {
     const result = validateEnv({
       ...valid,
+      NODE_ENV: 'production',
       APP_ENV: 'local',
       PUBSUB_CONSUMER_MODE: 'pull',
+      EMAIL_ADAPTER: 'mailhog',
     });
     expect(result.PUBSUB_AUTO_CREATE).toBe(true);
+    expect(result.PUBSUB_CONSUMER_MODE).toBe('pull');
+    expect(result.EMAIL_ADAPTER).toBe('mailhog');
   });
 
-  it('accepts APP_ENV=staging with PUBSUB_AUTO_CREATE=false in pull mode', () => {
+  it('accepts APP_ENV=staging with push mode and sendgrid', () => {
     const result = validateEnv({
       ...valid,
       APP_ENV: 'staging',
       PUBSUB_AUTO_CREATE: 'false',
+      PUBSUB_CONSUMER_MODE: 'push',
+      PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
+      PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
+      EMAIL_ADAPTER: 'sendgrid',
+      SENDGRID_API_KEY: 'SG.fake-key',
     });
     expect(result.APP_ENV).toBe('staging');
     expect(result.PUBSUB_AUTO_CREATE).toBe(false);
+    expect(result.PUBSUB_CONSUMER_MODE).toBe('push');
   });
 
   it('accepts optional GCP_PROJECT for Cloud Logging trace correlation', () => {

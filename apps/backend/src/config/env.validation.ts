@@ -39,7 +39,6 @@ const schema = z
     SMTP_HOST: z.string().default('localhost'),
     SMTP_PORT: z.coerce.number().default(1025),
     EMAIL_ADAPTER: z.enum(['sendgrid', 'mailhog']).default('mailhog'),
-    ALLOW_PRODUCTION_MAILHOG: z.stringbool().default(false),
     EMAIL_FROM: z
       .email({ message: 'EMAIL_FROM must be a valid email address' })
       .default('noreply@ikaro.example'),
@@ -74,24 +73,19 @@ const schema = z
           'PUBSUB_AUTO_CREATE must be false when APP_ENV is not "local" — Terraform owns all Pub/Sub resources in staging/production regardless of consumer mode',
       });
     }
-    if (data.NODE_ENV === 'production' && data.PUBSUB_CONSUMER_MODE !== 'push') {
+    if (data.APP_ENV !== 'local' && data.PUBSUB_CONSUMER_MODE !== 'push') {
       ctx.addIssue({
         code: 'custom',
         path: ['PUBSUB_CONSUMER_MODE'],
         message:
-          'PUBSUB_CONSUMER_MODE must be "push" when NODE_ENV=production — Cloud Run scales to zero, so pull consumers would silently stop processing events',
+          'PUBSUB_CONSUMER_MODE must be "push" when APP_ENV is not "local" — Cloud Run staging/production use push delivery, so pull consumers would silently stop processing events',
       });
     }
-    if (
-      data.NODE_ENV === 'production' &&
-      data.EMAIL_ADAPTER === 'mailhog' &&
-      !data.ALLOW_PRODUCTION_MAILHOG
-    ) {
+    if (data.APP_ENV !== 'local' && data.EMAIL_ADAPTER === 'mailhog') {
       ctx.addIssue({
         code: 'custom',
         path: ['EMAIL_ADAPTER'],
-        message:
-          'EMAIL_ADAPTER=mailhog is not allowed when NODE_ENV=production — use SendGrid or set ALLOW_PRODUCTION_MAILHOG=true for an explicit override',
+        message: 'EMAIL_ADAPTER=mailhog is not allowed when APP_ENV is not "local" — use SendGrid',
       });
     }
     if (data.PUBSUB_CONSUMER_MODE === 'push') {
