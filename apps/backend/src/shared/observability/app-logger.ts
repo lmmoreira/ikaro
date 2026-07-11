@@ -1,22 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { BaseAppLogger, formatGoogleCloudLoggingFields } from '@ikaro/observability';
+import { BaseAppLogger, createLogVendorFormatter } from '@ikaro/observability';
 import { getRequestStore } from '../request/request-context';
 
 @Injectable()
 export class AppLogger extends BaseAppLogger {
   constructor(context?: string) {
-    super('backend', context);
+    super(
+      'backend',
+      createLogVendorFormatter({
+        vendor: process.env['LOG_VENDOR'],
+        gcpProjectId: process.env['GCP_PROJECT'],
+      }),
+      context,
+    );
   }
 
   protected enrich(): Record<string, unknown> {
     const store = getRequestStore();
     return store ? { tenantId: store.tenantId, correlationId: store.correlationId } : {};
-  }
-
-  protected formatVendorFields(
-    traceId: string | null,
-    spanId: string | null,
-  ): Record<string, unknown> {
-    return formatGoogleCloudLoggingFields(process.env['GCP_PROJECT'], traceId, spanId);
   }
 }

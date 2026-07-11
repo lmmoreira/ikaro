@@ -3,7 +3,7 @@ import { BaseAppLogger } from './app-logger';
 
 class TestLogger extends BaseAppLogger {
   constructor(context?: string) {
-    super('test-service', context);
+    super('test-service', undefined, context);
   }
 }
 
@@ -74,7 +74,7 @@ describe('BaseAppLogger', () => {
   });
 
   it('verbose() emits VERBOSE level with DEBUG severity', () => {
-    process.env['LOG_LEVEL'] = 'DEBUG';
+    process.env['LOG_LEVEL'] = 'VERBOSE';
     new TestLogger().verbose('extra detail');
     expect(lastOutput['level']).toBe('VERBOSE');
     expect(lastOutput['severity']).toBe('DEBUG');

@@ -20,6 +20,7 @@ describe('validateEnv()', () => {
     expect(result.PORT).toBe(3002);
     expect(result.FRONTEND_URL).toBe('http://localhost:3000');
     expect(result.LOG_LEVEL).toBe('INFO');
+    expect(result.LOG_VENDOR).toBe('gcp');
   });
 
   it('throws when a required var is missing', () => {
@@ -39,5 +40,13 @@ describe('validateEnv()', () => {
       GCP_PROJECT: 'ikaro-staging',
     });
     expect(result.GCP_PROJECT).toBe('ikaro-staging');
+  });
+
+  it('accepts LOG_VENDOR=none to disable vendor-specific log fields', () => {
+    const result = validateEnv({
+      ...valid,
+      LOG_VENDOR: 'none',
+    });
+    expect(result.LOG_VENDOR).toBe('none');
   });
 });

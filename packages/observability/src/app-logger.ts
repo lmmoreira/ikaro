@@ -1,5 +1,6 @@
 import { Injectable, LoggerService, LogLevel } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
+import { LogVendorFormatter, NoopLogVendorFormatter } from './log-vendor-formatter';
 
 export interface LogContext {
   tenantId?: string;
@@ -15,8 +16,8 @@ type LoggerLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'VERBOSE';
 type CloudSeverity = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
 
 const LOG_LEVEL_ORDER: Record<LoggerLevel, number> = {
+  VERBOSE: 5,
   DEBUG: 10,
-  VERBOSE: 15,
   INFO: 20,
   WARN: 30,
   ERROR: 40,
@@ -25,11 +26,14 @@ const LOG_LEVEL_ORDER: Record<LoggerLevel, number> = {
 @Injectable()
 export abstract class BaseAppLogger implements LoggerService {
   private readonly context?: string;
+  private readonly vendorFormatter: LogVendorFormatter;
 
   protected constructor(
     private readonly service: string,
+    vendorFormatter: LogVendorFormatter = new NoopLogVendorFormatter(),
     context?: string,
   ) {
+    this.vendorFormatter = vendorFormatter;
     this.context = context;
   }
 
@@ -54,7 +58,7 @@ export abstract class BaseAppLogger implements LoggerService {
   }
 
   setLogLevels(_levels: LogLevel[]): void {
-    // Log level filtering delegated to log aggregator (Loki)
+    // NestJS setLogLevels is ignored — in-process filtering is controlled by LOG_LEVEL.
   }
 
   /** Hook for app-specific auto-enrichment (e.g. tenant context). Default: none. */
@@ -63,10 +67,10 @@ export abstract class BaseAppLogger implements LoggerService {
   }
 
   protected formatVendorFields(
-    _traceId: string | null,
-    _spanId: string | null,
+    traceId: string | null,
+    spanId: string | null,
   ): Record<string, unknown> {
-    return {};
+    return this.vendorFormatter.format(traceId, spanId);
   }
 
   private write(
@@ -89,6 +93,7 @@ export abstract class BaseAppLogger implements LoggerService {
       // since later keys in an object literal always win over earlier spreads.
       ...this.enrich(),
       ...(ctx && typeof ctx === 'object' ? ctx : {}),
+      ...this.formatVendorFields(activeTraceId, activeSpanId),
       timestamp: new Date().toISOString(),
       severity: this.toSeverity(level),
       level,
@@ -98,7 +103,6 @@ export abstract class BaseAppLogger implements LoggerService {
       spanId: activeSpanId,
       message,
       metadata: stackTrace ? { stack: stackTrace } : undefined,
-      ...this.formatVendorFields(activeTraceId, activeSpanId),
     };
     process.stdout.write(JSON.stringify(entry) + '\n');
   }

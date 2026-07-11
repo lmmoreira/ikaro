@@ -303,10 +303,10 @@ A cron tick is not a domain event, though — it carries no `tenantId` (the job 
 5. Verification pass: `pnpm lint` zero `no-console`; spot-check that use cases/event handlers log start/completion with `tenantId` + `correlationId` (fix stragglers found — do not boil the ocean).
 
 **Acceptance criteria:**
-- [ ] A log line in dev shows: `severity`, `level`, `message`, `service`, `tenantId`, `correlationId`, ISO timestamp
-- [ ] Trace fields appear only when a span is active AND `GCP_PROJECT` is set
-- [ ] GCP field names isolated to one function with the portability comment
-- [ ] `packages/observability` specs updated in the same commit
+- [x] A log line in dev shows: `severity`, `level`, `message`, `service`, `tenantId`, `correlationId`, ISO timestamp
+- [x] Trace fields appear only when a span is active AND `GCP_PROJECT` is set
+- [x] GCP field names isolated to one function with the portability comment
+- [x] `packages/observability` specs updated in the same commit
 
 **Dependencies:** none (S33 later activates the trace fields)
 
