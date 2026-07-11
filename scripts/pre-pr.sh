@@ -291,13 +291,18 @@ grep_into_tmp "$ts_tests" \
   "function make[A-Z][a-zA-Z]*Entity\b|function make[A-Z][a-zA-Z]*UseCase\b|function make[A-Z][a-zA-Z]*Aggregate\b"
 run_check "BE-3. No entity/use-case make* factories in spec files (changed test files)"
 
-# BE-4. New TypeORM entities must have an XxxEntityBuilder
+# BE-4. New TypeORM entities / domain events / commands must have a builder
 > "$TMP"
-while IFS= read -r entity_file; do
-  [ -z "$entity_file" ] || [ ! -f "$entity_file" ] && continue
-  cls=$(grep -oE 'export class [A-Za-z]+Entity\b' "$entity_file" 2>/dev/null | head -1 | awk '{print $3}' || true)
+while IFS= read -r src_file; do
+  [ -z "$src_file" ] || [ ! -f "$src_file" ] && continue
+  if echo "$src_file" | grep -qE '\.entity\.ts$'; then
+    cls=$(grep -oE 'export class [A-Za-z]+Entity\b' "$src_file" 2>/dev/null | head -1 | awk '{print $3}' || true)
+  else
+    # .event.ts / .command.ts — classes extend DomainEvent or Command, no fixed name suffix
+    cls=$(grep -oE 'export class [A-Za-z]+ extends' "$src_file" 2>/dev/null | head -1 | awk '{print $3}' || true)
+  fi
   [ -z "$cls" ] && continue
-  ctx=$(echo "$entity_file" | grep -oE 'contexts/[^/]+' | head -1 | sed 's|contexts/||' || true)
+  ctx=$(echo "$src_file" | grep -oE 'contexts/[^/]+' | head -1 | sed 's|contexts/||' || true)
   [ -z "$ctx" ] && continue
   builder_dir="apps/backend/src/test/builders/$ctx"
   if ! find "$builder_dir" -name "*.builder.ts" 2>/dev/null \
@@ -305,8 +310,8 @@ while IFS= read -r entity_file; do
        | grep -q .; then
     printf "%s — no builder found in %s\n" "$cls" "$builder_dir" >> "$TMP"
   fi
-done < <(echo "$added" | grep -E '\.entity\.ts$' | grep -v '\.spec\.' || true)
-run_check "BE-4. All new TypeORM entities have an XxxEntityBuilder"
+done < <(echo "$added" | grep -E '\.(entity|event|command)\.ts$' | grep -v '\.spec\.' || true)
+run_check "BE-4. All new TypeORM entities / domain events / commands have a builder"
 
 # BE-5. DDL in seed files (stable dir — full scan OK)
 grep -rn --include="*.ts" \

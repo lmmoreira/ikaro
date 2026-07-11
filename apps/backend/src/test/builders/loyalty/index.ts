@@ -7,3 +7,4 @@ export { LoyaltyRedemptionBuilder } from './loyalty-redemption.builder';
 export { LoyaltyRedemptionEntityBuilder } from './loyalty-redemption-entity.builder';
 export { ProcessedEventEntityBuilder } from './processed-event-entity.builder';
 export { ServicePointsEarnedEventBuilder } from './service-points-earned-event.builder';
+export { PointsExpiringSoonCommandBuilder } from './points-expiring-soon-command.builder';
