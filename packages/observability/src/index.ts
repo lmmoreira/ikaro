@@ -6,5 +6,7 @@ export type {
   LogVendor,
   LogVendorFormatter,
 } from './log-vendor-formatter';
-export type { CreateLogVendorFormatterOptions } from './log-vendor-formatter.factory';
+export type {
+  CreateLogVendorFormatterOptions,
+} from './log-vendor-formatter.factory';
 export type { GcpLogVendorFormatterOptions } from './gcp-log-vendor-formatter';
