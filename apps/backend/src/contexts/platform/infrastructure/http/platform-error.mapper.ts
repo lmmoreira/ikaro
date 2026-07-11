@@ -11,18 +11,7 @@ import {
 
 export function mapPlatformError(err: unknown): never {
   mapSharedAddressError(err);
-  if (err instanceof SlugAlreadyTakenError) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Conflict',
-      status: HttpStatus.CONFLICT,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.CONFLICT);
-  }
-  if (err instanceof TenantInactiveError) {
+  if (err instanceof SlugAlreadyTakenError || err instanceof TenantInactiveError) {
     const body: ProblemDetail = {
       type: 'about:blank',
       title: 'Conflict',
