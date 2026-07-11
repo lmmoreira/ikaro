@@ -1,7 +1,7 @@
 # TD23 — Exception Handling & i18n Pattern: Backend → BFF → UI
 
 ## Status
-- **State**: In Progress — Stories 1-3, 4, 5, 6, 7 done (Wave 1 complete, Wave 2 nearly complete: booking, customer, staff, loyalty, platform contexts done; Story 8 shared VOs remaining)
+- **State**: In Progress — Stories 1-10 done (Wave 1 complete; Wave 2 complete: booking, customer, staff, loyalty, platform contexts + shared VOs all done; Wave 3 complete: backend + BFF Zod pipes both emit code-bearing violations. Wave 4 — Story 11, BFF-originated errors — remaining)
 - **Type**: Technical Debt / Cross-Cutting Architecture Pattern
 - **Priority**: Medium — no single instance is a P0 outage, but the systemic gap already causes 2 confirmed raw-English-in-pt-BR-UI leaks in production code, a fragile string-match anti-pattern, a dead-but-leak-shaped mechanism, and 40+ error paths across the app that lose specificity they could have
 - **Scope**: `apps/backend` (all 6 contexts + shared value objects), `apps/bff` (all feature slices), `apps/web` (all domain/shell slices), `packages/types`, `packages/i18n`
@@ -427,7 +427,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ---
 
-#### Story 8 — Shared value objects: typed errors for the 8 plain-`Error` VOs (real correctness gap)
+#### Story 8 — Shared value objects: typed errors for the 8 plain-`Error` VOs (real correctness gap) ✅ Done
 
 **Scope:** `apps/backend/src/shared/value-objects/{money,phone-number,seo-title,seo-description,slug,hex-color,timezone,time-of-day,email}.vo.ts`, all 5 context mappers. (`Address`/`CountryCode` already have typed error classes with real codes as of Story 3 — not part of this story's scope.)
 
@@ -454,7 +454,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ### Wave 3 — Validation pipes (Zod, code-per-rule)
 
-#### Story 9 — Backend Zod pipe: code-bearing violations
+#### Story 9 — Backend Zod pipe: code-bearing violations ✅ Done
 
 **Scope:** `apps/backend/src/shared/http/zod-validation.pipe.ts`, every backend Zod schema.
 
@@ -474,7 +474,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ---
 
-#### Story 10 — BFF's own Zod schemas: code-bearing violations + interim address-triplication fix
+#### Story 10 — BFF's own Zod schemas: code-bearing violations + interim address-triplication fix ✅ Done
 
 **Scope:** `apps/bff/src/shared/http/zod-validation.pipe.ts`, all 30+ BFF Zod schemas, especially the 3 `AddressSchema` copies and `HotsiteSeoBodySchema`.
 
