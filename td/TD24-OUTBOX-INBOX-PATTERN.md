@@ -32,7 +32,7 @@ M17-S03's `cron_run_log` attempt failed because `markRun()` can never be atomic 
 
 ## Investigation — verified inventory (2026-07-10 code sweep)
 
-### A. Publish sites — 21 `eventBus.publish()` calls across 18 files
+### A. Publish sites — 21 `eventBus.publish()` calls across 20 files (`booking-reminder.job.ts` has 2)
 
 **A1. Aggregate-driven (16 use cases, each with a `clearDomainEvents()` loop after `txManager.run()`):**
 
@@ -81,7 +81,9 @@ M17-S03's `cron_run_log` attempt failed because `markRun()` can never be atomic 
 
 ### C. Wiring & infrastructure facts the design depends on (verified)
 
-1. **Ambient transaction context** — `shared/infrastructure/transaction-context.ts` (AsyncLocalStorage): `getActiveEntityManager()` exposes the live transactional `EntityManager` anywhere under `txManager.run()`; `scheduleAfterCommit(cb)` runs `cb` after commit — **or immediately when no transaction is ambient** (verified: falls through to `callback()` directly). The outbox adapter relies on both behaviors.
+1. **Ambient transaction context** — `shared/infrastructure/transaction-context.ts` (AsyncLocalStorage): `getActiveEntityManager()` exposes the live transactional `EntityManager` anywhere under `txManager.run()`; `scheduleAfterCommit(cb)` runs `cb` after commit — **or immediately when no transaction is ambient** (verified: falls through to `callback()` directly). The outbox adapter relies on both behaviors. Two more verified behaviors the design MUST respect:
+   - **After-commit callbacks are awaited *inside* `txManager.run()`** (`typeorm-transaction-manager.ts` flushes them before `run()` returns) — so after-commit work runs *before* the HTTP response is sent, not in the background.
+   - **`flushAfterCommitCallbacks` has no try/catch** — a callback that throws propagates out of `txManager.run()` *after the commit already happened* AND aborts the remaining callbacks (they were already `splice(0)`'d off, so they are lost, not retried). Consequence: any callback the outbox schedules must swallow its own errors internally — see §Design's inline-dispatch rule.
 2. **DI wiring** (`shared/infrastructure/event-bus.module.ts`): `EVENT_BUS → useClass: GcpPubSubEventBusAdapter`; **`TRIGGER_BUS` and `PUSHABLE_EVENT_BUS` are `useExisting: EVENT_BUS` aliases** — they resolve to whatever `EVENT_BUS` resolves to, including test overrides. ⚠️ Consequence: rebinding `EVENT_BUS` to the outbox bus drags both aliases with it — the outbox bus **must implement `IEventBus`, `ITriggerBus`, and `IPushableEventBus`, delegating everything except `publish()`** to the inner Pub/Sub adapter (see §Design). Do not restructure the aliases.
 3. **Trigger channel** (M17-S03/D3): `ITriggerBus.registerTrigger()` + Cloud Scheduler → Pub/Sub → `/pubsub/push`, with thin `/cron/*` controllers for local/manual runs — the relay sweep copies this exact pattern.
 4. **Test doubles** (`src/test/infrastructure/`): `in-memory-event-bus.ts` (unit) and `routing-in-memory-event-bus.ts` (integration — **synchronously dispatches to subscribed handlers inside `publish()`**, BFS for nested publishes). ⚠️ Consequence: once repos drain events *inside* the transaction, a synchronous dispatch would run handlers mid-transaction (separate connections → they cannot see the uncommitted business write; deadlock risk). The routing bus must defer dispatch via `scheduleAfterCommit()` — see S02.
@@ -144,7 +146,8 @@ New `shared/infrastructure/outbox-event-bus.ts`, bound as `EVENT_BUS`. Because `
 
 - `publish(event)` → **intercepted**: writes the outbox row using `getActiveEntityManager()` if a transaction is ambient (**joins the caller's transaction** — this is the atomicity), or its own short transaction if not. Dedup key = `event.dedupKey ?? event.eventId`. On successful insert, registers the row id via `scheduleAfterCommit()` for inline dispatch (which, per §C1, runs immediately when no tx is ambient — so non-transactional publishes still get instant delivery).
 - `subscribe()`, `registerTrigger()`, `publishTrigger()`, `dispatchPushMessage()` → **pure delegation** to the inner `GcpPubSubEventBusAdapter` (registered as its own class provider; stays the singleton that owns Pub/Sub connections, push dispatch, and DLQ routing — its consumer role is untouched).
-- Inline dispatch is fire-and-forget: it **never throws into the caller and never delays the HTTP response**. The use case succeeded the moment the transaction committed.
+- **Inline dispatch is awaited inside the after-commit callback** — it runs after the commit and before the HTTP response returns (adds ~10–100 ms to event-emitting endpoints; accepted). This is deliberate, not an accident of §C1: a fire-and-forget floating promise would race Cloud Run's request-based CPU allocation — CPU is throttled once the response is sent, so a background publish gets starved, fails silently, and every "happy path" quietly degrades to sweep latency (up to 5 min for customer-facing emails). Awaiting before the response is the only Cloud-Run-safe option without paying for always-allocated CPU.
+- Inline dispatch **never throws into the caller**: the try/catch lives **inside the callback passed to `scheduleAfterCommit`** — this placement is mandatory, not stylistic. Per §C1, `flushAfterCommitCallbacks` has no try/catch: an escaping error would propagate out of `txManager.run()` *after* the commit (the use case would report failure for work that committed) and abort the remaining callbacks (other events' inline dispatch silently lost). Dispatch errors are logged and left to the sweep; the use case succeeded the moment the transaction committed.
 
 `DomainEvent` gains an optional readonly `dedupKey?: string` (default `undefined` → adapter falls back to `eventId`). Only the cron-job events set it. It serializes into `payload` like any other field; consumers ignore it.
 
@@ -267,7 +270,7 @@ Nothing is rebound; no behavior changes. Everything is built and tested in isola
 - Migration `AddSharedSchema` — `CREATE SCHEMA shared` + the `ikaro_app` grant block copied from `BootstrapSchemas` (new migration; never edit the applied one). ⚠️ Migration timestamps are global across contexts — pick the next free timestamp.
 - Migration `CreateSharedOutbox` — table + partial index per §Design.
 - `shared/infrastructure/entities/outbox-event.entity.ts` (TypeORM entity, `schema: 'shared'`).
-- `shared/infrastructure/outbox-event-bus.ts` — implements `IEventBus` + `ITriggerBus` + `IPushableEventBus`; `publish()` = ambient-EM insert with `ON CONFLICT DO NOTHING RETURNING id` + `scheduleAfterCommit` hook; everything else delegates to an injected `GcpPubSubEventBusAdapter`.
+- `shared/infrastructure/outbox-event-bus.ts` — implements `IEventBus` + `ITriggerBus` + `IPushableEventBus`; `publish()` = ambient-EM insert with `ON CONFLICT DO NOTHING RETURNING id` + `scheduleAfterCommit` hook (dispatch awaited + errors swallowed *inside* the callback, per §Design); everything else delegates to an injected `GcpPubSubEventBusAdapter`. ⚠️ TypeORM's `repository.save()` cannot express `ON CONFLICT DO NOTHING RETURNING` — use the query builder (`.insert().orIgnore().returning('id')`) or raw SQL through the ambient `EntityManager`; do not detour through `save()`.
 - `shared/infrastructure/outbox-relay.service.ts` — `relay(rowIds?)`, sweep query (grace window, batch loop, `SKIP LOCKED`), retention GC (`OUTBOX_RETENTION_DAYS`, default 14), marking rule.
 - Trigger wiring: `cron-outbox-relay` constant + trigger handler (mirror `booking/infrastructure/events/booking-reminder-trigger.handler.ts`) + thin `/cron/outbox-relay` controller (mirror `cron-booking.controller.ts`).
 - `DomainEvent.dedupKey?: string` optional readonly field (default undefined; no subclass changes yet).
@@ -281,7 +284,9 @@ Nothing is rebound; no behavior changes. Everything is built and tested in isola
 **Tests (unit + integration):**
 - publish inside `txManager.run()` → row rolls back with the business write; publish outside any tx → row committed standalone.
 - `dedup_key` conflict → no row, no inline dispatch scheduled.
+- **after-commit error isolation:** two publishes in one `txManager.run()`, inner adapter throws on the first inline dispatch → `run()` resolves normally (no error into the caller), the second event still dispatches, the first row stays unpublished for the sweep.
 - relay marks `published_at` **only** on successful Pub/Sub publish; failed publish leaves row unpublished.
+- **transport round-trip (emulator):** relay publishes the stored envelope through the real `GcpPubSubEventBusAdapter` against the Pub/Sub emulator → received message is byte-identical to the pre-outbox envelope (`eventId`/`correlationId`/`occurredAt` survive the JSONB round-trip verbatim — this is what keeps consumer dedup working).
 - sweep: respects grace window; `SKIP LOCKED` (two concurrent sweeps → each row published once); loops until empty; GC deletes only published rows older than `OUTBOX_RETENTION_DAYS`.
 
 **Infra note:** the Cloud Scheduler job + topic (`var.outbox_relay_schedule`, default `*/5 * * * *`) lands in the M17 Terraform tree — add to the M17 scheduler module/story, not a parallel mechanism.
@@ -302,15 +307,21 @@ The atomic story: rebind, drain, delete the 16 loops, fix the test bus — these
 
 **Modify — use cases (16 files, §A1 list):** delete the `clearDomainEvents()` publish loop (and the now-unused `EVENT_BUS` injection where nothing else uses it) from all 11 booking + 4 staff + 1 platform use cases. Each use case's event emission is now implicit in `repo.save()` inside its existing `txManager.run()`.
 
+**Modify — unit-test repository doubles (3 files) — REQUIRED, or ~16 unit suites go red:**
+- `src/test/repositories/booking/in-memory-booking.repository.ts`, `src/test/repositories/staff/in-memory-staff.repository.ts`, `src/test/repositories/platform/in-memory-tenant.repository.ts` — accept the event bus and drain `clearDomainEvents()` in `save()`, mirroring production (reuse the same `drain-domain-events.ts` helper so the doubles can't drift). Unit specs wire `InMemoryXxxRepository` and `InMemoryEventBus` as two *unconnected* doubles (verified: `approve-booking.use-case.spec.ts`) — once this story deletes the use-case publish loops, nothing feeds `eventBus.published` unless the doubles drain. All 16 use-case unit specs asserting on `.published` then pass with unchanged assertions. ⚠️ If those specs are red mid-story, the fix is this drain wiring — **never delete the event assertions.**
+
 **Modify — test infrastructure:**
-- `routing-in-memory-event-bus.ts`: defer handler dispatch via `scheduleAfterCommit()` when a transaction is ambient (per §C1 it dispatches immediately otherwise). Without this, repos draining inside the tx would trigger synchronous handler runs mid-transaction — handlers on separate connections can't see the uncommitted write, and nested `txManager.run()` calls risk deadlock. Keep the BFS nested-publish semantics.
-- `in-memory-event-bus.ts`: same deferral if any integration app uses it transactionally; unit specs that asserted "published after use case" now assert via the routing/in-memory bus exactly as before (eventIds and envelopes are unchanged).
+- `routing-in-memory-event-bus.ts`: defer handler dispatch via `scheduleAfterCommit()` when a transaction is ambient (per §C1 it dispatches immediately otherwise). Without this, repos draining inside the tx would trigger synchronous handler runs mid-transaction — handlers on separate connections can't see the uncommitted write, and nested `txManager.run()` calls risk deadlock.
+- ⚠️ **The deferral must compose with the BFS queue — the trickiest work in this story.** The deferred after-commit callback must *enqueue* into the existing BFS queue when a dispatch cycle is active, never dispatch directly — otherwise the ordering race BFS exists to prevent resurfaces: `TenantProvisioned` → staff handler's nested tx commits and would fire `StaffInvited` *before* the notification handler has seeded templates. Regression signal: the `staff-invitation` assertion in `booking-full-workflow.handler.integration.spec.ts` — if it goes red, the BFS composition is wrong; do not "fix" it by reordering handlers.
+- Because §C1 flushes after-commit callbacks *before* `txManager.run()` returns, dispatch still completes before each HTTP response — integration specs' "everything dispatched when the HTTP call resolves" assumption holds unchanged. Update the two comments in `booking-full-workflow.handler.integration.spec.ts` (~L90, ~L280) that say "RoutingInMemoryEventBus is synchronous" → "dispatched after commit, before the HTTP call resolves".
+- `in-memory-event-bus.ts`: no deferral needed for unit specs — `InMemoryTransactionManager` creates no ambient context, so `scheduleAfterCommit` falls through to immediate dispatch; add the deferral only if an integration app turns out to use this bus under a real transaction.
 - Integration app helpers keep overriding `EVENT_BUS` with the routing bus (`useClass`, never `useExisting`) — flow tests bypass the outbox by design; outbox behavior is covered by S01's dedicated tests plus this story's crash tests below.
 
 **Tests (these are TD08 AUD-003's executable spec — write first where practical):**
 - Crash-between-commit-and-publish: with inline dispatch disabled, commit a booking approval → assert outbox row unpublished + no Pub/Sub message → run relay → exactly one message delivered.
 - Inline publish failure (Pub/Sub double that throws) → use case still succeeds; row unpublished; sweep retries and delivers.
 - Two concurrent relay attempts on the same row → exactly one Pub/Sub publish.
+- **Full-topology test (one, new):** an integration app where `EVENT_BUS` is the real `OutboxEventBus` wrapping the routing bus as its inner adapter, driving one booking approval end-to-end: use case → outbox row → relay → dispatch → notification handler → email log. This is the only test that exercises the *production* pipeline shape (flow suites bypass the outbox; S01 tests it in isolation) — it catches envelope-serialization drift through the JSONB round-trip that neither covers.
 - Regression: every flow integration suite (booking/staff/platform → notification/loyalty) passes with only the routing-bus deferral change.
 
 **Docs (same PR, per §7 DoD):** CLAUDE.md/§7 invariant + `docs/ENGINEERING_RULES.md` + `docs/03-DOMAIN_EVENTS.md` delivery-guarantees section + `docs/08-TESTING_STRATEGY.md` (routing-bus semantics changed).
@@ -326,6 +337,8 @@ The atomic story: rebind, drain, delete the 16 loops, fix the test bus — these
 **Modify — events (4 classes):** `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon` — accept/derive a deterministic `dedupKey` per §Design table. Finalize the timezone-of-day rule during story discovery (candidate: the tenant's timezone for tenant-scoped reminders, `America/Sao_Paulo` default per §1).
 
 **Modify — jobs (3 files, §A2):** construct events with dedup keys; wrap each job's per-tenant publish batch in `txManager.run()` so a run's outbox rows commit atomically (one tx per tenant-batch, not one giant tx — a mid-run crash then retries only the un-committed tenants' facts as no-op conflicts + remainder).
+
+**Modify — job unit specs (3 files):** the publishing jobs gain a `txManager` constructor dependency — wire the existing `src/test/infrastructure/in-memory-transaction-manager.ts` double (it runs the work directly with no ambient context, so `InMemoryEventBus.publish` still records immediately; `expire-points.job.spec.ts` shows the pattern). Assertions on `.published` are otherwise unchanged.
 
 **Modify — loyalty re-emit (1 file):** `complete-booking-loyalty-effects.use-case.ts` — move the `ServicePointsEarned` publish **inside** the existing `txManager.run()` that contains `markProcessed` (closes TD08 §12.3: the re-emit and the idempotency mark become one atomic fact).
 
@@ -349,13 +362,13 @@ The atomic story: rebind, drain, delete the 16 loops, fix the test bus — these
 - notification: `base-notification.use-case.ts` + `base-booking-reminder-notification.use-case.ts` swap `processedEventRepo` for the shared inbox port with composed consumer names; the 13 `send-*` use cases + `notification.module.ts` follow (mostly constructor wiring).
 - staff: add the inbox check + `markProcessed` (inside the existing tx) to `create-initial-manager.use-case.ts` + `staff.module.ts` wiring — closes the uncovered `TenantProvisioned` path.
 
-**Delete:** `loyalty/application/ports/processed-event-repository.port.ts`, `loyalty/infrastructure/entities/processed-event.entity.ts`, `loyalty/infrastructure/repositories/typeorm-processed-event.repository.ts`, `notification/application/ports/processed-event-repository.port.ts`, `notification/infrastructure/entities/processed-event.entity.ts`, `notification/infrastructure/repositories/typeorm-processed-event.repository.ts`, both in-memory doubles (`src/test/infrastructure/in-memory-processed-event.repository.ts`, `src/test/repositories/notification/in-memory-processed-event.repository.ts`), both builders (`src/test/builders/loyalty/processed-event-entity.builder.ts` + its `index.ts` export, `src/test/builders/notification/notification-processed-event-entity.builder.ts`); update `loyalty-integration-app.ts` / `notification-integration-app.ts` overrides.
+**Delete:** `loyalty/application/ports/processed-event-repository.port.ts`, `loyalty/infrastructure/entities/processed-event.entity.ts`, `loyalty/infrastructure/repositories/typeorm-processed-event.repository.ts`, `notification/application/ports/processed-event-repository.port.ts`, `notification/infrastructure/entities/processed-event.entity.ts`, `notification/infrastructure/repositories/typeorm-processed-event.repository.ts`, both in-memory doubles (`src/test/infrastructure/in-memory-processed-event.repository.ts`, `src/test/repositories/notification/in-memory-processed-event.repository.ts`), both builders (`src/test/builders/loyalty/processed-event-entity.builder.ts` + its `index.ts` export, `src/test/builders/notification/notification-processed-event-entity.builder.ts`); update `loyalty-integration-app.ts` / `notification-integration-app.ts` overrides. **Then grep `ProcessedEventEntity` and `NotificationProcessedEventEntity` across all `*.spec.ts` and `src/test/utils/**`** — specs embed the dropped entities in their `extraEntities` arrays (e.g. `booking-full-workflow.handler.integration.spec.ts` L25/L44) and must swap in the shared inbox entity; the delete list above is not the full blast radius.
 
 **Modify — relay GC:** extend the sweep tick's GC with the inbox batched delete (D8; SQL in §Design) + `INBOX_RETENTION_DAYS` config with its ≥ 8 startup check. Also update the relay's GC tests.
 
 **Tests:** duplicate `eventId` redelivery → single effect per consumer (loyalty, notification per template×channel, staff); migration copies existing dedup rows correctly (integration); inbox GC deletes only rows older than `INBOX_RETENTION_DAYS`; startup fails on `INBOX_RETENTION_DAYS < 8`.
 
-**Docs:** `docs/13-DATABASE_SCHEMA.md` (both new tables, both drops); `docs/06-TENANT_ISOLATION_STRATEGY.md` — documented exemption: outbox/inbox are transport infrastructure keyed by `eventId`, not tenant-first business tables (outbox still carries `tenant_id` for observability).
+**Docs:** `docs/13-DATABASE_SCHEMA.md` (both new tables, both drops); `docs/06-TENANT_ISOLATION_STRATEGY.md` — documented exemption: outbox/inbox are transport infrastructure keyed by `eventId`, not tenant-first business tables (outbox still carries `tenant_id` for observability). Include one LGPD data-inventory line: `outbox.payload` persists full event envelopes (customer names, emails, phones) in Postgres for `OUTBOX_RETENTION_DAYS` (14 days) — not a new *class* of exposure (Pub/Sub already retains the same data up to 7 days), but a new *store* that belongs in the inventory.
 
 ---
 
@@ -387,7 +400,7 @@ The atomic story: rebind, drain, delete the 16 loops, fix the test bus — these
 | `docs/03-DOMAIN_EVENTS.md` | Delivery guarantees: at-least-once delivery, exactly-once effect; outbox/relay/inbox roles | S02 |
 | `docs/08-TESTING_STRATEGY.md` | Routing-bus deferral semantics; outbox/inbox doubles; crash/concurrency test patterns | S02 |
 | `docs/13-DATABASE_SCHEMA.md` | `shared` schema, new tables, dropped tables | S01/S04 |
-| `docs/06-TENANT_ISOLATION_STRATEGY.md` | Transport-table exemption rationale | S04 |
+| `docs/06-TENANT_ISOLATION_STRATEGY.md` | Transport-table exemption rationale + LGPD note (event payloads with PII persist 14 days in `outbox.payload`) | S04 |
 | `docs/11-ARCHITECTURE.md` + `docs/05-BOUNDED_CONTEXTS.md` | Outbox/inbox as shared transport infra | S05 |
 | `plan/M17-CLOUD-DEPLOY.md` | Relay scheduler job (S01); S03-note cross-reference update | S01/S03 |
 | `td/TD08-AUDIT-REMEDIATION-BACKLOG.md` | AUD-001/003/004/018 statuses | S05 |
