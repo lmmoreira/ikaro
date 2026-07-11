@@ -116,5 +116,14 @@
   "HEX_COLOR_FORMAT_INVALID": "The color provided is invalid.",
   "TIMEZONE_INVALID": "The timezone provided is invalid.",
   "TIME_OF_DAY_FORMAT_INVALID": "The time must be in HH:MM format.",
-  "EMAIL_FORMAT_INVALID": "The email address provided is invalid."
+  "EMAIL_FORMAT_INVALID": "The email address provided is invalid.",
+  "PLATFORM_SETTINGS_UPDATE_EMPTY": "At least one settings field must be provided.",
+  "PLATFORM_HOTSITE_UPDATE_EMPTY": "At least one of branding, layout, or SEO must be provided.",
+  "PLATFORM_FEATURED_PHOTO_PATH_MISMATCH": "The photo does not belong to the specified booking.",
+  "GENERIC_FIELD_REQUIRED": "This field is required.",
+  "GENERIC_VALUE_TOO_SHORT": "This value is too short.",
+  "GENERIC_VALUE_TOO_LONG": "This value is too long.",
+  "GENERIC_VALUE_OUT_OF_RANGE": "This value is out of the allowed range.",
+  "GENERIC_FORMAT_INVALID": "This value is not in the expected format.",
+  "GENERIC_VALUE_INVALID": "This value is invalid."
 }

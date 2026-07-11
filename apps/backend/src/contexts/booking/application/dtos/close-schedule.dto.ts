@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TimeOfDayErrorCode } from '@ikaro/types';
 import { ClosureReason } from '../../domain/schedule-closure.aggregate';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 
@@ -7,9 +8,18 @@ export const CloseScheduleSchema = z.object({
   reason: z.enum([ClosureReason.STAFF_DAY_OFF, ClosureReason.MAINTENANCE, ClosureReason.HOLIDAY]),
   startTime: z
     .string()
-    .refine(TimeOfDay.isValid, { message: 'startTime must be HH:MM' })
+    .refine(TimeOfDay.isValid, {
+      error: 'startTime must be HH:MM',
+      params: { code: TimeOfDayErrorCode.FORMAT_INVALID },
+    })
     .optional(),
-  endTime: z.string().refine(TimeOfDay.isValid, { message: 'endTime must be HH:MM' }).optional(),
+  endTime: z
+    .string()
+    .refine(TimeOfDay.isValid, {
+      error: 'endTime must be HH:MM',
+      params: { code: TimeOfDayErrorCode.FORMAT_INVALID },
+    })
+    .optional(),
   notes: z.string().optional(),
 });
 

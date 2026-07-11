@@ -116,5 +116,14 @@
   "HEX_COLOR_FORMAT_INVALID": "A cor informada é inválida.",
   "TIMEZONE_INVALID": "O fuso horário informado é inválido.",
   "TIME_OF_DAY_FORMAT_INVALID": "O horário informado deve estar no formato HH:MM.",
-  "EMAIL_FORMAT_INVALID": "O e-mail informado é inválido."
+  "EMAIL_FORMAT_INVALID": "O e-mail informado é inválido.",
+  "PLATFORM_SETTINGS_UPDATE_EMPTY": "É necessário informar ao menos um campo de configuração.",
+  "PLATFORM_HOTSITE_UPDATE_EMPTY": "É necessário informar ao menos um de branding, layout ou SEO.",
+  "PLATFORM_FEATURED_PHOTO_PATH_MISMATCH": "A foto não pertence ao agendamento informado.",
+  "GENERIC_FIELD_REQUIRED": "Este campo é obrigatório.",
+  "GENERIC_VALUE_TOO_SHORT": "Este valor é muito curto.",
+  "GENERIC_VALUE_TOO_LONG": "Este valor é muito longo.",
+  "GENERIC_VALUE_OUT_OF_RANGE": "Este valor está fora do intervalo permitido.",
+  "GENERIC_FORMAT_INVALID": "Este valor não está no formato esperado.",
+  "GENERIC_VALUE_INVALID": "Este valor é inválido."
 }

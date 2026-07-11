@@ -125,6 +125,9 @@ export const PlatformErrorCode = {
   SETTINGS_BUSINESS_PHONE_INVALID: 'PLATFORM_SETTINGS_BUSINESS_PHONE_INVALID',
   SETTINGS_BUSINESS_EMAIL_INVALID: 'PLATFORM_SETTINGS_BUSINESS_EMAIL_INVALID',
   SETTINGS_SOCIAL_WHATSAPP_INVALID: 'PLATFORM_SETTINGS_SOCIAL_WHATSAPP_INVALID',
+  SETTINGS_UPDATE_EMPTY: 'PLATFORM_SETTINGS_UPDATE_EMPTY',
+  HOTSITE_UPDATE_EMPTY: 'PLATFORM_HOTSITE_UPDATE_EMPTY',
+  FEATURED_PHOTO_PATH_MISMATCH: 'PLATFORM_FEATURED_PHOTO_PATH_MISMATCH',
 } as const;
 export type PlatformErrorCode = (typeof PlatformErrorCode)[keyof typeof PlatformErrorCode];
 
@@ -188,5 +191,17 @@ export type EmailErrorCode = (typeof EmailErrorCode)[keyof typeof EmailErrorCode
 export const BffErrorCode = {} as const;
 export type BffErrorCode = (typeof BffErrorCode)[keyof typeof BffErrorCode];
 
-export const GenericErrorCode = {} as const;
+// Backs Zod validation rules with no owning VO (Story 9/10) — a small closed set reused
+// across many fields via `field`/`params`, not one bespoke code per call site. A rule that
+// duplicates a VO's own check must reuse that VO's code instead (see
+// docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code).
+export const GenericErrorCode = {
+  FIELD_REQUIRED: 'GENERIC_FIELD_REQUIRED',
+  VALUE_TOO_SHORT: 'GENERIC_VALUE_TOO_SHORT',
+  VALUE_TOO_LONG: 'GENERIC_VALUE_TOO_LONG',
+  VALUE_OUT_OF_RANGE: 'GENERIC_VALUE_OUT_OF_RANGE',
+  FORMAT_INVALID: 'GENERIC_FORMAT_INVALID',
+  // Enum/union/unrecognized-key mismatches — value isn't one of an allowed set/shape.
+  VALUE_INVALID: 'GENERIC_VALUE_INVALID',
+} as const;
 export type GenericErrorCode = (typeof GenericErrorCode)[keyof typeof GenericErrorCode];
