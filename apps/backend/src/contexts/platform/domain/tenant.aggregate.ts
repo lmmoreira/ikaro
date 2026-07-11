@@ -3,7 +3,11 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Slug } from '../../../shared/value-objects/slug.vo';
 import { normalizeText } from '../../../shared/utils/text-normalization';
 import { TenantProvisioned } from './events/tenant-provisioned.event';
-import { PlatformDomainError, TenantInactiveError } from './errors/platform-domain.error';
+import {
+  TenantInactiveError,
+  TenantNameRequiredError,
+  TenantSlugInvalidError,
+} from './errors/platform-domain.error';
 import { TenantSettings } from './value-objects/tenant-settings.vo';
 
 export interface TenantProps {
@@ -62,12 +66,10 @@ export class Tenant extends AggregateRoot {
   ): Tenant {
     const normalizedName = normalizeText(name);
     if (!normalizedName) {
-      throw new PlatformDomainError('Tenant name must not be empty');
+      throw new TenantNameRequiredError();
     }
     if (!Slug.isValid(slug)) {
-      throw new PlatformDomainError(
-        'Tenant slug must only contain lowercase letters, numbers, and hyphens',
-      );
+      throw new TenantSlugInvalidError();
     }
     const now = new Date();
     const tenant = new Tenant({
@@ -106,7 +108,7 @@ export class Tenant extends AggregateRoot {
     if (!this.props.isActive) throw new TenantInactiveError(this.props.id);
     const normalizedName = normalizeText(name);
     if (!normalizedName) {
-      throw new PlatformDomainError('Tenant name must not be empty');
+      throw new TenantNameRequiredError();
     }
     this.props.name = normalizedName;
     this.props.updatedAt = new Date();

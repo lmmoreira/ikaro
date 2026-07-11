@@ -1,3 +1,4 @@
+import { PlatformErrorCode } from '@ikaro/types';
 import { countrySpec } from '@ikaro/i18n';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { Address, type AddressProps } from '../../../../shared/value-objects/address';
@@ -16,7 +17,7 @@ import type {
 } from '../../../../shared/value-objects/tenant-settings-data';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
-import { PlatformDomainError } from '../errors/platform-domain.error';
+import { TenantSettingsValidationError } from '../errors/platform-domain.error';
 
 export type {
   AddressProps,
@@ -182,14 +183,22 @@ export class TenantSettings {
       'localization.currency',
     );
     if (!currency) {
-      throw new TenantSettingsValidationError('localization.currency must not be empty');
+      throw new TenantSettingsValidationError(
+        'localization.currency must not be empty',
+        PlatformErrorCode.SETTINGS_CURRENCY_REQUIRED,
+        'localization.currency',
+      );
     }
     const language = TenantSettings.requireTrimmedString(
       localization.language,
       'localization.language',
     );
     if (!language) {
-      throw new TenantSettingsValidationError('localization.language must not be empty');
+      throw new TenantSettingsValidationError(
+        'localization.language must not be empty',
+        PlatformErrorCode.SETTINGS_LANGUAGE_REQUIRED,
+        'localization.language',
+      );
     }
     if (localization.currencySymbol != null) {
       const currencySymbol = TenantSettings.requireTrimmedString(
@@ -199,6 +208,8 @@ export class TenantSettings {
       if (currencySymbol.length < 1 || currencySymbol.length > 3) {
         throw new TenantSettingsValidationError(
           'localization.currencySymbol must be between 1 and 3 characters',
+          PlatformErrorCode.SETTINGS_CURRENCY_SYMBOL_INVALID,
+          'localization.currencySymbol',
         );
       }
     }
@@ -207,61 +218,121 @@ export class TenantSettings {
       localization.decimalPlaces < 0 ||
       localization.decimalPlaces > 8
     ) {
-      throw new TenantSettingsValidationError('localization.decimalPlaces must be between 0 and 8');
+      throw new TenantSettingsValidationError(
+        'localization.decimalPlaces must be between 0 and 8',
+        PlatformErrorCode.SETTINGS_DECIMAL_PLACES_INVALID,
+        'localization.decimalPlaces',
+      );
     }
   }
 
   private static validateNotification(notification: NotificationSettings | undefined): void {
     if (notification?.fromEmail != null && !Email.isValid(notification.fromEmail)) {
-      throw new PlatformDomainError('notification.fromEmail must be a valid email address');
+      throw new TenantSettingsValidationError(
+        'notification.fromEmail must be a valid email address',
+        PlatformErrorCode.SETTINGS_NOTIFICATION_EMAIL_INVALID,
+        'notification.fromEmail',
+      );
     }
   }
 
   private static validateLoyalty(loyalty: LoyaltySettings): void {
     if (loyalty.expiryDays < 1 || loyalty.expiryDays > 3650) {
-      throw new PlatformDomainError('loyalty.expiryDays must be between 1 and 3650');
+      throw new TenantSettingsValidationError(
+        'loyalty.expiryDays must be between 1 and 3650',
+        PlatformErrorCode.SETTINGS_LOYALTY_EXPIRY_DAYS_INVALID,
+        'loyalty.expiryDays',
+      );
     }
     if (loyalty.expiryWarningDays < 1 || loyalty.expiryWarningDays > 90) {
-      throw new PlatformDomainError('loyalty.expiryWarningDays must be between 1 and 90');
+      throw new TenantSettingsValidationError(
+        'loyalty.expiryWarningDays must be between 1 and 90',
+        PlatformErrorCode.SETTINGS_LOYALTY_EXPIRY_WARNING_DAYS_INVALID,
+        'loyalty.expiryWarningDays',
+      );
     }
     if (loyalty.expiryWarningDays >= loyalty.expiryDays) {
-      throw new PlatformDomainError('loyalty.expiryWarningDays must be less than expiryDays');
+      throw new TenantSettingsValidationError(
+        'loyalty.expiryWarningDays must be less than expiryDays',
+        PlatformErrorCode.SETTINGS_LOYALTY_EXPIRY_WARNING_TOO_LATE,
+        'loyalty.expiryWarningDays',
+      );
     }
     if (loyalty.notificationMinPoints < 0 || loyalty.notificationMinPoints > 10000) {
-      throw new PlatformDomainError('loyalty.notificationMinPoints must be between 0 and 10000');
+      throw new TenantSettingsValidationError(
+        'loyalty.notificationMinPoints must be between 0 and 10000',
+        PlatformErrorCode.SETTINGS_LOYALTY_NOTIFICATION_MIN_POINTS_INVALID,
+        'loyalty.notificationMinPoints',
+      );
     }
     if (loyalty.pointsPerCurrencyUnit < 0 || loyalty.pointsPerCurrencyUnit > 10000) {
-      throw new PlatformDomainError('loyalty.pointsPerCurrencyUnit must be between 0 and 10000');
+      throw new TenantSettingsValidationError(
+        'loyalty.pointsPerCurrencyUnit must be between 0 and 10000',
+        PlatformErrorCode.SETTINGS_LOYALTY_POINTS_PER_CURRENCY_UNIT_INVALID,
+        'loyalty.pointsPerCurrencyUnit',
+      );
     }
   }
 
   private static validateBooking(booking: BookingSettings): void {
     if (booking.cancellationWindowHours < 0 || booking.cancellationWindowHours > 720) {
-      throw new PlatformDomainError('booking.cancellationWindowHours must be between 0 and 720');
+      throw new TenantSettingsValidationError(
+        'booking.cancellationWindowHours must be between 0 and 720',
+        PlatformErrorCode.SETTINGS_BOOKING_CANCELLATION_WINDOW_INVALID,
+        'booking.cancellationWindowHours',
+      );
     }
     if (booking.minBookingAdvanceHours < 0) {
-      throw new PlatformDomainError('booking.minBookingAdvanceHours must be >= 0');
+      throw new TenantSettingsValidationError(
+        'booking.minBookingAdvanceHours must be >= 0',
+        PlatformErrorCode.SETTINGS_BOOKING_MIN_ADVANCE_HOURS_INVALID,
+        'booking.minBookingAdvanceHours',
+      );
     }
     if (booking.maxBookingAdvanceDays < 1) {
-      throw new PlatformDomainError('booking.maxBookingAdvanceDays must be >= 1');
+      throw new TenantSettingsValidationError(
+        'booking.maxBookingAdvanceDays must be >= 1',
+        PlatformErrorCode.SETTINGS_BOOKING_MAX_ADVANCE_DAYS_INVALID,
+        'booking.maxBookingAdvanceDays',
+      );
     }
     if (booking.serviceBufferMinutes < 0 || booking.serviceBufferMinutes > 120) {
-      throw new PlatformDomainError('booking.serviceBufferMinutes must be between 0 and 120');
+      throw new TenantSettingsValidationError(
+        'booking.serviceBufferMinutes must be between 0 and 120',
+        PlatformErrorCode.SETTINGS_BOOKING_SERVICE_BUFFER_INVALID,
+        'booking.serviceBufferMinutes',
+      );
     }
     if (![15, 30, 60].includes(booking.slotGranularityMinutes)) {
-      throw new PlatformDomainError('booking.slotGranularityMinutes must be 15, 30, or 60');
+      throw new TenantSettingsValidationError(
+        'booking.slotGranularityMinutes must be 15, 30, or 60',
+        PlatformErrorCode.SETTINGS_BOOKING_SLOT_GRANULARITY_INVALID,
+        'booking.slotGranularityMinutes',
+      );
     }
     if (!Number.isInteger(booking.welcomeStaffScreenDays)) {
-      throw new PlatformDomainError('booking.welcomeStaffScreenDays must be an integer');
+      throw new TenantSettingsValidationError(
+        'booking.welcomeStaffScreenDays must be an integer',
+        PlatformErrorCode.SETTINGS_BOOKING_WELCOME_STAFF_SCREEN_DAYS_INVALID,
+        'booking.welcomeStaffScreenDays',
+      );
     }
     if (booking.welcomeStaffScreenDays < 1 || booking.welcomeStaffScreenDays > 90) {
-      throw new PlatformDomainError('booking.welcomeStaffScreenDays must be between 1 and 90');
+      throw new TenantSettingsValidationError(
+        'booking.welcomeStaffScreenDays must be between 1 and 90',
+        PlatformErrorCode.SETTINGS_BOOKING_WELCOME_STAFF_SCREEN_DAYS_INVALID,
+        'booking.welcomeStaffScreenDays',
+      );
     }
   }
 
   private static validateBusinessHours(businessHours: BusinessHours): void {
     if (!Timezone.isValid(businessHours.timezone)) {
-      throw new PlatformDomainError(`Invalid IANA timezone: ${businessHours.timezone}`);
+      throw new TenantSettingsValidationError(
+        `Invalid IANA timezone: ${businessHours.timezone}`,
+        PlatformErrorCode.SETTINGS_TIMEZONE_INVALID,
+        'businessHours.timezone',
+      );
     }
     const days = [
       'monday',
@@ -280,20 +351,36 @@ export class TenantSettings {
   private static validateDayHours(day: string, hours: DayHours): void {
     if (hours === null || hours === undefined) return;
     if (!TimeOfDay.isValid(hours.open) || !TimeOfDay.isValid(hours.close)) {
-      throw new PlatformDomainError(`businessHours.${day}: open/close must be HH:MM format`);
+      throw new TenantSettingsValidationError(
+        `businessHours.${day}: open/close must be HH:MM format`,
+        PlatformErrorCode.SETTINGS_BUSINESS_HOURS_FORMAT_INVALID,
+        `businessHours.${day}`,
+      );
     }
     if (hours.close <= hours.open) {
-      throw new PlatformDomainError(`businessHours.${day}: close must be after open`);
+      throw new TenantSettingsValidationError(
+        `businessHours.${day}: close must be after open`,
+        PlatformErrorCode.SETTINGS_BUSINESS_HOURS_ORDER_INVALID,
+        `businessHours.${day}`,
+      );
     }
   }
 
   private static validateBusinessInfo(businessInfo: BusinessInfo | undefined): void {
     if (!businessInfo) return;
     if (businessInfo.phone != null && !PhoneNumber.isValid(businessInfo.phone)) {
-      throw new PlatformDomainError('businessInfo.phone must be a valid phone number');
+      throw new TenantSettingsValidationError(
+        'businessInfo.phone must be a valid phone number',
+        PlatformErrorCode.SETTINGS_BUSINESS_PHONE_INVALID,
+        'businessInfo.phone',
+      );
     }
     if (businessInfo.email != null && !Email.isValid(businessInfo.email)) {
-      throw new PlatformDomainError('businessInfo.email must be a valid email address');
+      throw new TenantSettingsValidationError(
+        'businessInfo.email must be a valid email address',
+        PlatformErrorCode.SETTINGS_BUSINESS_EMAIL_INVALID,
+        'businessInfo.email',
+      );
     }
     TenantSettings.validateSocialLinks(businessInfo.socialLinks);
   }
@@ -336,23 +423,22 @@ export class TenantSettings {
   private static validateSocialLinks(socialLinks: SocialLinks | null): void {
     if (socialLinks == null) return;
     if (socialLinks.whatsapp != null && !PhoneNumber.isValid(socialLinks.whatsapp)) {
-      throw new PlatformDomainError(
+      throw new TenantSettingsValidationError(
         'businessInfo.socialLinks.whatsapp must be a valid phone number',
+        PlatformErrorCode.SETTINGS_SOCIAL_WHATSAPP_INVALID,
+        'businessInfo.socialLinks.whatsapp',
       );
     }
   }
 
   private static requireTrimmedString(value: unknown, field: string): string {
     if (typeof value !== 'string') {
-      throw new TenantSettingsValidationError(`${field} must be a string`);
+      throw new TenantSettingsValidationError(
+        `${field} must be a string`,
+        PlatformErrorCode.SETTINGS_FIELD_NOT_STRING,
+        field,
+      );
     }
     return value.trim();
-  }
-}
-
-export class TenantSettingsValidationError extends PlatformDomainError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'TenantSettingsValidationError';
   }
 }

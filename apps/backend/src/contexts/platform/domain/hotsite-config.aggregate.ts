@@ -3,7 +3,14 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { HexColor } from '../../../shared/value-objects/hex-color.vo';
 import { SeoTitle } from '../../../shared/value-objects/seo-title.vo';
 import { SeoDescription } from '../../../shared/value-objects/seo-description.vo';
-import { PlatformDomainError } from './errors/platform-domain.error';
+import {
+  HotsiteBrandingColorInvalidError,
+  HotsiteBrandingOptionInvalidError,
+  HotsiteModuleTypeInvalidError,
+  HotsiteNoEnabledModulesError,
+  HotsiteSeoDescriptionTooLongError,
+  HotsiteSeoTitleTooLongError,
+} from './errors/platform-domain.error';
 
 export type HotsiteModuleType =
   | 'HERO'
@@ -385,7 +392,7 @@ export class HotsiteConfig extends AggregateRoot {
 
   publish(): void {
     if (!this.props.layout.some((module) => module.enabled)) {
-      throw new PlatformDomainError('Cannot publish hotsite with no enabled modules');
+      throw new HotsiteNoEnabledModulesError();
     }
     this.props.isPublished = true;
     this.props.updatedAt = new Date();
@@ -399,13 +406,13 @@ export class HotsiteConfig extends AggregateRoot {
   private validateBranding(branding: HotsiteBranding): void {
     for (const field of HEX_COLOR_FIELDS) {
       if (!HexColor.isValid(branding[field])) {
-        throw new PlatformDomainError(`${field} must be a valid hex color (e.g. #FF5733)`);
+        throw new HotsiteBrandingColorInvalidError(field);
       }
     }
     for (const field of OPTIONAL_HEX_COLOR_FIELDS) {
       const value = branding[field];
       if (value !== undefined && !HexColor.isValid(value)) {
-        throw new PlatformDomainError(`${field} must be a valid hex color (e.g. #FF5733)`);
+        throw new HotsiteBrandingColorInvalidError(field);
       }
     }
     this.validateEnum('borderRadius', branding.borderRadius, BORDER_RADIUS_VALUES);
@@ -422,26 +429,24 @@ export class HotsiteConfig extends AggregateRoot {
 
   private validateEnum<T extends string>(field: string, value: T, allowed: readonly T[]): void {
     if (!allowed.includes(value)) {
-      throw new PlatformDomainError(`${field} must be one of: ${allowed.join(', ')}`);
+      throw new HotsiteBrandingOptionInvalidError(field, allowed);
     }
   }
 
   private validateLayout(layout: HotsiteModule[]): void {
     for (const module of layout) {
       if (!MODULE_TYPES.has(module.type)) {
-        throw new PlatformDomainError(`Unknown hotsite module type: '${module.type}'`);
+        throw new HotsiteModuleTypeInvalidError(module.type);
       }
     }
   }
 
   private validateSeo(seo: HotsiteSeo): void {
     if (seo.title !== null && !SeoTitle.isValid(seo.title)) {
-      throw new PlatformDomainError(`seo.title must be at most ${SeoTitle.MAX_LENGTH} characters`);
+      throw new HotsiteSeoTitleTooLongError(SeoTitle.MAX_LENGTH);
     }
     if (seo.description !== null && !SeoDescription.isValid(seo.description)) {
-      throw new PlatformDomainError(
-        `seo.description must be at most ${SeoDescription.MAX_LENGTH} characters`,
-      );
+      throw new HotsiteSeoDescriptionTooLongError(SeoDescription.MAX_LENGTH);
     }
   }
 }
