@@ -262,7 +262,7 @@ Fixed-rate by construction — independent of tenant/traffic volume: ~8,640 swee
 
 ---
 
-### TD24-S01 — Outbox foundation (ships dark)
+### TD24-S01 — Outbox foundation (ships dark) ✅ Done
 
 Nothing is rebound; no behavior changes. Everything is built and tested in isolation.
 
