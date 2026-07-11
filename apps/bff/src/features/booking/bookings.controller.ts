@@ -16,7 +16,6 @@ import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { z } from 'zod';
 import { ConfigService } from '@nestjs/config';
-import { AddressErrorCode, GenericErrorCode, PhoneErrorCode } from '@ikaro/types';
 import { Public } from '../../shared/decorators/public.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
@@ -34,10 +33,13 @@ import {
 } from './bookings.types';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import {
+  AddressErrorCode,
+  ApproveBookingRequest,
   CustomerBookingDetailResponse,
   CustomerBookingListResponse,
-  ApproveBookingRequest,
+  GenericErrorCode,
   GuestBookingReadResponse,
+  PhoneErrorCode,
   StaffBookingDetailResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
