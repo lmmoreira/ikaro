@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
+import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { StorageModule } from '../../shared/infrastructure/storage.module';

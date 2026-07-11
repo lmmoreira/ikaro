@@ -6,7 +6,7 @@ import { createTestDataSource } from '../../../test/test-datasource';
 import { Command } from '../../domain/command';
 import { DomainEvent } from '../../domain/domain-event';
 import { uuidv7 } from '../../domain/uuid-v7';
-import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
+import { IEventBus } from '../../ports/event-bus.port';
 import { getActiveEntityManager } from '../transaction-context';
 import { TypeOrmTransactionManager } from '../typeorm-transaction-manager';
 import { OutboxEventEntity } from './outbox-event.entity';
@@ -38,7 +38,7 @@ describe('OutboxPublisher (integration)', () => {
   let typeOrmOutboxRepo: TypeOrmOutboxRepository;
   let tenantRepo: Repository<TenantEntity>;
   let txManager: TypeOrmTransactionManager;
-  let innerBus: jest.Mocked<GcpPubSubEventBusAdapter>;
+  let eventBus: jest.Mocked<IEventBus>;
 
   beforeAll(async () => {
     ds = await createTestDataSource();
@@ -53,14 +53,14 @@ describe('OutboxPublisher (integration)', () => {
   });
 
   beforeEach(() => {
-    innerBus = {
+    eventBus = {
       publish: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
+    } as unknown as jest.Mocked<IEventBus>;
   });
 
   function makePublisher(inlineDispatchEnabled = true): OutboxPublisher {
     const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: inlineDispatchEnabled });
-    const relay = new OutboxRelayService(typeOrmOutboxRepo, innerBus, config);
+    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, config);
     return new OutboxPublisher(typeOrmOutboxRepo, relay, config);
   }
 
@@ -84,7 +84,7 @@ describe('OutboxPublisher (integration)', () => {
 
     expect(await outboxRepo.findOne({ where: { id: event.eventId } })).toBeNull();
     expect(await tenantRepo.findOne({ where: { id: tenantId } })).toBeNull();
-    expect(innerBus.publish).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
   });
 
   it('commits the outbox row together with the business write and dispatches inline after commit', async () => {
@@ -104,7 +104,7 @@ describe('OutboxPublisher (integration)', () => {
     expect(outboxRow).not.toBeNull();
     expect(outboxRow!.publishedAt).not.toBeNull();
     expect(await tenantRepo.findOne({ where: { id: tenantId } })).not.toBeNull();
-    expect(innerBus.publish).toHaveBeenCalledTimes(1);
+    expect(eventBus.publish).toHaveBeenCalledTimes(1);
   });
 
   it('commits the outbox row standalone when published outside any transaction', async () => {
@@ -127,7 +127,7 @@ describe('OutboxPublisher (integration)', () => {
     const first = new StubCommand(tenantId, uuidv7(), { value: 'x' }, dedupKey);
 
     await publisher.publish(first);
-    innerBus.publish.mockClear();
+    eventBus.publish.mockClear();
 
     const second = new StubCommand(tenantId, uuidv7(), { value: 'y' }, dedupKey);
     await publisher.publish(second);
@@ -135,7 +135,7 @@ describe('OutboxPublisher (integration)', () => {
     const rows = await outboxRepo.find({ where: { dedupKey } });
     expect(rows).toHaveLength(1);
     expect(rows[0].id).toBe(first.eventId);
-    expect(innerBus.publish).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
   });
 
   it('after-commit error isolation: a failing inline dispatch does not stop another event in the same tx from dispatching, and txManager.run() resolves normally', async () => {
@@ -144,7 +144,7 @@ describe('OutboxPublisher (integration)', () => {
     const event1 = new StubEvent(tenantId, uuidv7(), { value: 'x' });
     const event2 = new StubEvent(tenantId, uuidv7(), { value: 'y' });
 
-    innerBus.publish
+    eventBus.publish
       .mockRejectedValueOnce(new Error('pubsub down for event1'))
       .mockResolvedValueOnce(undefined);
 
@@ -155,7 +155,7 @@ describe('OutboxPublisher (integration)', () => {
       }),
     ).resolves.toBeUndefined();
 
-    expect(innerBus.publish).toHaveBeenCalledTimes(2);
+    expect(eventBus.publish).toHaveBeenCalledTimes(2);
 
     const row1 = await outboxRepo.findOne({ where: { id: event1.eventId } });
     const row2 = await outboxRepo.findOne({ where: { id: event2.eventId } });

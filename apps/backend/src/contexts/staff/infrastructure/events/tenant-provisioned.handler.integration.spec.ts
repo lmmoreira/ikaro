@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { SYSTEM_ACTOR_ID } from '../../../../shared/domain/system-actor';
-import { EventBusModule } from '../../../../shared/infrastructure/event-bus.module';
+import { EventBusModule } from '../../../../shared/infrastructure/event-bus/event-bus.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';

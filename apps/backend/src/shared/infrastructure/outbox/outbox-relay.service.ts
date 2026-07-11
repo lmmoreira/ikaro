@@ -3,17 +3,20 @@ import { ConfigService } from '@nestjs/config';
 import { EntityManager } from 'typeorm';
 import { Envelope } from '../../domain/envelope';
 import { AppLogger } from '../../observability/app-logger';
+import { EVENT_BUS, IEventBus } from '../../ports/event-bus.port';
 import { IOutboxRepository, OUTBOX_REPOSITORY } from '../../ports/outbox-repository.port';
-import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
 
 // The stored payload is the verbatim envelope JSON.stringify()'d from a real DomainEvent or
 // Command by OutboxPublisher.publish() — this reinterprets it back for
 // GcpPubSubEventBusAdapter.publish(), which only reads .eventName (topic routing) and
 // re-serializes the whole object. Structurally identical to the original; not a real class
 // instance (no aggregate methods, no Command.dedupKey type guard), which is fine since neither
-// is used on the relay path. Parameter typed `unknown` (not Record<string, unknown>) so the
-// single assertion below matches the adapter's own JSON.parse(...) as Envelope precedent in
-// dispatch() — no double-cast through unknown.
+// is used on the relay path. Cast to Envelope, honestly — the relay handles both DomainEvent and
+// Command payloads generically and never needs to distinguish them (dedup already happened at
+// insert time); labeling this DomainEvent would be a lie for a relayed Command's payload.
+// Parameter typed `unknown` (not Record<string, unknown>) so the single assertion below matches
+// the adapter's own JSON.parse(...) as Envelope precedent in dispatch() — no double-cast through
+// unknown.
 function asStoredEvent(payload: unknown): Envelope {
   return payload as Envelope;
 }
@@ -29,7 +32,7 @@ export class OutboxRelayService {
 
   constructor(
     @Inject(OUTBOX_REPOSITORY) private readonly outboxRepo: IOutboxRepository,
-    private readonly innerBus: GcpPubSubEventBusAdapter,
+    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     private readonly config: ConfigService,
   ) {}
 
@@ -54,7 +57,7 @@ export class OutboxRelayService {
       const row = await this.outboxRepo.findUnpublishedById(id);
       if (!row) return;
 
-      await this.innerBus.publish(asStoredEvent(row.payload));
+      await this.eventBus.publish(asStoredEvent(row.payload));
       await this.outboxRepo.markPublished(id);
     } catch (err) {
       this.logger.error(
@@ -82,7 +85,7 @@ export class OutboxRelayService {
 
         for (const row of rows) {
           try {
-            await this.innerBus.publish(asStoredEvent(row.payload));
+            await this.eventBus.publish(asStoredEvent(row.payload));
             await this.outboxRepo.markPublished(row.id, manager);
           } catch (err) {
             // Swallowed: this row stays unpublished (published_at still NULL) and is retried

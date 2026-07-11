@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
-import { EVENT_BUS } from '../ports/event-bus.port';
-import { TRIGGER_BUS } from '../ports/trigger-bus.port';
-import { PUSHABLE_EVENT_BUS } from '../ports/pushable-event-bus.port';
+import { EVENT_BUS } from '../../ports/event-bus.port';
+import { TRIGGER_BUS } from '../../ports/trigger-bus.port';
+import { PUSHABLE_EVENT_BUS } from '../../ports/pushable-event-bus.port';
 import { GcpPubSubEventBusAdapter } from './gcp-pubsub-event-bus.adapter';
 
 // @Global makes EVENT_BUS/TRIGGER_BUS/PUSHABLE_EVENT_BUS injectable in every context module
@@ -27,19 +27,7 @@ import { GcpPubSubEventBusAdapter } from './gcp-pubsub-event-bus.adapter';
     // every alias, with no stray real instance left over.
     { provide: TRIGGER_BUS, useExisting: EVENT_BUS },
     { provide: PUSHABLE_EVENT_BUS, useExisting: EVENT_BUS },
-    // Class-token alias (TD24-S01): lets shared/infrastructure/outbox/ inject the concrete
-    // adapter directly by class (`private readonly innerBus: GcpPubSubEventBusAdapter` on
-    // OutboxRelayService) instead of the EVENT_BUS token, so OutboxRelayService never depends on
-    // the token EVENT_BUS's publish side will itself occupy. NOTE: this alias resolves through
-    // EVENT_BUS, so it is NOT free-standing — TD24-S02's publish/subscribe token split (see
-    // td/TD24-OUTBOX-INBOX-PATTERN.md §C2/S02) must also change this line to a real bare provider
-    // (`useClass: GcpPubSubEventBusAdapter`), or this class token would resolve to whatever
-    // EVENT_BUS's publish side becomes (OutboxPublisher) instead of the raw Pub/Sub client,
-    // breaking the relay and risking a DI cycle. OutboxPublisher itself (shared/infrastructure/
-    // outbox/outbox-publisher.ts) does NOT inject GcpPubSubEventBusAdapter at all — it only writes
-    // to shared.outbox and hands off to OutboxRelayService.
-    { provide: GcpPubSubEventBusAdapter, useExisting: EVENT_BUS },
   ],
-  exports: [EVENT_BUS, TRIGGER_BUS, PUSHABLE_EVENT_BUS, GcpPubSubEventBusAdapter],
+  exports: [EVENT_BUS, TRIGGER_BUS, PUSHABLE_EVENT_BUS],
 })
 export class EventBusModule {}

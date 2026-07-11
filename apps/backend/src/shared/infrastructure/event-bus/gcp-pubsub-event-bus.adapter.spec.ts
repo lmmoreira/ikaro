@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { DomainEvent } from '../domain/domain-event';
+import { DomainEvent } from '../../domain/domain-event';
 
 const mockAck = jest.fn();
 const mockNack = jest.fn();

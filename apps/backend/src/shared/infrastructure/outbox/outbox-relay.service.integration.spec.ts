@@ -21,7 +21,8 @@ import { OutboxEventEntityBuilder } from '../../../test/builders/shared/outbox-e
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
 import { createTestDataSource } from '../../../test/test-datasource';
 import { uuidv7 } from '../../domain/uuid-v7';
-import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
+import { IEventBus } from '../../ports/event-bus.port';
+import { GcpPubSubEventBusAdapter } from '../event-bus/gcp-pubsub-event-bus.adapter';
 import { OutboxEventEntity } from './outbox-event.entity';
 import { OutboxRelayService } from './outbox-relay.service';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
@@ -43,10 +44,10 @@ describe('OutboxRelayService (integration)', () => {
 
   describe('relay(rowIds) — inline dispatch path', () => {
     it('marks published_at only after a successful publish', async () => {
-      const innerBus = {
+      const eventBus = {
         publish: jest.fn().mockResolvedValue(undefined),
-      } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
-      const service = new OutboxRelayService(typeOrmOutboxRepo, innerBus, makeConfigService());
+      } as unknown as jest.Mocked<IEventBus>;
+      const service = new OutboxRelayService(typeOrmOutboxRepo, eventBus, makeConfigService());
       const row = new OutboxEventEntityBuilder().withPayload({ eventName: 'StubEvent' }).build();
       await outboxRepo.save(row);
 
@@ -57,10 +58,10 @@ describe('OutboxRelayService (integration)', () => {
     });
 
     it('leaves the row unpublished when the publish fails', async () => {
-      const innerBus = {
+      const eventBus = {
         publish: jest.fn().mockRejectedValue(new Error('pubsub down')),
-      } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
-      const service = new OutboxRelayService(typeOrmOutboxRepo, innerBus, makeConfigService());
+      } as unknown as jest.Mocked<IEventBus>;
+      const service = new OutboxRelayService(typeOrmOutboxRepo, eventBus, makeConfigService());
       const row = new OutboxEventEntityBuilder().withPayload({ eventName: 'StubEvent' }).build();
       await outboxRepo.save(row);
 
@@ -73,9 +74,9 @@ describe('OutboxRelayService (integration)', () => {
 
   describe('sweep (relay() with no rowIds)', () => {
     it('respects the grace window — a fresh row is left untouched, an old row is published', async () => {
-      const innerBus = {
+      const eventBus = {
         publish: jest.fn().mockResolvedValue(undefined),
-      } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
+      } as unknown as jest.Mocked<IEventBus>;
       const dedup = uuidv7();
       const freshRow = new OutboxEventEntityBuilder()
         .withDedupKey(`fresh-${dedup}`)
@@ -91,7 +92,7 @@ describe('OutboxRelayService (integration)', () => {
 
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
-        innerBus,
+        eventBus,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 30 }),
       );
       await service.relay();
@@ -103,9 +104,9 @@ describe('OutboxRelayService (integration)', () => {
     });
 
     it('loops across multiple batches until the batch comes back empty', async () => {
-      const innerBus = {
+      const eventBus = {
         publish: jest.fn().mockResolvedValue(undefined),
-      } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
+      } as unknown as jest.Mocked<IEventBus>;
       const dedup = uuidv7();
       const rows = Array.from({ length: 5 }, (_, i) =>
         new OutboxEventEntityBuilder()
@@ -118,12 +119,12 @@ describe('OutboxRelayService (integration)', () => {
 
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
-        innerBus,
+        eventBus,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 0, OUTBOX_SWEEP_BATCH_SIZE: 2 }),
       );
       await service.relay();
 
-      // Per-row checks only, not an aggregate innerBus.publish call count — the sweep scans the
+      // Per-row checks only, not an aggregate eventBus.publish call count — the sweep scans the
       // whole shared.outbox table with no per-test scoping, so an unrelated leftover row from
       // another concurrently-running test file (same shared Testcontainers Postgres instance)
       // can legitimately add extra calls without indicating a bug in this test's own 5 rows.
@@ -135,11 +136,11 @@ describe('OutboxRelayService (integration)', () => {
 
     it('SKIP LOCKED: two concurrent sweeps on the same rows publish each row exactly once', async () => {
       const publishedDedupKeys: string[] = [];
-      const innerBus = {
+      const eventBus = {
         publish: jest.fn().mockImplementation(async (event: { dedupKeyMarker?: string }) => {
           if (event.dedupKeyMarker) publishedDedupKeys.push(event.dedupKeyMarker);
         }),
-      } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
+      } as unknown as jest.Mocked<IEventBus>;
       const dedup = uuidv7();
       const rows = Array.from({ length: 4 }, (_, i) => {
         const dedupKey = `concurrent-${dedup}-${i}`;
@@ -153,7 +154,7 @@ describe('OutboxRelayService (integration)', () => {
 
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
-        innerBus,
+        eventBus,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 0, OUTBOX_SWEEP_BATCH_SIZE: 10 }),
       );
 
@@ -172,9 +173,9 @@ describe('OutboxRelayService (integration)', () => {
 
   describe('retention GC', () => {
     it('deletes only published rows older than OUTBOX_RETENTION_DAYS', async () => {
-      const innerBus = {
+      const eventBus = {
         publish: jest.fn().mockResolvedValue(undefined),
-      } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
+      } as unknown as jest.Mocked<IEventBus>;
       const dedup = uuidv7();
       const oldPublished = new OutboxEventEntityBuilder()
         .withDedupKey(`gc-old-${dedup}`)
@@ -196,7 +197,7 @@ describe('OutboxRelayService (integration)', () => {
       // Grace window set very high so the sweep itself claims nothing — isolates this test to GC.
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
-        innerBus,
+        eventBus,
         makeConfigService({ OUTBOX_RETENTION_DAYS: 14, OUTBOX_SWEEP_GRACE_SECONDS: 999_999 }),
       );
       await service.relay();

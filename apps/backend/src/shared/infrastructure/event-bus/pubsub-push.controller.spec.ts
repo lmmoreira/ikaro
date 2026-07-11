@@ -1,6 +1,6 @@
 import { HttpException } from '@nestjs/common';
 import { PubSubPushController } from './pubsub-push.controller';
-import { IPushableEventBus } from '../ports/pushable-event-bus.port';
+import { IPushableEventBus } from '../../ports/pushable-event-bus.port';
 
 describe('PubSubPushController', () => {
   let controller: PubSubPushController;

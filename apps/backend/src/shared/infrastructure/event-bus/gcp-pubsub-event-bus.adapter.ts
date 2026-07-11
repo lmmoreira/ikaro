@@ -1,11 +1,11 @@
 import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Message, PubSub, Subscription } from '@google-cloud/pubsub';
-import { Envelope } from '../domain/envelope';
-import { AppLogger } from '../observability/app-logger';
-import { IEventBus } from '../ports/event-bus.port';
-import { IPushableEventBus } from '../ports/pushable-event-bus.port';
-import { ITriggerBus } from '../ports/trigger-bus.port';
+import { Envelope } from '../../domain/envelope';
+import { AppLogger } from '../../observability/app-logger';
+import { IEventBus } from '../../ports/event-bus.port';
+import { IPushableEventBus } from '../../ports/pushable-event-bus.port';
+import { ITriggerBus } from '../../ports/trigger-bus.port';
 
 interface PendingSubscription {
   eventName: string;

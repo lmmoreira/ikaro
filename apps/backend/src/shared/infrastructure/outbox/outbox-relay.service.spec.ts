@@ -1,13 +1,13 @@
 import { ConfigService } from '@nestjs/config';
 import { EntityManager } from 'typeorm';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
+import { IEventBus } from '../../ports/event-bus.port';
 import { IOutboxRepository } from '../../ports/outbox-repository.port';
-import { GcpPubSubEventBusAdapter } from '../gcp-pubsub-event-bus.adapter';
 import { OutboxRelayService } from './outbox-relay.service';
 
 describe('OutboxRelayService', () => {
   let outboxRepo: jest.Mocked<IOutboxRepository>;
-  let innerBus: jest.Mocked<GcpPubSubEventBusAdapter>;
+  let eventBus: jest.Mocked<IEventBus>;
   let config: ConfigService;
 
   beforeEach(() => {
@@ -19,9 +19,9 @@ describe('OutboxRelayService', () => {
       runInTransaction: jest.fn(),
       deleteOldPublished: jest.fn(),
     } as unknown as jest.Mocked<IOutboxRepository>;
-    innerBus = {
+    eventBus = {
       publish: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<GcpPubSubEventBusAdapter>;
+    } as unknown as jest.Mocked<IEventBus>;
     config = makeConfigService();
   });
 
@@ -31,21 +31,21 @@ describe('OutboxRelayService', () => {
         id: 'row-1',
         payload: { eventName: 'X' },
       });
-      const service = new OutboxRelayService(outboxRepo, innerBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, config);
 
       await service.relay(['row-1']);
 
-      expect(innerBus.publish).toHaveBeenCalledTimes(1);
+      expect(eventBus.publish).toHaveBeenCalledTimes(1);
       expect(outboxRepo.markPublished).toHaveBeenCalledWith('row-1');
     });
 
     it('does nothing for a row that is already published or missing', async () => {
       outboxRepo.findUnpublishedById.mockResolvedValue(null);
-      const service = new OutboxRelayService(outboxRepo, innerBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, config);
 
       await service.relay(['row-1']);
 
-      expect(innerBus.publish).not.toHaveBeenCalled();
+      expect(eventBus.publish).not.toHaveBeenCalled();
     });
 
     it('swallows a publish failure — relay() never throws', async () => {
@@ -53,8 +53,8 @@ describe('OutboxRelayService', () => {
         id: 'row-1',
         payload: { eventName: 'X' },
       });
-      innerBus.publish.mockRejectedValue(new Error('pubsub down'));
-      const service = new OutboxRelayService(outboxRepo, innerBus, config);
+      eventBus.publish.mockRejectedValue(new Error('pubsub down'));
+      const service = new OutboxRelayService(outboxRepo, eventBus, config);
 
       await expect(service.relay(['row-1'])).resolves.toBeUndefined();
     });
@@ -63,21 +63,21 @@ describe('OutboxRelayService', () => {
       outboxRepo.findUnpublishedById
         .mockResolvedValueOnce({ id: 'row-1', payload: { eventName: 'X' } })
         .mockResolvedValueOnce({ id: 'row-2', payload: { eventName: 'Y' } });
-      const service = new OutboxRelayService(outboxRepo, innerBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, config);
 
       await service.relay(['row-1', 'row-2']);
 
-      expect(innerBus.publish).toHaveBeenCalledTimes(2);
+      expect(eventBus.publish).toHaveBeenCalledTimes(2);
     });
 
     it('is a no-op for an explicitly empty rowIds array — never falls through to sweep+GC', async () => {
-      const service = new OutboxRelayService(outboxRepo, innerBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, config);
 
       await service.relay([]);
 
       expect(outboxRepo.findUnpublishedById).not.toHaveBeenCalled();
       expect(outboxRepo.runInTransaction).not.toHaveBeenCalled();
-      expect(innerBus.publish).not.toHaveBeenCalled();
+      expect(eventBus.publish).not.toHaveBeenCalled();
     });
   });
 
@@ -86,7 +86,7 @@ describe('OutboxRelayService', () => {
       const manager = {} as EntityManager;
       outboxRepo.runInTransaction.mockImplementation((work) => work(manager));
       outboxRepo.claimUnpublished.mockResolvedValue([]);
-      const service = new OutboxRelayService(outboxRepo, innerBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, config);
 
       await service.relay();
 
@@ -109,7 +109,7 @@ describe('OutboxRelayService', () => {
         .mockResolvedValueOnce([{ id: 'row-1', payload: { eventName: 'X' } }]) // full "batch" of size 1 == batchSize below
         .mockResolvedValueOnce([]); // second iteration: empty, stop
       const configWithBatchSizeOne = makeConfigService({ OUTBOX_SWEEP_BATCH_SIZE: 1 });
-      const service = new OutboxRelayService(outboxRepo, innerBus, configWithBatchSizeOne);
+      const service = new OutboxRelayService(outboxRepo, eventBus, configWithBatchSizeOne);
 
       await service.relay();
 
@@ -123,12 +123,12 @@ describe('OutboxRelayService', () => {
         { id: 'row-1', payload: { eventName: 'X' } },
         { id: 'row-2', payload: { eventName: 'Y' } },
       ]);
-      innerBus.publish.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(undefined);
-      const service = new OutboxRelayService(outboxRepo, innerBus, config);
+      eventBus.publish.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(undefined);
+      const service = new OutboxRelayService(outboxRepo, eventBus, config);
 
       await expect(service.relay()).resolves.toBeUndefined();
 
-      expect(innerBus.publish).toHaveBeenCalledTimes(2);
+      expect(eventBus.publish).toHaveBeenCalledTimes(2);
       expect(outboxRepo.markPublished).toHaveBeenCalledTimes(1);
       expect(outboxRepo.markPublished).toHaveBeenCalledWith('row-2', manager);
     });
