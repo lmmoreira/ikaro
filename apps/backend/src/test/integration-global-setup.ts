@@ -53,8 +53,7 @@ export default async function globalSetup(): Promise<void> {
 
   process.env['TEST_DATABASE_URL'] = pgContainer.getConnectionUri();
   process.env['FRONTEND_URL'] = 'http://localhost:3000';
-  process.env['JWT_SECRET'] ??=
-    'integration-test-jwt-secret-64-chars-xxxxxxxxxxxxxxxxxxxxxxxxxx';
+  process.env['JWT_SECRET'] ??= 'integration-test-jwt-secret-64-chars-xxxxxxxxxxxxxxxxxxxxxxxxxx';
 
   (globalThis as Record<string, unknown>)['__TC_PG_CONTAINER__'] = pgContainer;
 
