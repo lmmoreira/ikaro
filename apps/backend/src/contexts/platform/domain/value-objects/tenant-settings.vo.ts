@@ -9,7 +9,6 @@ import type {
   LoyaltySettings,
   NotificationSettings,
   ResolvedLocalization,
-  SocialLinks,
   TenantSettingsData,
 } from '../../../../shared/value-objects/tenant-settings-data';
 import { BookingSettingsValidator } from './validators/booking-settings.validator';
@@ -28,8 +27,8 @@ export type {
   LoyaltySettings,
   NotificationSettings,
   ResolvedLocalization,
-  SocialLinks,
 };
+export type { SocialLinks } from '../../../../shared/value-objects/tenant-settings-data';
 export type TenantSettingsProps = TenantSettingsData;
 
 export class TenantSettings {
