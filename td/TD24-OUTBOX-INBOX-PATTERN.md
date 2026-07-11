@@ -142,7 +142,7 @@ Insert is always `INSERT … ON CONFLICT ("dedup_key") DO NOTHING RETURNING "id"
 
 ### `OutboxEventBus` (the automatic seam)
 
-New `shared/infrastructure/outbox-event-bus.ts`, bound as `EVENT_BUS`. Because `TRIGGER_BUS`/`PUSHABLE_EVENT_BUS` alias `EVENT_BUS` (§C2), it implements **all three ports**:
+New `shared/infrastructure/outbox/outbox-event-bus.ts`, bound as `EVENT_BUS`. Because `TRIGGER_BUS`/`PUSHABLE_EVENT_BUS` alias `EVENT_BUS` (§C2), it implements **all three ports**:
 
 - `publish(event)` → **intercepted**: writes the outbox row using `getActiveEntityManager()` if a transaction is ambient (**joins the caller's transaction** — this is the atomicity), or its own short transaction if not. Dedup key = `event.dedupKey ?? event.eventId`. On successful insert, registers the row id via `scheduleAfterCommit()` for inline dispatch (which, per §C1, runs immediately when no tx is ambient — so non-transactional publishes still get instant delivery).
 - `subscribe()`, `registerTrigger()`, `publishTrigger()`, `dispatchPushMessage()` → **pure delegation** to the inner `GcpPubSubEventBusAdapter` (registered as its own class provider; stays the singleton that owns Pub/Sub connections, push dispatch, and DLQ routing — its consumer role is untouched).
@@ -161,7 +161,7 @@ for (const event of aggregate.clearDomainEvents()) {
 }
 ```
 
-(Extract as a tiny shared helper, e.g. `shared/infrastructure/drain-domain-events.ts`, to avoid three copies — SonarCloud duplication gate.)
+(Extract as a tiny shared helper, `shared/infrastructure/outbox/drain-domain-events.ts`, to avoid three copies — SonarCloud duplication gate.)
 
 - Exactly 3 repos now (§A3); the pattern becomes part of the "new aggregate" recipe in `docs/ENGINEERING_RULES.md`.
 - For `Tenant`: the drain goes in `typeorm-tenant.repository.ts` (persistence adapter), **not** `caching-tenant.repository.ts` — the cache decorator keeps delegating `save()` and owning only cache invalidation.
@@ -170,7 +170,7 @@ for (const event of aggregate.clearDomainEvents()) {
 
 ### Relay — one publication path, two triggers
 
-`shared/infrastructure/outbox-relay.service.ts` — a single `relay(rowIds?)` used by both:
+`shared/infrastructure/outbox/outbox-relay.service.ts` — a single `relay(rowIds?)` used by both:
 
 1. **Inline dispatch** (happy path): after commit, called with the exact row ids that transaction inserted. Publishes each via the inner `GcpPubSubEventBusAdapter.publish()` (payload is the verbatim envelope; topic = `ikaro-<event_name>`), then `UPDATE … SET published_at = now() WHERE id = :id AND published_at IS NULL`. Errors are swallowed + logged — the sweep is the retry.
 2. **Scheduled sweep** (the guarantee): Cloud Scheduler → Pub/Sub trigger `cron-outbox-relay` (registered on `ITriggerBUS` like the M17-S03 cron triggers; thin `/cron/outbox-relay` controller mirrors `cron-booking.controller.ts` for local/manual runs):
@@ -269,10 +269,11 @@ Nothing is rebound; no behavior changes. Everything is built and tested in isola
 **Create:**
 - Migration `AddSharedSchema` — `CREATE SCHEMA shared` + the `ikaro_app` grant block copied from `BootstrapSchemas` (new migration; never edit the applied one). ⚠️ Migration timestamps are global across contexts — pick the next free timestamp.
 - Migration `CreateSharedOutbox` — table + partial index per §Design.
-- `shared/infrastructure/entities/outbox-event.entity.ts` (TypeORM entity, `schema: 'shared'`).
-- `shared/infrastructure/outbox-event-bus.ts` — implements `IEventBus` + `ITriggerBus` + `IPushableEventBus`; `publish()` = ambient-EM insert with `ON CONFLICT DO NOTHING RETURNING id` + `scheduleAfterCommit` hook (dispatch awaited + errors swallowed *inside* the callback, per §Design); everything else delegates to an injected `GcpPubSubEventBusAdapter`. ⚠️ TypeORM's `repository.save()` cannot express `ON CONFLICT DO NOTHING RETURNING` — use the query builder (`.insert().orIgnore().returning('id')`) or raw SQL through the ambient `EntityManager`; do not detour through `save()`.
-- `shared/infrastructure/outbox-relay.service.ts` — `relay(rowIds?)`, sweep query (grace window, batch loop, `SKIP LOCKED`), retention GC (`OUTBOX_RETENTION_DAYS`, default 14), marking rule.
-- Trigger wiring: `cron-outbox-relay` constant + trigger handler (mirror `booking/infrastructure/events/booking-reminder-trigger.handler.ts`) + thin `/cron/outbox-relay` controller (mirror `cron-booking.controller.ts`).
+- `shared/infrastructure/outbox/outbox-event.entity.ts` (TypeORM entity, `schema: 'shared'`). **Folder convention (mirrors `shared/infrastructure/cache/`):** every new outbox file lands in `shared/infrastructure/outbox/`, flat inside that folder — entity, bus, relay, trigger handler, controller, module. Do not scatter these across the top level of `shared/infrastructure/` (existing flat files there — `event-bus.module.ts`, `gcs-signed-url.adapter.ts`, etc. — are pre-existing and out of scope for this TD; a retroactive reorg is a separate follow-up chore, not part of TD24).
+- `shared/infrastructure/outbox/outbox-event-bus.ts` — implements `IEventBus` + `ITriggerBus` + `IPushableEventBus`; `publish()` = ambient-EM insert with `ON CONFLICT DO NOTHING RETURNING id` + `scheduleAfterCommit` hook (dispatch awaited + errors swallowed *inside* the callback, per §Design); everything else delegates to an injected `GcpPubSubEventBusAdapter`. ⚠️ TypeORM's `repository.save()` cannot express `ON CONFLICT DO NOTHING RETURNING` — use the query builder (`.insert().orIgnore().returning('id')`) or raw SQL through the ambient `EntityManager`; do not detour through `save()`.
+- `shared/infrastructure/outbox/outbox-relay.service.ts` — `relay(rowIds?)`, sweep query (grace window, batch loop, `SKIP LOCKED`), retention GC (`OUTBOX_RETENTION_DAYS`, default 14), marking rule.
+- Trigger wiring, all in `shared/infrastructure/outbox/`: `cron-outbox-relay` trigger-name constant + trigger handler (mirror `booking/infrastructure/events/booking-reminder-trigger.handler.ts`) + thin `/cron/outbox-relay` controller (mirror `cron-booking.controller.ts`).
+- `shared/infrastructure/outbox/outbox.module.ts` — **new module, required** (verified gap: no existing module is positioned to host these providers). Registers `TypeOrmModule.forFeature([OutboxEventEntity])`, `OutboxRelayService`, the trigger handler, and the `/cron/outbox-relay` controller. Not `@Global()` — nothing outside this module needs to inject outbox internals yet (the `EVENT_BUS` rebind is S02). Mirrors `event-bus.module.ts`'s style (one module per shared concern, imported directly in `app.module.ts` — there is no catch-all `SharedModule` to drop into).
 - `DomainEvent.dedupKey?: string` optional readonly field (default undefined; no subclass changes yet).
 - Config wiring: `OUTBOX_INLINE_DISPATCH_ENABLED`, `OUTBOX_SWEEP_BATCH_SIZE`, `OUTBOX_SWEEP_GRACE_SECONDS`, `OUTBOX_RETENTION_DAYS` (default 14). (`INBOX_RETENTION_DAYS` + its ≥ 8 startup check arrive with the inbox in S04.)
 - Test support: outbox entity builder (`src/test/builders/shared/`), in-memory outbox repo double if needed (`src/test/infrastructure/`).
@@ -280,6 +281,7 @@ Nothing is rebound; no behavior changes. Everything is built and tested in isola
 **Modify:**
 - `integration-global-setup.ts` + `test-datasource.ts` — register new entity + migrations (**same commit** as the migrations).
 - `shared/infrastructure/event-bus.module.ts` — register `GcpPubSubEventBusAdapter` as an explicit class provider (so S02's rebind is a one-line change); `EVENT_BUS` still resolves to it.
+- `app.module.ts` — **required, verified gap:** import the new `OutboxModule`. Also broaden `TypeOrmModule.forRootAsync`'s `entities` option from a single glob string to an array: `[__dirname + '/contexts/**/infrastructure/entities/*.entity{.ts,.js}', __dirname + '/shared/infrastructure/**/*.entity{.ts,.js}']`. The current glob only scans `contexts/**` — the new outbox entity lives under `shared/infrastructure/outbox/` and would silently fail to load in the real running app without this (test datasources already use explicit entity arrays, so this gap is invisible in tests — it only bites at runtime).
 
 **Tests (unit + integration):**
 - publish inside `txManager.run()` → row rolls back with the business write; publish outside any tx → row committed standalone.
@@ -289,7 +291,7 @@ Nothing is rebound; no behavior changes. Everything is built and tested in isola
 - **transport round-trip (emulator):** relay publishes the stored envelope through the real `GcpPubSubEventBusAdapter` against the Pub/Sub emulator → received message is byte-identical to the pre-outbox envelope (`eventId`/`correlationId`/`occurredAt` survive the JSONB round-trip verbatim — this is what keeps consumer dedup working).
 - sweep: respects grace window; `SKIP LOCKED` (two concurrent sweeps → each row published once); loops until empty; GC deletes only published rows older than `OUTBOX_RETENTION_DAYS`.
 
-**Infra note:** the Cloud Scheduler job + topic (`var.outbox_relay_schedule`, default `*/5 * * * *`) lands in the M17 Terraform tree — add to the M17 scheduler module/story, not a parallel mechanism.
+**Infra note:** the Cloud Scheduler job + topic (`var.outbox_relay_schedule`, default `*/5 * * * *`) lands in the M17 Terraform tree — specifically `M17-S21` (Cloud Scheduler module, currently unimplemented) as its 4th job, and `M17-S19` (Pub/Sub module) auto-discovers the 4th topic via its scanner. Both stories already cross-reference this TD (updated 2026-07-11). Not a parallel mechanism.
 
 **Acceptance:** all new code merged, zero call-site behavior change; `EVENT_BUS` still the raw Pub/Sub adapter.
 
@@ -303,7 +305,7 @@ The atomic story: rebind, drain, delete the 16 loops, fix the test bus — these
 - `event-bus.module.ts`: `EVENT_BUS → useClass: OutboxEventBus`. The `TRIGGER_BUS`/`PUSHABLE_EVENT_BUS` aliases stay untouched (they now resolve to `OutboxEventBus`, which delegates those ports — verified design, §C2).
 
 **Modify — repositories (3 files + 1 new helper):**
-- `shared/infrastructure/drain-domain-events.ts` helper; call it at the end of `save()` in `booking/infrastructure/repositories/typeorm-booking.repository.ts`, `platform/infrastructure/repositories/typeorm-tenant.repository.ts`, `staff/infrastructure/repositories/typeorm-staff.repository.ts`. (NOT `caching-tenant.repository.ts`.)
+- `shared/infrastructure/outbox/drain-domain-events.ts` helper; call it at the end of `save()` in `booking/infrastructure/repositories/typeorm-booking.repository.ts`, `platform/infrastructure/repositories/typeorm-tenant.repository.ts`, `staff/infrastructure/repositories/typeorm-staff.repository.ts`. (NOT `caching-tenant.repository.ts`.)
 
 **Modify — use cases (16 files, §A1 list):** delete the `clearDomainEvents()` publish loop (and the now-unused `EVENT_BUS` injection where nothing else uses it) from all 11 booking + 4 staff + 1 platform use cases. Each use case's event emission is now implicit in `repo.save()` inside its existing `txManager.run()`.
 
@@ -355,7 +357,7 @@ The atomic story: rebind, drain, delete the 16 loops, fix the test bus — these
 
 **Create:**
 - Migration `CreateSharedInbox` — table per §Design; copy rows: `loyalty.processed_events` as-is; `notification.processed_events` with `consumer_name = notification_type || ':' || channel`; then `DROP` both old tables. Register in `integration-global-setup.ts`/`test-datasource.ts` same commit; **remove** the two dropped entities from both in the same commit.
-- `shared/ports/inbox.port.ts` + `shared/infrastructure/entities/inbox-record.entity.ts` + `shared/infrastructure/typeorm-inbox.repository.ts` + in-memory double + builder.
+- `shared/ports/inbox.port.ts` (flat in `shared/ports/`, matching `event-bus.port.ts`/`trigger-bus.port.ts`) + `shared/infrastructure/inbox/inbox-record.entity.ts` + `shared/infrastructure/inbox/typeorm-inbox.repository.ts` (new `shared/infrastructure/inbox/` folder, same convention as `outbox/`) + in-memory double + builder.
 
 **Modify:**
 - loyalty: `complete-booking-loyalty-effects.use-case.ts` + `loyalty.module.ts` switch to the shared port (consumer name value unchanged).
