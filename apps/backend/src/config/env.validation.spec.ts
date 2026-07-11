@@ -8,7 +8,6 @@ describe('validateEnv()', () => {
     DB_USER: 'ikaro_app',
     DB_PASSWORD: 'ikaro_app',
     DB_NAME: 'ikaro',
-    DB_POOL_SIZE: '10',
     PLATFORM_ADMIN_KEY: 'a'.repeat(32),
     INTERNAL_API_KEY: 'b'.repeat(32),
     JWT_SECRET: 'c'.repeat(64),
@@ -40,6 +39,12 @@ describe('validateEnv()', () => {
   it('throws when PLATFORM_ADMIN_KEY is too short', () => {
     expect(() => validateEnv({ ...valid, PLATFORM_ADMIN_KEY: 'short' })).toThrow(
       'ENV validation failed',
+    );
+  });
+
+  it('throws when JWT_SECRET is shorter than 64 characters', () => {
+    expect(() => validateEnv({ ...valid, JWT_SECRET: 'c'.repeat(63) })).toThrow(
+      'JWT_SECRET must be at least 64 characters',
     );
   });
 
