@@ -14,7 +14,10 @@ class GoogleCloudLogVendorFormatter implements LogVendorFormatter {
   }
 }
 
-const SUPPORTED_LOG_VENDORS: Record<LogVendor, (options: CreateLogVendorFormatterOptions) => LogVendorFormatter> = {
+const SUPPORTED_LOG_VENDORS: Record<
+  LogVendor,
+  (options: CreateLogVendorFormatterOptions) => LogVendorFormatter
+> = {
   gcp: (options) => new GoogleCloudLogVendorFormatter(options.gcpProjectId),
   none: () => new NoopLogVendorFormatter(),
 };
