@@ -17,10 +17,11 @@ describe('TypeOrmBookingRepository', () => {
   let repo: TypeOrmBookingRepository;
   let ormRepo: jest.Mocked<Repository<BookingEntity>>;
   let ormLineRepo: jest.Mocked<Repository<BookingLineEntity>>;
-  let mockTx: { save: jest.Mock; delete: jest.Mock };
+  let mockTx: { find: jest.Mock; save: jest.Mock; delete: jest.Mock };
 
   beforeEach(async () => {
     mockTx = {
+      find: jest.fn().mockResolvedValue([]),
       save: jest.fn().mockResolvedValue({}),
       delete: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
     };
@@ -316,7 +317,7 @@ describe('TypeOrmBookingRepository', () => {
       expect(mockTx.delete).not.toHaveBeenCalled();
     });
 
-    it('deletes and re-inserts lines when linesModified is true', async () => {
+    it('updates changed lines in place without deleting unchanged line ids', async () => {
       const LINE_ID = '00000000-0000-7000-8000-000000000023';
       const bookingEntity = new BookingEntityBuilder()
         .withId('00000000-0000-7000-8000-000000000022')
@@ -331,6 +332,7 @@ describe('TypeOrmBookingRepository', () => {
 
       ormRepo.findOne.mockResolvedValue(bookingEntity);
       ormLineRepo.find.mockResolvedValue([lineEntity]);
+      mockTx.find.mockResolvedValue([lineEntity]);
 
       const aggregate = await repo.findById('00000000-0000-7000-8000-000000000022', 'tenant-1');
       aggregate!.complete('staff-id', new Map([[LINE_ID, Money.from(100, 'BRL')]]), [], 'corr-1');
@@ -341,10 +343,13 @@ describe('TypeOrmBookingRepository', () => {
         BookingEntity,
         expect.objectContaining({ id: '00000000-0000-7000-8000-000000000022' }),
       );
-      expect(mockTx.delete).toHaveBeenCalledWith(BookingLineEntity, {
-        bookingId: '00000000-0000-7000-8000-000000000022',
-        tenantId: 'tenant-1',
+      expect(mockTx.find).toHaveBeenCalledWith(BookingLineEntity, {
+        where: {
+          bookingId: '00000000-0000-7000-8000-000000000022',
+          tenantId: 'tenant-1',
+        },
       });
+      expect(mockTx.delete).not.toHaveBeenCalled();
       expect(mockTx.save).toHaveBeenCalledWith(BookingLineEntity, expect.any(Array));
     });
 
