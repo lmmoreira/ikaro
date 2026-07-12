@@ -1,5 +1,4 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingAvailabilityPort } from '../../../../test/infrastructure/in-memory-booking-availability';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
@@ -75,7 +74,6 @@ describe('BookingController', () => {
         new PhotoExistenceService(storageService),
         repo,
         new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
       ),
       requestAuthenticatedBooking: new RequestAuthenticatedBookingUseCase(
         customerProfilePort,
@@ -84,34 +82,22 @@ describe('BookingController', () => {
         new PhotoExistenceService(storageService),
         repo,
         new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
       ),
       approveBooking: new ApproveBookingUseCase(
         repo,
         new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
         new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
       ),
-      rejectBooking: new RejectBookingUseCase(
-        repo,
-        new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
-      ),
-      requestMoreInfo: new RequestMoreInfoUseCase(
-        repo,
-        new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
-      ),
+      rejectBooking: new RejectBookingUseCase(repo, new InMemoryTransactionManager()),
+      requestMoreInfo: new RequestMoreInfoUseCase(repo, new InMemoryTransactionManager()),
       submitBookingInfo: new SubmitBookingInfoUseCase(
         repo,
         new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
         new PhotoExistenceService(storageService),
       ),
       submitGuestBookingInfo: new SubmitGuestBookingInfoUseCase(
         repo,
         new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
         new PhotoExistenceService(storageService),
       ),
       listBookings: new ListBookingsUseCase(repo),
@@ -119,23 +105,16 @@ describe('BookingController', () => {
       cancelBookingAsCustomer: new CancelBookingAsCustomerUseCase(
         repo,
         new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
       ),
-      cancelBookingAsAdmin: new CancelBookingAsAdminUseCase(
-        repo,
-        new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
-      ),
+      cancelBookingAsAdmin: new CancelBookingAsAdminUseCase(repo, new InMemoryTransactionManager()),
       rescheduleBooking: new RescheduleBookingUseCase(
         repo,
         new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
         new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
       ),
       completeBooking: new CompleteBookingUseCase(
         repo,
         new InMemoryTransactionManager(),
-        new InMemoryEventBus(),
         new PhotoExistenceService(storageService),
       ),
     });
@@ -217,7 +196,6 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
           repoB,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
         new RequestAuthenticatedBookingUseCase(
           new InMemoryBookingCustomerPort(),
@@ -226,50 +204,36 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
           repoB,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
         new ApproveBookingUseCase(
           repoB,
           new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
-        new RejectBookingUseCase(repoB, new InMemoryTransactionManager(), new InMemoryEventBus()),
-        new RequestMoreInfoUseCase(repoB, new InMemoryTransactionManager(), new InMemoryEventBus()),
+        new RejectBookingUseCase(repoB, new InMemoryTransactionManager()),
+        new RequestMoreInfoUseCase(repoB, new InMemoryTransactionManager()),
         new SubmitBookingInfoUseCase(
           repoB,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
         new SubmitGuestBookingInfoUseCase(
           repoB,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
         new ListBookingsUseCase(repoB),
         new GetBookingByIdUseCase(repoB, storageService),
-        new CancelBookingAsCustomerUseCase(
-          repoB,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
-        new CancelBookingAsAdminUseCase(
-          repoB,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
+        new CancelBookingAsCustomerUseCase(repoB, new InMemoryTransactionManager()),
+        new CancelBookingAsAdminUseCase(repoB, new InMemoryTransactionManager()),
         new RescheduleBookingUseCase(
           repoB,
           new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
         new CompleteBookingUseCase(
           repoB,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
       );
@@ -356,7 +320,6 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
           bookingRepoB,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
         new RequestAuthenticatedBookingUseCase(
           new InMemoryBookingCustomerPort(),
@@ -365,58 +328,36 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
           bookingRepoB,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
         new ApproveBookingUseCase(
           bookingRepoB,
           new BookingSlotConflictService(conflictPort),
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
-        new RejectBookingUseCase(
-          bookingRepoB,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
-        new RequestMoreInfoUseCase(
-          bookingRepoB,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
+        new RejectBookingUseCase(bookingRepoB, new InMemoryTransactionManager()),
+        new RequestMoreInfoUseCase(bookingRepoB, new InMemoryTransactionManager()),
         new SubmitBookingInfoUseCase(
           bookingRepoB,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
         new SubmitGuestBookingInfoUseCase(
           bookingRepoB,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
         new ListBookingsUseCase(bookingRepoB),
         new GetBookingByIdUseCase(bookingRepoB, storageService),
-        new CancelBookingAsCustomerUseCase(
-          bookingRepoB,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
-        new CancelBookingAsAdminUseCase(
-          bookingRepoB,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
+        new CancelBookingAsCustomerUseCase(bookingRepoB, new InMemoryTransactionManager()),
+        new CancelBookingAsAdminUseCase(bookingRepoB, new InMemoryTransactionManager()),
         new RescheduleBookingUseCase(
           bookingRepoB,
           new BookingSlotConflictService(conflictPort),
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
         new CompleteBookingUseCase(
           bookingRepoB,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
       );
@@ -781,7 +722,6 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
           repoC,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
         new RequestAuthenticatedBookingUseCase(
           noPhonePort,
@@ -790,50 +730,36 @@ describe('BookingController', () => {
           new PhotoExistenceService(storageService),
           repoC,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
         new ApproveBookingUseCase(
           repoC,
           new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
-        new RejectBookingUseCase(repoC, new InMemoryTransactionManager(), new InMemoryEventBus()),
-        new RequestMoreInfoUseCase(repoC, new InMemoryTransactionManager(), new InMemoryEventBus()),
+        new RejectBookingUseCase(repoC, new InMemoryTransactionManager()),
+        new RequestMoreInfoUseCase(repoC, new InMemoryTransactionManager()),
         new SubmitBookingInfoUseCase(
           repoC,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
         new SubmitGuestBookingInfoUseCase(
           repoC,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
         new ListBookingsUseCase(repoC),
         new GetBookingByIdUseCase(repoC, storageService),
-        new CancelBookingAsCustomerUseCase(
-          repoC,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
-        new CancelBookingAsAdminUseCase(
-          repoC,
-          new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
-        ),
+        new CancelBookingAsCustomerUseCase(repoC, new InMemoryTransactionManager()),
+        new CancelBookingAsAdminUseCase(repoC, new InMemoryTransactionManager()),
         new RescheduleBookingUseCase(
           repoC,
           new BookingSlotConflictService(new InMemoryBookingAvailabilityPort()),
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
         ),
         new CompleteBookingUseCase(
           repoC,
           new InMemoryTransactionManager(),
-          new InMemoryEventBus(),
           new PhotoExistenceService(storageService),
         ),
       );

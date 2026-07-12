@@ -59,13 +59,12 @@ describe('CompleteBookingUseCase', () => {
   let useCase: CompleteBookingUseCase;
 
   beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
+    bookingRepo = new InMemoryBookingRepository(eventBus);
     storageService = new InMemoryStorageService();
     useCase = new CompleteBookingUseCase(
       bookingRepo,
       new InMemoryTransactionManager(),
-      eventBus,
       new PhotoExistenceService(storageService),
     );
   });

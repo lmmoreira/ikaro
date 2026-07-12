@@ -13,15 +13,10 @@ describe('ProvisionTenantUseCase', () => {
   let useCase: ProvisionTenantUseCase;
 
   beforeEach(() => {
-    tenantRepo = new InMemoryTenantRepository();
-    hotsiteRepo = new InMemoryHotsiteConfigRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new ProvisionTenantUseCase(
-      tenantRepo,
-      hotsiteRepo,
-      eventBus,
-      new InMemoryTransactionManager(),
-    );
+    tenantRepo = new InMemoryTenantRepository(eventBus);
+    hotsiteRepo = new InMemoryHotsiteConfigRepository();
+    useCase = new ProvisionTenantUseCase(tenantRepo, hotsiteRepo, new InMemoryTransactionManager());
   });
 
   it('provisions a tenant and creates a hotsite config', async () => {

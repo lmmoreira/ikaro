@@ -1,3 +1,5 @@
+import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-domain-events';
+import { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   FindAllByTenantResult,
   IStaffRepository,
@@ -7,6 +9,8 @@ import { Staff } from '../../../contexts/staff/domain/staff.aggregate';
 
 export class InMemoryStaffRepository implements IStaffRepository {
   private readonly store = new Map<string, Staff>();
+
+  constructor(private readonly outboxPublisher: IOutboxPublisher = { publish: async () => {} }) {}
 
   async findByTenantAndOAuthId(tenantId: string, googleOAuthId: string): Promise<Staff | null> {
     for (const staff of this.store.values()) {
@@ -67,5 +71,6 @@ export class InMemoryStaffRepository implements IStaffRepository {
 
   async save(staff: Staff): Promise<void> {
     this.store.set(staff.id, staff);
+    await drainDomainEvents(staff, this.outboxPublisher);
   }
 }

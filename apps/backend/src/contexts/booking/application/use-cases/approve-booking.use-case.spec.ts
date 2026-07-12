@@ -33,14 +33,13 @@ describe('ApproveBookingUseCase', () => {
     let useCase: ApproveBookingUseCase;
 
     beforeEach(() => {
-      bookingRepo = new InMemoryBookingRepository();
       eventBus = new InMemoryEventBus();
+      bookingRepo = new InMemoryBookingRepository(eventBus);
       availabilityPort = new InMemoryBookingAvailabilityPort();
       useCase = new ApproveBookingUseCase(
         bookingRepo,
         new BookingSlotConflictService(availabilityPort),
         new InMemoryTransactionManager(),
-        eventBus,
       );
     });
 

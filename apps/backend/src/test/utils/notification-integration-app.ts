@@ -8,6 +8,7 @@ import { DataSource } from 'typeorm';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
 import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
+import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
@@ -20,7 +21,9 @@ import { NotificationProcessedEventEntity } from '../../contexts/notification/in
 import { NotificationTemplateEntity } from '../../contexts/notification/infrastructure/entities/notification-template.entity';
 import { NotificationModule } from '../../contexts/notification/notification.module';
 import { InMemoryNotificationDispatcher } from '../infrastructure/in-memory-notification-dispatcher';
+import { OutboxEventEntity } from '../../shared/infrastructure/outbox/outbox-event.entity';
 import { EVENT_BUS, IEventBus } from '../../shared/ports/event-bus.port';
+import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
 import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
@@ -36,6 +39,13 @@ export interface NotificationIntegrationAppOptions {
   extraModules?: NonNullable<ModuleMetadata['imports']>;
   extraEntities?: EntityClass[];
   withRequestInterceptor?: boolean;
+  /**
+   * Skip the OUTBOX_PUBLISHER → routingBus override, letting it resolve to the real
+   * OutboxPublisher (backed by a real shared.outbox row via TypeOrmOutboxRepository) — only for
+   * the TD24-S02 full-topology spec proving the production pipeline shape end-to-end. Every other
+   * flow test keeps OUTBOX_PUBLISHER bypassing real Postgres persistence (default false).
+   */
+  useRealOutbox?: boolean;
 }
 
 export async function createNotificationIntegrationApp(
@@ -47,6 +57,7 @@ export async function createNotificationIntegrationApp(
     extraModules = [],
     extraEntities = [],
     withRequestInterceptor = false,
+    useRealOutbox = false,
   } = options;
 
   const routingBus = new RoutingInMemoryEventBus();
@@ -65,11 +76,13 @@ export async function createNotificationIntegrationApp(
           NotificationLogEntity,
           NotificationProcessedEventEntity,
           NotificationTemplateEntity,
+          OutboxEventEntity,
           ...extraEntities,
         ],
         synchronize: false,
       }),
       EventBusModule,
+      OutboxModule,
       TransactionManagerModule,
       PlatformModule,
       StaffModule,
@@ -89,6 +102,10 @@ export async function createNotificationIntegrationApp(
     .useValue(new InMemoryStorageService())
     .overrideProvider(TENANT_SETTINGS_PORT)
     .useValue(new InMemoryTenantSettingsPort());
+
+  if (!useRealOutbox) {
+    builder = builder.overrideProvider(OUTBOX_PUBLISHER).useValue(routingBus);
+  }
 
   if (configure) {
     builder = configure(builder);

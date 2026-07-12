@@ -5,6 +5,7 @@ import { Tenant } from '../../domain/tenant.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { TenantEntity } from '../entities/tenant.entity';
 import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { TenantBuilder, TenantEntityBuilder } from '../../../../test/builders/platform';
 
 describe('TypeOrmTenantRepository', () => {
@@ -18,7 +19,7 @@ describe('TypeOrmTenantRepository', () => {
       save: jest.fn(),
       existsBy: jest.fn(),
     } as unknown as jest.Mocked<Repository<TenantEntity>>;
-    repo = new TypeOrmTenantRepository(mockRepo);
+    repo = new TypeOrmTenantRepository(mockRepo, new InMemoryEventBus());
   });
 
   describe('findBySlug', () => {

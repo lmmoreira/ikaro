@@ -59,14 +59,14 @@
 | **AUD-024** | CI efficiency: dedupe test runs, docker cache, trivy ✅ | 🟡 Medium | S | Now | — | §9.3, §9.6 |
 | **AUD-025** | Public-image CDN delivery vs signed URLs | 🟡 Medium | S | Pre-deploy | — | §8.5 |
 | **AUD-026** | Reconsider `BackendHttpService` request scope | 🟡 Medium | M | Now | — | §5.4 |
-| **AUD-027** | Booking-lines diff-upsert (drop delete-all) | 🔵 Low | S | Now | — | §5.5 |
+| **AUD-027** | Booking-lines diff-upsert (drop delete-all) ✅ | 🔵 Low | S | Now | — | §5.5 |
 | **AUD-028** | Polish bundle (VO error mapping, default params, minor) | 🔵 Low | S | Now | — | §6, §8.7, §10.7 |
 | **AUD-029** | Mutation testing on domain layer (Stryker) | 🔵 Low | S | Now | — | §11.9 |
 | — | **DEFERRED TO INFRA/DEPLOY PHASE** ↓ | | | | | |
 | **AUD-030** | DB connection pool + PgBouncer + SSL | 🔴 Critical | M | Infra/Deploy | — | §13.1 |
 | **AUD-031** | Introduce Redis (unlocks 032/034/016/011) | 🟠 High | M | Infra/Deploy | — | §13.2 |
 | **AUD-032** | Distributed rate limiting + trust proxy + per-tenant | 🟠 High | S | Infra/Deploy | AUD-031 | §13.2 |
-| **AUD-033** | Readiness probe checks dependencies | 🟠 High | S | Infra/Deploy | — | §13.3 |
+| **AUD-033** | Readiness probe checks dependencies | ✅ Done | S | Infra/Deploy | M17-S04 | §13.3 |
 | **AUD-034** | Wire OpenTelemetry tracing + metrics | 🟠 High | M | Infra/Deploy | — | §13.4 |
 | **AUD-035** | LGPD / PII data-protection plan (design early) | 🟠 High | L | Pre-deploy | — | §13.5 |
 | **AUD-036** | Resilience: retry/backoff + circuit breaker (BFF→backend) | 🟡 Medium | M | Infra/Deploy | — | §13.6 |
@@ -501,7 +501,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **Risk:** 🔵 Low · **Effort:** S · **Phase:** Now · **Audit ref:** §5.5
 **What's wrong:** `typeorm-booking.repository.ts:122-131` deletes all lines and re-inserts on every modifying save — write amplification, index churn, discards line identity.
 **Fix:** Diff-and-upsert (insert new, update changed, delete removed) when justified. Low urgency at MVP volumes.
-**Acceptance:** ☐ Line saves no longer delete-all unless the line set actually changed.
+**Acceptance:** ☑ Line saves no longer delete-all unless the line set actually changed.
 
 ### AUD-028 — Polish bundle (VO error mapping, default params, minor notes)
 **Risk:** 🔵 Low · **Effort:** S · **Phase:** Now · **Audit ref:** §6, §8.7, §10.7
@@ -540,10 +540,13 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **Acceptance:** ☐ Rate limits hold across instances; per-tenant throttling works; correct client IP is used.
 
 ### AUD-033 — Readiness probe checks dependencies
-**Risk:** 🟠 High · **Effort:** S · **Phase:** Infra/Deploy · **Audit ref:** §13.3
-**What's wrong:** `health.controller.ts` `/ready` returns static `ok` — never checks DB/Pub/Sub, so traffic routes to instances that can't serve.
-**Fix:** `@nestjs/terminus` (or manual) — `/ready` does a DB `SELECT 1` + Pub/Sub reachability with a short timeout; `/live` stays shallow.
-**Acceptance:** ☐ `/ready` fails when DB/Pub/Sub is unreachable; `/live` unaffected.
+**Status:** ✅ Resolved by **M17-S04 — Real readiness checks (`/health/ready`) on all 3 services**
+
+**What changed:** Backend `/health/ready` now performs a real database readiness check via Terminus/TypeORM, BFF `/health/ready` chains to backend `/health/ready`, and web `/api/health/ready` chains to BFF `/health/ready`. `/health/live` remains shallow on all services.
+
+**Why Pub/Sub is intentionally excluded:** In the current Cloud Run architecture, readiness gates the synchronous REST serving path (`web → BFF → backend → Postgres`). Pub/Sub is an asynchronous integration path, not a prerequisite for serving normal HTTP requests, so it should not take instances out of rotation for readiness/startup purposes.
+
+**Acceptance:** ☑ `/ready` fails when the serving dependency chain is unavailable; `/live` remains unaffected.
 
 ### AUD-034 — Wire OpenTelemetry tracing + metrics
 **Risk:** 🟠 High · **Effort:** M · **Phase:** Infra/Deploy · **Audit ref:** §13.4

@@ -25,9 +25,9 @@ describe('SubmitGuestBookingInfoUseCase', () => {
   let guestBookingId: string;
 
   beforeEach(async () => {
-    repo = new InMemoryBookingRepository();
     txManager = new InMemoryTransactionManager();
     eventBus = new InMemoryEventBus();
+    repo = new InMemoryBookingRepository(eventBus);
     storageService = new InMemoryStorageService();
 
     const guestBooking = new BookingBuilder()
@@ -42,7 +42,6 @@ describe('SubmitGuestBookingInfoUseCase', () => {
     useCase = new SubmitGuestBookingInfoUseCase(
       repo,
       txManager,
-      eventBus,
       new PhotoExistenceService(storageService),
     );
   });

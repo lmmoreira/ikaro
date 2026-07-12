@@ -20,7 +20,6 @@ const CORRELATION_ID = 'corr-ctrl-test';
 
 function makeController(
   repo: InMemoryStaffRepository,
-  eventBus: InMemoryEventBus,
   tenantId = TENANT_A,
   actorId: string | undefined = MANAGER_ID,
 ): StaffController {
@@ -35,9 +34,9 @@ function makeController(
     ctx,
     new GetStaffUseCase(repo),
     new GetStaffByIdUseCase(repo),
-    new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
-    new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
-    new ActivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus),
+    new InviteStaffUseCase(repo, new InMemoryTransactionManager()),
+    new DeactivateStaffUseCase(repo, new InMemoryTransactionManager()),
+    new ActivateStaffUseCase(repo, new InMemoryTransactionManager()),
     new UpdateStaffProfileUseCase(repo, new InMemoryTransactionManager()),
     new GetStaffTenantsByIdUseCase(repo),
   );
@@ -49,9 +48,9 @@ describe('StaffController', () => {
   let controller: StaffController;
 
   beforeEach(() => {
-    repo = new InMemoryStaffRepository();
     eventBus = new InMemoryEventBus();
-    controller = makeController(repo, eventBus);
+    repo = new InMemoryStaffRepository(eventBus);
+    controller = makeController(repo);
   });
 
   describe('list()', () => {
@@ -130,7 +129,7 @@ describe('StaffController', () => {
       await repo.save(staff1);
       await repo.save(staff2);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, staff1.id);
+      const ctrl = makeController(repo, TENANT_A, staff1.id);
       const result = await ctrl.getMyTenants();
 
       expect(result).toHaveLength(2);
@@ -138,7 +137,7 @@ describe('StaffController', () => {
     });
 
     it('maps StaffNotFoundError to 404 when actorId does not exist', async () => {
-      const ctrl = makeController(repo, eventBus, TENANT_A, '00000000-0000-4000-8000-000000009999');
+      const ctrl = makeController(repo, TENANT_A, '00000000-0000-4000-8000-000000009999');
       const err = await ctrl.getMyTenants().catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
@@ -285,9 +284,9 @@ describe('StaffController', () => {
         ctxNoActor,
         new GetStaffUseCase(repo),
         new GetStaffByIdUseCase(repo),
-        new InviteStaffUseCase(repo, txMgr, eventBus),
-        new DeactivateStaffUseCase(repo, txMgr, eventBus),
-        new ActivateStaffUseCase(repo, txMgr, eventBus),
+        new InviteStaffUseCase(repo, txMgr),
+        new DeactivateStaffUseCase(repo, txMgr),
+        new ActivateStaffUseCase(repo, txMgr),
         new UpdateStaffProfileUseCase(repo, txMgr),
         new GetStaffTenantsByIdUseCase(repo),
       );
@@ -314,7 +313,7 @@ describe('StaffController', () => {
       await repo.save(manager);
       await repo.save(staff);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, manager.id);
+      const ctrl = makeController(repo, TENANT_A, manager.id);
       const result = await ctrl.deactivate(staff.id);
 
       expect(result.staffId).toBe(staff.id);
@@ -333,7 +332,7 @@ describe('StaffController', () => {
         .build();
       await repo.save(manager);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, manager.id);
+      const ctrl = makeController(repo, TENANT_A, manager.id);
       const err = await ctrl.deactivate(manager.id).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.FORBIDDEN);
@@ -356,7 +355,7 @@ describe('StaffController', () => {
       await repo.save(manager);
       await repo.save(actor);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, actor.id);
+      const ctrl = makeController(repo, TENANT_A, actor.id);
       const err = await ctrl.deactivate(manager.id).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
@@ -374,9 +373,9 @@ describe('StaffController', () => {
         ctxNoActor,
         new GetStaffUseCase(repo),
         new GetStaffByIdUseCase(repo),
-        new InviteStaffUseCase(repo, txMgr, eventBus),
-        new DeactivateStaffUseCase(repo, txMgr, eventBus),
-        new ActivateStaffUseCase(repo, txMgr, eventBus),
+        new InviteStaffUseCase(repo, txMgr),
+        new DeactivateStaffUseCase(repo, txMgr),
+        new ActivateStaffUseCase(repo, txMgr),
         new UpdateStaffProfileUseCase(repo, txMgr),
         new GetStaffTenantsByIdUseCase(repo),
       );
@@ -404,7 +403,7 @@ describe('StaffController', () => {
       await repo.save(manager);
       await repo.save(staff);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, manager.id);
+      const ctrl = makeController(repo, TENANT_A, manager.id);
       const result = await ctrl.activate(staff.id);
 
       expect(result.staffId).toBe(staff.id);
@@ -424,7 +423,7 @@ describe('StaffController', () => {
       manager.deactivate('some-other-actor', 'corr-setup');
       await repo.save(manager);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, manager.id);
+      const ctrl = makeController(repo, TENANT_A, manager.id);
       const err = await ctrl.activate(manager.id).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.FORBIDDEN);
@@ -446,7 +445,7 @@ describe('StaffController', () => {
       await repo.save(manager);
       await repo.save(staff);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, manager.id);
+      const ctrl = makeController(repo, TENANT_A, manager.id);
       const err = await ctrl.activate(staff.id).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
@@ -462,7 +461,7 @@ describe('StaffController', () => {
       staff.deactivate('some-manager-id', 'corr-setup');
       await repo.save(staff);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, MANAGER_ID);
+      const ctrl = makeController(repo, TENANT_A, MANAGER_ID);
       const err = await ctrl.activate(staff.id).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);

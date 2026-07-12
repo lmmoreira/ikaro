@@ -35,8 +35,8 @@ describe('RequestBookingUseCase', () => {
   beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
     availabilityPort = new InMemoryBookingAvailabilityPort();
-    bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
+    bookingRepo = new InMemoryBookingRepository(eventBus);
     storageService = new InMemoryStorageService();
     const txManager = new InMemoryTransactionManager();
     useCase = new RequestBookingUseCase(
@@ -45,7 +45,6 @@ describe('RequestBookingUseCase', () => {
       new PhotoExistenceService(storageService),
       bookingRepo,
       txManager,
-      eventBus,
     );
     const service = new ServiceBuilder().withTenantId(TENANT_A).withName('Lavagem Simples').build();
     await serviceRepo.save(service);

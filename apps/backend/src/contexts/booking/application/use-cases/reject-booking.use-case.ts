@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -30,7 +29,6 @@ export class RejectBookingUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
   ) {}
 
   async execute(input: RejectBookingInput): Promise<RejectBookingUseCaseResult> {
@@ -51,10 +49,6 @@ export class RejectBookingUseCase {
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);
     });
-
-    for (const event of booking.clearDomainEvents()) {
-      await this.eventBus.publish(event);
-    }
 
     return {
       bookingId: booking.id,

@@ -1022,6 +1022,8 @@ Always import these; never define `futureDate`, `pastDate`, `nextSunday`, `nextM
 
 Integration tests share a live DB with no cleanup between tests in the same file. Any `it()` sensitive to aggregate counts (`countActiveManagersByTenant`, `total` in pagination, etc.) **must use a unique tenant UUID** that no other test in the file writes to. Never reuse suite-level `TENANT_A`/`TENANT_B` constants for count-sensitive assertions.
 
+**Full-table-sweep tests (no per-row/per-tenant scoping) — never assert an aggregate mock call count.** Some mechanisms (the outbox relay's scheduled sweep, `SKIP LOCKED` over the whole shared table) scan the *entire* table with no awareness of which test created which row — a leftover unpublished row from another concurrently-running test file against the same shared Testcontainers instance legitimately adds extra calls. `expect(mock).toHaveBeenCalledTimes(N)` after a sweep call is flaky/wrong for reasons unrelated to your test. Instead, filter the mock's calls down to the row/event identity under test (`mock.calls.filter(([e]) => e.eventId === myEventId)`) and assert on that — freely assert the specific row's own DB state (`publishedAt`, etc.), since that's never ambiguous. See `outbox-relay.service.integration.spec.ts`'s SKIP LOCKED test and `typeorm-booking.repository.outbox-cutover.integration.spec.ts` (TD24-S02) for the pattern.
+
 ### Registering new migrations and entities in the global setup (MANDATORY)
 
 `src/test/integration-global-setup.ts` holds **explicit** import lists — it does not use a glob. Every time you add a new TypeORM entity or migration you **must** update this file or integration tests will fail with `column X does not exist` / `relation X does not exist`.
@@ -1054,16 +1056,38 @@ for (const { provide, useValue } of overrideProviders) {
 }
 ```
 
-Currently affected helpers and their default overrides:
-
-| Helper | Token overridden by default |
-|---|---|
-| `createBookingIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` |
-| `createNotificationIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` (BookingModule pulled via `extraModules`) |
-
-**When adding a new shared module with a network-calling adapter:** update every integration app helper that imports that module (directly or via `extraModules`) to add a default override for the new token.
+**When adding a new shared module with a network-calling adapter:** update every integration app helper that imports that module (directly or via `extraModules`) to add a default override for the new token. See the consolidated table below (after the `EVENT_BUS`/`OUTBOX_PUBLISHER` section) for the current per-helper override list, including `STORAGE_SERVICE`.
 
 **Root cause gotcha — `useExisting` vs `useClass`:** if the shared module uses `useExisting` to register the adapter (`providers: [Adapter, { provide: TOKEN, useExisting: Adapter }]`), overriding the token in tests only removes the alias — the standalone `Adapter` class is still instantiated. Always use `useClass` in shared module providers so that overriding the token is sufficient to suppress instantiation.
+
+### Dual-token override: `EVENT_BUS` + `OUTBOX_PUBLISHER` (TD24-S02)
+
+Since the 3 event-emitting aggregates' repositories now drain domain events through `OUTBOX_PUBLISHER` (not `EVENT_BUS`) inside `save()`, every integration app helper that imports `OutboxModule` (all 5 do, since `OutboxModule` is `@Global()` but must still be imported once into the test's module graph to be reachable) must override **both** tokens with the **same** bus instance:
+
+```ts
+const routingBus = new RoutingInMemoryEventBus();
+let builder = Test.createTestingModule({ imports: [..., OutboxModule, BookingModule] })
+  .overrideProvider(EVENT_BUS)
+  .useValue(routingBus)
+  .overrideProvider(OUTBOX_PUBLISHER)
+  .useValue(routingBus); // same instance — subscribe (EVENT_BUS) and publish (OUTBOX_PUBLISHER) sides must connect
+```
+
+`RoutingInMemoryEventBus` and `InMemoryEventBus` both satisfy `IOutboxPublisher`'s one-method shape (`publish(event: Envelope): Promise<void>`), so no separate outbox test double is needed. Binding one instance to both tokens keeps a flow test's publish and subscribe sides observably connected — but this means flow tests **bypass the real `shared.outbox` table by design**: outbox persistence itself is covered by TD24-S01's dedicated `OutboxPublisher`/`OutboxRelayService` specs plus TD24-S02's crash/failure/concurrency integration tests (`typeorm-booking.repository.outbox-cutover.integration.spec.ts`). One test per app — `outbox-full-topology.integration.spec.ts` — opts out of the `OUTBOX_PUBLISHER` override (`useRealOutbox: true` on `createNotificationIntegrationApp()`) specifically to exercise the real outbox table + real relay end-to-end.
+
+**`RoutingInMemoryEventBus`'s after-commit deferral (TD24-S02):** `publish()` checks `getActiveEntityManager()` — if a transaction is ambient (the repo is draining events from inside `txManager.run()`), dispatch is deferred via `scheduleAfterCommit()` rather than run synchronously, composing with the existing BFS queue (an enclosing handler's own nested transaction can still be mid-dispatch when the deferred callback fires). Without this, repos draining events **inside** a transaction would trigger handler execution mid-transaction, on a separate DB connection that cannot see the uncommitted write. Because `flushAfterCommitCallbacks` always runs *before* `txManager.run()` returns (see `docs/ENGINEERING_RULES.md §Transactions`), dispatch still completes before each HTTP response resolves — "dispatched after commit, before the HTTP call resolves," not literally synchronous the way the class's name suggests pre-TD24. `InMemoryEventBus` (used by unit specs) needs no such deferral: `InMemoryTransactionManager` never establishes an ambient transaction context, so `scheduleAfterCommit()` always falls through to immediate execution there.
+
+**General principle for any test double that models deferred/transactional behavior:** record the double's own observability state (a `.published`/`.calls` array) at the same point the thing it's simulating actually becomes durable, not eagerly at the call site. `RoutingInMemoryEventBus.published` used to be pushed synchronously inside `publish()`, before the deferred dispatch — so a transaction that rolled back *after* the event was recorded (a later step in the same `txManager.run()` throwing) would still show the event as "published," a false-positive signal to any assertion checking it. The fix moved the push into `enqueueOrDispatch()`, which only runs either immediately (no ambient transaction) or after a real commit (the deferred path) — so a rollback and a commit now produce genuinely different, correct observable outcomes.
+
+Currently affected helpers and their default overrides:
+
+| Helper | Tokens overridden by default |
+|---|---|
+| `createBookingIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` |
+| `createNotificationIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` (BookingModule pulled via `extraModules`); `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` (pass `useRealOutbox: true` to skip the `OUTBOX_PUBLISHER` override) |
+| `createLoyaltyIntegrationApp()` | `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` |
+| `createPlatformIntegrationApp()` | `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` |
+| `createCustomerIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` |
 
 ### Real-GCS-emulator integration tests (opt-in `useRealStorage`)
 

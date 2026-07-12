@@ -1,8 +1,17 @@
 import { Envelope } from '../../shared/domain/envelope';
 import { IEventBus } from '../../shared/ports/event-bus.port';
+import { IOutboxPublisher } from '../../shared/ports/outbox-publisher.port';
 import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
 
-export class InMemoryEventBus implements IEventBus, ITriggerBus {
+// Also bound to OUTBOX_PUBLISHER in some integration-app helpers (TD24-S02) — no deferral logic
+// needed here for two independent reasons, depending on caller: in unit specs,
+// InMemoryTransactionManager creates no ambient transaction context, so scheduleAfterCommit()
+// falls through to immediate execution anyway; in integration apps that DO use a real
+// TypeOrmTransactionManager (platform/customer), subscribe() is a documented no-op below — there
+// are no handlers to accidentally run mid-transaction, so deferring publish() would only delay
+// this class's own bookkeeping, not prevent any real hazard. See RoutingInMemoryEventBus for the
+// bus that actually dispatches to subscribers and needs the deferral.
+export class InMemoryEventBus implements IEventBus, ITriggerBus, IOutboxPublisher {
   readonly published: Envelope[] = [];
   readonly publishedTriggers: string[] = [];
 

@@ -7,7 +7,9 @@ import { DataSource } from 'typeorm';
 import type { ModuleMetadata } from '@nestjs/common';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
+import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
+import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
 import { BookingEntity } from '../../contexts/booking/infrastructure/entities/booking.entity';
@@ -58,6 +60,7 @@ export async function createBookingIntegrationApp(
         synchronize: false,
       }),
       EventBusModule,
+      OutboxModule,
       TransactionManagerModule,
       RequestModule,
       BookingModule,
@@ -69,6 +72,8 @@ export async function createBookingIntegrationApp(
     ],
   })
     .overrideProvider(EVENT_BUS)
+    .useValue(routingBus)
+    .overrideProvider(OUTBOX_PUBLISHER)
     .useValue(routingBus)
     .overrideProvider(STORAGE_SERVICE)
     .useValue(new InMemoryStorageService());

@@ -6,8 +6,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus/event-bus.module';
+import { OutboxModule } from '../../../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { StaffEntity } from '../entities/staff.entity';
@@ -23,6 +25,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
   beforeAll(async () => {
     process.env['INTERNAL_API_KEY'] = INTERNAL_KEY;
 
+    const routingBus = new RoutingInMemoryEventBus();
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
@@ -33,13 +36,16 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
           synchronize: false,
         }),
         EventBusModule,
+        OutboxModule,
         TransactionManagerModule,
         StaffModule,
       ],
       providers: [{ provide: APP_GUARD, useClass: InternalApiGuard }],
     })
       .overrideProvider(EVENT_BUS)
-      .useValue(new RoutingInMemoryEventBus())
+      .useValue(routingBus)
+      .overrideProvider(OUTBOX_PUBLISHER)
+      .useValue(routingBus)
       .compile();
 
     app = moduleRef.createNestApplication();

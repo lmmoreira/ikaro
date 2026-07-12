@@ -1,9 +1,15 @@
 import { Envelope } from '../../shared/domain/envelope';
+import {
+  getActiveEntityManager,
+  scheduleAfterCommit,
+} from '../../shared/infrastructure/transaction-context';
 import { IEventBus } from '../../shared/ports/event-bus.port';
+import { IOutboxPublisher } from '../../shared/ports/outbox-publisher.port';
 import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
 
 /**
- * Synchronous, in-process event bus for integration tests.
+ * In-process event bus for integration tests — also bound to OUTBOX_PUBLISHER (TD24-S02), since
+ * its publish(event: Envelope) shape already satisfies IOutboxPublisher.
  *
  * Uses BFS (breadth-first) dispatch to match Pub/Sub semantics:
  * when a handler publishes a nested event, that event is queued and processed
@@ -12,13 +18,24 @@ import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
  * TenantProvisionedNotificationHandler has seeded templates) that would not
  * occur in production where every subscription processes independently.
  *
+ * Dispatch is deferred via scheduleAfterCommit() whenever a transaction is ambient at publish()
+ * time (TD24-S02) — the 3 aggregate repositories now drain domain events through this bus (as
+ * OUTBOX_PUBLISHER) from inside their own save(), which runs inside the caller's txManager.run().
+ * Dispatching synchronously there would run handlers mid-transaction, on a separate connection
+ * that cannot see the uncommitted write. Deferring means dispatch only starts once
+ * getActiveEntityManager() has gone back to undefined (flushAfterCommitCallbacks always runs
+ * outside any ambient transaction scope — see transaction-context.ts), so the deferred callback
+ * must still compose with the BFS queue below rather than dispatch directly: an enclosing
+ * handler's own nested txManager.run() call can still be mid-dispatch (this.dispatching === true)
+ * on the JS call stack even though no transaction is ambient at that exact moment.
+ *
  * Handler errors are swallowed (mirrors Pub/Sub fire-and-forget from the
  * publisher's perspective). The handler's own try/catch still writes FAILED
  * logs before rethrowing, so dispatch-failure tests can assert on DB state
  * immediately after publish() returns, then explicitly republish to simulate
  * a deterministic retry.
  */
-export class RoutingInMemoryEventBus implements IEventBus, ITriggerBus {
+export class RoutingInMemoryEventBus implements IEventBus, ITriggerBus, IOutboxPublisher {
   private readonly handlers = new Map<string, Array<(event: Envelope) => Promise<void>>>();
   private readonly triggerHandlers = new Map<string, Array<() => Promise<void>>>();
   readonly published: Envelope[] = [];
@@ -26,6 +43,20 @@ export class RoutingInMemoryEventBus implements IEventBus, ITriggerBus {
   private dispatching = false;
 
   async publish(event: Envelope): Promise<void> {
+    if (getActiveEntityManager()) {
+      // Ambient transaction active — defer until it commits. `.published` is recorded inside
+      // enqueueOrDispatch(), not here — the deferred callback only ever runs after a real commit
+      // (flushAfterCommitCallbacks runs outside any ambient scope), so a transaction that later
+      // rolls back never leaves a phantom entry in `.published` for a business fact that didn't
+      // durably happen.
+      await scheduleAfterCommit(() => this.enqueueOrDispatch(event));
+      return;
+    }
+
+    await this.enqueueOrDispatch(event);
+  }
+
+  private async enqueueOrDispatch(event: Envelope): Promise<void> {
     this.published.push(event);
 
     if (this.dispatching) {

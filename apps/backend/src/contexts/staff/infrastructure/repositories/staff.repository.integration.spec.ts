@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { StaffBuilder } from '../../../../test/builders/staff/index';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { StaffEntity } from '../entities/staff.entity';
 import { TypeOrmStaffRepository } from './typeorm-staff.repository';
 
@@ -10,7 +11,10 @@ describe('TypeOrmStaffRepository (integration)', () => {
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
-    repo = new TypeOrmStaffRepository(dataSource.getRepository(StaffEntity));
+    repo = new TypeOrmStaffRepository(
+      dataSource.getRepository(StaffEntity),
+      new InMemoryEventBus(),
+    );
   });
 
   afterAll(async () => {

@@ -20,9 +20,9 @@ describe('DeactivateStaffUseCase', () => {
   let useCase: DeactivateStaffUseCase;
 
   beforeEach(() => {
-    repo = new InMemoryStaffRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new DeactivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus);
+    repo = new InMemoryStaffRepository(eventBus);
+    useCase = new DeactivateStaffUseCase(repo, new InMemoryTransactionManager());
   });
 
   it('deactivates a STAFF member — stores deactivatedBy and publishes StaffDeactivated', async () => {
@@ -138,6 +138,7 @@ describe('DeactivateStaffUseCase', () => {
     await repo.save(manager);
     await repo.save(actor);
     actor.deactivate(manager.id, 'corr-setup');
+    actor.clearDomainEvents();
     await repo.save(actor);
 
     await expect(

@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { BookingBuilder, ServiceEntityBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { testAddress } from '../../../../test/utils/address-helpers';
 import { Money } from '../../../../shared/value-objects/money';
@@ -30,6 +31,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
       dataSource.getRepository(BookingEntity),
       dataSource.getRepository(BookingLineEntity),
       settingsPort,
+      new InMemoryEventBus(),
     );
 
     // Seed a service so booking_lines FK (tenant_id, service_id) → services is satisfied
@@ -140,7 +142,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
     expect(found!.lines[0].priceAtBooking.currency).toBe('USD');
   });
 
-  it('updates lines on re-save (delete + re-insert)', async () => {
+  it('persists updated line values while preserving existing line ids', async () => {
     const tenantId = '00000000-0000-7000-8000-000000000062';
 
     // Use a unique service ID to avoid TypeORM UPDATE collision with the beforeAll service
@@ -184,7 +186,15 @@ describe('TypeOrmBookingRepository (integration)', () => {
 
     const updated = await repo.findById(booking.id, tenantId);
     expect(updated!.status).toBe(BookingStatus.COMPLETED);
+    expect(updated!.lines[0].lineId).toBe('00000000-0000-7000-8000-000000000081');
     expect(updated!.lines[0].actualPriceCharged!.amount.toNumber()).toBe(120);
+
+    const storedLines = await dataSource.getRepository(BookingLineEntity).find({
+      where: { bookingId: booking.id, tenantId },
+    });
+    expect(storedLines).toHaveLength(1);
+    expect(storedLines[0].lineId).toBe('00000000-0000-7000-8000-000000000081');
+    expect(storedLines[0].actualPriceChargedAmount).toBe('120.00');
   });
 
   it('findById returns null for wrong tenant (isolation)', async () => {

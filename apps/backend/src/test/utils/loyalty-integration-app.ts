@@ -5,8 +5,10 @@ import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
+import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
+import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
@@ -59,6 +61,7 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
       TransactionManagerModule,
       RequestModule,
       EventBusModule,
+      OutboxModule,
       PlatformModule,
       LoyaltyModule,
     ],
@@ -67,6 +70,8 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
 
   builder = builder
     .overrideProvider(EVENT_BUS)
+    .useValue(routingBus)
+    .overrideProvider(OUTBOX_PUBLISHER)
     .useValue(routingBus)
     .overrideProvider(LOYALTY_BOOKING_PORT)
     .useValue(serviceCatalog)

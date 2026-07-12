@@ -30,13 +30,12 @@ describe('SubmitBookingInfoUseCase', () => {
   let useCase: SubmitBookingInfoUseCase;
 
   beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
+    bookingRepo = new InMemoryBookingRepository(eventBus);
     storageService = new InMemoryStorageService();
     useCase = new SubmitBookingInfoUseCase(
       bookingRepo,
       new InMemoryTransactionManager(),
-      eventBus,
       new PhotoExistenceService(storageService),
     );
   });

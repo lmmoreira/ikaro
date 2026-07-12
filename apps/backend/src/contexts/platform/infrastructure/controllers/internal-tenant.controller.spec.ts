@@ -18,8 +18,8 @@ describe('InternalTenantController', () => {
   let eventBus: InMemoryEventBus;
 
   beforeEach(async () => {
-    tenantRepo = new InMemoryTenantRepository();
     eventBus = new InMemoryEventBus();
+    tenantRepo = new InMemoryTenantRepository(eventBus);
 
     const moduleRef = await Test.createTestingModule({
       controllers: [InternalTenantController],

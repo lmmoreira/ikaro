@@ -1,3 +1,5 @@
+import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-domain-events';
+import { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   ITenantRepository,
   TenantFilters,
@@ -6,6 +8,8 @@ import { Tenant } from '../../../contexts/platform/domain/tenant.aggregate';
 
 export class InMemoryTenantRepository implements ITenantRepository {
   private readonly store = new Map<string, Tenant>();
+
+  constructor(private readonly outboxPublisher: IOutboxPublisher = { publish: async () => {} }) {}
 
   async findBySlug(slug: string): Promise<Tenant | null> {
     for (const tenant of this.store.values()) {
@@ -47,6 +51,7 @@ export class InMemoryTenantRepository implements ITenantRepository {
 
   async save(tenant: Tenant): Promise<void> {
     this.store.set(tenant.id, tenant);
+    await drainDomainEvents(tenant, this.outboxPublisher);
   }
 
   async existsBySlug(slug: string): Promise<boolean> {
