@@ -227,6 +227,7 @@ Full list (~115 entries) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/p
 | An aggregate's update method re-validates a field even when the value passed through unchanged | Compare against the current stored value first; skip validation when nothing actually changed (see the SEO-limit row in the full doc for why this matters) |
 | A route is added to an existing hide-list/allow-list by pattern-matching neighbors | Name the invariant every current member satisfies before adding a new one — surface similarity isn't the same as satisfying the same rule |
 | A non-repository class (service, publisher, handler) contains raw SQL, `@InjectRepository`, or TypeORM `Repository<T>` directly | Extract `IXxxRepository` (`shared/ports/` for cross-cutting, `<ctx>/application/ports/` for a bounded context) + `TypeOrmXxxRepository` adapter; the class depends on the port only — see `docs/AGENT_PATTERNS.md` Pattern #1 |
+| A module is marked `@Global()` (or re-marked when a token gains new consumers) without adding that token to `exports:` | `@Global()` only waives the *importing* module's need for an `imports:` entry — it never substitutes for `exports:`. A provider left out of `exports:` stays unresolvable everywhere, and the DI error points at the consumer, not the missing `exports:` line |
 
 ---
 
