@@ -300,10 +300,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     return entity;
   }
 
-  private sameLinePersistenceState(
-    current: BookingLineEntity,
-    next: BookingLineEntity,
-  ): boolean {
+  private sameLinePersistenceState(current: BookingLineEntity, next: BookingLineEntity): boolean {
     return (
       current.lineId === next.lineId &&
       current.bookingId === next.bookingId &&
