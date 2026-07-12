@@ -32,6 +32,15 @@ export interface BookingRequestResult {
   lines: BookingLineResult[];
 }
 
+export interface PersistRequestedBookingParams {
+  booking: Booking;
+  tenantId: string;
+  scheduledAt: Date;
+  totalDurationMins: number;
+  timezone: string;
+  operations: PhotoPromotionOperation[];
+}
+
 export function createBookingAddress(
   props: AddressProps,
   spec: AddressSpec,
@@ -119,13 +128,10 @@ export async function persistRequestedBooking(
   slotConflictService: BookingSlotConflictService,
   bookingRepo: IBookingRepository,
   photoExistenceService: PhotoExistenceService,
-  booking: Booking,
-  tenantId: string,
-  scheduledAt: Date,
-  totalDurationMins: number,
-  timezone: string,
-  operations: PhotoPromotionOperation[],
+  params: PersistRequestedBookingParams,
 ): Promise<void> {
+  const { booking, tenantId, scheduledAt, totalDurationMins, timezone, operations } = params;
+
   await txManager.run(async () => {
     await assertRequestedSlotFreeInTransaction(
       slotConflictService,

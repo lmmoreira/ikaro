@@ -126,12 +126,14 @@ export class RequestBookingUseCase {
       this.slotConflictService,
       this.bookingRepo,
       this.photoExistenceService,
-      booking,
-      tenantId,
-      scheduledAt,
-      totalDurationMins,
-      timezone,
-      operations,
+      {
+        booking,
+        tenantId,
+        scheduledAt,
+        totalDurationMins,
+        timezone,
+        operations,
+      },
     );
 
     return this.toResult(booking);

@@ -38,10 +38,9 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
 
       expect(manager.query).toHaveBeenCalledWith(
         `SELECT pg_advisory_xact_lock(
-         hashtextextended($1::text, 0::bigint),
-         hashtextextended($2::text, 0::bigint)
+         hashtextextended($1::text, 0::bigint)
        )`,
-        ['tenant-1', '2026-06-01'],
+        ['tenant-1:2026-06-01'],
       );
     });
 
