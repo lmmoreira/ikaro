@@ -6,7 +6,12 @@ describe('throwProblemDetail', () => {
   it('throws an HttpException carrying the RFC 9457 envelope', () => {
     let err: unknown;
     try {
-      throwProblemDetail(HttpStatus.BAD_REQUEST, GenericErrorCode.FIELD_REQUIRED, 'x is required', 'x');
+      throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        GenericErrorCode.FIELD_REQUIRED,
+        'x is required',
+        'x',
+      );
     } catch (e) {
       err = e;
     }
