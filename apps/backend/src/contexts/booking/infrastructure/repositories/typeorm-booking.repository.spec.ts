@@ -1,14 +1,23 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Between, LessThanOrEqual, MoreThanOrEqual, QueryFailedError, Repository } from 'typeorm';
+import {
+  Between,
+  EntityManager,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  QueryFailedError,
+  Repository,
+} from 'typeorm';
 import {
   BookingEntityBuilder,
+  BookingBuilder,
   BookingLineEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
+import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { Money } from '../../../../shared/value-objects/money';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -326,6 +335,33 @@ describe('TypeOrmBookingRepository', () => {
   });
 
   describe('save', () => {
+    it('inserts a new aggregate when version is undefined', async () => {
+      const aggregate = new BookingBuilder().withTenantId('tenant-1').build();
+
+      await repo.save(aggregate);
+
+      expect(mockTx.insert).toHaveBeenCalledWith(
+        BookingEntity,
+        expect.objectContaining({ id: aggregate.id, tenantId: aggregate.tenantId }),
+      );
+      expect(mockUpdateBuilder.execute).not.toHaveBeenCalled();
+    });
+
+    it('uses the active entity manager instead of opening a nested transaction', async () => {
+      const aggregate = new BookingBuilder().withTenantId('tenant-1').build();
+      const transactionSpy = jest.spyOn(ormRepo.manager, 'transaction');
+
+      await runWithEntityManager(mockTx as unknown as EntityManager, async () => {
+        await repo.save(aggregate);
+      });
+
+      expect(mockTx.insert).toHaveBeenCalledWith(
+        BookingEntity,
+        expect.objectContaining({ id: aggregate.id, tenantId: aggregate.tenantId }),
+      );
+      expect(transactionSpy).not.toHaveBeenCalled();
+    });
+
     it('saves booking header without touching lines when linesModified is false', async () => {
       const bookingEntity = new BookingEntityBuilder()
         .withId('00000000-0000-7000-8000-000000000020')

@@ -21,6 +21,7 @@ import { BookingSlotConflictService } from '../services/booking-slot-conflict.se
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RequestAuthenticatedBookingDto } from '../dtos/request-authenticated-booking.dto';
 import {
+  assertRequestedSlotFreeInTransaction,
   buildLineInputs,
   createBookingAddress,
   toBookingResult,
@@ -115,9 +116,8 @@ export class RequestAuthenticatedBookingUseCase {
     });
 
     await this.txManager.run(async () => {
-      // This validation must stay inside the write transaction because lockTenantDay
-      // uses pg_advisory_xact_lock, which only protects the slot check for this tx.
-      await this.slotConflictService.assertSlotFree(
+      await assertRequestedSlotFreeInTransaction(
+        this.slotConflictService,
         tenantId,
         scheduledAt,
         totalDurationMins,

@@ -11,6 +11,7 @@ import {
   AddressProps,
   AddressValidationError,
 } from '../../../../shared/value-objects/address';
+import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { AddressResult, BookingLineResult } from './request-booking.use-case';
 
 export interface BookingRequestResult {
@@ -92,4 +93,16 @@ export function toBookingResult(booking: Booking): BookingRequestResult {
       requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
     })),
   };
+}
+
+export async function assertRequestedSlotFreeInTransaction(
+  slotConflictService: BookingSlotConflictService,
+  tenantId: string,
+  scheduledAt: Date,
+  totalDurationMins: number,
+  timezone: string,
+): Promise<void> {
+  // This validation must stay inside the write transaction because lockTenantDay
+  // uses pg_advisory_xact_lock, which only protects the slot check for this tx.
+  await slotConflictService.assertSlotFree(tenantId, scheduledAt, totalDurationMins, timezone);
 }
