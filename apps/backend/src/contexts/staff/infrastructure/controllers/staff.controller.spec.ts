@@ -149,7 +149,7 @@ describe('StaffController', () => {
       const staff = new StaffBuilder().withTenantId(TENANT_A).withEmail('ativo@a.com').build();
       await repo.save(staff);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, staff.id);
+      const ctrl = makeController(repo, TENANT_A, staff.id);
       const result = await ctrl.getMyStatus();
 
       expect(result).toEqual({ isActive: true });
@@ -160,14 +160,14 @@ describe('StaffController', () => {
       staff.deactivate(MANAGER_ID, CORRELATION_ID);
       await repo.save(staff);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, staff.id);
+      const ctrl = makeController(repo, TENANT_A, staff.id);
       const result = await ctrl.getMyStatus();
 
       expect(result).toEqual({ isActive: false });
     });
 
     it('maps StaffNotFoundError to 404 when actorId does not resolve (stale/mismatched JWT)', async () => {
-      const ctrl = makeController(repo, eventBus, TENANT_A, '00000000-0000-4000-8000-000000009999');
+      const ctrl = makeController(repo, TENANT_A, '00000000-0000-4000-8000-000000009999');
       const err = await ctrl.getMyStatus().catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
@@ -177,7 +177,7 @@ describe('StaffController', () => {
       const staff = new StaffBuilder().withTenantId(TENANT_B).withEmail('outro@b.com').build();
       await repo.save(staff);
 
-      const ctrl = makeController(repo, eventBus, TENANT_A, staff.id);
+      const ctrl = makeController(repo, TENANT_A, staff.id);
       const err = await ctrl.getMyStatus().catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
@@ -187,7 +187,7 @@ describe('StaffController', () => {
       // '' (not undefined) — makeController's actorId param defaults to MANAGER_ID when
       // undefined is passed explicitly (JS default-parameter semantics), so '' is the only
       // way to force ctx.actorId to stay genuinely unset here.
-      const ctrl = makeController(repo, eventBus, TENANT_A, '');
+      const ctrl = makeController(repo, TENANT_A, '');
       const err = await ctrl.getMyStatus().catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
