@@ -6,6 +6,7 @@ import { TypeOrmHotsiteConfigRepository } from './typeorm-hotsite-config.reposit
 import { TypeOrmTenantRepository } from './typeorm-tenant.repository';
 import { CachingTenantRepository } from './caching-tenant.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { TenantBuilder, HotsiteConfigBuilder } from '../../../../test/builders/platform';
 import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate';
 import { Tenant } from '../../domain/tenant.aggregate';
@@ -24,7 +25,10 @@ describe('Platform repositories (integration)', () => {
       set: jest.fn().mockResolvedValue(undefined),
       del: jest.fn().mockResolvedValue(undefined),
     };
-    typeOrmTenantRepo = new TypeOrmTenantRepository(dataSource.getRepository(TenantEntity));
+    typeOrmTenantRepo = new TypeOrmTenantRepository(
+      dataSource.getRepository(TenantEntity),
+      new InMemoryEventBus(),
+    );
     tenantRepo = new CachingTenantRepository(typeOrmTenantRepo, cacheManager as unknown as Cache);
     hotsiteRepo = new TypeOrmHotsiteConfigRepository(dataSource.getRepository(HotsiteConfigEntity));
   });

@@ -22,13 +22,9 @@ describe('CancelBookingAsAdminUseCase', () => {
   let useCase: CancelBookingAsAdminUseCase;
 
   beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new CancelBookingAsAdminUseCase(
-      bookingRepo,
-      new InMemoryTransactionManager(),
-      eventBus,
-    );
+    bookingRepo = new InMemoryBookingRepository(eventBus);
+    useCase = new CancelBookingAsAdminUseCase(bookingRepo, new InMemoryTransactionManager());
   });
 
   describe('cancelling a PENDING booking', () => {

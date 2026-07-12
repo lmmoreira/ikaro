@@ -40,8 +40,8 @@ describe('RequestAuthenticatedBookingUseCase', () => {
   beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
     availabilityPort = new InMemoryBookingAvailabilityPort();
-    bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
+    bookingRepo = new InMemoryBookingRepository(eventBus);
     customerProfilePort = new InMemoryBookingCustomerPort();
     storageService = new InMemoryStorageService();
     const txManager = new InMemoryTransactionManager();
@@ -53,7 +53,6 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       new PhotoExistenceService(storageService),
       bookingRepo,
       txManager,
-      eventBus,
     );
 
     const service = new ServiceBuilder().withTenantId(TENANT_A).withName('Lavagem Simples').build();
@@ -150,7 +149,6 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       new PhotoExistenceService(storageService),
       bookingRepo,
       new InMemoryTransactionManager(),
-      new InMemoryEventBus(),
     );
 
     await expect(

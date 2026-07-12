@@ -5,7 +5,9 @@ import {
   BookingEntityBuilder,
   BookingLineEntityBuilder,
 } from '../../../../test/builders/booking/index';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
+import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -48,6 +50,7 @@ describe('TypeOrmBookingRepository', () => {
           useValue: { find: jest.fn(), save: jest.fn(), delete: jest.fn() },
         },
         { provide: TENANT_SETTINGS_PORT, useClass: InMemoryTenantSettingsPort },
+        { provide: OUTBOX_PUBLISHER, useValue: new InMemoryEventBus() },
       ],
     }).compile();
 

@@ -460,23 +460,29 @@ Same idempotency pattern for the Loyalty event consumer. The `UNIQUE(tenant_id, 
 
 ## Event Publishing — MVP Approach
 
-> **Context:** `docs/03-DOMAIN_EVENTS.md` states that event publication must be transactional with the state change that produced it. A full transactional outbox (separate table + polling relay) is the enterprise-grade solution. For MVP, Ikaro uses the simpler approach below with a clear understanding of its trade-off.
+> **Context:** `docs/03-DOMAIN_EVENTS.md` states that event publication must be transactional with the state change that produced it. TD24 (S01/S02) implemented the transactional-outbox solution below for aggregate-driven events; cron-published events are still on the old dual-write pattern until TD24-S03.
 
-### MVP pattern: synchronous publish after commit
+### Current pattern: transactional outbox for aggregate events (TD24-S01/S02)
 
 ```typescript
-// Inside a use case (simplified)
-await this.bookingRepo.save(booking);          // 1. Commit state to DB
-await this.eventBus.publish(bookingApproved); // 2. Publish to Pub/Sub
+// Inside a repository's save() (simplified) — the aggregate's own repository, not the use case
+await manager.save(BookingEntity, entity);            // 1. Commit state to DB
+await drainDomainEvents(booking, this.outboxPublisher); // 2. Insert outbox row, same transaction
+// ... after commit: OutboxPublisher's after-commit callback relays the row via Pub/Sub —
+// inline on the happy path, or the scheduled sweep (SKIP LOCKED) if that fails/crashes.
 ```
 
-**Trade-off:** If the process crashes between step 1 and step 2, the state is saved but the event is never published. Downstream consumers (Notification, Loyalty) will not be triggered for that specific booking action.
+The 3 event-emitting aggregates (`Booking`, `Staff`, `Tenant`) get this transactionally-safe path automatically via their repositories — no use case writes a publish loop for them anymore. A crash between the DB commit and the Pub/Sub publish no longer loses the event: the outbox row is durable, and the sweep delivers it on the next tick (worst case ~5 minutes later, `var.outbox_relay_schedule`).
 
-**Why this is acceptable for MVP:**
-- GCP Pub/Sub has 99.95% uptime — the window for a crash between save and publish is tiny.
-- The failure mode is silent (no email sent, no loyalty entry created) rather than data corruption.
-- Staff can manually recover by re-triggering the action from the dashboard (e.g., re-marking a booking complete).
-- Volume at MVP scale makes manual recovery trivial.
+**Still on the old dual-write pattern (until TD24-S03):** the 3 cron-published `Command` events (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`) — their publishing jobs still call `EVENT_BUS` directly:
+
+```typescript
+// Inside a cron job (simplified) — still the old pattern, pending TD24-S03
+await this.someRepo.save(...);         // 1. Commit state to DB
+await this.eventBus.publish(command); // 2. Publish to Pub/Sub — crash here still loses it
+```
+
+**Why this remaining gap is acceptable short-term:** these are low-frequency, non-critical reminders/digests (not the customer-facing booking lifecycle), and the same GCP Pub/Sub uptime argument applies. TD24-S03 closes this by switching the 3 jobs to `OUTBOX_PUBLISHER` alongside transactional per-tenant-batch wrapping — see `td/TD24-OUTBOX-INBOX-PATTERN.md`.
 
 **Upgrade path (post-MVP):** When silent failures become unacceptable, add a `booking.domain_event_outbox` table. The use case writes to the outbox in the same DB transaction as the aggregate save. A separate relay process polls the outbox and publishes to Pub/Sub, then marks rows as published. This guarantees at-least-once delivery with zero message loss. No domain or application layer changes are needed — only the infrastructure adapter changes.
 

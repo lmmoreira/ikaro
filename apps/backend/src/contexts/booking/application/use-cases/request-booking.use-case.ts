@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
-import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -60,7 +59,6 @@ export class RequestBookingUseCase {
     private readonly photoExistenceService: PhotoExistenceService,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
   ) {}
 
   async execute(input: RequestBookingInput): Promise<RequestBookingUseCaseResult> {
@@ -133,10 +131,6 @@ export class RequestBookingUseCase {
       await this.bookingRepo.save(booking);
       await scheduleAfterCommit(() => this.photoExistenceService.executePhotoPromotion(operations));
     });
-
-    for (const event of booking.clearDomainEvents()) {
-      await this.eventBus.publish(event);
-    }
 
     return this.toResult(booking);
   }

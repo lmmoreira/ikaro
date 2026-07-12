@@ -87,8 +87,8 @@ describe('Story: full booking lifecycle → event bus → all notification email
 
     tenantId = body.tenantId as string;
 
-    // RoutingInMemoryEventBus is synchronous — the full TenantProvisioned → StaffInvited chain
-    // (including the staff-invitation email) is complete when 201 returns.
+    // Dispatched after commit, before the HTTP call resolves — the full TenantProvisioned →
+    // StaffInvited chain (including the staff-invitation email) is complete when 201 returns.
     const manager = await ds
       .getRepository(StaffEntity)
       .findOne({ where: { tenantId, role: 'MANAGER' } });
@@ -277,8 +277,9 @@ describe('Story: full booking lifecycle → event bus → all notification email
       })
       .expect(200);
 
-    // RoutingInMemoryEventBus is synchronous — after the last HTTP call every notification
-    // (including the 2-hop BookingCompleted → ServicePointsEarned chain) is already dispatched.
+    // Dispatched after commit, before the HTTP call resolves — after the last HTTP call every
+    // notification (including the 2-hop BookingCompleted → ServicePointsEarned chain) is already
+    // dispatched.
 
     // Assert all notification types present in DB
     const logs = await ds.getRepository(NotificationLogEntity).find({ where: { tenantId } });

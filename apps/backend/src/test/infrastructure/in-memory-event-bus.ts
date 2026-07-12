@@ -1,8 +1,13 @@
 import { Envelope } from '../../shared/domain/envelope';
 import { IEventBus } from '../../shared/ports/event-bus.port';
+import { IOutboxPublisher } from '../../shared/ports/outbox-publisher.port';
 import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
 
-export class InMemoryEventBus implements IEventBus, ITriggerBus {
+// Also bound to OUTBOX_PUBLISHER in some integration-app helpers (TD24-S02) — no deferral logic
+// needed here: InMemoryTransactionManager (used by unit specs) creates no ambient transaction
+// context, so scheduleAfterCommit() would fall through to immediate execution anyway. See
+// RoutingInMemoryEventBus for the real-transaction deferral this double doesn't need.
+export class InMemoryEventBus implements IEventBus, ITriggerBus, IOutboxPublisher {
   readonly published: Envelope[] = [];
   readonly publishedTriggers: string[] = [];
 

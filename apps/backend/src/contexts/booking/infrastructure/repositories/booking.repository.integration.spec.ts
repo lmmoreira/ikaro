@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { BookingBuilder, ServiceEntityBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { testAddress } from '../../../../test/utils/address-helpers';
 import { Money } from '../../../../shared/value-objects/money';
@@ -30,6 +31,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
       dataSource.getRepository(BookingEntity),
       dataSource.getRepository(BookingLineEntity),
       settingsPort,
+      new InMemoryEventBus(),
     );
 
     // Seed a service so booking_lines FK (tenant_id, service_id) → services is satisfied

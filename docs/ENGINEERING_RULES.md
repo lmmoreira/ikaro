@@ -112,6 +112,31 @@ Every `save()` in every use case must be wrapped in `ITransactionManager.run()` 
 
 ---
 
+## Aggregate domain events → outbox (repo auto-flush)
+
+The 3 event-emitting aggregates (`Booking`, `Staff`, `Tenant`) never have their events flushed by a use case. Instead, each aggregate's TypeORM repository drains `clearDomainEvents()` into the outbox as the last step of `save()`, inside the same ambient transaction as the business write (TD24-S02, D6):
+
+```ts
+// end of save(), after the entity write — inside the ambient transaction
+await drainDomainEvents(aggregate, this.outboxPublisher);
+```
+
+**Adding a new use case for one of these 3 aggregates:** inject `@Inject(TRANSACTION_MANAGER)` as usual, but do **not** inject `EVENT_BUS`/`OUTBOX_PUBLISHER` and do **not** write a `for (const event of aggregate.clearDomainEvents())` loop — `repo.save()` already does this. A use case that still contains that loop for one of these 3 aggregates is dead code (the aggregate's `clearDomainEvents()` will already be empty by the time the use case's own loop would run).
+
+**Adding a 4th event-emitting aggregate:** its TypeORM repository must inject `@Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher` and call `drainDomainEvents(entity, this.outboxPublisher)` at the end of `save()`, reusing the shared helper (`shared/infrastructure/outbox/drain-domain-events.ts`) rather than hand-rolling the loop — keeps production repos and their in-memory test doubles from drifting apart. `OutboxModule` is `@Global()` and exports `OUTBOX_PUBLISHER`, so no explicit module import is needed to inject it.
+
+**Non-aggregate events** (cron jobs constructing a `Command`, a consumer's re-emit) are unaffected — they still call `eventBus.publish()`/`outboxPublisher.publish()` directly from application code.
+
+| Artifact | Location |
+|---|---|
+| Port | `src/shared/ports/outbox-publisher.port.ts` (`IOutboxPublisher`) |
+| Drain helper | `src/shared/infrastructure/outbox/drain-domain-events.ts` |
+| Real adapter | `src/shared/infrastructure/outbox/outbox-publisher.ts` |
+| Global module | `src/shared/infrastructure/outbox/outbox.module.ts` |
+| Test wiring | in-memory repos (`InMemoryBookingRepository`/`InMemoryStaffRepository`/`InMemoryTenantRepository`) take an optional `IOutboxPublisher` constructor param (default no-op) and drain the same way — pass an `InMemoryEventBus`/`RoutingInMemoryEventBus` instance to observe published events in a spec |
+
+---
+
 ## RequestContext (per-request shared state)
 
 `RequestContext` (`src/shared/request/request-context.ts`) is populated once per HTTP request by `RequestInterceptor` — `tenantId`, `correlationId`, optional `actorId`/`actorType`/`actorRole`, and `settings: TenantSettingsProps` (the tenant's full `tenants.settings` JSONB, eager-loaded via `ITenantSettingsPort` before the request reaches any handler).

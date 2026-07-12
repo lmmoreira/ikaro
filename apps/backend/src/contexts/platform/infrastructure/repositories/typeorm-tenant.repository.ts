@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, QueryFailedError, Repository } from 'typeorm';
+import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { toDate } from '../../../../shared/utils/date';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
@@ -15,6 +17,8 @@ export class TypeOrmTenantRepository implements ITenantRepository {
   constructor(
     @InjectRepository(TenantEntity)
     private readonly repo: Repository<TenantEntity>,
+    @Inject(OUTBOX_PUBLISHER)
+    private readonly outboxPublisher: IOutboxPublisher,
   ) {}
 
   async findBySlug(slug: string): Promise<Tenant | null> {
@@ -46,6 +50,7 @@ export class TypeOrmTenantRepository implements ITenantRepository {
       }
       throw err;
     }
+    await drainDomainEvents(tenant, this.outboxPublisher);
   }
 
   async findByIds(ids: string[]): Promise<Tenant[]> {

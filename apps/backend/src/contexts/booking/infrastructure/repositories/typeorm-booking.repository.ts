@@ -8,7 +8,9 @@ import {
   MoreThanOrEqual,
   Repository,
 } from 'typeorm';
+import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
   ITenantSettingsPort,
   TENANT_SETTINGS_PORT,
@@ -36,6 +38,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     @InjectRepository(BookingLineEntity)
     private readonly lineRepo: Repository<BookingLineEntity>,
     @Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort,
+    @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
   ) {}
 
   async findById(id: string, tenantId: string): Promise<Booking | null> {
@@ -150,6 +153,8 @@ export class TypeOrmBookingRepository implements IBookingRepository {
         }
       });
     }
+
+    await drainDomainEvents(booking, this.outboxPublisher);
   }
 
   private toDomain(

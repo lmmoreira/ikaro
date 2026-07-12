@@ -6,7 +6,9 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { SYSTEM_ACTOR_ID } from '../../../../shared/domain/system-actor';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus/event-bus.module';
+import { OutboxModule } from '../../../../shared/infrastructure/outbox/outbox.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
@@ -27,6 +29,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = PLATFORM_KEY;
 
+    const routingBus = new RoutingInMemoryEventBus();
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
@@ -38,13 +41,16 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
           synchronize: false,
         }),
         EventBusModule,
+        OutboxModule,
         TransactionManagerModule,
         PlatformModule,
         StaffModule,
       ],
     })
       .overrideProvider(EVENT_BUS)
-      .useValue(new RoutingInMemoryEventBus())
+      .useValue(routingBus)
+      .overrideProvider(OUTBOX_PUBLISHER)
+      .useValue(routingBus)
       .overrideProvider(STORAGE_SERVICE)
       .useValue(new InMemoryStorageService())
       .compile();

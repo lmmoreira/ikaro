@@ -2,6 +2,8 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StaffEntityBuilder } from '../../../../test/builders/staff/index';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { Staff } from '../../domain/staff.aggregate';
 import { StaffEntity } from '../entities/staff.entity';
 import { TypeOrmStaffRepository } from './typeorm-staff.repository';
@@ -25,6 +27,7 @@ describe('TypeOrmStaffRepository', () => {
             save: jest.fn(),
           },
         },
+        { provide: OUTBOX_PUBLISHER, useValue: new InMemoryEventBus() },
       ],
     }).compile();
 

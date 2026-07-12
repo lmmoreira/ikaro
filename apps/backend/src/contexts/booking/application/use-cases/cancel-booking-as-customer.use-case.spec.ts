@@ -31,13 +31,9 @@ describe('CancelBookingAsCustomerUseCase', () => {
   let useCase: CancelBookingAsCustomerUseCase;
 
   beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new CancelBookingAsCustomerUseCase(
-      bookingRepo,
-      new InMemoryTransactionManager(),
-      eventBus,
-    );
+    bookingRepo = new InMemoryBookingRepository(eventBus);
+    useCase = new CancelBookingAsCustomerUseCase(bookingRepo, new InMemoryTransactionManager());
   });
 
   describe('cancelling an APPROVED booking', () => {

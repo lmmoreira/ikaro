@@ -6,8 +6,10 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
+import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
+import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
@@ -39,6 +41,8 @@ export async function createPlatformIntegrationApp(
 ): Promise<{ app: INestApplication; ds: DataSource }> {
   const { extraProviders = [], overrideProviders = [], useRealStorage = false } = options;
 
+  const eventBus = new InMemoryEventBus();
+
   let builder = Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true }),
@@ -52,12 +56,15 @@ export async function createPlatformIntegrationApp(
       TransactionManagerModule,
       RequestModule,
       EventBusModule,
+      OutboxModule,
       PlatformModule,
     ],
     providers: [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }, ...extraProviders],
   })
     .overrideProvider(EVENT_BUS)
-    .useValue(new InMemoryEventBus())
+    .useValue(eventBus)
+    .overrideProvider(OUTBOX_PUBLISHER)
+    .useValue(eventBus)
     .overrideProvider(FRONTEND_REVALIDATION_PORT)
     .useValue(new InMemoryFrontendRevalidationPort())
     .overrideProvider(TENANT_SETTINGS_PORT)

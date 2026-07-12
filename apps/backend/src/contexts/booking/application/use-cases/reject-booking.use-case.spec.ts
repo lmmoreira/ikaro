@@ -25,9 +25,9 @@ describe('RejectBookingUseCase', () => {
   let useCase: RejectBookingUseCase;
 
   beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new RejectBookingUseCase(bookingRepo, new InMemoryTransactionManager(), eventBus);
+    bookingRepo = new InMemoryBookingRepository(eventBus);
+    useCase = new RejectBookingUseCase(bookingRepo, new InMemoryTransactionManager());
   });
 
   it('transitions PENDING → REJECTED and returns result with rejectedAt', async () => {

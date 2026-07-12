@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -27,7 +26,6 @@ export class ProvisionTenantUseCase {
   constructor(
     @Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository,
     @Inject(HOTSITE_CONFIG_REPOSITORY) private readonly hotsiteRepo: IHotsiteConfigRepository,
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
@@ -55,10 +53,6 @@ export class ProvisionTenantUseCase {
       await this.tenantRepo.save(tenant);
       await this.hotsiteRepo.save(config);
     });
-
-    for (const event of tenant.clearDomainEvents()) {
-      await this.eventBus.publish(event);
-    }
 
     return { tenantId: tenant.id, name: tenant.name, slug: tenant.slug.value };
   }

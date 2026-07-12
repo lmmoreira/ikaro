@@ -1054,16 +1054,36 @@ for (const { provide, useValue } of overrideProviders) {
 }
 ```
 
-Currently affected helpers and their default overrides:
-
-| Helper | Token overridden by default |
-|---|---|
-| `createBookingIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` |
-| `createNotificationIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` (BookingModule pulled via `extraModules`) |
-
-**When adding a new shared module with a network-calling adapter:** update every integration app helper that imports that module (directly or via `extraModules`) to add a default override for the new token.
+**When adding a new shared module with a network-calling adapter:** update every integration app helper that imports that module (directly or via `extraModules`) to add a default override for the new token. See the consolidated table below (after the `EVENT_BUS`/`OUTBOX_PUBLISHER` section) for the current per-helper override list, including `STORAGE_SERVICE`.
 
 **Root cause gotcha — `useExisting` vs `useClass`:** if the shared module uses `useExisting` to register the adapter (`providers: [Adapter, { provide: TOKEN, useExisting: Adapter }]`), overriding the token in tests only removes the alias — the standalone `Adapter` class is still instantiated. Always use `useClass` in shared module providers so that overriding the token is sufficient to suppress instantiation.
+
+### Dual-token override: `EVENT_BUS` + `OUTBOX_PUBLISHER` (TD24-S02)
+
+Since the 3 event-emitting aggregates' repositories now drain domain events through `OUTBOX_PUBLISHER` (not `EVENT_BUS`) inside `save()`, every integration app helper that imports `OutboxModule` (all 5 do, since `OutboxModule` is `@Global()` but must still be imported once into the test's module graph to be reachable) must override **both** tokens with the **same** bus instance:
+
+```ts
+const routingBus = new RoutingInMemoryEventBus();
+let builder = Test.createTestingModule({ imports: [..., OutboxModule, BookingModule] })
+  .overrideProvider(EVENT_BUS)
+  .useValue(routingBus)
+  .overrideProvider(OUTBOX_PUBLISHER)
+  .useValue(routingBus); // same instance — subscribe (EVENT_BUS) and publish (OUTBOX_PUBLISHER) sides must connect
+```
+
+`RoutingInMemoryEventBus` and `InMemoryEventBus` both satisfy `IOutboxPublisher`'s one-method shape (`publish(event: Envelope): Promise<void>`), so no separate outbox test double is needed. Binding one instance to both tokens keeps a flow test's publish and subscribe sides observably connected — but this means flow tests **bypass the real `shared.outbox` table by design**: outbox persistence itself is covered by TD24-S01's dedicated `OutboxPublisher`/`OutboxRelayService` specs plus TD24-S02's crash/failure/concurrency integration tests (`typeorm-booking.repository.outbox-cutover.integration.spec.ts`). One test per app — `outbox-full-topology.integration.spec.ts` — opts out of the `OUTBOX_PUBLISHER` override (`useRealOutbox: true` on `createNotificationIntegrationApp()`) specifically to exercise the real outbox table + real relay end-to-end.
+
+**`RoutingInMemoryEventBus`'s after-commit deferral (TD24-S02):** `publish()` checks `getActiveEntityManager()` — if a transaction is ambient (the repo is draining events from inside `txManager.run()`), dispatch is deferred via `scheduleAfterCommit()` rather than run synchronously, composing with the existing BFS queue (an enclosing handler's own nested transaction can still be mid-dispatch when the deferred callback fires). Without this, repos draining events **inside** a transaction would trigger handler execution mid-transaction, on a separate DB connection that cannot see the uncommitted write. Because `flushAfterCommitCallbacks` always runs *before* `txManager.run()` returns (see `docs/ENGINEERING_RULES.md §Transactions`), dispatch still completes before each HTTP response resolves — "dispatched after commit, before the HTTP call resolves," not literally synchronous the way the class's name suggests pre-TD24. `InMemoryEventBus` (used by unit specs) needs no such deferral: `InMemoryTransactionManager` never establishes an ambient transaction context, so `scheduleAfterCommit()` always falls through to immediate execution there.
+
+Currently affected helpers and their default overrides:
+
+| Helper | Tokens overridden by default |
+|---|---|
+| `createBookingIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` |
+| `createNotificationIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` (BookingModule pulled via `extraModules`); `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` (pass `useRealOutbox: true` to skip the `OUTBOX_PUBLISHER` override) |
+| `createLoyaltyIntegrationApp()` | `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` |
+| `createPlatformIntegrationApp()` | `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` |
+| `createCustomerIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` |
 
 ### Real-GCS-emulator integration tests (opt-in `useRealStorage`)
 
