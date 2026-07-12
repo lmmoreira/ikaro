@@ -1,4 +1,6 @@
 import type { AddressSpec } from '@ikaro/i18n';
+import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
+import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { Booking } from '../../domain/booking.aggregate';
 import { BookingLineInput } from '../../domain/booking-line.entity';
 import {
@@ -11,7 +13,12 @@ import {
   AddressProps,
   AddressValidationError,
 } from '../../../../shared/value-objects/address';
+import { IBookingRepository } from '../ports/booking-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import {
+  PhotoPromotionOperation,
+  PhotoExistenceService,
+} from '../services/photo-existence.service';
 import { AddressResult, BookingLineResult } from './request-booking.use-case';
 
 export interface BookingRequestResult {
@@ -105,4 +112,29 @@ export async function assertRequestedSlotFreeInTransaction(
   // This validation must stay inside the write transaction because lockTenantDay
   // uses pg_advisory_xact_lock, which only protects the slot check for this tx.
   await slotConflictService.assertSlotFree(tenantId, scheduledAt, totalDurationMins, timezone);
+}
+
+export async function persistRequestedBooking(
+  txManager: ITransactionManager,
+  slotConflictService: BookingSlotConflictService,
+  bookingRepo: IBookingRepository,
+  photoExistenceService: PhotoExistenceService,
+  booking: Booking,
+  tenantId: string,
+  scheduledAt: Date,
+  totalDurationMins: number,
+  timezone: string,
+  operations: PhotoPromotionOperation[],
+): Promise<void> {
+  await txManager.run(async () => {
+    await assertRequestedSlotFreeInTransaction(
+      slotConflictService,
+      tenantId,
+      scheduledAt,
+      totalDurationMins,
+      timezone,
+    );
+    await bookingRepo.save(booking);
+    await scheduleAfterCommit(() => photoExistenceService.executePhotoPromotion(operations));
+  });
 }
