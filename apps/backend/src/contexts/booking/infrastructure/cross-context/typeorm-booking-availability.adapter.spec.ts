@@ -37,7 +37,10 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
       await runWithEntityManager(manager, () => adapter.lockTenantDay('tenant-1', '2026-06-01'));
 
       expect(manager.query).toHaveBeenCalledWith(
-        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0), hashtextextended($2, 0))',
+        `SELECT pg_advisory_xact_lock(
+         hashtextextended($1::text, 0::bigint),
+         hashtextextended($2::text, 0::bigint)
+       )`,
         ['tenant-1', '2026-06-01'],
       );
     });

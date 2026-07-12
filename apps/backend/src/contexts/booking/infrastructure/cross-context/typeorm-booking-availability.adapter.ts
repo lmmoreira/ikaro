@@ -22,7 +22,10 @@ export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPo
     }
 
     await manager.query(
-      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0), hashtextextended($2, 0))',
+      `SELECT pg_advisory_xact_lock(
+         hashtextextended($1::text, 0::bigint),
+         hashtextextended($2::text, 0::bigint)
+       )`,
       [tenantId, date],
     );
   }
