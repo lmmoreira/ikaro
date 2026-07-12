@@ -346,12 +346,7 @@ describe('TypeOrmBookingRepository', () => {
       mockTx.find.mockResolvedValue([lineEntity1, lineEntity2]);
 
       const aggregate = await repo.findById(BOOKING_ID, 'tenant-1');
-      aggregate!.complete(
-        'staff-id',
-        new Map([[LINE_ID_1, Money.from(120, 'BRL')]]),
-        [],
-        'corr-1',
-      );
+      aggregate!.complete('staff-id', new Map([[LINE_ID_1, Money.from(120, 'BRL')]]), [], 'corr-1');
       aggregate!.clearDomainEvents();
       await repo.save(aggregate!);
 
