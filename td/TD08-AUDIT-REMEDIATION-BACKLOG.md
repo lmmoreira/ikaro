@@ -66,7 +66,7 @@
 | **AUD-030** | DB connection pool + PgBouncer + SSL | 🔴 Critical | M | Infra/Deploy | — | §13.1 |
 | **AUD-031** | Introduce Redis (unlocks 032/034/016/011) | 🟠 High | M | Infra/Deploy | — | §13.2 |
 | **AUD-032** | Distributed rate limiting + trust proxy + per-tenant | 🟠 High | S | Infra/Deploy | AUD-031 | §13.2 |
-| **AUD-033** | Readiness probe checks dependencies | 🟠 High | S | Infra/Deploy | — | §13.3 |
+| **AUD-033** | Readiness probe checks dependencies | ✅ Done | S | Infra/Deploy | M17-S04 | §13.3 |
 | **AUD-034** | Wire OpenTelemetry tracing + metrics | 🟠 High | M | Infra/Deploy | — | §13.4 |
 | **AUD-035** | LGPD / PII data-protection plan (design early) | 🟠 High | L | Pre-deploy | — | §13.5 |
 | **AUD-036** | Resilience: retry/backoff + circuit breaker (BFF→backend) | 🟡 Medium | M | Infra/Deploy | — | §13.6 |
@@ -540,10 +540,13 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **Acceptance:** ☐ Rate limits hold across instances; per-tenant throttling works; correct client IP is used.
 
 ### AUD-033 — Readiness probe checks dependencies
-**Risk:** 🟠 High · **Effort:** S · **Phase:** Infra/Deploy · **Audit ref:** §13.3
-**What's wrong:** `health.controller.ts` `/ready` returns static `ok` — never checks DB/Pub/Sub, so traffic routes to instances that can't serve.
-**Fix:** `@nestjs/terminus` (or manual) — `/ready` does a DB `SELECT 1` + Pub/Sub reachability with a short timeout; `/live` stays shallow.
-**Acceptance:** ☐ `/ready` fails when DB/Pub/Sub is unreachable; `/live` unaffected.
+**Status:** ✅ Resolved by **M17-S04 — Real readiness checks (`/health/ready`) on all 3 services**
+
+**What changed:** Backend `/health/ready` now performs a real database readiness check via Terminus/TypeORM, BFF `/health/ready` chains to backend `/health/ready`, and web `/api/health/ready` chains to BFF `/health/ready`. `/health/live` remains shallow on all services.
+
+**Why Pub/Sub is intentionally excluded:** In the current Cloud Run architecture, readiness gates the synchronous REST serving path (`web → BFF → backend → Postgres`). Pub/Sub is an asynchronous integration path, not a prerequisite for serving normal HTTP requests, so it should not take instances out of rotation for readiness/startup purposes.
+
+**Acceptance:** ☑ `/ready` fails when the serving dependency chain is unavailable; `/live` remains unaffected.
 
 ### AUD-034 — Wire OpenTelemetry tracing + metrics
 **Risk:** 🟠 High · **Effort:** M · **Phase:** Infra/Deploy · **Audit ref:** §13.4
