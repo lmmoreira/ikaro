@@ -317,6 +317,53 @@ describe('TypeOrmBookingRepository', () => {
       expect(mockTx.delete).not.toHaveBeenCalled();
     });
 
+    it('saves only the changed line when one line changes among many', async () => {
+      const BOOKING_ID = '00000000-0000-7000-8000-000000000022';
+      const LINE_ID_1 = '00000000-0000-7000-8000-000000000023';
+      const LINE_ID_2 = '00000000-0000-7000-8000-000000000024';
+      const bookingEntity = new BookingEntityBuilder()
+        .withId(BOOKING_ID)
+        .withTenantId('tenant-1')
+        .withStatus('APPROVED')
+        .build();
+      const lineEntity1 = new BookingLineEntityBuilder()
+        .withLineId(LINE_ID_1)
+        .withBookingId(BOOKING_ID)
+        .withTenantId('tenant-1')
+        .withPriceAtBookingAmount('100.00')
+        .withActualPriceChargedAmount('100.00')
+        .build();
+      const lineEntity2 = new BookingLineEntityBuilder()
+        .withLineId(LINE_ID_2)
+        .withBookingId(BOOKING_ID)
+        .withTenantId('tenant-1')
+        .withPriceAtBookingAmount('80.00')
+        .withActualPriceChargedAmount('80.00')
+        .build();
+
+      ormRepo.findOne.mockResolvedValue(bookingEntity);
+      ormLineRepo.find.mockResolvedValue([lineEntity1, lineEntity2]);
+      mockTx.find.mockResolvedValue([lineEntity1, lineEntity2]);
+
+      const aggregate = await repo.findById(BOOKING_ID, 'tenant-1');
+      aggregate!.complete(
+        'staff-id',
+        new Map([[LINE_ID_1, Money.from(120, 'BRL')]]),
+        [],
+        'corr-1',
+      );
+      aggregate!.clearDomainEvents();
+      await repo.save(aggregate!);
+
+      expect(mockTx.delete).not.toHaveBeenCalled();
+      expect(mockTx.save).toHaveBeenCalledWith(BookingLineEntity, [
+        expect.objectContaining({
+          lineId: LINE_ID_1,
+          actualPriceChargedAmount: '120.00',
+        }),
+      ]);
+    });
+
     it('updates changed lines in place without deleting unchanged line ids', async () => {
       const LINE_ID = '00000000-0000-7000-8000-000000000023';
       const bookingEntity = new BookingEntityBuilder()

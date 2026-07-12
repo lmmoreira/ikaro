@@ -140,7 +140,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
     expect(found!.lines[0].priceAtBooking.currency).toBe('USD');
   });
 
-  it('updates persisted line fields in place without replacing the row', async () => {
+  it('persists updated line values while preserving existing line ids', async () => {
     const tenantId = '00000000-0000-7000-8000-000000000062';
 
     // Use a unique service ID to avoid TypeORM UPDATE collision with the beforeAll service

@@ -31,6 +31,16 @@ import { BookingLineEntity } from '../entities/booking-line.entity';
 
 @Injectable()
 export class TypeOrmBookingRepository implements IBookingRepository {
+  private static readonly PERSISTED_LINE_FIELDS: (keyof BookingLineEntity)[] = [
+    'serviceId',
+    'serviceNameAtBooking',
+    'priceAtBookingAmount',
+    'durationMinsAtBooking',
+    'pointsValueAtBooking',
+    'requiresPickupAddressAtBooking',
+    'actualPriceChargedAmount',
+  ];
+
   constructor(
     @InjectRepository(BookingEntity)
     private readonly repo: Repository<BookingEntity>,
@@ -301,17 +311,8 @@ export class TypeOrmBookingRepository implements IBookingRepository {
   }
 
   private sameLinePersistenceState(current: BookingLineEntity, next: BookingLineEntity): boolean {
-    return (
-      current.lineId === next.lineId &&
-      current.bookingId === next.bookingId &&
-      current.tenantId === next.tenantId &&
-      current.serviceId === next.serviceId &&
-      current.serviceNameAtBooking === next.serviceNameAtBooking &&
-      current.priceAtBookingAmount === next.priceAtBookingAmount &&
-      current.durationMinsAtBooking === next.durationMinsAtBooking &&
-      current.pointsValueAtBooking === next.pointsValueAtBooking &&
-      current.requiresPickupAddressAtBooking === next.requiresPickupAddressAtBooking &&
-      current.actualPriceChargedAmount === next.actualPriceChargedAmount
+    return TypeOrmBookingRepository.PERSISTED_LINE_FIELDS.every(
+      (field) => current[field] === next[field],
     );
   }
 }
