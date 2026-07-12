@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Between,
+  EntityManager,
   FindOptionsWhere,
   In,
   LessThanOrEqual,
@@ -30,6 +31,16 @@ import { BookingLineEntity } from '../entities/booking-line.entity';
 
 @Injectable()
 export class TypeOrmBookingRepository implements IBookingRepository {
+  private static readonly PERSISTED_LINE_FIELDS: (keyof BookingLineEntity)[] = [
+    'serviceId',
+    'serviceNameAtBooking',
+    'priceAtBookingAmount',
+    'durationMinsAtBooking',
+    'pointsValueAtBooking',
+    'requiresPickupAddressAtBooking',
+    'actualPriceChargedAmount',
+  ];
+
   constructor(
     @InjectRepository(BookingEntity)
     private readonly repo: Repository<BookingEntity>,
@@ -129,26 +140,47 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     if (manager) {
       await manager.save(BookingEntity, bookingEntity);
       if (booking.linesModified) {
-        const lineEntities = booking.lines.map((l) =>
-          this.toLineEntity(l, booking.id, booking.tenantId),
-        );
-        await manager.delete(BookingLineEntity, {
-          bookingId: booking.id,
-          tenantId: booking.tenantId,
-        });
-        await manager.save(BookingLineEntity, lineEntities);
+        await this.syncBookingLines(manager, booking);
       }
     } else {
       await this.repo.manager.transaction(async (tx) => {
         await tx.save(BookingEntity, bookingEntity);
         if (booking.linesModified) {
-          const lineEntities = booking.lines.map((l) =>
-            this.toLineEntity(l, booking.id, booking.tenantId),
-          );
-          await tx.delete(BookingLineEntity, { bookingId: booking.id, tenantId: booking.tenantId });
-          await tx.save(BookingLineEntity, lineEntities);
+          await this.syncBookingLines(tx, booking);
         }
       });
+    }
+  }
+
+  private async syncBookingLines(manager: EntityManager, booking: Booking): Promise<void> {
+    const currentLineEntities = await manager.find(BookingLineEntity, {
+      where: { bookingId: booking.id, tenantId: booking.tenantId },
+    });
+    const currentByLineId = new Map(currentLineEntities.map((line) => [line.lineId, line]));
+
+    const nextLineEntities = booking.lines.map((line) =>
+      this.toLineEntity(line, booking.id, booking.tenantId),
+    );
+    const nextLineIds = new Set(nextLineEntities.map((line) => line.lineId));
+
+    const lineIdsToDelete = currentLineEntities
+      .filter((line) => !nextLineIds.has(line.lineId))
+      .map((line) => line.lineId);
+    const lineEntitiesToSave = nextLineEntities.filter((line) => {
+      const current = currentByLineId.get(line.lineId);
+      return !current || !this.sameLinePersistenceState(current, line);
+    });
+
+    if (lineIdsToDelete.length) {
+      await manager.delete(BookingLineEntity, {
+        bookingId: booking.id,
+        tenantId: booking.tenantId,
+        lineId: In(lineIdsToDelete),
+      });
+    }
+
+    if (lineEntitiesToSave.length) {
+      await manager.save(BookingLineEntity, lineEntitiesToSave);
     }
   }
 
@@ -276,5 +308,11 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     entity.requiresPickupAddressAtBooking = line.requiresPickupAddressAtBooking;
     entity.actualPriceChargedAmount = line.actualPriceCharged?.amount.toFixed(2) ?? null;
     return entity;
+  }
+
+  private sameLinePersistenceState(current: BookingLineEntity, next: BookingLineEntity): boolean {
+    return TypeOrmBookingRepository.PERSISTED_LINE_FIELDS.every(
+      (field) => current[field] === next[field],
+    );
   }
 }

@@ -59,7 +59,7 @@
 | **AUD-024** | CI efficiency: dedupe test runs, docker cache, trivy ✅ | 🟡 Medium | S | Now | — | §9.3, §9.6 |
 | **AUD-025** | Public-image CDN delivery vs signed URLs | 🟡 Medium | S | Pre-deploy | — | §8.5 |
 | **AUD-026** | Reconsider `BackendHttpService` request scope | 🟡 Medium | M | Now | — | §5.4 |
-| **AUD-027** | Booking-lines diff-upsert (drop delete-all) | 🔵 Low | S | Now | — | §5.5 |
+| **AUD-027** | Booking-lines diff-upsert (drop delete-all) ✅ | 🔵 Low | S | Now | — | §5.5 |
 | **AUD-028** | Polish bundle (VO error mapping, default params, minor) | 🔵 Low | S | Now | — | §6, §8.7, §10.7 |
 | **AUD-029** | Mutation testing on domain layer (Stryker) | 🔵 Low | S | Now | — | §11.9 |
 | — | **DEFERRED TO INFRA/DEPLOY PHASE** ↓ | | | | | |
@@ -501,7 +501,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **Risk:** 🔵 Low · **Effort:** S · **Phase:** Now · **Audit ref:** §5.5
 **What's wrong:** `typeorm-booking.repository.ts:122-131` deletes all lines and re-inserts on every modifying save — write amplification, index churn, discards line identity.
 **Fix:** Diff-and-upsert (insert new, update changed, delete removed) when justified. Low urgency at MVP volumes.
-**Acceptance:** ☐ Line saves no longer delete-all unless the line set actually changed.
+**Acceptance:** ☑ Line saves no longer delete-all unless the line set actually changed.
 
 ### AUD-028 — Polish bundle (VO error mapping, default params, minor notes)
 **Risk:** 🔵 Low · **Effort:** S · **Phase:** Now · **Audit ref:** §6, §8.7, §10.7
