@@ -8,6 +8,7 @@ import {
   AvailabilityRangeInvalidError,
   BookingAddressValidationError,
   BookingCustomerNotFoundError,
+  BookingConcurrentModificationError,
   BookingDiscountDisabledError,
   BookingDiscountExceedsTotalError,
   BookingDiscountMismatchError,
@@ -75,7 +76,8 @@ export function mapBookingError(err: unknown): never {
     err instanceof ServiceDeactivatedError ||
     err instanceof ScheduleAlreadyClosedError ||
     err instanceof ScheduleOpeningAlreadyExistsError ||
-    err instanceof BookingSlotUnavailableError
+    err instanceof BookingSlotUnavailableError ||
+    err instanceof BookingConcurrentModificationError
   ) {
     throw throwProblemDetail(HttpStatus.CONFLICT, err.code, err.message, err.field);
   }

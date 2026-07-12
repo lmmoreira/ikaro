@@ -1,7 +1,8 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { BookingEntityBuilder } from '../../../../test/builders/booking/index';
+import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingEntity } from '../entities/booking.entity';
 import { TypeOrmBookingAvailabilityAdapter } from './typeorm-booking-availability.adapter';
@@ -30,6 +31,17 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
   });
 
   describe('findApprovedByTenantAndDate', () => {
+    it('uses a 64-bit advisory transaction lock per tenant/day', async () => {
+      const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
+
+      await runWithEntityManager(manager, () => adapter.lockTenantDay('tenant-1', '2026-06-01'));
+
+      expect(manager.query).toHaveBeenCalledWith(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0), hashtextextended($2, 0))',
+        ['tenant-1', '2026-06-01'],
+      );
+    });
+
     it('returns empty array when no approved bookings on that date', async () => {
       ormRepo.find.mockResolvedValue([]);
 

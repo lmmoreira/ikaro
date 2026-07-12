@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { Between, LessThanOrEqual, MoreThanOrEqual, QueryFailedError, Repository } from 'typeorm';
 import {
   BookingEntityBuilder,
   BookingLineEntityBuilder,
@@ -11,6 +11,11 @@ import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port
 import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { Money } from '../../../../shared/value-objects/money';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import {
+  BookingConcurrentModificationError,
+  BookingNotFoundError,
+  BookingSlotUnavailableError,
+} from '../../domain/errors/booking-domain.error';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { TypeOrmBookingRepository } from './typeorm-booking.repository';
@@ -439,6 +444,72 @@ describe('TypeOrmBookingRepository', () => {
 
       expect(mockUpdateBuilder.set).toHaveBeenCalledWith(
         expect.objectContaining({ totalPriceAmount: '250.50' }),
+      );
+    });
+
+    it('maps exclusion violations from QueryFailedError.driverError to BookingSlotUnavailableError', async () => {
+      const bookingEntity = new BookingEntityBuilder()
+        .withId('00000000-0000-7000-8000-000000000021')
+        .withTenantId('tenant-2')
+        .build();
+      const lineEntity = new BookingLineEntityBuilder()
+        .withBookingId('00000000-0000-7000-8000-000000000021')
+        .withTenantId('tenant-2')
+        .build();
+
+      ormRepo.findOne.mockResolvedValue(bookingEntity);
+      ormLineRepo.find.mockResolvedValue([lineEntity]);
+      mockUpdateBuilder.execute.mockRejectedValue(
+        new QueryFailedError('UPDATE booking.bookings ...', [], Object.assign(new Error(), {
+          code: '23P01',
+          constraint: 'EX_booking_bookings_approved_slot',
+        })),
+      );
+
+      const aggregate = await repo.findById('00000000-0000-7000-8000-000000000021', 'tenant-2');
+
+      await expect(repo.save(aggregate!)).rejects.toBeInstanceOf(BookingSlotUnavailableError);
+    });
+
+    it('throws BookingNotFoundError when the guarded update row is gone', async () => {
+      const bookingEntity = new BookingEntityBuilder()
+        .withId('00000000-0000-7000-8000-000000000020')
+        .withTenantId('tenant-1')
+        .build();
+      const lineEntity = new BookingLineEntityBuilder()
+        .withBookingId('00000000-0000-7000-8000-000000000020')
+        .withTenantId('tenant-1')
+        .build();
+
+      ormRepo.findOne.mockResolvedValue(bookingEntity);
+      ormLineRepo.find.mockResolvedValue([lineEntity]);
+      mockUpdateBuilder.execute.mockResolvedValue({ affected: 0 });
+      mockTx.findOne.mockResolvedValue(null);
+
+      const aggregate = await repo.findById('00000000-0000-7000-8000-000000000020', 'tenant-1');
+
+      await expect(repo.save(aggregate!)).rejects.toBeInstanceOf(BookingNotFoundError);
+    });
+
+    it('throws BookingConcurrentModificationError when the guarded update sees a newer row', async () => {
+      const bookingEntity = new BookingEntityBuilder()
+        .withId('00000000-0000-7000-8000-000000000020')
+        .withTenantId('tenant-1')
+        .build();
+      const lineEntity = new BookingLineEntityBuilder()
+        .withBookingId('00000000-0000-7000-8000-000000000020')
+        .withTenantId('tenant-1')
+        .build();
+
+      ormRepo.findOne.mockResolvedValue(bookingEntity);
+      ormLineRepo.find.mockResolvedValue([lineEntity]);
+      mockUpdateBuilder.execute.mockResolvedValue({ affected: 0 });
+      mockTx.findOne.mockResolvedValue({ version: 2 });
+
+      const aggregate = await repo.findById('00000000-0000-7000-8000-000000000020', 'tenant-1');
+
+      await expect(repo.save(aggregate!)).rejects.toBeInstanceOf(
+        BookingConcurrentModificationError,
       );
     });
   });

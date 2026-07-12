@@ -56,6 +56,8 @@ export class ApproveBookingUseCase {
     }
 
     await this.txManager.run(async () => {
+      // This validation must stay inside the write transaction because lockTenantDay
+      // uses pg_advisory_xact_lock, which only protects the slot check for this tx.
       await this.slotConflictService.assertSlotFree(
         tenantId,
         scheduledAt,

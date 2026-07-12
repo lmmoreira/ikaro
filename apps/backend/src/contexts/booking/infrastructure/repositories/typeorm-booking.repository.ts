@@ -7,7 +7,6 @@ import {
   In,
   LessThanOrEqual,
   MoreThanOrEqual,
-  OptimisticLockVersionMismatchError,
   QueryFailedError,
   Repository,
 } from 'typeorm';
@@ -29,7 +28,11 @@ import {
   BookingPaginatedResult,
   IBookingRepository,
 } from '../../application/ports/booking-repository.port';
-import { BookingSlotUnavailableError } from '../../domain/errors/booking-domain.error';
+import {
+  BookingConcurrentModificationError,
+  BookingNotFoundError,
+  BookingSlotUnavailableError,
+} from '../../domain/errors/booking-domain.error';
 import { Booking, BookingProps, BookingStatus, BookingType } from '../../domain/booking.aggregate';
 import { BookingLine } from '../../domain/booking-line.entity';
 import { BookingEntity } from '../entities/booking.entity';
@@ -154,11 +157,20 @@ export class TypeOrmBookingRepository implements IBookingRepository {
         });
       }
     } catch (err) {
+      const driverError =
+        err instanceof QueryFailedError
+          ? (err as QueryFailedError & {
+              code?: string;
+              constraint?: string;
+              driverError?: { code?: string; constraint?: string };
+            })
+          : null;
+      const code = driverError?.driverError?.code ?? driverError?.code;
+      const constraint = driverError?.driverError?.constraint ?? driverError?.constraint;
       if (
         err instanceof QueryFailedError &&
-        (err as QueryFailedError & { code?: string; constraint?: string }).code === '23P01' &&
-        (err as QueryFailedError & { code?: string; constraint?: string }).constraint ===
-          TypeOrmBookingRepository.APPROVED_SLOT_EXCLUSION
+        code === '23P01' &&
+        constraint === TypeOrmBookingRepository.APPROVED_SLOT_EXCLUSION
       ) {
         throw new BookingSlotUnavailableError();
       }
@@ -188,11 +200,10 @@ export class TypeOrmBookingRepository implements IBookingRepository {
           where: { id: booking.id, tenantId: booking.tenantId },
           select: { version: true },
         });
-        throw new OptimisticLockVersionMismatchError(
-          BookingEntity.name,
-          booking.version,
-          current?.version ?? booking.version,
-        );
+        if (!current) {
+          throw new BookingNotFoundError(booking.id);
+        }
+        throw new BookingConcurrentModificationError();
       }
     }
 
@@ -371,43 +382,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
   }
 
   private toUpdateSet(bookingEntity: BookingEntity): QueryDeepPartialEntity<BookingEntity> {
-    return {
-      status: bookingEntity.status,
-      type: bookingEntity.type,
-      customerId: bookingEntity.customerId,
-      contactEmail: bookingEntity.contactEmail,
-      contactName: bookingEntity.contactName,
-      contactPhone: bookingEntity.contactPhone,
-      contactAddress: bookingEntity.contactAddress,
-      pickupAddress: bookingEntity.pickupAddress,
-      notes: bookingEntity.notes,
-      scheduledAt: bookingEntity.scheduledAt,
-      scheduledEndAt: bookingEntity.scheduledEndAt,
-      totalDurationMins: bookingEntity.totalDurationMins,
-      totalPriceAmount: bookingEntity.totalPriceAmount,
-      totalActualPriceAmount: bookingEntity.totalActualPriceAmount,
-      discountPointsUsed: bookingEntity.discountPointsUsed,
-      discountAmount: bookingEntity.discountAmount,
-      beforeServicePhotoUrls: bookingEntity.beforeServicePhotoUrls,
-      afterServicePhotoUrls: bookingEntity.afterServicePhotoUrls,
-      adminNotes: bookingEntity.adminNotes,
-      infoRequestMessage: bookingEntity.infoRequestMessage,
-      infoRequestedAt: bookingEntity.infoRequestedAt,
-      infoRequestedBy: bookingEntity.infoRequestedBy,
-      infoResponseMessage: bookingEntity.infoResponseMessage,
-      infoSubmittedAt: bookingEntity.infoSubmittedAt,
-      approvedAt: bookingEntity.approvedAt,
-      approvedBy: bookingEntity.approvedBy,
-      completedAt: bookingEntity.completedAt,
-      completedBy: bookingEntity.completedBy,
-      cancelledAt: bookingEntity.cancelledAt,
-      cancelledBy: bookingEntity.cancelledBy,
-      cancellationReason: bookingEntity.cancellationReason,
-      rejectedAt: bookingEntity.rejectedAt,
-      rejectedBy: bookingEntity.rejectedBy,
-      rejectionReason: bookingEntity.rejectionReason,
-      updatedAt: bookingEntity.updatedAt,
-      version: () => '"version" + 1',
-    };
+    const { id, tenantId, createdAt, version, ...updatable } = bookingEntity;
+    return { ...updatable, version: () => '"version" + 1' };
   }
 }

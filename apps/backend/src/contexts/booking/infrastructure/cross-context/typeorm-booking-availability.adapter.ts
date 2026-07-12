@@ -21,10 +21,10 @@ export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPo
       throw new Error('Booking slot lock requires an active transaction');
     }
 
-    await manager.query('SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))', [
-      tenantId,
-      date,
-    ]);
+    await manager.query(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0), hashtextextended($2, 0))',
+      [tenantId, date],
+    );
   }
 
   async findApprovedByTenantAndDate(tenantId: string, date: string): Promise<BookedSlot[]> {

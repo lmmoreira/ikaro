@@ -1,4 +1,4 @@
-import { DataSource, OptimisticLockVersionMismatchError } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { BookingBuilder, ServiceEntityBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -8,6 +8,7 @@ import { Money } from '../../../../shared/value-objects/money';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingLine } from '../../domain/booking-line.entity';
+import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
@@ -245,7 +246,7 @@ describe('TypeOrmBookingRepository (integration)', () => {
     expect(results.some((b) => b.id === pending.id)).toBe(false);
   });
 
-  it('throws OptimisticLockVersionMismatchError when saving a stale loaded aggregate', async () => {
+  it('throws BookingConcurrentModificationError when saving a stale loaded aggregate', async () => {
     const tenantId = '00000000-0000-7000-8000-000000000067';
     const serviceId = '00000000-0000-7000-8000-000000000083';
     await dataSource
@@ -282,6 +283,6 @@ describe('TypeOrmBookingRepository (integration)', () => {
 
     await repo.save(copyA!);
 
-    await expect(repo.save(copyB!)).rejects.toBeInstanceOf(OptimisticLockVersionMismatchError);
+    await expect(repo.save(copyB!)).rejects.toBeInstanceOf(BookingConcurrentModificationError);
   });
 });

@@ -136,6 +136,16 @@ export class BookingSlotUnavailableError extends BookingDomainError {
   }
 }
 
+export class BookingConcurrentModificationError extends BookingDomainError {
+  constructor() {
+    super(
+      'This booking was changed by another request. Reload it and try again.',
+      BookingErrorCode.CONCURRENT_MODIFICATION,
+    );
+    this.name = 'BookingConcurrentModificationError';
+  }
+}
+
 export class BookingServiceNotActiveError extends BookingDomainError {
   constructor(id: string) {
     super(`Service is not active: ${id}`, BookingErrorCode.SERVICE_NOT_ACTIVE);
