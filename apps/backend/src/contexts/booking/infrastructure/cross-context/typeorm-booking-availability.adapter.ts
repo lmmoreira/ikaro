@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
+import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { endOfDayUTC, startOfDayUTC } from '../../../../shared/utils/calendar-date';
 import { IBookingAvailabilityPort } from '../../application/ports/booking-availability.port';
 import { BookedSlot } from '../../domain/booked-slot';
@@ -13,6 +14,18 @@ export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPo
     @InjectRepository(BookingEntity)
     private readonly repo: Repository<BookingEntity>,
   ) {}
+
+  async lockTenantDay(tenantId: string, date: string): Promise<void> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('Booking slot lock requires an active transaction');
+    }
+
+    await manager.query('SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))', [
+      tenantId,
+      date,
+    ]);
+  }
 
   async findApprovedByTenantAndDate(tenantId: string, date: string): Promise<BookedSlot[]> {
     return this.queryApproved(tenantId, startOfDayUTC(date), endOfDayUTC(date));
@@ -31,7 +44,9 @@ export class TypeOrmBookingAvailabilityAdapter implements IBookingAvailabilityPo
     isoStart: string,
     isoEnd: string,
   ): Promise<BookedSlot[]> {
-    const entities = await this.repo.find({
+    const manager = getActiveEntityManager();
+    const repository = manager ? manager.getRepository(BookingEntity) : this.repo;
+    const entities = await repository.find({
       where: {
         tenantId,
         status: BookingStatus.APPROVED,

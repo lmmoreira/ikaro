@@ -55,16 +55,14 @@ export class ApproveBookingUseCase {
       if (scheduledAt <= new Date()) throw new BookingScheduledInPastError();
     }
 
-    await this.slotConflictService.assertSlotFree(
-      tenantId,
-      scheduledAt,
-      booking.totalDurationMins,
-      input.timezone,
-    );
-
-    booking.approve(staffId, correlationId, input.scheduledAt ? scheduledAt : undefined);
-
     await this.txManager.run(async () => {
+      await this.slotConflictService.assertSlotFree(
+        tenantId,
+        scheduledAt,
+        booking.totalDurationMins,
+        input.timezone,
+      );
+      booking.approve(staffId, correlationId, input.scheduledAt ? scheduledAt : undefined);
       await this.bookingRepo.save(booking);
     });
 

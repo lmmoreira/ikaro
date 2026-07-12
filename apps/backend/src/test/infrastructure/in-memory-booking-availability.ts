@@ -9,6 +9,10 @@ export class InMemoryBookingAvailabilityPort implements IBookingAvailabilityPort
     this.slots.push(...slots);
   }
 
+  async lockTenantDay(_tenantId: string, _date: string): Promise<void> {
+    return undefined;
+  }
+
   async findApprovedByTenantAndDate(_tenantId: string, _date: string): Promise<BookedSlot[]> {
     return [...this.slots];
   }

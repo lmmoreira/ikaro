@@ -21,6 +21,7 @@ export class BookingSlotConflictService {
     excludeBookingId?: string,
   ): Promise<void> {
     const localDate = utcDateToLocalDate(scheduledAt, timezone);
+    await this.availabilityPort.lockTenantDay(tenantId, localDate);
     const existing = await this.availabilityPort.findApprovedByTenantAndDate(tenantId, localDate);
     const slots = excludeBookingId ? existing.filter((s) => s.id !== excludeBookingId) : existing;
     const bookingEnd = scheduledAt.getTime() + totalDurationMins * 60_000;

@@ -80,12 +80,6 @@ export class RequestBookingUseCase {
       0,
     );
 
-    await this.slotConflictService.assertSlotFree(
-      tenantId,
-      scheduledAt,
-      totalDurationMins,
-      timezone,
-    );
     const bookingId = uuidv7();
     const { permanentPaths: beforeServicePhotoUrls, operations } =
       await this.photoExistenceService.preparePhotoPromotion(
@@ -128,6 +122,12 @@ export class RequestBookingUseCase {
     });
 
     await this.txManager.run(async () => {
+      await this.slotConflictService.assertSlotFree(
+        tenantId,
+        scheduledAt,
+        totalDurationMins,
+        timezone,
+      );
       await this.bookingRepo.save(booking);
       await scheduleAfterCommit(() => this.photoExistenceService.executePhotoPromotion(operations));
     });

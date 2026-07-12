@@ -42,17 +42,15 @@ export class RescheduleBookingUseCase {
     const newScheduledAt = new Date(input.scheduledAt);
     if (newScheduledAt <= new Date()) throw new BookingScheduledInPastError();
 
-    await this.slotConflictService.assertSlotFree(
-      tenantId,
-      newScheduledAt,
-      booking.totalDurationMins,
-      timezone,
-      booking.id,
-    );
-
-    booking.reschedule(staffId, newScheduledAt, correlationId, input.adminNotes);
-
     await this.txManager.run(async () => {
+      await this.slotConflictService.assertSlotFree(
+        tenantId,
+        newScheduledAt,
+        booking.totalDurationMins,
+        timezone,
+        booking.id,
+      );
+      booking.reschedule(staffId, newScheduledAt, correlationId, input.adminNotes);
       await this.bookingRepo.save(booking);
     });
 

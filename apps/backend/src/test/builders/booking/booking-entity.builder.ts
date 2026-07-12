@@ -114,6 +114,7 @@ export class BookingEntityBuilder {
     entity.pickupAddress = this.pickupAddress;
     entity.notes = this.notes;
     entity.scheduledAt = this.scheduledAt;
+    entity.scheduledEndAt = new Date(this.scheduledAt.getTime() + this.totalDurationMins * 60_000);
     entity.totalDurationMins = this.totalDurationMins;
     entity.totalPriceAmount = this.totalPriceAmount;
     entity.totalActualPriceAmount = this.totalActualPriceAmount;

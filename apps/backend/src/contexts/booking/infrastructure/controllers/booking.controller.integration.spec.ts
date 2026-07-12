@@ -599,6 +599,39 @@ describe('BookingController (integration)', () => {
       expect(body.status).toBe(409);
     });
 
+    it('serializes concurrent approvals for the same slot so exactly one succeeds', async () => {
+      const conflictScheduledAt = `${futureDate(11)}T11:00:00.000Z`;
+
+      const { body: first } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({ ...validBody(), scheduledAt: conflictScheduledAt })
+        .expect(201);
+
+      const { body: second } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({ ...validBody(), scheduledAt: conflictScheduledAt })
+        .expect(201);
+
+      const [firstApproval, secondApproval] = await Promise.all([
+        request(app.getHttpServer())
+          .patch(`/bookings/${first.bookingId}/approve`)
+          .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER')),
+        request(app.getHttpServer())
+          .patch(`/bookings/${second.bookingId}/approve`)
+          .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER')),
+      ]);
+
+      const statuses = [firstApproval.status, secondApproval.status].sort((a, b) => a - b);
+      expect(statuses).toEqual([200, 409]);
+
+      const approvedRows = await ds.getRepository(BookingEntity).find({
+        where: { tenantId: tenantAId, status: 'APPROVED', scheduledAt: new Date(conflictScheduledAt) },
+      });
+      expect(approvedRows).toHaveLength(1);
+    });
+
     it('returns 422 when trying to approve an already-APPROVED booking', async () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
