@@ -259,7 +259,7 @@ export class BookingsController {
       const secret = this.config.getOrThrow<string>('JWT_SECRET');
       const tokenPayload = verifyGuestToken(body.guestToken, secret);
       if (!tokenPayload) {
-        throwProblemDetail(
+        throw throwProblemDetail(
           HttpStatus.UNAUTHORIZED,
           BffErrorCode.GUEST_TOKEN_INVALID,
           'Invalid or expired guest token',
@@ -479,7 +479,7 @@ export class BookingsController {
     );
 
     if (detail.status !== 'INFO_REQUESTED') {
-      throwProblemDetail(
+      throw throwProblemDetail(
         HttpStatus.CONFLICT,
         BffErrorCode.GUEST_BOOKING_NOT_AWAITING_INFO,
         'Booking is no longer awaiting additional information',
@@ -491,7 +491,7 @@ export class BookingsController {
 
   private verifyGuestTokenOrThrow(id: string, token: string | undefined): GuestTokenPayload {
     if (!token) {
-      throwProblemDetail(
+      throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
         BffErrorCode.GUEST_TOKEN_MISSING,
         'token query parameter is required',
@@ -501,7 +501,7 @@ export class BookingsController {
     const secret = this.config.getOrThrow<string>('JWT_SECRET');
     const payload = verifyGuestToken(token, secret);
     if (!payload) {
-      throwProblemDetail(
+      throw throwProblemDetail(
         HttpStatus.UNAUTHORIZED,
         BffErrorCode.GUEST_TOKEN_INVALID,
         'Invalid or expired guest token',
@@ -509,7 +509,7 @@ export class BookingsController {
     }
 
     if (payload.bookingId !== id) {
-      throwProblemDetail(
+      throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
         BffErrorCode.GUEST_TOKEN_BOOKING_MISMATCH,
         'Token bookingId does not match route',

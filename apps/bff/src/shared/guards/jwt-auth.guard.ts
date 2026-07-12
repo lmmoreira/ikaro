@@ -23,7 +23,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest<T>(err: Error | null, user: T): T {
     if (err || !user) {
-      throwProblemDetail(HttpStatus.UNAUTHORIZED, AuthErrorCode.UNAUTHORIZED, 'Valid JWT required');
+      throw throwProblemDetail(
+        HttpStatus.UNAUTHORIZED,
+        AuthErrorCode.UNAUTHORIZED,
+        'Valid JWT required',
+      );
     }
     return user;
   }

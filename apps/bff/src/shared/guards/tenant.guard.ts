@@ -25,7 +25,7 @@ export class TenantGuard implements CanActivate {
     if (!tenantSlug) return true;
 
     if (tenantSlug !== user.tenantSlug) {
-      throwProblemDetail(
+      throw throwProblemDetail(
         HttpStatus.FORBIDDEN,
         AuthErrorCode.TENANT_MISMATCH,
         'X-Tenant-Slug does not match the tenant in your JWT',

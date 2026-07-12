@@ -122,7 +122,7 @@ export class CustomersController {
     return tenants.map((t, i) => {
       const tenantInfo = tenantMap.get(t.tenantId);
       if (!tenantInfo) {
-        throwProblemDetail(
+        throw throwProblemDetail(
           HttpStatus.INTERNAL_SERVER_ERROR,
           BffErrorCode.TENANT_LOOKUP_INCONSISTENT,
           `Tenant ${t.tenantId} missing from batch response`,

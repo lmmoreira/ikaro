@@ -10,7 +10,7 @@ export async function withPublicTenant<T>(
   run: (tenantId: string) => Promise<T>,
 ): Promise<T> {
   if (!tenantSlug) {
-    throwProblemDetail(
+    throw throwProblemDetail(
       HttpStatus.BAD_REQUEST,
       BffErrorCode.TENANT_SLUG_HEADER_REQUIRED,
       'X-Tenant-Slug header is required',

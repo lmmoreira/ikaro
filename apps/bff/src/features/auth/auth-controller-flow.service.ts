@@ -131,7 +131,7 @@ async function getStaffTenants(backendHttp: BackendHttpService): Promise<StaffTe
   return activeStaff.map((s) => {
     const tenantInfo = tenantMap.get(s.tenantId);
     if (!tenantInfo) {
-      throwProblemDetail(
+      throw throwProblemDetail(
         HttpStatus.INTERNAL_SERVER_ERROR,
         BffErrorCode.TENANT_LOOKUP_INCONSISTENT,
         `Tenant ${s.tenantId} missing from batch response`,
@@ -161,7 +161,7 @@ async function switchStaffTenant(
     // Caller is already authenticated (switching between their own linked tenants) — not a
     // pre-auth prober, so a specific code doesn't create an enumeration risk (TD23 Story 11
     // security review).
-    throwProblemDetail(
+    throw throwProblemDetail(
       HttpStatus.FORBIDDEN,
       BffErrorCode.STAFF_NOT_REGISTERED_IN_TENANT,
       'Staff record not found or not active',
@@ -202,7 +202,7 @@ async function switchTenant(
     // Caller is already authenticated (switching between their own linked tenants) — not a
     // pre-auth prober, so a specific code doesn't create an enumeration risk (TD23 Story 11
     // security review).
-    throwProblemDetail(
+    throw throwProblemDetail(
       HttpStatus.FORBIDDEN,
       BffErrorCode.CUSTOMER_NOT_REGISTERED_IN_TENANT,
       'Customer is not registered in the target tenant',
@@ -245,14 +245,14 @@ async function devLogin(
   };
 }> {
   if (config.get<string>('ENABLE_DEV_AUTH') !== 'true') {
-    throwProblemDetail(
+    throw throwProblemDetail(
       HttpStatus.FORBIDDEN,
       BffErrorCode.DEV_AUTH_UNAVAILABLE,
       'Dev auth is not enabled',
     );
   }
   if (config.get<'local' | 'staging' | 'production'>('APP_ENV', 'local') === 'production') {
-    throwProblemDetail(
+    throw throwProblemDetail(
       HttpStatus.FORBIDDEN,
       BffErrorCode.DEV_AUTH_UNAVAILABLE,
       'Dev auth is not available in production',
@@ -295,7 +295,7 @@ async function devLogin(
     if (googleOAuthId.length > 255) {
       // No VO backs this dev-only length check — reuses GenericErrorCode per
       // docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code.
-      throwProblemDetail(
+      throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
         GenericErrorCode.VALUE_TOO_LONG,
         'Email too long for dev auth',

@@ -21,7 +21,7 @@ export class RolesGuard implements CanActivate {
     const user = req.user as CurrentUserPayload | undefined;
 
     if (!user || !requiredRoles.includes(user.role)) {
-      throwProblemDetail(
+      throw throwProblemDetail(
         HttpStatus.FORBIDDEN,
         AuthErrorCode.FORBIDDEN,
         `One of the following roles is required: ${requiredRoles.join(', ')}`,

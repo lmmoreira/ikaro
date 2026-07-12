@@ -59,7 +59,7 @@ export class ActiveStaffGuard implements CanActivate {
       );
 
       if (!data.isActive) {
-        throwProblemDetail(
+        throw throwProblemDetail(
           HttpStatus.FORBIDDEN,
           StaffErrorCode.DEACTIVATED,
           'Your account has been deactivated',
@@ -72,7 +72,7 @@ export class ActiveStaffGuard implements CanActivate {
       if (err instanceof AxiosError) {
         if (!err.response) {
           // Genuine network-level failure (timeout, connection refused) — no response at all.
-          throwProblemDetail(
+          throw throwProblemDetail(
             HttpStatus.SERVICE_UNAVAILABLE,
             BffErrorCode.UPSTREAM_UNAVAILABLE,
             'Could not verify staff account status',
@@ -83,7 +83,7 @@ export class ActiveStaffGuard implements CanActivate {
           // the caller's own staffId can only mean a stale/mismatched JWT. Fail closed, not
           // open: there is no benign case where "allow the request through" is the safe
           // default here (TD23 Story 11 discovery).
-          throwProblemDetail(
+          throw throwProblemDetail(
             HttpStatus.UNAUTHORIZED,
             AuthErrorCode.UNAUTHORIZED,
             'Session is no longer valid',
