@@ -43,11 +43,12 @@ export class RoutingInMemoryEventBus implements IEventBus, ITriggerBus, IOutboxP
   private dispatching = false;
 
   async publish(event: Envelope): Promise<void> {
-    this.published.push(event);
-
     if (getActiveEntityManager()) {
-      // Ambient transaction active — defer until it commits (mirrors the outbox's real
-      // "record now, dispatch after commit" semantics for OUTBOX_PUBLISHER callers).
+      // Ambient transaction active — defer until it commits. `.published` is recorded inside
+      // enqueueOrDispatch(), not here — the deferred callback only ever runs after a real commit
+      // (flushAfterCommitCallbacks runs outside any ambient scope), so a transaction that later
+      // rolls back never leaves a phantom entry in `.published` for a business fact that didn't
+      // durably happen.
       await scheduleAfterCommit(() => this.enqueueOrDispatch(event));
       return;
     }
@@ -56,6 +57,8 @@ export class RoutingInMemoryEventBus implements IEventBus, ITriggerBus, IOutboxP
   }
 
   private async enqueueOrDispatch(event: Envelope): Promise<void> {
+    this.published.push(event);
+
     if (this.dispatching) {
       // Nested publish during handler execution — enqueue for BFS processing.
       this.queue.push(event);

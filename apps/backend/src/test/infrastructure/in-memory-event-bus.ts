@@ -4,9 +4,13 @@ import { IOutboxPublisher } from '../../shared/ports/outbox-publisher.port';
 import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
 
 // Also bound to OUTBOX_PUBLISHER in some integration-app helpers (TD24-S02) — no deferral logic
-// needed here: InMemoryTransactionManager (used by unit specs) creates no ambient transaction
-// context, so scheduleAfterCommit() would fall through to immediate execution anyway. See
-// RoutingInMemoryEventBus for the real-transaction deferral this double doesn't need.
+// needed here for two independent reasons, depending on caller: in unit specs,
+// InMemoryTransactionManager creates no ambient transaction context, so scheduleAfterCommit()
+// falls through to immediate execution anyway; in integration apps that DO use a real
+// TypeOrmTransactionManager (platform/customer), subscribe() is a documented no-op below — there
+// are no handlers to accidentally run mid-transaction, so deferring publish() would only delay
+// this class's own bookkeeping, not prevent any real hazard. See RoutingInMemoryEventBus for the
+// bus that actually dispatches to subscribers and needs the deferral.
 export class InMemoryEventBus implements IEventBus, ITriggerBus, IOutboxPublisher {
   readonly published: Envelope[] = [];
   readonly publishedTriggers: string[] = [];

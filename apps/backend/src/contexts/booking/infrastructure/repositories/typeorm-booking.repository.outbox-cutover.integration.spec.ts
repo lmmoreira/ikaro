@@ -102,7 +102,10 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
         .mockRejectedValueOnce(new Error('pubsub down'))
         .mockResolvedValue(undefined),
     } as unknown as jest.Mocked<IEventBus>;
-    const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: true });
+    const config = makeConfigService({
+      OUTBOX_INLINE_DISPATCH_ENABLED: true,
+      OUTBOX_SWEEP_GRACE_SECONDS: 0,
+    });
     const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, config);
     const outboxPublisher = new OutboxPublisher(typeOrmOutboxRepo, relay, config);
     const repo = makeRepo(outboxPublisher);
@@ -119,11 +122,21 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
     expect(rowAfterInline!.publishedAt).toBeNull();
     expect(eventBus.publish).toHaveBeenCalledTimes(1);
 
-    await relay.relay([pendingEventId]);
+    // The scheduled sweep (no rowIds — SKIP LOCKED claim + grace window), not the targeted
+    // inline-dispatch path, is what's under test here per this test's own name. The sweep scans
+    // the whole shared.outbox table with no per-test scoping, so filter this call count by this
+    // row's own eventId rather than asserting an aggregate total — an unrelated leftover row from
+    // another concurrently-running test file (same shared Testcontainers Postgres instance) can
+    // legitimately add extra calls without indicating a bug here (same caveat documented in
+    // outbox-relay.service.integration.spec.ts's own sweep tests).
+    await relay.relay();
 
     const rowAfterRetry = await outboxRepo.findOne({ where: { id: pendingEventId } });
     expect(rowAfterRetry!.publishedAt).not.toBeNull();
-    expect(eventBus.publish).toHaveBeenCalledTimes(2);
+    const callsForThisEvent = eventBus.publish.mock.calls.filter(
+      ([event]) => (event as { eventId: string }).eventId === pendingEventId,
+    );
+    expect(callsForThisEvent).toHaveLength(2); // 1 failed inline attempt + 1 successful sweep retry
   });
 
   it('two concurrent sweeps on the same booking-approval row (SKIP LOCKED) → exactly one Pub/Sub publish', async () => {
