@@ -343,6 +343,18 @@ These two tests together cover the four branch combinations introduced by the ea
 
 ---
 
+## A compile/test failure only exists in CI, and won't reproduce even in a clean clone
+
+GitHub Actions' `pull_request` trigger checks out the **speculative merge** of your branch with the base branch (`main`) — `refs/pull/<N>/merge` — not your branch's raw HEAD. If `main` has concurrently changed a file your branch also touches, even with zero textual conflict (git auto-merges cleanly, no `CONFLICT` markers), the *merged result* can fail to compile or fail a test that neither branch fails on its own.
+
+**Symptom:** CI reports a compile error (e.g. `TS2554: Expected 1-3 arguments, but got 4`) at lines that look correct in `git show <your-commit>:<file>`. The error does not reproduce in a completely fresh `git clone` + `pnpm install --frozen-lockfile` + the exact CI command — because that reproduces your branch *alone*, not the PR's speculative merge with the current tip of `main`.
+
+Found in TD23-S11: `main` merged a concurrent story (TD24-S02) that changed a shared test helper's function signature (`makeController()`, 4 params → 3, dropping `eventBus`) in `staff.controller.spec.ts`. The PR branch had added new call sites elsewhere in that same file, still using the old 4-arg form — `main` never touched those specific lines, so git's line-based merge saw no conflict, but the merged file ended up calling a 3-param function with 4 arguments.
+
+**Fix:** `git fetch origin main && git merge origin/main` locally (never rebase an already-pushed/reviewed branch — CLAUDE.md §9 Step 9), reconcile any content only your branch added against `main`'s changes by hand, re-verify locally, then push. Don't spend time trying to reproduce a CI-only failure by inspecting your own commit in isolation — check whether `main` has diverged first.
+
+---
+
 ## CI workflow configuration traps
 
 These affect `.github/workflows/` files, not application code — but cause CI to fail or produce misleading results just as surely.

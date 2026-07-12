@@ -501,7 +501,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ### Wave 4 — BFF-originated errors + the one real reshape bug
 
-#### Story 11 — BFF-originated errors: canonical shape + `ActiveStaffGuard` fix
+#### Story 11 — BFF-originated errors: canonical shape + `ActiveStaffGuard` fix ✅ Done
 
 **Scope:** all ~15 BFF-originated error sites cataloged above; `uploads.controller.ts`; `customers.controller.ts:119`; `auth-controller-flow.service.ts:131`; `active-staff.guard.ts`; plus 4 gaps found during this story's own `/story-discovery` pass (not in the original inventory above, folded in per user decision):
 - The 3 global BFF guards — `jwt-auth.guard.ts` (401), `roles.guard.ts` (403), `tenant.guard.ts` (403) — and `error.interceptor.ts`'s catch-all 500 fallback. All four throw ad-hoc code-less `ProblemDetail` objects and fire on far more traffic than the cataloged feature-specific sites.
