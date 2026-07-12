@@ -1,10 +1,5 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  HttpException,
-  HttpStatus,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
+import { throwProblemDetail } from '@ikaro/nestjs-http';
 
 @Injectable()
 export class CustomerRoleGuard implements CanActivate {
@@ -15,15 +10,7 @@ export class CustomerRoleGuard implements CanActivate {
     const actorRole = req.headers['x-actor-role'];
 
     if (actorRole !== 'CUSTOMER') {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Forbidden',
-          status: HttpStatus.FORBIDDEN,
-          detail: 'CUSTOMER role required',
-        },
-        HttpStatus.FORBIDDEN,
-      );
+      throw throwProblemDetail(HttpStatus.FORBIDDEN, undefined, 'CUSTOMER role required');
     }
     return true;
   }

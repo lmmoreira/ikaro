@@ -1,7 +1,9 @@
-import { ForbiddenException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
+import { BffErrorCode, GenericErrorCode } from '@ikaro/types';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
+import { throwProblemDetail } from '../../shared/http/problem-detail';
 import { JWT_COOKIE_OPTIONS } from './cookie-options';
 import {
   CustomerTenantSummaryResponse,
@@ -128,7 +130,13 @@ async function getStaffTenants(backendHttp: BackendHttpService): Promise<StaffTe
 
   return activeStaff.map((s) => {
     const tenantInfo = tenantMap.get(s.tenantId);
-    if (!tenantInfo) throw new Error(`Tenant ${s.tenantId} missing from batch response`);
+    if (!tenantInfo) {
+      throw throwProblemDetail(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        BffErrorCode.TENANT_LOOKUP_INCONSISTENT,
+        `Tenant ${s.tenantId} missing from batch response`,
+      );
+    }
     return {
       staffId: s.staffId,
       tenantId: s.tenantId,
@@ -150,12 +158,14 @@ async function switchStaffTenant(
   const staffList = await backendHttp.get<StaffInfoResponse[]>('/staff/me/tenants');
   const match = staffList.find((s) => s.staffId === dto.staffId && s.isActive);
   if (!match) {
-    throw new ForbiddenException({
-      type: 'about:blank',
-      title: 'Forbidden',
-      status: HttpStatus.FORBIDDEN,
-      detail: 'Staff record not found or not active',
-    });
+    // Caller is already authenticated (switching between their own linked tenants) — not a
+    // pre-auth prober, so a specific code doesn't create an enumeration risk (TD23 Story 11
+    // security review).
+    throw throwProblemDetail(
+      HttpStatus.FORBIDDEN,
+      BffErrorCode.STAFF_NOT_REGISTERED_IN_TENANT,
+      'Staff record not found or not active',
+    );
   }
 
   const tenantInfo = await backendHttp.get<TenantInfoResponse>(
@@ -189,12 +199,14 @@ async function switchTenant(
   const tenants = await backendHttp.get<CustomerTenantSummaryResponse[]>('/customers/me/tenants');
   const match = tenants.find((t) => t.tenantId === dto.targetTenantId);
   if (!match) {
-    throw new ForbiddenException({
-      type: 'about:blank',
-      title: 'Forbidden',
-      status: HttpStatus.FORBIDDEN,
-      detail: 'Customer is not registered in the target tenant',
-    });
+    // Caller is already authenticated (switching between their own linked tenants) — not a
+    // pre-auth prober, so a specific code doesn't create an enumeration risk (TD23 Story 11
+    // security review).
+    throw throwProblemDetail(
+      HttpStatus.FORBIDDEN,
+      BffErrorCode.CUSTOMER_NOT_REGISTERED_IN_TENANT,
+      'Customer is not registered in the target tenant',
+    );
   }
 
   const tenantInfo = await backendHttp.get<TenantInfoResponse>(
@@ -233,20 +245,18 @@ async function devLogin(
   };
 }> {
   if (config.get<string>('ENABLE_DEV_AUTH') !== 'true') {
-    throw new ForbiddenException({
-      type: 'about:blank',
-      title: 'Forbidden',
-      status: HttpStatus.FORBIDDEN,
-      detail: 'Dev auth is not enabled',
-    });
+    throw throwProblemDetail(
+      HttpStatus.FORBIDDEN,
+      BffErrorCode.DEV_AUTH_UNAVAILABLE,
+      'Dev auth is not enabled',
+    );
   }
   if (config.get<'local' | 'staging' | 'production'>('APP_ENV', 'local') === 'production') {
-    throw new ForbiddenException({
-      type: 'about:blank',
-      title: 'Forbidden',
-      status: HttpStatus.FORBIDDEN,
-      detail: 'Dev auth is not available in production',
-    });
+    throw throwProblemDetail(
+      HttpStatus.FORBIDDEN,
+      BffErrorCode.DEV_AUTH_UNAVAILABLE,
+      'Dev auth is not available in production',
+    );
   }
 
   const tenantInfo = await backendHttp.get<TenantInfoResponse>(
@@ -283,13 +293,13 @@ async function devLogin(
   } else {
     const googleOAuthId = `dev::${dto.email}`;
     if (googleOAuthId.length > 255) {
-      throw new HttpException(
-        {
-          title: 'Bad Request',
-          status: HttpStatus.BAD_REQUEST,
-          detail: 'Email too long for dev auth',
-        },
+      // No VO backs this dev-only length check — reuses GenericErrorCode per
+      // docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code.
+      throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
+        GenericErrorCode.VALUE_TOO_LONG,
+        'Email too long for dev auth',
+        'email',
       );
     }
     const customer = await backendHttp.post<FindOrCreateCustomerResponse>('/internal/customers', {

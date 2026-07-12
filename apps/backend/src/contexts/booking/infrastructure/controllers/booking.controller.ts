@@ -5,12 +5,12 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
@@ -142,9 +142,7 @@ export class BookingController {
   }
 
   @Get(':id')
-  getOne(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-  ): Promise<GetBookingByIdUseCaseResult> {
+  getOne(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<GetBookingByIdUseCaseResult> {
     const { tenantId, actorType, actorId, settings } = this.ctx;
     return this.getBooking
       .execute({
@@ -201,7 +199,7 @@ export class BookingController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
   approve(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(ApproveBookingSchema)) body: ApproveBookingDto,
   ): Promise<ApproveBookingUseCaseResult> {
     const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;
@@ -267,7 +265,7 @@ export class BookingController {
   @Patch(':id/cancel-customer')
   @HttpCode(HttpStatus.OK)
   cancelAsCustomer(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
   ): Promise<CancelBookingAsCustomerUseCaseResult> {
     const { tenantId, actorId: customerId, correlationId, settings } = this.ctx;
     return this.cancelBookingAsCustomer
@@ -285,7 +283,7 @@ export class BookingController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
   cancelAsAdmin(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(CancelBookingAsAdminSchema)) body: CancelBookingAsAdminDto,
   ): Promise<CancelBookingAsAdminUseCaseResult> {
     const { tenantId, actorId: staffId, correlationId } = this.ctx;
@@ -298,7 +296,7 @@ export class BookingController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
   reschedule(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(RescheduleBookingSchema)) body: RescheduleBookingDto,
   ): Promise<RescheduleBookingUseCaseResult> {
     const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;
@@ -319,7 +317,7 @@ export class BookingController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
   complete(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(CompleteBookingSchema)) body: CompleteBookingDto,
   ): Promise<CompleteBookingUseCaseResult> {
     const { tenantId, actorId: staffId, correlationId, settings } = this.ctx;

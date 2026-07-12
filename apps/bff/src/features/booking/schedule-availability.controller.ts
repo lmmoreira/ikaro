@@ -1,8 +1,9 @@
-import { Controller, Get, Headers, HttpException, HttpStatus, Query } from '@nestjs/common';
+import { Controller, Get, Headers, Query } from '@nestjs/common';
 import { z } from 'zod';
 import { Public } from '../../shared/decorators/public.decorator';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
+import { withPublicTenant } from '../../shared/http/public-tenant';
 import { AvailabilityResponse } from './schedule.types';
 
 const GetAvailabilityQuerySchema = z.object({
@@ -22,25 +23,11 @@ export class ScheduleAvailabilityController {
     @Headers('x-tenant-slug') tenantSlug: string | undefined,
     @Query(new ZodValidationPipe(GetAvailabilityQuerySchema)) query: GetAvailabilityQuery,
   ): Promise<AvailabilityResponse> {
-    if (!tenantSlug) {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Bad Request',
-          status: 400,
-          detail: 'X-Tenant-Slug header is required',
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    const tenant = await this.backendHttp.get<{ id: string }>(
-      `/internal/tenants/by-slug/${tenantSlug}`,
-    );
-
-    return this.backendHttp.getForPublic<AvailabilityResponse>(
-      `/schedule/availability?date=${query.date}&serviceIds=${query.serviceIds}`,
-      tenant.id,
+    return withPublicTenant(this.backendHttp, tenantSlug, (tenantId) =>
+      this.backendHttp.getForPublic<AvailabilityResponse>(
+        `/schedule/availability?date=${query.date}&serviceIds=${query.serviceIds}`,
+        tenantId,
+      ),
     );
   }
 }

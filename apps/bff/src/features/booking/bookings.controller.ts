@@ -4,10 +4,8 @@ import {
   Get,
   Headers,
   HttpCode,
-  HttpException,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -22,6 +20,7 @@ import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { withPublicTenant } from '../../shared/http/public-tenant';
 import { requiredWithCode } from '../../shared/http/zod-code.util';
+import { throwProblemDetail } from '../../shared/http/problem-detail';
 import {
   AttachmentSignedUrlResponse,
   BookingResponse,
@@ -35,6 +34,7 @@ import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import {
   AddressErrorCode,
   ApproveBookingRequest,
+  BffErrorCode,
   CustomerBookingDetailResponse,
   CustomerBookingListResponse,
   GenericErrorCode,
@@ -43,6 +43,7 @@ import {
   StaffBookingDetailResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
+import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
 import {
   toCustomerBookingDetail,
   toCustomerBookingListItem,
@@ -258,14 +259,10 @@ export class BookingsController {
       const secret = this.config.getOrThrow<string>('JWT_SECRET');
       const tokenPayload = verifyGuestToken(body.guestToken, secret);
       if (!tokenPayload) {
-        throw new HttpException(
-          {
-            type: 'about:blank',
-            title: 'Unauthorized',
-            status: 401,
-            detail: 'Invalid or expired guest token',
-          },
+        throw throwProblemDetail(
           HttpStatus.UNAUTHORIZED,
+          BffErrorCode.GUEST_TOKEN_INVALID,
+          'Invalid or expired guest token',
         );
       }
       return this.backendHttp.postForPublic<AttachmentSignedUrlResponse>(
@@ -327,7 +324,7 @@ export class BookingsController {
   @Get(':id')
   @Roles('CUSTOMER', 'MANAGER', 'STAFF')
   async getOne(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserPayload,
   ): Promise<CustomerBookingDetailResponse | StaffBookingDetailResponse> {
     const detail = await this.backendHttp.get<BookingDetailResponse>(`/bookings/${id}`);
@@ -415,7 +412,7 @@ export class BookingsController {
   @HttpCode(HttpStatus.OK)
   @Roles('MANAGER', 'STAFF')
   complete(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(CompleteBookingBodySchema)) body: CompleteBookingBody,
   ): Promise<CompleteBookingResponse> {
     return this.backendHttp.patch(`/bookings/${id}/complete`, body);
@@ -482,14 +479,10 @@ export class BookingsController {
     );
 
     if (detail.status !== 'INFO_REQUESTED') {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Conflict',
-          status: HttpStatus.CONFLICT,
-          detail: 'Booking is no longer awaiting additional information',
-        },
+      throw throwProblemDetail(
         HttpStatus.CONFLICT,
+        BffErrorCode.GUEST_BOOKING_NOT_AWAITING_INFO,
+        'Booking is no longer awaiting additional information',
       );
     }
 
@@ -498,40 +491,28 @@ export class BookingsController {
 
   private verifyGuestTokenOrThrow(id: string, token: string | undefined): GuestTokenPayload {
     if (!token) {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Bad Request',
-          status: HttpStatus.BAD_REQUEST,
-          detail: 'token query parameter is required',
-        },
+      throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
+        BffErrorCode.GUEST_TOKEN_MISSING,
+        'token query parameter is required',
       );
     }
 
     const secret = this.config.getOrThrow<string>('JWT_SECRET');
     const payload = verifyGuestToken(token, secret);
     if (!payload) {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Unauthorized',
-          status: HttpStatus.UNAUTHORIZED,
-          detail: 'Invalid or expired guest token',
-        },
+      throw throwProblemDetail(
         HttpStatus.UNAUTHORIZED,
+        BffErrorCode.GUEST_TOKEN_INVALID,
+        'Invalid or expired guest token',
       );
     }
 
     if (payload.bookingId !== id) {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Bad Request',
-          status: HttpStatus.BAD_REQUEST,
-          detail: 'Token bookingId does not match route',
-        },
+      throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
+        BffErrorCode.GUEST_TOKEN_BOOKING_MISMATCH,
+        'Token bookingId does not match route',
       );
     }
 

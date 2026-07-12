@@ -188,8 +188,35 @@ export const EmailErrorCode = {
 } as const;
 export type EmailErrorCode = (typeof EmailErrorCode)[keyof typeof EmailErrorCode];
 
-export const BffErrorCode = {} as const;
+// Genuinely BFF-feature-originated conditions (TD23 Story 11) — guest-token/guard/tenant-lookup
+// failures with no backend equivalent. Framework-level guard rejections (JWT/role/tenant-header
+// mismatch, unhandled exceptions) live in AuthErrorCode instead — see its own comment below.
+export const BffErrorCode = {
+  GUEST_TOKEN_MISSING: 'BFF_GUEST_TOKEN_MISSING',
+  GUEST_TOKEN_INVALID: 'BFF_GUEST_TOKEN_INVALID',
+  GUEST_TOKEN_BOOKING_MISMATCH: 'BFF_GUEST_TOKEN_BOOKING_MISMATCH',
+  GUEST_BOOKING_NOT_AWAITING_INFO: 'BFF_GUEST_BOOKING_NOT_AWAITING_INFO',
+  TENANT_SLUG_HEADER_REQUIRED: 'BFF_TENANT_SLUG_HEADER_REQUIRED',
+  TENANT_LOOKUP_INCONSISTENT: 'BFF_TENANT_LOOKUP_INCONSISTENT',
+  STAFF_NOT_REGISTERED_IN_TENANT: 'BFF_STAFF_NOT_REGISTERED_IN_TENANT',
+  CUSTOMER_NOT_REGISTERED_IN_TENANT: 'BFF_CUSTOMER_NOT_REGISTERED_IN_TENANT',
+  DEV_AUTH_UNAVAILABLE: 'BFF_DEV_AUTH_UNAVAILABLE',
+  UPSTREAM_UNAVAILABLE: 'BFF_UPSTREAM_UNAVAILABLE',
+} as const;
 export type BffErrorCode = (typeof BffErrorCode)[keyof typeof BffErrorCode];
+
+// Framework/guard-level fallbacks (TD23 Story 11, TD23 §3's "framework fallback" bucket) — not
+// business-domain errors. Fires on every request that fails JwtAuthGuard/RolesGuard/TenantGuard,
+// or hits ErrorInterceptor's last-resort catch-all. One union, not folded into GenericErrorCode
+// (reserved for VO-less Zod validation rules — a different kind of gap) or BffErrorCode (reserved
+// for BFF-feature-originated conditions with a specific business meaning).
+export const AuthErrorCode = {
+  UNAUTHORIZED: 'AUTH_UNAUTHORIZED',
+  FORBIDDEN: 'AUTH_FORBIDDEN',
+  TENANT_MISMATCH: 'AUTH_TENANT_MISMATCH',
+  INTERNAL_ERROR: 'AUTH_INTERNAL_ERROR',
+} as const;
+export type AuthErrorCode = (typeof AuthErrorCode)[keyof typeof AuthErrorCode];
 
 // Backs Zod validation rules with no owning VO (Story 9/10) — a small closed set reused
 // across many fields via `field`/`params`, not one bespoke code per call site. A rule that
@@ -205,3 +232,29 @@ export const GenericErrorCode = {
   VALUE_INVALID: 'GENERIC_VALUE_INVALID',
 } as const;
 export type GenericErrorCode = (typeof GenericErrorCode)[keyof typeof GenericErrorCode];
+
+// Union of every catalogued error code across every origin (domain, VO, BFF, auth, generic) —
+// the compile-time constraint for throwProblemDetail (packages/nestjs-http). Keeps its
+// governance promise (an uncatalogued code fails to compile) global instead of per-context,
+// while each call site still narrows to its own specific code type by inference (from
+// `err.code` on a typed domain error, or from an enum member reference) — this union only
+// rejects strings that aren't a member of any catalogue at all.
+export type AnyErrorCode =
+  | BookingErrorCode
+  | CustomerErrorCode
+  | StaffErrorCode
+  | LoyaltyErrorCode
+  | PlatformErrorCode
+  | AddressErrorCode
+  | CountryCodeErrorCode
+  | PhoneErrorCode
+  | MoneyErrorCode
+  | SeoErrorCode
+  | SlugErrorCode
+  | HexColorErrorCode
+  | TimezoneErrorCode
+  | TimeOfDayErrorCode
+  | EmailErrorCode
+  | BffErrorCode
+  | AuthErrorCode
+  | GenericErrorCode;

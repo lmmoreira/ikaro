@@ -1,7 +1,7 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'node:crypto';
-import { ProblemDetail } from '@ikaro/types';
+import { throwProblemDetail } from '@ikaro/nestjs-http';
 
 @Injectable()
 export class PlatformAdminGuard implements CanActivate {
@@ -24,13 +24,11 @@ export class PlatformAdminGuard implements CanActivate {
       .digest();
 
     if (!token || !crypto.timingSafeEqual(storedHash, incomingHash)) {
-      const body: ProblemDetail = {
-        type: 'about:blank',
-        title: 'Unauthorized',
-        status: 401,
-        detail: 'Invalid or missing platform API key',
-      };
-      throw new UnauthorizedException(body);
+      throw throwProblemDetail(
+        HttpStatus.UNAUTHORIZED,
+        undefined,
+        'Invalid or missing platform API key',
+      );
     }
 
     return true;

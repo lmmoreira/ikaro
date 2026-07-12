@@ -1,4 +1,4 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { InternalApiGuard } from './internal-api.guard';
@@ -44,22 +44,22 @@ describe('InternalApiGuard', () => {
   });
 
   it('throws 401 when X-Internal-Key header is absent', () => {
-    expect(() => guard.canActivate(makeContext())).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(makeContext())).toThrow(HttpException);
   });
 
   it('throws 401 for a wrong key', () => {
     expect(() => guard.canActivate(makeContext('wrong-key-wrong-key-wrong-key-xx'))).toThrow(
-      UnauthorizedException,
+      HttpException,
     );
   });
 
   it('throws 401 for a non-matching key — RFC 9457 body is attached', () => {
     try {
       guard.canActivate(makeContext('wrong-key-wrong-key-wrong-key-xx'));
-      fail('expected UnauthorizedException');
+      fail('expected HttpException');
     } catch (e) {
-      expect((e as UnauthorizedException).getStatus()).toBe(401);
-      const body = (e as UnauthorizedException).getResponse() as Record<string, unknown>;
+      expect((e as HttpException).getStatus()).toBe(401);
+      const body = (e as HttpException).getResponse() as Record<string, unknown>;
       expect(body['type']).toBe('about:blank');
       expect(body['title']).toBe('Unauthorized');
       expect(body['status']).toBe(401);
@@ -69,7 +69,7 @@ describe('InternalApiGuard', () => {
   it('accepts a key of different length without throwing — hash normalisation prevents length errors', () => {
     // timingSafeEqual requires equal-length buffers; hashing both sides guarantees this.
     // A short or long incoming key must not crash — it should just fail auth.
-    expect(() => guard.canActivate(makeContext('short'))).toThrow(UnauthorizedException);
-    expect(() => guard.canActivate(makeContext('x'.repeat(64)))).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(makeContext('short'))).toThrow(HttpException);
+    expect(() => guard.canActivate(makeContext('x'.repeat(64)))).toThrow(HttpException);
   });
 });

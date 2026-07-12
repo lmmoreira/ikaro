@@ -6,11 +6,11 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
@@ -62,9 +62,7 @@ export class ScheduleClosureController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-  ): Promise<void> {
+  remove(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<void> {
     const { tenantId } = this.ctx;
     return this.removeClosure.execute({ id, tenantId }).catch(mapBookingError);
   }

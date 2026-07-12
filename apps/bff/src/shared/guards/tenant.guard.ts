@@ -1,14 +1,10 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  HttpException,
-  HttpStatus,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
+import { AuthErrorCode } from '@ikaro/types';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { throwProblemDetail } from '../http/problem-detail';
 
 @Injectable()
 export class TenantGuard implements CanActivate {
@@ -29,14 +25,10 @@ export class TenantGuard implements CanActivate {
     if (!tenantSlug) return true;
 
     if (tenantSlug !== user.tenantSlug) {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Forbidden',
-          status: HttpStatus.FORBIDDEN,
-          detail: 'X-Tenant-Slug does not match the tenant in your JWT',
-        },
+      throw throwProblemDetail(
         HttpStatus.FORBIDDEN,
+        AuthErrorCode.TENANT_MISMATCH,
+        'X-Tenant-Slug does not match the tenant in your JWT',
       );
     }
 

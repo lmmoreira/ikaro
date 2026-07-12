@@ -1,14 +1,7 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  HttpException,
-  HttpStatus,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppLogger } from '../observability/app-logger';
-import { ProblemDetail } from '@ikaro/types';
+import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { IOidcTokenVerifier, OIDC_TOKEN_VERIFIER } from '../ports/oidc-token-verifier.port';
 
 const GOOGLE_ISSUER = 'https://accounts.google.com';
@@ -67,13 +60,7 @@ export class PubSubPushGuard implements CanActivate {
     return true;
   }
 
-  private reject(detail: string): HttpException {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Forbidden',
-      status: HttpStatus.FORBIDDEN,
-      detail,
-    };
-    return new HttpException(body, HttpStatus.FORBIDDEN);
+  private reject(detail: string): never {
+    throw throwProblemDetail(HttpStatus.FORBIDDEN, undefined, detail);
   }
 }

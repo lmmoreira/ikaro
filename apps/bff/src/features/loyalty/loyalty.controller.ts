@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { z } from 'zod';
 import {
   CustomerLoyaltyBalanceResponse,
@@ -20,6 +10,7 @@ import {
   PaginatedLoyaltyRedemptionsResponse,
   StaffCustomerLoyaltyDetailResponse,
 } from '@ikaro/types';
+import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -138,7 +129,7 @@ export class LoyaltyController {
   @Get('customers/:customerId/loyalty/balance')
   @Roles('MANAGER', 'STAFF')
   async getBalanceAdmin(
-    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
   ): Promise<EnrichedLoyaltyBalanceResponse> {
     return this.getEnrichedBalance(`/customers/${customerId}/loyalty/balance`);
   }
@@ -146,7 +137,7 @@ export class LoyaltyController {
   @Get('customers/:customerId/loyalty/entries')
   @Roles('MANAGER', 'STAFF')
   async getEntriesAdmin(
-    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
   ): Promise<PaginatedLoyaltyEntriesResponse> {
     const backend = await this.backendHttp.get<BackendLoyaltyEntriesResponse>(
@@ -159,7 +150,7 @@ export class LoyaltyController {
   @Get('customers/:customerId/loyalty/redemptions')
   @Roles('MANAGER', 'STAFF')
   async getRedemptionsAdmin(
-    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
   ): Promise<PaginatedLoyaltyRedemptionsResponse> {
     const backend = await this.backendHttp.get<BackendLoyaltyRedemptionsResponse>(
@@ -172,7 +163,7 @@ export class LoyaltyController {
   @Get('customers/:customerId/loyalty')
   @Roles('MANAGER', 'STAFF')
   async getCustomerLoyaltyDetail(
-    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
   ): Promise<StaffCustomerLoyaltyDetailResponse> {
     const [customer, balance, entries, redemptions] = await Promise.all([
       this.backendHttp.get<CustomerProfileResponse>(`/customers/${customerId}`),

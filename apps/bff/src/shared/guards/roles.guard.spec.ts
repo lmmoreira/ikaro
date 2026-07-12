@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { AuthErrorCode } from '@ikaro/types';
 import { makeExecutionContext } from '../../test/execution-context.factory';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
 import { RolesGuard } from './roles.guard';
@@ -54,6 +55,7 @@ describe('RolesGuard', () => {
       expect((e as HttpException).getStatus()).toBe(HttpStatus.FORBIDDEN);
       const body = (e as HttpException).getResponse() as Record<string, unknown>;
       expect(body['status']).toBe(403);
+      expect(body['code']).toBe(AuthErrorCode.FORBIDDEN);
     }
   });
 

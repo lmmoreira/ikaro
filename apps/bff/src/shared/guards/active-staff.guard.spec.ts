@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { of, throwError } from 'rxjs';
 import { AxiosError } from 'axios';
+import { AuthErrorCode, BffErrorCode, StaffErrorCode } from '@ikaro/types';
 import { makeExecutionContext } from '../../test/execution-context.factory';
 import { ActiveStaffGuard } from './active-staff.guard';
 
@@ -13,9 +14,7 @@ const INTERNAL_KEY = 'test-internal-key';
 
 function makeHttp(isActive: boolean): HttpService {
   return {
-    get: jest
-      .fn()
-      .mockReturnValue(of({ data: { isActive, id: STAFF_ID, email: 'g@g.com', role: 'MANAGER' } })),
+    get: jest.fn().mockReturnValue(of({ data: { isActive } })),
   } as unknown as HttpService;
 }
 
@@ -82,6 +81,16 @@ describe('ActiveStaffGuard', () => {
     expect(result).toBe(true);
   });
 
+  it('calls GET /staff/me/status — self-check, never GET /staff/:id', async () => {
+    const http = makeHttp(true);
+    const guard = makeGuard(http);
+
+    await guard.canActivate(ctx(activeUser));
+
+    const [url] = (http.get as jest.Mock).mock.calls[0] as [string];
+    expect(url).toBe('http://backend:3001/staff/me/status');
+  });
+
   it('includes X-Internal-Key in the backend request so InternalApiGuard lets it through', async () => {
     const http = makeHttp(true);
     const guard = makeGuard(http);
@@ -95,7 +104,18 @@ describe('ActiveStaffGuard', () => {
     expect(requestConfig.headers['X-Internal-Key']).toBe(INTERNAL_KEY);
   });
 
-  it('throws 403 when backend reports isActive=false', async () => {
+  it('applies for STAFF (non-manager) actors too — not just MANAGER', async () => {
+    const http = makeHttp(true);
+    const guard = makeGuard(http);
+    const staffUser = { ...activeUser, role: 'STAFF' };
+
+    const result = await guard.canActivate(ctx(staffUser));
+
+    expect(result).toBe(true);
+    expect(http.get).toHaveBeenCalled();
+  });
+
+  it('throws 403 with StaffErrorCode.DEACTIVATED when backend reports isActive=false', async () => {
     const guard = makeGuard(makeHttp(false));
 
     await expect(guard.canActivate(ctx(activeUser))).rejects.toThrow(HttpException);
@@ -105,32 +125,66 @@ describe('ActiveStaffGuard', () => {
       expect((e as HttpException).getStatus()).toBe(HttpStatus.FORBIDDEN);
       const body = (e as HttpException).getResponse() as Record<string, unknown>;
       expect(body['status']).toBe(403);
+      expect(body['code']).toBe(StaffErrorCode.DEACTIVATED);
     }
   });
 
-  it('returns true when backend returns 404 (staff not found — allow, backend will re-check)', async () => {
+  it('fails closed (401) when backend returns 404 — no hard-delete path exists, so a 404 on the caller’s own id means a stale/mismatched JWT', async () => {
     const http = {
       get: jest.fn().mockReturnValue(
         throwError(() => {
           const err = new AxiosError();
-          err.response = { status: 404 } as never;
+          err.response = { status: 404, data: { code: StaffErrorCode.NOT_FOUND } } as never;
           return err;
         }),
       ),
     } as unknown as HttpService;
     const guard = makeGuard(http);
 
-    const result = await guard.canActivate(ctx(activeUser));
-
-    expect(result).toBe(true);
+    await expect(guard.canActivate(ctx(activeUser))).rejects.toThrow(HttpException);
+    try {
+      await guard.canActivate(ctx(activeUser));
+    } catch (e) {
+      expect((e as HttpException).getStatus()).toBe(HttpStatus.UNAUTHORIZED);
+      const body = (e as HttpException).getResponse() as Record<string, unknown>;
+      expect(body['code']).toBe(AuthErrorCode.UNAUTHORIZED);
+    }
   });
 
-  it('throws 503 for non-404 backend Axios errors', async () => {
+  it('passes through the backend’s real code/detail for other backend error statuses', async () => {
+    const backendBody = {
+      type: 'about:blank',
+      title: 'Internal Server Error',
+      status: 500,
+      code: 'PLATFORM_SOMETHING_WENT_WRONG',
+      detail: 'db unavailable',
+    };
     const http = {
       get: jest.fn().mockReturnValue(
         throwError(() => {
           const err = new AxiosError();
-          err.response = { status: 500 } as never;
+          err.response = { status: 500, data: backendBody } as never;
+          return err;
+        }),
+      ),
+    } as unknown as HttpService;
+    const guard = makeGuard(http);
+
+    await expect(guard.canActivate(ctx(activeUser))).rejects.toThrow(HttpException);
+    try {
+      await guard.canActivate(ctx(activeUser));
+    } catch (e) {
+      expect((e as HttpException).getStatus()).toBe(500);
+      expect((e as HttpException).getResponse()).toEqual(backendBody);
+    }
+  });
+
+  it('throws 503 with BffErrorCode.UPSTREAM_UNAVAILABLE on a genuine network failure (no response at all)', async () => {
+    const http = {
+      get: jest.fn().mockReturnValue(
+        throwError(() => {
+          const err = new AxiosError('connect ECONNREFUSED');
+          err.response = undefined;
           return err;
         }),
       ),
@@ -142,6 +196,8 @@ describe('ActiveStaffGuard', () => {
       await guard.canActivate(ctx(activeUser));
     } catch (e) {
       expect((e as HttpException).getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
+      const body = (e as HttpException).getResponse() as Record<string, unknown>;
+      expect(body['code']).toBe(BffErrorCode.UPSTREAM_UNAVAILABLE);
     }
   });
 });

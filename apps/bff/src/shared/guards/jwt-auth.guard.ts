@@ -1,8 +1,10 @@
-import { ExecutionContext, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { Observable } from 'rxjs';
+import { AuthErrorCode } from '@ikaro/types';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { throwProblemDetail } from '../http/problem-detail';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -21,14 +23,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest<T>(err: Error | null, user: T): T {
     if (err || !user) {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Unauthorized',
-          status: HttpStatus.UNAUTHORIZED,
-          detail: 'Valid JWT required',
-        },
+      throw throwProblemDetail(
         HttpStatus.UNAUTHORIZED,
+        AuthErrorCode.UNAUTHORIZED,
+        'Valid JWT required',
       );
     }
     return user;

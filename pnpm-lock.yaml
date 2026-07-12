@@ -48,6 +48,9 @@ importers:
       '@ikaro/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@ikaro/nestjs-http':
+        specifier: workspace:*
+        version: link:../../packages/nestjs-http
       '@ikaro/observability':
         specifier: workspace:*
         version: link:../../packages/observability
@@ -193,6 +196,9 @@ importers:
       '@ikaro/env-validation':
         specifier: workspace:*
         version: link:../../packages/env-validation
+      '@ikaro/nestjs-http':
+        specifier: workspace:*
+        version: link:../../packages/nestjs-http
       '@ikaro/observability':
         specifier: workspace:*
         version: link:../../packages/observability
@@ -540,6 +546,37 @@ importers:
       '@ikaro/config':
         specifier: workspace:*
         version: link:../config
+
+  packages/nestjs-http:
+    dependencies:
+      '@ikaro/types':
+        specifier: workspace:*
+        version: link:../types
+    devDependencies:
+      '@ikaro/config':
+        specifier: workspace:*
+        version: link:../config
+      '@nestjs/common':
+        specifier: ^11.1.27
+        version: 11.1.27(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@types/jest':
+        specifier: ^30.0.0
+        version: 30.0.0
+      '@types/node':
+        specifier: ^25.9.4
+        version: 25.9.4
+      jest:
+        specifier: ^30.4.2
+        version: 30.4.2(@types/node@25.9.4)(ts-node@10.9.2(@swc/core@1.15.43)(@types/node@25.9.4)(typescript@6.0.3))
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+      ts-jest:
+        specifier: ^29.4.11
+        version: 29.4.11(@babel/core@7.29.7)(@jest/transform@30.4.1)(@jest/types@30.4.1)(babel-jest@30.4.1(@babel/core@7.29.7))(jest-util@30.4.1)(jest@30.4.2(@types/node@25.9.4))(typescript@6.0.3)
 
   packages/observability:
     dependencies:

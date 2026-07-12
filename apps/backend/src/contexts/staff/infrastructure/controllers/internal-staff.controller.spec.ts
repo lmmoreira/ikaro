@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { StaffBuilder } from '../../../../test/builders/staff';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
@@ -21,8 +21,10 @@ describe('InternalStaffController', () => {
   });
 
   describe('getByOAuth()', () => {
-    it('throws BadRequestException when googleOAuthId is missing', async () => {
-      await expect(controller.getByOAuth('')).rejects.toBeInstanceOf(BadRequestException);
+    it('throws a 400 when googleOAuthId is missing', async () => {
+      const err = await controller.getByOAuth('').catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     });
 
     it('returns empty array when no staff is found', async () => {
@@ -65,13 +67,14 @@ describe('InternalStaffController', () => {
   });
 
   describe('getByEmail()', () => {
-    it('throws BadRequestException when email or tenantId is missing', async () => {
-      await expect(controller.getByEmail('', 'tenant-1')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
-      await expect(controller.getByEmail('a@b.com', '')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+    it('throws a 400 when email or tenantId is missing', async () => {
+      const err1 = await controller.getByEmail('', 'tenant-1').catch((e: unknown) => e);
+      expect(err1).toBeInstanceOf(HttpException);
+      expect((err1 as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+
+      const err2 = await controller.getByEmail('a@b.com', '').catch((e: unknown) => e);
+      expect(err2).toBeInstanceOf(HttpException);
+      expect((err2 as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     });
 
     it('maps StaffNotFoundError to 404 when no staff found for the given email + tenantId', async () => {

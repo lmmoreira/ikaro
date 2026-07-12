@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { CallHandler } from '@nestjs/common';
 import { lastValueFrom, Observable, of, throwError } from 'rxjs';
+import { AuthErrorCode } from '@ikaro/types';
 import { makeExecutionContext } from '../../test/execution-context.factory';
 import { ErrorInterceptor } from './error.interceptor';
 
@@ -42,6 +43,7 @@ describe('ErrorInterceptor', () => {
         type: 'about:blank',
         title: 'Internal Server Error',
         status: 500,
+        code: AuthErrorCode.INTERNAL_ERROR,
         instance: '/v1/staff',
       }),
     });

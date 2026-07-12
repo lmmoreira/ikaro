@@ -1,22 +1,14 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
 import { z } from 'zod';
 import {
   AddressErrorCode,
+  BffErrorCode,
   CustomerProfileResponse,
   CustomerSearchListResponse,
   PhoneErrorCode,
   TenantOption,
 } from '@ikaro/types';
+import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -26,6 +18,7 @@ import { toTenantOption } from './customers.mapper';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import { CustomerSearchResponse } from './customers.types';
 import { requiredWithCode } from '../../shared/http/zod-code.util';
+import { throwProblemDetail } from '../../shared/http/problem-detail';
 
 const AddressSchema = z.object({
   street: requiredWithCode(z.string(), AddressErrorCode.FIELD_REQUIRED),
@@ -128,7 +121,13 @@ export class CustomersController {
 
     return tenants.map((t, i) => {
       const tenantInfo = tenantMap.get(t.tenantId);
-      if (!tenantInfo) throw new Error(`Tenant ${t.tenantId} missing from batch response`);
+      if (!tenantInfo) {
+        throw throwProblemDetail(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          BffErrorCode.TENANT_LOOKUP_INCONSISTENT,
+          `Tenant ${t.tenantId} missing from batch response`,
+        );
+      }
       return toTenantOption(t, tenantInfo, balances[i]);
     });
   }
@@ -136,7 +135,7 @@ export class CustomersController {
   @Get(':customerId')
   @Roles('STAFF', 'MANAGER')
   getCustomer(
-    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
   ): Promise<CustomerProfileResponse> {
     return this.backendHttp.get<CustomerProfileResponse>(`/customers/${customerId}`);
   }

@@ -1,4 +1,6 @@
-import { BadRequestException, Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Param, Query } from '@nestjs/common';
+import { CanonicalParseUUIDPipe, throwProblemDetail } from '@ikaro/nestjs-http';
+import { GenericErrorCode } from '@ikaro/types';
 import {
   GetTenantByIdUseCase,
   GetTenantByIdUseCaseResult,
@@ -42,24 +44,24 @@ export class InternalTenantReadController {
   @Get()
   async getTenantsByIdsRoute(@Query('ids') ids: string | undefined): Promise<TenantItemResult[]> {
     if (!ids?.trim()) {
-      throw new BadRequestException({
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: 400,
-        detail: 'ids query parameter is required',
-      });
+      throw throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        GenericErrorCode.FIELD_REQUIRED,
+        'ids query parameter is required',
+        'ids',
+      );
     }
     const tenantIds = ids
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
     if (tenantIds.length === 0) {
-      throw new BadRequestException({
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: 400,
-        detail: 'ids query parameter is required',
-      });
+      throw throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        GenericErrorCode.FIELD_REQUIRED,
+        'ids query parameter is required',
+        'ids',
+      );
     }
     return this.getTenants
       .execute({ ids: tenantIds })
@@ -69,7 +71,7 @@ export class InternalTenantReadController {
 
   @Get(':tenantId')
   getTenant(
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Param('tenantId', CanonicalParseUUIDPipe) tenantId: string,
   ): Promise<GetTenantByIdUseCaseResult> {
     return this.getTenantById.execute({ tenantId }).catch(mapPlatformError);
   }

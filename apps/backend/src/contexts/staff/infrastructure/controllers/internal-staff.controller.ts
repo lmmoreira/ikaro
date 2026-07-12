@@ -1,15 +1,6 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { CanonicalParseUUIDPipe, throwProblemDetail } from '@ikaro/nestjs-http';
+import { GenericErrorCode } from '@ikaro/types';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import {
   LinkGoogleAccountDto,
@@ -44,12 +35,12 @@ export class InternalStaffController {
     @Query('googleOAuthId') googleOAuthId: string,
   ): Promise<GetStaffByOAuthIdUseCaseResult[]> {
     if (!googleOAuthId) {
-      throw new BadRequestException({
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: 400,
-        detail: 'googleOAuthId query parameter is required',
-      });
+      throw throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        GenericErrorCode.FIELD_REQUIRED,
+        'googleOAuthId query parameter is required',
+        'googleOAuthId',
+      );
     }
     return this.getStaffByOAuthId.execute({ googleOAuthId });
   }
@@ -57,16 +48,15 @@ export class InternalStaffController {
   @Get('by-email')
   async getByEmail(
     @Query('email') email: string,
-    @Query('tenantId', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST }))
+    @Query('tenantId', CanonicalParseUUIDPipe)
     tenantId: string,
   ): Promise<GetStaffByEmailUseCaseResult> {
     if (!email || !tenantId) {
-      throw new BadRequestException({
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: 400,
-        detail: 'email and tenantId query parameters are required',
-      });
+      throw throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        GenericErrorCode.FIELD_REQUIRED,
+        'email and tenantId query parameters are required',
+      );
     }
     return this.getStaffByEmail.execute({ email, tenantId }).catch(mapStaffError);
   }
@@ -74,7 +64,7 @@ export class InternalStaffController {
   @Post(':staffId/link-google')
   @HttpCode(HttpStatus.OK)
   linkGoogle(
-    @Param('staffId', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST }))
+    @Param('staffId', CanonicalParseUUIDPipe)
     staffId: string,
     @Body(new ZodValidationPipe(LinkGoogleAccountSchema)) dto: LinkGoogleAccountDto,
   ): Promise<LinkGoogleAccountUseCaseResult> {
