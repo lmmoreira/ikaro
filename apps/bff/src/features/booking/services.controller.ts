@@ -10,11 +10,8 @@ import {
   Post,
 } from '@nestjs/common';
 import { z } from 'zod';
-import {
-  CanonicalParseUUIDPipe,
-  StaffServiceListResponse,
-  StaffServiceResponse,
-} from '@ikaro/types';
+import { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
+import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../../shared/http/backend-http.service';

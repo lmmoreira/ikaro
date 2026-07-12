@@ -13,7 +13,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { CanonicalParseIntPipe, CanonicalParseUUIDPipe, GenericErrorCode } from '@ikaro/types';
+import { CanonicalParseIntPipe, CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
+import { GenericErrorCode } from '@ikaro/types';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { InviteStaffBodyDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
 import { UpdateStaffBodyDto, UpdateStaffSchema } from '../../application/dtos/update-staff.dto';

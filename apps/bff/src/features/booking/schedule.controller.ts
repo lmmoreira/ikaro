@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 import { Roles } from '../../shared/decorators/roles.decorator';
-import { CanonicalParseUUIDPipe } from '@ikaro/types';
+import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ScheduleClosureListResponse, ScheduleClosureResponse } from './schedule.types';

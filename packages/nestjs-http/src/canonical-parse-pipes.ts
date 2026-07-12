@@ -6,8 +6,7 @@ import {
   ParseIntPipe,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { GenericErrorCode } from './error-codes';
-import { ProblemDetail } from './errors.dto';
+import { GenericErrorCode, ProblemDetail } from '@ikaro/types';
 
 function buildParseFailureProblem(
   code: GenericErrorCode,
@@ -30,8 +29,10 @@ function buildParseFailureProblem(
 // code/field, never violations[]. No VO backs "is this a UUID/integer" — GenericErrorCode per
 // docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code.
 // Shared between apps/backend and apps/bff (identical NestJS pipe logic, no per-app
-// customization needed) — kept here rather than duplicated per app, mirroring how
-// deriveViolation() was extracted from both apps' zod-validation.pipe.ts (TD23 Story 9 fix).
+// customization needed) — lives in its own package (never consumed by apps/web) rather than
+// @ikaro/types, since a runtime @nestjs/common import inside a shared barrel apps/web also
+// imports from breaks web's production build even when @nestjs/common is only a peer
+// dependency (found the hard way — see TD23 Story 11's PR history).
 @Injectable()
 export class CanonicalParseUUIDPipe extends ParseUUIDPipe {
   override async transform(value: string, metadata: ArgumentMetadata): Promise<string> {

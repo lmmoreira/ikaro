@@ -14,4 +14,3 @@ export * from './tenant.dto';
 export * from './hotsite';
 export * from './customer.dto';
 export * from './zod-violation';
-export * from './canonical-parse-pipes';

@@ -9,7 +9,8 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, GenericErrorCode } from '@ikaro/types';
+import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
+import { GenericErrorCode } from '@ikaro/types';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import {
   LinkGoogleAccountDto,

@@ -1,5 +1,5 @@
 import { ArgumentMetadata, HttpException, HttpStatus } from '@nestjs/common';
-import { GenericErrorCode } from './error-codes';
+import { GenericErrorCode } from '@ikaro/types';
 import { CanonicalParseIntPipe, CanonicalParseUUIDPipe } from './canonical-parse-pipes';
 
 const UUID_METADATA: ArgumentMetadata = { type: 'param', data: 'id' };

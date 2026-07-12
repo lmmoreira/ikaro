@@ -1,5 +1,5 @@
 import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/common';
-import { CanonicalParseUUIDPipe } from '@ikaro/types';
+import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
 import {
   GetTenantByIdUseCase,
   GetTenantByIdUseCaseResult,

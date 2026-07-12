@@ -8,7 +8,7 @@
     "pnpm": ">=11"
   },
   "scripts": {
-    "postinstall": "pnpm --filter @ikaro/i18n build && pnpm --filter @ikaro/observability build && pnpm --filter @ikaro/env-validation build && pnpm --filter @ikaro/types build",
+    "postinstall": "pnpm --filter @ikaro/i18n build && pnpm --filter @ikaro/observability build && pnpm --filter @ikaro/env-validation build && pnpm --filter @ikaro/types build && pnpm --filter @ikaro/nestjs-http build",
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
     "up": "pnpm infra:up && pnpm dev",

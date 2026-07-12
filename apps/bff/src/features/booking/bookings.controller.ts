@@ -35,7 +35,6 @@ import {
   AddressErrorCode,
   ApproveBookingRequest,
   BffErrorCode,
-  CanonicalParseUUIDPipe,
   CustomerBookingDetailResponse,
   CustomerBookingListResponse,
   GenericErrorCode,
@@ -44,6 +43,7 @@ import {
   StaffBookingDetailResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
+import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
 import {
   toCustomerBookingDetail,
   toCustomerBookingListItem,
