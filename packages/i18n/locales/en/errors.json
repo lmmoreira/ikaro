@@ -125,5 +125,19 @@
   "GENERIC_VALUE_TOO_LONG": "This value is too long.",
   "GENERIC_VALUE_OUT_OF_RANGE": "This value is out of the allowed range.",
   "GENERIC_FORMAT_INVALID": "This value is not in the expected format.",
-  "GENERIC_VALUE_INVALID": "This value is invalid."
+  "GENERIC_VALUE_INVALID": "This value is invalid.",
+  "BFF_GUEST_TOKEN_MISSING": "An access token is required to continue.",
+  "BFF_GUEST_TOKEN_INVALID": "This access link is invalid or has expired.",
+  "BFF_GUEST_TOKEN_BOOKING_MISMATCH": "This access link does not match this booking.",
+  "BFF_GUEST_BOOKING_NOT_AWAITING_INFO": "This booking is no longer awaiting additional information.",
+  "BFF_TENANT_SLUG_HEADER_REQUIRED": "Something went wrong. Please try again.",
+  "BFF_TENANT_LOOKUP_INCONSISTENT": "Something went wrong. Please try again.",
+  "BFF_STAFF_NOT_REGISTERED_IN_TENANT": "You're not registered with this business.",
+  "BFF_CUSTOMER_NOT_REGISTERED_IN_TENANT": "You're not registered with this business.",
+  "BFF_DEV_AUTH_UNAVAILABLE": "Developer login is not available.",
+  "BFF_UPSTREAM_UNAVAILABLE": "We couldn't verify your session right now. Please try again.",
+  "AUTH_UNAUTHORIZED": "Your session has expired. Please sign in again.",
+  "AUTH_FORBIDDEN": "You don't have permission to perform this action.",
+  "AUTH_TENANT_MISMATCH": "This request doesn't match your session's business.",
+  "AUTH_INTERNAL_ERROR": "Something went wrong. Please try again."
 }

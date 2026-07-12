@@ -153,17 +153,16 @@ describe('StaffController (component)', () => {
       expect(res.body).toMatchObject({ status: 403, detail: 'Your account has been deactivated' });
     });
 
-    it('passes through when backend returns 404', async () => {
+    it('fails closed (401) when backend returns 404 — no hard-delete path exists for staff, so a 404 on the caller’s own id means a stale/mismatched JWT', async () => {
       const err = new AxiosError();
-      err.response = { status: 404 } as never;
+      err.response = { status: 404, data: {} } as never;
       httpService.get.mockReturnValueOnce(makeObservableError(err));
-      backendHttpService.get.mockResolvedValueOnce(EMPTY_LIST);
 
       const res = await request(app.getHttpServer())
         .get('/v1/staff')
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(401);
     });
 
     it('returns 503 when backend is unreachable for the guard check', async () => {
@@ -174,6 +173,26 @@ describe('StaffController (component)', () => {
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
 
       expect(res.status).toBe(503);
+    });
+
+    it('preserves the backend’s real code/detail for a non-404 backend error instead of substituting a generic message', async () => {
+      const backendBody = {
+        type: 'about:blank',
+        title: 'Bad Request',
+        status: 400,
+        code: 'PLATFORM_TENANT_INACTIVE',
+        detail: 'This business is inactive.',
+      };
+      const err = new AxiosError();
+      err.response = { status: 400, data: backendBody } as never;
+      httpService.get.mockReturnValueOnce(makeObservableError(err));
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/staff')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toMatchObject(backendBody);
     });
 
     it('sends X-Tenant-ID, X-Actor-ID, X-Actor-Type, X-Actor-Role to the backend', async () => {
@@ -188,7 +207,7 @@ describe('StaffController (component)', () => {
         string,
         { headers: Record<string, string> },
       ];
-      expect(guardUrl).toContain(`/staff/${STAFF_ID}`);
+      expect(guardUrl).toContain('/staff/me/status');
       expect(guardOpts.headers['X-Tenant-ID']).toBe(TENANT_ID);
       expect(guardOpts.headers['X-Actor-ID']).toBe(STAFF_ID);
       expect(guardOpts.headers['X-Actor-Type']).toBe('STAFF');

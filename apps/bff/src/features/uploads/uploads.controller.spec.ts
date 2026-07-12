@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import { UploadsController } from './uploads.controller';
 
 describe('UploadsController', () => {
@@ -37,14 +36,6 @@ describe('UploadsController', () => {
     );
   });
 
-  it('throws BadRequestException for unsupported content types', () => {
-    const controller = new UploadsController();
-
-    expect(() =>
-      controller.getSignedUrl({
-        contentType: 'application/pdf',
-        filename: 'car.pdf',
-      }),
-    ).toThrow(BadRequestException);
-  });
+  // contentType/filename validation now happens at ZodValidationPipe (request-boundary) —
+  // covered end-to-end in uploads.controller.component.spec.ts, not here.
 });

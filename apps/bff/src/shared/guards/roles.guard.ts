@@ -1,14 +1,10 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  HttpException,
-  HttpStatus,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
+import { AuthErrorCode } from '@ikaro/types';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { throwProblemDetail } from '../http/problem-detail';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -25,14 +21,10 @@ export class RolesGuard implements CanActivate {
     const user = req.user as CurrentUserPayload | undefined;
 
     if (!user || !requiredRoles.includes(user.role)) {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Forbidden',
-          status: HttpStatus.FORBIDDEN,
-          detail: `One of the following roles is required: ${requiredRoles.join(', ')}`,
-        },
+      throwProblemDetail(
         HttpStatus.FORBIDDEN,
+        AuthErrorCode.FORBIDDEN,
+        `One of the following roles is required: ${requiredRoles.join(', ')}`,
       );
     }
 

@@ -7,14 +7,17 @@ import {
   HttpException,
   HttpStatus,
   Param,
-  ParseIntPipe,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
+import { GenericErrorCode } from '@ikaro/types';
+import {
+  CanonicalParseIntPipe,
+  CanonicalParseUUIDPipe,
+} from '../../../../shared/http/canonical-parse-pipes';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { InviteStaffBodyDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
 import { UpdateStaffBodyDto, UpdateStaffSchema } from '../../application/dtos/update-staff.dto';
@@ -70,8 +73,8 @@ export class StaffController {
   @Get()
   @UseGuards(ManagerRoleGuard)
   list(
-    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
-    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('limit', new DefaultValuePipe(50), CanonicalParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), CanonicalParseIntPipe) offset: number,
   ): Promise<GetStaffUseCaseResult> {
     return this.getStaff
       .execute({
@@ -90,11 +93,22 @@ export class StaffController {
       .catch(mapStaffError);
   }
 
+  // Self-status-check for BFF's ActiveStaffGuard — derives the target from RequestContext.actorId
+  // only, never a URL param, so it can't be used to probe another staff member's status.
+  // GET /staff/:id (below) is manager-only by design (staff-list lookups); reusing it here for a
+  // STAFF actor's own self-check would always 403 (TD23 Story 11).
+  @Get('me/status')
+  @UseGuards(StaffOrManagerRoleGuard)
+  async getMyStatus(): Promise<{ isActive: boolean }> {
+    const { isActive } = await this.getStaffById
+      .execute({ staffId: this.tenantContext.actorId!, tenantId: this.tenantContext.tenantId })
+      .catch(mapStaffError);
+    return { isActive };
+  }
+
   @Get(':id')
   @UseGuards(ManagerRoleGuard)
-  getById(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-  ): Promise<GetStaffByIdUseCaseResult> {
+  getById(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<GetStaffByIdUseCaseResult> {
     return this.getStaffById
       .execute({ staffId: id, tenantId: this.tenantContext.tenantId })
       .catch(mapStaffError);
@@ -122,7 +136,7 @@ export class StaffController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ManagerRoleGuard)
   update(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateStaffSchema)) body: UpdateStaffBodyDto,
   ): Promise<UpdateStaffProfileUseCaseResult> {
     const input: UpdateStaffProfileUseCaseInput = {
@@ -138,7 +152,7 @@ export class StaffController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ManagerRoleGuard)
   async deactivate(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
   ): Promise<DeactivateStaffUseCaseResult> {
     const input: DeactivateStaffUseCaseInput = {
       staffId: id,
@@ -153,7 +167,7 @@ export class StaffController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(ManagerRoleGuard)
   async activate(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
   ): Promise<ActivateStaffUseCaseResult> {
     const input: ActivateStaffUseCaseInput = {
       staffId: id,
@@ -172,7 +186,9 @@ export class StaffController {
           type: 'about:blank',
           title: 'Bad Request',
           status: 400,
+          code: GenericErrorCode.FIELD_REQUIRED,
           detail: 'X-Actor-ID header is required',
+          field: 'X-Actor-ID',
         },
         HttpStatus.BAD_REQUEST,
       );

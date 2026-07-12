@@ -1,4 +1,5 @@
-import { BadRequestException, Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/common';
+import { CanonicalParseUUIDPipe } from '../../../../shared/http/canonical-parse-pipes';
 import {
   GetTenantByIdUseCase,
   GetTenantByIdUseCaseResult,
@@ -69,7 +70,7 @@ export class InternalTenantReadController {
 
   @Get(':tenantId')
   getTenant(
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Param('tenantId', CanonicalParseUUIDPipe) tenantId: string,
   ): Promise<GetTenantByIdUseCaseResult> {
     return this.getTenantById.execute({ tenantId }).catch(mapPlatformError);
   }

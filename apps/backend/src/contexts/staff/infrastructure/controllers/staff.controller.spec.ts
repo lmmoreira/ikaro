@@ -145,6 +145,46 @@ describe('StaffController', () => {
     });
   });
 
+  describe('getMyStatus()', () => {
+    it('returns isActive: true for an active staff member via RequestContext actorId', async () => {
+      const staff = new StaffBuilder().withTenantId(TENANT_A).withEmail('ativo@a.com').build();
+      await repo.save(staff);
+
+      const ctrl = makeController(repo, eventBus, TENANT_A, staff.id);
+      const result = await ctrl.getMyStatus();
+
+      expect(result).toEqual({ isActive: true });
+    });
+
+    it('returns isActive: false for a deactivated staff member', async () => {
+      const staff = new StaffBuilder().withTenantId(TENANT_A).withEmail('inativo@a.com').build();
+      staff.deactivate(MANAGER_ID, CORRELATION_ID);
+      await repo.save(staff);
+
+      const ctrl = makeController(repo, eventBus, TENANT_A, staff.id);
+      const result = await ctrl.getMyStatus();
+
+      expect(result).toEqual({ isActive: false });
+    });
+
+    it('maps StaffNotFoundError to 404 when actorId does not resolve (stale/mismatched JWT)', async () => {
+      const ctrl = makeController(repo, eventBus, TENANT_A, '00000000-0000-4000-8000-000000009999');
+      const err = await ctrl.getMyStatus().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('maps StaffNotFoundError to 404 when actorId belongs to a different tenant (isolation)', async () => {
+      const staff = new StaffBuilder().withTenantId(TENANT_B).withEmail('outro@b.com').build();
+      await repo.save(staff);
+
+      const ctrl = makeController(repo, eventBus, TENANT_A, staff.id);
+      const err = await ctrl.getMyStatus().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+
   describe('invite()', () => {
     it('creates staff using tenantId and actorId from RequestContext', async () => {
       const result = await controller.invite({

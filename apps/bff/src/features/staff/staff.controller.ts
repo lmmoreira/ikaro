@@ -6,8 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseIntPipe,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -21,6 +19,10 @@ import {
   StaffResponse,
   UpdateStaffResponse,
 } from '@ikaro/types';
+import {
+  CanonicalParseIntPipe,
+  CanonicalParseUUIDPipe,
+} from '../../shared/http/canonical-parse-pipes';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -64,8 +66,8 @@ export class StaffController {
 
   @Get()
   list(
-    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
-    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('limit', new DefaultValuePipe(50), CanonicalParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), CanonicalParseIntPipe) offset: number,
   ): Promise<StaffListResponse> {
     return this.backendHttp
       .get<StaffItemListResponse>('/staff', { limit, offset })
@@ -81,14 +83,14 @@ export class StaffController {
   }
 
   @Get(':id')
-  getById(@Param('id', ParseUUIDPipe) id: string): Promise<StaffResponse> {
+  getById(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<StaffResponse> {
     return this.backendHttp.get<StaffResponse>(`/staff/${id}`);
   }
 
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateStaffBodySchema)) body: UpdateStaffBody,
   ): Promise<UpdateStaffResponse> {
     return this.backendHttp.patch<UpdateStaffResponse>(`/staff/${id}`, body);
@@ -96,13 +98,13 @@ export class StaffController {
 
   @Patch(':id/deactivate')
   @HttpCode(HttpStatus.OK)
-  deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<DeactivateStaffResponse> {
+  deactivate(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<DeactivateStaffResponse> {
     return this.backendHttp.patch<DeactivateStaffResponse>(`/staff/${id}/deactivate`, {});
   }
 
   @Patch(':id/activate')
   @HttpCode(HttpStatus.OK)
-  activate(@Param('id', ParseUUIDPipe) id: string): Promise<ActivateStaffResponse> {
+  activate(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<ActivateStaffResponse> {
     return this.backendHttp.patch<ActivateStaffResponse>(`/staff/${id}/activate`, {});
   }
 }

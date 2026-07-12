@@ -6,11 +6,11 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { CanonicalParseUUIDPipe } from '../../../../shared/http/canonical-parse-pipes';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { CreateServiceDto, CreateServiceSchema } from '../../application/dtos/create-service.dto';
@@ -69,9 +69,7 @@ export class ServiceController {
 
   @Get(':id')
   @UseGuards(StaffOrManagerRoleGuard)
-  getOne(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-  ): Promise<GetServiceByIdUseCaseResult> {
+  getOne(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<GetServiceByIdUseCaseResult> {
     return this.getServiceById
       .execute({
         id,
@@ -101,7 +99,7 @@ export class ServiceController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
   update(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateServiceSchema)) body: UpdateServiceDto,
   ): Promise<UpdateServiceUseCaseResult> {
     return this.updateService
@@ -118,9 +116,7 @@ export class ServiceController {
   @Patch(':id/activate')
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
-  activate(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
-  ): Promise<ActivateServiceUseCaseResult> {
+  activate(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<ActivateServiceUseCaseResult> {
     return this.activateService
       .execute({
         id,
@@ -133,7 +129,7 @@ export class ServiceController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
   deactivate(
-    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
   ): Promise<DeactivateServiceUseCaseResult> {
     return this.deactivateService
       .execute({ id, tenantId: this.tenantContext.tenantId })

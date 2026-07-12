@@ -47,6 +47,29 @@ X-Actor-Type: STAFF
 X-Actor-Role: MANAGER
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — me/status (BFF's ActiveStaffGuard self-check, TD23 Story 11)
+# Self-service isActive check — target is always RequestContext.actorId, never a URL param.
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Get the currently authenticated staff member's own active status (MANAGER)
+GET {{baseUrl}}/staff/me/status
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### Get the currently authenticated staff member's own active status (STAFF, non-manager)
+GET {{baseUrl}}/staff/me/status
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffWorkerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — get staff by id
 # ─────────────────────────────────────────────────────────────────────────────
 

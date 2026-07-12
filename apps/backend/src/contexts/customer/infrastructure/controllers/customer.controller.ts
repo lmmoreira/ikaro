@@ -6,11 +6,11 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Patch,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { CanonicalParseUUIDPipe } from '../../../../shared/http/canonical-parse-pipes';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { CustomerRoleGuard } from '../../../../shared/guards/customer-role.guard';
@@ -89,7 +89,7 @@ export class CustomerController {
   @Get(':customerId')
   @UseGuards(StaffOrManagerRoleGuard)
   getById(
-    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
   ): Promise<GetCustomerProfileResponse> {
     return this.getCustomerById
       .execute({ customerId, tenantId: this.ctx.tenantId })

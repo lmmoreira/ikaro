@@ -6,13 +6,13 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
 } from '@nestjs/common';
 import { z } from 'zod';
 import { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
 import { Roles } from '../../shared/decorators/roles.decorator';
+import { CanonicalParseUUIDPipe } from '../../shared/http/canonical-parse-pipes';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ServiceDetail, ServiceListResponse } from './services.types';
@@ -55,7 +55,7 @@ export class ServicesController {
 
   @Get(':id')
   @Roles('MANAGER', 'STAFF')
-  async getOne(@Param('id', ParseUUIDPipe) id: string): Promise<StaffServiceResponse> {
+  async getOne(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<StaffServiceResponse> {
     const result = await this.backendHttp.get<ServiceDetail>(`/services/${id}`);
     return toStaffServiceResponse(result);
   }
@@ -74,7 +74,7 @@ export class ServicesController {
   @HttpCode(HttpStatus.OK)
   @Roles('MANAGER', 'STAFF')
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', CanonicalParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateServiceBodySchema)) body: UpdateServiceBody,
   ): Promise<StaffServiceResponse> {
     const result = await this.backendHttp.patch<ServiceDetail>(`/services/${id}`, body);
@@ -84,14 +84,14 @@ export class ServicesController {
   @Patch(':id/activate')
   @HttpCode(HttpStatus.OK)
   @Roles('MANAGER', 'STAFF')
-  async activate(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async activate(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<void> {
     await this.backendHttp.patch(`/services/${id}/activate`, {});
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles('MANAGER', 'STAFF')
-  async deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  async deactivate(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<void> {
     await this.backendHttp.delete(`/services/${id}`);
   }
 }

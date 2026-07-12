@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { BffErrorCode } from '@ikaro/types';
 import {
   CUSTOMER_ID,
   STAFF_ID,
@@ -83,6 +84,7 @@ describe('AuthController (component) — non-OAuth routes', () => {
       expect(res.status).toBe(403);
       expect(res.body).toMatchObject({
         status: 403,
+        code: BffErrorCode.CUSTOMER_NOT_REGISTERED_IN_TENANT,
         detail: 'Customer is not registered in the target tenant',
       });
     });

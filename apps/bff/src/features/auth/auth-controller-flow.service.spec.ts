@@ -1,12 +1,13 @@
 import {
   ConflictException,
-  ForbiddenException,
+  HttpException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
+import { BffErrorCode, GenericErrorCode } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { CurrentUserPayloadBuilder } from '../../test/builders/current-user-payload.builder';
 import { AuthControllerFlowService } from './auth-controller-flow.service';
@@ -453,7 +454,7 @@ describe('AuthControllerFlowService', () => {
       await expect(service.getStaffTenants()).resolves.toEqual([]);
     });
 
-    it('throws when a tenant batch response misses a referenced tenant', async () => {
+    it('throws 500 with BFF_TENANT_LOOKUP_INCONSISTENT when a tenant batch response misses a referenced tenant', async () => {
       const backendHttp = makeBackendHttp({
         get: jest
           .fn()
@@ -464,9 +465,13 @@ describe('AuthControllerFlowService', () => {
       });
       const service = makeService(backendHttp);
 
-      await expect(service.getStaffTenants()).rejects.toThrow(
-        `Tenant ${TENANT_ID_A} missing from batch response`,
-      );
+      const err = await service.getStaffTenants().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(500);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.TENANT_LOOKUP_INCONSISTENT,
+        detail: `Tenant ${TENANT_ID_A} missing from batch response`,
+      });
     });
   });
 
@@ -501,16 +506,19 @@ describe('AuthControllerFlowService', () => {
       );
     });
 
-    it('throws ForbiddenException when the customer is not registered in the target tenant', async () => {
+    it('throws 403 with BFF_CUSTOMER_NOT_REGISTERED_IN_TENANT when the customer is not registered in the target tenant', async () => {
       const backendHttp = makeBackendHttp({
         get: jest.fn().mockResolvedValueOnce([]),
       });
       const service = makeService(backendHttp);
       const dto: SwitchTenantDto = { targetTenantId: TENANT_ID_B };
 
-      await expect(service.switchTenant(dto, currentUser, makeRes())).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      const err = await service.switchTenant(dto, currentUser, makeRes()).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(403);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.CUSTOMER_NOT_REGISTERED_IN_TENANT,
+      });
     });
   });
 
@@ -538,7 +546,7 @@ describe('AuthControllerFlowService', () => {
       );
     });
 
-    it('throws ForbiddenException when the staff record is inactive', async () => {
+    it('throws 403 with BFF_STAFF_NOT_REGISTERED_IN_TENANT when the staff record is inactive', async () => {
       const backendHttp = makeBackendHttp({
         get: jest
           .fn()
@@ -549,12 +557,17 @@ describe('AuthControllerFlowService', () => {
       const service = makeService(backendHttp);
       const dto: SwitchStaffTenantDto = { staffId: STAFF_ID_A };
 
-      await expect(service.switchStaffTenant(dto, currentUser, makeRes())).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      const err = await service
+        .switchStaffTenant(dto, currentUser, makeRes())
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(403);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.STAFF_NOT_REGISTERED_IN_TENANT,
+      });
     });
 
-    it('throws ForbiddenException when no matching staff record exists', async () => {
+    it('throws 403 with BFF_STAFF_NOT_REGISTERED_IN_TENANT when no matching staff record exists', async () => {
       const backendHttp = makeBackendHttp({
         get: jest
           .fn()
@@ -565,9 +578,14 @@ describe('AuthControllerFlowService', () => {
       const service = makeService(backendHttp);
       const dto: SwitchStaffTenantDto = { staffId: STAFF_ID_A };
 
-      await expect(service.switchStaffTenant(dto, currentUser, makeRes())).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      const err = await service
+        .switchStaffTenant(dto, currentUser, makeRes())
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(403);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.STAFF_NOT_REGISTERED_IN_TENANT,
+      });
     });
   });
 
@@ -695,7 +713,7 @@ describe('AuthControllerFlowService', () => {
       );
     });
 
-    it('throws ForbiddenException when dev auth is enabled in production', async () => {
+    it('throws 403 with BFF_DEV_AUTH_UNAVAILABLE when dev auth is enabled in production', async () => {
       const service = makeService(
         makeBackendHttp(),
         makeConfigService({ nodeEnv: 'production', appEnv: 'production' }),
@@ -706,10 +724,15 @@ describe('AuthControllerFlowService', () => {
         type: 'staff',
       };
 
-      await expect(service.devLogin(dto, makeRes())).rejects.toBeInstanceOf(ForbiddenException);
+      const err = await service.devLogin(dto, makeRes()).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(403);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.DEV_AUTH_UNAVAILABLE,
+      });
     });
 
-    it('rejects emails too long for the dev OAuth identifier', async () => {
+    it('rejects emails too long for the dev OAuth identifier with GenericErrorCode.VALUE_TOO_LONG', async () => {
       const service = makeService();
       const dto: DevLoginDto = {
         email: `${'a'.repeat(260)}@example.com`,
@@ -717,12 +740,16 @@ describe('AuthControllerFlowService', () => {
         type: 'customer',
       };
 
-      await expect(service.devLogin(dto, makeRes())).rejects.toMatchObject({
-        status: 400,
+      const err = await service.devLogin(dto, makeRes()).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(400);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: GenericErrorCode.VALUE_TOO_LONG,
+        field: 'email',
       });
     });
 
-    it('throws ForbiddenException when dev auth is disabled', async () => {
+    it('throws 403 with BFF_DEV_AUTH_UNAVAILABLE when dev auth is disabled', async () => {
       const service = makeService(makeBackendHttp(), makeConfigService({ enableDevAuth: 'false' }));
       const dto: DevLoginDto = {
         email: 'admin@lavacar.com.br',
@@ -730,7 +757,12 @@ describe('AuthControllerFlowService', () => {
         type: 'staff',
       };
 
-      await expect(service.devLogin(dto, makeRes())).rejects.toBeInstanceOf(ForbiddenException);
+      const err = await service.devLogin(dto, makeRes()).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(403);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.DEV_AUTH_UNAVAILABLE,
+      });
     });
   });
 });

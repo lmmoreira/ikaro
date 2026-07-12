@@ -6,10 +6,11 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Post,
   Query,
 } from '@nestjs/common';
+import { GenericErrorCode } from '@ikaro/types';
+import { CanonicalParseUUIDPipe } from '../../../../shared/http/canonical-parse-pipes';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import {
   LinkGoogleAccountDto,
@@ -48,7 +49,9 @@ export class InternalStaffController {
         type: 'about:blank',
         title: 'Bad Request',
         status: 400,
+        code: GenericErrorCode.FIELD_REQUIRED,
         detail: 'googleOAuthId query parameter is required',
+        field: 'googleOAuthId',
       });
     }
     return this.getStaffByOAuthId.execute({ googleOAuthId });
@@ -57,7 +60,7 @@ export class InternalStaffController {
   @Get('by-email')
   async getByEmail(
     @Query('email') email: string,
-    @Query('tenantId', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST }))
+    @Query('tenantId', CanonicalParseUUIDPipe)
     tenantId: string,
   ): Promise<GetStaffByEmailUseCaseResult> {
     if (!email || !tenantId) {
@@ -65,6 +68,7 @@ export class InternalStaffController {
         type: 'about:blank',
         title: 'Bad Request',
         status: 400,
+        code: GenericErrorCode.FIELD_REQUIRED,
         detail: 'email and tenantId query parameters are required',
       });
     }
@@ -74,7 +78,7 @@ export class InternalStaffController {
   @Post(':staffId/link-google')
   @HttpCode(HttpStatus.OK)
   linkGoogle(
-    @Param('staffId', new ParseUUIDPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST }))
+    @Param('staffId', CanonicalParseUUIDPipe)
     staffId: string,
     @Body(new ZodValidationPipe(LinkGoogleAccountSchema)) dto: LinkGoogleAccountDto,
   ): Promise<LinkGoogleAccountUseCaseResult> {

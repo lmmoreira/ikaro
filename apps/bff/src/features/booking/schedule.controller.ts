@@ -6,12 +6,12 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Post,
   Query,
 } from '@nestjs/common';
 import { z } from 'zod';
 import { Roles } from '../../shared/decorators/roles.decorator';
+import { CanonicalParseUUIDPipe } from '../../shared/http/canonical-parse-pipes';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ScheduleClosureListResponse, ScheduleClosureResponse } from './schedule.types';
@@ -62,7 +62,7 @@ export class ScheduleController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  remove(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<void> {
     return this.backendHttp.delete<void>(`/schedule/closures/${id}`);
   }
 }

@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import { CustomerProfileResponse } from '@ikaro/types';
+import { BffErrorCode, CustomerProfileResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import { CustomersController } from './customers.controller';
@@ -193,6 +193,25 @@ describe('CustomersController', () => {
       expect(result).toEqual([
         { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
       ]);
+    });
+
+    it('throws 500 with BFF_TENANT_LOOKUP_INCONSISTENT when a tenant batch response misses a referenced tenant', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest
+          .fn()
+          .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce({ currentPoints: 120 }),
+      });
+      const controller = new CustomersController(backendHttp);
+
+      const err = await controller.getTenants().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(500);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.TENANT_LOOKUP_INCONSISTENT,
+        detail: `Tenant ${TENANT_ID} missing from batch response`,
+      });
     });
   });
 });

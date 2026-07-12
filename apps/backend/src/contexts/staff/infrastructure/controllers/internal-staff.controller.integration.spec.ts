@@ -71,6 +71,7 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
 
       expect(body.status).toBe(400);
       expect(body.detail).toContain('googleOAuthId');
+      expect(body.code).toBe('GENERIC_FIELD_REQUIRED');
     });
 
     it('returns 200 with empty array when no staff is found for the given googleOAuthId', async () => {
@@ -161,13 +162,25 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
         .set('X-Internal-Key', INTERNAL_KEY)
         .expect(400);
       expect(body.status).toBe(400);
+      expect(body.code).toBe('GENERIC_FIELD_REQUIRED');
     });
 
-    it('returns 400 when tenantId is absent', async () => {
+    it("returns 400 when tenantId is absent — caught by CanonicalParseUUIDPipe rejecting undefined, not the controller body's own check", async () => {
       const response = await request(app.getHttpServer())
         .get('/internal/staff/by-email?email=staff@lavacar.com.br')
         .set('X-Internal-Key', INTERNAL_KEY);
       expect(response.status).toBe(400);
+      expect(response.body.code).toBe('GENERIC_FORMAT_INVALID');
+    });
+
+    it('returns 400 with the canonical envelope when tenantId is not a valid UUID (CanonicalParseUUIDPipe)', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/internal/staff/by-email?email=staff@lavacar.com.br&tenantId=not-a-uuid')
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .expect(400);
+      expect(body.type).toBe('about:blank');
+      expect(body.code).toBe('GENERIC_FORMAT_INVALID');
+      expect(body.field).toBe('tenantId');
     });
 
     it('returns 404 when no staff found for given email + tenantId', async () => {

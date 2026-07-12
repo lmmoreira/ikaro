@@ -1,5 +1,7 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
+import { BffErrorCode } from '@ikaro/types';
 import { BackendHttpService } from './backend-http.service';
+import { throwProblemDetail } from './problem-detail';
 import { TenantInfoResponse } from '../types/backend-responses';
 
 export async function withPublicTenant<T>(
@@ -8,14 +10,10 @@ export async function withPublicTenant<T>(
   run: (tenantId: string) => Promise<T>,
 ): Promise<T> {
   if (!tenantSlug) {
-    throw new HttpException(
-      {
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: HttpStatus.BAD_REQUEST,
-        detail: 'X-Tenant-Slug header is required',
-      },
+    throwProblemDetail(
       HttpStatus.BAD_REQUEST,
+      BffErrorCode.TENANT_SLUG_HEADER_REQUIRED,
+      'X-Tenant-Slug header is required',
     );
   }
 

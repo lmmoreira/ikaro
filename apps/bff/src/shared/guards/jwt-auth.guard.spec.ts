@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { AuthErrorCode } from '@ikaro/types';
 import { makeExecutionContext } from '../../test/execution-context.factory';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -35,6 +36,7 @@ describe('JwtAuthGuard', () => {
         const body = (e as HttpException).getResponse() as Record<string, unknown>;
         expect(body['status']).toBe(401);
         expect(body['title']).toBe('Unauthorized');
+        expect(body['code']).toBe(AuthErrorCode.UNAUTHORIZED);
       }
     });
 
@@ -44,6 +46,8 @@ describe('JwtAuthGuard', () => {
         guard.handleRequest(new Error('jwt expired'), null);
       } catch (e) {
         expect((e as HttpException).getStatus()).toBe(HttpStatus.UNAUTHORIZED);
+        const body = (e as HttpException).getResponse() as Record<string, unknown>;
+        expect(body['code']).toBe(AuthErrorCode.UNAUTHORIZED);
       }
     });
   });

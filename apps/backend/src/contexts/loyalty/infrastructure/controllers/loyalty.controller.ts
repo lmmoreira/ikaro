@@ -6,11 +6,11 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { CanonicalParseUUIDPipe } from '../../../../shared/http/canonical-parse-pipes';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { AnyAuthenticatedRoleGuard } from '../../../../shared/guards/any-authenticated-role.guard';
@@ -116,7 +116,7 @@ export class LoyaltyController {
   @Get('customers/:customerId/loyalty/balance')
   @UseGuards(AnyAuthenticatedRoleGuard)
   async getBalanceAdmin(
-    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(CrossTenantQuerySchema))
     { tenantId }: CrossTenantQueryDto,
   ): Promise<EnrichedLoyaltyBalanceResult> {
@@ -141,7 +141,7 @@ export class LoyaltyController {
   @Get('customers/:customerId/loyalty/entries')
   @UseGuards(StaffOrManagerRoleGuard)
   getEntriesAdmin(
-    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationDto,
   ): Promise<GetLoyaltyEntriesUseCaseResult> {
     return this.getLoyaltyEntries
@@ -152,7 +152,7 @@ export class LoyaltyController {
   @Get('customers/:customerId/loyalty/redemptions')
   @UseGuards(StaffOrManagerRoleGuard)
   getRedemptionsAdmin(
-    @Param('customerId', ParseUUIDPipe) customerId: string,
+    @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationDto,
   ): Promise<GetLoyaltyRedemptionsUseCaseResult> {
     return this.getLoyaltyRedemptions

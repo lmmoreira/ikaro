@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
+import { BffErrorCode } from '@ikaro/types';
 import { CurrentUserPayloadBuilder } from '../../test/builders/current-user-payload.builder';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { BookingsController } from './bookings.controller';
@@ -487,7 +488,7 @@ describe('BookingsController', () => {
       infoSubmittedAt: '2026-06-15T14:00:00.000Z',
     };
 
-    it('returns 400 when token query param is missing', async () => {
+    it('returns 400 with BFF_GUEST_TOKEN_MISSING when token query param is missing', async () => {
       const backendHttp = makeBackendHttp();
       const controller = new BookingsController(backendHttp, makeConfigService());
 
@@ -496,9 +497,12 @@ describe('BookingsController', () => {
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(400);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.GUEST_TOKEN_MISSING,
+      });
     });
 
-    it('returns 401 when token is invalid', async () => {
+    it('returns 401 with BFF_GUEST_TOKEN_INVALID when token is invalid', async () => {
       const backendHttp = makeBackendHttp();
       const controller = new BookingsController(backendHttp, makeConfigService());
 
@@ -507,9 +511,12 @@ describe('BookingsController', () => {
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(401);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.GUEST_TOKEN_INVALID,
+      });
     });
 
-    it('returns 400 when token bookingId does not match route param', async () => {
+    it('returns 400 with BFF_GUEST_TOKEN_BOOKING_MISMATCH when token bookingId does not match route param', async () => {
       const token = jwt.sign(
         { bookingId: 'other-booking-id', tenantId: TENANT_ID, contactEmail: 'guest@example.com' },
         JWT_SECRET,
@@ -523,6 +530,9 @@ describe('BookingsController', () => {
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(400);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.GUEST_TOKEN_BOOKING_MISMATCH,
+      });
     });
 
     it('calls patchForPublic with contactEmail from token and returns result', async () => {
@@ -625,16 +635,19 @@ describe('BookingsController', () => {
       pointsEarned: null,
     };
 
-    it('returns 400 when token query param is missing', async () => {
+    it('returns 400 with BFF_GUEST_TOKEN_MISSING when token query param is missing', async () => {
       const backendHttp = makeBackendHttp();
       const controller = new BookingsController(backendHttp, makeConfigService());
 
       const err = await controller.getOneGuest(BOOKING_ID, undefined).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(400);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.GUEST_TOKEN_MISSING,
+      });
     });
 
-    it('returns 401 when token is invalid', async () => {
+    it('returns 401 with BFF_GUEST_TOKEN_INVALID when token is invalid', async () => {
       const backendHttp = makeBackendHttp();
       const controller = new BookingsController(backendHttp, makeConfigService());
 
@@ -643,9 +656,12 @@ describe('BookingsController', () => {
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(401);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.GUEST_TOKEN_INVALID,
+      });
     });
 
-    it('returns 400 when token bookingId does not match route param', async () => {
+    it('returns 400 with BFF_GUEST_TOKEN_BOOKING_MISMATCH when token bookingId does not match route param', async () => {
       const token = makeToken({ bookingId: 'other-booking-id' });
       const backendHttp = makeBackendHttp();
       const controller = new BookingsController(backendHttp, makeConfigService());
@@ -653,6 +669,9 @@ describe('BookingsController', () => {
       const err = await controller.getOneGuest(BOOKING_ID, token).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(400);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.GUEST_TOKEN_BOOKING_MISMATCH,
+      });
     });
 
     it('returns 404 when backend booking lookup fails (cross-tenant or not found)', async () => {
@@ -667,7 +686,7 @@ describe('BookingsController', () => {
       expect((err as HttpException).getStatus()).toBe(404);
     });
 
-    it('returns 409 when booking status is not INFO_REQUESTED', async () => {
+    it('returns 409 with BFF_GUEST_BOOKING_NOT_AWAITING_INFO when booking status is not INFO_REQUESTED', async () => {
       const token = makeToken();
       const backendHttp = makeBackendHttp({
         getForPublic: jest
@@ -679,6 +698,9 @@ describe('BookingsController', () => {
       const err = await controller.getOneGuest(BOOKING_ID, token).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(409);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.GUEST_BOOKING_NOT_AWAITING_INFO,
+      });
     });
 
     it('calls getForPublic with tenantId from token and returns GuestBookingReadResponse', async () => {
@@ -1223,7 +1245,7 @@ describe('BookingsController', () => {
       expect(result).toBe(mockSignedUrlResponse);
     });
 
-    it('scenario 3 — invalid guestToken: returns 401', async () => {
+    it('scenario 3 — invalid guestToken: returns 401 with BFF_GUEST_TOKEN_INVALID', async () => {
       const backendHttp = makeBackendHttp({});
       const controller = new BookingsController(backendHttp, makeConfigService());
 
@@ -1237,6 +1259,9 @@ describe('BookingsController', () => {
 
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.UNAUTHORIZED);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: BffErrorCode.GUEST_TOKEN_INVALID,
+      });
     });
 
     it('scenario 2 — no JWT, no tenantSlug, no guestToken: returns 400', async () => {

@@ -1,15 +1,23 @@
+import { HttpException } from '@nestjs/common';
+import { BffErrorCode } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { withPublicTenant } from './public-tenant';
 
 describe('withPublicTenant', () => {
   afterEach(() => jest.resetAllMocks());
 
-  it('throws 400 when tenant slug is missing', async () => {
+  it('throws 400 with BffErrorCode.TENANT_SLUG_HEADER_REQUIRED when tenant slug is missing', async () => {
     const backendHttp = makeBackendHttp();
 
     await expect(withPublicTenant(backendHttp, undefined, jest.fn())).rejects.toMatchObject({
       status: 400,
     });
+    try {
+      await withPublicTenant(backendHttp, undefined, jest.fn());
+    } catch (e) {
+      const body = (e as HttpException).getResponse() as Record<string, unknown>;
+      expect(body['code']).toBe(BffErrorCode.TENANT_SLUG_HEADER_REQUIRED);
+    }
   });
 
   it('resolves tenant id from slug and passes it to the callback', async () => {

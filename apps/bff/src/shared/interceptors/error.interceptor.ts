@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { Observable, catchError, throwError } from 'rxjs';
 import { Request } from 'express';
+import { AuthErrorCode, ProblemDetail } from '@ikaro/types';
 
 @Injectable()
 export class ErrorInterceptor implements NestInterceptor {
@@ -27,10 +28,12 @@ export class ErrorInterceptor implements NestInterceptor {
         });
 
         const status = HttpStatus.INTERNAL_SERVER_ERROR;
-        const problem = {
+        const problem: ProblemDetail = {
           type: 'about:blank',
           title: 'Internal Server Error',
           status,
+          code: AuthErrorCode.INTERNAL_ERROR,
+          detail: 'An unexpected error occurred',
           instance: req.path,
         };
 

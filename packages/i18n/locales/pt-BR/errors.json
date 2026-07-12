@@ -125,5 +125,19 @@
   "GENERIC_VALUE_TOO_LONG": "Este valor é muito longo.",
   "GENERIC_VALUE_OUT_OF_RANGE": "Este valor está fora do intervalo permitido.",
   "GENERIC_FORMAT_INVALID": "Este valor não está no formato esperado.",
-  "GENERIC_VALUE_INVALID": "Este valor é inválido."
+  "GENERIC_VALUE_INVALID": "Este valor é inválido.",
+  "BFF_GUEST_TOKEN_MISSING": "É necessário um token de acesso para continuar.",
+  "BFF_GUEST_TOKEN_INVALID": "Este link de acesso é inválido ou expirou.",
+  "BFF_GUEST_TOKEN_BOOKING_MISMATCH": "Este link de acesso não corresponde a este agendamento.",
+  "BFF_GUEST_BOOKING_NOT_AWAITING_INFO": "Este agendamento não está mais aguardando informações adicionais.",
+  "BFF_TENANT_SLUG_HEADER_REQUIRED": "Ocorreu um erro inesperado. Tente novamente.",
+  "BFF_TENANT_LOOKUP_INCONSISTENT": "Ocorreu um erro inesperado. Tente novamente.",
+  "BFF_STAFF_NOT_REGISTERED_IN_TENANT": "Você não está registrado neste estabelecimento.",
+  "BFF_CUSTOMER_NOT_REGISTERED_IN_TENANT": "Você não está registrado neste estabelecimento.",
+  "BFF_DEV_AUTH_UNAVAILABLE": "Login de desenvolvimento não está disponível.",
+  "BFF_UPSTREAM_UNAVAILABLE": "Não foi possível confirmar sua sessão no momento. Tente novamente.",
+  "AUTH_UNAUTHORIZED": "Sua sessão expirou. Faça login novamente.",
+  "AUTH_FORBIDDEN": "Você não tem permissão para realizar esta ação.",
+  "AUTH_TENANT_MISMATCH": "Este acesso não corresponde ao estabelecimento da sua sessão.",
+  "AUTH_INTERNAL_ERROR": "Ocorreu um erro inesperado. Tente novamente."
 }
