@@ -183,6 +183,16 @@ describe('StaffController', () => {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
+
+    it('returns 400 via requireActorId() when X-Actor-ID is absent, instead of a raw runtime error', async () => {
+      // '' (not undefined) — makeController's actorId param defaults to MANAGER_ID when
+      // undefined is passed explicitly (JS default-parameter semantics), so '' is the only
+      // way to force ctx.actorId to stay genuinely unset here.
+      const ctrl = makeController(repo, eventBus, TENANT_A, '');
+      const err = await ctrl.getMyStatus().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    });
   });
 
   describe('invite()', () => {

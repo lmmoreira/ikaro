@@ -20,13 +20,17 @@
     "test:cov": "jest --coverage"
   },
   "peerDependencies": {
+    "@nestjs/common": "^11.1.27",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@ikaro/config": "workspace:*",
+    "@nestjs/common": "^11.1.27",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.9.4",
     "jest": "^30.4.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
     "ts-jest": "^29.4.11",
     "zod": "^4.4.3"
   }

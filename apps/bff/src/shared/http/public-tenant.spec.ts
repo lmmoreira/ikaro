@@ -9,15 +9,12 @@ describe('withPublicTenant', () => {
   it('throws 400 with BffErrorCode.TENANT_SLUG_HEADER_REQUIRED when tenant slug is missing', async () => {
     const backendHttp = makeBackendHttp();
 
-    await expect(withPublicTenant(backendHttp, undefined, jest.fn())).rejects.toMatchObject({
-      status: 400,
+    const err = await withPublicTenant(backendHttp, undefined, jest.fn()).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(HttpException);
+    expect((err as HttpException).getStatus()).toBe(400);
+    expect((err as HttpException).getResponse()).toMatchObject({
+      code: BffErrorCode.TENANT_SLUG_HEADER_REQUIRED,
     });
-    try {
-      await withPublicTenant(backendHttp, undefined, jest.fn());
-    } catch (e) {
-      const body = (e as HttpException).getResponse() as Record<string, unknown>;
-      expect(body['code']).toBe(BffErrorCode.TENANT_SLUG_HEADER_REQUIRED);
-    }
   });
 
   it('resolves tenant id from slug and passes it to the callback', async () => {

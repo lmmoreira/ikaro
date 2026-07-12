@@ -6,7 +6,8 @@ import {
   ParseIntPipe,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { GenericErrorCode, ProblemDetail } from '@ikaro/types';
+import { GenericErrorCode } from './error-codes';
+import { ProblemDetail } from './errors.dto';
 
 function buildParseFailureProblem(
   code: GenericErrorCode,
@@ -28,13 +29,27 @@ function buildParseFailureProblem(
 // shapes (TD23 Story 11). Single-cause per TD23 §2 (one param, one value) — top-level
 // code/field, never violations[]. No VO backs "is this a UUID/integer" — GenericErrorCode per
 // docs/ENGINEERING_RULES.md § Single source of truth for a validation rule's code.
+// Shared between apps/backend and apps/bff (identical NestJS pipe logic, no per-app
+// customization needed) — kept here rather than duplicated per app, mirroring how
+// deriveViolation() was extracted from both apps' zod-validation.pipe.ts (TD23 Story 9 fix).
 @Injectable()
 export class CanonicalParseUUIDPipe extends ParseUUIDPipe {
   override async transform(value: string, metadata: ArgumentMetadata): Promise<string> {
+    const field = metadata.data ?? 'value';
+    // A missing value (undefined query param) and a malformed value are different failure
+    // modes — conflating them under FORMAT_INVALID tells the caller "you sent something wrong"
+    // when they sent nothing at all, and makes controller-level FIELD_REQUIRED checks
+    // unreachable for params this pipe already guards. Route params (@Param) can never reach
+    // here undefined (Express wouldn't match the route), so this only matters for @Query.
+    if (value === undefined || value === null || value === '') {
+      throw new HttpException(
+        buildParseFailureProblem(GenericErrorCode.FIELD_REQUIRED, `${field} is required`, field),
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     try {
       return await super.transform(value, metadata);
     } catch {
-      const field = metadata.data ?? 'value';
       throw new HttpException(
         buildParseFailureProblem(
           GenericErrorCode.FORMAT_INVALID,
@@ -50,10 +65,16 @@ export class CanonicalParseUUIDPipe extends ParseUUIDPipe {
 @Injectable()
 export class CanonicalParseIntPipe extends ParseIntPipe {
   override async transform(value: string, metadata: ArgumentMetadata): Promise<number> {
+    const field = metadata.data ?? 'value';
+    if (value === undefined || value === null || value === '') {
+      throw new HttpException(
+        buildParseFailureProblem(GenericErrorCode.FIELD_REQUIRED, `${field} is required`, field),
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     try {
       return await super.transform(value, metadata);
     } catch {
-      const field = metadata.data ?? 'value';
       throw new HttpException(
         buildParseFailureProblem(
           GenericErrorCode.VALUE_INVALID,

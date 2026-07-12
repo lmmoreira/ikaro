@@ -3,12 +3,12 @@ import { z } from 'zod';
 import {
   AddressErrorCode,
   BffErrorCode,
+  CanonicalParseUUIDPipe,
   CustomerProfileResponse,
   CustomerSearchListResponse,
   PhoneErrorCode,
   TenantOption,
 } from '@ikaro/types';
-import { CanonicalParseUUIDPipe } from '../../shared/http/canonical-parse-pipes';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';

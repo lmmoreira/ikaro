@@ -1,5 +1,5 @@
 import { ArgumentMetadata, HttpException, HttpStatus } from '@nestjs/common';
-import { GenericErrorCode } from '@ikaro/types';
+import { GenericErrorCode } from './error-codes';
 import { CanonicalParseIntPipe, CanonicalParseUUIDPipe } from './canonical-parse-pipes';
 
 const UUID_METADATA: ArgumentMetadata = { type: 'param', data: 'id' };
@@ -29,6 +29,25 @@ describe('CanonicalParseUUIDPipe', () => {
     const err = await pipe.transform('not-a-uuid', { type: 'param' }).catch((e: unknown) => e);
     expect((err as HttpException).getResponse()).toMatchObject({ field: 'value' });
   });
+
+  it('throws GenericErrorCode.FIELD_REQUIRED (not FORMAT_INVALID) when the value is missing', async () => {
+    const err = await pipe
+      .transform(undefined as unknown as string, UUID_METADATA)
+      .catch((e: unknown) => e);
+    expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect((err as HttpException).getResponse()).toMatchObject({
+      code: GenericErrorCode.FIELD_REQUIRED,
+      field: 'id',
+    });
+  });
+
+  it('throws GenericErrorCode.FIELD_REQUIRED when the value is an empty string', async () => {
+    const err = await pipe.transform('', UUID_METADATA).catch((e: unknown) => e);
+    expect((err as HttpException).getResponse()).toMatchObject({
+      code: GenericErrorCode.FIELD_REQUIRED,
+      field: 'id',
+    });
+  });
 });
 
 describe('CanonicalParseIntPipe', () => {
@@ -46,6 +65,16 @@ describe('CanonicalParseIntPipe', () => {
       type: 'about:blank',
       status: 400,
       code: GenericErrorCode.VALUE_INVALID,
+      field: 'limit',
+    });
+  });
+
+  it('throws GenericErrorCode.FIELD_REQUIRED (not VALUE_INVALID) when the value is missing', async () => {
+    const err = await pipe
+      .transform(undefined as unknown as string, INT_METADATA)
+      .catch((e: unknown) => e);
+    expect((err as HttpException).getResponse()).toMatchObject({
+      code: GenericErrorCode.FIELD_REQUIRED,
       field: 'limit',
     });
   });

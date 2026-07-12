@@ -1,18 +1,26 @@
 import { HttpException } from '@nestjs/common';
-import type {
-  AuthErrorCode,
-  BffErrorCode,
-  GenericErrorCode,
-  ProblemDetail,
+import {
   StaffErrorCode,
+  type AuthErrorCode,
+  type BffErrorCode,
+  type GenericErrorCode,
+  type ProblemDetail,
 } from '@ikaro/types';
+
+// Only STAFF_DEACTIVATED is reused from StaffErrorCode (single source of truth for the
+// "account deactivated" condition — see docs/ENGINEERING_RULES.md § Single source of truth
+// for a validation rule's code). Narrowed to that one member, not the whole StaffErrorCode
+// union, so a BFF site can't accidentally throw an unrelated backend staff code — that would
+// defeat the compile-time governance TD23 §9 exists to provide.
+type StaffDeactivatedCode = (typeof StaffErrorCode)['DEACTIVATED'];
 
 // Codes a BFF-originated throw site is allowed to use — spans every origin actually reused
 // across the BFF (TD23 Story 11): BFF-feature-specific, framework/guard fallback, VO-less
-// generic, and StaffErrorCode.DEACTIVATED (reused verbatim from the backend for the identical
-// business condition — see docs/ENGINEERING_RULES.md § Single source of truth for a validation
-// rule's code). Typed against the union, not `string`, so an uncatalogued code fails to compile.
-export type BffThrowableCode = BffErrorCode | AuthErrorCode | GenericErrorCode | StaffErrorCode;
+// generic, and StaffDeactivatedCode (reused verbatim from the backend for the identical
+// business condition). Typed against the union, not `string`, so an uncatalogued code fails
+// to compile.
+export type BffThrowableCode =
+  BffErrorCode | AuthErrorCode | GenericErrorCode | StaffDeactivatedCode;
 
 const STATUS_TITLES: Record<number, string> = {
   400: 'Bad Request',

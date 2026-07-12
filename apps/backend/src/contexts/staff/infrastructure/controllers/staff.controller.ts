@@ -13,11 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { GenericErrorCode } from '@ikaro/types';
-import {
-  CanonicalParseIntPipe,
-  CanonicalParseUUIDPipe,
-} from '../../../../shared/http/canonical-parse-pipes';
+import { CanonicalParseIntPipe, CanonicalParseUUIDPipe, GenericErrorCode } from '@ikaro/types';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { InviteStaffBodyDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
 import { UpdateStaffBodyDto, UpdateStaffSchema } from '../../application/dtos/update-staff.dto';
@@ -101,7 +97,7 @@ export class StaffController {
   @UseGuards(StaffOrManagerRoleGuard)
   async getMyStatus(): Promise<{ isActive: boolean }> {
     const { isActive } = await this.getStaffById
-      .execute({ staffId: this.tenantContext.actorId!, tenantId: this.tenantContext.tenantId })
+      .execute({ staffId: this.requireActorId(), tenantId: this.tenantContext.tenantId })
       .catch(mapStaffError);
     return { isActive };
   }

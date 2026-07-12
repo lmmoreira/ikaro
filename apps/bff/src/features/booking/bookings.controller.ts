@@ -21,7 +21,6 @@ import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { withPublicTenant } from '../../shared/http/public-tenant';
 import { requiredWithCode } from '../../shared/http/zod-code.util';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
-import { CanonicalParseUUIDPipe } from '../../shared/http/canonical-parse-pipes';
 import {
   AttachmentSignedUrlResponse,
   BookingResponse,
@@ -36,6 +35,7 @@ import {
   AddressErrorCode,
   ApproveBookingRequest,
   BffErrorCode,
+  CanonicalParseUUIDPipe,
   CustomerBookingDetailResponse,
   CustomerBookingListResponse,
   GenericErrorCode,

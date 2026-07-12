@@ -13,16 +13,14 @@ import {
 import { z } from 'zod';
 import {
   ActivateStaffResponse,
+  CanonicalParseIntPipe,
+  CanonicalParseUUIDPipe,
   DeactivateStaffResponse,
   InviteStaffResponse,
   StaffListResponse,
   StaffResponse,
   UpdateStaffResponse,
 } from '@ikaro/types';
-import {
-  CanonicalParseIntPipe,
-  CanonicalParseUUIDPipe,
-} from '../../shared/http/canonical-parse-pipes';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
