@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -28,7 +27,6 @@ export class DeactivateStaffUseCase {
   constructor(
     @Inject(STAFF_REPOSITORY) private readonly staffRepo: IStaffRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
   ) {}
 
   async execute(dto: DeactivateStaffUseCaseInput): Promise<DeactivateStaffUseCaseResult> {
@@ -48,10 +46,6 @@ export class DeactivateStaffUseCase {
       staff.deactivate(dto.deactivatedBy, dto.correlationId);
       await this.staffRepo.save(staff);
     });
-
-    for (const event of staff.clearDomainEvents()) {
-      await this.eventBus.publish(event);
-    }
 
     return { staffId: staff.id, isActive: false };
   }

@@ -1,3 +1,5 @@
+import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-domain-events';
+import { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   BookingFilters,
   BookingListFilters,
@@ -8,6 +10,8 @@ import { Booking } from '../../../contexts/booking/domain/booking.aggregate';
 
 export class InMemoryBookingRepository implements IBookingRepository {
   private readonly store = new Map<string, Booking>();
+
+  constructor(private readonly outboxPublisher: IOutboxPublisher = { publish: async () => {} }) {}
 
   async findById(id: string, tenantId: string): Promise<Booking | null> {
     const booking = this.store.get(id);
@@ -37,5 +41,6 @@ export class InMemoryBookingRepository implements IBookingRepository {
 
   async save(booking: Booking): Promise<void> {
     this.store.set(booking.id, booking);
+    await drainDomainEvents(booking, this.outboxPublisher);
   }
 }

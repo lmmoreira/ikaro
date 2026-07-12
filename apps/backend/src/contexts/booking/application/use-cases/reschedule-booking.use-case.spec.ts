@@ -29,15 +29,14 @@ describe('RescheduleBookingUseCase', () => {
   let useCase: RescheduleBookingUseCase;
 
   beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
-    availabilityPort = new InMemoryBookingAvailabilityPort();
     eventBus = new InMemoryEventBus();
+    bookingRepo = new InMemoryBookingRepository(eventBus);
+    availabilityPort = new InMemoryBookingAvailabilityPort();
     const slotConflictService = new BookingSlotConflictService(availabilityPort);
     useCase = new RescheduleBookingUseCase(
       bookingRepo,
       slotConflictService,
       new InMemoryTransactionManager(),
-      eventBus,
     );
   });
 

@@ -13,9 +13,9 @@ function makeHandler(): {
   repo: InMemoryStaffRepository;
   eventBus: InMemoryEventBus;
 } {
-  const repo = new InMemoryStaffRepository();
   const eventBus = new InMemoryEventBus();
-  const useCase = new CreateInitialManagerUseCase(repo, new InMemoryTransactionManager(), eventBus);
+  const repo = new InMemoryStaffRepository(eventBus);
+  const useCase = new CreateInitialManagerUseCase(repo, new InMemoryTransactionManager());
   const handler = new TenantProvisionedHandler(useCase, eventBus);
   return { handler, repo, eventBus };
 }

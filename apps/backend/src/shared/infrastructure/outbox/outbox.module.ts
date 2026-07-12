@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventBusModule } from '../event-bus/event-bus.module';
 import { OUTBOX_PUBLISHER } from '../../ports/outbox-publisher.port';
@@ -10,10 +10,12 @@ import { OutboxRelayTriggerHandler } from './outbox-relay-trigger.handler';
 import { OutboxRelayService } from './outbox-relay.service';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
 
-// Not @Global() — TD24-S01 ships dark: OUTBOX_PUBLISHER has no consumers until S02/S03 wire the
-// aggregate repos and cron jobs to it (D14 — EVENT_BUS is never rebound to this class).
+// @Global() (TD24-S02): OUTBOX_PUBLISHER now has real consumers — the 3 event-emitting aggregates'
+// repositories (booking, tenant, staff) — matching EventBusModule's own @Global() pattern so
+// context modules don't each need an explicit OutboxModule import.
 // EventBusModule is imported explicitly for clarity even though it's already @Global() (matches
 // the convention other context modules follow — see docs/AGENT_PATTERNS.md's module skeleton).
+@Global()
 @Module({
   imports: [TypeOrmModule.forFeature([OutboxEventEntity]), EventBusModule],
   controllers: [OutboxRelayController],
@@ -23,5 +25,9 @@ import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
     OutboxRelayService,
     OutboxRelayTriggerHandler,
   ],
+  // @Global() alone does not make a provider injectable elsewhere — it still must be exported.
+  // OUTBOX_PUBLISHER is the one token the 3 aggregate repositories (TD24-S02) inject from outside
+  // this module; nothing outside needs OUTBOX_REPOSITORY directly.
+  exports: [OUTBOX_PUBLISHER],
 })
 export class OutboxModule {}

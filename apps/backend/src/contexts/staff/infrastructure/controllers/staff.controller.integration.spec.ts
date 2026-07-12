@@ -6,8 +6,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus/event-bus.module';
+import { OutboxModule } from '../../../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { RequestInterceptor } from '../../../../shared/request/request.interceptor';
 import { RequestModule } from '../../../../shared/request/request.module';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
@@ -27,6 +29,7 @@ describe('StaffController (integration) — management endpoints', () => {
   let ds: DataSource;
 
   beforeAll(async () => {
+    const routingBus = new RoutingInMemoryEventBus();
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
@@ -37,6 +40,7 @@ describe('StaffController (integration) — management endpoints', () => {
           synchronize: false,
         }),
         EventBusModule,
+        OutboxModule,
         TransactionManagerModule,
         RequestModule,
         StaffModule,
@@ -47,7 +51,9 @@ describe('StaffController (integration) — management endpoints', () => {
       ],
     })
       .overrideProvider(EVENT_BUS)
-      .useValue(new RoutingInMemoryEventBus())
+      .useValue(routingBus)
+      .overrideProvider(OUTBOX_PUBLISHER)
+      .useValue(routingBus)
       .compile();
 
     app = moduleRef.createNestApplication();

@@ -27,9 +27,9 @@ describe('InviteStaffUseCase', () => {
   let useCase: InviteStaffUseCase;
 
   beforeEach(() => {
-    repo = new InMemoryStaffRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new InviteStaffUseCase(repo, new InMemoryTransactionManager(), eventBus);
+    repo = new InMemoryStaffRepository(eventBus);
+    useCase = new InviteStaffUseCase(repo, new InMemoryTransactionManager());
   });
 
   it('creates an active staff row with name stored and publishes StaffInvited', async () => {

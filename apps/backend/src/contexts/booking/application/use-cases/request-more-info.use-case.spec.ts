@@ -25,9 +25,9 @@ describe('RequestMoreInfoUseCase', () => {
   let useCase: RequestMoreInfoUseCase;
 
   beforeEach(() => {
-    bookingRepo = new InMemoryBookingRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new RequestMoreInfoUseCase(bookingRepo, new InMemoryTransactionManager(), eventBus);
+    bookingRepo = new InMemoryBookingRepository(eventBus);
+    useCase = new RequestMoreInfoUseCase(bookingRepo, new InMemoryTransactionManager());
   });
 
   it('transitions PENDING → INFO_REQUESTED and returns result with infoRequestedAt', async () => {

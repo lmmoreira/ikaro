@@ -20,9 +20,9 @@ describe('ActivateStaffUseCase', () => {
   let useCase: ActivateStaffUseCase;
 
   beforeEach(() => {
-    repo = new InMemoryStaffRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new ActivateStaffUseCase(repo, new InMemoryTransactionManager(), eventBus);
+    repo = new InMemoryStaffRepository(eventBus);
+    useCase = new ActivateStaffUseCase(repo, new InMemoryTransactionManager());
   });
 
   it('activates a deactivated STAFF member — clears deactivatedBy and publishes StaffActivated', async () => {
@@ -85,6 +85,7 @@ describe('ActivateStaffUseCase', () => {
       .withGoogleOAuthId('google-manager')
       .build();
     manager.deactivate('some-other-actor', 'corr-setup');
+    manager.clearDomainEvents();
     await repo.save(manager);
 
     await expect(
@@ -133,6 +134,7 @@ describe('ActivateStaffUseCase', () => {
       .withGoogleOAuthId('google-staff-a')
       .build();
     staff.deactivate('some-other-actor', 'corr-setup');
+    staff.clearDomainEvents();
     await repo.save(staff);
 
     await expect(

@@ -18,9 +18,9 @@ describe('CreateInitialManagerUseCase', () => {
   let useCase: CreateInitialManagerUseCase;
 
   beforeEach(() => {
-    repo = new InMemoryStaffRepository();
     eventBus = new InMemoryEventBus();
-    useCase = new CreateInitialManagerUseCase(repo, new InMemoryTransactionManager(), eventBus);
+    repo = new InMemoryStaffRepository(eventBus);
+    useCase = new CreateInitialManagerUseCase(repo, new InMemoryTransactionManager());
   });
 
   it('creates active MANAGER staff and publishes StaffInvited', async () => {

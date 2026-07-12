@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
+import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import {
   FindAllByTenantResult,
@@ -17,6 +19,8 @@ export class TypeOrmStaffRepository implements IStaffRepository {
   constructor(
     @InjectRepository(StaffEntity)
     private readonly repo: Repository<StaffEntity>,
+    @Inject(OUTBOX_PUBLISHER)
+    private readonly outboxPublisher: IOutboxPublisher,
   ) {}
 
   async findByTenantAndOAuthId(tenantId: string, googleOAuthId: string): Promise<Staff | null> {
@@ -105,6 +109,7 @@ export class TypeOrmStaffRepository implements IStaffRepository {
       }
       throw err;
     }
+    await drainDomainEvents(staff, this.outboxPublisher);
   }
 
   private toDomain(entity: StaffEntity): Staff {
