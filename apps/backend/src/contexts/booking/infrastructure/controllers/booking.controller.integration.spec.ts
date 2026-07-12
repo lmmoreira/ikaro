@@ -627,7 +627,11 @@ describe('BookingController (integration)', () => {
       expect(statuses).toEqual([200, 409]);
 
       const approvedRows = await ds.getRepository(BookingEntity).find({
-        where: { tenantId: tenantAId, status: 'APPROVED', scheduledAt: new Date(conflictScheduledAt) },
+        where: {
+          tenantId: tenantAId,
+          status: 'APPROVED',
+          scheduledAt: new Date(conflictScheduledAt),
+        },
       });
       expect(approvedRows).toHaveLength(1);
     });

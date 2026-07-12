@@ -248,9 +248,9 @@ describe('TypeOrmBookingRepository (integration)', () => {
   it('throws OptimisticLockVersionMismatchError when saving a stale loaded aggregate', async () => {
     const tenantId = '00000000-0000-7000-8000-000000000067';
     const serviceId = '00000000-0000-7000-8000-000000000083';
-    await dataSource.getRepository(ServiceEntity).save(
-      new ServiceEntityBuilder().withId(serviceId).withTenantId(tenantId).build(),
-    );
+    await dataSource
+      .getRepository(ServiceEntity)
+      .save(new ServiceEntityBuilder().withId(serviceId).withTenantId(tenantId).build());
 
     const booking = new BookingBuilder()
       .withTenantId(tenantId)
