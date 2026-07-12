@@ -675,6 +675,11 @@ export class Booking extends AggregateRoot {
     return this.props.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0);
   }
 
+  markPersisted(version: number): void {
+    this.props.version = version;
+    this._linesModified = false;
+  }
+
   static reconstitute(props: BookingProps, linesModified = false): Booking {
     const booking = new Booking(props);
     booking._linesModified = linesModified;

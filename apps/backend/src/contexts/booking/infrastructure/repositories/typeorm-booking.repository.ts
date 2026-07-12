@@ -183,16 +183,19 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     booking: Booking,
     bookingEntity: BookingEntity,
   ): Promise<void> {
+    const nextVersion = booking.version === undefined ? 1 : booking.version + 1;
+
     if (booking.version === undefined) {
       await manager.insert(BookingEntity, bookingEntity);
     } else {
+      const currentVersion = booking.version;
       const result = await manager
         .createQueryBuilder()
         .update(BookingEntity)
         .set(this.toUpdateSet(bookingEntity))
         .where('id = :id', { id: booking.id })
         .andWhere('tenant_id = :tenantId', { tenantId: booking.tenantId })
-        .andWhere('version = :version', { version: booking.version })
+        .andWhere('version = :version', { version: currentVersion })
         .execute();
 
       if (result.affected !== 1) {
@@ -212,6 +215,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     }
 
     await drainDomainEvents(booking, this.outboxPublisher);
+    booking.markPersisted(nextVersion);
   }
 
   private async syncBookingLines(manager: EntityManager, booking: Booking): Promise<void> {

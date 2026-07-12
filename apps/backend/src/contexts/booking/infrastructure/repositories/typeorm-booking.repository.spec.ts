@@ -347,6 +347,16 @@ describe('TypeOrmBookingRepository', () => {
       expect(mockUpdateBuilder.execute).not.toHaveBeenCalled();
     });
 
+    it('marks a newly inserted aggregate as persisted so a second save uses guarded update', async () => {
+      const aggregate = new BookingBuilder().withTenantId('tenant-1').build();
+
+      await repo.save(aggregate);
+      await repo.save(aggregate);
+
+      expect(mockTx.insert).toHaveBeenCalledTimes(1);
+      expect(mockUpdateBuilder.execute).toHaveBeenCalledTimes(1);
+    });
+
     it('uses the active entity manager instead of opening a nested transaction', async () => {
       const aggregate = new BookingBuilder().withTenantId('tenant-1').build();
       const transactionSpy = jest.spyOn(ormRepo.manager, 'transaction');
