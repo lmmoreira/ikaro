@@ -1,15 +1,5 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Post,
-  Query,
-} from '@nestjs/common';
-import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { CanonicalParseUUIDPipe, throwProblemDetail } from '@ikaro/nestjs-http';
 import { GenericErrorCode } from '@ikaro/types';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import {
@@ -45,14 +35,12 @@ export class InternalStaffController {
     @Query('googleOAuthId') googleOAuthId: string,
   ): Promise<GetStaffByOAuthIdUseCaseResult[]> {
     if (!googleOAuthId) {
-      throw new BadRequestException({
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: 400,
-        code: GenericErrorCode.FIELD_REQUIRED,
-        detail: 'googleOAuthId query parameter is required',
-        field: 'googleOAuthId',
-      });
+      throw throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        GenericErrorCode.FIELD_REQUIRED,
+        'googleOAuthId query parameter is required',
+        'googleOAuthId',
+      );
     }
     return this.getStaffByOAuthId.execute({ googleOAuthId });
   }
@@ -64,13 +52,11 @@ export class InternalStaffController {
     tenantId: string,
   ): Promise<GetStaffByEmailUseCaseResult> {
     if (!email || !tenantId) {
-      throw new BadRequestException({
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: 400,
-        code: GenericErrorCode.FIELD_REQUIRED,
-        detail: 'email and tenantId query parameters are required',
-      });
+      throw throwProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        GenericErrorCode.FIELD_REQUIRED,
+        'email and tenantId query parameters are required',
+      );
     }
     return this.getStaffByEmail.execute({ email, tenantId }).catch(mapStaffError);
   }

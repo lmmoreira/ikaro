@@ -232,3 +232,29 @@ export const GenericErrorCode = {
   VALUE_INVALID: 'GENERIC_VALUE_INVALID',
 } as const;
 export type GenericErrorCode = (typeof GenericErrorCode)[keyof typeof GenericErrorCode];
+
+// Union of every catalogued error code across every origin (domain, VO, BFF, auth, generic) —
+// the compile-time constraint for throwProblemDetail (packages/nestjs-http). Keeps its
+// governance promise (an uncatalogued code fails to compile) global instead of per-context,
+// while each call site still narrows to its own specific code type by inference (from
+// `err.code` on a typed domain error, or from an enum member reference) — this union only
+// rejects strings that aren't a member of any catalogue at all.
+export type AnyErrorCode =
+  | BookingErrorCode
+  | CustomerErrorCode
+  | StaffErrorCode
+  | LoyaltyErrorCode
+  | PlatformErrorCode
+  | AddressErrorCode
+  | CountryCodeErrorCode
+  | PhoneErrorCode
+  | MoneyErrorCode
+  | SeoErrorCode
+  | SlugErrorCode
+  | HexColorErrorCode
+  | TimezoneErrorCode
+  | TimeOfDayErrorCode
+  | EmailErrorCode
+  | BffErrorCode
+  | AuthErrorCode
+  | GenericErrorCode;

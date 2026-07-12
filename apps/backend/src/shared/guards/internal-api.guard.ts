@@ -1,8 +1,8 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import * as crypto from 'node:crypto';
-import { ProblemDetail } from '@ikaro/types';
+import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
@@ -34,13 +34,11 @@ export class InternalApiGuard implements CanActivate {
       .digest();
 
     if (!incomingKey || !crypto.timingSafeEqual(storedHash, incomingHash)) {
-      const body: ProblemDetail = {
-        type: 'about:blank',
-        title: 'Unauthorized',
-        status: 401,
-        detail: 'Missing or invalid X-Internal-Key header',
-      };
-      throw new UnauthorizedException(body);
+      throw throwProblemDetail(
+        HttpStatus.UNAUTHORIZED,
+        undefined,
+        'Missing or invalid X-Internal-Key header',
+      );
     }
 
     return true;

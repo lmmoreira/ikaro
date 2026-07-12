@@ -1,10 +1,5 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  HttpException,
-  HttpStatus,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
+import { throwProblemDetail } from '@ikaro/nestjs-http';
 
 // Guards execute before interceptors in NestJS, so RequestContext (AsyncLocalStorage)
 // is not populated yet. Read X-Actor-Role directly from the request header.
@@ -22,15 +17,7 @@ export class ManagerRoleGuard implements CanActivate {
     const actorRole = req.headers['x-actor-role'];
 
     if (actorRole !== 'MANAGER') {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Forbidden',
-          status: HttpStatus.FORBIDDEN,
-          detail: 'MANAGER role required',
-        },
-        HttpStatus.FORBIDDEN,
-      );
+      throw throwProblemDetail(HttpStatus.FORBIDDEN, undefined, 'MANAGER role required');
     }
     return true;
   }

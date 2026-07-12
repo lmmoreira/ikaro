@@ -4,7 +4,6 @@ import {
   DefaultValuePipe,
   Get,
   HttpCode,
-  HttpException,
   HttpStatus,
   Param,
   Patch,
@@ -13,7 +12,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { CanonicalParseIntPipe, CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseIntPipe,
+  CanonicalParseUUIDPipe,
+  throwProblemDetail,
+} from '@ikaro/nestjs-http';
 import { GenericErrorCode } from '@ikaro/types';
 import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { InviteStaffBodyDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
@@ -178,16 +181,11 @@ export class StaffController {
   private requireActorId(): string {
     const actorId = this.tenantContext.actorId;
     if (!actorId) {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Bad Request',
-          status: 400,
-          code: GenericErrorCode.FIELD_REQUIRED,
-          detail: 'X-Actor-ID header is required',
-          field: 'X-Actor-ID',
-        },
+      throw throwProblemDetail(
         HttpStatus.BAD_REQUEST,
+        GenericErrorCode.FIELD_REQUIRED,
+        'X-Actor-ID header is required',
+        'X-Actor-ID',
       );
     }
     return actorId;

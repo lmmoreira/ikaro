@@ -1,5 +1,5 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
-import { ProblemDetail } from '@ikaro/types';
+import { HttpStatus } from '@nestjs/common';
+import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { MoneyValidationError } from '../value-objects/money';
 import { PhoneNumberValidationError } from '../value-objects/phone-number.vo';
 import { SeoTitleValidationError } from '../value-objects/seo-title.vo';
@@ -32,13 +32,6 @@ export function mapSharedVoError(err: unknown): void {
     err instanceof TimeOfDayValidationError ||
     err instanceof EmailValidationError
   ) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Bad Request',
-      status: HttpStatus.BAD_REQUEST,
-      code: err.code,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.BAD_REQUEST);
+    throw throwProblemDetail(HttpStatus.BAD_REQUEST, err.code, err.message);
   }
 }

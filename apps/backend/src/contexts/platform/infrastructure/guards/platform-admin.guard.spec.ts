@@ -1,4 +1,4 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PlatformAdminGuard } from './platform-admin.guard';
 
@@ -30,27 +30,23 @@ describe('PlatformAdminGuard', () => {
   });
 
   it('throws 401 when Authorization header is absent', () => {
-    expect(() => guard.canActivate(makeContext())).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(makeContext())).toThrow(HttpException);
   });
 
   it('throws 401 for a wrong key', () => {
     expect(() => guard.canActivate(makeContext('Bearer wrong-key-wrong-key-wrong-key'))).toThrow(
-      UnauthorizedException,
+      HttpException,
     );
   });
 
   it('throws 401 for non-Bearer scheme', () => {
-    expect(() => guard.canActivate(makeContext(`Basic ${TEST_KEY}`))).toThrow(
-      UnauthorizedException,
-    );
+    expect(() => guard.canActivate(makeContext(`Basic ${TEST_KEY}`))).toThrow(HttpException);
   });
 
   it('accepts a key of different length without throwing — hash normalisation prevents length errors', () => {
     // timingSafeEqual requires equal-length buffers; hashing both sides guarantees this.
     // A short or long incoming token must not crash — it should just fail auth.
-    expect(() => guard.canActivate(makeContext('Bearer short'))).toThrow(UnauthorizedException);
-    expect(() => guard.canActivate(makeContext(`Bearer ${'x'.repeat(64)}`))).toThrow(
-      UnauthorizedException,
-    );
+    expect(() => guard.canActivate(makeContext('Bearer short'))).toThrow(HttpException);
+    expect(() => guard.canActivate(makeContext(`Bearer ${'x'.repeat(64)}`))).toThrow(HttpException);
   });
 });

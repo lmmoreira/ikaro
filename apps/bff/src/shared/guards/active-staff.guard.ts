@@ -53,7 +53,10 @@ export class ActiveStaffGuard implements CanActivate {
       // used to 503 via the generic branch below).
       const { data } = await firstValueFrom(
         this.http.get<StaffActiveResponse>(`${this.backendUrl}/staff/me/status`, {
-          headers: buildBackendHeaders(req),
+          headers: {
+            ...buildBackendHeaders(req),
+            'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
+          },
           timeout: 5_000,
         }),
       );

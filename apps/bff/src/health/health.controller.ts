@@ -1,8 +1,10 @@
-import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { BffErrorCode } from '@ikaro/types';
 import { Public } from '../shared/decorators/public.decorator';
+import { throwProblemDetail } from '../shared/http/problem-detail';
 
 @Public()
 @Controller('health')
@@ -32,14 +34,10 @@ export class HealthController {
       await firstValueFrom(this.http.get(`${this.backendUrl}/health/ready`, { timeout: 2000 }));
       return { status: 'ok' };
     } catch {
-      throw new HttpException(
-        {
-          type: 'about:blank',
-          title: 'Service Unavailable',
-          status: HttpStatus.SERVICE_UNAVAILABLE,
-          detail: 'Backend is not ready',
-        },
+      throw throwProblemDetail(
         HttpStatus.SERVICE_UNAVAILABLE,
+        BffErrorCode.UPSTREAM_UNAVAILABLE,
+        'Backend is not ready',
       );
     }
   }

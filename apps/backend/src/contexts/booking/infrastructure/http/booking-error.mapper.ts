@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
 import { ProblemDetail } from '@ikaro/types';
@@ -49,41 +50,17 @@ export function mapBookingError(err: unknown): never {
   mapSharedAddressError(err);
   mapSharedVoError(err);
   if (err instanceof BookingForbiddenError) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Forbidden',
-      status: HttpStatus.FORBIDDEN,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.FORBIDDEN);
+    throw throwProblemDetail(HttpStatus.FORBIDDEN, err.code, err.message, err.field);
   }
   if (
     err instanceof BookingInfoMessageTooShortError ||
     err instanceof BookingRejectionReasonTooShortError ||
     err instanceof CompleteBookingLinesIncompleteError
   ) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Bad Request',
-      status: HttpStatus.BAD_REQUEST,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.BAD_REQUEST);
+    throw throwProblemDetail(HttpStatus.BAD_REQUEST, err.code, err.message, err.field);
   }
   if (err instanceof CustomerPhoneNotSetError) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Unprocessable Entity',
-      status: HttpStatus.UNPROCESSABLE_ENTITY,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message, err.field);
   }
   if (
     err instanceof ServiceNotFoundError ||
@@ -92,15 +69,7 @@ export function mapBookingError(err: unknown): never {
     err instanceof BookingNotFoundError ||
     err instanceof BookingCustomerNotFoundError
   ) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Not Found',
-      status: HttpStatus.NOT_FOUND,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.NOT_FOUND);
+    throw throwProblemDetail(HttpStatus.NOT_FOUND, err.code, err.message, err.field);
   }
   if (
     err instanceof ServiceDeactivatedError ||
@@ -108,15 +77,7 @@ export function mapBookingError(err: unknown): never {
     err instanceof ScheduleOpeningAlreadyExistsError ||
     err instanceof BookingSlotUnavailableError
   ) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Conflict',
-      status: HttpStatus.CONFLICT,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.CONFLICT);
+    throw throwProblemDetail(HttpStatus.CONFLICT, err.code, err.message, err.field);
   }
   if (
     err instanceof BookingDiscountNotAvailableError ||
@@ -124,37 +85,13 @@ export function mapBookingError(err: unknown): never {
     err instanceof BookingDiscountMismatchError ||
     err instanceof BookingDiscountExceedsTotalError
   ) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Unprocessable Entity',
-      status: HttpStatus.UNPROCESSABLE_ENTITY,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message, err.field);
   }
   if (err instanceof CancellationWindowExpiredError || err instanceof BookingScheduledInPastError) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Unprocessable Entity',
-      status: HttpStatus.UNPROCESSABLE_ENTITY,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message, err.field);
   }
   if (err instanceof InvalidBookingTransitionError) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Unprocessable Entity',
-      status: HttpStatus.UNPROCESSABLE_ENTITY,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message, err.field);
   }
   if (
     err instanceof ClosureDateInPastError ||
@@ -163,26 +100,10 @@ export function mapBookingError(err: unknown): never {
     err instanceof AvailabilityDateInPastError ||
     err instanceof AvailabilityRangeInvalidError
   ) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Unprocessable Entity',
-      status: HttpStatus.UNPROCESSABLE_ENTITY,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.UNPROCESSABLE_ENTITY);
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message, err.field);
   }
   if (err instanceof BookingDomainError) {
-    const body: ProblemDetail = {
-      type: 'about:blank',
-      title: 'Bad Request',
-      status: HttpStatus.BAD_REQUEST,
-      code: err.code,
-      field: err.field,
-      detail: err.message,
-    };
-    throw new HttpException(body, HttpStatus.BAD_REQUEST);
+    throw throwProblemDetail(HttpStatus.BAD_REQUEST, err.code, err.message, err.field);
   }
   if (err instanceof Error) throw err;
   throw new Error(`Unexpected error: ${String(err)}`);
