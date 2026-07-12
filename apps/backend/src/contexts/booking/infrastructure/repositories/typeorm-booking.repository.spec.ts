@@ -19,13 +19,38 @@ describe('TypeOrmBookingRepository', () => {
   let repo: TypeOrmBookingRepository;
   let ormRepo: jest.Mocked<Repository<BookingEntity>>;
   let ormLineRepo: jest.Mocked<Repository<BookingLineEntity>>;
-  let mockTx: { find: jest.Mock; save: jest.Mock; delete: jest.Mock };
+  let mockUpdateBuilder: {
+    update: jest.Mock;
+    set: jest.Mock;
+    where: jest.Mock;
+    andWhere: jest.Mock;
+    execute: jest.Mock;
+  };
+  let mockTx: {
+    find: jest.Mock;
+    findOne: jest.Mock;
+    save: jest.Mock;
+    insert: jest.Mock;
+    delete: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
 
   beforeEach(async () => {
+    mockUpdateBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+
     mockTx = {
       find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue({ version: 2 }),
       save: jest.fn().mockResolvedValue({}),
+      insert: jest.fn().mockResolvedValue({}),
       delete: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
+      createQueryBuilder: jest.fn().mockReturnValue(mockUpdateBuilder),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -312,11 +337,10 @@ describe('TypeOrmBookingRepository', () => {
       const aggregate = await repo.findById('00000000-0000-7000-8000-000000000020', 'tenant-1');
       await repo.save(aggregate!);
 
-      expect(mockTx.save).toHaveBeenCalledWith(
-        BookingEntity,
-        expect.objectContaining({ id: '00000000-0000-7000-8000-000000000020' }),
-      );
-      expect(mockTx.save).toHaveBeenCalledTimes(1);
+      expect(mockTx.createQueryBuilder).toHaveBeenCalled();
+      expect(mockUpdateBuilder.update).toHaveBeenCalledWith(BookingEntity);
+      expect(mockUpdateBuilder.execute).toHaveBeenCalledTimes(1);
+      expect(mockTx.save).not.toHaveBeenCalledWith(BookingEntity, expect.anything());
       expect(mockTx.delete).not.toHaveBeenCalled();
     });
 
@@ -353,6 +377,7 @@ describe('TypeOrmBookingRepository', () => {
       aggregate!.clearDomainEvents();
       await repo.save(aggregate!);
 
+      expect(mockUpdateBuilder.execute).toHaveBeenCalledTimes(1);
       expect(mockTx.delete).not.toHaveBeenCalled();
       expect(mockTx.save).toHaveBeenCalledWith(BookingLineEntity, [
         expect.objectContaining({
@@ -384,10 +409,7 @@ describe('TypeOrmBookingRepository', () => {
       aggregate!.clearDomainEvents();
       await repo.save(aggregate!);
 
-      expect(mockTx.save).toHaveBeenCalledWith(
-        BookingEntity,
-        expect.objectContaining({ id: '00000000-0000-7000-8000-000000000022' }),
-      );
+      expect(mockUpdateBuilder.execute).toHaveBeenCalledTimes(1);
       expect(mockTx.find).toHaveBeenCalledWith(BookingLineEntity, {
         where: {
           bookingId: '00000000-0000-7000-8000-000000000022',
@@ -415,8 +437,7 @@ describe('TypeOrmBookingRepository', () => {
       const aggregate = await repo.findById('00000000-0000-7000-8000-000000000021', 'tenant-2');
       await repo.save(aggregate!);
 
-      expect(mockTx.save).toHaveBeenCalledWith(
-        BookingEntity,
+      expect(mockUpdateBuilder.set).toHaveBeenCalledWith(
         expect.objectContaining({ totalPriceAmount: '250.50' }),
       );
     });
