@@ -382,7 +382,11 @@ export class TypeOrmBookingRepository implements IBookingRepository {
   }
 
   private toUpdateSet(bookingEntity: BookingEntity): QueryDeepPartialEntity<BookingEntity> {
-    const { id, tenantId, createdAt, version, ...updatable } = bookingEntity;
+    const updatable = Object.fromEntries(
+      Object.entries(bookingEntity).filter(
+        ([key]) => !['id', 'tenantId', 'createdAt', 'version'].includes(key),
+      ),
+    ) as QueryDeepPartialEntity<BookingEntity>;
     return { ...updatable, version: () => '"version" + 1' };
   }
 }

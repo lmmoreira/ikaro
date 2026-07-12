@@ -496,10 +496,14 @@ describe('TypeOrmBookingRepository', () => {
       ormRepo.findOne.mockResolvedValue(bookingEntity);
       ormLineRepo.find.mockResolvedValue([lineEntity]);
       mockUpdateBuilder.execute.mockRejectedValue(
-        new QueryFailedError('UPDATE booking.bookings ...', [], Object.assign(new Error(), {
-          code: '23P01',
-          constraint: 'EX_booking_bookings_approved_slot',
-        })),
+        new QueryFailedError(
+          'UPDATE booking.bookings ...',
+          [],
+          Object.assign(new Error(), {
+            code: '23P01',
+            constraint: 'EX_booking_bookings_approved_slot',
+          }),
+        ),
       );
 
       const aggregate = await repo.findById('00000000-0000-7000-8000-000000000021', 'tenant-2');

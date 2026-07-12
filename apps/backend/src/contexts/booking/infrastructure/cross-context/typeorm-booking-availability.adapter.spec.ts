@@ -90,13 +90,15 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
     it('uses the active transaction repository when one exists', async () => {
       const scheduledAt = new Date('2026-06-01T10:00:00.000Z');
       const managerRepo = {
-        find: jest.fn().mockResolvedValue([
-          new BookingEntityBuilder()
-            .withStatus(BookingStatus.APPROVED)
-            .withScheduledAt(scheduledAt)
-            .withTotalDurationMins(60)
-            .build(),
-        ]),
+        find: jest
+          .fn()
+          .mockResolvedValue([
+            new BookingEntityBuilder()
+              .withStatus(BookingStatus.APPROVED)
+              .withScheduledAt(scheduledAt)
+              .withTotalDurationMins(60)
+              .build(),
+          ]),
       };
       const manager = {
         getRepository: jest.fn().mockReturnValue(managerRepo),
