@@ -325,7 +325,7 @@ Nothing is rebound; no *observable* behavior changes (`EVENT_BUS` still resolves
 
 ---
 
-### TD24-S02 — Cutover: repository auto-flush through OutboxPublisher (all aggregate events)
+### TD24-S02 — Cutover: repository auto-flush through OutboxPublisher (all aggregate events) ✅ Done
 
 **Rescoped 2026-07-11 (D14):** no DI rebind, no publish/subscribe token split. `EVENT_BUS` is never touched by this story — it stays pointed at `GcpPubSubEventBusAdapter` forever. `OutboxPublisher` (built in S01, D12/D13) is wired to its own token, `OUTBOX_PUBLISHER`, which the 3 repos' drain helper depends on explicitly. The 16 subscribing handlers are completely unaffected — they keep injecting `EVENT_BUS`/`IEventBus` exactly as today, no migration needed.
 
