@@ -3,7 +3,7 @@ import { EntityManager } from 'typeorm';
 
 // Carries the active transactional EntityManager across await boundaries.
 // Populated by TypeOrmTransactionManager.run(); read by transaction-aware repositories.
-type TransactionContext = {
+export type TransactionContext = {
   entityManager: EntityManager;
   afterCommitCallbacks: Array<() => Promise<void> | void>;
 };

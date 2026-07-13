@@ -166,7 +166,7 @@ await drainDomainEvents(aggregate, this.outboxPublisher);
 
 **Adding a 4th event-emitting aggregate:** its TypeORM repository must inject `@Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher` and call `drainDomainEvents(entity, this.outboxPublisher)` at the end of `save()`, reusing the shared helper (`shared/infrastructure/outbox/drain-domain-events.ts`) rather than hand-rolling the loop — keeps production repos and their in-memory test doubles from drifting apart. `OutboxModule` is `@Global()` and exports `OUTBOX_PUBLISHER` — within the **real app's** single compiled module graph (`app.module.ts` imports it once), every other module can inject `OUTBOX_PUBLISHER` with no explicit import. **This does not carry over to test module graphs**: each isolated `Test.createTestingModule({ imports: [...] })` call compiles its own separate DI container, so `OutboxModule` must still be added to that `imports:` array at least once per test harness before `OUTBOX_PUBLISHER` (or `OUTBOX_REPOSITORY`) is resolvable there — `@Global()` only means "no import needed *within* a graph it's already part of," not "available everywhere unconditionally."
 
-**Non-aggregate events** (cron jobs constructing a `Command`, a consumer's re-emit) are unaffected — they still call `eventBus.publish()`/`outboxPublisher.publish()` directly from application code.
+**Non-aggregate events** (cron jobs constructing a `Command`, a consumer's re-emit) go through `OUTBOX_PUBLISHER` too (TD24-S03) — `EVENT_BUS` is never the publish path for these sites either. The difference from the aggregate-driven flow above is that there's no repository to auto-drain the event, so the call site (the job, or the use case doing the re-emit) must construct the event and call `outboxPublisher.publish()` itself, wrapped in its own `txManager.run()`.
 
 | Artifact | Location |
 |---|---|
@@ -175,6 +175,15 @@ await drainDomainEvents(aggregate, this.outboxPublisher);
 | Real adapter | `src/shared/infrastructure/outbox/outbox-publisher.ts` |
 | Global module | `src/shared/infrastructure/outbox/outbox.module.ts` |
 | Test wiring | in-memory repos (`InMemoryBookingRepository`/`InMemoryStaffRepository`/`InMemoryTenantRepository`) take an optional `IOutboxPublisher` constructor param (default no-op) and drain the same way — pass an `InMemoryEventBus`/`RoutingInMemoryEventBus` instance to observe published events in a spec |
+
+**Hard invariant (TD24-S03):** `TypeOrmOutboxRepository.insert()` throws `OutboxPublishedOutsideTransactionError` when called with no ambient transaction (`getActiveEntityManager()` returns `undefined`) — there is no standalone-commit fallback anymore. Every call to `OutboxPublisher.publish()`, anywhere, must run inside `txManager.run()`. A repository that opens its own transaction internally (the "no ambient tx from the caller" branch some repos have, e.g. `TypeOrmBookingRepository.save()`) must register that transaction with the ambient-context system itself (`runWithTransactionContext`/`createTransactionContext` + `flushAfterCommitCallbacks`, mirroring what `TypeOrmTransactionManager.run()` does) — otherwise `drainDomainEvents`'s outbox write inside it has no active manager to join and throws.
+
+**Adding a cron-published event:**
+1. The event class extends `Command` (`shared/domain/command.ts`), not `DomainEvent` — a cron tick can legitimately construct the same business fact twice (retry, overlapping invocation), and `Command`'s required `dedupKey: string` is what the outbox's `UNIQUE(dedup_key)` collapses those duplicates down to one row on. Compute a deterministic key from business identity + a calendar date (tenant-local or UTC, whichever the job already computes for its own query window) — never a fresh UUID.
+2. The job injects `@Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher` and `@Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager` — never `EVENT_BUS`.
+3. Resolve any cross-context reads (recipient lookups, settings lookups) **before** entering `txManager.run()` — the same "reads before writes" convention as everywhere else. Only the `outboxPublisher.publish()` calls belong inside the transaction.
+4. Batch the transaction **per tenant, not per event and not for the whole run**: one `txManager.run()` wrapping all of one tenant's publishes. A mid-run crash then retries only that tenant's un-committed facts as no-op `dedup_key` conflicts on the next run — every other tenant's already-committed rows are untouched.
+5. See `contexts/booking/application/jobs/booking-reminder.job.ts`, `admin-schedule-reminder.job.ts`, and `contexts/loyalty/application/jobs/notify-expiring-points.job.ts` for the reference shape, and their `.integration.spec.ts` siblings for the real-outbox dedup proof (two overlapping runs → one row).
 
 ---
 

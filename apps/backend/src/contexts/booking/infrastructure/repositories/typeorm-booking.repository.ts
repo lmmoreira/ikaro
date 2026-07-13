@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
@@ -152,9 +153,15 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       if (manager) {
         await this.persistBooking(manager, booking, bookingEntity);
       } else {
-        await this.repo.manager.transaction(async (tx) => {
-          await this.persistBooking(tx, booking, bookingEntity);
-        });
+        // Self-managed transaction (no ambient txManager.run() from the caller): runInNewTransaction
+        // is the same sequence TypeOrmTransactionManager.run() uses — the ambient context must
+        // point at this tx too, or drainDomainEvents' outbox write (inside persistBooking) would
+        // have no active manager to join and would run outside this transaction entirely, breaking
+        // the same-transaction guarantee this branch exists to provide (TD24-S03: TypeOrmOutboxRepository
+        // no longer has a disconnected standalone fallback).
+        await runInNewTransaction(this.repo.manager, (tx) =>
+          this.persistBooking(tx, booking, bookingEntity),
+        );
       }
     } catch (err) {
       const driverError =

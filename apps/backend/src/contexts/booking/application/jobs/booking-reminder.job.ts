@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DateTime } from 'luxon';
-import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
+import {
+  ITransactionManager,
+  TRANSACTION_MANAGER,
+} from '../../../../shared/ports/transaction-manager.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { utcDateToLocalHHMM, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
@@ -19,7 +23,8 @@ export class BookingReminderJob {
     @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(BOOKING_CUSTOMER_PORT) private readonly customerProfilePort: IBookingCustomerPort,
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
+    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
   async run(now: Date = new Date()): Promise<void> {
@@ -65,9 +70,14 @@ export class BookingReminderJob {
         }),
       ]);
 
+      // Recipient lookups are reads against a cross-context port — resolved before the tenant's
+      // outbox-write transaction opens, not inside it (CLAUDE.md: reads before txManager.run()).
+      // Sequential, not Promise.all: a tenant with many bookings would otherwise fan out one
+      // concurrent customer-profile lookup per booking, spiking DB/connection-pool load.
+      const tomorrowReminders: BookingReminderDue[] = [];
       for (const booking of tomorrowBookings) {
         const { email, name } = await this.resolveRecipient(booking, tenant.id);
-        await this.eventBus.publish(
+        tomorrowReminders.push(
           new BookingReminderDue(
             tenant.id,
             correlationId,
@@ -88,9 +98,10 @@ export class BookingReminderJob {
         );
       }
 
+      const todayReminders: BookingReminderDueToday[] = [];
       for (const booking of todayBookings) {
         const { email, name } = await this.resolveRecipient(booking, tenant.id);
-        await this.eventBus.publish(
+        todayReminders.push(
           new BookingReminderDueToday(
             tenant.id,
             correlationId,
@@ -110,6 +121,18 @@ export class BookingReminderJob {
           ),
         );
       }
+
+      // One transaction per tenant-batch, not one giant transaction across all tenants: a
+      // mid-run crash then retries only this tenant's un-committed facts as no-op conflicts
+      // on the next run, leaving every other tenant's already-committed rows untouched.
+      await this.txManager.run(async () => {
+        for (const reminder of tomorrowReminders) {
+          await this.outboxPublisher.publish(reminder);
+        }
+        for (const reminder of todayReminders) {
+          await this.outboxPublisher.publish(reminder);
+        }
+      });
     }
   }
 

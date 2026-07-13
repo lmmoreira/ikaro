@@ -1,4 +1,5 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
@@ -34,15 +35,21 @@ describe('AdminScheduleReminderJob', () => {
   let tenantPort: InMemoryBookingPlatformPort;
   let bookingRepo: InMemoryBookingRepository;
   let customerProfilePort: InMemoryBookingCustomerPort;
-  let eventBus: InMemoryEventBus;
+  let outboxPublisher: InMemoryEventBus;
   let job: AdminScheduleReminderJob;
 
   beforeEach(() => {
     tenantPort = new InMemoryBookingPlatformPort();
     bookingRepo = new InMemoryBookingRepository();
     customerProfilePort = new InMemoryBookingCustomerPort();
-    eventBus = new InMemoryEventBus();
-    job = new AdminScheduleReminderJob(tenantPort, bookingRepo, customerProfilePort, eventBus);
+    outboxPublisher = new InMemoryEventBus();
+    job = new AdminScheduleReminderJob(
+      tenantPort,
+      bookingRepo,
+      customerProfilePort,
+      outboxPublisher,
+      new InMemoryTransactionManager(),
+    );
   });
 
   afterEach(() => jest.resetAllMocks());
@@ -52,7 +59,9 @@ describe('AdminScheduleReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const events = eventBus.published.filter((e) => e.eventName === 'AdminDailyScheduleReminder');
+    const events = outboxPublisher.published.filter(
+      (e) => e.eventName === 'AdminDailyScheduleReminder',
+    );
     expect(events).toHaveLength(1);
     expect(events[0].tenantId).toBe(TENANT_IN);
   });
@@ -62,7 +71,9 @@ describe('AdminScheduleReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find((e) => e.eventName === 'AdminDailyScheduleReminder');
+    const event = outboxPublisher.published.find(
+      (e) => e.eventName === 'AdminDailyScheduleReminder',
+    );
     expect((event?.data as unknown as DigestEventData).totalBookingsToday).toBe(0);
     expect((event?.data as unknown as DigestEventData).bookingsToday).toEqual([]);
   });
@@ -87,7 +98,9 @@ describe('AdminScheduleReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find((e) => e.eventName === 'AdminDailyScheduleReminder');
+    const event = outboxPublisher.published.find(
+      (e) => e.eventName === 'AdminDailyScheduleReminder',
+    );
     const data = event?.data as unknown as DigestEventData;
     expect(data.totalBookingsToday).toBe(1);
     const digest = data.bookingsToday[0];
@@ -118,7 +131,9 @@ describe('AdminScheduleReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find((e) => e.eventName === 'AdminDailyScheduleReminder');
+    const event = outboxPublisher.published.find(
+      (e) => e.eventName === 'AdminDailyScheduleReminder',
+    );
     const digest = (event?.data as unknown as DigestEventData).bookingsToday[0];
     expect(digest.customerName).toBe('Ana Paula');
     expect(digest.customerPhone).toBe('+5531977777777');
@@ -127,7 +142,7 @@ describe('AdminScheduleReminderJob', () => {
   it('does not emit events for tenant outside 06:00–06:29 window', async () => {
     tenantPort.seed([{ id: TENANT_OUT, timezone: 'UTC' }]);
     await job.run(NOW_OUT);
-    expect(eventBus.published).toHaveLength(0);
+    expect(outboxPublisher.published).toHaveLength(0);
   });
 
   it('includes localDate in YYYY-MM-DD format in tenant timezone', async () => {
@@ -135,7 +150,9 @@ describe('AdminScheduleReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find((e) => e.eventName === 'AdminDailyScheduleReminder');
+    const event = outboxPublisher.published.find(
+      (e) => e.eventName === 'AdminDailyScheduleReminder',
+    );
     expect((event?.data as unknown as DigestEventData).localDate).toBe('2026-06-01');
   });
 
@@ -144,7 +161,7 @@ describe('AdminScheduleReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find(
+    const event = outboxPublisher.published.find(
       (e) => e.eventName === 'AdminDailyScheduleReminder',
     ) as Command;
     expect(event.dedupKey).toBe(`AdminDailyScheduleReminder:${TENANT_IN}:2026-06-01`);
@@ -156,7 +173,7 @@ describe('AdminScheduleReminderJob', () => {
     await job.run(NOW_IN);
     await job.run(NOW_IN);
 
-    const events = eventBus.published.filter(
+    const events = outboxPublisher.published.filter(
       (e) => e.eventName === 'AdminDailyScheduleReminder',
     ) as Command[];
     expect(events).toHaveLength(2); // InMemoryEventBus doesn't dedup — the outbox does (S01/S03)
@@ -178,7 +195,7 @@ describe('AdminScheduleReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const tenantBEvent = eventBus.published.find(
+    const tenantBEvent = outboxPublisher.published.find(
       (e) => e.eventName === 'AdminDailyScheduleReminder' && e.tenantId === TENANT_OUT,
     );
     expect((tenantBEvent?.data as unknown as DigestEventData).totalBookingsToday).toBe(0);

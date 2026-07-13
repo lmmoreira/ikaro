@@ -1,5 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { IEventBus, EVENT_BUS } from '../../../../../shared/ports/event-bus.port';
+import {
+  IOutboxPublisher,
+  OUTBOX_PUBLISHER,
+} from '../../../../../shared/ports/outbox-publisher.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -75,7 +78,7 @@ export class CompleteBookingLoyaltyEffectsUseCase {
     private readonly processedEventRepo: IProcessedEventRepository,
     @Inject(LOYALTY_PLATFORM_PORT)
     private readonly tenantSettingsPort: ILoyaltyPlatformPort,
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
@@ -130,6 +133,23 @@ export class CompleteBookingLoyaltyEffectsUseCase {
 
     const finalBalance = balance.currentPoints;
 
+    const servicePointsEarned = new ServicePointsEarned(dto.tenantId, dto.correlationId, {
+      customerId,
+      bookingId: dto.bookingId,
+      totalPointsEarned,
+      earnedAt: entries[0].earnedAt.toISOString(),
+      lines: entries.map((e) => ({
+        entryId: e.id,
+        serviceId: e.serviceId,
+        pointsEarned: e.points,
+        expiresAt: e.expiresAt.toISOString(),
+      })),
+      currentBalance: finalBalance,
+    });
+
+    // TD08 §12.3: the re-emit and the idempotency mark are one atomic fact — a crash between
+    // this transaction and a separately-published event used to leave ServicePointsEarned lost
+    // forever, since hasBeenProcessed() short-circuits any redelivery of BookingCompleted.
     await this.txManager.run(async () => {
       for (const entry of entries) {
         await this.entryRepo.save(entry);
@@ -140,23 +160,8 @@ export class CompleteBookingLoyaltyEffectsUseCase {
         dto.eventId,
         CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
       );
+      await this.outboxPublisher.publish(servicePointsEarned);
     });
-
-    await this.eventBus.publish(
-      new ServicePointsEarned(dto.tenantId, dto.correlationId, {
-        customerId,
-        bookingId: dto.bookingId,
-        totalPointsEarned,
-        earnedAt: entries[0].earnedAt.toISOString(),
-        lines: entries.map((e) => ({
-          entryId: e.id,
-          serviceId: e.serviceId,
-          pointsEarned: e.points,
-          expiresAt: e.expiresAt.toISOString(),
-        })),
-        currentBalance: finalBalance,
-      }),
-    );
 
     return {
       skipped: false,

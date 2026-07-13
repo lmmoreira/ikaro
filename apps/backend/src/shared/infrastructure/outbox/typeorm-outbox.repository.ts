@@ -5,6 +5,7 @@ import { Envelope } from '../../domain/envelope';
 import { IOutboxRepository, OutboxRow } from '../../ports/outbox-repository.port';
 import { getActiveEntityManager } from '../transaction-context';
 import { OutboxEventEntity } from './outbox-event.entity';
+import { OutboxPublishedOutsideTransactionError } from './outbox-published-outside-transaction.error';
 
 interface OutboxInsertRow {
   id: string;
@@ -59,6 +60,14 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
   ) {}
 
   async insert(event: Envelope, dedupKey: string): Promise<string | undefined> {
+    // TD24-S03: every publish site (the 3 event-emitting aggregates' repositories, the 3 cron
+    // jobs, the loyalty re-emit) now always runs inside txManager.run() — the standalone
+    // fallback this used to have was a legitimate path only until that was true everywhere.
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new OutboxPublishedOutsideTransactionError(event.eventName);
+    }
+
     const params = [
       event.eventId,
       dedupKey,
@@ -67,10 +76,7 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
       JSON.stringify(event),
     ];
 
-    const manager = getActiveEntityManager();
-    const rows = manager
-      ? ((await manager.query(INSERT_SQL, params)) as OutboxInsertRow[])
-      : ((await this.repo.query(INSERT_SQL, params)) as OutboxInsertRow[]);
+    const rows = (await manager.query(INSERT_SQL, params)) as OutboxInsertRow[];
 
     return rows[0]?.id;
   }

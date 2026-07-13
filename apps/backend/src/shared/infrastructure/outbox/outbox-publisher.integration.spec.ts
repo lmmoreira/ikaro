@@ -2,35 +2,17 @@ import { DataSource, Repository } from 'typeorm';
 import { TenantEntity } from '../../../contexts/platform/infrastructure/entities/tenant.entity';
 import { TenantEntityBuilder } from '../../../test/builders/platform/tenant-entity.builder';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
+import { StubCommand, StubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 import { createTestDataSource } from '../../../test/test-datasource';
-import { Command } from '../../domain/command';
-import { DomainEvent } from '../../domain/domain-event';
 import { uuidv7 } from '../../domain/uuid-v7';
 import { IEventBus } from '../../ports/event-bus.port';
 import { getActiveEntityManager } from '../transaction-context';
 import { TypeOrmTransactionManager } from '../typeorm-transaction-manager';
 import { OutboxEventEntity } from './outbox-event.entity';
+import { OutboxPublishedOutsideTransactionError } from './outbox-published-outside-transaction.error';
 import { OutboxPublisher } from './outbox-publisher';
 import { OutboxRelayService } from './outbox-relay.service';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
-
-class StubEvent extends DomainEvent<{ value: string }> {
-  readonly eventVersion = 1;
-  readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }) {
-    super(tenantId, correlationId);
-    this.data = data;
-  }
-}
-
-class StubCommand extends Command<{ value: string }> {
-  readonly eventVersion = 1;
-  readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }, dedupKey: string) {
-    super(tenantId, correlationId, dedupKey);
-    this.data = data;
-  }
-}
 
 describe('OutboxPublisher (integration)', () => {
   let ds: DataSource;
@@ -107,15 +89,14 @@ describe('OutboxPublisher (integration)', () => {
     expect(eventBus.publish).toHaveBeenCalledTimes(1);
   });
 
-  it('commits the outbox row standalone when published outside any transaction', async () => {
+  it('rejects when published outside any transaction (TD24-S03 — every publish site must wrap itself)', async () => {
     const publisher = makePublisher(false);
     const event = new StubEvent(uuidv7(), uuidv7(), { value: 'x' });
 
-    await publisher.publish(event);
+    await expect(publisher.publish(event)).rejects.toThrow(OutboxPublishedOutsideTransactionError);
 
     const outboxRow = await outboxRepo.findOne({ where: { id: event.eventId } });
-    expect(outboxRow).not.toBeNull();
-    expect(outboxRow!.publishedAt).toBeNull(); // inline dispatch disabled for this instance
+    expect(outboxRow).toBeNull();
   });
 
   it('is a no-op on a conflicting dedup_key — no new row, no dispatch for the losing attempt', async () => {
@@ -126,11 +107,13 @@ describe('OutboxPublisher (integration)', () => {
     // cron run constructing the same business fact twice.
     const first = new StubCommand(tenantId, uuidv7(), { value: 'x' }, dedupKey);
 
-    await publisher.publish(first);
+    // Each publish in its own transaction — mirrors two independent (overlapping/retried) job
+    // runs each wrapping their own publish batch in txManager.run() (TD24-S03).
+    await txManager.run(() => publisher.publish(first));
     eventBus.publish.mockClear();
 
     const second = new StubCommand(tenantId, uuidv7(), { value: 'y' }, dedupKey);
-    await publisher.publish(second);
+    await txManager.run(() => publisher.publish(second));
 
     const rows = await outboxRepo.find({ where: { dedupKey } });
     expect(rows).toHaveLength(1);

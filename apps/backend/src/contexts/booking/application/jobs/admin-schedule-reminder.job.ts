@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DateTime } from 'luxon';
-import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
+import {
+  ITransactionManager,
+  TRANSACTION_MANAGER,
+} from '../../../../shared/ports/transaction-manager.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { utcDateToLocalHHMM, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
@@ -18,7 +22,8 @@ export class AdminScheduleReminderJob {
     @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(BOOKING_CUSTOMER_PORT) private readonly customerProfilePort: IBookingCustomerPort,
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
+    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
   async run(now: Date = new Date()): Promise<void> {
@@ -49,13 +54,14 @@ export class AdminScheduleReminderJob {
         todayBookings.map((b) => this.buildDigestBooking(b, tenant.id)),
       );
 
-      await this.eventBus.publish(
-        new AdminDailyScheduleReminder(tenant.id, correlationId, {
-          localDate: localToday,
-          bookingsToday,
-          totalBookingsToday: bookingsToday.length,
-        }),
-      );
+      const reminder = new AdminDailyScheduleReminder(tenant.id, correlationId, {
+        localDate: localToday,
+        bookingsToday,
+        totalBookingsToday: bookingsToday.length,
+      });
+
+      // One transaction per tenant-batch (see booking-reminder.job.ts for the rationale).
+      await this.txManager.run(() => this.outboxPublisher.publish(reminder));
     }
   }
 

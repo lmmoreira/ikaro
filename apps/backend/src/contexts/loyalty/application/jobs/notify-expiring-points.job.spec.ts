@@ -1,4 +1,5 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyPlatformPort } from '../../../../test/infrastructure/in-memory-loyalty-platform.port';
 import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
@@ -16,21 +17,26 @@ const soon = (daysFromNow: number): Date =>
 describe('NotifyExpiringPointsJob', () => {
   let job: NotifyExpiringPointsJob;
   let entryRepo: InMemoryLoyaltyEntryRepository;
-  let eventBus: InMemoryEventBus;
+  let outboxPublisher: InMemoryEventBus;
   let settingsPort: InMemoryLoyaltyPlatformPort;
 
   beforeEach(() => {
     entryRepo = new InMemoryLoyaltyEntryRepository();
-    eventBus = new InMemoryEventBus();
+    outboxPublisher = new InMemoryEventBus();
     settingsPort = new InMemoryLoyaltyPlatformPort();
-    job = new NotifyExpiringPointsJob(entryRepo, eventBus, settingsPort);
+    job = new NotifyExpiringPointsJob(
+      entryRepo,
+      outboxPublisher,
+      settingsPort,
+      new InMemoryTransactionManager(),
+    );
   });
 
   it('returns zero when no entries are expiring soon', async () => {
     const result = await job.run();
 
     expect(result.customersNotified).toBe(0);
-    expect(eventBus.published).toHaveLength(0);
+    expect(outboxPublisher.published).toHaveLength(0);
   });
 
   it('publishes one PointsExpiringSoon per customer with correct aggregated payload', async () => {
@@ -54,7 +60,7 @@ describe('NotifyExpiringPointsJob', () => {
     const result = await job.run();
 
     expect(result.customersNotified).toBe(1);
-    const events = eventBus.published.filter((e) => e.eventName === 'PointsExpiringSoon');
+    const events = outboxPublisher.published.filter((e) => e.eventName === 'PointsExpiringSoon');
     expect(events).toHaveLength(1);
     const evt = events[0] as PointsExpiringSoon;
     expect(evt.data.customerId).toBe(CUSTOMER_1);
@@ -83,7 +89,9 @@ describe('NotifyExpiringPointsJob', () => {
     const result = await job.run();
 
     expect(result.customersNotified).toBe(2);
-    expect(eventBus.published.filter((e) => e.eventName === 'PointsExpiringSoon')).toHaveLength(2);
+    expect(
+      outboxPublisher.published.filter((e) => e.eventName === 'PointsExpiringSoon'),
+    ).toHaveLength(2);
   });
 
   it('skips entries outside the warning window', async () => {
@@ -99,7 +107,7 @@ describe('NotifyExpiringPointsJob', () => {
     const result = await job.run(new Date(), 7);
 
     expect(result.customersNotified).toBe(0);
-    expect(eventBus.published).toHaveLength(0);
+    expect(outboxPublisher.published).toHaveLength(0);
   });
 
   it('tenant isolation: publishes separate events per tenant', async () => {
@@ -123,7 +131,7 @@ describe('NotifyExpiringPointsJob', () => {
     const result = await job.run();
 
     expect(result.customersNotified).toBe(2);
-    const events = eventBus.published.filter(
+    const events = outboxPublisher.published.filter(
       (e) => e.eventName === 'PointsExpiringSoon',
     ) as PointsExpiringSoon[];
     const tenantAEvent = events.find((e) => e.tenantId === TENANT_A);
@@ -146,7 +154,7 @@ describe('NotifyExpiringPointsJob', () => {
     const result = await job.run();
 
     expect(result.customersNotified).toBe(0);
-    expect(eventBus.published).toHaveLength(0);
+    expect(outboxPublisher.published).toHaveLength(0);
   });
 
   it('notifies customer whose expiring points meet the threshold exactly', async () => {
@@ -163,7 +171,9 @@ describe('NotifyExpiringPointsJob', () => {
     const result = await job.run();
 
     expect(result.customersNotified).toBe(1);
-    expect(eventBus.published.filter((e) => e.eventName === 'PointsExpiringSoon')).toHaveLength(1);
+    expect(
+      outboxPublisher.published.filter((e) => e.eventName === 'PointsExpiringSoon'),
+    ).toHaveLength(1);
   });
 
   it('sets dedupKey to PointsExpiringSoon:<tenantId>:<customerId>:<UTC run date>', async () => {
@@ -179,7 +189,7 @@ describe('NotifyExpiringPointsJob', () => {
 
     await job.run(now);
 
-    const event = eventBus.published.find(
+    const event = outboxPublisher.published.find(
       (e) => e.eventName === 'PointsExpiringSoon',
     ) as PointsExpiringSoon;
     expect(event.dedupKey).toBe(`PointsExpiringSoon:${TENANT_A}:${CUSTOMER_1}:2026-06-01`);
@@ -199,7 +209,7 @@ describe('NotifyExpiringPointsJob', () => {
     await job.run(now);
     await job.run(now);
 
-    const events = eventBus.published.filter(
+    const events = outboxPublisher.published.filter(
       (e) => e.eventName === 'PointsExpiringSoon',
     ) as PointsExpiringSoon[];
     expect(events).toHaveLength(2); // InMemoryEventBus doesn't dedup — the outbox does (S01/S03)
@@ -228,7 +238,7 @@ describe('NotifyExpiringPointsJob', () => {
     const result = await job.run();
 
     expect(result.customersNotified).toBe(1);
-    const events = eventBus.published.filter(
+    const events = outboxPublisher.published.filter(
       (e) => e.eventName === 'PointsExpiringSoon',
     ) as PointsExpiringSoon[];
     expect(events[0].data.customerId).toBe(CUSTOMER_2);

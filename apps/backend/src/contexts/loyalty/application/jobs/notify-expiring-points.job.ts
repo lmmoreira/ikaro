@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
+import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
+import {
+  ITransactionManager,
+  TRANSACTION_MANAGER,
+} from '../../../../shared/ports/transaction-manager.port';
 import { utcDateString } from '../../../../shared/utils/calendar-date';
 import { PointsExpiringSoon } from '../../domain/commands/points-expiring-soon.command';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
@@ -20,8 +24,9 @@ export interface NotifyExpiringPointsJobResult {
 export class NotifyExpiringPointsJob {
   constructor(
     @Inject(LOYALTY_ENTRY_REPOSITORY) private readonly entryRepo: ILoyaltyEntryRepository,
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
     @Inject(LOYALTY_PLATFORM_PORT) private readonly settingsPort: ILoyaltyPlatformPort,
+    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
   async run(
@@ -41,6 +46,7 @@ export class NotifyExpiringPointsJob {
     for (const [tenantId, tenantGroups] of groupsByTenant) {
       const { notificationMinPoints } = await this.settingsPort.getLoyaltySettings(tenantId);
 
+      const toPublish: PointsExpiringSoon[] = [];
       for (const group of tenantGroups) {
         const { customerId } = group[0];
         const pointsExpiringSoon = group.reduce((sum, e) => sum + e.points, 0);
@@ -50,7 +56,7 @@ export class NotifyExpiringPointsJob {
           .map((e) => e.expiresAt)
           .reduce((min, d) => new Date(Math.min(d.getTime(), min.getTime())), group[0].expiresAt);
 
-        await this.eventBus.publish(
+        toPublish.push(
           new PointsExpiringSoon(
             tenantId,
             correlationId,
@@ -64,6 +70,13 @@ export class NotifyExpiringPointsJob {
         );
         customersNotified++;
       }
+
+      // One transaction per tenant-batch (see booking-reminder.job.ts for the rationale).
+      await this.txManager.run(async () => {
+        for (const event of toPublish) {
+          await this.outboxPublisher.publish(event);
+        }
+      });
     }
 
     return { customersNotified };
