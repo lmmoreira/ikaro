@@ -1,22 +1,16 @@
 import 'server-only';
 import type { ScheduleClosureListResponse, ScheduleOpeningListResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { parseErrorBody } from '@/shared/lib/api/errors';
+import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
 
 function buildRangeQuery(from: string, to: string): string {
   return new URLSearchParams({ from, to }).toString();
 }
 
-export class ScheduleFetchError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code?: string,
-    public readonly field?: string,
-    detail?: string,
-  ) {
-    super(detail ?? `Schedule request failed (${status})`);
+export class ScheduleFetchError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(status, code, field, detail ?? `Schedule request failed (${status})`);
     this.name = 'ScheduleFetchError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 

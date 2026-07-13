@@ -1,18 +1,12 @@
 import type { StaffTenantOption, SwitchTenantResponse, TenantOption } from '@ikaro/types';
-import { parseErrorBody } from '@/shared/lib/api/errors';
+import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
 
 export type { StaffTenantOption };
 
-export class AuthFetchError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code?: string,
-    public readonly field?: string,
-    detail?: string,
-  ) {
-    super(detail ?? `Auth request failed (${status})`);
+export class AuthFetchError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(status, code, field, detail ?? `Auth request failed (${status})`);
     this.name = 'AuthFetchError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 

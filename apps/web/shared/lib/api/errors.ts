@@ -7,6 +7,24 @@ export async function parseErrorBody(res: Response): Promise<Partial<ValidationP
   return ((await res.json().catch(() => null)) ?? {}) as Partial<ValidationProblemDetail>;
 }
 
+// Base for every single-cause fetch error (TD23 §2 — code + optional field, not violations[]).
+// Mirrors the backend's XxxDomainError pattern (e.g. BookingDomainError): the constructor
+// boilerplate (super/setPrototypeOf/property assignment) lives here once; each named subclass
+// is a thin `super(status, code, field, detail)` + its own `name`. Batch-validation callers
+// (CreateBookingError, SubmitGuestBookingInfoError) add their own `violations` property on top,
+// same as backend keeps `violations` out of its single-cause domain error base.
+export class FetchError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code?: string,
+    public readonly field?: string,
+    detail?: string,
+  ) {
+    super(detail ?? `Request failed (${status})`);
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 export class AuthError extends Error {
   constructor(detail: string) {
     super(detail);

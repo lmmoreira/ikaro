@@ -6,19 +6,18 @@ import type {
   ValidationViolation,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
-import { parseErrorBody } from '@/shared/lib/api/errors';
+import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
 
-export class CreateBookingError extends Error {
+export class CreateBookingError extends FetchError {
   constructor(
-    public readonly status: number,
-    public readonly code?: string,
-    public readonly field?: string,
+    status: number,
+    code?: string,
+    field?: string,
     public readonly violations?: readonly ValidationViolation[],
     detail?: string,
   ) {
-    super(detail ?? `Failed to create booking (${status})`);
+    super(status, code, field, detail ?? `Failed to create booking (${status})`);
     this.name = 'CreateBookingError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
@@ -68,17 +67,16 @@ export interface SubmitGuestBookingInfoResponse {
   readonly infoSubmittedAt: string;
 }
 
-export class SubmitGuestBookingInfoError extends Error {
+export class SubmitGuestBookingInfoError extends FetchError {
   constructor(
-    public readonly status: number,
-    public readonly code?: string,
-    public readonly field?: string,
+    status: number,
+    code?: string,
+    field?: string,
     public readonly violations?: readonly ValidationViolation[],
     detail?: string,
   ) {
-    super(detail ?? `Failed to submit guest booking info (${status})`);
+    super(status, code, field, detail ?? `Failed to submit guest booking info (${status})`);
     this.name = 'SubmitGuestBookingInfoError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 

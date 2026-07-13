@@ -7,7 +7,7 @@ import type {
   CustomerLoyaltyRedemptionsResponse,
 } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { parseErrorBody } from '@/shared/lib/api/errors';
+import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
 
 // GET /v1/loyalty/entries and /redemptions default to limit=20 (shared PaginationSchema) —
 // pass limit=50 explicitly to match the my-account list pages' page size.
@@ -18,16 +18,10 @@ const LOYALTY_HISTORY_LIMIT = 50;
 const ALL_BOOKING_STATUSES = 'PENDING,INFO_REQUESTED,APPROVED,COMPLETED,CANCELLED,REJECTED';
 const CUSTOMER_BOOKINGS_LIMIT = 50;
 
-export class CustomerFetchError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code?: string,
-    public readonly field?: string,
-    detail?: string,
-  ) {
-    super(detail ?? `Customer request failed (${status})`);
+export class CustomerFetchError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(status, code, field, detail ?? `Customer request failed (${status})`);
     this.name = 'CustomerFetchError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 

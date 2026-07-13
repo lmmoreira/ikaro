@@ -1,7 +1,7 @@
 import 'server-only';
 import type { StaffBookingDetailResponse, StaffBookingListResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { parseErrorBody } from '@/shared/lib/api/errors';
+import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
 
 export interface BookingListFilters {
   readonly status?: string;
@@ -29,16 +29,10 @@ export async function listBookings(
   return res.json() as Promise<StaffBookingListResponse>;
 }
 
-export class BookingDetailFetchError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code?: string,
-    public readonly field?: string,
-    detail?: string,
-  ) {
-    super(detail ?? `Failed to fetch booking detail (${status})`);
+export class BookingDetailFetchError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(status, code, field, detail ?? `Failed to fetch booking detail (${status})`);
     this.name = 'BookingDetailFetchError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 

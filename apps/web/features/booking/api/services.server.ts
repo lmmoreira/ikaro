@@ -1,18 +1,12 @@
 import 'server-only';
 import type { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { parseErrorBody } from '@/shared/lib/api/errors';
+import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
 
-export class ServiceListFetchError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code?: string,
-    public readonly field?: string,
-    detail?: string,
-  ) {
-    super(detail ?? `Failed to fetch services (${status})`);
+export class ServiceListFetchError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(status, code, field, detail ?? `Failed to fetch services (${status})`);
     this.name = 'ServiceListFetchError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
@@ -25,16 +19,10 @@ export async function fetchStaffServices(token: string): Promise<StaffServiceLis
   return res.json() as Promise<StaffServiceListResponse>;
 }
 
-export class ServiceDetailFetchError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code?: string,
-    public readonly field?: string,
-    detail?: string,
-  ) {
-    super(detail ?? `Failed to fetch service detail (${status})`);
+export class ServiceDetailFetchError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(status, code, field, detail ?? `Failed to fetch service detail (${status})`);
     this.name = 'ServiceDetailFetchError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 

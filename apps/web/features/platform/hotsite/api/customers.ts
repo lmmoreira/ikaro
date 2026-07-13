@@ -1,5 +1,5 @@
 import type { Address, CustomerProfileResponse } from '@ikaro/types';
-import { parseErrorBody } from '@/shared/lib/api/errors';
+import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
 
 // Distinct from lib/api/customer.ts's getCustomerProfile()/updateCustomerProfile():
 // those call the Bearer-token bffClient (only configured inside an authenticated dashboard
@@ -11,16 +11,10 @@ import { parseErrorBody } from '@/shared/lib/api/errors';
 // navigates to tenant B's hotsite would silently see tenant A's profile rendered as "logged in"
 // on tenant B's page. A 403 (mismatch) is treated the same as a 401 (unauthenticated) — both
 // resolve to "not logged in here".
-export class FetchCustomerProfileError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code?: string,
-    public readonly field?: string,
-    detail?: string,
-  ) {
-    super(detail ?? `Failed to fetch customer profile (${status})`);
+export class FetchCustomerProfileError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(status, code, field, detail ?? `Failed to fetch customer profile (${status})`);
     this.name = 'FetchCustomerProfileError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError, AuthError, ForbiddenError, parseErrorBody } from './errors';
+import { ApiError, AuthError, FetchError, ForbiddenError, parseErrorBody } from './errors';
 
 describe('parseErrorBody', () => {
   it('extracts code/field/violations/detail from a JSON error body', async () => {
@@ -53,5 +53,36 @@ describe('ApiError', () => {
     expect(err.detail).toBe('validation failed');
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(ApiError);
+  });
+});
+
+describe('FetchError', () => {
+  it('exposes status/code/field and falls back to a generic message when no detail is given', () => {
+    const err = new FetchError(404, 'BOOKING_NOT_FOUND', 'bookingId');
+    expect(err.status).toBe(404);
+    expect(err.code).toBe('BOOKING_NOT_FOUND');
+    expect(err.field).toBe('bookingId');
+    expect(err.message).toBe('Request failed (404)');
+    expect(err).toBeInstanceOf(Error);
+    expect(err).toBeInstanceOf(FetchError);
+  });
+
+  it('uses the provided detail as the message when given', () => {
+    const err = new FetchError(400, 'GENERIC_FIELD_REQUIRED', 'phone', 'Phone is required.');
+    expect(err.message).toBe('Phone is required.');
+  });
+
+  it('a subclass keeps its own name and passes instanceof for both itself and FetchError', () => {
+    class ExampleFetchError extends FetchError {
+      constructor(status: number) {
+        super(status);
+        this.name = 'ExampleFetchError';
+      }
+    }
+    const err = new ExampleFetchError(500);
+    expect(err.name).toBe('ExampleFetchError');
+    expect(err).toBeInstanceOf(ExampleFetchError);
+    expect(err).toBeInstanceOf(FetchError);
+    expect(err).toBeInstanceOf(Error);
   });
 });
