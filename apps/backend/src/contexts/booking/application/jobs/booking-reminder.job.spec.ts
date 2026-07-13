@@ -1,4 +1,5 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
@@ -33,15 +34,21 @@ describe('BookingReminderJob', () => {
   let tenantPort: InMemoryBookingPlatformPort;
   let bookingRepo: InMemoryBookingRepository;
   let customerProfilePort: InMemoryBookingCustomerPort;
-  let eventBus: InMemoryEventBus;
+  let outboxPublisher: InMemoryEventBus;
   let job: BookingReminderJob;
 
   beforeEach(() => {
     tenantPort = new InMemoryBookingPlatformPort();
     bookingRepo = new InMemoryBookingRepository();
     customerProfilePort = new InMemoryBookingCustomerPort();
-    eventBus = new InMemoryEventBus();
-    job = new BookingReminderJob(tenantPort, bookingRepo, customerProfilePort, eventBus);
+    outboxPublisher = new InMemoryEventBus();
+    job = new BookingReminderJob(
+      tenantPort,
+      bookingRepo,
+      customerProfilePort,
+      outboxPublisher,
+      new InMemoryTransactionManager(),
+    );
   });
 
   afterEach(() => jest.resetAllMocks());
@@ -58,7 +65,7 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const events = eventBus.published.filter((e) => e.eventName === 'BookingReminderDue');
+    const events = outboxPublisher.published.filter((e) => e.eventName === 'BookingReminderDue');
     expect(events).toHaveLength(1);
     expect((events[0].data as unknown as ReminderDueData).bookingId).toBe(booking.id);
     expect(events[0].tenantId).toBe(TENANT_IN);
@@ -76,7 +83,9 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const events = eventBus.published.filter((e) => e.eventName === 'BookingReminderDueToday');
+    const events = outboxPublisher.published.filter(
+      (e) => e.eventName === 'BookingReminderDueToday',
+    );
     expect(events).toHaveLength(1);
     expect((events[0].data as unknown as ReminderDueData).bookingId).toBe(booking.id);
   });
@@ -95,7 +104,7 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find((e) => e.eventName === 'BookingReminderDue');
+    const event = outboxPublisher.published.find((e) => e.eventName === 'BookingReminderDue');
     expect((event?.data as unknown as ReminderDueData).recipientEmail).toBe('maria@example.com');
     expect((event?.data as unknown as ReminderDueData).customerName).toBe('Maria Silva');
   });
@@ -119,7 +128,7 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find((e) => e.eventName === 'BookingReminderDue');
+    const event = outboxPublisher.published.find((e) => e.eventName === 'BookingReminderDue');
     expect((event?.data as unknown as ReminderDueData).recipientEmail).toBe('auth@example.com');
     expect((event?.data as unknown as ReminderDueData).customerName).toBe('Auth User');
   });
@@ -140,7 +149,7 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find((e) => e.eventName === 'BookingReminderDue');
+    const event = outboxPublisher.published.find((e) => e.eventName === 'BookingReminderDue');
     expect((event?.data as unknown as ReminderDueData).recipientEmail).toBe('guest@fallback.com');
     expect((event?.data as unknown as ReminderDueData).customerName).toBe('Fallback Name');
   });
@@ -157,7 +166,7 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_OUT);
 
-    expect(eventBus.published).toHaveLength(0);
+    expect(outboxPublisher.published).toHaveLength(0);
   });
 
   it('emits no events when tenant has no APPROVED bookings', async () => {
@@ -165,7 +174,7 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    expect(eventBus.published).toHaveLength(0);
+    expect(outboxPublisher.published).toHaveLength(0);
   });
 
   it('includes serviceName and correct appointmentSlot in event payload', async () => {
@@ -187,7 +196,7 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find((e) => e.eventName === 'BookingReminderDue');
+    const event = outboxPublisher.published.find((e) => e.eventName === 'BookingReminderDue');
     const data = event?.data as unknown as ReminderDueData;
     expect(data.lines[0].serviceName).toBe('Polimento');
     expect(data.appointmentSlot.startTime).toBe(TOMORROW.toISOString());
@@ -210,7 +219,7 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const tenantBEvents = eventBus.published.filter(
+    const tenantBEvents = outboxPublisher.published.filter(
       (e) => e.eventName === 'BookingReminderDue' && e.tenantId === TENANT_OUT,
     );
     expect(tenantBEvents).toHaveLength(0);
@@ -228,7 +237,9 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find((e) => e.eventName === 'BookingReminderDue') as Command;
+    const event = outboxPublisher.published.find(
+      (e) => e.eventName === 'BookingReminderDue',
+    ) as Command;
     expect(event.dedupKey).toBe(`BookingReminderDue:${TENANT_IN}:${booking.id}:2026-06-02`);
   });
 
@@ -244,7 +255,7 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const event = eventBus.published.find(
+    const event = outboxPublisher.published.find(
       (e) => e.eventName === 'BookingReminderDueToday',
     ) as Command;
     expect(event.dedupKey).toBe(`BookingReminderDueToday:${TENANT_IN}:${booking.id}:2026-06-01`);
@@ -263,7 +274,7 @@ describe('BookingReminderJob', () => {
     await job.run(NOW_IN);
     await job.run(NOW_IN);
 
-    const events = eventBus.published.filter(
+    const events = outboxPublisher.published.filter(
       (e) => e.eventName === 'BookingReminderDue',
     ) as Command[];
     expect(events).toHaveLength(2); // InMemoryEventBus doesn't dedup — the outbox does (S01/S03)
@@ -292,10 +303,10 @@ describe('BookingReminderJob', () => {
 
     await job.run(NOW_IN);
 
-    const eventsA = eventBus.published.filter(
+    const eventsA = outboxPublisher.published.filter(
       (e) => e.eventName === 'BookingReminderDue' && e.tenantId === TENANT_IN,
     );
-    const eventsB = eventBus.published.filter(
+    const eventsB = outboxPublisher.published.filter(
       (e) => e.eventName === 'BookingReminderDue' && e.tenantId === TENANT_OUT,
     );
     expect(eventsA).toHaveLength(1);

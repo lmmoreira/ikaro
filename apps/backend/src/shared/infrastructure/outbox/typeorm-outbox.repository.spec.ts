@@ -3,6 +3,7 @@ import { runWithEntityManager } from '../transaction-context';
 import { Command } from '../../domain/command';
 import { DomainEvent } from '../../domain/domain-event';
 import { OutboxEventEntity } from './outbox-event.entity';
+import { OutboxPublishedOutsideTransactionError } from './outbox-published-outside-transaction.error';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
 
 class StubEvent extends DomainEvent<{ value: string }> {
@@ -27,17 +28,13 @@ describe('TypeOrmOutboxRepository', () => {
   });
 
   describe('insert()', () => {
-    it('runs standalone (via repo.query) when no transaction is ambient', async () => {
-      mockRepo.query.mockResolvedValue([{ id: 'row-1' }]);
+    it('throws OutboxPublishedOutsideTransactionError when no transaction is ambient (TD24-S03)', async () => {
       const event = new StubEvent('tenant-1', 'corr-1', { value: 'x' });
 
-      const id = await repo.insert(event, event.eventId);
-
-      expect(id).toBe('row-1');
-      expect(mockRepo.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO "shared"."outbox"'),
-        [event.eventId, event.eventId, 'tenant-1', 'StubEvent', JSON.stringify(event)],
+      await expect(repo.insert(event, event.eventId)).rejects.toThrow(
+        OutboxPublishedOutsideTransactionError,
       );
+      expect(mockRepo.query).not.toHaveBeenCalled();
     });
 
     it('joins the ambient transaction manager when one is active', async () => {
@@ -49,21 +46,27 @@ describe('TypeOrmOutboxRepository', () => {
       const id = await runWithEntityManager(mockManager, () => repo.insert(event, event.eventId));
 
       expect(id).toBe('row-1');
-      expect(mockManager.query).toHaveBeenCalled();
-      expect(mockRepo.query).not.toHaveBeenCalled();
+      expect(mockManager.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO "shared"."outbox"'),
+        [event.eventId, event.eventId, 'tenant-1', 'StubEvent', JSON.stringify(event)],
+      );
     });
 
     it('returns undefined on a dedup_key conflict (no row returned)', async () => {
-      mockRepo.query.mockResolvedValue([]);
+      const mockManager = {
+        query: jest.fn().mockResolvedValue([]),
+      } as unknown as jest.Mocked<EntityManager>;
       const event = new StubEvent('tenant-1', 'corr-1', { value: 'x' });
 
-      const id = await repo.insert(event, event.eventId);
+      const id = await runWithEntityManager(mockManager, () => repo.insert(event, event.eventId));
 
       expect(id).toBeUndefined();
     });
 
     it('uses Command.dedupKey when the event is a Command', async () => {
-      mockRepo.query.mockResolvedValue([{ id: 'row-1' }]);
+      const mockManager = {
+        query: jest.fn().mockResolvedValue([{ id: 'row-1' }]),
+      } as unknown as jest.Mocked<EntityManager>;
 
       class StubCommand extends Command<{ value: string }> {
         readonly eventVersion = 1;
@@ -80,9 +83,9 @@ describe('TypeOrmOutboxRepository', () => {
       }
       const command = new StubCommand('tenant-1', 'corr-1', { value: 'x' }, 'business-key-1');
 
-      await repo.insert(command, 'business-key-1');
+      await runWithEntityManager(mockManager, () => repo.insert(command, 'business-key-1'));
 
-      expect(mockRepo.query).toHaveBeenCalledWith(expect.any(String), [
+      expect(mockManager.query).toHaveBeenCalledWith(expect.any(String), [
         command.eventId,
         'business-key-1',
         'tenant-1',

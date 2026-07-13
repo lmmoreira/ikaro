@@ -52,7 +52,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
   let redemptionRepo: InMemoryLoyaltyRedemptionRepository;
   let processedEventRepo: InMemoryProcessedEventRepository;
   let tenantSettingsPort: InMemoryLoyaltyPlatformPort;
-  let eventBus: InMemoryEventBus;
+  let outboxPublisher: InMemoryEventBus;
   let useCase: CompleteBookingLoyaltyEffectsUseCase;
 
   beforeEach(() => {
@@ -61,7 +61,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     redemptionRepo = new InMemoryLoyaltyRedemptionRepository();
     processedEventRepo = new InMemoryProcessedEventRepository();
     tenantSettingsPort = new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10);
-    eventBus = new InMemoryEventBus();
+    outboxPublisher = new InMemoryEventBus();
 
     useCase = new CompleteBookingLoyaltyEffectsUseCase(
       entryRepo,
@@ -69,7 +69,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
       redemptionRepo,
       processedEventRepo,
       tenantSettingsPort,
-      eventBus,
+      outboxPublisher,
       new InMemoryTransactionManager(),
     );
   });
@@ -100,7 +100,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
   it('emits ONE ServicePointsEarned event per booking with all lines summarised', async () => {
     await useCase.execute(makeDto());
 
-    const events = eventBus.published.filter((e) => e instanceof ServicePointsEarned);
+    const events = outboxPublisher.published.filter((e) => e instanceof ServicePointsEarned);
     expect(events).toHaveLength(1);
 
     const event = events[0] as ServicePointsEarned;
@@ -116,7 +116,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     expect(result.skipped).toBe(true);
     expect(entryRepo.entries).toHaveLength(0);
     expect(redemptionRepo.saved).toHaveLength(0);
-    expect(eventBus.published).toHaveLength(0);
+    expect(outboxPublisher.published).toHaveLength(0);
   });
 
   it('uses expiryDays from tenant settings', async () => {

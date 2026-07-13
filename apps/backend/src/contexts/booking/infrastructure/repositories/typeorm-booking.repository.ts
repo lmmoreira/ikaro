@@ -12,7 +12,12 @@ import {
 } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import {
+  createTransactionContext,
+  flushAfterCommitCallbacks,
+  getActiveEntityManager,
+  runWithTransactionContext,
+} from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
   ITenantSettingsPort,
@@ -148,12 +153,23 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     const bookingEntity = this.toEntity(booking);
 
     const manager = getActiveEntityManager();
+    let selfManagedContext: ReturnType<typeof createTransactionContext> | undefined;
     try {
       if (manager) {
         await this.persistBooking(manager, booking, bookingEntity);
       } else {
+        // Self-managed transaction (no ambient txManager.run() from the caller): mirrors what
+        // TypeOrmTransactionManager.run() does — the ambient context must point at this tx too,
+        // or drainDomainEvents' outbox write (inside persistBooking) would have no active
+        // manager to join and would run outside this transaction entirely, breaking the
+        // same-transaction guarantee this branch exists to provide (TD24-S03: TypeOrmOutboxRepository
+        // no longer has a disconnected standalone fallback). After-commit callbacks (the outbox's
+        // inline dispatch) are flushed the same way txManager.run() does, once the tx commits.
         await this.repo.manager.transaction(async (tx) => {
-          await this.persistBooking(tx, booking, bookingEntity);
+          selfManagedContext = createTransactionContext(tx);
+          await runWithTransactionContext(selfManagedContext, () =>
+            this.persistBooking(tx, booking, bookingEntity),
+          );
         });
       }
     } catch (err) {
@@ -175,6 +191,10 @@ export class TypeOrmBookingRepository implements IBookingRepository {
         throw new BookingSlotUnavailableError();
       }
       throw err;
+    }
+
+    if (selfManagedContext) {
+      await flushAfterCommitCallbacks(selfManagedContext);
     }
   }
 
