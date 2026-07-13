@@ -362,7 +362,7 @@ Nothing is rebound; no *observable* behavior changes (`EVENT_BUS` still resolves
 
 ---
 
-### TD24-S03 — Cron transactional batching + the loyalty re-emit (the two motivating bugs)
+### TD24-S03 — Cron transactional batching + the loyalty re-emit (the two motivating bugs) ✅ Done
 
 **Scope shrunk 2026-07-11:** this story's original "accept/derive a deterministic `dedupKey`" work for the 4 cron event classes — including resolving the timezone-of-day rule — was pulled forward into S01 alongside the `Command`/`Envelope` model (see D11 and S01's story notes). Confirm at story-discovery time that `git log`/the current event class files still show `extends Command` with a real `dedupKey` before starting — if a future revert or rebase ever undid that, this story would need to re-absorb it.
 
