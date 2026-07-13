@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
-import { IEventBus } from '../../../../shared/ports/event-bus.port';
 import { IOutboxPublisher } from '../../../../shared/ports/outbox-publisher.port';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { OutboxRelayService } from '../../../../shared/infrastructure/outbox/outbox-relay.service';
 import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbox/typeorm-outbox.repository';
 import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
@@ -24,7 +24,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
   let ds: DataSource;
   let txManager: TypeOrmTransactionManager;
   let outboxRepo: TypeOrmOutboxRepository;
-  let eventBus: jest.Mocked<IEventBus>;
+  let eventBus: InMemoryEventBus;
   let tenantPort: InMemoryBookingPlatformPort;
   let bookingRepo: InMemoryBookingRepository;
   let customerProfilePort: InMemoryBookingCustomerPort;
@@ -43,9 +43,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
   });
 
   beforeEach(() => {
-    eventBus = {
-      publish: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<IEventBus>;
+    eventBus = new InMemoryEventBus();
     tenantPort = new InMemoryBookingPlatformPort();
     bookingRepo = new InMemoryBookingRepository();
     customerProfilePort = new InMemoryBookingCustomerPort();
@@ -70,9 +68,10 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
       txManager,
     );
 
-    // Two overlapping/retried invocations constructing the same business fact independently.
-    await job.run(NOW_IN);
-    await job.run(NOW_IN);
+    // Genuinely concurrent, not sequential — both transactions race for the same dedup_key row,
+    // which is what "overlapping" actually means (a sequential await pair would only prove retry
+    // dedup after the first run's transaction already committed).
+    await Promise.all([job.run(NOW_IN), job.run(NOW_IN)]);
 
     const rows = await ds
       .getRepository(OutboxEventEntity)
@@ -84,7 +83,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
     const relay = new OutboxRelayService(outboxRepo, eventBus, makeConfigService());
     await relay.relay([rows[0].id]);
 
-    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+    expect(eventBus.published).toHaveLength(1);
   });
 
   it('mid-run crash on one tenant leaves the other tenant unaffected; re-run completes only the crashed tenant, no duplicate for the one that already committed', async () => {

@@ -9,6 +9,7 @@ import { IEventBus } from '../../ports/event-bus.port';
 import { getActiveEntityManager } from '../transaction-context';
 import { TypeOrmTransactionManager } from '../typeorm-transaction-manager';
 import { OutboxEventEntity } from './outbox-event.entity';
+import { OutboxPublishedOutsideTransactionError } from './outbox-published-outside-transaction.error';
 import { OutboxPublisher } from './outbox-publisher';
 import { OutboxRelayService } from './outbox-relay.service';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
@@ -92,7 +93,7 @@ describe('OutboxPublisher (integration)', () => {
     const publisher = makePublisher(false);
     const event = new StubEvent(uuidv7(), uuidv7(), { value: 'x' });
 
-    await expect(publisher.publish(event)).rejects.toThrow('has no ambient transaction');
+    await expect(publisher.publish(event)).rejects.toThrow(OutboxPublishedOutsideTransactionError);
 
     const outboxRow = await outboxRepo.findOne({ where: { id: event.eventId } });
     expect(outboxRow).toBeNull();

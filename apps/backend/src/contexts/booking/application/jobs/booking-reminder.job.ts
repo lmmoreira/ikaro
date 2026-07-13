@@ -72,10 +72,13 @@ export class BookingReminderJob {
 
       // Recipient lookups are reads against a cross-context port — resolved before the tenant's
       // outbox-write transaction opens, not inside it (CLAUDE.md: reads before txManager.run()).
-      const tomorrowReminders = await Promise.all(
-        tomorrowBookings.map(async (booking) => {
-          const { email, name } = await this.resolveRecipient(booking, tenant.id);
-          return new BookingReminderDue(
+      // Sequential, not Promise.all: a tenant with many bookings would otherwise fan out one
+      // concurrent customer-profile lookup per booking, spiking DB/connection-pool load.
+      const tomorrowReminders: BookingReminderDue[] = [];
+      for (const booking of tomorrowBookings) {
+        const { email, name } = await this.resolveRecipient(booking, tenant.id);
+        tomorrowReminders.push(
+          new BookingReminderDue(
             tenant.id,
             correlationId,
             {
@@ -91,14 +94,15 @@ export class BookingReminderJob {
               })),
             },
             localTomorrow,
-          );
-        }),
-      );
+          ),
+        );
+      }
 
-      const todayReminders = await Promise.all(
-        todayBookings.map(async (booking) => {
-          const { email, name } = await this.resolveRecipient(booking, tenant.id);
-          return new BookingReminderDueToday(
+      const todayReminders: BookingReminderDueToday[] = [];
+      for (const booking of todayBookings) {
+        const { email, name } = await this.resolveRecipient(booking, tenant.id);
+        todayReminders.push(
+          new BookingReminderDueToday(
             tenant.id,
             correlationId,
             {
@@ -114,9 +118,9 @@ export class BookingReminderJob {
               })),
             },
             localToday,
-          );
-        }),
-      );
+          ),
+        );
+      }
 
       // One transaction per tenant-batch, not one giant transaction across all tenants: a
       // mid-run crash then retries only this tenant's un-committed facts as no-op conflicts

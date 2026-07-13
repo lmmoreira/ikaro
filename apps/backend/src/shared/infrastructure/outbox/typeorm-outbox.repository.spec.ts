@@ -53,18 +53,18 @@ describe('TypeOrmOutboxRepository', () => {
       expect(id).toBeUndefined();
     });
 
-    it('uses Command.dedupKey when the event is a Command', async () => {
+    it("persists the given dedupKey verbatim for a Command event (derivation is OutboxPublisher.publish()'s job, not this repository's)", async () => {
       const mockManager = {
         query: jest.fn().mockResolvedValue([{ id: 'row-1' }]),
       } as unknown as jest.Mocked<EntityManager>;
 
       const command = new StubCommand('tenant-1', 'corr-1', { value: 'x' }, 'business-key-1');
 
-      await runWithEntityManager(mockManager, () => repo.insert(command, 'business-key-1'));
+      await runWithEntityManager(mockManager, () => repo.insert(command, command.dedupKey));
 
       expect(mockManager.query).toHaveBeenCalledWith(expect.any(String), [
         command.eventId,
-        'business-key-1',
+        command.dedupKey,
         'tenant-1',
         'StubCommand',
         JSON.stringify(command),

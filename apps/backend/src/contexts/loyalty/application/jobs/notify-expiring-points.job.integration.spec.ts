@@ -1,6 +1,6 @@
 import { DataSource } from 'typeorm';
-import { IEventBus } from '../../../../shared/ports/event-bus.port';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
+import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { OutboxRelayService } from '../../../../shared/infrastructure/outbox/outbox-relay.service';
 import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbox/typeorm-outbox.repository';
 import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
@@ -18,7 +18,7 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
   let ds: DataSource;
   let txManager: TypeOrmTransactionManager;
   let outboxRepo: TypeOrmOutboxRepository;
-  let eventBus: jest.Mocked<IEventBus>;
+  let eventBus: InMemoryEventBus;
 
   beforeAll(async () => {
     ds = await createTestDataSource();
@@ -31,9 +31,7 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
   });
 
   beforeEach(() => {
-    eventBus = {
-      publish: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<IEventBus>;
+    eventBus = new InMemoryEventBus();
   });
 
   it('two overlapping runs for the same day → exactly one outbox row, relay delivers exactly one message', async () => {
@@ -57,8 +55,9 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
     );
 
     const now = new Date();
-    await job.run(now);
-    await job.run(now);
+    // Genuinely concurrent — see booking-reminder.job.integration.spec.ts for why sequential
+    // awaits would only prove retry dedup, not the overlapping-run race this test is named for.
+    await Promise.all([job.run(now), job.run(now)]);
 
     const rows = await ds
       .getRepository(OutboxEventEntity)
@@ -68,6 +67,6 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
     const relay = new OutboxRelayService(outboxRepo, eventBus, makeConfigService());
     await relay.relay([rows[0].id]);
 
-    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+    expect(eventBus.published).toHaveLength(1);
   });
 });
