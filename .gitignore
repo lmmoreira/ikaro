@@ -47,3 +47,4 @@ Thumbs.db
 .claude/settings.json
 .claude/scheduled_tasks.lock
 packages/i18n/dist
+docs/BOOTSTRAP_LOG.md

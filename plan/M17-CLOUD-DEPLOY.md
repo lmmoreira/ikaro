@@ -448,7 +448,7 @@ Old M16-S11 redesigned: `state` today carries functional routing data (`''`, `<s
 
 ---
 
-### M17-S07 — Google Cloud account, organization, billing & budget alerts
+### M17-S07 — Google Cloud account, organization, billing & budget alerts ✅ Done
 
 **Agent:** `devops`
 **Complexity:** M
