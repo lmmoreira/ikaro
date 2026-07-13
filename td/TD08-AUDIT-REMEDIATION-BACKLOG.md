@@ -34,7 +34,7 @@
 | ID | Title | Risk | Effort | Phase | Depends on | Audit ref |
 |---|---|---|---|---|---|---|
 | **AUD-001** | Transactional outbox for all domain events | 🔴 Critical | L | Now | — | §4.1, §12.2, §12.3 |
-| **AUD-002** | Fix booking slot-conflict race + prove optimistic lock | 🔴 Critical | M | Now | — | §4.2, §4.3 |
+| **AUD-002** | Fix booking slot-conflict race + prove optimistic lock | ✅ Done | M | Now | — | §4.2, §4.3 |
 | **AUD-003** | Adversarial concurrency + event-failure test suite | 🔴 Critical | M | Now | AUD-001, AUD-002 | §11.1, §11.2 |
 | **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
 | **AUD-005** | Graceful shutdown hooks (backend + BFF) ✅ | 🟠 High | XS | Now | — | §5.2 |

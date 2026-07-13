@@ -110,6 +110,47 @@ Every `save()` in every use case must be wrapped in `ITransactionManager.run()` 
 | Test double | `src/test/infrastructure/in-memory-transaction-manager.ts` |
 | Context propagation | `src/shared/infrastructure/transaction-context.ts` |
 
+### Cross-row invariants: transaction scope is necessary, database enforcement is authoritative
+
+Some business rules are not "single-row correctness" rules; they are **cross-row invariants**. Booking slot exclusivity is the canonical example: "no two `APPROVED` bookings overlap for the same tenant." `@VersionColumn` and optimistic locking do **not** protect this kind of rule, because they only detect stale writes to the **same row**.
+
+Rule:
+
+- Re-check any cross-row invariant **inside** the write transaction. A pre-transaction read/check is a TOCTOU race.
+- Treat the database as the final authority for the invariant. For booking slot exclusivity, use a Postgres exclusion constraint over the persisted time range.
+- If you add an app-level lock (for example `pg_advisory_xact_lock(...)`) to narrow concurrent attempts around the in-transaction check, treat it as a companion to the DB constraint, not a replacement for it.
+
+In other words: transaction scope fixes "check-then-act outside the write"; the database constraint fixes "two writers race anyway."
+
+### TypeORM optimistic locking on detached entities
+
+TypeORM's version machinery is safest when it operates on entities it loaded itself. A repository that reconstitutes an aggregate, builds a fresh persistence object, and then calls `manager.save()` is in a danger zone: the resulting write path may not enforce the `version` in the `WHERE` clause the way the domain expects.
+
+Rule for correctness-sensitive aggregate writes:
+
+- If the aggregate write must fail on a stale version, use an explicit version-guarded `UPDATE`.
+- Scope the `WHERE` to `id`, `tenant_id`, and `version`.
+- If `affected !== 1`, translate that to the aggregate's concurrency error immediately.
+
+Pattern:
+
+```ts
+const result = await manager
+  .createQueryBuilder()
+  .update(Entity)
+  .set(updateSet)
+  .where('id = :id', { id })
+  .andWhere('tenant_id = :tenantId', { tenantId })
+  .andWhere('version = :version', { version })
+  .execute();
+
+if (result.affected !== 1) {
+  throw new XxxConcurrentModificationError();
+}
+```
+
+Always prove this behavior with an integration test that loads the same aggregate twice, saves copy A, then asserts saving stale copy B fails.
+
 ---
 
 ## Aggregate domain events → outbox (repo auto-flush)
