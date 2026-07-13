@@ -19,7 +19,6 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { withPublicTenant } from '../../shared/http/public-tenant';
-import { requiredWithCode } from '../../shared/http/zod-code.util';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
 import {
   AttachmentSignedUrlResponse,
@@ -32,7 +31,6 @@ import {
 } from './bookings.types';
 import { LoyaltyBalanceResponse } from '../loyalty/loyalty.types';
 import {
-  AddressErrorCode,
   ApproveBookingRequest,
   BffErrorCode,
   CustomerBookingDetailResponse,
@@ -53,14 +51,20 @@ import {
 } from './bookings.mapper';
 import { GuestTokenPayload, tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
 
+// Required-field checks are deliberately NOT duplicated here (TD23-S13) — the backend's
+// Address.create() already validates street/number/city/state/zipCode required-ness via
+// requireField(), throwing a single-cause { code, field: 'pickupAddress'|'contactAddress',
+// params: { field } } that's strictly more granular than a Zod violations[] array could be for
+// this shape. Duplicating the check here only produced a second, incompatible error shape for
+// the same failure (see td/TD11-BFF-BACKEND-VALIDATION-SCHEMA-DUPLICATION.md).
 const AddressSchema = z.object({
-  street: requiredWithCode(z.string(), AddressErrorCode.FIELD_REQUIRED),
-  number: requiredWithCode(z.string(), AddressErrorCode.FIELD_REQUIRED),
+  street: z.string(),
+  number: z.string(),
   complement: z.string().nullable().optional(),
   neighborhood: z.string().min(1).optional(),
-  city: requiredWithCode(z.string(), AddressErrorCode.FIELD_REQUIRED),
-  state: requiredWithCode(z.string().trim().max(10), AddressErrorCode.FIELD_REQUIRED),
-  zipCode: requiredWithCode(z.string().trim().max(20), AddressErrorCode.FIELD_REQUIRED),
+  city: z.string(),
+  state: z.string().trim().max(10),
+  zipCode: z.string().trim().max(20),
 });
 
 // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { StaffBookingListResponse } from '@ikaro/types';
 import { WeekNav } from '@/shells/dashboard/components/WeekNav';
 import { ApiError } from '@/shared/lib/api/errors';
+import { Card, CardContent } from '@/shared/components/ui/card';
 import {
   useActionNeededBookings,
   useTodayBookings,
@@ -13,6 +14,8 @@ import {
 } from '@/features/booking/hooks/useBookings';
 import { useApproveBooking } from '@/features/booking/hooks/useBookingMutations';
 import { addDays, inWindow, isSameDay, toDateKey } from '@/shared/utils/date-utils';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { BookingCard } from './BookingCard';
 
 export interface BookingQueuePageProps {
@@ -33,6 +36,7 @@ export function BookingQueuePage({
   welcomeStaffScreenDays,
 }: BookingQueuePageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingQueue');
+  const locale = useResolvedLocale();
   const router = useRouter();
   const windowDays = welcomeStaffScreenDays;
   const approveBookingMutation = useApproveBooking();
@@ -41,6 +45,7 @@ export function BookingQueuePage({
 
   const [windowStart, setWindowStart] = useState(() => todayDate);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [approveError, setApproveError] = useState<string | null>(null);
   const windowEnd = useMemo(() => addDays(windowStart, windowDays - 1), [windowStart, windowDays]);
 
   const windowStartStr = toDateKey(windowStart);
@@ -51,6 +56,7 @@ export function BookingQueuePage({
   const upcomingTo = windowEndStr;
   const upcomingVisible = new Date(upcomingFrom + 'T00:00:00') <= windowEnd;
   const handleApproveBooking = async (bookingId: string): Promise<void> => {
+    setApproveError(null);
     try {
       await approveBookingMutation.mutateAsync({ id: bookingId });
     } catch (err) {
@@ -58,7 +64,7 @@ export function BookingQueuePage({
         router.push(`/dashboard/bookings/${bookingId}?conflict=1`);
         return;
       }
-      // Ignore non-conflict failures; the card stays interactive and the queue refreshes on retry.
+      setApproveError(resolveErrorMessageFromApiError(err, locale));
     }
   };
 
@@ -130,6 +136,12 @@ export function BookingQueuePage({
       />
 
       <div className="p-4">
+        {approveError && (
+          <Card className="mb-6 border-red-200 bg-red-50/80">
+            <CardContent className="p-4 text-sm text-red-700">{approveError}</CardContent>
+          </Card>
+        )}
+
         <section className="mb-6">
           <div className="mb-3 flex items-center gap-2">
             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">

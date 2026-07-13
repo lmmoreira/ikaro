@@ -168,6 +168,28 @@ describe('RescheduleBookingPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows the resolved backend error message for a non-conflict rescheduling failure', async () => {
+    const user = userEvent.setup();
+    rescheduleBookingMutateAsync.mockRejectedValueOnce(
+      new ApiError(400, 'Scheduled time is in the past', { code: 'BOOKING_SCHEDULED_IN_PAST' }),
+    );
+
+    renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        backHref="/dashboard/bookings/b-1"
+        agendaHref="/dashboard/schedule?weekStart=2026-06-16&date=2026-06-16"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'choose date' }));
+    await user.click(screen.getByRole('button', { name: 'choose slot' }));
+    await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
+
+    expect(await screen.findByText('O novo horário deve ser no futuro.')).toBeInTheDocument();
+  });
+
   it('shows the loading alternatives error when the conflict fallback cannot fetch slots', async () => {
     const user = userEvent.setup();
     rescheduleBookingMutateAsync.mockRejectedValueOnce(new ApiError(409, 'slot unavailable'));

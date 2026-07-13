@@ -38,6 +38,7 @@ vi.mock('next-intl', () => ({
       return value;
     };
   },
+  useLocale: () => 'pt-BR',
 }));
 
 vi.mock('next/navigation', () => ({
@@ -239,6 +240,23 @@ describe('BookingQueuePage — card rendering', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
 
     expect(routerPush).toHaveBeenCalledWith('/dashboard/bookings/b-0?conflict=1');
+  });
+
+  it('shows an inline error banner for a non-conflict approval failure instead of failing silently', async () => {
+    approveBookingMutateAsync.mockRejectedValueOnce(
+      new ApiError(400, 'Cannot transition', { code: 'BOOKING_INVALID_TRANSITION' }),
+    );
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria']) });
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+
+    expect(
+      await screen.findByText(
+        'Não é possível alterar o status do agendamento para o status solicitado.',
+      ),
+    ).toBeInTheDocument();
+    expect(routerPush).not.toHaveBeenCalled();
   });
 
   it('renders today cards from hook data', () => {

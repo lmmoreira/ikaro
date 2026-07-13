@@ -8,6 +8,7 @@ import {
   BOOKING_STATUS,
   type SlotConflictSuggestion,
   type StaffBookingDetailResponse,
+  type ValidationProblemDetail,
 } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
@@ -16,6 +17,9 @@ import { ApiError } from '@/shared/lib/api/errors';
 import { fetchBookingAvailability } from '@/features/booking/api/availability';
 import { cn } from '@/shared/utils/cn';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import {
   useApproveBooking,
   useCancelBooking,
@@ -52,15 +56,6 @@ interface BookingDetailPageProps {
   readonly showHeaderStatusBadge?: boolean;
   readonly initialActionState?: ActionState;
   readonly returnTo?: string | null;
-}
-
-interface ProblemDetailsViolation {
-  readonly field: string;
-  readonly message: string;
-}
-
-interface ProblemDetailsResponse {
-  readonly violations?: readonly ProblemDetailsViolation[];
 }
 
 type BannerVariant = 'success' | 'danger' | 'info';
@@ -158,11 +153,15 @@ function buildApprovedRangeLabel(
   return `${formatTime(start)}–${formatTime(end)}`;
 }
 
-function extractValidationMessage(err: unknown, field: string): string | null {
+function extractValidationMessage(
+  err: unknown,
+  field: string,
+  locale: SupportedLocale,
+): string | null {
   if (!(err instanceof ApiError) || err.status !== 400) return null;
-  const data = err.data as ProblemDetailsResponse | undefined;
+  const data = err.data as ValidationProblemDetail | undefined;
   const violation = data?.violations?.find((item) => item.field === field);
-  return violation?.message ?? null;
+  return violation ? resolveErrorMessage(violation.code, locale, violation.params) : null;
 }
 
 export function BookingDetailPage({
@@ -173,6 +172,7 @@ export function BookingDetailPage({
   returnTo = null,
 }: BookingDetailPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
+  const locale = useResolvedLocale();
   const { formatTime } = useFormatting();
   const router = useRouter();
   const [booking, setBooking] = useState(initialBooking);
@@ -663,7 +663,7 @@ export function BookingDetailPage({
               await handleReject(reason);
             } catch (err) {
               setActionState('idle');
-              const validationMessage = extractValidationMessage(err, 'reason');
+              const validationMessage = extractValidationMessage(err, 'reason', locale);
               if (validationMessage) {
                 throw new Error(validationMessage);
               }
@@ -686,7 +686,7 @@ export function BookingDetailPage({
               await handleRequestInfo(message);
             } catch (err) {
               setActionState('idle');
-              const validationMessage = extractValidationMessage(err, 'message');
+              const validationMessage = extractValidationMessage(err, 'message', locale);
               if (validationMessage) {
                 throw new Error(validationMessage);
               }

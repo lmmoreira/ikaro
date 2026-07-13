@@ -4,6 +4,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
+import { ApiError } from '@/shared/lib/api/errors';
 import { ScheduleRemovalDialog } from './ScheduleRemovalDialog';
 
 vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShell', () => ({
@@ -75,5 +76,41 @@ describe('ScheduleRemovalDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Remover abertura' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith('removal-1'));
+  });
+
+  it('shows the translated message for the error code instead of leaking raw backend detail', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockRejectedValue(
+      new ApiError(404, 'Opening not found for id removal-1', {
+        code: 'BOOKING_SCHEDULE_OPENING_NOT_FOUND',
+      }),
+    );
+
+    renderWithIntl(
+      <ScheduleRemovalDialog
+        open
+        target={{
+          id: 'removal-1',
+          date: '2026-07-05',
+          startTime: '09:00',
+          endTime: '14:00',
+          notes: null,
+        }}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        titleId="removal-title"
+        descriptionId="removal-description"
+        title="Remover abertura"
+        description="Este horário deixará de ser exibido."
+        submitLabel="Remover abertura"
+        rangeLabel="09:00–14:00"
+        notesLabel="Observações"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Remover abertura' }));
+
+    expect(await screen.findByText('Abertura de agenda não encontrada.')).toBeInTheDocument();
+    expect(screen.queryByText('Opening not found for id removal-1')).not.toBeInTheDocument();
   });
 });

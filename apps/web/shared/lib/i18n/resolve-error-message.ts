@@ -1,5 +1,7 @@
+import type { ProblemDetail } from '@ikaro/types';
 import enErrors from '@ikaro/i18n/locales/en/errors.json';
 import ptBrErrors from '@ikaro/i18n/locales/pt-BR/errors.json';
+import { ApiError } from '@/shared/lib/api/errors';
 import type { SupportedLocale } from './get-messages';
 
 type ErrorParams = Record<string, string | number>;
@@ -68,4 +70,14 @@ export function resolveErrorMessage(
 
   warnOnPlaceholderMismatch(code, template, params);
   return interpolate(template, params);
+}
+
+// Shared shape for the `ApiError` → `ProblemDetail.code` → `resolveErrorMessage` chain repeated
+// across every BFF-backed mutation handler in the dashboard (reschedule, schedule sheets,
+// service create/edit, ...). One extraction point instead of a copy at each call site — a call
+// site that skips it (e.g. only catching `err instanceof Error`) silently regresses to showing
+// raw backend text instead of a resolved catalog message.
+export function resolveErrorMessageFromApiError(err: unknown, locale: SupportedLocale): string {
+  const code = err instanceof ApiError ? (err.data as ProblemDetail | undefined)?.code : undefined;
+  return resolveErrorMessage(code, locale);
 }

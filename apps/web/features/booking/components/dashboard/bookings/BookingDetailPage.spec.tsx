@@ -209,12 +209,10 @@ describe('BookingDetailPage', () => {
     );
   });
 
-  it('shows the backend validation message when rejecting with a short reason', async () => {
+  it('shows the resolved backend validation message when rejecting with a short reason', async () => {
     rejectBookingMutateAsync.mockRejectedValue(
       new ApiError(400, 'Request body validation failed', {
-        violations: [
-          { field: 'reason', message: 'Too small: expected string to have >=10 characters' },
-        ],
+        violations: [{ field: 'reason', code: 'GENERIC_VALUE_TOO_SHORT', params: { minimum: 10 } }],
       }),
     );
 
@@ -225,18 +223,15 @@ describe('BookingDetailPage', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Rejeitar' })[1]);
 
     expect(
-      await screen.findByText('Não foi possível rejeitar. Tente novamente.'),
+      await screen.findByText('Este valor deve ter no mínimo 10 caracteres.'),
     ).toBeInTheDocument();
   });
 
-  it('shows the backend validation message when requesting more info with a short message', async () => {
+  it('shows the resolved backend validation message when requesting more info with a short message', async () => {
     requestMoreInfoMutateAsync.mockRejectedValue(
       new ApiError(400, 'Request body validation failed', {
         violations: [
-          {
-            field: 'message',
-            message: 'Too small: expected string to have >=20 characters',
-          },
+          { field: 'message', code: 'GENERIC_VALUE_TOO_SHORT', params: { minimum: 20 } },
         ],
       }),
     );
@@ -248,7 +243,7 @@ describe('BookingDetailPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Enviar' }));
 
     expect(
-      await screen.findByText('Não foi possível enviar a solicitação. Tente novamente.'),
+      await screen.findByText('Este valor deve ter no mínimo 20 caracteres.'),
     ).toBeInTheDocument();
   });
 

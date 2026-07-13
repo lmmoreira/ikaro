@@ -16,6 +16,7 @@ import {
   createAuthenticatedBooking,
   createBooking,
 } from '@/features/booking/api/public';
+import { ApiError } from '@/shared/lib/api/errors';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
 import {
   fetchAvailability,
@@ -335,9 +336,11 @@ describe('BookingForm', () => {
     );
   });
 
-  it('returns to Step 2 with an error message when the slot is no longer available (409)', async () => {
+  it('returns to Step 2 with an error message when the slot is no longer available (BOOKING_SLOT_UNAVAILABLE)', async () => {
     const user = userEvent.setup();
-    vi.mocked(createBooking).mockRejectedValue(new CreateBookingError(409, 'Conflict'));
+    vi.mocked(createBooking).mockRejectedValue(
+      new CreateBookingError(409, 'BOOKING_SLOT_UNAVAILABLE'),
+    );
 
     await advanceToStep3(user, [makeService()]);
     await fillContactFields(user);
@@ -345,15 +348,15 @@ describe('BookingForm', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
 
     expect(await screen.findByTestId('step2-error')).toHaveTextContent(
-      'Horário indisponível, escolha outro',
+      'O horário solicitado não está mais disponível.',
     );
     expect(screen.getByText('Escolha data e horário')).toBeInTheDocument();
   });
 
-  it('shows an address-specific error message when the backend rejects an address (400)', async () => {
+  it('returns to Step 3 with an address-specific error message when the contact address is rejected', async () => {
     const user = userEvent.setup();
     vi.mocked(createBooking).mockRejectedValue(
-      new CreateBookingError(400, 'Invalid ZIP Code: 12245-500'),
+      new CreateBookingError(400, 'ADDRESS_POSTAL_CODE_INVALID', 'contactAddress'),
     );
 
     await advanceToStep3(user, [makeService()]);
@@ -361,9 +364,37 @@ describe('BookingForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
 
-    expect(await screen.findByTestId('confirmation-error')).toHaveTextContent(
-      'Verifique o endereço informado e tente novamente.',
+    expect(await screen.findByTestId('step3-submit-error')).toHaveTextContent(
+      'O CEP informado é inválido.',
     );
+    expect(screen.getByText('Seus dados')).toBeInTheDocument();
+  });
+
+  it('returns to Step 1 with an address-specific error message when the pickup address is rejected', async () => {
+    const user = userEvent.setup();
+    const service = makeService({ requiresPickupAddress: true });
+    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue({
+      customerId: 'c-1',
+      email: 'joao@example.com',
+      name: 'João Silva',
+      phone: '+5511999999999',
+      defaultAddress: pickupAddress,
+    });
+    vi.mocked(createAuthenticatedBooking).mockRejectedValue(
+      new ApiError(400, 'Invalid ZIP Code', {
+        code: 'ADDRESS_POSTAL_CODE_INVALID',
+        field: 'pickupAddress',
+      }),
+    );
+
+    await advanceToStep3(user, [service], false);
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
+
+    expect(await screen.findByTestId('step1-submit-error')).toHaveTextContent(
+      'O CEP informado é inválido.',
+    );
+    expect(screen.getByText('Escolha os serviços')).toBeInTheDocument();
   });
 
   it('shows a generic error message for other submission failures', async () => {
@@ -376,7 +407,7 @@ describe('BookingForm', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
 
     expect(await screen.findByTestId('confirmation-error')).toHaveTextContent(
-      'Não foi possível enviar o agendamento. Tente novamente.',
+      'Algo deu errado. Tente novamente.',
     );
   });
 });

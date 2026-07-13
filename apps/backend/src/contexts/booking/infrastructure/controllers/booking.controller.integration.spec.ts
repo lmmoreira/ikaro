@@ -182,6 +182,27 @@ describe('BookingController (integration)', () => {
       expect(body.status).toBe(400);
     });
 
+    it('returns 400 with a coded address error and field when contactAddress has an invalid postal code', async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/bookings')
+        .set(guestHeaders(tenantAId))
+        .send({
+          ...validBody(),
+          contactAddress: {
+            street: 'Rua das Flores',
+            number: '10',
+            neighborhood: 'Centro',
+            city: 'Belo Horizonte',
+            state: 'MG',
+            zipCode: '000',
+          },
+        })
+        .expect(400);
+
+      expect(body.code).toBe('ADDRESS_POSTAL_CODE_INVALID');
+      expect(body.field).toBe('contactAddress');
+    });
+
     it('returns 400 for an unknown serviceId (not in tenant)', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/bookings')

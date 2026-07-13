@@ -137,9 +137,6 @@
       "remove": "Remove"
     },
     "errors": {
-      "submitFailed": "Could not submit booking. Please try again.",
-      "addressInvalid": "Please check the address you entered and try again.",
-      "slotUnavailable": "This time slot is no longer available, please choose another",
       "tryAgain": "Try again"
     },
     "submitInfo": {
@@ -155,9 +152,7 @@
       "submittingButton": "Submitting…",
       "linkValidityNote": "This link is valid for 7 days from when the email was sent.",
       "submitErrorTitle": "Failed to submit",
-      "submitErrorMessage": "We couldn't submit your response. Check your connection and try again. Your information was preserved.",
       "retryButton": "Try again",
-      "tokenExpiredMessage": "Your link expired while you were filling out the form. Ask the team for a new link or go back to the start.",
       "tokenExpiredCta": "Go back",
       "successTitle": "Response sent!",
       "successMessage": "Thank you! Our team will review the information and get in touch to confirm your booking.",
@@ -863,8 +858,6 @@
       "createDurationRequired": "Enter the service duration.",
       "createDurationInvalid": "The duration must be greater than zero.",
       "createPointsInvalid": "Loyalty points must be an integer greater than or equal to zero.",
-      "createDuplicateName": "A service with this name already exists. Choose another name.",
-      "createFailed": "Could not create service. Please try again.",
       "createdSuccessTitle": "Service created!",
       "createdSuccessBody": "The new service is now available in the booking form.",
       "editPageTitle": "Edit service",
@@ -873,12 +866,10 @@
       "editDangerZoneDescription": "Deactivating this service prevents new bookings. Existing bookings are not affected.",
       "editDeactivate": "Deactivate service",
       "editSave": "Save changes",
-      "editFailed": "Could not save changes. Please try again.",
       "editInactiveTitle": "Inactive service",
       "editInactiveDescription": "Activate this service to save changes and make it available again in booking.",
       "editInactiveUpdateBlocked": "Activate this service before saving changes.",
       "editActivate": "Activate service",
-      "editActivateFailed": "Could not activate service. Please try again.",
       "deactivatePageTitle": "Deactivate service",
       "deactivateTitle": "Deactivate service?",
       "deactivateIntro": "This action can be reversed by editing the service again.",
@@ -1017,7 +1008,6 @@
       "summaryPending": "Not selected yet",
       "submitReschedule": "Reschedule",
       "rescheduleRequired": "Choose a new time before continuing.",
-      "rescheduleError": "Could not reschedule. Try again.",
       "rescheduledTitle": "Booking rescheduled",
       "rescheduledBodyEmail": "{name} received an email with the new time.",
       "rescheduledBodyStatus": "The booking stays approved at the new time. No further action is needed.",
@@ -1097,8 +1087,7 @@
         "closureTimePair": "Enter both the start and end time.",
         "closureTimeRange": "The start time must be before the end time.",
         "openingTimePair": "Enter both the start and end time.",
-        "openingTimeRange": "The start time must be before the end time.",
-        "submitFailed": "Could not save. Please try again."
+        "openingTimeRange": "The start time must be before the end time."
       }
     },
     "bookingQueue": {

@@ -5,13 +5,12 @@ import { useEffect, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { StaffServiceResponse } from '@ikaro/types';
-import { ApiError } from '@/shared/lib/api/errors';
 import { useActivateService, useUpdateService } from '@/features/booking/services/useServices';
-import type {
-  ServiceFormErrors,
-  ServiceFormTranslator,
-} from '@/features/booking/services/service-form';
+import type { ServiceFormErrors } from '@/features/booking/services/service-form';
 import { validateServiceForm } from '@/features/booking/services/service-form';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { ServiceFormFields } from './ServiceFormFields';
@@ -21,22 +20,8 @@ interface ServiceEditPageProps {
   readonly service: StaffServiceResponse;
 }
 
-const DEACTIVATED_SERVICE_CONFLICT_DETAIL = 'cannot update a deactivated service';
-const NAME_CONFLICT_DETAIL = 'already exists';
-
-function mapSubmitErrors(err: unknown, t: ServiceFormTranslator): ServiceFormErrors {
-  if (err instanceof ApiError && err.status === 409) {
-    const detail = err.detail.toLowerCase();
-    if (detail.includes(DEACTIVATED_SERVICE_CONFLICT_DETAIL)) {
-      return { submit: t('editInactiveUpdateBlocked') };
-    }
-
-    if (detail.includes(NAME_CONFLICT_DETAIL)) {
-      return { name: t('createDuplicateName') };
-    }
-  }
-
-  return { submit: t('editFailed') };
+function mapSubmitErrors(err: unknown, locale: SupportedLocale): ServiceFormErrors {
+  return { submit: resolveErrorMessageFromApiError(err, locale) };
 }
 
 interface ServiceEditStatusSectionProps {
@@ -87,7 +72,8 @@ interface ServiceEditActionPanelsProps {
 }
 
 interface ServiceEditPrimaryActionProps extends ServiceEditActionPanelsProps {
-  readonly testIdPrefix: string;
+  readonly saveTestId: string;
+  readonly activateTestId: string;
 }
 
 function ServiceEditPrimaryAction({
@@ -95,19 +81,15 @@ function ServiceEditPrimaryAction({
   isSubmitting,
   isActivating,
   onActivate,
-  testIdPrefix,
+  saveTestId,
+  activateTestId,
 }: ServiceEditPrimaryActionProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const commonT = useTranslations('common');
 
   if (isActive) {
     return (
-      <Button
-        type="submit"
-        data-testid={`${testIdPrefix}-save-button`}
-        className="w-full"
-        disabled={isSubmitting}
-      >
+      <Button type="submit" data-testid={saveTestId} className="w-full" disabled={isSubmitting}>
         {isSubmitting ? commonT('loading') : t('editSave')}
       </Button>
     );
@@ -116,7 +98,7 @@ function ServiceEditPrimaryAction({
   return (
     <Button
       type="button"
-      data-testid={`${testIdPrefix}-activate-button`}
+      data-testid={activateTestId}
       className="w-full"
       disabled={isActivating}
       onClick={onActivate}
@@ -148,7 +130,8 @@ function ServiceEditActionPanels({
               isSubmitting={isSubmitting}
               isActivating={isActivating}
               onActivate={onActivate}
-              testIdPrefix="service-desktop"
+              saveTestId="service-desktop-save-button"
+              activateTestId="service-desktop-activate-button"
             />
 
             <Button asChild variant="outline" className="w-full">
@@ -172,7 +155,8 @@ function ServiceEditActionPanels({
             isSubmitting={isSubmitting}
             isActivating={isActivating}
             onActivate={onActivate}
-            testIdPrefix="service-mobile"
+            saveTestId="service-mobile-save-button"
+            activateTestId="service-mobile-activate-button"
           />
         </div>
       </div>
@@ -182,6 +166,7 @@ function ServiceEditActionPanels({
 
 export function ServiceEditPage({ service }: ServiceEditPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const locale = useResolvedLocale();
   const router = useRouter();
   const updateServiceMutation = useUpdateService();
   const activateServiceMutation = useActivateService();
@@ -228,7 +213,7 @@ export function ServiceEditPage({ service }: ServiceEditPageProps): React.JSX.El
       });
       router.push('/dashboard/services');
     } catch (err) {
-      setFieldErrors(mapSubmitErrors(err, t));
+      setFieldErrors(mapSubmitErrors(err, locale));
     } finally {
       setIsSubmittingLocal(false);
     }
@@ -241,8 +226,8 @@ export function ServiceEditPage({ service }: ServiceEditPageProps): React.JSX.El
     try {
       await activateServiceMutation.mutateAsync(service.serviceId);
       setIsActive(true);
-    } catch {
-      setFieldErrors({ submit: t('editActivateFailed') });
+    } catch (err) {
+      setFieldErrors(mapSubmitErrors(err, locale));
     } finally {
       setIsActivatingLocal(false);
     }

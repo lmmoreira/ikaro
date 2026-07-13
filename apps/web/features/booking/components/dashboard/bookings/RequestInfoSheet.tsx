@@ -37,8 +37,8 @@ export function RequestInfoSheet({
     try {
       await onSubmit(value);
       onClose();
-    } catch {
-      setError(t('requestInfoError'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('requestInfoError'));
     }
   }
 

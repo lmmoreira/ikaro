@@ -104,10 +104,12 @@ describe('ServiceEditPage', () => {
     expect(routerPush).toHaveBeenCalledWith('/dashboard/services');
   });
 
-  it('shows the duplicate-name error inline on the name field', async () => {
+  it('shows the deactivated-service message when the backend rejects the update by code', async () => {
     const user = userEvent.setup();
     mockUpdateService.mockRejectedValue(
-      new ApiError(409, 'Service with this name already exists in this tenant', {}),
+      new ApiError(409, 'Cannot update a deactivated service', {
+        code: 'BOOKING_SERVICE_DEACTIVATED',
+      }),
     );
 
     renderWithIntl(<ServiceEditPage service={service} />);
@@ -117,14 +119,13 @@ describe('ServiceEditPage', () => {
     await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
 
     expect(
-      await screen.findByText('Já existe um serviço com este nome. Escolha outro nome.'),
+      await screen.findByText('Este serviço está desativado e não pode ser atualizado.'),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText('Nome do serviço')).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('shows a generic edit error for unrelated conflicts', async () => {
+  it('shows the generic fallback message when the backend returns no code', async () => {
     const user = userEvent.setup();
-    mockUpdateService.mockRejectedValue(new ApiError(409, 'Conflict', {}));
+    mockUpdateService.mockRejectedValue(new ApiError(500, 'Internal error'));
 
     renderWithIntl(<ServiceEditPage service={service} />);
 
@@ -132,12 +133,7 @@ describe('ServiceEditPage', () => {
     await user.type(screen.getByLabelText('Nome do serviço'), 'Lavagem Premium');
     await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
 
-    expect(
-      await screen.findByText('Erro ao salvar alterações. Tente novamente.'),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText('Já existe um serviço com este nome. Escolha outro nome.'),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
   });
 
   it('shows an activate action for inactive services and updates the top bar after activation', async () => {

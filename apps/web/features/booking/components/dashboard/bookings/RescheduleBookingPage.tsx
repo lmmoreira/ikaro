@@ -17,6 +17,8 @@ import { ApiError } from '@/shared/lib/api/errors';
 import { fetchBookingAvailability } from '@/features/booking/api/availability';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useRescheduleBooking } from '@/features/booking/hooks/useBookingMutations';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
@@ -48,6 +50,7 @@ export function RescheduleBookingPage({
 }: RescheduleBookingPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
   const commonT = useTranslations('common');
+  const locale = useResolvedLocale();
   const { formatDateLong, formatTime } = useFormatting();
   const rescheduleBookingMutation = useRescheduleBooking();
   const topbarStatus = useDashboardTopbarStatus();
@@ -109,7 +112,7 @@ export function RescheduleBookingPage({
         }
       }
 
-      setError(t('rescheduleError'));
+      setError(resolveErrorMessageFromApiError(err, locale));
     } finally {
       setIsSubmittingLocal(false);
     }

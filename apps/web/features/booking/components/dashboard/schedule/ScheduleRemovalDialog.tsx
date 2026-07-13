@@ -2,9 +2,10 @@
 
 import type { ReactNode, SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { ApiError } from '@/shared/lib/api/errors';
 import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { ScheduleRemovalSummary } from './ScheduleRemovalSummary';
 import { useConfirmRemoval } from './use-confirm-removal';
 
@@ -47,15 +48,14 @@ export function ScheduleRemovalDialog({
   rangeLabel,
   notesLabel,
 }: ScheduleRemovalDialogProps): React.JSX.Element | null {
-  const t = useTranslations('dashboard.schedule');
   const commonT = useTranslations('common');
+  const locale = useResolvedLocale();
   const { formatDateLong } = useFormatting();
   const { dialogRef, isSubmitting, error, confirmRemoval } = useConfirmRemoval({
     open,
     onClose,
     onSubmit,
-    getErrorMessage: (err) =>
-      err instanceof ApiError && err.detail ? err.detail : t('errors.submitFailed'),
+    getErrorMessage: (err) => resolveErrorMessageFromApiError(err, locale),
   });
 
   if (!open || !target) return null;
