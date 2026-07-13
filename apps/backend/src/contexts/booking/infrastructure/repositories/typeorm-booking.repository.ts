@@ -12,10 +12,8 @@ import {
 } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import {
-  getActiveEntityManager,
-  runInNewTransaction,
-} from '../../../../shared/infrastructure/transaction-context';
+import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
+import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
   ITenantSettingsPort,
