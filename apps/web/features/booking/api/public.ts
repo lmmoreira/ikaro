@@ -3,17 +3,21 @@ import type {
   BookingResponse,
   CreateBookingRequest,
   Address,
+  ValidationViolation,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
+import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
 
-export class CreateBookingError extends Error {
+export class CreateBookingError extends FetchError {
   constructor(
-    public readonly status: number,
-    message: string,
+    status: number,
+    code?: string,
+    field?: string,
+    public readonly violations?: readonly ValidationViolation[],
+    detail?: string,
   ) {
-    super(message);
+    super(`Failed to create booking (${status})`, status, code, field, detail);
     this.name = 'CreateBookingError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
@@ -28,7 +32,8 @@ export async function createBooking(
   });
 
   if (!res.ok) {
-    throw new CreateBookingError(res.status, `Failed to create booking for slug "${slug}"`);
+    const body = await parseErrorBody(res);
+    throw new CreateBookingError(res.status, body.code, body.field, body.violations, body.detail);
   }
 
   return res.json() as Promise<BookingResponse>;
@@ -62,14 +67,16 @@ export interface SubmitGuestBookingInfoResponse {
   readonly infoSubmittedAt: string;
 }
 
-export class SubmitGuestBookingInfoError extends Error {
+export class SubmitGuestBookingInfoError extends FetchError {
   constructor(
-    public readonly status: number,
-    message: string,
+    status: number,
+    code?: string,
+    field?: string,
+    public readonly violations?: readonly ValidationViolation[],
+    detail?: string,
   ) {
-    super(message);
+    super(`Failed to submit guest booking info (${status})`, status, code, field, detail);
     this.name = 'SubmitGuestBookingInfoError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
@@ -88,9 +95,13 @@ export async function submitGuestBookingInfo(
   );
 
   if (!res.ok) {
+    const errorBody = await parseErrorBody(res);
     throw new SubmitGuestBookingInfoError(
       res.status,
-      `Failed to submit guest booking info for booking "${bookingId}"`,
+      errorBody.code,
+      errorBody.field,
+      errorBody.violations,
+      errorBody.detail,
     );
   }
 

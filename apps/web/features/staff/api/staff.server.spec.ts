@@ -54,8 +54,20 @@ describe('fetchStaffMember', () => {
   it('throws StaffDetailFetchError on a non-2xx response', async () => {
     vi.mocked(bffServerFetch).mockResolvedValue(new Response(null, { status: 404 }));
 
-    await expect(fetchStaffMember('token-123', 'staff-1')).rejects.toMatchObject(
-      new StaffDetailFetchError(404, 'Staff not found'),
+    await expect(fetchStaffMember('token-123', 'staff-1')).rejects.toBeInstanceOf(
+      StaffDetailFetchError,
     );
+    await expect(fetchStaffMember('token-123', 'staff-1')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('parses code from the response body instead of discarding it', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(JSON.stringify({ code: 'STAFF_NOT_FOUND' }), { status: 404 }),
+    );
+
+    await expect(fetchStaffMember('token-123', 'staff-1')).rejects.toMatchObject({
+      status: 404,
+      code: 'STAFF_NOT_FOUND',
+    });
   });
 });

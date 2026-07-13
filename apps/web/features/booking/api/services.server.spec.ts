@@ -32,9 +32,19 @@ describe('fetchStaffServices', () => {
   it('throws ServiceListFetchError on a non-2xx response', async () => {
     vi.mocked(bffServerFetch).mockResolvedValue(new Response(null, { status: 500 }));
 
-    await expect(fetchStaffServices('token-123')).rejects.toMatchObject(
-      new ServiceListFetchError(500, 'Failed to fetch services'),
+    await expect(fetchStaffServices('token-123')).rejects.toBeInstanceOf(ServiceListFetchError);
+    await expect(fetchStaffServices('token-123')).rejects.toMatchObject({ status: 500 });
+  });
+
+  it('parses code from the response body instead of discarding it', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(JSON.stringify({ code: 'PLATFORM_TENANT_INACTIVE' }), { status: 403 }),
     );
+
+    await expect(fetchStaffServices('token-123')).rejects.toMatchObject({
+      status: 403,
+      code: 'PLATFORM_TENANT_INACTIVE',
+    });
   });
 });
 
@@ -60,8 +70,20 @@ describe('fetchStaffService', () => {
       }),
     );
 
-    await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject(
-      new ServiceDetailFetchError(404, 'Service not found'),
+    await expect(fetchStaffService('token-123', 'svc-1')).rejects.toBeInstanceOf(
+      ServiceDetailFetchError,
     );
+    await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('parses code from the response body instead of discarding it', async () => {
+    vi.mocked(bffServerFetch).mockResolvedValue(
+      new Response(JSON.stringify({ code: 'BOOKING_SERVICE_NOT_FOUND' }), { status: 404 }),
+    );
+
+    await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject({
+      status: 404,
+      code: 'BOOKING_SERVICE_NOT_FOUND',
+    });
   });
 });

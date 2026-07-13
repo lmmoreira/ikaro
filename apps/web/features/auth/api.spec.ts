@@ -41,6 +41,17 @@ describe('fetchStaffTenants', () => {
 
     await expect(fetchStaffTenants()).rejects.toMatchObject(new AuthFetchError(401));
   });
+
+  it('parses code from the response body instead of discarding it', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ code: 'AUTH_UNAUTHORIZED' }), { status: 401 }),
+    );
+
+    await expect(fetchStaffTenants()).rejects.toMatchObject({
+      status: 401,
+      code: 'AUTH_UNAUTHORIZED',
+    });
+  });
 });
 
 describe('switchStaffTenant', () => {

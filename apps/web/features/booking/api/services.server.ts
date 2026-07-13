@@ -1,42 +1,30 @@
 import 'server-only';
 import type { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
+import { assertOk, FetchError } from '@/shared/lib/api/errors';
 
-export class ServiceListFetchError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
+export class ServiceListFetchError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(`Failed to fetch services (${status})`, status, code, field, detail);
     this.name = 'ServiceListFetchError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
 export async function fetchStaffServices(token: string): Promise<StaffServiceListResponse> {
   const res = await bffServerFetch(token, '/services');
-  if (!res.ok) throw new ServiceListFetchError(res.status, 'Failed to fetch services');
+  await assertOk(res, ServiceListFetchError);
   return res.json() as Promise<StaffServiceListResponse>;
 }
 
-export class ServiceDetailFetchError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
+export class ServiceDetailFetchError extends FetchError {
+  constructor(status: number, code?: string, field?: string, detail?: string) {
+    super(`Failed to fetch service detail (${status})`, status, code, field, detail);
     this.name = 'ServiceDetailFetchError';
-    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
 export async function fetchStaffService(token: string, id: string): Promise<StaffServiceResponse> {
   const res = await bffServerFetch(token, `/services/${encodeURIComponent(id)}`);
-  if (!res.ok) {
-    throw new ServiceDetailFetchError(
-      res.status,
-      res.status === 404 ? 'Service not found' : `Failed to fetch service detail (${res.status})`,
-    );
-  }
+  await assertOk(res, ServiceDetailFetchError);
   return res.json() as Promise<StaffServiceResponse>;
 }

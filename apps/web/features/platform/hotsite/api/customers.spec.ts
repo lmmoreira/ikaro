@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Address, CustomerProfileResponse } from '@ikaro/types';
 import {
+  FetchCustomerProfileError,
   getHotsiteCustomerProfile,
   updateHotsiteCustomerProfile,
   UpdateHotsiteCustomerProfileError,
@@ -69,6 +70,23 @@ describe('getHotsiteCustomerProfile', () => {
     const result = await getHotsiteCustomerProfile('lavacar-beloauto');
 
     expect(result).toBeNull();
+  });
+
+  it('throws a FetchCustomerProfileError carrying code for a non-401/403 failure', async () => {
+    // mockImplementation (not mockResolvedValue) so each call gets a fresh Response — this test
+    // makes two separate calls below, and a shared Response's body can only be read once.
+    fetchSpy.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ code: 'PLATFORM_TENANT_INACTIVE' }), { status: 500 }),
+    );
+
+    await expect(getHotsiteCustomerProfile('lavacar-beloauto')).rejects.toMatchObject({
+      status: 500,
+      code: 'PLATFORM_TENANT_INACTIVE',
+    });
+    await expect(getHotsiteCustomerProfile('lavacar-beloauto')).rejects.toBeInstanceOf(
+      FetchCustomerProfileError,
+    );
   });
 });
 

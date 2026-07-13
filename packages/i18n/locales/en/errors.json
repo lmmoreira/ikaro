@@ -15,6 +15,7 @@
   "BOOKING_PICKUP_ADDRESS_REQUIRED": "A pickup address is required for the selected service.",
   "BOOKING_INVALID_TRANSITION": "This booking cannot be moved to the requested status.",
   "BOOKING_SLOT_UNAVAILABLE": "The requested time slot is no longer available.",
+  "BOOKING_CONCURRENT_MODIFICATION": "This booking was changed by another request. Reload it and try again.",
   "BOOKING_SERVICE_NOT_ACTIVE": "This service is not currently active.",
   "BOOKING_SERVICE_NOT_IN_TENANT": "This service does not belong to the selected business.",
   "BOOKING_CANCELLATION_WINDOW_EXPIRED": "The cancellation window for this booking has expired.",
