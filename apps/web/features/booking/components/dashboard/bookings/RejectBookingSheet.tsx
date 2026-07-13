@@ -37,8 +37,8 @@ export function RejectBookingSheet({
     try {
       await onSubmit(value);
       onClose();
-    } catch {
-      setError(t('rejectError'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('rejectError'));
     }
   }
 

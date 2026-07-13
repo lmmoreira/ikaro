@@ -2,9 +2,12 @@
 
 import type { ReactNode, SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
+import type { ProblemDetail } from '@ikaro/types';
 import { ApiError } from '@/shared/lib/api/errors';
 import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { ScheduleRemovalSummary } from './ScheduleRemovalSummary';
 import { useConfirmRemoval } from './use-confirm-removal';
 
@@ -47,15 +50,18 @@ export function ScheduleRemovalDialog({
   rangeLabel,
   notesLabel,
 }: ScheduleRemovalDialogProps): React.JSX.Element | null {
-  const t = useTranslations('dashboard.schedule');
   const commonT = useTranslations('common');
+  const locale = useResolvedLocale();
   const { formatDateLong } = useFormatting();
   const { dialogRef, isSubmitting, error, confirmRemoval } = useConfirmRemoval({
     open,
     onClose,
     onSubmit,
-    getErrorMessage: (err) =>
-      err instanceof ApiError && err.detail ? err.detail : t('errors.submitFailed'),
+    getErrorMessage: (err) => {
+      const code =
+        err instanceof ApiError ? (err.data as ProblemDetail | undefined)?.code : undefined;
+      return resolveErrorMessage(code, locale);
+    },
   });
 
   if (!open || !target) return null;

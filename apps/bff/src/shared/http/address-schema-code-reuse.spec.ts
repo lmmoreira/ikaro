@@ -13,7 +13,11 @@ import { UpdateHotsiteContentBodySchema } from '../../features/platform/hotsite-
 /**
  * TD23 Story 10's core acceptance criterion: a BFF check that duplicates a backend VO's own
  * rule must emit the SAME code the VO would for the identical failure, regardless of which
- * layer catches it first. Covers 2 of the 3 AddressSchema copies (bookings, customers) —
+ * layer catches it first. Covers 1 of the original 2 AddressSchema copies (customers) —
+ * bookings' AddressSchema no longer duplicates the required-field check at all (TD23 Story 13
+ * removed it: the backend's Address.create() already validates required-ness with equal-or-
+ * better granularity via params.field, and the BFF copy only produced a second, incompatible
+ * error shape for the same failure — see bookings.controller.ts's AddressSchema comment).
  * tenant-settings' BusinessInfoAddressSchema is deliberately excluded: every field there is
  * `.nullable()` (genuinely optional), so AddressErrorCode.FIELD_REQUIRED would misrepresent
  * a field that isn't actually required; it keeps generic codes instead. Also covers
@@ -21,7 +25,7 @@ import { UpdateHotsiteContentBodySchema } from '../../features/platform/hotsite-
  * rule outside the Address shape.
  */
 describe('BFF Address/Phone/Email/SEO code reuse (TD23 Story 10)', () => {
-  it('bookings AddressSchema: empty street reuses AddressErrorCode.FIELD_REQUIRED', () => {
+  it('bookings AddressSchema: empty street is accepted by the BFF, deferring to the backend (TD23 Story 13)', () => {
     const result = RequestBookingBodySchema.safeParse({
       contactEmail: 'joao@example.com',
       contactName: 'João',
@@ -36,12 +40,7 @@ describe('BFF Address/Phone/Email/SEO code reuse (TD23 Story 10)', () => {
         zipCode: '30000-000',
       },
     });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      const issue = result.error.issues.find((i) => i.path.join('.') === 'contactAddress.street');
-      const params = issue as unknown as { params?: { code?: string } };
-      expect(params.params?.code).toBe(AddressErrorCode.FIELD_REQUIRED);
-    }
+    expect(result.success).toBe(true);
   });
 
   it('customers AddressSchema: empty zipCode reuses AddressErrorCode.FIELD_REQUIRED', () => {

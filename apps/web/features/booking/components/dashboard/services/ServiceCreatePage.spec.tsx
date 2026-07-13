@@ -105,9 +105,11 @@ describe('ServiceCreatePage', () => {
     expect(routerPush).toHaveBeenCalledWith('/dashboard/services?created=1');
   });
 
-  it('shows the duplicate-name error inline on the name field', async () => {
+  it('shows the resolved error message for the backend code on submission failure', async () => {
     const user = userEvent.setup();
-    mockCreateService.mockRejectedValue(new ApiError(409, 'Conflict', {}));
+    mockCreateService.mockRejectedValue(
+      new ApiError(400, 'Invalid amount', { code: 'MONEY_AMOUNT_INVALID' }),
+    );
 
     renderWithIntl(<ServiceCreatePage />);
 
@@ -116,9 +118,20 @@ describe('ServiceCreatePage', () => {
     await user.type(screen.getByLabelText('Duração'), '60');
     await user.click(getPrimaryCreateButton());
 
-    expect(
-      await screen.findByText('Já existe um serviço com este nome. Escolha outro nome.'),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText('Nome do serviço')).toHaveAttribute('aria-invalid', 'true');
+    expect(await screen.findByText('O valor informado é inválido.')).toBeInTheDocument();
+  });
+
+  it('shows the generic fallback message when the backend returns no code', async () => {
+    const user = userEvent.setup();
+    mockCreateService.mockRejectedValue(new ApiError(500, 'Internal error'));
+
+    renderWithIntl(<ServiceCreatePage />);
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'Lavagem Premium');
+    await user.type(screen.getByLabelText('Preço'), '180');
+    await user.type(screen.getByLabelText('Duração'), '60');
+    await user.click(getPrimaryCreateButton());
+
+    expect(await screen.findByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
   });
 });

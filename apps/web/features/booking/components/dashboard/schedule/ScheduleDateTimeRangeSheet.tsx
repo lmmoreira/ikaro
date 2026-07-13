@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode, type SubmitEvent } from 'react';
-import { useTranslations } from 'next-intl';
+import type { ProblemDetail } from '@ikaro/types';
 import { ApiError } from '@/shared/lib/api/errors';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { Button } from '@/shared/components/ui/button';
 import { Calendar } from '@/shared/components/ui/calendar';
 import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
@@ -75,7 +77,7 @@ export function ScheduleDateTimeRangeSheet<TBody, TResponse>({
   validate,
   buildRequest,
 }: ScheduleDateTimeRangeSheetProps<TBody, TResponse>): React.JSX.Element | null {
-  const t = useTranslations('dashboard.schedule');
+  const locale = useResolvedLocale();
   const { formatDateLong } = useFormatting();
   const dialogRef = useModalDialog(open);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
@@ -117,11 +119,9 @@ export function ScheduleDateTimeRangeSheet<TBody, TResponse>({
       await onSubmit(buildRequest({ date, startTime, endTime, notes }));
       onClose();
     } catch (err) {
-      if (err instanceof ApiError && err.detail) {
-        setError(err.detail);
-      } else {
-        setError(t('errors.submitFailed'));
-      }
+      const code =
+        err instanceof ApiError ? (err.data as ProblemDetail | undefined)?.code : undefined;
+      setError(resolveErrorMessage(code, locale));
     } finally {
       setIsSubmitting(false);
     }

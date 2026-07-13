@@ -146,9 +146,7 @@ describe('SubmitInfoForm', () => {
   });
 
   it('shows a retry alert and preserves the response value on a network error', async () => {
-    vi.mocked(submitGuestBookingInfo).mockRejectedValue(
-      new SubmitGuestBookingInfoError(500, 'network error'),
-    );
+    vi.mocked(submitGuestBookingInfo).mockRejectedValue(new SubmitGuestBookingInfoError(500));
     const user = userEvent.setup();
     renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
 
@@ -162,7 +160,7 @@ describe('SubmitInfoForm', () => {
 
   it('shows the token-expired variant and a link back to the invalid-link state on a 401', async () => {
     vi.mocked(submitGuestBookingInfo).mockRejectedValue(
-      new SubmitGuestBookingInfoError(401, 'expired'),
+      new SubmitGuestBookingInfoError(401, 'BFF_GUEST_TOKEN_INVALID'),
     );
     const user = userEvent.setup();
     renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
@@ -171,9 +169,7 @@ describe('SubmitInfoForm', () => {
     await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/Seu link expirou enquanto você preenchia o formulário/),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/Este link de acesso é inválido ou expirou/)).toBeInTheDocument(),
     );
     expect(screen.queryByRole('button', { name: 'Enviar resposta' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Voltar' })).toBeInTheDocument();

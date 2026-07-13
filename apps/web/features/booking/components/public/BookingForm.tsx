@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { BookingErrorCode } from '@ikaro/types';
 import type {
   AvailableSlot,
   Address,
@@ -18,6 +19,8 @@ import {
   type AuthenticatedBookingRequest,
 } from '@/features/booking/api/public';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import {
   emptyPersonalInfo,
   isAddressFilled,
@@ -92,6 +95,7 @@ export function BookingForm({
 }: BookingFormProps): React.JSX.Element {
   const t = useTranslations('booking');
   const tc = useTranslations('common');
+  const locale = useResolvedLocale();
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
@@ -104,7 +108,9 @@ export function BookingForm({
   const [pickupAddressEdited, setPickupAddressEdited] = useState(false);
   const [status, setStatus] = useState<BookingSubmissionStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [step1Error, setStep1Error] = useState<string | null>(null);
   const [step2Error, setStep2Error] = useState<string | null>(null);
+  const [step3Error, setStep3Error] = useState<string | null>(null);
 
   const requiresPickupAddress = services.some(
     (service) => selectedServiceIds.includes(service.id) && service.requiresPickupAddress,
@@ -160,6 +166,8 @@ export function BookingForm({
 
     setStatus('submitting');
     setErrorMessage(null);
+    setStep1Error(null);
+    setStep3Error(null);
 
     try {
       const resolvedProfile =
@@ -191,22 +199,30 @@ export function BookingForm({
       }
       setStatus('success');
     } catch (err) {
-      if (err instanceof CreateBookingError && err.status === 409) {
+      if (err instanceof CreateBookingError && err.code === BookingErrorCode.SLOT_UNAVAILABLE) {
         setStatus('idle');
-        setStep2Error(t('errors.slotUnavailable'));
+        setStep2Error(resolveErrorMessage(err.code, locale));
         setStep(2);
         return;
       }
+
+      if (err instanceof CreateBookingError && err.field === 'pickupAddress') {
+        setStatus('idle');
+        setStep1Error(resolveErrorMessage(err.code, locale));
+        setStep(1);
+        return;
+      }
+
+      if (err instanceof CreateBookingError && err.field === 'contactAddress') {
+        setStatus('idle');
+        setStep3Error(resolveErrorMessage(err.code, locale));
+        setStep(3);
+        return;
+      }
+
       setStatus('error');
-      // A 400 here is overwhelmingly the backend Address VO rejecting pickupAddress or
-      // contactAddress (country-specific postal/state regex) — it never comes back as a
-      // structured per-field violation, and the two addresses live in different steps
-      // (pickup in step 1, contact in step 3), so we can't reliably point at one field.
-      // Still far more actionable than the fully generic fallback below.
       setErrorMessage(
-        err instanceof CreateBookingError && err.status === 400
-          ? t('errors.addressInvalid')
-          : t('errors.submitFailed'),
+        resolveErrorMessage(err instanceof CreateBookingError ? err.code : undefined, locale),
       );
     }
   }
@@ -223,20 +239,27 @@ export function BookingForm({
         </p>
 
         {step === 1 && (
-          <ServiceSelectionStep
-            services={services}
-            selectedServiceIds={selectedServiceIds}
-            onToggleService={toggleService}
-            requiresPickupAddress={requiresPickupAddress}
-            pickupAddress={pickupAddress}
-            onPickupAddressChange={(address) => {
-              setPickupAddressEdited(true);
-              setPersonalInfo((prev) => ({ ...prev, pickupAddress: address }));
-            }}
-            addressSpec={addressSpec}
-            onNext={() => setStep(2)}
-            onBack={() => router.push(`/${slug}`)}
-          />
+          <>
+            <ServiceSelectionStep
+              services={services}
+              selectedServiceIds={selectedServiceIds}
+              onToggleService={toggleService}
+              requiresPickupAddress={requiresPickupAddress}
+              pickupAddress={pickupAddress}
+              onPickupAddressChange={(address) => {
+                setPickupAddressEdited(true);
+                setPersonalInfo((prev) => ({ ...prev, pickupAddress: address }));
+              }}
+              addressSpec={addressSpec}
+              onNext={() => setStep(2)}
+              onBack={() => router.push(`/${slug}`)}
+            />
+            {step1Error && (
+              <div className="mt-4" data-testid="step1-submit-error">
+                <ErrorAlert>{step1Error}</ErrorAlert>
+              </div>
+            )}
+          </>
         )}
 
         {step === 2 && (
@@ -304,20 +327,27 @@ export function BookingForm({
         )}
 
         {step === 3 && selectedDate && selectedSlot && (
-          <PersonalInfoStep
-            slug={slug}
-            value={personalInfo}
-            onChange={setPersonalInfo}
-            services={services}
-            selectedServiceIds={selectedServiceIds}
-            selectedDate={selectedDate}
-            selectedSlot={selectedSlot}
-            phonePrefix={phonePrefix}
-            addressSpec={addressSpec}
-            hideContactFields={isAuthenticatedCustomer}
-            onNext={() => setStep(4)}
-            onBack={() => setStep(2)}
-          />
+          <>
+            <PersonalInfoStep
+              slug={slug}
+              value={personalInfo}
+              onChange={setPersonalInfo}
+              services={services}
+              selectedServiceIds={selectedServiceIds}
+              selectedDate={selectedDate}
+              selectedSlot={selectedSlot}
+              phonePrefix={phonePrefix}
+              addressSpec={addressSpec}
+              hideContactFields={isAuthenticatedCustomer}
+              onNext={() => setStep(4)}
+              onBack={() => setStep(2)}
+            />
+            {step3Error && (
+              <div className="mt-4" data-testid="step3-submit-error">
+                <ErrorAlert>{step3Error}</ErrorAlert>
+              </div>
+            )}
+          </>
         )}
 
         {step === 4 && selectedDate && selectedSlot && (

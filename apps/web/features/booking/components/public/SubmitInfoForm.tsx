@@ -4,9 +4,18 @@ import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { TimeFormat } from '@ikaro/i18n';
+import { BffErrorCode } from '@ikaro/types';
 import { submitGuestBookingInfo, SubmitGuestBookingInfoError } from '@/features/booking/api/public';
 import { formatDateLong, formatTime } from '@/shared/lib/formatting/format-time';
+import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { PhotoUpload } from './PhotoUpload';
+
+const EXPIRED_LINK_CODES: readonly string[] = [
+  BffErrorCode.GUEST_TOKEN_INVALID,
+  BffErrorCode.GUEST_TOKEN_MISSING,
+  BffErrorCode.GUEST_TOKEN_BOOKING_MISMATCH,
+];
 
 export interface SubmitInfoFormSummary {
   readonly serviceSummary: string;
@@ -31,7 +40,7 @@ type FormState =
   | { readonly status: 'idle' }
   | { readonly status: 'submitting' }
   | { readonly status: 'success'; readonly infoSubmittedAt: string }
-  | { readonly status: 'error'; readonly kind: 'retry' | 'expired' };
+  | { readonly status: 'error'; readonly kind: 'retry' | 'expired'; readonly message: string };
 
 const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
@@ -52,6 +61,7 @@ export function SubmitInfoForm({
   tenantSlug,
 }: SubmitInfoFormProps): React.JSX.Element {
   const t = useTranslations('booking.submitInfo');
+  const resolvedLocale = resolveSupportedLocale(locale);
   const [response, setResponse] = useState('');
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [validationError, setValidationError] = useState(false);
@@ -79,8 +89,13 @@ export function SubmitInfoForm({
       });
       setState({ status: 'success', infoSubmittedAt: result.infoSubmittedAt });
     } catch (err) {
-      const expired = err instanceof SubmitGuestBookingInfoError && err.status === 401;
-      setState({ status: 'error', kind: expired ? 'expired' : 'retry' });
+      const code = err instanceof SubmitGuestBookingInfoError ? err.code : undefined;
+      const expired = code !== undefined && EXPIRED_LINK_CODES.includes(code);
+      setState({
+        status: 'error',
+        kind: expired ? 'expired' : 'retry',
+        message: resolveErrorMessage(code, resolvedLocale),
+      });
     }
   }
 
@@ -206,7 +221,7 @@ export function SubmitInfoForm({
                 {t('submitErrorTitle')}
               </p>
               <p className="text-sm" style={{ color: '#7f1d1d' }}>
-                {t('submitErrorMessage')}
+                {state.message}
               </p>
             </div>
           </div>
@@ -227,7 +242,7 @@ export function SubmitInfoForm({
                 {t('submitErrorTitle')}
               </p>
               <p className="text-sm" style={{ color: '#7f1d1d' }}>
-                {t('tokenExpiredMessage')}
+                {state.message}
               </p>
             </div>
           </div>

@@ -30,11 +30,28 @@ describe('RejectBookingSheet', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('shows the localized fallback when submit fails', async () => {
+  it('surfaces the resolved message thrown by onSubmit instead of swallowing it', async () => {
     const onClose = vi.fn();
     const onSubmit = vi
       .fn()
-      .mockRejectedValue(new Error('Too small: expected string to have >=10 characters'));
+      .mockRejectedValue(new Error('This value must be at least 10 characters.'));
+
+    renderWithIntl(
+      <RejectBookingSheet open={true} isSubmitting={false} onClose={onClose} onSubmit={onSubmit} />,
+    );
+
+    await userEvent.type(screen.getByRole('textbox'), 'curto');
+    await userEvent.click(screen.getByRole('button', { name: 'Rejeitar' }));
+
+    expect(
+      await screen.findByText('This value must be at least 10 characters.'),
+    ).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('shows the localized fallback when onSubmit rejects without an Error instance', async () => {
+    const onClose = vi.fn();
+    const onSubmit = vi.fn().mockRejectedValue('unexpected non-Error rejection');
 
     renderWithIntl(
       <RejectBookingSheet open={true} isSubmitting={false} onClose={onClose} onSubmit={onSubmit} />,

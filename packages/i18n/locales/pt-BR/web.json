@@ -137,9 +137,6 @@
       "remove": "Remover"
     },
     "errors": {
-      "submitFailed": "Não foi possível enviar o agendamento. Tente novamente.",
-      "addressInvalid": "Verifique o endereço informado e tente novamente.",
-      "slotUnavailable": "Horário indisponível, escolha outro",
       "tryAgain": "Tentar novamente"
     },
     "submitInfo": {
@@ -155,9 +152,7 @@
       "submittingButton": "Enviando…",
       "linkValidityNote": "Este link é válido por 7 dias a partir do recebimento do email.",
       "submitErrorTitle": "Falha ao enviar",
-      "submitErrorMessage": "Não foi possível enviar sua resposta. Verifique sua conexão e tente novamente. Suas informações foram preservadas.",
       "retryButton": "Tentar novamente",
-      "tokenExpiredMessage": "Seu link expirou enquanto você preenchia o formulário. Solicite um novo link com a equipe ou volte para o início.",
       "tokenExpiredCta": "Voltar",
       "successTitle": "Resposta enviada!",
       "successMessage": "Obrigado! Nossa equipe vai analisar as informações e entrar em contato para confirmar seu agendamento.",
@@ -863,8 +858,6 @@
       "createDurationRequired": "Informe a duração do serviço.",
       "createDurationInvalid": "A duração deve ser maior que zero.",
       "createPointsInvalid": "Os pontos de fidelidade devem ser um número inteiro maior ou igual a zero.",
-      "createDuplicateName": "Já existe um serviço com este nome. Escolha outro nome.",
-      "createFailed": "Erro ao criar serviço. Tente novamente.",
       "createdSuccessTitle": "Serviço criado!",
       "createdSuccessBody": "O novo serviço já está disponível no formulário de agendamento.",
       "editPageTitle": "Editar serviço",
@@ -873,12 +866,10 @@
       "editDangerZoneDescription": "Desativar este serviço impede novos agendamentos. Agendamentos existentes não são afetados.",
       "editDeactivate": "Desativar serviço",
       "editSave": "Salvar alterações",
-      "editFailed": "Erro ao salvar alterações. Tente novamente.",
       "editInactiveTitle": "Serviço inativo",
       "editInactiveDescription": "Ative este serviço para salvar alterações e voltar a exibi-lo no agendamento.",
       "editInactiveUpdateBlocked": "Ative este serviço antes de salvar alterações.",
       "editActivate": "Ativar serviço",
-      "editActivateFailed": "Erro ao ativar serviço. Tente novamente.",
       "deactivatePageTitle": "Desativar serviço",
       "deactivateTitle": "Desativar serviço?",
       "deactivateIntro": "Esta ação pode ser revertida editando o serviço novamente.",
@@ -1017,7 +1008,6 @@
       "summaryPending": "Ainda não selecionado",
       "submitReschedule": "Reagendar",
       "rescheduleRequired": "Escolha um novo horário antes de continuar.",
-      "rescheduleError": "Não foi possível reagendar. Tente novamente.",
       "rescheduledTitle": "Agendamento reagendado",
       "rescheduledBodyEmail": "{name} recebeu um email com o novo horário.",
       "rescheduledBodyStatus": "O agendamento continua aprovado no novo horário. Nenhuma ação adicional é necessária.",
@@ -1097,8 +1087,7 @@
         "closureTimePair": "Informe o horário inicial e final juntos.",
         "closureTimeRange": "O horário inicial precisa ser anterior ao final.",
         "openingTimePair": "Informe o horário inicial e final.",
-        "openingTimeRange": "O horário inicial precisa ser anterior ao final.",
-        "submitFailed": "Não foi possível salvar. Tente novamente."
+        "openingTimeRange": "O horário inicial precisa ser anterior ao final."
       }
     },
     "bookingQueue": {
