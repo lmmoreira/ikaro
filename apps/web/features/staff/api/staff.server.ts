@@ -1,6 +1,7 @@
 import 'server-only';
 import type { StaffListResponse, StaffResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
+import { parseErrorBody } from '@/shared/lib/api/errors';
 
 // Server-side variant for the team page load. limit=100 is the backend cap — tab
 // counts are computed client-side from this single page (fine for MVP team sizes).
@@ -13,9 +14,11 @@ export async function fetchStaffList(token: string): Promise<StaffListResponse> 
 export class StaffDetailFetchError extends Error {
   constructor(
     public readonly status: number,
-    message: string,
+    public readonly code?: string,
+    public readonly field?: string,
+    detail?: string,
   ) {
-    super(message);
+    super(detail ?? `Failed to fetch staff detail (${status})`);
     this.name = 'StaffDetailFetchError';
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -25,10 +28,8 @@ export class StaffDetailFetchError extends Error {
 export async function fetchStaffMember(token: string, id: string): Promise<StaffResponse> {
   const res = await bffServerFetch(token, `/staff/${id}`, { cache: 'no-store' });
   if (!res.ok) {
-    throw new StaffDetailFetchError(
-      res.status,
-      res.status === 404 ? 'Staff not found' : `Failed to fetch staff detail (${res.status})`,
-    );
+    const body = await parseErrorBody(res);
+    throw new StaffDetailFetchError(res.status, body.code, body.field, body.detail);
   }
   return res.json() as Promise<StaffResponse>;
 }

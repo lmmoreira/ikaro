@@ -65,6 +65,17 @@ describe('fetchCustomerBookings / fetchLoyaltyBalance / fetchLoyaltyEntries / fe
       expect((error as CustomerFetchError).status).toBe(401);
     },
   );
+
+  it('parses code/field from the response body instead of discarding it', async () => {
+    bffServerFetch.mockResolvedValue(
+      jsonResponse({ code: 'AUTH_UNAUTHORIZED', field: 'token' }, false, 401),
+    );
+    let error: unknown;
+    await fetchCustomerBookings('token').catch((err: unknown) => {
+      error = err;
+    });
+    expect(error).toMatchObject({ code: 'AUTH_UNAUTHORIZED', field: 'token' });
+  });
 });
 
 describe('withAuthRedirect', () => {
@@ -73,13 +84,15 @@ describe('withAuthRedirect', () => {
   });
 
   it.each([401, 403])('redirects to login on a %i CustomerFetchError', async (status) => {
-    const rejected = Promise.reject(new CustomerFetchError(status, 'unauthorized'));
+    const rejected = Promise.reject(
+      new CustomerFetchError(status, undefined, undefined, 'unauthorized'),
+    );
     await expect(withAuthRedirect(rejected, 'lavacar-bh')).rejects.toThrow('NEXT_REDIRECT');
     expect(redirect).toHaveBeenCalledWith('/lavacar-bh/login');
   });
 
   it('rethrows without redirecting for any other error', async () => {
-    const rejected = Promise.reject(new CustomerFetchError(500, 'boom'));
+    const rejected = Promise.reject(new CustomerFetchError(500, undefined, undefined, 'boom'));
     await expect(withAuthRedirect(rejected, 'lavacar-bh')).rejects.toThrow('boom');
     expect(redirect).not.toHaveBeenCalled();
   });

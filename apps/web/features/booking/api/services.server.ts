@@ -1,13 +1,16 @@
 import 'server-only';
 import type { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
+import { parseErrorBody } from '@/shared/lib/api/errors';
 
 export class ServiceListFetchError extends Error {
   constructor(
     public readonly status: number,
-    message: string,
+    public readonly code?: string,
+    public readonly field?: string,
+    detail?: string,
   ) {
-    super(message);
+    super(detail ?? `Failed to fetch services (${status})`);
     this.name = 'ServiceListFetchError';
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -15,16 +18,21 @@ export class ServiceListFetchError extends Error {
 
 export async function fetchStaffServices(token: string): Promise<StaffServiceListResponse> {
   const res = await bffServerFetch(token, '/services');
-  if (!res.ok) throw new ServiceListFetchError(res.status, 'Failed to fetch services');
+  if (!res.ok) {
+    const body = await parseErrorBody(res);
+    throw new ServiceListFetchError(res.status, body.code, body.field, body.detail);
+  }
   return res.json() as Promise<StaffServiceListResponse>;
 }
 
 export class ServiceDetailFetchError extends Error {
   constructor(
     public readonly status: number,
-    message: string,
+    public readonly code?: string,
+    public readonly field?: string,
+    detail?: string,
   ) {
-    super(message);
+    super(detail ?? `Failed to fetch service detail (${status})`);
     this.name = 'ServiceDetailFetchError';
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -33,10 +41,8 @@ export class ServiceDetailFetchError extends Error {
 export async function fetchStaffService(token: string, id: string): Promise<StaffServiceResponse> {
   const res = await bffServerFetch(token, `/services/${encodeURIComponent(id)}`);
   if (!res.ok) {
-    throw new ServiceDetailFetchError(
-      res.status,
-      res.status === 404 ? 'Service not found' : `Failed to fetch service detail (${res.status})`,
-    );
+    const body = await parseErrorBody(res);
+    throw new ServiceDetailFetchError(res.status, body.code, body.field, body.detail);
   }
   return res.json() as Promise<StaffServiceResponse>;
 }

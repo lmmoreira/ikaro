@@ -83,6 +83,27 @@ describe('createBooking', () => {
       status: 500,
     });
   });
+
+  it('parses code/field/violations from the response body instead of discarding it', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 'BOOKING_PICKUP_ADDRESS_REQUIRED',
+          field: 'pickupAddress',
+          violations: [{ field: 'pickupAddress', code: 'ADDRESS_FIELD_REQUIRED' }],
+          detail: 'A pickup address is required.',
+        }),
+        { status: 400 },
+      ),
+    );
+
+    await expect(createBooking('lavacar-beloauto', makePayload())).rejects.toMatchObject({
+      status: 400,
+      code: 'BOOKING_PICKUP_ADDRESS_REQUIRED',
+      field: 'pickupAddress',
+      violations: [{ field: 'pickupAddress', code: 'ADDRESS_FIELD_REQUIRED' }],
+    });
+  });
 });
 
 describe('createAuthenticatedBooking', () => {
@@ -299,6 +320,17 @@ describe('fetchGuestBookingSummary', () => {
       status: 404,
     });
   });
+
+  it('parses code/field from the response body instead of discarding it', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ code: 'BFF_GUEST_TOKEN_BOOKING_MISMATCH' }), { status: 409 }),
+    );
+
+    await expect(fetchGuestBookingSummary('booking-1', 'token')).rejects.toMatchObject({
+      status: 409,
+      code: 'BFF_GUEST_TOKEN_BOOKING_MISMATCH',
+    });
+  });
 });
 
 describe('submitGuestBookingInfo', () => {
@@ -353,5 +385,26 @@ describe('submitGuestBookingInfo', () => {
     await expect(
       submitGuestBookingInfo('booking-1', 'token', { response: 'texto' }),
     ).rejects.toMatchObject({ status: 500 });
+  });
+
+  it('parses code/field from the response body instead of discarding it', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 'BOOKING_INFO_MESSAGE_TOO_SHORT',
+          field: 'response',
+          detail: 'The message is too short.',
+        }),
+        { status: 400 },
+      ),
+    );
+
+    await expect(
+      submitGuestBookingInfo('booking-1', 'token', { response: 'oi' }),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: 'BOOKING_INFO_MESSAGE_TOO_SHORT',
+      field: 'response',
+    });
   });
 });

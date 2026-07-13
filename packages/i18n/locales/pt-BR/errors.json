@@ -15,6 +15,7 @@
   "BOOKING_PICKUP_ADDRESS_REQUIRED": "O endereço de coleta é obrigatório para o serviço selecionado.",
   "BOOKING_INVALID_TRANSITION": "Não é possível alterar o status do agendamento para o status solicitado.",
   "BOOKING_SLOT_UNAVAILABLE": "O horário solicitado não está mais disponível.",
+  "BOOKING_CONCURRENT_MODIFICATION": "Este agendamento foi alterado por outra solicitação. Recarregue e tente novamente.",
   "BOOKING_SERVICE_NOT_ACTIVE": "Este serviço não está ativo no momento.",
   "BOOKING_SERVICE_NOT_IN_TENANT": "Este serviço não pertence ao estabelecimento selecionado.",
   "BOOKING_CANCELLATION_WINDOW_EXPIRED": "O prazo para cancelamento deste agendamento já passou.",

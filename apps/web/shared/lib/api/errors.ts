@@ -1,3 +1,12 @@
+import type { ValidationProblemDetail } from '@ikaro/types';
+
+// Shared across every fetch-based API helper that needs to stop discarding the response body on
+// error (TD23 Story 12) — extracts the canonical envelope's `code`/`field`/`violations`/`detail`
+// so a caller's error class can populate them instead of only carrying `status`.
+export async function parseErrorBody(res: Response): Promise<Partial<ValidationProblemDetail>> {
+  return ((await res.json().catch(() => null)) ?? {}) as Partial<ValidationProblemDetail>;
+}
+
 export class AuthError extends Error {
   constructor(detail: string) {
     super(detail);

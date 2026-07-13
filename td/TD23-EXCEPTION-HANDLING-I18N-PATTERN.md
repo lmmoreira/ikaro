@@ -538,17 +538,23 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 #### Story 12 — Shared resolver + fix response-body-discarding error classes
 
-**Scope:** `apps/web/shared/lib/i18n/resolve-error-message.ts` (new), `apps/web/features/booking/api/public.ts`, and every other frontend error class that discards the response body on error.
+**Scope:** `apps/web/shared/lib/i18n/resolve-error-message.ts` (new); `apps/web/features/booking/api/public.ts` (`CreateBookingError`, `SubmitGuestBookingInfoError`); and every other body-discarding class — `apps/web/features/auth/api.ts` (`AuthFetchError`), `apps/web/features/platform/hotsite/api/customers.ts` (`FetchCustomerProfileError`), `apps/web/features/booking/api/services.server.ts` (`ServiceListFetchError`, `ServiceDetailFetchError`), `apps/web/features/booking/api/staff.server.ts` (`BookingDetailFetchError`), `apps/web/features/customer/api.server.ts` (`CustomerFetchError`), `apps/web/features/booking/api/schedule.server.ts` (`ScheduleFetchError`), `apps/web/features/staff/api/staff.server.ts` (`StaffDetailFetchError`), `apps/web/features/booking/api/public.server.ts` (`GuestBookingReadError`) — 11 classes total.
 
 **Work required:**
-1. Build `resolveErrorMessage(code, params?)` per §5 of the Architecture Decisions.
-2. Fix `CreateBookingError`/`SubmitGuestBookingInfoError` (and any other class found to discard the body) to actually parse `res.json()` on error and populate `code`/`field`/`violations` — otherwise Story 3's backend fix can never reach `BookingForm.tsx`.
+1. Build `resolveErrorMessage(code, params?)` per §5 of the Architecture Decisions. Signature is `resolveErrorMessage(code, locale, params?) → string` — locale is an explicit param (not read from `document`/DOM), since this file lives under `shared/lib/**` where CLAUDE.md pins Vitest specs to the `node` environment (no DOM). Callers supply `locale` from the existing `useLocale()` (next-intl) hook, same pattern already used in `AvailabilityCarousel.tsx`/`Topbar.tsx`. Decided during Story 12 discovery.
+2. Fix `CreateBookingError`/`SubmitGuestBookingInfoError` (and any other class found to discard the body) to actually parse `res.json()` on error and populate `code`/`field`/`violations` — otherwise Story 3's backend fix can never reach `BookingForm.tsx`. Applies to all 11 classes named in Scope above, even though 9 of them are consumed today only for `status`-based routing (confirmed ROUTING/SAFE in this TD's own inventory table) — decided during Story 12 discovery to close the anti-pattern everywhere in one pass rather than piecemeal across Stories 13/15/16.
 3. `resolveErrorMessage` validates in development mode only (no production runtime cost) that every ICU placeholder referenced in the resolved translation string has a matching key in the passed `params`, and warns (does not throw) on mismatch in either direction. This is the cheap, practical substitute for full compile-time `code`→`params`-shape binding (considered and rejected as disproportionate to hand-maintain across 90+ codes) — it catches the real failure mode (silent missing-interpolation-variable) during development instead of shipping it.
+4. Add the missing `BOOKING_CONCURRENT_MODIFICATION` translation key to both `packages/i18n/locales/{en,pt-BR}/errors.json` — found missing during Story 12 discovery (introduced by AUD-002/PR #124, added to `error-codes.ts` without a translation; 141 of 142 catalog codes had one). Closing it here rather than leaving it for Story 17.
 
 **Acceptance criteria:**
 - [ ] `resolveErrorMessage` exists, tested, backed by `errors.json`
 - [ ] Every frontend error class that currently discards the response body now parses it
 - [ ] A dev-mode mismatch between a translation string's placeholders and the passed `params` produces a console warning, verified by a unit test
+
+**Decided during Story 12 discovery:**
+- All 11 body-discarding classes get fixed in this story, not just the 2 named in the TD's original prose — the other 9 are routing-only today but the fix is mechanical and closes the anti-pattern in one pass.
+- `resolveErrorMessage` takes `locale` as an explicit parameter rather than reading it ambiently — required by the `node`-env constraint on `shared/lib/**` specs.
+- The `BOOKING_CONCURRENT_MODIFICATION` translation gap is fixed here, not deferred to Story 17.
 
 ---
 

@@ -3,15 +3,20 @@ import type {
   BookingResponse,
   CreateBookingRequest,
   Address,
+  ValidationViolation,
 } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
+import { parseErrorBody } from '@/shared/lib/api/errors';
 
 export class CreateBookingError extends Error {
   constructor(
     public readonly status: number,
-    message: string,
+    public readonly code?: string,
+    public readonly field?: string,
+    public readonly violations?: readonly ValidationViolation[],
+    detail?: string,
   ) {
-    super(message);
+    super(detail ?? `Failed to create booking (${status})`);
     this.name = 'CreateBookingError';
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -28,7 +33,8 @@ export async function createBooking(
   });
 
   if (!res.ok) {
-    throw new CreateBookingError(res.status, `Failed to create booking for slug "${slug}"`);
+    const body = await parseErrorBody(res);
+    throw new CreateBookingError(res.status, body.code, body.field, body.violations, body.detail);
   }
 
   return res.json() as Promise<BookingResponse>;
@@ -65,9 +71,12 @@ export interface SubmitGuestBookingInfoResponse {
 export class SubmitGuestBookingInfoError extends Error {
   constructor(
     public readonly status: number,
-    message: string,
+    public readonly code?: string,
+    public readonly field?: string,
+    public readonly violations?: readonly ValidationViolation[],
+    detail?: string,
   ) {
-    super(message);
+    super(detail ?? `Failed to submit guest booking info (${status})`);
     this.name = 'SubmitGuestBookingInfoError';
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -88,9 +97,13 @@ export async function submitGuestBookingInfo(
   );
 
   if (!res.ok) {
+    const errorBody = await parseErrorBody(res);
     throw new SubmitGuestBookingInfoError(
       res.status,
-      `Failed to submit guest booking info for booking "${bookingId}"`,
+      errorBody.code,
+      errorBody.field,
+      errorBody.violations,
+      errorBody.detail,
     );
   }
 
