@@ -1,7 +1,7 @@
 # TD23 — Exception Handling & i18n Pattern: Backend → BFF → UI
 
 ## Status
-- **State**: In Progress — Stories 1-10 done (Wave 1 complete; Wave 2 complete: booking, customer, staff, loyalty, platform contexts + shared VOs all done; Wave 3 complete: backend + BFF Zod pipes both emit code-bearing violations. Wave 4 — Story 11, BFF-originated errors — remaining)
+- **State**: In Progress — Stories 1-12 done (Waves 1-4 complete: backend + BFF now emit code-bearing errors/violations end-to-end, including BFF-originated errors and the `ActiveStaffGuard` fix; Wave 5 started — Story 12's shared resolver + fixed error classes landed, Stories 13-16 (feature-by-feature frontend consumption migration) remaining)
 - **Type**: Technical Debt / Cross-Cutting Architecture Pattern
 - **Priority**: Medium — no single instance is a P0 outage, but the systemic gap already causes 2 confirmed raw-English-in-pt-BR-UI leaks in production code, a fragile string-match anti-pattern, a dead-but-leak-shaped mechanism, and 40+ error paths across the app that lose specificity they could have
 - **Scope**: `apps/backend` (all 6 contexts + shared value objects), `apps/bff` (all feature slices), `apps/web` (all domain/shell slices), `packages/types`, `packages/i18n`
@@ -536,7 +536,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ### Wave 5 — Frontend consumption migration
 
-#### Story 12 — Shared resolver + fix response-body-discarding error classes
+#### Story 12 — Shared resolver + fix response-body-discarding error classes ✅ Done
 
 **Scope:** `apps/web/shared/lib/i18n/resolve-error-message.ts` (new); `apps/web/features/booking/api/public.ts` (`CreateBookingError`, `SubmitGuestBookingInfoError`); and every other body-discarding class — `apps/web/features/auth/api.ts` (`AuthFetchError`), `apps/web/features/platform/hotsite/api/customers.ts` (`FetchCustomerProfileError`), `apps/web/features/booking/api/services.server.ts` (`ServiceListFetchError`, `ServiceDetailFetchError`), `apps/web/features/booking/api/staff.server.ts` (`BookingDetailFetchError`), `apps/web/features/customer/api.server.ts` (`CustomerFetchError`), `apps/web/features/booking/api/schedule.server.ts` (`ScheduleFetchError`), `apps/web/features/staff/api/staff.server.ts` (`StaffDetailFetchError`), `apps/web/features/booking/api/public.server.ts` (`GuestBookingReadError`) — 11 classes total.
 
