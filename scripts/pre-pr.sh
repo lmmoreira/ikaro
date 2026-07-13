@@ -108,8 +108,10 @@ grep_into_tmp "$ts_prod" \
   "z\.string\(\)\.(uuid|url|email)\(\)|as unknown as"
 run_check "12. No Zod v3 / as unknown as in production (review each hit)"
 
-# 17. No console.* in production
-grep_into_tmp "$ts_prod" \
+# 17. No console.* in production (apps/web has no AppLogger equivalent — the
+# resolve-error-message.ts console.warn calls are a deliberate TD23 §7 observability
+# signal for an unresolvable/mismatched error code, not a debug leftover)
+grep_into_tmp "$(echo "$ts_prod" | grep -v 'shared/lib/i18n/resolve-error-message\.ts$')" \
   "console\.(log|error|warn)\("
 run_check "17. No console.log/error/warn in production"
 
