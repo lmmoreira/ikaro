@@ -10,5 +10,6 @@ export class OutboxPublishedOutsideTransactionError extends Error {
         'run inside txManager.run().',
     );
     this.name = 'OutboxPublishedOutsideTransactionError';
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }

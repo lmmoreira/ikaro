@@ -2,9 +2,8 @@ import { DataSource, Repository } from 'typeorm';
 import { TenantEntity } from '../../../contexts/platform/infrastructure/entities/tenant.entity';
 import { TenantEntityBuilder } from '../../../test/builders/platform/tenant-entity.builder';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
+import { StubCommand, StubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 import { createTestDataSource } from '../../../test/test-datasource';
-import { Command } from '../../domain/command';
-import { DomainEvent } from '../../domain/domain-event';
 import { uuidv7 } from '../../domain/uuid-v7';
 import { IEventBus } from '../../ports/event-bus.port';
 import { getActiveEntityManager } from '../transaction-context';
@@ -13,24 +12,6 @@ import { OutboxEventEntity } from './outbox-event.entity';
 import { OutboxPublisher } from './outbox-publisher';
 import { OutboxRelayService } from './outbox-relay.service';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
-
-class StubEvent extends DomainEvent<{ value: string }> {
-  readonly eventVersion = 1;
-  readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }) {
-    super(tenantId, correlationId);
-    this.data = data;
-  }
-}
-
-class StubCommand extends Command<{ value: string }> {
-  readonly eventVersion = 1;
-  readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }, dedupKey: string) {
-    super(tenantId, correlationId, dedupKey);
-    this.data = data;
-  }
-}
 
 describe('OutboxPublisher (integration)', () => {
   let ds: DataSource;

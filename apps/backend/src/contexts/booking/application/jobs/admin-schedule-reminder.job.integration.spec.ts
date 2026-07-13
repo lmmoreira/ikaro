@@ -1,12 +1,11 @@
 import { DataSource } from 'typeorm';
 import { IEventBus } from '../../../../shared/ports/event-bus.port';
-import { IOutboxPublisher } from '../../../../shared/ports/outbox-publisher.port';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
-import { OutboxPublisher } from '../../../../shared/infrastructure/outbox/outbox-publisher';
 import { OutboxRelayService } from '../../../../shared/infrastructure/outbox/outbox-relay.service';
 import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbox/typeorm-outbox.repository';
 import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
 import { makeConfigService } from '../../../../test/infrastructure/fake-config-service';
+import { makeRealOutboxPublisher } from '../../../../test/factories/real-outbox-publisher.factory';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
@@ -40,12 +39,6 @@ describe('AdminScheduleReminderJob (integration, TD24-S03 cron double-send fix)'
     } as unknown as jest.Mocked<IEventBus>;
   });
 
-  function makeOutboxPublisher(): IOutboxPublisher {
-    const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: false });
-    const relay = new OutboxRelayService(outboxRepo, eventBus, config);
-    return new OutboxPublisher(outboxRepo, relay, config);
-  }
-
   it('two overlapping runs for the same day → exactly one outbox row, relay delivers exactly one message', async () => {
     const tenantId = uuidv7();
     const tenantPort = new InMemoryBookingPlatformPort();
@@ -55,7 +48,7 @@ describe('AdminScheduleReminderJob (integration, TD24-S03 cron double-send fix)'
       tenantPort,
       new InMemoryBookingRepository(),
       new InMemoryBookingCustomerPort(),
-      makeOutboxPublisher(),
+      makeRealOutboxPublisher(outboxRepo, eventBus),
       txManager,
     );
 

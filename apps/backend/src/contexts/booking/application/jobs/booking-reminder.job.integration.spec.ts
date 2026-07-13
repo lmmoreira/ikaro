@@ -2,11 +2,11 @@ import { DataSource } from 'typeorm';
 import { IEventBus } from '../../../../shared/ports/event-bus.port';
 import { IOutboxPublisher } from '../../../../shared/ports/outbox-publisher.port';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
-import { OutboxPublisher } from '../../../../shared/infrastructure/outbox/outbox-publisher';
 import { OutboxRelayService } from '../../../../shared/infrastructure/outbox/outbox-relay.service';
 import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbox/typeorm-outbox.repository';
 import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
 import { makeConfigService } from '../../../../test/infrastructure/fake-config-service';
+import { makeRealOutboxPublisher } from '../../../../test/factories/real-outbox-publisher.factory';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
@@ -51,12 +51,6 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
     customerProfilePort = new InMemoryBookingCustomerPort();
   });
 
-  function makeOutboxPublisher(): IOutboxPublisher {
-    const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: false });
-    const relay = new OutboxRelayService(outboxRepo, eventBus, config);
-    return new OutboxPublisher(outboxRepo, relay, config);
-  }
-
   it('two overlapping runs for the same day → exactly one outbox row, relay delivers exactly one message', async () => {
     const tenantId = uuidv7();
     tenantPort.seed([{ id: tenantId, timezone: 'UTC' }]);
@@ -72,7 +66,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
       tenantPort,
       bookingRepo,
       customerProfilePort,
-      makeOutboxPublisher(),
+      makeRealOutboxPublisher(outboxRepo, eventBus),
       txManager,
     );
 
@@ -117,7 +111,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
 
     // Fails only the crashing tenant's publish — its whole per-tenant transaction rolls back,
     // while the healthy tenant's own (independent) transaction has already committed.
-    const realPublisher = makeOutboxPublisher();
+    const realPublisher = makeRealOutboxPublisher(outboxRepo, eventBus);
     const crashingPublisher: IOutboxPublisher = {
       publish: (event) => {
         if (event.tenantId === crashingTenantId) {
@@ -151,7 +145,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
       tenantPort,
       bookingRepo,
       customerProfilePort,
-      makeOutboxPublisher(),
+      makeRealOutboxPublisher(outboxRepo, eventBus),
       txManager,
     );
     await retryJob.run(NOW_IN);

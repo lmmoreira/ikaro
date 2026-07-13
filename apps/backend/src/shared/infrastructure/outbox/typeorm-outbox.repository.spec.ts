@@ -1,19 +1,9 @@
 import { EntityManager, Repository } from 'typeorm';
 import { runWithEntityManager } from '../transaction-context';
-import { Command } from '../../domain/command';
-import { DomainEvent } from '../../domain/domain-event';
+import { StubCommand, StubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 import { OutboxEventEntity } from './outbox-event.entity';
 import { OutboxPublishedOutsideTransactionError } from './outbox-published-outside-transaction.error';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
-
-class StubEvent extends DomainEvent<{ value: string }> {
-  readonly eventVersion = 1;
-  readonly data: { value: string };
-  constructor(tenantId: string, correlationId: string, data: { value: string }) {
-    super(tenantId, correlationId);
-    this.data = data;
-  }
-}
 
 describe('TypeOrmOutboxRepository', () => {
   let mockRepo: jest.Mocked<Repository<OutboxEventEntity>>;
@@ -68,19 +58,6 @@ describe('TypeOrmOutboxRepository', () => {
         query: jest.fn().mockResolvedValue([{ id: 'row-1' }]),
       } as unknown as jest.Mocked<EntityManager>;
 
-      class StubCommand extends Command<{ value: string }> {
-        readonly eventVersion = 1;
-        readonly data: { value: string };
-        constructor(
-          tenantId: string,
-          correlationId: string,
-          data: { value: string },
-          dedupKey: string,
-        ) {
-          super(tenantId, correlationId, dedupKey);
-          this.data = data;
-        }
-      }
       const command = new StubCommand('tenant-1', 'corr-1', { value: 'x' }, 'business-key-1');
 
       await runWithEntityManager(mockManager, () => repo.insert(command, 'business-key-1'));
