@@ -111,6 +111,65 @@ test.describe('schedule page coverage', () => {
     await removeScheduleClosure(page, closure.id);
   });
 
+  test('manager sees a translated error, not raw backend text, when closure removal fails', async ({
+    page,
+  }) => {
+    await loginAsScheduleStaff(page);
+
+    const closure = await createUniqueScheduleClosure(
+      page,
+      {
+        reason: 'STAFF_DAY_OFF',
+        notes: 'E2E closure error path',
+      },
+      124,
+    );
+
+    try {
+      const dateKey = closure.dateKey;
+
+      await page.route('**/v1/schedule/closures/**', (route) => {
+        if (route.request().method() !== 'DELETE') return route.continue();
+        return route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            type: 'about:blank',
+            title: 'Bad Request',
+            status: 400,
+            code: 'BOOKING_SCHEDULE_CLOSURE_NOT_FOUND',
+            detail: `Schedule closure ${closure.id} not found for tenant`,
+          }),
+        });
+      });
+
+      await page.goto(scheduleRoute(dateKey));
+
+      // Only closures/openings render as <button> timeline blocks (bookings render as <Link>),
+      // and this date has exactly one — no need to match on translated copy.
+      const closureButton = page
+        .getByTestId('schedule-week-day-card')
+        .nth(weekDayIndex(dateKey))
+        .locator('button.absolute.overflow-hidden.rounded-xl')
+        .first();
+
+      await expect(closureButton).toBeVisible();
+
+      await closureButton.click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      await dialog.locator('button[type="submit"]').click();
+
+      const dialogError = dialog.getByTestId('action-sheet-error');
+      await expect(dialogError).toContainText('Fechamento de agenda não encontrado.');
+      await expect(dialogError).not.toContainText('not found for tenant');
+    } finally {
+      // The mocked DELETE never reached the backend — the closure still exists, remove it for
+      // real even if an assertion above failed.
+      await removeScheduleClosure(page, closure.id);
+    }
+  });
+
   test('manager can open a special day and then remove the opening', async ({ page }) => {
     await loginAsScheduleStaff(page);
 
