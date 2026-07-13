@@ -74,7 +74,8 @@ interface ServiceEditActionPanelsProps {
 }
 
 interface ServiceEditPrimaryActionProps extends ServiceEditActionPanelsProps {
-  readonly testIdPrefix: string;
+  readonly saveTestId: string;
+  readonly activateTestId: string;
 }
 
 function ServiceEditPrimaryAction({
@@ -82,19 +83,15 @@ function ServiceEditPrimaryAction({
   isSubmitting,
   isActivating,
   onActivate,
-  testIdPrefix,
+  saveTestId,
+  activateTestId,
 }: ServiceEditPrimaryActionProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const commonT = useTranslations('common');
 
   if (isActive) {
     return (
-      <Button
-        type="submit"
-        data-testid={`${testIdPrefix}-save-button`}
-        className="w-full"
-        disabled={isSubmitting}
-      >
+      <Button type="submit" data-testid={saveTestId} className="w-full" disabled={isSubmitting}>
         {isSubmitting ? commonT('loading') : t('editSave')}
       </Button>
     );
@@ -103,7 +100,7 @@ function ServiceEditPrimaryAction({
   return (
     <Button
       type="button"
-      data-testid={`${testIdPrefix}-activate-button`}
+      data-testid={activateTestId}
       className="w-full"
       disabled={isActivating}
       onClick={onActivate}
@@ -135,7 +132,8 @@ function ServiceEditActionPanels({
               isSubmitting={isSubmitting}
               isActivating={isActivating}
               onActivate={onActivate}
-              testIdPrefix="service-desktop"
+              saveTestId="service-desktop-save-button"
+              activateTestId="service-desktop-activate-button"
             />
 
             <Button asChild variant="outline" className="w-full">
@@ -159,7 +157,8 @@ function ServiceEditActionPanels({
             isSubmitting={isSubmitting}
             isActivating={isActivating}
             onActivate={onActivate}
-            testIdPrefix="service-mobile"
+            saveTestId="service-mobile-save-button"
+            activateTestId="service-mobile-activate-button"
           />
         </div>
       </div>
