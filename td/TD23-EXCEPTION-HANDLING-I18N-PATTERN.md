@@ -1,7 +1,7 @@
 # TD23 — Exception Handling & i18n Pattern: Backend → BFF → UI
 
 ## Status
-- **State**: In Progress — Stories 1-12 done (Waves 1-4 complete: backend + BFF now emit code-bearing errors/violations end-to-end, including BFF-originated errors and the `ActiveStaffGuard` fix; Wave 5 started — Story 12's shared resolver + fixed error classes landed, Stories 13-16 (feature-by-feature frontend consumption migration) remaining)
+- **State**: In Progress — Stories 1-14 done (Waves 1-4 complete: backend + BFF now emit code-bearing errors/violations end-to-end, including BFF-originated errors and the `ActiveStaffGuard` fix; Wave 5 in progress — Story 12's shared resolver landed, Story 13 migrated the booking feature's UI components to code-based branching, Story 14 fixed the 2 confirmed live untranslated-text leaks with a Playwright E2E proof-of-concept; Stories 15-16 (customer/staff + platform/loyalty frontend migration) remaining)
 - **Type**: Technical Debt / Cross-Cutting Architecture Pattern
 - **Priority**: Medium — no single instance is a P0 outage, but the systemic gap already causes 2 confirmed raw-English-in-pt-BR-UI leaks in production code, a fragile string-match anti-pattern, a dead-but-leak-shaped mechanism, and 40+ error paths across the app that lose specificity they could have
 - **Scope**: `apps/backend` (all 6 contexts + shared value objects), `apps/bff` (all feature slices), `apps/web` (all domain/shell slices), `packages/types`, `packages/i18n`
@@ -558,7 +558,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ---
 
-#### Story 13 — Booking feature migration (the other half of TD14, plus 3 related fixes)
+#### Story 13 — Booking feature migration (the other half of TD14, plus 3 related fixes) ✅ Done
 
 **Scope:** `apps/web/features/booking/components/**`.
 
@@ -569,22 +569,22 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 4. Remaining BLIND booking sites (`ServiceCreatePage.tsx`, `BookingQueuePage.tsx`, `RescheduleBookingPage.tsx`, `SubmitInfoForm.tsx`) migrated to code-based branching where a more specific message is now available.
 
 **Acceptance criteria:**
-- [ ] `BookingForm.tsx` shows the correct step for pickup vs. contact address failures
-- [ ] `ServiceEditPage.tsx` no longer depends on raw backend English text to select a key
-- [ ] `extractValidationMessage` uses `code`, not `message`; both sheet call sites surface it instead of swallowing it
+- [x] `BookingForm.tsx` shows the correct step for pickup vs. contact address failures
+- [x] `ServiceEditPage.tsx` no longer depends on raw backend English text to select a key
+- [x] `extractValidationMessage` uses `code`, not `message`; both sheet call sites surface it instead of swallowing it
 
 ---
 
-#### Story 14 — Fix the 2 confirmed live leaks (can be pulled forward as a standalone quick win)
+#### Story 14 — Fix the 2 confirmed live leaks (can be pulled forward as a standalone quick win) ✅ Done
 
 **Scope:** `apps/web/features/booking/components/dashboard/schedule/ScheduleRemovalDialog.tsx`, `ScheduleDateTimeRangeSheet.tsx`.
 
 **Work required:** replace direct `err.detail` rendering with `resolveErrorMessage(err.code)`. Depends on Story 3 (booking codes) and Story 12 (resolver) being done first — cannot be fixed correctly before those land, but is the single highest-value fix in the whole TD (it's the only *currently live* untranslated-text-in-production bug found), so it should be the first Wave 5 story executed once its dependencies are ready.
 
 **Acceptance criteria:**
-- [ ] Neither component renders `err.detail` (or any other raw backend string) under any circumstance
-- [ ] A pt-BR user hitting a closure/opening validation error sees translated pt-BR text
-- [ ] At least one Playwright E2E test (per §11) drives this exact path end-to-end — trigger the validation error for real, assert the specific translated message renders, not just that some fallback text appears. This is the pattern's own proof-of-concept, not just a component-level fix.
+- [x] Neither component renders `err.detail` (or any other raw backend string) under any circumstance
+- [x] A pt-BR user hitting a closure/opening validation error sees translated pt-BR text
+- [x] At least one Playwright E2E test (per §11) drives this exact path end-to-end — trigger the validation error for real, assert the specific translated message renders, not just that some fallback text appears. This is the pattern's own proof-of-concept, not just a component-level fix.
 
 ---
 
