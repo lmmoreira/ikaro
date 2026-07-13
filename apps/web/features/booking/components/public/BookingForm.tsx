@@ -209,6 +209,15 @@ export function BookingForm({
     setStep2Error(null);
   }
 
+  function applyBookingSubmitErrorRoute(route: BookingSubmitErrorRoute): void {
+    setStatus(route.step === 4 ? 'error' : 'idle');
+    setStep1Error(route.step === 1 ? route.message : null);
+    setStep2Error(route.step === 2 ? route.message : null);
+    setStep3Error(route.step === 3 ? route.message : null);
+    setErrorMessage(route.step === 4 ? route.message : null);
+    setStep(route.step);
+  }
+
   async function handleSubmit() {
     if (!selectedSlot) return;
 
@@ -248,13 +257,7 @@ export function BookingForm({
       }
       setStatus('success');
     } catch (err) {
-      const route = resolveBookingSubmitErrorRoute(err, locale);
-      setStatus(route.step === 4 ? 'error' : 'idle');
-      setStep1Error(route.step === 1 ? route.message : null);
-      setStep2Error(route.step === 2 ? route.message : null);
-      setStep3Error(route.step === 3 ? route.message : null);
-      setErrorMessage(route.step === 4 ? route.message : null);
-      setStep(route.step);
+      applyBookingSubmitErrorRoute(resolveBookingSubmitErrorRoute(err, locale));
     }
   }
 
