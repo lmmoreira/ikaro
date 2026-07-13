@@ -4,6 +4,7 @@ import {
   AvailabilityRangeInvalidError,
   BookingAddressValidationError,
   BookingCustomerNotFoundError,
+  BookingConcurrentModificationError,
   BookingDiscountDisabledError,
   BookingDiscountExceedsTotalError,
   BookingDiscountMismatchError,
@@ -153,6 +154,11 @@ describe('booking domain error subclasses', () => {
       label: 'BookingSlotUnavailableError',
       build: () => new BookingSlotUnavailableError(),
       code: BookingErrorCode.SLOT_UNAVAILABLE,
+    },
+    {
+      label: 'BookingConcurrentModificationError',
+      build: () => new BookingConcurrentModificationError(),
+      code: BookingErrorCode.CONCURRENT_MODIFICATION,
     },
     {
       label: 'BookingServiceNotActiveError',

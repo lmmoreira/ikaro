@@ -43,6 +43,12 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
     await dataSource.getRepository(ServiceEntity).save(svc);
   });
 
+  beforeEach(async () => {
+    await dataSource.getRepository(BookingLineEntity).delete({ tenantId: TENANT_ID });
+    await dataSource.getRepository(BookingEntity).delete({ tenantId: TENANT_ID });
+    await outboxRepo.delete({ tenantId: TENANT_ID });
+  });
+
   afterAll(async () => {
     await dataSource.destroy();
   });

@@ -337,14 +337,14 @@ async function seedBookings(q: ReturnType<DataSource['createQueryRunner']>): Pro
 
   await q.query(
     `INSERT INTO booking.bookings
-      (id, tenant_id, customer_id, type, status, scheduled_at,
+      (id, tenant_id, customer_id, type, status, scheduled_at, scheduled_end_at,
        contact_email, contact_name, contact_phone,
        total_duration_mins, total_price_amount) VALUES
-      ($1, $4, $7, 'CUSTOMER', 'PENDING',   NOW() + INTERVAL '2 days',
+      ($1, $4, $7, 'CUSTOMER', 'PENDING',   NOW() + INTERVAL '2 days', NOW() + INTERVAL '2 days 30 minutes',
        'cliente@email.com.br', 'Cliente BeloAuto', '+5531999999999', 30, 80.00),
-      ($2, $4, $7, 'CUSTOMER', 'APPROVED',  $5,
+      ($2, $4, $7, 'CUSTOMER', 'APPROVED',  $5::timestamptz, $5::timestamptz + INTERVAL '60 minutes',
        'cliente@email.com.br', 'Cliente BeloAuto', '+5531999999999', 60, 150.00),
-      ($3, $4, $7, 'CUSTOMER', 'COMPLETED', $6,
+      ($3, $4, $7, 'CUSTOMER', 'COMPLETED', $6::timestamptz, $6::timestamptz + INTERVAL '60 minutes',
        'cliente@email.com.br', 'Cliente BeloAuto', '+5531999999999', 60, 150.00)
     ON CONFLICT (id) DO NOTHING`,
     [

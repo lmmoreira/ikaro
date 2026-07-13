@@ -5,7 +5,6 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { Booking } from '../../domain/booking.aggregate';
 import {
   BookingServiceNotActiveError,
@@ -19,8 +18,9 @@ import { RequestBookingDto } from '../dtos/request-booking.dto';
 import {
   buildLineInputs,
   createBookingAddress,
-  toBookingResult,
   BookingRequestResult,
+  persistRequestedBooking,
+  toBookingResult,
 } from './booking-request.helpers';
 
 export type RequestBookingInput = RequestBookingDto & {
@@ -80,12 +80,6 @@ export class RequestBookingUseCase {
       0,
     );
 
-    await this.slotConflictService.assertSlotFree(
-      tenantId,
-      scheduledAt,
-      totalDurationMins,
-      timezone,
-    );
     const bookingId = uuidv7();
     const { permanentPaths: beforeServicePhotoUrls, operations } =
       await this.photoExistenceService.preparePhotoPromotion(
@@ -127,10 +121,20 @@ export class RequestBookingUseCase {
       beforeServicePhotoUrls,
     });
 
-    await this.txManager.run(async () => {
-      await this.bookingRepo.save(booking);
-      await scheduleAfterCommit(() => this.photoExistenceService.executePhotoPromotion(operations));
-    });
+    await persistRequestedBooking(
+      this.txManager,
+      this.slotConflictService,
+      this.bookingRepo,
+      this.photoExistenceService,
+      {
+        booking,
+        tenantId,
+        scheduledAt,
+        totalDurationMins,
+        timezone,
+        operations,
+      },
+    );
 
     return this.toResult(booking);
   }

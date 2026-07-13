@@ -43,6 +43,9 @@ export class BookingEntity {
   @Column({ name: 'scheduled_at', type: 'timestamptz' })
   scheduledAt!: Date;
 
+  @Column({ name: 'scheduled_end_at', type: 'timestamptz' })
+  scheduledEndAt!: Date;
+
   @Column({ name: 'total_duration_mins', type: 'int' })
   totalDurationMins!: number;
 

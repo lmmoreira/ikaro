@@ -7,9 +7,11 @@ import {
   In,
   LessThanOrEqual,
   MoreThanOrEqual,
+  QueryFailedError,
   Repository,
 } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
@@ -26,6 +28,11 @@ import {
   BookingPaginatedResult,
   IBookingRepository,
 } from '../../application/ports/booking-repository.port';
+import {
+  BookingConcurrentModificationError,
+  BookingNotFoundError,
+  BookingSlotUnavailableError,
+} from '../../domain/errors/booking-domain.error';
 import { Booking, BookingProps, BookingStatus, BookingType } from '../../domain/booking.aggregate';
 import { BookingLine } from '../../domain/booking-line.entity';
 import { BookingEntity } from '../entities/booking.entity';
@@ -33,6 +40,7 @@ import { BookingLineEntity } from '../entities/booking-line.entity';
 
 @Injectable()
 export class TypeOrmBookingRepository implements IBookingRepository {
+  private static readonly APPROVED_SLOT_EXCLUSION = 'EX_booking_bookings_approved_slot';
   private static readonly PERSISTED_LINE_FIELDS: (keyof BookingLineEntity)[] = [
     'serviceId',
     'serviceNameAtBooking',
@@ -140,21 +148,74 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     const bookingEntity = this.toEntity(booking);
 
     const manager = getActiveEntityManager();
-    if (manager) {
-      await manager.save(BookingEntity, bookingEntity);
-      if (booking.linesModified) {
-        await this.syncBookingLines(manager, booking);
+    try {
+      if (manager) {
+        await this.persistBooking(manager, booking, bookingEntity);
+      } else {
+        await this.repo.manager.transaction(async (tx) => {
+          await this.persistBooking(tx, booking, bookingEntity);
+        });
       }
+    } catch (err) {
+      const driverError =
+        err instanceof QueryFailedError
+          ? (err as QueryFailedError & {
+              code?: string;
+              constraint?: string;
+              driverError?: { code?: string; constraint?: string };
+            })
+          : null;
+      const code = driverError?.driverError?.code ?? driverError?.code;
+      const constraint = driverError?.driverError?.constraint ?? driverError?.constraint;
+      if (
+        err instanceof QueryFailedError &&
+        code === '23P01' &&
+        constraint === TypeOrmBookingRepository.APPROVED_SLOT_EXCLUSION
+      ) {
+        throw new BookingSlotUnavailableError();
+      }
+      throw err;
+    }
+  }
+
+  private async persistBooking(
+    manager: EntityManager,
+    booking: Booking,
+    bookingEntity: BookingEntity,
+  ): Promise<void> {
+    const nextVersion = booking.version === undefined ? 1 : booking.version + 1;
+
+    if (booking.version === undefined) {
+      await manager.insert(BookingEntity, bookingEntity);
     } else {
-      await this.repo.manager.transaction(async (tx) => {
-        await tx.save(BookingEntity, bookingEntity);
-        if (booking.linesModified) {
-          await this.syncBookingLines(tx, booking);
+      const currentVersion = booking.version;
+      const result = await manager
+        .createQueryBuilder()
+        .update(BookingEntity)
+        .set(this.toUpdateSet(bookingEntity))
+        .where('id = :id', { id: booking.id })
+        .andWhere('tenant_id = :tenantId', { tenantId: booking.tenantId })
+        .andWhere('version = :version', { version: currentVersion })
+        .execute();
+
+      if (result.affected !== 1) {
+        const current = await manager.findOne(BookingEntity, {
+          where: { id: booking.id, tenantId: booking.tenantId },
+          select: { version: true },
+        });
+        if (!current) {
+          throw new BookingNotFoundError(booking.id);
         }
-      });
+        throw new BookingConcurrentModificationError();
+      }
+    }
+
+    if (booking.linesModified) {
+      await this.syncBookingLines(manager, booking);
     }
 
     await drainDomainEvents(booking, this.outboxPublisher);
+    booking.markPersisted(nextVersion);
   }
 
   private async syncBookingLines(manager: EntityManager, booking: Booking): Promise<void> {
@@ -271,6 +332,9 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     entity.pickupAddress = booking.pickupAddress?.toJSON() ?? null;
     entity.notes = booking.notes;
     entity.scheduledAt = booking.scheduledAt;
+    entity.scheduledEndAt = new Date(
+      booking.scheduledAt.getTime() + booking.totalDurationMins * 60_000,
+    );
     entity.totalDurationMins = booking.totalDurationMins;
     entity.totalPriceAmount = booking.totalPrice.amount.toFixed(2);
     entity.totalActualPriceAmount = booking.totalActualPrice?.amount.toFixed(2) ?? null;
@@ -319,5 +383,14 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     return TypeOrmBookingRepository.PERSISTED_LINE_FIELDS.every(
       (field) => current[field] === next[field],
     );
+  }
+
+  private toUpdateSet(bookingEntity: BookingEntity): QueryDeepPartialEntity<BookingEntity> {
+    const updatable = Object.fromEntries(
+      Object.entries(bookingEntity).filter(
+        ([key]) => !['id', 'tenantId', 'createdAt', 'version'].includes(key),
+      ),
+    ) as QueryDeepPartialEntity<BookingEntity>;
+    return { ...updatable, version: () => '"version" + 1' };
   }
 }

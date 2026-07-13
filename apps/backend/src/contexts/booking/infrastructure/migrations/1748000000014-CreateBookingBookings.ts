@@ -2,6 +2,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateBookingBookings1748000000014 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query('CREATE EXTENSION IF NOT EXISTS btree_gist');
+
     // Enable composite FK from booking_lines → booking.services(tenant_id, id)
     await queryRunner.query(`
       ALTER TABLE "booking"."services"
@@ -21,10 +23,14 @@ export class CreateBookingBookings1748000000014 implements MigrationInterface {
         "contact_phone"               VARCHAR(30)   NOT NULL,
         "contact_address"             JSONB,
         "pickup_address"              JSONB,
+        "notes"                       TEXT,
         "scheduled_at"                TIMESTAMPTZ   NOT NULL,
+        "scheduled_end_at"            TIMESTAMPTZ   NOT NULL,
         "total_duration_mins"         INTEGER       NOT NULL,
         "total_price_amount"          NUMERIC(10,2) NOT NULL,
         "total_actual_price_amount"   NUMERIC(10,2),
+        "discount_points_used"        INTEGER,
+        "discount_amount"             NUMERIC(10,2),
         "before_service_photo_urls"   TEXT[]        NOT NULL DEFAULT '{}',
         "after_service_photo_urls"    TEXT[]        NOT NULL DEFAULT '{}',
         "admin_notes"                 TEXT,
@@ -45,8 +51,19 @@ export class CreateBookingBookings1748000000014 implements MigrationInterface {
         "rejection_reason"            TEXT,
         "created_at"                  TIMESTAMPTZ   NOT NULL DEFAULT now(),
         "updated_at"                  TIMESTAMPTZ   NOT NULL DEFAULT now(),
+        "version"                     INTEGER       NOT NULL DEFAULT 1,
         CONSTRAINT "PK_booking_bookings" PRIMARY KEY ("id"),
         CONSTRAINT "CHK_booking_bookings_type" CHECK (type IN ('GUEST', 'CUSTOMER')),
+        CONSTRAINT "CHK_booking_bookings_discount_consistency" CHECK (
+          ("discount_points_used" IS NULL AND "discount_amount" IS NULL)
+          OR ("discount_points_used" > 0 AND "discount_amount" > 0)
+        ),
+        CONSTRAINT "EX_booking_bookings_approved_slot"
+          EXCLUDE USING gist (
+            "tenant_id" WITH =,
+            tstzrange("scheduled_at", "scheduled_end_at", '[)') WITH &&
+          )
+          WHERE ("status" = 'APPROVED'),
         CONSTRAINT "UQ_booking_bookings_tenant_id" UNIQUE ("tenant_id", "id")
       )
     `);

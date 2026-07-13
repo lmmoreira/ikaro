@@ -1,7 +1,8 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { BookingEntityBuilder } from '../../../../test/builders/booking/index';
+import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingEntity } from '../entities/booking.entity';
 import { TypeOrmBookingAvailabilityAdapter } from './typeorm-booking-availability.adapter';
@@ -30,6 +31,25 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
   });
 
   describe('findApprovedByTenantAndDate', () => {
+    it('uses a 64-bit advisory transaction lock per tenant/day', async () => {
+      const manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
+
+      await runWithEntityManager(manager, () => adapter.lockTenantDay('tenant-1', '2026-06-01'));
+
+      expect(manager.query).toHaveBeenCalledWith(
+        `SELECT pg_advisory_xact_lock(
+         hashtextextended($1::text, 0::bigint)
+       )`,
+        ['tenant-1:2026-06-01'],
+      );
+    });
+
+    it('throws when lockTenantDay is called outside a transaction', async () => {
+      await expect(adapter.lockTenantDay('tenant-1', '2026-06-01')).rejects.toThrow(
+        'Booking slot lock requires an active transaction',
+      );
+    });
+
     it('returns empty array when no approved bookings on that date', async () => {
       ormRepo.find.mockResolvedValue([]);
 
@@ -67,6 +87,33 @@ describe('TypeOrmBookingAvailabilityAdapter', () => {
           }),
         }),
       );
+    });
+
+    it('uses the active transaction repository when one exists', async () => {
+      const scheduledAt = new Date('2026-06-01T10:00:00.000Z');
+      const managerRepo = {
+        find: jest
+          .fn()
+          .mockResolvedValue([
+            new BookingEntityBuilder()
+              .withStatus(BookingStatus.APPROVED)
+              .withScheduledAt(scheduledAt)
+              .withTotalDurationMins(60)
+              .build(),
+          ]),
+      };
+      const manager = {
+        getRepository: jest.fn().mockReturnValue(managerRepo),
+      } as unknown as EntityManager;
+
+      const result = await runWithEntityManager(manager, () =>
+        adapter.findApprovedByTenantAndDate('tenant-1', '2026-06-01'),
+      );
+
+      expect(manager.getRepository).toHaveBeenCalledWith(BookingEntity);
+      expect(managerRepo.find).toHaveBeenCalledTimes(1);
+      expect(ormRepo.find).not.toHaveBeenCalled();
+      expect(result).toHaveLength(1);
     });
   });
 

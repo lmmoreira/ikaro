@@ -16,6 +16,7 @@ import { TimeOfDayValidationError } from '../../../../shared/value-objects/time-
 import { EmailValidationError } from '../../../../shared/value-objects/email.vo';
 import {
   BookingAddressValidationError,
+  BookingConcurrentModificationError,
   BookingDiscountDisabledError,
   BookingDiscountExceedsTotalError,
   BookingDiscountMismatchError,
@@ -142,6 +143,15 @@ describe('mapBookingError', () => {
     const err = call(new BookingSlotUnavailableError());
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it('maps BookingConcurrentModificationError to 409', () => {
+    const err = call(new BookingConcurrentModificationError());
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({
+      code: BookingErrorCode.CONCURRENT_MODIFICATION,
+    });
   });
 
   it('maps InvalidBookingTransitionError to 422', () => {

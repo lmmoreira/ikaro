@@ -128,7 +128,7 @@ Respect the aggregate-driven event rule (`CLAUDE.md §7`): events are still reco
 
 ### AUD-002 — Fix booking slot-conflict race + prove optimistic locking
 **Risk:** 🔴 Critical · **Effort:** M · **Phase:** Now · **Depends on:** — · **Audit ref:** §4.2, §4.3
-**Status:** ✅ Done
+**Status:** ✅ Done — fixed in `feat/td08-aud-002-booking-slot-race`
 
 #### What's wrong
 - **Slot race (§4.2):** `booking-slot-conflict.service.ts:18-34` reads approved bookings and checks overlap, but it's called *before* and *outside* the transaction (`approve-booking.use-case.ts:48-52`). Two concurrent approvals (or guest-create + approve) for overlapping times can both pass and both commit → **double-booking**. The `@VersionColumn` on `booking.entity.ts:117` only guards single-row lost-update, not the cross-row "no overlap" invariant.
@@ -148,6 +148,12 @@ Double-booking a physical service slot (one wash bay) is a real-world operationa
 - [ ] Conflict check runs inside the transaction.
 - [ ] Optimistic-lock behavior is asserted by a test (passes, or the write path is repaired so it does).
 - [ ] Exclusion-constraint migration registered in `integration-global-setup.ts` same commit.
+
+**Implemented notes**
+- The write paths now re-check slot conflicts inside `txManager.run(...)`.
+- Booking slot decisions are serialized per tenant/local day with `pg_advisory_xact_lock(...)` before the overlap check.
+- Postgres now enforces approved-slot exclusivity via an exclusion constraint over `tstzrange(scheduled_at, scheduled_end_at, '[)')`.
+- The booking repository now uses a version-guarded update for persisted bookings, and integration coverage asserts stale writes raise `OptimisticLockVersionMismatchError`.
 
 #### Affected areas
 `booking-slot-conflict.service.ts`, `approve-booking.use-case.ts`, `request-booking`/`request-authenticated-booking` (guest path can also create overlaps), `reschedule-booking.use-case.ts`, `typeorm-booking.repository.ts`, new migration, `booking-error.mapper.ts` (map the constraint violation).

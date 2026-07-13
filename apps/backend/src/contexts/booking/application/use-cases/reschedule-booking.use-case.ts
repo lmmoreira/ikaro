@@ -42,17 +42,17 @@ export class RescheduleBookingUseCase {
     const newScheduledAt = new Date(input.scheduledAt);
     if (newScheduledAt <= new Date()) throw new BookingScheduledInPastError();
 
-    await this.slotConflictService.assertSlotFree(
-      tenantId,
-      newScheduledAt,
-      booking.totalDurationMins,
-      timezone,
-      booking.id,
-    );
-
-    booking.reschedule(staffId, newScheduledAt, correlationId, input.adminNotes);
-
     await this.txManager.run(async () => {
+      // This validation must stay inside the write transaction because lockTenantDay
+      // uses pg_advisory_xact_lock, which only protects the slot check for this tx.
+      await this.slotConflictService.assertSlotFree(
+        tenantId,
+        newScheduledAt,
+        booking.totalDurationMins,
+        timezone,
+        booking.id,
+      );
+      booking.reschedule(staffId, newScheduledAt, correlationId, input.adminNotes);
       await this.bookingRepo.save(booking);
     });
 

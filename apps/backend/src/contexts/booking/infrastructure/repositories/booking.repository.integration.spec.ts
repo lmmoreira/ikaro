@@ -8,6 +8,7 @@ import { Money } from '../../../../shared/value-objects/money';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingLine } from '../../domain/booking-line.entity';
+import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
@@ -243,5 +244,45 @@ describe('TypeOrmBookingRepository (integration)', () => {
     expect(results.every((b) => b.status === BookingStatus.APPROVED)).toBe(true);
     expect(results.some((b) => b.id === approved.id)).toBe(true);
     expect(results.some((b) => b.id === pending.id)).toBe(false);
+  });
+
+  it('throws BookingConcurrentModificationError when saving a stale loaded aggregate', async () => {
+    const tenantId = '00000000-0000-7000-8000-000000000067';
+    const serviceId = '00000000-0000-7000-8000-000000000083';
+    await dataSource
+      .getRepository(ServiceEntity)
+      .save(new ServiceEntityBuilder().withId(serviceId).withTenantId(tenantId).build());
+
+    const booking = new BookingBuilder()
+      .withTenantId(tenantId)
+      .withLines([
+        BookingLine.reconstitute({
+          lineId: '00000000-0000-7000-8000-000000000084',
+          bookingId: 'placeholder',
+          tenantId,
+          serviceId,
+          serviceNameAtBooking: 'Lavagem Completa',
+          priceAtBooking: Money.from(100, 'BRL'),
+          durationMinsAtBooking: 30,
+          pointsValueAtBooking: 10,
+          requiresPickupAddressAtBooking: false,
+          actualPriceCharged: null,
+        }),
+      ])
+      .build();
+
+    await repo.save(booking);
+
+    const copyA = await repo.findById(booking.id, tenantId);
+    const copyB = await repo.findById(booking.id, tenantId);
+    expect(copyA).not.toBeNull();
+    expect(copyB).not.toBeNull();
+
+    copyA!.approve('00000000-0000-7000-8000-000000000099', 'corr-a');
+    copyB!.approve('00000000-0000-7000-8000-000000000099', 'corr-b');
+
+    await repo.save(copyA!);
+
+    await expect(repo.save(copyB!)).rejects.toBeInstanceOf(BookingConcurrentModificationError);
   });
 });
