@@ -93,7 +93,7 @@ describe('fetchStaffBookingDetail', () => {
     });
   });
 
-  it('parses code/field from the response body instead of discarding it', async () => {
+  it('parses code from the response body instead of discarding it', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ code: 'BOOKING_NOT_FOUND' }), { status: 404 }),
     );

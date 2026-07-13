@@ -38,7 +38,7 @@ describe('fetchScheduleClosures', () => {
     ).rejects.toMatchObject(new ScheduleFetchError(500));
   });
 
-  it('parses code/field from the response body instead of discarding it', async () => {
+  it('parses code from the response body instead of discarding it', async () => {
     vi.mocked(bffServerFetch).mockResolvedValue(
       new Response(JSON.stringify({ code: 'BOOKING_SCHEDULE_CLOSURE_NOT_FOUND' }), {
         status: 404,

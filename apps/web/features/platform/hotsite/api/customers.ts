@@ -1,5 +1,5 @@
 import type { Address, CustomerProfileResponse } from '@ikaro/types';
-import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
+import { assertOk, FetchError } from '@/shared/lib/api/errors';
 
 // Distinct from lib/api/customer.ts's getCustomerProfile()/updateCustomerProfile():
 // those call the Bearer-token bffClient (only configured inside an authenticated dashboard
@@ -13,7 +13,7 @@ import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
 // resolve to "not logged in here".
 export class FetchCustomerProfileError extends FetchError {
   constructor(status: number, code?: string, field?: string, detail?: string) {
-    super(status, code, field, detail ?? `Failed to fetch customer profile (${status})`);
+    super(`Failed to fetch customer profile (${status})`, status, code, field, detail);
     this.name = 'FetchCustomerProfileError';
   }
 }
@@ -24,10 +24,7 @@ export async function getHotsiteCustomerProfile(
   try {
     const res = await fetch(`/api/customers/me?slug=${encodeURIComponent(slug)}`);
     if (res.status === 401 || res.status === 403) return null;
-    if (!res.ok) {
-      const body = await parseErrorBody(res);
-      throw new FetchCustomerProfileError(res.status, body.code, body.field, body.detail);
-    }
+    await assertOk(res, FetchCustomerProfileError);
     return (await res.json()) as CustomerProfileResponse;
   } catch (err) {
     if (err instanceof FetchCustomerProfileError) throw err;

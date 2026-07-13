@@ -18,7 +18,7 @@ const PLACEHOLDER_PATTERN = /\{(\w+)\}/g;
 
 function interpolate(template: string, params: ErrorParams): string {
   return template.replace(PLACEHOLDER_PATTERN, (match, key: string) =>
-    key in params ? String(params[key]) : match,
+    Object.hasOwn(params, key) ? String(params[key]) : match,
   );
 }
 

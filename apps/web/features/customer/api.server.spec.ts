@@ -93,7 +93,10 @@ describe('withAuthRedirect', () => {
 
   it('rethrows without redirecting for any other error', async () => {
     const rejected = Promise.reject(new CustomerFetchError(500, undefined, undefined, 'boom'));
-    await expect(withAuthRedirect(rejected, 'lavacar-bh')).rejects.toThrow('boom');
+    await expect(withAuthRedirect(rejected, 'lavacar-bh')).rejects.toMatchObject({
+      status: 500,
+      detail: 'boom',
+    });
     expect(redirect).not.toHaveBeenCalled();
   });
 });

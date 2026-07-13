@@ -36,7 +36,7 @@ describe('fetchStaffServices', () => {
     await expect(fetchStaffServices('token-123')).rejects.toMatchObject({ status: 500 });
   });
 
-  it('parses code/field from the response body instead of discarding it', async () => {
+  it('parses code from the response body instead of discarding it', async () => {
     vi.mocked(bffServerFetch).mockResolvedValue(
       new Response(JSON.stringify({ code: 'PLATFORM_TENANT_INACTIVE' }), { status: 403 }),
     );
@@ -76,7 +76,7 @@ describe('fetchStaffService', () => {
     await expect(fetchStaffService('token-123', 'svc-1')).rejects.toMatchObject({ status: 404 });
   });
 
-  it('parses code/field from the response body instead of discarding it', async () => {
+  it('parses code from the response body instead of discarding it', async () => {
     vi.mocked(bffServerFetch).mockResolvedValue(
       new Response(JSON.stringify({ code: 'BOOKING_SERVICE_NOT_FOUND' }), { status: 404 }),
     );

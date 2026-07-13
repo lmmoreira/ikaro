@@ -1,36 +1,30 @@
 import 'server-only';
 import type { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
+import { assertOk, FetchError } from '@/shared/lib/api/errors';
 
 export class ServiceListFetchError extends FetchError {
   constructor(status: number, code?: string, field?: string, detail?: string) {
-    super(status, code, field, detail ?? `Failed to fetch services (${status})`);
+    super(`Failed to fetch services (${status})`, status, code, field, detail);
     this.name = 'ServiceListFetchError';
   }
 }
 
 export async function fetchStaffServices(token: string): Promise<StaffServiceListResponse> {
   const res = await bffServerFetch(token, '/services');
-  if (!res.ok) {
-    const body = await parseErrorBody(res);
-    throw new ServiceListFetchError(res.status, body.code, body.field, body.detail);
-  }
+  await assertOk(res, ServiceListFetchError);
   return res.json() as Promise<StaffServiceListResponse>;
 }
 
 export class ServiceDetailFetchError extends FetchError {
   constructor(status: number, code?: string, field?: string, detail?: string) {
-    super(status, code, field, detail ?? `Failed to fetch service detail (${status})`);
+    super(`Failed to fetch service detail (${status})`, status, code, field, detail);
     this.name = 'ServiceDetailFetchError';
   }
 }
 
 export async function fetchStaffService(token: string, id: string): Promise<StaffServiceResponse> {
   const res = await bffServerFetch(token, `/services/${encodeURIComponent(id)}`);
-  if (!res.ok) {
-    const body = await parseErrorBody(res);
-    throw new ServiceDetailFetchError(res.status, body.code, body.field, body.detail);
-  }
+  await assertOk(res, ServiceDetailFetchError);
   return res.json() as Promise<StaffServiceResponse>;
 }

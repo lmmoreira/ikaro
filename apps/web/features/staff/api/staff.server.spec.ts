@@ -60,7 +60,7 @@ describe('fetchStaffMember', () => {
     await expect(fetchStaffMember('token-123', 'staff-1')).rejects.toMatchObject({ status: 404 });
   });
 
-  it('parses code/field from the response body instead of discarding it', async () => {
+  it('parses code from the response body instead of discarding it', async () => {
     vi.mocked(bffServerFetch).mockResolvedValue(
       new Response(JSON.stringify({ code: 'STAFF_NOT_FOUND' }), { status: 404 }),
     );

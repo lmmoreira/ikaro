@@ -1,11 +1,11 @@
 import 'server-only';
 import type { GuestBookingReadResponse } from '@ikaro/types';
 import { bffPublicFetch } from '@/shared/lib/api/bff-server';
-import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
+import { assertOk, FetchError } from '@/shared/lib/api/errors';
 
 export class GuestBookingReadError extends FetchError {
   constructor(status: number, code?: string, field?: string, detail?: string) {
-    super(status, code, field, detail ?? `Failed to fetch guest booking summary (${status})`);
+    super(`Failed to fetch guest booking summary (${status})`, status, code, field, detail);
     this.name = 'GuestBookingReadError';
   }
 }
@@ -20,11 +20,6 @@ export async function fetchGuestBookingSummary(
   const res = await bffPublicFetch(
     `/bookings/${encodeURIComponent(bookingId)}/guest?token=${encodeURIComponent(token)}`,
   );
-
-  if (!res.ok) {
-    const body = await parseErrorBody(res);
-    throw new GuestBookingReadError(res.status, body.code, body.field, body.detail);
-  }
-
+  await assertOk(res, GuestBookingReadError);
   return res.json() as Promise<GuestBookingReadResponse>;
 }

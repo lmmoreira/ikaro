@@ -1,15 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError, AuthError, FetchError, ForbiddenError, parseErrorBody } from './errors';
+import {
+  ApiError,
+  AuthError,
+  assertOk,
+  FetchError,
+  ForbiddenError,
+  parseErrorBody,
+} from './errors';
 
 describe('parseErrorBody', () => {
   it('extracts code/field/violations/detail from a JSON error body', async () => {
     const res = new Response(
-      JSON.stringify({ code: 'BOOKING_NOT_FOUND', field: 'bookingId', detail: 'not found' }),
+      JSON.stringify({
+        code: 'BOOKING_NOT_FOUND',
+        field: 'bookingId',
+        detail: 'not found',
+        violations: [{ field: 'bookingId', code: 'GENERIC_FIELD_REQUIRED' }],
+      }),
     );
     await expect(parseErrorBody(res)).resolves.toEqual({
       code: 'BOOKING_NOT_FOUND',
       field: 'bookingId',
       detail: 'not found',
+      violations: [{ field: 'bookingId', code: 'GENERIC_FIELD_REQUIRED' }],
     });
   });
 
@@ -57,25 +70,27 @@ describe('ApiError', () => {
 });
 
 describe('FetchError', () => {
-  it('exposes status/code/field and falls back to a generic message when no detail is given', () => {
-    const err = new FetchError(404, 'BOOKING_NOT_FOUND', 'bookingId');
+  it('exposes status/code/field/detail as separate properties, keeping detail out of message', () => {
+    const err = new FetchError(
+      'Request failed',
+      404,
+      'BOOKING_NOT_FOUND',
+      'bookingId',
+      'raw backend detail',
+    );
     expect(err.status).toBe(404);
     expect(err.code).toBe('BOOKING_NOT_FOUND');
     expect(err.field).toBe('bookingId');
-    expect(err.message).toBe('Request failed (404)');
+    expect(err.detail).toBe('raw backend detail');
+    expect(err.message).toBe('Request failed');
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(FetchError);
-  });
-
-  it('uses the provided detail as the message when given', () => {
-    const err = new FetchError(400, 'GENERIC_FIELD_REQUIRED', 'phone', 'Phone is required.');
-    expect(err.message).toBe('Phone is required.');
   });
 
   it('a subclass keeps its own name and passes instanceof for both itself and FetchError', () => {
     class ExampleFetchError extends FetchError {
       constructor(status: number) {
-        super(status);
+        super(`Example failed (${status})`, status);
         this.name = 'ExampleFetchError';
       }
     }
@@ -84,5 +99,50 @@ describe('FetchError', () => {
     expect(err).toBeInstanceOf(ExampleFetchError);
     expect(err).toBeInstanceOf(FetchError);
     expect(err).toBeInstanceOf(Error);
+  });
+});
+
+describe('assertOk', () => {
+  class ExampleFetchError extends FetchError {
+    constructor(status: number, code?: string, field?: string, detail?: string) {
+      super(`Example request failed (${status})`, status, code, field, detail);
+      this.name = 'ExampleFetchError';
+    }
+  }
+
+  it('resolves without throwing when the response is ok', async () => {
+    await expect(
+      assertOk(new Response(null, { status: 200 }), ExampleFetchError),
+    ).resolves.toBeUndefined();
+  });
+
+  it('throws the given error class populated from the response body on failure', async () => {
+    const res = new Response(
+      JSON.stringify({
+        code: 'GENERIC_FIELD_REQUIRED',
+        field: 'phone',
+        detail: 'Phone is required.',
+      }),
+      { status: 400 },
+    );
+    await expect(assertOk(res, ExampleFetchError)).rejects.toMatchObject({
+      status: 400,
+      code: 'GENERIC_FIELD_REQUIRED',
+      field: 'phone',
+      detail: 'Phone is required.',
+    });
+    await expect(
+      assertOk(
+        new Response(
+          JSON.stringify({
+            code: 'GENERIC_FIELD_REQUIRED',
+            field: 'phone',
+            detail: 'Phone is required.',
+          }),
+          { status: 400 },
+        ),
+        ExampleFetchError,
+      ),
+    ).rejects.toBeInstanceOf(ExampleFetchError);
   });
 });

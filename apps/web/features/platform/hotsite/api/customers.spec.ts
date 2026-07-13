@@ -72,9 +72,12 @@ describe('getHotsiteCustomerProfile', () => {
     expect(result).toBeNull();
   });
 
-  it('throws a FetchCustomerProfileError carrying code/field for a non-401/403 failure', async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(JSON.stringify({ code: 'PLATFORM_TENANT_INACTIVE' }), { status: 500 }),
+  it('throws a FetchCustomerProfileError carrying code for a non-401/403 failure', async () => {
+    // mockImplementation (not mockResolvedValue) so each call gets a fresh Response — this test
+    // makes two separate calls below, and a shared Response's body can only be read once.
+    fetchSpy.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ code: 'PLATFORM_TENANT_INACTIVE' }), { status: 500 }),
     );
 
     await expect(getHotsiteCustomerProfile('lavacar-beloauto')).rejects.toMatchObject({

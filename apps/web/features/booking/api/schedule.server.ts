@@ -1,7 +1,7 @@
 import 'server-only';
 import type { ScheduleClosureListResponse, ScheduleOpeningListResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
+import { assertOk, FetchError } from '@/shared/lib/api/errors';
 
 function buildRangeQuery(from: string, to: string): string {
   return new URLSearchParams({ from, to }).toString();
@@ -9,17 +9,14 @@ function buildRangeQuery(from: string, to: string): string {
 
 export class ScheduleFetchError extends FetchError {
   constructor(status: number, code?: string, field?: string, detail?: string) {
-    super(status, code, field, detail ?? `Schedule request failed (${status})`);
+    super(`Schedule request failed (${status})`, status, code, field, detail);
     this.name = 'ScheduleFetchError';
   }
 }
 
 async function fetchScheduleResponse<T>(token: string, path: string): Promise<T> {
   const res = await bffServerFetch(token, path);
-  if (!res.ok) {
-    const body = await parseErrorBody(res);
-    throw new ScheduleFetchError(res.status, body.code, body.field, body.detail);
-  }
+  await assertOk(res, ScheduleFetchError);
   return res.json() as Promise<T>;
 }
 

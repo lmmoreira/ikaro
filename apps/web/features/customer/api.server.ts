@@ -7,7 +7,7 @@ import type {
   CustomerLoyaltyRedemptionsResponse,
 } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { FetchError, parseErrorBody } from '@/shared/lib/api/errors';
+import { assertOk, FetchError } from '@/shared/lib/api/errors';
 
 // GET /v1/loyalty/entries and /redemptions default to limit=20 (shared PaginationSchema) —
 // pass limit=50 explicitly to match the my-account list pages' page size.
@@ -20,7 +20,7 @@ const CUSTOMER_BOOKINGS_LIMIT = 50;
 
 export class CustomerFetchError extends FetchError {
   constructor(status: number, code?: string, field?: string, detail?: string) {
-    super(status, code, field, detail ?? `Customer request failed (${status})`);
+    super(`Customer request failed (${status})`, status, code, field, detail);
     this.name = 'CustomerFetchError';
   }
 }
@@ -45,28 +45,19 @@ export async function fetchCustomerBookings(token: string): Promise<CustomerBook
     limit: String(CUSTOMER_BOOKINGS_LIMIT),
   });
   const res = await bffServerFetch(token, `/bookings?${query}`);
-  if (!res.ok) {
-    const body = await parseErrorBody(res);
-    throw new CustomerFetchError(res.status, body.code, body.field, body.detail);
-  }
+  await assertOk(res, CustomerFetchError);
   return res.json() as Promise<CustomerBookingListResponse>;
 }
 
 export async function fetchLoyaltyBalance(token: string): Promise<CustomerLoyaltyBalanceResponse> {
   const res = await bffServerFetch(token, '/loyalty/balance');
-  if (!res.ok) {
-    const body = await parseErrorBody(res);
-    throw new CustomerFetchError(res.status, body.code, body.field, body.detail);
-  }
+  await assertOk(res, CustomerFetchError);
   return res.json() as Promise<CustomerLoyaltyBalanceResponse>;
 }
 
 export async function fetchLoyaltyEntries(token: string): Promise<CustomerLoyaltyEntriesResponse> {
   const res = await bffServerFetch(token, `/loyalty/entries?limit=${LOYALTY_HISTORY_LIMIT}`);
-  if (!res.ok) {
-    const body = await parseErrorBody(res);
-    throw new CustomerFetchError(res.status, body.code, body.field, body.detail);
-  }
+  await assertOk(res, CustomerFetchError);
   return res.json() as Promise<CustomerLoyaltyEntriesResponse>;
 }
 
@@ -74,10 +65,7 @@ export async function fetchLoyaltyRedemptions(
   token: string,
 ): Promise<CustomerLoyaltyRedemptionsResponse> {
   const res = await bffServerFetch(token, `/loyalty/redemptions?limit=${LOYALTY_HISTORY_LIMIT}`);
-  if (!res.ok) {
-    const body = await parseErrorBody(res);
-    throw new CustomerFetchError(res.status, body.code, body.field, body.detail);
-  }
+  await assertOk(res, CustomerFetchError);
   return res.json() as Promise<CustomerLoyaltyRedemptionsResponse>;
 }
 
@@ -86,10 +74,7 @@ async function fetchCustomerBookingDetail(
   bookingId: string,
 ): Promise<CustomerBookingDetailResponse> {
   const res = await bffServerFetch(token, `/bookings/${bookingId}`);
-  if (!res.ok) {
-    const body = await parseErrorBody(res);
-    throw new CustomerFetchError(res.status, body.code, body.field, body.detail);
-  }
+  await assertOk(res, CustomerFetchError);
   return res.json() as Promise<CustomerBookingDetailResponse>;
 }
 

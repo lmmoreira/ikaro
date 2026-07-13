@@ -321,7 +321,7 @@ describe('fetchGuestBookingSummary', () => {
     });
   });
 
-  it('parses code/field from the response body instead of discarding it', async () => {
+  it('parses code from the response body instead of discarding it', async () => {
     fetchSpy.mockResolvedValue(
       new Response(JSON.stringify({ code: 'BFF_GUEST_TOKEN_BOOKING_MISMATCH' }), { status: 409 }),
     );
@@ -387,7 +387,7 @@ describe('submitGuestBookingInfo', () => {
     ).rejects.toMatchObject({ status: 500 });
   });
 
-  it('parses code/field from the response body instead of discarding it', async () => {
+  it('parses code from the response body instead of discarding it', async () => {
     fetchSpy.mockResolvedValue(
       new Response(
         JSON.stringify({

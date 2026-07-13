@@ -16,7 +16,7 @@ export class CreateBookingError extends FetchError {
     public readonly violations?: readonly ValidationViolation[],
     detail?: string,
   ) {
-    super(status, code, field, detail ?? `Failed to create booking (${status})`);
+    super(`Failed to create booking (${status})`, status, code, field, detail);
     this.name = 'CreateBookingError';
   }
 }
@@ -75,7 +75,7 @@ export class SubmitGuestBookingInfoError extends FetchError {
     public readonly violations?: readonly ValidationViolation[],
     detail?: string,
   ) {
-    super(status, code, field, detail ?? `Failed to submit guest booking info (${status})`);
+    super(`Failed to submit guest booking info (${status})`, status, code, field, detail);
     this.name = 'SubmitGuestBookingInfoError';
   }
 }
