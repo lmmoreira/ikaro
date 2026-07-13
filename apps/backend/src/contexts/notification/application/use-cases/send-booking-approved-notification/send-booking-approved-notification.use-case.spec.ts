@@ -1,6 +1,6 @@
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
-import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
+import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
@@ -20,7 +20,7 @@ const dto = new SendBookingApprovedNotificationDtoBuilder()
 
 describe('SendBookingApprovedNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
-  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
+  let inboxRepo: InMemoryInboxRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
@@ -29,7 +29,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
-    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
+    inboxRepo = new InMemoryInboxRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     tenantPort = new InMemoryNotificationPlatformPort();
     templateRepo = new InMemoryNotificationTemplateRepository();
@@ -60,7 +60,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
 
     useCase = new SendBookingApprovedNotificationUseCase(
       logRepo,
-      processedEventRepo,
+      inboxRepo,
       dispatcher,
       tenantPort,
       new InMemoryTransactionManager(),
@@ -93,7 +93,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
     const emptyTenantPort = new InMemoryNotificationPlatformPort();
     const uc = new SendBookingApprovedNotificationUseCase(
       logRepo,
-      processedEventRepo,
+      inboxRepo,
       dispatcher,
       emptyTenantPort,
       new InMemoryTransactionManager(),
@@ -109,7 +109,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
     const emptyTemplateRepo = new InMemoryNotificationTemplateRepository();
     const uc = new SendBookingApprovedNotificationUseCase(
       logRepo,
-      processedEventRepo,
+      inboxRepo,
       dispatcher,
       tenantPort,
       new InMemoryTransactionManager(),
@@ -148,11 +148,7 @@ describe('SendBookingApprovedNotificationUseCase', () => {
     expect(logs).toHaveLength(1);
     expect(logs[0].status).toBe('FAILED');
     expect(logs[0].errorMessage).toContain('SMTP timeout');
-    const isDup = await processedEventRepo.isDuplicate(
-      EVENT_ID,
-      'booking-approved-customer',
-      'EMAIL',
-    );
+    const isDup = await inboxRepo.hasBeenProcessed(EVENT_ID, 'booking-approved-customer:EMAIL');
     expect(isDup).toBe(false);
   });
 });

@@ -15,10 +15,7 @@ import {
   INotificationLogRepository,
   NOTIFICATION_LOG_REPOSITORY,
 } from '../../ports/notification-log-repository.port';
-import {
-  INotificationProcessedEventRepository,
-  NOTIFICATION_PROCESSED_EVENT_REPOSITORY,
-} from '../../ports/processed-event-repository.port';
+import { IInboxRepository, INBOX_REPOSITORY } from '../../../../../shared/ports/inbox.port';
 import {
   INotificationTemplateRepository,
   NOTIFICATION_TEMPLATE_REPOSITORY,
@@ -46,8 +43,7 @@ export interface SendBookingInfoRequestedNotificationUseCaseResult {
 export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificationUseCase {
   constructor(
     @Inject(NOTIFICATION_LOG_REPOSITORY) logRepo: INotificationLogRepository,
-    @Inject(NOTIFICATION_PROCESSED_EVENT_REPOSITORY)
-    processedEventRepo: INotificationProcessedEventRepository,
+    @Inject(INBOX_REPOSITORY) inboxRepo: IInboxRepository,
     @Inject(NOTIFICATION_DISPATCHER) dispatcher: INotificationDispatcher,
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY)
@@ -56,7 +52,7 @@ export class SendBookingInfoRequestedNotificationUseCase extends BaseNotificatio
     @Inject(LOCALIZATION_PORT) private readonly localizationPort: ILocalizationPort,
     private readonly config: ConfigService,
   ) {
-    super(logRepo, processedEventRepo, dispatcher, txManager);
+    super(logRepo, inboxRepo, dispatcher, txManager);
   }
 
   async execute(

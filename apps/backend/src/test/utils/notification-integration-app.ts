@@ -8,6 +8,8 @@ import { DataSource } from 'typeorm';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
 import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
+import { InboxModule } from '../../shared/infrastructure/inbox/inbox.module';
+import { InboxRecordEntity } from '../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
@@ -17,7 +19,6 @@ import { StaffEntity } from '../../contexts/staff/infrastructure/entities/staff.
 import { StaffModule } from '../../contexts/staff/staff.module';
 import { NOTIFICATION_DISPATCHER } from '../../contexts/notification/application/ports/notification-dispatcher.port';
 import { NotificationLogEntity } from '../../contexts/notification/infrastructure/entities/notification-log.entity';
-import { NotificationProcessedEventEntity } from '../../contexts/notification/infrastructure/entities/processed-event.entity';
 import { NotificationTemplateEntity } from '../../contexts/notification/infrastructure/entities/notification-template.entity';
 import { NotificationModule } from '../../contexts/notification/notification.module';
 import { InMemoryNotificationDispatcher } from '../infrastructure/in-memory-notification-dispatcher';
@@ -74,8 +75,8 @@ export async function createNotificationIntegrationApp(
           HotsiteConfigEntity,
           StaffEntity,
           NotificationLogEntity,
-          NotificationProcessedEventEntity,
           NotificationTemplateEntity,
+          InboxRecordEntity,
           OutboxEventEntity,
           ...extraEntities,
         ],
@@ -83,6 +84,7 @@ export async function createNotificationIntegrationApp(
       }),
       EventBusModule,
       OutboxModule,
+      InboxModule,
       TransactionManagerModule,
       PlatformModule,
       StaffModule,

@@ -8,6 +8,8 @@ import { makeConfigService } from '../../../../test/infrastructure/fake-config-s
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { InboxRecordEntity } from '../../../../shared/infrastructure/inbox/inbox-record.entity';
+import { TypeOrmInboxRepository } from '../../../../shared/infrastructure/inbox/typeorm-inbox.repository';
 import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
 import { OutboxPublisher } from '../../../../shared/infrastructure/outbox/outbox-publisher';
 import { OutboxRelayService } from '../../../../shared/infrastructure/outbox/outbox-relay.service';
@@ -27,6 +29,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
   let dataSource: DataSource;
   let outboxRepo: Repository<OutboxEventEntity>;
   let typeOrmOutboxRepo: TypeOrmOutboxRepository;
+  let typeOrmInboxRepo: TypeOrmInboxRepository;
   let settingsPort: InMemoryTenantSettingsPort;
   const TENANT_ID = uuidv7();
   const SERVICE_ID = uuidv7();
@@ -37,6 +40,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
     dataSource = await createTestDataSource();
     outboxRepo = dataSource.getRepository(OutboxEventEntity);
     typeOrmOutboxRepo = new TypeOrmOutboxRepository(outboxRepo);
+    typeOrmInboxRepo = new TypeOrmInboxRepository(dataSource.getRepository(InboxRecordEntity));
     settingsPort = new InMemoryTenantSettingsPort();
 
     const svc = new ServiceEntityBuilder().withId(SERVICE_ID).withTenantId(TENANT_ID).build();
@@ -80,7 +84,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
       publish: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<IEventBus>;
     const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: false });
-    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, config);
+    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, typeOrmInboxRepo, config);
     const outboxPublisher = new OutboxPublisher(typeOrmOutboxRepo, relay, config);
     const repo = makeRepo(outboxPublisher);
 
@@ -112,7 +116,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
       OUTBOX_INLINE_DISPATCH_ENABLED: true,
       OUTBOX_SWEEP_GRACE_SECONDS: 0,
     });
-    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, config);
+    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, typeOrmInboxRepo, config);
     const outboxPublisher = new OutboxPublisher(typeOrmOutboxRepo, relay, config);
     const repo = makeRepo(outboxPublisher);
 
@@ -156,7 +160,7 @@ describe('Booking → Outbox cutover (integration, TD24-S02)', () => {
       OUTBOX_INLINE_DISPATCH_ENABLED: false,
       OUTBOX_SWEEP_GRACE_SECONDS: 0,
     });
-    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, config);
+    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, typeOrmInboxRepo, config);
     const outboxPublisher = new OutboxPublisher(typeOrmOutboxRepo, relay, config);
     const repo = makeRepo(outboxPublisher);
 

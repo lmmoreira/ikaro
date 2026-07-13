@@ -12,10 +12,7 @@ import {
   INotificationLogRepository,
   NOTIFICATION_LOG_REPOSITORY,
 } from '../../ports/notification-log-repository.port';
-import {
-  INotificationProcessedEventRepository,
-  NOTIFICATION_PROCESSED_EVENT_REPOSITORY,
-} from '../../ports/processed-event-repository.port';
+import { IInboxRepository, INBOX_REPOSITORY } from '../../../../../shared/ports/inbox.port';
 import {
   INotificationPlatformPort,
   NOTIFICATION_PLATFORM_PORT,
@@ -38,22 +35,13 @@ export class SendBookingReminderDueTodayNotificationUseCase extends BaseBookingR
 
   constructor(
     @Inject(NOTIFICATION_LOG_REPOSITORY) logRepo: INotificationLogRepository,
-    @Inject(NOTIFICATION_PROCESSED_EVENT_REPOSITORY)
-    processedEventRepo: INotificationProcessedEventRepository,
+    @Inject(INBOX_REPOSITORY) inboxRepo: IInboxRepository,
     @Inject(NOTIFICATION_DISPATCHER) dispatcher: INotificationDispatcher,
     @Inject(NOTIFICATION_PLATFORM_PORT) tenantPort: INotificationPlatformPort,
     @Inject(TRANSACTION_MANAGER) txManager: ITransactionManager,
     @Inject(NOTIFICATION_TEMPLATE_REPOSITORY) templateRepo: INotificationTemplateRepository,
     @Inject(LOCALIZATION_PORT) localizationPort: ILocalizationPort,
   ) {
-    super(
-      logRepo,
-      processedEventRepo,
-      dispatcher,
-      tenantPort,
-      txManager,
-      templateRepo,
-      localizationPort,
-    );
+    super(logRepo, inboxRepo, dispatcher, tenantPort, txManager, templateRepo, localizationPort);
   }
 }

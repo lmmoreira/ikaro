@@ -1,11 +1,11 @@
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import { IInboxRepository } from '../../../../shared/ports/inbox.port';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
 import { NotificationLog } from '../../domain/notification-log.aggregate';
 import { NotificationTemplate } from '../../domain/notification-template.aggregate';
 import { NOTIFICATION_TEMPLATE_KEY_MAPPING } from '../../domain/notification-template-key.mapping';
 import { INotificationDispatcher } from '../ports/notification-dispatcher.port';
 import { INotificationLogRepository } from '../ports/notification-log-repository.port';
-import { INotificationProcessedEventRepository } from '../ports/processed-event-repository.port';
 import { ILocalizationPort } from '../ports/localization.port';
 
 export abstract class BaseNotificationUseCase {
@@ -13,17 +13,24 @@ export abstract class BaseNotificationUseCase {
 
   constructor(
     protected readonly logRepo: INotificationLogRepository,
-    protected readonly processedEventRepo: INotificationProcessedEventRepository,
+    protected readonly inboxRepo: IInboxRepository,
     protected readonly dispatcher: INotificationDispatcher,
     protected readonly txManager: ITransactionManager,
   ) {}
+
+  // TD24-S04: notification's old (event_id, notification_type, channel) granularity is preserved
+  // by composing the two into one consumer_name string — shared.inbox has a single consumer_name
+  // column, not three.
+  private consumerName(notificationType: string, channel: string): string {
+    return `${notificationType}:${channel}`;
+  }
 
   protected async isAlreadySent(
     eventId: string,
     notificationType: string,
     channel: string,
   ): Promise<boolean> {
-    return this.processedEventRepo.isDuplicate(eventId, notificationType, channel);
+    return this.inboxRepo.hasBeenProcessed(eventId, this.consumerName(notificationType, channel));
   }
 
   protected async saveLog(
@@ -43,7 +50,7 @@ export abstract class BaseNotificationUseCase {
     log.markSent();
     await this.txManager.run(async () => {
       await this.logRepo.save(log);
-      await this.processedEventRepo.markProcessed(eventId, notificationType, channel);
+      await this.inboxRepo.markProcessed(eventId, this.consumerName(notificationType, channel));
     });
   }
 

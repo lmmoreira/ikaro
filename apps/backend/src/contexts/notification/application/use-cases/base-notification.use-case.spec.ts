@@ -1,6 +1,6 @@
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../test/repositories/notification/in-memory-notification-log.repository';
-import { InMemoryNotificationProcessedEventRepository } from '../../../../test/repositories/notification/in-memory-processed-event.repository';
+import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryLocalizationPort } from '../../../../test/infrastructure/in-memory-localization.port';
 import { NotificationTemplate } from '../../domain/notification-template.aggregate';
@@ -24,7 +24,7 @@ describe('BaseNotificationUseCase.localizeTemplates', () => {
   beforeEach(() => {
     useCase = new TestNotificationUseCase(
       new InMemoryNotificationLogRepository(),
-      new InMemoryNotificationProcessedEventRepository(),
+      new InMemoryInboxRepository(),
       new InMemoryNotificationDispatcher(),
       new InMemoryTransactionManager(),
     );

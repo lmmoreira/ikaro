@@ -196,4 +196,20 @@ describe('validateEnv()', () => {
     expect(result.OUTBOX_SWEEP_GRACE_SECONDS).toBe(60);
     expect(result.OUTBOX_RETENTION_DAYS).toBe(30);
   });
+
+  it('defaults INBOX_RETENTION_DAYS to 14 (TD24-S04)', () => {
+    const result = validateEnv(valid);
+    expect(result.INBOX_RETENTION_DAYS).toBe(14);
+  });
+
+  it('parses an overridden INBOX_RETENTION_DAYS from string env input', () => {
+    const result = validateEnv({ ...valid, INBOX_RETENTION_DAYS: '30' });
+    expect(result.INBOX_RETENTION_DAYS).toBe(30);
+  });
+
+  it('throws when INBOX_RETENTION_DAYS is below 8 (D8 — must stay above Pub/Sub max redelivery)', () => {
+    expect(() => validateEnv({ ...valid, INBOX_RETENTION_DAYS: '7' })).toThrow(
+      'INBOX_RETENTION_DAYS must be >= 8',
+    );
+  });
 });

@@ -4,6 +4,7 @@ import { EntityManager } from 'typeorm';
 import { Envelope } from '../../domain/envelope';
 import { AppLogger } from '../../observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../ports/event-bus.port';
+import { IInboxRepository, INBOX_REPOSITORY } from '../../ports/inbox.port';
 import { IOutboxRepository, OUTBOX_REPOSITORY } from '../../ports/outbox-repository.port';
 
 // The stored payload is the verbatim envelope JSON.stringify()'d from a real DomainEvent or
@@ -33,6 +34,7 @@ export class OutboxRelayService {
   constructor(
     @Inject(OUTBOX_REPOSITORY) private readonly outboxRepo: IOutboxRepository,
     @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    @Inject(INBOX_REPOSITORY) private readonly inboxRepo: IInboxRepository,
     private readonly config: ConfigService,
   ) {}
 
@@ -103,12 +105,17 @@ export class OutboxRelayService {
     }
   }
 
-  // Retention GC: one batched trickle-delete per tick (D8) — never loops to empty. At the
-  // default 5-minute sweep interval this is a few rows per tick, cheap for autovacuum, and
-  // exactly what keeps the outbox table bounded without a separate cleanup job.
+  // Retention GC: one batched trickle-delete per tick per table (D8) — never loops to empty. At
+  // the default 5-minute sweep interval this is a few rows per tick, cheap for autovacuum, and
+  // exactly what keeps both tables bounded without a separate cleanup job. Inbox GC (TD24-S04)
+  // rides the same tick as the outbox's own GC rather than a separate schedule.
   private async gc(): Promise<void> {
-    const retentionDays = this.config.get<number>('OUTBOX_RETENTION_DAYS', 14);
     const batchSize = this.config.get<number>('OUTBOX_SWEEP_BATCH_SIZE', 100);
-    await this.outboxRepo.deleteOldPublished(retentionDays, batchSize);
+
+    const outboxRetentionDays = this.config.get<number>('OUTBOX_RETENTION_DAYS', 14);
+    await this.outboxRepo.deleteOldPublished(outboxRetentionDays, batchSize);
+
+    const inboxRetentionDays = this.config.get<number>('INBOX_RETENTION_DAYS', 14);
+    await this.inboxRepo.deleteOldProcessed(inboxRetentionDays, batchSize);
   }
 }

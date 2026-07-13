@@ -6,6 +6,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus/event-bus.module';
+import { InboxModule } from '../../../../shared/infrastructure/inbox/inbox.module';
+import { InboxRecordEntity } from '../../../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
@@ -32,11 +34,12 @@ describe('InternalStaffController (integration) — auth-flow endpoints', () => 
         TypeOrmModule.forRoot({
           type: 'postgres',
           url: process.env['TEST_DATABASE_URL'],
-          entities: [StaffEntity],
+          entities: [StaffEntity, InboxRecordEntity],
           synchronize: false,
         }),
         EventBusModule,
         OutboxModule,
+        InboxModule,
         TransactionManagerModule,
         StaffModule,
       ],

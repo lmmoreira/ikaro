@@ -2,6 +2,7 @@ import { DataSource, Repository } from 'typeorm';
 import { TenantEntity } from '../../../contexts/platform/infrastructure/entities/tenant.entity';
 import { TenantEntityBuilder } from '../../../test/builders/platform/tenant-entity.builder';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
+import { InMemoryInboxRepository } from '../../../test/infrastructure/in-memory-inbox.repository';
 import { StubCommand, StubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 import { createTestDataSource } from '../../../test/test-datasource';
 import { uuidv7 } from '../../domain/uuid-v7';
@@ -42,7 +43,12 @@ describe('OutboxPublisher (integration)', () => {
 
   function makePublisher(inlineDispatchEnabled = true): OutboxPublisher {
     const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: inlineDispatchEnabled });
-    const relay = new OutboxRelayService(typeOrmOutboxRepo, eventBus, config);
+    const relay = new OutboxRelayService(
+      typeOrmOutboxRepo,
+      eventBus,
+      new InMemoryInboxRepository(),
+      config,
+    );
     return new OutboxPublisher(typeOrmOutboxRepo, relay, config);
   }
 

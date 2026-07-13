@@ -1,6 +1,6 @@
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
-import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
+import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
@@ -20,14 +20,14 @@ const dto = new SendBookingRejectedNotificationDtoBuilder()
 
 describe('SendBookingRejectedNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
-  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
+  let inboxRepo: InMemoryInboxRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let templateRepo: InMemoryNotificationTemplateRepository;
   let useCase: SendBookingRejectedNotificationUseCase;
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
-    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
+    inboxRepo = new InMemoryInboxRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     templateRepo = new InMemoryNotificationTemplateRepository();
     templateRepo.seed(
@@ -47,7 +47,7 @@ describe('SendBookingRejectedNotificationUseCase', () => {
     });
     useCase = new SendBookingRejectedNotificationUseCase(
       logRepo,
-      processedEventRepo,
+      inboxRepo,
       dispatcher,
       new InMemoryTransactionManager(),
       templateRepo,
@@ -77,7 +77,7 @@ describe('SendBookingRejectedNotificationUseCase', () => {
   it('returns emailSent=false when no template found', async () => {
     const uc = new SendBookingRejectedNotificationUseCase(
       logRepo,
-      processedEventRepo,
+      inboxRepo,
       dispatcher,
       new InMemoryTransactionManager(),
       new InMemoryNotificationTemplateRepository(),

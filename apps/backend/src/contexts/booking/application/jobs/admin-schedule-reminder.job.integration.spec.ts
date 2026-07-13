@@ -6,6 +6,7 @@ import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbo
 import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
 import { makeConfigService } from '../../../../test/infrastructure/fake-config-service';
 import { makeRealOutboxPublisher } from '../../../../test/factories/real-outbox-publisher.factory';
+import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
@@ -59,7 +60,12 @@ describe('AdminScheduleReminderJob (integration, TD24-S03 cron double-send fix)'
       .find({ where: { eventName: 'AdminDailyScheduleReminder', tenantId } });
     expect(rows).toHaveLength(1);
 
-    const relay = new OutboxRelayService(outboxRepo, eventBus, makeConfigService());
+    const relay = new OutboxRelayService(
+      outboxRepo,
+      eventBus,
+      new InMemoryInboxRepository(),
+      makeConfigService(),
+    );
     await relay.relay([rows[0].id]);
 
     expect(eventBus.published).toHaveLength(1);

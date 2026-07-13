@@ -538,7 +538,7 @@ supplied `variables` map (unmatched keys resolve to an empty string).
 - `render(variables)` — returns `{ subject, body }` with `{{key}}` placeholders interpolated
 
 #### **Aggregate: NotificationLog** (Root Entity)
-Audit trail of every notification send attempt **per tenant**. Not used for idempotency — that is handled by `ProcessedEvent` / `notification.processed_events`.
+Audit trail of every notification send attempt **per tenant**. Not used for idempotency — that is handled by the shared `shared.inbox` table (TD24-S04).
 
 **Properties:**
 ```

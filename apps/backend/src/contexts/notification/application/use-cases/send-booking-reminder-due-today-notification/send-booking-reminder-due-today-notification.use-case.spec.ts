@@ -1,6 +1,6 @@
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
-import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
+import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
@@ -21,7 +21,7 @@ const dto = new SendBookingReminderDueNotificationDtoBuilder()
 describe('SendBookingReminderDueTodayNotificationUseCase', () => {
   let dispatcher: InMemoryNotificationDispatcher;
   let logRepo: InMemoryNotificationLogRepository;
-  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
+  let inboxRepo: InMemoryInboxRepository;
   let tenantPort: InMemoryNotificationPlatformPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
   let useCase: SendBookingReminderDueTodayNotificationUseCase;
@@ -29,7 +29,7 @@ describe('SendBookingReminderDueTodayNotificationUseCase', () => {
   beforeEach(() => {
     dispatcher = new InMemoryNotificationDispatcher();
     logRepo = new InMemoryNotificationLogRepository();
-    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
+    inboxRepo = new InMemoryInboxRepository();
     tenantPort = new InMemoryNotificationPlatformPort();
     templateRepo = new InMemoryNotificationTemplateRepository();
 
@@ -59,7 +59,7 @@ describe('SendBookingReminderDueTodayNotificationUseCase', () => {
 
     useCase = new SendBookingReminderDueTodayNotificationUseCase(
       logRepo,
-      processedEventRepo,
+      inboxRepo,
       dispatcher,
       tenantPort,
       new InMemoryTransactionManager(),

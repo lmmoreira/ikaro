@@ -1,4 +1,5 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
 import { TenantProvisionedEventBuilder } from '../../../../test/builders/platform';
@@ -12,12 +13,18 @@ function makeHandler(): {
   handler: TenantProvisionedHandler;
   repo: InMemoryStaffRepository;
   eventBus: InMemoryEventBus;
+  inboxRepo: InMemoryInboxRepository;
 } {
   const eventBus = new InMemoryEventBus();
   const repo = new InMemoryStaffRepository(eventBus);
-  const useCase = new CreateInitialManagerUseCase(repo, new InMemoryTransactionManager());
+  const inboxRepo = new InMemoryInboxRepository();
+  const useCase = new CreateInitialManagerUseCase(
+    repo,
+    inboxRepo,
+    new InMemoryTransactionManager(),
+  );
   const handler = new TenantProvisionedHandler(useCase, eventBus);
-  return { handler, repo, eventBus };
+  return { handler, repo, eventBus, inboxRepo };
 }
 
 describe('TenantProvisionedHandler', () => {

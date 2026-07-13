@@ -395,7 +395,7 @@ Each row is a rendered template for one `(trigger_event, channel)` pair. Rows wi
 
 ### `notification.notification_logs`
 
-Audit trail of every notification send attempt. Pure audit — idempotency is handled by `notification.processed_events`, not here.
+Audit trail of every notification send attempt. Pure audit — idempotency is handled by `shared.inbox`, not here.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -414,55 +414,74 @@ Audit trail of every notification send attempt. Pure audit — idempotency is ha
 | **INDEX** | (tenant_id, status) | Retry queue / monitoring queries |
 | **INDEX** | (tenant_id, recipient_email) | All notifications sent to a recipient |
 
-### `notification.processed_events`
+### `notification.processed_events` — dropped (TD24-S04)
 
-Idempotency table for Notification event consumers. Checked before processing any Pub/Sub message. The composite PK `(event_id, notification_type, channel)` allows the same domain event to produce multiple independent notifications (e.g. admin email + customer email, or EMAIL + SMS) without blocking each other.
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| event_id | UUID | NOT NULL — from the event envelope `eventId` field |
-| notification_type | VARCHAR(100) | NOT NULL — `NotificationTemplateKey` value |
-| channel | VARCHAR(32) | NOT NULL — `'EMAIL'` \| `'SMS'` \| `'WHATSAPP'` |
-| processed_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
-| **PRIMARY KEY** | (event_id, notification_type, channel) | One row per event × template × channel |
-
-**Usage pattern (via `IProcessedEventRepository`):**
-```typescript
-// In BaseNotificationUseCase.isAlreadySent():
-return this.processedEventRepo.isDuplicate(eventId, notificationType, channel);
-
-// After successful dispatch:
-await this.processedEventRepo.markProcessed(eventId, notificationType, channel);
-// INSERT INTO notification.processed_events ... ON CONFLICT DO NOTHING
-```
-
-**Retention:** Rows older than 30 days can be safely deleted (Pub/Sub does not re-deliver messages older than 7 days by default).
+Replaced by `shared.inbox` (see **Schema: `shared`** below). The old composite key `(event_id, notification_type, channel)` is preserved as `shared.inbox`'s `consumer_name` column, composed as `` `${notificationType}:${channel}` ``.
 
 ---
 
 ## Schema: `loyalty` (addition)
 
-### `loyalty.processed_events`
+### `loyalty.processed_events` — dropped (TD24-S04)
 
-Same idempotency pattern for the Loyalty event consumer. The `UNIQUE(tenant_id, booking_line_id)` on `loyalty_entries` already guarantees idempotency for `BookingCompleted` inserts, but this table provides a uniform deduplication layer consistent with other consumers and guards against any future event types Loyalty may subscribe to.
+Replaced by `shared.inbox` (see **Schema: `shared`** below). The `UNIQUE(tenant_id, booking_line_id)` on `loyalty_entries` already guarantees idempotency for `BookingCompleted` inserts; the shared inbox provides the uniform deduplication layer consistent with other consumers and guards against any future event types Loyalty may subscribe to.
+
+---
+
+## Schema: `shared`
+
+Transport infrastructure for the transactional outbox/inbox pattern (TD24) — not a bounded context, and deliberately not tenant-scoped in its primary key (see `docs/06-TENANT_ISOLATION_STRATEGY.md` for the documented exemption rationale).
+
+### `shared.outbox`
+
+Durable staging table for every domain event/command published by an aggregate-driven write, guaranteeing at-least-once delivery to Pub/Sub even across a crash between commit and publish (TD24-S01/S02).
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| event_id | UUID | NOT NULL |
-| consumer_name | VARCHAR(100) | NOT NULL — `'loyalty'` |
-| processed_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
-| **PRIMARY KEY** | (event_id, consumer_name) | |
-| **UNIQUE** | (event_id, consumer_name) | |
+| id | UUID | PRIMARY KEY — the event's own `eventId` |
+| dedup_key | VARCHAR(255) | NOT NULL, UNIQUE — the event's `eventId` for a `DomainEvent`, or the caller-supplied business key for a `Command` (e.g. a cron's per-tenant-batch key) |
+| tenant_id | UUID | NOT NULL — carried for observability only, not a filter key (see tenant-isolation exemption) |
+| event_name | VARCHAR(100) | NOT NULL |
+| payload | JSONB | NOT NULL — the full serialized event/command envelope |
+| created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| published_at | TIMESTAMP WITH TIME ZONE | NULLABLE — set once the relay successfully publishes to Pub/Sub |
+| **INDEX** | (created_at) WHERE published_at IS NULL | Sweep's unpublished-row scan |
+| **INDEX** | (published_at) WHERE published_at IS NOT NULL | Retention GC scan |
 
-**Retention:** Same as `notification.processed_events` — prune rows older than 30 days weekly.
+**Retention:** `OUTBOX_RETENTION_DAYS` (default 14) — batched trickle-delete of published rows on every relay sweep tick (`OutboxRelayService.gc()`).
+
+**LGPD note:** `payload` persists the full event envelope — including customer names, emails, and phones for booking/customer events — in Postgres for the retention window above. This is not a new *class* of PII exposure (Pub/Sub already retains the same payload up to 7 days), but it is a new *store* and belongs in the data inventory.
+
+### `shared.inbox`
+
+Consumer-side dedup table (TD24-S04), replacing the per-context `loyalty.processed_events` and `notification.processed_events` tables with one shared shape. Checked before processing any at-least-once-delivered event; every consumer's dedup check + `markProcessed` write happens inside the same transaction as its business effect.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| event_id | UUID | NOT NULL — from the event envelope's `eventId` |
+| consumer_name | VARCHAR(150) | NOT NULL — a stable per-consumer key; composed as `` `${notificationType}:${channel}` `` for notification consumers, a fixed string for loyalty/staff |
+| processed_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+| **PRIMARY KEY** | (event_id, consumer_name) | One row per event × consumer |
+| **INDEX** | (processed_at) | Retention GC scan |
+
+**Usage pattern (via `IInboxRepository`):**
+```typescript
+// Before processing:
+if (await this.inboxRepo.hasBeenProcessed(eventId, consumerName)) return;
+
+// After the business effect, inside the same transaction:
+await this.inboxRepo.markProcessed(eventId, consumerName);
+```
+
+**Retention:** `INBOX_RETENTION_DAYS` (default 14, hard minimum 8 — must stay above Pub/Sub's 7-day max redelivery window or the dedup guarantee weakens) — batched trickle-delete on the same relay sweep tick as the outbox's own GC (`OutboxRelayService.gc()`).
 
 ---
 
 ## Event Publishing
 
-> **Context:** `docs/03-DOMAIN_EVENTS.md` states that event publication must be transactional with the state change that produced it. TD24 (S01/S02) implemented the transactional-outbox solution below for aggregate-driven events; cron-published events are still on the old dual-write pattern until TD24-S03.
+> **Context:** `docs/03-DOMAIN_EVENTS.md` states that event publication must be transactional with the state change that produced it. TD24 (S01–S03) implemented the transactional-outbox solution below for both aggregate-driven and cron-published events; TD24-S04 (above) closed the equivalent gap on the consumer/dedup side.
 
-### Current pattern: transactional outbox for aggregate events (TD24-S01/S02)
+### Publish-side: transactional outbox (TD24-S01/S02/S03)
 
 ```typescript
 // Inside a repository's save() (simplified) — the aggregate's own repository, not the use case
@@ -473,19 +492,13 @@ await drainDomainEvents(booking, this.outboxPublisher); // 2. Insert outbox row,
 // inline on the happy path, or the scheduled sweep (SKIP LOCKED) if that fails/crashes.
 ```
 
-The 3 event-emitting aggregates (`Booking`, `Staff`, `Tenant`) get this transactionally-safe path automatically via their repositories — no use case writes a publish loop for them anymore. A crash between the DB commit and the Pub/Sub publish no longer loses the event: the outbox row is durable, and the sweep delivers it on the next tick (worst case ~5 minutes later, `var.outbox_relay_schedule`).
+The 3 event-emitting aggregates (`Booking`, `Staff`, `Tenant`) get this transactionally-safe path automatically via their repositories — no use case writes a publish loop for them anymore. The 4 cron-published `Command` events (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system now goes through the same durable path. A crash between the DB commit and the Pub/Sub publish no longer loses the event: the outbox row is durable, and the sweep delivers it on the next tick (worst case ~5 minutes later, `var.outbox_relay_schedule`).
 
-**Still on the old dual-write pattern (until TD24-S03):** the 4 cron-published `Command` events (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`) — their publishing jobs still call `EVENT_BUS` directly:
+### Consume-side: shared inbox (TD24-S04)
 
-```typescript
-// Inside a cron job (simplified) — still the old pattern, pending TD24-S03
-await this.someRepo.save(...);         // 1. Commit state to DB
-await this.eventBus.publish(command); // 2. Publish to Pub/Sub — crash here still loses it
-```
+Every event/command consumer — the 16 domain-event handlers and `create-initial-manager.use-case.ts` (`TenantProvisioned` → staff) — checks `shared.inbox` before applying its effect and marks the row processed inside the same transaction as that effect, so Pub/Sub's at-least-once redelivery never produces more than one effect per consumer. See `shared.inbox` above for the table shape and `td/TD24-OUTBOX-INBOX-PATTERN.md` for the full design.
 
-**Why this remaining gap is acceptable short-term:** these are low-frequency, non-critical reminders/digests (not the customer-facing booking lifecycle), and the same GCP Pub/Sub uptime argument applies. TD24-S03 closes this by switching the 3 jobs to `OUTBOX_PUBLISHER` alongside transactional per-tenant-batch wrapping — see `td/TD24-OUTBOX-INBOX-PATTERN.md`.
-
-**Remaining evolution:** the outbox pattern above (`shared.outbox` + relay) already closes the dual-write gap for aggregate events; TD24-S03 closes the last gap by moving the 4 cron jobs onto the same path. Beyond that, further evolution is operational (e.g. tightening the sweep interval, alerting on outbox lag — TD24-S05) rather than a new mechanism — see `td/TD24-OUTBOX-INBOX-PATTERN.md`.
+**Remaining evolution:** further evolution is operational (e.g. tightening the sweep interval, alerting on outbox/inbox lag — TD24-S05) rather than a new mechanism — see `td/TD24-OUTBOX-INBOX-PATTERN.md`.
 
 ---
 

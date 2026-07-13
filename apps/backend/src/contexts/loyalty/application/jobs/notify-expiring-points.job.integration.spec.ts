@@ -6,6 +6,7 @@ import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbo
 import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
 import { makeConfigService } from '../../../../test/infrastructure/fake-config-service';
 import { makeRealOutboxPublisher } from '../../../../test/factories/real-outbox-publisher.factory';
+import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/infrastructure/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyPlatformPort } from '../../../../test/infrastructure/in-memory-loyalty-platform.port';
@@ -64,7 +65,12 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
       .find({ where: { eventName: 'PointsExpiringSoon', tenantId } });
     expect(rows).toHaveLength(1);
 
-    const relay = new OutboxRelayService(outboxRepo, eventBus, makeConfigService());
+    const relay = new OutboxRelayService(
+      outboxRepo,
+      eventBus,
+      new InMemoryInboxRepository(),
+      makeConfigService(),
+    );
     await relay.relay([rows[0].id]);
 
     expect(eventBus.published).toHaveLength(1);

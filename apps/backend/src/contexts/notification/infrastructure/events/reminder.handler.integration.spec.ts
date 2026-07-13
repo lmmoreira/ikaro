@@ -8,9 +8,9 @@ import {
   BookingReminderDueTodayCommandBuilder,
 } from '../../../../test/builders/booking';
 import { NOTIFICATION_LOG_REPOSITORY } from '../../application/ports/notification-log-repository.port';
-import { NOTIFICATION_PROCESSED_EVENT_REPOSITORY } from '../../application/ports/processed-event-repository.port';
+import { INBOX_REPOSITORY } from '../../../../shared/ports/inbox.port';
 import { InMemoryNotificationLogRepository } from '../../../../test/repositories/notification/in-memory-notification-log.repository';
-import { InMemoryNotificationProcessedEventRepository } from '../../../../test/repositories/notification/in-memory-processed-event.repository';
+import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { createNotificationIntegrationApp } from '../../../../test/utils/notification-integration-app';
 
@@ -20,7 +20,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
   let app: INestApplication;
   let dispatcher: InMemoryNotificationDispatcher;
   let logRepo: InMemoryNotificationLogRepository;
-  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
+  let inboxRepo: InMemoryInboxRepository;
   let eventBus: IEventBus;
   let tenantId: string;
   let adminEmail: string;
@@ -32,7 +32,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
 
     dispatcher = new InMemoryNotificationDispatcher();
     logRepo = new InMemoryNotificationLogRepository();
-    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
+    inboxRepo = new InMemoryInboxRepository();
 
     ({ app, eventBus } = await createNotificationIntegrationApp({
       dispatcher,
@@ -41,8 +41,8 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
         builder
           .overrideProvider(NOTIFICATION_LOG_REPOSITORY)
           .useValue(logRepo)
-          .overrideProvider(NOTIFICATION_PROCESSED_EVENT_REPOSITORY)
-          .useValue(processedEventRepo),
+          .overrideProvider(INBOX_REPOSITORY)
+          .useValue(inboxRepo),
     }));
 
     const slug = `reminder-${Date.now()}`;
@@ -73,7 +73,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
   afterEach(() => {
     dispatcher.clear();
     logRepo.clear();
-    processedEventRepo.clear();
+    inboxRepo.clear();
   });
 
   it('BookingReminderDue → writes log and dispatches day-before email', async () => {
@@ -205,7 +205,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
 
     // Tenant B provisioned synchronously — clear noise before the assertion.
     logRepo.clear();
-    processedEventRepo.clear();
+    inboxRepo.clear();
     dispatcher.clear();
 
     const event = new BookingReminderDueCommandBuilder()

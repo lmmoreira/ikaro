@@ -1,7 +1,7 @@
 import { InMemoryNotificationCustomerPort } from '../../../../../test/infrastructure/in-memory-notification-customer.port';
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
-import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
+import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
@@ -26,14 +26,14 @@ describe('SendPointsExpiringSoonNotificationUseCase', () => {
   let useCase: SendPointsExpiringSoonNotificationUseCase;
   let dispatcher: InMemoryNotificationDispatcher;
   let logRepo: InMemoryNotificationLogRepository;
-  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
+  let inboxRepo: InMemoryInboxRepository;
   let customerPort: InMemoryNotificationCustomerPort;
   let templateRepo: InMemoryNotificationTemplateRepository;
 
   beforeEach(() => {
     dispatcher = new InMemoryNotificationDispatcher();
     logRepo = new InMemoryNotificationLogRepository();
-    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
+    inboxRepo = new InMemoryInboxRepository();
     customerPort = new InMemoryNotificationCustomerPort();
     templateRepo = new InMemoryNotificationTemplateRepository();
 
@@ -59,7 +59,7 @@ describe('SendPointsExpiringSoonNotificationUseCase', () => {
 
     useCase = new SendPointsExpiringSoonNotificationUseCase(
       logRepo,
-      processedEventRepo,
+      inboxRepo,
       dispatcher,
       customerPort,
       new InMemoryTransactionManager(),

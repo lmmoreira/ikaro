@@ -4,7 +4,7 @@ import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/infrastruc
 import { InMemoryLoyaltyEntryRepository } from '../../../../../test/infrastructure/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyPlatformPort } from '../../../../../test/infrastructure/in-memory-loyalty-platform.port';
 import { InMemoryLoyaltyRedemptionRepository } from '../../../../../test/infrastructure/in-memory-loyalty-redemption.repository';
-import { InMemoryProcessedEventRepository } from '../../../../../test/infrastructure/in-memory-processed-event.repository';
+import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { LoyaltyBalance } from '../../../domain/loyalty-balance.aggregate';
 import {
@@ -50,7 +50,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
   let entryRepo: InMemoryLoyaltyEntryRepository;
   let balanceRepo: InMemoryLoyaltyBalanceRepository;
   let redemptionRepo: InMemoryLoyaltyRedemptionRepository;
-  let processedEventRepo: InMemoryProcessedEventRepository;
+  let inboxRepo: InMemoryInboxRepository;
   let tenantSettingsPort: InMemoryLoyaltyPlatformPort;
   let outboxPublisher: InMemoryEventBus;
   let useCase: CompleteBookingLoyaltyEffectsUseCase;
@@ -59,7 +59,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     entryRepo = new InMemoryLoyaltyEntryRepository();
     balanceRepo = new InMemoryLoyaltyBalanceRepository();
     redemptionRepo = new InMemoryLoyaltyRedemptionRepository();
-    processedEventRepo = new InMemoryProcessedEventRepository();
+    inboxRepo = new InMemoryInboxRepository();
     tenantSettingsPort = new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10);
     outboxPublisher = new InMemoryEventBus();
 
@@ -67,7 +67,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
       entryRepo,
       balanceRepo,
       redemptionRepo,
-      processedEventRepo,
+      inboxRepo,
       tenantSettingsPort,
       outboxPublisher,
       new InMemoryTransactionManager(),

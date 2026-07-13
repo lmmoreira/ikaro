@@ -25,7 +25,6 @@ import { LoyaltyEntryEntity } from '../entities/loyalty-entry.entity';
 import { LoyaltyBalanceEntity } from '../entities/loyalty-balance.entity';
 import { LoyaltyRedemptionEntity } from '../entities/loyalty-redemption.entity';
 import { BalanceExpiryLogEntity } from '../entities/balance-expiry-log.entity';
-import { ProcessedEventEntity } from '../entities/processed-event.entity';
 import { BookingCompleted } from '../../../booking/domain/events/booking-completed.event';
 
 const PLATFORM_KEY = 'discount-completion-integ-key-xxxxx';
@@ -44,7 +43,6 @@ const LOYALTY_ENTITIES = [
   LoyaltyBalanceEntity,
   LoyaltyRedemptionEntity,
   BalanceExpiryLogEntity,
-  ProcessedEventEntity,
 ] as const;
 
 describe('Story: booking completion with a loyalty points discount (integration)', () => {

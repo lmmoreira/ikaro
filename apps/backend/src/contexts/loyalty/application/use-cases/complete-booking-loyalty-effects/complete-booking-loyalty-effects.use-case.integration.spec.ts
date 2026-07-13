@@ -7,11 +7,11 @@ import { uuidv7 } from '../../../../../shared/domain/uuid-v7';
 import { LoyaltyBalanceEntity } from '../../../infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../../../infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../../../infrastructure/entities/loyalty-redemption.entity';
-import { ProcessedEventEntity } from '../../../infrastructure/entities/processed-event.entity';
+import { InboxRecordEntity } from '../../../../../shared/infrastructure/inbox/inbox-record.entity';
 import { TypeOrmLoyaltyBalanceRepository } from '../../../infrastructure/repositories/typeorm-loyalty-balance.repository';
 import { TypeOrmLoyaltyEntryRepository } from '../../../infrastructure/repositories/typeorm-loyalty-entry.repository';
 import { TypeOrmLoyaltyRedemptionRepository } from '../../../infrastructure/repositories/typeorm-loyalty-redemption.repository';
-import { TypeOrmProcessedEventRepository } from '../../../infrastructure/repositories/typeorm-processed-event.repository';
+import { TypeOrmInboxRepository } from '../../../../../shared/infrastructure/inbox/typeorm-inbox.repository';
 import {
   CompleteBookingLoyaltyEffectsUseCase,
   CompleteBookingLoyaltyEffectsUseCaseInput,
@@ -28,7 +28,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
   let entryRepo: TypeOrmLoyaltyEntryRepository;
   let balanceRepo: TypeOrmLoyaltyBalanceRepository;
   let redemptionRepo: TypeOrmLoyaltyRedemptionRepository;
-  let processedEventRepo: TypeOrmProcessedEventRepository;
+  let inboxRepo: TypeOrmInboxRepository;
 
   beforeAll(async () => {
     ds = await createTestDataSource();
@@ -38,9 +38,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
     redemptionRepo = new TypeOrmLoyaltyRedemptionRepository(
       ds.getRepository(LoyaltyRedemptionEntity),
     );
-    processedEventRepo = new TypeOrmProcessedEventRepository(
-      ds.getRepository(ProcessedEventEntity),
-    );
+    inboxRepo = new TypeOrmInboxRepository(ds.getRepository(InboxRecordEntity));
   });
 
   afterAll(async () => {
@@ -80,7 +78,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
       entryRepo,
       balanceRepo,
       redemptionRepo,
-      processedEventRepo,
+      inboxRepo,
       new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10),
       failingPublisher,
       txManager,
@@ -90,9 +88,9 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
 
     // Nothing committed — the failed outbox write rolled back the whole transaction.
     expect(await balanceRepo.findByCustomer(tenantId, customerId)).toBeNull();
-    expect(
-      await processedEventRepo.hasBeenProcessed(dto.eventId, 'COMPLETE_BOOKING_LOYALTY_EFFECTS'),
-    ).toBe(false);
+    expect(await inboxRepo.hasBeenProcessed(dto.eventId, 'COMPLETE_BOOKING_LOYALTY_EFFECTS')).toBe(
+      false,
+    );
     const entriesAfterFailure = await entryRepo.findByCustomerPaginated(
       tenantId,
       customerId,
@@ -108,7 +106,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
       entryRepo,
       balanceRepo,
       redemptionRepo,
-      processedEventRepo,
+      inboxRepo,
       new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10),
       workingPublisher,
       txManager,
@@ -122,9 +120,9 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
 
     const balance = await balanceRepo.findByCustomer(tenantId, customerId);
     expect(balance!.currentPoints).toBe(10);
-    expect(
-      await processedEventRepo.hasBeenProcessed(dto.eventId, 'COMPLETE_BOOKING_LOYALTY_EFFECTS'),
-    ).toBe(true);
+    expect(await inboxRepo.hasBeenProcessed(dto.eventId, 'COMPLETE_BOOKING_LOYALTY_EFFECTS')).toBe(
+      true,
+    );
     const entriesAfterRetry = await entryRepo.findByCustomerPaginated(tenantId, customerId, 1, 20);
     expect(entriesAfterRetry.total).toBe(1);
   });

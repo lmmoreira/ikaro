@@ -1,6 +1,6 @@
-import { IProcessedEventRepository } from '../../contexts/loyalty/application/ports/processed-event-repository.port';
+import { IInboxRepository } from '../../shared/ports/inbox.port';
 
-export class InMemoryProcessedEventRepository implements IProcessedEventRepository {
+export class InMemoryInboxRepository implements IInboxRepository {
   private readonly processed = new Set<string>();
 
   private key(eventId: string, consumerName: string): string {
@@ -18,4 +18,9 @@ export class InMemoryProcessedEventRepository implements IProcessedEventReposito
   clear(): void {
     this.processed.clear();
   }
+
+  // No-op: this double doesn't track processedAt. Retention GC is only exercised against the
+  // real TypeOrmInboxRepository in integration tests, matching how the outbox side has no
+  // in-memory double for deleteOldPublished() either.
+  async deleteOldProcessed(): Promise<void> {}
 }
