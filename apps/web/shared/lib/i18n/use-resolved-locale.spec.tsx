@@ -4,8 +4,10 @@ import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it } from 'vitest';
 import { useResolvedLocale } from './use-resolved-locale';
 
-function wrapper(locale: string) {
-  return function Wrapper({ children }: { readonly children: React.ReactNode }) {
+function wrapper(
+  locale: string,
+): (props: { readonly children: React.ReactNode }) => React.JSX.Element {
+  return function Wrapper({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
     return (
       <NextIntlClientProvider locale={locale} messages={{}}>
         {children}

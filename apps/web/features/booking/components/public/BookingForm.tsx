@@ -11,6 +11,7 @@ import type {
   HotsiteAddressSpec,
   HotsiteServiceResponse,
   CustomerProfileResponse,
+  ProblemDetail,
 } from '@ikaro/types';
 import {
   CreateBookingError,
@@ -19,8 +20,10 @@ import {
   type AuthenticatedBookingRequest,
 } from '@/features/booking/api/public';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
+import { ApiError } from '@/shared/lib/api/errors';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import {
   emptyPersonalInfo,
   isAddressFilled,
@@ -69,6 +72,51 @@ function buildPayload(
       ? { beforeServicePhotoUrls: [...personalInfo.photoFilePaths] }
       : {}),
   };
+}
+
+interface BookingSubmitErrorRoute {
+  readonly step: Step;
+  readonly message: string;
+}
+
+interface BookingSubmitErrorShape {
+  readonly code?: string;
+  readonly field?: string;
+}
+
+// Guest submissions (createBooking) throw CreateBookingError, a FetchError subclass exposing
+// code/field directly. Authenticated submissions (createAuthenticatedBooking) go through
+// bffClient and throw ApiError, which carries the same ProblemDetail fields nested under
+// `.data` instead — both shapes need to route the same way.
+function extractBookingSubmitErrorShape(err: unknown): BookingSubmitErrorShape | null {
+  if (err instanceof CreateBookingError) {
+    return { code: err.code, field: err.field };
+  }
+  if (err instanceof ApiError) {
+    const data = err.data as ProblemDetail | undefined;
+    return { code: data?.code, field: data?.field };
+  }
+  return null;
+}
+
+function resolveBookingSubmitErrorRoute(
+  err: unknown,
+  locale: SupportedLocale,
+): BookingSubmitErrorRoute {
+  const shape = extractBookingSubmitErrorShape(err);
+  if (!shape) {
+    return { step: 4, message: resolveErrorMessage(undefined, locale) };
+  }
+  if (shape.code === BookingErrorCode.SLOT_UNAVAILABLE) {
+    return { step: 2, message: resolveErrorMessage(shape.code, locale) };
+  }
+  if (shape.field === 'pickupAddress') {
+    return { step: 1, message: resolveErrorMessage(shape.code, locale) };
+  }
+  if (shape.field === 'contactAddress') {
+    return { step: 3, message: resolveErrorMessage(shape.code, locale) };
+  }
+  return { step: 4, message: resolveErrorMessage(shape.code, locale) };
 }
 
 function buildAuthenticatedPayload(
@@ -167,6 +215,7 @@ export function BookingForm({
     setStatus('submitting');
     setErrorMessage(null);
     setStep1Error(null);
+    setStep2Error(null);
     setStep3Error(null);
 
     try {
@@ -199,31 +248,13 @@ export function BookingForm({
       }
       setStatus('success');
     } catch (err) {
-      if (err instanceof CreateBookingError && err.code === BookingErrorCode.SLOT_UNAVAILABLE) {
-        setStatus('idle');
-        setStep2Error(resolveErrorMessage(err.code, locale));
-        setStep(2);
-        return;
-      }
-
-      if (err instanceof CreateBookingError && err.field === 'pickupAddress') {
-        setStatus('idle');
-        setStep1Error(resolveErrorMessage(err.code, locale));
-        setStep(1);
-        return;
-      }
-
-      if (err instanceof CreateBookingError && err.field === 'contactAddress') {
-        setStatus('idle');
-        setStep3Error(resolveErrorMessage(err.code, locale));
-        setStep(3);
-        return;
-      }
-
-      setStatus('error');
-      setErrorMessage(
-        resolveErrorMessage(err instanceof CreateBookingError ? err.code : undefined, locale),
-      );
+      const route = resolveBookingSubmitErrorRoute(err, locale);
+      setStatus(route.step === 4 ? 'error' : 'idle');
+      setStep1Error(route.step === 1 ? route.message : null);
+      setStep2Error(route.step === 2 ? route.message : null);
+      setStep3Error(route.step === 3 ? route.message : null);
+      setErrorMessage(route.step === 4 ? route.message : null);
+      setStep(route.step);
     }
   }
 

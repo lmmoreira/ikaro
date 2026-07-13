@@ -16,6 +16,7 @@ import {
   createAuthenticatedBooking,
   createBooking,
 } from '@/features/booking/api/public';
+import { ApiError } from '@/shared/lib/api/errors';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
 import {
   fetchAvailability,
@@ -380,7 +381,10 @@ describe('BookingForm', () => {
       defaultAddress: pickupAddress,
     });
     vi.mocked(createAuthenticatedBooking).mockRejectedValue(
-      new CreateBookingError(400, 'ADDRESS_POSTAL_CODE_INVALID', 'pickupAddress'),
+      new ApiError(400, 'Invalid ZIP Code', {
+        code: 'ADDRESS_POSTAL_CODE_INVALID',
+        field: 'pickupAddress',
+      }),
     );
 
     await advanceToStep3(user, [service], false);

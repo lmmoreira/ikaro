@@ -4,15 +4,13 @@ import Link from 'next/link';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import type { ProblemDetail } from '@ikaro/types';
-import { ApiError } from '@/shared/lib/api/errors';
 import { useCreateService } from '@/features/booking/services/useServices';
 import {
   validateServiceForm,
   type ServiceFormErrors,
 } from '@/features/booking/services/service-form';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { ServiceFormFields } from './ServiceFormFields';
@@ -62,9 +60,7 @@ export function ServiceCreatePage(): React.JSX.Element {
       });
       router.push('/dashboard/services?created=1');
     } catch (err) {
-      const code =
-        err instanceof ApiError ? (err.data as ProblemDetail | undefined)?.code : undefined;
-      setFieldErrors({ submit: resolveErrorMessage(code, locale) });
+      setFieldErrors({ submit: resolveErrorMessageFromApiError(err, locale) });
     } finally {
       setIsSubmittingLocal(false);
     }

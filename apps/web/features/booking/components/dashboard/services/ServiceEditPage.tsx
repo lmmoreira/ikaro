@@ -4,13 +4,12 @@ import Link from 'next/link';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import type { ProblemDetail, StaffServiceResponse } from '@ikaro/types';
-import { ApiError } from '@/shared/lib/api/errors';
+import type { StaffServiceResponse } from '@ikaro/types';
 import { useActivateService, useUpdateService } from '@/features/booking/services/useServices';
 import type { ServiceFormErrors } from '@/features/booking/services/service-form';
 import { validateServiceForm } from '@/features/booking/services/service-form';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
@@ -22,8 +21,7 @@ interface ServiceEditPageProps {
 }
 
 function mapSubmitErrors(err: unknown, locale: SupportedLocale): ServiceFormErrors {
-  const code = err instanceof ApiError ? (err.data as ProblemDetail | undefined)?.code : undefined;
-  return { submit: resolveErrorMessage(code, locale) };
+  return { submit: resolveErrorMessageFromApiError(err, locale) };
 }
 
 interface ServiceEditStatusSectionProps {

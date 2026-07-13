@@ -120,13 +120,13 @@ test.describe('UC-001 — Booking form error paths', () => {
     await expect(page.locator('[data-testid="confirmation-error"]')).toBeVisible();
   });
 
-  test('step 4: shows an address-specific error message when the backend rejects an address (400)', async ({
+  test('step 4 submit: routes back to step 3 with an address-specific error when the backend rejects the contact address (400)', async ({
     page,
   }) => {
-    // Simulates the backend Address VO rejecting pickupAddress/contactAddress (e.g. a
-    // country-specific postal-code regex failure) — mapped to a flat 400 with no structured
-    // `violations` array. This used to fall through to the fully generic "Could not submit
-    // booking" message; it must show the address-specific one instead.
+    // Simulates the backend Address VO rejecting contactAddress (e.g. a country-specific
+    // postal-code format failure) — mapped to a structured 400 carrying `code`/`field`. The
+    // form must route the guest back to step 3 and show the address-specific message there,
+    // not the generic step 4 fallback.
     await page.route('**/v1/bookings', (route) => {
       if (route.request().method() !== 'POST') return route.continue();
       return route.fulfill({
@@ -136,6 +136,8 @@ test.describe('UC-001 — Booking form error paths', () => {
           type: 'about:blank',
           title: 'Bad Request',
           status: 400,
+          code: 'ADDRESS_POSTAL_CODE_INVALID',
+          field: 'contactAddress',
           detail: 'Invalid ZIP Code: 00000-000',
         }),
       });
@@ -150,8 +152,10 @@ test.describe('UC-001 — Booking form error paths', () => {
 
     await page.locator('[data-testid="step-confirm"]').click();
 
-    await expect(page.locator('[data-testid="confirmation-error"]')).toContainText(
-      'Please check the address you entered and try again.',
+    // Back on step 3, with the address-specific message
+    await expect(page.locator('[data-testid="input-name"]')).toBeVisible();
+    await expect(page.locator('[data-testid="step3-submit-error"]')).toContainText(
+      'The postal code provided is invalid.',
     );
   });
 

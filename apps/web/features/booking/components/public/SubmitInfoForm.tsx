@@ -11,11 +11,11 @@ import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { PhotoUpload } from './PhotoUpload';
 
-const EXPIRED_LINK_CODES: readonly string[] = [
+const EXPIRED_LINK_CODES: ReadonlySet<string> = new Set([
   BffErrorCode.GUEST_TOKEN_INVALID,
   BffErrorCode.GUEST_TOKEN_MISSING,
   BffErrorCode.GUEST_TOKEN_BOOKING_MISMATCH,
-];
+]);
 
 export interface SubmitInfoFormSummary {
   readonly serviceSummary: string;
@@ -90,7 +90,7 @@ export function SubmitInfoForm({
       setState({ status: 'success', infoSubmittedAt: result.infoSubmittedAt });
     } catch (err) {
       const code = err instanceof SubmitGuestBookingInfoError ? err.code : undefined;
-      const expired = code !== undefined && EXPIRED_LINK_CODES.includes(code);
+      const expired = code !== undefined && EXPIRED_LINK_CODES.has(code);
       setState({
         status: 'error',
         kind: expired ? 'expired' : 'retry',
@@ -206,28 +206,7 @@ export function SubmitInfoForm({
           </div>
         )}
 
-        {state.status === 'error' && state.kind === 'retry' && (
-          <div
-            className="mb-5 flex items-start gap-3 rounded-md border p-3.5"
-            style={{
-              backgroundColor: '#fef2f2',
-              borderColor: '#fecaca',
-              borderRadius: 'var(--ba-radius)',
-            }}
-            role="alert"
-          >
-            <div>
-              <p className="mb-1 text-[0.9375rem] font-bold" style={{ color: '#dc2626' }}>
-                {t('submitErrorTitle')}
-              </p>
-              <p className="text-sm" style={{ color: '#7f1d1d' }}>
-                {state.message}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {state.status === 'error' && state.kind === 'expired' && (
+        {state.status === 'error' && (
           <div
             className="mb-5 flex items-start gap-3 rounded-md border p-3.5"
             style={{

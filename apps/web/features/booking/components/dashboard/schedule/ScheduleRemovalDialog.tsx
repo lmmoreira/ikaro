@@ -2,12 +2,10 @@
 
 import type { ReactNode, SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import type { ProblemDetail } from '@ikaro/types';
-import { ApiError } from '@/shared/lib/api/errors';
 import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { ScheduleRemovalSummary } from './ScheduleRemovalSummary';
 import { useConfirmRemoval } from './use-confirm-removal';
 
@@ -57,11 +55,7 @@ export function ScheduleRemovalDialog({
     open,
     onClose,
     onSubmit,
-    getErrorMessage: (err) => {
-      const code =
-        err instanceof ApiError ? (err.data as ProblemDetail | undefined)?.code : undefined;
-      return resolveErrorMessage(code, locale);
-    },
+    getErrorMessage: (err) => resolveErrorMessageFromApiError(err, locale),
   });
 
   if (!open || !target) return null;

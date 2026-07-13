@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import type { ProblemDetail, StaffBookingListResponse } from '@ikaro/types';
+import type { StaffBookingListResponse } from '@ikaro/types';
 import { WeekNav } from '@/shells/dashboard/components/WeekNav';
 import { ApiError } from '@/shared/lib/api/errors';
 import { Card, CardContent } from '@/shared/components/ui/card';
@@ -15,7 +15,7 @@ import {
 import { useApproveBooking } from '@/features/booking/hooks/useBookingMutations';
 import { addDays, inWindow, isSameDay, toDateKey } from '@/shared/utils/date-utils';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { BookingCard } from './BookingCard';
 
 export interface BookingQueuePageProps {
@@ -64,9 +64,7 @@ export function BookingQueuePage({
         router.push(`/dashboard/bookings/${bookingId}?conflict=1`);
         return;
       }
-      const code =
-        err instanceof ApiError ? (err.data as ProblemDetail | undefined)?.code : undefined;
-      setApproveError(resolveErrorMessage(code, locale));
+      setApproveError(resolveErrorMessageFromApiError(err, locale));
     }
   };
 
