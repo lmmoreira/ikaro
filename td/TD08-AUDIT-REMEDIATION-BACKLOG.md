@@ -33,10 +33,10 @@
 
 | ID | Title | Risk | Effort | Phase | Depends on | Audit ref |
 |---|---|---|---|---|---|---|
-| **AUD-001** | Transactional outbox for all domain events | 🔴 Critical | L | Now | — | §4.1, §12.2, §12.3 |
+| **AUD-001** | Transactional outbox for all domain events ✅ | 🔴 Critical | L | Now | — | §4.1, §12.2, §12.3 |
 | **AUD-002** | Fix booking slot-conflict race + prove optimistic lock | ✅ Done | M | Now | — | §4.2, §4.3 |
-| **AUD-003** | Adversarial concurrency + event-failure test suite | 🔴 Critical | M | Now | AUD-001, AUD-002 | §11.1, §11.2 |
-| **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
+| **AUD-003** | Adversarial concurrency + event-failure test suite 🟡 4/5 | 🔴 Critical | M | Now | AUD-001, AUD-002 | §11.1, §11.2 |
+| **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) 🟡 2/3 | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
 | **AUD-005** | Graceful shutdown hooks (backend + BFF) ✅ | 🟠 High | XS | Now | — | §5.2 |
 | **AUD-006** | Helmet / security headers on BFF ✅ | 🟠 High | XS | Now | — | §5.6 |
 | **AUD-007** | CSP + security headers across apps/web ✅ | 🟠 High | S | Now | — | §8.3 |
@@ -50,7 +50,7 @@
 | **AUD-015** | Playwright E2E in CI + expand booking flows ✅ | 🟡 Medium | M | Now | — | §9.4, §11.4 |
 | **AUD-016** | API idempotency-key on mutating endpoints | 🟡 Medium | M | Pre-deploy | — | §13.9 |
 | **AUD-017** | Manifest module `safeParse` fail-soft ✅ | 🟡 Medium | S | Now | — | §8.6 |
-| **AUD-018** | Pub/Sub ordering keys per booking | 🟡 Medium | S | Now | AUD-001 | §12.6 |
+| **AUD-018** | Pub/Sub ordering keys per booking (unblocked) | 🟡 Medium | S | Now | AUD-001 | §12.6 |
 | **AUD-019** | DLQ replay runbook + endpoint + depth alert | 🟡 Medium | M | Pre-deploy | — | §12.7 |
 | **AUD-020** | Slim the `Booking` aggregate (event-payload factories) | 🟡 Medium | M | Now | — | §5.3 |
 | **AUD-021** | Edge-case tests: timezone/DST, money, idempotency replay | 🟡 Medium | M | Now | — | §11.8 |
@@ -92,7 +92,13 @@
 
 ### AUD-001 — Transactional outbox for all domain events
 **Risk:** 🔴 Critical · **Effort:** L · **Phase:** Now · **Depends on:** — · **Audit ref:** `OPUS_AUDITORY.md` §4.1, §12.2, §12.3
-**Status:** ☐ Not started
+**Status:** ✅ Done — `td/TD24-OUTBOX-INBOX-PATTERN.md` (TD24-S01 through S04)
+
+**Implemented notes**
+- `shared.outbox` (S01) — every aggregate-driven publish site writes an envelope row inside the same transaction as the state change, via `OUTBOX_PUBLISHER`/`IOutboxPublisher`; `OutboxRelayService`'s scheduled sweep (`SKIP LOCKED`, grace window) delivers unpublished rows to Pub/Sub, with an inline-dispatch fast path after commit.
+- The 3 event-emitting aggregates' repositories (`Booking`/`Staff`/`Tenant`) auto-drain domain events inside `save()` (S02) — no use case writes a publish loop anymore.
+- The 4 cron-published `Command` events + the loyalty re-emit (`ServicePointsEarned`, the exact §12.3 "worst case" this item called out) were migrated onto the same durable path, with deterministic `dedup_key`s for the crons and in-transaction publish for the loyalty re-emit (S03) — closing the crash-between-commit-and-publish window this item's audit finding described.
+- `shared.inbox` (S04) generalizes consumer-side idempotency (replacing the ad-hoc `processed_events` tables this item's finding referenced).
 
 #### What's wrong
 Domain events are published to Pub/Sub **after** the DB transaction commits, in a separate step — a classic dual-write with no atomicity.
@@ -165,7 +171,14 @@ The exclusion constraint is the robust primitive — prefer it. Brazil tenants h
 
 ### AUD-003 — Adversarial concurrency + event-failure test suite
 **Risk:** 🔴 Critical · **Effort:** M · **Phase:** Now · **Depends on:** AUD-001, AUD-002 · **Audit ref:** §11.1, §11.2
-**Status:** ☐ Not started
+**Status:** 🟡 4 of 5 scenarios done — see AUD-002 for its own concurrency proofs, TD24-S01–S05 for the outbox/inbox ones; DLQ routing (scenario 5) is out of TD24's scope
+
+**Implemented notes** — cross-referencing the 5 scenarios this item lists:
+1. **Concurrent approvals on one slot** — proven by AUD-002's own concurrency test (`typeorm-booking.repository.spec.ts`), not TD24.
+2. **Stale write → optimistic-lock failure** — same, AUD-002.
+3. **Crash-between-commit-and-publish, exactly-once delivery** — `typeorm-booking.repository.outbox-cutover.integration.spec.ts`'s `'crash-between-commit-and-publish: ...'` and `'two concurrent sweeps on the same booking-approval row (SKIP LOCKED) → exactly one Pub/Sub publish'` tests; `ServicePointsEarned` specifically covered by `complete-booking-loyalty-effects.use-case.integration.spec.ts`'s idempotency test (TD24-S03/S04).
+4. **Duplicate delivery of the same eventId → exactly one effect** — `outbox-publisher.integration.spec.ts`'s `'is a no-op on a conflicting dedup_key — no new row, no dispatch for the losing attempt'` test (producer side); `send-booking-approved-notification.use-case.integration.spec.ts`'s `'two concurrent deliveries of the same eventId dispatch exactly once'` test against a real Postgres instance (consumer side, TD24-S05 atomic-claim follow-up).
+5. **DLQ routing after max attempts** — out of TD24's scope; this is Pub/Sub subscription dead-letter policy, an M17 infra concern (see M17-S19's DLQ catalog, M17-S35's DLQ-depth alert). Not closed by this TD.
 
 #### What's wrong
 The two most dangerous code paths have **zero adversarial coverage**. Existing "slot conflict" specs test single-threaded math, not races. No test fires concurrent operations, asserts an optimistic-lock failure, or exercises event-delivery failure modes (publish-throws-after-commit, partial publish, duplicate delivery).
@@ -195,7 +208,12 @@ These are the "write the test first" cases. Use unique inline tenant UUIDs for i
 
 ### AUD-004 — Event idempotency & duplicate-send prevention (crons + notifications)
 **Risk:** 🟠 High · **Effort:** M · **Phase:** Now · **Depends on:** AUD-001 · **Audit ref:** §12.4, §12.5
-**Status:** ☐ Not started
+**Status:** 🟡 Re-scoped, largely absorbed by TD24 (D5/D7/D15) — items 1 and 2 closed, item 3 remains open
+
+**Implemented notes**
+- **Item 1 (cron determinism)** — closed differently than proposed, same guarantee: instead of a deterministic `uuidv5` `eventId`, the 4 cron-published events became `Command`s with a real deterministic `dedup_key` (`<EventName>:<tenantId>:<bookingId|customerId>:<yyyy-mm-dd>`), enforced by `shared.outbox`'s `UNIQUE(dedup_key)` constraint — a scheduler retry or double-invocation within the window collapses to one outbox row (TD24-S01/S03, D5/D11).
+- **Item 2 (notification crash/concurrent-delivery idempotency)** — closed via `shared.inbox`'s atomic claim protocol (`tryClaim`/`unclaim`) rather than a provider-level idempotency key: `BaseNotificationUseCase.dispatchTemplates()`/`dispatchTemplatesToMany()` claim the `(eventId, consumerName)` pair *before* dispatching, so two concurrent redeliveries can't both send — only one ever wins the claim (TD24-S04/S05, D15; proven against real Postgres in `send-booking-approved-notification.use-case.integration.spec.ts`).
+- **Item 3 (multi-recipient partial-failure tracking) — NOT closed.** `dispatchTemplatesToMany()` still wraps the whole recipient batch in one `Promise.all` — if any one recipient's dispatch fails, the claim is released (`unclaim`) and a retry re-sends to *every* recipient in the batch, including the ones that already succeeded. This is a real, still-open gap; fixing it means tracking per-recipient success/failure instead of an all-or-nothing `Promise.all`. Left open — no story currently owns it.
 
 #### What's wrong
 - **Cron reminders (§12.4):** `booking-reminder.job.ts` mints a new `eventId` per run and self-gates on a local `06:00–06:29` window (lines 13-14, 30). There is **no per-(booking, reminderType, date) sent-marker**, and the consumer dedups on `eventId` — so a scheduler retry or a second invocation inside the window → **duplicate reminder emails**.
@@ -429,7 +447,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-018 — Pub/Sub ordering keys per booking
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Now · **Depends on:** AUD-001 · **Audit ref:** §12.6
-**Status:** ☐ Not started
+**Status:** ☐ Not started — dependency (AUD-001) now satisfied, unblocked. Explicitly out of scope for TD24 itself (`td/TD24-OUTBOX-INBOX-PATTERN.md` §Non-Goals: "No Pub/Sub ordering keys — TD08 AUD-018, separate follow-up. Relay is `SKIP LOCKED`, out-of-order-safe like today."). Remains a genuine open item for whoever picks it up next.
 
 **What's wrong:** `gcp-pubsub-event-bus.adapter.ts` publishes with no `orderingKey`; a fast approve→reschedule/complete sequence can be consumed out of order (e.g. "approved" email after "completed").
 **Fix:** Publish booking-related events with `orderingKey = bookingId` and enable ordered delivery on those subscriptions. Accept the per-key throughput tradeoff.

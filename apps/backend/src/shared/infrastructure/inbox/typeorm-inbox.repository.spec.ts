@@ -89,13 +89,22 @@ describe('TypeOrmInboxRepository', () => {
   });
 
   describe('deleteOldProcessed()', () => {
-    it('runs the batched retention delete', async () => {
-      await repo.deleteOldProcessed(14, 100);
+    it('runs the batched retention delete and returns the number of rows deleted', async () => {
+      mockRepo.query.mockResolvedValue([{ event_id: 'event-1' }, { event_id: 'event-2' }]);
 
+      const deleted = await repo.deleteOldProcessed(14, 100);
+
+      expect(deleted).toBe(2);
       expect(mockRepo.query).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM "shared"."inbox"'),
         [14, 100],
       );
+    });
+
+    it('returns 0 when nothing was deleted', async () => {
+      mockRepo.query.mockResolvedValue([]);
+
+      expect(await repo.deleteOldProcessed(14, 100)).toBe(0);
     });
   });
 });

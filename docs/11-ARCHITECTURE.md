@@ -144,6 +144,7 @@ src/contexts/booking/
 - **Technology Mapping:**
   - *Publisher:* `BookingContext` completes a wash → `eventBus.publish(new BookingCompleted(data))`.
   - *Subscriber:* `LoyaltyContext` → `eventBus.subscribe('BookingCompleted', handleLoyaltyUpdate)`.
+- **Transactional guarantee (`shared.outbox` / `shared.inbox`, TD24):** `IEventBus.publish()`'s implied contract — a published fact reaches consumers exactly-once *in effect* — is made real by a transactional outbox on the publish side and a shared inbox on the consume side. Both are **shared transport infrastructure, not a bounded context** — the same category as Pub/Sub itself, not a 6th context alongside Booking/Loyalty/Notification/Customer/Staff/Platform. See `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section and `td/TD24-OUTBOX-INBOX-PATTERN.md` for the full design.
 
 ---
 

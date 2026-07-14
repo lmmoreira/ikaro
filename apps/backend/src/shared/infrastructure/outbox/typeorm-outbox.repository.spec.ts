@@ -137,13 +137,39 @@ describe('TypeOrmOutboxRepository', () => {
   });
 
   describe('deleteOldPublished()', () => {
-    it('runs the batched retention delete', async () => {
-      await repo.deleteOldPublished(14, 100);
+    it('runs the batched retention delete and returns the number of rows deleted', async () => {
+      mockRepo.query.mockResolvedValue([{ id: 'row-1' }, { id: 'row-2' }]);
 
+      const deleted = await repo.deleteOldPublished(14, 100);
+
+      expect(deleted).toBe(2);
       expect(mockRepo.query).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM "shared"."outbox"'),
         [14, 100],
       );
+    });
+
+    it('returns 0 when nothing was deleted', async () => {
+      mockRepo.query.mockResolvedValue([]);
+
+      expect(await repo.deleteOldPublished(14, 100)).toBe(0);
+    });
+  });
+
+  describe('countUnpublished()', () => {
+    it('returns the unpublished count and oldest-age from the query result', async () => {
+      mockRepo.query.mockResolvedValue([{ count: 3, oldestAgeSeconds: 120 }]);
+
+      const backlog = await repo.countUnpublished();
+
+      expect(backlog).toEqual({ count: 3, oldestAgeSeconds: 120 });
+      expect(mockRepo.query).toHaveBeenCalledWith(expect.stringContaining('COUNT(*)'));
+    });
+
+    it('falls back to a zero/null backlog when the query returns no row', async () => {
+      mockRepo.query.mockResolvedValue([]);
+
+      expect(await repo.countUnpublished()).toEqual({ count: 0, oldestAgeSeconds: null });
     });
   });
 });

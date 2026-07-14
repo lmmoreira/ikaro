@@ -109,6 +109,8 @@ Notification Context subscribes:
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
+**Not pictured — `shared.outbox`/`shared.inbox` are transport infrastructure, not a context (TD24):** the diagram above shows the 6 bounded contexts; the transactional outbox (publish-side durability) and shared inbox (consume-side idempotency) that carry every event between them are deliberately absent from it — they're the same category as Pub/Sub itself, a cross-cutting mechanism every context's events flow through, not a 7th business capability with its own aggregates. See `docs/11-ARCHITECTURE.md` §Communication Patterns and `td/TD24-OUTBOX-INBOX-PATTERN.md`.
+
 ---
 
 ## Context Descriptions
