@@ -454,7 +454,7 @@ Durable staging table for every domain event/command published by an aggregate-d
 
 ### `shared.inbox`
 
-Consumer-side dedup table (TD24-S04), replacing the per-context `loyalty.processed_events` and `notification.processed_events` tables with one shared shape. Checked before processing any at-least-once-delivered event; every consumer's dedup check + `markProcessed` write happens inside the same transaction as its business effect.
+Consumer-side dedup table (TD24-S04), replacing the per-context `loyalty.processed_events` and `notification.processed_events` tables with one shared shape. `hasBeenProcessed` is checked before processing any at-least-once-delivered event, outside any transaction; `markProcessed` is the one write required to happen inside the same transaction as the consumer's business effect, so the dedup mark and the effect commit or roll back together.
 
 | Column | Type | Constraints |
 |--------|------|-------------|

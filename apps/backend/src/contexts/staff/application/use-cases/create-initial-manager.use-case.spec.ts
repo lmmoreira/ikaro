@@ -62,6 +62,21 @@ describe('CreateInitialManagerUseCase', () => {
     ).toBe(true);
   });
 
+  it('redelivery: a second execute() with the same eventId creates exactly one manager and one inbox record', async () => {
+    const first = await useCase.execute(baseDto);
+    const second = await useCase.execute(baseDto);
+
+    expect(second.staffId).toBe(first.staffId);
+    expect(eventBus.published).toHaveLength(1);
+
+    const all = await repo.findAllByTenant(TENANT_ID, { limit: 100, offset: 0 });
+    expect(all.total).toBe(1);
+
+    expect(
+      await inboxRepo.hasBeenProcessed(EVENT_ID, CreateInitialManagerUseCase.CONSUMER_NAME),
+    ).toBe(true);
+  });
+
   it('is idempotent: returns existing staffId when staff already exists', async () => {
     const existing = new StaffBuilder().withTenantId(TENANT_ID).withEmail(ADMIN_EMAIL).build();
     await repo.save(existing);

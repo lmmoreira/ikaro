@@ -45,6 +45,7 @@ Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and c
 3. **Enforcement:** The Repository layer automatically appends the `tenant_id` to all database operations.
 
 ### **Documented exemption: transport infrastructure (`shared.outbox` / `shared.inbox`)**
+
 - `shared.outbox` and `shared.inbox` (TD24) are **not** tenant-first business tables — they are transport infrastructure, the same category as Pub/Sub itself, and their primary keys are `eventId` (`shared.outbox.id`) and `(eventId, consumerName)` (`shared.inbox`), not `tenant_id`-scoped.
 - `shared.outbox` still carries a `tenant_id` column, but only for observability (logs/metrics/tracing) — never as a query filter, since the relay sweep and retention GC operate across all tenants' rows in one pass by design.
 - `shared.inbox` carries no `tenant_id` at all — a consumer's dedup key is the event's own `eventId` plus its `consumerName`, which is already globally unique per event.
