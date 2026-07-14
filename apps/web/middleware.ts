@@ -1,31 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-
-// Edge Runtime — use atob() for base64url decode (Buffer is Node.js-only).
-function decodeJwtClaims(token: string): {
-  role?: string;
-  tenantSlug?: string;
-  exp?: number;
-} {
-  try {
-    const payload = token.split('.')[1];
-    if (!payload) return {};
-    // JWT uses base64url — pad to a multiple of 4 then replace URL-safe chars
-    const padded = payload.replaceAll('-', '+').replaceAll('_', '/');
-    const json = atob(padded);
-    return JSON.parse(json) as { role?: string; tenantSlug?: string; exp?: number };
-  } catch {
-    return {};
-  }
-}
-
-function isValidStaffToken(token: string): boolean {
-  const claims = decodeJwtClaims(token);
-  if (!claims.role) return false;
-  if (claims.role !== 'STAFF' && claims.role !== 'MANAGER') return false;
-  if (!claims.exp || Date.now() / 1000 > claims.exp) return false;
-  return true;
-}
+import { verifyCustomerToken, verifyStaffToken } from '@/features/auth/verify-edge-jwt';
 
 // Shared manager-only route list for /dashboard — M13-S31/S32 own this single edit;
 // M13-S35 (hotsite editor) reuses it. STAFF hitting these is sent back to the dashboard home.
@@ -39,15 +14,6 @@ function isManagerOnlyRoute(pathname: string): boolean {
 
 // Matches /<slug>/my-account and /<slug>/my-account/* — captures the slug.
 const MY_ACCOUNT_PATTERN = /^\/([^/]+)\/my-account(?:\/.*)?$/;
-
-function isValidCustomerToken(token: string, slugFromPath: string): boolean {
-  const claims = decodeJwtClaims(token);
-  if (!claims.role) return false;
-  if (claims.role !== 'CUSTOMER') return false;
-  if (!claims.exp || Date.now() / 1000 > claims.exp) return false;
-  if (claims.tenantSlug !== slugFromPath) return false;
-  return true;
-}
 
 // Top-level app routes that are NOT part of the tenant `/[slug]` catch-all tree.
 // Everything else (hotsite home, /booking, /login, /my-account) shares one relaxed
@@ -133,18 +99,19 @@ function applySecurityHeaders(response: NextResponse, pathname: string): NextRes
   return response;
 }
 
-export function middleware(request: NextRequest): NextResponse {
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('access_token')?.value;
 
   if (pathname.startsWith('/dashboard') && pathname !== '/dashboard/login') {
-    if (!token || !isValidStaffToken(token)) {
+    const staffClaims = token ? await verifyStaffToken(token) : null;
+    if (!staffClaims) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL('/dashboard/login', request.url)),
         pathname,
       );
     }
-    if (isManagerOnlyRoute(pathname) && decodeJwtClaims(token).role !== 'MANAGER') {
+    if (isManagerOnlyRoute(pathname) && staffClaims.role !== 'MANAGER') {
       return applySecurityHeaders(
         NextResponse.redirect(new URL('/dashboard', request.url)),
         pathname,
@@ -155,7 +122,8 @@ export function middleware(request: NextRequest): NextResponse {
   const myAccountMatch = MY_ACCOUNT_PATTERN.exec(pathname);
   if (myAccountMatch) {
     const slugFromPath = myAccountMatch[1]!;
-    if (!token || !isValidCustomerToken(token, slugFromPath)) {
+    const customerClaims = token ? await verifyCustomerToken(token, slugFromPath) : null;
+    if (!customerClaims) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL(`/${slugFromPath}/login`, request.url)),
         pathname,
