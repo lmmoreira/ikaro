@@ -1,7 +1,7 @@
 # TD23 — Exception Handling & i18n Pattern: Backend → BFF → UI
 
 ## Status
-- **State**: Resolved (2026-07-14) — Stories 1-17 all done. Story 17 (final wave) shipped the CI-enforced catalog↔translation exhaustiveness test (`apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`), replaced the `ANTI_PATTERNS.md` `violations[]`-only-branching entry with the raw-error-text rule, synced `docs/ENGINEERING_RULES.md` (new § Exception handling & i18n pattern), `docs/24-BFF_ARCHITECTURE.md` (Error Passthrough Contract), and `docs/14-API_CONTRACTS.md`, and fully rewrote `docs/25-ERROR_CATALOG.md` (it previously documented a contradicting, never-implemented `type`-URI-fragment scheme). The closing `bad-smell-audit` pass across all three apps found 45 raw findings; each was individually verified against the actual code before acting — 34 (25 backend `makeXxx()` test-mock helpers, 9 web fetcher-naming) were confirmed false positives from checks miscalibrated against this codebase's actual patterns/architecture and were left as-is; the remaining real findings were fixed: a dead BFF `uploads/` controller (already flagged as dead in `td/TD22-ORPHANED-UPLOAD-CLEANUP.md` and never removed) was deleted, `bookings.controller.ts`'s date-range/pagination query building and duplicated role check were extracted to a small pure-function util, a trivial backend string-trim duplication was fixed, and 3 redundant `app/dashboard/loyalty/**` unit specs (E2E already covers that route) were removed. Story 18 (observability) remains a recommended, non-blocking follow-up.
+- **State**: Resolved (2026-07-14) — Stories 1-17 all done. Story 17 (final wave) shipped the CI-enforced catalog↔translation exhaustiveness test (`apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`), replaced the `ANTI_PATTERNS.md` `violations[]`-only-branching entry with the raw-error-text rule, synced `docs/ENGINEERING_RULES.md` (new § Exception handling & i18n pattern), `docs/24-BFF_ARCHITECTURE.md` (Error Passthrough Contract), and `docs/14-API_CONTRACTS.md`, and fully rewrote `docs/25-ERROR_CATALOG.md` (it previously documented a contradicting, never-implemented `type`-URI-fragment scheme). The closing `bad-smell-audit` pass across all three apps found 45 raw findings; each was individually verified against the actual code before acting — 34 (25 backend `makeXxx()` test-mock helpers, 9 web fetcher-naming) were confirmed false positives from checks miscalibrated against this codebase's actual patterns/architecture and were left as-is; the remaining real findings were fixed: a dead BFF `uploads/` controller (already flagged as dead in `td/TD22-ORPHANED-UPLOAD-CLEANUP.md` and never removed) was deleted, `bookings.controller.ts`'s date-range/pagination query building and duplicated role check were extracted to a small pure-function util, a trivial backend string-trim duplication was fixed, and 3 redundant `app/dashboard/loyalty/**` unit specs (E2E already covers that route) were removed. **Story 18 (2026-07-14, follow-up):** also done — discovery found no OTel SDK exists yet (`M17-S33` still pending), so the story was rescoped to ship `error.code` as a structured `AppLogger` field on every non-2xx response (new backend `ErrorLoggingInterceptor`, extended BFF `ErrorInterceptor`); the true OTel span attribute is deferred to `M17-S33`, which now carries a cross-reference note. All 18 stories are now done.
 - **Type**: Technical Debt / Cross-Cutting Architecture Pattern
 - **Priority**: Medium — no single instance is a P0 outage, but the systemic gap already causes 2 confirmed raw-English-in-pt-BR-UI leaks in production code, a fragile string-match anti-pattern, a dead-but-leak-shaped mechanism, and 40+ error paths across the app that lose specificity they could have
 - **Scope**: `apps/backend` (all 6 contexts + shared value objects), `apps/bff` (all feature slices), `apps/web` (all domain/shell slices), `packages/types`, `packages/i18n`
@@ -657,7 +657,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ### Wave 6 (continued) — Recommended follow-up
 
-#### Story 18 — Observability: `error.code` in structured logs now, OTel span attribute deferred (recommended, non-blocking)
+#### Story 18 — Observability: `error.code` in structured logs now, OTel span attribute deferred (recommended, non-blocking) ✅ Done
 
 **Scope:** `apps/backend/src/shared/observability/**`, `apps/bff/src/shared/observability/**` (or wherever OTel instrumentation currently lives in each app), the exception filters/interceptors that construct the final HTTP response in both apps.
 
@@ -668,10 +668,10 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 2. Do not attach `params` to logs if any value could be tenant-sensitive (e.g. a raw `field` name is fine; avoid logging PII-shaped `params` values without checking first).
 
 **Acceptance criteria:**
-- [ ] Every error response with a `code` produces a structured log entry carrying that code
-- [ ] No sensitive `params` values are logged
+- [x] Every error response with a `code` produces a structured log entry carrying that code — `ErrorLoggingInterceptor` (backend, new) + `ErrorInterceptor` (BFF, extended) log `code`/`path`/`method` via `AppLogger`, `warn` for 4xx and `error` for 5xx
+- [x] No sensitive `params` values are logged — only `code`, `path`, `method` are logged; `params`/`detail` are never included
 
-**DoD:** Purely additive observability — no behavior change to any HTTP response. True OTel span attribute for `error.code` deferred to `M17-S33`.
+**DoD:** Purely additive observability — no behavior change to any HTTP response (verified: existing controller/component/integration test suites pass unmodified). True OTel span attribute for `error.code` deferred to `M17-S33`.
 
 ---
 

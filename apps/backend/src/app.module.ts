@@ -19,6 +19,7 @@ import { InternalApiGuard } from './shared/guards/internal-api.guard';
 import { PubSubPushGuard } from './shared/guards/pubsub-push.guard';
 import { RequestInterceptor } from './shared/request/request.interceptor';
 import { RequestModule } from './shared/request/request.module';
+import { ErrorLoggingInterceptor } from './shared/interceptors/error-logging.interceptor';
 import { validateEnv } from './config/env.validation';
 import { PubSubPushController } from './shared/infrastructure/event-bus/pubsub-push.controller';
 import { GoogleOidcTokenVerifier } from './shared/infrastructure/google-oidc-token-verifier.adapter';
@@ -67,6 +68,7 @@ import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
   controllers: [HealthController, PubSubPushController],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: RequestInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: ErrorLoggingInterceptor },
     { provide: APP_GUARD, useClass: InternalApiGuard },
     { provide: OIDC_TOKEN_VERIFIER, useClass: GoogleOidcTokenVerifier },
     PubSubPushGuard,

@@ -1,8 +1,9 @@
-import { HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { CallHandler } from '@nestjs/common';
 import { lastValueFrom, Observable, of, throwError } from 'rxjs';
 import { AuthErrorCode } from '@ikaro/types';
 import { makeExecutionContext } from '../../test/execution-context.factory';
+import { AppLogger } from '../observability/app-logger';
 import { ErrorInterceptor } from './error.interceptor';
 
 function makeHandler(observable: Observable<unknown>): CallHandler {
@@ -12,15 +13,17 @@ function makeHandler(observable: Observable<unknown>): CallHandler {
 describe('ErrorInterceptor', () => {
   let interceptor: ErrorInterceptor;
   let loggerErrorSpy: jest.SpyInstance;
+  let loggerWarnSpy: jest.SpyInstance;
 
   beforeEach(() => {
     interceptor = new ErrorInterceptor();
-    loggerErrorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    loggerErrorSpy = jest.spyOn(AppLogger.prototype, 'error').mockImplementation(() => undefined);
+    loggerWarnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation(() => undefined);
   });
 
   afterEach(() => jest.restoreAllMocks());
 
-  it('passes through HttpExceptions without logging', async () => {
+  it('passes through an HttpException with no code, without logging', async () => {
     const httpErr = new HttpException({ title: 'Not Found', status: 404 }, 404);
     const result$ = interceptor.intercept(
       makeExecutionContext({ path: '/v1/test' }),
@@ -29,6 +32,44 @@ describe('ErrorInterceptor', () => {
 
     await expect(lastValueFrom(result$)).rejects.toBe(httpErr);
     expect(loggerErrorSpy).not.toHaveBeenCalled();
+    expect(loggerWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('logs a warning with the code for a 4xx HttpException carrying a code', async () => {
+    const httpErr = new HttpException(
+      { title: 'Forbidden', status: 403, code: AuthErrorCode.FORBIDDEN },
+      403,
+    );
+    const result$ = interceptor.intercept(
+      makeExecutionContext({ path: '/v1/staff', method: 'PATCH' }),
+      makeHandler(throwError(() => httpErr)),
+    );
+
+    await expect(lastValueFrom(result$)).rejects.toBe(httpErr);
+    expect(loggerWarnSpy).toHaveBeenCalledWith('Error response', {
+      code: AuthErrorCode.FORBIDDEN,
+      path: '/v1/staff',
+      method: 'PATCH',
+    });
+    expect(loggerErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it('logs an error with the code for a 5xx HttpException carrying a code', async () => {
+    const httpErr = new HttpException(
+      { title: 'Bad Gateway', status: 502, code: 'BFF_UPSTREAM_UNAVAILABLE' },
+      502,
+    );
+    const result$ = interceptor.intercept(
+      makeExecutionContext({ path: '/v1/bookings' }),
+      makeHandler(throwError(() => httpErr)),
+    );
+
+    await expect(lastValueFrom(result$)).rejects.toBe(httpErr);
+    expect(loggerErrorSpy).toHaveBeenCalledWith('Error response', undefined, {
+      code: 'BFF_UPSTREAM_UNAVAILABLE',
+      path: '/v1/bookings',
+      method: 'GET',
+    });
   });
 
   it('converts unknown errors to 500 with RFC 7807 body', async () => {
@@ -49,7 +90,7 @@ describe('ErrorInterceptor', () => {
     });
   });
 
-  it('logs the error message and stack for unknown errors', async () => {
+  it('logs the error message, stack, and code for unknown errors', async () => {
     const err = new Error('something went wrong');
     interceptor
       .intercept(
@@ -58,11 +99,11 @@ describe('ErrorInterceptor', () => {
       )
       .subscribe({ error: () => undefined });
 
-    expect(loggerErrorSpy).toHaveBeenCalledWith(
-      'Unhandled exception',
-      err.stack,
-      expect.objectContaining({ path: '/v1/staff', method: 'POST' }),
-    );
+    expect(loggerErrorSpy).toHaveBeenCalledWith('Unhandled exception', err.stack, {
+      code: AuthErrorCode.INTERNAL_ERROR,
+      path: '/v1/staff',
+      method: 'POST',
+    });
   });
 
   it('logs stringified non-Error throws', async () => {
@@ -76,7 +117,7 @@ describe('ErrorInterceptor', () => {
     expect(loggerErrorSpy).toHaveBeenCalledWith(
       'Unhandled exception',
       'string error',
-      expect.any(Object),
+      expect.objectContaining({ code: AuthErrorCode.INTERNAL_ERROR }),
     );
   });
 
@@ -88,5 +129,6 @@ describe('ErrorInterceptor', () => {
     );
     await expect(lastValueFrom(result$)).resolves.toBe(payload);
     expect(loggerErrorSpy).not.toHaveBeenCalled();
+    expect(loggerWarnSpy).not.toHaveBeenCalled();
   });
 });
