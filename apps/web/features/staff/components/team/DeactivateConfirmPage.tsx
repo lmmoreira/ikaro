@@ -5,24 +5,13 @@ import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Ban } from 'lucide-react';
-import { StaffErrorCode, type ProblemDetail, type StaffResponse } from '@ikaro/types';
-import { ApiError, ForbiddenError } from '@/shared/lib/api/errors';
+import { StaffErrorCode, type StaffResponse } from '@ikaro/types';
 import { useDeactivateStaff } from '@/features/staff/hooks/useStaff';
 import { getInitials } from '@/shared/utils/initials';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-
-// ForbiddenError (403 — self-deactivation) and ApiError (409 — last active manager) are
-// unrelated classes, both now carrying the parsed response body via `.data` — mirrors
-// BookingForm.tsx's extractBookingSubmitErrorShape() for the same two-shape situation.
-function extractStaffErrorCode(err: unknown): string | undefined {
-  if (err instanceof ForbiddenError || err instanceof ApiError) {
-    return (err.data as ProblemDetail | undefined)?.code;
-  }
-  return undefined;
-}
 
 interface DeactivateConfirmPageProps {
   readonly staff: StaffResponse;
@@ -130,7 +119,7 @@ export function DeactivateConfirmPage({ staff }: DeactivateConfirmPageProps): Re
       await deactivateStaffMutation.mutateAsync(staff.id);
       router.push('/dashboard/team');
     } catch (err) {
-      const code = extractStaffErrorCode(err);
+      const code = extractProblemCode(err);
       setErrorCode(code);
       if (code === StaffErrorCode.SELF_DEACTIVATION) {
         setErrorState('self');

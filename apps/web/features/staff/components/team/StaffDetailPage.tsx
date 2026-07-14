@@ -4,14 +4,13 @@ import { useEffect, useState, type SubmitEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import type { ProblemDetail, StaffResponse, StaffRole } from '@ikaro/types';
-import { ApiError } from '@/shared/lib/api/errors';
+import type { StaffResponse, StaffRole } from '@ikaro/types';
 import { useUpdateStaff } from '@/features/staff/hooks/useStaff';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { RoleSelectorField } from '@/features/staff/components/team/RoleSelectorField';
-import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 interface StaffDetailPageProps {
@@ -86,9 +85,7 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
       });
       router.push('/dashboard/team');
     } catch (err) {
-      const code =
-        err instanceof ApiError ? (err.data as ProblemDetail | undefined)?.code : undefined;
-      setFieldErrors({ submit: resolveErrorMessage(code, locale) });
+      setFieldErrors({ submit: resolveErrorMessageFromApiError(err, locale) });
     } finally {
       setIsSubmittingLocal(false);
     }

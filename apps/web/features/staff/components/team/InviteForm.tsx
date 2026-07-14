@@ -4,15 +4,14 @@ import { useEffect, useState, type SubmitEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { StaffErrorCode, type ProblemDetail, type StaffRole } from '@ikaro/types';
-import { ApiError } from '@/shared/lib/api/errors';
+import { StaffErrorCode, type StaffRole } from '@ikaro/types';
 import { useInviteStaff } from '@/features/staff/hooks/useStaff';
 import { validateInviteForm, type InviteFormErrors } from '@/features/staff/invite-form';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { RoleSelectorField } from '@/features/staff/components/team/RoleSelectorField';
-import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 const INPUT_CLASS =
@@ -51,8 +50,7 @@ export function InviteForm(): React.JSX.Element {
       await inviteStaffMutation.mutateAsync(validation.normalized);
       router.push(`/dashboard/team?invited=${encodeURIComponent(validation.normalized.email)}`);
     } catch (err) {
-      const code =
-        err instanceof ApiError ? (err.data as ProblemDetail | undefined)?.code : undefined;
+      const code = extractProblemCode(err);
       if (code === StaffErrorCode.ALREADY_EXISTS) {
         setFieldErrors({ email: resolveErrorMessage(code, locale) });
         return;
