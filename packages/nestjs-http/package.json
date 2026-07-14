@@ -15,6 +15,7 @@
     "@nestjs/common": "^11.1.27"
   },
   "dependencies": {
+    "@ikaro/observability": "workspace:*",
     "@ikaro/types": "workspace:*"
   },
   "devDependencies": {
