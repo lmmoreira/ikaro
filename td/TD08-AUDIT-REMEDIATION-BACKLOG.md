@@ -118,11 +118,11 @@ Implement the **transactional outbox** pattern:
 5. Keep the `AggregateRoot.clearDomainEvents()` API — just route the flush into the outbox repo instead of the bus.
 
 #### Acceptance criteria
-- [ ] No use case, cron, or consumer calls `eventBus.publish()` directly outside the relay; all emit via the outbox written in the same transaction as their state change.
-- [ ] `record-loyalty-entries` writes `ServicePointsEarned` to the outbox inside the `markProcessed` transaction.
-- [ ] Relay publishes unsent rows and marks them; survives restart without duplicating (or duplicates are absorbed by consumer dedup).
-- [ ] Integration test: commit a state change, kill before relay runs, restart relay → event is delivered exactly once (see AUD-003).
-- [ ] Migration registered in `integration-global-setup.ts` in the same commit (per `CLAUDE.md §7`).
+- [x] No use case, cron, or consumer calls `eventBus.publish()` directly outside the relay; all emit via the outbox written in the same transaction as their state change.
+- [x] `record-loyalty-entries` (now `complete-booking-loyalty-effects`) writes `ServicePointsEarned` to the outbox inside the same transaction as its inbox mark.
+- [x] Relay publishes unsent rows and marks them; survives restart without duplicating (or duplicates are absorbed by consumer dedup).
+- [x] Integration test: commit a state change, kill before relay runs, restart relay → event is delivered exactly once (see AUD-003).
+- [x] Migration registered in `integration-global-setup.ts` in the same commit (per `CLAUDE.md §7`).
 
 #### Affected areas
 `shared/` (new outbox port + adapter + relay), every publishing use case, the cron jobs, `record-loyalty-entries`, new migration. This is the single highest-leverage change in the audit — it closes §4.1, §12.2, and §12.3 together.
@@ -195,9 +195,9 @@ Add integration tests (Testcontainers, real Postgres):
 5. **DLQ routing** after max attempts.
 
 #### Acceptance criteria
-- [ ] All five scenarios above have passing integration tests.
-- [ ] Tests fail against the *current* code (proving they catch the bug) and pass after AUD-001/002.
-- [ ] No `.skip`/`.only`, builders + in-memory doubles where applicable (`CLAUDE.md §7`).
+- [ ] All five scenarios above have passing integration tests — **4 of 5** (scenarios 1–4, see Implemented notes above); scenario 5 (DLQ routing) is out of TD24's scope, deferred to M17.
+- [ ] Tests fail against the *current* code (proving they catch the bug) and pass after AUD-001/002 — not independently re-verified retroactively; the tests exist and pass now.
+- [x] No `.skip`/`.only`, builders + in-memory doubles where applicable (`CLAUDE.md §7`) — verified across the referenced test files.
 
 #### Notes for the implementing agent
 These are the "write the test first" cases. Use unique inline tenant UUIDs for isolation (`CLAUDE.md §7`). For concurrency, real DB transactions are required — do not mock the repo.
@@ -228,9 +228,9 @@ Duplicate booking confirmations and daily reminders to customers/staff are a vis
 3. **Multi-recipient partial failure:** track per-recipient success so a retry only re-sends the failures (don't `Promise.all`-reject the whole batch and re-send all).
 
 #### Acceptance criteria
-- [ ] Re-running the reminder cron twice in a window produces no duplicate reminders (test).
-- [ ] Concurrent delivery of one notification event → at most one email per recipient.
-- [ ] Multi-recipient send with one failing recipient → on retry, only the failed recipient is re-emailed.
+- [x] Re-running the reminder cron twice in a window produces no duplicate reminders — via deterministic `dedup_key` + `shared.outbox`'s `UNIQUE` constraint, not a new sent-marker table as originally proposed (item 1, see Implemented notes above).
+- [x] Concurrent delivery of one notification event → at most one email per recipient — via `shared.inbox`'s atomic claim (item 2); proven against real Postgres in `send-booking-approved-notification.use-case.integration.spec.ts`.
+- [ ] Multi-recipient send with one failing recipient → on retry, only the failed recipient is re-emailed — **still open** (item 3, see Implemented notes above): `dispatchTemplatesToMany` remains all-or-nothing.
 
 #### Affected areas
 `booking-reminder.job.ts`, `admin-schedule-reminder.job.ts`, `base-notification.use-case.ts`, the dispatcher port/adapter, notification `processed_events` usage.

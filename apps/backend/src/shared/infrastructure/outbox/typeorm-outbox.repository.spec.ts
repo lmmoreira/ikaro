@@ -143,10 +143,13 @@ describe('TypeOrmOutboxRepository', () => {
       const deleted = await repo.deleteOldPublished(14, 100);
 
       expect(deleted).toBe(2);
-      expect(mockRepo.query).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM "shared"."outbox"'),
-        [14, 100],
-      );
+      const [sql, params] = mockRepo.query.mock.calls[0] as [string, unknown[]];
+      // Asserts the RETURNING clause is actually present — without it, `deleted` above would be
+      // wrong in production even though this mock (which returns canned rows regardless of the
+      // SQL sent) would still pass.
+      expect(sql).toContain('DELETE FROM "shared"."outbox"');
+      expect(sql).toContain('RETURNING "id"');
+      expect(params).toEqual([14, 100]);
     });
 
     it('returns 0 when nothing was deleted', async () => {

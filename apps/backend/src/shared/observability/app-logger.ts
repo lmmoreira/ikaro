@@ -1,8 +1,6 @@
-import { Injectable } from '@nestjs/common';
 import { BaseAppLogger, createLogVendorFormatter } from '@ikaro/observability';
 import { getRequestStore } from '../request/request-context';
 
-@Injectable()
 export class AppLogger extends BaseAppLogger {
   constructor(context?: string) {
     super(
