@@ -28,8 +28,12 @@ function getSecret(): Uint8Array {
 }
 
 async function verifySignedClaims(token: string): Promise<Record<string, unknown> | null> {
+  // getSecret() is called outside the try so a missing/misconfigured JWT_SECRET throws and
+  // propagates instead of being swallowed by the catch below and misread as an invalid token
+  // — a config error should crash loudly, not silently redirect every request to login.
+  const secret = getSecret();
   try {
-    const { payload } = await jwtVerify(token, getSecret(), { algorithms: ['HS256'] });
+    const { payload } = await jwtVerify(token, secret, { algorithms: ['HS256'] });
     // jose only rejects an expired exp — a token with no exp claim at all is treated as
     // non-expiring by default, so the absence must be checked explicitly here.
     if (typeof payload.exp !== 'number') return null;
