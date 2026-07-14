@@ -53,7 +53,7 @@ export function renderWithIntl(
   // directly) is what makes the returned `rerender()` keep the intl/formatting providers on a
   // subsequent render — `rerender(newUi)` only re-applies a manually-wrapped tree, it doesn't
   // re-wrap a bare element passed to it.
-  function Wrapper({ children }: { children: React.ReactNode }): React.JSX.Element {
+  function Wrapper({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
     return (
       <NextIntlClientProvider locale={locale} messages={resolvedMessages}>
         <FormattingProvider {...formatting}>{children}</FormattingProvider>
