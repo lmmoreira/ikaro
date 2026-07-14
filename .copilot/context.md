@@ -204,7 +204,7 @@ When SonarCloud is failing, treat the live issue list/quality gate as the only s
 - [ ] Matches cited UC's main + alt flows; CI passes (`pnpm lint`, `pnpm test`, `pnpm type-check`)
 - [ ] Coverage delta ≥ 80%; unit + integration + tenant-isolation tests pass
 - [ ] All queries filter `tenant_id`; all events include `tenantId`/`eventId`/`correlationId`
-- [ ] Migration is backward-compatible (expand/contract)
+- [ ] Migration is backward-compatible (expand/contract) — **pre-production exception:** squashing or editing an already-written migration (rewriting history instead of expand/contract) is allowed only if no real environment has ever run it. Verify this by checking `plan/M17-CLOUD-DEPLOY.md`'s go-live status before touching migration history — never assume "pre-production" without checking (TD24-S04 precedent: deleted a migration and trimmed another after confirming M17 go-live was still pending)
 - [ ] Conventional Commit + PR description links the UC
 - [ ] **If this story replaces or removes an existing flow/mechanism** (an auth pattern, a data model assumption, a transport layer, a dead endpoint), grep `docs/*.md`, `plan/*_IMPLEMENTATION_DETAILS_*.md`, and this file for anything still describing the *old* version — update or flag it in the same PR. A replaced flow with stale docs left behind means the next agent builds on a wrong assumption with no signal it's wrong (M13 alone left 18 such findings across 8 files, found only when the milestone closed out — don't defer this to milestone-end if the story itself is the one making the change)
 
