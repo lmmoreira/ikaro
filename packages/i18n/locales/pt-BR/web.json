@@ -804,7 +804,7 @@
         "addressStateInvalid": "UF inválida — use a sigla de 2 letras (ex: MG).",
         "addressZipCodeRequired": "Informe o CEP.",
         "addressZipCodeInvalid": "CEP inválido. Use o formato 00000-000.",
-        "renamePartialFailurePrefix": "As configurações foram salvas, mas não foi possível renomear o estabelecimento:"
+        "renamePartialFailure": "As configurações foram salvas, mas não foi possível renomear o estabelecimento: {reason}"
       }
     },
     "servicesPage": {

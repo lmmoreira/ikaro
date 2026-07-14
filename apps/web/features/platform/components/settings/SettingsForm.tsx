@@ -579,8 +579,10 @@ export function SettingsForm({
 
     // Settings and the tenant rename are two separate backend calls — if the rename fails
     // after settings already saved, the user must be told the truth (partial success), not
-    // a blanket "nothing was saved" message. The prefix carries that partial-success fact
-    // (which no error code could convey); the specific reason still comes from the catalog.
+    // a blanket "nothing was saved" message. The translation string carries that
+    // partial-success fact (which no error code could convey) around a `{reason}`
+    // placeholder — not string concatenation, which would hardcode word order and break in
+    // languages that need the dynamic text placed somewhere other than the end.
     if (normalized.name !== currentName) {
       try {
         await renameTenant({ name: normalized.name });
@@ -588,7 +590,9 @@ export function SettingsForm({
       } catch (err) {
         setSaved(true);
         setFieldErrors({
-          submit: `${t('errors.renamePartialFailurePrefix')} ${resolveErrorMessageFromApiError(err, locale)}`,
+          submit: t('errors.renamePartialFailure', {
+            reason: resolveErrorMessageFromApiError(err, locale),
+          }),
         });
         globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
         setIsSubmitting(false);

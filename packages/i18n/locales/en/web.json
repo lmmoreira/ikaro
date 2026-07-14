@@ -804,7 +804,7 @@
         "addressStateInvalid": "Invalid state — use the 2-letter code (e.g. MG).",
         "addressZipCodeRequired": "Enter the ZIP code.",
         "addressZipCodeInvalid": "Invalid ZIP code. Use the format 00000-000.",
-        "renamePartialFailurePrefix": "Settings were saved, but the business name could not be updated:"
+        "renamePartialFailure": "Settings were saved, but the business name could not be updated: {reason}"
       }
     },
     "servicesPage": {
