@@ -1,3 +1,3 @@
-export * from './base-error.interceptor';
+export * from './base-error.filter';
 export * from './canonical-parse-pipes';
 export * from './problem-detail';

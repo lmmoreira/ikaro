@@ -559,7 +559,7 @@ describe('StaffController (component)', () => {
       expect(guardOpts.headers['X-Correlation-ID']).toBe(correlationId);
     });
 
-    it('ErrorInterceptor converts unhandled errors to 500 with RFC 7807 body', async () => {
+    it('ErrorFilter converts unhandled errors to 500 with RFC 7807 body', async () => {
       setupActiveGuardMock(httpService);
       backendHttpService.get.mockRejectedValueOnce(new Error('unexpected'));
 
