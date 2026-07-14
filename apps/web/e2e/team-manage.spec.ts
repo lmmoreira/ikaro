@@ -51,7 +51,7 @@ test.describe('team member detail/edit flow', () => {
     await page.getByTestId('staff-detail-save-desktop').click();
 
     await expect(page.getByTestId('staff-detail-submit-error')).toHaveText(
-      'O estabelecimento precisa de pelo menos um gerente ativo.',
+      'Não é possível remover o último gerente ativo.',
     );
     await expect(page.url()).toContain('/dashboard/team/');
   });
