@@ -209,11 +209,11 @@ grep_into_tmp "$web_tsx_prod" \
   "from '(path|fs|os|crypto|stream|util|url|events)'"
 run_check "WEB-6. No bare Node.js built-in imports in web (use node: prefix)"
 
-# WEB-7. apps/web/lib/api/** type name collision with @ikaro/types
+# WEB-7. apps/web/features/**/api/** type name collision with @ikaro/types
 > "$TMP"
 ikaro_types_exports=$(grep -hoE "^export (interface|type) [A-Za-z]+" packages/types/src/*.ts 2>/dev/null \
   | awk '{print $3}' | sort -u || true)
-web_api_changed=$(echo "$ts_prod" | grep '^apps/web/lib/api/' || true)
+web_api_changed=$(echo "$ts_prod" | grep -E '^apps/web/features/.*/api(\.ts|/)' || true)
 while IFS= read -r f; do
   [ -z "$f" ] || [ ! -f "$f" ] && continue
   while IFS= read -r name; do
@@ -223,7 +223,7 @@ while IFS= read -r f; do
     fi
   done < <(grep -oE "^export (interface|type) [A-Za-z]+" "$f" 2>/dev/null | awk '{print $3}')
 done <<< "$web_api_changed"
-run_check "WEB-7. apps/web/lib/api/** type names checked against @ikaro/types"
+run_check "WEB-7. apps/web/features/**/api/** type names checked against @ikaro/types"
 
 # 27. No --ba-* CSS variables in dashboard/account components
 grep_into_tmp "$web_dashboard_tsx" '--ba-'

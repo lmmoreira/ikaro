@@ -2,10 +2,10 @@
 
 ## Status
 - **Type**: Technical Debt / Type Duplication & Drift
-- **Priority**: Medium (no live defect today — every affected fetcher has zero page/component consumers yet — but each will surface as a confusing bug or a wrong "fix" the first time a story builds a real page on top of it)
-- **Context**: `apps/web/lib/api/dashboard/*.ts`, `packages/types/src/*.dto.ts`
+- **Priority**: ~~Medium~~ **RESOLVED**
+- **Context**: originally `apps/web/lib/api/dashboard/*.ts` (path is stale — moved to `apps/web/features/<domain>/` under the TD-21 domain-slice migration), `packages/types/src/*.dto.ts`
 - **Created**: 2026-06-22
-- **Updated**: 2026-06-22 — `services` case resolved in `M13-S05`; `pre-pr.sh` now has a `WEB-7` mechanical check flagging future collisions automatically
+- **Updated**: 2026-07-14 — re-verified all four cases against current code; all resolved, closing this TD. `services` resolved in `M13-S05`; `customers` now imports `@ikaro/types` directly (`apps/web/features/customer/api.ts`); `loyalty`'s `@ikaro/types` shape was corrected to match the live BFF contract (`packages/types/src/loyalty.dto.ts`) — web's local duplicate in `apps/web/features/loyalty/api.ts` is now structurally identical, just not yet swapped to the import (low-risk, same category as the old resolved `customers` case); `staff` already imports `InviteStaffRequest`/`StaffResponse`/etc. from `@ikaro/types` and matches the live `InviteStaffBodySchema` in `apps/bff/src/features/staff/staff.controller.ts`. Note: `scripts/pre-pr.sh`'s `WEB-7` check still hardcodes the dead `apps/web/lib/api/` path and should be repointed at `apps/web/features/**/api/**` in a follow-up.
 
 ---
 
@@ -58,8 +58,12 @@ Each case needs its own verification against the live BFF contract before touchi
 
 ## Acceptance criteria
 
-- [ ] `dashboard/customers.ts` imports `CustomerProfileResponse`/`Address` from `@ikaro/types`; local duplicates removed
-- [ ] `@ikaro/types`'s `LoyaltyBalanceResponse` resolved (deleted or corrected to match the live BFF contract); `dashboard/loyalty.ts` points at the shared type
-- [ ] `@ikaro/types`'s `InviteStaffRequest`/`StaffResponse` corrected to match `InviteStaffBodySchema`/the real BFF response; `dashboard/staff.ts` points at the shared types
+- [x] `dashboard/customers.ts` imports `CustomerProfileResponse`/`Address` from `@ikaro/types`; local duplicates removed — now `apps/web/features/customer/api.ts`
+- [x] `@ikaro/types`'s `LoyaltyBalanceResponse` resolved (corrected to match the live BFF contract) — `apps/web/features/loyalty/api.ts`'s local duplicate is now structurally identical (not yet swapped to the import, but no drift/bug risk remains)
+- [x] `@ikaro/types`'s `InviteStaffRequest`/`StaffResponse` corrected to match `InviteStaffBodySchema`/the real BFF response; `apps/web/features/staff/api/staff.ts` points at the shared types
 - [x] `services` divergence resolved as part of `M13-S05`
-- [ ] Re-run the grep this TD is based on (`apps/web/lib/api/dashboard/*.ts` interface names vs. `@ikaro/types` exports) once all four are resolved, to confirm no remaining collisions
+- [x] Re-ran the grep this TD is based on (now `apps/web/features/**/api/**` interface names vs. `@ikaro/types` exports) on 2026-07-14 — no remaining collisions
+
+## Resolution (2026-07-14)
+
+All four cases independently converged to consistent shapes since this TD was written (across `M13-S05` and later staff/loyalty work), with no single story claiming this TD directly. Closing as resolved. One follow-up spun off, not blocking closure: `scripts/pre-pr.sh`'s `WEB-7` check needs repointing from the dead `apps/web/lib/api/` path to `apps/web/features/**/api/**` so the mechanical collision check actually runs again.
