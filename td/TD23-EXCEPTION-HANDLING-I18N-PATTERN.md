@@ -657,20 +657,21 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ### Wave 6 (continued) — Recommended follow-up
 
-#### Story 18 — Observability: wire `code` into OTel spans/structured logs (recommended, non-blocking)
+#### Story 18 — Observability: `error.code` in structured logs now, OTel span attribute deferred (recommended, non-blocking)
 
 **Scope:** `apps/backend/src/shared/observability/**`, `apps/bff/src/shared/observability/**` (or wherever OTel instrumentation currently lives in each app), the exception filters/interceptors that construct the final HTTP response in both apps.
 
+**Observability, scoped to what actually exists today (discovery, 2026-07-14):** no OTel SDK exists yet in this codebase — confirmed no `tracing.ts`/`NodeSDK`/`OTLPTraceExporter` anywhere in `apps/backend`/`apps/bff`; `@opentelemetry/api` is only used by `AppLogger` to opportunistically read `trace.getActiveSpan()` for log correlation, and nothing creates spans until `M17-S33` (OTel SDK bootstrap) lands — still pending. Same gap TD24-S05 hit for the outbox/inbox relay. So this story ships **`error.code` as a structured `AppLogger` log field** on every non-2xx response, backend and BFF. The original span-attribute criterion is deferred until `M17-S33` lands — note added to that story pointing back here.
+
 **Work required:**
-1. Attach `error.code` as a standard span attribute alongside the existing `tenant.id`/`user.id`/`correlation.id` attributes (per CLAUDE.md §2) whenever a `ProblemDetail` with a `code` is about to be returned.
-2. Include `error.code` in the structured server-side log line for every non-2xx response, backend and BFF.
-3. Do not attach `params` to spans/logs if any value could be tenant-sensitive (e.g. a raw `field` name is fine; avoid logging PII-shaped `params` values without checking first).
+1. Include `error.code` in the structured server-side log line for every non-2xx response, backend and BFF (via `AppLogger`'s existing structured-context mechanism — no new dependency).
+2. Do not attach `params` to logs if any value could be tenant-sensitive (e.g. a raw `field` name is fine; avoid logging PII-shaped `params` values without checking first).
 
 **Acceptance criteria:**
-- [ ] Every error response with a `code` produces a span/log entry carrying that code
+- [ ] Every error response with a `code` produces a structured log entry carrying that code
 - [ ] No sensitive `params` values are logged
 
-**DoD:** Purely additive observability — no behavior change to any HTTP response.
+**DoD:** Purely additive observability — no behavior change to any HTTP response. True OTel span attribute for `error.code` deferred to `M17-S33`.
 
 ---
 
