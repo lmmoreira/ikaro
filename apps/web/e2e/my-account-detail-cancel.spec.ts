@@ -105,7 +105,7 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
       .getByRole('button', { name: 'Confirmar cancelamento' })
       .click();
 
-    await expect(page.getByRole('alert')).toHaveText(
+    await expect(page.getByTestId('cancel-confirm-error')).toHaveText(
       'Não é possível alterar o status do agendamento para o status solicitado.',
     );
     await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel`);

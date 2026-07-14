@@ -96,7 +96,11 @@ export function CancelConfirmPage({
           </div>
 
           {errorMessage && (
-            <p role="alert" className="text-sm font-medium text-red-600">
+            <p
+              role="alert"
+              data-testid="cancel-confirm-error"
+              className="text-sm font-medium text-red-600"
+            >
               {errorMessage}
             </p>
           )}
