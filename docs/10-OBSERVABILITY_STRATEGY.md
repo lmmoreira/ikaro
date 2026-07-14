@@ -325,6 +325,12 @@ Additional fields are allowed (e.g. `bookingId`, `status`, `durationMs`) — the
 
 > **Not a WARN:** a customer trying to cancel outside the window, a guest submitting an invalid email — these are normal business flows. Log them as `INFO` with the outcome.
 
+**Gauge vs. event — decide which one a log line is before deciding whether to make it conditional (TD24-S05).** For a scheduled/cron-driven service reporting a numeric signal, ask which shape it is:
+- **Gauge** (a value that's meaningful at every sample, including zero — e.g. "how many unpublished rows are waiting right now," "current queue depth"): log it **unconditionally, every tick**, even when the value is 0. A gauge with gaps whenever things are healthy can't be told apart from "the sweep silently stopped running." `OutboxRelayService`'s unpublished-backlog log follows this — see `td/TD24-OUTBOX-INBOX-PATTERN.md` S05.
+- **Event/counter** (something either happened or didn't — e.g. "N rows were garbage-collected," "M publishes failed this tick"): log it **only when non-zero**. Suppressing the zero case here loses nothing, since "nothing happened" isn't itself a signal worth a log line every tick.
+
+Don't default to "make it conditional to reduce noise" without first classifying which of the two a given signal actually is — for a gauge, that default is wrong.
+
 ### Logger Service
 
 ```typescript
@@ -820,6 +826,8 @@ export class HealthController {
   }
 }
 ```
+
+**`AppLogger` is never DI-injected — always `new AppLogger(ClassName.name)` as a field initializer, in every class that logs.** `AppLogger`/`BaseAppLogger` carry no `@Injectable()` (removed in TD24-S05 once confirmed dead in both apps) precisely because the constructor's `context` argument needs to be *this specific class's own name*, which NestJS's DI container can't parameterize per-consumer without a dedicated factory provider for every single class. This mirrors `@nestjs/common`'s own built-in `Logger`, which uses the identical `new Logger(context)` pattern. Don't add `@Injectable()` back or attempt constructor injection for a new logger-like utility class for the same reason.
 
 **BFF** (chained to the backend's own `/health/ready` — so a backend DB blip correctly surfaces as the
 BFF not being ready either, since neither can serve a real request while it lasts):
