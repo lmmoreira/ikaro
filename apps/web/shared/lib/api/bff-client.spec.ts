@@ -24,6 +24,16 @@ describe('response interceptor — error mapping', () => {
     await expect(bffClient.get('/secure')).rejects.toBeInstanceOf(ForbiddenError);
   });
 
+  it('carries the response body on ForbiddenError.data', async () => {
+    mock.onGet('/secure').reply(403, { detail: 'Forbidden', code: 'STAFF_SELF_DEACTIVATION' });
+    const err = await bffClient.get('/secure').catch((e) => e);
+    expect(err).toBeInstanceOf(ForbiddenError);
+    expect((err as ForbiddenError).data).toEqual({
+      detail: 'Forbidden',
+      code: 'STAFF_SELF_DEACTIVATION',
+    });
+  });
+
   it('maps 422 to ApiError with correct status and detail', async () => {
     mock.onGet('/data').reply(422, { detail: 'Unprocessable' });
     const err = await bffClient.get('/data').catch((e) => e);

@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resolveErrorMessage } from './resolve-error-message';
+import { ApiError, ForbiddenError } from '@/shared/lib/api/errors';
+import {
+  extractProblemCode,
+  resolveErrorMessage,
+  resolveErrorMessageFromApiError,
+} from './resolve-error-message';
 
 vi.mock('@ikaro/i18n/locales/en/errors.json', () => ({
   default: {
@@ -74,5 +79,51 @@ describe('resolveErrorMessage', () => {
     vi.stubEnv('NODE_ENV', 'production');
     resolveErrorMessage('TEST_WITH_PARAM', 'en', {});
     expect(warnSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('extractProblemCode', () => {
+  it('extracts code from ApiError.data', () => {
+    const err = new ApiError(409, 'Conflict', { code: 'STAFF_ALREADY_EXISTS' });
+    expect(extractProblemCode(err)).toBe('STAFF_ALREADY_EXISTS');
+  });
+
+  it('extracts code from ForbiddenError.data', () => {
+    const err = new ForbiddenError('Forbidden', { code: 'STAFF_SELF_DEACTIVATION' });
+    expect(extractProblemCode(err)).toBe('STAFF_SELF_DEACTIVATION');
+  });
+
+  it('returns undefined when ApiError has no data', () => {
+    expect(extractProblemCode(new ApiError(500, 'Internal server error'))).toBeUndefined();
+  });
+
+  it('returns undefined for an error class with no parsed body', () => {
+    expect(extractProblemCode(new Error('network down'))).toBeUndefined();
+  });
+});
+
+describe('resolveErrorMessageFromApiError', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('resolves the message for an ApiError carrying a code', () => {
+    const err = new ApiError(409, 'Conflict', { code: 'TEST_NO_PARAM' });
+    expect(resolveErrorMessageFromApiError(err, 'pt-BR')).toBe('Uma mensagem estática.');
+  });
+
+  it('resolves the message for a ForbiddenError carrying a code', () => {
+    const err = new ForbiddenError('Forbidden', { code: 'TEST_NO_PARAM' });
+    expect(resolveErrorMessageFromApiError(err, 'pt-BR')).toBe('Uma mensagem estática.');
+  });
+
+  it('falls back to the generic message for a plain Error', () => {
+    expect(resolveErrorMessageFromApiError(new Error('network down'), 'pt-BR')).toBe(
+      'Algo deu errado. Tente novamente.',
+    );
   });
 });

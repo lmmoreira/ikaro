@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { StaffResponse, StaffRole } from '@ikaro/types';
-import { ApiError } from '@/shared/lib/api/errors';
 import { useUpdateStaff } from '@/features/staff/hooks/useStaff';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { RoleSelectorField } from '@/features/staff/components/team/RoleSelectorField';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 interface StaffDetailPageProps {
   readonly staff: StaffResponse;
@@ -28,6 +29,7 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
   const t = useTranslations('dashboard.teamPage');
   const commonT = useTranslations('common');
   const dashboardT = useTranslations('dashboard');
+  const locale = useResolvedLocale();
   const router = useRouter();
   const updateStaffMutation = useUpdateStaff();
   const topbarStatus = useDashboardTopbarStatus();
@@ -83,12 +85,7 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
       });
       router.push('/dashboard/team');
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setFieldErrors({ submit: t('updateLastManagerError') });
-        return;
-      }
-
-      setFieldErrors({ submit: t('updateFailed') });
+      setFieldErrors({ submit: resolveErrorMessageFromApiError(err, locale) });
     } finally {
       setIsSubmittingLocal(false);
     }

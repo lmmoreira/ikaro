@@ -60,8 +60,10 @@ describe('DeactivateConfirmPage', () => {
     expect(routerPush).toHaveBeenCalledWith('/dashboard/team');
   });
 
-  it('shows the self-deactivation error screen on 403', async () => {
-    mockDeactivateStaff.mockRejectedValue(new ForbiddenError('Cannot deactivate self'));
+  it('shows the self-deactivation error screen based on the response code', async () => {
+    mockDeactivateStaff.mockRejectedValue(
+      new ForbiddenError('Cannot deactivate self', { code: 'STAFF_SELF_DEACTIVATION' }),
+    );
     renderWithIntl(<DeactivateConfirmPage staff={STAFF} />);
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Confirmar desativação' })[0]);
@@ -72,27 +74,27 @@ describe('DeactivateConfirmPage', () => {
     expect(routerPush).not.toHaveBeenCalled();
   });
 
-  it('shows the last-active-manager error screen on 409', async () => {
-    mockDeactivateStaff.mockRejectedValue(new ApiError(409, 'Last active manager'));
+  it('shows the last-active-manager error screen based on the response code', async () => {
+    mockDeactivateStaff.mockRejectedValue(
+      new ApiError(409, 'Last active manager', { code: 'STAFF_LAST_ACTIVE_MANAGER' }),
+    );
     renderWithIntl(<DeactivateConfirmPage staff={STAFF} />);
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Confirmar desativação' })[0]);
 
     expect(
-      await screen.findByText('O estabelecimento precisa de pelo menos um gerente ativo.'),
+      await screen.findByText('Não é possível remover o último gerente ativo.'),
     ).toBeInTheDocument();
     expect(routerPush).not.toHaveBeenCalled();
   });
 
-  it('shows a generic inline error on an unexpected failure and keeps the form visible', async () => {
+  it('shows a generic inline fallback error for a failure with no recognizable code, keeping the form visible', async () => {
     mockDeactivateStaff.mockRejectedValue(new Error('network error'));
     renderWithIntl(<DeactivateConfirmPage staff={STAFF} />);
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Confirmar desativação' })[0]);
 
-    expect(
-      await screen.findByText('Não foi possível desativar. Tente novamente.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
     expect(screen.getByText('Rafael Costa')).toBeInTheDocument();
   });
 

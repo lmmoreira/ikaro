@@ -32,14 +32,21 @@ export async function getHotsiteCustomerProfile(
   }
 }
 
+// Mirrors the canonical `ValidationViolation` shape (`@ikaro/types`'s errors.dto.ts) — the BFF's
+// ZodValidationPipe never sends a per-violation `message`, only `field`/`code`/`params`. Kept as
+// a local interface (not an import) so this file doesn't pull in the NestJS-adjacent errors.dto
+// barrel from a `platform/hotsite` client module.
 export interface UpdateCustomerProfileViolation {
   readonly field: string;
-  readonly message: string;
+  readonly code: string;
+  readonly params?: Record<string, string | number>;
 }
 
 export class UpdateHotsiteCustomerProfileError extends Error {
   constructor(
     public readonly status: number,
+    public readonly code?: string,
+    public readonly field?: string,
     public readonly violations: readonly UpdateCustomerProfileViolation[] = [],
   ) {
     super('Failed to update customer profile');
@@ -62,10 +69,21 @@ export async function updateHotsiteCustomerProfile(
   });
 
   if (!res.ok) {
-    const violations = (await res.json().catch(() => null)) as {
+    // Two distinct error shapes can arrive here: a top-level `code`/`field` from a backend
+    // domain/VO validation failure (e.g. CustomerAddressValidationError, field: 'contactAddress'),
+    // or a `violations[]` array from the BFF's Zod required-field checks. Both are read — a
+    // single-cause failure never populates `violations`, and vice versa.
+    const parsed = (await res.json().catch(() => null)) as {
+      code?: string;
+      field?: string;
       violations?: UpdateCustomerProfileViolation[];
     } | null;
-    throw new UpdateHotsiteCustomerProfileError(res.status, violations?.violations ?? []);
+    throw new UpdateHotsiteCustomerProfileError(
+      res.status,
+      parsed?.code,
+      parsed?.field,
+      parsed?.violations ?? [],
+    );
   }
 
   return (await res.json()) as CustomerProfileResponse;

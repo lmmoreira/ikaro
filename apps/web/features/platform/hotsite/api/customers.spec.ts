@@ -124,12 +124,32 @@ describe('updateHotsiteCustomerProfile', () => {
     });
   });
 
-  it('throws UpdateHotsiteCustomerProfileError with the status and violations on failure', async () => {
-    const violations = [{ field: 'phone', message: 'phone must be in E.164 format' }];
+  it('throws UpdateHotsiteCustomerProfileError with the status and violations on a Zod field failure', async () => {
+    const violations = [{ field: 'phone', code: 'PHONE_FORMAT_INVALID' }];
     fetchSpy.mockResolvedValue(new Response(JSON.stringify({ violations }), { status: 400 }));
 
     await expect(
       updateHotsiteCustomerProfile('lavacar-beloauto', { phone: 'bad', defaultAddress: address }),
-    ).rejects.toMatchObject(new UpdateHotsiteCustomerProfileError(400, violations));
+    ).rejects.toMatchObject(
+      new UpdateHotsiteCustomerProfileError(400, undefined, undefined, violations),
+    );
+  });
+
+  it('throws UpdateHotsiteCustomerProfileError with the top-level code/field on a backend domain validation failure', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({ code: 'ADDRESS_POSTAL_CODE_INVALID', field: 'contactAddress' }),
+        { status: 400 },
+      ),
+    );
+
+    await expect(
+      updateHotsiteCustomerProfile('lavacar-beloauto', {
+        phone: '+5511999999999',
+        defaultAddress: address,
+      }),
+    ).rejects.toMatchObject(
+      new UpdateHotsiteCustomerProfileError(400, 'ADDRESS_POSTAL_CODE_INVALID', 'contactAddress'),
+    );
   });
 });

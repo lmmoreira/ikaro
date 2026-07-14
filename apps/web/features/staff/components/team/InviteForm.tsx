@@ -4,14 +4,15 @@ import { useEffect, useState, type SubmitEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import type { StaffRole } from '@ikaro/types';
-import { ApiError } from '@/shared/lib/api/errors';
+import { StaffErrorCode, type StaffRole } from '@ikaro/types';
 import { useInviteStaff } from '@/features/staff/hooks/useStaff';
 import { validateInviteForm, type InviteFormErrors } from '@/features/staff/invite-form';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { RoleSelectorField } from '@/features/staff/components/team/RoleSelectorField';
+import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 const INPUT_CLASS =
   'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50';
@@ -19,6 +20,7 @@ const INPUT_CLASS =
 export function InviteForm(): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
   const commonT = useTranslations('common');
+  const locale = useResolvedLocale();
   const router = useRouter();
   const inviteStaffMutation = useInviteStaff();
   const topbarStatus = useDashboardTopbarStatus();
@@ -48,12 +50,13 @@ export function InviteForm(): React.JSX.Element {
       await inviteStaffMutation.mutateAsync(validation.normalized);
       router.push(`/dashboard/team?invited=${encodeURIComponent(validation.normalized.email)}`);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setFieldErrors({ email: t('inviteDuplicateEmail') });
+      const code = extractProblemCode(err);
+      if (code === StaffErrorCode.ALREADY_EXISTS) {
+        setFieldErrors({ email: resolveErrorMessage(code, locale) });
         return;
       }
 
-      setFieldErrors({ submit: t('inviteFailed') });
+      setFieldErrors({ submit: resolveErrorMessage(code, locale) });
     } finally {
       setIsSubmittingLocal(false);
     }

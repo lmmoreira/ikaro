@@ -23,6 +23,8 @@ import {
 } from '@/features/platform/hotsite/api/customers';
 import { AddressFields } from '@/features/booking/components/public/AddressFields';
 import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
+import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 interface InformationCompletionPromptProps {
   readonly slug: string;
@@ -38,6 +40,7 @@ export function InformationCompletionPrompt({
   addressSpec,
 }: InformationCompletionPromptProps): React.JSX.Element | null {
   const t = useTranslations('auth');
+  const locale = useResolvedLocale();
   const [state, setState] = useState<PromptState>('loading');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState<Address>(emptyAddress());
@@ -98,23 +101,22 @@ export function InformationCompletionPrompt({
       setState('hidden');
     } catch (err) {
       if (err instanceof UpdateHotsiteCustomerProfileError) {
-        const fields = err.violations.map((v) => v.field);
-        if (fields.includes('phone')) {
-          setError(t('informationCompletionPhoneError'));
+        const phoneViolation = err.violations.find((v) => v.field === 'phone');
+        if (err.field === 'phone' || phoneViolation) {
+          setError(resolveErrorMessage(phoneViolation?.code ?? err.code, locale));
         } else if (err.status === 400) {
-          // Either a structured defaultAddress.* Zod violation, or a deeper backend domain
-          // validation error (e.g. the Address VO's country-specific postal/state regex)
-          // that never produces a `violations` entry at all. Both are address issues from
-          // the customer's perspective — address is the only other field on this form, so
-          // any non-phone 400 is treated as one rather than falling through to a dead-end
-          // generic message.
+          // Either a top-level code from a backend domain/VO address validation failure
+          // (CustomerAddressValidationError), or a structured defaultAddress.* Zod violation.
+          // Both are address issues from the customer's perspective — address is the only
+          // other field on this form, so any non-phone 400 is treated as one rather than
+          // falling through to a dead-end generic message.
           setShowAddressErrors(true);
-          setError(t('informationCompletionAddressError'));
+          setError(resolveErrorMessage(err.code ?? err.violations[0]?.code, locale));
         } else {
-          setError(t('informationCompletionGenericError'));
+          setError(resolveErrorMessage(undefined, locale));
         }
       } else {
-        setError(t('informationCompletionGenericError'));
+        setError(resolveErrorMessage(undefined, locale));
       }
     } finally {
       setSubmitting(false);

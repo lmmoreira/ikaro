@@ -110,9 +110,11 @@ describe('StaffDetailPage', () => {
     expect(routerPush).toHaveBeenCalledWith('/dashboard/team');
   });
 
-  it('shows the last-active-manager error inline on 409', async () => {
+  it('shows the last-active-manager error inline based on the response code', async () => {
     const user = userEvent.setup();
-    mockUpdateStaff.mockRejectedValue(new ApiError(409, 'Conflict', {}));
+    mockUpdateStaff.mockRejectedValue(
+      new ApiError(409, 'Conflict', { code: 'STAFF_LAST_ACTIVE_MANAGER' }),
+    );
 
     renderWithIntl(<StaffDetailPage staff={STAFF} />);
 
@@ -120,12 +122,12 @@ describe('StaffDetailPage', () => {
     await user.click(getPrimarySaveButton());
 
     expect(
-      await screen.findByText('O estabelecimento precisa de pelo menos um gerente ativo.'),
+      await screen.findByText('Não é possível remover o último gerente ativo.'),
     ).toBeInTheDocument();
     expect(routerPush).not.toHaveBeenCalled();
   });
 
-  it('shows a generic error for non-409 failures', async () => {
+  it('shows a generic fallback error for a failure with no recognizable code', async () => {
     const user = userEvent.setup();
     mockUpdateStaff.mockRejectedValue(new Error('network down'));
 
@@ -133,9 +135,7 @@ describe('StaffDetailPage', () => {
 
     await user.click(getPrimarySaveButton());
 
-    expect(
-      await screen.findByText('Não foi possível salvar as alterações. Tente novamente.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
   });
 
   it('links Cancelar to the team list on both desktop and mobile action bars', () => {

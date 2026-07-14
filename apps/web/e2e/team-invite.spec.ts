@@ -62,7 +62,7 @@ test.describe('team invite flow', () => {
     await page.getByRole('button', { name: 'Enviar convite' }).click();
 
     await expect(page.getByTestId('invite-email-error')).toHaveText(
-      'Este e-mail já está cadastrado na sua equipe.',
+      'Já existe um membro da equipe com este e-mail neste estabelecimento.',
     );
   });
 

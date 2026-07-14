@@ -103,7 +103,9 @@ describe('InviteForm', () => {
 
   it('shows the duplicate-email error inline and preserves the other fields', async () => {
     const user = userEvent.setup();
-    mockInviteStaff.mockRejectedValue(new ApiError(409, 'Conflict', {}));
+    mockInviteStaff.mockRejectedValue(
+      new ApiError(409, 'Conflict', { code: 'STAFF_ALREADY_EXISTS' }),
+    );
 
     renderWithIntl(<InviteForm />);
 
@@ -113,7 +115,9 @@ describe('InviteForm', () => {
     await user.click(getPrimarySubmitButton());
 
     expect(
-      await screen.findByText('Este e-mail já está cadastrado na sua equipe.'),
+      await screen.findByText(
+        'Já existe um membro da equipe com este e-mail neste estabelecimento.',
+      ),
     ).toBeInTheDocument();
     expect(screen.getByLabelText('E-mail *')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText('Nome *')).toHaveValue('Maria');
@@ -121,7 +125,7 @@ describe('InviteForm', () => {
     expect(routerPush).not.toHaveBeenCalled();
   });
 
-  it('shows a generic error for non-409 failures', async () => {
+  it('shows a generic fallback error for a failure with no recognizable code', async () => {
     const user = userEvent.setup();
     mockInviteStaff.mockRejectedValue(new Error('network down'));
 
@@ -132,9 +136,7 @@ describe('InviteForm', () => {
     await user.type(screen.getByLabelText('E-mail *'), 'maria.oliveira@gmail.com');
     await user.click(getPrimarySubmitButton());
 
-    expect(
-      await screen.findByText('Não foi possível enviar o convite. Tente novamente.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
   });
 
   it('links Cancelar to the team list on both desktop and mobile action bars', () => {
