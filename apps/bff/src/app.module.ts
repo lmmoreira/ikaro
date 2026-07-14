@@ -13,7 +13,6 @@ import { PlatformModule } from './features/platform/platform.module';
 import { ScheduleModule } from './features/booking/schedule.module';
 import { BookingServicesModule } from './features/booking/services.module';
 import { StaffModule } from './features/staff/staff.module';
-import { UploadsModule } from './features/uploads/uploads.module';
 import { ActiveStaffGuard } from './shared/guards/active-staff.guard';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
 import { TenantGuard } from './shared/guards/tenant.guard';
@@ -45,7 +44,6 @@ import { ErrorInterceptor } from './shared/interceptors/error.interceptor';
     ScheduleModule,
     BookingServicesModule,
     StaffModule,
-    UploadsModule,
   ],
   controllers: [HealthController],
   providers: [

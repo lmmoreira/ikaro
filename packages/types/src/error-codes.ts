@@ -1,4 +1,4 @@
-// Empty per-origin catalogs — populated context-by-context in Wave 2/3/4 of TD23.
+// One per-origin catalog per bounded context / cross-cutting concern (TD23).
 // Each union, not just the object, is what error base-class constructors type their
 // `code` param against (TD23 §9) — a code outside its origin's union is a compile error.
 
