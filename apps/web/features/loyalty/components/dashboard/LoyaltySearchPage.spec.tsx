@@ -3,6 +3,7 @@ import { renderWithIntl } from '@/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '@/shared/lib/api/errors';
 import { LoyaltySearchPage } from './LoyaltySearchPage';
 
 const searchCustomers = vi.hoisted(() => vi.fn());
@@ -93,5 +94,23 @@ describe('LoyaltySearchPage', () => {
     await user.type(screen.getByRole('searchbox'), 'xyz');
 
     expect(await screen.findByText('Nenhum cliente encontrado')).toBeInTheDocument();
+  });
+
+  it('shows a generic fallback error message for a search failure with no recognizable code', async () => {
+    searchCustomers.mockRejectedValue(new Error('network error'));
+
+    renderWithIntl(<LoyaltySearchPage />);
+
+    expect(await screen.findByText('Não foi possível carregar os clientes')).toBeInTheDocument();
+    expect(screen.getByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
+  });
+
+  it('shows the specific translated message for a search failure with a known code', async () => {
+    searchCustomers.mockRejectedValue(new ApiError(403, 'Forbidden', { code: 'AUTH_FORBIDDEN' }));
+
+    renderWithIntl(<LoyaltySearchPage />);
+
+    expect(await screen.findByText('Não foi possível carregar os clientes')).toBeInTheDocument();
+    expect(screen.getByText('Você não tem permissão para realizar esta ação.')).toBeInTheDocument();
   });
 });

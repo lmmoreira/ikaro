@@ -614,11 +614,23 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 #### Story 16 — Platform/hotsite + Loyalty feature migration
 
-**Scope:** `apps/web/features/platform/**`, `apps/web/features/loyalty/**`, remaining dashboard/hotsite shell sites.
+**Scope:** `apps/web/features/customer/components/my-account/CancelConfirmPage.tsx`, `apps/web/app/bookings/[id]/submit-info/page.tsx` (the 2 remaining BLIND sites), plus the ~20 SAFE hotsite/loyalty sites (`apps/web/features/platform/components/**`, `apps/web/features/loyalty/components/**`) upgraded to code-based specificity per Story 16 discovery's scope decision (see below) — originally optional/opportunistic, promoted to required scope for this story.
 
-**Work required:** migrate remaining BLIND sites found in the inventory (`CancelConfirmPage.tsx`, `app/bookings/[id]/submit-info/page.tsx`, hotsite editor/settings error paths where a specific code is now available) to `code`-based messaging. Sites already classified SAFE (bare-catch, generic fallback, no leak) are lower priority — migrate opportunistically, not required for this TD's DoD.
+**Work required:**
+1. `CancelConfirmPage.tsx` — **real bug fix**: `cancel-booking-as-customer.use-case.ts` can throw either `CancellationWindowExpiredError` (`BOOKING_CANCELLATION_WINDOW_EXPIRED`) or `InvalidBookingTransitionError` (`BOOKING_INVALID_TRANSITION`, e.g. booking already COMPLETED/REJECTED/CANCELLED) — both map to HTTP 422. The component currently redirects to the deadline-explanation `/cancel/error` page on *any* 422, mis-routing the invalid-transition case with a fabricated deadline. Branch on `err.code === BookingErrorCode.CANCELLATION_WINDOW_EXPIRED` specifically; every other failure shows an inline message via `resolveErrorMessageFromApiError(err, locale)` (replacing the static `genericError` key). Add an E2E test proving the invalid-transition case no longer redirects.
+2. `app/bookings/[id]/submit-info/page.tsx` — branch on `err.code === BffErrorCode.GUEST_BOOKING_NOT_AWAITING_INFO` instead of `err.status === 409` (defensive correctness; only one 409 cause exists today at this endpoint, so no live bug, but consistent with the pattern).
+3. The ~20 SAFE hotsite/loyalty sites — currently bare `catch {}`/`isError` with a fixed generic message, no specificity attempted. Refactor each to bind the error, extract `code` via `extractProblemCode`/`resolveErrorMessageFromApiError`, and show the specific catalog message where a code exists — same "message text always via the resolver, UI chrome stays component-owned" rule established in Story 15. Exact file list and per-file shape to be confirmed during implementation (some may already delegate to a shared mutation hook and need no change).
 
-**Acceptance criteria:** no remaining BLIND site in booking/customer/staff/platform/loyalty for which a specific backend `code` exists but isn't used.
+**Acceptance criteria:**
+- [ ] `CancelConfirmPage.tsx` only redirects to `/cancel/error` for `BOOKING_CANCELLATION_WINDOW_EXPIRED`; any other failure (incl. `BOOKING_INVALID_TRANSITION`) shows an inline, correctly specific message
+- [ ] New E2E test proves an already-completed/rejected booking's cancel attempt shows an inline error, not the deadline page
+- [ ] `submit-info/page.tsx` branches on `BffErrorCode.GUEST_BOOKING_NOT_AWAITING_INFO`, not `status`
+- [ ] No remaining BLIND or SAFE-but-code-available site in booking/customer/staff/platform/loyalty for which a specific backend `code` exists but isn't used
+
+**Decided during Story 16 discovery:**
+- The story's original Scope line named `platform/**`/`loyalty/**` generically but its own Work-required/AC text pointed at `CancelConfirmPage.tsx`/`submit-info/page.tsx` (customer/booking, not platform/loyalty) — corrected here to match what the AC actually requires.
+- The ~20 SAFE hotsite/loyalty sites were originally scoped as optional/opportunistic (not required for this TD's DoD). Promoted to required scope for this story per explicit user decision — "fix everything... solid and good solutions," not a partial pass.
+- The `CancelConfirmPage.tsx` mis-routing is a real bug (same precedent as Stories 5/6/11/15's bundled fixes), fixed here rather than filed separately.
 
 ---
 

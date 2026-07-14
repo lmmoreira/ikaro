@@ -331,8 +331,7 @@
       "confirmButton": "Confirm cancellation",
       "confirming": "Cancelling...",
       "backButton": "Back",
-      "backToBooking": "Booking",
-      "genericError": "Couldn't cancel the booking. Please try again."
+      "backToBooking": "Booking"
     },
     "cancelError": {
       "title": "Cancellation window closed",
@@ -433,10 +432,8 @@
       "unpublishedHint": "Unpublished changes are only visible in Preview — the public hotsite still shows the previous version.",
       "publishSuccessTitle": "Hotsite updated and live!",
       "publishSuccessBody": "The changes are already visible to anyone visiting @{slug}.",
-      "publishError": "Could not publish the changes. Please try again.",
       "unpublishSuccessTitle": "Hotsite offline",
       "unpublishSuccessBody": "The hotsite @{slug} is no longer publicly accessible. Visitors to the address will see a maintenance page.",
-      "unpublishError": "Could not unpublish the hotsite. Please try again.",
       "previewView": {
         "pageTitle": "Preview",
         "backLabel": "Back to editing",
@@ -807,8 +804,7 @@
         "addressStateInvalid": "Invalid state — use the 2-letter code (e.g. MG).",
         "addressZipCodeRequired": "Enter the ZIP code.",
         "addressZipCodeInvalid": "Invalid ZIP code. Use the format 00000-000.",
-        "submitFailed": "Could not save the settings. Please try again.",
-        "renamePartialFailure": "Settings were saved, but the business name could not be updated. Please try again."
+        "renamePartialFailure": "Settings were saved, but the business name could not be updated: {reason}"
       }
     },
     "servicesPage": {
@@ -1102,7 +1098,6 @@
       "noResultsTitle": "No customers found",
       "noResultsBody": "Check the name or email and try again.",
       "searchErrorTitle": "Could not load customers",
-      "searchErrorBody": "Try again in a few moments.",
       "pointsBadge": "{count, plural, one {# pt} other {# pts}}",
       "balanceLabelActive": "active points",
       "balanceLabelEmpty": "accumulated points",

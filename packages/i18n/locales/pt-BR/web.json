@@ -331,8 +331,7 @@
       "confirmButton": "Confirmar cancelamento",
       "confirming": "Cancelando...",
       "backButton": "Voltar",
-      "backToBooking": "Agendamento",
-      "genericError": "Não foi possível cancelar o agendamento. Tente novamente."
+      "backToBooking": "Agendamento"
     },
     "cancelError": {
       "title": "Cancelamento fora do prazo",
@@ -433,10 +432,8 @@
       "unpublishedHint": "Alterações não publicadas só são visíveis no Preview — o hotsite público continua mostrando a versão anterior.",
       "publishSuccessTitle": "Hotsite atualizado e no ar!",
       "publishSuccessBody": "As alterações já estão visíveis para quem acessar @{slug}.",
-      "publishError": "Não foi possível publicar as alterações. Tente novamente.",
       "unpublishSuccessTitle": "Hotsite offline",
       "unpublishSuccessBody": "O hotsite @{slug} não está mais acessível ao público. Clientes que acessarem o endereço verão uma página de manutenção.",
-      "unpublishError": "Não foi possível despublicar o hotsite. Tente novamente.",
       "previewView": {
         "pageTitle": "Preview",
         "backLabel": "Voltar a editar",
@@ -807,8 +804,7 @@
         "addressStateInvalid": "UF inválida — use a sigla de 2 letras (ex: MG).",
         "addressZipCodeRequired": "Informe o CEP.",
         "addressZipCodeInvalid": "CEP inválido. Use o formato 00000-000.",
-        "submitFailed": "Não foi possível salvar as configurações. Tente novamente.",
-        "renamePartialFailure": "As configurações foram salvas, mas não foi possível renomear o estabelecimento. Tente novamente."
+        "renamePartialFailure": "As configurações foram salvas, mas não foi possível renomear o estabelecimento: {reason}"
       }
     },
     "servicesPage": {
@@ -1102,7 +1098,6 @@
       "noResultsTitle": "Nenhum cliente encontrado",
       "noResultsBody": "Verifique o nome ou e-mail e tente novamente.",
       "searchErrorTitle": "Não foi possível carregar os clientes",
-      "searchErrorBody": "Tente novamente em alguns instantes.",
       "pointsBadge": "{count, plural, one {# pt} other {# pts}}",
       "balanceLabelActive": "pontos ativos",
       "balanceLabelEmpty": "pontos acumulados",

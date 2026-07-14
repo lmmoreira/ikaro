@@ -11,6 +11,8 @@ import {
   isTmpImagePath,
   resolveHotsiteImageDisplayUrl,
 } from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 export type HotsiteImagePurpose =
   'branding' | 'hero' | 'gallery' | 'about' | 'booking-cta' | 'testimonials';
@@ -54,7 +56,9 @@ export function SingleImageUploadField({
   uploadErrorLabel,
   removeLabel,
 }: SingleImageUploadFieldProps): React.JSX.Element {
+  const locale = useResolvedLocale();
   const [status, setStatus] = useState<UploadStatus>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>(uploadErrorLabel);
   // uploadFileToSignedUrl resolves to a bucket-relative storage path, not a displayable URL —
   // only a GET response's resolved *Url field is a full URL. Preview a freshly-selected file
   // from a local blob URL instead.
@@ -97,7 +101,13 @@ export function SingleImageUploadField({
       );
       onChange(filePath);
       setStatus('idle');
-    } catch {
+    } catch (err) {
+      // A backend/BFF-originated code (e.g. the signed-url request being rejected) gets the
+      // specific catalog message; a cloud-storage PUT failure or client-side validation error
+      // carries no code, so the caller's own contextual label is a better fallback than the
+      // resolver's fully generic one.
+      const code = extractProblemCode(err);
+      setErrorMessage(code ? resolveErrorMessage(code, locale) : uploadErrorLabel);
       setStatus('error');
       setPreviewUrl(null);
       URL.revokeObjectURL(localPreviewUrl);
@@ -180,7 +190,7 @@ export function SingleImageUploadField({
           data-field-id={id}
           className="mt-1.5 text-sm text-red-600"
         >
-          {uploadErrorLabel}
+          {errorMessage}
         </p>
       )}
 

@@ -8,6 +8,7 @@ import {
   generateHotsiteImageReadSignedUrl,
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
+import { ApiError } from '@/shared/lib/api/errors';
 import { SingleImageUploadField } from './SingleImageUploadField';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
@@ -214,7 +215,7 @@ describe('SingleImageUploadField', () => {
     ).toHaveAttribute('src', 'https://storage.example.com/signed-read-new?sig=new');
   });
 
-  it('shows a retry-oriented error message when the upload fails', async () => {
+  it('shows the caller-provided fallback label for a failure with no recognizable code (e.g. the cloud-storage PUT itself)', async () => {
     const user = userEvent.setup();
     vi.mocked(generateHotsiteImageSignedUrl).mockRejectedValue(new Error('network error'));
 
@@ -233,7 +234,35 @@ describe('SingleImageUploadField', () => {
       makeFile('banner.png', 'image/png'),
     );
 
-    expect(await screen.findByTestId('single-image-upload-error')).toBeInTheDocument();
+    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
+      LABELS.uploadErrorLabel,
+    );
+  });
+
+  it('shows the specific translated message when the signed-url request itself fails with a known code', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageSignedUrl).mockRejectedValue(
+      new ApiError(422, 'Invalid', { code: 'PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED' }),
+    );
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="hero-bg"
+        value=""
+        onChange={vi.fn()}
+        purpose="hero"
+        {...LABELS}
+      />,
+    );
+
+    await user.upload(
+      getByFieldId('single-image-upload-input', 'hero-bg'),
+      makeFile('banner.png', 'image/png'),
+    );
+
+    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
+      'A imagem informada não foi encontrada.',
+    );
   });
 
   it('removing a freshly-uploaded (raw storage path) image calls deleteHotsiteImage and clears the value', async () => {

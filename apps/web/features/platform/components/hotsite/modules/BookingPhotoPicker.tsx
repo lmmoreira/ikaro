@@ -6,6 +6,8 @@ import type { GalleryImage } from '@ikaro/types';
 import { getBooking, listBookings } from '@/features/booking/api/staff';
 import { featureBookingPhoto } from '@/features/platform/api/tenant-settings';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 interface BookingPhotoPickerProps {
   readonly onPick: (image: GalleryImage, previewUrl: string) => void;
@@ -36,11 +38,13 @@ export function BookingPhotoPicker({
   onClose,
 }: BookingPhotoPickerProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.gallery.picker');
+  const locale = useResolvedLocale();
   const { formatDate } = useFormatting();
   const [candidates, setCandidates] = useState<readonly BookingCandidate[] | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<BookingPhotos | null>(null);
   const [picking, setPicking] = useState(false);
+  const [pickError, setPickError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +111,7 @@ export function BookingPhotoPicker({
     if (!filePath) return;
 
     setPicking(true);
+    setPickError(null);
     try {
       const result = await featureBookingPhoto({
         bookingId: selectedBookingId,
@@ -122,6 +127,8 @@ export function BookingPhotoPicker({
         },
         result.url,
       );
+    } catch (err) {
+      setPickError(resolveErrorMessageFromApiError(err, locale));
     } finally {
       setPicking(false);
     }
@@ -143,6 +150,16 @@ export function BookingPhotoPicker({
           {t('closeLabel')}
         </button>
       </div>
+
+      {pickError && (
+        <p
+          role="alert"
+          data-testid="booking-photo-picker-error"
+          className="mb-3 text-sm text-red-600"
+        >
+          {pickError}
+        </p>
+      )}
 
       {candidates === null && <p className="text-sm text-gray-500">{t('loadingLabel')}</p>}
 

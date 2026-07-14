@@ -21,6 +21,8 @@ import {
   getCustomerLoyaltyRedemptions,
 } from '@/features/loyalty/dashboard-api';
 import { appendReturnTo } from '@/features/booking/model/booking-navigation';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 interface CustomerLoyaltyPageProps {
   readonly customer: CustomerProfileResponse;
@@ -174,6 +176,7 @@ function renderEntriesTabContent({
   formatDateLong,
   isLoadingEntries,
   loadMoreEntries,
+  loadMoreEntriesError,
   returnToHref,
   t,
 }: {
@@ -182,6 +185,7 @@ function renderEntriesTabContent({
   readonly formatDateLong: (date: Date) => string;
   readonly isLoadingEntries: boolean;
   readonly loadMoreEntries: () => Promise<void>;
+  readonly loadMoreEntriesError: string | null;
   readonly returnToHref: string;
   readonly t: ReturnType<typeof useTranslations>;
 }): React.JSX.Element {
@@ -270,6 +274,11 @@ function renderEntriesTabContent({
             total: entries.total,
           })}
         </p>
+        {loadMoreEntriesError && (
+          <p role="alert" className="text-center text-xs font-medium text-red-600">
+            {loadMoreEntriesError}
+          </p>
+        )}
         {entries.items.length < entries.total && (
           <Button
             type="button"
@@ -290,6 +299,7 @@ function renderRedemptionsTabContent({
   formatDateLong,
   isLoadingRedemptions,
   loadMoreRedemptions,
+  loadMoreRedemptionsError,
   returnToHref,
   t,
 }: {
@@ -297,6 +307,7 @@ function renderRedemptionsTabContent({
   readonly formatDateLong: (date: Date) => string;
   readonly isLoadingRedemptions: boolean;
   readonly loadMoreRedemptions: () => Promise<void>;
+  readonly loadMoreRedemptionsError: string | null;
   readonly returnToHref: string;
   readonly t: ReturnType<typeof useTranslations>;
 }): React.JSX.Element {
@@ -388,6 +399,11 @@ function renderRedemptionsTabContent({
             total: redemptions.total,
           })}
         </p>
+        {loadMoreRedemptionsError && (
+          <p role="alert" className="text-center text-xs font-medium text-red-600">
+            {loadMoreRedemptionsError}
+          </p>
+        )}
         {redemptions.items.length < redemptions.total && (
           <Button
             type="button"
@@ -414,6 +430,7 @@ export function CustomerLoyaltyPage({
   const dashboardT = useTranslations('dashboard');
   const { formatMoney, formatDateLong } = useFormatting();
   const locale = useLocale();
+  const resolvedLocale = useResolvedLocale();
   const topbarStatus = useDashboardTopbarStatus();
   const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
@@ -423,6 +440,8 @@ export function CustomerLoyaltyPage({
   const [redemptions, setRedemptions] = useState(initialRedemptions);
   const [isLoadingEntries, setIsLoadingEntries] = useState(false);
   const [isLoadingRedemptions, setIsLoadingRedemptions] = useState(false);
+  const [loadMoreEntriesError, setLoadMoreEntriesError] = useState<string | null>(null);
+  const [loadMoreRedemptionsError, setLoadMoreRedemptionsError] = useState<string | null>(null);
 
   useEffect(() => {
     setBackHrefOverride?.('/dashboard/loyalty');
@@ -459,6 +478,7 @@ export function CustomerLoyaltyPage({
       formatDateLong,
       isLoadingEntries,
       loadMoreEntries,
+      loadMoreEntriesError,
       returnToHref,
       t,
     });
@@ -468,6 +488,7 @@ export function CustomerLoyaltyPage({
       formatDateLong,
       isLoadingRedemptions,
       loadMoreRedemptions,
+      loadMoreRedemptionsError,
       returnToHref,
       t,
     });
@@ -476,6 +497,7 @@ export function CustomerLoyaltyPage({
   async function loadMoreEntries(): Promise<void> {
     if (isLoadingEntries || entries.items.length >= entries.total) return;
     setIsLoadingEntries(true);
+    setLoadMoreEntriesError(null);
     try {
       const next = await getCustomerLoyaltyEntries(customer.customerId, {
         page: entries.page + 1,
@@ -485,8 +507,10 @@ export function CustomerLoyaltyPage({
         ...next,
         items: [...current.items, ...next.items],
       }));
-    } catch {
-      // Keep the current page when loading more fails; the user can retry.
+    } catch (err) {
+      // Keep the current page when loading more fails; the load-more button stays visible
+      // as the retry affordance.
+      setLoadMoreEntriesError(resolveErrorMessageFromApiError(err, resolvedLocale));
     } finally {
       setIsLoadingEntries(false);
     }
@@ -495,6 +519,7 @@ export function CustomerLoyaltyPage({
   async function loadMoreRedemptions(): Promise<void> {
     if (isLoadingRedemptions || redemptions.items.length >= redemptions.total) return;
     setIsLoadingRedemptions(true);
+    setLoadMoreRedemptionsError(null);
     try {
       const next = await getCustomerLoyaltyRedemptions(customer.customerId, {
         page: redemptions.page + 1,
@@ -504,8 +529,10 @@ export function CustomerLoyaltyPage({
         ...next,
         items: [...current.items, ...next.items],
       }));
-    } catch {
-      // Keep the current page when loading more fails; the user can retry.
+    } catch (err) {
+      // Keep the current page when loading more fails; the load-more button stays visible
+      // as the retry affordance.
+      setLoadMoreRedemptionsError(resolveErrorMessageFromApiError(err, resolvedLocale));
     } finally {
       setIsLoadingRedemptions(false);
     }

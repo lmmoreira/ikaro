@@ -6,6 +6,7 @@ import type { StaffBookingDetailResponse, StaffBookingListResponse } from '@ikar
 import { renderWithIntl } from '@/test-utils';
 import { getBooking, listBookings } from '@/features/booking/api/staff';
 import { featureBookingPhoto } from '@/features/platform/api/tenant-settings';
+import { ApiError } from '@/shared/lib/api/errors';
 import { BookingPhotoPicker } from './BookingPhotoPicker';
 
 vi.mock('@/features/booking/api/staff', () => ({
@@ -104,6 +105,30 @@ describe('BookingPhotoPicker', () => {
       },
       'https://public.storage.example.com/tenants/tenant-1/hotsite/gallery/g1/before-1.jpg',
     );
+  });
+
+  it('shows the specific translated message when featureBookingPhoto fails with a known code, without calling onPick', async () => {
+    const user = userEvent.setup();
+    vi.mocked(listBookings).mockResolvedValue(LIST_RESPONSE);
+    vi.mocked(getBooking).mockResolvedValue(DETAIL_RESPONSE as StaffBookingDetailResponse);
+    vi.mocked(featureBookingPhoto).mockRejectedValue(
+      new ApiError(422, 'Mismatch', { code: 'PLATFORM_FEATURED_PHOTO_PATH_MISMATCH' }),
+    );
+    const onPick = vi.fn();
+
+    renderWithIntl(<BookingPhotoPicker onPick={onPick} onClose={vi.fn()} />);
+
+    await screen.findByTestId('booking-photo-picker-select');
+    await user.selectOptions(screen.getByTestId('booking-photo-picker-select'), 'b-1');
+
+    const grid = await screen.findByTestId('booking-photo-picker-grid');
+    const beforeThumb = grid.querySelector('img[src="https://cdn.example.com/before-1.jpg"]');
+    await user.click(beforeThumb!.closest('button')!);
+
+    expect(await screen.findByTestId('booking-photo-picker-error')).toHaveTextContent(
+      'A foto não pertence ao agendamento informado.',
+    );
+    expect(onPick).not.toHaveBeenCalled();
   });
 
   it('shows the empty message when listBookings rejects', async () => {

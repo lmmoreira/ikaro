@@ -25,6 +25,8 @@ import {
   usePublishHotsite,
   useUnpublishHotsite,
 } from '@/features/platform/hotsite/useHotsite';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import type { ModuleConfigPanelProps } from './modules/module-config-panel.types';
 
 type EditorTab = 'branding' | 'layout' | 'seo';
@@ -45,6 +47,7 @@ type EditorView =
 type ActionBanner = {
   readonly kind: 'publish' | 'unpublish';
   readonly status: 'success' | 'error';
+  readonly message?: string;
 };
 
 const TABS: readonly EditorTab[] = ['branding', 'layout', 'seo'];
@@ -95,6 +98,7 @@ const HotsitePreview = dynamic(() => import('./HotsitePreview').then((m) => m.Ho
 
 export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage');
+  const locale = useResolvedLocale();
   const [activeTab, setActiveTab] = useState<EditorTab>('branding');
   // useState(initial) only applies on mount — page.tsx renders this once per full page load, so
   // `initial` itself never changes under an already-mounted editor. A save (handlePublish) DOES
@@ -202,11 +206,15 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       await publishHotsite.mutateAsync();
       setView({ view: 'tabs' });
       setActionBanner({ kind: 'publish', status: 'success' });
-    } catch {
+    } catch (err) {
       // The banner only renders in the tabs view — switch back on failure too, or a publish
       // triggered from Preview leaves the admin stuck there with no visible error feedback.
       setView({ view: 'tabs' });
-      setActionBanner({ kind: 'publish', status: 'error' });
+      setActionBanner({
+        kind: 'publish',
+        status: 'error',
+        message: resolveErrorMessageFromApiError(err, locale),
+      });
     }
     globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
   }
@@ -215,8 +223,12 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     try {
       await unpublishHotsite.mutateAsync();
       setActionBanner({ kind: 'unpublish', status: 'success' });
-    } catch {
-      setActionBanner({ kind: 'unpublish', status: 'error' });
+    } catch (err) {
+      setActionBanner({
+        kind: 'unpublish',
+        status: 'error',
+        message: resolveErrorMessageFromApiError(err, locale),
+      });
     }
     globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
   }
@@ -293,7 +305,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
           data-testid="hotsite-action-error-banner"
           className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-700"
         >
-          {t(actionBanner.kind === 'publish' ? 'publishError' : 'unpublishError')}
+          {actionBanner.message}
         </div>
       )}
 
