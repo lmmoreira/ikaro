@@ -17,6 +17,7 @@ export interface IInboxRepository {
   unclaim(eventId: string, consumerName: string): Promise<void>;
 
   // Retention GC (D8) — batched trickle-delete of rows older than retentionDays, called from the
-  // same sweep tick as the outbox's own deleteOldPublished (OutboxRelayService).
-  deleteOldProcessed(retentionDays: number, batchSize: number): Promise<void>;
+  // same sweep tick as the outbox's own deleteOldPublished (OutboxRelayService). Returns the
+  // number of rows deleted, for the GC observability log (TD24-S05).
+  deleteOldProcessed(retentionDays: number, batchSize: number): Promise<number>;
 }

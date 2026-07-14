@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { Envelope } from '../../domain/envelope';
-import { IOutboxRepository, OutboxRow } from '../../ports/outbox-repository.port';
+import {
+  IOutboxRepository,
+  OutboxRow,
+  UnpublishedBacklog,
+} from '../../ports/outbox-repository.port';
 import { getActiveEntityManager } from '../transaction-context';
 import { OutboxEventEntity } from './outbox-event.entity';
 import { OutboxPublishedOutsideTransactionError } from './outbox-published-outside-transaction.error';
@@ -46,7 +50,22 @@ const GC_SQL = `
       AND "published_at" < now() - make_interval(days => $1)
     LIMIT $2
   )
+  RETURNING "id"
 `;
+
+// TD24-S05: the queue-lag signal — how many rows are waiting, and how stale the oldest one is.
+const COUNT_UNPUBLISHED_SQL = `
+  SELECT
+    COUNT(*)::int AS "count",
+    EXTRACT(EPOCH FROM (now() - MIN("created_at")))::int AS "oldestAgeSeconds"
+  FROM "shared"."outbox"
+  WHERE "published_at" IS NULL
+`;
+
+interface CountUnpublishedRow {
+  count: number;
+  oldestAgeSeconds: number | null;
+}
 
 // The only class in shared.outbox's stack that knows it's backed by raw SQL over TypeORM's
 // query() escape hatch (repository.save() can't express ON CONFLICT DO NOTHING RETURNING or
@@ -103,7 +122,13 @@ export class TypeOrmOutboxRepository implements IOutboxRepository {
     return this.repo.manager.transaction(work);
   }
 
-  async deleteOldPublished(retentionDays: number, batchSize: number): Promise<void> {
-    await this.repo.query(GC_SQL, [retentionDays, batchSize]);
+  async countUnpublished(): Promise<UnpublishedBacklog> {
+    const rows = (await this.repo.query(COUNT_UNPUBLISHED_SQL)) as CountUnpublishedRow[];
+    return rows[0] ?? { count: 0, oldestAgeSeconds: null };
+  }
+
+  async deleteOldPublished(retentionDays: number, batchSize: number): Promise<number> {
+    const rows = (await this.repo.query(GC_SQL, [retentionDays, batchSize])) as unknown[];
+    return rows.length;
   }
 }

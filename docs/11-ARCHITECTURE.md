@@ -144,6 +144,7 @@ src/contexts/booking/
 - **Technology Mapping:**
   - *Publisher:* `BookingContext` completes a wash → `eventBus.publish(new BookingCompleted(data))`.
   - *Subscriber:* `LoyaltyContext` → `eventBus.subscribe('BookingCompleted', handleLoyaltyUpdate)`.
+- **Transactional guarantee (`shared.outbox` / `shared.inbox`, TD24):** `IEventBus.publish()`'s implied contract — a published fact reaches consumers exactly-once *in effect* — is made real by a transactional outbox on the publish side and a shared inbox on the consume side, **for consumers whose write path is idempotency-safe** (loyalty/staff via a DB unique constraint, notification via `shared.inbox`'s atomic `tryClaim`/`unclaim`). One known exception: notification's multi-recipient dispatch (`dispatchTemplatesToMany`) can still resend to already-successful recipients after a partial batch failure — see `td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-004 item 3, still open. Both `shared.outbox`/`shared.inbox` are **shared transport infrastructure, not a bounded context** — the same category as Pub/Sub itself, not a 7th context alongside Booking/Loyalty/Notification/Customer/Staff/Platform. See `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section and `td/TD24-OUTBOX-INBOX-PATTERN.md` for the full design.
 
 ---
 

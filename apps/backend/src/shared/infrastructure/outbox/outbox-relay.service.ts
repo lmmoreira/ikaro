@@ -47,6 +47,7 @@ export class OutboxRelayService {
     }
 
     await this.sweep();
+    await this.logBacklog();
     await this.gc();
   }
 
@@ -55,17 +56,18 @@ export class OutboxRelayService {
   // row concurrently (only possible once the grace window has elapsed), the SELECT finds nothing
   // and this is a no-op — never a double-publish-then-double-mark.
   private async publishAndMarkOne(id: string): Promise<void> {
-    try {
-      const row = await this.outboxRepo.findUnpublishedById(id);
-      if (!row) return;
+    const row = await this.outboxRepo.findUnpublishedById(id);
+    if (!row) return;
 
-      await this.eventBus.publish(asStoredEvent(row.payload));
+    const event = asStoredEvent(row.payload);
+    try {
+      await this.eventBus.publish(event);
       await this.outboxRepo.markPublished(id);
     } catch (err) {
       this.logger.error(
         '[outbox] relay publish failed — row stays unpublished, the sweep will retry',
         err instanceof Error ? err.stack : String(err),
-        { outboxRowId: id },
+        { outboxRowId: id, tenantId: event.tenantId, correlationId: event.correlationId },
       );
     }
   }
@@ -77,6 +79,7 @@ export class OutboxRelayService {
   private async sweep(): Promise<void> {
     const batchSize = this.config.get<number>('OUTBOX_SWEEP_BATCH_SIZE', 100);
     const graceSeconds = this.config.get<number>('OUTBOX_SWEEP_GRACE_SECONDS', 30);
+    let failureCount = 0;
 
     let more = true;
     while (more) {
@@ -92,10 +95,12 @@ export class OutboxRelayService {
           } catch (err) {
             // Swallowed: this row stays unpublished (published_at still NULL) and is retried
             // next tick. The transaction still commits, releasing the SKIP LOCKED lock on it.
+            failureCount++;
+            const event = asStoredEvent(row.payload);
             this.logger.error(
               '[outbox] sweep publish failed — row stays unpublished for next tick',
               err instanceof Error ? err.stack : String(err),
-              { outboxRowId: row.id },
+              { outboxRowId: row.id, tenantId: event.tenantId, correlationId: event.correlationId },
             );
           }
         }
@@ -103,6 +108,21 @@ export class OutboxRelayService {
         return rows.length === batchSize;
       });
     }
+
+    if (failureCount > 0) {
+      this.logger.log('[outbox] sweep tick completed with publish failures', { failureCount });
+    }
+  }
+
+  // Queue-lag signal (TD24-S05): how many rows are still waiting and how stale the oldest one
+  // is. Logged once per tick, after the sweep — a cross-tenant aggregate (the sweep itself scans
+  // the whole table in one pass, so this isn't scoped to any single tenant/correlation).
+  private async logBacklog(): Promise<void> {
+    const { count, oldestAgeSeconds } = await this.outboxRepo.countUnpublished();
+    this.logger.log('[outbox] unpublished backlog', {
+      unpublishedCount: count,
+      oldestUnpublishedAgeSeconds: oldestAgeSeconds,
+    });
   }
 
   // Retention GC: one batched trickle-delete per tick per table (D8) — never loops to empty. At
@@ -113,9 +133,13 @@ export class OutboxRelayService {
     const batchSize = this.config.get<number>('OUTBOX_SWEEP_BATCH_SIZE', 100);
 
     const outboxRetentionDays = this.config.get<number>('OUTBOX_RETENTION_DAYS', 14);
-    await this.outboxRepo.deleteOldPublished(outboxRetentionDays, batchSize);
+    const outboxDeleted = await this.outboxRepo.deleteOldPublished(outboxRetentionDays, batchSize);
 
     const inboxRetentionDays = this.config.get<number>('INBOX_RETENTION_DAYS', 14);
-    await this.inboxRepo.deleteOldProcessed(inboxRetentionDays, batchSize);
+    const inboxDeleted = await this.inboxRepo.deleteOldProcessed(inboxRetentionDays, batchSize);
+
+    if (outboxDeleted > 0 || inboxDeleted > 0) {
+      this.logger.log('[outbox] retention GC', { outboxDeleted, inboxDeleted });
+    }
   }
 }

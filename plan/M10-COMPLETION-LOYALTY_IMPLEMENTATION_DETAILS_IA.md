@@ -24,14 +24,14 @@
 | `ILoyaltyBalanceRepository` port | `apps/backend/src/contexts/loyalty/application/ports/loyalty-balance-repository.port.ts` |
 | `ILoyaltyRedemptionRepository` port | `apps/backend/src/contexts/loyalty/application/ports/loyalty-redemption-repository.port.ts` |
 | `IBalanceExpiryLogRepository` port | `apps/backend/src/contexts/loyalty/application/ports/balance-expiry-log-repository.port.ts` |
-| `IProcessedEventRepository` port | `apps/backend/src/contexts/loyalty/application/ports/processed-event-repository.port.ts` |
+| `IInboxRepository` port (shared, replaces the deleted `IProcessedEventRepository` — TD24-S04) | `apps/backend/src/shared/ports/inbox.port.ts` |
 | `ILoyaltyTenantSettingsPort` | `apps/backend/src/contexts/loyalty/application/ports/loyalty-tenant-settings.port.ts` |
 | `IServiceCatalogPort` | `apps/backend/src/contexts/loyalty/application/ports/service-catalog.port.ts` |
 | `LoyaltyTenantSettingsAdapter` | `apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-tenant-settings.adapter.ts` |
 | `ServiceCatalogAdapter` | `apps/backend/src/contexts/loyalty/infrastructure/cross-context/service-catalog.adapter.ts` |
 | `INotificationCustomerPort` | `apps/backend/src/contexts/notification/application/ports/notification-customer.port.ts` |
 | `INotificationServicePort` | `apps/backend/src/contexts/notification/application/ports/notification-service.port.ts` |
-| Migration 1 (entries + processed_events) | `apps/backend/src/contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries.ts` |
+| Migration 1 (entries only — the `processed_events` block this migration originally also created was removed when migration history was squashed pre-production, TD24-S04 D16) | `apps/backend/src/contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries.ts` |
 | Migration 2 (balances + redemptions + expiry_log) | `apps/backend/src/contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog.ts` |
 | `LoyaltyModule` | `apps/backend/src/contexts/loyalty/loyalty.module.ts` |
 | BFF loyalty controller | `apps/bff/src/loyalty/loyalty.controller.ts` |
@@ -89,14 +89,8 @@ entry_id         UUID PRIMARY KEY   -- FK → loyalty_entries.id
 processed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 ```
 
-### `loyalty.processed_events` (Pub/Sub consumer idempotency)
-```sql
-event_id         TEXT NOT NULL
-consumer_name    TEXT NOT NULL
-processed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-PRIMARY KEY (event_id, consumer_name)
-UNIQUE (event_id, consumer_name)
-```
+### `loyalty.processed_events` — never existed (migration history squashed pre-production, TD24-S04 D16)
+Pub/Sub consumer idempotency now lives in the shared `shared.inbox` table instead — see `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section for its shape.
 
 ---
 
@@ -111,8 +105,8 @@ UNIQUE (event_id, consumer_name)
 ### Expiry trigger idempotency via `balance_expiry_log`
 `ExpirePointsUseCase` calls `findExpiringBefore(new Date())` then filters out already-processed entry IDs via `IBalanceExpiryLogRepository.hasBeenProcessed()`. Entries marked in the same `txManager.run()` as the balance upsert. If balance is already 0 or null, entries are still marked — no infinite retry.
 
-### Pub/Sub consumer idempotency via `loyalty.processed_events`
-`RecordLoyaltyEntriesUseCase.CONSUMER_NAME = 'RECORD_LOYALTY_ENTRY'`. Each event checked via `processedEventRepo.hasBeenProcessed(eventId, CONSUMER_NAME)` before processing. Marked in the same transaction as entry saves + balance upsert.
+### Pub/Sub consumer idempotency via the shared inbox (updated by TD24-S04 — `loyalty.processed_events` no longer exists, replaced by `shared.inbox`)
+`CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME = 'COMPLETE_BOOKING_LOYALTY_EFFECTS'`. Each event checked via `inboxRepo.hasBeenProcessed(eventId, CONSUMER_NAME)` (`IInboxRepository`) before processing. Marked in the same transaction as entry saves + balance upsert.
 
 ### TenantContext NOT available in Pub/Sub handlers
 `BookingCompletedHandler` runs outside the HTTP request lifecycle — AsyncLocalStorage TenantContext is not set. Loyalty settings are loaded via `ILoyaltyTenantSettingsPort.getLoyaltySettings(tenantId)` (injects `GetTenantByIdUseCase`). Fallback: `expiryDays = 180` if tenant settings absent.
@@ -120,8 +114,8 @@ UNIQUE (event_id, consumer_name)
 ### Cross-context reads via DataSource injection (not repo tokens)
 `ServiceCatalogAdapter` queries `booking.services` table via `@InjectDataSource()` and raw TypeORM `DataSource`. Same pattern for `INotificationServicePort`. Never import a repository token from another context — context isolation invariant.
 
-### ServicePointsEarned emitted per booking line, after txManager.run()
-One `ServicePointsEarned` event per line (not per booking). Events are collected via `LoyaltyEntry.clearDomainEvents()` and published **after** `txManager.run()` — post-commit event flush pattern. `currentBalance` field added to event so the notification use case doesn't need a second DB query for the balance.
+### ServicePointsEarned emitted once per booking, inside txManager.run() (corrected — was originally built as one event per line, published after commit; both since changed)
+One `ServicePointsEarned` event per booking (not per line), carrying a `lines[]` summary array of all entries earned in that booking (see the event's current payload shape in `docs/03-DOMAIN_EVENTS.md`). `LoyaltyEntry`/`LoyaltyBalance` aren't among the 3 auto-draining aggregates (`Booking`/`Staff`/`Tenant`), so the use case publishes directly via `OUTBOX_PUBLISHER` as the last call **inside** the same `txManager.run()` block as the entry/balance/inbox writes — not a post-commit flush. Publishing inside the transaction closed a real bug (TD24-S03, "the loyalty re-emit"): a crash between commit and a post-commit publish used to lose `ServicePointsEarned` forever, since `hasBeenProcessed` already short-circuits any `BookingCompleted` redelivery. `currentBalance` field added to the event so the notification use case doesn't need a second DB query for the balance.
 
 ### Clamped decrement in ExpirePointsUseCase
 If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redemptions since entries were created), the use case decrements `Math.min(expiredPoints, balance.currentPoints)` — clamps to 0 rather than throwing `LoyaltyInsufficientPointsError`. Entry IDs are still marked processed.
@@ -153,7 +147,7 @@ If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redempti
 
 | Event | Consumer name | Subscription |
 |---|---|---|
-| `BookingCompleted` | `RECORD_LOYALTY_ENTRY` | `ikaro-BookingCompleted-RECORD_LOYALTY_ENTRY` |
+| `BookingCompleted` | `COMPLETE_BOOKING_LOYALTY_EFFECTS` | `ikaro-BookingCompleted-COMPLETE_BOOKING_LOYALTY_EFFECTS` |
 | `ServicePointsEarned` | `notification` | `ikaro-ServicePointsEarned-notification` |
 
 ---
@@ -175,7 +169,7 @@ If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redempti
 | `InMemoryLoyaltyBalanceRepository` | `src/test/infrastructure/in-memory-loyalty-balance.repository.ts` |
 | `InMemoryLoyaltyRedemptionRepository` | `src/test/infrastructure/in-memory-loyalty-redemption.repository.ts` |
 | `InMemoryBalanceExpiryLogRepository` | `src/test/infrastructure/in-memory-balance-expiry-log.repository.ts` |
-| `InMemoryProcessedEventRepository` | `src/test/infrastructure/in-memory-processed-event.repository.ts` |
+| `InMemoryInboxRepository` (shared, replaces the deleted `InMemoryProcessedEventRepository` — TD24-S04) | `src/test/infrastructure/in-memory-inbox.repository.ts` |
 | `InMemoryLoyaltyTenantSettingsPort` | `src/test/infrastructure/in-memory-loyalty-tenant-settings.port.ts` |
 | `InMemoryServiceCatalogPort` | `src/test/infrastructure/in-memory-service-catalog.port.ts` |
 | `InMemoryNotificationCustomerPort` | `src/test/infrastructure/in-memory-notification-customer.port.ts` |

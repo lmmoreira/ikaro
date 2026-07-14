@@ -12,6 +12,7 @@ const GC_SQL = `
     WHERE "processed_at" < now() - make_interval(days => $1)
     LIMIT $2
   )
+  RETURNING "event_id"
 `;
 
 // Same shape as TypeOrmOutboxRepository.insert()'s INSERT_SQL — an empty RETURNING result means
@@ -61,7 +62,8 @@ export class TypeOrmInboxRepository implements IInboxRepository {
     await this.repo.query(UNCLAIM_SQL, [eventId, consumerName]);
   }
 
-  async deleteOldProcessed(retentionDays: number, batchSize: number): Promise<void> {
-    await this.repo.query(GC_SQL, [retentionDays, batchSize]);
+  async deleteOldProcessed(retentionDays: number, batchSize: number): Promise<number> {
+    const rows = (await this.repo.query(GC_SQL, [retentionDays, batchSize])) as unknown[];
+    return rows.length;
   }
 }

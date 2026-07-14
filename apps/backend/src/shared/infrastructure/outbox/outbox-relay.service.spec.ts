@@ -19,7 +19,8 @@ describe('OutboxRelayService', () => {
       markPublished: jest.fn(),
       claimUnpublished: jest.fn(),
       runInTransaction: jest.fn(),
-      deleteOldPublished: jest.fn(),
+      countUnpublished: jest.fn().mockResolvedValue({ count: 0, oldestAgeSeconds: null }),
+      deleteOldPublished: jest.fn().mockResolvedValue(0),
     } as unknown as jest.Mocked<IOutboxRepository>;
     eventBus = {
       publish: jest.fn().mockResolvedValue(undefined),
@@ -27,7 +28,9 @@ describe('OutboxRelayService', () => {
     inboxRepo = {
       hasBeenProcessed: jest.fn(),
       markProcessed: jest.fn(),
-      deleteOldProcessed: jest.fn(),
+      tryClaim: jest.fn(),
+      unclaim: jest.fn(),
+      deleteOldProcessed: jest.fn().mockResolvedValue(0),
     } as unknown as jest.Mocked<IInboxRepository>;
     config = makeConfigService();
   });
@@ -103,6 +106,7 @@ describe('OutboxRelayService', () => {
         expect.any(Number),
         expect.any(Number),
       );
+      expect(outboxRepo.countUnpublished).toHaveBeenCalledTimes(1);
       expect(outboxRepo.deleteOldPublished).toHaveBeenCalledWith(
         expect.any(Number),
         expect.any(Number),

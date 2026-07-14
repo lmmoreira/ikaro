@@ -1,4 +1,4 @@
-import { Injectable, LoggerService, LogLevel } from '@nestjs/common';
+import { LoggerService, LogLevel } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
 import { LogVendorFormatter, NoopLogVendorFormatter } from './log-vendor-formatter';
 
@@ -23,7 +23,6 @@ const LOG_LEVEL_ORDER: Record<LoggerLevel, number> = {
   ERROR: 40,
 };
 
-@Injectable()
 export abstract class BaseAppLogger implements LoggerService {
   private readonly context?: string;
   private readonly vendorFormatter: LogVendorFormatter;

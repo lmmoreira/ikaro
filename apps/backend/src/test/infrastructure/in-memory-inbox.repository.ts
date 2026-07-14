@@ -36,5 +36,7 @@ export class InMemoryInboxRepository implements IInboxRepository {
   // No-op: this double doesn't track processedAt. Retention GC is only exercised against the
   // real TypeOrmInboxRepository in integration tests, matching how the outbox side has no
   // in-memory double for deleteOldPublished() either.
-  async deleteOldProcessed(): Promise<void> {}
+  async deleteOldProcessed(): Promise<number> {
+    return 0;
+  }
 }

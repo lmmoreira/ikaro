@@ -137,13 +137,42 @@ describe('TypeOrmOutboxRepository', () => {
   });
 
   describe('deleteOldPublished()', () => {
-    it('runs the batched retention delete', async () => {
-      await repo.deleteOldPublished(14, 100);
+    it('runs the batched retention delete and returns the number of rows deleted', async () => {
+      mockRepo.query.mockResolvedValue([{ id: 'row-1' }, { id: 'row-2' }]);
 
-      expect(mockRepo.query).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM "shared"."outbox"'),
-        [14, 100],
-      );
+      const deleted = await repo.deleteOldPublished(14, 100);
+
+      expect(deleted).toBe(2);
+      const [sql, params] = mockRepo.query.mock.calls[0] as [string, unknown[]];
+      // Asserts the RETURNING clause is actually present — without it, `deleted` above would be
+      // wrong in production even though this mock (which returns canned rows regardless of the
+      // SQL sent) would still pass.
+      expect(sql).toContain('DELETE FROM "shared"."outbox"');
+      expect(sql).toContain('RETURNING "id"');
+      expect(params).toEqual([14, 100]);
+    });
+
+    it('returns 0 when nothing was deleted', async () => {
+      mockRepo.query.mockResolvedValue([]);
+
+      expect(await repo.deleteOldPublished(14, 100)).toBe(0);
+    });
+  });
+
+  describe('countUnpublished()', () => {
+    it('returns the unpublished count and oldest-age from the query result', async () => {
+      mockRepo.query.mockResolvedValue([{ count: 3, oldestAgeSeconds: 120 }]);
+
+      const backlog = await repo.countUnpublished();
+
+      expect(backlog).toEqual({ count: 3, oldestAgeSeconds: 120 });
+      expect(mockRepo.query).toHaveBeenCalledWith(expect.stringContaining('COUNT(*)'));
+    });
+
+    it('falls back to a zero/null backlog when the query returns no row', async () => {
+      mockRepo.query.mockResolvedValue([]);
+
+      expect(await repo.countUnpublished()).toEqual({ count: 0, oldestAgeSeconds: null });
     });
   });
 });
