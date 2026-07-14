@@ -1,6 +1,7 @@
 # TD15 — Next.js middleware trusts unverified JWT claims
 
 ## Status
+- **State**: Resolved (2026-07-14) — `middleware.ts`'s staff and customer guards now verify the HS256 signature via `jose` before trusting any claim. See `apps/web/features/auth/verify-edge-jwt.ts` (new module: `verifyStaffToken`/`verifyCustomerToken`) and its tests, plus `middleware.spec.ts`'s forged-signature regression cases.
 - **Type**: Security / Defense-in-Depth
 - **Priority**: Medium (security impact mitigated by BFF auth; no data exposure today)
 - **Context**: `apps/web/middleware.ts`, `apps/web/lib/auth/decode-jwt.ts`
