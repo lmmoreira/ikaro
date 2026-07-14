@@ -390,7 +390,7 @@ Nothing is rebound; no *observable* behavior changes (`EVENT_BUS` still resolves
 
 ---
 
-### TD24-S04 — Inbox consolidation (consumer side)
+### TD24-S04 — Inbox consolidation (consumer side) ✅ Done
 
 **Create:**
 - Migration `CreateSharedInbox` — table per §Design. **Shipped as a migration-history squash, not copy + drop** (D16, post-merge follow-up): `CreateNotificationProcessedEvents` deleted outright, `CreateLoyaltyLoyaltyEntries`'s `processed_events` block removed, so `CreateSharedInbox` is a bare `CREATE TABLE`. Register in `integration-global-setup.ts`/`test-datasource.ts` same commit; **remove** the two dropped entities from both in the same commit.
