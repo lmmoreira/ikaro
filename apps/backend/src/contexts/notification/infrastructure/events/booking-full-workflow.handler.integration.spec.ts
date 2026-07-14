@@ -383,7 +383,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     });
     expect(logAfterFirst).not.toBeNull();
 
-    // Second publish with same eventId — isAlreadySent finds processedEvent → skips.
+    // Second publish with same eventId — tryClaim finds the pair already claimed → skips.
     await eventBus.publish(event);
 
     const idempotencyLogs = await ds.getRepository(NotificationLogEntity).find({

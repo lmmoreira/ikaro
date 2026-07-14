@@ -59,6 +59,35 @@ describe('TypeOrmInboxRepository', () => {
     });
   });
 
+  describe('tryClaim()', () => {
+    it('returns true when the insert wins (no prior claim)', async () => {
+      mockRepo.query.mockResolvedValue([{ event_id: 'event-1' }]);
+
+      expect(await repo.tryClaim('event-1', 'consumer-a')).toBe(true);
+      expect(mockRepo.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO "shared"."inbox"'),
+        ['event-1', 'consumer-a'],
+      );
+    });
+
+    it('returns false when the pair is already claimed (ON CONFLICT DO NOTHING, no row returned)', async () => {
+      mockRepo.query.mockResolvedValue([]);
+
+      expect(await repo.tryClaim('event-1', 'consumer-a')).toBe(false);
+    });
+  });
+
+  describe('unclaim()', () => {
+    it('deletes the row for the given (eventId, consumerName) pair', async () => {
+      await repo.unclaim('event-1', 'consumer-a');
+
+      expect(mockRepo.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM "shared"."inbox" WHERE "event_id" = $1'),
+        ['event-1', 'consumer-a'],
+      );
+    });
+  });
+
   describe('deleteOldProcessed()', () => {
     it('runs the batched retention delete', async () => {
       await repo.deleteOldProcessed(14, 100);

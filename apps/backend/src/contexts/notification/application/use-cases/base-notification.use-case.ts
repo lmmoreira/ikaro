@@ -25,14 +25,6 @@ export abstract class BaseNotificationUseCase {
     return `${notificationType}:${channel}`;
   }
 
-  protected async isAlreadySent(
-    eventId: string,
-    notificationType: string,
-    channel: string,
-  ): Promise<boolean> {
-    return this.inboxRepo.hasBeenProcessed(eventId, this.consumerName(notificationType, channel));
-  }
-
   protected async saveLog(
     tenantId: string,
     eventId: string,
@@ -50,6 +42,9 @@ export abstract class BaseNotificationUseCase {
     log.markSent();
     await this.txManager.run(async () => {
       await this.logRepo.save(log);
+      // Redundant with dispatchTemplates()/dispatchTemplatesToMany()'s tryClaim (the row already
+      // exists) — kept as an upsert so the audit log and the final processed_at both land in the
+      // same transaction, and harmless if it ever runs standalone.
       await this.inboxRepo.markProcessed(eventId, this.consumerName(notificationType, channel));
     });
   }
@@ -109,7 +104,8 @@ export abstract class BaseNotificationUseCase {
   ): Promise<boolean> {
     let sent = false;
     for (const template of templates) {
-      if (await this.isAlreadySent(dto.eventId, template.triggerEvent, template.channel)) continue;
+      const consumerName = this.consumerName(template.triggerEvent, template.channel);
+      if (!(await this.inboxRepo.tryClaim(dto.eventId, consumerName))) continue;
       const { subject, body } = template.render(variables);
       try {
         await this.dispatcher.dispatch({
@@ -123,6 +119,7 @@ export abstract class BaseNotificationUseCase {
         await this.saveLog(dto.tenantId, dto.eventId, template.triggerEvent, template.channel, to);
         sent = true;
       } catch (err: unknown) {
+        await this.inboxRepo.unclaim(dto.eventId, consumerName);
         await this.saveFailedLog(
           dto.tenantId,
           dto.eventId,
@@ -145,7 +142,8 @@ export abstract class BaseNotificationUseCase {
   ): Promise<boolean> {
     let sent = false;
     for (const template of templates) {
-      if (await this.isAlreadySent(dto.eventId, template.triggerEvent, template.channel)) continue;
+      const consumerName = this.consumerName(template.triggerEvent, template.channel);
+      if (!(await this.inboxRepo.tryClaim(dto.eventId, consumerName))) continue;
       const { subject, body } = template.render(variables);
       try {
         await Promise.all(
@@ -169,6 +167,7 @@ export abstract class BaseNotificationUseCase {
         );
         sent = true;
       } catch (err: unknown) {
+        await this.inboxRepo.unclaim(dto.eventId, consumerName);
         await this.saveFailedLog(
           dto.tenantId,
           dto.eventId,

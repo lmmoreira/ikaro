@@ -15,6 +15,20 @@ export class InMemoryInboxRepository implements IInboxRepository {
     this.processed.add(this.key(eventId, consumerName));
   }
 
+  // Not genuinely race-safe under real concurrency (a synchronous Set check-then-add, no await in
+  // between) — fine for the sequential/idempotency tests this double is meant for. The actual
+  // concurrent-claim guarantee is proved against the real TypeOrmInboxRepository + Postgres only.
+  async tryClaim(eventId: string, consumerName: string): Promise<boolean> {
+    const key = this.key(eventId, consumerName);
+    if (this.processed.has(key)) return false;
+    this.processed.add(key);
+    return true;
+  }
+
+  async unclaim(eventId: string, consumerName: string): Promise<void> {
+    this.processed.delete(this.key(eventId, consumerName));
+  }
+
   clear(): void {
     this.processed.clear();
   }

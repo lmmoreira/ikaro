@@ -197,7 +197,7 @@ describe('validateEnv()', () => {
     expect(result.OUTBOX_RETENTION_DAYS).toBe(30);
   });
 
-  it('defaults INBOX_RETENTION_DAYS to 14 (TD24-S04)', () => {
+  it('defaults INBOX_RETENTION_DAYS to 14', () => {
     const result = validateEnv(valid);
     expect(result.INBOX_RETENTION_DAYS).toBe(14);
   });

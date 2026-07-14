@@ -454,7 +454,10 @@ Durable staging table for every domain event/command published by an aggregate-d
 
 ### `shared.inbox`
 
-Consumer-side dedup table (TD24-S04), replacing the per-context `loyalty.processed_events` and `notification.processed_events` tables with one shared shape. `hasBeenProcessed` is checked before processing any at-least-once-delivered event, outside any transaction; `markProcessed` is the one write required to happen inside the same transaction as the consumer's business effect, so the dedup mark and the effect commit or roll back together.
+Consumer-side dedup table (TD24-S04), replacing the per-context `loyalty.processed_events` and `notification.processed_events` tables with one shared shape. Two access patterns exist depending on whether the consumer's side effect is protected by its own DB constraint:
+
+- **Check-then-mark** (loyalty, staff): `hasBeenProcessed` is checked before processing, outside any transaction; `markProcessed` is the one write required to happen inside the same transaction as the consumer's business effect. Safe here because each consumer's actual write is guarded by its own DB unique constraint (`UNIQUE(tenant_id, booking_line_id)` on `loyalty_entries`, `UNIQUE(tenant_id, email)` on `staff.staff`) — a race just costs a failed insert and a clean retry, never duplicate data.
+- **Atomic claim** (notification): `tryClaim` — `INSERT ... ON CONFLICT (event_id, consumer_name) DO NOTHING RETURNING event_id` — is the gate itself, not just a check. Required here because notification's actual side effect (the email/SMS send) happens *before* any DB write, with no constraint to catch a duplicate send after the fact; two concurrent redeliveries racing a plain check-then-mark could both dispatch. `unclaim` (`DELETE`) reverses a claim whose send then failed, so a later redelivery can legitimately retry instead of being permanently skipped.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -464,13 +467,26 @@ Consumer-side dedup table (TD24-S04), replacing the per-context `loyalty.process
 | **PRIMARY KEY** | (event_id, consumer_name) | One row per event × consumer |
 | **INDEX** | (processed_at) | Retention GC scan |
 
-**Usage pattern (via `IInboxRepository`):**
+**Usage pattern — check-then-mark (loyalty, staff):**
 ```typescript
 // Before processing:
 if (await this.inboxRepo.hasBeenProcessed(eventId, consumerName)) return;
 
 // After the business effect, inside the same transaction:
 await this.inboxRepo.markProcessed(eventId, consumerName);
+```
+
+**Usage pattern — atomic claim (notification):**
+```typescript
+// The claim is the gate — only one concurrent caller can ever get true for this pair.
+if (!(await this.inboxRepo.tryClaim(eventId, consumerName))) return;
+try {
+  await this.dispatcher.dispatch(...); // the actual send — no DB constraint protects this
+  await this.saveLog(...);             // audit record; also re-marks processed_at (harmless)
+} catch (err) {
+  await this.inboxRepo.unclaim(eventId, consumerName); // let a future redelivery retry
+  throw err;
+}
 ```
 
 **Retention:** `INBOX_RETENTION_DAYS` (default 14, hard minimum 8 — must stay above Pub/Sub's 7-day max redelivery window or the dedup guarantee weakens) — batched trickle-delete on the same relay sweep tick as the outbox's own GC (`OutboxRelayService.gc()`).

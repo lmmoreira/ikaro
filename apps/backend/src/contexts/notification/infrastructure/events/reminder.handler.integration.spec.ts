@@ -178,7 +178,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
     );
 
     // Second delivery (explicit retry, deterministic): no failNext → dispatch succeeds.
-    // isAlreadySent checks processedEvent (not written on failure) → not a duplicate → retries.
+    // tryClaim succeeds again (the earlier claim was unclaimed on failure) → not a duplicate → retries.
     await eventBus.publish(event);
 
     const sentLog = logRepo.all.find((l) => l.eventId === event.eventId && l.status === 'SENT');
