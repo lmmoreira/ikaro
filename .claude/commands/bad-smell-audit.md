@@ -81,7 +81,7 @@ Grep for:
 ### BE-3. `makeXxx()` helpers or inline TypeORM entity/event/command construction in tests
 
 Grep for:
-- `function make` in `*.spec.ts` or `*.integration.spec.ts` files
+- `function make` in `*.spec.ts` or `*.integration.spec.ts` files — **then read each match's body before flagging it**: only a real finding if it constructs a TypeORM entity (`new XxxEntity(...)` or an entity-typed object literal) or a `DomainEvent`/`Command` subclass. A helper that builds a mock (`ConfigService`, `ExecutionContext`, `Reflector`, a fake port/adapter) or a plain application-layer DTO is **not** the smell this check targets — it's about bypassing `src/test/builders/`, not "any function named `make*`." (Confirmed via TD23-S17: without the read-the-body step, this bullet produced 25/25 false positives — every match was a mock/DTO factory.)
 - `new XxxEntity()` called directly inside a test `it()` or `describe()` block (not inside a builder class)
 - Object literals assigned to a variable of a TypeORM entity type inside test files
 - `new XxxEvent(...)` or `new XxxCommand(...)` (classes extending `DomainEvent`/`Command`) constructed inline with all constructor args spelled out, in **two or more** spec files (a single one-off construction in one file is fine; repetition across files is the smell)
@@ -173,7 +173,7 @@ Grep `apps/web/` for import statements using bare built-in names: `from 'path'`,
 
 ### WEB-7. Fetcher files not mirroring bounded-context names
 
-List filenames in `apps/web/lib/api/`. Flag any file whose name corresponds to an aggregate name rather than a bounded-context name. Valid base names mirror CLAUDE.md §3: `booking`, `customer`, `staff`, `loyalty`, `notification`, `platform`. For example, `tenants.ts` is wrong (`Tenant` is an aggregate in `platform`); `platform.ts` is correct.
+Check the actual current fetcher/API layout first — `apps/web/features/<domain>/api/**` (post-TD-21 domain-slice migration; there is no flat `apps/web/lib/api/` anymore) and `apps/web/shared/lib/api/**` for cross-cutting transport helpers (`bff-client.ts`, `bff-server.ts`, `errors.ts`, etc.). Within a domain's own `api/` folder, a file is correctly named after the *resource* it fetches, not the domain — the domain is already encoded by the directory path, so `features/booking/api/services.ts` and `features/booking/api/schedule.ts` are both correct as-is. Two different domains can legitimately have same-named files for different purposes (e.g. `features/booking/api/services.ts` for staff CRUD vs. `features/platform/hotsite/api/services.ts` for public hotsite reads of the same underlying aggregate) — that is not the smell. The actual smell is a file named after an aggregate from a *different* bounded context than the directory it lives in (e.g. a `tenants.ts` file — `Tenant` is a `platform` aggregate — sitting inside a non-`platform` domain's `api/` folder), or a cross-cutting `shared/lib/api/**` helper misnamed after an aggregate instead of its actual transport purpose. (Confirmed via TD23-S17: the old "list `apps/web/lib/api/`, flag non-context names" version of this check produced 9/9 false positives — that directory doesn't exist in the current architecture, and every flagged file was correctly resource-named within its own domain.)
 
 ---
 

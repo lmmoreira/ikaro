@@ -261,12 +261,14 @@ BackendHttpService
 Backend (internal Cloud Run — not public)
   │  Returns response
   ▼
-ErrorInterceptor
+ErrorFilter
   │  If backend returns 4xx/5xx: re-emits as RFC 9457 ProblemDetail
   │  If backend is unreachable (timeout): returns 503 service-unavailable
   ▼
 Browser
 ```
+
+> **Updated (`TD23-S18`):** `ErrorFilter` (renamed from `ErrorInterceptor`) is a global NestJS `ExceptionFilter` (`@Catch()` + `APP_FILTER`), not an `Interceptor` — it's drawn at the bottom of this diagram because that's where it formats the final response, but it actually catches exceptions thrown by *any* step above, including `JwtAuthGuard`/`TenantGuard`/`RolesGuard`, not just backend response errors. The original `Interceptor`-based version of this class could not see Guard-thrown exceptions at all — NestJS runs Guards before Interceptors, so an interceptor-based `catchError` structurally never receives them. See `docs/ANTI_PATTERNS.md` for the general rule this drove.
 
 ---
 
@@ -332,7 +334,9 @@ export class BackendHttpService {
 
 ## Error Passthrough Contract
 
-`ErrorInterceptor` (referenced in the Request Lifecycle diagram above) re-emits every backend 4xx/5xx as an RFC 9457 `ProblemDetail` without altering its `code`, `field`, `params`, or `violations[]` — the BFF is structurally a passthrough for these fields, never a place that re-derives or discards them (TD23). This passthrough behavior already existed before TD23 (confirmed during that TD's discovery); TD23's work was populating what actually gets passed through (backend contexts previously emitted no `code` at all), not fixing the passthrough mechanism itself.
+`ErrorFilter` (referenced in the Request Lifecycle diagram above; a global NestJS `ExceptionFilter`, not an `Interceptor` — see the note under that diagram) re-emits every backend 4xx/5xx as an RFC 9457 `ProblemDetail` without altering its `code`, `field`, `params`, or `violations[]` — the BFF is structurally a passthrough for these fields, never a place that re-derives or discards them (TD23). This passthrough behavior already existed before TD23 (confirmed during that TD's discovery); TD23's work was populating what actually gets passed through (backend contexts previously emitted no `code` at all), not fixing the passthrough mechanism itself.
+
+Because it's an `ExceptionFilter` and not an `Interceptor`, `ErrorFilter` also catches — and logs `error.code` for — exceptions thrown by any of the guards above it in the pipeline (`JwtAuthGuard`, `TenantGuard`, `RolesGuard`, `ActiveStaffGuard`), not just errors surfaced from `BackendHttpService`'s call to the backend.
 
 The BFF also originates its own errors — guest-token failures, guard rejections (`RolesGuard`, `ActiveStaffGuard`, dev-login guards), tenant-not-registered checks — through the same canonical envelope, using `throwProblemDetail()` (`apps/bff/src/shared/http/problem-detail.ts`, which wraps `@ikaro/nestjs-http`'s implementation and narrows the allowed `code` type to `BffThrowableCode` — only the origins a BFF site is actually permitted to throw: `BffErrorCode`, `AuthErrorCode`, `GenericErrorCode`, and the single reused `StaffErrorCode.DEACTIVATED`). No BFF-originated error uses a different shape from what the backend emits — exactly one `ProblemDetail` shape reaches the client regardless of which layer raised it.
 
