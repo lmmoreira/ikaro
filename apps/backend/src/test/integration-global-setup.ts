@@ -29,7 +29,6 @@ import { NotificationTemplateEntity } from '../contexts/notification/infrastruct
 import { CreateNotificationLogs1748000000010 } from '../contexts/notification/infrastructure/migrations/1748000000010-CreateNotificationLogs';
 import { CreateNotificationTemplates1748100000010 } from '../contexts/notification/infrastructure/migrations/1748100000010-CreateNotificationTemplates';
 import { AlterNotificationLogs1748200000010 } from '../contexts/notification/infrastructure/migrations/1748200000010-AlterNotificationLogs';
-import { CreateNotificationProcessedEvents1748200000020 } from '../contexts/notification/infrastructure/migrations/1748200000020-CreateNotificationProcessedEvents';
 import { AddNotificationLogUniqueConstraint1748300000010 } from '../contexts/notification/infrastructure/migrations/1748300000010-AddNotificationLogUniqueConstraint';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
@@ -95,7 +94,6 @@ export default async function globalSetup(): Promise<void> {
       CreateNotificationLogs1748000000010,
       CreateNotificationTemplates1748100000010,
       AlterNotificationLogs1748200000010,
-      CreateNotificationProcessedEvents1748200000020,
       AddNotificationLogUniqueConstraint1748300000010,
       CreateBookingServices1748000000011,
       CreateBookingScheduleClosures1748000000012,

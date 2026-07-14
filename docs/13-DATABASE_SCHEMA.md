@@ -414,17 +414,17 @@ Audit trail of every notification send attempt. Pure audit — idempotency is ha
 | **INDEX** | (tenant_id, status) | Retry queue / monitoring queries |
 | **INDEX** | (tenant_id, recipient_email) | All notifications sent to a recipient |
 
-### `notification.processed_events` — dropped (TD24-S04)
+### `notification.processed_events` — never existed (TD24-S04, migration history squashed)
 
-Replaced by `shared.inbox` (see **Schema: `shared`** below). The old composite key `(event_id, notification_type, channel)` is preserved as `shared.inbox`'s `consumer_name` column, composed as `` `${notificationType}:${channel}` ``.
+Replaced by `shared.inbox` (see **Schema: `shared`** below). Pre-production, so rather than creating this table and then copying-and-dropping it, the migration that would have created it (`CreateNotificationProcessedEvents`) was deleted outright — no environment has ever run it. The old composite key `(event_id, notification_type, channel)` is preserved as `shared.inbox`'s `consumer_name` column, composed as `` `${notificationType}:${channel}` ``.
 
 ---
 
 ## Schema: `loyalty` (addition)
 
-### `loyalty.processed_events` — dropped (TD24-S04)
+### `loyalty.processed_events` — never existed (TD24-S04, migration history squashed)
 
-Replaced by `shared.inbox` (see **Schema: `shared`** below). The `UNIQUE(tenant_id, booking_line_id)` on `loyalty_entries` already guarantees idempotency for `BookingCompleted` inserts; the shared inbox provides the uniform deduplication layer consistent with other consumers and guards against any future event types Loyalty may subscribe to.
+Replaced by `shared.inbox` (see **Schema: `shared`** below). Pre-production, so rather than creating this table and then copying-and-dropping it, the `CREATE TABLE "loyalty"."processed_events"` block was removed from `CreateLoyaltyLoyaltyEntries` outright — no environment has ever run it. The `UNIQUE(tenant_id, booking_line_id)` on `loyalty_entries` already guarantees idempotency for `BookingCompleted` inserts; the shared inbox provides the uniform deduplication layer consistent with other consumers and guards against any future event types Loyalty may subscribe to.
 
 ---
 
