@@ -1,7 +1,7 @@
 # TD23 — Exception Handling & i18n Pattern: Backend → BFF → UI
 
 ## Status
-- **State**: In Progress — Stories 1-14 done (Waves 1-4 complete: backend + BFF now emit code-bearing errors/violations end-to-end, including BFF-originated errors and the `ActiveStaffGuard` fix; Wave 5 in progress — Story 12's shared resolver landed, Story 13 migrated the booking feature's UI components to code-based branching, Story 14 fixed the 2 confirmed live untranslated-text leaks with a Playwright E2E proof-of-concept; Stories 15-16 (customer/staff + platform/loyalty frontend migration) remaining)
+- **State**: In Progress — Stories 1-15 done (Waves 1-4 complete: backend + BFF now emit code-bearing errors/violations end-to-end, including BFF-originated errors and the `ActiveStaffGuard` fix; Wave 5 in progress — Story 12's shared resolver landed, Story 13 migrated the booking feature's UI components to code-based branching, Story 14 fixed the 2 confirmed live untranslated-text leaks with a Playwright E2E proof-of-concept, Story 15 migrated customer + staff UI components (plus a shared `extractProblemCode()` extraction and 2 plumbing fixes found during its own discovery — `ForbiddenError`/`UpdateCustomerProfileViolation` were discarding the response `code`); Story 16 (platform/loyalty frontend migration) remaining)
 - **Type**: Technical Debt / Cross-Cutting Architecture Pattern
 - **Priority**: Medium — no single instance is a P0 outage, but the systemic gap already causes 2 confirmed raw-English-in-pt-BR-UI leaks in production code, a fragile string-match anti-pattern, a dead-but-leak-shaped mechanism, and 40+ error paths across the app that lose specificity they could have
 - **Scope**: `apps/backend` (all 6 contexts + shared value objects), `apps/bff` (all feature slices), `apps/web` (all domain/shell slices), `packages/types`, `packages/i18n`
@@ -588,7 +588,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ---
 
-#### Story 15 — Customer + Staff feature migration
+#### Story 15 — Customer + Staff feature migration ✅ Done
 
 **Scope:** `apps/web/features/customer/components/**`, `apps/web/features/staff/components/**`, plus two shared-plumbing fixes found during Story 15 discovery: `apps/web/shared/lib/api/errors.ts` + `apps/web/shared/lib/api/bff-client.ts` (`ForbiddenError` discards the response body), and `apps/web/features/platform/hotsite/api/customers.ts` (`UpdateCustomerProfileViolation` has no `code` field and the top-level `code` is never read).
 
