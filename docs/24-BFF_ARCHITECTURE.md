@@ -330,6 +330,16 @@ export class BackendHttpService {
 
 ---
 
+## Error Passthrough Contract
+
+`ErrorInterceptor` (referenced in the Request Lifecycle diagram above) re-emits every backend 4xx/5xx as an RFC 9457 `ProblemDetail` without altering its `code`, `field`, `params`, or `violations[]` — the BFF is structurally a passthrough for these fields, never a place that re-derives or discards them (TD23). This passthrough behavior already existed before TD23 (confirmed during that TD's discovery); TD23's work was populating what actually gets passed through (backend contexts previously emitted no `code` at all), not fixing the passthrough mechanism itself.
+
+The BFF also originates its own errors — guest-token failures, guard rejections (`RolesGuard`, `ActiveStaffGuard`, dev-login guards), tenant-not-registered checks — through the same canonical envelope, using `throwProblemDetail()` (`apps/bff/src/shared/http/problem-detail.ts`, which wraps `@ikaro/nestjs-http`'s implementation and narrows the allowed `code` type to `BffThrowableCode` — only the origins a BFF site is actually permitted to throw: `BffErrorCode`, `AuthErrorCode`, `GenericErrorCode`, and the single reused `StaffErrorCode.DEACTIVATED`). No BFF-originated error uses a different shape from what the backend emits — exactly one `ProblemDetail` shape reaches the client regardless of which layer raised it.
+
+Full pattern (code catalog, naming convention, frontend resolver, "adding a new error" checklist): `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern. Full discovery/rollout history: `td/TD23-EXCEPTION-HANDLING-I18N-PATTERN.md`.
+
+---
+
 ## Public vs Protected Routes
 
 > **`Tenant header` column is legacy** — see the Request Lifecycle note above; the browser hasn't sent `X-Tenant-Slug` since `M13-S17`. Rows below say "No" for any route added post-S17; older rows still say "X-Tenant-Slug" as a historical artifact of when they were written, not because the header is actually required today.

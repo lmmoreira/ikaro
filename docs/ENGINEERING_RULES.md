@@ -286,6 +286,74 @@ Every new `NotificationTemplateKey` touches several files across layers — miss
 
 ---
 
+## Exception handling & i18n pattern (`code`-driven, TD23)
+
+Every error that crosses an HTTP boundary — backend → BFF → web — carries a stable, machine-readable `code` (never just a free-text `message`/`detail`). `code` is the only thing frontend message-selection is allowed to branch on; `status` is transport/routing only.
+
+### The envelope
+
+`ProblemDetail` (`packages/types/src/errors.dto.ts`):
+
+```typescript
+interface ProblemDetail {
+  type: string;          // always 'about:blank' — never a URI fragment encoding the error identity
+  title: string;
+  status: number;
+  code?: string;          // the only field frontend message-selection is allowed to branch on
+  field?: string;         // which request field is at fault, single-cause errors only — routing use, never message selection
+  params?: Record<string, string | number>;
+  detail: string;         // backend-internal/debug text only — contractually never rendered to a user (docs/ANTI_PATTERNS.md)
+  violations?: { field: string; code: string; params?: Record<string, string | number> }[];
+}
+```
+
+Two shapes, not one:
+- **Single-cause errors** (the ~65 named domain error classes, raw base-class throws, and VO `create()` errors) use top-level `code` + optional `field`. Constructed via `buildProblemDetail()` (`packages/types/src/errors.dto.ts`) / thrown via `throwProblemDetail()` (`packages/nestjs-http/src/problem-detail.ts`).
+- **Batch/multi-field validation** (Zod pipes, both backend's and the BFF's) use `violations[]`, one `{ field, code, params? }` entry per failing field.
+
+### Code naming convention
+
+`<ORIGIN>_<REASON>`, upper snake case:
+- Backend domain, by context: `BOOKING_*`, `CUSTOMER_*`, `STAFF_*`, `LOYALTY_*`, `PLATFORM_*`
+- Backend shared VOs: `ADDRESS_*`, `COUNTRY_CODE_*`, `PHONE_*`, `MONEY_*`, `SEO_*`, `SLUG_*`, `HEX_COLOR_*`, `TIMEZONE_*`, `TIME_OF_DAY_*`, `EMAIL_*` — see "VO validation errors must be mapped with a typed `code`" above for how a VO's own error class ties into this
+- BFF-originated: `BFF_*` (e.g. `BFF_GUEST_TOKEN_INVALID`, `BFF_UPSTREAM_UNAVAILABLE`)
+- Framework/generic fallback: `AUTH_UNAUTHORIZED`, `AUTH_FORBIDDEN`, `INTERNAL_ERROR`, `NOT_FOUND`, and the small closed `GenericErrorCode` set for VO-less Zod rules (see "Single source of truth for a validation rule's code" above)
+
+Every origin is exported from `packages/types/src/error-codes.ts` as an `as const` object + derived literal union type (e.g. `BookingErrorCode`), collected into `AnyErrorCode`. Each context's base error class constructor types its `code` param against its own union, not `string` — constructing an error with an uncatalogued code is a compile error, not just a documented convention. The BFF further narrows this: `apps/bff/src/shared/http/problem-detail.ts`'s `throwProblemDetail()` wraps `@ikaro/nestjs-http`'s and types its `code` param against `BffThrowableCode` (only the origins a BFF site is actually allowed to throw), so a BFF call site can't accidentally throw an unrelated backend-only code.
+
+### Shared translation catalog
+
+`packages/i18n/locales/{locale}/errors.json` — one entry per code, keyed by the exact code string. `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts` (TD23 Story 17) CI-enforces that every catalog code has a translation key in both `pt-BR` and `en`, with no orphaned keys in either direction.
+
+### Frontend resolver
+
+`apps/web/shared/lib/i18n/resolve-error-message.ts`:
+- `resolveErrorMessage(code, locale, params?)` — the only thing allowed to select a message. Never `status`, `.detail`, or raw backend text (`docs/ANTI_PATTERNS.md`).
+- `extractProblemCode(err)` / `resolveErrorMessageFromApiError(err, locale)` — pulls `code` out of the two `bffClient`-backed error classes (`ApiError`, `ForbiddenError`) that carry a parsed `ProblemDetail` body.
+- An unrecognized/missing code falls back to a generic message and `console.warn`s, so a code/locale gap is observable instead of silently swallowed — never falls through to rendering `detail`.
+
+### `status` vs `code`
+
+`status` is transport/routing only: 401 → redirect to login, 403 → forbidden screen, 404 → `notFound()`, 409 → conflict-specific UI state, 5xx → generic retry copy. `code` is the only thing that selects a message. No component branches on `status===400` to pick a message.
+
+### Code lifecycle
+
+Codes are additive-only once shipped — never renamed or repurposed (a released frontend bundle may hold a cached reference to one during a rolling deploy). Retiring a code: remove every throw site first, then leave the catalog entry + translation in place for at least one release cycle before deleting both together.
+
+### Adding a new error — checklist
+
+1. Add the code to the relevant literal union in `packages/types/src/error-codes.ts` — the compiler rejects step 3 until this is done.
+2. Add a translation entry to **both** `packages/i18n/locales/pt-BR/errors.json` and `.../en/errors.json` — the exhaustiveness test (`apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`) rejects a missing one.
+3. Construct/throw the error with the typed constructor from step 1's origin — `throwProblemDetail(status, BookingErrorCode.XXX, detail, field?)` for a raw throw, or a named domain error class implementing `DomainErrorShape` for a VO/aggregate error.
+
+### Security-sensitive errors: specificity is a per-case decision
+
+The default is "assign the most specific code available" — wrong for paths where revealing the precise internal reason creates an enumeration/information-disclosure risk (e.g. distinguishing "no account with this email" from "account exists, wrong linked provider" in an auth/staff-linking flow). Each such error set must make an explicit, deliberate specificity decision — collapse multiple internal reasons into one generic code where warranted, rather than mechanically exposing the most specific code by default.
+
+Full discovery and rollout history: `td/TD23-EXCEPTION-HANDLING-I18N-PATTERN.md`.
+
+---
+
 ## Staff OAuth login URL format (BFF `GoogleAuthGuard`)
 
 `GoogleAuthGuard.getAuthenticateOptions` constructs the OAuth state from two **separate** query params — it does **not** read a `?state=` param. Any frontend page or email link that starts the staff OAuth flow must use this format:

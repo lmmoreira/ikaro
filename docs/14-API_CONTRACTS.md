@@ -972,7 +972,48 @@ resource "google_cloud_scheduler_job" "loyalty_expire_points" {
 
 ## Error Handling (RFC 9457)
 
-All non-2xx responses follow the **Problem Details for HTTP APIs** standard.
+All non-2xx responses follow the **Problem Details for HTTP APIs** standard. `type` is always the literal string `'about:blank'` — it is **not** a machine-readable identifier. `code` is the machine-readable identifier. See `docs/25-ERROR_CATALOG.md` for the full error reference and `docs/ENGINEERING_RULES.md` § Exception handling & i18n pattern for the end-to-end pattern (code catalog, naming convention, frontend resolver).
+
+Single-cause error:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Bad Request",
+  "status": 400,
+  "code": "BOOKING_PICKUP_ADDRESS_REQUIRED",
+  "field": "pickupAddress",
+  "detail": "pickupAddress is required when a pickup service is selected",
+  "correlationId": "uuid-v7"
+}
+```
+
+Batch validation failure (Zod pipes) — `violations[]` instead of top-level `code`/`field`:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Validation failed",
+  "violations": [
+    { "field": "email", "code": "GENERIC_FORMAT_INVALID" },
+    { "field": "zipCode", "code": "ADDRESS_FIELD_REQUIRED" }
+  ],
+  "correlationId": "uuid-v7"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | Always `'about:blank'` |
+| `status` | integer | HTTP status code |
+| `code` | string (optional) | Machine-readable error identifier, single-cause errors only — the only field a client branches on to select a message |
+| `field` | string (optional) | Which request field is at fault, single-cause errors only — routing use (e.g. highlight a field), never message selection |
+| `params` | object (optional) | Interpolation values for the resolved message template (e.g. `{ hours: 48 }`) |
+| `violations` | array (optional) | Batch validation failures — `{ field, code, params? }[]`. Mutually exclusive with top-level `code`/`field` |
+| `detail` | string | Backend-internal/debug text — never rendered to a user |
+| `correlationId` | UUID | Trace ID for debugging |
 
 | Code | Meaning | Usage |
 |------|---------|-------|
