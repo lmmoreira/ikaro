@@ -1,4 +1,5 @@
 import { PlatformErrorCode } from '@ikaro/types';
+import { normalizeText } from '../../../../../shared/utils/text-normalization';
 import { TenantSettingsValidationError } from '../../errors/platform-domain.error';
 
 export function requireTrimmedString(value: unknown, field: string): string {
@@ -9,5 +10,5 @@ export function requireTrimmedString(value: unknown, field: string): string {
       field,
     );
   }
-  return value.trim();
+  return normalizeText(value);
 }

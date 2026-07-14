@@ -50,6 +50,7 @@ import {
   toStaffBookingDetail,
 } from './bookings.mapper';
 import { GuestTokenPayload, tryDecodeRawJwt, verifyGuestToken } from './guest-token.util';
+import { buildBookingListParams, isStaffOrManagerRole } from './bookings-list-query.util';
 
 // Required-field checks are deliberately NOT duplicated here (TD23-S13) — the backend's
 // Address.create() already validates street/number/city/state/zipCode required-ness via
@@ -292,23 +293,11 @@ export class BookingsController {
     @Query(new ZodValidationPipe(StaffListBookingsQuerySchema)) query: StaffListBookingsQuery,
     @CurrentUser() user: CurrentUserPayload,
   ): Promise<StaffBookingListResponse | CustomerBookingListResponse> {
-    const params: Record<string, unknown> = {
-      status: query.status,
-      limit: query.limit,
-      offset: (query.page - 1) * query.limit,
-    };
-
-    if (query.date) {
-      params.from = `${query.date}T00:00:00.000Z`;
-      params.to = `${query.date}T23:59:59.999Z`;
-    } else if (query.from) {
-      params.from = `${query.from}T00:00:00.000Z`;
-      if (query.to) params.to = `${query.to}T23:59:59.999Z`;
-    }
+    const params = buildBookingListParams(query);
 
     const backend = await this.backendHttp.get<BookingListResponse>('/bookings', params);
 
-    if (user.role !== 'MANAGER' && user.role !== 'STAFF') {
+    if (!isStaffOrManagerRole(user.role)) {
       return {
         items: backend.items.map(toCustomerBookingListItem),
         total: backend.pagination.total,
@@ -333,7 +322,7 @@ export class BookingsController {
   ): Promise<CustomerBookingDetailResponse | StaffBookingDetailResponse> {
     const detail = await this.backendHttp.get<BookingDetailResponse>(`/bookings/${id}`);
 
-    if (user.role !== 'MANAGER' && user.role !== 'STAFF') {
+    if (!isStaffOrManagerRole(user.role)) {
       return toCustomerBookingDetail(detail);
     }
 
