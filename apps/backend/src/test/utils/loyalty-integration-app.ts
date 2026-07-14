@@ -5,6 +5,8 @@ import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
+import { InboxModule } from '../../shared/infrastructure/inbox/inbox.module';
+import { InboxRecordEntity } from '../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
@@ -16,7 +18,6 @@ import { BalanceExpiryLogEntity } from '../../contexts/loyalty/infrastructure/en
 import { LoyaltyBalanceEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
-import { ProcessedEventEntity } from '../../contexts/loyalty/infrastructure/entities/processed-event.entity';
 import { LOYALTY_BOOKING_PORT } from '../../contexts/loyalty/application/ports/loyalty-booking.port';
 import { LoyaltyModule } from '../../contexts/loyalty/loyalty.module';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
@@ -54,7 +55,7 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
           LoyaltyBalanceEntity,
           LoyaltyRedemptionEntity,
           BalanceExpiryLogEntity,
-          ProcessedEventEntity,
+          InboxRecordEntity,
         ],
         synchronize: false,
       }),
@@ -62,6 +63,7 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
       RequestModule,
       EventBusModule,
       OutboxModule,
+      InboxModule,
       PlatformModule,
       LoyaltyModule,
     ],

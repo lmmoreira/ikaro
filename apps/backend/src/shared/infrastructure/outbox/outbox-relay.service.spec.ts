@@ -2,12 +2,14 @@ import { ConfigService } from '@nestjs/config';
 import { EntityManager } from 'typeorm';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
 import { IEventBus } from '../../ports/event-bus.port';
+import { IInboxRepository } from '../../ports/inbox.port';
 import { IOutboxRepository } from '../../ports/outbox-repository.port';
 import { OutboxRelayService } from './outbox-relay.service';
 
 describe('OutboxRelayService', () => {
   let outboxRepo: jest.Mocked<IOutboxRepository>;
   let eventBus: jest.Mocked<IEventBus>;
+  let inboxRepo: jest.Mocked<IInboxRepository>;
   let config: ConfigService;
 
   beforeEach(() => {
@@ -22,6 +24,11 @@ describe('OutboxRelayService', () => {
     eventBus = {
       publish: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<IEventBus>;
+    inboxRepo = {
+      hasBeenProcessed: jest.fn(),
+      markProcessed: jest.fn(),
+      deleteOldProcessed: jest.fn(),
+    } as unknown as jest.Mocked<IInboxRepository>;
     config = makeConfigService();
   });
 
@@ -31,7 +38,7 @@ describe('OutboxRelayService', () => {
         id: 'row-1',
         payload: { eventName: 'X' },
       });
-      const service = new OutboxRelayService(outboxRepo, eventBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, inboxRepo, config);
 
       await service.relay(['row-1']);
 
@@ -41,7 +48,7 @@ describe('OutboxRelayService', () => {
 
     it('does nothing for a row that is already published or missing', async () => {
       outboxRepo.findUnpublishedById.mockResolvedValue(null);
-      const service = new OutboxRelayService(outboxRepo, eventBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, inboxRepo, config);
 
       await service.relay(['row-1']);
 
@@ -54,7 +61,7 @@ describe('OutboxRelayService', () => {
         payload: { eventName: 'X' },
       });
       eventBus.publish.mockRejectedValue(new Error('pubsub down'));
-      const service = new OutboxRelayService(outboxRepo, eventBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, inboxRepo, config);
 
       await expect(service.relay(['row-1'])).resolves.toBeUndefined();
     });
@@ -63,7 +70,7 @@ describe('OutboxRelayService', () => {
       outboxRepo.findUnpublishedById
         .mockResolvedValueOnce({ id: 'row-1', payload: { eventName: 'X' } })
         .mockResolvedValueOnce({ id: 'row-2', payload: { eventName: 'Y' } });
-      const service = new OutboxRelayService(outboxRepo, eventBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, inboxRepo, config);
 
       await service.relay(['row-1', 'row-2']);
 
@@ -71,7 +78,7 @@ describe('OutboxRelayService', () => {
     });
 
     it('is a no-op for an explicitly empty rowIds array — never falls through to sweep+GC', async () => {
-      const service = new OutboxRelayService(outboxRepo, eventBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, inboxRepo, config);
 
       await service.relay([]);
 
@@ -86,7 +93,7 @@ describe('OutboxRelayService', () => {
       const manager = {} as EntityManager;
       outboxRepo.runInTransaction.mockImplementation((work) => work(manager));
       outboxRepo.claimUnpublished.mockResolvedValue([]);
-      const service = new OutboxRelayService(outboxRepo, eventBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, inboxRepo, config);
 
       await service.relay();
 
@@ -100,6 +107,10 @@ describe('OutboxRelayService', () => {
         expect.any(Number),
         expect.any(Number),
       );
+      expect(inboxRepo.deleteOldProcessed).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number),
+      );
     });
 
     it('loops again when a batch comes back full (more rows may remain)', async () => {
@@ -109,7 +120,12 @@ describe('OutboxRelayService', () => {
         .mockResolvedValueOnce([{ id: 'row-1', payload: { eventName: 'X' } }]) // full "batch" of size 1 == batchSize below
         .mockResolvedValueOnce([]); // second iteration: empty, stop
       const configWithBatchSizeOne = makeConfigService({ OUTBOX_SWEEP_BATCH_SIZE: 1 });
-      const service = new OutboxRelayService(outboxRepo, eventBus, configWithBatchSizeOne);
+      const service = new OutboxRelayService(
+        outboxRepo,
+        eventBus,
+        inboxRepo,
+        configWithBatchSizeOne,
+      );
 
       await service.relay();
 
@@ -124,7 +140,7 @@ describe('OutboxRelayService', () => {
         { id: 'row-2', payload: { eventName: 'Y' } },
       ]);
       eventBus.publish.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(undefined);
-      const service = new OutboxRelayService(outboxRepo, eventBus, config);
+      const service = new OutboxRelayService(outboxRepo, eventBus, inboxRepo, config);
 
       await expect(service.relay()).resolves.toBeUndefined();
 

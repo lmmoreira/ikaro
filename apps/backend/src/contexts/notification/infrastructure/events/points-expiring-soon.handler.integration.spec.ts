@@ -106,7 +106,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
     });
     expect(logAfterFirst).not.toBeNull();
 
-    // Second publish with same eventId — isAlreadySent finds processedEvent → skips.
+    // Second publish with same eventId — tryClaim finds the pair already claimed → skips.
     await eventBus.publish(event);
 
     const logs = await ds.getRepository(NotificationLogEntity).find({
@@ -134,7 +134,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
     expect(failedLog).not.toBeNull();
     expect(failedLog!.status).toBe('FAILED');
 
-    // Second delivery (deterministic retry): isAlreadySent → no processedEvent → proceeds.
+    // Second delivery (deterministic retry): tryClaim succeeds (no prior claim) → proceeds.
     // retryCount=1 proves the upsert incremented rather than reset to 0.
     await eventBus.publish(event);
 

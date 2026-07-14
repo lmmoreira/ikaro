@@ -187,7 +187,7 @@ Notification Context subscribes:
 - `loyalty_balances` — UNIQUE(tenant_id, customer_id); current_points CHECK >= 0
 - `loyalty_redemptions` — INSERT-only
 - `balance_expiry_log` — PK(tenant_id, customer_id, expiry_date) — idempotency for cron
-- `processed_events` — event consumer dedup table
+- Event consumer dedup lives in `shared.inbox` (TD24-S04) — not a per-context table
 - See `docs/13-DATABASE_SCHEMA.md` for full column definitions.
 
 **Published Events** (every event carries `tenantId`, `eventId`, `occurredAt`, `correlationId`):

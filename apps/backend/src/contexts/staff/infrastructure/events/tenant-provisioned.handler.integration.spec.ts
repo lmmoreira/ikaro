@@ -6,6 +6,8 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { SYSTEM_ACTOR_ID } from '../../../../shared/domain/system-actor';
 import { EventBusModule } from '../../../../shared/infrastructure/event-bus/event-bus.module';
+import { InboxModule } from '../../../../shared/infrastructure/inbox/inbox.module';
+import { InboxRecordEntity } from '../../../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../../../shared/infrastructure/outbox/outbox.module';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
@@ -37,11 +39,12 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
         TypeOrmModule.forRoot({
           type: 'postgres',
           url: process.env['TEST_DATABASE_URL'],
-          entities: [TenantEntity, HotsiteConfigEntity, StaffEntity],
+          entities: [TenantEntity, HotsiteConfigEntity, StaffEntity, InboxRecordEntity],
           synchronize: false,
         }),
         EventBusModule,
         OutboxModule,
+        InboxModule,
         TransactionManagerModule,
         PlatformModule,
         StaffModule,

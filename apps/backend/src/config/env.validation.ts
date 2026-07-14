@@ -48,12 +48,18 @@ const schema = z
     HOTSITE_REVALIDATE_SECRET: z
       .string()
       .min(32, { message: 'HOTSITE_REVALIDATE_SECRET must be at least 32 characters' }),
-    // TD24-S01 — shared.outbox / OutboxRelayService config. INBOX_RETENTION_DAYS + its >= 8
-    // startup check arrive with the inbox in S04.
+    // TD24-S01 — shared.outbox / OutboxRelayService config.
     OUTBOX_INLINE_DISPATCH_ENABLED: z.stringbool().default(true),
     OUTBOX_SWEEP_BATCH_SIZE: z.coerce.number().int().min(1).default(100),
     OUTBOX_SWEEP_GRACE_SECONDS: z.coerce.number().int().min(0).default(30),
     OUTBOX_RETENTION_DAYS: z.coerce.number().int().min(1).default(14),
+    // TD24-S04 — shared.inbox retention. Must stay above Pub/Sub's 7-day max redelivery window
+    // (D8) or the dedup guarantee weakens — enforced here as a hard minimum, not just a default.
+    INBOX_RETENTION_DAYS: z.coerce
+      .number()
+      .int()
+      .min(8, { message: 'INBOX_RETENTION_DAYS must be >= 8 (Pub/Sub max redelivery is 7 days)' })
+      .default(14),
   })
   .superRefine((data, ctx) => {
     if (data.EMAIL_ADAPTER === 'sendgrid' && !data.SENDGRID_API_KEY) {

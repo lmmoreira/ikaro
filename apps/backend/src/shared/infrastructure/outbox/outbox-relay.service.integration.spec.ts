@@ -17,12 +17,15 @@ jest.mock('@google-cloud/pubsub', () => ({
   })),
 }));
 
+import { InboxRecordEntityBuilder } from '../../../test/builders/shared/inbox-record-entity.builder';
 import { OutboxEventEntityBuilder } from '../../../test/builders/shared/outbox-event-entity.builder';
 import { makeConfigService } from '../../../test/infrastructure/fake-config-service';
 import { createTestDataSource } from '../../../test/test-datasource';
 import { uuidv7 } from '../../domain/uuid-v7';
 import { IEventBus } from '../../ports/event-bus.port';
 import { GcpPubSubEventBusAdapter } from '../event-bus/gcp-pubsub-event-bus.adapter';
+import { InboxRecordEntity } from '../inbox/inbox-record.entity';
+import { TypeOrmInboxRepository } from '../inbox/typeorm-inbox.repository';
 import { OutboxEventEntity } from './outbox-event.entity';
 import { OutboxRelayService } from './outbox-relay.service';
 import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
@@ -30,12 +33,16 @@ import { TypeOrmOutboxRepository } from './typeorm-outbox.repository';
 describe('OutboxRelayService (integration)', () => {
   let ds: DataSource;
   let outboxRepo: Repository<OutboxEventEntity>;
+  let inboxRepo: Repository<InboxRecordEntity>;
   let typeOrmOutboxRepo: TypeOrmOutboxRepository;
+  let typeOrmInboxRepo: TypeOrmInboxRepository;
 
   beforeAll(async () => {
     ds = await createTestDataSource();
     outboxRepo = ds.getRepository(OutboxEventEntity);
+    inboxRepo = ds.getRepository(InboxRecordEntity);
     typeOrmOutboxRepo = new TypeOrmOutboxRepository(outboxRepo);
+    typeOrmInboxRepo = new TypeOrmInboxRepository(inboxRepo);
   });
 
   afterAll(async () => {
@@ -47,7 +54,12 @@ describe('OutboxRelayService (integration)', () => {
       const eventBus = {
         publish: jest.fn().mockResolvedValue(undefined),
       } as unknown as jest.Mocked<IEventBus>;
-      const service = new OutboxRelayService(typeOrmOutboxRepo, eventBus, makeConfigService());
+      const service = new OutboxRelayService(
+        typeOrmOutboxRepo,
+        eventBus,
+        typeOrmInboxRepo,
+        makeConfigService(),
+      );
       const row = new OutboxEventEntityBuilder().withPayload({ eventName: 'StubEvent' }).build();
       await outboxRepo.save(row);
 
@@ -61,7 +73,12 @@ describe('OutboxRelayService (integration)', () => {
       const eventBus = {
         publish: jest.fn().mockRejectedValue(new Error('pubsub down')),
       } as unknown as jest.Mocked<IEventBus>;
-      const service = new OutboxRelayService(typeOrmOutboxRepo, eventBus, makeConfigService());
+      const service = new OutboxRelayService(
+        typeOrmOutboxRepo,
+        eventBus,
+        typeOrmInboxRepo,
+        makeConfigService(),
+      );
       const row = new OutboxEventEntityBuilder().withPayload({ eventName: 'StubEvent' }).build();
       await outboxRepo.save(row);
 
@@ -93,6 +110,7 @@ describe('OutboxRelayService (integration)', () => {
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
         eventBus,
+        typeOrmInboxRepo,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 30 }),
       );
       await service.relay();
@@ -120,6 +138,7 @@ describe('OutboxRelayService (integration)', () => {
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
         eventBus,
+        typeOrmInboxRepo,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 0, OUTBOX_SWEEP_BATCH_SIZE: 2 }),
       );
       await service.relay();
@@ -155,6 +174,7 @@ describe('OutboxRelayService (integration)', () => {
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
         eventBus,
+        typeOrmInboxRepo,
         makeConfigService({ OUTBOX_SWEEP_GRACE_SECONDS: 0, OUTBOX_SWEEP_BATCH_SIZE: 10 }),
       );
 
@@ -198,6 +218,7 @@ describe('OutboxRelayService (integration)', () => {
       const service = new OutboxRelayService(
         typeOrmOutboxRepo,
         eventBus,
+        typeOrmInboxRepo,
         makeConfigService({ OUTBOX_RETENTION_DAYS: 14, OUTBOX_SWEEP_GRACE_SECONDS: 999_999 }),
       );
       await service.relay();
@@ -205,6 +226,44 @@ describe('OutboxRelayService (integration)', () => {
       expect(await outboxRepo.findOne({ where: { id: oldPublished.id } })).toBeNull();
       expect(await outboxRepo.findOne({ where: { id: recentPublished.id } })).not.toBeNull();
       expect(await outboxRepo.findOne({ where: { id: unpublished.id } })).not.toBeNull();
+    });
+
+    it('deletes only inbox rows older than INBOX_RETENTION_DAYS (TD24-S04)', async () => {
+      const eventBus = {
+        publish: jest.fn().mockResolvedValue(undefined),
+      } as unknown as jest.Mocked<IEventBus>;
+      const dedup = uuidv7();
+      const oldRecord = new InboxRecordEntityBuilder()
+        .withEventId(uuidv7())
+        .withConsumerName(`gc-old-${dedup}`)
+        .withProcessedAt(new Date(Date.now() - 20 * 24 * 60 * 60 * 1000))
+        .build();
+      const recentRecord = new InboxRecordEntityBuilder()
+        .withEventId(uuidv7())
+        .withConsumerName(`gc-recent-${dedup}`)
+        .withProcessedAt(new Date())
+        .build();
+      await inboxRepo.save([oldRecord, recentRecord]);
+
+      // Grace window set very high so the sweep itself claims nothing — isolates this test to GC.
+      const service = new OutboxRelayService(
+        typeOrmOutboxRepo,
+        eventBus,
+        typeOrmInboxRepo,
+        makeConfigService({ INBOX_RETENTION_DAYS: 14, OUTBOX_SWEEP_GRACE_SECONDS: 999_999 }),
+      );
+      await service.relay();
+
+      expect(
+        await inboxRepo.findOne({
+          where: { eventId: oldRecord.eventId, consumerName: oldRecord.consumerName },
+        }),
+      ).toBeNull();
+      expect(
+        await inboxRepo.findOne({
+          where: { eventId: recentRecord.eventId, consumerName: recentRecord.consumerName },
+        }),
+      ).not.toBeNull();
     });
   });
 
@@ -241,7 +300,12 @@ describe('OutboxRelayService (integration)', () => {
         .build();
       await outboxRepo.save(row);
 
-      const service = new OutboxRelayService(typeOrmOutboxRepo, realAdapter, makeConfigService());
+      const service = new OutboxRelayService(
+        typeOrmOutboxRepo,
+        realAdapter,
+        typeOrmInboxRepo,
+        makeConfigService(),
+      );
       await service.relay([row.id]);
 
       expect(mockPublishMessage).toHaveBeenCalledTimes(1);

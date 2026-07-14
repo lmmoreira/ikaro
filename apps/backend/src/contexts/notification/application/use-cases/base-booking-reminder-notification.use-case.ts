@@ -1,10 +1,10 @@
 import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../shared/utils/calendar-date';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
+import { IInboxRepository } from '../../../../shared/ports/inbox.port';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
 import { SendBookingReminderDueNotificationDto } from '../dtos/send-booking-reminder-due-notification.dto';
 import { INotificationDispatcher } from '../ports/notification-dispatcher.port';
 import { INotificationLogRepository } from '../ports/notification-log-repository.port';
-import { INotificationProcessedEventRepository } from '../ports/processed-event-repository.port';
 import { INotificationPlatformPort } from '../ports/notification-platform.port';
 import { INotificationTemplateRepository } from '../ports/notification-template-repository.port';
 import { ILocalizationPort } from '../ports/localization.port';
@@ -22,14 +22,14 @@ export abstract class BaseBookingReminderNotificationUseCase extends BaseNotific
 
   constructor(
     logRepo: INotificationLogRepository,
-    processedEventRepo: INotificationProcessedEventRepository,
+    inboxRepo: IInboxRepository,
     dispatcher: INotificationDispatcher,
     protected readonly tenantPort: INotificationPlatformPort,
     txManager: ITransactionManager,
     protected readonly templateRepo: INotificationTemplateRepository,
     protected readonly localizationPort: ILocalizationPort,
   ) {
-    super(logRepo, processedEventRepo, dispatcher, txManager);
+    super(logRepo, inboxRepo, dispatcher, txManager);
   }
 
   async execute(

@@ -21,17 +21,14 @@ import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entit
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
-import { ProcessedEventEntity } from '../contexts/loyalty/infrastructure/entities/processed-event.entity';
 import { CreateLoyaltyLoyaltyEntries1748000000016 } from '../contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries';
 import { CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017 } from '../contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog';
 import { AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003 } from '../contexts/loyalty/infrastructure/migrations/1748400000003-AddLoyaltyRedemptionPointsPerCurrencyUnit';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
-import { NotificationProcessedEventEntity } from '../contexts/notification/infrastructure/entities/processed-event.entity';
 import { NotificationTemplateEntity } from '../contexts/notification/infrastructure/entities/notification-template.entity';
 import { CreateNotificationLogs1748000000010 } from '../contexts/notification/infrastructure/migrations/1748000000010-CreateNotificationLogs';
 import { CreateNotificationTemplates1748100000010 } from '../contexts/notification/infrastructure/migrations/1748100000010-CreateNotificationTemplates';
 import { AlterNotificationLogs1748200000010 } from '../contexts/notification/infrastructure/migrations/1748200000010-AlterNotificationLogs';
-import { CreateNotificationProcessedEvents1748200000020 } from '../contexts/notification/infrastructure/migrations/1748200000020-CreateNotificationProcessedEvents';
 import { AddNotificationLogUniqueConstraint1748300000010 } from '../contexts/notification/infrastructure/migrations/1748300000010-AddNotificationLogUniqueConstraint';
 import { HotsiteConfigEntity } from '../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../contexts/platform/infrastructure/entities/tenant.entity';
@@ -44,9 +41,11 @@ import { CreateStaffStaff1716600000002 } from '../contexts/staff/infrastructure/
 import { AddNameToStaff1716600000003 } from '../contexts/staff/infrastructure/migrations/1716600000003-AddNameToStaff';
 import { AddUniqueEmailPerTenant1716600000004 } from '../contexts/staff/infrastructure/migrations/1716600000004-AddUniqueEmailPerTenant';
 import { AddInvitedByDeactivatedByToStaff1748000000001 } from '../contexts/staff/infrastructure/migrations/1748000000001-AddInvitedByDeactivatedByToStaff';
+import { InboxRecordEntity } from '../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxEventEntity } from '../shared/infrastructure/outbox/outbox-event.entity';
 import { AddSharedSchema1748400000005 } from '../shared/infrastructure/migrations/1748400000005-AddSharedSchema';
 import { CreateSharedOutbox1748400000006 } from '../shared/infrastructure/migrations/1748400000006-CreateSharedOutbox';
+import { CreateSharedInbox1748400000007 } from '../shared/infrastructure/migrations/1748400000007-CreateSharedInbox';
 
 export default async function globalSetup(): Promise<void> {
   const pgContainer = await new PostgreSqlContainer('postgres:15-alpine').start();
@@ -71,19 +70,19 @@ export default async function globalSetup(): Promise<void> {
       CustomerEntity,
       StaffEntity,
       NotificationLogEntity,
-      NotificationProcessedEventEntity,
       NotificationTemplateEntity,
       LoyaltyEntryEntity,
       LoyaltyBalanceEntity,
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
-      ProcessedEventEntity,
+      InboxRecordEntity,
       OutboxEventEntity,
     ],
     migrations: [
       BootstrapSchemas1700000000000,
       AddSharedSchema1748400000005,
       CreateSharedOutbox1748400000006,
+      CreateSharedInbox1748400000007,
       CreatePlatformTenants1716500000001,
       CreatePlatformHotsiteConfigs1716500000002,
       CreateCustomerCustomers1716600000001,
@@ -95,7 +94,6 @@ export default async function globalSetup(): Promise<void> {
       CreateNotificationLogs1748000000010,
       CreateNotificationTemplates1748100000010,
       AlterNotificationLogs1748200000010,
-      CreateNotificationProcessedEvents1748200000020,
       AddNotificationLogUniqueConstraint1748300000010,
       CreateBookingServices1748000000011,
       CreateBookingScheduleClosures1748000000012,

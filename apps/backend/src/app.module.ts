@@ -12,6 +12,7 @@ import { PlatformModule } from './contexts/platform/platform.module';
 import { StaffModule } from './contexts/staff/staff.module';
 import { HealthController } from './health/health.controller';
 import { EventBusModule } from './shared/infrastructure/event-bus/event-bus.module';
+import { InboxModule } from './shared/infrastructure/inbox/inbox.module';
 import { OutboxModule } from './shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from './shared/infrastructure/transaction-manager.module';
 import { InternalApiGuard } from './shared/guards/internal-api.guard';
@@ -53,6 +54,7 @@ import { OIDC_TOKEN_VERIFIER } from './shared/ports/oidc-token-verifier.port';
     TerminusModule,
     EventBusModule,
     OutboxModule,
+    InboxModule,
     TransactionManagerModule,
     RequestModule,
     PlatformModule,

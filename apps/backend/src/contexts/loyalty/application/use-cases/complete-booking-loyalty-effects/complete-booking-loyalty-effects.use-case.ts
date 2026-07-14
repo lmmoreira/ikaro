@@ -24,10 +24,7 @@ import {
   LOYALTY_REDEMPTION_REPOSITORY,
 } from '../../ports/loyalty-redemption-repository.port';
 import { ILoyaltyPlatformPort, LOYALTY_PLATFORM_PORT } from '../../ports/loyalty-platform.port';
-import {
-  IProcessedEventRepository,
-  PROCESSED_EVENT_REPOSITORY,
-} from '../../ports/processed-event-repository.port';
+import { IInboxRepository, INBOX_REPOSITORY } from '../../../../../shared/ports/inbox.port';
 
 export interface BookingCompletedLine {
   lineId: string;
@@ -74,8 +71,8 @@ export class CompleteBookingLoyaltyEffectsUseCase {
     @Inject(LOYALTY_BALANCE_REPOSITORY) private readonly balanceRepo: ILoyaltyBalanceRepository,
     @Inject(LOYALTY_REDEMPTION_REPOSITORY)
     private readonly redemptionRepo: ILoyaltyRedemptionRepository,
-    @Inject(PROCESSED_EVENT_REPOSITORY)
-    private readonly processedEventRepo: IProcessedEventRepository,
+    @Inject(INBOX_REPOSITORY)
+    private readonly inboxRepo: IInboxRepository,
     @Inject(LOYALTY_PLATFORM_PORT)
     private readonly tenantSettingsPort: ILoyaltyPlatformPort,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
@@ -87,7 +84,7 @@ export class CompleteBookingLoyaltyEffectsUseCase {
   ): Promise<CompleteBookingLoyaltyEffectsUseCaseResult> {
     if (dto.customerId === null) return SKIPPED_RESULT;
 
-    const alreadyProcessed = await this.processedEventRepo.hasBeenProcessed(
+    const alreadyProcessed = await this.inboxRepo.hasBeenProcessed(
       dto.eventId,
       CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
     );
@@ -156,7 +153,7 @@ export class CompleteBookingLoyaltyEffectsUseCase {
       }
       await this.balanceRepo.upsert(balance);
       if (redemption) await this.redemptionRepo.save(redemption);
-      await this.processedEventRepo.markProcessed(
+      await this.inboxRepo.markProcessed(
         dto.eventId,
         CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
       );

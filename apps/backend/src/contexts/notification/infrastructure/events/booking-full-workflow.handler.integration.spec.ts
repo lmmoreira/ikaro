@@ -22,7 +22,6 @@ import { LoyaltyEntryEntity } from '../../../loyalty/infrastructure/entities/loy
 import { LoyaltyBalanceEntity } from '../../../loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyRedemptionEntity } from '../../../loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { BalanceExpiryLogEntity } from '../../../loyalty/infrastructure/entities/balance-expiry-log.entity';
-import { ProcessedEventEntity } from '../../../loyalty/infrastructure/entities/processed-event.entity';
 import { ServicePointsEarned } from '../../../loyalty/domain/events/service-points-earned.event';
 
 const PLATFORM_KEY = 'full-workflow-notif-key-xxxxxxxxxx';
@@ -41,7 +40,6 @@ const LOYALTY_ENTITIES = [
   LoyaltyBalanceEntity,
   LoyaltyRedemptionEntity,
   BalanceExpiryLogEntity,
-  ProcessedEventEntity,
 ] as const;
 
 describe('Story: full booking lifecycle → event bus → all notification emails dispatched (integration)', () => {
@@ -385,7 +383,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
     });
     expect(logAfterFirst).not.toBeNull();
 
-    // Second publish with same eventId — isAlreadySent finds processedEvent → skips.
+    // Second publish with same eventId — tryClaim finds the pair already claimed → skips.
     await eventBus.publish(event);
 
     const idempotencyLogs = await ds.getRepository(NotificationLogEntity).find({

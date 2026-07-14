@@ -10,7 +10,6 @@ import { LOYALTY_ENTRY_REPOSITORY } from './application/ports/loyalty-entry-repo
 import { LOYALTY_REDEMPTION_REPOSITORY } from './application/ports/loyalty-redemption-repository.port';
 import { LOYALTY_PLATFORM_PORT } from './application/ports/loyalty-platform.port';
 import { LOYALTY_BOOKING_PORT } from './application/ports/loyalty-booking.port';
-import { PROCESSED_EVENT_REPOSITORY } from './application/ports/processed-event-repository.port';
 import { GetLoyaltyBalanceUseCase } from './application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
 import { GetLoyaltyEntriesUseCase } from './application/use-cases/get-loyalty-entries/get-loyalty-entries.use-case';
 import { GetLoyaltyRedemptionsUseCase } from './application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
@@ -22,7 +21,6 @@ import { BalanceExpiryLogEntity } from './infrastructure/entities/balance-expiry
 import { LoyaltyBalanceEntity } from './infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from './infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from './infrastructure/entities/loyalty-redemption.entity';
-import { ProcessedEventEntity } from './infrastructure/entities/processed-event.entity';
 import { LoyaltyPlatformAdapter } from './infrastructure/cross-context/loyalty-platform.adapter';
 import { LoyaltyBookingAdapter } from './infrastructure/cross-context/loyalty-booking.adapter';
 import { LoyaltyController } from './infrastructure/controllers/loyalty.controller';
@@ -36,7 +34,6 @@ import { TypeOrmBalanceExpiryLogRepository } from './infrastructure/repositories
 import { TypeOrmLoyaltyBalanceRepository } from './infrastructure/repositories/typeorm-loyalty-balance.repository';
 import { TypeOrmLoyaltyEntryRepository } from './infrastructure/repositories/typeorm-loyalty-entry.repository';
 import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositories/typeorm-loyalty-redemption.repository';
-import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/typeorm-processed-event.repository';
 
 @Module({
   imports: [
@@ -45,7 +42,6 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
       LoyaltyBalanceEntity,
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
-      ProcessedEventEntity,
     ]),
     TransactionManagerModule,
     RequestModule,
@@ -58,7 +54,6 @@ import { TypeOrmProcessedEventRepository } from './infrastructure/repositories/t
     { provide: LOYALTY_BALANCE_REPOSITORY, useClass: TypeOrmLoyaltyBalanceRepository },
     { provide: LOYALTY_REDEMPTION_REPOSITORY, useClass: TypeOrmLoyaltyRedemptionRepository },
     { provide: BALANCE_EXPIRY_LOG_REPOSITORY, useClass: TypeOrmBalanceExpiryLogRepository },
-    { provide: PROCESSED_EVENT_REPOSITORY, useClass: TypeOrmProcessedEventRepository },
     { provide: LOYALTY_PLATFORM_PORT, useClass: LoyaltyPlatformAdapter },
     { provide: LOYALTY_BOOKING_PORT, useClass: LoyaltyBookingAdapter },
     CustomerRoleGuard,

@@ -1,6 +1,6 @@
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
-import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
+import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
@@ -21,7 +21,7 @@ const dto = new SendBookingRequestedNotificationDtoBuilder()
 
 describe('SendBookingRequestedNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
-  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
+  let inboxRepo: InMemoryInboxRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let staffPort: InMemoryNotificationStaffPort;
   let tenantPort: InMemoryNotificationPlatformPort;
@@ -31,7 +31,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
-    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
+    inboxRepo = new InMemoryInboxRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     staffPort = new InMemoryNotificationStaffPort();
     staffPort.setManagerEmails(TENANT_ID, ['manager@lavacar.com.br']);
@@ -77,7 +77,7 @@ describe('SendBookingRequestedNotificationUseCase', () => {
 
     useCase = new SendBookingRequestedNotificationUseCase(
       logRepo,
-      processedEventRepo,
+      inboxRepo,
       dispatcher,
       staffPort,
       tenantPort,

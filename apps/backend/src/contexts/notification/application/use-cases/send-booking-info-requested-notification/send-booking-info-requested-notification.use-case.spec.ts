@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
-import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
+import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-memory-localization.port';
@@ -42,7 +42,7 @@ const customerDto = new SendBookingInfoRequestedNotificationDtoBuilder()
 
 describe('SendBookingInfoRequestedNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
-  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
+  let inboxRepo: InMemoryInboxRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let templateRepo: InMemoryNotificationTemplateRepository;
   let platformPort: InMemoryNotificationPlatformPort;
@@ -50,7 +50,7 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
-    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
+    inboxRepo = new InMemoryInboxRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     templateRepo = new InMemoryNotificationTemplateRepository();
     templateRepo.seed(
@@ -79,7 +79,7 @@ describe('SendBookingInfoRequestedNotificationUseCase', () => {
     });
     useCase = new SendBookingInfoRequestedNotificationUseCase(
       logRepo,
-      processedEventRepo,
+      inboxRepo,
       dispatcher,
       new InMemoryTransactionManager(),
       templateRepo,

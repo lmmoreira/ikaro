@@ -1,6 +1,6 @@
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
-import { InMemoryNotificationProcessedEventRepository } from '../../../../../test/repositories/notification/in-memory-processed-event.repository';
+import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationStaffPort } from '../../../../../test/infrastructure/in-memory-notification-staff.port';
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
@@ -21,7 +21,7 @@ const dto = new SendBookingCancelledNotificationDtoBuilder()
 
 describe('SendBookingCancelledNotificationUseCase', () => {
   let logRepo: InMemoryNotificationLogRepository;
-  let processedEventRepo: InMemoryNotificationProcessedEventRepository;
+  let inboxRepo: InMemoryInboxRepository;
   let dispatcher: InMemoryNotificationDispatcher;
   let staffPort: InMemoryNotificationStaffPort;
   let tenantPort: InMemoryNotificationPlatformPort;
@@ -30,7 +30,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
 
   beforeEach(() => {
     logRepo = new InMemoryNotificationLogRepository();
-    processedEventRepo = new InMemoryNotificationProcessedEventRepository();
+    inboxRepo = new InMemoryInboxRepository();
     dispatcher = new InMemoryNotificationDispatcher();
     staffPort = new InMemoryNotificationStaffPort();
     staffPort.setManagerEmails(TENANT_ID, ['manager@lavacar.com.br']);
@@ -75,7 +75,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
     });
     useCase = new SendBookingCancelledNotificationUseCase(
       logRepo,
-      processedEventRepo,
+      inboxRepo,
       dispatcher,
       staffPort,
       tenantPort,
@@ -121,7 +121,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
   });
 
   it('sends only admin email when customer already processed (partial retry)', async () => {
-    await processedEventRepo.markProcessed(EVENT_ID, 'booking-cancelled-customer', 'EMAIL');
+    await inboxRepo.markProcessed(EVENT_ID, 'booking-cancelled-customer:EMAIL');
 
     const result = await useCase.execute(dto);
 
@@ -132,7 +132,7 @@ describe('SendBookingCancelledNotificationUseCase', () => {
   });
 
   it('sends only customer email when admin already processed (partial retry)', async () => {
-    await processedEventRepo.markProcessed(EVENT_ID, 'booking-cancelled-admin', 'EMAIL');
+    await inboxRepo.markProcessed(EVENT_ID, 'booking-cancelled-admin:EMAIL');
 
     const result = await useCase.execute(dto);
 

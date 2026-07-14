@@ -7,6 +7,8 @@ import { DataSource } from 'typeorm';
 import type { ModuleMetadata } from '@nestjs/common';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
+import { InboxModule } from '../../shared/infrastructure/inbox/inbox.module';
+import { InboxRecordEntity } from '../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
 import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
@@ -56,11 +58,13 @@ export async function createBookingIntegrationApp(
           ScheduleOpeningEntity,
           BookingEntity,
           BookingLineEntity,
+          InboxRecordEntity,
         ],
         synchronize: false,
       }),
       EventBusModule,
       OutboxModule,
+      InboxModule,
       TransactionManagerModule,
       RequestModule,
       BookingModule,

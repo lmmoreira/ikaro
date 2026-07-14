@@ -29,6 +29,7 @@ export class TenantProvisionedHandler implements OnModuleInit {
     try {
       await this.createInitialManager.execute({
         tenantId: event.tenantId,
+        eventId: event.eventId,
         adminEmail: event.data.adminEmail,
         correlationId: event.correlationId,
       });

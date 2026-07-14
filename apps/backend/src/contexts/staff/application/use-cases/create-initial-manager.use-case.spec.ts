@@ -1,5 +1,6 @@
 import { SYSTEM_ACTOR_ID } from '../../../../shared/domain/system-actor';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryStaffRepository } from '../../../../test/repositories/staff/in-memory-staff.repository';
 import { StaffBuilder } from '../../../../test/builders/staff';
@@ -9,18 +10,26 @@ import { CreateInitialManagerUseCase } from './create-initial-manager.use-case';
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 const ADMIN_EMAIL = 'admin@lavacar.com.br';
 const CORRELATION_ID = 'corr-create-initial';
+const EVENT_ID = 'event-tenant-provisioned-1';
 
-const baseDto = { tenantId: TENANT_ID, adminEmail: ADMIN_EMAIL, correlationId: CORRELATION_ID };
+const baseDto = {
+  tenantId: TENANT_ID,
+  eventId: EVENT_ID,
+  adminEmail: ADMIN_EMAIL,
+  correlationId: CORRELATION_ID,
+};
 
 describe('CreateInitialManagerUseCase', () => {
   let repo: InMemoryStaffRepository;
   let eventBus: InMemoryEventBus;
+  let inboxRepo: InMemoryInboxRepository;
   let useCase: CreateInitialManagerUseCase;
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
     repo = new InMemoryStaffRepository(eventBus);
-    useCase = new CreateInitialManagerUseCase(repo, new InMemoryTransactionManager());
+    inboxRepo = new InMemoryInboxRepository();
+    useCase = new CreateInitialManagerUseCase(repo, inboxRepo, new InMemoryTransactionManager());
   });
 
   it('creates active MANAGER staff and publishes StaffInvited', async () => {
@@ -43,6 +52,29 @@ describe('CreateInitialManagerUseCase', () => {
     expect(event.data.staffId).toBe(result.staffId);
     expect(event.tenantId).toBe(TENANT_ID);
     expect(event.correlationId).toBe(CORRELATION_ID);
+  });
+
+  it('marks the TenantProvisioned event processed in the inbox (TD24-S04 coverage)', async () => {
+    await useCase.execute(baseDto);
+
+    expect(
+      await inboxRepo.hasBeenProcessed(EVENT_ID, CreateInitialManagerUseCase.CONSUMER_NAME),
+    ).toBe(true);
+  });
+
+  it('redelivery: a second execute() with the same eventId creates exactly one manager and one inbox record', async () => {
+    const first = await useCase.execute(baseDto);
+    const second = await useCase.execute(baseDto);
+
+    expect(second.staffId).toBe(first.staffId);
+    expect(eventBus.published).toHaveLength(1);
+
+    const all = await repo.findAllByTenant(TENANT_ID, { limit: 100, offset: 0 });
+    expect(all.total).toBe(1);
+
+    expect(
+      await inboxRepo.hasBeenProcessed(EVENT_ID, CreateInitialManagerUseCase.CONSUMER_NAME),
+    ).toBe(true);
   });
 
   it('is idempotent: returns existing staffId when staff already exists', async () => {

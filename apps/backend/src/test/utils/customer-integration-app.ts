@@ -6,6 +6,8 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
+import { InboxModule } from '../../shared/infrastructure/inbox/inbox.module';
+import { InboxRecordEntity } from '../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
@@ -42,13 +44,14 @@ export async function createCustomerIntegrationApp(
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],
-        entities: [TenantEntity, HotsiteConfigEntity, CustomerEntity],
+        entities: [TenantEntity, HotsiteConfigEntity, CustomerEntity, InboxRecordEntity],
         synchronize: false,
       }),
       TransactionManagerModule,
       RequestModule,
       EventBusModule,
       OutboxModule,
+      InboxModule,
       PlatformModule,
       CustomerModule,
     ],
