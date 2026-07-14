@@ -13,6 +13,8 @@ import {
   isTmpImagePath,
   resolveHotsiteImageDisplayUrl,
 } from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { BookingPhotoPicker } from './BookingPhotoPicker';
 
 interface GalleryImageManagerProps {
@@ -36,7 +38,9 @@ export function GalleryImageManager({
   onChange,
 }: GalleryImageManagerProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.gallery');
+  const locale = useResolvedLocale();
   const [status, setStatus] = useState<UploadStatus>('idle');
+  const [uploadErrorMessage, setUploadErrorMessage] = useState<string>('');
   const [previewUrls] = useState(() => new Map<string, string>());
   const [pickerOpen, setPickerOpen] = useState(false);
   // Not-yet-promoted tmp/ images live in the private bucket — they can't resolve via the
@@ -92,7 +96,9 @@ export function GalleryImageManager({
       previewUrls.set(filePath, localPreviewUrl);
       onChange([...images, newImage]);
       setStatus('idle');
-    } catch {
+    } catch (err) {
+      const code = extractProblemCode(err);
+      setUploadErrorMessage(code ? resolveErrorMessage(code, locale) : t('uploadErrorLabel'));
       setStatus('error');
       URL.revokeObjectURL(localPreviewUrl);
     }
@@ -194,7 +200,7 @@ export function GalleryImageManager({
 
       {status === 'error' && (
         <p data-testid="gallery-upload-error" className="mt-1.5 text-sm text-red-600">
-          {t('uploadErrorLabel')}
+          {uploadErrorMessage}
         </p>
       )}
 

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TenantSettingsResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { InMemoryAddressLookup } from '@/shared/lib/address/in-memory-address-lookup';
+import { ApiError } from '@/shared/lib/api/errors';
 import { SettingsForm } from './SettingsForm';
 
 // This form renders ~30-40 Radix Select instances (7 days × 2 time pickers × hour/minute
@@ -246,8 +247,10 @@ describe('SettingsForm', () => {
     expect(screen.queryByTestId('settings-saved-banner')).not.toBeInTheDocument();
   });
 
-  it('reports a partial-failure when settings save but the rename fails', async () => {
-    mockRenameTenant.mockRejectedValueOnce(new Error('409'));
+  it('reports a partial-failure when settings save but the rename fails, with the specific reason', async () => {
+    mockRenameTenant.mockRejectedValueOnce(
+      new ApiError(404, 'Not found', { code: 'PLATFORM_TENANT_NOT_FOUND' }),
+    );
     const user = userEvent.setup();
     renderWithIntl(<SettingsForm initial={buildTenant()} />);
 
@@ -258,7 +261,7 @@ describe('SettingsForm', () => {
 
     expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
     expect(screen.getByTestId('settings-submit-error')).toHaveTextContent(
-      'As configurações foram salvas, mas não foi possível renomear o estabelecimento. Tente novamente.',
+      'As configurações foram salvas, mas não foi possível renomear o estabelecimento: Estabelecimento não encontrado.',
     );
   });
 
@@ -275,15 +278,31 @@ describe('SettingsForm', () => {
     expect(mockRenameTenant).toHaveBeenCalledWith({ name: 'Novo Nome' });
   });
 
-  it('shows a generic submit error when the server rejects the save', async () => {
+  it('shows a generic fallback submit error for a failure with no recognizable code', async () => {
     mockUpdateTenantSettings.mockRejectedValueOnce(new Error('400'));
     const user = userEvent.setup();
     renderWithIntl(<SettingsForm initial={buildTenant()} />);
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
-    expect(await screen.findByTestId('settings-submit-error')).toBeInTheDocument();
+    expect(await screen.findByTestId('settings-submit-error')).toHaveTextContent(
+      'Algo deu errado. Tente novamente.',
+    );
     expect(screen.queryByTestId('settings-saved-banner')).not.toBeInTheDocument();
+  });
+
+  it('shows the specific translated message when the server rejects the save with a known code', async () => {
+    mockUpdateTenantSettings.mockRejectedValueOnce(
+      new ApiError(422, 'Invalid', { code: 'PLATFORM_TENANT_INACTIVE' }),
+    );
+    const user = userEvent.setup();
+    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+
+    expect(await screen.findByTestId('settings-submit-error')).toHaveTextContent(
+      'Este estabelecimento está inativo e não pode ser modificado.',
+    );
   });
 
   it('saves successfully with the address left entirely blank (sent as null)', async () => {

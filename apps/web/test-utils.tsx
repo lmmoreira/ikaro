@@ -49,9 +49,17 @@ export function renderWithIntl(
   const baseFormatting = FORMATTING_DEFAULTS[locale] ?? FORMATTING_DEFAULTS['pt-BR'];
   const formatting = { locale, ...baseFormatting, ...formattingOverrides };
 
-  return render(
-    <NextIntlClientProvider locale={locale} messages={resolvedMessages}>
-      <FormattingProvider {...formatting}>{ui}</FormattingProvider>
-    </NextIntlClientProvider>,
-  );
+  // Using RTL's `wrapper` option (rather than manually wrapping `ui` and calling `render()`
+  // directly) is what makes the returned `rerender()` keep the intl/formatting providers on a
+  // subsequent render — `rerender(newUi)` only re-applies a manually-wrapped tree, it doesn't
+  // re-wrap a bare element passed to it.
+  function Wrapper({ children }: { children: React.ReactNode }): React.JSX.Element {
+    return (
+      <NextIntlClientProvider locale={locale} messages={resolvedMessages}>
+        <FormattingProvider {...formatting}>{children}</FormattingProvider>
+      </NextIntlClientProvider>
+    );
+  }
+
+  return render(ui, { wrapper: Wrapper });
 }

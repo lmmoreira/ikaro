@@ -3,6 +3,7 @@ import { renderWithIntl } from '@/test-utils';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '@/shared/lib/api/errors';
 import { CustomerLoyaltyPage } from './CustomerLoyaltyPage';
 
 const setBackHrefOverride = vi.hoisted(() => vi.fn());
@@ -193,7 +194,7 @@ describe('CustomerLoyaltyPage', () => {
     expect(await screen.findByText('Resgate adicional')).toBeInTheDocument();
   });
 
-  it('keeps the current entries when loading more fails', async () => {
+  it('keeps the current entries and shows a generic fallback message when loading more fails with no recognizable code', async () => {
     const user = userEvent.setup();
     getCustomerLoyaltyEntries.mockRejectedValueOnce(new Error('network error'));
 
@@ -216,6 +217,54 @@ describe('CustomerLoyaltyPage', () => {
     );
     expect(screen.getByText('Lavagem Simples')).toBeInTheDocument();
     expect(screen.queryByText('Lavagem Completa')).not.toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Algo deu errado. Tente novamente.');
+  });
+
+  it('shows the specific translated message when loading more entries fails with a known code', async () => {
+    const user = userEvent.setup();
+    getCustomerLoyaltyEntries.mockRejectedValueOnce(
+      new ApiError(403, 'Forbidden', { code: 'AUTH_FORBIDDEN' }),
+    );
+
+    renderWithIntl(
+      <CustomerLoyaltyPage
+        customer={customer}
+        balance={balance}
+        entries={entries}
+        redemptions={redemptions}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Carregar mais entradas' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Você não tem permissão para realizar esta ação.',
+    );
+  });
+
+  it('keeps the current redemptions and shows a generic fallback message when loading more fails', async () => {
+    const user = userEvent.setup();
+    getCustomerLoyaltyRedemptions.mockRejectedValueOnce(new Error('network error'));
+
+    renderWithIntl(
+      <CustomerLoyaltyPage
+        customer={customer}
+        balance={balance}
+        entries={entries}
+        redemptions={redemptions}
+        initialActiveTab="redemptions"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Carregar mais resgates' }));
+
+    await waitFor(() =>
+      expect(getCustomerLoyaltyRedemptions).toHaveBeenCalledWith('c-1', {
+        page: 2,
+        limit: 20,
+      }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('Algo deu errado. Tente novamente.');
   });
 
   it('links redemption rows back to the redemptions tab on booking detail return', async () => {

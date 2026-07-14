@@ -21,6 +21,8 @@ import {
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import type { AddressLookup } from '@/shared/lib/address/address-lookup.port';
 import { viaCepAddressLookup } from '@/shared/lib/address/viacep-address-lookup.adapter';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import {
   SLOT_GRANULARITY_OPTIONS,
   WEEK_DAYS,
@@ -459,6 +461,7 @@ export function SettingsForm({
 }: SettingsFormProps): React.JSX.Element {
   const t = useTranslations('dashboard.settingsPage');
   const commonT = useTranslations('common');
+  const locale = useResolvedLocale();
   const { timeFormat } = useFormatting();
   const { addressSpec, phonePrefix, timezones } = resolveSettingsLocalization(
     initial.settings.localization.countryCode,
@@ -568,22 +571,25 @@ export function SettingsForm({
     setIsSubmitting(true);
     try {
       await updateTenantSettings({ settings: normalized.settings });
-    } catch {
-      setFieldErrors({ submit: t('errors.submitFailed') });
+    } catch (err) {
+      setFieldErrors({ submit: resolveErrorMessageFromApiError(err, locale) });
       setIsSubmitting(false);
       return;
     }
 
     // Settings and the tenant rename are two separate backend calls — if the rename fails
     // after settings already saved, the user must be told the truth (partial success), not
-    // a blanket "nothing was saved" message.
+    // a blanket "nothing was saved" message. The prefix carries that partial-success fact
+    // (which no error code could convey); the specific reason still comes from the catalog.
     if (normalized.name !== currentName) {
       try {
         await renameTenant({ name: normalized.name });
         setCurrentName(normalized.name);
-      } catch {
+      } catch (err) {
         setSaved(true);
-        setFieldErrors({ submit: t('errors.renamePartialFailure') });
+        setFieldErrors({
+          submit: `${t('errors.renamePartialFailurePrefix')} ${resolveErrorMessageFromApiError(err, locale)}`,
+        });
         globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
         setIsSubmitting(false);
         return;

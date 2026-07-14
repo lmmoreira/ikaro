@@ -1,5 +1,9 @@
 import type React from 'react';
-import type { HotsiteManifestResponse, GuestBookingReadResponse } from '@ikaro/types';
+import {
+  BffErrorCode,
+  type HotsiteManifestResponse,
+  type GuestBookingReadResponse,
+} from '@ikaro/types';
 import {
   fetchGuestBookingSummary,
   GuestBookingReadError,
@@ -72,15 +76,18 @@ export default async function SubmitInfoPage({
     );
   }
 
-  // Optional: booking summary (M13-S39). A 409 means the booking is no longer
-  // INFO_REQUESTED — block submission with the "processed" invalid-link variant. Any other
-  // failure (network error, or the endpoint not existing because M13-S39 wasn't deployed)
+  // Optional: booking summary (M13-S39). GUEST_BOOKING_NOT_AWAITING_INFO means the booking is
+  // no longer INFO_REQUESTED — block submission with the "processed" invalid-link variant. Any
+  // other failure (network error, or the endpoint not existing because M13-S39 wasn't deployed)
   // degrades to rendering the form without a summary card.
   let summary: GuestBookingReadResponse | null = null;
   try {
     summary = await fetchGuestBookingSummary(id, token);
   } catch (err) {
-    if (err instanceof GuestBookingReadError && err.status === 409) {
+    if (
+      err instanceof GuestBookingReadError &&
+      err.code === BffErrorCode.GUEST_BOOKING_NOT_AWAITING_INFO
+    ) {
       return (
         <InvalidLinkView
           reason="processed"

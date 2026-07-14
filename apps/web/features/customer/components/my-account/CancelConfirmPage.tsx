@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import type { CustomerBookingDetailResponse } from '@ikaro/types';
-import { ApiError } from '@/shared/lib/api/errors';
+import { BookingErrorCode, type CustomerBookingDetailResponse } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { cancelBooking } from '../../api';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
+import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 interface CancelConfirmPageProps {
   readonly booking: CustomerBookingDetailResponse;
@@ -19,10 +20,11 @@ export function CancelConfirmPage({
   tenantSlug,
 }: CancelConfirmPageProps): React.JSX.Element {
   const t = useTranslations('customer.cancelConfirm');
+  const locale = useResolvedLocale();
   const router = useRouter();
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasFailed, setHasFailed] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const topbarStatus = useCustomerTopbarStatus();
 
   const serviceNames = booking.lines.map((line) => line.serviceName).join(', ');
@@ -42,16 +44,20 @@ export function CancelConfirmPage({
 
   async function handleConfirm(): Promise<void> {
     setIsSubmitting(true);
-    setHasFailed(false);
+    setErrorMessage(null);
     try {
       await cancelBooking(booking.bookingId);
       router.push(`/${tenantSlug}/my-account`);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 422) {
+      const code = extractProblemCode(err);
+      // Only a genuine cancellation-window expiry gets the dedicated deadline-explanation
+      // screen — any other failure (e.g. the booking already reached a terminal status)
+      // previously also redirected there, showing a fabricated deadline for the wrong reason.
+      if (code === BookingErrorCode.CANCELLATION_WINDOW_EXPIRED) {
         router.push(`/${tenantSlug}/my-account/bookings/${booking.bookingId}/cancel/error`);
         return;
       }
-      setHasFailed(true);
+      setErrorMessage(resolveErrorMessage(code, locale));
       setIsSubmitting(false);
     }
   }
@@ -89,9 +95,9 @@ export function CancelConfirmPage({
             <p className="mt-1 text-sm text-gray-500">{t('irreversibleNote')}</p>
           </div>
 
-          {hasFailed && (
+          {errorMessage && (
             <p role="alert" className="text-sm font-medium text-red-600">
-              {t('genericError')}
+              {errorMessage}
             </p>
           )}
 

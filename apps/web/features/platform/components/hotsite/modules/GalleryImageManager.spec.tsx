@@ -12,6 +12,7 @@ import {
   generateHotsiteImageSignedUrl,
 } from '@/features/platform/api/tenant-settings';
 import { getBooking, listBookings } from '@/features/booking/api/staff';
+import { ApiError } from '@/shared/lib/api/errors';
 import { GalleryImageManager } from './GalleryImageManager';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
@@ -122,6 +123,34 @@ describe('GalleryImageManager', () => {
     expect(onChange).toHaveBeenCalledWith([
       { url: 'tenants/tenant-1/hotsite/gallery/g2.png', source: 'upload' },
     ]);
+  });
+
+  it('shows the fallback upload-error label for a failure with no recognizable code', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageSignedUrl).mockRejectedValue(new Error('network error'));
+
+    renderWithIntl(<GalleryImageManager images={[]} onChange={vi.fn()} />);
+
+    await user.upload(screen.getByTestId('gallery-upload-input'), makeFile('g2.png', 'image/png'));
+
+    expect(await screen.findByTestId('gallery-upload-error')).toHaveTextContent(
+      'Não foi possível enviar a imagem. Tente novamente.',
+    );
+  });
+
+  it('shows the specific translated message when the signed-url request fails with a known code', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageSignedUrl).mockRejectedValue(
+      new ApiError(422, 'Invalid', { code: 'PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED' }),
+    );
+
+    renderWithIntl(<GalleryImageManager images={[]} onChange={vi.fn()} />);
+
+    await user.upload(screen.getByTestId('gallery-upload-input'), makeFile('g2.png', 'image/png'));
+
+    expect(await screen.findByTestId('gallery-upload-error')).toHaveTextContent(
+      'A imagem informada não foi encontrada.',
+    );
   });
 
   it('typing a caption right after uploading does not break the image preview', async () => {

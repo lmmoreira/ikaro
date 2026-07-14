@@ -14,6 +14,7 @@ import {
   publishHotsite,
   unpublishHotsite,
 } from '@/features/platform/api/tenant-settings';
+import { ApiError } from '@/shared/lib/api/errors';
 import { HotsiteEditor } from './HotsiteEditor';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
@@ -198,15 +199,19 @@ describe('HotsiteEditor', () => {
       expect(screen.getByRole('tablist')).toBeInTheDocument();
     });
 
-    it('shows an error banner when the save fails', async () => {
-      mockUpdateHotsiteConfig.mockRejectedValue(new Error('network error'));
+    it('shows the specific translated message when the save fails with a known code', async () => {
+      mockUpdateHotsiteConfig.mockRejectedValue(
+        new ApiError(422, 'Invalid', { code: 'PLATFORM_HOTSITE_NO_ENABLED_MODULES' }),
+      );
       const user = userEvent.setup();
       renderEditor();
 
       await user.click(screen.getByTestId('hotsite-publish-desktop'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('hotsite-action-error-banner')).toBeInTheDocument();
+        expect(screen.getByTestId('hotsite-action-error-banner')).toHaveTextContent(
+          'É necessário ativar ao menos um módulo para publicar o site.',
+        );
       });
       expect(mockPublishHotsite).not.toHaveBeenCalled();
     });
@@ -307,7 +312,9 @@ describe('HotsiteEditor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('hotsite-action-error-banner')).toBeInTheDocument();
+        expect(screen.getByTestId('hotsite-action-error-banner')).toHaveTextContent(
+          'Algo deu errado. Tente novamente.',
+        );
       });
       expect(screen.getByRole('tablist')).toBeInTheDocument();
     });
@@ -328,15 +335,19 @@ describe('HotsiteEditor', () => {
       expect(mockUpdateHotsiteConfig).not.toHaveBeenCalled();
     });
 
-    it('shows an error banner when unpublish fails', async () => {
-      mockUnpublishHotsite.mockRejectedValue(new Error('network error'));
+    it('shows the specific translated message when unpublish fails with a known code', async () => {
+      mockUnpublishHotsite.mockRejectedValue(
+        new ApiError(404, 'Not found', { code: 'PLATFORM_TENANT_NOT_FOUND' }),
+      );
       const user = userEvent.setup();
       renderEditor();
 
       await user.click(screen.getByTestId('hotsite-unpublish-button'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('hotsite-action-error-banner')).toBeInTheDocument();
+        expect(screen.getByTestId('hotsite-action-error-banner')).toHaveTextContent(
+          'Estabelecimento não encontrado.',
+        );
       });
     });
   });

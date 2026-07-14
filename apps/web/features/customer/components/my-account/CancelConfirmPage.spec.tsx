@@ -22,10 +22,10 @@ vi.mock('next-intl', () => ({
       confirming: 'Cancelando...',
       backButton: 'Voltar',
       backToBooking: 'Agendamento',
-      genericError: 'Não foi possível cancelar o agendamento. Tente novamente.',
     };
     return translations[key] ?? key;
   },
+  useLocale: () => 'pt-BR',
 }));
 
 function TopbarStatusProbe(): React.JSX.Element {
@@ -115,8 +115,10 @@ describe('CancelConfirmPage', () => {
     expect(cancelBookingMock).toHaveBeenCalledWith('b1');
   });
 
-  it('a 422 response redirects to the cancel/error page instead', async () => {
-    cancelBookingMock.mockRejectedValue(new ApiError(422, 'outside window'));
+  it('a cancellation-window-expired failure redirects to the cancel/error page', async () => {
+    cancelBookingMock.mockRejectedValue(
+      new ApiError(422, 'outside window', { code: 'BOOKING_CANCELLATION_WINDOW_EXPIRED' }),
+    );
     const user = userEvent.setup();
     render(<CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
@@ -128,8 +130,10 @@ describe('CancelConfirmPage', () => {
     );
   });
 
-  it('a non-422 failure shows a visible error message and re-enables the button', async () => {
-    cancelBookingMock.mockRejectedValue(new Error('network error'));
+  it('an invalid-transition 422 (e.g. booking already completed) shows an inline message instead of redirecting', async () => {
+    cancelBookingMock.mockRejectedValue(
+      new ApiError(422, 'invalid transition', { code: 'BOOKING_INVALID_TRANSITION' }),
+    );
     const user = userEvent.setup();
     render(<CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
@@ -137,8 +141,20 @@ describe('CancelConfirmPage', () => {
     await user.click(within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Não foi possível cancelar o agendamento. Tente novamente.',
+      'Não é possível alterar o status do agendamento para o status solicitado.',
     );
+    expect(pushMock).not.toHaveBeenCalledWith('/lavacar-bh/my-account/bookings/b1/cancel/error');
+  });
+
+  it('shows a generic fallback message and re-enables the button for a failure with no recognizable code', async () => {
+    cancelBookingMock.mockRejectedValue(new Error('network error'));
+    const user = userEvent.setup();
+    render(<CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
+
+    const desktopPane = screen.getByTestId('action-pane-desktop');
+    await user.click(within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Algo deu errado. Tente novamente.');
     expect(
       within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }),
     ).not.toBeDisabled();

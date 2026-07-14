@@ -11,6 +11,8 @@ import { Card } from '@/shared/components/ui/card';
 import { searchCustomers } from '@/features/customer/api';
 import { cn } from '@/shared/utils/cn';
 import { getInitials } from '@/shared/utils/initials';
+import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 const RECENT_LIMIT = 5;
 const SEARCH_LIMIT = 20;
@@ -106,6 +108,7 @@ function LoyaltySearchResults({
   customers,
   isLoading,
   isError,
+  errorMessage,
   isRecent,
   pointsBadge,
   t,
@@ -113,6 +116,7 @@ function LoyaltySearchResults({
   readonly customers: CustomerSearchListResponse['items'];
   readonly isLoading: boolean;
   readonly isError: boolean;
+  readonly errorMessage: string | null;
   readonly isRecent: boolean;
   readonly pointsBadge: (count: number) => string;
   readonly t: ReturnType<typeof useTranslations>;
@@ -122,7 +126,7 @@ function LoyaltySearchResults({
   }
 
   if (isError) {
-    return <LoyaltySearchEmptyState title={t('searchErrorTitle')} body={t('searchErrorBody')} />;
+    return <LoyaltySearchEmptyState title={t('searchErrorTitle')} body={errorMessage ?? ''} />;
   }
 
   if (customers.length > 0) {
@@ -149,11 +153,13 @@ function LoyaltySearchResults({
 
 export function LoyaltySearchPage(): React.JSX.Element {
   const t = useTranslations('dashboard.loyaltyPage');
+  const locale = useResolvedLocale();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [customers, setCustomers] = useState<CustomerSearchListResponse['items']>([]);
   const [resolvedSearch, setResolvedSearch] = useState<string | null>(null);
   const [errorSearch, setErrorSearch] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const timeout = globalThis.setTimeout(() => {
@@ -174,17 +180,18 @@ export function LoyaltySearchPage(): React.JSX.Element {
         setResolvedSearch(debouncedSearch);
         setErrorSearch(null);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!active) return;
         setCustomers([]);
         setResolvedSearch(debouncedSearch);
         setErrorSearch(debouncedSearch);
+        setErrorMessage(resolveErrorMessageFromApiError(err, locale));
       });
 
     return () => {
       active = false;
     };
-  }, [debouncedSearch]);
+  }, [debouncedSearch, locale]);
 
   const isLoading = resolvedSearch !== debouncedSearch;
   const isError = errorSearch === debouncedSearch;
@@ -212,6 +219,7 @@ export function LoyaltySearchPage(): React.JSX.Element {
         customers={customers}
         isLoading={isLoading}
         isError={isError}
+        errorMessage={errorMessage}
         isRecent={isRecent}
         pointsBadge={pointsBadge}
         t={t}
