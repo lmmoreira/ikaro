@@ -6,6 +6,7 @@
 - **Contexts affected**: `shared` (new infrastructure), every context that publishes domain events (`booking`, `loyalty`, `staff`, `platform`) and every context that consumes them (`notification`, `loyalty`, `staff`)
 - **Discovered**: 2026-07-10 (M17-S03 PR #107 review — a `cron_run_log` idempotency table was built, found to be a false guarantee, and removed)
 - **Design resolved**: 2026-07-10 (discovery discussion; full code sweep verified the inventory, the DI wiring, and the test-infrastructure impact — see §Investigation)
+- **Completed**: 2026-07-14 (all 5 stories, S01–S05, ✅ Done)
 
 ---
 
@@ -411,7 +412,7 @@ Nothing is rebound; no *observable* behavior changes (`EVENT_BUS` still resolves
 
 ---
 
-### TD24-S05 — Observability, docs closure, backlog cross-off
+### TD24-S05 — Observability, docs closure, backlog cross-off ✅ Done
 
 - **Observability, scoped to what actually exists today (discovery, 2026-07-14):** no OTel SDK, metrics backend, or alerting Terraform module exist yet in this codebase — `M17-S33` (OTel bootstrap), `M17-S34` (collector), and `M17-S35` (alerting) are all still pending, and `M17-S34` itself defers a metrics pipeline to a later "stub commented for future `googlemanagedprometheus`." So this story ships **structured `AppLogger` info-level logs** from `OutboxRelayService`'s sweep/GC — unpublished-row count, oldest-unpublished age (the queue-lag signal), relay publish-failure count, GC deletion counts — carrying `tenant.id`/`correlation.id` as log fields (§2 invariant 8), matching the log-based pattern `M17-S35` already documents for its "Business counters via log-based metrics (zero app code)" bullet. True OTel span attributes and an actual alert policy are deferred until `M17-S33`/`M17-S35` land — notes added to both stories pointing back here.
 - Doc sweep completion check (stale-doc rule, §7 DoD): confirm every item in §Doc updates landed in its owning story; sweep `docs/*.md` + `plan/*_IMPLEMENTATION_DETAILS_IA.md` for any remaining description of the old publish-after-commit flow.
