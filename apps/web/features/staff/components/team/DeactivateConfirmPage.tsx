@@ -5,12 +5,24 @@ import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Ban } from 'lucide-react';
-import type { StaffResponse } from '@ikaro/types';
+import { StaffErrorCode, type ProblemDetail, type StaffResponse } from '@ikaro/types';
 import { ApiError, ForbiddenError } from '@/shared/lib/api/errors';
 import { useDeactivateStaff } from '@/features/staff/hooks/useStaff';
 import { getInitials } from '@/shared/utils/initials';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+
+// ForbiddenError (403 — self-deactivation) and ApiError (409 — last active manager) are
+// unrelated classes, both now carrying the parsed response body via `.data` — mirrors
+// BookingForm.tsx's extractBookingSubmitErrorShape() for the same two-shape situation.
+function extractStaffErrorCode(err: unknown): string | undefined {
+  if (err instanceof ForbiddenError || err instanceof ApiError) {
+    return (err.data as ProblemDetail | undefined)?.code;
+  }
+  return undefined;
+}
 
 interface DeactivateConfirmPageProps {
   readonly staff: StaffResponse;
@@ -48,13 +60,13 @@ function DeactivateActions({ isSubmitting, className }: DeactivateActionsProps):
 
 interface DeactivateErrorScreenProps {
   readonly titleKey: string;
-  readonly bodyKey: string;
+  readonly bodyMessage: string;
   readonly hintKey: string;
 }
 
 function DeactivateErrorScreen({
   titleKey,
-  bodyKey,
+  bodyMessage,
   hintKey,
 }: DeactivateErrorScreenProps): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
@@ -71,7 +83,7 @@ function DeactivateErrorScreen({
                 data-testid="deactivate-error-body"
                 className="mt-1 text-sm leading-6 text-red-800"
               >
-                {t(bodyKey)}
+                {bodyMessage}
               </p>
             </div>
           </div>
@@ -98,10 +110,12 @@ function DeactivateErrorScreen({
 
 export function DeactivateConfirmPage({ staff }: DeactivateConfirmPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
+  const locale = useResolvedLocale();
   const router = useRouter();
   const deactivateStaffMutation = useDeactivateStaff();
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
   const [errorState, setErrorState] = useState<DeactivateErrorState>(null);
+  const [errorCode, setErrorCode] = useState<string | undefined>(undefined);
 
   const isSubmitting = isSubmittingLocal || deactivateStaffMutation.isPending;
   const displayName = staff.name ?? staff.email;
@@ -109,15 +123,18 @@ export function DeactivateConfirmPage({ staff }: DeactivateConfirmPageProps): Re
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setErrorState(null);
+    setErrorCode(undefined);
 
     setIsSubmittingLocal(true);
     try {
       await deactivateStaffMutation.mutateAsync(staff.id);
       router.push('/dashboard/team');
     } catch (err) {
-      if (err instanceof ForbiddenError) {
+      const code = extractStaffErrorCode(err);
+      setErrorCode(code);
+      if (code === StaffErrorCode.SELF_DEACTIVATION) {
         setErrorState('self');
-      } else if (err instanceof ApiError && err.status === 409) {
+      } else if (code === StaffErrorCode.LAST_ACTIVE_MANAGER) {
         setErrorState('lastManager');
       } else {
         setErrorState('generic');
@@ -131,7 +148,7 @@ export function DeactivateConfirmPage({ staff }: DeactivateConfirmPageProps): Re
     return (
       <DeactivateErrorScreen
         titleKey="deactivateErrorTitle"
-        bodyKey="deactivateSelfError"
+        bodyMessage={resolveErrorMessage(errorCode, locale)}
         hintKey="deactivateSelfErrorHint"
       />
     );
@@ -141,7 +158,7 @@ export function DeactivateConfirmPage({ staff }: DeactivateConfirmPageProps): Re
     return (
       <DeactivateErrorScreen
         titleKey="deactivateErrorTitle"
-        bodyKey="updateLastManagerError"
+        bodyMessage={resolveErrorMessage(errorCode, locale)}
         hintKey="deactivateLastManagerErrorHint"
       />
     );
@@ -188,7 +205,7 @@ export function DeactivateConfirmPage({ staff }: DeactivateConfirmPageProps): Re
 
             {errorState === 'generic' && (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {t('deactivateFailed')}
+                {resolveErrorMessage(errorCode, locale)}
               </div>
             )}
           </CardContent>

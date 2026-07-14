@@ -62,7 +62,10 @@ export class AuthError extends Error {
 }
 
 export class ForbiddenError extends Error {
-  constructor(detail: string) {
+  constructor(
+    detail: string,
+    public readonly data?: unknown,
+  ) {
     super(detail);
     this.name = 'ForbiddenError';
     Object.setPrototypeOf(this, new.target.prototype);

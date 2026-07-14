@@ -590,13 +590,25 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 #### Story 15 — Customer + Staff feature migration
 
-**Scope:** `apps/web/features/customer/components/**`, `apps/web/features/staff/components/**`.
+**Scope:** `apps/web/features/customer/components/**`, `apps/web/features/staff/components/**`, plus two shared-plumbing fixes found during Story 15 discovery: `apps/web/shared/lib/api/errors.ts` + `apps/web/shared/lib/api/bff-client.ts` (`ForbiddenError` discards the response body), and `apps/web/features/platform/hotsite/api/customers.ts` (`UpdateCustomerProfileViolation` has no `code` field and the top-level `code` is never read).
 
 **Work required:**
-1. `InformationCompletionPrompt.tsx` — already the reference pattern; extend it to also branch on `violations[].code` where a field alone isn't specific enough, keep the `.field`-based routing as-is.
-2. `StaffDetailPage.tsx`, `InviteForm.tsx`, `DeactivateConfirmPage.tsx` — migrate from `status`-only to `code`-based branching (duplicate-email, last-manager, self-action cases now have real codes from Story 5).
+1. `apps/web/shared/lib/api/errors.ts`/`bff-client.ts` — add a `data` property to `ForbiddenError` (mirroring `ApiError`) and pass `err.response?.data` through in the interceptor's 403 branch, so `STAFF_SELF_DEACTIVATION`/`STAFF_SELF_REACTIVATION` (both real 403s per `staff-error.mapper.ts`) reach the component instead of being discarded.
+2. `apps/web/features/platform/hotsite/api/customers.ts` — add `code` to `UpdateCustomerProfileViolation`, and have `updateHotsiteCustomerProfile` also read a top-level `code`/`field` from the error body, not just `violations[]` — backend address-VO validation (`CustomerAddressValidationError`) throws a top-level `{code, field: 'contactAddress'}`; only BFF Zod required-field checks populate `violations[]`.
+3. `InformationCompletionPrompt.tsx` — already the reference pattern; extend it to branch on whichever code is present (top-level `code` or `violations[].code`) using `resolveErrorMessage(code, locale)` directly for the message text — full per-code specificity (e.g. `ADDRESS_POSTAL_CODE_INVALID`), not a generic address-error bucket. Keep the `.field === 'phone'`-based routing (which section of the form to highlight) as-is.
+4. `StaffDetailPage.tsx`, `InviteForm.tsx` — migrate from `status`-only to `code`-based branching (`STAFF_ALREADY_EXISTS`, `STAFF_LAST_ACTIVE_MANAGER` now have real codes from Story 5); message text switches to `resolveErrorMessage(code, locale)`, replacing the bespoke `dashboard.teamPage` strings (`inviteDuplicateEmail`, `updateLastManagerError`, etc.) so there's one source of truth for the copy.
+5. `DeactivateConfirmPage.tsx` — same code-based branching (`STAFF_SELF_DEACTIVATION`/`STAFF_SELF_REACTIVATION`/`STAFF_LAST_ACTIVE_MANAGER`); only the error *body* text switches to `resolveErrorMessage(code, locale)` — `titleKey`/`hintKey` stay component-owned (`dashboard.teamPage`), since they're supplementary guidance copy, not the error message itself.
 
-**Acceptance criteria:** mirrors Story 13's for this scope.
+**Acceptance criteria:**
+- [ ] `InformationCompletionPrompt.tsx` shows the correct, specific message for phone vs. distinct address-validation failures (not a generic address-error bucket when a specific code is available)
+- [ ] `StaffDetailPage.tsx`/`InviteForm.tsx`/`DeactivateConfirmPage.tsx` no longer depend on `status`/`instanceof` alone to select a message
+- [ ] Neither `ForbiddenError` nor `UpdateCustomerProfileViolation` discards `code` from the response body
+- [ ] Error message text for every case in scope is sourced from `resolveErrorMessage(code, locale)`, not a duplicate hand-written string for the same code
+
+**Decided during Story 15 discovery:**
+- The two shared-plumbing gaps (`ForbiddenError`, `UpdateCustomerProfileViolation`) are folded into this story rather than split into a separate prep TD — same precedent as Stories 5/6/11's bundled fixes; both are small, and Story 15 cannot meet its own acceptance criteria without them.
+- Message *text* always comes from `resolveErrorMessage(code, locale)`; supplementary UI chrome (title/hint/layout) stays component-owned. Applies to every component in scope.
+- Address-error messaging uses full per-code specificity via `resolveErrorMessage`, not a generic bucket — matches `BookingForm.tsx`'s established practice; `resolveErrorMessage` already falls back to a generic message when no code is recognized, so no separate fallback needs to be hand-written.
 
 ---
 

@@ -55,6 +55,12 @@ describe('ForbiddenError', () => {
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(ForbiddenError);
   });
+
+  it('exposes the response body via data', () => {
+    const body = { code: 'STAFF_SELF_DEACTIVATION' };
+    const err = new ForbiddenError('access denied', body);
+    expect(err.data).toBe(body);
+  });
 });
 
 describe('ApiError', () => {

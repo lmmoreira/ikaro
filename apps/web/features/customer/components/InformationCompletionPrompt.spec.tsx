@@ -17,7 +17,9 @@ vi.mock('@/features/platform/hotsite/api/customers', () => ({
   UpdateHotsiteCustomerProfileError: class extends Error {
     constructor(
       public readonly status: number,
-      public readonly violations: { field: string; message: string }[] = [],
+      public readonly code?: string,
+      public readonly field?: string,
+      public readonly violations: { field: string; code: string }[] = [],
     ) {
       super('mock');
     }
@@ -245,11 +247,11 @@ describe('InformationCompletionPrompt', () => {
     );
   });
 
-  it('shows the address error and re-highlights fields on a defaultAddress violation', async () => {
+  it('shows the specific translated message for a defaultAddress Zod violation', async () => {
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(profileEmpty);
     vi.mocked(updateHotsiteCustomerProfile).mockRejectedValue(
-      new UpdateHotsiteCustomerProfileError(400, [
-        { field: 'defaultAddress.zipCode', message: 'invalid' },
+      new UpdateHotsiteCustomerProfileError(400, undefined, undefined, [
+        { field: 'defaultAddress.zipCode', code: 'ADDRESS_POSTAL_CODE_INVALID' },
       ]),
     );
     renderWithIntl(
@@ -266,14 +268,14 @@ describe('InformationCompletionPrompt', () => {
     await userEvent.click(screen.getByTestId('information-completion-submit'));
 
     expect(await screen.findByTestId('information-completion-error')).toHaveTextContent(
-      'Verifique os dados do endereço e tente novamente.',
+      'O CEP informado é inválido.',
     );
   });
 
-  it('shows the address error on a 400 with no violations array (e.g. a backend Address VO rejection)', async () => {
+  it('shows the specific translated message for a top-level code with no violations array (a backend Address VO rejection)', async () => {
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(profileEmpty);
     vi.mocked(updateHotsiteCustomerProfile).mockRejectedValue(
-      new UpdateHotsiteCustomerProfileError(400),
+      new UpdateHotsiteCustomerProfileError(400, 'ADDRESS_STATE_INVALID', 'contactAddress'),
     );
     renderWithIntl(
       <InformationCompletionPrompt
@@ -289,12 +291,37 @@ describe('InformationCompletionPrompt', () => {
     await userEvent.click(screen.getByTestId('information-completion-submit'));
 
     expect(await screen.findByTestId('information-completion-error')).toHaveTextContent(
-      'Verifique os dados do endereço e tente novamente.',
+      'O estado informado é inválido.',
     );
     expect(screen.getByLabelText('Rua')).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('shows a generic error message on a non-violation failure', async () => {
+  it('shows the specific translated message for a phone-format violation', async () => {
+    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(profileEmpty);
+    vi.mocked(updateHotsiteCustomerProfile).mockRejectedValue(
+      new UpdateHotsiteCustomerProfileError(400, undefined, undefined, [
+        { field: 'phone', code: 'PHONE_FORMAT_INVALID' },
+      ]),
+    );
+    renderWithIntl(
+      <InformationCompletionPrompt
+        slug="lavacar-beloauto"
+        phonePrefix="+55"
+        addressSpec={addressSpec}
+      />,
+    );
+    await screen.findByTestId('information-completion-prompt');
+
+    await userEvent.type(screen.getByTestId('information-completion-phone-input'), '1199999999');
+    await fillAddress();
+    await userEvent.click(screen.getByTestId('information-completion-submit'));
+
+    expect(await screen.findByTestId('information-completion-error')).toHaveTextContent(
+      'O telefone informado é inválido.',
+    );
+  });
+
+  it('shows a generic fallback message on a failure with no recognizable code', async () => {
     vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(profileEmpty);
     vi.mocked(updateHotsiteCustomerProfile).mockRejectedValue(
       new UpdateHotsiteCustomerProfileError(502),
@@ -313,7 +340,7 @@ describe('InformationCompletionPrompt', () => {
     await userEvent.click(screen.getByTestId('information-completion-submit'));
 
     expect(await screen.findByTestId('information-completion-error')).toHaveTextContent(
-      'Erro ao salvar. Tente novamente.',
+      'Algo deu errado. Tente novamente.',
     );
   });
 });
