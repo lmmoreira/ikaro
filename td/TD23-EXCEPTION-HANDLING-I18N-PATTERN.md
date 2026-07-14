@@ -1,7 +1,7 @@
 # TD23 — Exception Handling & i18n Pattern: Backend → BFF → UI
 
 ## Status
-- **State**: In Progress — Stories 1-15 done (Waves 1-4 complete: backend + BFF now emit code-bearing errors/violations end-to-end, including BFF-originated errors and the `ActiveStaffGuard` fix; Wave 5 in progress — Story 12's shared resolver landed, Story 13 migrated the booking feature's UI components to code-based branching, Story 14 fixed the 2 confirmed live untranslated-text leaks with a Playwright E2E proof-of-concept, Story 15 migrated customer + staff UI components (plus a shared `extractProblemCode()` extraction and 2 plumbing fixes found during its own discovery — `ForbiddenError`/`UpdateCustomerProfileViolation` were discarding the response `code`); Story 16 (platform/loyalty frontend migration) remaining)
+- **State**: In Progress — Stories 1-16 done, Wave 5 (frontend consumption migration) complete: backend + BFF emit code-bearing errors/violations end-to-end (Waves 1-4), Story 12's shared resolver landed, Story 13 migrated booking, Story 14 fixed the 2 confirmed live untranslated-text leaks with a Playwright E2E proof-of-concept, Story 15 migrated customer + staff (plus a shared `extractProblemCode()` extraction and 2 plumbing fixes — `ForbiddenError`/`UpdateCustomerProfileViolation` were discarding the response `code`), Story 16 migrated the last 2 BLIND sites (fixing a real bug — `CancelConfirmPage.tsx` mis-routed an already-completed/rejected booking's cancel attempt to the cancellation-window-expired screen) plus all ~20 SAFE platform/loyalty sites, and fixed a latent bug in the shared `renderWithIntl` test helper found along the way; only Wave 6 (Story 17 — exhaustiveness test + docs sync) remains
 - **Type**: Technical Debt / Cross-Cutting Architecture Pattern
 - **Priority**: Medium — no single instance is a P0 outage, but the systemic gap already causes 2 confirmed raw-English-in-pt-BR-UI leaks in production code, a fragile string-match anti-pattern, a dead-but-leak-shaped mechanism, and 40+ error paths across the app that lose specificity they could have
 - **Scope**: `apps/backend` (all 6 contexts + shared value objects), `apps/bff` (all feature slices), `apps/web` (all domain/shell slices), `packages/types`, `packages/i18n`
@@ -612,7 +612,7 @@ Each story's acceptance criteria verifies its own layer in isolation (backend em
 
 ---
 
-#### Story 16 — Platform/hotsite + Loyalty feature migration
+#### Story 16 — Platform/hotsite + Loyalty feature migration ✅ Done
 
 **Scope:** `apps/web/features/customer/components/my-account/CancelConfirmPage.tsx`, `apps/web/app/bookings/[id]/submit-info/page.tsx` (the 2 remaining BLIND sites), plus the ~20 SAFE hotsite/loyalty sites (`apps/web/features/platform/components/**`, `apps/web/features/loyalty/components/**`) upgraded to code-based specificity per Story 16 discovery's scope decision (see below) — originally optional/opportunistic, promoted to required scope for this story.
 
