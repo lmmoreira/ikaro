@@ -552,6 +552,9 @@ importers:
 
   packages/nestjs-http:
     dependencies:
+      '@ikaro/observability':
+        specifier: workspace:*
+        version: link:../observability
       '@ikaro/types':
         specifier: workspace:*
         version: link:../types

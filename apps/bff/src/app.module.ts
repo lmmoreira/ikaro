@@ -1,6 +1,6 @@
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.validation';
@@ -18,7 +18,7 @@ import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
 import { TenantGuard } from './shared/guards/tenant.guard';
 import { RolesGuard } from './shared/guards/roles.guard';
 import { CorrelationInterceptor } from './shared/interceptors/correlation.interceptor';
-import { ErrorInterceptor } from './shared/interceptors/error.interceptor';
+import { ErrorFilter } from './shared/filters/error.filter';
 
 @Module({
   imports: [
@@ -48,7 +48,7 @@ import { ErrorInterceptor } from './shared/interceptors/error.interceptor';
   controllers: [HealthController],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: CorrelationInterceptor },
-    { provide: APP_INTERCEPTOR, useClass: ErrorInterceptor },
+    { provide: APP_FILTER, useClass: ErrorFilter },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
