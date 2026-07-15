@@ -518,7 +518,7 @@ The chicken-and-egg bootstrap: the minimal manual resources Terraform itself nee
 
 ---
 
-### M17-S09 — Cloudflare account + `ikaro.online` zone migration
+### M17-S09 — Cloudflare account + `ikaro.online` zone migration ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
