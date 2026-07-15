@@ -3,7 +3,7 @@ import type { Config } from 'jest';
 // Typed explicitly so the tuple ['ts-jest', options] satisfies [string, unknown]
 // at both the project and top-level config sites (needed for globalSetup transform).
 const sharedTransform: NonNullable<Config['transform']> = {
-  '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: '<rootDir>/../tsconfig.json' }],
+  '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/../tsconfig.json' }],
 };
 
 const config: Config = {

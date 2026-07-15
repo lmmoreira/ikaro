@@ -1,11 +1,13 @@
 import { HttpService } from '@nestjs/axios';
-import { HttpException, Inject, Injectable, Scope } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable, Scope } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { REQUEST } from '@nestjs/core';
+import { BffErrorCode } from '@ikaro/types';
 import { AxiosError, AxiosResponse } from 'axios';
 import { Request } from 'express';
 import { Observable, firstValueFrom } from 'rxjs';
 import { buildBackendHeaders } from './backend-headers';
+import { throwProblemDetail } from './problem-detail';
 
 @Injectable({ scope: Scope.REQUEST })
 export class BackendHttpService {
@@ -104,6 +106,13 @@ export class BackendHttpService {
     } catch (err) {
       if (err instanceof AxiosError && err.response) {
         throw new HttpException(err.response.data as object, err.response.status);
+      }
+      if (err instanceof AxiosError) {
+        throw throwProblemDetail(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          BffErrorCode.UPSTREAM_UNAVAILABLE,
+          'Backend service unavailable',
+        );
       }
       throw err;
     }

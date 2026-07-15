@@ -1,6 +1,7 @@
 import { HttpService } from '@nestjs/axios';
 import { HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { BffErrorCode } from '@ikaro/types';
 import { AxiosError, AxiosResponse } from 'axios';
 import { Request } from 'express';
 import { throwError, of } from 'rxjs';
@@ -178,6 +179,22 @@ describe('BackendHttpService', () => {
 
       await expect(service.get('/missing')).rejects.toBeInstanceOf(HttpException);
       await expect(service.get('/missing')).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('maps Axios network errors without a backend response to 503 upstream unavailable', async () => {
+      const { service, http } = makeService({ tenantId: 'tenant-1' });
+      const networkError = new AxiosError('ECONNREFUSED');
+      http.get.mockReturnValue(throwError(() => networkError));
+
+      await expect(service.get('/down')).rejects.toBeInstanceOf(HttpException);
+      await expect(service.get('/down')).rejects.toMatchObject({ status: 503 });
+      await expect(service.get('/down')).rejects.toMatchObject({
+        response: expect.objectContaining({
+          status: 503,
+          code: BffErrorCode.UPSTREAM_UNAVAILABLE,
+          detail: 'Backend service unavailable',
+        }),
+      });
     });
 
     it('re-throws non-Axios errors as-is', async () => {

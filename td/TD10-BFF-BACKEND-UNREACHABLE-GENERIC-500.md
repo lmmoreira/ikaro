@@ -1,6 +1,7 @@
 # TD10 — BackendHttpService returns a generic 500 for unreachable-backend/timeout errors
 
 ## Status
+- **State**: Resolved (2026-07-15)
 - **Type**: Technical Debt / Observability clarity (not a security issue)
 - **Priority**: Low
 - **Context**: `apps/bff/src/shared/http/backend-http.service.ts`
@@ -23,26 +24,24 @@ Anything else — network failure (`ECONNREFUSED`), DNS failure, or a request ti
 
 Flagged by CodeRabbit on PR #31 (M13-S05) as a "Critical" info-disclosure risk. Verified against the actual installed `@nestjs/core@11.1.19` source (`BaseExceptionFilter.handleUnknownError`) before accepting the claim — it does **not** leak the raw error message or stack trace to the client. For any non-`HttpException` error, Nest's built-in filter (present even with zero custom filters registered) already returns the fixed generic body `{"statusCode":500,"message":"Internal server error"}` and logs the real exception server-side only. So this is not a live vulnerability — the actual gap is purely that every distinct backend-unreachable failure mode collapses into the same generic `500`, which makes BFF-side bugs and backend-outage symptoms harder to tell apart from logs/dashboards alone.
 
-## Proposed fix (not yet scoped as a story)
+## Resolution
 
-Add one more branch to the same `catch` block:
+Implemented in `apps/bff/src/shared/http/backend-http.service.ts` on 2026-07-15.
+
+`BackendHttpService.call()` now keeps the existing passthrough branch for `AxiosError` instances with a backend `response`, and maps `AxiosError` instances with **no** `response` (timeout / connection refused / other upstream transport failure) to the shipped post-TD23 canonical BFF error envelope:
 
 ```ts
-catch (err) {
-  if (err instanceof AxiosError && err.response) {
-    throw new HttpException(err.response.data as object, err.response.status);
-  }
-  if (err instanceof AxiosError) {
-    throw new HttpException('Backend service unavailable', HttpStatus.BAD_GATEWAY);
-  }
-  throw err;
-}
+throwProblemDetail(
+  HttpStatus.SERVICE_UNAVAILABLE,
+  BffErrorCode.UPSTREAM_UNAVAILABLE,
+  'Backend service unavailable',
+);
 ```
 
-Distinguishes "backend unreachable/timed out" (`502`) from "something broke inside the BFF itself" (falls through to Nest's default `500`). Touches one private method shared by all 7 HTTP verbs (`get`/`post`/`patch`/`delete`/`getForPublic`/`postForPublic`/`patchForPublic`); extend `backend-http.service.spec.ts` with a timeout/`ECONNREFUSED` case per verb family. Estimated effort: small (~15-30 min).
+This distinguishes upstream-unavailable failures from genuine BFF bugs while staying aligned with the live error contract (`503 Service Unavailable` + `code: BFF_UPSTREAM_UNAVAILABLE`), rather than the pre-TD23 bare-string `502` shape originally proposed here. `backend-http.service.spec.ts` now covers this branch directly.
 
-## Acceptance criteria (when this is picked up)
+## Acceptance criteria
 
-- [ ] Network failure / timeout against the backend returns `502 Bad Gateway`, not a generic `500`
-- [ ] `backend-http.service.spec.ts` covers the new branch
-- [ ] No change to the existing `AxiosError` + `.response` branch (backend's own Problem Details errors must still pass through unchanged)
+- [x] Network failure / timeout against the backend returns a coded upstream-unavailable response, not a generic `500`
+- [x] `backend-http.service.spec.ts` covers the new branch
+- [x] No change to the existing `AxiosError` + `.response` branch (backend's own Problem Details errors still pass through unchanged)
