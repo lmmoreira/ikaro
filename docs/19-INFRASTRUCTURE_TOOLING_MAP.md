@@ -1,5 +1,7 @@
 # Infrastructure & Tooling Map - Ikaro
 
+> ⚠️ **Partially superseded** by `plan/M17-CLOUD-DEPLOY.md` §0 (2026-07-07). On any conflict — SA keys, VPC connector, Cloud Armor+IAP, GCE observability VM, cron transport, pipeline structure — M17 wins. Full rewrite tracked as M17-S42.
+
 ## Purpose
 
 This document answers one question per tool: **where does it run, what does it cost, and how does it connect to the pipeline?** Implementation details (Terraform HCL, workflow YAML, observability config) live in the authoritative documents referenced at the end of each section — this doc does not duplicate them.

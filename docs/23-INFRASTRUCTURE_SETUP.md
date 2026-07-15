@@ -1,5 +1,7 @@
 # Infrastructure Setup - Ikaro
 
+> ⚠️ **Partially superseded** by `plan/M17-CLOUD-DEPLOY.md` §0 (2026-07-07). On any conflict — SA keys, VPC connector, Cloud Armor+IAP, GCE observability VM, cron transport, pipeline structure — M17 wins. Full rewrite tracked as M17-S42.
+
 ## Overview
 
 This document is the single source of truth for infrastructure: from a blank laptop to a fully running local development environment, and from zero GCP access to a deployed production system.

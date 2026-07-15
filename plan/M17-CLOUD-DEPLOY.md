@@ -549,7 +549,7 @@ Create the Cloudflare footprint and move `ikaro.online` DNS to it. No production
 
 **Agent:** `devops`
 **Complexity:** S
-**Docs to load:** `docs/23-INFRASTRUCTURE_SETUP.md` § OAuth (reference)
+**Docs to load:** `docs/23-INFRASTRUCTURE_SETUP.md` § OAuth (reference only — M17 §0 wins)
 
 **Description:**
 The two external service prerequisites for a working deployment: Google OAuth (login) and a transactional email provider.
@@ -575,7 +575,7 @@ The two external service prerequisites for a working deployment: Google OAuth (l
 
 ---
 
-### M17-S48 — Supersession banners on legacy infra docs
+### M17-S48 — Supersession banners on legacy infra docs ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
@@ -640,7 +640,7 @@ Create the folder structure above with empty-but-valid modules, per-env backends
 
 **Agent:** `devops`
 **Complexity:** S
-**Docs to load:** vendored skills; `docs/23-INFRASTRUCTURE_SETUP.md` § network (reference)
+**Docs to load:** vendored skills; `docs/23-INFRASTRUCTURE_SETUP.md` § network (reference only — M17 §0 wins)
 
 **Description:**
 `modules/network`: VPC `ikaro-vpc-{env}` (no auto subnets), subnet `ikaro-subnet-{env}` `10.0.0.0/24` in `southamerica-east1` (flow logs ON per Checkov; **`private_ip_google_access = true`** — required: the BFF egresses `ALL_TRAFFIC` through this subnet (S18), so its Google-API calls — OAuth token exchange, JWKS fetches — must ride Private Google Access), **private services access** peering range for Cloud SQL (`servicenetworking` connection), firewall: default-deny ingress; egress allowed. **No Serverless VPC Access connector** (D7) — Cloud Run services reference this subnet via direct VPC egress in S18. **No Cloud NAT at launch** (documented decision, 2026-07-07): the backend keeps `PRIVATE_RANGES_ONLY` egress so its non-Google calls (Brevo) go direct from Cloud Run's infrastructure, and the BFF calls only Google APIs (PGA) + the backend (VPC) — nothing needs a NAT path. Revisit only if a VPC-egressing service ever needs a non-Google external API.
@@ -717,7 +717,7 @@ cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-stagi
 
 **Agent:** `devops`
 **Complexity:** S
-**Docs to load:** `docs/12-DEPLOYMENT_STRATEGY.md` § immutable artifacts
+**Docs to load:** `docs/12-DEPLOYMENT_STRATEGY.md` § immutable artifacts (reference only — M17 §0 wins)
 
 **Description:**
 `modules/registry`, instantiated **only in the prod env** (D8): Docker repo `ikaro-registry` in `southamerica-east1`. Cleanup policies: delete untagged >7 days; keep last 15 tagged versions per image. IAM: prod deployer `roles/artifactregistry.admin`; staging deployer `roles/artifactregistry.writer` (cross-project binding); both projects’ runtime SAs `roles/artifactregistry.reader`. Images: `ikaro-backend:<sha>`, `ikaro-bff:<sha>`, `ikaro-web:<sha>-staging` / `ikaro-web:<sha>-prod` (web per-env build, see D8/S26), `ikaro-otel-collector:<version>` (S34).
@@ -857,7 +857,7 @@ Terraform must mirror the adapter’s naming **exactly**: topic `ikaro-{EventNam
 
 **Agent:** `devops` + `backend-ts`
 **Complexity:** M
-**Docs to load:** `apps/backend/package.json`, `apps/backend/Dockerfile`, `docs/09-CI_CD_PIPELINE.md` § Stage 4.5 (reference)
+**Docs to load:** `apps/backend/package.json`, `apps/backend/Dockerfile`, `docs/09-CI_CD_PIPELINE.md` § Stage 4.5 (reference only — M17 §0 wins)
 
 **Description:**
 Migrations run as Cloud Run Job `ikaro-migrate` (backend image, command override) — inside the VPC, so private Cloud SQL is reachable. **Known blocker to fix first:** `migration:run` currently uses `typeorm-ts-node-commonjs -d src/shared/database/data-source.ts` — dev-only (needs ts-node + `src/`, neither in the prod image).
@@ -987,7 +987,7 @@ The Terraform lifecycle the user asked for: commit to `infra/` triggers plan/app
 
 **Agent:** `devops`
 **Complexity:** L
-**Docs to load:** `docs/09-CI_CD_PIPELINE.md` (reference), Dockerfiles, S20
+**Docs to load:** `docs/09-CI_CD_PIPELINE.md` (reference only — M17 §0 wins), Dockerfiles, S20
 
 **Description:**
 On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build → scan → push → migrate → deploy → smoke. Trunk-based, no approval (D10).
@@ -1013,7 +1013,7 @@ On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build �
 
 **Agent:** `devops`
 **Complexity:** M
-**Docs to load:** `docs/12-DEPLOYMENT_STRATEGY.md` § rollback (reference), S25
+**Docs to load:** `docs/12-DEPLOYMENT_STRATEGY.md` § rollback (reference only — M17 §0 wins), S25
 
 **Description:**
 `workflow_dispatch` with input `image_sha`. Promotes the staging-validated artifacts: backend/bff by **exact same image**; web by building `ikaro-web:<sha>-prod` from the same git SHA with prod build args (documented D8 exception — the only rebuild, from identical source).
@@ -1426,7 +1426,7 @@ Today Cloudflare caches only static assets (default). Turn on HTML edge caching 
 
 **Agent:** `devops`
 **Complexity:** M
-**Docs to load:** `docs/12-DEPLOYMENT_STRATEGY.md`, `docs/23-INFRASTRUCTURE_SETUP.md`, `docs/09-CI_CD_PIPELINE.md`, `docs/19-INFRASTRUCTURE_TOOLING_MAP.md`, `docs/20-COST_OPTIMIZATION_STRATEGY.md`, `docs/10-OBSERVABILITY_STRATEGY.md`
+**Docs to load:** `docs/12-DEPLOYMENT_STRATEGY.md` (reference only — M17 §0 wins), `docs/23-INFRASTRUCTURE_SETUP.md` (reference only — M17 §0 wins), `docs/09-CI_CD_PIPELINE.md` (reference only — M17 §0 wins), `docs/19-INFRASTRUCTURE_TOOLING_MAP.md` (reference only — M17 §0 wins), `docs/20-COST_OPTIMIZATION_STRATEGY.md`, `docs/10-OBSERVABILITY_STRATEGY.md`
 
 **Description:**
 Run `/docs-audit` scoped to the infra/deploy docs, then update them to describe what was actually built (docs describe reality, not aspiration): VPC connector → direct egress; pull → push; SA keys → WIF; Cloud Armor/IAP § → removed with a pointer to D4; secret catalog → live list; CI/CD § → the three real workflows; observability § → OTel + sidecar + managed backends (keep the self-hosted Grafana design as an explicitly-labeled *future option*, referencing D9’s config-swap path); cost doc → §1 model. Also: revisit deployer SA scope-tightening (S08 note) and file follow-ups for anything intentionally deferred (manual business spans, Memorystore throttling, Authenticated Origin Pulls, staging edge). Each `.md` edit goes through the doc gate.

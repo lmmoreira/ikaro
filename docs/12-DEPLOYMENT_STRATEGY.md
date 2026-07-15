@@ -1,5 +1,7 @@
 # Deployment Strategy - Ikaro
 
+> ⚠️ **Partially superseded** by `plan/M17-CLOUD-DEPLOY.md` §0 (2026-07-07). On any conflict — SA keys, VPC connector, Cloud Armor+IAP, GCE observability VM, cron transport, pipeline structure — M17 wins. Full rewrite tracked as M17-S42.
+
 ## Philosophy
 
 **Simple, robust, cost-conscious.** Ikaro starts on fully-managed GCP services that require zero operational overhead, scale automatically with traffic, and cost ~$50/month at MVP. The same Docker images and the same code run from day 1 through 1 M users — only the infrastructure tier changes.

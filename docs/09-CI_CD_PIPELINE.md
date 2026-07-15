@@ -1,5 +1,7 @@
 # CI/CD Pipeline - Ikaro
 
+> ⚠️ **Partially superseded** by `plan/M17-CLOUD-DEPLOY.md` §0 (2026-07-07). On any conflict — SA keys, VPC connector, Cloud Armor+IAP, GCE observability VM, cron transport, pipeline structure — M17 wins. Full rewrite tracked as M17-S42.
+
 ## Guiding Principles
 
 1. **Every pipeline is isolated.** Backend, BFF, frontend, infrastructure, migrations, and observability each have their own CI and deploy workflows. A change to the frontend never triggers backend tests. Infrastructure changes never rebuild application images.
