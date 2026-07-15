@@ -44,7 +44,7 @@
 | WIF / IAM | bindings | OIDC federation concept (exists on AWS/Azure) | rework, concepts map 1:1 | keyless > portable-but-leakable keys |
 | Cloudflare (core: DNS/CDN/WAF) | none (cloud-neutral) | — | zero | fronts any origin |
 | Cloudflare for SaaS (S40) | custom-hostname + cert issuance API | tenant `custom_domain` data + verification port live in the app | ~days (Fastly/edge equivalent, or ALB certs per domain) | custom-hostname SSL is inherently edge-provider-specific; accepted |
-| SendGrid | delivery API | M11 email port — SendGrid types confined to its adapter (`EMAIL_ADAPTER` switches) | ~hours (SES/Resend/Mailgun/SMTP adapter) | port already exists; cheapest swap in the stack |
+| Brevo (was SendGrid — switched 2026-07-15, S10: SendGrid rejected the account during compliance vetting, and had separately retired its free plan) | delivery API (SMTP relay) | M11 email port — provider-specific types confined to its adapter (`EMAIL_ADAPTER` switches, tracked as `td/TD26-BREVO-EMAIL-ADAPTER.md`) | ~hours (SES/Resend/Mailgun/SMTP adapter) | port already exists; cheapest swap in the stack |
 
 ---
 
@@ -122,7 +122,7 @@
 | Wave | Stories | Theme | Cloud cost? |
 |---|---|---|---|
 | 0 | S01–S06, S30, S32, S47, S52 | App prerequisites (all local, no accounts needed) | No |
-| 1 | S07–S10, S48 | Accounts & Day-0 bootstrap (GCP, Cloudflare, OAuth, SendGrid) + legacy-doc banners | Starts |
+| 1 | S07–S10, S48 | Accounts & Day-0 bootstrap (GCP, Cloudflare, OAuth, Brevo) + legacy-doc banners | Starts |
 | 2 | S11–S22 | Terraform: modules + staging/prod envs | Yes |
 | 3 | S23–S26 | Pipelines: infra, staging deploy, prod promote | Yes |
 | 4 | S27–S28 | Staging live + E2E against staging | Yes |
@@ -545,14 +545,16 @@ Create the Cloudflare footprint and move `ikaro.online` DNS to it. No production
 
 ---
 
-### M17-S10 — Google OAuth consent + clients, SendGrid account
+### M17-S10 — Google OAuth consent + clients, email provider (Brevo) ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
 **Docs to load:** `docs/23-INFRASTRUCTURE_SETUP.md` § OAuth (reference)
 
 **Description:**
-The two external service prerequisites for a working deployment: Google OAuth (login) and SendGrid (email).
+The two external service prerequisites for a working deployment: Google OAuth (login) and a transactional email provider.
+
+> **Provider switch (2026-07-15):** SendGrid was rejected by Twilio's own compliance/vetting review during account signup (generic denial, no reason disclosed), and had separately retired its free plan in 2025. Switched to **Brevo** instead (see `docs/BOOTSTRAP_LOG.md`'s M17-S10 entry for the full comparison and DNS record trail). The runbook below is updated for Brevo; the underlying steps (domain authentication, DMARC, scoped send-only credentials) are the same shape regardless of provider. The actual code still needs updating to match — tracked as `td/TD26-BREVO-EMAIL-ADAPTER.md`.
 
 **Runbook steps:**
 1. **OAuth consent screen** (in `ikaro-prod`, shared by both envs or one per project — one per project preferred for isolation): External type; app name, support email, domain `ikaro.online`. Stays in **Testing** mode until go-live: add every staging tester as a Test User (without this, staging login returns `Error 403: access_denied` — Google policy, not a bug).
@@ -560,12 +562,12 @@ The two external service prerequisites for a working deployment: Google OAuth (l
    - staging: authorized redirect `https://<bff-staging-run-url>/v1/auth/google/callback` (exact BFF path — verify against `GOOGLE_CALLBACK_URL` usage in `apps/bff`). **Chicken-and-egg note:** the BFF run URL doesn't exist until Wave 2 — use Cloud Run's deterministic URL format, computable after S08 (`https://ikaro-bff-<PROJECT_NUMBER>.southamerica-east1.run.app`; project number from `gcloud projects describe`), or create the client with a placeholder and update the redirect URI during S27 (redirect URIs are freely editable; changes take effect in minutes).
    - prod: `https://bff.ikaro.online/v1/auth/google/callback`
    - Record client IDs; secrets go straight to a password manager → Secret Manager in S27/S37.
-3. **SendGrid:** create account; verify sender domain `ikaro.online` (SPF/DKIM DNS records — add via Cloudflare, done after S09); publish a **DMARC** record too (`_dmarc.ikaro.online`, start `v=DMARC1; p=none; rua=mailto:<admin>` to monitor, tighten to `p=quarantine` once SendGrid alignment is confirmed — deliverability + spoofing protection); create two API keys (staging, prod) with Mail Send permission only.
+3. **Brevo** (switched from SendGrid — see note above): create account; verify sender domain `ikaro.online` (DKIM CNAME records + ownership TXT — added via Cloudflare's one-time scoped auto-connect, done after S09); publish a **DMARC** record too (`_dmarc.ikaro.online`, `v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com,mailto:<admin>` to monitor — include your own address alongside Brevo's default so you retain visibility, tighten to `p=quarantine` once alignment is confirmed — deliverability + spoofing protection); create two **SMTP keys** (staging, prod) — not general API keys — since SMTP keys are structurally send-only, matching "Mail Send permission only" without needing granular API-key scoping. No IP restriction (Cloud Run has no static outbound IP; no Cloud NAT provisioned).
 4. Plan for go-live: consent screen **verification/publishing** takes days–weeks with Google — start the submission during Wave 5, not at go-live day (tracked in S37 checklist).
 
 **Acceptance criteria:**
 - [ ] Two OAuth clients exist with correct redirect URIs; test users added
-- [ ] SendGrid domain authentication (SPF+DKIM) verified on `ikaro.online`; DMARC record published
+- [ ] Brevo domain authentication (DKIM) verified on `ikaro.online`; DMARC record published
 - [ ] API keys scoped to Mail Send only; nothing committed to git
 - [ ] `BOOTSTRAP_LOG.md` updated
 
@@ -641,7 +643,7 @@ Create the folder structure above with empty-but-valid modules, per-env backends
 **Docs to load:** vendored skills; `docs/23-INFRASTRUCTURE_SETUP.md` § network (reference)
 
 **Description:**
-`modules/network`: VPC `ikaro-vpc-{env}` (no auto subnets), subnet `ikaro-subnet-{env}` `10.0.0.0/24` in `southamerica-east1` (flow logs ON per Checkov; **`private_ip_google_access = true`** — required: the BFF egresses `ALL_TRAFFIC` through this subnet (S18), so its Google-API calls — OAuth token exchange, JWKS fetches — must ride Private Google Access), **private services access** peering range for Cloud SQL (`servicenetworking` connection), firewall: default-deny ingress; egress allowed. **No Serverless VPC Access connector** (D7) — Cloud Run services reference this subnet via direct VPC egress in S18. **No Cloud NAT at launch** (documented decision, 2026-07-07): the backend keeps `PRIVATE_RANGES_ONLY` egress so its non-Google calls (SendGrid) go direct from Cloud Run's infrastructure, and the BFF calls only Google APIs (PGA) + the backend (VPC) — nothing needs a NAT path. Revisit only if a VPC-egressing service ever needs a non-Google external API.
+`modules/network`: VPC `ikaro-vpc-{env}` (no auto subnets), subnet `ikaro-subnet-{env}` `10.0.0.0/24` in `southamerica-east1` (flow logs ON per Checkov; **`private_ip_google_access = true`** — required: the BFF egresses `ALL_TRAFFIC` through this subnet (S18), so its Google-API calls — OAuth token exchange, JWKS fetches — must ride Private Google Access), **private services access** peering range for Cloud SQL (`servicenetworking` connection), firewall: default-deny ingress; egress allowed. **No Serverless VPC Access connector** (D7) — Cloud Run services reference this subnet via direct VPC egress in S18. **No Cloud NAT at launch** (documented decision, 2026-07-07): the backend keeps `PRIVATE_RANGES_ONLY` egress so its non-Google calls (Brevo) go direct from Cloud Run's infrastructure, and the BFF calls only Google APIs (PGA) + the backend (VPC) — nothing needs a NAT path. Revisit only if a VPC-egressing service ever needs a non-Google external API.
 
 **Acceptance criteria:**
 - [ ] Applied to staging: VPC + subnet + PSA connection exist
@@ -1050,7 +1052,7 @@ On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build �
 Turn staging from placeholder to a working environment. This is a runbook + checklist story; its PR carries only doc updates.
 
 **Steps:**
-1. Populate staging secret values (`gcloud secrets versions add`): jwt-secret (`openssl rand -hex 64`), internal-api-key, platform-admin-key, hotsite-revalidate-secret, OAuth pair (S10), SendGrid key. **Create the DB user + password out-of-band per the S13 snippet** (`gcloud sql users create` + `db-password` secret version — never via Terraform, §2). Record rotation dates in `SECRETS.md`.
+1. Populate staging secret values (`gcloud secrets versions add`): jwt-secret (`openssl rand -hex 64`), internal-api-key, platform-admin-key, hotsite-revalidate-secret, OAuth pair (S10), Brevo SMTP key. **Create the DB user + password out-of-band per the S13 snippet** (`gcloud sql users create` + `db-password` secret version — never via Terraform, §2). Record rotation dates in `SECRETS.md`.
 2. Flip `bootstrap_mode=false` (S18) via the infra pipeline; set staging env vars: `APP_ENV=staging` (which is what makes `ENABLE_DEV_AUTH=true` legal — S06), `ENABLE_DEV_AUTH=true`, `EMAIL_ADAPTER=sendgrid`, `LOG_LEVEL=DEBUG`.
    **Staging data rule (compensating control, 2026-07-07):** `ENABLE_DEV_AUTH=true` on a public `*.run.app` URL is an authentication bypass for anyone who discovers the URL. Accepted **only** under this rule: staging holds synthetic/test data exclusively — never real customer data, never a copy of prod. Record the rule in `docs/RUNBOOKS.md` (staging section) as part of this story.
 3. Trigger `deploy-staging.yml` (empty commit or re-run) → first real images deploy.
@@ -1059,7 +1061,7 @@ Turn staging from placeholder to a working environment. This is a runbook + chec
    - [ ] Backend unreachable from internet; reachable from BFF (S18 check)
    - [ ] Migrations applied (S20 check); tables present via `cloud-sql-proxy` + psql
    - [ ] Google login works on the staging web URL (test user from S10)
-   - [ ] Guest booking flow end-to-end on the staging hotsite (creates booking, email lands via SendGrid)
+   - [ ] Guest booking flow end-to-end on the staging hotsite (creates booking, email lands via Brevo)
    - [ ] Pub/Sub push observed: `BookingRequested` handled, notification sent, no DLQ messages (S19 check)
    - [ ] `gcloud scheduler jobs run` → cron push hits backend (S21 check)
    - [ ] Signed-URL photo upload works from the browser (S14 CORS check)
@@ -1276,7 +1278,7 @@ Closes the “bypass Cloudflare by hitting the LB IP directly” hole. `modules/
 2. **Break-glass account:** the second admin identity **created back in S07** (moved there 2026-07-07 — the lockout risk is live from Day 0). This story verifies and drills it (login + revoke test), documents the activation procedure + a log requirement (any break-glass use is written up). For a solo operator this is the difference between "lost my phone" and "lost the platform".
 3. **Quarterly IAM review:** 15-minute checklist — `gcloud projects get-iam-policy` diff vs the documented inventory, SA key check (must stay zero), WIF binding check, dormant-identity removal. Same calendar cadence as the S49 drill.
 4. **Audit log expectations:** Admin Activity logs (400-day default retention, free) are the baseline; decide and document Data Access logs per service (enable for Secret Manager and Cloud SQL at minimum — low volume, high forensic value; leave GCS data-access off until traffic justifies the cost).
-5. **2FA statement:** hardware key (or authenticator minimum) on the admin Google account, Cloudflare, GitHub, SendGrid — already required by S07/S09; this doc is where the requirement lives permanently.
+5. **2FA statement:** hardware key (or authenticator minimum) on the admin Google account, Cloudflare, GitHub, Brevo — already required by S07/S09; this doc is where the requirement lives permanently.
 
 **Acceptance criteria:**
 - [ ] `docs/SECURITY_GOVERNANCE.md` exists covering the five areas
@@ -1303,7 +1305,7 @@ Runbook story mirroring S27 for prod, plus DNS cutover and the first real tenant
 
 **Go-live checklist:**
 1. **OAuth consent verification:** submit the consent screen for Google verification (started back in Wave 5 per S10 — confirm status; production login for arbitrary users requires it).
-2. **Prod secrets:** populate all values — **freshly generated, never staging’s** (`jwt-secret`, `internal-api-key`, `platform-admin-key`, `hotsite-revalidate-secret` via `openssl rand -hex 64`; prod OAuth pair; prod SendGrid key; DB user + `db-password` per the S13 out-of-band snippet). Record in `SECRETS.md`.
+2. **Prod secrets:** populate all values — **freshly generated, never staging’s** (`jwt-secret`, `internal-api-key`, `platform-admin-key`, `hotsite-revalidate-secret` via `openssl rand -hex 64`; prod OAuth pair; prod Brevo SMTP key; DB user + `db-password` per the S13 out-of-band snippet). Record in `SECRETS.md`.
 3. **Prod Terraform apply** via the infra pipeline (`production-infrastructure` approval) — includes the edge module (S22): ALB, certs, Cloudflare records. Verify cert ACTIVE before cutover.
 4. **Prod env vars:** `ENABLE_DEV_AUTH` **unset**, `LOG_LEVEL=INFO`, `OTEL_TRACES_SAMPLER_ARG=0.1`, `ALLOWED_ORIGINS=https://ikaro.online`.
 5. **First promote:** run `deploy-production.yml` with the current staging-validated SHA. Approve after reviewing the diff summary.
@@ -1597,7 +1599,7 @@ When the trigger above is met, move the instance to Enterprise Plus and enable *
 | S04 | M14-S07 | readiness made real |
 | S05 | M14-S08 | logger alignment (was mostly done) |
 | S06 | new | prod env guards |
-| S07–S10 | M15-S01 expanded | accounts from zero, WIF, Cloudflare, OAuth, SendGrid |
+| S07–S10 | M15-S01 expanded | accounts from zero, WIF, Cloudflare, OAuth, Brevo |
 | S11 | M15-S02 | fixed state layout |
 | S12 | M15-S03 | connector → direct egress |
 | S13 | M15-S04 | tiers per D12 |
