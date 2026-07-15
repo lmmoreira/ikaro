@@ -1,4 +1,4 @@
-name: PR — Tests
+name: PR — Quality And Security
 
 on:
   pull_request:
@@ -36,7 +36,7 @@ jobs:
         run: pnpm --filter @ikaro/backend test:cov
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-coverage
           path: apps/backend/coverage/lcov.info
@@ -89,7 +89,7 @@ jobs:
         run: pnpm --filter @ikaro/bff test:cov
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: bff-coverage
           path: apps/bff/coverage/lcov.info
@@ -118,7 +118,7 @@ jobs:
         run: pnpm --filter @ikaro/web test:cov
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: web-coverage
           path: apps/web/coverage/lcov.info
@@ -163,9 +163,203 @@ jobs:
           INTERNAL_API_KEY: 'test-internal-key-test-internal-key'
           ENABLE_DEV_AUTH: 'true'
 
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.1.1
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start infrastructure (postgres, pubsub, gcs, mailhog)
+        run: docker compose -f docker/docker-compose.yml up -d
+
+      - name: Wait for postgres
+        run: |
+          retries=30
+          until docker compose -f docker/docker-compose.yml exec -T postgres \
+            pg_isready -U postgres -d ikaro; do
+            retries=$((retries - 1))
+            if [ "$retries" -le 0 ]; then
+              echo "Postgres did not become ready in time"
+              docker compose -f docker/docker-compose.yml logs postgres
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Run migrations
+        run: pnpm db:migrate
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: ikaro_app
+          DB_PASSWORD: ikaro_app
+          DB_NAME: ikaro
+          DB_MIGRATOR_USER: ikaro_migrator
+          DB_MIGRATOR_PASSWORD: ikaro_migrator
+          PUBSUB_EMULATOR_HOST: localhost:8085
+          PUBSUB_PROJECT_ID: ikaro-local
+
+      - name: Seed database
+        run: pnpm db:seed
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: ikaro_app
+          DB_PASSWORD: ikaro_app
+          DB_NAME: ikaro
+          DB_MIGRATOR_USER: ikaro_migrator
+          DB_MIGRATOR_PASSWORD: ikaro_migrator
+          PUBSUB_EMULATOR_HOST: localhost:8085
+          PUBSUB_PROJECT_ID: ikaro-local
+          PUBSUB_AUTO_CREATE: 'true'
+          GCS_EMULATOR_HOST: 'http://localhost:4443'
+          GCS_BUCKET_NAME: ikaro-local
+          GCS_PUBLIC_BUCKET_NAME: ikaro-local-public
+          GCS_PUBLIC_BASE_URL: 'http://localhost:4443'
+          GCS_KEY_FILE: ../../docker/fake-service-account.json
+          EMAIL_ADAPTER: mailhog
+          EMAIL_FROM: noreply@ikaro.example
+          SMTP_HOST: localhost
+          SMTP_PORT: '1025'
+          JWT_SECRET: 'e2e-ci-jwt-secret-must-be-at-least-64-characters-long-xxxxxxxxxxxxx'
+          PLATFORM_ADMIN_KEY: 'e2e-ci-platform-admin-key-must-be-32-chars!!'
+          INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'
+          FRONTEND_URL: 'http://localhost:3000'
+          HOTSITE_REVALIDATE_SECRET: 'e2e-ci-revalidate-secret-must-be-32ch!!'
+          ENABLE_DEV_AUTH: 'true'
+
+      # All three apps are started and awaited in a single step so their
+      # background processes share one shell lifetime and cannot be reaped
+      # when an earlier step's shell exits.
+      - name: Start services and wait for readiness
+        timeout-minutes: 8
+        env:
+          NODE_ENV: development
+          PORT: '3001'
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_USER: ikaro_app
+          DB_PASSWORD: ikaro_app
+          DB_NAME: ikaro
+          DB_MIGRATOR_USER: ikaro_migrator
+          DB_MIGRATOR_PASSWORD: ikaro_migrator
+          PUBSUB_EMULATOR_HOST: localhost:8085
+          PUBSUB_PROJECT_ID: ikaro-local
+          PUBSUB_AUTO_CREATE: 'true'
+          PUBSUB_MAX_DELIVERY_ATTEMPTS: '5'
+          GCS_EMULATOR_HOST: 'http://localhost:4443'
+          GCS_BUCKET_NAME: ikaro-local
+          GCS_PUBLIC_BUCKET_NAME: ikaro-local-public
+          GCS_PUBLIC_BASE_URL: 'http://localhost:4443'
+          GCS_KEY_FILE: ../../docker/fake-service-account.json
+          GCS_MAX_UPLOAD_BYTES: '10485760'
+          EMAIL_ADAPTER: mailhog
+          EMAIL_FROM: noreply@ikaro.example
+          SMTP_HOST: localhost
+          SMTP_PORT: '1025'
+          JWT_SECRET: 'e2e-ci-jwt-secret-must-be-at-least-64-characters-long-xxxxxxxxxxxxx'
+          PLATFORM_ADMIN_KEY: 'e2e-ci-platform-admin-key-must-be-32-chars!!'
+          INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'
+          FRONTEND_URL: 'http://localhost:3000'
+          HOTSITE_REVALIDATE_SECRET: 'e2e-ci-revalidate-secret-must-be-32ch!!'
+          ENABLE_DEV_AUTH: 'true'
+          BACKEND_INTERNAL_URL: 'http://localhost:3001'
+          JWT_EXPIRES_IN: 7d
+          GOOGLE_CLIENT_ID: e2e-test-client-id
+          GOOGLE_CLIENT_SECRET: e2e-test-client-secret
+          GOOGLE_CALLBACK_URL: 'http://localhost:3002/v1/auth/google/callback'
+          ALLOWED_ORIGINS: 'http://localhost:3000'
+          CRON_SECRET: 'e2e-ci-cron-secret-must-be-at-least-32-chars!!'
+          NEXT_PUBLIC_BFF_URL: 'http://localhost:3002/v1'
+          NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'http://localhost:4443/ikaro-local-public'
+          NEXT_PUBLIC_SITE_URL: 'http://localhost:3000'
+        run: |
+          set -e
+
+          pnpm --filter @ikaro/backend dev > /tmp/backend.log 2>&1 &
+          PORT=3002 pnpm --filter @ikaro/bff dev > /tmp/bff.log 2>&1 &
+          pnpm --filter @ikaro/web dev > /tmp/web.log 2>&1 &
+
+          pnpm exec wait-on \
+            tcp:localhost:3001 \
+            tcp:localhost:3002 \
+            tcp:localhost:3000 \
+            --timeout 180000 \
+            --interval 2000 \
+          || {
+            echo "=== Listening ports ==="
+            ss -tlnp 2>/dev/null || true
+            echo "=== Backend log (last 30 lines) ==="
+            tail -30 /tmp/backend.log || true
+            echo "=== BFF log (last 30 lines) ==="
+            tail -30 /tmp/bff.log || true
+            echo "=== Web log (last 30 lines) ==="
+            tail -30 /tmp/web.log || true
+            exit 1
+          }
+          echo "All services ready ✓"
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @ikaro/web exec playwright install chromium --with-deps
+
+      - name: Run Playwright E2E
+        run: pnpm --filter @ikaro/web e2e:ci
+        env:
+          PLAYWRIGHT_BASE_URL: 'http://localhost:3000'
+          INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'
+          JWT_SECRET: 'e2e-ci-jwt-secret-must-be-at-least-64-characters-long-xxxxxxxxxxxxx'
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 1
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 1
+
+      - name: Upload server logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: server-logs
+          path: |
+            /tmp/backend.log
+            /tmp/bff.log
+            /tmp/web.log
+          retention-days: 1
+
+  test-suite-passed:
+    name: Test Suite Passed
+    needs: [backend-unit, backend-integration, bff-unit, web-unit, bff-component, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "All PR test jobs passed."
+
   sonar:
     name: SonarCloud Analysis
-    needs: [backend-unit, bff-unit, web-unit]
+    needs: [test-suite-passed, backend-unit, bff-unit, web-unit]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -231,3 +425,200 @@ jobs:
             exit 1
           fi
           echo "✅ No new SonarCloud issues."
+
+  dependency-review:
+    name: Dependency Review
+    needs: [test-suite-passed]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Dependency review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  gitleaks:
+    name: Gitleaks Secret Scan
+    needs: [test-suite-passed]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  snyk-sca:
+    name: Snyk SCA
+    needs: [test-suite-passed]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Detect dependency changes
+        id: filter
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        with:
+          filters: |
+            deps:
+              - '**/package.json'
+              - '**/pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        if: steps.filter.outputs.deps == 'true'
+        with:
+          version: 11.1.1
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        if: steps.filter.outputs.deps == 'true'
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.filter.outputs.deps == 'true'
+
+      - name: Snyk SCA — all workspaces
+        if: steps.filter.outputs.deps == 'true'
+        uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
+        with:
+          args: --severity-threshold=high --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  trivy-scan:
+    name: Trivy Image Scan (${{ matrix.service }})
+    needs: [test-suite-passed]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            dockerfile: apps/backend/Dockerfile
+          - service: bff
+            dockerfile: apps/bff/Dockerfile
+          - service: web
+            dockerfile: apps/web/Dockerfile
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        run: docker buildx create --use --driver docker-container
+
+      - name: Build ${{ matrix.service }} image
+        run: |
+          docker buildx build \
+            --cache-from type=gha,scope=trivy-${{ matrix.service }} \
+            --cache-to type=gha,scope=trivy-${{ matrix.service }},mode=max \
+            --load \
+            -f ${{ matrix.dockerfile }} \
+            -t ikaro-${{ matrix.service }}:scan \
+            .
+
+      - name: Trivy scan — ${{ matrix.service }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ikaro-${{ matrix.service }}:scan
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Env-leak check — ${{ matrix.service }}
+        run: |
+          LEAKED=$(docker run --rm --entrypoint sh "ikaro-${{ matrix.service }}:scan" \
+            -c 'find /app -name ".env*" -not -name ".env.example" 2>/dev/null || true')
+          if [ -n "$LEAKED" ]; then
+            echo "❌ .env* file found inside the ${{ matrix.service }} image:"
+            echo "$LEAKED"
+            exit 1
+          fi
+          echo "✅ No .env* files found inside the ${{ matrix.service }} image"
+
+      - name: Boot smoke test — ${{ matrix.service }}
+        run: |
+          ARGS=(--name "smoke-${{ matrix.service }}" -d)
+          case "${{ matrix.service }}" in
+            backend)
+              ARGS+=(
+                -e JWT_SECRET="$(openssl rand -hex 32)"
+                -e PLATFORM_ADMIN_KEY="$(openssl rand -hex 32)"
+                -e INTERNAL_API_KEY="$(openssl rand -hex 32)"
+                -e HOTSITE_REVALIDATE_SECRET="$(openssl rand -hex 32)"
+                -e DB_HOST=localhost -e DB_USER=ikaro_app -e DB_PASSWORD=ikaro_app -e DB_NAME=ikaro
+              )
+              ;;
+            bff)
+              ARGS+=(
+                -e JWT_SECRET="$(openssl rand -hex 32)"
+                -e CRON_SECRET="$(openssl rand -hex 32)"
+                -e INTERNAL_API_KEY="$(openssl rand -hex 32)"
+                -e BACKEND_INTERNAL_URL=http://localhost:3001
+                -e GOOGLE_CLIENT_ID=smoke-test
+                -e GOOGLE_CLIENT_SECRET=smoke-test
+                -e GOOGLE_CALLBACK_URL=http://localhost:3002/v1/auth/google/callback
+              )
+              ;;
+          esac
+          docker run "${ARGS[@]}" "ikaro-${{ matrix.service }}:scan"
+          sleep 5
+          docker logs "smoke-${{ matrix.service }}"
+          STATUS=$(docker inspect "smoke-${{ matrix.service }}" --format='{{.State.Status}}')
+          docker rm -f "smoke-${{ matrix.service }}"
+          if [ "$STATUS" != "running" ]; then
+            echo "❌ Container exited instead of staying up — see logs above"
+            exit 1
+          fi
+          echo "✅ Container booted and is still running"
+
+  checkov:
+    name: Checkov IaC Scan
+    needs: [test-suite-passed]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Detect Terraform changes
+        id: filter
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        with:
+          filters: |
+            terraform:
+              - 'infrastructure/terraform/**'
+
+      - name: Checkov — Terraform
+        if: steps.filter.outputs.terraform == 'true'
+        uses: bridgecrewio/checkov-action@a7683e7b72a04503521247973281ec8142e1ac1f # v12.3112.0
+        with:
+          directory: infrastructure/terraform
+          soft_fail: false
+          quiet: true
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+
+      - name: Upload SARIF to GitHub Security tab
+        if: steps.filter.outputs.terraform == 'true' && always()
+        uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          sarif_file: checkov-results.sarif
