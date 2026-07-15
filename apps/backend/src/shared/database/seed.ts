@@ -37,6 +37,8 @@ const IDS = {
   bookingApproved: '00000000-0000-7000-8005-000000000002',
   bookingCompleted: '00000000-0000-7000-8005-000000000003',
 
+  linePending: '00000000-0000-7000-8006-000000000002',
+  lineApproved: '00000000-0000-7000-8006-000000000003',
   lineCompleted: '00000000-0000-7000-8006-000000000001',
   loyaltyEntry: '00000000-0000-7000-8007-000000000001',
 };
@@ -363,9 +365,21 @@ async function seedBookings(q: ReturnType<DataSource['createQueryRunner']>): Pro
       (line_id, tenant_id, booking_id, service_id,
        service_name_at_booking, price_at_booking_amount,
        duration_mins_at_booking, points_value_at_booking) VALUES
-      ($1, $2, $3, $4, 'Lavagem Completa', 150.00, 60, 10)
+      ($1, $4, $5, $8, 'Lavagem Simples',  80.00, 30, 5),
+      ($2, $4, $6, $9, 'Lavagem Completa', 150.00, 60, 10),
+      ($3, $4, $7, $9, 'Lavagem Completa', 150.00, 60, 10)
     ON CONFLICT (line_id) DO NOTHING`,
-    [IDS.lineCompleted, IDS.tenantA, IDS.bookingCompleted, IDS.serviceCompleta],
+    [
+      IDS.linePending,
+      IDS.lineApproved,
+      IDS.lineCompleted,
+      IDS.tenantA,
+      IDS.bookingPending,
+      IDS.bookingApproved,
+      IDS.bookingCompleted,
+      IDS.serviceSimples,
+      IDS.serviceCompleta,
+    ],
   );
 
   await q.query(
