@@ -11,27 +11,27 @@ permissions:
 
 jobs:
   planner-staging:
-    name: "tf-planner staging: expect SUCCESS (any ref)"
+    name: 'tf-planner staging: expect SUCCESS (any ref)'
     runs-on: ubuntu-latest
     steps:
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
           service_account: ${{ secrets.TF_PLANNER_SA_STAGING }}
-      - run: gcloud auth print-access-token > /dev/null && echo "RESULT: planner-staging SUCCEEDED"
+      - run: 'gcloud auth print-access-token > /dev/null && echo "RESULT: planner-staging SUCCEEDED"'
 
   planner-prod:
-    name: "tf-planner prod: expect SUCCESS (any ref)"
+    name: 'tf-planner prod: expect SUCCESS (any ref)'
     runs-on: ubuntu-latest
     steps:
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
           service_account: ${{ secrets.TF_PLANNER_SA_PROD }}
-      - run: gcloud auth print-access-token > /dev/null && echo "RESULT: planner-prod SUCCEEDED"
+      - run: 'gcloud auth print-access-token > /dev/null && echo "RESULT: planner-prod SUCCEEDED"'
 
   deployer-staging-non-main:
-    name: "tf-deployer staging off-main: expect FAIL"
+    name: 'tf-deployer staging off-main: expect FAIL'
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -40,10 +40,10 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
           service_account: ${{ secrets.TF_DEPLOYER_SA_STAGING }}
-      - run: gcloud auth print-access-token > /dev/null && echo "RESULT: deployer-staging UNEXPECTEDLY SUCCEEDED (should have failed)"
+      - run: 'gcloud auth print-access-token > /dev/null && echo "RESULT: deployer-staging UNEXPECTEDLY SUCCEEDED (should have failed)"'
 
   deployer-staging-main:
-    name: "tf-deployer staging on main: expect SUCCESS"
+    name: 'tf-deployer staging on main: expect SUCCESS'
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -51,10 +51,10 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_STAGING }}
           service_account: ${{ secrets.TF_DEPLOYER_SA_STAGING }}
-      - run: gcloud auth print-access-token > /dev/null && echo "RESULT: deployer-staging on main SUCCEEDED"
+      - run: 'gcloud auth print-access-token > /dev/null && echo "RESULT: deployer-staging on main SUCCEEDED"'
 
   deployer-prod-wrong-env:
-    name: "tf-deployer prod on main, NO environment: expect FAIL"
+    name: 'tf-deployer prod on main, NO environment: expect FAIL'
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -63,10 +63,10 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
           service_account: ${{ secrets.TF_DEPLOYER_SA_PROD }}
-      - run: gcloud auth print-access-token > /dev/null && echo "RESULT: deployer-prod UNEXPECTEDLY SUCCEEDED without environment gate (should have failed)"
+      - run: 'gcloud auth print-access-token > /dev/null && echo "RESULT: deployer-prod UNEXPECTEDLY SUCCEEDED without environment gate (should have failed)"'
 
   deployer-prod-approved-env:
-    name: "tf-deployer prod on main, inside production-infrastructure: expect SUCCESS"
+    name: 'tf-deployer prod on main, inside production-infrastructure: expect SUCCESS'
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production-infrastructure
@@ -75,4 +75,4 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
           service_account: ${{ secrets.TF_DEPLOYER_SA_PROD }}
-      - run: gcloud auth print-access-token > /dev/null && echo "RESULT: deployer-prod inside approved environment SUCCEEDED"
+      - run: 'gcloud auth print-access-token > /dev/null && echo "RESULT: deployer-prod inside approved environment SUCCEEDED"'
