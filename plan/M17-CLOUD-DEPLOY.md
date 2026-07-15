@@ -1422,18 +1422,19 @@ Today Cloudflare caches only static assets (default). Turn on HTML edge caching 
 
 ---
 
-### M17-S42 — Documentation refresh to match deployed reality
+### M17-S42 — Documentation refresh to match deployed reality (full docs/ sweep)
 
 **Agent:** `devops`
 **Complexity:** M
-**Docs to load:** `docs/12-DEPLOYMENT_STRATEGY.md` (reference only — M17 §0 wins), `docs/23-INFRASTRUCTURE_SETUP.md` (reference only — M17 §0 wins), `docs/09-CI_CD_PIPELINE.md` (reference only — M17 §0 wins), `docs/19-INFRASTRUCTURE_TOOLING_MAP.md` (reference only — M17 §0 wins), `docs/20-COST_OPTIMIZATION_STRATEGY.md`, `docs/10-OBSERVABILITY_STRATEGY.md`
+**Docs to load:** entire `docs/` folder via `/docs-audit` (widened from the original infra-only scope). The 6 already-flagged docs (`docs/12-DEPLOYMENT_STRATEGY.md`, `docs/23-INFRASTRUCTURE_SETUP.md`, `docs/09-CI_CD_PIPELINE.md`, `docs/19-INFRASTRUCTURE_TOOLING_MAP.md`, `docs/20-COST_OPTIMIZATION_STRATEGY.md`, `docs/10-OBSERVABILITY_STRATEGY.md`) carry known specific fixes below. Likely additional candidates worth close attention (not yet verified, let `/docs-audit` confirm): `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (CI/CD structure fully redone in Wave 3), `docs/22-TECH_STACK_DECISIONS.md`, `docs/24-BFF_ARCHITECTURE.md`.
 
 **Description:**
-Run `/docs-audit` scoped to the infra/deploy docs, then update them to describe what was actually built (docs describe reality, not aspiration): VPC connector → direct egress; pull → push; SA keys → WIF; Cloud Armor/IAP § → removed with a pointer to D4; secret catalog → live list; CI/CD § → the three real workflows; observability § → OTel + sidecar + managed backends (keep the self-hosted Grafana design as an explicitly-labeled *future option*, referencing D9’s config-swap path); cost doc → §1 model. Also: revisit deployer SA scope-tightening (S08 note) and file follow-ups for anything intentionally deferred (manual business spans, Memorystore throttling, Authenticated Origin Pulls, staging edge). Each `.md` edit goes through the doc gate.
+Run `/docs-audit` across the **entire `docs/` folder** (widened from the original infra-only scope — the whole milestone's decisions across Waves 1-6 need reconciling against every doc they could have affected, not just the 4 pre-identified ones), then update every doc `/docs-audit` flags to describe what was actually built (docs describe reality, not aspiration). Known specific fixes to verify regardless of what the audit finds: VPC connector → direct egress; pull → push; SA keys → WIF; Cloud Armor/IAP § → removed with a pointer to D4; secret catalog → live list; CI/CD § → the three real workflows; observability § → OTel + sidecar + managed backends (keep the self-hosted Grafana design as an explicitly-labeled *future option*, referencing D9's config-swap path); cost doc → §1 model; email provider references → Brevo, not SendGrid (S10). Also: revisit deployer SA scope-tightening (S08 note) and file follow-ups for anything intentionally deferred (manual business spans, Memorystore throttling, Authenticated Origin Pulls, staging edge). Each `.md` edit goes through the doc gate.
 
 **Acceptance criteria:**
-- [ ] `/docs-audit` clean on the touched docs afterwards
+- [ ] `/docs-audit` clean across the full `docs/` folder afterwards (not just the previously-named subset)
 - [ ] No doc still instructs creating SA keys, VPC connectors, or the IAP flow
+- [ ] No doc still names SendGrid as the email provider
 - [ ] Deferred-items list filed (issues or `td/` entries per repo convention)
 
 **Dependencies:** M17-S37 (reality exists to document)
