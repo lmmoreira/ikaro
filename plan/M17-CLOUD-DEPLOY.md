@@ -480,7 +480,7 @@ Create the Google Cloud footprint from zero, with security posture set BEFORE an
 
 ---
 
-### M17-S08 — GCP projects, APIs, Terraform state bucket & Workload Identity Federation
+### M17-S08 — GCP projects, APIs, Terraform state bucket & Workload Identity Federation ✅ Done
 
 **Agent:** `devops`
 **Complexity:** M
