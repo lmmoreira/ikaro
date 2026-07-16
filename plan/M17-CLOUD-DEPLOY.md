@@ -615,7 +615,7 @@ The two external service prerequisites for a working deployment: Google OAuth (l
 
 ---
 
-### M17-S11 — Terraform skeleton: modules/envs layout + remote state
+### M17-S11 — Terraform skeleton: modules/envs layout + remote state ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
