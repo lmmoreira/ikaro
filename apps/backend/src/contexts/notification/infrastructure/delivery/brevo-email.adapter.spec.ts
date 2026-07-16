@@ -92,8 +92,9 @@ describe('BrevoEmailAdapter', () => {
     ).rejects.toBeInstanceOf(EmailDeliveryException);
   });
 
-  it('error message does not contain the BREVO_SMTP_KEY value', async () => {
-    mockSendMail.mockRejectedValue(new Error('some error'));
+  it('redacts the BREVO_SMTP_KEY value from the thrown error message', async () => {
+    expect.assertions(2);
+    mockSendMail.mockRejectedValue(new Error('Invalid login: 535 fake-smtp-key rejected'));
 
     try {
       await adapter.send({
@@ -103,7 +104,9 @@ describe('BrevoEmailAdapter', () => {
         html: '<p>Olá</p>',
       });
     } catch (err: unknown) {
-      expect(err instanceof Error ? err.message : '').not.toContain('fake-smtp-key');
+      const message = err instanceof Error ? err.message : '';
+      expect(message).not.toContain('fake-smtp-key');
+      expect(message).toContain('[REDACTED]');
     }
   });
 

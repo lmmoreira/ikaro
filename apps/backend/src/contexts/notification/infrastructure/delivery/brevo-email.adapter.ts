@@ -7,8 +7,10 @@ import { EmailSendOptions, IEmailSender } from '../../application/ports/email-se
 @Injectable()
 export class BrevoEmailAdapter implements IEmailSender {
   private readonly transporter: nodemailer.Transporter;
+  private readonly smtpKey: string;
 
   constructor(config: ConfigService) {
+    this.smtpKey = config.get<string>('BREVO_SMTP_KEY', '');
     this.transporter = nodemailer.createTransport({
       host: config.get<string>('BREVO_SMTP_HOST', 'smtp-relay.brevo.com'),
       // Defaults to implicit TLS (port 465, secure: true) — not STARTTLS on 587 —
@@ -18,7 +20,7 @@ export class BrevoEmailAdapter implements IEmailSender {
       secure: config.get<boolean>('BREVO_SMTP_SECURE', true),
       auth: {
         user: config.get<string>('BREVO_SMTP_LOGIN', ''),
-        pass: config.get<string>('BREVO_SMTP_KEY', ''),
+        pass: this.smtpKey,
       },
     });
   }
@@ -33,7 +35,13 @@ export class BrevoEmailAdapter implements IEmailSender {
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'unknown error';
-      throw new EmailDeliveryException(message);
+      throw new EmailDeliveryException(this.redactSmtpKey(message));
     }
+  }
+
+  // Some SMTP servers echo submitted credentials back in auth-failure
+  // responses; strip the key so it never reaches logs via mapXxxError.
+  private redactSmtpKey(message: string): string {
+    return this.smtpKey ? message.replaceAll(this.smtpKey, '[REDACTED]') : message;
   }
 }
