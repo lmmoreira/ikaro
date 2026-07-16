@@ -1,10 +1,19 @@
 # TD16 — BFF AuthController exceeds size limit and mixes concerns
 
 ## Status
+- **State**: Resolved (2026-07-16)
 - **Type**: Technical Debt / Maintainability
 - **Priority**: Low (no functional bug; concern is testability and drift)
-- **Context**: `apps/bff/src/auth/auth.controller.ts`
+- **Context**: `apps/bff/src/features/auth/auth.controller.ts` (moved from `apps/bff/src/auth/` by the TD-21 domain-slice migration)
 - **Created**: 2026-06-26 (surfaced by CodeRabbit on PR #51)
+
+### Resolution
+
+The controller-size half of this TD (419-line `auth.controller.ts`, 8+ endpoints inline) was already resolved as a side effect of the unrelated TD-21 domain-slice migration, which extracted `AuthControllerFlowService` and left the controller at 77 lines — pure request/response wiring, one call per endpoint. `getSelectableStaffTenants()` (now `getStaffTenants()`) moved with it into the flow service at the same time, so that part of the original "Fix" section was already done independent of this change.
+
+The remaining half — the 7-field JWT payload assembled inline at every `issueToken()` call site — was still present, just moved into `auth-controller-flow.service.ts` verbatim (5 call sites: `switchStaffTenant`, `switchTenant`, `devLogin`, `handleStaffLogin`, `handleTenantLogin`). Fixed by extracting `issueStaffToken()`/`issueCustomerToken()` factory functions into a new `apps/bff/src/features/auth/token-assembly.ts`, matching the original proposal's staff/customer split exactly — every one of the 5 call sites fit that split cleanly. Implemented as plain exported functions (not an injectable `TokenAssemblyService`), consistent with this file's existing convention of free functions taking dependencies as parameters rather than a second DI service. `devLogin` was also restructured to call the right factory inside each branch (instead of deferring to a shared, loosely-typed `role` variable after the branches merge), which incidentally improved type precision there too.
+
+All 5 call sites now go through the shared factories; adding a new `JwtPayload` field only requires updating `JwtPayload`, `issueToken()`, and the two factory functions. New `token-assembly.spec.ts` covers both factories directly; full BFF suite (59 suites / 716 tests) passes unchanged.
 
 ---
 
