@@ -68,9 +68,9 @@ const schema = z.object({
     .default(14),
 });
 
-type EnvShape = z.infer<typeof schema>;
+export type Env = z.infer<typeof schema>;
 
-function validateEmailConfig(data: EnvShape, ctx: z.RefinementCtx): void {
+function validateEmailConfig(data: Env, ctx: z.RefinementCtx): void {
   if (data.EMAIL_ADAPTER === 'brevo' && !data.BREVO_SMTP_LOGIN) {
     ctx.addIssue({
       code: 'custom',
@@ -94,7 +94,7 @@ function validateEmailConfig(data: EnvShape, ctx: z.RefinementCtx): void {
   }
 }
 
-function validatePubSubConfig(data: EnvShape, ctx: z.RefinementCtx): void {
+function validatePubSubConfig(data: Env, ctx: z.RefinementCtx): void {
   if (data.PUBSUB_CONSUMER_MODE === 'push' && data.PUBSUB_AUTO_CREATE) {
     ctx.addIssue({
       code: 'custom',
@@ -139,8 +139,6 @@ const validatedSchema = schema.superRefine((data, ctx) => {
   validateEmailConfig(data, ctx);
   validatePubSubConfig(data, ctx);
 });
-
-export type Env = EnvShape;
 
 export function validateEnv(config: Record<string, unknown>): Env {
   return validateEnvWithSchema(validatedSchema, config);
