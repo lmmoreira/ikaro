@@ -1,6 +1,6 @@
 # ─── Stage 1: Build ──────────────────────────────────────────────────────────
 # node:22-alpine
-FROM node@sha256:b74031e546d7f4faf561d797ac1b76beccac856a042815ca77db4fd047581605 AS builder
+FROM node@sha256:0473e7dc433a1310f436edee02aa79737ec78a4b345433ab0963d4a256f9ad85 AS builder
 
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
@@ -22,7 +22,7 @@ RUN pnpm --filter @ikaro/web build \
 
 # ─── Stage 2: Run ────────────────────────────────────────────────────────────
 # node:22-alpine
-FROM node@sha256:b74031e546d7f4faf561d797ac1b76beccac856a042815ca77db4fd047581605 AS runner
+FROM node@sha256:0473e7dc433a1310f436edee02aa79737ec78a4b345433ab0963d4a256f9ad85 AS runner
 
 WORKDIR /app
 
