@@ -1,7 +1,6 @@
 import { HexColorErrorCode } from '@ikaro/types';
+import { isValidHexColor } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
-
-const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 
 export class HexColorValidationError extends Error implements DomainErrorShape {
   readonly code: HexColorErrorCode;
@@ -18,7 +17,7 @@ export class HexColor {
   private constructor(private readonly _value: string) {}
 
   static isValid(color: string): boolean {
-    return HEX_COLOR_PATTERN.test(color);
+    return isValidHexColor(color);
   }
 
   static create(color: string): HexColor {

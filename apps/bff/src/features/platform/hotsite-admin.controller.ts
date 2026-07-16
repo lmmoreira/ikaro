@@ -1,6 +1,12 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  HOTSITE_TMP_PATH_FRAGMENT,
+  HotsiteBrandingSchema,
+  HotsiteModuleSchema,
+  HotsiteSeoSchema,
+} from '@ikaro/validation';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
@@ -8,101 +14,17 @@ import {
   GenerateHotsiteImageReadSignedUrlResponse,
   GenerateHotsiteImageSignedUrlResponse,
   GenericErrorCode,
-  HexColorErrorCode,
   HotsiteAdminContentResponse,
   PlatformErrorCode,
   PublishHotsiteResponse,
-  SeoErrorCode,
   UnpublishHotsiteResponse,
 } from '@ikaro/types';
 
-const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
-const hexColorField = (): z.ZodString =>
-  z.string().refine((v) => HEX_COLOR_REGEX.test(v), {
-    error: 'must be a valid hex color (e.g. #FF5733)',
-    params: { code: HexColorErrorCode.FORMAT_INVALID },
-  });
-// tmp/<tenantId>/<purpose>/<uuid>/<fileName> — hotsite uploads only. One segment longer than
-// booking's tmp/<tenantId>/<uuid>/<fileName>; without the extra segment, a booking tmp/ upload
-// could be accepted by a hotsite endpoint and promoted into the public hotsite bucket (or
-// deleted from the private bucket) instead of being rejected. Shared across every hotsite tmp/
-// path field in this file so the shape only needs to change in one place.
-const HOTSITE_TMP_PATH_FRAGMENT = 'tmp/[^/]+/[^/]+/[^/]+/[^/]+';
-// Accepts empty (to clear), an already-permanent hotsite image, or a not-yet-promoted tmp/
-// staging upload — see td/TD22-ORPHANED-UPLOAD-CLEANUP.md.
-const LOGO_URL_REGEX = new RegExp(`^$|^tenants/[^/]+/hotsite/.+$|^${HOTSITE_TMP_PATH_FRAGMENT}$`);
-const LOGO_URL_MESSAGE = {
-  message:
-    'logoUrl must be empty (to clear), a tenants/<id>/hotsite/... storage path, or a tmp/<id>/... staging path',
-};
-
-const HotsiteBrandingBodySchema = z
-  .object({
-    primaryColor: hexColorField(),
-    secondaryColor: hexColorField(),
-    backgroundColor: hexColorField(),
-    textColor: hexColorField(),
-    headingFontFamily: z.string().min(1),
-    bodyFontFamily: z.string().min(1),
-    logoUrl: z.string().regex(LOGO_URL_REGEX, LOGO_URL_MESSAGE),
-    borderRadius: z.enum(['sharp', 'rounded', 'pill']),
-    buttonStyle: z.enum(['filled', 'outline', 'ghost']),
-    spacing: z.enum(['compact', 'comfortable', 'spacious']),
-    shadowStyle: z.enum(['none', 'subtle', 'strong']),
-    buttonBackgroundColor: hexColorField(),
-    buttonTextColor: hexColorField(),
-    heroBgStyle: z.enum(['primary', 'background']),
-    alternateSectionBg: z.boolean(),
-    dividerStyle: z.enum(['none', 'gradient', 'solid']),
-    brandName: z.string().max(100),
-    brandTagline: z.string().max(200),
-  })
-  .partial();
-
-const HotsiteModuleBodySchema = z.object({
-  type: z.enum([
-    'HERO',
-    'SERVICE_LIST',
-    'GALLERY',
-    'TESTIMONIALS',
-    'BOOKING_CTA',
-    'ABOUT',
-    'CONTACT',
-    'FOOTER',
-  ]),
-  enabled: z.boolean(),
-  data: z.record(z.string(), z.unknown()),
-});
-
-// Keep in sync with SeoTitle.MAX_LENGTH / SeoDescription.MAX_LENGTH in
-// apps/backend/src/shared/value-objects/seo-title.vo.ts and seo-description.vo.ts — the BFF
-// keeps its own independent copy of this limit rather than importing the backend VO (same
-// convention as this file's hex-color regex), so a future change to either constant must be
-// applied here too.
-const HotsiteSeoBodySchema = z
-  .object({
-    title: z
-      .string()
-      .refine((v) => v.length <= 60, {
-        error: 'must be at most 60 characters',
-        params: { code: SeoErrorCode.TITLE_TOO_LONG },
-      })
-      .nullable(),
-    description: z
-      .string()
-      .refine((v) => v.length <= 158, {
-        error: 'must be at most 158 characters',
-        params: { code: SeoErrorCode.DESCRIPTION_TOO_LONG },
-      })
-      .nullable(),
-  })
-  .partial();
-
 export const UpdateHotsiteContentBodySchema = z
   .object({
-    branding: HotsiteBrandingBodySchema.optional(),
-    layout: z.array(HotsiteModuleBodySchema).optional(),
-    seo: HotsiteSeoBodySchema.optional(),
+    branding: HotsiteBrandingSchema.optional(),
+    layout: z.array(HotsiteModuleSchema).optional(),
+    seo: HotsiteSeoSchema.optional(),
   })
   .refine(
     (data) => data.branding !== undefined || data.layout !== undefined || data.seo !== undefined,

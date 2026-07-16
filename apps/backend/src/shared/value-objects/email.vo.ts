@@ -1,4 +1,5 @@
 import { EmailErrorCode } from '@ikaro/types';
+import { isValidEmail } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 import { ValueObject } from '../domain/value-object';
 
@@ -23,11 +24,7 @@ export class Email extends ValueObject<EmailProps> {
   }
 
   static isValid(address: string): boolean {
-    const atIdx = address.indexOf('@');
-    if (atIdx <= 0) return false;
-    const domain = address.slice(atIdx + 1);
-    const dotIdx = domain.lastIndexOf('.');
-    return domain.length > 0 && dotIdx > 0 && dotIdx < domain.length - 1;
+    return isValidEmail(address);
   }
 
   static create(address: string): Email {

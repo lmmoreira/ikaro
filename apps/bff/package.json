@@ -42,6 +42,7 @@
     "@ikaro/nestjs-http": "workspace:*",
     "@ikaro/observability": "workspace:*",
     "@ikaro/types": "workspace:*",
+    "@ikaro/validation": "workspace:*",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.1.27",
     "@nestjs/config": "^4.0.4",

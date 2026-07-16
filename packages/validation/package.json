@@ -1,0 +1,28 @@
+{
+  "name": "@ikaro/validation",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared Zod business-rule validation schemas for backend and bff — never consumed by apps/web",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:cov": "jest --coverage"
+  },
+  "peerDependencies": {
+    "zod": "^4.4.3"
+  },
+  "dependencies": {
+    "@ikaro/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@ikaro/config": "workspace:*",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.4",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
+    "zod": "^4.4.3"
+  }
+}

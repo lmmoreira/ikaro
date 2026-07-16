@@ -1,4 +1,5 @@
 import { SeoErrorCode } from '@ikaro/types';
+import { isValidSeoDescription, SEO_DESCRIPTION_MAX_LENGTH } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 
 export class SeoDescriptionValidationError extends Error implements DomainErrorShape {
@@ -13,12 +14,12 @@ export class SeoDescriptionValidationError extends Error implements DomainErrorS
 }
 
 export class SeoDescription {
-  static readonly MAX_LENGTH = 158;
+  static readonly MAX_LENGTH = SEO_DESCRIPTION_MAX_LENGTH;
 
   private constructor(private readonly _value: string) {}
 
   static isValid(description: string): boolean {
-    return description.length <= SeoDescription.MAX_LENGTH;
+    return isValidSeoDescription(description);
   }
 
   static create(description: string): SeoDescription {

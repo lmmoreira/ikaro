@@ -5,6 +5,7 @@ import {
   TimeOfDayErrorCode,
   TimezoneErrorCode,
 } from '@ikaro/types';
+import { PartialAddressSchema } from '@ikaro/validation';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
@@ -83,18 +84,6 @@ const LocalizationSchema = z
   })
   .partial();
 
-const BusinessInfoAddressSchema = z
-  .object({
-    street: z.string().nullable(),
-    number: z.string().nullable(),
-    complement: z.string().optional(),
-    neighborhood: z.string().nullable(),
-    city: z.string().nullable(),
-    state: z.string().trim().min(1).max(10).nullable(),
-    zipCode: z.string().trim().min(1).max(20).nullable(),
-  })
-  .partial();
-
 const SocialLinksSchema = z.object({
   whatsapp: z.string().nullable().optional(),
   instagram: z.string().nullable().optional(),
@@ -105,7 +94,7 @@ const BusinessInfoSchema = z
   .object({
     phone: z.string().nullable(),
     email: z.string().nullable(),
-    address: BusinessInfoAddressSchema.nullable(),
+    address: PartialAddressSchema.nullable(),
     // socialLinks must accept null the same way address does — the settings form sends
     // null when whatsapp/instagram/facebook are all blank. A bare `.optional()` here
     // (pre-fix) only allowed the object shape or omission, rejecting an explicit null with

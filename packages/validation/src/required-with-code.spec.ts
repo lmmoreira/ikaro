@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requiredWithCode } from './zod-code.util';
+import { requiredWithCode } from './required-with-code';
 
 describe('requiredWithCode', () => {
   it('passes through a non-empty string unchanged', () => {

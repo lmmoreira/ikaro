@@ -41,6 +41,7 @@ import {
   StaffBookingListResponse,
 } from '@ikaro/types';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import { AddressShapeSchema, isValidPhoneNumber } from '@ikaro/validation';
 import {
   toCustomerBookingDetail,
   toCustomerBookingListItem,
@@ -52,36 +53,19 @@ import { GuestTokenPayload, tryDecodeRawJwt, verifyGuestToken } from './guest-to
 import { buildBookingListParams, isStaffOrManagerRole } from './bookings-list-query.util';
 
 // Required-field checks are deliberately NOT duplicated here (TD23-S13) — the backend's
-// Address.create() already validates street/number/city/state/zipCode required-ness via
-// requireField(), throwing a single-cause { code, field: 'pickupAddress'|'contactAddress',
-// params: { field } } that's strictly more granular than a Zod violations[] array could be for
-// this shape. Duplicating the check here only produced a second, incompatible error shape for
-// the same failure (see td/TD11-BFF-BACKEND-VALIDATION-SCHEMA-DUPLICATION.md).
-const AddressSchema = z.object({
-  street: z.string(),
-  number: z.string(),
-  complement: z.string().nullable().optional(),
-  neighborhood: z.string().min(1).optional(),
-  city: z.string(),
-  state: z.string().trim().max(10),
-  zipCode: z.string().trim().max(20),
-});
-
 // Uploads always target tmp/ staging (see td/TD22-ORPHANED-UPLOAD-CLEANUP.md) — promotion to
 // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
 const TMP_PHOTO_PATH_REGEX = /^tmp\/[^/]+\/[^/]+\/.+$/;
 
-const E164_PATTERN = /^\+[1-9]\d{6,14}$/;
-
 export const RequestBookingBodySchema = z.object({
   contactEmail: z.email(),
   contactName: z.string().min(1),
-  contactPhone: z.string().refine((v) => E164_PATTERN.test(v), {
+  contactPhone: z.string().refine((v) => isValidPhoneNumber(v), {
     error: 'contactPhone must be in E.164 format',
     params: { code: PhoneErrorCode.FORMAT_INVALID },
   }),
-  contactAddress: AddressSchema.optional(),
-  pickupAddress: AddressSchema.optional(),
+  contactAddress: AddressShapeSchema.optional(),
+  pickupAddress: AddressShapeSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
   scheduledAt: z.iso.datetime(),
   serviceIds: z.array(z.uuid()).min(1),
@@ -91,7 +75,7 @@ export const RequestBookingBodySchema = z.object({
 export const AuthenticatedBookingBodySchema = z.object({
   scheduledAt: z.iso.datetime(),
   serviceIds: z.array(z.uuid()).min(1),
-  pickupAddress: AddressSchema.optional(),
+  pickupAddress: AddressShapeSchema.optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
   beforeServicePhotoUrls: z.array(z.string().regex(TMP_PHOTO_PATH_REGEX)).optional(),
 });

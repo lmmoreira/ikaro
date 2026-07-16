@@ -1,4 +1,5 @@
 import { SeoErrorCode } from '@ikaro/types';
+import { isValidSeoTitle, SEO_TITLE_MAX_LENGTH } from '@ikaro/validation';
 import { DomainErrorShape } from '../domain/domain-error-shape';
 
 export class SeoTitleValidationError extends Error implements DomainErrorShape {
@@ -13,12 +14,12 @@ export class SeoTitleValidationError extends Error implements DomainErrorShape {
 }
 
 export class SeoTitle {
-  static readonly MAX_LENGTH = 60;
+  static readonly MAX_LENGTH = SEO_TITLE_MAX_LENGTH;
 
   private constructor(private readonly _value: string) {}
 
   static isValid(title: string): boolean {
-    return title.length <= SeoTitle.MAX_LENGTH;
+    return isValidSeoTitle(title);
   }
 
   static create(title: string): SeoTitle {
