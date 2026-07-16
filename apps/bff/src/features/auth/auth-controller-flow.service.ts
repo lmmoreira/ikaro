@@ -15,6 +15,7 @@ import {
 } from './auth.types';
 import { GoogleProfile } from './strategies/google.strategy';
 import { JwtIssuerService, JwtRole } from './jwt-issuer.service';
+import { issueCustomerToken, issueStaffToken } from './token-assembly';
 import { isValidSlug } from './oauth-state';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
@@ -171,15 +172,7 @@ async function switchStaffTenant(
   const tenantInfo = await backendHttp.get<TenantInfoResponse>(
     `/internal/tenants/${match.tenantId}`,
   );
-  const accessToken = jwtIssuer.issueToken({
-    sub: match.staffId,
-    tenantId: match.tenantId,
-    tenantSlug: tenantInfo.slug,
-    tenantName: tenantInfo.name,
-    userName: currentUser.userName,
-    role: match.role,
-    locale: tenantInfo.locale,
-  });
+  const accessToken = issueStaffToken(jwtIssuer, match, tenantInfo, currentUser.userName);
 
   res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
   return {
@@ -212,15 +205,12 @@ async function switchTenant(
   const tenantInfo = await backendHttp.get<TenantInfoResponse>(
     `/internal/tenants/${dto.targetTenantId}`,
   );
-  const accessToken = jwtIssuer.issueToken({
-    sub: match.customerId,
-    tenantId: dto.targetTenantId,
-    tenantSlug: tenantInfo.slug,
-    tenantName: tenantInfo.name,
-    userName: currentUser.userName,
-    role: 'CUSTOMER',
-    locale: tenantInfo.locale,
-  });
+  const accessToken = issueCustomerToken(
+    jwtIssuer,
+    match.customerId,
+    tenantInfo,
+    currentUser.userName,
+  );
 
   res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
   return {
@@ -265,15 +255,16 @@ async function devLogin(
 
   let actorId: string;
   let role: JwtRole;
+  let accessToken: string;
 
   if (dto.type === 'staff') {
     const staffList = await backendHttp.get<StaffInfoResponse[]>('/internal/staff/by-oauth', {
       googleOAuthId: `dev::${dto.email}`,
     });
     const staff = staffList.find((s) => s.tenantId === tenantInfo.id && s.isActive);
+    let staffActor: { staffId: string; role: 'STAFF' | 'MANAGER' };
     if (staff) {
-      actorId = staff.staffId;
-      role = staff.role;
+      staffActor = staff;
     } else {
       const staffByEmail = await backendHttp.get<StaffByEmailResponse>('/internal/staff/by-email', {
         email: dto.email,
@@ -287,9 +278,11 @@ async function devLogin(
           name: 'Dev User',
         })
         .catch(() => undefined);
-      actorId = staffByEmail.staffId;
-      role = staffByEmail.role;
+      staffActor = staffByEmail;
     }
+    actorId = staffActor.staffId;
+    role = staffActor.role;
+    accessToken = issueStaffToken(jwtIssuer, staffActor, tenantInfo, 'Dev User');
   } else {
     const googleOAuthId = `dev::${dto.email}`;
     if (googleOAuthId.length > 255) {
@@ -310,17 +303,8 @@ async function devLogin(
     });
     actorId = customer.customerId;
     role = 'CUSTOMER';
+    accessToken = issueCustomerToken(jwtIssuer, customer.customerId, tenantInfo, 'Dev User');
   }
-
-  const accessToken = jwtIssuer.issueToken({
-    sub: actorId,
-    tenantId: tenantInfo.id,
-    tenantSlug: tenantInfo.slug,
-    tenantName: tenantInfo.name,
-    userName: 'Dev User',
-    role,
-    locale: tenantInfo.locale,
-  });
 
   res.cookie('access_token', accessToken, JWT_COOKIE_OPTIONS);
 
@@ -366,7 +350,8 @@ async function handleStaffLogin(
     return;
   }
 
-  issueStaffToken(jwtIssuer, profile, staffByEmail, tenantInfo, res);
+  const token = issueStaffToken(jwtIssuer, staffByEmail, tenantInfo, profile.name);
+  res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
   res.redirect(`${frontendUrl}/dashboard`);
 }
 
@@ -442,25 +427,6 @@ function redirectStaffLoginError(
   res.redirect(`${frontendUrl}/auth/error?reason=${reason}${slugParam}`);
 }
 
-function issueStaffToken(
-  jwtIssuer: JwtIssuerService,
-  profile: GoogleProfile,
-  staffByEmail: StaffByEmailResponse,
-  tenantInfo: TenantInfoResponse,
-  res: Response,
-): void {
-  const token = jwtIssuer.issueToken({
-    sub: staffByEmail.staffId,
-    tenantId: tenantInfo.id,
-    tenantSlug: tenantInfo.slug,
-    tenantName: tenantInfo.name,
-    userName: profile.name,
-    role: staffByEmail.role,
-    locale: tenantInfo.locale,
-  });
-  res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
-}
-
 async function handleTenantLogin(
   backendHttp: BackendHttpService,
   jwtIssuer: JwtIssuerService,
@@ -486,15 +452,7 @@ async function handleTenantLogin(
     },
   );
 
-  const token = jwtIssuer.issueToken({
-    sub: customerId,
-    tenantId: tenantInfo.id,
-    tenantSlug: tenantInfo.slug,
-    tenantName: tenantInfo.name,
-    userName: profile.name,
-    role: 'CUSTOMER',
-    locale: tenantInfo.locale,
-  });
+  const token = issueCustomerToken(jwtIssuer, customerId, tenantInfo, profile.name);
   res.cookie('access_token', token, JWT_COOKIE_OPTIONS);
   res.redirect(`${frontendUrl}/${tenantInfo.slug}`);
 }
