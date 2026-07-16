@@ -2,7 +2,7 @@
 
 ## Status
 - **Type**: Technical Debt / Infra-driven provider change
-- **State**: Open
+- **State**: ✅ Done — resolved in PR #146 (`feat/td26-brevo-email-adapter`)
 - **Priority**: Medium — blocks nothing today (no environment sends real email yet), but must land before any story that actually enables `EMAIL_ADAPTER` outside `mailhog` (e.g. the deployment stories, M17-S27/S37)
 - **Context**: `apps/backend/src/contexts/notification/infrastructure/delivery/sendgrid-email.adapter.ts`, `apps/backend/src/contexts/notification/notification.module.ts`, `apps/backend/src/config/env.validation.ts`
 - **Created**: 2026-07-15 (surfaced during M17-S10 — Google OAuth + email provider bootstrap)
