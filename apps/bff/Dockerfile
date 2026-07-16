@@ -12,6 +12,7 @@ COPY packages/types/package.json packages/types/
 COPY packages/observability/package.json packages/observability/
 COPY packages/env-validation/package.json packages/env-validation/
 COPY packages/nestjs-http/package.json packages/nestjs-http/
+COPY packages/validation/package.json packages/validation/
 COPY apps/bff/package.json apps/bff/
 
 RUN pnpm install --frozen-lockfile --ignore-scripts
@@ -19,18 +20,20 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY packages/ packages/
 COPY apps/bff/ apps/bff/
 
-# @ikaro/observability, @ikaro/env-validation, @ikaro/types, and @ikaro/nestjs-http ship
-# compiled JS (main/types -> dist/) -- unlike packages/config, they're actual runtime
-# dependencies, not type-only, so they must be built before deploy packages them up.
-# (@ikaro/types' error-code catalogs are imported as values, e.g. BffErrorCode.GUEST_TOKEN_INVALID,
+# @ikaro/observability, @ikaro/env-validation, @ikaro/types, @ikaro/nestjs-http, and
+# @ikaro/validation ship compiled JS (main/types -> dist/) -- unlike packages/config, they're
+# actual runtime dependencies, not type-only, so they must be built before deploy packages them
+# up. (@ikaro/types' error-code catalogs are imported as values, e.g. BffErrorCode.GUEST_TOKEN_INVALID,
 # not just as types; @ikaro/nestjs-http — CanonicalParseUUIDPipe/CanonicalParseIntPipe, TD23
-# Story 11 — depends on @ikaro/types and must build after it.) Node's native TS type-stripping
+# Story 11 — depends on @ikaro/types and must build after it. @ikaro/validation — shared
+# Address/Phone Zod schemas, TD11 — also depends on @ikaro/types.) Node's native TS type-stripping
 # explicitly refuses files under node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING),
 # so shipping raw .ts source here would crash `node dist/main.js` at container startup.
 RUN pnpm --filter @ikaro/observability build \
     && pnpm --filter @ikaro/env-validation build \
     && pnpm --filter @ikaro/types build \
     && pnpm --filter @ikaro/nestjs-http build \
+    && pnpm --filter @ikaro/validation build \
     && pnpm --filter @ikaro/bff build \
     && pnpm --filter @ikaro/bff deploy --prod /standalone --legacy
 

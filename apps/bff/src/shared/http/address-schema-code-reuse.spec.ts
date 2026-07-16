@@ -13,16 +13,21 @@ import { UpdateHotsiteContentBodySchema } from '../../features/platform/hotsite-
 /**
  * TD23 Story 10's core acceptance criterion: a BFF check that duplicates a backend VO's own
  * rule must emit the SAME code the VO would for the identical failure, regardless of which
- * layer catches it first. Covers 1 of the original 2 AddressSchema copies (customers) —
- * bookings' AddressSchema no longer duplicates the required-field check at all (TD23 Story 13
- * removed it: the backend's Address.create() already validates required-ness with equal-or-
- * better granularity via params.field, and the BFF copy only produced a second, incompatible
- * error shape for the same failure — see bookings.controller.ts's AddressSchema comment).
- * tenant-settings' BusinessInfoAddressSchema is deliberately excluded: every field there is
- * `.nullable()` (genuinely optional), so AddressErrorCode.FIELD_REQUIRED would misrepresent
- * a field that isn't actually required; it keeps generic codes instead. Also covers
- * phone/email/SEO/hex-color/timezone/country-code fields that independently duplicate a VO
- * rule outside the Address shape.
+ * layer catches it first. As of TD11, the Address/Phone/Email/hotsite schemas these tests
+ * exercise are no longer independently duplicated at all — both apps import the same
+ * `@ikaro/validation` schemas, so these tests now guard the shared package's behavior at
+ * each BFF call site rather than two independently-drifting copies. Covers 1 of the 2
+ * `AddressSchema` variants (customers, required+coded) — bookings' `AddressShapeSchema` still
+ * has no required-field check (TD23 Story 13 removed it: the backend's `Address.create()`
+ * already validates required-ness with equal-or-better granularity via `params.field`, and a
+ * BFF-side check only produced a second, incompatible error shape for the same failure — see
+ * `@ikaro/validation`'s `address.ts` for the full rationale). tenant-settings'
+ * `PartialAddressSchema` is deliberately excluded from FIELD_REQUIRED assertions: every field
+ * there is `.nullable()` (genuinely optional), so `AddressErrorCode.FIELD_REQUIRED` would
+ * misrepresent a field that isn't actually required; it keeps generic codes instead. Also
+ * covers phone/email/SEO/hex-color/timezone/country-code fields that reuse a VO's code outside
+ * the Address shape, including the businessInfo.phone/.email/socialLinks.whatsapp checks TD11
+ * added (previously unvalidated at the BFF).
  */
 describe('BFF Address/Phone/Email/SEO code reuse (TD23 Story 10)', () => {
   it('bookings AddressSchema: empty street is accepted by the BFF, deferring to the backend (TD23 Story 13)', () => {
@@ -161,5 +166,74 @@ describe('BFF Address/Phone/Email/SEO code reuse (TD23 Story 10)', () => {
       // as "required".
       expect(params.params?.code).not.toBe(AddressErrorCode.FIELD_REQUIRED);
     }
+  });
+
+  // TD11: businessInfo.phone/.email and socialLinks.whatsapp had no format validation at all
+  // at the BFF before this migration (bare z.string().nullable()) — an invalid value round-
+  // tripped to the backend before being rejected there. Reuses the backend's own
+  // BusinessInfoValidator codes, not the generic PhoneErrorCode/EmailErrorCode.
+  it('tenant-settings businessInfo.phone rejects an invalid format with SETTINGS_BUSINESS_PHONE_INVALID', () => {
+    const result = UpdateTenantSettingsBodySchema.safeParse({
+      settings: { businessInfo: { phone: 'not-a-phone' } },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (i) => i.path.join('.') === 'settings.businessInfo.phone',
+      );
+      const params = issue as unknown as { params?: { code?: string } };
+      expect(params.params?.code).toBe('PLATFORM_SETTINGS_BUSINESS_PHONE_INVALID');
+    }
+  });
+
+  it('tenant-settings businessInfo.email rejects an invalid format with SETTINGS_BUSINESS_EMAIL_INVALID', () => {
+    const result = UpdateTenantSettingsBodySchema.safeParse({
+      settings: { businessInfo: { email: 'not-an-email' } },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (i) => i.path.join('.') === 'settings.businessInfo.email',
+      );
+      const params = issue as unknown as { params?: { code?: string } };
+      expect(params.params?.code).toBe('PLATFORM_SETTINGS_BUSINESS_EMAIL_INVALID');
+    }
+  });
+
+  it('tenant-settings businessInfo.phone accepts a valid E.164 number', () => {
+    const result = UpdateTenantSettingsBodySchema.safeParse({
+      settings: { businessInfo: { phone: '+5511912345678' } },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('tenant-settings businessInfo.phone accepts null (clears the field)', () => {
+    const result = UpdateTenantSettingsBodySchema.safeParse({
+      settings: { businessInfo: { phone: null } },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('tenant-settings socialLinks.whatsapp rejects an invalid format with SETTINGS_SOCIAL_WHATSAPP_INVALID', () => {
+    const result = UpdateTenantSettingsBodySchema.safeParse({
+      settings: { businessInfo: { socialLinks: { whatsapp: 'not-a-phone' } } },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (i) => i.path.join('.') === 'settings.businessInfo.socialLinks.whatsapp',
+      );
+      const params = issue as unknown as { params?: { code?: string } };
+      expect(params.params?.code).toBe('PLATFORM_SETTINGS_SOCIAL_WHATSAPP_INVALID');
+    }
+  });
+
+  it('tenant-settings socialLinks.whatsapp accepts null (clears the field)', () => {
+    const result = UpdateTenantSettingsBodySchema.safeParse({
+      settings: {
+        businessInfo: { socialLinks: { whatsapp: null, instagram: null, facebook: null } },
+      },
+    });
+    expect(result.success).toBe(true);
   });
 });

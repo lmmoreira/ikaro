@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Patch, UseGuards } from '@nestjs/common';
-import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { RenameTenantDto, RenameTenantSchema } from '../../application/dtos/rename-tenant.dto';
 import {

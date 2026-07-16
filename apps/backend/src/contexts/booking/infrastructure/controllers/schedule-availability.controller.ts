@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   GetAvailabilityDto,

@@ -6,7 +6,8 @@ import {
   TenantSettingsResponse,
   TimeOfDayErrorCode,
 } from '@ikaro/types';
-import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
+import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { PartialAddressSchema, isValidEmail, isValidPhoneNumber } from '@ikaro/validation';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 
@@ -70,29 +71,36 @@ const LocalizationSchema = z
   })
   .partial();
 
-const BusinessInfoAddressSchema = z
-  .object({
-    street: z.string().nullable(),
-    number: z.string().nullable(),
-    complement: z.string().optional(),
-    neighborhood: z.string().nullable(),
-    city: z.string().nullable(),
-    state: z.string().trim().min(1).max(10).nullable(),
-    zipCode: z.string().trim().min(1).max(20).nullable(),
-  })
-  .partial();
-
 const SocialLinksSchema = z.object({
-  whatsapp: z.string().nullable().optional(),
+  whatsapp: z
+    .string()
+    .refine((v) => isValidPhoneNumber(v), {
+      error: 'whatsapp must be in E.164 format',
+      params: { code: PlatformErrorCode.SETTINGS_SOCIAL_WHATSAPP_INVALID },
+    })
+    .nullable()
+    .optional(),
   instagram: z.string().nullable().optional(),
   facebook: z.string().nullable().optional(),
 });
 
 const BusinessInfoSchema = z
   .object({
-    phone: z.string().nullable(),
-    email: z.string().nullable(),
-    address: BusinessInfoAddressSchema.nullable(),
+    phone: z
+      .string()
+      .refine((v) => isValidPhoneNumber(v), {
+        error: 'businessInfo.phone must be in E.164 format',
+        params: { code: PlatformErrorCode.SETTINGS_BUSINESS_PHONE_INVALID },
+      })
+      .nullable(),
+    email: z
+      .string()
+      .refine((v) => isValidEmail(v), {
+        error: 'businessInfo.email must be a valid email address',
+        params: { code: PlatformErrorCode.SETTINGS_BUSINESS_EMAIL_INVALID },
+      })
+      .nullable(),
+    address: PartialAddressSchema.nullable(),
     // socialLinks must accept null the same way address does — the settings form sends
     // null when whatsapp/instagram/facebook are all blank (they're an all-or-nothing group
     // client-side, mirroring how the address section works). A bare `.optional()` here

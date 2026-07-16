@@ -48,4 +48,17 @@ describe('ZodValidationPipe', () => {
       expect(violation).not.toHaveProperty('message');
     }
   });
+
+  it('works with @Query-bound schemas the same way as @Body-bound ones', () => {
+    const queryPipe = new ZodValidationPipe(z.object({ email: z.string().email() }));
+    expect.assertions(2);
+    try {
+      queryPipe.transform({ email: 'invalid' });
+    } catch (e) {
+      const body = (e as BadRequestException).getResponse() as Record<string, unknown>;
+      const items = body['violations'] as ValidationViolation[];
+      expect(items).toHaveLength(1);
+      expect(items[0]?.field).toBe('email');
+    }
+  });
 });

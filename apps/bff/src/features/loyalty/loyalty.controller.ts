@@ -10,8 +10,7 @@ import {
   PaginatedLoyaltyRedemptionsResponse,
   StaffCustomerLoyaltyDetailResponse,
 } from '@ikaro/types';
-import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
-import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {

@@ -10,9 +10,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { CustomerRoleGuard } from '../../../../shared/guards/customer-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { mapCustomerError } from '../http/customer-error.mapper';

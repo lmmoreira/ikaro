@@ -16,7 +16,7 @@ import {
   GetCustomerTenantsUseCaseResult,
 } from '../../application/use-cases/get-customer-tenants.use-case';
 import { mapCustomerError } from '../http/customer-error.mapper';
-import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { ZodValidationPipe } from '@ikaro/nestjs-http';
 
 // MVP: protected at network level (backend not exposed publicly — BFF-only access).
 // Future: add InternalApiGuard checking X-Internal-Key header.

@@ -10,8 +10,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
-import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { CreateServiceDto, CreateServiceSchema } from '../../application/dtos/create-service.dto';
 import { UpdateServiceDto, UpdateServiceSchema } from '../../application/dtos/update-service.dto';
