@@ -1,0 +1,116 @@
+import { ConfigService } from '@nestjs/config';
+import * as nodemailer from 'nodemailer';
+import { BrevoEmailAdapter } from './brevo-email.adapter';
+import { EmailDeliveryException } from '../../domain/errors/notification-domain.error';
+
+jest.mock('nodemailer');
+
+const mockSendMail = jest.fn().mockResolvedValue({ messageId: 'test-id' });
+(nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail: mockSendMail });
+
+const configService = {
+  get: jest.fn((key: string, defaultValue?: unknown) => {
+    if (key === 'BREVO_SMTP_LOGIN') return 'account@example.com';
+    if (key === 'BREVO_SMTP_KEY') return 'fake-smtp-key';
+    return defaultValue;
+  }),
+} as unknown as ConfigService;
+
+describe('BrevoEmailAdapter', () => {
+  let adapter: BrevoEmailAdapter;
+
+  beforeEach(() => {
+    mockSendMail.mockReset();
+    mockSendMail.mockResolvedValue({ messageId: 'test-id' });
+    (nodemailer.createTransport as jest.Mock).mockClear();
+    adapter = new BrevoEmailAdapter(configService);
+  });
+
+  it('creates the transporter against the Brevo SMTP relay defaults with the configured credentials', () => {
+    expect(nodemailer.createTransport).toHaveBeenCalledWith({
+      host: 'smtp-relay.brevo.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'account@example.com',
+        pass: 'fake-smtp-key',
+      },
+    });
+  });
+
+  it('uses overridden BREVO_SMTP_HOST/PORT/SECURE when configured', () => {
+    const overrideConfig = {
+      get: jest.fn((key: string, defaultValue?: unknown) => {
+        if (key === 'BREVO_SMTP_HOST') return 'custom-relay.example.com';
+        if (key === 'BREVO_SMTP_PORT') return 587;
+        if (key === 'BREVO_SMTP_SECURE') return false;
+        if (key === 'BREVO_SMTP_LOGIN') return 'account@example.com';
+        if (key === 'BREVO_SMTP_KEY') return 'fake-smtp-key';
+        return defaultValue;
+      }),
+    } as unknown as ConfigService;
+
+    new BrevoEmailAdapter(overrideConfig);
+
+    expect(nodemailer.createTransport).toHaveBeenCalledWith({
+      host: 'custom-relay.example.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: 'account@example.com',
+        pass: 'fake-smtp-key',
+      },
+    });
+  });
+
+  it('calls sendMail with correct to, from, subject, html', async () => {
+    await adapter.send({
+      to: 'joao@example.com',
+      from: 'noreply@ikaro.example',
+      subject: 'Teste',
+      html: '<p>Olá</p>',
+    });
+
+    expect(mockSendMail).toHaveBeenCalledWith({
+      to: 'joao@example.com',
+      from: 'noreply@ikaro.example',
+      subject: 'Teste',
+      html: '<p>Olá</p>',
+    });
+  });
+
+  it('throws EmailDeliveryException on send failure', async () => {
+    mockSendMail.mockRejectedValue(new Error('Relay rejected'));
+
+    await expect(
+      adapter.send({
+        to: 'joao@example.com',
+        from: 'noreply@ikaro.example',
+        subject: 'Teste',
+        html: '<p>Olá</p>',
+      }),
+    ).rejects.toBeInstanceOf(EmailDeliveryException);
+  });
+
+  it('redacts the BREVO_SMTP_KEY value from the thrown error message', async () => {
+    expect.assertions(2);
+    mockSendMail.mockRejectedValue(new Error('Invalid login: 535 fake-smtp-key rejected'));
+
+    try {
+      await adapter.send({
+        to: 'joao@example.com',
+        from: 'noreply@ikaro.example',
+        subject: 'Teste',
+        html: '<p>Olá</p>',
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '';
+      expect(message).not.toContain('fake-smtp-key');
+      expect(message).toContain('[REDACTED]');
+    }
+  });
+
+  it('does not contain a render() method', () => {
+    expect((adapter as unknown as Record<string, unknown>)['render']).toBeUndefined();
+  });
+});

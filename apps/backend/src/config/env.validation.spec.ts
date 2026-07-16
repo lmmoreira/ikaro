@@ -27,6 +27,9 @@ describe('validateEnv()', () => {
     expect(result.DB_POOL_SIZE).toBe(10);
     expect(result.LOG_LEVEL).toBe('INFO');
     expect(result.LOG_VENDOR).toBe('gcp');
+    expect(result.BREVO_SMTP_HOST).toBe('smtp-relay.brevo.com');
+    expect(result.BREVO_SMTP_PORT).toBe(465);
+    expect(result.BREVO_SMTP_SECURE).toBe(true);
   });
 
   it('throws when a required var is missing', () => {
@@ -108,7 +111,7 @@ describe('validateEnv()', () => {
     ).toThrow('EMAIL_ADAPTER=mailhog is not allowed when APP_ENV is not "local"');
   });
 
-  it('accepts non-local APP_ENV when push mode and sendgrid are configured', () => {
+  it('accepts non-local APP_ENV when push mode and brevo are configured', () => {
     const result = validateEnv({
       ...valid,
       NODE_ENV: 'development',
@@ -117,11 +120,32 @@ describe('validateEnv()', () => {
       PUBSUB_CONSUMER_MODE: 'push',
       PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
       PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
-      EMAIL_ADAPTER: 'sendgrid',
-      SENDGRID_API_KEY: 'SG.fake-key',
+      EMAIL_ADAPTER: 'brevo',
+      BREVO_SMTP_LOGIN: 'account@example.com',
+      BREVO_SMTP_KEY: 'fake-smtp-key',
       DB_POOL_SIZE: '3',
     });
     expect(result.DB_POOL_SIZE).toBe(3);
+  });
+
+  it('throws when EMAIL_ADAPTER=brevo and BREVO_SMTP_LOGIN is missing', () => {
+    expect(() =>
+      validateEnv({
+        ...valid,
+        EMAIL_ADAPTER: 'brevo',
+        BREVO_SMTP_KEY: 'fake-smtp-key',
+      }),
+    ).toThrow('BREVO_SMTP_LOGIN is required when EMAIL_ADAPTER=brevo');
+  });
+
+  it('throws when EMAIL_ADAPTER=brevo and BREVO_SMTP_KEY is missing', () => {
+    expect(() =>
+      validateEnv({
+        ...valid,
+        EMAIL_ADAPTER: 'brevo',
+        BREVO_SMTP_LOGIN: 'account@example.com',
+      }),
+    ).toThrow('BREVO_SMTP_KEY is required when EMAIL_ADAPTER=brevo');
   });
 
   it('throws when APP_ENV != local and PUBSUB_AUTO_CREATE is left true, even in pull mode', () => {
@@ -143,7 +167,7 @@ describe('validateEnv()', () => {
     expect(result.EMAIL_ADAPTER).toBe('mailhog');
   });
 
-  it('accepts APP_ENV=staging with push mode and sendgrid', () => {
+  it('accepts APP_ENV=staging with push mode and brevo', () => {
     const result = validateEnv({
       ...valid,
       APP_ENV: 'staging',
@@ -151,8 +175,9 @@ describe('validateEnv()', () => {
       PUBSUB_CONSUMER_MODE: 'push',
       PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
       PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
-      EMAIL_ADAPTER: 'sendgrid',
-      SENDGRID_API_KEY: 'SG.fake-key',
+      EMAIL_ADAPTER: 'brevo',
+      BREVO_SMTP_LOGIN: 'account@example.com',
+      BREVO_SMTP_KEY: 'fake-smtp-key',
     });
     expect(result.APP_ENV).toBe('staging');
     expect(result.PUBSUB_AUTO_CREATE).toBe(false);

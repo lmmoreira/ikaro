@@ -58,7 +58,6 @@
     "@nestjs/platform-express": "^11.1.27",
     "@nestjs/terminus": "^11.1.1",
     "@nestjs/typeorm": "^11.0.3",
-    "@sendgrid/mail": "^8.1.6",
     "cache-manager": "^7.2.9",
     "decimal.js": "^10.6.0",
     "deepmerge": "^4.3.1",

@@ -194,7 +194,7 @@ Controls per-tenant email delivery behaviour.
 **Validation Rules:**
 - `fromEmail` must be a valid email address when present
 - If null or absent, falls back to the global `EMAIL_FROM` env var
-- The address must be verified in SendGrid (Sender Authentication → Single Sender Verification) before emails will be delivered in staging/production
+- The address must be verified as a sender in Brevo before emails will be delivered in staging/production (confirm Brevo's exact sender/domain-verification menu path at implementation time)
 
 **Usage in code:**
 ```typescript
