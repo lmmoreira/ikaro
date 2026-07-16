@@ -35,3 +35,14 @@ updates:
     schedule:
       interval: weekly
       day: monday
+
+  # Terraform provider pins (M17-S11). Watches the env roots, where the
+  # .terraform.lock.hcl files live; on a provider MAJOR bump, update the
+  # module-level pins in the same PR (see infra/terraform/README.md).
+  - package-ecosystem: terraform
+    directories:
+      - /infra/terraform/envs/staging
+      - /infra/terraform/envs/prod
+    schedule:
+      interval: weekly
+      day: monday
