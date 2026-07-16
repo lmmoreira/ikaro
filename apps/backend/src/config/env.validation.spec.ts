@@ -27,6 +27,9 @@ describe('validateEnv()', () => {
     expect(result.DB_POOL_SIZE).toBe(10);
     expect(result.LOG_LEVEL).toBe('INFO');
     expect(result.LOG_VENDOR).toBe('gcp');
+    expect(result.BREVO_SMTP_HOST).toBe('smtp-relay.brevo.com');
+    expect(result.BREVO_SMTP_PORT).toBe(465);
+    expect(result.BREVO_SMTP_SECURE).toBe(true);
   });
 
   it('throws when a required var is missing', () => {

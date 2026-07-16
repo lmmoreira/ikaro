@@ -9,10 +9,10 @@ const mockSendMail = jest.fn().mockResolvedValue({ messageId: 'test-id' });
 (nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail: mockSendMail });
 
 const configService = {
-  get: jest.fn((key: string) => {
+  get: jest.fn((key: string, defaultValue?: unknown) => {
     if (key === 'BREVO_SMTP_LOGIN') return 'account@example.com';
     if (key === 'BREVO_SMTP_KEY') return 'fake-smtp-key';
-    return '';
+    return defaultValue;
   }),
 } as unknown as ConfigService;
 
@@ -26,9 +26,34 @@ describe('BrevoEmailAdapter', () => {
     adapter = new BrevoEmailAdapter(configService);
   });
 
-  it('creates the transporter against the Brevo SMTP relay with the configured credentials', () => {
+  it('creates the transporter against the Brevo SMTP relay defaults with the configured credentials', () => {
     expect(nodemailer.createTransport).toHaveBeenCalledWith({
       host: 'smtp-relay.brevo.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'account@example.com',
+        pass: 'fake-smtp-key',
+      },
+    });
+  });
+
+  it('uses overridden BREVO_SMTP_HOST/PORT/SECURE when configured', () => {
+    const overrideConfig = {
+      get: jest.fn((key: string, defaultValue?: unknown) => {
+        if (key === 'BREVO_SMTP_HOST') return 'custom-relay.example.com';
+        if (key === 'BREVO_SMTP_PORT') return 587;
+        if (key === 'BREVO_SMTP_SECURE') return false;
+        if (key === 'BREVO_SMTP_LOGIN') return 'account@example.com';
+        if (key === 'BREVO_SMTP_KEY') return 'fake-smtp-key';
+        return defaultValue;
+      }),
+    } as unknown as ConfigService;
+
+    new BrevoEmailAdapter(overrideConfig);
+
+    expect(nodemailer.createTransport).toHaveBeenCalledWith({
+      host: 'custom-relay.example.com',
       port: 587,
       secure: false,
       auth: {

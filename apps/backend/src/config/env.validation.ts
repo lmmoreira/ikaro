@@ -42,6 +42,12 @@ const schema = z
     EMAIL_FROM: z
       .email({ message: 'EMAIL_FROM must be a valid email address' })
       .default('noreply@ikaro.example'),
+    // Defaults are Brevo's implicit-TLS relay (SonarCloud S5332 flags STARTTLS's
+    // secure:false as unverifiable cleartext); overridable only if that endpoint
+    // ever needs to change without a code deploy (e.g. port 465 blocked egress).
+    BREVO_SMTP_HOST: z.string().default('smtp-relay.brevo.com'),
+    BREVO_SMTP_PORT: z.coerce.number().default(465),
+    BREVO_SMTP_SECURE: z.stringbool().default(true),
     BREVO_SMTP_LOGIN: z.string().min(1).optional(),
     BREVO_SMTP_KEY: z.string().min(1).optional(),
     FRONTEND_URL: z.string().default('http://localhost:3000'),
