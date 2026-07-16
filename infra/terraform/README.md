@@ -28,7 +28,7 @@ infra/terraform/
 - Modules are generic and env-agnostic; envs compose them. Env-specific values enter only through each env's `terraform.tfvars`.
 - Each env is a separate root module with its own GCS state prefix. **No `terraform workspace` usage — ever.**
 - Shared variable contract on every module and env: `project_id`, `environment` (validated `staging|prod`), `region` (default `southamerica-east1`), `labels`.
-- Provider pins: `hashicorp/google ~> 7.0`; `cloudflare/cloudflare ~> 5.0` (declared only in `modules/edge`, its sole consumer). `required_version ~> 1.15`. Dependabot's `terraform` ecosystem watches both env roots and PRs pin updates (`.github/dependabot.yml`); a provider **major** bump must update the module-level pins in the same PR (Dependabot only watches the env roots, where the lock files live).
+- Version constraints follow HashiCorp's module convention: **modules declare minimums only** (`>= 7.0` google, `>= 5.0` cloudflare in `modules/edge`, `required_version >= 1.15`); **the env roots own the real pins** (`~> 7.0`, `~> 1.15`) backed by their committed `.terraform.lock.hcl` files. Dependabot's `terraform` ecosystem watches both env roots and PRs pin updates (`.github/dependabot.yml`).
 
 ## Module dependency graph
 
