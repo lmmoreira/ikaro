@@ -1,7 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, throwProblemDetail } from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, throwProblemDetail, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { GenericErrorCode } from '@ikaro/types';
-import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import {
   LinkGoogleAccountDto,
   LinkGoogleAccountSchema,

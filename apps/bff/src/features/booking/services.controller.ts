@@ -11,9 +11,8 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 import { StaffServiceListResponse, StaffServiceResponse } from '@ikaro/types';
-import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
-import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ServiceDetail, ServiceListResponse } from './services.types';
 import { toStaffServiceListResponse, toStaffServiceResponse } from './services.mapper';

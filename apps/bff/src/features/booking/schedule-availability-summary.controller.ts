@@ -1,7 +1,7 @@
 import { Controller, Get, Headers, Query } from '@nestjs/common';
 import { z } from 'zod';
 import { Public } from '../../shared/decorators/public.decorator';
-import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
+import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { AvailabilitySummaryResponse } from './schedule.types';
 import { withPublicTenant } from '../../shared/http/public-tenant';

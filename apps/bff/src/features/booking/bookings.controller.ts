@@ -16,7 +16,6 @@ import { z } from 'zod';
 import { ConfigService } from '@nestjs/config';
 import { Public } from '../../shared/decorators/public.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
-import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { withPublicTenant } from '../../shared/http/public-tenant';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
@@ -41,7 +40,7 @@ import {
   StaffBookingDetailResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
-import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import {
   toCustomerBookingDetail,
   toCustomerBookingListItem,

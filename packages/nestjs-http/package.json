@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "@ikaro/observability": "workspace:*",
-    "@ikaro/types": "workspace:*"
+    "@ikaro/types": "workspace:*",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@ikaro/config": "workspace:*",

@@ -19,8 +19,11 @@ import {
   StaffResponse,
   UpdateStaffResponse,
 } from '@ikaro/types';
-import { CanonicalParseIntPipe, CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
-import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
+import {
+  CanonicalParseIntPipe,
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';

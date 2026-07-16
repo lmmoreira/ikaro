@@ -4,7 +4,7 @@ import { Request, Response } from 'express';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
-import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
+import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import { DevLoginDto, DevLoginResponse, DevLoginSchema } from './dtos/dev-login.dto';
 import { SwitchStaffTenantDto, SwitchStaffTenantSchema } from './dtos/switch-staff-tenant.dto';
 import { SwitchTenantDto, SwitchTenantSchema } from './dtos/switch-tenant.dto';

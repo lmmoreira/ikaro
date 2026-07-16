@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import {
   DeleteHotsiteImageDto,
