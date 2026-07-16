@@ -605,13 +605,13 @@ jobs:
         with:
           filters: |
             terraform:
-              - 'infrastructure/terraform/**'
+              - 'infra/terraform/**'
 
       - name: Checkov — Terraform
         if: steps.filter.outputs.terraform == 'true'
         uses: bridgecrewio/checkov-action@a7683e7b72a04503521247973281ec8142e1ac1f # v12.3112.0
         with:
-          directory: infrastructure/terraform
+          directory: infra/terraform
           soft_fail: false
           quiet: true
           output_format: sarif

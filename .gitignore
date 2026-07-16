@@ -48,3 +48,12 @@ Thumbs.db
 .claude/scheduled_tasks.lock
 packages/i18n/dist
 docs/BOOTSTRAP_LOG.md
+
+# Terraform — state, plans and provider caches never enter git
+# (.terraform.lock.hcl files ARE committed — dependency pinning)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
