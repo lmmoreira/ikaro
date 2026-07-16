@@ -1,26 +1,28 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import sgMail from '@sendgrid/mail';
+import * as nodemailer from 'nodemailer';
 import { EmailDeliveryException } from '../../domain/errors/notification-domain.error';
 import { EmailSendOptions, IEmailSender } from '../../application/ports/email-sender.port';
 
 @Injectable()
-export class SendGridEmailAdapter implements IEmailSender, OnModuleInit {
-  private readonly apiKey: string;
+export class BrevoEmailAdapter implements IEmailSender {
+  private readonly transporter: nodemailer.Transporter;
 
   constructor(config: ConfigService) {
-    this.apiKey = config.get<string>('SENDGRID_API_KEY', '');
-  }
-
-  onModuleInit(): void {
-    if (this.apiKey) {
-      sgMail.setApiKey(this.apiKey);
-    }
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: config.get<string>('BREVO_SMTP_LOGIN', ''),
+        pass: config.get<string>('BREVO_SMTP_KEY', ''),
+      },
+    });
   }
 
   async send(options: EmailSendOptions): Promise<void> {
     try {
-      await sgMail.send({
+      await this.transporter.sendMail({
         to: options.to,
         from: options.from,
         subject: options.subject,

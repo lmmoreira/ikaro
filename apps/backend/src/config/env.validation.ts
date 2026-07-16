@@ -38,11 +38,12 @@ const schema = z
     GCS_MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(10_485_760),
     SMTP_HOST: z.string().default('localhost'),
     SMTP_PORT: z.coerce.number().default(1025),
-    EMAIL_ADAPTER: z.enum(['sendgrid', 'mailhog']).default('mailhog'),
+    EMAIL_ADAPTER: z.enum(['brevo', 'mailhog']).default('mailhog'),
     EMAIL_FROM: z
       .email({ message: 'EMAIL_FROM must be a valid email address' })
       .default('noreply@ikaro.example'),
-    SENDGRID_API_KEY: z.string().min(1).optional(),
+    BREVO_SMTP_LOGIN: z.string().min(1).optional(),
+    BREVO_SMTP_KEY: z.string().min(1).optional(),
     FRONTEND_URL: z.string().default('http://localhost:3000'),
     JWT_SECRET: z.string().min(64, { message: 'JWT_SECRET must be at least 64 characters' }),
     HOTSITE_REVALIDATE_SECRET: z
@@ -62,11 +63,18 @@ const schema = z
       .default(14),
   })
   .superRefine((data, ctx) => {
-    if (data.EMAIL_ADAPTER === 'sendgrid' && !data.SENDGRID_API_KEY) {
+    if (data.EMAIL_ADAPTER === 'brevo' && !data.BREVO_SMTP_LOGIN) {
       ctx.addIssue({
         code: 'custom',
-        path: ['SENDGRID_API_KEY'],
-        message: 'SENDGRID_API_KEY is required when EMAIL_ADAPTER=sendgrid',
+        path: ['BREVO_SMTP_LOGIN'],
+        message: 'BREVO_SMTP_LOGIN is required when EMAIL_ADAPTER=brevo',
+      });
+    }
+    if (data.EMAIL_ADAPTER === 'brevo' && !data.BREVO_SMTP_KEY) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['BREVO_SMTP_KEY'],
+        message: 'BREVO_SMTP_KEY is required when EMAIL_ADAPTER=brevo',
       });
     }
     if (data.PUBSUB_CONSUMER_MODE === 'push' && data.PUBSUB_AUTO_CREATE) {
@@ -97,7 +105,7 @@ const schema = z
       ctx.addIssue({
         code: 'custom',
         path: ['EMAIL_ADAPTER'],
-        message: 'EMAIL_ADAPTER=mailhog is not allowed when APP_ENV is not "local" — use SendGrid',
+        message: 'EMAIL_ADAPTER=mailhog is not allowed when APP_ENV is not "local" — use Brevo',
       });
     }
     if (data.PUBSUB_CONSUMER_MODE === 'push') {

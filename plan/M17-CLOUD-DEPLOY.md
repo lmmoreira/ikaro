@@ -748,7 +748,7 @@ Terraform creates secret **containers** + IAM only; ALL values are populated man
 | `platform-admin-key` | backend | UC-024 provisioning |
 | `hotsite-revalidate-secret` | backend, web | ISR on-demand revalidation |
 | `google-oauth-client-id` / `google-oauth-client-secret` | BFF | per-env values (S10) |
-| `sendgrid-api-key` | backend | per-env keys (S10) |
+| `brevo-smtp-key` | backend | per-env keys (S10) |
 | `cloudflare-api-token` | infra pipeline (S22), CI purge (S41), backend (S40 runtime) | prod only; provisioned with the edge module (S22/S23 — DNS:Edit scope), scope extended for cache purge + SSL for SaaS when S40/S41 land. Two homes, both intentional (2026-07-08): GitHub environment secret for pipelines (S23/S24); this Secret Manager container for runtime consumers (the S40 verification adapter calls the Cloudflare API from the backend) |
 
 Non-secret config (`EMAIL_ADAPTER`, `EMAIL_FROM`, `FRONTEND_URL`, `ALLOWED_ORIGINS`, `GCS_*` names/URLs, `PUBSUB_*`, `LOG_LEVEL`, `JWT_EXPIRES_IN`, `ENABLE_DEV_AUTH`, `BACKEND_INTERNAL_URL`, `NEXT_PUBLIC_*`) goes as plain env vars in the Cloud Run module (S18) — not secrets. IAM: each runtime SA gets `roles/secretmanager.secretAccessor` **per secret it consumes** (loop over an explicit map — no project-wide grant).
@@ -1053,7 +1053,7 @@ Turn staging from placeholder to a working environment. This is a runbook + chec
 
 **Steps:**
 1. Populate staging secret values (`gcloud secrets versions add`): jwt-secret (`openssl rand -hex 64`), internal-api-key, platform-admin-key, hotsite-revalidate-secret, OAuth pair (S10), Brevo SMTP key. **Create the DB user + password out-of-band per the S13 snippet** (`gcloud sql users create` + `db-password` secret version — never via Terraform, §2). Record rotation dates in `SECRETS.md`.
-2. Flip `bootstrap_mode=false` (S18) via the infra pipeline; set staging env vars: `APP_ENV=staging` (which is what makes `ENABLE_DEV_AUTH=true` legal — S06), `ENABLE_DEV_AUTH=true`, `EMAIL_ADAPTER=sendgrid`, `LOG_LEVEL=DEBUG`.
+2. Flip `bootstrap_mode=false` (S18) via the infra pipeline; set staging env vars: `APP_ENV=staging` (which is what makes `ENABLE_DEV_AUTH=true` legal — S06), `ENABLE_DEV_AUTH=true`, `EMAIL_ADAPTER=brevo`, `LOG_LEVEL=DEBUG`.
    **Staging data rule (compensating control, 2026-07-07):** `ENABLE_DEV_AUTH=true` on a public `*.run.app` URL is an authentication bypass for anyone who discovers the URL. Accepted **only** under this rule: staging holds synthetic/test data exclusively — never real customer data, never a copy of prod. Record the rule in `docs/RUNBOOKS.md` (staging section) as part of this story.
 3. Trigger `deploy-staging.yml` (empty commit or re-run) → first real images deploy.
 4. **Validation checklist (all deferred items from Wave 2 land here):**

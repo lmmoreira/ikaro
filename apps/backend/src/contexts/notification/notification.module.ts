@@ -34,7 +34,7 @@ import { JsonLocalizationAdapter } from './infrastructure/adapters/json-localiza
 import { DELIVERY_CHANNEL } from './application/ports/delivery-channel.port';
 import { EMAIL_SENDER } from './application/ports/email-sender.port';
 import { MailhogEmailAdapter } from './infrastructure/delivery/mailhog-email.adapter';
-import { SendGridEmailAdapter } from './infrastructure/delivery/sendgrid-email.adapter';
+import { BrevoEmailAdapter } from './infrastructure/delivery/brevo-email.adapter';
 import { EmailDeliveryChannelAdapter } from './infrastructure/delivery/email-delivery-channel.adapter';
 import { NotificationDispatcherAdapter } from './infrastructure/delivery/notification-dispatcher.adapter';
 import { NotificationLogEntity } from './infrastructure/entities/notification-log.entity';
@@ -73,15 +73,15 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     SeedDefaultTemplatesUseCase,
     TenantProvisionedNotificationHandler,
     MailhogEmailAdapter,
-    SendGridEmailAdapter,
+    BrevoEmailAdapter,
     {
       provide: EMAIL_SENDER,
       useFactory: (
         mailhog: MailhogEmailAdapter,
-        sendgrid: SendGridEmailAdapter,
+        brevo: BrevoEmailAdapter,
         config: ConfigService,
-      ) => (config.get('EMAIL_ADAPTER') === 'sendgrid' ? sendgrid : mailhog),
-      inject: [MailhogEmailAdapter, SendGridEmailAdapter, ConfigService],
+      ) => (config.get('EMAIL_ADAPTER') === 'brevo' ? brevo : mailhog),
+      inject: [MailhogEmailAdapter, BrevoEmailAdapter, ConfigService],
     },
     EmailDeliveryChannelAdapter,
     {
