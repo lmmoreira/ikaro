@@ -57,4 +57,13 @@ describe('LoyaltyCustomerAdapter', () => {
       adapter.resolveCustomerIdByOAuthId(HOME_CUSTOMER_ID, HOME_TENANT_ID, TARGET_TENANT_ID),
     ).rejects.toThrow(LoyaltyCustomerNotFoundInTenantError);
   });
+
+  it('propagates unrelated failures (e.g. a DB error) unchanged instead of masking them as not-found', async () => {
+    const dbError = new Error('connection terminated unexpectedly');
+    getCustomerTenantsById.execute.mockRejectedValue(dbError);
+
+    await expect(
+      adapter.resolveCustomerIdByOAuthId(HOME_CUSTOMER_ID, HOME_TENANT_ID, TARGET_TENANT_ID),
+    ).rejects.toThrow(dbError);
+  });
 });
