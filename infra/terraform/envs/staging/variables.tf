@@ -1,3 +1,8 @@
+variable "cors_origins" {
+  description = "Origins allowed to PUT/GET against the private uploads bucket via signed URLs — this env's web app origin(s)"
+  type        = list(string)
+}
+
 variable "db_tier" {
   description = "Cloud SQL machine tier (D12: db-f1-micro at launch; upgrade via terraform.tfvars when the first paying tenant lands)"
   type        = string

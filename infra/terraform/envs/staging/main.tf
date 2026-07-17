@@ -36,3 +36,16 @@ module "database" {
   enable_pitr         = false
   deletion_protection = false
 }
+
+# Unconditional (unlike database): empty/near-empty GCS buckets cost
+# effectively nothing, so there's no reason to gate creation behind a flag.
+module "storage" {
+  source = "../../modules/storage"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  cors_origins = var.cors_origins
+}

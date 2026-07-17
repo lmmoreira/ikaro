@@ -612,6 +612,7 @@ jobs:
         uses: bridgecrewio/checkov-action@a7683e7b72a04503521247973281ec8142e1ac1f # v12.3112.0
         with:
           directory: infra/terraform
+          external_checks_dirs: infra/terraform/.checkov/custom_checks
           soft_fail: false
           quiet: true
           output_format: sarif
