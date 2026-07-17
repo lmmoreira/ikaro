@@ -61,31 +61,26 @@ The existing `GET /customers/:customerId/loyalty/balance` is kept **for staff on
 
 #### Backend changes — `loyalty.controller.ts`
 
-1. **`getBalance()`** — extend to accept optional `?tenantId`. When present and different from JWT tenant, resolve the customer ID cross-tenant before calling the use case:
+1. **`getBalance()`** — extend to accept optional `?tenantId`. The controller stays limited to request extraction and error mapping (per-layer rule: controllers call exactly one use case) — cross-tenant resolution plus balance retrieval is orchestrated by a new `GetOwnLoyaltyBalanceUseCase` (see below), not inline in the controller:
 
 ```typescript
 @Get('loyalty/balance')
 @UseGuards(CustomerRoleGuard)
 async getBalance(
   @Query(new ZodValidationPipe(CrossTenantQuerySchema)) { tenantId }: CrossTenantQueryDto,
-): Promise<GetLoyaltyBalanceUseCaseResult> {
-  const { tenantId: contextTenantId, actorId } = this.tenantContext;
-  const effectiveTenantId = tenantId ?? contextTenantId;
-
-  let customerId = actorId!;
-  if (effectiveTenantId !== contextTenantId) {
-    customerId = await this.loyaltyCustomer.resolveCustomerIdByOAuthId(
-      actorId!,
-      contextTenantId,
-      effectiveTenantId,
-    );
-  }
-
-  return this.getLoyaltyBalance
-    .execute({ tenantId: effectiveTenantId, customerId })
+): Promise<EnrichedLoyaltyBalanceResult> {
+  const { tenantId: contextTenantId, actorId, settings } = this.tenantContext;
+  const { balance, isCrossTenant } = await this.getOwnLoyaltyBalance
+    .execute({ contextTenantId, targetTenantId: tenantId ?? contextTenantId, actorId: actorId! })
     .catch(mapLoyaltyError);
+  return {
+    ...balance,
+    conversionRate: isCrossTenant ? null : settings.loyalty.pointsPerCurrencyUnit,
+  };
 }
 ```
+
+**New use case — `GetOwnLoyaltyBalanceUseCase`** (`application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case.ts`, added in code review — CodeRabbit flagged the port being injected directly into the controller as a layering violation): takes `{ contextTenantId, targetTenantId, actorId }`, decides whether the call is cross-tenant, resolves the customer via `ILoyaltyCustomerPort` only when it is, then delegates to `GetLoyaltyBalanceUseCase`. This keeps `LOYALTY_CUSTOMER_PORT` injected into the application layer (a use case), never into `LoyaltyController` directly — matching every other use case/port pairing in this codebase.
 
 2. **`getBalanceAdmin()`** — remove `CrossTenantQueryDto` and `?tenantId` override. Guard with `StaffOrManagerRoleGuard` only. Clean up the dead `isCrossTenantCall` logic:
 
@@ -208,7 +203,8 @@ Mitigation (post-MVP): batch the resolution into a single query — given a `goo
 
 | File | Change |
 |---|---|
-| `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty.controller.ts` | Extend `getBalance()` with optional `?tenantId` + cross-tenant resolution; strip cross-tenant logic from `getBalanceAdmin()`; guard `getBalanceAdmin()` with `StaffOrManagerRoleGuard` instead of `AnyAuthenticatedRoleGuard` |
+| `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty.controller.ts` | Extend `getBalance()` with optional `?tenantId`, delegating to `GetOwnLoyaltyBalanceUseCase`; strip cross-tenant logic from `getBalanceAdmin()`; guard `getBalanceAdmin()` with `StaffOrManagerRoleGuard` instead of `AnyAuthenticatedRoleGuard` |
+| `apps/backend/src/contexts/loyalty/application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case.ts` + `.spec.ts` | New use case — orchestrates cross-tenant customer resolution + balance retrieval, keeping the port out of the controller |
 | `apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-customer.adapter.ts` | New port + adapter (depends on `GetCustomerTenantsByIdUseCase`) |
 | `apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-customer.adapter.spec.ts` | New unit tests |
 | `apps/backend/src/contexts/loyalty/domain/errors/loyalty-domain.error.ts` | New `LoyaltyCustomerNotFoundInTenantError` |
@@ -216,6 +212,7 @@ Mitigation (post-MVP): batch the resolution into a single query — given a `goo
 | `apps/backend/src/contexts/loyalty/loyalty.module.ts` | Import `CustomerModule`; register new adapter under `LOYALTY_CUSTOMER_PORT`; remove dead `AnyAuthenticatedRoleGuard` |
 | `apps/backend/src/contexts/customer/customer.module.ts` | Add `GetCustomerTenantsByIdUseCase` to `exports:` |
 | `packages/types/src/error-codes.ts` | New `LoyaltyErrorCode` entry |
+| `packages/i18n/locales/en/errors.json` + `pt-BR/errors.json` | Translation for the new error code (required by the exhaustiveness test in `apps/web`) |
 | `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty.controller.spec.ts` + `.integration.spec.ts` | Update for new guard + cross-tenant resolution path |
 | `apps/bff/src/features/customer/customers.controller.ts` | `getTenants()` — call `/loyalty/balance?tenantId=X` instead of `/customers/${id}/loyalty/balance?tenantId=X` (path corrected — TD-21 moved this file under `features/customer/`) |
 | `apps/bff/src/features/customer/customers.controller.spec.ts` | Update spec to match new BFF call shape |

@@ -4,16 +4,21 @@ import { LoyaltyCustomerNotFoundInTenantError } from '../../contexts/loyalty/dom
 export class InMemoryLoyaltyCustomerPort implements ILoyaltyCustomerPort {
   private readonly links = new Map<string, string>();
 
-  seed(homeCustomerId: string, targetTenantId: string, targetCustomerId: string): void {
-    this.links.set(`${homeCustomerId}:${targetTenantId}`, targetCustomerId);
+  seed(
+    homeCustomerId: string,
+    homeTenantId: string,
+    targetTenantId: string,
+    targetCustomerId: string,
+  ): void {
+    this.links.set(`${homeTenantId}:${homeCustomerId}:${targetTenantId}`, targetCustomerId);
   }
 
   async resolveCustomerIdByOAuthId(
     homeCustomerId: string,
-    _homeTenantId: string,
+    homeTenantId: string,
     targetTenantId: string,
   ): Promise<string> {
-    const match = this.links.get(`${homeCustomerId}:${targetTenantId}`);
+    const match = this.links.get(`${homeTenantId}:${homeCustomerId}:${targetTenantId}`);
     if (!match) throw new LoyaltyCustomerNotFoundInTenantError();
     return match;
   }

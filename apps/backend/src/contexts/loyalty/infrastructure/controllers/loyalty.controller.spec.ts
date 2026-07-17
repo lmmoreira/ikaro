@@ -12,6 +12,7 @@ import {
   LoyaltyRedemptionBuilder,
 } from '../../../../test/builders/loyalty/index';
 import { GetLoyaltyBalanceUseCase } from '../../application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
+import { GetOwnLoyaltyBalanceUseCase } from '../../application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
 import { GetLoyaltyEntriesUseCase } from '../../application/use-cases/get-loyalty-entries/get-loyalty-entries.use-case';
 import { GetLoyaltyRedemptionsUseCase } from '../../application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
 import { RedeemPointsUseCase } from '../../application/use-cases/redeem-points/redeem-points.use-case';
@@ -47,11 +48,14 @@ describe('LoyaltyController', () => {
         .build();
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetOwnLoyaltyBalanceUseCase(
+          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          loyaltyCustomer,
+        ),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
-        loyaltyCustomer,
       );
     });
 
@@ -91,11 +95,14 @@ describe('LoyaltyController', () => {
         .build();
       const customerController = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetOwnLoyaltyBalanceUseCase(
+          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          loyaltyCustomer,
+        ),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
-        loyaltyCustomer,
       );
 
       const result = await customerController.getBalance({});
@@ -105,7 +112,7 @@ describe('LoyaltyController', () => {
     it("resolves the caller's own record in another tenant via ?tenantId (switch-tenant screen)", async () => {
       const OTHER_TENANT = '10000000-0000-7000-8000-000000000002';
       const OTHER_TENANT_CUSTOMER_ID = 'bbbbbbbb-0000-7000-8000-000000000099';
-      loyaltyCustomer.seed(CUSTOMER_ID, OTHER_TENANT, OTHER_TENANT_CUSTOMER_ID);
+      loyaltyCustomer.seed(CUSTOMER_ID, TENANT_ID, OTHER_TENANT, OTHER_TENANT_CUSTOMER_ID);
       await balanceRepo.upsert(
         new LoyaltyBalanceBuilder()
           .withTenantId(OTHER_TENANT)
@@ -122,7 +129,7 @@ describe('LoyaltyController', () => {
       const OTHER_TENANT = '10000000-0000-7000-8000-000000000002';
       const OTHER_TENANT_CUSTOMER_ID = 'bbbbbbbb-0000-7000-8000-000000000099';
       const SOMEONE_ELSES_CUSTOMER_ID = 'bbbbbbbb-0000-7000-8000-000000000088';
-      loyaltyCustomer.seed(CUSTOMER_ID, OTHER_TENANT, OTHER_TENANT_CUSTOMER_ID);
+      loyaltyCustomer.seed(CUSTOMER_ID, TENANT_ID, OTHER_TENANT, OTHER_TENANT_CUSTOMER_ID);
       await balanceRepo.upsert(
         new LoyaltyBalanceBuilder()
           .withTenantId(OTHER_TENANT)
@@ -140,7 +147,7 @@ describe('LoyaltyController', () => {
     it('returns conversionRate null for cross-tenant reads (context settings belong to the home tenant)', async () => {
       const OTHER_TENANT = '10000000-0000-7000-8000-000000000002';
       const OTHER_TENANT_CUSTOMER_ID = 'bbbbbbbb-0000-7000-8000-000000000099';
-      loyaltyCustomer.seed(CUSTOMER_ID, OTHER_TENANT, OTHER_TENANT_CUSTOMER_ID);
+      loyaltyCustomer.seed(CUSTOMER_ID, TENANT_ID, OTHER_TENANT, OTHER_TENANT_CUSTOMER_ID);
 
       const result = await controller.getBalance({ tenantId: OTHER_TENANT });
       expect(result.conversionRate).toBeNull();
@@ -149,13 +156,9 @@ describe('LoyaltyController', () => {
     it("maps to 404 when the caller has no record in the requested tenant (security regression: cannot read another customer's balance via ?tenantId)", async () => {
       const OTHER_TENANT = '10000000-0000-7000-8000-000000000002';
 
-      let caught: unknown;
-      try {
-        await controller.getBalance({ tenantId: OTHER_TENANT });
-      } catch (err) {
-        caught = err;
-      }
-      expect((caught as { status: number }).status).toBe(404);
+      await expect(controller.getBalance({ tenantId: OTHER_TENANT })).rejects.toMatchObject({
+        status: 404,
+      });
     });
   });
 
@@ -175,11 +178,14 @@ describe('LoyaltyController', () => {
         .build();
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetOwnLoyaltyBalanceUseCase(
+          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          loyaltyCustomer,
+        ),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
-        loyaltyCustomer,
       );
     });
 
@@ -220,11 +226,14 @@ describe('LoyaltyController', () => {
         .build();
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetOwnLoyaltyBalanceUseCase(
+          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          loyaltyCustomer,
+        ),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
-        loyaltyCustomer,
       );
     });
 
@@ -263,11 +272,14 @@ describe('LoyaltyController', () => {
         .build();
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetOwnLoyaltyBalanceUseCase(
+          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          loyaltyCustomer,
+        ),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
-        loyaltyCustomer,
       );
     });
 
@@ -315,11 +327,14 @@ describe('LoyaltyController', () => {
         .build();
       const managerController = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetOwnLoyaltyBalanceUseCase(
+          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          loyaltyCustomer,
+        ),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
-        loyaltyCustomer,
       );
 
       const result = await managerController.getBalanceAdmin(CUSTOMER_ID);
@@ -343,11 +358,14 @@ describe('LoyaltyController', () => {
         .build();
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetOwnLoyaltyBalanceUseCase(
+          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          loyaltyCustomer,
+        ),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
-        loyaltyCustomer,
       );
     });
 
@@ -382,11 +400,14 @@ describe('LoyaltyController', () => {
         .build();
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetOwnLoyaltyBalanceUseCase(
+          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          loyaltyCustomer,
+        ),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
-        loyaltyCustomer,
       );
     });
 
@@ -420,11 +441,14 @@ describe('LoyaltyController', () => {
         .build();
       controller = new LoyaltyController(
         new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+        new GetOwnLoyaltyBalanceUseCase(
+          new GetLoyaltyBalanceUseCase(balanceRepo, entryRepo),
+          loyaltyCustomer,
+        ),
         new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
-        loyaltyCustomer,
       );
     });
 

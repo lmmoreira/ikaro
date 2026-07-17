@@ -4,7 +4,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Inject,
   Param,
   Post,
   Query,
@@ -20,13 +19,10 @@ import {
 import { PaginationDto, PaginationSchema } from '../../application/dtos/pagination.dto';
 import { RedeemPointsDto, RedeemPointsSchema } from '../../application/dtos/redeem-points.dto';
 import {
-  LOYALTY_CUSTOMER_PORT,
-  ILoyaltyCustomerPort,
-} from '../../application/ports/loyalty-customer.port';
-import {
   GetLoyaltyBalanceUseCase,
   GetLoyaltyBalanceUseCaseResult,
 } from '../../application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
+import { GetOwnLoyaltyBalanceUseCase } from '../../application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
 import {
   GetLoyaltyEntriesUseCase,
   GetLoyaltyEntriesUseCaseResult,
@@ -53,11 +49,11 @@ export type EnrichedLoyaltyBalanceResult = GetLoyaltyBalanceUseCaseResult & {
 export class LoyaltyController {
   constructor(
     private readonly getLoyaltyBalance: GetLoyaltyBalanceUseCase,
+    private readonly getOwnLoyaltyBalance: GetOwnLoyaltyBalanceUseCase,
     private readonly getLoyaltyEntries: GetLoyaltyEntriesUseCase,
     private readonly getLoyaltyRedemptions: GetLoyaltyRedemptionsUseCase,
     private readonly redeemPointsUseCase: RedeemPointsUseCase,
     private readonly tenantContext: RequestContext,
-    @Inject(LOYALTY_CUSTOMER_PORT) private readonly loyaltyCustomer: ILoyaltyCustomerPort,
   ) {}
 
   // ── Customer routes ────────────────────────────────────────────────────────
@@ -69,21 +65,16 @@ export class LoyaltyController {
     { tenantId }: CrossTenantQueryDto,
   ): Promise<EnrichedLoyaltyBalanceResult> {
     const { tenantId: contextTenantId, actorId, settings } = this.tenantContext;
-    const effectiveTenantId = tenantId ?? contextTenantId;
-    const isCrossTenantCall = effectiveTenantId !== contextTenantId;
-
-    const customerId = isCrossTenantCall
-      ? await this.loyaltyCustomer
-          .resolveCustomerIdByOAuthId(actorId!, contextTenantId, effectiveTenantId)
-          .catch(mapLoyaltyError)
-      : actorId!;
-
-    const balance = await this.getLoyaltyBalance
-      .execute({ tenantId: effectiveTenantId, customerId })
+    const { balance, isCrossTenant } = await this.getOwnLoyaltyBalance
+      .execute({
+        contextTenantId,
+        targetTenantId: tenantId ?? contextTenantId,
+        actorId: actorId!,
+      })
       .catch(mapLoyaltyError);
     return {
       ...balance,
-      conversionRate: isCrossTenantCall ? null : settings.loyalty.pointsPerCurrencyUnit,
+      conversionRate: isCrossTenant ? null : settings.loyalty.pointsPerCurrencyUnit,
     };
   }
 

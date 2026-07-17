@@ -57,6 +57,7 @@
   "LOYALTY_INVALID_POINTS": "A quantidade de pontos deve ser maior que zero.",
   "LOYALTY_INSUFFICIENT_POINTS": "Saldo de pontos insuficiente para esta operação.",
   "LOYALTY_BALANCE_NOT_FOUND": "Nenhum saldo de fidelidade encontrado para este cliente.",
+  "LOYALTY_CUSTOMER_NOT_FOUND_IN_TENANT": "Você não está registrado neste estabelecimento.",
   "STAFF_NOT_FOUND": "Membro da equipe não encontrado.",
   "STAFF_ALREADY_ACTIVE": "Este membro da equipe já está ativo.",
   "STAFF_DEACTIVATED": "Esta conta está desativada.",

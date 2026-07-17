@@ -217,7 +217,7 @@ describe('LoyaltyController (integration)', () => {
 
       await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId: otherTenantId });
       await ds.getRepository(CustomerEntity).delete({ tenantId: otherTenantId });
-      await ds.getRepository(CustomerEntity).delete({ id: homeCustomerId });
+      await ds.getRepository(CustomerEntity).delete({ id: homeCustomerId, tenantId });
     });
 
     it("security regression: returns 404 when the caller has no linked record in the target tenant (cannot read another customer's balance by guessing a tenantId)", async () => {
