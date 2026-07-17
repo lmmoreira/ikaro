@@ -16,3 +16,8 @@ db_tier = "db-f1-micro"
 # (PITR + deletion protection are set in main.tf). iam_admin_user comes from
 # the gitignored local.auto.tfvars / TF_VAR_iam_admin_user (S24), never here.
 enable_database = true
+
+# Path-based hotsites (D11) — one prod origin, not per-tenant subdomains.
+# www redirects to apex at the edge (S22) but the browser can still load the
+# app from either host before that redirect fires.
+cors_origins = ["https://ikaro.online", "https://www.ikaro.online"]

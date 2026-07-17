@@ -78,6 +78,17 @@ terraform apply
 
 One state per env, never shared, no workspaces. Secret **values** never appear in state, tfvars, or git — Terraform creates secret *containers* only (M17 §2); values are populated out-of-band by the S27/S37 activation runbooks.
 
+## IAM binding review discipline (read before adding any `google_*_iam_*` resource)
+
+Every `google_*_iam_member` / `google_*_iam_binding` / `google_*_iam_policy` resource in this repo must specify an explicit, deliberately-reviewed `member`/`members` value. Never add `allUsers`, `allAuthenticatedUsers`, or a principal outside `ikaro.online`'s own domain without that being the specific, intentional point of the resource (e.g. `modules/storage`'s public hotsite bucket) — and call it out in review. **Do not assume an org-level policy will catch a mistake here** — current org-policy state (and the reasoning behind any project-level exception) lives in the gitignored, operator-local `docs/BOOTSTRAP_LOG.md`, not in this repo's public history.
+
+**Enforced automatically, not just by review discipline:** a custom Checkov check (`CKV_IKARO_1`, `.checkov/custom_checks/no_public_iam_grant.py`) hard-fails CI on any `allUsers`/`allAuthenticatedUsers` grant across every IAM resource type used in this repo, unless explicitly suppressed with a documented `#checkov:skip=CKV_IKARO_1:<reason>` — same discipline as every other Checkov skip here. Static analysis only: it has no visibility into anything created outside this repo's `.tf` files. Reproduce CI's scan locally with:
+
+```bash
+cd infra/terraform
+checkov -d . --framework terraform --external-checks-dir .checkov/custom_checks
+```
+
 ## Unit-test convention (M17 Wave 2 preamble)
 
 Any module containing **logic** — variable `validation` blocks, `precondition`/`check` blocks, non-trivial locals (lookup maps, derived values) — ships native `terraform test` cases in `tests/*.tftest.hcl`, following HashiCorp module conventions:
@@ -86,6 +97,7 @@ Any module containing **logic** — variable `validation` blocks, `precondition`
 - Name files `*_unit_test.tftest.hcl` (plan mode); there are no apply-mode tests in this repo.
 - Thin declarative modules (plain resource wrappers with no logic) are exempt — a test that restates the config adds nothing.
 - Copy the working example: `modules/network/tests/variables_unit_test.tftest.hcl` (valid-input assert + `expect_failures` on an invalid input).
+- **Happy path + unhappy path, not just shape assertions (M17-S14 discovery, 2026-07-17):** every variable that carries a `validation` block needs both a valid-input case (plans clean) *and* an `expect_failures` case proving the invalid input is actually rejected — a validation block nobody's test exercises can silently rot. A resource-level `precondition`/`check` needs the same pair. Don't stop at "the happy-path plan looks right" — a config that *should* fail to plan and doesn't is exactly the kind of gap that surfaces as a live incident instead of a red test (see `modules/storage/tests/variables_unit_test.tftest.hcl`'s `rejects_empty_cors_origins` for the pattern: an empty CORS origin list would otherwise silently plan a bucket that blocks every browser upload).
 
 ```bash
 cd infra/terraform/modules/network
@@ -94,3 +106,9 @@ terraform test
 ```
 
 Tests run in CI from M17-S24's PR job; Checkov scans `infra/terraform/**` on every PR (`.github/workflows/pr-tests.yml`).
+
+## Gotchas (cross-cutting — read before touching Checkov config or app-consumed env vars)
+
+- **`checkov --external-checks-dir` silently no-ops without an `__init__.py` in that directory.** No error, no warning at default log level — the scan just runs as if the directory didn't exist (same pass/fail counts as without it). Checkov's loader walks the directory tree and skips (INFO-level log only) any directory lacking `__init__.py` before importing anything inside it. `.checkov/custom_checks/` in this repo carries an (intentionally empty) `__init__.py` for exactly this reason — don't remove it, and add one to any new custom-checks directory.
+- **The `bridgecrewio/checkov-action` GitHub Action's input is `external_checks_dirs` (plural)**, while the Checkov CLI flag it wraps is `--external-checks-dir` (singular). They are not the same string — copying one into the other silently does nothing (the Action ignores an unrecognized input key rather than failing). Verify against the action's own `action.yml` at the pinned SHA before trusting either name from memory.
+- **Before writing a Terraform-side value for an app-consumed env var, trace how the app's own code actually composes it — don't infer the format from a story/plan doc's prose alone.** `GCS_PUBLIC_BASE_URL` was specified in `plan/M17-CLOUD-DEPLOY.md` as already including the bucket name (`https://storage.googleapis.com/ikaro-public-{env}`), but `GcsSignedUrlAdapter.getPublicUrl()` appends `GCS_PUBLIC_BUCKET_NAME` itself — the documented value would have doubled the bucket segment and broken every hotsite image URL. Caught only by reading the adapter source during M17-S14 discovery, not from the plan text. The general rule: any env var one module's Terraform sets and another codebase's adapter reads deserves a quick grep of the actual consuming code before the value is finalized.

@@ -1,3 +1,13 @@
+variable "cors_origins" {
+  description = "Origins allowed to PUT/GET against the private uploads bucket via signed URLs — the web app's origin(s) for this environment (browser uploads go directly to GCS via V4 signed URLs, never through the backend)"
+  type        = list(string)
+
+  validation {
+    condition     = length(var.cors_origins) > 0
+    error_message = "cors_origins must not be empty — an empty CORS origin list silently blocks every browser upload instead of failing plan."
+  }
+}
+
 variable "environment" {
   description = "Deployment environment (staging or prod)"
   type        = string
