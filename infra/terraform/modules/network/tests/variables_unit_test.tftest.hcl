@@ -32,3 +32,15 @@ run "rejects_invalid_environment" {
     var.environment,
   ]
 }
+
+run "rejects_invalid_subnet_cidr" {
+  command = plan
+
+  variables {
+    subnet_cidr = "10.0.0.0" # missing prefix length
+  }
+
+  expect_failures = [
+    var.subnet_cidr,
+  ]
+}
