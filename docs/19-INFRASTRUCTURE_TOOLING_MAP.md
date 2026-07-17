@@ -215,7 +215,7 @@ All resources are provisioned by Terraform. Full HCL, Day 0 bootstrap commands, 
 | GCP Service | What it hosts | Region |
 |---|---|---|
 | **Cloud Run** | `ikaro-web`, `ikaro-bff`, `ikaro-backend` containers | `us-central1` |
-| **Cloud SQL PostgreSQL 15** | Single instance, 6 schemas (platform, customer, staff, booking, loyalty, notification); private IP only | `us-central1` |
+| **Cloud SQL PostgreSQL 17** | Single instance, 6 schemas (platform, customer, staff, booking, loyalty, notification); private IP only | `us-central1` |
 | **Pub/Sub** | `ikaro-domain-events` topic; `ikaro-loyalty-consumer` + `ikaro-notification-consumer` subscriptions; `ikaro-dead-letter` topic | global |
 | **Cloud Storage** | `ikaro-media-<env>` bucket for tenant photo uploads | `US` multi-region |
 | **Secret Manager** | `database-url`, `jwt-secret`, `google-oauth-client-id`, `google-oauth-client-secret`, `email-api-key` | `us-central1` |

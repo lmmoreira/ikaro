@@ -199,7 +199,7 @@ apps/web/
 Create the `docker/docker-compose.yml` that launches every external dependency the application needs locally. This single command (`pnpm infra:up`) must replicate the production environment. Agents implementing backend features must be able to run against this stack with no cloud credentials.
 
 **Services to configure:**
-- `postgres` — PostgreSQL 15, port 5432, creates 6 databases/schemas on init: `platform`, `customer`, `staff`, `booking`, `loyalty`, `notification`
+- `postgres` — PostgreSQL 17, port 5432, creates 6 databases/schemas on init: `platform`, `customer`, `staff`, `booking`, `loyalty`, `notification`
 - `pubsub-emulator` — GCP Pub/Sub Emulator, port 8085
 - `gcs-emulator` — GCS Emulator (fake-gcs-server), port 4443
 - `mailhog` — MailHog SMTP (port 1025) + web UI (port 8025)

@@ -48,7 +48,7 @@ import { CreateSharedOutbox1748400000006 } from '../shared/infrastructure/migrat
 import { CreateSharedInbox1748400000007 } from '../shared/infrastructure/migrations/1748400000007-CreateSharedInbox';
 
 export default async function globalSetup(): Promise<void> {
-  const pgContainer = await new PostgreSqlContainer('postgres:15-alpine').start();
+  const pgContainer = await new PostgreSqlContainer('postgres:17-alpine').start();
 
   process.env['TEST_DATABASE_URL'] = pgContainer.getConnectionUri();
   process.env['FRONTEND_URL'] = 'http://localhost:3000';

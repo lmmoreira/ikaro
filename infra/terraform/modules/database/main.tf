@@ -1,4 +1,4 @@
-# modules/database — Cloud SQL PostgreSQL 15, private-IP only (via the network
+# modules/database — Cloud SQL PostgreSQL 17, private-IP only (via the network
 # module's PSA peering), SSL enforced, IAM database auth for human access.
 #
 # Zero secrets by design (M17 §2): the app's `ikaro` user + password are
@@ -7,11 +7,11 @@
 
 resource "google_sql_database_instance" "main" {
   #checkov:skip=CKV_GCP_6:ssl_mode ENCRYPTED_ONLY enforces TLS on every connection; the check additionally demands TRUSTED_CLIENT_CERTIFICATE_REQUIRED (per-client mTLS certs), a posture M17 deliberately did not adopt
-  #checkov:skip=CKV_GCP_79:PostgreSQL 15 is pinned for parity with the app and local dev (docs/13); a major-version upgrade is a separately-tested migration, not a lint fix
+  #checkov:skip=CKV_GCP_79:PostgreSQL 17 is pinned for parity with the app and local dev (docs/22 §6 PostgreSQL Choice, revised 2026-07-17); re-evaluate this pin against Checkov's definition of "latest" the next time the app's engine version is deliberately revisited
   name                = "ikaro-db-${var.environment}"
   project             = var.project_id
   region              = var.region
-  database_version    = "POSTGRES_15"
+  database_version    = "POSTGRES_17"
   deletion_protection = var.deletion_protection
 
   settings {

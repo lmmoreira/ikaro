@@ -1,6 +1,6 @@
-# modules/database — Cloud SQL PostgreSQL 15 (private IP)
+# modules/database — Cloud SQL PostgreSQL 17 (private IP)
 
-Cloud SQL instance `ikaro-db-{env}`: PostgreSQL 15, **no public IP ever** (private IP via the network module's PSA peering), SSL enforced (`ssl_mode = "ENCRYPTED_ONLY"`), daily backups 02:00 UTC (retention 7), maintenance window Sunday 06:00 UTC (≈ 03:00 São Paulo), disk autoresize bounded at 30GB. Database `ikaro` is created here; PITR and deletion protection are prod-only toggles (`enable_pitr`, `deletion_protection`).
+Cloud SQL instance `ikaro-db-{env}`: PostgreSQL 17, **no public IP ever** (private IP via the network module's PSA peering), SSL enforced (`ssl_mode = "ENCRYPTED_ONLY"`), daily backups 02:00 UTC (retention 7), maintenance window Sunday 06:00 UTC (≈ 03:00 São Paulo), disk autoresize bounded at 30GB. Database `ikaro` is created here; PITR and deletion protection are prod-only toggles (`enable_pitr`, `deletion_protection`).
 
 ## Zero secrets (M17 §2)
 

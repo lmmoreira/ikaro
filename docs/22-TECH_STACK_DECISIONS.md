@@ -27,7 +27,7 @@ This document defines the technology stack for Ikaro, a multi-tenant SaaS platfo
 ## 1. BACKEND ORM: TypeORM
 
 ### Decision
-**TypeORM v0.3+** with PostgreSQL 15
+**TypeORM v0.3+** with PostgreSQL 17
 
 ### Why TypeORM
 
@@ -767,10 +767,10 @@ backend:
 
 ---
 
-## 6. DATABASE: Cloud SQL PostgreSQL 15 (Managed)
+## 6. DATABASE: Cloud SQL PostgreSQL 17 (Managed)
 
 ### Decision
-**GCP Cloud SQL PostgreSQL 15** (managed database, NOT self-hosted)
+**GCP Cloud SQL PostgreSQL 17** (managed database, NOT self-hosted)
 
 ### Why Cloud SQL
 
@@ -853,7 +853,20 @@ export class BookingRepository extends Repository<Booking> {
 
 Per `docs/06-TENANT_ISOLATION_STRATEGY.md`, this is the primary isolation mechanism.
 
-### PostgreSQL 15 Choice
+### PostgreSQL 17 Choice
+
+> **Revised 2026-07-17 (M17-S13 discovery)** — superseded the original PostgreSQL 15 pick below. That decision was made at project inception (~2023, when PG16 was brand new and "🟡 Checking" on Cloud SQL) and was never revisited as the project sat in development. M17-S13 is the first story to ever provision a real Cloud SQL instance — zero data exists anywhere yet — making this the cheapest possible moment to correct a stale pin: no migration, no downtime, no risk.
+
+| Criterion | PG 16 | PG 17 | PG 18 |
+|-----------|-------|-------|-------|
+| **Stability** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **Cloud SQL maturity** | Long-proven | ✅ 1+ year of Cloud SQL production hardening (GA Sept 2024) | 🟡 Cloud SQL support only added 2026 — least battle-tested *as a managed service* despite stable upstream |
+| **LTS runway** | Shorter | Well past 2027 (PG15's old ceiling) | Longest, but immature on Cloud SQL today |
+
+**Decision:** PostgreSQL 17 — same "stability + modern features" criterion the original 2023 decision used, correctly re-applied to today's landscape instead of carrying a 3-version-old pin into go-live. PG18 was considered and rejected only for *managed-service* immaturity (Cloud SQL-specific HA/PITR/flag hardening), not upstream engine risk — revisit at the next deliberate version review.
+
+<details>
+<summary>Original 2023 decision (superseded — kept for history)</summary>
 
 | Criterion | PG 14 | PG 15 | PG 16 |
 |-----------|-------|-------|-------|
@@ -862,14 +875,16 @@ Per `docs/06-TENANT_ISOLATION_STRATEGY.md`, this is the primary isolation mechan
 | **Cloud SQL Support** | ✅ Available | ✅ Available | 🟡 Checking |
 | **LTS Until** | 2026 | 2027 | 2028 |
 
-**Decision:** PostgreSQL 15 (sweet spot of stability + modern features)
+Original decision: PostgreSQL 15 (sweet spot of stability + modern features).
+
+</details>
 
 ### Cloud SQL Terraform
 
 ```hcl
 resource "google_sql_database_instance" "ikaro" {
   name             = "ikaro-postgres"
-  database_version = "POSTGRES_15"
+  database_version = "POSTGRES_17"
   region           = "us-central1"
 
   settings {
@@ -1070,7 +1085,7 @@ terraform/
 # Cloud SQL Database
 resource "google_sql_database_instance" "postgres" {
   name             = "ikaro-postgres"
-  database_version = "POSTGRES_15"
+  database_version = "POSTGRES_17"
   # ... (see section 6)
 }
 

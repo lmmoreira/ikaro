@@ -12,7 +12,7 @@
 ### Phase 1 — Local Development (M00 – M14)
 All work runs on the developer's machine via Docker Compose. Zero GCP cost.  
 The local environment replicates production exactly:  
-PostgreSQL 15 · GCP Pub/Sub Emulator · GCS Emulator · MailHog (email preview).
+PostgreSQL 17 · GCP Pub/Sub Emulator · GCS Emulator · MailHog (email preview).
 
 ### Phase 2 — Cloud Deployment (M15 – M16)
 GCP infrastructure is provisioned, CI/CD deploy pipelines are activated, and the system goes live.  

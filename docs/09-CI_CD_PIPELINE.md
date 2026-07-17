@@ -316,7 +316,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: /tmp/.testcontainers-cache
-          key: tc-${{ runner.os }}-postgres15
+          key: tc-${{ runner.os }}-postgres17
       - run: pnpm --filter backend test:integration --testPathPattern="src/contexts/${{ matrix.context }}"
         env:
           TESTCONTAINERS_REUSE_ENABLE: true

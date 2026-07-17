@@ -12,7 +12,7 @@ variables {
   private_services_connection = "psa-connection-id"
 }
 
-run "instance_is_private_ssl_enforced_postgres_15" {
+run "instance_is_private_ssl_enforced_postgres_17" {
   command = plan
 
   assert {
@@ -26,8 +26,8 @@ run "instance_is_private_ssl_enforced_postgres_15" {
   }
 
   assert {
-    condition     = google_sql_database_instance.main.database_version == "POSTGRES_15"
-    error_message = "Database engine must stay PostgreSQL 15 (matches the app and local dev)."
+    condition     = google_sql_database_instance.main.database_version == "POSTGRES_17"
+    error_message = "Database engine must stay PostgreSQL 17 (matches the app and local dev — revised 2026-07-17, see docs/22)."
   }
 
   assert {
