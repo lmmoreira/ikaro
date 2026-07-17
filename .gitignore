@@ -55,5 +55,7 @@ docs/BOOTSTRAP_LOG.md
 *.tfstate
 *.tfstate.*
 *.tfplan
+# personal/local values (e.g. iam_admin_user email — public repo, M17-S13)
+local.auto.tfvars
 crash.log
 crash.*.log

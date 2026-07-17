@@ -677,11 +677,13 @@ Rationale: `tf-planner` (PR-mintable, S08) reads state; a Terraform-generated pa
 cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-staging --port 5433
 ```
 
+*Settled in discovery (2026-07-17):* (1) **Human DB access uses Cloud SQL IAM database authentication** — `cloudsql.iam_authentication` flag ON, admin identity registered as a `CLOUD_IAM_USER` via `var.iam_admin_user` (no password exists → zero secrets in state; the "future option, not built" note above now refers only to the *app runtime*, which keeps password auth via the S27 runbook). The email value is never committed (public repo): locally it comes from a gitignored `local.auto.tfvars`; post-S24 the pipeline supplies `TF_VAR_iam_admin_user` from a GitHub environment variable (noted in S24). (2) Provider v7 renamed `require_ssl` → `ssl_mode = "ENCRYPTED_ONLY"` (same intent, new attribute). (3) **Apply postponed** (cost decision): the module lands behind an `enable_database` flag at each env root — staging `false` (no instance, no charge) until S18/S27 needs the live DB (~$9/mo once flipped), prod `true` (prod stays plan-only regardless). Live-instance AC items (proxy login, backups in console) move to the S27 checklist.
+
 **Connection capacity note:** `db-f1-micro` allows only ~25 connections, and every Cloud Run instance opens its own TypeORM pool — the invariant `backend max_instances × DB_POOL_SIZE ≤ ~80% of max_connections` is owned by S18. The connection scale-up ladder (verified against Cloud SQL docs, 2026-07-07) is: **(1)** pool math — day zero, free; **(2)** dedicated-core Enterprise tier + raise the `max_connections` database flag (RAM-bounded); **(3)** Enterprise Plus edition + **Managed Connection Pooling** (Google-managed PgBouncer — requires Enterprise Plus, ~$200–300+/mo/env, so ONLY when traffic justifies it): M17-S46. Never a self-hosted pooler VM at any rung.
 
 **Acceptance criteria:**
-- [ ] Staging instance up, private-IP only, SSL required; `cloud-sql-proxy` connection from dev machine works
-- [ ] Backups verified in console; prod plan shows PITR + deletion protection
+- [ ] ~~Staging instance up, proxy login, backups in console~~ → **deferred to S27** (apply postponed, see discovery note); staging plan with `enable_database=false` stays empty for this module
+- [ ] Prod plan shows the instance with PITR + deletion protection + IAM-auth flag; both env plans/validate clean
 - [ ] Checkov clean (no public IP, SSL enforced)
 - [ ] Module README documents the 3-rung connection ladder (pool math → tier + `max_connections` flag → Enterprise Plus + MCP, → S46) + proxy usage + the connection-math invariant
 
@@ -969,6 +971,7 @@ The Terraform lifecycle the user asked for: commit to `infra/` triggers plan/app
 - **Concurrency:** apply jobs use `concurrency: { group: staging-mutations, cancel-in-progress: false }` (prod: `production-mutations`) — the **same group names the app deploy workflow uses (S25)**, so a PR touching both `infra/**` and `apps/**` cannot run a Terraform apply and an app deploy concurrently (review finding: infra/app race). GCS state locking is the second line of defense.
 - **Convention (enforced as a `/pre-pr` checklist line + workflow header comment):** do not mix `infra/terraform/**` and `apps/**` changes in one PR; when unavoidable, note in the PR that infra applies first and re-run the app deploy if it won the race.
 - **Drift detection (added 2026-07-08):** a weekly `schedule:` trigger runs `terraform plan -detailed-exitcode` for both envs as **`tf-planner`** (read-only); exit code 2 (non-empty plan) turns the run red. Out-of-band drift is otherwise invisible between applies.
+- **`TF_VAR_iam_admin_user` (S13 discovery):** plan/apply jobs must supply this from a GitHub environment variable — the value (admin email) is deliberately kept out of git (public repo); an apply without it would plan the IAM DB user for deletion.
 - Failure of staging apply blocks the prod job.
 
 **Acceptance criteria:**
@@ -1052,7 +1055,7 @@ On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build �
 Turn staging from placeholder to a working environment. This is a runbook + checklist story; its PR carries only doc updates.
 
 **Steps:**
-1. Populate staging secret values (`gcloud secrets versions add`): jwt-secret (`openssl rand -hex 64`), internal-api-key, platform-admin-key, hotsite-revalidate-secret, OAuth pair (S10), Brevo SMTP key. **Create the DB user + password out-of-band per the S13 snippet** (`gcloud sql users create` + `db-password` secret version — never via Terraform, §2). Record rotation dates in `SECRETS.md`.
+1. **Flip `enable_database=true` in staging tfvars + apply** (instance creation deferred from S13 — the ~$9/mo charge starts here), then verify the deferred S13 AC: instance private-IP only + SSL enforced, `cloud-sql-proxy --auto-iam-authn` login from the dev machine, backups visible in console. Populate staging secret values (`gcloud secrets versions add`): jwt-secret (`openssl rand -hex 64`), internal-api-key, platform-admin-key, hotsite-revalidate-secret, OAuth pair (S10), Brevo SMTP key. **Create the DB user + password out-of-band per the S13 snippet** (`gcloud sql users create` + `db-password` secret version — never via Terraform, §2). Record rotation dates in `SECRETS.md`.
 2. Flip `bootstrap_mode=false` (S18) via the infra pipeline; set staging env vars: `APP_ENV=staging` (which is what makes `ENABLE_DEV_AUTH=true` legal — S06), `ENABLE_DEV_AUTH=true`, `EMAIL_ADAPTER=brevo`, `LOG_LEVEL=DEBUG`.
    **Staging data rule (compensating control, 2026-07-07):** `ENABLE_DEV_AUTH=true` on a public `*.run.app` URL is an authentication bypass for anyone who discovers the URL. Accepted **only** under this rule: staging holds synthetic/test data exclusively — never real customer data, never a copy of prod. Record the rule in `docs/RUNBOOKS.md` (staging section) as part of this story.
 3. Trigger `deploy-staging.yml` (empty commit or re-run) → first real images deploy.

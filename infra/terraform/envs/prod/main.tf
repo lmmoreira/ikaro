@@ -19,3 +19,23 @@ module "network" {
   region      = var.region
   labels      = var.labels
 }
+
+# Enabled in config, but prod remains plan-only until S24/S37 — the pipeline
+# performs the first prod apply. PITR + deletion protection are prod law.
+module "database" {
+  count  = var.enable_database ? 1 : 0
+  source = "../../modules/database"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  network_id                  = module.network.network_id
+  private_services_connection = module.network.private_services_connection
+
+  db_tier             = var.db_tier
+  iam_admin_user      = var.iam_admin_user
+  enable_pitr         = true
+  deletion_protection = true
+}
