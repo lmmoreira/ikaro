@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -12,7 +11,6 @@ import {
 } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { AnyAuthenticatedRoleGuard } from '../../../../shared/guards/any-authenticated-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import {
   CrossTenantQueryDto,
@@ -24,6 +22,7 @@ import {
   GetLoyaltyBalanceUseCase,
   GetLoyaltyBalanceUseCaseResult,
 } from '../../application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
+import { GetOwnLoyaltyBalanceUseCase } from '../../application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
 import {
   GetLoyaltyEntriesUseCase,
   GetLoyaltyEntriesUseCaseResult,
@@ -50,6 +49,7 @@ export type EnrichedLoyaltyBalanceResult = GetLoyaltyBalanceUseCaseResult & {
 export class LoyaltyController {
   constructor(
     private readonly getLoyaltyBalance: GetLoyaltyBalanceUseCase,
+    private readonly getOwnLoyaltyBalance: GetOwnLoyaltyBalanceUseCase,
     private readonly getLoyaltyEntries: GetLoyaltyEntriesUseCase,
     private readonly getLoyaltyRedemptions: GetLoyaltyRedemptionsUseCase,
     private readonly redeemPointsUseCase: RedeemPointsUseCase,
@@ -60,12 +60,22 @@ export class LoyaltyController {
 
   @Get('loyalty/balance')
   @UseGuards(CustomerRoleGuard)
-  async getBalance(): Promise<EnrichedLoyaltyBalanceResult> {
-    const { tenantId, actorId, settings } = this.tenantContext;
-    const balance = await this.getLoyaltyBalance
-      .execute({ tenantId, customerId: actorId! })
+  async getBalance(
+    @Query(new ZodValidationPipe(CrossTenantQuerySchema))
+    { tenantId }: CrossTenantQueryDto,
+  ): Promise<EnrichedLoyaltyBalanceResult> {
+    const { tenantId: contextTenantId, actorId, settings } = this.tenantContext;
+    const { balance, isCrossTenant } = await this.getOwnLoyaltyBalance
+      .execute({
+        contextTenantId,
+        targetTenantId: tenantId ?? contextTenantId,
+        actorId: actorId!,
+      })
       .catch(mapLoyaltyError);
-    return { ...balance, conversionRate: settings.loyalty.pointsPerCurrencyUnit };
+    return {
+      ...balance,
+      conversionRate: isCrossTenant ? null : settings.loyalty.pointsPerCurrencyUnit,
+    };
   }
 
   @Get('loyalty/entries')
@@ -113,28 +123,15 @@ export class LoyaltyController {
   }
 
   @Get('customers/:customerId/loyalty/balance')
-  @UseGuards(AnyAuthenticatedRoleGuard)
+  @UseGuards(StaffOrManagerRoleGuard)
   async getBalanceAdmin(
     @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
-    @Query(new ZodValidationPipe(CrossTenantQuerySchema))
-    { tenantId }: CrossTenantQueryDto,
   ): Promise<EnrichedLoyaltyBalanceResult> {
-    const { actorRole, actorId, tenantId: contextTenantId, settings } = this.tenantContext;
-    const effectiveTenantId = tenantId ?? contextTenantId;
-    // Cross-tenant calls (tenantId query param ≠ JWT tenant) come from the BFF's getTenants()
-    // which already validated the tenant list via /customers/me/tenants. Within the actor's
-    // home tenant, enforce that a CUSTOMER can only read their own balance.
-    const isCrossTenantCall = effectiveTenantId !== contextTenantId;
-    if (actorRole === 'CUSTOMER' && !isCrossTenantCall && actorId !== customerId) {
-      throw new ForbiddenException();
-    }
+    const { tenantId, settings } = this.tenantContext;
     const balance = await this.getLoyaltyBalance
-      .execute({ tenantId: effectiveTenantId, customerId })
+      .execute({ tenantId, customerId })
       .catch(mapLoyaltyError);
-    return {
-      ...balance,
-      conversionRate: isCrossTenantCall ? null : settings.loyalty.pointsPerCurrencyUnit,
-    };
+    return { ...balance, conversionRate: settings.loyalty.pointsPerCurrencyUnit };
   }
 
   @Get('customers/:customerId/loyalty/entries')

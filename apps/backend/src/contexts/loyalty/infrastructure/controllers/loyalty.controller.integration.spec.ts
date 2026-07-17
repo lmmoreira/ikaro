@@ -4,6 +4,8 @@ import { DataSource } from 'typeorm';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createLoyaltyIntegrationApp } from '../../../../test/utils/loyalty-integration-app';
 import { InMemoryLoyaltyBookingPort } from '../../../../test/infrastructure/in-memory-loyalty-booking.port';
+import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
+import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
 import { LoyaltyBalanceEntity } from '../entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../entities/loyalty-redemption.entity';
@@ -160,6 +162,100 @@ describe('LoyaltyController (integration)', () => {
     });
   });
 
+  // ── Customer: GET /loyalty/balance?tenantId=X (TD20 cross-tenant switch) ─
+
+  describe('GET /loyalty/balance?tenantId=X (customer, switch-tenant screen — TD20)', () => {
+    it("resolves the caller's own record in another tenant via the linked Google OAuth ID", async () => {
+      const { body: t2 } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .send({
+          name: 'Loyalty Switch Tenant',
+          slug: 'loyalty-switch-tenant',
+          adminEmail: 'switch@loyalty.test',
+          country_code: 'BR',
+        })
+        .expect(201);
+      const otherTenantId = t2.tenantId as string;
+      const oauthId = 'google-sub-td20-switch';
+      const homeCustomerId = 'aaaaaaaa-0000-7000-8000-000000000010';
+      const otherTenantCustomerId = 'aaaaaaaa-0000-7000-8000-000000000011';
+
+      await ds
+        .getRepository(CustomerEntity)
+        .save([
+          new CustomerEntityBuilder()
+            .withId(homeCustomerId)
+            .withTenantId(tenantId)
+            .withGoogleOAuthId(oauthId)
+            .build(),
+          new CustomerEntityBuilder()
+            .withId(otherTenantCustomerId)
+            .withTenantId(otherTenantId)
+            .withGoogleOAuthId(oauthId)
+            .build(),
+        ]);
+      await ds
+        .getRepository(LoyaltyBalanceEntity)
+        .save(
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(otherTenantId)
+            .withCustomerId(otherTenantCustomerId)
+            .withCurrentPoints(77)
+            .build(),
+        );
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/loyalty/balance?tenantId=${otherTenantId}`)
+        .set(actorHeaders(tenantId, homeCustomerId, 'CUSTOMER'))
+        .expect(200);
+
+      expect(body.currentPoints).toBe(77);
+      // conversionRate is null on cross-tenant reads — the request context carries the
+      // actor's home-tenant settings, not the effective (target) tenant's.
+      expect(body.conversionRate).toBeNull();
+
+      await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId: otherTenantId });
+      await ds.getRepository(CustomerEntity).delete({ tenantId: otherTenantId });
+      await ds.getRepository(CustomerEntity).delete({ id: homeCustomerId, tenantId });
+    });
+
+    it("security regression: returns 404 when the caller has no linked record in the target tenant (cannot read another customer's balance by guessing a tenantId)", async () => {
+      const { body: t3 } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('Authorization', `Bearer ${TEST_KEY}`)
+        .send({
+          name: 'Loyalty Unlinked Tenant',
+          slug: 'loyalty-unlinked-tenant',
+          adminEmail: 'unlinked@loyalty.test',
+          country_code: 'BR',
+        })
+        .expect(201);
+      const unlinkedTenantId = t3.tenantId as string;
+
+      // A customer with the same real balance data exists in unlinkedTenantId, but the
+      // caller (CUSTOMER_ID in `tenantId`) has no Google-OAuth-linked record there.
+      const someoneElsesCustomerId = 'aaaaaaaa-0000-7000-8000-000000000012';
+      await ds
+        .getRepository(LoyaltyBalanceEntity)
+        .save(
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(unlinkedTenantId)
+            .withCustomerId(someoneElsesCustomerId)
+            .withCurrentPoints(999)
+            .build(),
+        );
+
+      const res = await request(app.getHttpServer())
+        .get(`/loyalty/balance?tenantId=${unlinkedTenantId}`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'));
+
+      expect(res.status).toBe(404);
+
+      await ds.getRepository(LoyaltyBalanceEntity).delete({ tenantId: unlinkedTenantId });
+    });
+  });
+
   // ── Customer: GET /loyalty/entries ────────────────────────────────────────
 
   describe('GET /loyalty/entries (customer)', () => {
@@ -295,14 +391,14 @@ describe('LoyaltyController (integration)', () => {
       expect(body.currentPoints).toBe(40);
     });
 
-    it('returns 200 when called with CUSTOMER role for their own balance', async () => {
+    it('returns 403 when called with CUSTOMER role, even for their own customerId (admin endpoint is STAFF/MANAGER only — TD20)', async () => {
       const res = await request(app.getHttpServer())
         .get(`/customers/${CUSTOMER_ID}/loyalty/balance`)
         .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'));
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(403);
     });
 
-    it('returns 403 when CUSTOMER calls with a different customerId (ownership check)', async () => {
+    it('returns 403 when CUSTOMER calls with a different customerId', async () => {
       const OTHER_CUSTOMER = 'aaaaaaaa-0000-7000-8000-000000000002';
       const res = await request(app.getHttpServer())
         .get(`/customers/${OTHER_CUSTOMER}/loyalty/balance`)

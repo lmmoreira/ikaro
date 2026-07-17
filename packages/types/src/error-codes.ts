@@ -81,6 +81,7 @@ export const LoyaltyErrorCode = {
   INVALID_POINTS: 'LOYALTY_INVALID_POINTS',
   INSUFFICIENT_POINTS: 'LOYALTY_INSUFFICIENT_POINTS',
   BALANCE_NOT_FOUND: 'LOYALTY_BALANCE_NOT_FOUND',
+  CUSTOMER_NOT_FOUND_IN_TENANT: 'LOYALTY_CUSTOMER_NOT_FOUND_IN_TENANT',
 } as const;
 export type LoyaltyErrorCode = (typeof LoyaltyErrorCode)[keyof typeof LoyaltyErrorCode];
 

@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { BookingModule } from '../booking/booking.module';
+import { CustomerModule } from '../customer/customer.module';
 import { PlatformModule } from '../platform/platform.module';
 import { BALANCE_EXPIRY_LOG_REPOSITORY } from './application/ports/balance-expiry-log-repository.port';
 import { LOYALTY_BALANCE_REPOSITORY } from './application/ports/loyalty-balance-repository.port';
@@ -10,7 +11,9 @@ import { LOYALTY_ENTRY_REPOSITORY } from './application/ports/loyalty-entry-repo
 import { LOYALTY_REDEMPTION_REPOSITORY } from './application/ports/loyalty-redemption-repository.port';
 import { LOYALTY_PLATFORM_PORT } from './application/ports/loyalty-platform.port';
 import { LOYALTY_BOOKING_PORT } from './application/ports/loyalty-booking.port';
+import { LOYALTY_CUSTOMER_PORT } from './application/ports/loyalty-customer.port';
 import { GetLoyaltyBalanceUseCase } from './application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
+import { GetOwnLoyaltyBalanceUseCase } from './application/use-cases/get-own-loyalty-balance/get-own-loyalty-balance.use-case';
 import { GetLoyaltyEntriesUseCase } from './application/use-cases/get-loyalty-entries/get-loyalty-entries.use-case';
 import { GetLoyaltyRedemptionsUseCase } from './application/use-cases/get-loyalty-redemptions/get-loyalty-redemptions.use-case';
 import { RedeemPointsUseCase } from './application/use-cases/redeem-points/redeem-points.use-case';
@@ -23,10 +26,10 @@ import { LoyaltyEntryEntity } from './infrastructure/entities/loyalty-entry.enti
 import { LoyaltyRedemptionEntity } from './infrastructure/entities/loyalty-redemption.entity';
 import { LoyaltyPlatformAdapter } from './infrastructure/cross-context/loyalty-platform.adapter';
 import { LoyaltyBookingAdapter } from './infrastructure/cross-context/loyalty-booking.adapter';
+import { LoyaltyCustomerAdapter } from './infrastructure/cross-context/loyalty-customer.adapter';
 import { LoyaltyController } from './infrastructure/controllers/loyalty.controller';
 import { CronLoyaltyController } from './infrastructure/controllers/cron-loyalty.controller';
 import { CustomerRoleGuard } from '../../shared/guards/customer-role.guard';
-import { AnyAuthenticatedRoleGuard } from '../../shared/guards/any-authenticated-role.guard';
 import { BookingCompletedHandler } from './infrastructure/events/booking-completed.handler';
 import { ExpirePointsTriggerHandler } from './infrastructure/events/expire-points-trigger.handler';
 import { NotifyExpiringPointsTriggerHandler } from './infrastructure/events/notify-expiring-points-trigger.handler';
@@ -46,6 +49,7 @@ import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositorie
     TransactionManagerModule,
     RequestModule,
     BookingModule,
+    CustomerModule,
     PlatformModule,
   ],
   controllers: [LoyaltyController, CronLoyaltyController],
@@ -56,9 +60,10 @@ import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositorie
     { provide: BALANCE_EXPIRY_LOG_REPOSITORY, useClass: TypeOrmBalanceExpiryLogRepository },
     { provide: LOYALTY_PLATFORM_PORT, useClass: LoyaltyPlatformAdapter },
     { provide: LOYALTY_BOOKING_PORT, useClass: LoyaltyBookingAdapter },
+    { provide: LOYALTY_CUSTOMER_PORT, useClass: LoyaltyCustomerAdapter },
     CustomerRoleGuard,
-    AnyAuthenticatedRoleGuard,
     GetLoyaltyBalanceUseCase,
+    GetOwnLoyaltyBalanceUseCase,
     GetLoyaltyEntriesUseCase,
     GetLoyaltyRedemptionsUseCase,
     RedeemPointsUseCase,

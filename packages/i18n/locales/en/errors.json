@@ -57,6 +57,7 @@
   "LOYALTY_INVALID_POINTS": "The points amount must be greater than zero.",
   "LOYALTY_INSUFFICIENT_POINTS": "Insufficient points balance for this operation.",
   "LOYALTY_BALANCE_NOT_FOUND": "No loyalty balance found for this customer.",
+  "LOYALTY_CUSTOMER_NOT_FOUND_IN_TENANT": "You're not registered with this business.",
   "STAFF_NOT_FOUND": "Staff member not found.",
   "STAFF_ALREADY_ACTIVE": "This staff member is already active.",
   "STAFF_DEACTIVATED": "This account is deactivated.",
