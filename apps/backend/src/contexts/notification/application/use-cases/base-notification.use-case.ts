@@ -33,6 +33,7 @@ export abstract class BaseNotificationUseCase {
     notificationType: string,
     channel: string,
     recipientEmail: string,
+    consumerName: string,
   ): Promise<void> {
     const log = NotificationLog.create({
       tenantId,
@@ -44,10 +45,12 @@ export abstract class BaseNotificationUseCase {
     log.markSent();
     await this.txManager.run(async () => {
       await this.logRepo.save(log);
-      // Redundant with dispatchTemplates()/dispatchTemplatesToMany()'s tryClaim (the row already
-      // exists) — kept as an upsert so the audit log and the final processed_at both land in the
-      // same transaction, and harmless if it ever runs standalone.
-      await this.inboxRepo.markProcessed(eventId, this.consumerName(notificationType, channel));
+      // consumerName is the caller's exact tryClaim key (recipient-scoped for
+      // dispatchTemplatesToMany) — redundant with tryClaim (the row already exists), kept as an
+      // upsert so the audit log and the final processed_at both land in the same transaction, and
+      // harmless if it ever runs standalone. Must match tryClaim's key exactly, or this marks a
+      // different, stray inbox row instead of the one actually claimed.
+      await this.inboxRepo.markProcessed(eventId, consumerName);
     });
   }
 
@@ -118,7 +121,14 @@ export abstract class BaseNotificationUseCase {
           channel: template.channel,
           notificationType: template.triggerEvent,
         });
-        await this.saveLog(dto.tenantId, dto.eventId, template.triggerEvent, template.channel, to);
+        await this.saveLog(
+          dto.tenantId,
+          dto.eventId,
+          template.triggerEvent,
+          template.channel,
+          to,
+          consumerName,
+        );
         sent = true;
       } catch (err: unknown) {
         await this.inboxRepo.unclaim(dto.eventId, consumerName);
@@ -172,6 +182,7 @@ export abstract class BaseNotificationUseCase {
             template.triggerEvent,
             template.channel,
             email,
+            consumerName,
           );
           sent = true;
         } catch (err: unknown) {
