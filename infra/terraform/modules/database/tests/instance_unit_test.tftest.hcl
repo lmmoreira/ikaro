@@ -51,6 +51,50 @@ run "iam_database_auth_is_on_with_iam_user" {
     condition     = google_sql_user.iam_admin.type == "CLOUD_IAM_USER"
     error_message = "The admin DB user must be a CLOUD_IAM_USER (no password exists)."
   }
+
+  assert {
+    condition     = google_project_iam_member.admin_cloudsql_client.role == "roles/cloudsql.client" && google_project_iam_member.admin_cloudsql_client.member == "user:admin@example.com"
+    error_message = "The admin identity must hold roles/cloudsql.client to open the proxy tunnel."
+  }
+
+  assert {
+    condition     = google_project_iam_member.admin_cloudsql_instance_user.role == "roles/cloudsql.instanceUser" && google_project_iam_member.admin_cloudsql_instance_user.member == "user:admin@example.com"
+    error_message = "The admin identity must hold roles/cloudsql.instanceUser to log in as the IAM DB user."
+  }
+}
+
+run "all_database_flags_match_the_checkov_compliant_set" {
+  command = plan
+
+  assert {
+    condition = tomap({
+      for f in google_sql_database_instance.main.settings[0].database_flags : f.name => f.value
+      }) == tomap({
+      "cloudsql.enable_pgaudit"     = "on"
+      "cloudsql.iam_authentication" = "on"
+      "log_checkpoints"             = "on"
+      "log_connections"             = "on"
+      "log_disconnections"          = "on"
+      "log_duration"                = "on"
+      "log_hostname"                = "on"
+      "log_lock_waits"              = "on"
+      "log_min_duration_statement"  = "-1"
+      "log_min_error_statement"     = "error"
+      "log_min_messages"            = "warning"
+      "log_statement"               = "ddl"
+      "pgaudit.log"                 = "ddl"
+    })
+    error_message = "The full database_flags set must match exactly — these flags satisfy Checkov's Postgres logging/pgAudit checks (CKV_GCP_108/109/110/111, CKV2_GCP_13); a silently dropped or changed flag stays invisible to this fast test suite otherwise."
+  }
+}
+
+run "ikaro_database_exists_on_the_instance" {
+  command = plan
+
+  assert {
+    condition     = google_sql_database.ikaro.name == "ikaro" && google_sql_database.ikaro.instance == google_sql_database_instance.main.name
+    error_message = "The ikaro database must exist and be attached to the ikaro-db-{env} instance."
+  }
 }
 
 run "backups_maintenance_and_disk_are_pinned" {
@@ -115,6 +159,18 @@ run "rejects_non_email_iam_admin_user" {
 
   variables {
     iam_admin_user = "not-an-email"
+  }
+
+  expect_failures = [
+    var.iam_admin_user,
+  ]
+}
+
+run "rejects_whitespace_in_iam_admin_user" {
+  command = plan
+
+  variables {
+    iam_admin_user = "admin foo@example.com"
   }
 
   expect_failures = [

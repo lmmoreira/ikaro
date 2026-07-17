@@ -14,10 +14,10 @@ Cost decision (S13 discovery, 2026-07-17): each env root instantiates this modul
 
 The `cloudsql.iam_authentication` flag is on, and the admin identity (`var.iam_admin_user`) is registered as a `CLOUD_IAM_USER` with `roles/cloudsql.client` + `roles/cloudsql.instanceUser`. **The email value is never committed** (public repo): locally it lives in the gitignored `envs/<env>/local.auto.tfvars`; the S24 pipeline supplies `TF_VAR_iam_admin_user` from a GitHub environment variable.
 
-Connect from a dev machine (no password at any step):
+Connect from a dev machine (no password at any step). The instance has no public IP, so `--private-ip` is required — the proxy defaults to a public IPv4 connection even when the instance also has a private IP, and fails without the flag. The proxy host also needs VPC reachability (a machine inside the VPC, a VPN, or a bastion — plain internet access is not enough):
 
 ```bash
-cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-staging --port 5433
+cloud-sql-proxy --private-ip --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-staging --port 5433
 psql "host=127.0.0.1 port=5433 dbname=ikaro user=<your-google-email>"
 ```
 

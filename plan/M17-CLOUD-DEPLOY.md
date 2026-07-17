@@ -971,7 +971,7 @@ The Terraform lifecycle the user asked for: commit to `infra/` triggers plan/app
 - **Concurrency:** apply jobs use `concurrency: { group: staging-mutations, cancel-in-progress: false }` (prod: `production-mutations`) — the **same group names the app deploy workflow uses (S25)**, so a PR touching both `infra/**` and `apps/**` cannot run a Terraform apply and an app deploy concurrently (review finding: infra/app race). GCS state locking is the second line of defense.
 - **Convention (enforced as a `/pre-pr` checklist line + workflow header comment):** do not mix `infra/terraform/**` and `apps/**` changes in one PR; when unavoidable, note in the PR that infra applies first and re-run the app deploy if it won the race.
 - **Drift detection (added 2026-07-08):** a weekly `schedule:` trigger runs `terraform plan -detailed-exitcode` for both envs as **`tf-planner`** (read-only); exit code 2 (non-empty plan) turns the run red. Out-of-band drift is otherwise invisible between applies.
-- **`TF_VAR_iam_admin_user` (S13 discovery):** plan/apply jobs must supply this from a GitHub environment variable — the value (admin email) is deliberately kept out of git (public repo); an apply without it would plan the IAM DB user for deletion.
+- **`TF_VAR_iam_admin_user` (S13 discovery):** plan/apply jobs must supply this from a GitHub environment variable — the value (admin email) is deliberately kept out of git (public repo); the database module's own email-format validation makes a missing/empty value fail `terraform plan` immediately (not a silent deletion of the IAM DB user).
 - Failure of staging apply blocks the prod job.
 
 **Acceptance criteria:**

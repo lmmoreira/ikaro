@@ -11,7 +11,7 @@ variable "deletion_protection" {
 }
 
 variable "disk_autoresize_limit" {
-  description = "Upper bound in GB for automatic disk growth, so growth never hard-stops writes while cost stays bounded"
+  description = "Upper bound in GB for automatic disk growth — bounds cost; once reached, autoresize stops and further growth requires raising this value"
   type        = number
   default     = 30
 }
@@ -37,8 +37,8 @@ variable "iam_admin_user" {
   type        = string
 
   validation {
-    condition     = can(regex("^[^@]+@[^@]+$", var.iam_admin_user))
-    error_message = "iam_admin_user must be a Google account email (set it via the gitignored local.auto.tfvars or TF_VAR_iam_admin_user — never commit it)."
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+$", var.iam_admin_user))
+    error_message = "iam_admin_user must be a Google account email with no whitespace (set it via the gitignored local.auto.tfvars or TF_VAR_iam_admin_user — never commit it)."
   }
 }
 
