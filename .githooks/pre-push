@@ -2,12 +2,16 @@
 # pre-push hook: lint + prettier + type-check + backend/BFF unit tests.
 # Web Vitest runs in CI via ci:integration.
 # Skipped when every changed file relative to the remote tip is docs/tooling-only
-# (*.md anywhere, or any file under td/, plan/, scripts/) — no app code changed.
+# (*.md anywhere, or any file under td/, plan/, scripts/, infra/terraform/) — no app code changed.
 # Activate: git config core.hooksPath .githooks
+# When testing skip_pattern changes interactively: use `command grep`, not a
+# plain `grep` call — some interactive shells (e.g. Claude Code's own dev
+# environment) alias grep to a wrapper with different -qvE behavior, which
+# will silently give you the wrong answer for this exact pattern.
 set -e
 
 zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
-skip_pattern='(\.md$)|(^td/)|(^plan/)|(^scripts/)'
+skip_pattern='(\.md$)|(^td/)|(^plan/)|(^scripts/)|(^infra/terraform/)'
 run_ci_fast=false
 
 while read -r local_ref local_oid remote_ref remote_oid
