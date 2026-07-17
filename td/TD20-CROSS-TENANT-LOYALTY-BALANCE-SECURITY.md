@@ -5,6 +5,7 @@
 - **Priority**: Medium (requires valid JWT + knowledge of target UUIDs; no direct public exposure, but defence-in-depth gap)
 - **Contexts affected**: `loyalty` (backend), `customers` (BFF)
 - **Discovered**: 2026-07-01 (Copilot review on PR #72 / `feat/td17-requestcontext-decoupling`)
+- **Resolved**: 2026-07-17 — PR #159 (`fix(loyalty): remove client-supplied customerId from cross-tenant balance read`). Option A as designed, with two refinements found during implementation: `LoyaltyCustomerAdapter` reuses the customer context's existing `GetCustomerTenantsByIdUseCase` instead of injecting `ICustomerRepository` directly (keeps the OAuth ID inside the customer bounded context, matches the established cross-context-adapter pattern), and cross-tenant orchestration lives in a new `GetOwnLoyaltyBalanceUseCase` rather than in the controller (CodeRabbit review finding — controllers call exactly one use case in this codebase).
 
 ---
 
@@ -221,10 +222,10 @@ Mitigation (post-MVP): batch the resolution into a single query — given a `goo
 
 ## Acceptance Criteria
 
-- [ ] `GET /loyalty/balance?tenantId=X` called by a CUSTOMER returns the calling user's balance in tenant X — not another customer's
-- [ ] `GET /customers/:customerId/loyalty/balance` requires STAFF or MANAGER role; returns 403 for CUSTOMER role
-- [ ] A CUSTOMER with JWT for tenant A cannot read another customer's balance in tenant B via `?tenantId=B` (security regression test)
-- [ ] `getTenants()` BFF call returns correct loyalty points for all tenants on the switch-tenant screen (integration test or Playwright)
-- [ ] `LoyaltyCustomerAdapter` has unit tests covering: same-user cross-tenant resolution, customer not found in home tenant, customer not found in target tenant
-- [ ] `loyalty.controller.ts` has no dead `isCrossTenantCall` logic
-- [ ] All unit tests pass; `pnpm type-check` clean
+- [x] `GET /loyalty/balance?tenantId=X` called by a CUSTOMER returns the calling user's balance in tenant X — not another customer's — verified by unit + integration tests
+- [x] `GET /customers/:customerId/loyalty/balance` requires STAFF or MANAGER role; returns 403 for CUSTOMER role
+- [x] A CUSTOMER with JWT for tenant A cannot read another customer's balance in tenant B via `?tenantId=B` (security regression test) — unit + integration coverage
+- [x] `getTenants()` BFF call returns correct loyalty points for all tenants on the switch-tenant screen (integration test or Playwright) — BFF unit test asserts the new `/loyalty/balance` call shape; Playwright E2E green on PR #159
+- [x] `LoyaltyCustomerAdapter` has unit tests covering: same-user cross-tenant resolution, customer not found in home tenant, customer not found in target tenant — plus an added case for infra-error passthrough (not masked as not-found)
+- [x] `loyalty.controller.ts` has no dead `isCrossTenantCall` logic
+- [x] All unit tests pass; `pnpm type-check` clean — backend 247 suites/2003 tests, BFF 59 suites/716 tests, all CI checks green on PR #159
