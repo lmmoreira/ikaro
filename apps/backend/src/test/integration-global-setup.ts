@@ -46,6 +46,7 @@ import { OutboxEventEntity } from '../shared/infrastructure/outbox/outbox-event.
 import { AddSharedSchema1748400000005 } from '../shared/infrastructure/migrations/1748400000005-AddSharedSchema';
 import { CreateSharedOutbox1748400000006 } from '../shared/infrastructure/migrations/1748400000006-CreateSharedOutbox';
 import { CreateSharedInbox1748400000007 } from '../shared/infrastructure/migrations/1748400000007-CreateSharedInbox';
+import { WidenSharedInboxConsumerName1748400000008 } from '../shared/infrastructure/migrations/1748400000008-WidenSharedInboxConsumerName';
 
 export default async function globalSetup(): Promise<void> {
   const pgContainer = await new PostgreSqlContainer('postgres:17-alpine').start();
@@ -83,6 +84,7 @@ export default async function globalSetup(): Promise<void> {
       AddSharedSchema1748400000005,
       CreateSharedOutbox1748400000006,
       CreateSharedInbox1748400000007,
+      WidenSharedInboxConsumerName1748400000008,
       CreatePlatformTenants1716500000001,
       CreatePlatformHotsiteConfigs1716500000002,
       CreateCustomerCustomers1716600000001,

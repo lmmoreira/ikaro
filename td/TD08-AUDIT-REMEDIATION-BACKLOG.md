@@ -36,7 +36,7 @@
 | **AUD-001** | Transactional outbox for all domain events ✅ | 🔴 Critical | L | Now | — | §4.1, §12.2, §12.3 |
 | **AUD-002** | Fix booking slot-conflict race + prove optimistic lock | ✅ Done | M | Now | — | §4.2, §4.3 |
 | **AUD-003** | Adversarial concurrency + event-failure test suite 🟡 4/5 | 🔴 Critical | M | Now | AUD-001, AUD-002 | §11.1, §11.2 |
-| **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) 🟡 2/3 | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
+| **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) ✅ | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
 | **AUD-005** | Graceful shutdown hooks (backend + BFF) ✅ | 🟠 High | XS | Now | — | §5.2 |
 | **AUD-006** | Helmet / security headers on BFF ✅ | 🟠 High | XS | Now | — | §5.6 |
 | **AUD-007** | CSP + security headers across apps/web ✅ | 🟠 High | S | Now | — | §8.3 |
@@ -208,21 +208,12 @@ These are the "write the test first" cases. Use unique inline tenant UUIDs for i
 
 ### AUD-004 — Event idempotency & duplicate-send prevention (crons + notifications)
 **Risk:** 🟠 High · **Effort:** M · **Phase:** Now · **Depends on:** AUD-001 · **Audit ref:** §12.4, §12.5
-**Status:** 🟡 Re-scoped, largely absorbed by TD24 (D5/D7/D15) — items 1 and 2 closed, item 3 remains open
+**Status:** ✅ Done — all 3 items closed, largely absorbed by TD24 (D5/D7/D15/D17)
 
 **Implemented notes**
 - **Item 1 (cron determinism)** — closed differently than proposed, same guarantee: instead of a deterministic `uuidv5` `eventId`, the 4 cron-published events became `Command`s with a real deterministic `dedup_key` (`<EventName>:<tenantId>:<bookingId|customerId>:<yyyy-mm-dd>`), enforced by `shared.outbox`'s `UNIQUE(dedup_key)` constraint — a scheduler retry or double-invocation within the window collapses to one outbox row (TD24-S01/S03, D5/D11).
 - **Item 2 (notification crash/concurrent-delivery idempotency)** — closed via `shared.inbox`'s atomic claim protocol (`tryClaim`/`unclaim`) rather than a provider-level idempotency key: `BaseNotificationUseCase.dispatchTemplates()`/`dispatchTemplatesToMany()` claim the `(eventId, consumerName)` pair *before* dispatching, so two concurrent redeliveries can't both send — only one ever wins the claim (TD24-S04/S05, D15; proven against real Postgres in `send-booking-approved-notification.use-case.integration.spec.ts`).
-- **Item 3 (multi-recipient partial-failure tracking) — NOT closed.** `dispatchTemplatesToMany()` still wraps the whole recipient batch in one `Promise.all` — if any one recipient's dispatch fails, the claim is released (`unclaim`) and a retry re-sends to *every* recipient in the batch, including the ones that already succeeded. This is a real, still-open gap; fixing it means tracking per-recipient success/failure instead of an all-or-nothing `Promise.all`. Left open — no story currently owns it.
-
-**Planned approach for item 3 (confirmed via story-discovery, 2026-07-17):**
-- Widen `shared.inbox.consumer_name` (currently `VARCHAR(150)`) to also hold the recipient email — raw email appended, not hashed (simpler; email is already stored in `notification_log` for audit, so no new PII surface). New migration, plain `ALTER TABLE` — pre-production (S37 go-live not yet reached), no expand/contract needed.
-- `dispatchTemplatesToMany` moves from one `tryClaim` per `(eventId, type:channel)` guarding a batched `Promise.all`, to one `tryClaim`/`dispatch`/`saveLog` (or `unclaim`/`saveFailedLog`) per `(eventId, type:channel, recipientEmail)`, in a **sequential** loop (not parallelized — these are small staff/manager recipient lists, not customer broadcast).
-- **Continue-on-error:** the loop attempts every recipient in the current invocation; failures are collected and a single error is thrown at the end (to nack for Pub/Sub redelivery) only if ≥1 recipient failed. Recipients unrelated to a failure aren't held hostage waiting for redelivery.
-- On redelivery, the same event re-runs for every recipient, but `tryClaim` on an already-succeeded `(eventId, type:channel, recipientEmail)` is a cheap no-op skip (no dispatch, no render) — only the previously-failed recipient(s) actually retry.
-- `dispatchTemplatesToMany`'s return type stays a single `boolean` (unchanged) — none of the 5 callers currently need per-recipient results.
-- **Test debt found during discovery:** `base-notification.use-case.spec.ts` has zero unit tests today for `dispatchTemplates`/`dispatchTemplatesToMany` (only `localizeTemplates` is covered) — needs full coverage, not just an extension. No integration spec proves the multi-recipient claim/retry path either — extend or sibling `send-booking-approved-notification.use-case.integration.spec.ts`'s pattern for a multi-recipient case.
-- **Doc updates required in the implementation PR** (not now): `docs/13-DATABASE_SCHEMA.md` §`shared.inbox` (consumer_name shape + column width), `docs/ENGINEERING_RULES.md` (~line 385-388, notification claim-pattern description), and a new decision entry in `td/TD24-OUTBOX-INBOX-PATTERN.md`'s D-log (following D15/D16's format).
+- **Item 3 (multi-recipient partial-failure tracking) — closed.** `dispatchTemplatesToMany()` no longer wraps the whole recipient batch in one `Promise.all` under a single `(eventId, type:channel)` claim. The claim moved to per-recipient granularity — `(eventId, type:channel:recipientEmail)` — with a sequential, continue-on-error dispatch loop: every recipient is attempted in the current invocation, and a single error is thrown at the end (to nack for Pub/Sub redelivery) only if ≥1 recipient failed. A redelivery re-checks every recipient, but an already-succeeded `(eventId, type:channel:recipientEmail)` is a cheap `tryClaim`-false skip (no re-render, no re-dispatch) — only the recipient(s) that actually failed retry (TD24-D17). `shared.inbox.consumer_name` widened `VARCHAR(150)` → `VARCHAR(400)` to fit the appended email. `saveLog`/`saveFailedLog` are now called once per recipient (previously only `emails[0]` was logged for the whole batch — a latent observability gap fixed as part of this change). Proven against real Postgres in `send-booking-requested-notification.use-case.integration.spec.ts`.
 
 #### What's wrong
 - **Cron reminders (§12.4):** `booking-reminder.job.ts` mints a new `eventId` per run and self-gates on a local `06:00–06:29` window (lines 13-14, 30). There is **no per-(booking, reminderType, date) sent-marker**, and the consumer dedups on `eventId` — so a scheduler retry or a second invocation inside the window → **duplicate reminder emails**.
@@ -239,7 +230,7 @@ Duplicate booking confirmations and daily reminders to customers/staff are a vis
 #### Acceptance criteria
 - [x] Re-running the reminder cron twice in a window produces no duplicate reminders — via deterministic `dedup_key` + `shared.outbox`'s `UNIQUE` constraint, not a new sent-marker table as originally proposed (item 1, see Implemented notes above).
 - [x] Concurrent delivery of one notification event → at most one email per recipient — via `shared.inbox`'s atomic claim (item 2); proven against real Postgres in `send-booking-approved-notification.use-case.integration.spec.ts`.
-- [ ] Multi-recipient send with one failing recipient → on retry, only the failed recipient is re-emailed — **still open** (item 3, see Implemented notes above): `dispatchTemplatesToMany` remains all-or-nothing.
+- [x] Multi-recipient send with one failing recipient → on retry, only the failed recipient is re-emailed — via per-recipient `shared.inbox` claims (item 3, see Implemented notes above); proven against real Postgres in `send-booking-requested-notification.use-case.integration.spec.ts`.
 
 #### Affected areas
 `booking-reminder.job.ts`, `admin-schedule-reminder.job.ts`, `base-notification.use-case.ts`, the dispatcher port/adapter, notification `processed_events` usage.

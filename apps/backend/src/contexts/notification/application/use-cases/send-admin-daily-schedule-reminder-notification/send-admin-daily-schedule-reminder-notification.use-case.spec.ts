@@ -158,12 +158,18 @@ describe('SendAdminDailyScheduleReminderNotificationUseCase', () => {
     expect(dispatcher.dispatched).toHaveLength(0);
   });
 
-  it('saves log with first manager email as canonical recipient', async () => {
+  it('saves one log row per manager recipient', async () => {
     await useCase.execute(dto);
 
-    expect(logRepo.all).toHaveLength(1);
-    expect(logRepo.all[0].recipientEmail.address).toBe('manager1@lavacar.com');
-    expect(logRepo.all[0].notificationType).toBe('admin-daily-schedule-reminder');
+    // AUD-004 item 3: one log row per recipient now (previously only the first manager was
+    // logged as a "canonical" recipient for the whole batch).
+    expect(logRepo.all).toHaveLength(2);
+    expect(logRepo.all.map((l) => l.recipientEmail.address)).toEqual(
+      expect.arrayContaining(['manager1@lavacar.com', 'manager2@lavacar.com']),
+    );
+    expect(logRepo.all.every((l) => l.notificationType === 'admin-daily-schedule-reminder')).toBe(
+      true,
+    );
   });
 
   it('is idempotent — second call returns emailSent=false without re-dispatching', async () => {

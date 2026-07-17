@@ -139,7 +139,11 @@ describe('SendBookingRescheduledNotificationUseCase', () => {
   });
 
   it('sends only customer email when admin already processed (partial retry)', async () => {
-    await inboxRepo.markProcessed(EVENT_ID, 'booking-rescheduled-admin:EMAIL');
+    // AUD-004 item 3: the admin claim is now per-recipient (type:channel:email), not per-batch.
+    await inboxRepo.markProcessed(
+      EVENT_ID,
+      'booking-rescheduled-admin:EMAIL:manager@lavacar.com.br',
+    );
 
     const result = await useCase.execute(dto);
 
