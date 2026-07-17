@@ -98,6 +98,9 @@ describe('SendBookingInfoSubmittedNotificationUseCase', () => {
     );
     // AUD-004 item 3: one log row per recipient now (previously only emails[0] was logged).
     expect(logRepo.all).toHaveLength(2);
+    expect(logRepo.all.map((l) => l.recipientEmail.address)).toEqual(
+      expect.arrayContaining(['mgr1@lavacar.com.br', 'mgr2@lavacar.com.br']),
+    );
   });
 
   it('skips dispatch and returns emailSent=false when no managers exist', async () => {

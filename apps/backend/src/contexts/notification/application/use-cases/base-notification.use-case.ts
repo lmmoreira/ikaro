@@ -121,15 +121,6 @@ export abstract class BaseNotificationUseCase {
           channel: template.channel,
           notificationType: template.triggerEvent,
         });
-        await this.saveLog(
-          dto.tenantId,
-          dto.eventId,
-          template.triggerEvent,
-          template.channel,
-          to,
-          consumerName,
-        );
-        sent = true;
       } catch (err: unknown) {
         await this.inboxRepo.unclaim(dto.eventId, consumerName);
         await this.saveFailedLog(
@@ -142,6 +133,18 @@ export abstract class BaseNotificationUseCase {
         );
         throw err;
       }
+      // Dispatch succeeded — the email is already sent. A persistence failure here must NOT
+      // unclaim: unclaiming would let a redelivery dispatch a real duplicate send for a message
+      // that already went out. Losing this one audit-log row is the accepted, lesser cost.
+      sent = true;
+      await this.saveLog(
+        dto.tenantId,
+        dto.eventId,
+        template.triggerEvent,
+        template.channel,
+        to,
+        consumerName,
+      );
     }
     return sent;
   }
@@ -176,15 +179,6 @@ export abstract class BaseNotificationUseCase {
             channel: template.channel,
             notificationType: template.triggerEvent,
           });
-          await this.saveLog(
-            dto.tenantId,
-            dto.eventId,
-            template.triggerEvent,
-            template.channel,
-            email,
-            consumerName,
-          );
-          sent = true;
         } catch (err: unknown) {
           await this.inboxRepo.unclaim(dto.eventId, consumerName);
           await this.saveFailedLog(
@@ -195,6 +189,25 @@ export abstract class BaseNotificationUseCase {
             email,
             String(err),
           );
+          errors.push(err);
+          continue;
+        }
+        // Dispatch succeeded — the email is already sent. A persistence failure here must NOT
+        // unclaim: unclaiming would let a redelivery dispatch a real duplicate send for a message
+        // that already went out. Still collected as an error (so the event nacks/retries overall),
+        // but this recipient's claim stays in place — losing this one audit-log row is the
+        // accepted, lesser cost.
+        sent = true;
+        try {
+          await this.saveLog(
+            dto.tenantId,
+            dto.eventId,
+            template.triggerEvent,
+            template.channel,
+            email,
+            consumerName,
+          );
+        } catch (err: unknown) {
           errors.push(err);
         }
       }

@@ -6,6 +6,9 @@ import { InMemoryLocalizationPort } from '../../../../test/infrastructure/in-mem
 import { NotificationTemplate } from '../../domain/notification-template.aggregate';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 import { INotificationDispatcher, OutboundMessage } from '../ports/notification-dispatcher.port';
+import { INotificationLogRepository } from '../ports/notification-log-repository.port';
+import { NotificationLog } from '../../domain/notification-log.aggregate';
+import { NotificationTemplateBuilder } from '../../../../test/builders/notification/notification-template.builder';
 import { BaseNotificationUseCase } from './base-notification.use-case';
 
 class TestNotificationUseCase extends BaseNotificationUseCase {
@@ -52,17 +55,30 @@ class SelectiveFailDispatcher implements INotificationDispatcher {
   }
 }
 
-function buildTemplate(triggerEvent: NotificationTemplateKey, id: string): NotificationTemplate {
-  return NotificationTemplate.reconstitute({
-    id,
-    tenantId: null,
-    triggerEvent,
-    channel: 'EMAIL',
-    locale: 'pt-BR',
-    subject: 'Subject {{name}}',
-    body: 'Body {{name}}',
-    updatedAt: new Date(),
-  });
+// Fails save() for a fixed set of recipient emails — used to prove that a persistence failure
+// AFTER a successful dispatch never unclaims (the email is already sent; unclaiming would risk a
+// real duplicate send on redelivery).
+class FailingLogRepository implements INotificationLogRepository {
+  readonly saved: NotificationLog[] = [];
+
+  constructor(private readonly failingRecipients: Set<string>) {}
+
+  async save(log: NotificationLog): Promise<void> {
+    if (this.failingRecipients.has(log.recipientEmail.address)) {
+      throw new Error(`log persistence failed for ${log.recipientEmail.address}`);
+    }
+    this.saved.push(log);
+  }
+}
+
+function buildTemplate(triggerEvent: NotificationTemplateKey): NotificationTemplate {
+  return new NotificationTemplateBuilder()
+    .asGlobalDefault()
+    .withTriggerEvent(triggerEvent)
+    .withChannel('EMAIL')
+    .withSubject('Subject {{name}}')
+    .withBody('Body {{name}}')
+    .build();
 }
 
 describe('BaseNotificationUseCase.localizeTemplates', () => {
@@ -132,10 +148,7 @@ describe('BaseNotificationUseCase.dispatchTemplates (single recipient)', () => {
       dispatcher,
       new InMemoryTransactionManager(),
     );
-    const template = buildTemplate(
-      NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
-      '00000000-0000-4000-8000-000000000010',
-    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER);
 
     const sent = await useCase.dispatchOne([template], dto, 'customer@test.com', {
       name: 'Ana',
@@ -160,10 +173,7 @@ describe('BaseNotificationUseCase.dispatchTemplates (single recipient)', () => {
       dispatcher,
       new InMemoryTransactionManager(),
     );
-    const template = buildTemplate(
-      NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER,
-      '00000000-0000-4000-8000-000000000011',
-    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER);
 
     await expect(
       useCase.dispatchOne([template], dto, 'customer@test.com', { name: 'Ana' }),
@@ -171,6 +181,29 @@ describe('BaseNotificationUseCase.dispatchTemplates (single recipient)', () => {
 
     expect(await inboxRepo.hasBeenProcessed(dto.eventId, 'booking-approved-customer:EMAIL')).toBe(
       false,
+    );
+  });
+
+  it('does not unclaim when persistence fails after a successful dispatch', async () => {
+    const dispatcher = new InMemoryNotificationDispatcher();
+    const inboxRepo = new InMemoryInboxRepository();
+    const logRepo = new FailingLogRepository(new Set(['customer@test.com']));
+    const useCase = new TestNotificationUseCase(
+      logRepo,
+      inboxRepo,
+      dispatcher,
+      new InMemoryTransactionManager(),
+    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER);
+
+    await expect(
+      useCase.dispatchOne([template], dto, 'customer@test.com', { name: 'Ana' }),
+    ).rejects.toThrow('log persistence failed for customer@test.com');
+
+    // The email really was dispatched — a redelivery must not send it again.
+    expect(dispatcher.dispatched).toHaveLength(1);
+    expect(await inboxRepo.hasBeenProcessed(dto.eventId, 'booking-approved-customer:EMAIL')).toBe(
+      true,
     );
   });
 });
@@ -188,10 +221,7 @@ describe('BaseNotificationUseCase.dispatchTemplatesToMany (multi-recipient)', ()
       dispatcher,
       new InMemoryTransactionManager(),
     );
-    const template = buildTemplate(
-      NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
-      '00000000-0000-4000-8000-000000000020',
-    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_REQUESTED_ADMIN);
 
     const sent = await useCase.dispatchMany([template], dto, emails, { name: 'Ana' });
 
@@ -213,10 +243,7 @@ describe('BaseNotificationUseCase.dispatchTemplatesToMany (multi-recipient)', ()
       dispatcher,
       new InMemoryTransactionManager(),
     );
-    const template = buildTemplate(
-      NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
-      '00000000-0000-4000-8000-000000000021',
-    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_REQUESTED_ADMIN);
 
     await expect(useCase.dispatchMany([template], dto, emails, { name: 'Ana' })).rejects.toThrow(
       'dispatch failed for a@test.com',
@@ -243,10 +270,7 @@ describe('BaseNotificationUseCase.dispatchTemplatesToMany (multi-recipient)', ()
       dispatcher,
       new InMemoryTransactionManager(),
     );
-    const template = buildTemplate(
-      NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
-      '00000000-0000-4000-8000-000000000022',
-    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_REQUESTED_ADMIN);
 
     await expect(useCase.dispatchMany([template], dto, emails, { name: 'Ana' })).rejects.toThrow(
       AggregateError,
@@ -262,10 +286,7 @@ describe('BaseNotificationUseCase.dispatchTemplatesToMany (multi-recipient)', ()
       failingDispatcher,
       new InMemoryTransactionManager(),
     );
-    const template = buildTemplate(
-      NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
-      '00000000-0000-4000-8000-000000000023',
-    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_REQUESTED_ADMIN);
 
     await expect(useCase.dispatchMany([template], dto, emails, { name: 'Ana' })).rejects.toThrow();
     expect(failingDispatcher.dispatched.map((m) => m.to).sort()).toEqual([
@@ -287,5 +308,31 @@ describe('BaseNotificationUseCase.dispatchTemplatesToMany (multi-recipient)', ()
 
     expect(sent).toBe(true);
     expect(retryDispatcher.dispatched.map((m) => m.to)).toEqual(['a@test.com']);
+  });
+
+  it('does not unclaim a recipient when persistence fails after a successful dispatch', async () => {
+    const dispatcher = new InMemoryNotificationDispatcher();
+    const inboxRepo = new InMemoryInboxRepository();
+    const logRepo = new FailingLogRepository(new Set(['b@test.com']));
+    const useCase = new TestNotificationUseCase(
+      logRepo,
+      inboxRepo,
+      dispatcher,
+      new InMemoryTransactionManager(),
+    );
+    const template = buildTemplate(NotificationTemplateKey.BOOKING_REQUESTED_ADMIN);
+
+    await expect(useCase.dispatchMany([template], dto, emails, { name: 'Ana' })).rejects.toThrow(
+      'log persistence failed for b@test.com',
+    );
+
+    // All 3 emails really were dispatched — a redelivery must not re-send any of them, including
+    // b@test.com whose log persistence failed but whose send succeeded.
+    expect(dispatcher.dispatched.map((m) => m.to).sort()).toEqual([...emails].sort());
+    for (const email of emails) {
+      expect(
+        await inboxRepo.hasBeenProcessed(dto.eventId, `booking-requested-admin:EMAIL:${email}`),
+      ).toBe(true);
+    }
   });
 });

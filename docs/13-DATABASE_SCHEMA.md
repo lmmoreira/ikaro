@@ -462,7 +462,7 @@ Consumer-side dedup table (TD24-S04), replacing the per-context `loyalty.process
 | Column | Type | Constraints |
 |--------|------|-------------|
 | event_id | UUID | NOT NULL — from the event envelope's `eventId` |
-| consumer_name | VARCHAR(400) | NOT NULL — a stable per-consumer key; composed as `` `${notificationType}:${channel}` `` for notification's single-recipient dispatch, `` `${notificationType}:${channel}:${recipientEmail}` `` for notification's multi-recipient dispatch (AUD-004 item 3 — widened from `VARCHAR(150)` to fit an appended email), a fixed string for loyalty/staff |
+| consumer_name | VARCHAR(400) | NOT NULL — a stable per-consumer key; composed as `` `${notificationType}:${channel}` `` for notification's single-recipient dispatch, `` `${notificationType}:${channel}:${recipientEmail}` `` for notification's multi-recipient dispatch (AUD-004 item 3 — sized to fit an appended email), a fixed string for loyalty/staff |
 | processed_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **PRIMARY KEY** | (event_id, consumer_name) | One row per event × consumer |
 | **INDEX** | (processed_at) | Retention GC scan |

@@ -10,7 +10,7 @@ import { InMemoryLocalizationPort } from '../../../../../test/infrastructure/in-
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { SendBookingRequestedNotificationDtoBuilder } from '../../../../../test/builders/notification/index';
 import { INotificationDispatcher, OutboundMessage } from '../../ports/notification-dispatcher.port';
-import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
+import { NotificationTemplateBuilder } from '../../../../../test/builders/notification/notification-template.builder';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import { SendBookingRequestedNotificationUseCase } from './send-booking-requested-notification.use-case';
 
@@ -68,24 +68,22 @@ describe('SendBookingRequestedNotificationUseCase — multi-recipient partial-fa
     ]);
     const templateRepo = new InMemoryNotificationTemplateRepository();
     templateRepo.seed(
-      NotificationTemplate.create({
-        tenantId: TENANT_ID,
-        triggerEvent: NotificationTemplateKey.BOOKING_REQUESTED_ADMIN,
-        channel: 'EMAIL',
-        locale: 'pt-BR',
-        subject: 'unused — sourced from ILocalizationPort',
-        body: 'unused',
-      }),
+      new NotificationTemplateBuilder()
+        .withTenantId(TENANT_ID)
+        .withTriggerEvent(NotificationTemplateKey.BOOKING_REQUESTED_ADMIN)
+        .withChannel('EMAIL')
+        .withSubject('unused — sourced from ILocalizationPort')
+        .withBody('unused')
+        .build(),
     );
     templateRepo.seed(
-      NotificationTemplate.create({
-        tenantId: TENANT_ID,
-        triggerEvent: NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER,
-        channel: 'EMAIL',
-        locale: 'pt-BR',
-        subject: 'unused — sourced from ILocalizationPort',
-        body: 'unused',
-      }),
+      new NotificationTemplateBuilder()
+        .withTenantId(TENANT_ID)
+        .withTriggerEvent(NotificationTemplateKey.BOOKING_REQUESTED_CUSTOMER)
+        .withChannel('EMAIL')
+        .withSubject('unused — sourced from ILocalizationPort')
+        .withBody('unused')
+        .build(),
     );
     const localizationPort = new InMemoryLocalizationPort();
     localizationPort.setTemplate('BookingRequested:admin', {
