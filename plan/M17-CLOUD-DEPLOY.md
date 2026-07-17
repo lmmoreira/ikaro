@@ -643,14 +643,14 @@ Create the folder structure above with empty-but-valid modules, per-env backends
 **Docs to load:** vendored skills; `docs/23-INFRASTRUCTURE_SETUP.md` § network (reference only — M17 §0 wins)
 
 **Description:**
-`modules/network`: VPC `ikaro-vpc-{env}` (no auto subnets), subnet `ikaro-subnet-{env}` `10.0.0.0/24` in `southamerica-east1` (flow logs ON per Checkov; **`private_ip_google_access = true`** — required: the BFF egresses `ALL_TRAFFIC` through this subnet (S18), so its Google-API calls — OAuth token exchange, JWKS fetches — must ride Private Google Access), **private services access** peering range for Cloud SQL (`servicenetworking` connection), firewall: default-deny ingress; egress allowed. **No Serverless VPC Access connector** (D7) — Cloud Run services reference this subnet via direct VPC egress in S18. **No Cloud NAT at launch** (documented decision, 2026-07-07): the backend keeps `PRIVATE_RANGES_ONLY` egress so its non-Google calls (Brevo) go direct from Cloud Run's infrastructure, and the BFF calls only Google APIs (PGA) + the backend (VPC) — nothing needs a NAT path. Revisit only if a VPC-egressing service ever needs a non-Google external API.
+`modules/network`: VPC `ikaro-vpc-{env}` (no auto subnets), subnet `ikaro-subnet-{env}` `10.0.0.0/24` in `southamerica-east1` (flow logs ON per Checkov; **`private_ip_google_access = true`** — required: the BFF egresses `ALL_TRAFFIC` through this subnet (S18), so its Google-API calls — OAuth token exchange, JWKS fetches — must ride Private Google Access), **private services access** peering range for Cloud SQL (`servicenetworking` connection), firewall: default-deny ingress; egress allowed. **No Serverless VPC Access connector** (D7) — Cloud Run services reference this subnet via direct VPC egress in S18. **No Cloud NAT at launch** (documented decision, 2026-07-07): the backend keeps `PRIVATE_RANGES_ONLY` egress so its non-Google calls (Brevo) go direct from Cloud Run's infrastructure, and the BFF calls only Google APIs (PGA) + the backend (VPC) — nothing needs a NAT path. Revisit only if a VPC-egressing service ever needs a non-Google external API. *Settled in discovery (2026-07-17): PSA reserved range is auto-allocated `/16` (`prefix_length = 16`, name `ikaro-psa-range-{env}`); the module also outputs the servicenetworking connection (`private_services_connection`) so S13's database module can take an explicit graph dependency on the peering (module-composition practice — avoids `depends_on` on the module call); the module is composed in both env roots but applied to staging only — prod stays plan-only until S24/S37.*
 
 **Acceptance criteria:**
 - [ ] Applied to staging: VPC + subnet + PSA connection exist
 - [ ] Subnet has `private_ip_google_access = true` (the BFF's Google-API calls under `ALL_TRAFFIC` egress depend on it — S18)
 - [ ] No `google_vpc_access_connector` resource anywhere
 - [ ] Flow logs enabled; Checkov clean
-- [ ] Module has typed variables + outputs (`network_id`, `subnet_id`) consumed by later modules
+- [ ] Module has typed variables + outputs (`network_id`, `subnet_id`, `private_services_connection`) consumed by later modules
 
 **Dependencies:** M17-S11
 

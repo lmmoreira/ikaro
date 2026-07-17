@@ -8,4 +8,14 @@
 #
 # registry (M17-S15) and edge (M17-S22) are instantiated in THIS env only (D8/D5).
 #
-# Skeleton only as of M17-S11 — no resources yet; an empty plan is correct.
+# Composed but NOT applied yet — prod stays plan-only until the S24 pipeline /
+# S37 go-live (M17-S12 discovery decision).
+
+module "network" {
+  source = "../../modules/network"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+}

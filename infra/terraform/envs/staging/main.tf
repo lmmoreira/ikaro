@@ -7,5 +7,12 @@
 #   → scheduler (M17-S21), monitoring (M17-S35)
 #
 # registry (M17-S15) and edge (M17-S22) are instantiated in envs/prod only.
-#
-# Skeleton only as of M17-S11 — no resources yet; an empty plan is correct.
+
+module "network" {
+  source = "../../modules/network"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+}
