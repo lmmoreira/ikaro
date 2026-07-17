@@ -636,7 +636,7 @@ Create the folder structure above with empty-but-valid modules, per-env backends
 
 ---
 
-### M17-S12 — Network module (VPC, subnet, private services access, direct egress)
+### M17-S12 — Network module (VPC, subnet, private services access, direct egress) ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
