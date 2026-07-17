@@ -656,7 +656,7 @@ Create the folder structure above with empty-but-valid modules, per-env backends
 
 ---
 
-### M17-S13 — Cloud SQL module (PostgreSQL 17, private IP)
+### M17-S13 — Cloud SQL module (PostgreSQL 17, private IP) ✅ Done
 
 **Agent:** `devops`
 **Complexity:** M
