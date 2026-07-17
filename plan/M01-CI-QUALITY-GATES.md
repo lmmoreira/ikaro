@@ -60,7 +60,7 @@ Create the GitHub Actions workflow that runs all Jest tests (unit + integration)
 
 **Acceptance criteria:**
 - [ ] Unit tests run without Docker access
-- [ ] Integration tests start real PostgreSQL 15 and Pub/Sub emulator containers via Testcontainers
+- [ ] Integration tests start real PostgreSQL 17 and Pub/Sub emulator containers via Testcontainers
 - [ ] A failing test blocks the PR merge
 - [ ] Coverage report is uploaded as a GitHub Actions artifact
 - [ ] `--passWithNoTests` is NOT used — empty test suite fails the job

@@ -15,7 +15,7 @@
 | **Frontend** | GCP Cloud Run (`ikaro-web`) | Next.js 16 SSR container; public HTTPS |
 | **BFF** | GCP Cloud Run (`ikaro-bff`) | NestJS BFF; public HTTPS; sole entry point for the web layer |
 | **Backend** | GCP Cloud Run (`ikaro-backend`) | NestJS modular monolith; internal only (not public) |
-| **Database** | GCP Cloud SQL PostgreSQL 15 | Private IP inside VPC; automated backups; no public exposure |
+| **Database** | GCP Cloud SQL PostgreSQL 17 | Private IP inside VPC; automated backups; no public exposure |
 | **Event bus** | GCP Pub/Sub | Managed, serverless; local dev uses the Pub/Sub emulator |
 | **Storage** | GCP Cloud Storage | Tenant photo uploads; paths: `tenants/<tid>/bookings/<bid>/<file>` |
 | **Secrets** | GCP Secret Manager | Injected into Cloud Run at runtime via `--set-secrets` |

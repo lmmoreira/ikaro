@@ -283,7 +283,7 @@ let dataSource: DataSource;
 let container: StartedPostgreSqlContainer;
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer('postgres:15')
+  container = await new PostgreSqlContainer('postgres:17')
     .withDatabase('ikaro_test')
     .start();
 

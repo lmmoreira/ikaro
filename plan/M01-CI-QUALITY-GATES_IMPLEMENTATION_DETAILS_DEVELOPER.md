@@ -38,7 +38,7 @@ Runs on every PR against `main`. Four jobs, all independent (run in parallel):
 
 ### `pr-tests.yml` — Test Suite
 - **Unit tests** — fast, no containers. Coverage is measured here and uploaded as a GitHub Actions artifact (`apps/backend/coverage/lcov.info`). SonarCloud reads this artifact.
-- **Integration tests** — uses Testcontainers to spin up a real PostgreSQL 15 container and a Pub/Sub emulator inside the CI runner. No mocks for persistence.
+- **Integration tests** — uses Testcontainers to spin up a real PostgreSQL 17 container and a Pub/Sub emulator inside the CI runner. No mocks for persistence.
 
 ### `pr-security.yml` — Security Scanning
 Four security tools, each catching a different class of vulnerability (explained in §§3–7 below).

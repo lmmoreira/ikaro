@@ -8,7 +8,7 @@ All GCP + Cloudflare infrastructure for Ikaro, as code. Canonical plan: `plan/M1
 infra/terraform/
 ├── modules/          # generic, env-agnostic building blocks
 │   ├── network/           VPC, subnet (PGA), PSA peering, firewall   (M17-S12)
-│   ├── database/          Cloud SQL PostgreSQL 15, private IP        (M17-S13)
+│   ├── database/          Cloud SQL PostgreSQL 17, private IP        (M17-S13)
 │   ├── storage/           GCS uploads (private) + hotsite (public)   (M17-S14)
 │   ├── registry/          Artifact Registry — prod project only      (M17-S15)
 │   ├── secrets/           Secret Manager containers + IAM only       (M17-S16)

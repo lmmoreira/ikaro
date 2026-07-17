@@ -30,7 +30,7 @@ graph TD
     end
 
     subgraph "Infrastructure"
-        DB[(PostgreSQL 15<br/>Cloud SQL)]
+        DB[(PostgreSQL 17<br/>Cloud SQL)]
         OAuth[Google OAuth 2.0]
         Email[IEmailSender Port<br/>SendGrid adapter]
         Storage[S3-compatible Storage<br/>GCS adapter]

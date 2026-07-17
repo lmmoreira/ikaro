@@ -6,7 +6,7 @@
 
 This document is the single source of truth for infrastructure: from a blank laptop to a fully running local development environment, and from zero GCP access to a deployed production system.
 
-**Stack:** GCP Cloud Run · Cloud SQL PostgreSQL 15 · VPC · Pub/Sub · GCS · Secret Manager · Google Artifact Registry · Terraform
+**Stack:** GCP Cloud Run · Cloud SQL PostgreSQL 17 · VPC · Pub/Sub · GCS · Secret Manager · Google Artifact Registry · Terraform
 
 ---
 
@@ -25,7 +25,7 @@ This document is the single source of truth for infrastructure: from a blank lap
 │  │      ▲ Cloud Run → VPC                                             │  │
 │  │                                                                     │  │
 │  │  Cloud SQL (private IP 10.0.1.x)                                  │  │
-│  │  └── ikaro-postgres (PostgreSQL 15)                             │  │
+│  │  └── ikaro-postgres (PostgreSQL 17)                             │  │
 │  │      ├── schema: platform                                          │  │
 │  │      ├── schema: customer                                          │  │
 │  │      ├── schema: staff                                             │  │
@@ -544,7 +544,7 @@ resource "google_artifact_registry_repository" "images" {
 ```hcl
 resource "google_sql_database_instance" "postgres" {
   name             = "ikaro-postgres"
-  database_version = "POSTGRES_15"
+  database_version = "POSTGRES_17"
   region           = var.region
 
   depends_on = [google_service_networking_connection.private_vpc_connection]
@@ -1290,7 +1290,7 @@ pnpm dev
 ```yaml
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: ikaro-postgres
     ports:
       - "5432:5432"
