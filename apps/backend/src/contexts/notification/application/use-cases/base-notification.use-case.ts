@@ -20,9 +20,11 @@ export abstract class BaseNotificationUseCase {
 
   // TD24-S04: notification's old (event_id, notification_type, channel) granularity is preserved
   // by composing the two into one consumer_name string — shared.inbox has a single consumer_name
-  // column, not three.
-  private consumerName(notificationType: string, channel: string): string {
-    return `${notificationType}:${channel}`;
+  // column, not three. AUD-004 item 3: a recipient can be appended for the multi-recipient path,
+  // so each (template, recipient) pair claims/retries independently instead of the whole batch.
+  private consumerName(notificationType: string, channel: string, recipient?: string): string {
+    const base = `${notificationType}:${channel}`;
+    return recipient ? `${base}:${recipient}` : base;
   }
 
   protected async saveLog(
@@ -31,6 +33,7 @@ export abstract class BaseNotificationUseCase {
     notificationType: string,
     channel: string,
     recipientEmail: string,
+    consumerName: string,
   ): Promise<void> {
     const log = NotificationLog.create({
       tenantId,
@@ -42,10 +45,12 @@ export abstract class BaseNotificationUseCase {
     log.markSent();
     await this.txManager.run(async () => {
       await this.logRepo.save(log);
-      // Redundant with dispatchTemplates()/dispatchTemplatesToMany()'s tryClaim (the row already
-      // exists) — kept as an upsert so the audit log and the final processed_at both land in the
-      // same transaction, and harmless if it ever runs standalone.
-      await this.inboxRepo.markProcessed(eventId, this.consumerName(notificationType, channel));
+      // consumerName is the caller's exact tryClaim key (recipient-scoped for
+      // dispatchTemplatesToMany) — redundant with tryClaim (the row already exists), kept as an
+      // upsert so the audit log and the final processed_at both land in the same transaction, and
+      // harmless if it ever runs standalone. Must match tryClaim's key exactly, or this marks a
+      // different, stray inbox row instead of the one actually claimed.
+      await this.inboxRepo.markProcessed(eventId, consumerName);
     });
   }
 
@@ -116,8 +121,6 @@ export abstract class BaseNotificationUseCase {
           channel: template.channel,
           notificationType: template.triggerEvent,
         });
-        await this.saveLog(dto.tenantId, dto.eventId, template.triggerEvent, template.channel, to);
-        sent = true;
       } catch (err: unknown) {
         await this.inboxRepo.unclaim(dto.eventId, consumerName);
         await this.saveFailedLog(
@@ -130,10 +133,29 @@ export abstract class BaseNotificationUseCase {
         );
         throw err;
       }
+      // Dispatch succeeded — the email is already sent. A persistence failure here must NOT
+      // unclaim: unclaiming would let a redelivery dispatch a real duplicate send for a message
+      // that already went out. Losing this one audit-log row is the accepted, lesser cost.
+      sent = true;
+      await this.saveLog(
+        dto.tenantId,
+        dto.eventId,
+        template.triggerEvent,
+        template.channel,
+        to,
+        consumerName,
+      );
     }
     return sent;
   }
 
+  // AUD-004 item 3: claims one inbox row per (eventId, notificationType:channel:recipient)
+  // instead of one per (eventId, notificationType:channel) guarding the whole batch — a recipient
+  // whose dispatch already succeeded is a cheap tryClaim-false skip on redelivery, so a retry
+  // only re-sends to the recipient(s) that actually failed. Dispatch is sequential (these are
+  // small staff/manager lists, not customer broadcast) and continue-on-error: every recipient is
+  // attempted in this pass, and one failure doesn't block the rest from receiving their email now
+  // — a single error is thrown at the end (to nack for Pub/Sub redelivery) only if any failed.
   protected async dispatchTemplatesToMany(
     templates: NotificationTemplate[],
     dto: { tenantId: string; eventId: string },
@@ -141,44 +163,64 @@ export abstract class BaseNotificationUseCase {
     variables: Record<string, string>,
   ): Promise<boolean> {
     let sent = false;
+    const errors: unknown[] = [];
+
     for (const template of templates) {
-      const consumerName = this.consumerName(template.triggerEvent, template.channel);
-      if (!(await this.inboxRepo.tryClaim(dto.eventId, consumerName))) continue;
       const { subject, body } = template.render(variables);
-      try {
-        await Promise.all(
-          emails.map((email) =>
-            this.dispatcher.dispatch({
-              tenantId: dto.tenantId,
-              to: email,
-              subject,
-              body,
-              channel: template.channel,
-              notificationType: template.triggerEvent,
-            }),
-          ),
-        );
-        await this.saveLog(
-          dto.tenantId,
-          dto.eventId,
-          template.triggerEvent,
-          template.channel,
-          emails[0],
-        );
+      for (const email of emails) {
+        const consumerName = this.consumerName(template.triggerEvent, template.channel, email);
+        if (!(await this.inboxRepo.tryClaim(dto.eventId, consumerName))) continue;
+        try {
+          await this.dispatcher.dispatch({
+            tenantId: dto.tenantId,
+            to: email,
+            subject,
+            body,
+            channel: template.channel,
+            notificationType: template.triggerEvent,
+          });
+        } catch (err: unknown) {
+          await this.inboxRepo.unclaim(dto.eventId, consumerName);
+          await this.saveFailedLog(
+            dto.tenantId,
+            dto.eventId,
+            template.triggerEvent,
+            template.channel,
+            email,
+            String(err),
+          );
+          errors.push(err);
+          continue;
+        }
+        // Dispatch succeeded — the email is already sent. A persistence failure here must NOT
+        // unclaim: unclaiming would let a redelivery dispatch a real duplicate send for a message
+        // that already went out. Still collected as an error (so the event nacks/retries overall),
+        // but this recipient's claim stays in place — losing this one audit-log row is the
+        // accepted, lesser cost.
         sent = true;
-      } catch (err: unknown) {
-        await this.inboxRepo.unclaim(dto.eventId, consumerName);
-        await this.saveFailedLog(
-          dto.tenantId,
-          dto.eventId,
-          template.triggerEvent,
-          template.channel,
-          emails[0],
-          String(err),
-        );
-        throw err;
+        try {
+          await this.saveLog(
+            dto.tenantId,
+            dto.eventId,
+            template.triggerEvent,
+            template.channel,
+            email,
+            consumerName,
+          );
+        } catch (err: unknown) {
+          errors.push(err);
+        }
       }
     }
+
+    if (errors.length === 1) throw errors[0];
+    if (errors.length > 1) {
+      throw new AggregateError(
+        errors,
+        `${errors.length} recipient(s) failed to receive notification`,
+      );
+    }
+
     return sent;
   }
 }
