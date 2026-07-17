@@ -785,6 +785,7 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
   - `nextExpiryDate`: ISO-8601 datetime string (`Date.toISOString()`) of the earliest `expires_at` among active entries; `null` if no active entries.
   - `nextExpiryPoints`: sum of points expiring on `nextExpiryDate`; `null` if no active entries.
   - Returns `{ currentPoints: 0, nextExpiryDate: null, nextExpiryPoints: null }` when customer has no balance row.
+  - **Cross-tenant switch (TD20):** accepts optional `?tenantId=X`. When present and different from the JWT's own tenant, the backend resolves the calling customer's record in tenant X itself (via `ILoyaltyCustomerPort`, matched by Google OAuth ID) — the client never supplies a `customerId` for this path. Returns `404` (`LOYALTY_CUSTOMER_NOT_FOUND_IN_TENANT`) if the customer has no record in tenant X. Used by the BFF's `GET /customers/tenants` (switch-tenant screen, UC-023) — one call per tenant the customer belongs to.
 
 - `GET /loyalty/entries?page=1&limit=20`
   - Returns paginated earning history, most recent first. **Response below is the raw backend shape** — the BFF (`M13-S08`) reshapes this into `CustomerLoyaltyEntriesResponse` before it reaches the browser: `entries[]` → `items[]`, `points` → `pointsEarned`, `isActive` → `expired` (inverted), and `pagination: {page,limit,total}` flattened to top-level `page`/`limit`/`total` alongside `items`. Do not assume the browser sees the shape below verbatim.

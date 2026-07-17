@@ -2,13 +2,17 @@ import { HttpStatus } from '@nestjs/common';
 import { throwProblemDetail } from '@ikaro/nestjs-http';
 import {
   LoyaltyBalanceNotFoundError,
+  LoyaltyCustomerNotFoundInTenantError,
   LoyaltyDomainError,
   LoyaltyInsufficientPointsError,
   LoyaltyInvalidPointsError,
 } from '../../domain/errors/loyalty-domain.error';
 
 export function mapLoyaltyError(err: unknown): never {
-  if (err instanceof LoyaltyBalanceNotFoundError) {
+  if (
+    err instanceof LoyaltyBalanceNotFoundError ||
+    err instanceof LoyaltyCustomerNotFoundInTenantError
+  ) {
     throw throwProblemDetail(HttpStatus.NOT_FOUND, err.code, err.message, err.field);
   }
   if (err instanceof LoyaltyInsufficientPointsError || err instanceof LoyaltyInvalidPointsError) {

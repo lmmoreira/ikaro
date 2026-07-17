@@ -26,6 +26,6 @@ import { TypeOrmCustomerRepository } from './infrastructure/repositories/typeorm
     UpdateCustomerProfileUseCase,
     SearchCustomersUseCase,
   ],
-  exports: [GetCustomerByIdUseCase],
+  exports: [GetCustomerByIdUseCase, GetCustomerTenantsByIdUseCase],
 })
 export class CustomerModule {}

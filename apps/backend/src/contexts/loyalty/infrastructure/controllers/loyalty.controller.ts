@@ -1,10 +1,10 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Post,
   Query,
@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { AnyAuthenticatedRoleGuard } from '../../../../shared/guards/any-authenticated-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import {
   CrossTenantQueryDto,
@@ -20,6 +19,10 @@ import {
 } from '../../application/dtos/cross-tenant-query.dto';
 import { PaginationDto, PaginationSchema } from '../../application/dtos/pagination.dto';
 import { RedeemPointsDto, RedeemPointsSchema } from '../../application/dtos/redeem-points.dto';
+import {
+  LOYALTY_CUSTOMER_PORT,
+  ILoyaltyCustomerPort,
+} from '../../application/ports/loyalty-customer.port';
 import {
   GetLoyaltyBalanceUseCase,
   GetLoyaltyBalanceUseCaseResult,
@@ -54,18 +57,34 @@ export class LoyaltyController {
     private readonly getLoyaltyRedemptions: GetLoyaltyRedemptionsUseCase,
     private readonly redeemPointsUseCase: RedeemPointsUseCase,
     private readonly tenantContext: RequestContext,
+    @Inject(LOYALTY_CUSTOMER_PORT) private readonly loyaltyCustomer: ILoyaltyCustomerPort,
   ) {}
 
   // ── Customer routes ────────────────────────────────────────────────────────
 
   @Get('loyalty/balance')
   @UseGuards(CustomerRoleGuard)
-  async getBalance(): Promise<EnrichedLoyaltyBalanceResult> {
-    const { tenantId, actorId, settings } = this.tenantContext;
+  async getBalance(
+    @Query(new ZodValidationPipe(CrossTenantQuerySchema))
+    { tenantId }: CrossTenantQueryDto,
+  ): Promise<EnrichedLoyaltyBalanceResult> {
+    const { tenantId: contextTenantId, actorId, settings } = this.tenantContext;
+    const effectiveTenantId = tenantId ?? contextTenantId;
+    const isCrossTenantCall = effectiveTenantId !== contextTenantId;
+
+    const customerId = isCrossTenantCall
+      ? await this.loyaltyCustomer
+          .resolveCustomerIdByOAuthId(actorId!, contextTenantId, effectiveTenantId)
+          .catch(mapLoyaltyError)
+      : actorId!;
+
     const balance = await this.getLoyaltyBalance
-      .execute({ tenantId, customerId: actorId! })
+      .execute({ tenantId: effectiveTenantId, customerId })
       .catch(mapLoyaltyError);
-    return { ...balance, conversionRate: settings.loyalty.pointsPerCurrencyUnit };
+    return {
+      ...balance,
+      conversionRate: isCrossTenantCall ? null : settings.loyalty.pointsPerCurrencyUnit,
+    };
   }
 
   @Get('loyalty/entries')
@@ -113,28 +132,15 @@ export class LoyaltyController {
   }
 
   @Get('customers/:customerId/loyalty/balance')
-  @UseGuards(AnyAuthenticatedRoleGuard)
+  @UseGuards(StaffOrManagerRoleGuard)
   async getBalanceAdmin(
     @Param('customerId', CanonicalParseUUIDPipe) customerId: string,
-    @Query(new ZodValidationPipe(CrossTenantQuerySchema))
-    { tenantId }: CrossTenantQueryDto,
   ): Promise<EnrichedLoyaltyBalanceResult> {
-    const { actorRole, actorId, tenantId: contextTenantId, settings } = this.tenantContext;
-    const effectiveTenantId = tenantId ?? contextTenantId;
-    // Cross-tenant calls (tenantId query param ≠ JWT tenant) come from the BFF's getTenants()
-    // which already validated the tenant list via /customers/me/tenants. Within the actor's
-    // home tenant, enforce that a CUSTOMER can only read their own balance.
-    const isCrossTenantCall = effectiveTenantId !== contextTenantId;
-    if (actorRole === 'CUSTOMER' && !isCrossTenantCall && actorId !== customerId) {
-      throw new ForbiddenException();
-    }
+    const { tenantId, settings } = this.tenantContext;
     const balance = await this.getLoyaltyBalance
-      .execute({ tenantId: effectiveTenantId, customerId })
+      .execute({ tenantId, customerId })
       .catch(mapLoyaltyError);
-    return {
-      ...balance,
-      conversionRate: isCrossTenantCall ? null : settings.loyalty.pointsPerCurrencyUnit,
-    };
+    return { ...balance, conversionRate: settings.loyalty.pointsPerCurrencyUnit };
   }
 
   @Get('customers/:customerId/loyalty/entries')

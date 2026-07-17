@@ -120,9 +120,36 @@ export interface ILoyaltyCustomerPort {
 }
 ```
 
-Implementation uses two existing customer repository methods:
-1. `customerRepo.findById(homeCustomerId, homeTenantId)` → `homeCustomer.googleOauthId`
-2. `customerRepo.findByTenantAndOAuthId(targetTenantId, homeCustomer.googleOauthId)` → `targetCustomer.id`
+**Implementation note (settled in story-discovery, 2026-07-17):** every existing cross-context adapter in this codebase (`BookingCustomerAdapter`, `NotificationCustomerAdapter`, `LoyaltyBookingAdapter`) depends on the owning context's **use case**, never injects another context's repository port directly. `LoyaltyCustomerAdapter` follows the same pattern — and the customer context already has a use case that does exactly the two-step resolution this adapter needs:
+
+```typescript
+@Injectable()
+export class LoyaltyCustomerAdapter implements ILoyaltyCustomerPort {
+  constructor(private readonly getCustomerTenantsById: GetCustomerTenantsByIdUseCase) {}
+
+  async resolveCustomerIdByOAuthId(
+    homeCustomerId: string,
+    homeTenantId: string,
+    targetTenantId: string,
+  ): Promise<string> {
+    const tenants = await this.getCustomerTenantsById.execute({
+      customerId: homeCustomerId,
+      tenantId: homeTenantId,
+    });
+    const match = tenants.find((t) => t.tenantId === targetTenantId);
+    if (!match) throw new LoyaltyCustomerNotFoundInTenantError();
+    return match.customerId;
+  }
+}
+```
+
+`GetCustomerTenantsByIdUseCase` (`apps/backend/src/contexts/customer/application/use-cases/get-customer-tenants-by-id.use-case.ts`) already looks up the home customer, resolves their `googleOAuthId`, and returns `CustomerTenantSummary[]` (`{tenantId, customerId}` pairs) across all their tenants — no new customer-context use case or repository method needed. This is also a strictly better security posture than a direct-repo implementation: the OAuth ID never leaves the customer bounded context.
+
+**Wiring required:**
+- `CustomerModule` (`customer.module.ts`) — add `GetCustomerTenantsByIdUseCase` to `exports:` (currently only `GetCustomerByIdUseCase` is exported)
+- `LoyaltyModule` (`loyalty.module.ts`) — add `CustomerModule` to `imports:` (precedent: `BookingModule` already imports `CustomerModule` this way), register `LoyaltyCustomerAdapter` under `LOYALTY_CUSTOMER_PORT`, and remove the now-dead `AnyAuthenticatedRoleGuard` import/provider (only used by the old `getBalanceAdmin()` guard)
+- New domain error `LoyaltyCustomerNotFoundInTenantError extends LoyaltyDomainError` in `loyalty-domain.error.ts`, mapped to `404` in `loyalty-error.mapper.ts`
+- New `LoyaltyErrorCode` entry in `packages/types/src/error-codes.ts` (currently only `INVALID_POINTS` / `INSUFFICIENT_POINTS` / `BALANCE_NOT_FOUND`)
 
 #### BFF changes — `customers.controller.ts`
 
@@ -181,12 +208,17 @@ Mitigation (post-MVP): batch the resolution into a single query — given a `goo
 
 | File | Change |
 |---|---|
-| `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty.controller.ts` | Extend `getBalance()` with optional `?tenantId` + cross-tenant resolution; strip cross-tenant logic from `getBalanceAdmin()` |
-| `apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-customer.adapter.ts` | New port + adapter |
+| `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty.controller.ts` | Extend `getBalance()` with optional `?tenantId` + cross-tenant resolution; strip cross-tenant logic from `getBalanceAdmin()`; guard `getBalanceAdmin()` with `StaffOrManagerRoleGuard` instead of `AnyAuthenticatedRoleGuard` |
+| `apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-customer.adapter.ts` | New port + adapter (depends on `GetCustomerTenantsByIdUseCase`) |
 | `apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-customer.adapter.spec.ts` | New unit tests |
-| `apps/backend/src/contexts/loyalty/loyalty.module.ts` | Register new adapter |
-| `apps/bff/src/customers/customers.controller.ts` | `getTenants()` — call `/loyalty/balance?tenantId=X` instead of `/customers/${id}/loyalty/balance?tenantId=X` |
-| `apps/bff/src/customers/customers.controller.spec.ts` | Update spec to match new BFF call shape |
+| `apps/backend/src/contexts/loyalty/domain/errors/loyalty-domain.error.ts` | New `LoyaltyCustomerNotFoundInTenantError` |
+| `apps/backend/src/contexts/loyalty/infrastructure/http/loyalty-error.mapper.ts` | Map new error → 404 |
+| `apps/backend/src/contexts/loyalty/loyalty.module.ts` | Import `CustomerModule`; register new adapter under `LOYALTY_CUSTOMER_PORT`; remove dead `AnyAuthenticatedRoleGuard` |
+| `apps/backend/src/contexts/customer/customer.module.ts` | Add `GetCustomerTenantsByIdUseCase` to `exports:` |
+| `packages/types/src/error-codes.ts` | New `LoyaltyErrorCode` entry |
+| `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty.controller.spec.ts` + `.integration.spec.ts` | Update for new guard + cross-tenant resolution path |
+| `apps/bff/src/features/customer/customers.controller.ts` | `getTenants()` — call `/loyalty/balance?tenantId=X` instead of `/customers/${id}/loyalty/balance?tenantId=X` (path corrected — TD-21 moved this file under `features/customer/`) |
+| `apps/bff/src/features/customer/customers.controller.spec.ts` | Update spec to match new BFF call shape |
 
 ---
 

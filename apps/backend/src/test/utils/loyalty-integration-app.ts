@@ -20,6 +20,7 @@ import { LoyaltyEntryEntity } from '../../contexts/loyalty/infrastructure/entiti
 import { LoyaltyRedemptionEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { LOYALTY_BOOKING_PORT } from '../../contexts/loyalty/application/ports/loyalty-booking.port';
 import { LoyaltyModule } from '../../contexts/loyalty/loyalty.module';
+import { CustomerEntity } from '../../contexts/customer/infrastructure/entities/customer.entity';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../contexts/platform/platform.module';
@@ -51,6 +52,7 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
         entities: [
           TenantEntity,
           HotsiteConfigEntity,
+          CustomerEntity,
           LoyaltyEntryEntity,
           LoyaltyBalanceEntity,
           LoyaltyRedemptionEntity,

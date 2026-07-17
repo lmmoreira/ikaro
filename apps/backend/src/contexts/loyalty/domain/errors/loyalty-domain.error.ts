@@ -34,3 +34,13 @@ export class LoyaltyBalanceNotFoundError extends LoyaltyDomainError {
     this.name = 'LoyaltyBalanceNotFoundError';
   }
 }
+
+export class LoyaltyCustomerNotFoundInTenantError extends LoyaltyDomainError {
+  constructor() {
+    super(
+      'customer has no record in the requested tenant',
+      LoyaltyErrorCode.CUSTOMER_NOT_FOUND_IN_TENANT,
+    );
+    this.name = 'LoyaltyCustomerNotFoundInTenantError';
+  }
+}

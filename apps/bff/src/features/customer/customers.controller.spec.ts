@@ -176,6 +176,10 @@ describe('CustomersController', () => {
         { id: TENANT_ID_B, name: 'SuperClean', slug: 'superclean', loyaltyPoints: 8 },
       ]);
       expect(backendHttp.get).toHaveBeenCalledWith('/customers/me/tenants');
+      // TD20: the balance fetch never carries a client-known customerId — the backend
+      // resolves the caller's own record in each tenant itself.
+      expect(backendHttp.get).toHaveBeenCalledWith('/loyalty/balance', { tenantId: TENANT_ID });
+      expect(backendHttp.get).toHaveBeenCalledWith('/loyalty/balance', { tenantId: TENANT_ID_B });
     });
 
     it('returns a single-item array when the customer belongs to only the current tenant', async () => {

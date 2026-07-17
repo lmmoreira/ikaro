@@ -97,10 +97,9 @@ export class CustomersController {
     const [tenantInfos, ...balances] = await Promise.all([
       this.backendHttp.get<TenantInfoResponse[]>(`/internal/tenants?ids=${tenantIds.join(',')}`),
       ...tenants.map((t) =>
-        this.backendHttp.get<{ currentPoints: number }>(
-          `/customers/${t.customerId}/loyalty/balance`,
-          { tenantId: t.tenantId },
-        ),
+        this.backendHttp.get<{ currentPoints: number }>('/loyalty/balance', {
+          tenantId: t.tenantId,
+        }),
       ),
     ]);
     const tenantMap = new Map(tenantInfos.map((t) => [t.id, t]));
