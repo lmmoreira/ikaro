@@ -692,7 +692,7 @@ cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-stagi
 
 ---
 
-### M17-S14 — GCS storage module (uploads + public hotsite assets)
+### M17-S14 — GCS storage module (uploads + public hotsite assets) ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
@@ -709,6 +709,7 @@ cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-stagi
 - [ ] Uploads bucket rejects public access; public bucket serves objects anonymously
 - [ ] CORS verified with a real browser preflight against staging (after S27; leave a checklist item there)
 - [ ] Keyless signed-URL generation confirmed working with the runtime SA (no JSON key anywhere)
+  - ⚠️ Not verified as of 2026-07-17 — requires the M17-S17 SA + serviceAccountTokenCreator grant and a deployed backend (M17-S18) to test end-to-end; adapter code confirmed to have no key-file dependency (`gcs-signed-url.adapter.ts` falls through to ADC when `GCS_KEY_FILE` is unset).
 - [ ] Org-policy exceptions from S07 step 7 (`iam.allowedPolicyMemberDomains` / `storage.publicAccessPrevention`) verified applied — the public bucket's `allUsers` grant fails without them
 - [ ] Uploads bucket has a `tmp/`-prefixed lifecycle rule (age 2 days, Delete) per TD22, in addition to the 7-day incomplete-multipart-upload rule
 
