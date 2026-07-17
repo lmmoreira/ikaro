@@ -13,7 +13,7 @@ Static analysis only — has no visibility into anything outside this repo's
 .tf files (a manual gcloud/Console change bypasses it entirely).
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 from checkov.common.models.enums import CheckCategories, CheckResult
 from checkov.terraform.checks.resource.base_resource_check import BaseResourceCheck
@@ -49,7 +49,7 @@ class NoPublicIamGrant(BaseResourceCheck):
             supported_resources=SUPPORTED_RESOURCES,
         )
 
-    def scan_resource_conf(self, conf: Dict[str, List[Any]]) -> CheckResult:
+    def scan_resource_conf(self, conf: dict[str, list[Any]]) -> CheckResult:
         member = conf.get("member")
         if member and member[0] in PUBLIC_PRINCIPALS:
             return CheckResult.FAILED
