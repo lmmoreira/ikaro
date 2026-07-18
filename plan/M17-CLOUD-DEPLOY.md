@@ -744,26 +744,28 @@ cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-stagi
 **Docs to load:** `apps/backend/src/config/env.validation.ts` + `apps/bff/src/config/env.validation.ts` (SOURCE OF TRUTH), M115 IA
 
 **Description:**
-Terraform creates secret **containers** + IAM only; ALL values are populated manually via the S27/S37 runbooks — no exceptions (§2). The old M15-S06 list (7 secrets) is stale; the catalog derives from the live env schemas:
+Terraform creates secret **containers** only in this story — `outputs.tf` exports `secret_ids`/`secret_names` (real Terraform outputs). The consumer column in the table below is **documentation, not a Terraform artifact** — S17 cannot loop over this Markdown table programmatically; `modules/iam` maintains its own local map (secret → SA) mirroring this table by hand, and **the actual per-SA `roles/secretmanager.secretAccessor` bindings are S17's responsibility** (see the module graph in `infra/terraform/README.md`). Keep S17's map and this table in sync manually when either changes. ALL secret values are populated manually via the S27/S37 runbooks — no exceptions (§2). The old M15-S06 list (7 secrets) is stale; the catalog derives from the live env schemas:
 
 | Secret | Consumer | Notes |
 |---|---|---|
 | `db-password` | backend, migrate job | value populated out-of-band in the S27/S37 runbooks (never via Terraform — §2) |
 | `jwt-secret` | backend, BFF, web | same value all three (web verifies JWT in layouts) |
-| `internal-api-key` | backend, BFF, web | M115-S03 shared secret (web revalidate route uses it too — see web env usage) |
+| `internal-api-key` | backend, BFF | M115-S03 shared secret — `InternalApiGuard` is registered only in the backend and gates BFF→backend calls; verified 2026-07-18 that `apps/web`'s revalidate route checks only `HOTSITE_REVALIDATE_SECRET` and web's only other `INTERNAL_API_KEY` references are Playwright E2E dev-login helpers, not a runtime path — web is NOT a consumer |
 | `platform-admin-key` | backend | UC-024 provisioning |
 | `hotsite-revalidate-secret` | backend, web | ISR on-demand revalidation |
 | `google-oauth-client-id` / `google-oauth-client-secret` | BFF | per-env values (S10) |
 | `brevo-smtp-key` | backend | per-env keys (S10) |
 | `cloudflare-api-token` | infra pipeline (S22), CI purge (S41), backend (S40 runtime) | prod only; provisioned with the edge module (S22/S23 — DNS:Edit scope), scope extended for cache purge + SSL for SaaS when S40/S41 land. Two homes, both intentional (2026-07-08): GitHub environment secret for pipelines (S23/S24); this Secret Manager container for runtime consumers (the S40 verification adapter calls the Cloudflare API from the backend) |
 
-Non-secret config (`EMAIL_ADAPTER`, `EMAIL_FROM`, `FRONTEND_URL`, `ALLOWED_ORIGINS`, `GCS_*` names/URLs, `PUBSUB_*`, `LOG_LEVEL`, `JWT_EXPIRES_IN`, `ENABLE_DEV_AUTH`, `BACKEND_INTERNAL_URL`, `NEXT_PUBLIC_*`) goes as plain env vars in the Cloud Run module (S18) — not secrets. IAM: each runtime SA gets `roles/secretmanager.secretAccessor` **per secret it consumes** (loop over an explicit map — no project-wide grant).
+Non-secret config (`EMAIL_ADAPTER`, `EMAIL_FROM`, `FRONTEND_URL`, `ALLOWED_ORIGINS`, `GCS_*` names/URLs, `PUBSUB_*`, `LOG_LEVEL`, `JWT_EXPIRES_IN`, `ENABLE_DEV_AUTH`, `BACKEND_INTERNAL_URL`, `NEXT_PUBLIC_*`) goes as plain env vars in the Cloud Run module (S18) — not secrets. IAM: each runtime SA gets `roles/secretmanager.secretAccessor` **per secret it consumes** (loop over an explicit map — no project-wide grant) — **this binding is created in S17**, which hand-maintains its own local consumer map mirroring this table (not a shared Terraform artifact — see note above).
 
 **Acceptance criteria:**
 - [ ] All containers exist in staging after apply; **zero secret values in Terraform state — no exceptions** (`terraform state pull | grep -i` spot-check for known value patterns)
-- [ ] Accessor bindings are per-secret, per-SA (assert with `gcloud secrets get-iam-policy`)
+- [ ] `outputs.tf` exposes secret ids keyed by name, consumable by S17 (accessor bindings) and S18 (`secret_key_ref`)
 - [ ] A `SECRETS.md` in `infra/terraform/` maps secret → consumers → rotation procedure
 - [ ] Checkov clean (rotation finding suppressed with documented rationale if flagged)
+
+(Per-secret, per-SA accessor bindings are verified as part of S17's own acceptance criteria, not here — S16 has no SA to bind against yet.)
 
 **Dependencies:** M17-S11
 
@@ -782,7 +784,7 @@ Non-secret config (`EMAIL_ADAPTER`, `EMAIL_FROM`, `FRONTEND_URL`, `ALLOWED_ORIGI
 |---|---|
 | backend | `cloudsql.client`, `pubsub.publisher` (its topics), per-secret accessor, `storage.objectAdmin` on the two buckets, `iam.serviceAccountTokenCreator` on itself (signed URLs), `cloudtrace.agent`, `monitoring.metricWriter` |
 | bff | per-secret accessor, `cloudtrace.agent`, `monitoring.metricWriter`, `run.invoker` on backend service |
-| web | per-secret accessor (jwt/internal-api/revalidate), `run.invoker` on BFF (not strictly needed while BFF is public; harmless) |
+| web | per-secret accessor (jwt/revalidate — not internal-api-key, web isn't a consumer per the S16 catalog), `run.invoker` on BFF (not strictly needed while BFF is public; harmless) |
 | pubsub-invoker | `run.invoker` on backend (push delivery) |
 | Cloud Scheduler **service agent** (not a custom SA) | `pubsub.publisher` on the three cron topics |
 
