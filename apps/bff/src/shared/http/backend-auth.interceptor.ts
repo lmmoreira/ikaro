@@ -24,15 +24,27 @@ export class BackendAuthInterceptor implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    if (this.config.get<string>('BACKEND_AUTH_MODE', 'none') !== 'iam') {
+    if (this.config.get<string>('BACKEND_AUTH_MODE') !== 'iam') {
       return;
     }
 
-    const audience =
-      this.config.get<string>('BACKEND_AUDIENCE') ??
-      this.config.getOrThrow<string>('BACKEND_INTERNAL_URL');
+    const backendUrl = this.config.getOrThrow<string>('BACKEND_INTERNAL_URL');
+    const audience = this.config.get<string>('BACKEND_AUDIENCE') ?? backendUrl;
 
     this.httpService.axiosRef.interceptors.request.use(async (requestConfig) => {
+      // Guard by the actual connection target (always backendUrl, by
+      // construction -- every current caller builds its URL from
+      // BACKEND_INTERNAL_URL), not by audience, which may legitimately
+      // differ from it (e.g. a private DNS alias vs. the run.app URL Cloud
+      // Run's IAM layer expects in the token's aud claim). Every HttpService
+      // in this app happens to only call the backend today, but this keeps
+      // that an enforced invariant rather than an assumption -- a future
+      // third-party integration built on the same shared axios instance
+      // won't silently leak this token to an external host.
+      if (!requestConfig.url?.startsWith(backendUrl)) {
+        return requestConfig;
+      }
+
       requestConfig.headers.set(
         'Authorization',
         await this.tokenProvider.getAuthorizationHeader(audience),

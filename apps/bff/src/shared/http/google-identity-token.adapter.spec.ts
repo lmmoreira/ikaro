@@ -60,4 +60,24 @@ describe('GoogleIdentityTokenProvider', () => {
       'Failed to obtain a Google ID token for audience https://backend.example.com',
     );
   });
+
+  it('evicts the cache on a rejected client so the next call retries fresh instead of failing forever', async () => {
+    const client = mockClient('Bearer token-after-retry');
+    const getIdTokenClient = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('metadata server hiccup'))
+      .mockResolvedValueOnce(client);
+    (GoogleAuth as jest.Mock).mockImplementation(() => ({ getIdTokenClient }));
+
+    const provider = new GoogleIdentityTokenProvider();
+
+    await expect(provider.getAuthorizationHeader('https://backend.example.com')).rejects.toThrow(
+      'metadata server hiccup',
+    );
+
+    const result = await provider.getAuthorizationHeader('https://backend.example.com');
+
+    expect(result).toBe('Bearer token-after-retry');
+    expect(getIdTokenClient).toHaveBeenCalledTimes(2);
+  });
 });

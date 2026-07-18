@@ -15,7 +15,13 @@ export class GoogleIdentityTokenProvider implements IIdentityTokenProvider {
   async getAuthorizationHeader(audience: string): Promise<string> {
     let clientPromise = this.clients.get(audience);
     if (!clientPromise) {
-      clientPromise = this.auth.getIdTokenClient(audience);
+      // Evict on rejection (e.g. a transient metadata-server hiccup) so the
+      // next call retries fresh instead of permanently failing against a
+      // cached rejected promise for this audience.
+      clientPromise = this.auth.getIdTokenClient(audience).catch((error: unknown) => {
+        this.clients.delete(audience);
+        throw error;
+      });
       this.clients.set(audience, clientPromise);
     }
 

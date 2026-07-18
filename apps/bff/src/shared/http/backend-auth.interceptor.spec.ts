@@ -45,14 +45,33 @@ describe('BackendAuthInterceptor', () => {
     const registered = (httpService.axiosRef.interceptors.request.use as jest.Mock).mock
       .calls[0][0];
     const headers = { set: jest.fn() };
-    const result = await registered({ headers });
+    const result = await registered({ url: 'https://backend.internal/v1/bookings', headers });
 
     expect(tokenProvider.getAuthorizationHeader).toHaveBeenCalledWith('https://backend.internal');
     expect(headers.set).toHaveBeenCalledWith('Authorization', 'Bearer fresh-token');
     expect(result.headers).toBe(headers);
   });
 
-  it('uses BACKEND_AUDIENCE instead of BACKEND_INTERNAL_URL when set', async () => {
+  it('does not attach Authorization to a request that is not going to the backend', async () => {
+    const httpService = makeHttpService();
+    const tokenProvider = makeTokenProvider();
+    const config = new ConfigService({
+      BACKEND_AUTH_MODE: 'iam',
+      BACKEND_INTERNAL_URL: 'https://backend.internal',
+    });
+
+    new BackendAuthInterceptor(httpService, config, tokenProvider).onModuleInit();
+
+    const registered = (httpService.axiosRef.interceptors.request.use as jest.Mock).mock
+      .calls[0][0];
+    const headers = { set: jest.fn() };
+    await registered({ url: 'https://some-other-host.example.com/x', headers });
+
+    expect(tokenProvider.getAuthorizationHeader).not.toHaveBeenCalled();
+    expect(headers.set).not.toHaveBeenCalled();
+  });
+
+  it('uses BACKEND_AUDIENCE for the token while still guarding by BACKEND_INTERNAL_URL as the connection target', async () => {
     const httpService = makeHttpService();
     const tokenProvider = makeTokenProvider();
     const config = new ConfigService({
@@ -65,7 +84,7 @@ describe('BackendAuthInterceptor', () => {
 
     const registered = (httpService.axiosRef.interceptors.request.use as jest.Mock).mock
       .calls[0][0];
-    await registered({ headers: { set: jest.fn() } });
+    await registered({ url: 'https://backend.internal/v1/bookings', headers: { set: jest.fn() } });
 
     expect(tokenProvider.getAuthorizationHeader).toHaveBeenCalledWith(
       'https://backend-run-url.a.run.app',
@@ -84,8 +103,8 @@ describe('BackendAuthInterceptor', () => {
 
     const registered = (httpService.axiosRef.interceptors.request.use as jest.Mock).mock
       .calls[0][0];
-    await registered({ headers: { set: jest.fn() } });
-    await registered({ headers: { set: jest.fn() } });
+    await registered({ url: 'https://backend.internal/a', headers: { set: jest.fn() } });
+    await registered({ url: 'https://backend.internal/b', headers: { set: jest.fn() } });
 
     expect(tokenProvider.getAuthorizationHeader).toHaveBeenCalledTimes(2);
   });
