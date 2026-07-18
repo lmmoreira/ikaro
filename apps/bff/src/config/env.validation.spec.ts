@@ -70,4 +70,44 @@ describe('validateEnv()', () => {
     });
     expect(result.LOG_VENDOR).toBe('none');
   });
+
+  it('defaults BACKEND_AUTH_MODE to none', () => {
+    const result = validateEnv(valid);
+    expect(result.BACKEND_AUTH_MODE).toBe('none');
+  });
+
+  it('throws when NODE_ENV=production and BACKEND_AUTH_MODE=none', () => {
+    expect(() =>
+      validateEnv({
+        ...valid,
+        NODE_ENV: 'production',
+      }),
+    ).toThrow('BACKEND_AUTH_MODE must be "iam" when NODE_ENV=production');
+  });
+
+  it('accepts NODE_ENV=production when BACKEND_AUTH_MODE=iam', () => {
+    const result = validateEnv({
+      ...valid,
+      NODE_ENV: 'production',
+      BACKEND_AUTH_MODE: 'iam',
+    });
+    expect(result.BACKEND_AUTH_MODE).toBe('iam');
+  });
+
+  it('accepts BACKEND_AUTH_MODE=none when NODE_ENV is not production', () => {
+    const result = validateEnv({
+      ...valid,
+      NODE_ENV: 'staging',
+      BACKEND_AUTH_MODE: 'none',
+    });
+    expect(result.BACKEND_AUTH_MODE).toBe('none');
+  });
+
+  it('accepts an optional BACKEND_AUDIENCE override', () => {
+    const result = validateEnv({
+      ...valid,
+      BACKEND_AUDIENCE: 'https://backend-run-url.a.run.app',
+    });
+    expect(result.BACKEND_AUDIENCE).toBe('https://backend-run-url.a.run.app');
+  });
 });
