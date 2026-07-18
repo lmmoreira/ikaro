@@ -405,7 +405,7 @@ Old M16-S11 redesigned: `state` today carries functional routing data (`''`, `<s
 
 ---
 
-### M17-S47 — BFF attaches Google ID tokens to backend calls (Cloud Run IAM auth)
+### M17-S47 — BFF attaches Google ID tokens to backend calls (Cloud Run IAM auth) ✅ Done
 
 **Agent:** `bff-ts`
 **Complexity:** M
