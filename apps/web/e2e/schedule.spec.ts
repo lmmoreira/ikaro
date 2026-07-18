@@ -306,7 +306,7 @@ test.describe('schedule page coverage', () => {
     );
     await expect(page.getByRole('link', { name: contactName })).toBeVisible();
     await expect(
-      page.getByTestId('week-day').filter({ hasText: booking.dateKey.slice(8, 10) }),
+      page.locator(`[data-testid="week-day"][data-date="${booking.dateKey}"]`),
     ).toBeVisible();
   });
 });
