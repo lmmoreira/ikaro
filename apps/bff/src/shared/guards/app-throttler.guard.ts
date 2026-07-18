@@ -28,9 +28,9 @@ export class AppThrottlerGuard extends ThrottlerGuard {
     super(options, storageService, reflector);
   }
 
-  protected override async getTracker(req: Record<string, unknown>): Promise<string> {
+  protected override async getTracker(req: ClientIpRequest): Promise<string> {
     const appEnv = this.config.get<string>('APP_ENV') ?? 'local';
-    return getClientIp(req as unknown as ClientIpRequest, appEnv);
+    return getClientIp(req, appEnv);
   }
 
   protected override async throwThrottlingException(): Promise<void> {
