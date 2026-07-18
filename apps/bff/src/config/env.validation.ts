@@ -25,6 +25,8 @@ const schema = z
     FRONTEND_URL: z.url().default('http://localhost:3000'),
     ENABLE_DEV_AUTH: z.string().optional(),
     INTERNAL_API_KEY: z.string().min(32, 'INTERNAL_API_KEY must be at least 32 characters'),
+    BACKEND_AUTH_MODE: z.enum(['none', 'iam']).default('none'),
+    BACKEND_AUDIENCE: z.url().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.APP_ENV === 'production' && data.ENABLE_DEV_AUTH === 'true') {
@@ -33,6 +35,15 @@ const schema = z
         path: ['ENABLE_DEV_AUTH'],
         message:
           'ENABLE_DEV_AUTH=true is not allowed when APP_ENV=production — staging is the highest environment where dev auth may be enabled',
+      });
+    }
+
+    if (data.NODE_ENV === 'production' && data.BACKEND_AUTH_MODE !== 'iam') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['BACKEND_AUTH_MODE'],
+        message:
+          'BACKEND_AUTH_MODE must be "iam" when NODE_ENV=production — both staging and prod cloud builds set NODE_ENV=production, and the backend rejects unauthenticated Cloud Run traffic in both',
       });
     }
   });
