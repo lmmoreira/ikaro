@@ -30,10 +30,11 @@ export class BackendAuthInterceptor implements OnModuleInit {
 
     const backendUrl = this.config.getOrThrow<string>('BACKEND_INTERNAL_URL');
     const audience = this.config.get<string>('BACKEND_AUDIENCE') ?? backendUrl;
+    const backendOrigin = new URL(backendUrl).origin;
 
     this.httpService.axiosRef.interceptors.request.use(async (requestConfig) => {
-      // Guard by the actual connection target (always backendUrl, by
-      // construction -- every current caller builds its URL from
+      // Guard by the actual connection target's origin (always backendUrl's
+      // origin, by construction -- every current caller builds its URL from
       // BACKEND_INTERNAL_URL), not by audience, which may legitimately
       // differ from it (e.g. a private DNS alias vs. the run.app URL Cloud
       // Run's IAM layer expects in the token's aud claim). Every HttpService
@@ -41,7 +42,18 @@ export class BackendAuthInterceptor implements OnModuleInit {
       // that an enforced invariant rather than an assumption -- a future
       // third-party integration built on the same shared axios instance
       // won't silently leak this token to an external host.
-      if (!requestConfig.url?.startsWith(backendUrl)) {
+      //
+      // Compares parsed origins, not raw string prefixes: a naive
+      // `url.startsWith(backendUrl)` would incorrectly match an attacker
+      // host like "https://backend.internal.attacker.example" against a
+      // backendUrl of "https://backend.internal" (CodeRabbit finding,
+      // review of #166).
+      if (!requestConfig.url) {
+        return requestConfig;
+      }
+
+      const requestOrigin = new URL(requestConfig.url, requestConfig.baseURL).origin;
+      if (requestOrigin !== backendOrigin) {
         return requestConfig;
       }
 

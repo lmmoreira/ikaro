@@ -3,8 +3,16 @@ import { GoogleIdentityTokenProvider } from './google-identity-token.adapter';
 
 jest.mock('google-auth-library');
 
+interface MockRequestHeaders {
+  get(name: string): string | null;
+}
+
+interface MockIdTokenClient {
+  getRequestHeaders: jest.Mock<Promise<MockRequestHeaders>, [string?]>;
+}
+
 describe('GoogleIdentityTokenProvider', () => {
-  function mockClient(authorizationHeader: string | null) {
+  function mockClient(authorizationHeader: string | null): MockIdTokenClient {
     return {
       getRequestHeaders: jest.fn().mockResolvedValue({
         get: (name: string) => (name === 'authorization' ? authorizationHeader : null),

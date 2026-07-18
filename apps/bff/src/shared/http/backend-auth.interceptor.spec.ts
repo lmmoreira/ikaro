@@ -71,6 +71,30 @@ describe('BackendAuthInterceptor', () => {
     expect(headers.set).not.toHaveBeenCalled();
   });
 
+  it('does not attach Authorization to a host that merely shares a string prefix with the backend origin', async () => {
+    // Regression case (CodeRabbit review of #166): a naive
+    // url.startsWith(backendUrl) check would incorrectly match this host,
+    // since "https://backend.internal.attacker.example" starts with the
+    // literal string "https://backend.internal". Guarding by parsed origin
+    // instead of raw string prefix rejects it correctly.
+    const httpService = makeHttpService();
+    const tokenProvider = makeTokenProvider();
+    const config = new ConfigService({
+      BACKEND_AUTH_MODE: 'iam',
+      BACKEND_INTERNAL_URL: 'https://backend.internal',
+    });
+
+    new BackendAuthInterceptor(httpService, config, tokenProvider).onModuleInit();
+
+    const registered = (httpService.axiosRef.interceptors.request.use as jest.Mock).mock
+      .calls[0][0];
+    const headers = { set: jest.fn() };
+    await registered({ url: 'https://backend.internal.attacker.example/x', headers });
+
+    expect(tokenProvider.getAuthorizationHeader).not.toHaveBeenCalled();
+    expect(headers.set).not.toHaveBeenCalled();
+  });
+
   it('uses BACKEND_AUDIENCE for the token while still guarding by BACKEND_INTERNAL_URL as the connection target', async () => {
     const httpService = makeHttpService();
     const tokenProvider = makeTokenProvider();
