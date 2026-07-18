@@ -784,7 +784,7 @@ Non-secret config (`EMAIL_ADAPTER`, `EMAIL_FROM`, `FRONTEND_URL`, `ALLOWED_ORIGI
 
 ---
 
-### M17-S17 — IAM module (runtime service accounts, least privilege)
+### M17-S17 — IAM module (runtime service accounts, least privilege) ✅ Done
 
 **Agent:** `devops`
 **Complexity:** S
@@ -807,7 +807,9 @@ No SA gets `roles/editor`/`roles/owner`. No keys (org policy enforces).
 
 **Acceptance criteria:**
 - [ ] All bindings resolvable now (SA creation + project-level roles + secret/bucket/self grants) applied; `gcloud projects get-iam-policy` diff matches this module's subset of the table — the `run.invoker`/topic-scoped `pubsub.publisher` rows are verified in S18/S19/S21 respectively, not here
+  - ⚠️ Not verified as of 2026-07-18 — no real apply has happened yet (staging apply deferred to S24/S27 pipeline activation); the module itself is plan-verified against live ikaro-staging/ikaro-prod (24/25 resources to add, matching expected counts exactly).
 - [ ] Backend SA can NOT read secrets it doesn’t consume (spot check)
+  - ⚠️ Not verified as of 2026-07-18 — requires a live apply to spot-check against; the exclusion is encoded as a unit test instead (web_excludes_internal_api_key, bff excludes db-password/platform-admin-key, etc. — all pass).
 - [ ] Checkov clean
 
 **Dependencies:** M17-S11, M17-S16
