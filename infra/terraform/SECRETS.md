@@ -1,9 +1,11 @@
 # Secrets — catalog, consumers, rotation
 
 `modules/secrets` (M17-S16) creates Secret Manager **containers only** — no values, no IAM.
-Per-SA accessor bindings are `modules/iam`'s job (M17-S17), looping over the consumer column
-below. Values are **never** managed by Terraform (M17 §2) — every secret's first version is
-populated by the S27 (staging) / S37 (prod) activation runbooks via `gcloud secrets versions add`.
+Per-SA accessor bindings are `modules/iam`'s job (M17-S17); the consumer column below is
+documentation, not a Terraform artifact — S17 hand-maintains its own local map (secret → SA)
+mirroring this table. Values are **never** managed by Terraform (M17 §2) — every secret's first
+version is populated by the S27 (staging) / S37 (prod) activation runbooks via
+`gcloud secrets versions add`.
 
 | Secret | Consumer(s) | Source of truth | Notes |
 |---|---|---|---|
@@ -23,21 +25,30 @@ Secret Manager keeps every version; Terraform never touches values, so rotation 
 audited operation:
 
 1. Generate the new value out-of-band (never paste it into a shell history file or commit).
-2. Add a new version:
+2. Add a new version — read the value into a shell variable first so it never appears as a
+   literal command-line argument (and therefore never lands in shell history):
+
    ```bash
-   printf '%s' "<new-value>" | gcloud secrets versions add <secret-id> \
+   IFS= read -r -s new_value
+   printf '%s' "$new_value" | gcloud secrets versions add <secret-id> \
      --project=<ikaro-staging|ikaro-prod> --data-file=-
+   unset new_value
    ```
+
 3. **Force a new revision** of every consuming Cloud Run service. Cloud Run resolves a
    `secret_key_ref` pinned to `latest` only when a container starts — a running revision does
-   **not** pick up the new version on its own. Trigger a no-op redeploy (e.g. re-run the deploy
-   pipeline, or `gcloud run services update <service> --region=southamerica-east1` with no
-   changed fields) and confirm the new revision reports healthy via `/health/ready`.
+   **not** pick up the new version on its own, and a no-op `gcloud run services update` with no
+   changed fields does **not** create a new revision either. Trigger a real redeploy: re-run the
+   deploy pipeline (preferred), or force a spec change directly —
+   `gcloud run services update <service> --region=southamerica-east1 --update-labels=secret-rotated-at=$(date +%s)`
+   — then confirm the new revision reports healthy via `/health/ready`.
 4. Once the new revision is confirmed healthy and no traffic is being served by the old one,
    disable (not destroy) the previous version:
+
    ```bash
    gcloud secrets versions disable <version-number> --secret=<secret-id> --project=<project>
    ```
+
    Destroy it only after a rollback window has passed with no incidents.
 5. Record the rotation (secret id, date, operator) per the operator-local audit process —
    Cloud Audit Logs already capture the `gcloud` calls themselves (M17 §2).

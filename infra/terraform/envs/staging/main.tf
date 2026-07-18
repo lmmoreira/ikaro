@@ -49,3 +49,15 @@ module "storage" {
 
   cors_origins = var.cors_origins
 }
+
+# Unconditional, same reasoning as storage: empty Secret Manager containers
+# cost effectively nothing. No values, no IAM here — M17-S17 (modules/iam)
+# grants the per-SA accessor bindings once it lands.
+module "secrets" {
+  source = "../../modules/secrets"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+}

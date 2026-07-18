@@ -54,3 +54,15 @@ module "storage" {
 
   cors_origins = var.cors_origins
 }
+
+# Unconditional, same reasoning as storage. No values, no IAM here — M17-S17
+# grants the per-SA accessor bindings once it lands. Composed but not applied
+# yet — same plan-only status as the rest of this env root until S24/S37.
+module "secrets" {
+  source = "../../modules/secrets"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+}
