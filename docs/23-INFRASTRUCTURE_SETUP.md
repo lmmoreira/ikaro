@@ -1,6 +1,6 @@
 # Infrastructure Setup - Ikaro
 
-> ⚠️ **Partially superseded** by `plan/M17-CLOUD-DEPLOY.md` §0 (2026-07-07). On any conflict — SA keys, VPC connector, Cloud Armor+IAP, GCE observability VM, cron transport, pipeline structure — M17 wins. Full rewrite tracked as M17-S42.
+> ⚠️ **Partially superseded** by `plan/M17-CLOUD-DEPLOY.md` §0 (2026-07-07). On any conflict — SA keys, VPC connector, Cloud Armor+IAP, GCE observability VM, cron transport, pipeline structure, **registry name/region** (this doc's `us-central1`/`ikaro-images` is stale — the live registry is `ikaro-registry` in `southamerica-east1`, M17-S15) — M17 wins. Full rewrite tracked as M17-S42.
 
 ## Overview
 

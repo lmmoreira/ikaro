@@ -21,3 +21,11 @@ enable_database = true
 # www redirects to apex at the edge (S22) but the browser can still load the
 # app from either host before that redirect fires.
 cors_origins = ["https://ikaro.online", "https://www.ikaro.online"]
+
+# Single shared Artifact Registry lives in ikaro-prod (D8) but grants
+# cross-project access to staging — these identify staging for that grant.
+# Plain values, not secrets (project IDs/numbers aren't confidential; both
+# are already discoverable and project_id is committed the same way in
+# envs/staging/terraform.tfvars).
+staging_project_id     = "ikaro-staging"
+staging_project_number = "729809528251"

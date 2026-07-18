@@ -724,7 +724,7 @@ cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-stagi
 **Docs to load:** `docs/12-DEPLOYMENT_STRATEGY.md` § immutable artifacts (reference only — M17 §0 wins)
 
 **Description:**
-`modules/registry`, instantiated **only in the prod env** (D8): Docker repo `ikaro-registry` in `southamerica-east1`. Cleanup policies: delete untagged >7 days; keep last 15 tagged versions per image. IAM: prod deployer `roles/artifactregistry.admin`; staging deployer `roles/artifactregistry.writer` (cross-project binding); both projects’ runtime SAs `roles/artifactregistry.reader`. Images: `ikaro-backend:<sha>`, `ikaro-bff:<sha>`, `ikaro-web:<sha>-staging` / `ikaro-web:<sha>-prod` (web per-env build, see D8/S26), `ikaro-otel-collector:<version>` (S34).
+`modules/registry`, instantiated **only in the prod env** (D8): Docker repo `ikaro-registry` in `southamerica-east1`. Cleanup policies (revised 2026-07-18, PR review — a KEEP policy alone never deletes anything, it only exempts matched versions from a DELETE policy, so retention requires **three** policies, not two): delete tagged versions >7 days, delete untagged versions >7 days, keep the 5 most recent versions per image regardless of tag state (`most_recent_versions` has no tag-state filter — a very recent untagged version can outlive the untagged rule until it ages out of this top-5 window; accepted, bounded edge case). IAM (clarified in discovery, 2026-07-18 — S08's table named this role but it was never actually executed; closed out here as a manual grant): `ikaro-tf-deployer@ikaro-prod` gets `roles/artifactregistry.admin` on the project, granted **manually** via `gcloud`, same pattern as S08's other 8 deployer roles — Terraform can't grant this to its own applier starting from zero permissions. Fully Terraform-managed within this module (no further bootstrap needed): `ikaro-app-deployer@ikaro-staging` gets `roles/artifactregistry.writer` on the repo (cross-project — staging pushes the image later validated for prod, D8); each project's **Cloud Run service agent** (`service-<PROJECT_NUMBER>@serverless-robot-prod.iam.gserviceaccount.com`) — not the app runtime SAs (backend/bff/web, created later in S17) — gets `roles/artifactregistry.reader`, since that's the actual identity Cloud Run uses to pull images; only staging's needs an explicit grant (prod's same-project pull is automatic). `staging_project_number` enters as a plain non-secret var in `envs/prod/terraform.tfvars` (same treatment as `project_id`/`db_tier` — not gitignored). Images: `ikaro-backend:<sha>`, `ikaro-bff:<sha>`, `ikaro-web:<sha>-staging` / `ikaro-web:<sha>-prod` (web per-env build, see D8/S26), `ikaro-otel-collector:<version>` (S34).
 
 **Acceptance criteria:**
 - [ ] `docker push` from a WIF-authenticated GitHub Actions run succeeds (staging deployer)
@@ -732,6 +732,8 @@ cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-stagi
 - [ ] Cleanup policies visible in console; Checkov clean
 
 **Dependencies:** M17-S11
+
+**Bootstrap prerequisite (closed 2026-07-18):** `ikaro-tf-deployer@ikaro-prod` manually granted `roles/artifactregistry.admin` — verified via `gcloud projects get-iam-policy` before the grant (S08's own table described it but it was never applied).
 
 ---
 

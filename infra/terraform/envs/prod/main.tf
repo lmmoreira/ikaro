@@ -54,3 +54,21 @@ module "storage" {
 
   cors_origins = var.cors_origins
 }
+
+# Prod-only (D8): single Artifact Registry backing both envs. The one
+# Terraform-external prerequisite is documented in modules/registry's
+# variables and the story's Dependencies note — ikaro-tf-deployer@ikaro-prod
+# needs roles/artifactregistry.admin granted manually before this module's
+# first apply (bootstrap gap closed 2026-07-18, same pattern as S08's other
+# deployer roles).
+module "registry" {
+  source = "../../modules/registry"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  staging_project_id     = var.staging_project_id
+  staging_project_number = var.staging_project_number
+}
