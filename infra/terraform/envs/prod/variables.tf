@@ -46,3 +46,13 @@ variable "region" {
   type        = string
   default     = "southamerica-east1"
 }
+
+variable "staging_project_id" {
+  description = "GCP project ID of the staging environment — non-secret, plain value (same treatment as project_id/db_tier). Used by modules/registry to build the staging app-deployer's SA email for the cross-project write grant (D8)."
+  type        = string
+}
+
+variable "staging_project_number" {
+  description = "GCP project number of the staging environment — non-secret, plain value. Used by modules/registry to build the staging Cloud Run service agent principal for the cross-project read grant. Discover via: gcloud projects describe ikaro-staging --format='value(projectNumber)'"
+  type        = string
+}
