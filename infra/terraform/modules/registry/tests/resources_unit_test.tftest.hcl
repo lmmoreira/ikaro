@@ -35,6 +35,11 @@ run "cleanup_policies_match_retention_rules" {
   command = plan
 
   assert {
+    condition     = length(google_artifact_registry_repository.ikaro.cleanup_policies) == 3
+    error_message = "Expected exactly 3 cleanup policies (delete-old-tagged, delete-untagged, keep-recent-versions) — a KEEP policy alone never deletes anything, so losing delete-old-tagged silently regresses to retaining every tagged version forever (2026-07-18 discovery)."
+  }
+
+  assert {
     condition = anytrue([
       for p in google_artifact_registry_repository.ikaro.cleanup_policies :
       p.action == "DELETE" && one(p.condition).tag_state == "UNTAGGED" && one(p.condition).older_than == "604800s"
@@ -45,9 +50,17 @@ run "cleanup_policies_match_retention_rules" {
   assert {
     condition = anytrue([
       for p in google_artifact_registry_repository.ikaro.cleanup_policies :
-      p.action == "KEEP" && one(p.most_recent_versions).keep_count == 15
+      p.action == "DELETE" && one(p.condition).tag_state == "TAGGED" && one(p.condition).older_than == "604800s"
     ])
-    error_message = "The 15 most recent tagged versions per image must be kept."
+    error_message = "Tagged versions must also have a DELETE policy after 7 days — a KEEP policy alone never deletes anything, so without this, every tagged version would be retained forever."
+  }
+
+  assert {
+    condition = anytrue([
+      for p in google_artifact_registry_repository.ikaro.cleanup_policies :
+      p.action == "KEEP" && one(p.most_recent_versions).keep_count == 5
+    ])
+    error_message = "The 5 most recent versions per image must always be exempted from deletion (rollback safety floor)."
   }
 }
 

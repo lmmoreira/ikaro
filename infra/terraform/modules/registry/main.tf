@@ -10,6 +10,24 @@ resource "google_artifact_registry_repository" "ikaro" {
   format        = "DOCKER"
   labels        = var.labels
 
+  # Tagged versions older than 7 days are deleted UNLESS they fall inside
+  # the keep-recent-versions floor below — a KEEP policy only ever exempts
+  # versions from a DELETE policy, it never deletes anything by itself, so
+  # this DELETE policy is what actually bounds tagged-image growth (a
+  # KEEP-only config would retain every tagged version forever — verified
+  # against the google_artifact_registry_repository provider schema and
+  # https://cloud.google.com/artifact-registry/docs/repositories/cleanup-policy-overview,
+  # 2026-07-18 discovery).
+  cleanup_policies {
+    id     = "delete-old-tagged"
+    action = "DELETE"
+
+    condition {
+      tag_state  = "TAGGED"
+      older_than = "604800s" # 7 days
+    }
+  }
+
   # Untagged versions (superseded digests with no tag pointing at them,
   # e.g. after a re-push under the same SHA never happens, or a manual
   # untag) are cleaned up after 7 days.
@@ -24,14 +42,19 @@ resource "google_artifact_registry_repository" "ikaro" {
   }
 
   # Per image (backend/bff/web/otel-collector are separate packages within
-  # this one repo), keep only the 15 most recent tagged versions — bounds
-  # storage cost while leaving enough history for a rollback.
+  # this one repo), always keep the 5 most recent versions regardless of
+  # age — the production digest plus a handful of rollback candidates.
+  # most_recent_versions has no tag_state filter (provider/API limitation),
+  # so this floor counts ANY version, tagged or untagged; a very recent
+  # untagged version can therefore outlive the 7-day untagged rule above
+  # until it ages out of this top-5-by-recency window — accepted, bounded
+  # edge case, not indefinite retention.
   cleanup_policies {
-    id     = "keep-recent-tagged"
+    id     = "keep-recent-versions"
     action = "KEEP"
 
     most_recent_versions {
-      keep_count = 15
+      keep_count = 5
     }
   }
 }
