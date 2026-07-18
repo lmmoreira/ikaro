@@ -609,10 +609,23 @@ jobs:
 
       - name: Checkov — Terraform
         if: steps.filter.outputs.terraform == 'true'
-        uses: bridgecrewio/checkov-action@a7683e7b72a04503521247973281ec8142e1ac1f # v12.3112.0
+        uses: bridgecrewio/checkov-action@7b972723c44fb3d256283fac96fae5d7c1894bb7 # v12.3114.0
         with:
           directory: infra/terraform
           external_checks_dirs: infra/terraform/.checkov/custom_checks
+          # Test fixtures (infra/terraform/modules/*/tests/*.tftest.hcl)
+          # necessarily use realistic secret-catalog names (db-password,
+          # jwt-secret, ...) as map keys with fake placeholder values,
+          # which Checkov's secrets scanner (CKV_SECRET_6, a different
+          # engine from the terraform IaC checks above) flags as
+          # high-entropy candidates every time — discovery finding,
+          # M17-S17, 2026-07-18. Excluding just this path keeps the
+          # secrets scanner active for real .tf/.tfvars files (defense in
+          # depth alongside the separate, repo-wide Gitleaks job) without
+          # false positives on known-fake test data, and without needing
+          # a #checkov:skip on every fixture line in every future module's
+          # tests.
+          skip_path: modules/.*/tests/.*
           soft_fail: false
           quiet: true
           output_format: sarif

@@ -24,3 +24,18 @@ variable "region" {
   type        = string
   default     = "southamerica-east1"
 }
+
+variable "public_bucket_name" {
+  description = "Public hotsite-assets bucket name (M17-S14 modules/storage output) — backend SA gets storage.objectAdmin on it"
+  type        = string
+}
+
+variable "secret_ids" {
+  description = "Map of catalog secret name -> Secret Manager resource id (M17-S16 modules/secrets `secret_ids` output) — used to grant per-SA accessor bindings without hardcoding secret resource identifiers"
+  type        = map(string)
+}
+
+variable "uploads_bucket_name" {
+  description = "Private uploads bucket name (M17-S14 modules/storage output) — backend SA gets storage.objectAdmin on it"
+  type        = string
+}

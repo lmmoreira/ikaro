@@ -61,3 +61,19 @@ module "secrets" {
   region      = var.region
   labels      = var.labels
 }
+
+# 4 runtime SAs + every IAM binding resolvable now (S14 buckets, S16
+# secrets, project-level roles, self-grant). Cross-resource bindings on
+# Cloud Run services / Pub/Sub topics are S18's/S19's, once those exist.
+module "iam" {
+  source = "../../modules/iam"
+
+  project_id  = var.project_id
+  environment = var.environment
+  region      = var.region
+  labels      = var.labels
+
+  uploads_bucket_name = module.storage.uploads_bucket_name
+  public_bucket_name  = module.storage.public_bucket_name
+  secret_ids          = module.secrets.secret_ids
+}
