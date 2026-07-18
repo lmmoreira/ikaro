@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
@@ -13,6 +14,9 @@ import { AuthControllerFlowService } from './auth-controller-flow.service';
 import { GoogleProfile } from './strategies/google.strategy';
 import { StaffTenantOption } from './auth.types';
 
+// M17-S30: tighter tier for the whole /auth/* surface — token issuance/tenant-switching are
+// brute-force targets; 10/min per IP is stricter than the app-wide 60/min default.
+@Throttle({ default: { limit: 10, ttl: 60_000 } })
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authFlow: AuthControllerFlowService) {}

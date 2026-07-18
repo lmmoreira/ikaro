@@ -217,6 +217,9 @@ export const AuthErrorCode = {
   FORBIDDEN: 'AUTH_FORBIDDEN',
   TENANT_MISMATCH: 'AUTH_TENANT_MISMATCH',
   INTERNAL_ERROR: 'AUTH_INTERNAL_ERROR',
+  // Fires from ThrottlerGuard when a client exceeds a rate-limit tier (M17-S30) — a
+  // framework/guard-level fallback in the same sense as the others above, not a business error.
+  RATE_LIMITED: 'AUTH_RATE_LIMITED',
 } as const;
 export type AuthErrorCode = (typeof AuthErrorCode)[keyof typeof AuthErrorCode];
 
