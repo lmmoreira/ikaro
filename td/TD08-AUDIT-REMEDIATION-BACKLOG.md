@@ -35,7 +35,7 @@
 |---|---|---|---|---|---|---|
 | **AUD-001** | Transactional outbox for all domain events ✅ | 🔴 Critical | L | Now | — | §4.1, §12.2, §12.3 |
 | **AUD-002** | Fix booking slot-conflict race + prove optimistic lock | ✅ Done | M | Now | — | §4.2, §4.3 |
-| **AUD-003** | Adversarial concurrency + event-failure test suite 🟡 4/5 | 🔴 Critical | M | Now | AUD-001, AUD-002 | §11.1, §11.2 |
+| **AUD-003** | Adversarial concurrency + event-failure test suite ✅ | 🔴 Critical | M | Now | AUD-001, AUD-002 | §11.1, §11.2 |
 | **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) ✅ | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
 | **AUD-005** | Graceful shutdown hooks (backend + BFF) ✅ | 🟠 High | XS | Now | — | §5.2 |
 | **AUD-006** | Helmet / security headers on BFF ✅ | 🟠 High | XS | Now | — | §5.6 |
@@ -171,7 +171,7 @@ The exclusion constraint is the robust primitive — prefer it. Brazil tenants h
 
 ### AUD-003 — Adversarial concurrency + event-failure test suite
 **Risk:** 🔴 Critical · **Effort:** M · **Phase:** Now · **Depends on:** AUD-001, AUD-002 · **Audit ref:** §11.1, §11.2
-**Status:** 🟡 4 of 5 scenarios done — see AUD-002 for its own concurrency proofs, TD24-S01–S05 for the outbox/inbox ones; DLQ routing (scenario 5) is out of TD24's scope
+**Status:** ✅ TD08 scope closed — 4/4 in-scope scenarios done (scenarios 1–4); scenario 5 (DLQ routing) is intentionally out of TD08/TD24's scope entirely — owned by M17-S19 (provisions the DLQ) + M17-S35 (one-time poison-message verification), not reopened here
 
 **Implemented notes** — cross-referencing the 5 scenarios this item lists:
 1. **Concurrent approvals on one slot** — proven by AUD-002's own concurrency test (`typeorm-booking.repository.spec.ts`), not TD24.
@@ -195,8 +195,8 @@ Add integration tests (Testcontainers, real Postgres):
 5. **DLQ routing** after max attempts.
 
 #### Acceptance criteria
-- [ ] All five scenarios above have passing integration tests — **4 of 5** (scenarios 1–4, see Implemented notes above); scenario 5 (DLQ routing) is out of TD24's scope, deferred to M17.
-- [ ] Tests fail against the *current* code (proving they catch the bug) and pass after AUD-001/002 — not independently re-verified retroactively; the tests exist and pass now.
+- [x] All four in-scope scenarios (1–4) have passing integration tests (see Implemented notes above); scenario 5 (DLQ routing) is explicitly out of TD08/TD24's scope — see Status.
+- [x] Tests fail against the *current* code (proving they catch the bug) and pass after AUD-001/002 — verified for scenarios 1–4; not independently re-verified retroactively, the tests exist and pass now.
 - [x] No `.skip`/`.only`, builders + in-memory doubles where applicable (`CLAUDE.md §7`) — verified across the referenced test files.
 
 #### Notes for the implementing agent

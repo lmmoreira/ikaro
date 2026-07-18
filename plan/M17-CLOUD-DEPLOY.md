@@ -352,14 +352,24 @@ Codify “this must never run in production” rules as startup errors, so a cop
 **Complexity:** S
 **Docs to load:** `docs/24-BFF_ARCHITECTURE.md` § rate limiting
 
-**Description:**
-Preserved from old M16-S07 minus the Cloud Armor pairing (D4). Throttler is already wired in `app.module.ts` — finalize: public unauthenticated **60/min per IP**; authenticated **300/min per JWT sub**; `/auth/*` token issuance **10/min per IP**; `/health/*` and `/pubsub|cron` paths bypassed; backend’s `POST /internal/tenants` **3/hour** (enforced at the app layer via `PlatformAdminGuard` context — note the endpoint is internal-ingress + IAM-proxied anyway; the limit is brute-force insurance on `PLATFORM_ADMIN_KEY`). `429` responses are RFC 9457 with pt-BR detail; standard `X-RateLimit-*` headers. **Cloud Run caveat (document in code):** per-instance in-memory throttling is per-instance — with `max_instances` small this is acceptable at MVP; a shared store (Memorystore) is the documented scale-up path, not built now (FinOps).
+**Discovery finding (2026-07-18, pre-implementation review):** `ThrottlerModule.forRoot()` is registered in `app.module.ts` with `public`/`authenticated` named tiers, and `bookings.controller.ts`'s `/attachments/signed-url` route already carries a `@Throttle({ default: { limit: 10, ttl: 60_000 } })` decorator — but `ThrottlerGuard` is never bound anywhere (not in `APP_GUARD`, not per-route via `@UseGuards`). Registering the module alone does not enforce anything; **zero rate limiting is active in the app today**, including on the signed-URL endpoint despite its decorator. This story is what makes any of it real.
+
+**Description (simplified 2026-07-18 — see rationale below):**
+Bind `ThrottlerGuard` globally (`APP_GUARD`) and finalize:
+- **One default per-IP tier: 60/min.** The JWT-`sub`-keyed `authenticated` (300/min) tier from the original spec is **dropped** — identity-keyed limiting adds real implementation complexity (a custom tracker reading `req.user`) for a threat this project doesn't face at MVP scale (a handful of staff/customers per tenant). If per-`sub`/per-tenant limiting is ever needed, that's a new story, not this one.
+- Tightened per-endpoint overrides: `/auth/*` token issuance **10/min per IP**; `/attachments/signed-url` **10/min** (decorator already present, now actually enforced); backend's `POST /internal/tenants` **3/hour** (enforced at the app layer via `PlatformAdminGuard` context — the endpoint is internal-ingress + IAM-proxied anyway; this limit is brute-force insurance on `PLATFORM_ADMIN_KEY`).
+- `/health/*` and `/pubsub|cron` paths bypassed via `@SkipThrottle()`.
+- `429` responses as RFC 9457 with pt-BR detail; standard `X-RateLimit-*` headers.
+- **Cloud Run caveat (document in code):** per-instance in-memory throttling is per-instance — with `max_instances` small this is acceptable at MVP; a shared store (Memorystore) is the documented scale-up path, not built now (FinOps).
+
+**Rationale for simplification (2026-07-18 discussion):** rate limiting was found to conflate three distinct problems — volumetric DDoS (Cloudflare's job, not app code), the serverless "denial of wallet" risk (bounded by `max_instances` + billing budget alerts, not the throttler), and targeted low-rate application abuse (brute force, signed-URL spam) — which is the *only* problem this story actually solves, because it's the only one invisible to an edge/WAF. General per-IP edge-level throttling belongs in **Cloud Armor rate-based rules** once the edge exists in prod (S22/S36) — defense-in-depth, not built here; tracked as a small scope addition to those stories, not this one. Staging has no edge at all (no Cloudflare/ALB, D5) and no near-term plan to add one purely for rate-limiting parity (would triple staging's cost for a problem that doesn't exist pre-launch) — so this BFF-level throttle remains staging's *only* limiter, which is why it must be real, not decorative.
 
 **Client-IP extraction (added 2026-07-07 — per-IP tiers are useless or spoofable if this is wrong):** behind the prod chain (Cloudflare → ALB → Cloud Run) the socket peer is never the client. Resolve the throttle key in one env-selected helper (`APP_ENV`): **prod** keys on `CF-Connecting-IP` — trustworthy *only* because S36 origin lockdown guarantees traffic entered via Cloudflare (state the coupling in a code comment); **staging** (no Cloudflare/ALB) keys on the rightmost `X-Forwarded-For` hop, appended by Cloud Run's front end; the leftmost XFF value is attacker-controlled and must never be trusted. Unit-test all branches.
 
 **Acceptance criteria:**
+- [ ] `ThrottlerGuard` bound globally; confirm via a spec that an unthrottled route 61st request in a minute → 429 (proves the guard is actually active, not just configured)
 - [ ] 61st anonymous request in a minute → 429 Problem Detail (pt-BR)
-- [ ] Authenticated limit keyed by JWT `sub`, not IP
+- [ ] `/auth/*`, `/attachments/signed-url`, and `POST /internal/tenants` enforce their tighter tiers (specs)
 - [ ] Health/push/cron paths never throttled (specs)
 - [ ] Headers decrement correctly; specs for each tier
 - [ ] IP-extraction helper specs: prod `CF-Connecting-IP`, staging rightmost-XFF, spoofed leftmost-XFF ignored
