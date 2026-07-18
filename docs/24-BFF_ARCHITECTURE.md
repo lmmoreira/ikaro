@@ -402,23 +402,19 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 
 ## Rate Limiting
 
+Single default per-IP tier (2026-07-18 simplification, M17-S30) — no separate authenticated/JWT-`sub` tier; identity-keyed limiting was dropped as unneeded complexity at this project's MVP scale:
+
 ```typescript
 // app.module.ts
 ThrottlerModule.forRoot([
   {
-    name:  'public',
-    ttl:   60_000,   // 1 minute window
-    limit: 60,       // 60 requests/min for unauthenticated (hotsite, booking form)
-  },
-  {
-    name:  'authenticated',
-    ttl:   60_000,
-    limit: 300,      // 300 requests/min for authenticated users (dashboard)
+    ttl: 60_000,     // 1 minute window
+    limit: 60,       // 60 requests/min per IP, applies to every route by default
   },
 ]),
 ```
 
-The `@Throttle({ public: { ... } })` decorator is applied at the controller level. Authenticated controllers use the `authenticated` profile; public controllers use `public`.
+`ThrottlerGuard` must be bound globally (`APP_GUARD`) — registering the module alone does not enforce anything. Tighter per-endpoint overrides use `@Throttle({ default: { limit, ttl } })` (`/auth/*` 10/min, `/attachments/signed-url` 10/min); `/health/*` is exempted via `@SkipThrottle()`. The throttle key is the client IP, resolved via an env-selected helper — `CF-Connecting-IP` in prod (trustworthy only because Cloud Armor origin lockdown guarantees traffic entered via Cloudflare), the rightmost `X-Forwarded-For` hop in staging (no Cloudflare/ALB there) — never the raw socket peer or the leftmost XFF value, both spoofable behind a proxy chain.
 
 ---
 
